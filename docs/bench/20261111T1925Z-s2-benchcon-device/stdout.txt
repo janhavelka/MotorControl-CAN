@@ -1,0 +1,123 @@
+SEND M
+469333.453 HEAP free=37300 largest=20480 minimum=32860 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:4080:4080 r2=3ffd2950:169648:25392:20880 reserved=1f arena=0 arenaBytes=23688
+SEND c
+469333.515 CAN ready bitrate=1000000 TX17 RX16 S18; no request
+SEND o
+469333.578 CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+SEND M
+469333.640 HEAP free=20644 largest=7680 minimum=20644 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:840:840 r2=3ffd2950:169648:11968:7424 reserved=1f arena=0 arenaBytes=23688
+SEND @1 version
+469333.703 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":1,"command":"version","ok":true,"status":"OK","product":"MotorControl-CAN","version":"0.1.0","operation_capacity":2}
+SEND @2 host 0
+469333.765 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":2,"command":"host","ok":true,"status":"OK","wire_work":false}
+SEND @3 probe
+469333.796 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":3,"command":"probe","ok":true,"status":"OK","result":"accepted","operation_id":1}
+469333.828 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":3,"command":"probe","operation_id":1,"index":4096,"subindex":0,"width":4,"raw":"262546","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29588978","latest_us":"29591977"}
+469333.875 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":3,"command":"probe","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":3,"operation_id":1,"completed_us":"29593782","abort_code":null}
+SEND @4 release 1
+469333.937 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":4,"command":"release","ok":true,"status":"OK"}
+SEND @5 read identity
+469334.000 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":2}
+469334.093 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4096,"subindex":0,"width":4,"raw":"262546","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29760978","latest_us":"29763977"}
+469334.125 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4105,"subindex":0,"width":1,"raw":"12","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29768978","latest_us":"29771977"}
+469334.140 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4106,"subindex":0,"width":1,"raw":"32","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29776978","latest_us":"29779977"}
+469334.171 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4120,"subindex":0,"width":1,"raw":"5","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29784978","latest_us":"29787977"}
+469334.218 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4120,"subindex":1,"width":4,"raw":"4096","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29792978","latest_us":"29795977"}
+469334.234 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4120,"subindex":2,"width":4,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29800978","latest_us":"29803977"}
+469334.265 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":4120,"subindex":3,"width":4,"raw":"0","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29808978","latest_us":"29811977"}
+469334.296 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":8192,"subindex":0,"width":2,"raw":"1024","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29816978","latest_us":"29819977"}
+469334.312 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":5,"command":"read","operation_id":2,"index":8193,"subindex":0,"width":2,"raw":"512","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"29824978","latest_us":"29827977"}
+469334.375 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":5,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":5,"operation_id":2,"completed_us":"29829654","abort_code":null}
+SEND @6 release 2
+469334.437 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":6,"command":"release","ok":true,"status":"OK"}
+SEND @7 read state
+469334.500 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":7,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":3}
+469334.515 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":7,"command":"read","operation_id":3,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"30263978","latest_us":"30266977"}
+469334.562 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":7,"command":"read","operation_id":3,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"30271978","latest_us":"30274977"}
+469334.609 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":7,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":7,"operation_id":3,"completed_us":"30276782","abort_code":null}
+SEND @8 release 3
+469334.671 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":8,"command":"release","ok":true,"status":"OK"}
+SEND @9 read state monitors
+469334.734 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":9,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":4}
+469334.765 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":9,"command":"read","operation_id":4,"index":8448,"subindex":0,"width":2,"raw":"20","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"30503978","latest_us":"30506977"}
+469334.812 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":9,"command":"read","operation_id":4,"index":8449,"subindex":0,"width":2,"raw":"0","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"30511978","latest_us":"30514977"}
+469334.828 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":9,"command":"read","operation_id":4,"index":8450,"subindex":0,"width":2,"raw":"0","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"30519978","latest_us":"30522977"}
+469334.890 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":9,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":9,"operation_id":4,"completed_us":"30524782","abort_code":null}
+SEND @10 release 4
+469334.953 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":10,"command":"release","ok":true,"status":"OK"}
+SEND @11 read state feedback
+469335.015 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":11,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":5}
+469335.031 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":11,"command":"read","operation_id":5,"index":24676,"subindex":0,"width":4,"raw":"2739","native_signed":"2739","unit":"native-position-scale-unknown","current":true,"interpretation":null,"earliest_us":"30772978","latest_us":"30775977"}
+469335.062 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":11,"command":"read","operation_id":5,"index":24684,"subindex":0,"width":4,"raw":"0","native_signed":"0","unit":"native-velocity-unit-unconfirmed","current":true,"interpretation":null,"earliest_us":"30780978","latest_us":"30783977"}
+469335.125 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":11,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":11,"operation_id":5,"completed_us":"30785784","abort_code":null}
+SEND @12 release 5
+469335.187 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":12,"command":"release","ok":true,"status":"OK"}
+SEND @13 network
+469335.281 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":13,"command":"network","ok":true,"status":"OK","exact_nmt_known":false,"observed_nmt":0,"requested_present":false,"requested_command":1,"transition_pending":false,"ordinary_sdo":true,"producer_ms":null,"heartbeat_seen":false,"emcy_count":0}
+SEND @14 heartbeat
+469335.375 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":14,"command":"heartbeat","ok":true,"status":"OK","exact_nmt_known":false,"observed_nmt":0,"requested_present":false,"requested_command":1,"transition_pending":false,"ordinary_sdo":true,"producer_ms":null,"heartbeat_seen":false,"emcy_count":0}
+SEND @15 pdo 0
+469335.437 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":15,"command":"pdo","ok":false,"status":"ILLEGAL_VALUE","detail":0,"error":"no_configured_pdo_map"}
+STOPPED: refused: @15 pdo 0; later steps were not sent
+SEND @16 health
+469346.906 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":16,"command":"health","ok":true,"status":"OK","known":true,"state":"READY","totalSuccess":17,"totalFailures":0,"consecutiveFailures":0,"lastError":"OK","lastSeenUs":"30783977","lastOkUs":"30783977","lastErrorUs":null}
+SEND @17 status
+469347.000 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":17,"command":"status","ok":true,"status":"OK","selected":true,"read_state":"EMPTY","uncertain":false,"controller_inhibited":false,"nmt":null,"drive_state":null,"mode":null,"position_valid":null}
+SEND @18 stats
+469347.062 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":18,"command":"stats","ok":true,"status":"OK","counters":[17,17,0,0,0,0,0,0,0,0,0,0,44,0],"maxServiceGapUs":"4006"}
+SEND @19 host 1
+469347.125 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":19,"command":"host","ok":true,"status":"OK","wire_work":false}
+SEND @20 read identity
+469347.187 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":20,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":6}
+469347.281 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4096,"subindex":0,"width":4,"raw":"262546","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42947978","latest_us":"42950977"}
+469347.312 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4105,"subindex":0,"width":1,"raw":"12","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42955978","latest_us":"42958974"}
+469347.343 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4106,"subindex":0,"width":1,"raw":"32","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42963978","latest_us":"42966977"}
+469347.375 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4120,"subindex":0,"width":1,"raw":"5","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42971978","latest_us":"42974974"}
+469347.390 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4120,"subindex":1,"width":4,"raw":"4096","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42979978","latest_us":"42982977"}
+469347.437 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4120,"subindex":2,"width":4,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42987978","latest_us":"42990977"}
+469347.453 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":4120,"subindex":3,"width":4,"raw":"0","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"42995978","latest_us":"42998977"}
+469347.484 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":8192,"subindex":0,"width":2,"raw":"1024","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"43003978","latest_us":"43006977"}
+469347.515 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":20,"command":"read","operation_id":6,"index":8193,"subindex":0,"width":2,"raw":"512","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"43011978","latest_us":"43014977"}
+469347.562 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":20,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":20,"operation_id":6,"completed_us":"43016672","abort_code":null}
+SEND @21 release 6
+469347.625 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":21,"command":"release","ok":true,"status":"OK"}
+SEND @22 read state
+469347.671 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":22,"command":"read","ok":true,"status":"OK","result":"accepted","operation_id":7}
+469347.703 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":22,"command":"read","operation_id":7,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"43448978","latest_us":"43451977"}
+469347.734 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":22,"command":"read","operation_id":7,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"43456978","latest_us":"43459977"}
+469347.796 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":22,"command":"read","ok":true,"status":"OK","detail":0,"outcome":"SUCCESS","uncertain":false,"command_id":22,"operation_id":7,"completed_us":"43461798","abort_code":null}
+SEND @23 release 7
+469347.859 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":23,"command":"release","ok":true,"status":"OK"}
+SEND @24 monitor 500 4
+469347.921 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":24,"command":"monitor","ok":true,"status":"OK","result":"accepted","operation_id":8}
+469347.937 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":24,"command":"monitor","operation_id":8,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"43683978","latest_us":"43686977"}
+469348.015 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":24,"command":"monitor","operation_id":8,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"43691978","latest_us":"43694977"}
+469348.437 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":24,"command":"monitor","operation_id":8,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"44183978","latest_us":"44186977"}
+469348.500 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":24,"command":"monitor","operation_id":8,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"44191978","latest_us":"44194977"}
+469348.953 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":24,"command":"monitor","ok":false,"status":"PROTOCOL_ERROR","detail":2,"outcome":"DEADLINE","uncertain":true,"command_id":24,"operation_id":8,"completed_us":"44680635","abort_code":null}
+STOPPED: terminal not ok: @24 monitor 500 4; later steps were not sent
+SEND @25 release 8
+469360.343 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":25,"command":"release","ok":true,"status":"OK"}
+SEND @28 monitor 500 4 5000
+469360.406 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":28,"command":"monitor","ok":true,"status":"OK","result":"accepted","operation_id":9}
+469360.421 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"56162978","latest_us":"56165977"}
+469360.500 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"56170978","latest_us":"56173977"}
+469360.921 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"56661978","latest_us":"56664977"}
+469360.984 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"56669978","latest_us":"56672977"}
+469361.421 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"57161978","latest_us":"57164977"}
+469361.484 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"57169978","latest_us":"57172977"}
+469361.921 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24641,"subindex":0,"width":2,"raw":"16464","native_signed":null,"unit":"raw-bits","current":true,"interpretation":null,"earliest_us":"57661978","latest_us":"57664977"}
+469361.937 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"value","id":28,"command":"monitor","operation_id":9,"index":24673,"subindex":0,"width":1,"raw":"1","native_signed":null,"unit":"raw-code","current":true,"interpretation":null,"earliest_us":"57669978","latest_us":"57672977"}
+469361.984 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":28,"command":"monitor","ok":true,"status":"OK","detail":4,"outcome":"SUCCESS","uncertain":false,"command_id":28,"operation_id":9,"completed_us":"57674670","abort_code":null}
+SEND @29 release 9
+469362.046 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":29,"command":"release","ok":true,"status":"OK"}
+SEND @30 drv
+469362.109 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":30,"command":"drv","ok":true,"status":"OK","queued":0,"active":0,"retained":0,"reservations":0,"inputDropped":0,"outputRejected":240,"consoleDropped":0}
+SEND @31 memory
+469362.203 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":31,"command":"memory","ok":true,"status":"OK","app_bytes":"2360","owner_bytes":"13464","console_bytes":"6744","platform_bytes":"620","line_capacity":256,"record_capacity":512,"runtime_stack_high_water":null,"free_heap":null}
+SEND @32 load
+469362.265 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":32,"command":"load","ok":true,"status":"OK","rx_frames":40,"tx_frames":40,"max_service_gap_us":"4263"}
+SEND s
+469362.328 STATS running=1 inhibited=0 rx=40 tx=40 dropped=0 errors=0 flags=00000000 stackFree=5620 t=58086967 txRej=0 rxLost=0 unmatched=0 traceOver=136 ownerGap=4263 conRej=575
+SEND M
+469362.390 HEAP free=20644 largest=7680 minimum=20644 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:840:840 r2=3ffd2950:169648:11968:7424 reserved=1f arena=0 arenaBytes=23688

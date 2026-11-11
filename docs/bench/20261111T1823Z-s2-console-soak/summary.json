@@ -1,0 +1,57 @@
+{
+  "account": {
+    "after": {
+      "consoleDropped": 0,
+      "inputDropped": 0,
+      "outputRejected": 953547
+    },
+    "before": {
+      "consoleDropped": 0,
+      "inputDropped": 0,
+      "outputRejected": 0
+    }
+  },
+  "account_delta": {
+    "consoleDropped": 0,
+    "inputDropped": 0,
+    "outputRejected": 953547
+  },
+  "counts": {
+    "accepted": 0,
+    "command_mismatch": 0,
+    "duplicate": 0,
+    "finals": 5662,
+    "human_lines": 0,
+    "late": 0,
+    "malformed": 0,
+    "missing": 0,
+    "out_of_order": 0,
+    "oversize": 0,
+    "restart_lines": 0,
+    "sent_human": 0,
+    "sent_json": 5662,
+    "streamed": 46980,
+    "trace": 0,
+    "unsolicited": 0
+  },
+  "error": null,
+  "failing": {},
+  "iterations": 436,
+  "last_operation": null,
+  "latency_ms": {
+    "count": 5662,
+    "max": 1329.0,
+    "median": 31.0,
+    "min": 15.0,
+    "p99": 1328.0
+  },
+  "lines": 52652,
+  "missing_accounted": null,
+  "outstanding": 0,
+  "problems": [],
+  "reason": null,
+  "rx_bytes": 13307813,
+  "status": "captured",
+  "tx_bytes": 76417,
+  "verdict": "passed"
+}

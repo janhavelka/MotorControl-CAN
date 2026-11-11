@@ -1,0 +1,1994 @@
+{
+  "account": null,
+  "account_delta": null,
+  "counts": {
+    "accepted": 1,
+    "command_mismatch": 0,
+    "duplicate": 0,
+    "finals": 113,
+    "human_lines": 5,
+    "late": 0,
+    "malformed": 0,
+    "missing": 0,
+    "out_of_order": 0,
+    "oversize": 0,
+    "restart_lines": 0,
+    "sent_human": 5,
+    "sent_json": 113,
+    "streamed": 112,
+    "trace": 0,
+    "unsolicited": 0
+  },
+  "error": null,
+  "failing": {},
+  "iterations": 1,
+  "last_operation": 1,
+  "latency_ms": {
+    "count": 113,
+    "max": 1297.0,
+    "median": 31.0,
+    "min": 15.0,
+    "p99": 1110.0
+  },
+  "lines": 241,
+  "missing_accounted": null,
+  "outstanding": 0,
+  "problems": [],
+  "reason": null,
+  "requests": [
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 1,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 1,
+      "source": "script:23",
+      "state": "final"
+    },
+    {
+      "command": "help",
+      "final": {
+        "command": "help",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 2,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 2,
+      "source": "script:25",
+      "state": "final"
+    },
+    {
+      "command": "help",
+      "final": {
+        "command": "help",
+        "ok": true,
+        "result": "complete",
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "help",
+      "id": 3,
+      "latency_ms": 1110.0,
+      "operation_id": null,
+      "seq": 3,
+      "source": "script:27",
+      "state": "final"
+    },
+    {
+      "command": "caps",
+      "final": {
+        "command": "caps",
+        "ok": true,
+        "result": "complete",
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "capability",
+      "id": 4,
+      "latency_ms": 1297.0,
+      "operation_id": null,
+      "seq": 4,
+      "source": "script:31",
+      "state": "final"
+    },
+    {
+      "command": "profile",
+      "final": {
+        "command": "profile",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 5,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 5,
+      "source": "script:33",
+      "state": "final"
+    },
+    {
+      "command": "config",
+      "final": {
+        "command": "config",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 6,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 6,
+      "source": "script:35",
+      "state": "final"
+    },
+    {
+      "command": "status",
+      "final": {
+        "command": "status",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 7,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 7,
+      "source": "script:37",
+      "state": "final"
+    },
+    {
+      "command": "health",
+      "final": {
+        "command": "health",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 8,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 8,
+      "source": "script:39",
+      "state": "final"
+    },
+    {
+      "command": "stats",
+      "final": {
+        "command": "stats",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 9,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 9,
+      "source": "script:41",
+      "state": "final"
+    },
+    {
+      "command": "stats",
+      "final": {
+        "command": "stats",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 10,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 10,
+      "source": "script:43",
+      "state": "final"
+    },
+    {
+      "command": "drv",
+      "final": {
+        "command": "drv",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 11,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 11,
+      "source": "script:45",
+      "state": "final"
+    },
+    {
+      "command": "memory",
+      "final": {
+        "command": "memory",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 12,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 12,
+      "source": "script:48",
+      "state": "final"
+    },
+    {
+      "command": "result",
+      "final": {
+        "command": "result",
+        "ok": true,
+        "result": "none",
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 13,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 13,
+      "source": "script:52",
+      "state": "final"
+    },
+    {
+      "command": "result",
+      "final": {
+        "command": "result",
+        "detail": 0,
+        "error": "unknown_operation",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 14,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 14,
+      "source": "script:54",
+      "state": "final"
+    },
+    {
+      "command": "release",
+      "final": {
+        "command": "release",
+        "detail": 0,
+        "error": "unknown_operation",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 15,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 15,
+      "source": "script:56",
+      "state": "final"
+    },
+    {
+      "command": "release",
+      "final": {
+        "command": "release",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 16,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 16,
+      "source": "script:58",
+      "state": "final"
+    },
+    {
+      "command": "cancel",
+      "final": {
+        "command": "cancel",
+        "detail": 0,
+        "error": "unknown_operation",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 17,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 17,
+      "source": "script:60",
+      "state": "final"
+    },
+    {
+      "command": "cancel",
+      "final": {
+        "command": "cancel",
+        "detail": 0,
+        "error": "unknown_operation",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 18,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 18,
+      "source": "script:62",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 19,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 19,
+      "source": "script:66",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 20,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 20,
+      "source": "script:68",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 21,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 21,
+      "source": "script:70",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 22,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 22,
+      "source": "script:72",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 23,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 23,
+      "source": "script:73",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "detail": 0,
+        "error": "invalid_terminal",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 24,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 24,
+      "source": "script:75",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": {
+        "command": "wiring",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 25,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 25,
+      "source": "script:77",
+      "state": "final"
+    },
+    {
+      "command": "axis",
+      "final": {
+        "command": "axis",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 26,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 26,
+      "source": "script:81",
+      "state": "final"
+    },
+    {
+      "command": "axis",
+      "final": {
+        "command": "axis",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 27,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 27,
+      "source": "script:83",
+      "state": "final"
+    },
+    {
+      "command": "axis",
+      "final": {
+        "command": "axis",
+        "ok": true,
+        "result": "complete",
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "axis",
+      "id": 28,
+      "latency_ms": 94.0,
+      "operation_id": null,
+      "seq": 28,
+      "source": "script:85",
+      "state": "final"
+    },
+    {
+      "command": "prepare",
+      "final": {
+        "command": "prepare",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 29,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 29,
+      "source": "script:87",
+      "state": "final"
+    },
+    {
+      "command": "axis",
+      "final": {
+        "command": "axis",
+        "detail": 3,
+        "error": "reference binding/epoch mismatch",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 30,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 30,
+      "source": "script:90",
+      "state": "final"
+    },
+    {
+      "command": "debug",
+      "final": {
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 31,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 31,
+      "source": "script:94",
+      "state": "final"
+    },
+    {
+      "command": "debug",
+      "final": {
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 32,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 32,
+      "source": "script:96",
+      "state": "final"
+    },
+    {
+      "command": "debug",
+      "final": {
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 33,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 33,
+      "source": "script:98",
+      "state": "final"
+    },
+    {
+      "command": "debug",
+      "final": {
+        "command": "debug",
+        "detail": 0,
+        "error": "invalid_debug_mode",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 34,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 34,
+      "source": "script:100",
+      "state": "final"
+    },
+    {
+      "command": "load",
+      "final": {
+        "command": "load",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 35,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 35,
+      "source": "script:102",
+      "state": "final"
+    },
+    {
+      "command": "recover",
+      "final": {
+        "command": "recover",
+        "detail": 1,
+        "ok": false,
+        "operation_id": 1,
+        "outcome": "FAILED",
+        "status": "PROTOCOL_ERROR",
+        "type": "terminal"
+      },
+      "first": "reply",
+      "id": 36,
+      "latency_ms": 47.0,
+      "operation_id": 1,
+      "seq": 36,
+      "source": "script:109",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "detail": 0,
+        "error": "duplicate_id",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 36,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 37,
+      "source": "script:111",
+      "state": "final"
+    },
+    {
+      "command": "result",
+      "final": {
+        "command": "result",
+        "detail": 1,
+        "ok": false,
+        "operation_id": 1,
+        "outcome": "FAILED",
+        "status": "PROTOCOL_ERROR",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 37,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 38,
+      "source": "script:113",
+      "state": "final"
+    },
+    {
+      "command": "release",
+      "final": {
+        "command": "release",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 38,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 39,
+      "source": "script:115",
+      "state": "final"
+    },
+    {
+      "command": "release",
+      "final": {
+        "command": "release",
+        "detail": 0,
+        "error": "unknown_operation",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 39,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 40,
+      "source": "script:117",
+      "state": "final"
+    },
+    {
+      "command": "status",
+      "final": {
+        "command": "status",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 40,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 41,
+      "source": "script:119",
+      "state": "final"
+    },
+    {
+      "command": "host",
+      "final": {
+        "command": "host",
+        "detail": 0,
+        "error": "configured binding required; discovery/capture must be released",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 41,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 42,
+      "source": "script:123",
+      "state": "final"
+    },
+    {
+      "command": "useaddr",
+      "final": {
+        "command": "useaddr",
+        "detail": 0,
+        "error": "configured binding required; discovery/capture must be released",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 42,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 43,
+      "source": "script:125",
+      "state": "final"
+    },
+    {
+      "command": "useaddr",
+      "final": {
+        "command": "useaddr",
+        "detail": 0,
+        "error": "CANopen address 1..127 and separate configured subaxis required",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 43,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 44,
+      "source": "script:127",
+      "state": "final"
+    },
+    {
+      "command": "probe",
+      "final": {
+        "command": "probe",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 44,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 45,
+      "source": "script:129",
+      "state": "final"
+    },
+    {
+      "command": "probe",
+      "final": {
+        "command": "probe",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 45,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 46,
+      "source": "script:131",
+      "state": "final"
+    },
+    {
+      "command": "read",
+      "final": {
+        "command": "read",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 46,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 47,
+      "source": "script:133",
+      "state": "final"
+    },
+    {
+      "command": "read",
+      "final": {
+        "command": "read",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 47,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 48,
+      "source": "script:134",
+      "state": "final"
+    },
+    {
+      "command": "read",
+      "final": {
+        "command": "read",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 48,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 49,
+      "source": "script:135",
+      "state": "final"
+    },
+    {
+      "command": "read",
+      "final": {
+        "command": "read",
+        "detail": 0,
+        "error": "invalid_read_kind",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 49,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 50,
+      "source": "script:137",
+      "state": "final"
+    },
+    {
+      "command": "driver",
+      "final": {
+        "command": "driver",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 50,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 51,
+      "source": "script:139",
+      "state": "final"
+    },
+    {
+      "command": "io",
+      "final": {
+        "command": "io",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 51,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 52,
+      "source": "script:140",
+      "state": "final"
+    },
+    {
+      "command": "control",
+      "final": {
+        "command": "control",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 52,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 53,
+      "source": "script:141",
+      "state": "final"
+    },
+    {
+      "command": "tuning",
+      "final": {
+        "command": "tuning",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 53,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 54,
+      "source": "script:142",
+      "state": "final"
+    },
+    {
+      "command": "motion-profile",
+      "final": {
+        "command": "motion-profile",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 54,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 55,
+      "source": "script:144",
+      "state": "final"
+    },
+    {
+      "command": "motion-profile",
+      "final": {
+        "command": "motion-profile",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 55,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 56,
+      "source": "script:146",
+      "state": "final"
+    },
+    {
+      "command": "network",
+      "final": {
+        "command": "network",
+        "detail": 0,
+        "error": "current_configured_canopen_binding_required",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 56,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 57,
+      "source": "script:148",
+      "state": "final"
+    },
+    {
+      "command": "heartbeat",
+      "final": {
+        "command": "heartbeat",
+        "detail": 0,
+        "error": "current_configured_canopen_binding_required",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 57,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 58,
+      "source": "script:149",
+      "state": "final"
+    },
+    {
+      "command": "pdo",
+      "final": {
+        "command": "pdo",
+        "detail": 0,
+        "error": "no_configured_pdo_map",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 58,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 59,
+      "source": "script:151",
+      "state": "final"
+    },
+    {
+      "command": "speed",
+      "final": {
+        "command": "speed",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 59,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 60,
+      "source": "script:155",
+      "state": "final"
+    },
+    {
+      "command": "speed",
+      "final": {
+        "command": "speed",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 60,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 61,
+      "source": "script:157",
+      "state": "final"
+    },
+    {
+      "command": "accel",
+      "final": {
+        "command": "accel",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 61,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 62,
+      "source": "script:159",
+      "state": "final"
+    },
+    {
+      "command": "accel",
+      "final": {
+        "command": "accel",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 62,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 63,
+      "source": "script:161",
+      "state": "final"
+    },
+    {
+      "command": "decel",
+      "final": {
+        "command": "decel",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 63,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 64,
+      "source": "script:163",
+      "state": "final"
+    },
+    {
+      "command": "accel",
+      "final": {
+        "command": "accel",
+        "detail": 0,
+        "error": "ramp must be an integer in 0..2000 milliseconds",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 64,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 65,
+      "source": "script:165",
+      "state": "final"
+    },
+    {
+      "command": "motion",
+      "final": {
+        "command": "motion",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 65,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 66,
+      "source": "script:167",
+      "state": "final"
+    },
+    {
+      "command": "motion",
+      "final": {
+        "command": "motion",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 66,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 67,
+      "source": "script:169",
+      "state": "final"
+    },
+    {
+      "command": "motion",
+      "final": {
+        "command": "motion",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 67,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 68,
+      "source": "script:170",
+      "state": "final"
+    },
+    {
+      "command": "motion",
+      "final": {
+        "command": "motion",
+        "detail": 0,
+        "error": "invalid_arguments_or_gated_policy",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 68,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 69,
+      "source": "script:172",
+      "state": "final"
+    },
+    {
+      "command": "home",
+      "final": {
+        "command": "home",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 69,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 70,
+      "source": "script:174",
+      "state": "final"
+    },
+    {
+      "command": "velocity",
+      "final": {
+        "command": "velocity",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 70,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 71,
+      "source": "script:176",
+      "state": "final"
+    },
+    {
+      "command": "home",
+      "final": {
+        "command": "home",
+        "detail": 0,
+        "error": "select an explicitly configured target first",
+        "ok": false,
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 71,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 72,
+      "source": "script:177",
+      "state": "final"
+    },
+    {
+      "command": "stepsperturn",
+      "final": {
+        "command": "stepsperturn",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 72,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 73,
+      "source": "script:179",
+      "state": "final"
+    },
+    {
+      "command": "moveby",
+      "final": {
+        "command": "moveby",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 73,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 74,
+      "source": "script:180",
+      "state": "final"
+    },
+    {
+      "command": "moveto",
+      "final": {
+        "command": "moveto",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 74,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 75,
+      "source": "script:181",
+      "state": "final"
+    },
+    {
+      "command": "move",
+      "final": {
+        "command": "move",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 75,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 76,
+      "source": "script:182",
+      "state": "final"
+    },
+    {
+      "command": "velocity",
+      "final": {
+        "command": "velocity",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 76,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 77,
+      "source": "script:183",
+      "state": "final"
+    },
+    {
+      "command": "home",
+      "final": {
+        "command": "home",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 77,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 78,
+      "source": "script:184",
+      "state": "final"
+    },
+    {
+      "command": "enable",
+      "final": {
+        "command": "enable",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 78,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 79,
+      "source": "script:185",
+      "state": "final"
+    },
+    {
+      "command": "alarm-clear",
+      "final": {
+        "command": "alarm-clear",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 79,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 80,
+      "source": "script:186",
+      "state": "final"
+    },
+    {
+      "command": "position-clear",
+      "final": {
+        "command": "position-clear",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 80,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 81,
+      "source": "script:187",
+      "state": "final"
+    },
+    {
+      "command": "stop",
+      "final": {
+        "command": "stop",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 81,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 82,
+      "source": "script:188",
+      "state": "final"
+    },
+    {
+      "command": "stop",
+      "final": {
+        "command": "stop",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 82,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 83,
+      "source": "script:189",
+      "state": "final"
+    },
+    {
+      "command": "reset",
+      "final": {
+        "command": "reset",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 83,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 84,
+      "source": "script:193",
+      "state": "final"
+    },
+    {
+      "command": "ping",
+      "final": {
+        "command": "ping",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 84,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 85,
+      "source": "script:194",
+      "state": "final"
+    },
+    {
+      "command": "ver",
+      "final": {
+        "command": "ver",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 85,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 86,
+      "source": "script:195",
+      "state": "final"
+    },
+    {
+      "command": "?",
+      "final": {
+        "command": "?",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 86,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 87,
+      "source": "script:196",
+      "state": "final"
+    },
+    {
+      "command": "health",
+      "final": {
+        "command": "health",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 87,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 88,
+      "source": "script:198",
+      "state": "final"
+    },
+    {
+      "command": "help",
+      "final": {
+        "command": "help",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 88,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 89,
+      "source": "script:200",
+      "state": "final"
+    },
+    {
+      "command": "profile",
+      "final": {
+        "command": "profile",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 89,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 90,
+      "source": "script:202",
+      "state": "final"
+    },
+    {
+      "command": "profile",
+      "final": {
+        "command": "profile",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 90,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 91,
+      "source": "script:203",
+      "state": "final"
+    },
+    {
+      "command": "stop",
+      "final": {
+        "command": "stop",
+        "detail": 0,
+        "error": "attach_actual_axis_and_explicit_native_prerequisites",
+        "ok": false,
+        "status": "UNSUPPORTED",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 91,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 92,
+      "source": "script:205",
+      "state": "final"
+    },
+    {
+      "command": "motor",
+      "final": {
+        "command": "motor",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 92,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 93,
+      "source": "script:207",
+      "state": "final"
+    },
+    {
+      "command": "motor-release",
+      "final": {
+        "command": "motor-release",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 93,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 94,
+      "source": "script:208",
+      "state": "final"
+    },
+    {
+      "command": "subdivision",
+      "final": {
+        "command": "subdivision",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 94,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 95,
+      "source": "script:209",
+      "state": "final"
+    },
+    {
+      "command": "settings",
+      "final": {
+        "command": "settings",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 95,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 96,
+      "source": "script:210",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "detail": 0,
+        "error": "invalid_arguments",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 96,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 97,
+      "source": "script:212",
+      "state": "final"
+    },
+    {
+      "command": "VERSION",
+      "final": {
+        "command": "VERSION",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 97,
+      "latency_ms": 15.0,
+      "operation_id": null,
+      "seq": 98,
+      "source": "script:214",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 98,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 99,
+      "source": "script:218",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 98,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 100,
+      "source": "script:219",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 12,
+      "latency_ms": 94.0,
+      "operation_id": null,
+      "seq": 102,
+      "source": "script:223",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 4294967293,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 103,
+      "source": "script:225",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 101,
+      "latency_ms": 93.0,
+      "operation_id": null,
+      "seq": 107,
+      "source": "script:231",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 102,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 108,
+      "source": "script:233",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 103,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 109,
+      "source": "script:235",
+      "state": "final"
+    },
+    {
+      "command": "input",
+      "final": {
+        "command": "input",
+        "detail": 0,
+        "error": "invalid_line",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 104,
+      "latency_ms": 16.0,
+      "operation_id": null,
+      "seq": 110,
+      "source": "script:239",
+      "state": "final"
+    },
+    {
+      "command": "input",
+      "final": {
+        "command": "input",
+        "detail": 0,
+        "error": "invalid_line",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 105,
+      "latency_ms": 78.0,
+      "operation_id": null,
+      "seq": 112,
+      "source": "script:243",
+      "state": "final"
+    },
+    {
+      "command": "input",
+      "final": {
+        "command": "input",
+        "detail": 0,
+        "error": "invalid_line",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 106,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 113,
+      "source": "script:245",
+      "state": "final"
+    },
+    {
+      "command": "input",
+      "final": {
+        "command": "input",
+        "detail": 0,
+        "error": "invalid_line",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 107,
+      "latency_ms": 63.0,
+      "operation_id": null,
+      "seq": 114,
+      "source": "script:247",
+      "state": "final"
+    },
+    {
+      "command": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "final": {
+        "command": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 108,
+      "latency_ms": 78.0,
+      "operation_id": null,
+      "seq": 115,
+      "source": "script:249",
+      "state": "final"
+    },
+    {
+      "command": "input",
+      "final": {
+        "command": "input",
+        "detail": 0,
+        "error": "invalid_line",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 109,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 116,
+      "source": "script:251",
+      "state": "final"
+    },
+    {
+      "command": "ver@111",
+      "final": {
+        "command": "ver@111",
+        "detail": 0,
+        "error": "unknown_command",
+        "ok": false,
+        "status": "ILLEGAL_VALUE",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 110,
+      "latency_ms": 32.0,
+      "operation_id": null,
+      "seq": 117,
+      "source": "script:255",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 112,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 118,
+      "source": "script:257",
+      "state": "final"
+    }
+  ],
+  "rx_bytes": 52909,
+  "status": "captured",
+  "tx_bytes": 2403,
+  "verdict": "passed"
+}

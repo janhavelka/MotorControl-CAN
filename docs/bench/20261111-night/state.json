@@ -1,0 +1,26 @@
+{
+  "trial": 4278,
+  "series": 102,
+  "rng": 20261111,
+  "nodes": {
+    "1": {
+      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111-night\\S0102-n1-Vq\\20261111T212422Z-velocity-quick-60-n1-4278",
+      "retired": null,
+      "rot": 66,
+      "anomalies": 4,
+      "mode": "01"
+    },
+    "2": {
+      "stoprec": null,
+      "retired": "enabled and halted in mode 3 (6041 1437, 2100 0000, 18483, 60FF 12) after S0071's HALT from a release with in-place clear; every stop path refuses this report; left held for the user (2026-11-11T20:28Z)",
+      "rot": 32,
+      "anomalies": 2,
+      "mode": "03",
+      "held": {
+        "6064": 18483,
+        "6041": "1437"
+      },
+      "watched": "2026-11-11T21:13:59+00:00"
+    }
+  }
+}

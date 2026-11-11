@@ -1,0 +1,18 @@
+Unattended night soak, 2026-11-11 17:44Z to 2026-11-12 (report: docs/reports/2026-11-12_night_soak.md).
+
+The user's written waiver, verbatim: "test all the new features added - do a full night soak without my attendance /
+You can do motion tests, speeding up, changing speed on the fly etc / Finish at 9:00 next day in the morning".
+Every motion route carries it through s2_bench.py --unattended-waiver TEXT --waiver-covers-motion; the console
+arming lines carry attended=1 under the same waiver (each console session directory has its own NOTE.txt). Nobody was
+at the bench; no physical observation was made; all results are drive reports.
+
+Contents:
+- night.log: the lead's soak log (every route, its key record lines, decisions and lead notes).
+- results.jsonl: one entry per counted route, arrival, anomaly and console session.
+- state.json: the soak's state at the time of the commit (trial counter, start record per node, retirement).
+- packed/: one lossless tar.xz per finished series directory (S<series>-n<node>-<kind>), each with its ledger,
+  every route's evidence directory and release captures; packed/MANIFEST.json lists every member's SHA-256 and
+  size and each archive's SHA-256. Kinds: Pa/Pb position series (moving or stationary quick stop at the end),
+  Vq/Vh velocity series (quick stops; Vh starts with a HALT run), Cm/Cv console move/velocity sessions on the
+  bench image's shared console, Cr a recovery attempt.
+- tools/: the lead's scripts that drove the soak (copied from the scratchpad), for provenance.

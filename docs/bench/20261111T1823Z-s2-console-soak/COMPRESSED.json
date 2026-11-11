@@ -1,0 +1,23 @@
+{
+  "why": "Files over 4 MiB are stored losslessly as xz; decompressing reproduces the original bytes, whose SHA-256 is recorded here.",
+  "method": "Python lzma, FORMAT_XZ, CHECK_SHA256, preset 6; round trip verified before the original was removed",
+  "restore": "xz -dk <stored_as>, or Python lzma.decompress",
+  "files": [
+    {
+      "file": "rx.bin",
+      "bytes": 13307813,
+      "sha256": "30f7e315e7a0313b45782fe657d5415f2a1167831b33eb7775c1cd34dd7fca00",
+      "stored_as": "rx.bin.xz",
+      "stored_bytes": 147276,
+      "stored_sha256": "d74b42482f63aa9d501a1b0995b82cd4cc3e4723ed51bc5ff2a28f441704b4f0"
+    },
+    {
+      "file": "timeline.jsonl",
+      "bytes": 10007428,
+      "sha256": "57e2914161a9313c5ef5f376dd9bfc636653be7ee072a49b663cd3bcd539f2c0",
+      "stored_as": "timeline.jsonl.xz",
+      "stored_bytes": 551948,
+      "stored_sha256": "f2ba510d27bc7c3907160ff25245aa1cd92fd722994b30233c8744caed015b6c"
+    }
+  ]
+}

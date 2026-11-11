@@ -1,0 +1,20 @@
+{"class": "boot", "kind": "human", "length": 30, "n": 1, "offset": 0, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "ESP-ROM:esp32s2-rc4-20191025"}
+{"class": "boot", "kind": "human", "length": 19, "n": 2, "offset": 30, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "Build:Oct 25 2019"}
+{"class": "boot", "kind": "human", "length": 50, "n": 3, "offset": 49, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)"}
+{"class": "boot", "kind": "human", "length": 12, "n": 4, "offset": 99, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "SPIWP:0xee"}
+{"class": "boot", "kind": "human", "length": 23, "n": 5, "offset": 111, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "mode:DIO, clock div:1"}
+{"class": "boot", "kind": "human", "length": 27, "n": 6, "offset": 134, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "load:0x3ffe5110,len:0x4f8"}
+{"class": "boot", "kind": "human", "length": 27, "n": 7, "offset": 161, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "load:0x4004a000,len:0x8a4"}
+{"class": "boot", "kind": "human", "length": 28, "n": 8, "offset": 188, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "load:0x4004e000,len:0x2b08"}
+{"class": "boot", "kind": "human", "length": 18, "n": 9, "offset": 216, "phase": "boot", "t": 0.141, "t_first": 0.141, "text": "entry 0x4004a11c"}
+{"class": "boot", "kind": "human", "length": 69, "n": 10, "offset": 234, "phase": "boot", "t": 0.328, "t_first": 0.328, "text": "MotorControl-CAN: board accepted; CAN inactive until explicit start."}
+{"class": "final", "command": "drv", "id": 4294967294, "kind": "json", "length": 252, "n": 11, "offset": 303, "phase": "session", "t": 2.375, "t_first": 2.359, "type": "reply"}
+{"class": "final", "command": "version", "id": 1, "kind": "json", "length": 210, "n": 12, "offset": 555, "phase": "session", "t": 2.406, "t_first": 2.391, "type": "reply"}
+{"class": "final", "command": "status", "id": 2, "kind": "json", "length": 288, "n": 13, "offset": 765, "phase": "session", "t": 2.438, "t_first": 2.406, "type": "reply"}
+{"class": "final", "command": "health", "id": 3, "kind": "json", "length": 166, "n": 14, "offset": 1053, "phase": "session", "t": 2.438, "t_first": 2.438, "type": "reply"}
+{"class": "final", "command": "stats", "id": 4, "kind": "json", "length": 201, "n": 15, "offset": 1219, "phase": "session", "t": 2.469, "t_first": 2.438, "type": "reply"}
+{"class": "final", "command": "drv", "id": 5, "kind": "json", "length": 243, "n": 16, "offset": 1420, "phase": "session", "t": 2.484, "t_first": 2.469, "type": "reply"}
+{"class": "final", "command": "memory", "id": 6, "kind": "json", "length": 317, "n": 17, "offset": 1663, "phase": "session", "t": 2.5, "t_first": 2.484, "type": "reply"}
+{"class": "final", "command": "config", "id": 8, "kind": "json", "length": 228, "n": 18, "offset": 1980, "phase": "session", "t": 2.531, "t_first": 2.5, "type": "reply"}
+{"class": "final", "command": "profile", "id": 12, "kind": "json", "length": 375, "n": 19, "offset": 2208, "phase": "session", "t": 2.563, "t_first": 2.531, "type": "reply"}
+{"class": "final", "command": "drv", "id": 4294967295, "kind": "json", "length": 253, "n": 20, "offset": 2583, "phase": "session", "t": 7.469, "t_first": 7.453, "type": "reply"}

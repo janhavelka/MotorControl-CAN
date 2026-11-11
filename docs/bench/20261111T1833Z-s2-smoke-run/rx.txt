@@ -1,0 +1,15 @@
+ESP-ROM:esp32s2-rc4-20191025
+Build:Oct 25 2019
+rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3ffe5110,len:0x4f8
+load:0x4004a000,len:0x8a4
+load:0x4004e000,len:0x2b08
+entry 0x4004a11c
+MotorControl-CAN: board accepted; CAN inactive until explicit start.
+SMOKE ready elf=01f395a7069c07415c9ae4d0b737a515fac7350bd39a89f5c816ceb42d4b574a idf=5.5.5 project=motorcontrol_can_probe
+SMOKE image elf=01f395a7069c07415c9ae4d0b737a515fac7350bd39a89f5c816ceb42d4b574a idf=5.5.5 project=motorcontrol_can_probe start=ok running=1 transceiver=normal-requested check=0
+SMOKE node=1 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=60075
+SMOKE node=2 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=60052
+SMOKE done; no further requests; ignored=0
