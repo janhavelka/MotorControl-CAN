@@ -11,6 +11,25 @@ using MotorControlCANOwner::Sequence;
 using MotorControlCANOwner::ServiceBudget;
 namespace M = MotorControlCAN;
 namespace L = MotorControlCAN::LICHUAN_C;
+bool ProbeApp::followSelectionConfiguration(const L::ReadTarget& previous,
+                                            const L::ReadTarget& current) noexcept {
+    if (!selected_ || previous.channel.binding.configurationGeneration == UINT32_MAX)
+        return false;
+    const auto sameRoute = [](const L::ReadTarget& a, const L::ReadTarget& b) {
+        return a.nodeGeneration == b.nodeGeneration &&
+               M::sameBinding(a.channel.binding, b.channel.binding) &&
+               a.channel.clientToServerId == b.channel.clientToServerId &&
+               a.channel.serverToClientId == b.channel.serverToClientId;
+    };
+    L::ReadTarget next = previous;
+    ++next.channel.binding.configurationGeneration;
+    if (!sameRoute(target_, previous) || !sameRoute(next, current) ||
+        !owner_.matchesChannel(current.channel, current.nodeGeneration) ||
+        !axis(current.channel.binding))
+        return false;
+    target_ = current;
+    return true;
+}
 namespace {
 bool same(SequenceId a, SequenceId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;

@@ -2,6 +2,10 @@
 
 Every numbered prompt incorporates this contract and root [AGENTS.md](../../AGENTS.md). The active sequence is [SEQUENCE.json](SEQUENCE.json): work through prompts **1 through 50** in numerical order, advancing to independent ready work when an earlier prompt is blocked as described below. Historical 00-19 files in `archive/v1/` are traceability records, not additional assignments. Each current prompt is one complete work unit with its own tests, documentation and commit/sync gate.
 
+The prompt42 user instruction authorizes merging into `main` after its gates and
+continuing on `main` until version0 is finished, with no new branches. This takes
+precedence over the historical execution-branch instructions for that period.
+
 ## Read and prepare
 
 1. Read root/applicable parent AGENTS, this contract, the active prompt and the reports for its listed prerequisites. Inspect the current branch, upstream, worktree and incoming changes. Create one new dedicated branch only when starting a new promptset execution; record its identity/base/upstream in PROGRESS and retain it throughout all prompts and resumed sessions. Maintenance of these prompts does not start implementation.

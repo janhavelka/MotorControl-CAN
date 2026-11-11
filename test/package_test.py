@@ -156,7 +156,7 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
-        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeConsoleMotion.cpp", "ProbeConsoleText.h", "ProbeMotion.h", "ProbeMotion.cpp", "MotionIntent.h", "MotionIntent.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp",
                     "ConfigurationRestore.h", "ConfigurationRestore.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
@@ -189,7 +189,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbeAppLocal.cpp common/ProbeConsole.cpp common/ProbeDevice.cpp common/ProbeSettings.cpp common/ProbeCommissioning.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbeAppLocal.cpp common/ProbeConsole.cpp common/ProbeConsoleMotion.cpp common/ProbeMotion.cpp common/MotionIntent.cpp common/ProbeDevice.cpp common/ProbeSettings.cpp common/ProbeCommissioning.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
@@ -216,9 +216,12 @@ add_executable(action_preview action/main.cpp)
 target_link_libraries(action_preview PRIVATE app)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/console_header.cpp" "#include <ProbeConsole.h>\\n")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/motion_header.cpp" "#include <ProbeMotion.h>\\n")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/intent_header.cpp" "#include <MotionIntent.h>\\n")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePlatform.h>\\n")
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "${CMAKE_CURRENT_BINARY_DIR}/console_header.cpp")
+    "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "${CMAKE_CURRENT_BINARY_DIR}/console_header.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/motion_header.cpp" "${CMAKE_CURRENT_BINARY_DIR}/intent_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
 foreach(target stack adapter owner app native_probe device_evidence discovery_preview units_preview position_preview angle_preview velocity_preview reads_preview
         pdo_configuration_preview action_preview probe_headers)

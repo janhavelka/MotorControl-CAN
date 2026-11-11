@@ -2,7 +2,7 @@ if(NOT TARGET MotorControlCAN::CanBusOwner)
     message(FATAL_ERROR "The shared application requires the optional application owner")
 endif()
 # Application/platform code is optional and never installed with the portable core.
-add_library(MotorControlCANProbeApp STATIC AxisSession.cpp ProbeApp.cpp ProbeAppLocal.cpp ProbeConsole.cpp ProbeDevice.cpp ProbeSettings.cpp ProbeCommissioning.cpp ProbePlatform.cpp
+add_library(MotorControlCANProbeApp STATIC AxisSession.cpp ProbeApp.cpp ProbeAppLocal.cpp ProbeConsole.cpp ProbeConsoleMotion.cpp ProbeMotion.cpp MotionIntent.cpp ProbeDevice.cpp ProbeSettings.cpp ProbeCommissioning.cpp ProbePlatform.cpp
             DeviceEvidence.cpp DiscoveryScan.cpp ConfigurationRestore.cpp)
 target_include_directories(MotorControlCANProbeApp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(MotorControlCANProbeApp PUBLIC MotorControlCAN::CanBusOwner)

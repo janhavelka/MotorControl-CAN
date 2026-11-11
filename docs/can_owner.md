@@ -682,3 +682,19 @@ destroys the old node before a fresh instance can accept work. See the
 [SDK evidence](adapters/twai_sdk.md) for bus-off deletion proof, unavailable
 hardware-overrun evidence and ISR latency limits. This does not reopen an
 ambiguous SDO session or qualify a reused PDO route.
+
+## Shared motion console capacity
+
+Prompt42 adds an optional application-only `ProbeMotion` over the existing registered
+`AxisSession`. It retains one ordinary operation and independent normal/fast stops;
+ordinary work cannot overwrite a terminal before explicit release. The console has
+two ordinary, one HALT, one QUICK_STOP and one host-recovery correlation. Stop output
+has one complete-record slot per kind, independent of the two ordinary and two local
+control reply slots. Invalid/refused stops use ordinary output; diagnostics cannot
+occupy these reserves. Owner capacities, receive routing and work budgets are unchanged.
+[The CLI contract](cli_contract.md#finite-motion-and-actions-prompt-42) owns the exact
+budget, component-evidence, cancellation and delivery rules instead of a second table.
+`followHostConfiguration` advances only an idle checked existing reservation and
+withdraws old current controlword evidence; it preserves terminals and fences.
+`followSelectionConfiguration` follows only the selected session's exact epoch and
+keeps retained reads at their old, now stale, provenance.

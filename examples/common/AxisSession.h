@@ -143,6 +143,18 @@ class AxisSession {
     const MotorControlCAN::Binding& binding() const noexcept { return target_.channel.binding; }
     /** @return The reservation this session uses; meaningful only while open. */
     MotorControlCANOwner::SequenceId sequence() const noexcept { return sequence_; }
+    /** Follow an explicit idle host coordinate change without closing/reopening the session.
+     * @param next Same binding with exactly the next configuration epoch.
+     * @param nowUs Supplied monotonic microseconds, at least owner/session time.
+     * @return False unchanged unless the sole owner can atomically migrate the idle node.
+     * Success withdraws old controlword currentness, cached map evidence and prerequisites,
+     * preserving historical terminals, reservation identity and unresolved-effect fences.
+     * It performs no device I/O and cannot clear quarantine or manufacture standstill. */
+    bool followHostConfiguration(const MotorControlCAN::Binding& next, uint64_t nowUs) noexcept;
+    /** @return Initial native identity of the latest accepted stop request, or zero before one.
+     * Unlike a service operation ID, this stays fixed across fallback and held recovery.
+     * It is local correlation only and never disambiguates a CANopen reply. */
+    uint32_t stopRequestOperation() const noexcept { return stopRequest_; }
     /** Exact pending download owned by this open session; no authorization of other work.
      * @param sequence Owner reservation identity. @param transfer Complete copied work.
      * @return True only for the current ordinary or urgent admission, without I/O.
@@ -209,7 +221,7 @@ class AxisSession {
      * counts as missing: keep the last complete copy for this. It must not be held inside
      * stopAction(kind), which this request overwrites: that also counts as missing. During or after
      * a move pass moveObservation(), whose cycle began after the held trigger word.
-     * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity and
+     * @param[in] policy Copied caller limits; invalid budgets refuse the request. Its identity and
      * count width settings are ignored, so options shared with those reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds. A time before this session's or the
      * owner's last time refuses the stop but still ends an active enable, move or clear, at the later
@@ -671,6 +683,7 @@ class AxisSession {
     }
 
   private:
+    uint32_t stopRequest_ = 0; // Initial accepted stop identity; fallback does not replace it.
     MotorControlCANOwner::CanBusOwner& owner_;
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
     MotorControlCAN::LICHUAN_C::AxisReservation reservation_;

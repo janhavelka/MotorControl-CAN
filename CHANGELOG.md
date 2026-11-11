@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Motion console and platform parity (prompt42, 2026-11-11)
+
+- Connected finite position/angle, velocity, home, enable and clear routes to the
+  existing typed operations through one borrowed per-axis application attachment.
+- Added explicit exact host speed/ramp/setup/scale intent without boot defaults;
+  preserved INTEGER motor-rpm destination checks and single native quantization.
+- Reserved normal-stop, fast-stop and host-recovery correlations, plus stop output,
+  while retaining the original uncertain motion and all native stop components.
+- Guarded cancellation/result release against replaced native contexts and followed
+  owned configuration epochs without renewing old prerequisite observations.
+- Registered adversarial native/JSONL tests, shared source inventories and isolated
+  package consumers. Motor release, stored-only setup and unqualified firmware
+  features remain visible gates; no hardware qualification is added.
+
 ### Typed device console (prompt 41, 2026-11-11)
 
 - Added explicit typed uploads, existing-slot selection, finite discovery/monitoring,

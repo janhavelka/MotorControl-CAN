@@ -1,9 +1,9 @@
 # Shared console contract
 
-Prompts 40-41 implement the shared console in `examples/common/ProbeConsole.*`.
+Prompts 40-42 implement the shared console in `examples/common/ProbeConsole.*`.
 The native entry is `examples/native_probe`; Arduino and ESP-IDF compile these
-same sources. Typed device routes use the existing application/owner; motion and
-full platform parity remain prompt 42. No route grants missing device evidence.
+same sources. Typed device and motion routes use the existing application/owner
+and concrete per-axis session. No route grants missing device evidence.
 
 Commands accept printable ASCII and TAB, with CR, LF or CRLF ending a line.
 There are at most 255 text bytes and 24 command tokens, plus an optional `@ID`
@@ -42,11 +42,11 @@ class, completion shape and owner. Gated rows appear only in `caps`, with the
 reason and owner; they are absent from dispatch and working help.
 
 Each complete output record is at most 511 bytes including newline, queued
-atomically. Two ordinary and two reserved local-control records bound storage.
+atomically. Two ordinary, two reserved local-control and one record for each stop kind bound storage.
 The platform's 512-byte ring may write a record over multiple turns, retaining
 its suffix. Records are never interleaved. Output pressure can refuse an ordinary
 command before mutation; whole refused replies are counted. `cancel` and
-`recover` have reserved reply capacity. No command executes when its required
+`recover` have reserved reply capacity; normal and fast stop each have separate capacity. No command executes when its required
 reply capacity is exhausted. Terminal results remain retained under pressure.
 Owner service runs before console service and never waits for output.
 Release waits for every terminal byte to be accepted by the platform callback;
@@ -76,7 +76,7 @@ only; it claims no detected model, firmware match or hardware qualification.
 `config` inspects host facts only. Interface/bitrate configuration comes from the
 application, not guessed board settings. `wiring` records host declarations;
 labels do not establish terminal existence, function assignment or electrical
-level. `stats reset` clears documented counters only. `cancel` cancels local read
+level. `stats reset` clears documented counters only. `cancel` withdraws local read or motion
 work; `recover` requests bounded host recovery, with a caller-console policy of
 one second, without stopping/resetting/enabling a drive or replaying work.
 
@@ -310,3 +310,136 @@ Compiled matching capabilities are `can_match_exact_model` and
 separate nullable observations: unavailable matching capability never means a
 measured mismatch. The current compiled family reports both capabilities false
 and both observations null.
+
+## Finite motion and actions (prompt 42)
+
+The same `ProbeConsole` inventory and parser compile in `native_probe`, Arduino
+`probe_cli`, and native-IDF `probe_idf`. The shared S2 IDF console uses UART0 and
+the sole CPU; S3 uses USB and owner core1. Arduino S2 remains blocked by the pinned
+SDK's console conflict. These are compile/fake results, not physical qualification.
+
+Motion requires an attached `ProbeMotion` over the application's actual registered
+`AxisSession`, owner, selected target, live `AxisConfig` and `AxisReference`.
+The application supplies acquired typed prerequisites and exact native qualification
+through its `set...Prerequisites` methods. Attachment grants nothing. Default native
+and firmware console entries acquire no such qualification at startup; a command
+without it fails locally with the prerequisite reason. No command arms a fixture,
+chooses a status dialect, assumes reverse encoding, enables before a move or repairs
+a missing reference. The parser delegates to the same `requestMove`,
+`requestMoveRelative`, `requestMoveAngle`, `requestVelocity`, `requestHome` and action
+paths as a direct native caller. The installed core has no parser or scheduler.
+
+| Working grammar | Public/application call | Effect and completion |
+| --- | --- | --- |
+| `speed [VALUE [rpm]]` | `setSimpleSpeed` | Host intent or inspection; immediate |
+| `accel [VALUE [ms]]`, `decel [VALUE [ms]]` | `setSimpleRamp` | Host ramp-time intent; immediate |
+| `motion [write\|verify]` | `setSimpleSetup` | Host setup policy; immediate |
+| `stepsperturn POSITIVE_NUMBER` | `configureCommandScale` / `configureAxis` | Explicit assumed command scale; immediate, no device write |
+| `moveby VALUE [steps\|deg\|turn\|mm]` | `buildSimpleMove` / `requestMoveRelative` | Device action; retained asynchronous operation |
+| `moveto VALUE [steps\|deg\|turn\|mm]` | `buildSimpleMove` / `requestMove` | Device action; retained asynchronous operation |
+| `move relative\|absolute VALUE UNIT FRAME RPM configured [setup write\|verify] [basis actual\|commanded\|queued] [round POLICY ERROR [approx ERROR]]` | `requestMove` / concrete relative or absolute API | Device action; retained asynchronous operation |
+| `move angle VALUE UNIT FRAME positive\|negative\|shortest reject\|positive\|negative RPM configured [setup write\|verify] [round POLICY ERROR [approx ERROR]]` | `requestMoveAngle` | Device action; retained asynchronous operation |
+| `velocity VALUE RATE FRAME DURATION_MS configured normal\|fast [round POLICY ERROR [approx ERROR]]` | `makeFiniteVelocity` / `requestVelocity` | Finite device action, including its separate stop evidence |
+| `home methods` | Documentary method inventory17,18,24,29 | Cached inspection, no qualification claim |
+| `velocity read` | Ordinary typed `VELOCITY_TARGET` read | Explicit upload plan; Q20 whole-plan gate applies |
+| `home read` | Ordinary typed `HOMING` read | Explicit upload plan; Q20 whole-plan gate applies |
+| `home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero` | `requestHome` | Qualified native method; retained asynchronous operation |
+| `enable`, `alarm-clear`, `position-clear` | Native action via `ProbeMotion` / `AxisSession` | Explicit device action; retained asynchronous operation |
+| `stop normal`, `stop fast` | `ProbeMotion::requestStop` / `AxisSession::requestStop` | Independent retained stop request; reserved admission/output |
+
+`UNIT` is `steps`, `fullsteps`, `counts`, `turn`, `deg`, `rad` or `mm`.
+`FRAME` is `native`, `motor` or `load`. `RATE` is `rpm`, `turns/s`, or a
+`UNIT/s` spelling. `POLICY` is `exact`, `nearest` (ties to even), `zero`, `floor`
+or `ceil`. Error allowances are exact nonnegative numbers in the destination unit;
+`approx` requires radians and a positive explicit approximation allowance. Trailing
+tokens, duplicate/reordered options, overflow and truncated input fail before any
+native request. `basis` is valid only for relative moves; its default is explicitly
+ACTUAL and cannot fall back to commanded or queued position. No optional address
+suffix is accepted: `host`/`useaddr` select an existing target separately.
+
+Simple moves use the shared `makeSimplePosition` policy: relative steps are
+native displacement, absolute steps and angles use MOTOR coordinates, and mm uses
+LOAD coordinates. Absolute simple coordinates include the explicit host origin.
+They round to the nearest command increment, ties to even, with exact half-increment
+tolerance. Detailed `move` requests keep their explicit frame and rounding policy.
+
+There are no boot speed, ramp or scale values. `moveby`/`moveto` require all three
+explicit choices; zero speed or ramp remains inspectable host intent but refuses
+motion. `moveto` additionally requires an explicit host origin. An attached motion
+axis's `axis origin INTEGER` uses its qualified stationary reference and ordinary
+`setAxisOrigin`; it never writes `2302`. `stepsperturn` changes only the declared
+command-increment scale, not encoder scale or motor geometry. Both host changes
+advance the checked owner/session/selection configuration epoch, withdraw old
+prerequisites/controlword currentness, and preserve original observation times.
+Reacquire prerequisites and re-enter speed after an epoch change. Without a motion
+attachment, `axis`/`prepare` retain their separate offline-workspace meaning.
+
+`motion verify` names native `REUSE_STORED`: verify the supplied snapshot and write
+differences. `motion stored` is caps-only gated because a stored-only native policy
+does not exist. `motor-release` is caps-only gated by D-17; `6040=0` is not a release
+fallback. Neither appears as a working command in help. Unknown/home methods,
+unqualified reverse velocity, missing enable evidence and contradictory state remain
+native refusals rather than console permission switches.
+
+Rates reaching `6081`, `60FF` or homing speed objects must have an INTEGER
+destination of MOTOR_TURNS per MINUTE. `native` means the actual configured native
+rate dimension, not an RPM alias. The common default COMMAND_INCREMENTS/SECOND
+configuration refuses before a write, even when its computed value267 fits the
+object. Original exact requests survive preparation; native quantization happens
+once and reported rate errors are RPM. Profile speed, velocity mode and homing
+remain different workflows. Native ramp values are milliseconds, not acceleration.
+
+Ordinary motion/action admission uses an immutable10-second application cutoff.
+Finite velocity adds the checked duration to that total; its duration begins at
+native preparation, not trigger acknowledgement. Native service/poll policies and
+stop cutoffs are separately supplied prerequisites and cannot extend this budget.
+These bounds are application policy, not vendor delays.
+
+An example on an explicitly prepared application fixture is:
+
+```text
+@10 speed 120 rpm
+@11 accel 100 ms
+@12 decel 200 ms
+@13 move absolute 16000 steps native 120 configured
+@14 result 1
+@15 stop fast
+```
+
+The motion receipt has `result:"accepted"` and a separate `operation_id`.
+Before its terminal, `motion_value` records report exact decimal strings for
+`native`, mixed `requested` rate or `requested_endpoint` position
+`[integral,numerator,denominator,negative]`, and quantization
+`error:[numerator,denominator,negative]`. Relative targets additionally identify
+`relative:true` and `endpoint_native`: the wire value is displacement, while
+requested position is an endpoint. Nonexact radians report `exact:false` with
+`error_bound`; no exact fraction is fabricated. Units are `steps` or `rpm`.
+Native return code, execution and observed completion stay distinct in terminal
+`status`, `outcome`, `execution_code`, `completion_code`, `native_operation` and
+`uncertain`. Full unsigned abort evidence remains `abort_code` or null.
+
+Stop has its own stable console/helper identity across sequenced, held and
+best-effort native components. Bounded `stop_attempt` records retain each actual
+component's `native_operation`, execution/completion, outcome, uncertainty and
+abort. A best-effort component always reports `reply_qualifies:false`, including
+a matching late reply. `stop_path_code` is the terminal local path, not proof of
+physical stopping. `stop fast` can escalate a running `stop normal`; the reverse
+is refused. Normal and fast terminals and the earlier motion terminal remain
+separately inspectable and releasable. No successful stop, cleanup, recovery or
+late reply rewrites an uncertain motion as successful.
+
+There are two ordinary correlations plus one normal-stop, one fast-stop and one
+host-recovery correlation. Each stop has one reserved complete output record;
+ordinary replies retain two records and local cancel/recover replies another two.
+Invalid/refused stop syntax uses ordinary output and cannot fill a stop reserve.
+Unread results are never evicted. Each512-byte record includes its NUL and at most
+511 transmitted bytes including newline. Pressure delays complete records and
+increments the existing whole-reply drop counter; partial JSON is never published.
+Input remains32 bytes per console turn, output stays bounded by `ProbePlatform`,
+and the application services the sole owner before console output. A damaged input
+line is discarded through its terminator; it never admits a partial command.
+An accepted stop still progresses when ordinary result/reply queues are full.
+Recovery has reserved correlation capacity for an explicitly held never-sent stop;
+it is never started automatically. Cancellation of ordinary motion withdraws future
+steps and settles the in-flight service; it sends no stop. `release ID` frees delivered
+history only and never clears a native fence, while `motor-release` remains gated.

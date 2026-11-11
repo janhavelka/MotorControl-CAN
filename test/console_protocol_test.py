@@ -122,6 +122,42 @@ def main():
                                    capture_output=True, timeout=15)
         assert truncated.returncode == 2 and not truncated.stdout
 
+        # Actual shared parser -> native preparations -> fake owner terminals, including
+        # an unknown motion followed by an independent unqualified best-effort stop.
+        transcript = Path(directory) / "motion.jsonl"
+        subprocess.run([sys.argv[3], "--transcript", str(transcript)],
+                       check=True, capture_output=True, timeout=30)
+        raw = transcript.read_bytes()
+        assert raw.endswith(b"\n") and b"\r" not in raw and b"\x00" not in raw
+        motion = [parse_record(line) for line in raw.splitlines()]
+        assert all(len(line) <= 511 for line in raw.splitlines(keepends=True))
+        assert all(r["schema"] == "motorcontrolcan.console/1" and r["protocol"] == 3 for r in motion)
+        values = [r for r in motion if r["type"] == "motion_value"]
+        assert values and {r["unit"] for r in values} == {"steps", "rpm"}
+        for value in values:
+            assert isinstance(value["native"], str)
+            if value["exact"]:
+                requested = value["requested"] if value["unit"] == "rpm" else value["requested_endpoint"]
+                assert all(isinstance(n, str) for n in requested[:3])
+                assert type(requested[3]) is bool
+                assert all(isinstance(n, str) for n in value["error"][:2])
+                assert type(value["error"][2]) is bool
+            if value["unit"] == "steps":
+                assert isinstance(value["endpoint_native"], str) and type(value["relative"]) is bool
+        terminals = [r for r in motion if r["type"] == "terminal"]
+        assert any(r["command"] == "move" and r["ok"] for r in terminals)
+        assert any(r["command"] == "move" and r["uncertain"] for r in terminals)
+        assert any(r["command"] == "stop" for r in terminals)
+        attempts = [r for r in motion if r["type"] == "stop_attempt"]
+        assert any(r["attempt"] == "best_effort" and r["reply_qualifies"] is False for r in attempts)
+        assert all(type(r["native_operation"]) is int and isinstance(r["completed_us"], str)
+                   for r in terminals)
+        # A receipt freezes mode/identity until its terminal; later human commands cannot change it.
+        accepted = {(r["id"], r["operation_id"]) for r in motion
+                    if r["type"] == "reply" and r.get("result") == "accepted"}
+        assert all((r["command_id"], r["operation_id"]) in accepted for r in terminals)
+        print("console_protocol: parsed {} actual motion/action JSONL records".format(len(motion)))
+
 
 if __name__ == "__main__":
     main()

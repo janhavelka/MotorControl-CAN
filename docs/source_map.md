@@ -1,13 +1,23 @@
 # Live source and responsibility map
 
-Prompt 41 connects typed device reads, explicit existing-binding selection, finite
-discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
-shared console. Conditional typed settings retain complete-candidate validation,
-readback, confirmed prefixes and uncertainty through the same owner. The
-[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
-[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
-Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+Prompts40-42 implement one shared conditional console. [The CLI contract](cli_contract.md)
+owns grammar, exact JSONL, source gates and capacity; [the P42 source audit](audit/PROMPT_42_SOURCES.md)
+records current RS and original vendor evidence. No device qualification is inferred
+from a native fake or compile result.
 
+
+## Motion console attachment (prompt42)
+
+- `examples/common/MotionIntent.*`: explicit host speed/ramp/setup, simple coordinate
+  policy and checked native-rpm intent, shared with direct application callers.
+- `examples/common/ProbeMotion.*`: borrowed native prerequisites, one registered
+  `AxisSession`, frozen ordinary projection and separately retained normal/fast stop
+  components. It snapshots after the app turn; it does not service an owner again.
+- `examples/common/ProbeConsoleMotion.cpp`: strict parsing and bounded formatting
+  through that attachment; `ProbeConsoleText.h` shares the complete-record builder.
+- `motion_intent_test`, `motion_console_test`, `probe_motion_actions_test` and the
+  real Python JSONL transcript gate test arithmetic, payloads, retention and fakes.
+  `firmware_sources.json` includes these same application sources in both SDK builds.
 
 ## Shared console and device application (prompts 40-41)
 

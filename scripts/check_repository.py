@@ -126,6 +126,7 @@ REQUIRED = {
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
     "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeConsoleMotion.cpp", "examples/common/ProbeConsoleText.h", "examples/common/ProbeMotion.h", "examples/common/ProbeMotion.cpp", "examples/common/MotionIntent.h", "examples/common/MotionIntent.cpp", "test/motion_console_test.cpp", "test/motion_intent_test.cpp", "test/probe_motion_actions_test.cpp",
     "examples/common/ProbeDevice.h", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.h", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.h", "examples/common/ProbeCommissioning.cpp", "test/probe_commissioning_app_test.cpp", "test/probe_device_console_test.cpp", "test/probe_settings_app_test.cpp",
     "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
     "examples/common/ProbePlatform.h", "examples/common/ProbePlatform.cpp", "test/probe_app_test.cpp",
@@ -322,8 +323,10 @@ def inventory_checks(root, listing, build, errors):
             python_command(matches[0], source, None)
             arguments = matches[0]["command"][2:]
             producer = build / "test" / ("probe_console_test" + suffix)
-            if (len(arguments) != 2 or Path(arguments[0]).resolve() != producer.resolve()
-                    or not native_probe or Path(arguments[1]).resolve() != Path(native_probe).resolve()):
+            motion = build / "test" / ("motion_console_test" + suffix)
+            if (len(arguments) != 3 or Path(arguments[0]).resolve() != producer.resolve()
+                    or not native_probe or Path(arguments[1]).resolve() != Path(native_probe).resolve()
+                    or Path(arguments[2]).resolve() != motion.resolve()):
                 errors.append("CTest inventory: missing or wrong Python command for test/console_protocol_test.py")
         else:
             python_command(matches[0], source, [])

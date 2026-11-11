@@ -68,6 +68,16 @@ void AxisSession::dropControl() noexcept {
     controlPresent_ = false;
     suspended_ = RequestId();
 }
+bool AxisSession::followHostConfiguration(const M::Binding& next, uint64_t now) noexcept {
+    if (!open_ || busy() || now < latestUs() || !usable() ||
+        !owner_.advanceConfiguration(sequence_, next, now))
+        return false;
+    dropControl();
+    target_.channel.binding = next;
+    reservation_.target.channel.binding = next;
+    lastUs_ = now;
+    return true;
+}
 // A download that closed with no frame able to have left changed nothing on the drive, so the word
 // it withdrew is the latest again, unless a stop has taken over since.
 void AxisSession::keepUnsentControl(const C::SdoCompletion& terminal) noexcept {
@@ -1504,6 +1514,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                     now);
     }
     policy_ = policy;
+    stopRequest_ = next;
     operation_ = next;
     if (!homeStopOperation_ && home_.state != M::ActionState::EMPTY &&
         (homeActive() || homeNeedsStop_ || home_.interruption == M::HomeInterruption::STOP))

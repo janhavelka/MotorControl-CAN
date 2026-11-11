@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "ProbeConsole.h"
+#include "ProbeConsoleText.h"
 #include <MotorControlCAN/Version.h>
 #include <cstdarg>
 #include <cstdio>
@@ -135,26 +136,35 @@ const ConsoleCommand commands[] = {
      "exact external typed preparation and one-use service authority", E::DEVICE_ACTION,
      C::ASYNCHRONOUS, "One explicit reviewed intent; ACK is not durability, restart or rollback.",
      nullptr, 41},
-    {"motion", "speed|accel|decel|motion|stepsperturn", "explicit simple-move intent",
-     "native rate/ramp/scale evidence", E::HOST_CONFIGURATION, C::REPLY,
-     "Configure later motion intent.", "Simple-move intent belongs to prompt 42; no boot defaults.",
-     42},
-    {"move", "moveby|moveto|move relative|absolute|angle", "public finite move lifecycle",
-     "reference, scale and trigger evidence", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Request finite motion.", "Motion console integration belongs to prompt 42.", 42},
-    {"velocity", "velocity", "public finite velocity lifecycle",
-     "native width/unit and stop evidence", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Request finite velocity.", "Velocity console integration belongs to prompt 42.", 42},
-    {"home", "home", "public homing lifecycle", "profile method and input evidence",
-     E::DEVICE_ACTION, C::ASYNCHRONOUS, "Request reviewed homing.",
-     "Homing console integration belongs to prompt 42.", 42},
-    {"enable", "enable|motor-release|alarm-clear|position-clear", "public action lifecycles",
-     "per-action firmware evidence", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Request a reviewed drive action.",
-     "Action console integration belongs to prompt 42; no generic release fallback.", 42},
-    {"stop", "stop normal|fast", "public stop and AxisSession", "reviewed stop policy",
-     E::DEVICE_ACTION, C::ASYNCHRONOUS, "Explicit drive stop.",
-     "Stop console integration/reserved dispatch belongs to prompt 42; cancel is local.", 42},
+    {"motion", "motion [write|verify]", "setSimpleSetup", "explicit host intent",
+     E::HOST_CONFIGURATION, C::REPLY, "Inspect or choose native setup; verify writes differences.",
+     nullptr, 42},
+    {"move",
+     "move relative|absolute VALUE UNIT FRAME RPM configured [setup write|verify] [basis "
+     "actual|commanded|queued] [round POLICY ERROR [approx ERROR]] | move angle VALUE UNIT FRAME "
+     "PATH TIE RPM configured [setup write|verify] [round POLICY ERROR [approx ERROR]]",
+     "ProbeMotion::requestMove/AxisSession",
+     "actual axis; explicit ramps, firmware and reference evidence", E::DEVICE_ACTION,
+     C::ASYNCHRONOUS, "Prepare and request checked finite position or wrapped-angle motion.",
+     nullptr, 42},
+    {"velocity",
+     "velocity read | velocity VALUE RATE FRAME DURATION_MS configured normal|fast [round POLICY "
+     "ERROR [approx ERROR]]",
+     "makeFiniteVelocity/ProbeMotion::requestVelocity",
+     "integer motor rpm; finite duration; native start/reverse/stop gates", E::DEVICE_ACTION,
+     C::ASYNCHRONOUS, "Request finite velocity; native means the configured rate dimension.",
+     nullptr, 42},
+    {"home", "home methods | home read | home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero",
+     "ProbeMotion::requestHome/prepareDriverRead",
+     "exact method, input, parameter and completion qualification", E::DEVICE_ACTION,
+     C::ASYNCHRONOUS, "Inspect methods or explicitly request qualified zero-offset homing.",
+     nullptr, 42},
+    {"enable", "enable", "ProbeMotion::requestEnable", "explicit per-firmware enable evidence",
+     E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Request reviewed enable; never implied by motion or startup.", nullptr, 42},
+    {"stop", "stop normal|fast", "ProbeMotion::requestStop/AxisSession",
+     "explicit bounded stop policy", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Request HALT or QUICK_STOP; independent retained result, never local cancel.", nullptr, 42},
     {"motor-release", "motor-release", "no reviewed bus-release command",
      "missing native release semantics", E::DEVICE_ACTION, C::ASYNCHRONOUS,
      "Release drive power only with reviewed semantics.",
@@ -214,7 +224,49 @@ const ConsoleCommand commands[] = {
      "Inspect heartbeat without enabling/configuring it.", nullptr, 41},
     {"network", "network", "SdoClient::node/serviceEligibility",
      "cached exact state and independent serviceability", E::CACHE, C::REPLY,
-     "Inspect CANopen network facts; no state promotion.", nullptr, 41}};
+     "Inspect CANopen network facts; no state promotion.", nullptr, 41},
+    {"speed", "speed [VALUE [rpm]]", "setSimpleSpeed", "explicit integer motor-rpm destination",
+     E::HOST_CONFIGURATION, C::REPLY, "Inspect/set exact host speed intent; no device write.",
+     nullptr, 42},
+    {"accel", "accel [VALUE [ms]]", "setSimpleRamp", "native ramp-up milliseconds",
+     E::HOST_CONFIGURATION, C::REPLY,
+     "Inspect/set host ramp-up time; zero remains unusable for motion.", nullptr, 42},
+    {"decel", "decel [VALUE [ms]]", "setSimpleRamp", "native ramp-down milliseconds",
+     E::HOST_CONFIGURATION, C::REPLY,
+     "Inspect/set host ramp-down time; no physical acceleration conversion.", nullptr, 42},
+    {"stepsperturn", "stepsperturn POSITIVE_NUMBER",
+     "ProbeMotion::configureCommandScale/configureAxis",
+     "explicit stationary witness and live host axis", E::HOST_CONFIGURATION, C::REPLY,
+     "Set assumed command increments per motor turn; never encoder geometry.", nullptr, 42},
+    {"moveby", "moveby VALUE [steps|deg|turn|mm]", "buildSimpleMove/ProbeMotion::requestMove",
+     "explicit speed, ramps, scale and actual-position basis", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Request relative host intent without boot defaults.", nullptr, 42},
+    {"moveto", "moveto VALUE [steps|deg|turn|mm]", "buildSimpleMove/ProbeMotion::requestMove",
+     "explicit host origin, speed, ramps and scale", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Request an absolute host target; axis origin is required.", nullptr, 42},
+    {"alarm-clear", "alarm-clear", "ProbeMotion::requestAlarmClear",
+     "fresh acquired state and native action gates", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Explicit alarm-clear sequence; success never re-enables motion.", nullptr, 42},
+    {"position-clear", "position-clear", "ProbeMotion::requestPositionClear",
+     "stationary state and native counter-clear gates", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Clear device counter to zero; no save or host-origin shortcut.", nullptr, 42},
+    {"motion stored", "motion stored", "no stored-only native setup policy",
+     "stored-only lifecycle unavailable", E::HOST_CONFIGURATION, C::REPLY,
+     "Use write or verify only with explicit intent.",
+     "The native API only offers write-all or verify-and-update; stored-only is not implemented.",
+     42},
+    {"home qualification", "home qualification", "HomeEvidence/setHomePrerequisites",
+     "exact measured native record", E::HOST_CONFIGURATION, C::REPLY,
+     "No console-created qualification.",
+     "Q04/Q11/Q14/Q21 require exact method, wiring and completion evidence; CLI cannot attest a "
+     "measured record.",
+     42},
+    {"velocity qualification", "velocity qualification",
+     "VelocityEvidence/setVelocityPrerequisites", "exact measured native record",
+     E::HOST_CONFIGURATION, C::REPLY, "No console-created qualification.",
+     "Native start/reverse/stop qualification requires exact firmware evidence supplied by the "
+     "application.",
+     42}};
 bool equal(const char* a, const char* b) {
     return !std::strcmp(a, b);
 }
@@ -265,43 +317,7 @@ const char* effect(E value) {
                             "host_recovery", "device_read", "device_setting",     "device_action"};
     return labels[static_cast<unsigned>(value)];
 }
-// One bounded candidate; formatting never publishes a truncated prefix.
-struct Text {
-    char bytes[ProbeConsole::RECORD_CAPACITY] = {};
-    size_t used = 0;
-    bool valid = true;
-    void add(const char* format, ...) {
-        if (!valid)
-            return;
-        va_list arguments;
-        va_start(arguments, format);
-        const int size = std::vsnprintf(bytes + used, sizeof bytes - used, format, arguments);
-        va_end(arguments);
-        if (size < 0 || static_cast<size_t>(size) >= sizeof bytes - used)
-            valid = false;
-        else
-            used += static_cast<size_t>(size);
-    }
-    void string(const char* value) {
-        if (!valid)
-            return;
-        if (!consoleJsonString(value, bytes + used, sizeof bytes - used))
-            valid = false;
-        else
-            used += std::strlen(bytes + used);
-    }
-    void start(bool json, uint32_t id, const char* type, const char* command) {
-        if (json) {
-            add("{\"schema\":\"motorcontrolcan.console/"
-                "1\",\"protocol\":3,\"profile\":\"lichuan_c\",\"type\":\"%s\",\"id\":%lu,"
-                "\"command\":",
-                type, static_cast<unsigned long>(id));
-            string(command);
-        } else
-            add("%s: ", command);
-    }
-    void end(bool json) { add(json ? "}\n" : "\n"); }
-};
+using Text = ConsoleText;
 void findingFields(Text& text, bool json, const DiscoveryFinding& finding) {
     text.add(json ? ",\"address\":%lu,\"outcome_code\":%u,\"confidence\":%u,\"binding_current\":%s,"
                     "\"unresolved\":%s,\"suspected_duplicate\":%s,\"raw_identity\":["
@@ -541,11 +557,13 @@ ProbeConsole::ProbeConsole(ProbeApp& app, CanBusOwner& owner, ProbePlatform& pla
     : app_(app), owner_(owner), platform_(platform) {}
 ConsoleStats ProbeConsole::stats() const noexcept {
     ConsoleStats result = stats_;
-    result.queued = ordinaryCount_ + controlCount_;
+    result.queued =
+        ordinaryCount_ + controlCount_ + unsigned(stopReplyUsed_[0]) + unsigned(stopReplyUsed_[1]);
     return result;
 }
 bool ProbeConsole::drained() const noexcept {
-    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_)
+    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ ||
+        stopReplyUsed_[0] || stopReplyUsed_[1])
         return false;
     for (const Operation& op : operations_)
         if (op.used && (!op.terminal || !op.delivered))
@@ -593,6 +611,9 @@ bool ProbeConsole::requestInUse(uint32_t id) const noexcept {
     for (unsigned n = 0; n < controlCount_; ++n)
         if (control_[n].request == id)
             return true;
+    for (unsigned n = 0; n < 2; ++n)
+        if (stopReplyUsed_[n] && stopReplies_[n].request == id)
+            return true;
     return listing_.active && listing_.json && listing_.id == id;
 }
 ProbeConsole::Operation* ProbeConsole::operation(uint32_t id) noexcept {
@@ -614,9 +635,9 @@ bool ProbeConsole::trackRead(uint32_t requestId, bool json, uint32_t operationId
         if (op.used && !op.recovery && op.readOperation == read.operation)
             return false;
     Operation* available = nullptr;
-    for (Operation& op : operations_)
-        if (!op.used) {
-            available = &op;
+    for (unsigned slot = 0; slot < OPERATION_CAPACITY; ++slot)
+        if (!operations_[slot].used) {
+            available = &operations_[slot];
             break;
         }
     if (!available || ordinaryCount_ == ORDINARY_REPLIES)
@@ -765,8 +786,10 @@ void ProbeConsole::listNext() noexcept {
         if (listing_.caps && listing_.json) {
             M::DiscoveryCapabilities c;
             if (M::getDiscoveryCapabilities(M::DriveProfile::LICHUAN_C, c))
-                text.add(",\"probe\":%s,\"identity\":%s,\"non_changing\":%s,\"can_match_exact_model\":%s,"
-                         "\"can_match_firmware\":%s,\"model_match\":null,\"firmware_match\":null,\"endpoint_range\":[%lu,%lu],\"motor_kind\":null,"
+                text.add(",\"probe\":%s,\"identity\":%s,\"non_changing\":%s,\"can_match_exact_"
+                         "model\":%s,"
+                         "\"can_match_firmware\":%s,\"model_match\":null,\"firmware_match\":null,"
+                         "\"endpoint_range\":[%lu,%lu],\"motor_kind\":null,"
                          "\"feedback\":null,\"hardware_qualified\":false",
                          boolean(c.probe), boolean(c.identity), boolean(c.nonChanging),
                          boolean(c.exactModel), boolean(c.firmware),
@@ -806,6 +829,10 @@ void ProbeConsole::poll(uint64_t now) noexcept {
             uint32_t(platform_.stats().outputWritten - op.deliveryEnd) < UINT32_C(0x80000000)) {
             op.delivered = true;
             op.deliveryPending = false;
+        }
+        if (op.motion) {
+            motionTerminal(op);
+            continue;
         }
         if (!op.terminal) {
             Text body;
@@ -1070,10 +1097,16 @@ void ProbeConsole::service(uint64_t now) noexcept {
     }
     if (device_)
         device_->advance(now);
+    if (motion_)
+        motion_->service(now);
     poll(now);
     diagnostic(now);
-    Record* records = controlCount_ ? control_ : ordinary_;
-    uint8_t& count = controlCount_ ? controlCount_ : ordinaryCount_;
+    const int stopSlot = stopReplyUsed_[1] ? 1 : stopReplyUsed_[0] ? 0 : -1;
+    Record* records = stopSlot >= 0   ? &stopReplies_[stopSlot]
+                      : controlCount_ ? control_
+                                      : ordinary_;
+    uint8_t one = 1;
+    uint8_t& count = stopSlot >= 0 ? one : controlCount_ ? controlCount_ : ordinaryCount_;
     if (count && platform_.writeOutput(reinterpret_cast<const uint8_t*>(records[0].text),
                                        records[0].length)) {
         if (records[0].terminal) {
@@ -1087,6 +1120,8 @@ void ProbeConsole::service(uint64_t now) noexcept {
         for (unsigned n = 1; n < count; ++n)
             records[n - 1] = records[n];
         --count;
+        if (stopSlot >= 0)
+            stopReplyUsed_[stopSlot] = false;
     }
     listNext();
     for (unsigned n = 0; n < INPUT_BUDGET; ++n) {
@@ -1106,7 +1141,9 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
         error(id, json, name, "duplicate_id", control);
         return;
     }
-    if ((control ? controlCount_ == CONTROL_REPLIES : ordinaryCount_ == ORDINARY_REPLIES)) {
+    const bool stop = equal(name, "stop");
+    if (!stop &&
+        (control ? controlCount_ == CONTROL_REPLIES : ordinaryCount_ == ORDINARY_REPLIES)) {
         increment(stats_.outputDropped);
         return;
     }
@@ -1117,6 +1154,20 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
     if (index == sizeof commands / sizeof commands[0] || commands[index].gate) {
         increment(stats_.invalid);
         error(id, json, name, "unknown_command");
+        return;
+    }
+    if ((equal(name, "home") || equal(name, "velocity")) && line.count == 2 &&
+        equal(line.token(1), "read")) {
+        dispatchDevice(line, now);
+        return;
+    }
+    if (equal(name, "motion") || equal(name, "move") || equal(name, "moveby") ||
+        equal(name, "moveto") || equal(name, "speed") || equal(name, "accel") ||
+        equal(name, "decel") || equal(name, "stepsperturn") || equal(name, "velocity") ||
+        equal(name, "home") || equal(name, "enable") || equal(name, "alarm-clear") ||
+        equal(name, "position-clear") || stop ||
+        (equal(name, "axis") && equal(line.token(1), "origin") && motion_)) {
+        dispatchMotion(line, now);
         return;
     }
     if (index > MEMORY) {
@@ -1525,13 +1576,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             reject("time_or_id_exhausted");
             return;
         }
-        Operation* op = nullptr;
-        for (Operation& candidate : operations_)
-            if (!candidate.used) {
-                op = &candidate;
-                break;
-            }
-        if (!op) {
+        Operation* op = &operations_[TOTAL_OPERATION_CAPACITY - 1];
+        if (op->used) {
             reject("retained_results_full");
             return;
         }
@@ -1585,6 +1631,14 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                          static_cast<unsigned long>(op->request));
             }
         } else if (command == RELEASE) {
+            const MotionStopResult* oldStop =
+                motion_ && op->stop ? motion_->stopResult(op->stop == 1 ? L::StopKind::HALT
+                                                                        : L::StopKind::QUICK_STOP)
+                                    : nullptr;
+            const bool originalMotion =
+                motion_ && (op->stop ? oldStop && oldStop->result.id == op->nativeOperation
+                                     : motion_->retained() &&
+                                           motion_->normalResult().id == op->nativeOperation);
             const bool originalReadStillPresent = app_.readContext().state != M::ReadState::EMPTY &&
                                                   app_.readContext().operation == op->readOperation;
             const bool originalSettings = settings_ && settings_->retained() &&
@@ -1602,7 +1656,12 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 device_ && device_->evidence() && device_->evidence()->record() &&
                 device_->evidence()->record()->plan.id == op->nativeOperation;
             if (!op->terminal || !op->delivered ||
-                (op->recovery        ? !owner_.releaseRecovery(op->recoveryId)
+                (op->motion ? originalMotion &&
+                                  (op->stop ? !motion_->releaseStop(op->stop == 1
+                                                                        ? L::StopKind::HALT
+                                                                        : L::StopKind::QUICK_STOP)
+                                            : !motion_->releaseNormal())
+                 : op->recovery      ? !owner_.releaseRecovery(op->recoveryId)
                  : op->commissioning ? originalCommissioning && !commissioning_->release()
                  : op->settings      ? originalSettings && !settings_->release()
                  : op->nmtId.owner   ? !owner_.releaseNmt(op->nmtId)
@@ -1615,6 +1674,15 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             *op = Operation();
             ok();
         } else {
+            const MotionStopResult* oldStop =
+                motion_ && op->stop ? motion_->stopResult(op->stop == 1 ? L::StopKind::HALT
+                                                                        : L::StopKind::QUICK_STOP)
+                                    : nullptr;
+            const bool replacedMotion =
+                op->motion &&
+                (!motion_ || (op->stop ? !oldStop || oldStop->result.id != op->nativeOperation
+                                       : !motion_->retained() ||
+                                             motion_->normalResult().id != op->nativeOperation));
             const bool replacedSettings =
                 op->settings && (!settings_ || !settings_->retained() ||
                                  settings_->context().operation != op->nativeOperation);
@@ -1631,16 +1699,18 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 op->capture &&
                 (!device_ || !device_->evidence() || !device_->evidence()->record() ||
                  device_->evidence()->record()->plan.id != op->nativeOperation);
-            if (replacedSettings || replacedCommissioning || replacedDiscovery || replacedCapture) {
+            if (replacedMotion || replacedSettings || replacedCommissioning || replacedDiscovery ||
+                replacedCapture) {
                 reject("operation_context_replaced");
                 return;
             }
             const bool cancelled =
                 !op->recovery && !op->terminal &&
-                (op->commissioning ? commissioning_ && commissioning_->cancel(now)
-                 : op->settings    ? settings_ && settings_->cancel(now)
-                 : op->nmtId.owner ? owner_.cancelNmt(op->nmtId, now)
-                 : op->discovery   ? device_ && device_->discovery().cancel(now)
+                (op->motion          ? !op->stop && motion_ && motion_->cancelNormal(now)
+                 : op->commissioning ? commissioning_ && commissioning_->cancel(now)
+                 : op->settings      ? settings_ && settings_->cancel(now)
+                 : op->nmtId.owner   ? owner_.cancelNmt(op->nmtId, now)
+                 : op->discovery     ? device_ && device_->discovery().cancel(now)
                  : op->capture
                      ? device_ && device_->evidence() && device_->evidence()->interrupt(now)
                  : op->monitor
@@ -1791,9 +1861,9 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
     const auto available = [&]() -> Operation* {
         if (nextOperation_ == UINT32_MAX)
             return nullptr;
-        for (Operation& op : operations_)
-            if (!op.used)
-                return &op;
+        for (unsigned slot = 0; slot < OPERATION_CAPACITY; ++slot)
+            if (!operations_[slot].used)
+                return &operations_[slot];
         return nullptr;
     };
     const auto admit = [&](Operation& op) {
@@ -1911,12 +1981,16 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                                             : commissioning_->pdo()->operation;
         admit(*op);
     } else if (equal(name, "driver") || equal(name, "io") || equal(name, "control") ||
-               equal(name, "tuning")) {
+               equal(name, "tuning") || equal(name, "home") || equal(name, "velocity")) {
         L::ReadKind kind = L::ReadKind::PROBE;
         bool reading =
             equal(line.token(1), "read") || (equal(name, "tuning") && equal(line.token(2), "read"));
         if (reading) {
-            if (equal(name, "driver")) {
+            if (equal(name, "home"))
+                kind = L::ReadKind::HOMING;
+            else if (equal(name, "velocity"))
+                kind = L::ReadKind::VELOCITY_TARGET;
+            else if (equal(name, "driver")) {
                 const char* group = line.token(2);
                 if (equal(group, "driver"))
                     kind = L::ReadKind::DRIVER;
@@ -1951,8 +2025,10 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                 else if (equal(line.token(1), "eds-gains"))
                     kind = L::ReadKind::TUNING_EDS_GAINS;
             }
-            if (count != (equal(name, "control") ? 2u : 3u) || kind == L::ReadKind::PROBE ||
-                now > uint64_t(INT64_MAX) - 1000000) {
+            if (count != (equal(name, "control") || equal(name, "home") || equal(name, "velocity")
+                              ? 2u
+                              : 3u) ||
+                kind == L::ReadKind::PROBE || now > uint64_t(INT64_MAX) - 1000000) {
                 reject("invalid_native_read_group");
                 return;
             }

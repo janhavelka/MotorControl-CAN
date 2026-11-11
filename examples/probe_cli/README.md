@@ -82,3 +82,15 @@ only compiles and does not flash or open a port.
 See the [shared platform and capacity guide](../../docs/firmware_examples.md)
 for the static owner stack (`FIRMWARE_STACK_BYTES` in `examples/common/EspProbeMain.h`), queues, service budgets, clock semantics,
 USB backpressure and separate host versus physical evidence.
+
+Prompt42 compiles the same `ProbeConsoleMotion`, `MotionIntent`, `ProbeMotion` and
+`AxisSession` sources in native/Arduino/IDF. [The motion CLI contract](../../docs/cli_contract.md#finite-motion-and-actions-prompt-42)
+records exact command grammar, units, deadlines and stop/result retention. Default
+startup selects/qualifies no motion context. An application that supplies an actual
+registered session and exact native prerequisites can attach that same public
+`ProbeMotion` bridge; no CLI command grants missing firmware or physical evidence.
+`motor-release` stays caps-only gated; `position-clear` is zero-only and sends no save.
+Native tests use manufactured owner/server events; compile/fake results qualify no
+movement, stopping, wiring, service latency or output delivery on a physical fixture.
+The shared IDF S2 console uses UART0/core0; Arduino S2 remains blocked by the pinned
+SDK console conflict. S3 builds do not stand in for S2 evidence.

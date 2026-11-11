@@ -21,7 +21,10 @@ import check_twai_sdk as twai_checker
 
 # Independent minimum: fixtures must not shrink when the production list changes.
 SHARED_SOURCES = [
-    "examples/common/ProbeApp.cpp", "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.cpp", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.cpp", "examples/common/ConfigurationRestore.cpp",
+    "examples/common/ProbeApp.cpp", "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeConsoleMotion.cpp",
+    "examples/common/ProbeMotion.cpp",
+    "examples/common/MotionIntent.cpp", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.cpp", "examples/common/ConfigurationRestore.cpp",
     "examples/common/ProbePlatform.cpp",
     "examples/common/DeviceEvidence.cpp", "examples/common/DiscoveryScan.cpp",
     "adapters/owner/CanBusOwner.cpp",

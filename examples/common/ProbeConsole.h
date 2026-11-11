@@ -3,9 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 #pragma once
+#include "MotionIntent.h"
 #include "ProbeApp.h"
 #include "ProbeCommissioning.h"
 #include "ProbeDevice.h"
+#include "ProbeMotion.h"
 #include "ProbeSettings.h"
 
 namespace MotorControlCANExample {
@@ -69,25 +71,26 @@ struct ConsoleStats {
     uint32_t invalid = 0;       ///< Invalid characters, lengths, grammar or exact values.
     uint32_t outputDropped = 0; ///< Whole ordinary replies refused before any local mutation.
     uint32_t inputLost = 0;     ///< Platform overflow incidents; discard through next terminator.
-    uint16_t queued = 0;        ///< Complete records retained locally, maximum four.
+    uint16_t queued = 0;        ///< Complete records retained locally, maximum six.
 };
 /** One cooperative application console. No CAN receiver, clock, allocation, retry
- * or device command route. Call app.service(now) first, then console.service(now).
+ * or independent operation executor. Call app.service(now) first, then console.service(now).
  * Records include their newline and are copied atomically into ProbePlatform.
  * Physical byte writes can be partial; the suffix is retained without interleaving.
- * Ordinary pressure never consumes the two reserved local-control reply slots.
+ * Ordinary pressure never consumes local-control or either stop's reserved reply slot.
  * All borrowed resources outlive this stationary object; callbacks cannot reenter.
  */
 class ProbeConsole {
   public:
     enum {
-        LINE_CAPACITY = 256,   ///< Includes NUL; at most 255 input text bytes.
-        TOKEN_CAPACITY = 24,   ///< Command tokens excluding optional correlation prefix.
-        RECORD_CAPACITY = 512, ///< Includes NUL; at most 511 record bytes including newline.
-        ORDINARY_REPLIES = 2,  ///< Complete ordinary records; no partial overwrite.
-        CONTROL_REPLIES = 2,   ///< Additional records reserved for local cancel/recover replies.
-        INPUT_BUDGET = 32,     ///< Maximum buffered input bytes consumed per service turn.
-        OPERATION_CAPACITY = 2 ///< Retained read/recovery correlations; no unread eviction.
+        LINE_CAPACITY = 256,    ///< Includes NUL; at most 255 input text bytes.
+        TOKEN_CAPACITY = 24,    ///< Command tokens excluding optional correlation prefix.
+        RECORD_CAPACITY = 512,  ///< Includes NUL; at most 511 record bytes including newline.
+        ORDINARY_REPLIES = 2,   ///< Complete ordinary records; no partial overwrite.
+        CONTROL_REPLIES = 2,    ///< Additional records reserved for local cancel/recover replies.
+        INPUT_BUDGET = 32,      ///< Maximum buffered input bytes consumed per service turn.
+        OPERATION_CAPACITY = 2, ///< Ordinary retained correlations; no unread eviction.
+        TOTAL_OPERATION_CAPACITY = 5 ///< Two ordinary, normal stop, fast stop, host recovery.
     };
     /** Borrow existing application/owner/platform; construction performs no I/O.
      * @param app Existing stationary shared application, outlives the console.
@@ -121,6 +124,15 @@ class ProbeConsole {
             !commissioning.usesOwner(owner_))
             return false;
         commissioning_ = &commissioning;
+        return true;
+    }
+    /** Borrow one actual axis attachment. Qualification and native prerequisites remain explicit.
+     * @param motion Stationary same application/owner attachment; outlives this console.
+     * @return False unchanged for a different graph or replacement attachment. No traffic. */
+    bool attachMotion(ProbeMotion& motion) noexcept {
+        if ((motion_ && motion_ != &motion) || !motion.matches(app_, owner_))
+            return false;
+        motion_ = &motion;
         return true;
     }
     ProbeConsole(const ProbeConsole&) = delete; ///< Stationary retained identities and buffers.
@@ -163,14 +175,17 @@ class ProbeConsole {
         MotorControlCANOwner::RecoveryId recoveryId;
         MotorControlCAN::CANOPEN::NmtRequestId nmtId;
         bool automatic = false, discovery = false, capture = false, monitor = false,
-             settings = false, commissioning = false;
+             settings = false, commissioning = false, motion = false;
+        uint8_t stop = 0; ///< Zero ordinary, one HALT, two QUICK_STOP; dedicated retained slots.
         uint8_t valueCursor = 0;
         char command[24] = "read";
         char terminalRecord[RECORD_CAPACITY] = {};
-    } operations_[OPERATION_CAPACITY];
+    } operations_[TOTAL_OPERATION_CAPACITY];
     ProbeDevice* device_ = nullptr;
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
+    ProbeMotion* motion_ = nullptr;
+    SimpleMoveIntent intent_;
     uint8_t debug_ = 0;
     ProbeApp& app_;
     CanBusOwner& owner_;
@@ -182,6 +197,8 @@ class ProbeConsole {
     uint32_t nextOperation_ = 0;
     ConsoleStats stats_;
     Record ordinary_[ORDINARY_REPLIES], control_[CONTROL_REPLIES];
+    Record stopReplies_[2];
+    bool stopReplyUsed_[2] = {false, false};
     uint8_t ordinaryCount_ = 0, controlCount_ = 0;
     struct Listing {
         bool active = false, caps = false, json = false, axis = false;
@@ -200,6 +217,13 @@ class ProbeConsole {
                int32_t detail = 0) noexcept;
     void poll(uint64_t now) noexcept;
     void dispatchDevice(const ConsoleLine& line, uint64_t now) noexcept;
+    void dispatchMotion(const ConsoleLine& line, uint64_t now) noexcept;
+    void motionIntentReply(const ConsoleLine& line, bool inspect) noexcept;
+    void motionAccepted(Operation& operation) noexcept;
+    bool motionValues(Operation& operation) noexcept;
+    bool motionTerminal(Operation& operation) noexcept;
+    bool enqueueStop(const char* text, uint8_t stop, uint32_t request,
+                     uint32_t terminal = 0) noexcept;
     void diagnostic(uint64_t now) noexcept;
     bool readValues(Operation& operation, uint64_t now) noexcept;
     void listNext() noexcept;

@@ -4,6 +4,10 @@ Execute the numbered files below in ascending **numeric order** among ready work
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
+The prompt42 user instruction authorizes merging into `main` after its gates and
+continuing on `main` until version0 is finished, with no new branches. This takes
+precedence over the historical execution-branch instructions for that period.
+
 Create one new branch at the start of a new execution and retain it across all 50 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
 
 ## Shared contracts
