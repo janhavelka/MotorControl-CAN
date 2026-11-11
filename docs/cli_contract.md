@@ -77,7 +77,7 @@ only; it claims no detected model, firmware match or hardware qualification.
 application, not guessed board settings. `wiring` records host declarations;
 labels do not establish terminal existence, function assignment or electrical
 level. `stats reset` clears documented counters only. `cancel` withdraws local read or motion
-work; `recover` requests bounded host recovery, with a caller-console policy of
+work, never a finite velocity (below); `recover` requests bounded host recovery, with a caller-console policy of
 one second, without stopping/resetting/enabling a drive or replaying work.
 
 The offline axis workspace is separate from selected live bindings. It starts
@@ -394,6 +394,11 @@ Finite velocity adds the checked duration to that total; its duration begins at
 native preparation, not trigger acknowledgement. Native service/poll policies and
 stop cutoffs are separately supplied prerequisites and cannot extend this budget.
 These bounds are application policy, not vendor delays.
+
+`cancel` of an admitted finite velocity is refused (`not_cancellable`) for as long as
+the run is retained: withdrawing it locally would also withdraw its own stop at the due
+time, its only software bound, while the motor may already turn. End a run early with
+`stop normal|fast`; its own stop otherwise leaves at the due time.
 
 An example on an explicitly prepared application fixture is:
 

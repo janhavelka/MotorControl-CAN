@@ -702,9 +702,12 @@ bool ProbeMotion::cancelNormal(uint64_t now) noexcept {
     // operation currently occupies the same kind's slot.
     if (!nativeMove() && !nativeVelocity() && !nativeHome() && !nativeAction())
         return false;
+    // A running velocity has no endpoint of its own: AxisSession::cancelVelocity would withdraw it
+    // before its due-time stop, and nothing would then stop the motor (BenchRoute::abort refuses too).
+    if (normal_.kind == MotionKind::VELOCITY)
+        return false;
     const bool cancelled =
         normal_.kind == MotionKind::MOVE       ? session_.cancelMove(now)
-        : normal_.kind == MotionKind::VELOCITY ? session_.cancelVelocity(now)
         : normal_.kind == MotionKind::HOME     ? session_.cancelHome(now)
         : normal_.kind == MotionKind::ENABLE   ? session_.cancelEnable(now)
         : (normal_.kind == MotionKind::ALARM_CLEAR || normal_.kind == MotionKind::POSITION_CLEAR)

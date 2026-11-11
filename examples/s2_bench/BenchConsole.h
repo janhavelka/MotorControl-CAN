@@ -140,6 +140,11 @@ class BenchConsole {
     const char* reply() const noexcept { return reply_; }
     /** @return True while a line is being collected. */
     bool collecting() const noexcept { return collecting_; }
+    /** Drop the line being collected after an input loss: its bytes may be spliced. The caller retires the
+     * buffered input and discards through the next line end, as ProbeConsole does after a loss.
+     * @return The refusal to print: the console's own form correlated by the line's @ID when its prefix
+     * arrived whole (`"command":"input"`, `"error":"input_lost"`), else `CONSOLE_REFUSED reason=input-loss`. */
+    const char* abandon() noexcept;
     /** Drop a line still open after COLLECT_TIMEOUT_US; the console never sees it.
      * @param nowUs Supplied platform time. @return True when a line was dropped now. */
     bool expire(uint64_t nowUs) noexcept;
@@ -162,7 +167,10 @@ class BenchConsole {
     bool ownsDownload(MotorControlCANOwner::SequenceId sequence,
                       const MotorControlCAN::CANOPEN::SdoTransfer& transfer) const noexcept;
     /** The owner handoff check of an owned download: ProbeMotion::preflight with this node's fault
-     * decision, BenchRoute's rule: more than one EMCY since the arming, or one with a nonzero code.
+     * decision: more than one EMCY since the arming, or one with a nonzero code. Stricter than
+     * BenchRoute's own rule, which applies the same test per service turn and then moves its baseline:
+     * this baseline is set once, at the node's successful move or velocity arming, so two no-error
+     * (code 0) EMCYs at any time after it hold every later download too.
      * main.cpp returns this result and never falls through to a more permissive check.
      * @param sequence Reservation. @param transfer Pending download. @param nowUs Owner time.
      * @return False withdraws the download unsent. */
@@ -211,9 +219,13 @@ class BenchConsole {
     BenchRoute* route_ = nullptr;
     BenchAxis* axes_[2] = {nullptr, nullptr};
     unsigned attached_ = 0;
-    uint32_t appliedTrial_ = 0;
-    bool stopNamed_ = false; // The applied arming carried stop budgets.
-    RoutePlan applied_;
+    uint32_t consumedTrial_ = 0; // The last arming record looked at, whatever its outcome.
+    uint32_t appliedTrial_ = 0;  // The last arming applied successfully, to the attached node.
+    RouteKind appliedKind_ = RouteKind::NONE;
+    struct StopBudget {
+        bool named = false; // A successful move or velocity arming of this node gave them.
+        uint32_t deadlineMs = 0, bestEffortMs = 0, intervalMs = 0;
+    } budgets_[2];
     RouteArming arming_;
     uint32_t emcyBaseline_[2] = {0, 0};
 };

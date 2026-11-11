@@ -187,7 +187,7 @@ void BenchConsole::refuse(const ConsoleLine& line, const char* reason) noexcept 
 }
 // The applied arming's reads are still the route's, of the attached node and this kind.
 bool BenchConsole::armingCurrent(RouteKind kind) noexcept {
-    return route_ && route_->armed(arming_) && arming_.plan.trial == appliedTrial_ &&
+    return appliedTrial_ && route_ && route_->armed(arming_) && arming_.plan.trial == appliedTrial_ &&
            arming_.plan.node == attached_ && arming_.plan.kind == kind;
 }
 BENCH_CONSOLE_NOINLINE const char* BenchConsole::motionRefusal(const ConsoleLine& line) noexcept {
@@ -209,20 +209,21 @@ BENCH_CONSOLE_NOINLINE const char* BenchConsole::motionRefusal(const ConsoleLine
 // empty read, which leaves only the policy's best-effort fallback. The policy's deadlines run from this
 // request, as BenchRoute::startStop sets them.
 BENCH_CONSOLE_NOINLINE void BenchConsole::nameStop(uint64_t now) noexcept {
-    if (!attached_ || !stopNamed_ || now > UINT64_MAX - 55000000ull * 2)
+    const StopBudget& budget = attached_ ? budgets_[attached_ - 1] : budgets_[0];
+    if (!attached_ || !budget.named || now > UINT64_MAX - 55000000ull * 2)
         return;
     ProbeMotion& motion = axes_[attached_ - 1]->motion;
     const L::ReadContext* state = &motion.session().moveObservation();
-    if (state->state != M::ReadState::SUCCEEDED && armingCurrent(applied_.kind))
+    if (state->state != M::ReadState::SUCCEEDED && armingCurrent(appliedKind_))
         state = arming_.state;
     StopPolicy policy;
     policy.options.service.queueTimeoutUs = ROUTE_QUEUE_US;
     policy.options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
-    policy.options.observationIntervalUs = uint64_t(applied_.stopIntervalMs) * 1000;
+    policy.options.observationIntervalUs = uint64_t(budget.intervalMs) * 1000;
     // Seven fields at the queue and response budgets, as BenchRoute::startStop allows.
     policy.options.maximumAgeUs = 7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
-    policy.deadlineUs = now + uint64_t(applied_.stopDeadlineMs) * 1000;
-    policy.bestEffortDeadlineUs = applied_.bestEffortMs ? now + uint64_t(applied_.bestEffortMs) * 1000 : 0;
+    policy.deadlineUs = now + uint64_t(budget.deadlineMs) * 1000;
+    policy.bestEffortDeadlineUs = budget.bestEffortMs ? now + uint64_t(budget.bestEffortMs) * 1000 : 0;
     motion.setStopPrerequisites(*state, policy);
 }
 ConsoleInput BenchConsole::take(uint8_t byte, uint64_t now, const BenchActivity& bench) noexcept {
@@ -296,6 +297,32 @@ ConsoleInput BenchConsole::take(uint8_t byte, uint64_t now, const BenchActivity&
         remember();
     return ConsoleInput::FORWARDED;
 }
+const char* BenchConsole::abandon() noexcept {
+    // The console's own loss form (ProbeConsole::feed after a loss): correlated by the line's @ID when
+    // its prefix arrived whole, else the bench's refusal line.
+    uint32_t id = 0;
+    uint16_t n = 1;
+    for (; n < used_ && n <= 10 && line_[n] >= '0' && line_[n] <= '9'; ++n)
+        id = n <= 9 || id <= (UINT32_MAX - uint32_t(line_[n] - '0')) / 10 ? id * 10 + uint32_t(line_[n] - '0') : 0;
+    // One to ten digits, then the separator: line_[n] is the first byte after them.
+    const bool prefix = used_ && line_[0] == '@' && n > 1 && n <= 11 && n < used_ && (line_[n] == ' ' || line_[n] == '\t');
+    collecting_ = false;
+    used_ = 0;
+    if (prefix && id) {
+        ConsoleText text;
+        text.start(true, id, "reply", "input");
+        text.add(",\"ok\":false,\"status\":\"%s\",\"detail\":0,\"error\":", M::errToString(M::Err::ILLEGAL_VALUE));
+        text.string("input_lost");
+        text.end(true);
+        if (text.valid && text.used < sizeof reply_) {
+            std::memcpy(reply_, text.bytes, text.used + 1);
+            return reply_;
+        }
+    }
+    static const char refusal[] = "CONSOLE_REFUSED reason=input-loss; no work\n";
+    std::memcpy(reply_, refusal, sizeof refusal);
+    return reply_;
+}
 bool BenchConsole::expire(uint64_t now) noexcept {
     if (!collecting_ || now < startedUs_ || now - startedUs_ <= COLLECT_TIMEOUT_US)
         return false;
@@ -308,15 +335,10 @@ bool BenchConsole::expire(uint64_t now) noexcept {
 const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
     const RoutePlan& p = arming_.plan;
     const uint8_t slot = uint8_t(p.node - 1);
-    // The console's motion routes act on one attachment; another node's is withdrawn only while idle.
-    if (attached_ != p.node) {
-        if (attached_ && !console_.detachMotion())
-            return "console_motion_retained";
-        attached_ = 0;
-        if (!console_.attachMotion(x.motion))
-            return "attach";
-        attached_ = p.node;
-    }
+    // Another node's attachment is withdrawn only while idle, and only after this node's prerequisites
+    // were accepted (below): a refused arming leaves the attachment, its budgets and its stop as they were.
+    if (attached_ != p.node && console_.retainsOperation())
+        return "console_operation_retained";
     const C::SdoChannel* channel = firmware_.services().channel(slot);
     const C::NodeSnapshot* node = firmware_.services().node(slot);
     const AxisSession& session = x.motion.session();
@@ -379,7 +401,7 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         // A witness only, for the console's stepsperturn and axis origin, which consume it: idle and
         // stationary rest on the route's check of two fresh full reads at the host's reviewed 6064, read
         // back, observed at the second's earliest FEEDBACK bound, with the move's age cap. No motion
-        // prerequisite and no stop budget is named; earlier stop budgets stay.
+        // prerequisite and no stop budget is named; this node's earlier stop budgets stay.
         M::AxisReference& w = x.reference;
         w.binding = x.axis.binding;
         w.referenceGeneration = x.axis.referenceGeneration;
@@ -390,7 +412,6 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         w.observedUs = arming_.feedbackUs;
         w.nowUs = now;
         w.maximumAgeUs = 9 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
-        return nullptr;
     } else {
         L::VelocityEvidence evidence;
         // The attended flag opens the library's experiment scope, as for VELOCITY; it claims nothing.
@@ -432,21 +453,39 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
     }
     if (!status)
         return status.msg && *status.msg ? status.msg : "prerequisites";
-    applied_ = p;
-    stopNamed_ = true;
-    emcyBaseline_[slot] = node->emcyCount; // An EMCY before the arming is not this console's.
+    // The console's motion routes act on one attachment.
+    if (attached_ != p.node) {
+        if (attached_ && !console_.detachMotion())
+            return "console_motion_retained";
+        attached_ = 0;
+        if (!console_.attachMotion(x.motion))
+            return "attach";
+        attached_ = p.node;
+    }
+    appliedTrial_ = p.trial;
+    appliedKind_ = p.kind;
+    if (p.kind != RouteKind::ARM_WITNESS) {
+        // This node's own stop budgets; another node's are never used for it. A witness names none.
+        StopBudget& budget = budgets_[slot];
+        budget.named = true;
+        budget.deadlineMs = p.stopDeadlineMs;
+        budget.bestEffortMs = p.bestEffortMs;
+        budget.intervalMs = p.stopIntervalMs;
+        emcyBaseline_[slot] = node->emcyCount; // An EMCY before the arming is not this console's.
+    }
     nameStop(now);
     return nullptr;
 }
 BENCH_CONSOLE_NOINLINE void BenchConsole::applyArming(uint64_t now) noexcept {
-    if (!route_ || !route_->armed(arming_) || arming_.plan.trial == appliedTrial_)
+    if (!route_ || !route_->armed(arming_) || arming_.plan.trial == consumedTrial_)
         return;
-    appliedTrial_ = arming_.plan.trial; // Once per arming record, whatever the outcome.
+    consumedTrial_ = arming_.plan.trial; // Once per arming record; applied only on success (arm).
     const unsigned node = arming_.plan.node;
     BenchAxis* axis = axes_[node - 1];
     const char* refusal = axis ? arm(*axis, now) : "memory";
     if (refusal) {
-        // Earlier stop budgets stay named: a refused arming never makes a stop unreachable.
+        // Nothing of it was applied: armingCurrent refuses its reads, and the attachment, its budgets and its
+        // stop stay as they were, so a refused arming never makes a stop unreachable.
         std::snprintf(notice_, sizeof notice_, "CONSOLE arm refused node=%u trial=%lu reason=%.80s; nothing named\n",
                       node, static_cast<unsigned long>(arming_.plan.trial), refusal);
         return;

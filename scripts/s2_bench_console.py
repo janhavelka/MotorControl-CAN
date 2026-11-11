@@ -8,7 +8,9 @@ Each --send is one step, sent only after the previous one was answered:
   T...             a bench route line; ",K" and the CRC-32 (zlib) of every byte before it are added as
                    scripts/s2_bench.py adds them; waits for TRIAL admitted or TRIAL_REFUSED, and after an
                    arming route (TY, TB, TX) for its CONSOLE armed or CONSOLE arm refused notice
-  c o p s M r x A n  one bench byte; waits for its own reply line
+  c o p s M r x A n  one bench byte; waits for its own reply line. `r` is sent only after the route record
+                   this session saw admitted has printed its END trial line (release is refused while the
+                   record is dumped); the next T line needs that `r` first
 
 A console motion line must follow its arming within the arming's age cap (about 3 s on the bench), so
 give both in one invocation. Opening the port drives neither EN nor BOOT, and the port must be the
@@ -104,6 +106,7 @@ class Session:
     def __init__(self, port, clock, transcript, echo):
         self.port, self.clock, self.transcript, self.echo = port, clock, transcript, echo
         self.pending = b""
+        self.record_open = False  # A route record admitted in this session has not printed its END yet.
 
     def send(self, data):
         if self.port.write(data) != len(data):
@@ -117,6 +120,10 @@ class Session:
                 raw, self.pending = self.pending.split(b"\n", 1)
                 line = raw.decode("ascii", "replace").rstrip("\r")
                 self.echo("%.3f %s" % (self.clock(), line))
+                if line.startswith("TRIAL admitted "):
+                    self.record_open = True
+                elif line.startswith("END trial "):
+                    self.record_open = False
                 found = predicate(line)
                 if found is not None:
                     return found
@@ -130,6 +137,9 @@ class Session:
 
 def run_step(session, step, args):
     data, (kind, key) = frame(step)
+    if kind == "byte" and key == "r" and session.record_open:
+        # The record is dumped whole after it ends, and released only then.
+        session.until(lambda line: None if session.record_open else True, args.terminal_timeout)
     session.send(data)
     if kind == "byte":
         def reply(line):

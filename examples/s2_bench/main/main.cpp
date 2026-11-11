@@ -1016,6 +1016,13 @@ void ownerTask(void*) {
     size_t trialLength = 0;
     bool trialCollecting = false;
     uint64_t trialCollectUs = 0;
+    // The rest of a line whose first byte was refused, or of the line open at an input loss: discarded
+    // through its line end, so that none of its bytes is taken as a single-byte bench command. A quiet
+    // input for 2 s, as long as a collector waits for a line, ends it too.
+    bool lineDiscard = false;
+    uint64_t lineDiscardUs = 0;
+    // The report of an input loss, printed once the retained one-shot response has gone.
+    const char* lossReport = nullptr;
     for (;;) {
         uint64_t now = 0;
         if (firmware.platform().nowUs(now)) {
@@ -1190,9 +1197,58 @@ void ownerTask(void*) {
         }
         // The console retains an operation, traces or scans: the bench admits no owner work of its own.
         const bool consoleHeld = commands && commands->holds();
-        if (!retainedSize && firmware.platform().takeInput(command)) {
+        // An input loss: the platform's ring was full and dropped the newest bytes. As ProbeConsole does
+        // after a loss, every buffered byte predates it and is retired unserved, the line open at the
+        // boundary is dropped with its own refusal, and input is discarded through the next line end. A
+        // console line's refusal names its @ID when that prefix arrived whole (BenchConsole::abandon).
+        if (firmware.platform().nowUs(now) && firmware.platform().takeInputLoss()) {
+            char open = consoleDiscard ? '#'
+                        : commands && commands->collecting() ? '@'
+                        : trialCollecting                    ? 'T'
+                        : soakCollecting                     ? 'S'
+                        : pdoCollecting                      ? 'N'
+                                                             : 0;
+            consoleDiscard = trialCollecting = soakCollecting = pdoCollecting = false;
+            uint8_t byte = 0;
+            for (unsigned n = 0; n < E::ProbePlatform::INPUT_CAPACITY && firmware.platform().takeInput(byte); ++n) {
+                if (byte == '\r' || byte == '\n') {
+                    if (commands && commands->collecting())
+                        (void)commands->abandon(); // A whole line before the boundary: retired too.
+                    open = 0;
+                    continue;
+                }
+                if (!open) // A single-byte command is retired; a line start opens that line.
+                    open = byte == '@' ? (commands ? '@' : '#')
+                           : byte == 'T' || byte == 'S' ? char(byte)
+                           : byte && std::strchr("NPRWECDKH", byte) ? 'N'
+                                                            : 0;
+                if (open == '@')
+                    (void)commands->take(byte, now, activity); // No line end: only its @ID prefix is kept.
+            }
+            lossReport = open == '@'   ? commands->abandon()
+                         : open == '#' ? "CONSOLE_REFUSED reason=input-loss; no work\n"
+                         : open == 'T' ? "TRIAL_REFUSED reason=input-loss; no work\n"
+                         : open == 'S' ? "SOAK_REFUSED reason=input-loss; no work\n"
+                         : open == 'N' ? "PDO_LINE refused reason=input-loss; no work\n"
+                                       : "INPUT_LOST; buffered input retired through the next line end, no work\n";
+            lineDiscard = true;
+            lineDiscardUs = now;
+        }
+        if (lossReport && !retainedSize) {
+            line(firmware, lossReport);
+            lossReport = nullptr;
+        }
+        if (lineDiscard && firmware.platform().nowUs(now) && now - lineDiscardUs > 2000000)
+            lineDiscard = false;
+        if (!retainedSize && !lossReport && firmware.platform().takeInput(command)) {
             char output[320] = {};
-            if (consoleDiscard || (commands && commands->collecting())) {
+            if (lineDiscard) {
+                uint8_t byte = command;
+                do {
+                    lineDiscardUs = now;
+                    lineDiscard = byte != '\r' && byte != '\n';
+                } while (lineDiscard && firmware.platform().takeInput(byte));
+            } else if (consoleDiscard || (commands && commands->collecting())) {
                 // One `@` line, drained whole: no byte of it is a bench command.
                 const bool discarding = consoleDiscard;
                 E::ConsoleInput taken = E::ConsoleInput::COLLECTING;
@@ -1603,9 +1659,14 @@ void ownerTask(void*) {
             } else if (soakActive && command != 'p' && command != 's' && command != '\r' &&
                        command != '\n') {
                 line(firmware, "SOAK_REFUSED reason=active; no work\n");
+                // A refused T opens a line: its rest is discarded, never served byte by byte.
+                lineDiscard = command == 'T';
+                lineDiscardUs = now;
             } else if (trialHeld && command != 'p' && command != 's' && command != 'd' &&
                        command != 'r' && command != 'A' && command != '\r' && command != '\n') {
                 line(firmware, "TRIAL_REFUSED reason=active; no work\n");
+                lineDiscard = command == 'T';
+                lineDiscardUs = now;
             } else if (command == 'T') {
                 trialCollecting = true;
                 trialLength = 0;

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """s2_bench_console.py against a fake board and clock: framing, step answers, refusals; no port, no pyserial."""
 
+import io
 from pathlib import Path
 import sys
 import tempfile
@@ -143,6 +144,39 @@ class Tests(unittest.TestCase):
         terminal = {b"@6 stop fast\n": record("reply", 6, "stop", ',"ok":true,"result":"accepted","operation_id":3') +
                                       record("terminal", 6, "stop", ',"ok":false,"outcome":"DEADLINE"')}
         self.assertEqual(self.run_tool(["@6 stop fast"], terminal)[0], 2)
+
+    def test_release_waits_for_the_admitted_records_end(self):
+        signed = (tool.sign_line("TX1,501,1,0") + "\n").encode("ascii")
+        second = (tool.sign_line("TX1,502,1,0") + "\n").encode("ascii")
+        answers = {
+            signed: b"TRIAL admitted route=arm-witness node=1 trial=501 motion=0 case=0; x\n"
+                    b"CONSOLE armed node=1 trial=501 route=arm-witness relative=0 witness=1 scale=0 origin=0; x\n",
+            b"@2 stepsperturn 1600\n": record("reply", 2, "stepsperturn", ',"ok":true,"status":"OK"'),
+            # The record's dump ends only after the console's reply here: `r` must wait for it.
+            b"r": b"TRIAL record released; sessions and uncertainty retained\n",
+            second: b"TRIAL admitted route=arm-witness node=1 trial=502 motion=0 case=0; x\n"
+                    b"END trial terminals=4 traffic=8 tail=0 tailLost=0 lost=0; r=release\n"
+                    b"CONSOLE armed node=1 trial=502 route=arm-witness relative=0 witness=1 scale=1 origin=0; x\n",
+        }
+        port = Port(answers)
+        port.answers[b"@2 stepsperturn 1600\n"] += b"TRAFFIC k=1\n"
+        lines = []
+        session = tool.Session(port, Clock(), io.BytesIO(), lines.append)
+
+        class Args:
+            timeout, terminal_timeout, no_terminal = 2.0, 3.0, False
+        tool.run_step(session, "TX1,501,1,0", Args)
+        tool.run_step(session, "@2 stepsperturn 1600", Args)
+        self.assertTrue(session.record_open)
+        with self.assertRaises(tool.Failure):  # No END: the release is never sent.
+            tool.run_step(session, "r", Args)
+        self.assertEqual(port.sent, [signed, b"@2 stepsperturn 1600\n"])
+        port.queue += b"END trial terminals=4 traffic=8 tail=0 tailLost=0 lost=0; r=release\n"
+        tool.run_step(session, "r", Args)
+        tool.run_step(session, "TX1,502,1,0", Args)
+        self.assertFalse(session.record_open)
+        tool.run_step(session, "r", Args)  # Its END was seen already: sent at once.
+        self.assertEqual(port.sent, [signed, b"@2 stepsperturn 1600\n", b"r", second, b"r"])
 
     def test_other_lines_and_other_ids_do_not_answer_a_step(self):
         answers = {b"@7 version\n": b"TRAFFIC k=1 p=2 id=581\n" + record("reply", 70, "version", ',"ok":true') +
