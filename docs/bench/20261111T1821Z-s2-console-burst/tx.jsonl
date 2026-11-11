@@ -1,0 +1,15 @@
+{"hex": "4034323934393637323934206472760a", "length": 16, "lines": [{"command": "drv", "id": 4294967294, "valid": true}], "offset": 0, "source": "account-before", "t": 2.344, "text": "@4294967294 drv\n"}
+{"hex": "40312076657273696f6e0a", "length": 11, "lines": [{"command": "version", "id": 1, "valid": true}], "offset": 16, "source": "script:9", "t": 2.375, "text": "@1 version\n"}
+{"hex": "4032207374617475730a", "length": 10, "lines": [{"command": "status", "id": 2, "valid": true}], "offset": 27, "source": "script:11", "t": 2.391, "text": "@2 status\n"}
+{"hex": "4033206865616c74680a", "length": 10, "lines": [{"command": "health", "id": 3, "valid": true}], "offset": 37, "source": "script:13", "t": 2.391, "text": "@3 health\n"}
+{"hex": "40342073746174730a", "length": 9, "lines": [{"command": "stats", "id": 4, "valid": true}], "offset": 47, "source": "script:15", "t": 2.406, "text": "@4 stats\n"}
+{"hex": "4035206472760a", "length": 7, "lines": [{"command": "drv", "id": 5, "valid": true}], "offset": 56, "source": "script:17", "t": 2.406, "text": "@5 drv\n"}
+{"hex": "4036206d656d6f72790a", "length": 10, "lines": [{"command": "memory", "id": 6, "valid": true}], "offset": 63, "source": "script:19", "t": 2.406, "text": "@6 memory\n"}
+{"hex": "403720636170730a", "length": 8, "lines": [{"command": "caps", "id": 7, "valid": true}], "offset": 73, "source": "script:21", "t": 2.406, "text": "@7 caps\n"}
+{"hex": "403820636f6e6669670a", "length": 10, "lines": [{"command": "config", "id": 8, "valid": true}], "offset": 81, "source": "script:23", "t": 2.422, "text": "@8 config\n"}
+{"hex": "4039206178697320636f6e6669670a", "length": 15, "lines": [{"command": "axis", "id": 9, "valid": true}], "offset": 91, "source": "script:25", "t": 2.422, "text": "@9 axis config\n"}
+{"hex": "4031302068656c700a", "length": 9, "lines": [{"command": "help", "id": 10, "valid": true}], "offset": 106, "source": "script:27", "t": 2.438, "text": "@10 help\n"}
+{"hex": "4031312068656c70207374617475730a", "length": 16, "lines": [{"command": "help", "id": 11, "valid": true}], "offset": 115, "source": "script:29", "t": 2.438, "text": "@11 help status\n"}
+{"hex": "4031322070726f66696c65206c6973740a", "length": 17, "lines": [{"command": "profile", "id": 12, "valid": true}], "offset": 131, "source": "script:31", "t": 2.438, "text": "@12 profile list\n"}
+{"hex": "40313320776972696e670a", "length": 11, "lines": [{"command": "wiring", "id": 13, "valid": true}], "offset": 148, "source": "script:33", "t": 2.438, "text": "@13 wiring\n"}
+{"hex": "4034323934393637323935206472760a", "length": 16, "lines": [{"command": "drv", "id": 4294967295, "valid": true}], "offset": 159, "source": "account-after", "t": 7.438, "text": "@4294967295 drv\n"}

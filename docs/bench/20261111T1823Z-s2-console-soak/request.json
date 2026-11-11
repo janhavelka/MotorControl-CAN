@@ -1,0 +1,94 @@
+{
+  "account": {
+    "after": {
+      "consoleDropped": 0,
+      "inputDropped": 0,
+      "outputRejected": 953547
+    },
+    "before": {
+      "consoleDropped": 0,
+      "inputDropped": 0,
+      "outputRejected": 0
+    }
+  },
+  "account_delta": {
+    "consoleDropped": 0,
+    "inputDropped": 0,
+    "outputRejected": 953547
+  },
+  "arguments": {
+    "account": true,
+    "artifact": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111T1810Z-s2-console-upload",
+    "boot_seconds": 20.0,
+    "burst": false,
+    "dry_run": false,
+    "first_id": 1,
+    "gap_ms": null,
+    "line_timeout": 5.0,
+    "no_boot_line": false,
+    "output": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111T1823Z-s2-console-soak",
+    "port": "COM15",
+    "reset_en": true,
+    "script": "scripts\\console_scripts\\soak.txt",
+    "serial": "94A990398B40",
+    "soak": 1200.0
+  },
+  "artifact": {
+    "app_elf": "motorcontrol_can_probe.elf",
+    "base_commit": "017b28b8325b30eeb997ce84b899399be1134b42",
+    "elf": "e1fd37f6a1070c5070bb3d47fd6f31069bd0a592ffb2bf1584d9204542799503",
+    "project_version": "017b28b",
+    "record": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111T1810Z-s2-console-upload\\build.json"
+  },
+  "baud": 115200,
+  "boot": "startup line",
+  "boot_lines": [
+    "ESP-ROM:esp32s2-rc4-20191025",
+    "Build:Oct 25 2019",
+    "rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)",
+    "SPIWP:0xee",
+    "mode:DIO, clock div:1",
+    "load:0x3ffe5110,len:0x4f8",
+    "load:0x4004a000,len:0x8a4",
+    "load:0x4004e000,len:0x2b08",
+    "entry 0x4004a11c",
+    "MotorControl-CAN: board accepted; CAN inactive until explicit start."
+  ],
+  "dtr_rts": "deasserted before open",
+  "en_pulse": {
+    "low_s": 0.1,
+    "released_s": 0.09399999998277053,
+    "via": "RTS, DTR deasserted"
+  },
+  "ended_utc": "2026-11-11T18:33:03.104599+00:00",
+  "fixture": {
+    "pid": 4098,
+    "port": "COM15",
+    "usb_serial": "94A990398B40",
+    "vid": 12346
+  },
+  "host_dirty": false,
+  "host_revision": "017b28b8325b30eeb997ce84b899399be1134b42",
+  "iterations": 436,
+  "opened_monotonic_s": 465156.359,
+  "port": "COM15",
+  "reset": "en_pulse",
+  "retry": false,
+  "schema": 1,
+  "script": {
+    "lf_sha256": "db680c2ae73c45a29b0683281ff1915d48401948227e14b78a24b081592e216b",
+    "path": "scripts\\console_scripts\\soak.txt",
+    "sha256": "1fd7b186e0bbed8ba91112dae559b57694ef81788d48f9d7ef8f8f0b0c378e23"
+  },
+  "started_utc": "2026-11-11T18:12:59.648890+00:00",
+  "startup_line": "MotorControl-CAN: board accepted; CAN inactive until explicit start.",
+  "status": "captured",
+  "tool": "s2_console",
+  "usb": {
+    "pid": 4098,
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346
+  },
+  "verdict": "passed"
+}

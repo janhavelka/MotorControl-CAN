@@ -1,0 +1,283 @@
+{
+  "account": {
+    "after": {
+      "consoleDropped": 5,
+      "inputDropped": 0,
+      "outputRejected": 90
+    },
+    "before": {
+      "consoleDropped": 0,
+      "inputDropped": 0,
+      "outputRejected": 0
+    }
+  },
+  "account_delta": {
+    "consoleDropped": 5,
+    "inputDropped": 0,
+    "outputRejected": 90
+  },
+  "counts": {
+    "accepted": 0,
+    "command_mismatch": 0,
+    "duplicate": 0,
+    "finals": 10,
+    "human_lines": 0,
+    "late": 0,
+    "malformed": 0,
+    "missing": 5,
+    "out_of_order": 0,
+    "oversize": 0,
+    "restart_lines": 0,
+    "sent_human": 0,
+    "sent_json": 15,
+    "streamed": 0,
+    "trace": 0,
+    "unsolicited": 0
+  },
+  "error": null,
+  "failing": {},
+  "iterations": 1,
+  "last_operation": null,
+  "latency_ms": {
+    "count": 10,
+    "max": 125.0,
+    "median": 55.0,
+    "min": 31.0,
+    "p99": 125.0
+  },
+  "lines": 20,
+  "missing_accounted": {
+    "console_dropped_delta": 5,
+    "missing": 5
+  },
+  "outstanding": 0,
+  "problems": [
+    "missing: no final record for id 7 (caps, script:21) within 5.0 s",
+    "missing: no final record for id 9 (axis, script:25) within 5.0 s",
+    "missing: no final record for id 10 (help, script:27) within 5.0 s",
+    "missing: no final record for id 11 (help, script:29) within 5.0 s",
+    "missing: no final record for id 13 (wiring, script:33) within 5.0 s"
+  ],
+  "reason": null,
+  "requests": [
+    {
+      "command": "drv",
+      "final": {
+        "command": "drv",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 4294967294,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 1,
+      "source": "account-before",
+      "state": "final"
+    },
+    {
+      "command": "version",
+      "final": {
+        "command": "version",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 1,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 2,
+      "source": "script:9",
+      "state": "final"
+    },
+    {
+      "command": "status",
+      "final": {
+        "command": "status",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 2,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 3,
+      "source": "script:11",
+      "state": "final"
+    },
+    {
+      "command": "health",
+      "final": {
+        "command": "health",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 3,
+      "latency_ms": 47.0,
+      "operation_id": null,
+      "seq": 4,
+      "source": "script:13",
+      "state": "final"
+    },
+    {
+      "command": "stats",
+      "final": {
+        "command": "stats",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 4,
+      "latency_ms": 63.0,
+      "operation_id": null,
+      "seq": 5,
+      "source": "script:15",
+      "state": "final"
+    },
+    {
+      "command": "drv",
+      "final": {
+        "command": "drv",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 5,
+      "latency_ms": 78.0,
+      "operation_id": null,
+      "seq": 6,
+      "source": "script:17",
+      "state": "final"
+    },
+    {
+      "command": "memory",
+      "final": {
+        "command": "memory",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 6,
+      "latency_ms": 94.0,
+      "operation_id": null,
+      "seq": 7,
+      "source": "script:19",
+      "state": "final"
+    },
+    {
+      "command": "caps",
+      "final": null,
+      "first": null,
+      "id": 7,
+      "latency_ms": null,
+      "operation_id": null,
+      "seq": 8,
+      "source": "script:21",
+      "state": "timed_out"
+    },
+    {
+      "command": "config",
+      "final": {
+        "command": "config",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 8,
+      "latency_ms": 109.0,
+      "operation_id": null,
+      "seq": 9,
+      "source": "script:23",
+      "state": "final"
+    },
+    {
+      "command": "axis",
+      "final": null,
+      "first": null,
+      "id": 9,
+      "latency_ms": null,
+      "operation_id": null,
+      "seq": 10,
+      "source": "script:25",
+      "state": "timed_out"
+    },
+    {
+      "command": "help",
+      "final": null,
+      "first": null,
+      "id": 10,
+      "latency_ms": null,
+      "operation_id": null,
+      "seq": 11,
+      "source": "script:27",
+      "state": "timed_out"
+    },
+    {
+      "command": "help",
+      "final": null,
+      "first": null,
+      "id": 11,
+      "latency_ms": null,
+      "operation_id": null,
+      "seq": 12,
+      "source": "script:29",
+      "state": "timed_out"
+    },
+    {
+      "command": "profile",
+      "final": {
+        "command": "profile",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 12,
+      "latency_ms": 125.0,
+      "operation_id": null,
+      "seq": 13,
+      "source": "script:31",
+      "state": "final"
+    },
+    {
+      "command": "wiring",
+      "final": null,
+      "first": null,
+      "id": 13,
+      "latency_ms": null,
+      "operation_id": null,
+      "seq": 14,
+      "source": "script:33",
+      "state": "timed_out"
+    },
+    {
+      "command": "drv",
+      "final": {
+        "command": "drv",
+        "ok": true,
+        "status": "OK",
+        "type": "reply"
+      },
+      "first": "reply",
+      "id": 4294967295,
+      "latency_ms": 31.0,
+      "operation_id": null,
+      "seq": 15,
+      "source": "account-after",
+      "state": "final"
+    }
+  ],
+  "rx_bytes": 2836,
+  "status": "captured",
+  "tx_bytes": 175,
+  "verdict": "passed"
+}

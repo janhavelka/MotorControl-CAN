@@ -1,0 +1,20 @@
+ESP-ROM:esp32s2-rc4-20191025
+Build:Oct 25 2019
+rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3ffe5110,len:0x4f8
+load:0x4004a000,len:0x8a4
+load:0x4004e000,len:0x2b08
+entry 0x4004a11c
+MotorControl-CAN: board accepted; CAN inactive until explicit start.
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":4294967294,"command":"drv","ok":true,"status":"OK","queued":0,"active":0,"retained":0,"reservations":0,"inputDropped":0,"outputRejected":0,"consoleDropped":0}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":1,"command":"version","ok":true,"status":"OK","product":"MotorControl-CAN","version":"0.1.0","operation_capacity":2}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":2,"command":"status","ok":true,"status":"OK","selected":false,"read_state":"EMPTY","uncertain":false,"controller_inhibited":false,"nmt":null,"drive_state":null,"mode":null,"position_valid":null}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":3,"command":"health","ok":true,"status":"OK","known":false,"state":null}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":4,"command":"stats","ok":true,"status":"OK","counters":[0,0,0,0,0,0,0,0,0,0,0,0,0,0],"maxServiceGapUs":"0"}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5,"command":"drv","ok":true,"status":"OK","queued":0,"active":0,"retained":0,"reservations":0,"inputDropped":0,"outputRejected":0,"consoleDropped":0}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":6,"command":"memory","ok":true,"status":"OK","app_bytes":"2360","owner_bytes":"13464","console_bytes":"6744","platform_bytes":"620","line_capacity":256,"record_capacity":512,"runtime_stack_high_water":null,"free_heap":null}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":8,"command":"config","ok":true,"status":"OK","interface":0,"bitrate_bits_per_second":1000000,"selected_node":null,"bus_traffic":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":12,"command":"profile","ok":true,"status":"OK","profiles":[{"name":"lichuan_c","protocol":"canopen","model_match":null,"firmware_match":null,"hardware_qualified":false}],"motor_kind":null,"feedback":null,"supported_modes":null,"probe":true,"identity":true,"selected_protocol":null}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":4294967295,"command":"drv","ok":true,"status":"OK","queued":0,"active":0,"retained":0,"reservations":0,"inputDropped":0,"outputRejected":90,"consoleDropped":5}
