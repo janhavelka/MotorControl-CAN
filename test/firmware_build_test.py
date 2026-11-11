@@ -749,10 +749,30 @@ class FirmwareBuildTests(unittest.TestCase):
         consumer = checker.sdkconfig_values(ROOT / "test/idf_consumer/sdkconfig.defaults")
         self.assertEqual(consumer, {"CONFIG_COMPILER_CXX_EXCEPTIONS": "n", "CONFIG_COMPILER_CXX_RTTI": "n"})
 
-    def test_all_excludes_only_the_blocked_arduino_s2_gate(self):
+    def test_all_excludes_the_blocked_arduino_s2_and_the_explicit_console_image(self):
         self.assertEqual(set(checker.ALL_TARGETS),
                          {"arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component"})
         self.assertEqual(checker.ARDUINO_BUILDS["arduino-s2"], ("probe_cli_s2_compile", "esp32s2"))
+        # Every gate is selectable; all is the CI set, which the bench-only console image is not part of.
+        self.assertEqual(set(checker.TARGETS), set(checker.ALL_TARGETS) | {"arduino-s2", "idf-s2-optak-console",
+                                                                            "all"})
+
+    def test_reviewed_optak_console_requirements_equal_the_application_configuration(self):
+        configured = {}
+        for name in ("sdkconfig.defaults", "sdkconfig.optak_s2"):
+            configured.update(checker.sdkconfig_values(ROOT / "examples/probe_idf" / name))
+        for key, value in checker.OPTAK_BOARD.items():
+            with self.subTest(key=key):
+                self.assertEqual(configured.get(key, "absent"), value)
+        # No defaults file of this image names a smoke option: the gate requires Kconfig's own result.
+        self.assertFalse([key for key in configured if "SMOKE" in key])
+        console = checker.SHARED_IDF_BUILDS["idf-s2-optak-console"]
+        self.assertEqual(console["sdkconfig"]["CONFIG_MOTORCONTROLCAN_SMOKE_HOOK"], checker.NOT_SET)
+        self.assertEqual({key: value for key, value in console["sdkconfig"].items() if "SMOKE_" in key and
+                          key != "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK"},
+                         dict.fromkeys(("CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B",
+                                        "CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8"), checker.UNDECLARED))
+        self.assertEqual(checker.OPTAK_S2, dict(checker.OPTAK_BOARD, **checker.OPTAK_SMOKE))
 
     def test_platformio_s2_environments_select_an_s2_board_without_usb_console(self):
         import configparser
@@ -892,6 +912,35 @@ class FirmwareBuildTests(unittest.TestCase):
         result, runner, _, _ = self.run_shared_cli("idf-s2-optak", good, compiled=compiled)
         self.assertEqual(result, 1)
         self.assertIn("FirmwareSmoke", runner.summary["error"])
+
+    def test_optak_console_image_is_the_board_configuration_without_the_smoke_hook(self):
+        spec = checker.SHARED_IDF_BUILDS["idf-s2-optak-console"]
+        good = self.sdkconfig_text(spec["sdkconfig"])
+        self.assertIn("# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set", good)
+        self.assertNotIn("SMOKE_NODE", good)
+        result, runner, calls, sdk = self.run_shared_cli("idf-s2-optak-console", good)
+        self.assertEqual(result, 0, runner.summary.get("error"))
+        self.assertEqual(sdk.call_args.kwargs["target"], "esp32s2")
+        (args, kwargs), = calls
+        project = (self.root / "examples/probe_idf").as_posix()
+        self.assertEqual(args[6], ["-DSDKCONFIG_DEFAULTS=" + ";".join(
+            project + "/" + name for name in ("sdkconfig.defaults", "sdkconfig.optak_s2"))])
+        self.assertEqual(runner.summary["idf_s2_optak_console_compile_entries"], len(SHARED_SOURCES) + 2)
+        self.assertEqual(runner.summary["firmware_targets"], {"idf-s2-optak-console": "esp32s2"})
+        for wrong in (good.replace("# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set", "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y"),
+                      good.replace("# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set\n", ""),
+                      good + "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A=1\n",
+                      good.replace("CONFIG_MOTORCONTROLCAN_CAN_RX_PIN=16", "CONFIG_MOTORCONTROLCAN_CAN_RX_PIN=15"),
+                      good.replace("CONFIG_MOTORCONTROLCAN_CAN_BITRATE=1000000", "CONFIG_MOTORCONTROLCAN_CAN_BITRATE=500000")):
+            with self.subTest(wrong=[line for line in wrong.splitlines() if line not in good.splitlines()]):
+                result, runner, _, _ = self.run_shared_cli("idf-s2-optak-console", wrong)
+                self.assertEqual(result, 1)
+                self.assertIn("differs from the selected board", runner.summary["error"])
+        compiled = self.expected() + [self.root / "src/core.cpp", self.root / "examples/probe_idf/main/main.cpp",
+                                      self.root / "examples/common/FirmwareSmoke.cpp"]
+        result, runner, _, _ = self.run_shared_cli("idf-s2-optak-console", good, compiled=compiled)
+        self.assertEqual(result, 1)
+        self.assertRegex(runner.summary["error"].replace("\\", "/"), "forbidden.*FirmwareSmoke")
 
     def run_component_cli(self, compiler="xtensa-esp32s3-elf-g++", linked="esp32s3", sdkconfig=None,
                           extra=(), checkout=()):

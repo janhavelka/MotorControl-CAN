@@ -20,21 +20,29 @@ Exactly one mode is required, so nothing flashes by default:
                          exactly as check_firmware.py --target idf-s2-optak:
                          sdkconfig.defaults (and its .esp32s2 file), sdkconfig.optak_s2,
                          sdkconfig.optak_s2_smoke. Verify it afterwards with s2_smoke.py.
+  probe-idf-optak-console
+                         examples/probe_idf with the same OPTAK S2 board configuration
+                         and no smoke hook, so UART0 carries the shared console. Configured
+                         exactly as check_firmware.py --target idf-s2-optak-console:
+                         sdkconfig.defaults (and its .esp32s2 file), sdkconfig.optak_s2.
+                         Exercise it afterwards with s2_console.py.
 
 Before any write the outputs must be the selected application: project name and path,
 the defaults files IDF applied, target, application ELF/BIN names and the only ELF in
 the build directory, the reviewed layout (bootloader 0x1000, partition table 0x8000,
 application 0x10000, dio/80m/4MB) in both flash_args and flasher_args.json, chip IDs,
-the ELF hash inside the image and sdkconfig without drift from those defaults. The
-smoke image must also carry every board and smoke value of the gate, have compiled the
-shared inputs and FirmwareSmoke.cpp with the xtensa-esp32s2 compiler and nothing from
-examples/s2_bench, and embed HEAD in its project version.
+the ELF hash inside the image and sdkconfig without drift from those defaults. A shared
+image must also carry every value its gate requires (the board values; the smoke values,
+or for the console image the smoke hook not set and its options absent), have compiled
+exactly the gate's inputs (FirmwareSmoke.cpp only for the smoke image) with the
+xtensa-esp32s2 compiler and nothing from examples/s2_bench, and embed HEAD in its
+project version.
 
 The recorded fixture is checked, never assumed. A failed step is retained and is
 not retried. This tool never erases all flash, changes eFuses, downloads a vendor
 executable or upgrades a toolchain, and it does not make the running image a
-qualified one: verify it afterwards with s2_bench.py ping and --check-ping, or for
-the smoke image with s2_smoke.py.
+qualified one: verify it afterwards with s2_bench.py ping and --check-ping, for the
+smoke image with s2_smoke.py, and for the console image with s2_console.py.
 """
 
 import argparse
@@ -59,13 +67,19 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGET = "esp32s2"
 # The reviewed applications. "defaults" None keeps IDF's own lookup of the project's
 # sdkconfig.defaults and the bench build command exactly as it was; "gate" names the
-# check_firmware.py build whose configuration, inputs and values an image must match.
+# check_firmware.py build whose configuration, inputs and values an image must match;
+# "verify" names the separate runner that checks the running image.
 APPS = {
     "s2-bench": {"project": BENCH_PROJECT, "name": "motorcontrol_can_s2_bench", "defaults": None,
-                 "gate": None, "build_dir": ".build/s2-bench-live", "label": "s2"},
+                 "gate": None, "build_dir": ".build/s2-bench-live", "label": "s2",
+                 "verify": "s2_bench.py ping + s2_flash.py --check-ping"},
     "probe-idf-optak-smoke": {"project": SHARED_IDF, "name": "motorcontrol_can_probe",
                               "defaults": SHARED_IDF_BUILDS["idf-s2-optak"]["defaults"], "gate": "idf-s2-optak",
-                              "build_dir": ".build/s2-smoke-live", "label": "s2-smoke"},
+                              "build_dir": ".build/s2-smoke-live", "label": "s2-smoke", "verify": "s2_smoke.py"},
+    "probe-idf-optak-console": {"project": SHARED_IDF, "name": "motorcontrol_can_probe",
+                                "defaults": SHARED_IDF_BUILDS["idf-s2-optak-console"]["defaults"],
+                                "gate": "idf-s2-optak-console", "build_dir": ".build/s2-console-live",
+                                "label": "s2-console", "verify": "s2_console.py"},
 }
 DEFAULT_APP = "s2-bench"
 PROJECT = ROOT / APPS[DEFAULT_APP]["project"]
@@ -149,7 +163,7 @@ def app_record(app):
     return {"name": app, "project": spec["project"], "project_name": spec["name"],
             "defaults": [_relative(path) for path in defaults_in_order(app)], "gate": spec["gate"],
             "flash_layout": {"0x%x" % offset: name for offset, name in sorted(flash_layout(app).items())},
-            "verify": "s2_smoke.py" if spec["gate"] else "s2_bench.py ping + s2_flash.py --check-ping"}
+            "verify": spec["verify"]}
 
 
 def check_build_dir(build, app):
@@ -164,6 +178,14 @@ def check_build_dir(build, app):
     if facts.get("project_name") != APPS[app]["name"] or not _same_path(facts.get("project_path"), project_dir(app)):
         raise FlashError("build directory %s holds project %s from %s, not %s from %s; use another --build-dir" % (
             build, facts.get("project_name"), facts.get("project_path"), APPS[app]["name"], APPS[app]["project"]))
+    # The smoke and console images share one project. A reused sdkconfig keeps the values of the
+    # defaults it was first configured with, so another app's directory is refused before building.
+    listed = facts.get("config_defaults")
+    listed = listed.split(";") if isinstance(listed, str) and listed else []
+    wanted = applied_defaults(app)
+    if listed and (len(listed) != len(wanted) or not all(_same_path(a, b) for a, b in zip(listed, wanted))):
+        raise FlashError("build directory %s was configured with defaults %s, not %s; use another --build-dir" % (
+            build, ";".join(_relative(path) for path in listed), ";".join(_relative(path) for path in wanted)))
 
 
 # ---------------------------------------------------------------- tool discovery
@@ -648,9 +670,13 @@ def ping_instructions(port, serial_number, artifact):
 
 
 def verify_instructions(app, port, serial_number, artifact):
-    """The separate identity check of the running image: a ping for the bench, the smoke runner otherwise."""
+    """The separate check of the running image: a ping for the bench, else the app's own runner."""
     if not APPS[app]["gate"]:
         return ping_instructions(port, serial_number, artifact)
+    if APPS[app]["verify"] == "s2_console.py":
+        return ["python scripts/s2_console.py --port %s --serial %s --artifact %s --reset-en "
+                "--script scripts/console_scripts/local_routes.txt --output NEW_CONSOLE_DIRECTORY" % (
+                    port, serial_number, artifact)]
     return ["python scripts/s2_smoke.py --port %s --serial %s --artifact %s --output NEW_SMOKE_DIRECTORY" % (
         port, serial_number, artifact)]
 
@@ -686,8 +712,9 @@ def dry_run(args):
         gate = SHARED_IDF_BUILDS[spec["gate"]]
         print("    plus the gate's sdkconfig values: " + " ".join(
             "%s=%s" % (name, "<not set>" if value is None else value) for name, value in sorted(gate["sdkconfig"].items())))
-        print("    and compiler inputs: shared inventory, core, main.cpp, %s; nothing from %s; %s compiler" % (
-            ", ".join(gate["extra"]), BENCH_PROJECT, "xtensa-" + gate["target"] + "-elf-"))
+        print("    and compiler inputs: %s; nothing from %s; %s compiler" % (
+            ", ".join(["shared inventory", "core", "main.cpp"] + list(gate["extra"])),
+            ", ".join([BENCH_PROJECT] + list(gate["forbidden"])), "xtensa-" + gate["target"] + "-elf-"))
         print("    and a project version naming HEAD")
     else:
         print("    and the compiled MOTORCONTROLCAN_SOURCE_REVISION equal to HEAD")
@@ -858,9 +885,10 @@ def check_ping(args):
     build = json.loads((Path(args.artifact) / "build.json").read_text(encoding="utf-8"))
     selected = build.get("app", {}).get("name", DEFAULT_APP) if isinstance(build.get("app"), dict) else DEFAULT_APP
     if selected != DEFAULT_APP:
-        # Only the bench image answers a ping; the smoke image is checked by s2_smoke.py.
+        # Only the bench image answers a ping; a shared image is checked by its own runner.
+        runner = APPS[selected]["verify"] if selected in APPS else "its own runner"
         print(json.dumps({"capture": str(args.check_ping), "artifact": str(args.artifact), "matches": False,
-                          "problems": ["build record is the %s image; verify it with s2_smoke.py" % selected]},
+                          "problems": ["build record is the %s image; verify it with %s" % (selected, runner)]},
                          indent=2))
         return 1
     report = replay_capture(args.check_ping)
@@ -897,7 +925,8 @@ def parse_args(argv=None):
     if args.check_ping and not args.artifact:
         parser.error("--check-ping requires --artifact")
     if args.check_ping and args.app != DEFAULT_APP:
-        parser.error("--check-ping verifies the %s image only; verify %s with s2_smoke.py" % (DEFAULT_APP, args.app))
+        parser.error("--check-ping verifies the %s image only; verify %s with %s" % (
+            DEFAULT_APP, args.app, APPS[args.app]["verify"]))
     if args.build_dir is None:
         args.build_dir = ROOT / APPS[args.app]["build_dir"]
     return args

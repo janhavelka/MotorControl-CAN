@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
 """Parse the real shared console output; no copied JSON success records."""
 
-import json
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-
-def unique_object(pairs):
-    """Repeated keys make a record ambiguous even when json.loads accepts it."""
-    result = {}
-    for key, value in pairs:
-        assert key not in result, "duplicate JSON key: " + key
-        result[key] = value
-    return result
+# The record rules shared with the S2 console runner (scripts/s2_console.py).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from console_jsonl import parse_record, record_problems  # noqa: E402
 
 
-def reject_constant(value):
-    raise AssertionError("non-finite JSON constant: " + value)
-
-
-def parse_record(line):
-    return json.loads(line, object_pairs_hook=unique_object, parse_constant=reject_constant)
+def checked(line):
+    """parse_record plus every shared record rule, on actual console output."""
+    _, problems = record_problems(line if line.endswith(b"\n") else line + b"\n")
+    assert not problems, problems
+    return parse_record(line)
 
 
 def main():
@@ -35,7 +28,7 @@ def main():
     for line in lines:
         assert len(line) <= 511, "record exceeds the documented atomic bound"
         assert line.endswith(b"\n") and b"\r" not in line and b"\x00" not in line
-        record = parse_record(line)
+        record = checked(line)
         assert isinstance(record, dict)
         assert record["schema"] == "motorcontrolcan.console/1"
         assert record["protocol"] == 3 and record["profile"] == "lichuan_c"
@@ -93,7 +86,7 @@ def main():
                            b"@4 read identity\n")
         native = subprocess.run([sys.argv[2], "--console-fake", str(script)],
                                 check=True, capture_output=True, timeout=15)
-        actual = [parse_record(line) for line in native.stdout.splitlines()]
+        actual = [checked(line) for line in native.stdout.splitlines()]
         assert actual[0]["product"] == "MotorControl-CAN"
         assert any(r.get("effective_native") == "9007199254740993" for r in actual)
         assert actual[-1]["id"] == 4 and actual[-1]["ok"] is False
@@ -103,7 +96,7 @@ def main():
         device = subprocess.run([sys.argv[2], "--console-fake", str(script)],
                                 check=True, capture_output=True, timeout=15)
         assert device.stdout.endswith(b"\n") and b"\r" not in device.stdout
-        actual = [parse_record(line) for line in device.stdout.splitlines()]
+        actual = [checked(line) for line in device.stdout.splitlines()]
         assert all(len(line) <= 511 for line in device.stdout.splitlines(keepends=True))
         values = [r for r in actual if r["type"] == "value"]
         assert len(values) == 10 and all(isinstance(r["raw"], str) for r in values)
@@ -129,7 +122,7 @@ def main():
                        check=True, capture_output=True, timeout=30)
         raw = transcript.read_bytes()
         assert raw.endswith(b"\n") and b"\r" not in raw and b"\x00" not in raw
-        motion = [parse_record(line) for line in raw.splitlines()]
+        motion = [checked(line) for line in raw.splitlines()]
         assert all(len(line) <= 511 for line in raw.splitlines(keepends=True))
         assert all(r["schema"] == "motorcontrolcan.console/1" and r["protocol"] == 3 for r in motion)
         values = [r for r in motion if r["type"] == "motion_value"]

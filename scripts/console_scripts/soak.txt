@@ -1,0 +1,33 @@
+# Read-only local soak mix for the probe-idf-optak-console image (s2_console.py --soak SECONDS --script).
+#
+# Every line is a cached inspection of host facts, the compiled inventory or counters: no line changes
+# a host setting, admits an operation, or reaches CAN (the controller is never started in this
+# image; see local_routes.txt). The runner rewrites each @ID to a new increasing ID per repetition.
+# Outcomes from ProbeConsole.cpp at a766d24, on an image where local_routes.txt did not run first:
+
+# reply ok: product MotorControl-CAN, version, operation_capacity 2.
+@1 version
+# reply ok: selected false, read_state EMPTY, uncertain false, controller_inhibited false.
+@2 status
+# reply ok: known false, state null.
+@3 health
+# reply ok: 14 counters (owner totals 0; index 13 consoleDropped counts this session's whole dropped replies), maxServiceGapUs "0".
+@4 stats
+# reply ok: queue/result/console pressure counters.
+@5 drv
+# reply ok: storage sizes; runtime_stack_high_water null, free_heap null.
+@6 memory
+# 57 capability records, then reply result complete.
+@7 caps
+# reply ok: interface 0, bitrate_bits_per_second 1000000, selected_node null, bus_traffic false.
+@8 config
+# reply ok: offline true, configured false (no listing while the offline axis is unconfigured).
+@9 axis config
+# 51 help records, then reply result complete.
+@10 help
+# reply ok: grammar and help of one row.
+@11 help status
+# reply ok: the compiled lichuan_c profile, selected_protocol null.
+@12 profile list
+# reply ok: 10 host wiring declarations.
+@13 wiring

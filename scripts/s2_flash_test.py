@@ -60,6 +60,7 @@ def make_tools(base):
 
 
 SMOKE = "probe-idf-optak-smoke"
+CONSOLE = "probe-idf-optak-console"
 SMOKE_NAME = "motorcontrol_can_probe"
 GOOD_ARGS = ("--flash_mode dio --flash_freq 80m --flash_size 4MB\n0x1000 bootloader/bootloader.bin\n"
              "0x10000 %s.bin\n0x8000 partition_table/partition-table.bin\n")
@@ -77,6 +78,9 @@ def resolved_sdkconfig(app):
                 name, value = line.split("=", 1)
                 values[name] = value
     values.update(CONFIG_IDF_TARGET='"esp32s2"', CONFIG_ESPTOOLPY_FLASHSIZE='"4MB"')
+    # Kconfig writes the bool's default when no defaults file sets it; the options that depend
+    # on the hook then get no line (the resolved sdkconfig of the idf-s2-optak-console gate).
+    values.setdefault("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK", None)
     return "".join("# %s is not set\n" % name if value is None else "%s=%s\n" % (name, value)
                    for name, value in values.items())
 
@@ -954,6 +958,134 @@ class SmokeDryRun(DryRun):
         _, output = self.dry()
         self.assertIn("Refused before building", output)
         self.assertIn("would be refused", output)
+
+
+class ConsoleImage(Fixture):
+    """probe-idf-optak-console: the OPTAK board configuration without the smoke hook."""
+
+    def console(self, bench, *mode, **options):
+        return self.run_mode(bench, *mode, "--app", CONSOLE, **options)
+
+    def refused(self, pattern, **options):
+        if self.build.exists():
+            shutil.rmtree(self.build)
+        write_build(self.build, app=CONSOLE, **options)
+        with self.assertRaisesRegex(flash.FlashError, pattern, msg=str(options)):
+            flash.validate_build(self.build, CONSOLE)
+
+    def test_command_and_selection_are_the_gate_configuration(self):
+        args = flash.parse_args(["--build-only", "--app", CONSOLE])
+        self.assertEqual(args.build_dir, ROOT / ".build/s2-console-live")
+        command = flash.build_command(TOOLS, "b", CONSOLE)
+        project = ROOT / "examples/probe_idf"
+        gate = flash.SHARED_IDF_BUILDS["idf-s2-optak-console"]
+        self.assertEqual(gate["defaults"], ("sdkconfig.defaults", "sdkconfig.optak_s2"))
+        self.assertIn("-DSDKCONFIG_DEFAULTS=" + ";".join((project / item).as_posix() for item in gate["defaults"]),
+                      command)
+        self.assertNotIn("smoke", " ".join(command))
+        self.assertEqual([path.name for path in flash.defaults_in_order(CONSOLE)], [
+            "sdkconfig.defaults", "sdkconfig.defaults.esp32s2", "sdkconfig.optak_s2"])
+        self.assertEqual(flash.flash_layout(CONSOLE), flash.flash_layout(SMOKE))
+        self.assertTrue(flash.default_artifact("flash", CONSOLE).name.endswith("-s2-console-upload"))
+        self.assertEqual(flash.app_record(CONSOLE)["verify"], "s2_console.py")
+        line, = flash.verify_instructions(CONSOLE, PORT, SERIAL, "A")
+        self.assertIn("s2_console.py", line)
+        self.assertIn("--reset-en", line)
+        self.assertIn("console_scripts/local_routes.txt", line)
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as err, self.assertRaises(SystemExit):
+            flash.parse_args(["--check-ping", "x", "--artifact", "y", "--app", CONSOLE])
+        self.assertIn("s2_console.py", err.getvalue())
+
+    def test_valid_console_build(self):
+        write_build(self.build, app=CONSOLE)
+        facts = flash.validate_build(self.build, CONSOLE)
+        self.assertEqual(facts["config_defaults"], ["examples/probe_idf/sdkconfig.defaults",
+                                                    "examples/probe_idf/sdkconfig.optak_s2"])
+        expected, forbidden = flash.smoke_inputs(CONSOLE)
+        self.assertNotIn(ROOT / "examples/common/FirmwareSmoke.cpp", expected)
+        self.assertIn(ROOT / "examples/common/FirmwareSmoke.cpp", forbidden)
+        self.assertEqual(facts["compile_entries"], len(expected))
+        values = facts["gate_sdkconfig"]
+        self.assertIsNone(values["CONFIG_MOTORCONTROLCAN_SMOKE_HOOK"])
+        for name in ("CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B",
+                     "CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8"):
+            self.assertEqual(values[name], "<undeclared>", name)
+        for name, value in (("CONFIG_MOTORCONTROLCAN_CAN_TX_PIN", "17"), ("CONFIG_MOTORCONTROLCAN_CAN_RX_PIN", "16"),
+                            ("CONFIG_MOTORCONTROLCAN_CAN_BITRATE", "1000000"),
+                            ("CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN", "18"),
+                            ("CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL", "1"),
+                            ("CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE", None), ("CONFIG_ESP_CONSOLE_NONE", "y")):
+            self.assertEqual(values[name], value, name)
+
+    def test_smoke_values_or_source_and_board_changes_are_refused(self):
+        good = resolved_sdkconfig(CONSOLE)
+        hook = "# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set\n"
+        self.assertIn(hook, good)
+        for sdkconfig in (good.replace(hook, "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y\n"), good.replace(hook, ""),
+                          good + "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A=1\n",
+                          good.replace("CONFIG_MOTORCONTROLCAN_CAN_TX_PIN=17\n", "CONFIG_MOTORCONTROLCAN_CAN_TX_PIN=16\n"),
+                          good.replace("# CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE is not set\n",
+                                       "CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE=y\n")):
+            self.refused("sdkconfig", sdkconfig=sdkconfig)
+        expected = flash.smoke_inputs(CONSOLE)[0]
+        self.refused("forbidden", inputs=expected + [ROOT / "examples/common/FirmwareSmoke.cpp"])
+        self.refused("forbidden", inputs=expected + [ROOT / "examples/s2_bench/main/main.cpp"])
+        self.refused("omitted", inputs=[path for path in expected if path.name != "main.cpp"])
+        # The smoke image's outputs are not this image: other defaults applied.
+        self.refused("defaults", description={"config_defaults": ";".join(
+            path.as_posix() for path in flash.applied_defaults(SMOKE))})
+
+    def test_full_sequence_and_retained_record(self):
+        bench = Bench(self.build, app=CONSOLE)
+        code, output, _ = self.console(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+        self.assertEqual(code, 0, output)
+        self.assertEqual(bench.names().count("write_flash"), 1)
+        record = self.record()
+        self.assertEqual((record["status"], record["app"]["name"], record["app"]["gate"]),
+                         ("flashed", CONSOLE, "idf-s2-optak-console"))
+        self.assertEqual(record["app"]["verify"], "s2_console.py")
+        self.assertIn("s2_console.py", output)
+        self.assertNotIn("s2_smoke.py", output)
+
+    def test_a_smoke_build_directory_is_refused_before_anything(self):
+        write_build(self.build, app=SMOKE)  # Same project; its sdkconfig would keep the smoke hook.
+        bench = Bench(self.build, app=CONSOLE)
+        code, output, usb = self.console(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+        self.assertEqual(code, 2)
+        self.assertEqual(bench.commands, [])
+        self.assertFalse(self.output.exists())
+        usb.assert_not_called()
+        self.assertIn("configured with defaults", output)
+        # And the reverse.
+        shutil.rmtree(self.build)
+        write_build(self.build, app=CONSOLE)
+        bench = Bench(self.build, app=SMOKE)
+        code, output, _ = self.run_mode(bench, "--build-only", "--app", SMOKE)
+        self.assertEqual(code, 2)
+        self.assertEqual(bench.commands, [])
+
+    def test_dry_run_plan(self):
+        blocked = mock.Mock(side_effect=AssertionError("dry run touched hardware or a process"))
+        with mock.patch.object(subprocess, "run", blocked), mock.patch.object(flash, "execute", blocked), \
+                mock.patch.object(flash, "comports", blocked), mock.patch.object(flash, "Runner", blocked), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            code = flash.main(self.arguments("--dry-run", "--app", CONSOLE))
+        self.assertEqual(code, 0)
+        output = out.getvalue()
+        for text in (CONSOLE, "idf-s2-optak-console", "sdkconfig.optak_s2", "s2_console.py",
+                     "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=<not set>", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A=<undeclared>",
+                     "nothing from examples/s2_bench, examples/common/FirmwareSmoke.cpp", "VERDICT: INCOMPLETE"):
+            self.assertIn(text, output)
+        self.assertNotIn("sdkconfig.optak_s2_smoke", output)
+        self.assertNotIn("s2_smoke.py", output)
+
+    def test_ping_check_names_the_console_runner(self):
+        self.output.mkdir()
+        (self.output / "build.json").write_text(json.dumps({"app": {"name": CONSOLE}}), encoding="utf-8")
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            code = flash.main(["--check-ping", str(self.base / "absent"), "--artifact", str(self.output)])
+        self.assertEqual(code, 1)
+        self.assertIn("s2_console.py", json.loads(out.getvalue())["problems"][0])
 
 
 class ToolDiscovery(Fixture):
