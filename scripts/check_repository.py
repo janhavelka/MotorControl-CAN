@@ -126,6 +126,7 @@ REQUIRED = {
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
     "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeDevice.h", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.h", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.h", "examples/common/ProbeCommissioning.cpp", "test/probe_commissioning_app_test.cpp", "test/probe_device_console_test.cpp", "test/probe_settings_app_test.cpp",
     "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
     "examples/common/ProbePlatform.h", "examples/common/ProbePlatform.cpp", "test/probe_app_test.cpp",
     "examples/native_probe/CMakeLists.txt", "examples/native_probe/main.cpp", "examples/native_probe/README.md",

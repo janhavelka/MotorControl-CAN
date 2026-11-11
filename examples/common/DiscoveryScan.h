@@ -149,6 +149,15 @@ class DiscoveryScan {
      * @return False for invalid time or failed owner progression. Results stay until release.
      */
     bool service(const DiscoveryInterface& actual, uint64_t nowUs) noexcept;
+    /** Advance findings after one externally performed app.service turn, without servicing
+     * the owner, platform or clock again. The caller exclusively owns that progression,
+     * uses the plan's frozen serviceBudget and cancels before it if interface facts changed.
+     * @param actual Current established interface facts; changes invalidate the scan.
+     * @param nowUs Same supplied processing time as the completed application turn.
+     * @return False for invalid time or settlement failure. Consumes at most one terminal;
+     * deadlines, retained findings and admission accounting match service().
+     */
+    bool advance(const DiscoveryInterface& actual, uint64_t nowUs) noexcept;
     /** @param nowUs Nondecreasing supplied us. @return True records cancellation and withdraws
      * current work without new traffic; subsequent service settles pending evidence. */
     bool cancel(uint64_t nowUs) noexcept;
@@ -175,6 +184,7 @@ class DiscoveryScan {
     uint32_t serverSessions_[DiscoveryPlan::CAPACITY] = {};
     uint32_t controllerEpoch_ = 0;
     uint32_t historyDropsAtStart_ = 0;
+    MotorControlCANOwner::RequestId countedRequest_; ///< Latest field counted at advancement.
     uint64_t startedUs_ = 0, lastUs_ = 0, deadlineUs_ = 0;
     uint8_t cursor_ = 0;
     bool occupied_ = false, active_ = false, startedRead_ = false, stopping_ = false;

@@ -212,6 +212,8 @@ class FirmwareProbe {
      * automatic restart is used.
      * Caller invokes its scheduling idle after this call, including failure.
      */
+    // Inactive turns progress only bounded host recovery and platform I/O; recovery
+    // fails without starting/restarting a controller, including after explicit stop.
     bool service() noexcept;
     /** @return Local controller/application progression only; never drive readiness. */
     bool running() const noexcept { return running_; }

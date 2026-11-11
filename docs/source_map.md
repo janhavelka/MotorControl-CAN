@@ -1,10 +1,31 @@
 # Live source and responsibility map
 
-## Shared local console (prompt 40)
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+
+
+## Shared console and device application (prompts 40-41)
+
+`ProbeDevice.h/.cpp` composes the existing DiscoveryScan/DeviceEvidence and cached
+network storage; its pre-service hook withdraws stale-interface scans before the
+owner runs. `ProbeSettings.h/.cpp` progresses concrete native settings through the
+existing AxisSession, with exact beforeTransmit notices and explicit epoch follow.
+`ProbeCommissioning.h/.cpp` composes the exact externally prepared heartbeat,
+persistence and TPDO1 lifecycles, preserving original outcomes and exact grants.
+`probe_device_console_test.cpp`, `probe_settings_app_test.cpp` and
+`probe_commissioning_app_test.cpp` exercise actual
+owner/fake wire paths, not console-only success stubs. Optional application files
+remain excluded from installed core packages.
+
 
 | Responsibility | Implementation / test | Boundary |
 | --- | --- | --- |
-| Grammar, inventory and complete JSONL formatting | [ProbeConsole.h](../examples/common/ProbeConsole.h), matching source; [console tests](../test/probe_console_test.cpp), [actual transcript checks](../test/console_protocol_test.py) | One local parser/inventory; no device routes or second receiver |
+| Grammar, inventory and complete JSONL formatting | [ProbeConsole.h](../examples/common/ProbeConsole.h), matching source; [console tests](../test/probe_console_test.cpp), [actual transcript checks](../test/console_protocol_test.py) | One local parser/inventory; typed application device routes, one receiver |
 | Host facts and offline arithmetic | [ProbeAppLocal.cpp](../examples/common/ProbeAppLocal.cpp); [local API tests](../test/probe_app_local_test.cpp) | Public exact Axis/Units APIs; live selection unchanged, no fabricated reference |
 | Native and firmware entries | [native_probe](../examples/native_probe/README.md), EspProbeMain.cpp, shared firmware source inventory | Same console sources; explicit smoke hooks retain input ownership; SDK-free core |
 

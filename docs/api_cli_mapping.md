@@ -1,25 +1,34 @@
 # API and CLI naming map
 
-Prompt 40 implements the passive/local subset in
-[`ProbeConsole`](../examples/common/ProbeConsole.h), using one canonical
-`consoleCommands` inventory. [The CLI contract](cli_contract.md) owns exact
-working grammar, schema and capacities. Local routes below marked P40 are now
-implemented and tested. Device routes remain gated, visible only through `caps`;
-P41/P42 retain every listed obligation. `config` is query-only; `host`/`useaddr`
-own actual host target/controller selection in P41. Offline `axis` interpretation
+Prompts 40-41 implement the shared bounded console in
+[`ProbeConsole`](../examples/common/ProbeConsole.h), with one `consoleCommands`
+inventory. [The CLI contract](cli_contract.md#typed-device-increment-prompt-41)
+owns exact working grammar, classifications, schema and capacities. Typed reads,
+conditional settings/commissioning/persistence, existing-slot selection, finite
+discovery/monitoring and passive diagnostics now call the public application paths.
+`ProbeDevice`, `ProbeSettings` and `ProbeCommissioning` retain their concrete
+contexts over the same owner; the parser contains no profile sequence. No route
+creates a read grant, fixture review, model match or hardware qualification.
+Motion/actions remain prompt42; source-conflicted capabilities remain visible
+through `caps`, absent from working help/dispatch. `config` is host-only inspection;
+`host`/`useaddr` select established host bindings without wire work. Offline `axis`
 never configures a live binding or manufactures stationary position evidence.
+
+The group table below records the owning prompt. A P41 ownership entry now means
+the working conditional route above, except an explicitly stated source gate.
+An inherited firmware/Q20 prerequisite is not a console permission switch.
 
 Prompt 38 implements `LICHUAN_C::prepareCommunicationRead`, `nextCommunication`,
 `advanceCommunication` and `getCommunication` for finite raw records, and
 `prepareCommunication`, `noteCommunicationTransmission` and explicit
 `prepareCommunicationConfirmation` for the reviewed heartbeat transition.
-These are native APIs with owner tests; production console routes remain prompt41.
+These are native APIs with owner tests; the shared console consumes these through the exact externally reviewed application bridge.
 See [commissioning](commissioning.md#explicit-communication-commissioning) for
 the exact read, write and acquisition scopes.
 
 Prompt37 implements `getDiscoveryProfile`, `getDiscoveryCapabilities`, profile
 `prepareProbe/checkProbe`, `ProbeApp::select` and the optional `DiscoveryScan`.
-They are native APIs today; discovery CLI fields/routes remain prompt41. Read
+The shared console now uses these inventory APIs and the bounded scan. Read
 [commissioning](commissioning.md) for bounded slots and identity/effect limitations.
 
 | New public API | Scope | CLI status |

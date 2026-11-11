@@ -215,7 +215,7 @@ bool DeviceEvidence::service(uint64_t now) noexcept {
 bool DeviceEvidence::interrupt(uint64_t now) noexcept {
     if (!occupied_ || record_.terminal || now < lastUs_ || now < owner_.lastTimeUs())
         return false;
-    if (app_.readContext().state == M::ReadState::ACTIVE && !app_.cancelRead(now))
+    if (app_.readContext().state == M::ReadState::ACTIVE && !app_.interruptRead(now))
         return false;
     record_.interrupted = true;
     return service(now);

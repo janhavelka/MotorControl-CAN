@@ -4,6 +4,9 @@
  */
 #pragma once
 #include "ProbeApp.h"
+#include "ProbeCommissioning.h"
+#include "ProbeDevice.h"
+#include "ProbeSettings.h"
 
 namespace MotorControlCANExample {
 /** Effect classification used by this inventory and later device routes. */
@@ -92,6 +95,34 @@ class ProbeConsole {
      * @param platform Its stationary byte buffers, outlives the console.
      */
     ProbeConsole(ProbeApp& app, CanBusOwner& owner, ProbePlatform& platform) noexcept;
+    /** Attach existing optional device facilities; no selection, I/O or permission is created.
+     * @param device Stationary helper sharing this application/owner, outlives the console.
+     * @return False unchanged for a different graph or an already attached helper. */
+    bool attachDevice(ProbeDevice& device) noexcept {
+        if ((device_ && device_ != &device) || !device.matches(app_, owner_))
+            return false;
+        device_ = &device;
+        return true;
+    }
+    /** Borrow an explicitly configured settings bridge; no prerequisite/read grant is created.
+     * @param settings Stationary actual axis/session bridge, outlives this console.
+     * @return False unchanged for a different owner graph or replacement attachment. */
+    bool attachSettings(ProbeSettings& settings) noexcept {
+        if ((settings_ && settings_ != &settings) || !settings.usesOwner(owner_))
+            return false;
+        settings_ = &settings;
+        return true;
+    }
+    /** Borrow an externally armed typed commissioning bridge; no review/grant is invented.
+     * @param commissioning Stationary same-selected-axis bridge, outlives the console.
+     * @return False unchanged for a different owner graph or replacement attachment. */
+    bool attachCommissioning(ProbeCommissioning& commissioning) noexcept {
+        if ((commissioning_ && commissioning_ != &commissioning) ||
+            !commissioning.usesOwner(owner_))
+            return false;
+        commissioning_ = &commissioning;
+        return true;
+    }
     ProbeConsole(const ProbeConsole&) = delete; ///< Stationary retained identities and buffers.
     ProbeConsole& operator=(const ProbeConsole&) = delete; ///< No mutable copies.
     /** Consume one byte. Invalid/overlong lines discard through CR/LF before dispatch.
@@ -126,12 +157,21 @@ class ProbeConsole {
     struct Operation {
         bool used = false, json = false, terminal = false, delivered = false, recovery = false,
              queuedTerminal = false, deliveryPending = false;
-        uint32_t request = 0, id = 0, readOperation = 0;
+        uint32_t request = 0, id = 0, readOperation = 0, nativeOperation = 0;
         uint32_t deliveryEnd =
             0; ///< Modulo outputWritten position after the complete terminal line.
         MotorControlCANOwner::RecoveryId recoveryId;
+        MotorControlCAN::CANOPEN::NmtRequestId nmtId;
+        bool automatic = false, discovery = false, capture = false, monitor = false,
+             settings = false, commissioning = false;
+        uint8_t valueCursor = 0;
+        char command[24] = "read";
         char terminalRecord[RECORD_CAPACITY] = {};
     } operations_[OPERATION_CAPACITY];
+    ProbeDevice* device_ = nullptr;
+    ProbeSettings* settings_ = nullptr;
+    ProbeCommissioning* commissioning_ = nullptr;
+    uint8_t debug_ = 0;
     ProbeApp& app_;
     CanBusOwner& owner_;
     ProbePlatform& platform_;
@@ -153,9 +193,15 @@ class ProbeConsole {
     bool enqueue(const char* text, bool control = false, uint32_t request = 0,
                  uint32_t terminal = 0) noexcept;
     void dispatch(const ConsoleLine& line, uint64_t now) noexcept;
+    void dispatchLocal(const ConsoleLine& line, uint64_t now, size_t index) noexcept;
     void error(uint32_t id, bool json, const char* command, const char* reason,
-               bool control = false) noexcept;
+               bool control = false,
+               MotorControlCAN::Err code = MotorControlCAN::Err::ILLEGAL_VALUE,
+               int32_t detail = 0) noexcept;
     void poll(uint64_t now) noexcept;
+    void dispatchDevice(const ConsoleLine& line, uint64_t now) noexcept;
+    void diagnostic(uint64_t now) noexcept;
+    bool readValues(Operation& operation, uint64_t now) noexcept;
     void listNext() noexcept;
     Operation* operation(uint32_t id) noexcept;
     bool requestInUse(uint32_t id) const noexcept;

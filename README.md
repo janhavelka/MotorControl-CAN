@@ -1,10 +1,12 @@
 # MotorControl-CAN
 
-The [shared local console](docs/cli_contract.md) now runs through the native,
-Arduino and ESP-IDF application sources. It provides cached diagnostics, retained
-results, host-only configuration and exact offline target preparation. Try
-[native batch mode](examples/native_probe/README.md) without hardware. Device
-routes remain visibly gated for prompts 41 and 42; no command runs at startup.
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](docs/cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](docs/audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
 
 The conditional [persistence workflow](docs/commissioning.md) now separates
 one-shot save, factory restore and host re-application of three recorded motion

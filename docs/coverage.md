@@ -1,11 +1,12 @@
 # Requirement coverage after pure CAN/SDO checks
 
-Prompt 40 implements and host-tests the shared local console: 17 canonical route
-families with cached diagnostics, explicit local cancel/recovery/result release,
-host wiring and exact offline axis preparation. [The command inventory](../examples/common/ProbeConsole.cpp)
-keeps later device routes gated with their named owner/reason. This adds no native
-object read/write or hardware-qualified capability. The [CLI contract](cli_contract.md)
-and [stage report](reports/prompt_40.md) own the schema and actual checks.
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
 
 Prompt39 adds the `2300` typed U16 read (192 total read shapes), conditional
 `prepareSave`/`prepareFactoryRestore` and explicit `verifyPersistence`. Native

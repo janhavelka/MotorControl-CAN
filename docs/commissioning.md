@@ -453,3 +453,24 @@ call-chain bounds do not replace firmware task high-water measurements.
 Host tests and Doxygen validate the software contract. No save or factory-restore
 hardware qualification follows from them; actual firmware effects and complete
 backup/route-back facts remain separately required for a live procedure.
+
+
+## Shared console requests (prompt41)
+
+[Exact command grammar and prerequisites](cli_contract.md#explicit-reviewed-commissioning)
+now connect the existing native communication, persistence and narrow TPDO1
+contexts through `ProbeCommissioning` and the sole owner. The console does not
+construct review records, grant unqualified reads or choose another route after
+silence. Host `host SLOT` / `useaddr NODE [SUBAXIS]` selection remains separate
+from native `2203`, heartbeat and PDO mutation. The three-field
+`motion-profile` record is not a full factory-recovery backup.
+
+Arming is explicit application code over actual public preparation. It copies a
+finite native plan, requires its exact preparation time/cutoff and current
+reservation at request, then preserves every original acknowledgement/partial
+prefix and unknown effect. Readback needs actual local TX retirement and owner
+configuration migration; a missing grant or failed migration cannot reinterpret
+a previous acknowledgement as untransmitted. Original persistence outcome and
+independent verification stay separate. Default firmware supplies no broad review
+or permission. Physical configuration, power cycling and qualification remain
+separately recorded bench procedures.

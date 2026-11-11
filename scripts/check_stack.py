@@ -74,6 +74,10 @@ CONTEXT_TYPES = (
     ("SdoCompletion", "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN::CANOPEN::SdoCompletion"),
     ("AxisSession", "AxisSession.h", "MotorControlCANExample::AxisSession"),
     ("ProbeApp", "ProbeApp.h", "MotorControlCANExample::ProbeApp"),
+    ("ProbeConsole", "ProbeConsole.h", "MotorControlCANExample::ProbeConsole"),
+    ("ProbeDevice", "ProbeDevice.h", "MotorControlCANExample::ProbeDevice"),
+    ("ProbeSettings", "ProbeSettings.h", "MotorControlCANExample::ProbeSettings"),
+    ("ProbeCommissioning", "ProbeCommissioning.h", "MotorControlCANExample::ProbeCommissioning"),
 )
 
 STRING = r'((?:[^"\\]|\\.)*)'

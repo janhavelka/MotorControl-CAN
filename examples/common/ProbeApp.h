@@ -7,9 +7,10 @@
 #include "CanBusOwner.h"
 #include "ProbePlatform.h"
 #include <MotorControlCAN/Axis.h>
-#include <MotorControlCAN/profiles/lichuan_c/Reads.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCANExample {
+class ProbeDevice;
 using MotorControlCANOwner::CanBusOwner;
 using MotorControlCANOwner::Health;
 using MotorControlCANOwner::RequestId;
@@ -80,6 +81,12 @@ class ProbeApp {
      * @param[in] platform Bounded byte/time facility, outlives this application.
      */
     ProbeApp(CanBusOwner& owner, ProbePlatform& platform) noexcept;
+    /** Bind the one optional application device helper, without traffic.
+     * @param device Stationary same-owner helper. Existing different attachment is refused.
+     * @return True for the sole attachment; borrowed until app destruction. */
+    bool attachDevice(ProbeDevice& device) noexcept;
+    /** @param owner Expected sole owner. @return True only for this stationary owner graph. */
+    bool usesOwner(const CanBusOwner& owner) const noexcept { return &owner == &owner_; }
     ProbeApp(const ProbeApp&) = delete;            ///< No copying live reservation/result handles.
     ProbeApp& operator=(const ProbeApp&) = delete; ///< Stationary application storage.
     /** @return Borrowed offline interpretation, null before explicit initialization. */
@@ -187,12 +194,35 @@ class ProbeApp {
     bool requestState(uint64_t nowUs, uint64_t deadlineUs,
                       const MotorControlCAN::LICHUAN_C::ReadOptions& options,
                       uint8_t blockMask) noexcept;
+    /** Prepare an ordinary finite read after checking every field against DEC-1.
+     * @param kind PROBE, IDENTITY, CONFIG, STATE or a typed native driver read kind.
+     * @param nowUs Nondecreasing supplied monotonic us, zero valid.
+     * @param deadlineUs Exclusive immutable future cutoff.
+     * @param options Explicit queue/response budgets and applicable width policy.
+     * @param stateMask Nonzero StateBlock bits for STATE, zero for every other kind.
+     * @return Local status. UNSUPPORTED/READ_EFFECT means Q20 refuses the complete plan,
+     * before any reservation, operation or read publication. All refusal paths preserve
+     * the retained read and admit no work. Accepted effects remain unknown; no retry.
+     * Reviewed experiment callers retain the separate requestIdentity/config/state path.
+     */
+    MotorControlCAN::Status
+    requestOrdinaryRead(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs,
+                        uint64_t deadlineUs, const MotorControlCAN::LICHUAN_C::ReadOptions& options,
+                        uint8_t stateMask = 0) noexcept;
     /** Cancel the current read locally, retaining any pending owner terminal for advanceRead.
      * @param nowUs Nondecreasing supplied microseconds; earlier terminal/deadline wins.
      * @return False for no active read or invalid time; true performs no receive/new TX.
-     * Between fields, settles the typed context directly; never means motor stop.
+     * Between fields, settles the typed context directly. After possible TX, the exact
+     * pending service settles normally, then cancellation withdraws any remaining fields.
+     * No later field can be admitted after withdrawal; this never means motor stop.
      */
     bool cancelRead(uint64_t nowUs) noexcept;
+    /** Interrupt an acquisition's current native service as well as withdrawing later fields.
+     * Unlike ordinary console withdrawal, this deliberately settles possible TX as uncertain
+     * and can quarantine its channel. It is used by explicit diagnostic experiment interruption.
+     * @param nowUs Nondecreasing supplied us. @return False unchanged without active read or
+     * on invalid time; retained native terminal/deadline wins. Never a motor stop or retry. */
+    bool interruptRead(uint64_t nowUs) noexcept;
     /** Run owner first with fixed nonzero budgets, then bounded platform I/O.
      * @param[in] nowUs Supplied nondecreasing us; callers may acquire it via platform.nowUs.
      * @return False for backward time/owner rejection, with no platform callbacks.
@@ -236,7 +266,9 @@ class ProbeApp {
     /** @return Borrowed concrete context/history until next advance/release/destruction.
      * Use checked typed getters below for current observations; history is not freshness.
      */
-    const MotorControlCAN::LICHUAN_C::ReadContext& readContext() const noexcept { return read_; }
+    const MotorControlCAN::LICHUAN_C::ReadContext& readContext() const noexcept {
+        return driverRead_.read;
+    }
     /** Publish current successful raw identity, not model applicability.
      * @param[in] nowUs Nondecreasing supplied us.
      * @param[in] maximumAgeUs Nonzero inclusive per-field age.
@@ -269,6 +301,31 @@ class ProbeApp {
     bool getStateBlock(MotorControlCAN::LICHUAN_C::StateBlock block, uint64_t nowUs,
                        uint64_t maximumAgeUs,
                        MotorControlCAN::LICHUAN_C::StateObservation& output) const noexcept;
+    /** Publish a complete current native driver group; no units or applicability are inferred.
+     * @param nowUs Supplied nondecreasing us. @param maximumAgeUs Nonzero original-evidence age.
+     * @param output Owned typed observation, unchanged on refusal.
+     * @return True only for a successful matching group under the still-current reservation.
+     */
+    bool getDriver(uint64_t nowUs, uint64_t maximumAgeUs,
+                   MotorControlCAN::LICHUAN_C::DriverObservation& output) const noexcept;
+    /** Publish a complete current I/O group, without electrical or terminal-layout inference.
+     * @param nowUs Supplied nondecreasing us. @param maximumAgeUs Nonzero evidence age.
+     * @param output Owned observation, unchanged on refusal. @return Checked current I/O only.
+     */
+    bool getIo(uint64_t nowUs, uint64_t maximumAgeUs,
+               MotorControlCAN::LICHUAN_C::IoObservation& output) const noexcept;
+    /** Publish complete current raw control words, without physical loop/encoder claims.
+     * @param nowUs Supplied nondecreasing us. @param maximumAgeUs Nonzero evidence age.
+     * @param output Owned observation, unchanged on refusal. @return Checked current CONTROL only.
+     */
+    bool getControl(uint64_t nowUs, uint64_t maximumAgeUs,
+                    MotorControlCAN::LICHUAN_C::ControlObservation& output) const noexcept;
+    /** Publish one complete current tuning group, retaining unknown ranges and units.
+     * @param nowUs Supplied nondecreasing us. @param maximumAgeUs Nonzero evidence age.
+     * @param output Owned observation, unchanged on refusal. @return Checked current tuning only.
+     */
+    bool getTuning(uint64_t nowUs, uint64_t maximumAgeUs,
+                   MotorControlCAN::LICHUAN_C::TuningObservation& output) const noexcept;
     /** @param[out] output Cached selected-binding health; unchanged without a current binding.
      * @return Owner cached health result; no clock, I/O or service progress.
      */
@@ -281,6 +338,7 @@ class ProbeApp {
     bool releaseRead() noexcept;
 
   private:
+    ProbeDevice* device_ = nullptr;
     CanBusOwner& owner_;
     ProbePlatform& platform_;
     MotorControlCAN::AxisConfig hostAxis_;
@@ -290,15 +348,18 @@ class ProbeApp {
     bool hostAxisConfigured_ = false;
     AxisSession* axes_[2] = {nullptr, nullptr};
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
-    MotorControlCAN::LICHUAN_C::ReadContext read_;
+    MotorControlCAN::LICHUAN_C::DriverContext driverRead_;
     SequenceId sequence_;
     RequestId pending_;
     uint64_t lastUs_ = 0;
     uint32_t operation_ = 0;
     bool selected_ = false;
     bool readOwnsSequence_ = false;
-    bool request(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs, uint64_t deadlineUs,
-                 const MotorControlCAN::LICHUAN_C::ReadOptions& options, uint8_t mask = 0) noexcept;
+    bool readWithdrawn_ = false;
+    MotorControlCAN::Status request(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs,
+                                    uint64_t deadlineUs,
+                                    const MotorControlCAN::LICHUAN_C::ReadOptions& options,
+                                    uint8_t mask = 0, bool ordinary = false) noexcept;
     bool current() const noexcept;
 };
 } // namespace MotorControlCANExample

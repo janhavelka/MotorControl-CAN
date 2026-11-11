@@ -1,9 +1,12 @@
 # Prompt execution progress
 
-Prompt 40 delivers the shared [local console and CAN JSONL contract](../reports/prompt_40.md):
-strict bounded input, cached diagnostics, retained read/recovery correlations,
-host wiring and exact offline preparation. Device dispatch remains gated for
-prompt 41; motion/actions and full parity remain 42. No hardware ran for this stage.
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](../cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](../audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
 
 Prompt39 delivers the [conditional persistence software](../reports/prompt_39.md):
 distinct one-attempt save/factory restore, reviewed raw `2300` acquisition,
@@ -82,7 +85,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 38 | [Explicit communication commissioning](38_communication_commissioning.md) | Partial | Q16 activation/reply route and unknown restart/persistence; Q17 broader PDO timers/maps, Q18 reopening, Q20 effects stay scoped. On 2026-11-09 the 95 reads ran on both nodes, and heartbeat commissioning `1017` 0 to 1000 succeeded on both after the S14 fix (`627bb42`): migration, readback and publication ([round 4](../reports/2026-11-09_bench_r4.md)). Persistence across a power cycle and the drives' host-loss reaction are unestablished | [89 reads, conditional heartbeat, firmware guard and checks](../reports/prompt_38.md) |
 | 39 | [Persistence reset and reconciliation](39_persistence.md) | Partial | Q15 full saved set, rearm, restart/route effects and physical qualification; Q20 raw read acquisition | [Conditional workflows and remaining evidence](../reports/prompt_39.md) |
 | 40 | [Shared CLI parser and local routes](40_cli_parser.md) | Complete | No device gates consumed; inherited S2 Arduino package limitation remains P28 | [Report](../reports/prompt_40.md) |
-| 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | Pending | Follows the APIs each route calls; 40 | - |
+| 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | Complete | Exact native/source/firmware prerequisites, Q20 ordinary read policy and Q15 persistence uncertainty; no grant/review created by CLI | [Report](../reports/prompt_41.md) |
 | 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | Pending | Motion APIs for motion routes; 41 | - |
 | 43 | [Python Console and evidence primitives](43_python_console.md) | Pending | None for the offline scope; 41 for probe and read routes | - |
 | 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Pending | Motion routes through 42 | - |

@@ -135,6 +135,11 @@ class DeviceEvidence {
      */
     DeviceEvidence(ProbeApp& app, CanBusOwner& owner,
                    EvidenceEnvironment environment = EvidenceEnvironment::DEVICE) noexcept;
+    /** @param app Expected app. @param owner Expected sole owner.
+     * @return Exact borrowed resource graph; no I/O or evidence qualification. */
+    bool usesGraph(const ProbeApp& app, const CanBusOwner& owner) const noexcept {
+        return &app == &app_ && &owner == &owner_ && app_.usesOwner(owner_);
+    }
     DeviceEvidence(const DeviceEvidence&) = delete; ///< No copying live ownership/history.
     DeviceEvidence& operator=(const DeviceEvidence&) = delete; ///< Stationary storage.
     /** Explicit ordinary acquisition; DEVICE rejects a plan with an unlisted object before app work.

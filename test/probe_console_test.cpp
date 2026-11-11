@@ -748,15 +748,18 @@ void pressureAndLocalCancel() {
           rig.owner.result(rig.app.pendingRequest()));
     if (rig.owner.result(rig.app.pendingRequest()))
         CHECK(rig.app.advanceRead(rig.now));
-    CHECK(rig.app.readContext().state == M::ReadState::FAILED &&
-          rig.app.readContext().outcome == M::ReadOutcome::CANCELLED);
+    // The one-field probe was already transmitted. Its matched success settles despite the
+    // local withdrawal; cancellation does not erase that evidence or quarantine the route.
+    CHECK(rig.app.readContext().state == M::ReadState::SUCCEEDED &&
+          rig.app.readContext().outcome == M::ReadOutcome::SUCCESS);
+    CHECK(rig.wire.fake.transmitted() == 1 && !rig.services.unresolved(0));
     CHECK(rig.wire.fake.receiveCalls() > 0 && rig.wire.fake.observed() > 0 &&
           rig.console.stats().queued <= 4);
     rig.bytes.blocked = false;
     rig.drain();
     contains(rig.bytes.output, "\"id\":84");
     contains(rig.bytes.output, "\"command_id\":80");
-    contains(rig.bytes.output, "CANCELLED");
+    contains(rig.bytes.output, "SUCCESS");
     // All records after the deliberately queued non-JSON prefix remain whole lines.
     const size_t first = rig.bytes.output.find('{');
     CHECK(first != std::string::npos);

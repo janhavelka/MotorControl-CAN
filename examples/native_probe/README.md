@@ -120,3 +120,14 @@ Accepted board configuration supplies host interface/bitrate facts without
 claiming the controller is running. An explicit test turn hook, including the
 optional IDF smoke hook, owns its input exclusively and keeps its separate finite
 test protocol; it does not compete with the ordinary console for bytes.
+
+
+Prompt 41's `--console-fake FILE` establishes one synthetic slot0 (node5), then
+waits for an explicit `host 0` or `useaddr 5`. This is fixture configuration, not
+physical discovery or a board default. `probe` and `read identity` run the real
+shared typed lifecycle; `read config` returns Q20 before transmission. Use the
+script in [the CLI contract](../../docs/cli_contract.md#typed-device-increment-prompt-41).
+Each finite command is paced behind complete reply/terminal delivery. The batch
+still uses at most4096 input bytes,65536 output bytes and2000000 turns; there is
+no hardware backend. Device-capability gates and uncertainty are real application
+outcomes. The separate `--fake` demonstration keeps its original explicit script.

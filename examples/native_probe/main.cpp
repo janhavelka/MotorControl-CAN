@@ -88,6 +88,16 @@ int runConsoleFake(const char* path) {
     }
 #endif
     C::SdoClient services;
+    // This --console-fake-only route is an explicitly synthetic session, never device discovery.
+    const auto target = E::FakeTransport::target();
+    C::NetworkRoute route;
+    route.binding = target.channel.binding;
+    route.generation = target.nodeGeneration;
+    route.heartbeatId = 0x705;
+    route.emcyId = 0x85;
+    if (!services.configure(0, target.channel, true, true) ||
+        !services.configureNetwork(0, route, C::NetworkObserver(), 0))
+        return 1;
     E::FakeTransport fake;
     batch.fake = &fake;
     O::CanBusOwner owner(services, fake.callbacks(), 40);
@@ -98,6 +108,15 @@ int runConsoleFake(const char* path) {
     E::ProbePlatform platform(callbacks);
     E::ProbeApp app(owner, platform);
     E::ProbeConsole console(app, owner, platform);
+    E::ProbeDevice device(app, owner, services);
+    console.attachDevice(device);
+    E::HostInterfaceFacts interface;
+    interface.interfaceKnown = interface.bitrateKnown = true;
+    interface.interfaceId = target.channel.binding.endpoint.bus;
+    interface.bitrateBitsPerSecond = 500000; // Offline fake fixture, not a board default.
+    app.setHostInterfaceFacts(interface);
+    if (fake.transmitCalls())
+        return 1; // Construction/selection metadata cannot issue a request.
     size_t consumed = 0;
     bool waitForLine = false, complete = false;
     for (unsigned turn = 0; turn < BatchConsole::TURN_LIMIT; ++turn) {
@@ -133,10 +152,9 @@ int runConsoleFake(const char* path) {
     const bool written = !batch.outputSize ||
                          std::fwrite(batch.output, 1, batch.outputSize, stdout) == batch.outputSize;
     const bool flushed = std::fflush(stdout) == 0;
-    if (!complete || !written || !flushed || fake.transmitCalls() || fake.transmitted() ||
-        console.stats().outputDropped || platform.stats().inputDropped) {
-        std::fputs("Console fake failed: capture/turn budget, output, or unexpected traffic.\n",
-                   stderr);
+    if (!complete || !written || !flushed || console.stats().outputDropped ||
+        platform.stats().inputDropped) {
+        std::fputs("Console fake failed: capture/turn budget or output.\n", stderr);
         return 1;
     }
     return 0;

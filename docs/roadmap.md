@@ -1,10 +1,12 @@
 # Implementation roadmap
 
-[Prompt 40](reports/prompt_40.md) delivers the shared local console, exact CAN
-JSONL schema, offline workspace and retained read/recovery correlations. Its
-[working subset](cli_contract.md) is independent of device acquisition and motion
-gates. Prompt 41 is the next console increment; prompt 42 integrates actions,
-simple-move intent and full route/platform parity.
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
 
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
@@ -110,7 +112,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 37 | Explicit discovery and binding | Complete: one implemented-profile inventory, checked probe, finite configured-target scans, passive observations and exact cached host selection. [Slot/timeout limits](commissioning.md); Q01/Q18/Q20 and physical evidence stay separate. |
 | 38 | Communication commissioning | 89 typed reads and conditional heartbeat workflow implemented; remaining node/route changes need Q16 firmware evidence. [Report](reports/prompt_38.md); no implicit persistence or guessed-route retry. |
 | 39 | Save/reset | Conditional one-attempt save/factory restore, raw 2300 read, independent reconciliation and three-field host re-application implemented. Q15 full effects/rearm/restart and hardware qualification remain pending; [report](reports/prompt_39.md). |
-| 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
+| 40-42 | Shared parser, typed device and motion routes | P40 local and P41 typed device integration delivered; P42 motion/action and full platform parity next. Native source/firmware prerequisites remain explicit. |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |
 | 45-46 | Integrated faults and FieldCore-like/alternate-drive consumers | Pending; test real resumed settings/remap through owner and preserve framework independence |
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; bounded two-node S2 connectivity exists, while motor/load and sustained qualification retain their separate fixture/evidence requirements |

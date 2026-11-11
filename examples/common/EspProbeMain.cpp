@@ -41,6 +41,9 @@ void ownerTask(void*) {
     static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks(),
                                             espSilentPin());
     static DRAM_ATTR ProbeConsole commands(firmware.app(), firmware.owner(), firmware.platform());
+    static DRAM_ATTR ProbeDevice device(firmware.app(), firmware.owner(), services,
+                                        &firmware.evidence());
+    commands.attachDevice(device);
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);
     if (firmware.prepared()) {
