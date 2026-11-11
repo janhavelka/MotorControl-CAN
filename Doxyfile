@@ -44,3 +44,7 @@ GENERATE_LATEX         = NO
 GENERATE_RTF           = NO
 GENERATE_MAN           = NO
 HAVE_DOT               = NO
+
+INPUT += examples/common/ProbeDevice.h examples/common/ProbeSettings.h
+
+INPUT += examples/common/ProbeCommissioning.h

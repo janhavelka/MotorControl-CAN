@@ -1,6 +1,15 @@
 # Native examples and shared application
 
-The shared [local console](cli_contract.md) now uses this application. Host-only
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+
+
+The shared [console](cli_contract.md) now uses this application. Host-only
 axis facts live in ProbeAppLocal.cpp, separately from the selected live route;
 ProbeConsole performs parsing/correlation/formatting, never target arithmetic or
 CAN receive. The native entry offers bounded `--console-fake FILE` in addition

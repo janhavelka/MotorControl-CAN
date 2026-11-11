@@ -97,6 +97,22 @@ def main():
         assert actual[0]["product"] == "MotorControl-CAN"
         assert any(r.get("effective_native") == "9007199254740993" for r in actual)
         assert actual[-1]["id"] == 4 and actual[-1]["ok"] is False
+        script.write_bytes(b"@1 host 0\n@2 probe 20\n@3 result 1\n@4 release 1\n"
+                           b"@5 read identity 20\n@6 release 2\n@7 read config 20\n"
+                           b"@8 profile list\n@9 network\n")
+        device = subprocess.run([sys.argv[2], "--console-fake", str(script)],
+                                check=True, capture_output=True, timeout=15)
+        assert device.stdout.endswith(b"\n") and b"\r" not in device.stdout
+        actual = [parse_record(line) for line in device.stdout.splitlines()]
+        assert all(len(line) <= 511 for line in device.stdout.splitlines(keepends=True))
+        values = [r for r in actual if r["type"] == "value"]
+        assert len(values) == 10 and all(isinstance(r["raw"], str) for r in values)
+        assert all(r["current"] is True and r["interpretation"] is None for r in values)
+        terminals = [r for r in actual if r["type"] == "terminal"]
+        assert [(r["id"], r["command_id"], r["operation_id"], r["outcome"]) for r in terminals] == [
+            (2, 2, 1, "SUCCESS"), (5, 5, 2, "SUCCESS")]
+        assert any(r["id"] == 7 and r["ok"] is False and "Q20" in r["error"] and r["status"] == "UNSUPPORTED" for r in actual)
+        assert any(r["id"] == 8 and r["selected_protocol"] == "canopen" and r["motor_kind"] is None for r in actual)
         script.write_bytes(b"@1 wiring di0 connected\n" + b"x" * 256 + b"\n")
         refused = subprocess.run([sys.argv[2], "--console-fake", str(script)],
                                  capture_output=True, timeout=15)

@@ -334,6 +334,11 @@ class CanBusOwner {
     OwnerResources resources() const noexcept;
     /** @return Explicit application owner identity, not a wire token. */
     uint32_t identity() const noexcept { return identity_; }
+    /** Verify the stationary native-store graph without I/O or progress.
+     * @param services Expected existing store. @return True only for the borrowed store. */
+    bool usesServices(const MotorControlCAN::CANOPEN::SdoClient& services) const noexcept {
+        return &services == &services_;
+    }
 
   private:
     struct Reservation {

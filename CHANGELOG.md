@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Typed device console (prompt 41, 2026-11-11)
+
+- Added explicit typed uploads, existing-slot selection, finite discovery/monitoring,
+  NMT intent and cached network/PDO/heartbeat/trace routes to the shared inventory.
+- Added conditional typed driver/DI/control and recorded-configuration progression
+  with native prerequisites, exact handoff checks, readback and retained partial effects.
+- Connected externally prepared heartbeat, save/factory restore and exact TPDO1
+  workflows with one-attempt outcomes, explicit grants and separate verification.
+- Applied DEC-1 to complete ordinary read plans before admission. Unqualified
+  groups, DO conflicts and unsupported tuning setters retain actionable gates.
+- Streamed exact raw values, checked currentness, discovery findings and capture
+  metadata before correlated retained terminals; preserved bounded backpressure.
+- Fixed monitor sample ownership/deadlines, ordinary read withdrawal, pre-service
+  discovery invalidation and inactive firmware recovery without hidden startup.
+- Kept source/SDK/controller/firmware evidence and physical qualification separate.
+
 ### Shared local console (prompt 40, 2026-11-11)
 
 - Added one shared bounded parser, implemented/gated inventory and explicit CAN

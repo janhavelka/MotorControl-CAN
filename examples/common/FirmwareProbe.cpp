@@ -26,7 +26,8 @@ FirmwareBootStatus firmwareStatus(const FirmwareProbe& firmware, bool platformRe
     if (firmware.progressionFailed())
         return FirmwareBootStatus::PROGRESSION_FAILED;
     if (firmware.stopped())
-        return firmware.stopConfirmed() ? FirmwareBootStatus::STOPPED : FirmwareBootStatus::STOP_FAILED;
+        return firmware.stopConfirmed() ? FirmwareBootStatus::STOPPED
+                                        : FirmwareBootStatus::STOP_FAILED;
     if (firmware.running())
         return FirmwareBootStatus::RUNNING;
     if (firmware.started())
@@ -62,7 +63,8 @@ MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
             return a.receive(a.context, frame);
         };
     if (adapter_.transmit)
-        t.transmit = [](void* p, const MotorControlCAN::Frame& frame, TransportTxId id, uint32_t epoch) {
+        t.transmit = [](void* p, const MotorControlCAN::Frame& frame, TransportTxId id,
+                        uint32_t epoch) {
             const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
             return a.transmit(a.context, frame, id, epoch);
         };
@@ -83,13 +85,18 @@ MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
         };
     if (adapter_.beginRecovery)
         t.beginRecovery = [](void* p, uint32_t epoch) {
-            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
-            return a.beginRecovery(a.context, epoch);
+            const auto& self = *static_cast<FirmwareProbe*>(p);
+            const auto& a = self.adapter_;
+            // Adapter recovery restarts its controller. Only an explicitly running assembly
+            // permits that; recovery cannot substitute for start or undo a later stop.
+            return self.running_ && a.beginRecovery(a.context, epoch);
         };
     if (adapter_.pollRecovery)
         t.pollRecovery = [](void* p, uint32_t epoch) {
-            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
-            return a.pollRecovery(a.context, epoch);
+            const auto& self = *static_cast<FirmwareProbe*>(p);
+            const auto& a = self.adapter_;
+            return self.running_ ? a.pollRecovery(a.context, epoch)
+                                 : MotorControlCANOwner::RecoveryProgress::FAILED;
         };
     t.beforeTransmit = [](void* p, MotorControlCANOwner::SequenceId sequence,
                           const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) {
@@ -97,7 +104,8 @@ MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
         const auto& a = self.adapter_;
         if (a.beforeTransmit && !a.beforeTransmit(a.context, sequence, transfer, now))
             return false;
-        return self.preflight_.check && self.preflight_.check(self.preflight_.context, sequence, transfer, now);
+        return self.preflight_.check &&
+               self.preflight_.check(self.preflight_.context, sequence, transfer, now);
     };
     return t;
 }
@@ -173,6 +181,17 @@ bool FirmwareProbe::stop() noexcept {
 }
 bool FirmwareProbe::service() noexcept {
     if (!running_) {
+        // Settle an explicitly accepted recovery even after the assembly stopped. All
+        // device-work budgets stay zero; the callback above cannot restart this controller.
+        if (owner_.recoveryActive()) {
+            uint64_t now = 0;
+            if (platform_.nowUs(now) && now >= lastUs_ && now >= owner_.lastTimeUs()) {
+                MotorControlCANOwner::ServiceBudget budget;
+                budget.recovery = 1;
+                if (owner_.service(now, budget))
+                    lastUs_ = now;
+            }
+        }
         platform_.service();
         return false;
     }

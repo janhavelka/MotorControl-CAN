@@ -1,13 +1,12 @@
 # Executable backlog
 
-Prompt 40 closes the shared passive/local console and exact JSONL contract
-([report](reports/prompt_40.md)). Next independent work is prompt 41: typed device,
-binding/network and diagnostic routes through that same inventory/application.
-Prompt 42 retains motion/action integration, reserved stop dispatch and platform
-parity. Inactive firmware recovery after a later explicit controller start/stop
-must be progressed or rejected by prompt 41's host lifecycle; it must never
-silently restart retired work. Earlier firmware/source gates remain with their
-original owners and are listed by `caps`.
+Prompt 41 connects typed device reads, explicit existing-binding selection, finite
+discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
+shared console. Conditional typed settings retain complete-candidate validation,
+readback, confirmed prefixes and uncertainty through the same owner. The
+[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
+[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
+Motion/actions and full platform parity remain prompt 42. No hardware ran here.
 
 Prompt39 implements conditional one-attempt save/factory restore, independent
 reconciliation and three-field host re-application ([report](reports/prompt_39.md)).

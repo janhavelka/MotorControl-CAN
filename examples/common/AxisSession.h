@@ -110,6 +110,8 @@ class AxisSession {
      * @param[in] owner Sole CAN owner, outlives this session.
      */
     AxisSession(MotorControlCANOwner::CanBusOwner& owner) noexcept : owner_(owner) {}
+    /** @param owner Expected sole owner. @return Exact stationary graph, independent of open state. */
+    bool usesOwner(const MotorControlCANOwner::CanBusOwner& owner) const noexcept { return &owner == &owner_; }
     AxisSession(const AxisSession&) = delete;            ///< Live handles are not copyable.
     AxisSession& operator=(const AxisSession&) = delete; ///< Stationary application storage.
     /** Open on the axis's usable reservation, or take a new one for producer. With none
@@ -135,6 +137,8 @@ class AxisSession {
     void adoptReservation() noexcept { ownsReservation_ = sequence_.owner != nullptr; }
     /** @return True between a successful open and close. */
     bool isOpen() const noexcept { return open_; }
+    /** @return Explicit model fact used at open; meaningful only while open, never autodetected. */
+    MotorControlCAN::LICHUAN_C::SettingsModel model() const noexcept { return reservation_.model; }
     /** @return The binding this session was opened on; meaningful only while open. */
     const MotorControlCAN::Binding& binding() const noexcept { return target_.channel.binding; }
     /** @return The reservation this session uses; meaningful only while open. */

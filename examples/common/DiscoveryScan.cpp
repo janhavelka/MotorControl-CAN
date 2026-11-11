@@ -92,6 +92,7 @@ bool DiscoveryScan::begin(const DiscoveryPlan& p, const DiscoveryInterface& actu
     startedUs_ = lastUs_ = now;
     deadlineUs_ = deadline;
     cursor_ = 0;
+    countedRequest_ = O::RequestId();
     controllerEpoch_ = owner_.controllerEpoch();
     historyDropsAtStart_ = services_.droppedNetworkObservations();
     occupied_ = active_ = true;
@@ -250,12 +251,32 @@ bool DiscoveryScan::service(const DiscoveryInterface& actual, uint64_t now) noex
         summary_.deadlineExpired = true;
         stop(DiscoveryOutcome::DEADLINE, now);
     }
-    const O::RequestId before = app_.pendingRequest();
     if (!app_.service(now, plan_.serviceBudget))
         return false;
+    return advance(actual, now);
+}
+
+bool DiscoveryScan::advance(const DiscoveryInterface& actual, uint64_t now) noexcept {
+    if (now < lastUs_ || now != owner_.lastTimeUs() || now > uint64_t(INT64_MAX))
+        return false;
+    if (!active_)
+        return true;
+    if (!sameInterface(plan_.interface, actual) || owner_.controllerEpoch() != controllerEpoch_) {
+        summary_.interfaceChanged = true;
+        stop(DiscoveryOutcome::INVALIDATED, now);
+    }
+    if (now >= deadlineUs_) {
+        summary_.deadlineExpired = true;
+        stop(DiscoveryOutcome::DEADLINE, now);
+    }
     lastUs_ = now;
-    if (!before.owner && app_.pendingRequest().owner)
+    const O::RequestId pending = app_.pendingRequest();
+    if (pending.owner &&
+        (pending.owner != countedRequest_.owner || pending.slot != countedRequest_.slot ||
+         pending.generation != countedRequest_.generation)) {
         ++summary_.servicesAdmitted;
+        countedRequest_ = pending;
+    }
     // Owner dispatch continues after cancellation/deadline, but this scan's observation window is
     // already closed. Earlier capture does not rescue evidence processed at the cutoff.
     if (!stopping_)
