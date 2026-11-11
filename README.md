@@ -1,5 +1,11 @@
 # MotorControl-CAN
 
+The [shared local console](docs/cli_contract.md) now runs through the native,
+Arduino and ESP-IDF application sources. It provides cached diagnostics, retained
+results, host-only configuration and exact offline target preparation. Try
+[native batch mode](examples/native_probe/README.md) without hardware. Device
+routes remain visibly gated for prompts 41 and 42; no command runs at startup.
+
 The conditional [persistence workflow](docs/commissioning.md) now separates
 one-shot save, factory restore and host re-application of three recorded motion
 settings. Native acknowledgements, uncertain effects and per-field observations

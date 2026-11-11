@@ -1,5 +1,15 @@
 # Live source and responsibility map
 
+## Shared local console (prompt 40)
+
+| Responsibility | Implementation / test | Boundary |
+| --- | --- | --- |
+| Grammar, inventory and complete JSONL formatting | [ProbeConsole.h](../examples/common/ProbeConsole.h), matching source; [console tests](../test/probe_console_test.cpp), [actual transcript checks](../test/console_protocol_test.py) | One local parser/inventory; no device routes or second receiver |
+| Host facts and offline arithmetic | [ProbeAppLocal.cpp](../examples/common/ProbeAppLocal.cpp); [local API tests](../test/probe_app_local_test.cpp) | Public exact Axis/Units APIs; live selection unchanged, no fabricated reference |
+| Native and firmware entries | [native_probe](../examples/native_probe/README.md), EspProbeMain.cpp, shared firmware source inventory | Same console sources; explicit smoke hooks retain input ownership; SDK-free core |
+
+[The CLI contract](cli_contract.md) defines grammar, schema, capacities and gates.
+
 ## Persistence (prompt 39)
 
 | Responsibility | Declaration / implementation | Actual caller / test | Boundary |

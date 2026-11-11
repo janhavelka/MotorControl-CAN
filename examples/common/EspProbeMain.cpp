@@ -3,6 +3,7 @@
 #include "EspProbePlatform.h"
 #include "EspTransceiverPin.h"
 #include "IdfTwaiDriver.h"
+#include "ProbeConsole.h"
 #include "esp_attr.h"
 #include "sdkconfig.h"
 #include <atomic>
@@ -39,8 +40,17 @@ void ownerTask(void*) {
     static DRAM_ATTR EspProbePlatform console;
     static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks(),
                                             espSilentPin());
+    static DRAM_ATTR ProbeConsole commands(firmware.app(), firmware.owner(), firmware.platform());
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);
+    if (firmware.prepared()) {
+        HostInterfaceFacts facts;
+        facts.interfaceKnown = true;
+        facts.interfaceId = 0; // This assembly's one local physical interface.
+        facts.bitrateKnown = configuration.controller.bitrate != 0;
+        facts.bitrateBitsPerSecond = configuration.controller.bitrate;
+        firmware.app().setHostInterfaceFacts(facts);
+    }
     const bool platformReady = console.begin();
     FirmwareBootStatus status = firmwareStatus(firmware, platformReady);
     boot.store(status);
@@ -59,6 +69,13 @@ void ownerTask(void*) {
         firmware.service();
         if (turnHook.turn)
             turnHook.turn(turnHook.context, firmware);
+        else {
+            // Test hooks own their input exclusively. Ordinary Arduino/IDF entries
+            // share this console, including while CAN remains explicitly inactive.
+            uint64_t now = 0;
+            if (firmware.platform().nowUs(now))
+                commands.service(now);
+        }
         // Explicit start/stop happen only through the hook; startup itself never moves on.
         const FirmwareBootStatus next = firmwareStatus(firmware, platformReady);
         if (next != status) {

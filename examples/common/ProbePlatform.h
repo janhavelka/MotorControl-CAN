@@ -31,8 +31,8 @@ struct ProbeIoStats {
     /** Queued bytes that writeByte accepted since construction, modulo 2^32. Acceptance by the
      * platform (for example a UART FIFO) is not receipt by the far end. */
     uint32_t outputWritten = 0;
-    uint8_t inputUsed = 0;       ///< Current buffered bytes, including embedded zero.
-    uint16_t outputUsed = 0;     ///< Current queued bytes; partial platform writes preserve suffix.
+    uint8_t inputUsed = 0;   ///< Current buffered bytes, including embedded zero.
+    uint16_t outputUsed = 0; ///< Current queued bytes; partial platform writes preserve suffix.
 };
 /** Fixed application-local buffers. This is neither a parser nor a CAN adapter.
  * Caller serializes all methods; callbacks cannot reenter. Slow output does not
@@ -60,6 +60,13 @@ class ProbePlatform {
      * @return True consumes one application input byte only; never a CAN frame.
      */
     bool takeInput(uint8_t& output) noexcept;
+    /** Consume the parser's loss latch, independently of saturating counters.
+     * One input/parser owner calls this before consuming buffered bytes. Every
+     * dropped byte sets it, including after inputDropped saturates.
+     * @return True once per observed loss interval; clears only this latch.
+     * No callbacks, clock, CAN receive or buffer mutation occurs.
+     */
+    bool takeInputLoss() noexcept;
     /** Copy complete output bytes. No pointer is retained; input may be released on return.
      * @param[in] bytes Borrowed nonnull span when size>0; null is allowed for size zero.
      * @param[in] size Byte count, including embedded zero; at most OUTPUT_CAPACITY.
@@ -76,5 +83,6 @@ class ProbePlatform {
     uint8_t input_[INPUT_CAPACITY] = {}, output_[OUTPUT_CAPACITY] = {};
     uint8_t inputHead_ = 0;
     uint16_t outputHead_ = 0;
+    bool inputLoss_ = false;
 };
 } // namespace MotorControlCANExample

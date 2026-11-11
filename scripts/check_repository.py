@@ -125,6 +125,8 @@ REQUIRED = {
     "examples/device_evidence/CMakeLists.txt", "examples/device_evidence/main.cpp", "examples/device_evidence/README.md",
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
+    "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
     "examples/common/ProbePlatform.h", "examples/common/ProbePlatform.cpp", "test/probe_app_test.cpp",
     "examples/native_probe/CMakeLists.txt", "examples/native_probe/main.cpp", "examples/native_probe/README.md",
     "examples/native_probe/FakeTransport.h", "examples/native_probe/FakeTransport.cpp",
@@ -310,6 +312,18 @@ def inventory_checks(root, listing, build, errors):
             args = matches[0]["command"][2:]
             if len(args) != 4 or args[::2] != ["--cmake", "--compiler"]:
                 errors.append("CTest inventory: package_test.py requires explicit --cmake and --compiler")
+        elif source.name == "console_protocol_test.py":
+            # Transcript validation must invoke the actual built shared console.
+            native_probe = next((test["command"][0] for test in tests
+                                 if test["name"] == "native_probe" and test["command"]), "")
+            if not native_probe:
+                errors.append("CTest inventory: console transcript requires native_probe")
+            python_command(matches[0], source, None)
+            arguments = matches[0]["command"][2:]
+            producer = build / "test" / ("probe_console_test" + suffix)
+            if (len(arguments) != 2 or Path(arguments[0]).resolve() != producer.resolve()
+                    or not native_probe or Path(arguments[1]).resolve() != Path(native_probe).resolve()):
+                errors.append("CTest inventory: missing or wrong Python command for test/console_protocol_test.py")
         else:
             python_command(matches[0], source, [])
     for name, (script, arguments) in CHECKS.items():
