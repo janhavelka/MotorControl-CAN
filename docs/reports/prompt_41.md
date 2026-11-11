@@ -63,6 +63,9 @@ Confirmed issues corrected during integration:
   old console operation, including direct feed before polling.
 - Debug now decodes checked heartbeat/EMCY fields rather than applying a decoded
   label to raw bytes. Discovery findings and capture values/metadata are exposed.
+- Capability reporting distinguishes `can_match_firmware:false` from actual
+  `firmware_match:null`; lack of a matching capability never becomes a measured
+  mismatch. The same distinction applies to exact model matching.
 - Static argument parsing accepts valid slot/subaxis zero independently from the
   strictly nonzero request/result ID parser. Source-gate Status/detail survives
   console rejection instead of being mislabeled a syntax or protocol failure.

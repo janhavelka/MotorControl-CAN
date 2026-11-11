@@ -303,3 +303,10 @@ validate actual owner/store/session object identity, not just equal numeric bind
 fields. Requests additionally match selected node epoch and both configured COB
 IDs. Retained operations fence native-context identity even when external host
 code releases/replaces a context; an old cancellation never cancels its replacement.
+
+
+Compiled matching capabilities are `can_match_exact_model` and
+`can_match_firmware` booleans. Actual `model_match` and `firmware_match` are
+separate nullable observations: unavailable matching capability never means a
+measured mismatch. The current compiled family reports both capabilities false
+and both observations null.
