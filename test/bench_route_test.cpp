@@ -3252,7 +3252,6 @@ void testModeThree() {
         {"unreleased", [](Drive& f) { f.monitor = 0x0001; f.status = 0x8037; f.mode = 0; }}, // Their power-up.
         {"status", [](Drive& f) { f.status = 0x8053; }},
         {"mode", [](Drive& f) { f.mode = 6; }},
-        {"running", [](Drive& f) { f.monitor = 0x0015; }}, // Latched running after a moving 000B.
         {"alarm", [](Drive& f) { f.monitor = uint16_t(0x0011 | L::MONITOR_ALARM); }},
         {"velocity", [](Drive& f) { f.velocity = 1; }},
         {"position", [](Drive& f) { f.drift = 1; }},
@@ -3271,6 +3270,37 @@ void testModeThree() {
         CHECK(y.failure == E::RouteFailure::PREREQUISITE && std::strcmp(y.why, c.why) == 0 && !y.checkPassed);
         CHECK(s->downloadsFrom(0) == 0 && y.motionTotal == 1);
         s->dump();
+    }
+
+    // The latch a moving 000B leaves (2100 0015, 6041 C050) is admitted when released and stationary in both
+    // reads, as MODE_ONE's released start admits it; one 6060=3 follows and the latched cycles pass. Real
+    // motion is still refused: a running bit with 606C nonzero, or 6064 moving between the two reads.
+    {
+        scenario = "mode3-latched";
+        std::unique_ptr<Rig> s(new Rig);
+        releasedDrive(s->driver.drives[0]);
+        s->driver.drives[0].monitor = 0x0015;
+        s->driver.drives[0].status = 0xC050;
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(modeThreeLine(1, t));
+        CHECK(y.failure == E::RouteFailure::NONE && y.checkPassed && s->downloadsFrom(0) == 1 &&
+              s->driver.drives[0].mode == 3);
+        s->dump();
+        const Case moving[] = {
+            {"velocity", [](Drive& f) { f.monitor = 0x0015; f.status = 0xC050; f.velocity = 1; }},
+            {"position", [](Drive& f) { f.monitor = 0x0015; f.status = 0xC050; f.drift = 1; }},
+        };
+        for (const Case& c : moving) {
+            scenario = c.why;
+            std::unique_ptr<Rig> m(new Rig);
+            releasedDrive(m->driver.drives[0]);
+            c.apply(m->driver.drives[0]);
+            uint32_t u = 0;
+            const E::RouteRecord& z = m->run(modeThreeLine(1, u));
+            CHECK(z.failure == E::RouteFailure::PREREQUISITE && std::strcmp(z.why, c.why) == 0 &&
+                  m->downloadsFrom(0) == 0);
+            m->dump();
+        }
     }
 
     // Another writer between the check and the write: the word recorded at admission is not the latest.

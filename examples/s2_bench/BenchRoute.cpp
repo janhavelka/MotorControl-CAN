@@ -2317,8 +2317,11 @@ const char* BenchRoute::checkReleased() const noexcept {
 }
 // MODE_THREE's prerequisite list, on both fresh reads: the drive reports itself released and stationary
 // in a reviewed source mode, so the mode changes on no enabled drive (Q11). Low bits 000 and 001 are the
-// released reports both specimens gave, after 000B and after word 6; 2100 running must be clear in
-// both, with no latched-bit exception, and 6064 the same.
+// released reports both specimens gave, after 000B and after word 6; 606C zero and 6064 the same in both.
+// 2100 running may be the latch a moving 000B leaves (0014/0015 with 4050/C050, which stays for minutes):
+// released, stationary and unchanged in both reads, as MODE_ONE's released start admits it. On 2026-11-11
+// a console moving quick stop left node 2 latched, and this check was the only route back to a velocity
+// run, which itself admits the latch (S18).
 const char* BenchRoute::checkModeThree() const noexcept {
     if (const char* why = predecessor(STEP_MODE_WRITE))
         return why;
@@ -2336,8 +2339,6 @@ const char* BenchRoute::checkModeThree() const noexcept {
             return "alarm";
         if (!(s->monitor & L::MONITOR_RELEASED))
             return "unreleased";
-        if (s->monitor & L::MONITOR_RUNNING)
-            return "running";
         if ((s->statusword & L::STATUS_LOW_BITS) > 1)
             return "status";
         if (s->mode != 0 && s->mode != 1)
@@ -3382,10 +3383,13 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
             why = "error-register";
         else if ((s.blocks & 1u) && s.errorCode)
             why = "fault-code";
-        else if (s.monitor & L::MONITOR_RUNNING)
-            why = "running";
+        else if ((s.monitor & L::MONITOR_RUNNING) &&
+                 !(p.kind == RouteKind::MODE_THREE && (record_.check.monitor & L::MONITOR_RUNNING)))
+            why = "running"; // MODE_THREE: only a running bit its check did not read latched.
         else if (s.velocity)
             why = "velocity";
+        else if (p.kind == RouteKind::MODE_THREE && s.position != record_.check.position)
+            why = "position";
     }
     if (why) {
         finish(RouteFailure::OBSERVATION, why, now);

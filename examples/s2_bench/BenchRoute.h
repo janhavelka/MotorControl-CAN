@@ -104,7 +104,8 @@
  *   requestClearAlarm judges, CLEAR_ALARM refused unless it reports the alarm, then the session's
  *   request; the session admits every write and read itself. Motion class.
  * - MODE_THREE, prompt 35's released mode change. Two fresh full reads that must both report the
- *   drive released and stationary (2100 bit 4 set, running and alarm clear, 6041 low bits 000 or 001,
+ *   drive released and stationary (2100 bit 4 set, alarm clear, running clear or only the latch a moving
+ *   000B leaves, 6041 low bits 000 or 001,
  *   mode 0 or 1, 606C 0, 1001 and 603F 0, the same 6064), then one 6060:00=3 through
  *   AxisSession::admitPrepared under its own grant, then the stated number of fresh cycles, recorded
  *   and never judged. A drive that reports enabled is refused: no source documents changing 6060 while
