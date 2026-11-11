@@ -254,6 +254,15 @@ add_test(NAME bench_route COMMAND bench_route_test)
 add_test(NAME bench_route_transcript COMMAND bench_route_test --transcript-all
          "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")
 set_tests_properties(bench_route bench_route_transcript PROPERTIES TIMEOUT 60)
+# The shared console on the bench image beside its routes: input mux, exclusion and console reads.
+add_executable(bench_console_test bench_console_test.cpp)
+target_sources(bench_console_test PRIVATE ../examples/s2_bench/BenchConsole.cpp
+               ../examples/s2_bench/BenchRoute.cpp)
+target_include_directories(bench_console_test PRIVATE ../examples/s2_bench)
+target_link_libraries(bench_console_test PRIVATE MotorControlCANFirmwareProbe)
+strict_test(bench_console_test)
+add_test(NAME bench_console COMMAND bench_console_test)
+set_tests_properties(bench_console PROPERTIES TIMEOUT 60)
 add_executable(probe_app_test probe_app_test.cpp)
 target_link_libraries(probe_app_test PRIVATE MotorControlCANFakeProbe)
 strict_test(probe_app_test)
@@ -529,6 +538,8 @@ add_test(NAME s2_soak_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOUR
          "${CMAKE_CURRENT_BINARY_DIR}/soak_transcript.bin")
 set_tests_properties(s2_soak_transcript PROPERTIES DEPENDS soak_transcript)
 add_test(NAME s2_bench_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_bench_test.py")
+# The shared console helper of the bench image, offline: framing, step answers and refusals.
+add_test(NAME s2_bench_console_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_bench_console_test.py")
 # Every trial record the firmware's BenchRoute prints, read by the same parser as bench captures.
 add_test(NAME s2_trial_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_trial_transcript.py" --all
          "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")

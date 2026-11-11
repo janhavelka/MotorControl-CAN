@@ -61,6 +61,8 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `D<o\|p\|i>,<seconds>,<select>,<expect>` | Prompt 37: the library's `DiscoveryScan` over both configured nodes within a 1..60 s window, `o` passive (nothing sent), `p` one accepted `1000:00` probe per node, `i` nine accepted identity uploads per node; then host selection of node 1 or 2 (0 none), which sends nothing; `expect` 1 (with `i` only) compares the raw identity with the retained fixture identity (below) |
 | `K<node>` | Prompt 38: all eighteen typed communication read groups of node 1 or 2, 95 uploads with one reviewed grant each, no write (below) |
 | `H<node>,1000` | Prompt 38: the guarded `1017:00` commissioning on node 1 or 2, exact baseline raw 0, one write of raw 1000, epoch migration, exact readback; any other value is refused as syntax and no reverse transition exists (below) |
+| `o` | The shared console's premise: both nodes' bench routes configured as every command configures its node on first use, and the controller's interface facts (interface 0, 1 Mbit/s) given to the application; sends, selects and grants nothing (shared console, below) |
+| `@ID ...` | One JSONL line of the shared console ([cli_contract.md](../../docs/cli_contract.md)), collected whole and judged against the bench's activity before the console sees it (shared console, below) |
 
 While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
 `SOAK_REFUSED reason=active` (an `N`, `R`, `W` or `E` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
@@ -69,7 +71,8 @@ transmit gate stays closed, only `p`, `s`, `n`, `d`, `r` and `C0` are served; an
 (`held`, `closed`), any other line `PDO_LINE refused reason=capture`, and a soak or trial line `reason=capture`. While a
 `D`, `K` or `H` record runs or is held, every acquisition, NMT, route, soak and capture is refused (`PDO_LINE refused
 reason=active` for a line); `p`, `s`, `d`, `r`, a `P` watch and, once a scan has ended, `n` are served. A response that finds the console queue full waits in
-one retained buffer, and no further command is taken until it has gone.
+one retained buffer, and no further command is taken until it has gone. While the shared console retains an
+operation, traces or scans, every bench command that admits owner work is refused with reason `console` (below).
 
 ### PDO stream sessions
 
@@ -313,3 +316,165 @@ record whose run still needs a stop and in which no stop left, `s2_bench.py` pri
 `ALERT: node N MAY BE RUNNING` and exits 4 (backlog S16, trial 1009). Routes, prerequisites, records and the runner are in
 [hardware_bench.md](../../docs/hardware_bench.md#attended-bench-routes). `MotionPreview` stays an
 offline review artifact, and its `executionReady` stays false.
+
+The shared console's arming lines `TY`, `TB` and `TX` are routes of the same object, with no write; they
+are described with the console below.
+
+## Shared console
+
+The image also carries the shared JSONL console of prompts 40 to 42
+([`ProbeConsole`](../common/ProbeConsole.h), contract in [cli_contract.md](../../docs/cli_contract.md)) as a bench
+facility, [`BenchConsole`](BenchConsole.h). It is one `ProbeConsole` with one `ProbeDevice` over the firmware's own
+application, owner, service store and `DeviceEvidence`, wired as `EspProbeMain.cpp` wires them, and served after the
+firmware turn and every bench record's, before input. It adds no receiver, sender, retry or recovery, and nothing runs
+before the first `o` or `@` byte: until then the image is byte for byte the bench image above, and `scripts/s2_bench.py`
+never sends either byte. `PONG` keeps `routes=8`: the arming lines below are new route letters, and no earlier line
+changed.
+
+**Allocation.** The console is three blocks from internal heap, allocated on the first `o` or `@` and never freed, like
+the soak, watch and capture: `ProbeConsole` 6744, `ProbeDevice` 6664 and the rest 2672 bytes on the S2 (pinned
+compiler, `sizeof`). It is split because the largest free block after the boot reservations is smaller than the whole:
+21504 bytes on 2026-11-09 (`HEAP` line of `20261109T1206Z-r3-heap-boot`), and this image's `.dram0` statics end about
+12 KB later than that image's (`_heap_start` `0x3FFD5850` against `0x3FFD2800`), so that block is likely near 9 KB now.
+Each node's console motion attachment, `BenchAxis` (3856 bytes: its `ProbeMotion`, live route, `AxisConfig` and
+`AxisReference`), is allocated on that node's first arming. After them a soak, watch or capture can refuse
+`reason=memory` in the same boot, and the other way round. Check `M` first: no measurement of this image's heap exists.
+A failed allocation answers `CONSOLE refused reason=memory` (`o`), `CONSOLE_REFUSED reason=memory; no work` (an `@` line,
+swallowed whole) or `TRIAL_REFUSED reason=memory` (an arming).
+
+**Premise (`o`).** The console's `host SLOT` and `useaddr NODE` select only an existing configured slot. `o` configures
+both nodes' routes exactly as every bench command configures its node on first use (`ensureRoute`: the predefined
+connection set, an exclusive initially unused server session that is not service confirmation, network route epoch 1),
+so slot 0 is node 1 and slot 1 is node 2, the same channels `BenchRoute` opens its sessions on through
+`ProbeApp::openAxis`. It also gives the application the controller's interface facts (interface 0, the 1 Mbit/s `c`
+applied), which `discover` and `nmt` need. It needs `c` first and sends, selects and grants nothing:
+`CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; ...`, or `CONSOLE refused reason=state|route|memory|facts; no work`.
+The read policy is the bench's measured identity width: both specimens answer `1009` and `100A` in one byte (packet 4,
+as `1`/`2` and `sdkconfig.optak_s2_smoke` read them), so the console's identity reads use `MEASURED_U8`, scoped by
+`ProbeDevice::setReadOptions` to identity reads only; budgets are the routes' 100 ms queue and 250 ms response. Every
+other console read keeps its declared widths and the console's own DEC-1 gate, so for example `read state errors`
+(`1001`, `603F`) is refused as Q20, as on every other image.
+The device helper refuses a policy change while any read is retained, so a console allocated while a bench record
+holds the application's read takes the policy at its first identity read after that record's release; until then
+`read identity` and `discover identity` answer `read_width_policy_pending_release_bench_record`. Nothing else
+waits for it.
+
+**Input.** A line whose first byte at idle is `@` belongs to the console whole, in every bench state: it is collected up
+to its CR or LF (drained whole each turn, as a `T` line), and none of its bytes is ever taken as a bench command. A line
+of 256 bytes or more answers `CONSOLE_REFUSED reason=length; no work`, and one still open 2 s after its `@` answers
+`CONSOLE_REFUSED reason=incomplete; no work`; neither reaches the console, so a partial command is never dispatched. A
+complete line is then judged here (`benchConsoleGate`) and either fed to the console whole, which replies itself, or
+refused with a reply in the console's own form, which main.cpp prints as a one-shot response:
+
+```text
+{"schema":"motorcontrolcan.console/1",...,"type":"reply","id":5,"command":"read","ok":false,"status":"INVALID_CONFIG","detail":0,"error":"bench_wire_work_active"}
+```
+
+**Exclusion.** The sole owner is never shared between a running bench activity and console work:
+
+- While the bench holds owner work (a route record, active or held, other than a settled arming record; a raw, PDO, `D`,
+  `K`, `H` or identity record; a retained NMT request; a soak; a capture) the console takes only inspection and its own
+  retained results: `help`, `version`, `profile`, `caps`, `config`, `status`, `health`, `stats`, `drv`, `memory`, `load`,
+  `network`, `heartbeat`, `pdo SLOT`, `debug`/`debug off`, `result`, `release`, `cancel`, `monitor off`,
+  `discover inspect|cancel` and the host intent commands (`wiring`, `prepare`, `axis config`, `speed`, `accel`, `decel`,
+  `motion`, `home methods`). Everything else, `host` and `useaddr` included, answers `bench_wire_work_active`. So does
+  `stop`: during a bench route its own planned stop, `A` (local, sends no stop) and the attendant's independent power
+  cutoff stay the controls, as before.
+- `discover` is also refused (`bench_network_listing_active`) while the bench's `n` listing runs, because both drain the
+  same network observations; `n` in turn answers `NETWORK refused reason=discovery` while a console scan runs.
+- `recover` is always refused (`bench_image_has_no_host_recovery`): host recovery invalidates every reservation, session
+  and epoch, and this image has no recovery path.
+- While the console retains an operation (from admission until `release ID`, active or terminal, delivered or not), has
+  `debug raw|decoded` on (it would drain the owner's diagnostic copies that every bench record keeps) or monitors or
+  scans, the bench refuses every command that admits owner work: `T`, `S`, a `C` capture, the `D`/`K`/`H`/`E`/`N`/`R`/`W`
+  lines (`PDO_LINE refused reason=console`), `1` to `4`, `v`/`b`, `h`/`j`, `m`, `q`/`w` and `x`, each with its own
+  refusal line and reason `console` where it has one. `p`, `s`, `M`, `n`, `d`, `r`, `A`, `X`, `P`, `C0` and `o` are served.
+  A held console read also holds the application's read context, which `BenchRoute::begin` refuses (`state`) by itself.
+- A gated console line other than `host`/`useaddr` is refused (`selection_changed_outside_console_select_again`) when
+  the application's selection is no longer the one the console's last such line left, as after a bench `1` selected
+  node 1 for its own identity read: the console never reads or acts on a node it did not select. Select again.
+
+**Output.** The console writes its complete records into its own `ProbePlatform`; `BenchConsole` hands each record,
+newline included, to the UART queue in one `writeOutput` call, exactly as every bench line is queued. A console record
+and a bench line therefore never interleave: each appears whole, in queue order. A console record also waits while the
+bench prints a record dump or `n` listing, or holds a one-shot response or an unreported NMT result, so a bench record's
+lines stay contiguous apart from the one-shot responses the bench already prints between them (the watch's rule). The
+console counts a record delivered, which `release` requires, once its newline is in the UART queue. A bench stream that
+keeps the 512-byte queue full delays console records; they wait and are not lost, and the console then refuses ordinary
+commands for output pressure as its contract says (`consoleDropped`). `stop normal|fast` keeps its own reserved reply.
+
+### Console motion and arming
+
+The console's motion routes act on one `ProbeMotion` per node, over `BenchRoute`'s own `AxisSession` of that node, with
+that node's live route, `AxisConfig` and `AxisReference`. Nothing in the console acquires or invents a prerequisite: an
+arming route acquires it exactly as the bench's own routes do, and its line carries every evidence value. Three arming
+routes, `T` lines with the bench's `,K` integrity field, attended, reads only, no write and no motion weight:
+
+| Line | Reads and check | Hands the console |
+| --- | --- | --- |
+| `TY<node>,<trial>,1,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` | MOVE's: identity, full read (two for a relative base), the move check against the reviewed 6064 after the session's acknowledged `000F` | `setMovePrerequisites` with `MoveEvidence` built as MOVE builds it (gate MEASURED, the line's record, signals, rule, raw identity and base), MOVE's budgets and age cap (3.15 s), the line's interval; a relative base's witness as MOVE's (ACTUAL: the read 6064; COMMANDED: the line's base); the stop budgets |
+| `TB<node>,<trial>,1,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,...,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` | VELOCITY's: identity, full read, the released mode 3 standstill check | `setVelocityPrerequisites` with `VelocityEvidence` built as VELOCITY builds it (`VelocityGate::ATTENDED_EXPERIMENT`, no start, stop, reverse or mode change claim, the line's rpm as the forward maximum, at most 60), the line's ramps, VELOCITY's budgets, enable report window and stop reserve, `maxPolls` for the experiment's 20 s maximum; the console's `normal` or `fast` must name the line's stop kind (1 HALT, 2 QUICK_STOP) |
+| `TX<node>,<trial>,1,<startPosition>` | two full reads at the reviewed 6064, both idle and enabled as MOVE's relative witness requires or both released as RELEASED_QUICK requires; no `000F` needed | a stationary ACTUAL witness for the console's `stepsperturn` and `axis origin`, which consume it; no motion prerequisite |
+
+A successful arming record attaches that node's `ProbeMotion` to the console (another node's only while the console
+retains none of its motion) and prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
+relative=R witness=W scale=S origin=O; prerequisites named, nothing sent`, or `CONSOLE arm refused node=N trial=T
+reason=...; nothing named`. An arming without `o` first is refused `TRIAL_REFUSED reason=console`. The settled arming
+record holds only its dump: console work may run before `r`, and `r` may refuse while that work's frames are in flight.
+Then select the node (`@ID host 0` for node 1) and send the motion lines; the console accepts `speed`, `accel`, `decel`,
+`motion write|verify`, `stepsperturn`, `axis origin`, `moveby`, `moveto`, `move ...`, `velocity ...`, `stop normal|fast`,
+`result`, `release` and `cancel` on the armed node.
+
+- **Age.** A move's prerequisites must be younger than 3.15 s at its admission and at each write (MOVE's age cap). Send
+  the motion line right after the notice, in the same `scripts/s2_bench_console.py` invocation.
+- **One use.** An admitted move or velocity consumes its prerequisites (ProbeMotion), and any later route replaces the
+  arming's reads: the console then refuses a motion line with `arming_reads_replaced_arm_again`, or the console itself
+  says the prerequisites are missing. Arm again for each motion.
+- **Host coordinates before the enable.** `stepsperturn` and `axis origin` advance the binding's configuration epoch,
+  which drops the session's latest controlword, and the session refuses a second enable once it has enabled. So set a
+  scale and an origin, each with its own `TX` witness (the scale consumes the witness), before the bench's `TE` enable
+  in a boot; afterwards `TY` and the motion. `moveby` and `moveto` need the scale; `moveto` needs the origin;
+  `move relative N steps native RPM configured` needs neither.
+- **Caps.** Each admitted console motion counts as a bench route of its kind against the per-boot caps (`motion=` in
+  `PONG`, at most 12 per boot and 3 per route kind and node): a move as MOVE, a velocity as VELOCITY with its own stop as
+  STOP, an enable, alarm clear or position clear as their routes. A line the caps no longer admit answers
+  `bench_motion_budget_spent` before the console sees it. A console `stop` is counted as STOP and never refused for the
+  caps.
+- **Stop.** Before a `stop` reaches the console its prerequisites are named again: the arming line's stop budgets from
+  this request (deadline, best-effort deadline, interval, as `BenchRoute::startStop` sets them) and the latest complete
+  state: the session's last move or velocity cycle, else the arming's read while it stands, else the session's empty
+  read, which leaves only the best-effort `000B` (give `stopBestEffortMs` in the arming line so that a stop stays
+  possible on stale state). It keeps its reserved reply under output pressure. Not available while a bench route holds
+  the owner (above).
+- **Faults.** The console's motion downloads go to `ProbeMotion::preflight` first in main.cpp's dispatcher, never on to
+  the route's more permissive check, with BenchRoute's fault rule from the arming on: more than one EMCY of that node,
+  or one with a nonzero code, holds the next download back unsent and fences the session (`DRIVE_FAULT`). Nothing is
+  cancelled or stopped because of an EMCY between downloads: a stop stays the operator's explicit request, and the
+  attendant's cutoff the immediate control.
+- **Not armed here.** `enable` (its evidence expires one second after its fresh read, which no console round trip
+  meets: use `TE`), `home` (no homing record exists; HOME stays closed), `alarm-clear` and `position-clear` have no
+  arming; the console refuses them for missing prerequisites.
+
+Example, node 1 released in mode 1 at 6064 0, scale and origin first (every evidence value below is a placeholder,
+never a measurement; take them from the reviewed record):
+
+```text
+python scripts/s2_bench_console.py --send c --send o --send "@1 host 0" --send "TX1,501,1,0" --send "@2 stepsperturn 1600"
+python scripts/s2_bench_console.py --send "TX1,502,1,0" --send "@3 axis origin 0"
+python scripts/s2_bench.py ... enable ...   # the bench's TE route, as before
+python scripts/s2_bench_console.py --send "@4 speed 30" --send "@5 accel 500" --send "@6 decel 500" \
+    --send "TY1,503,1,0,100,<record>,...,1,0,2000,3000,100" --send "@7 moveby 800" --send "@8 release 1"
+```
+
+`scripts/s2_bench_console.py` sends each step only after the previous one was answered (a console line's reply and,
+when admitted, its terminal; a `T` line's `TRIAL admitted` and, for an arming, its notice; a bench byte's own reply),
+opens the recorded ESP-Prog2 without driving EN or BOOT, never retries, and stops at the first refusal, `ok:false` or
+timeout with the remaining steps unsent. `--output` keeps every received byte; `--dry-run` prints the framed bytes.
+
+Host tests: `test/bench_console_test.cpp` (the gate table, collection, held and whole output, the premise, console reads
+on bench slots, every exclusion rule above, then the arming routes and console moves through the real firmware assembly,
+owner, `BenchRoute`, `AxisSession` and `ProbeMotion` against the bench route suite's synthetic drives
+(`test/support/BenchDrive.h`): a relative move, the caps, the replaced arming, a stop during a move, an EMCY holding back
+the first download, scale, origin, `moveby` and `moveto` in the order above, and a velocity arming from a released
+mode 3 standstill with the console's finite run and its own stop); `scripts/s2_bench_console_test.py`
+(the helper offline). Nothing here has run on a drive: console motion on the bench is unqualified until a bench run.

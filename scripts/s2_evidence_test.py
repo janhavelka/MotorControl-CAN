@@ -130,8 +130,11 @@ class RetainedCaptures(unittest.TestCase):
         console_loss = {"20261104T1407Z-p1-node2-318": 1}
         # The shared smoke image's console is not the bench image's: s2_smoke_test.py checks those
         # retained captures against the smoke runner's own line patterns.
+        # Likewise the shared console image's captures (s2_console.py): s2_console_test.py and
+        # console_jsonl.py own their record grammar.
         smoke = {d for d in directories
-                 if json.loads((d / "request.json").read_text(encoding="utf-8")).get("tool") == "s2_smoke"}
+                 if json.loads((d / "request.json").read_text(encoding="utf-8")).get("tool") in ("s2_smoke",
+                                                                                                "s2_console")}
         for directory in sorted(set(directories) - smoke):
             report = evidence.replay_capture(directory)
             self.assertEqual(len(report.unknown), unexplained.get(directory.name, 0), directory.name)
