@@ -765,8 +765,8 @@ void ProbeConsole::listNext() noexcept {
         if (listing_.caps && listing_.json) {
             M::DiscoveryCapabilities c;
             if (M::getDiscoveryCapabilities(M::DriveProfile::LICHUAN_C, c))
-                text.add(",\"probe\":%s,\"identity\":%s,\"non_changing\":%s,\"exact_model\":%s,"
-                         "\"firmware_match\":%s,\"endpoint_range\":[%lu,%lu],\"motor_kind\":null,"
+                text.add(",\"probe\":%s,\"identity\":%s,\"non_changing\":%s,\"can_match_exact_model\":%s,"
+                         "\"can_match_firmware\":%s,\"model_match\":null,\"firmware_match\":null,\"endpoint_range\":[%lu,%lu],\"motor_kind\":null,"
                          "\"feedback\":null,\"hardware_qualified\":false",
                          boolean(c.probe), boolean(c.identity), boolean(c.nonChanging),
                          boolean(c.exactModel), boolean(c.firmware),

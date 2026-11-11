@@ -671,6 +671,10 @@ void discoveryBackedCapabilitiesFitWholeRecords() {
     const std::string complete = recordWith(caps, "\"result\":\"complete\"");
     contains(complete, "\"endpoint_range\":[1,127]");
     contains(complete, "\"non_changing\":false");
+    contains(complete, "\"can_match_exact_model\":false");
+    contains(complete, "\"can_match_firmware\":false");
+    contains(complete, "\"model_match\":null");
+    contains(complete, "\"firmware_match\":null");
     contains(complete, "\"hardware_qualified\":false");
     const std::string all = before + profile + caps;
     CHECK(all.find("record_capacity") == std::string::npos);
