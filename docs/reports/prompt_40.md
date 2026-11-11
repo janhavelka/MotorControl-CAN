@@ -107,7 +107,7 @@ An integrated full checkpoint passed 120/120 registered contracts, isolated
 package consumers and strict Doxygen 1.13.2 (35 installed headers, 145 required
 free functions). The final clean full run after all corrections passed all 120 contracts, package
 consumers and strict Doxygen; its retained summary is
-`.build/p40-complete/summary.json`. Focused direct output reports 481,872 checks;
+`.build/p40-complete/summary.json`. Focused direct output reports 481,885 checks;
 the Python test parses 82 actual JSONL records plus the separate native entry,
 rejecting duplicate keys, nonfinite JSON, lost wide integer types and malformed
 batch execution.
@@ -144,6 +144,33 @@ git diff --check
 The SDK commands require the existing configured IDF_PATH/IDF_TOOLS_PATH,
 ESP_ROM_ELF_DIR and pinned toolchain/CMake/Ninja PATH, as in prompt 38's report.
 No toolchain unavailable on Windows is represented as locally passing.
+
+## Exact-commit CI follow-up
+
+The first implementation checkpoint `9bafc64` was synchronized and ran workflow
+[43030332863](https://github.com/janhavelka/MotorControl-CAN/actions/runs/43030332863).
+Windows quick, Arduino, ESP-IDF/component/stack and Clang ASan/UBSan passed.
+GCC 13 ASan/UBSan compiled successfully, then failed only probe_console at its
+Saved bytewise assertion. No sanitizer memory-error report was emitted.
+
+The retained failure is `.build/p40-ci-failed/contracts.log`; the downloaded
+verification-gcc artifact SHA-256 is
+`0e8b398fb839963fe4d16d02a69ff11b5605320418cb0cc6429a0b7577d6979b`.
+The generic old assertion did not identify its instantiation. Inspection found
+independent returned HostInterfaceFacts/ProbeIoStats copies compared including
+unspecified padding, which is not their public value contract. Both snapshots
+now compare every public field. A deterministic regression initializes different
+object representations, assigns equal fields, then mutates each of the nine
+fields independently to prove the equality checks reject real changes.
+Unchanged actual output buffers, candidates and read contexts retain strict
+bytewise checks, now with size/first-offset diagnostics. No production behavior,
+compiler flag, workflow, sanitizer or acceptance condition was weakened.
+
+The corrected Release build and focused probe_app/probe_console/console_protocol
+checks passed locally. The final commit's automatic complete CI is verified
+separately; the old run is retained as failure evidence and cannot qualify the
+correction. Linux sanitizer execution is remote because no local Linux runtime
+is installed. This follow-up changes only the test and this report.
 
 ## Maintainability and delegation
 
