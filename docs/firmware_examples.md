@@ -297,6 +297,62 @@ after an upload. Without it the runner never moves DTR or RTS, and the board mus
 reset by hand (EN button or power) while it waits. Offline tests (`s2_flash_test.py`, `s2_smoke_test.py`)
 use fakes only; they are not a smoke result.
 
+## Shared-image console on the OPTAK S2 board
+
+`check_firmware.py --target idf-s2-optak-console` builds `examples/probe_idf` with
+`sdkconfig.defaults` and `sdkconfig.optak_s2` only. It requires the OPTAK board
+values, `# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set`, no line for the smoke node
+and width options (they depend on the hook), and the shared inputs without
+`FirmwareSmoke.cpp`. The default `EspProbeMain` turn then services the shared
+`ProbeConsole` on UART0. `FirmwareProbe::start` is called only by the smoke hook, so
+this image keeps the controller closed and the transceiver at its silent level; it
+configures no SDO channel or network route and attaches no settings, commissioning
+or motion facility. Local routes answer; device and motion routes refuse before
+admission, and `recover` ends `FAILED` because the controller never started. The
+target is a bench image and not part of `--target all`.
+
+```text
+python scripts/s2_flash.py --flash --app probe-idf-optak-console --port COM15 --serial 94A990398B40
+python scripts/s2_console.py --port COM15 --serial 94A990398B40 --artifact docs/bench/<UTC>-s2-console-upload --reset-en --script scripts/console_scripts/local_routes.txt --output NEW_CONSOLE_DIRECTORY
+python scripts/s2_console.py --port COM15 --serial 94A990398B40 --reset-en --script scripts/console_scripts/soak.txt --soak 14400 --output NEW_SOAK_DIRECTORY
+```
+
+`s2_flash.py --app probe-idf-optak-console` applies the upload rules of the smoke
+image to this gate, in `.build/s2-console-live`. Because both images are the same
+IDF project, a build directory configured with other defaults is refused before
+building: a reused `sdkconfig` would keep the smoke hook.
+
+[`s2_console.py`](../scripts/s2_console.py) runs one bounded session on the recorded
+ESP-Prog-2 (USB serial `94A990398B40`) on `COM15` only, opened with DTR and RTS
+deasserted. With `--reset-en` it pulses EN once as `s2_smoke.py` does. It sends
+nothing unless the startup line above appears within `--boot-seconds` and no byte
+follows it for 2 s; a `SMOKE` line, the bench image's `S2_BENCH ready` or another
+banner refuses. `--no-boot-line` attaches to a running image instead: it sends only
+LF `@9` LF, which the bench and smoke images ignore, and continues only on the
+console's `invalid_line` reply with ID 9. Script lines are sent as written plus LF;
+`!hex:` lines send raw bytes for damaged, overlong, CR or CRLF input; `{op}` names the
+latest accepted operation. The runner reproduces `ProbeConsole::feed` framing, so it
+knows which lines the image sees and the ID each reply carries. By default it waits
+for each line's final record (a reply, or a terminal after an accepted reply);
+`--gap-ms` and `--burst` pace without waiting. Every JSON record is checked against
+the rules in `scripts/console_jsonl.py`, which `test/console_protocol_test.py` also
+applies to the native transcripts. Missing, late, duplicate, malformed, oversize,
+out-of-order and unsolicited records and final-record latency are counted. A
+startup or failure line during the session fails it. `--account` reads `drv` before
+and after the script; a `--burst` run then passes missing replies only when the
+image's `consoleDropped` counter accounts for them. `--soak SECONDS` repeats the
+script with fresh IDs and appends one summary per minute to `minutes.jsonl`. Every
+run writes `rx.bin`, `timeline.jsonl` (each line's first- and last-byte host
+times), `tx.jsonl`, `request.json` (revision, script SHA-256, arguments, USB identity,
+UTC times) and `summary.json`. Exit status 0 means every check passed, 1 that a check
+failed or the run was interrupted after sending, 2 that nothing from the script was
+sent. [`local_routes.txt`](../scripts/console_scripts/local_routes.txt) exercises the
+prompt 40 local routes, the prompt 41/42 refusals and adversarial framing, with the
+outcome expected from the code beside each line;
+[`soak.txt`](../scripts/console_scripts/soak.txt) is a read-only inspection mix.
+`s2_console_test.py` drives the runner against a fake board; a console session
+qualifies no CAN, drive or motion behaviour.
+
 ## Arduino S2: blocked by the pinned package
 
 `pio run -e probe_cli_s2_compile` (board `esp32-s2-saola-1`, DIO, USB mode 0)
@@ -383,6 +439,7 @@ python scripts/check_firmware.py --target arduino --pio "path to pio" --build-di
 python scripts/check_firmware.py --target idf --idf-path "path to esp-idf" --idf-python "path to IDF Python" --build-dir ".build/IDF firmware"
 python scripts/check_firmware.py --target idf-s2 --idf-path "path to esp-idf" --idf-python "path to IDF Python" --temporary-root "existing short temporary path" --build-dir ".build/IDF S2 firmware"
 python scripts/check_firmware.py --target idf-s2-optak --idf-path "path to esp-idf" --idf-python "path to IDF Python" --temporary-root "existing short temporary path" --build-dir ".build/IDF S2 OPTAK firmware"
+python scripts/check_firmware.py --target idf-s2-optak-console --idf-path "path to esp-idf" --idf-python "path to IDF Python" --temporary-root "existing short temporary path" --build-dir ".build/IDF S2 OPTAK console"
 python scripts/check_firmware.py --target s2 --idf-path "path to esp-idf" --idf-python "path to IDF Python" --temporary-root "existing short temporary path" --build-dir ".build/S2 firmware"
 python scripts/check_firmware.py --target component --idf-path "path to esp-idf" --idf-python "path to IDF Python" --build-dir ".build/IDF consumer"
 python scripts/check_firmware.py --target arduino-s2 --pio "path to pio" --build-dir ".build/Arduino S2 blocker"
@@ -395,11 +452,12 @@ python scripts/check_firmware.py --target arduino-s2 --pio "path to pio" --build
 | `idf` | `examples/probe_idf`, S3 fixture | Target, compiler, resolved sdkconfig (8 MB flash; `CONFIG_SPIRAM` absent because no PSRAM component is built), exact checkout inputs, no bench or smoke source |
 | `idf-s2` | `examples/probe_idf`, S2 fixture (4 MB DIO) | Same, for esp32s2, with `CONFIG_SPIRAM` `is not set` |
 | `idf-s2-optak` | `examples/probe_idf` + `sdkconfig.optak_s2` + `sdkconfig.optak_s2_smoke` | Same, every board and smoke value, `FirmwareSmoke.cpp` compiled, no bench source |
+| `idf-s2-optak-console` | `examples/probe_idf` + `sdkconfig.optak_s2` (bench image, not in `all`) | Same board values, smoke hook `is not set` and its options absent, no `FirmwareSmoke.cpp` or bench source |
 | `s2` | `examples/s2_bench` (special bench image) | Target, compiler, resolved sdkconfig, bench entry and raw collector, exact checkout inputs outside the bench project |
 | `component` | Isolated portable core consumer | Target, compiler, exceptions/RTTI off, exactly the staged core and consumer, no checkout file |
 
 Run in the exported pinned IDF environment for SDK builds. `--target all` performs
-every gate except `arduino-s2`. The checker records commands, versions, artifacts,
+every gate except `arduino-s2` and the bench-only `idf-s2-optak-console`. The checker records commands, versions, artifacts,
 the shared inventory and actual compilation inputs. ELF/BIN outputs and the exact
 expected checkout input files are required: a missing one, and any other checkout
 file compiled (a second parser, a renamed bench copy), fail the gate; SDK, toolchain

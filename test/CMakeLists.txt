@@ -519,6 +519,7 @@ add_test(NAME rs_move_vectors_contract COMMAND "${Python3_EXECUTABLE}" "${PROJEC
 add_test(NAME s2_evidence_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_evidence_test.py")
 add_test(NAME s2_flash_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_flash_test.py")
 add_test(NAME s2_smoke_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_smoke_test.py")
+add_test(NAME s2_console_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_console_test.py")
 add_test(NAME s2_soak_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_soak_test.py")
 add_test(NAME s2_pdo_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_pdo_test.py")
 add_test(NAME s2_uart_compare_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_uart_compare_test.py")

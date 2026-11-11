@@ -146,7 +146,8 @@ quick/full remain SDK-free; the explicit firmware gates and their two CI jobs
 are independent and required for firmware changes. A successful host fake or
 TWAI archive build cannot replace any of the real compile/link gates
 (`arduino`, `idf`, `idf-s2`, `idf-s2-optak`, `s2`, `component`; `all` runs every
-one of them, `arduino-s2` is reported blocked). The checker inspects actual
+one of them, `arduino-s2` is reported blocked, and `idf-s2-optak-console` is an
+explicit bench image outside `all`). The checker inspects actual
 compilation databases: every gate requires its shared sources and refuses any
 other checkout file it did not expect, and each SDK gate checks the target, the
 cross compiler and reviewed resolved `sdkconfig` values, where an option required

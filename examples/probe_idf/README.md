@@ -108,6 +108,31 @@ does not know the line stops with exit 2 and sends nothing. The
 [firmware guide](../../docs/firmware_examples.md) gives the full commands. A
 compile/link of this image is not a smoke-test result.
 
+## OPTAK S2 console image
+
+`sdkconfig.defaults` plus `sdkconfig.optak_s2`, without `sdkconfig.optak_s2_smoke`,
+builds the same board configuration with no smoke hook. UART0 then carries the
+shared console of the [CLI contract](../../docs/cli_contract.md). The image prints
+the startup line `MotorControl-CAN: board accepted; CAN inactive until explicit start.`
+and then answers console lines. Only the smoke hook calls `FirmwareProbe::start`, so
+this image keeps the controller closed and the transceiver silent. No SDO channel,
+settings, commissioning or motion facility is attached, so device and motion routes
+refuse before admission. Build, flash and drive it with:
+
+```text
+python scripts/check_firmware.py --target idf-s2-optak-console --idf-path "path to esp-idf" --idf-python "path to IDF Python" --temporary-root "short path" --build-dir ".build/IDF S2 OPTAK console"
+python scripts/s2_flash.py --flash --app probe-idf-optak-console --port COM15 --serial 94A990398B40
+python scripts/s2_console.py --port COM15 --serial 94A990398B40 --artifact <upload record directory> --reset-en --script scripts/console_scripts/local_routes.txt --output <new directory>
+```
+
+The gate requires the OPTAK values, `# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set`,
+no smoke node or width option, and no `FirmwareSmoke.cpp` among the compiled
+inputs. It is not part of `--target all`. `s2_flash.py --app probe-idf-optak-console`
+uses `.build/s2-console-live` and refuses a directory configured with other
+defaults, such as the smoke image's, before it builds. The
+[firmware guide](../../docs/firmware_examples.md) describes the runner. A compile or a
+console session on this image qualifies no CAN, drive or motion behaviour.
+
 This standalone build includes the application and optional stack. The isolated
 [portable component consumer](../../test/idf_consumer/README.md) is built and
 checked separately, without those resources. A successful compile/link is not

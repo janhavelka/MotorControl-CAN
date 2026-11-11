@@ -1,0 +1,257 @@
+# Local console routes of the probe-idf-optak-console image (s2_console.py --script).
+#
+# For examples/probe_idf built with sdkconfig.defaults + sdkconfig.optak_s2 and no smoke hook
+# (check_firmware.py --target idf-s2-optak-console), started by s2_console.py --reset-en.
+# EspProbeMain attaches only ProbeDevice: no SDO channel or network route is configured, and no
+# ProbeSettings, ProbeCommissioning or ProbeMotion is attached. FirmwareProbe::start is never
+# called, so the controller stays closed and the transceiver silent; nothing here can start CAN.
+# Every device and motion line below is refused before admission (no binding, no motion
+# attachment). Do not run this script against an image that attaches those facilities.
+# NMT, persistence, communication, pdo apply, settings writes, discovery, monitor and
+# capture-read are left out on purpose, although this image refuses them too.
+#
+# Expected outcomes are read from ProbeConsole.cpp, ProbeConsoleMotion.cpp, ProbeDevice.cpp,
+# ProbeApp.cpp, CanBusOwner.cpp and FirmwareProbe.cpp at a766d24. Lines @1..@40 and @59..@112
+# with valid grammar were also replayed through native_probe --console-fake, which agrees except
+# for config's bitrate (its fake uses 500000); that fake configures a synthetic slot, so it cannot
+# check @41..@58, @70 and @71, which this image refuses for lack of a binding. "reject X" means
+# {"type":"reply","ok":false,"status":"ILLEGAL_VALUE","detail":0,"error":"X"} unless another
+# status is named. A line without @ID gets a human "command: ..." line instead of JSON.
+
+# ---- identity and inventory (prompt 40)
+# reply ok: product MotorControl-CAN, version, operation_capacity 2.
+@1 version
+# reply ok: grammar "version" and its help text.
+@2 help version
+# 51 "help" records, one per working inventory row (the 6 gated rows are absent), then reply result complete.
+@3 help
+# 57 "capability" records, one per row (gated rows implemented:false with their reason), then reply result
+# complete with probe/identity/non_changing, can_match_exact_model/can_match_firmware, model_match null,
+# firmware_match null, endpoint_range, motor_kind null, feedback null, hardware_qualified false.
+@4 caps
+# reply ok: profiles [lichuan_c, canopen, model/firmware match null, hardware_qualified false], selected_protocol null.
+@5 profile list
+# reply ok: interface 0, bitrate_bits_per_second 1000000 (EspProbeMain host facts), selected_node null, bus_traffic false.
+@6 config
+# reply ok: selected false, read_state EMPTY, uncertain false, controller_inhibited false, nmt/drive_state/mode/position_valid null.
+@7 status
+# reply ok: known false, state null (no selected binding).
+@8 health
+# reply ok: counters, 14 uint32, all 0 on a fresh boot (the owner is never serviced while the controller is closed), maxServiceGapUs "0".
+@9 stats
+# reply ok: the same counters after CanBusOwner::clearStats.
+@10 stats reset
+# reply ok: queued/active/retained/reservations 0, platform inputDropped/outputRejected, consoleDropped 0 when paced.
+@11 drv
+# reply ok: app/owner/console/platform byte sizes as decimal strings, line_capacity 256, record_capacity 512,
+# runtime_stack_high_water null, free_heap null.
+@12 memory
+
+# ---- retained results with nothing retained
+# reply ok: result "none".
+@13 result
+# reject unknown_operation.
+@14 result 1
+# reject unknown_operation.
+@15 release 1
+# reject invalid_arguments (release needs an ID).
+@16 release
+# reject unknown_operation (control reply queue).
+@17 cancel
+# reject unknown_operation.
+@18 cancel 1
+
+# ---- host wiring declarations (no terminal function change)
+# reply ok: declarations, 10 x "unknown", electrical_levels null, functions null, bus_traffic false.
+@19 wiring
+# reply ok: declarations[0] "connected".
+@20 wiring di0 connected
+# reply ok: declarations[9] "unconnected".
+@21 wiring do2 unconnected
+# reply ok: declarations back to all "unknown" after this and the next line.
+@22 wiring di0 unknown
+@23 wiring do2 unknown
+# reject invalid_terminal.
+@24 wiring do3 connected
+# reject invalid_arguments.
+@25 wiring di0 high
+
+# ---- offline axis workspace (ProbeApp::executeHostAxis; motion_ is null, so axis stays offline)
+# reply ok: offline true, configured false, reference_known false, origin_native null (no listing while unconfigured).
+@26 axis config
+# reply ok: offline true, configured true.
+@27 axis config set command 1
+# 4 "axis" records (geometry with command_scale ["1","1",provenance], feedback, limits, provenance), then reply result complete.
+@28 axis config
+# reply ok: offline true, exact_arithmetic true, effective_native "9007199254740993", error 0/1.
+@29 prepare absolute 9007199254740993 steps native
+# reject status INVALID_CONFIG detail 3 "reference binding/epoch mismatch": no application-supplied
+# stationary reference matches this workspace, and the console never fabricates one.
+@30 axis origin 0
+
+# ---- cached diagnostics (prompt 41; no CAN traffic)
+# reply ok: mode 0, trace_overwritten 0.
+@31 debug
+# reply ok: mode 1. The owner holds no diagnostics before recover, so no id 0 trace follows.
+@32 debug raw
+# reply ok: mode 0.
+@33 debug off
+# reject invalid_debug_mode.
+@34 debug loud
+# reply ok: rx_frames 0, tx_frames 0, max_service_gap_us "0".
+@35 load
+
+# ---- explicit host recovery (prompt 40)
+# Control reply: result accepted, operation_id 1 on a fresh boot. Then terminal: command recover, ok false,
+# status PROTOCOL_ERROR, detail 1 (RecoveryOutcome::FAILED), outcome FAILED, uncertain false, abort_code null.
+# CanBusOwner::recover asks FirmwareProbe's beginRecovery, which refuses because the controller never
+# started; no adapter call, no controller start, no CAN.
+@36 recover
+# reject duplicate_id: request ID 36 stays reserved until release.
+@36 version
+# reply command result with the retained terminal fields (ok false, outcome FAILED).
+@37 result {op}
+# reply ok: the delivered terminal is released (CanBusOwner::releaseRecovery).
+@38 release {op}
+# reject unknown_operation.
+@39 release {op}
+# reply ok: controller_inhibited true now (recover set the owner's inhibition; FAILED does not clear it).
+@40 status
+
+# ---- prompt 41 device routes: refused without a configured binding
+# reject status INVALID_CONFIG "configured binding required; discovery/capture must be released".
+@41 host 0
+# reject status INVALID_CONFIG, the same text (no configured channel has address 1).
+@42 useaddr 1
+# reject status INVALID_CONFIG "CANopen address 1..127 and separate configured subaxis required".
+@43 useaddr 0
+# reject status INVALID_CONFIG "select an explicitly configured target first" (ProbeApp::request).
+@44 probe
+# reject invalid_arguments (timeout 0 is outside 1..60000).
+@45 probe 0
+# reject status INVALID_CONFIG "select an explicitly configured target first"; selection is checked before Q20.
+@46 read identity
+@47 read config
+@48 read state
+# reject invalid_read_kind.
+@49 read bogus
+# reject status INVALID_CONFIG "select an explicitly configured target first".
+@50 driver read driver
+@51 io read inputs
+@52 control read
+@53 tuning loop-gains read
+# reply ok: record null, restore_available false (host record only).
+@54 motion-profile inspect
+# reject status INVALID_CONFIG "select an explicitly configured target first".
+@55 motion-profile read
+# reject current_configured_canopen_binding_required.
+@56 network
+@57 heartbeat
+# reject no_configured_pdo_map.
+@58 pdo 0
+
+# ---- prompt 42 motion routes: host intent works, device routes refuse without a motion attachment
+# reply ok: value null, unit rpm.
+@59 speed
+# reject status UNSUPPORTED "attach_actual_axis_and_explicit_native_prerequisites".
+@60 speed 120 rpm
+# reply ok: device_traffic false (host ramp intent).
+@61 accel 100 ms
+# reply ok: value "100", unit ms.
+@62 accel
+# reply ok: device_traffic false.
+@63 decel 200
+# reject "ramp must be an integer in 0..2000 milliseconds".
+@64 accel 2001
+# reply ok: value "write" (the default setup policy).
+@65 motion
+# reply ok: device_traffic false; then back to write.
+@66 motion verify
+@67 motion write
+# reject invalid_arguments_or_gated_policy.
+@68 motion stored
+# reply ok: methods [17,18,24,29], qualified false.
+@69 home methods
+# reject status INVALID_CONFIG "select an explicitly configured target first" (ordinary typed reads).
+@70 velocity read
+@71 home read
+# reject status UNSUPPORTED "attach_actual_axis_and_explicit_native_prerequisites", before any parsing or preparation.
+@72 stepsperturn 200
+@73 moveby 100 steps
+@74 moveto 100 steps
+@75 move relative 100 steps native 60 configured
+@76 velocity 60 rpm motor 1000 configured fast
+@77 home 17 60 30 100 zero
+@78 enable
+@79 alarm-clear
+@80 position-clear
+@81 stop normal
+@82 stop fast
+
+# ---- names the contract rejects
+# reject unknown_command.
+@83 reset
+@84 ping
+@85 ver
+@86 ?
+# reject invalid_arguments (command health).
+@87 health check
+# reject unknown_command (command help).
+@88 help advanced
+# reject invalid_arguments.
+@89 profile ess_rs
+@90 profile ess_rs enable
+# reject status UNSUPPORTED "attach_actual_axis_and_explicit_native_prerequisites" (checked before the stop kind).
+@91 stop direct
+# reject unknown_command; gated rows are absent from dispatch.
+@92 motor on
+@93 motor-release
+@94 subdivision 16
+@95 settings
+# reject invalid_arguments.
+@96 version extra
+# reject unknown_command (names are case-sensitive).
+@97 VERSION
+
+# ---- correlation and framing
+# Two replies ok: an immediate ID is reusable once its reply is published.
+@98 version
+@98 version
+# Human line "version: OK MotorControl-CAN <version>; protocol 3; schema motorcontrolcan.console/1".
+version
+# reply ok id 12: leading zeros are part of the decimal ID.
+@00012 version
+# reply ok id 4294967293, near the uint32 top (s2_console.py --account uses the two IDs above it).
+@4294967293 version
+# Human "input: rejected (invalid_line)": ID 0 and ID 2^32 are invalid, and so is a signed ID.
+@0 version
+@4294967296 version
+@-1 version
+# CR alone ends a line: reply ok id 101.
+!hex:40 31 30 31 20 76 65 72 73 69 6f 6e 0d
+# CRLF is one terminator: one reply ok id 102.
+!hex:40 31 30 32 20 76 65 72 73 69 6f 6e 0d 0a
+# TAB separates tokens: reply ok id 103.
+!hex:40 31 30 33 09 76 65 72 73 69 6f 6e 0a
+# Empty lines produce nothing.
+!hex:0a 0d 0a 0d 0d 0a
+# An ID without a command: reject command input, invalid_line, id 104.
+!hex:40 31 30 34 0a
+# Spaces only: human "input: rejected (invalid_line)".
+!hex:20 20 0a
+# A byte above 126 discards the line through its terminator: reject command input, invalid_line, id 105.
+!hex:40 31 30 35 20 76 65 72 80 73 69 6f 6e 0a
+# A NUL does the same: id 106.
+!hex:40 31 30 36 20 76 65 72 00 73 69 6f 6e 0a
+# 256 text bytes: the 256th discards the line; reject command input, invalid_line, id 107.
+@107 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Exactly 255 text bytes are accepted: reject unknown_command for the 250-character name, id 108.
+@108 yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+# 25 command tokens exceed the 24-token limit: reject command input, invalid_line, id 109.
+@109 a a a a a a a a a a a a a a a a a a a a a a a a a
+# A damaged line: this unterminated part and the next line form "@110 ver@111 version", so the
+# image answers reject unknown_command "ver@111" with id 110 and nothing for 111.
+!hex:40 31 31 30 20 76 65 72
+@111 version
+# reply ok: the session ends on a clean line.
+@112 version

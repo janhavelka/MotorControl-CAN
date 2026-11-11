@@ -6,6 +6,9 @@ S2 compile fixture), idf-s2-optak (shared S2 image with the OPTAK board configur
 and the test-only smoke hook), s2 (special S2 bench application), component (isolated
 core consumer) and all (every gate above). arduino-s2 builds the S2 Arduino fixture,
 which the pinned package blocks; it reports status "blocked" and is not part of all.
+idf-s2-optak-console builds the shared S2 image with the OPTAK board configuration and
+no smoke hook, so its UART0 console is the shared ProbeConsole; it is an explicit bench
+image for s2_flash.py and s2_console.py and is not part of all.
 
 Every gate checks its linked ELF/BIN, the target in project_description.json (SDK
 builds), the cross compiler of every compiled file, the reviewed resolved sdkconfig
@@ -202,15 +205,23 @@ S3_FLASH = {"CONFIG_IDF_TARGET": '"esp32s3"', "CONFIG_ESPTOOLPY_FLASHSIZE": '"8M
 # The isolated consumer's reviewed C++ settings (test/idf_consumer/sdkconfig.defaults).
 COMPONENT_SDKCONFIG = {"CONFIG_IDF_TARGET": '"esp32s3"', "CONFIG_COMPILER_CXX_EXCEPTIONS": NOT_SET,
                        "CONFIG_COMPILER_CXX_RTTI": NOT_SET}
-OPTAK_S2 = {"CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE": NOT_SET, "CONFIG_MOTORCONTROLCAN_CAN_TX_PIN": "17",
-            "CONFIG_MOTORCONTROLCAN_CAN_RX_PIN": "16", "CONFIG_MOTORCONTROLCAN_CAN_BITRATE": "1000000",
-            "CONFIG_MOTORCONTROLCAN_CAN_RX_DEPTH": "16", "CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN": "18",
-            "CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL": "1", "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK": "y",
-            "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A": "1", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B": "2",
-            "CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8": "y"}
+OPTAK_BOARD = {"CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE": NOT_SET, "CONFIG_MOTORCONTROLCAN_CAN_TX_PIN": "17",
+               "CONFIG_MOTORCONTROLCAN_CAN_RX_PIN": "16", "CONFIG_MOTORCONTROLCAN_CAN_BITRATE": "1000000",
+               "CONFIG_MOTORCONTROLCAN_CAN_RX_DEPTH": "16", "CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN": "18",
+               "CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL": "1"}
+OPTAK_SMOKE = {"CONFIG_MOTORCONTROLCAN_SMOKE_HOOK": "y", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A": "1",
+               "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B": "2", "CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8": "y"}
+OPTAK_S2 = dict(OPTAK_BOARD, **OPTAK_SMOKE)
+# The same board without the smoke hook: the Kconfig bool default is written as "is not
+# set", and the node/width options that depend on the hook get no line at all.
+OPTAK_S2_CONSOLE = dict(OPTAK_BOARD, **{"CONFIG_MOTORCONTROLCAN_SMOKE_HOOK": NOT_SET,
+                                        "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A": UNDECLARED,
+                                        "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B": UNDECLARED,
+                                        "CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8": UNDECLARED})
 # The shared application built per target and board configuration. The S2 OPTAK image
 # adds only its application configuration and the test-only smoke source, never the
-# special bench main; production fixtures must not compile the smoke source.
+# special bench main; production fixtures must not compile the smoke source. The OPTAK
+# console image is that board configuration alone: the shared console owns UART0.
 SHARED_IDF_BUILDS = {
     "idf": {"target": "esp32s3", "defaults": (), "extra": (), "forbidden": (SMOKE_SOURCE,),
             "sdkconfig": dict(COMMON_SDKCONFIG, **dict(S3_FLASH, **FIXTURE_SDKCONFIG))},
@@ -220,13 +231,19 @@ SHARED_IDF_BUILDS = {
                      "defaults": ("sdkconfig.defaults", "sdkconfig.optak_s2", "sdkconfig.optak_s2_smoke"),
                      "extra": (SMOKE_SOURCE,), "forbidden": (),
                      "sdkconfig": dict(COMMON_SDKCONFIG, **dict(S2_FLASH, **OPTAK_S2))},
+    "idf-s2-optak-console": {"target": "esp32s2", "defaults": ("sdkconfig.defaults", "sdkconfig.optak_s2"),
+                             "extra": (), "forbidden": (SMOKE_SOURCE,),
+                             "sdkconfig": dict(COMMON_SDKCONFIG, **dict(S2_FLASH, **OPTAK_S2_CONSOLE))},
 }
 # The special bench image's examples/s2_bench/sdkconfig.defaults, reviewed as for the shared S2 image.
 BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **S2_FLASH)
 ARDUINO_BUILDS = {"arduino": ("probe_cli_compile", "esp32s3"), "arduino-s2": ("probe_cli_s2_compile", "esp32s2")}
 # EspProbePlatform's guard text: the pinned Arduino S2 libraries enable the UART0 console.
 ARDUINO_S2_GUARD = "S2 UART0 platform requires the SDK console disabled for exclusive ownership"
+# all is every compile gate CI runs; the console image is an explicit bench target only.
 ALL_TARGETS = ("arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component")
+TARGETS = ("arduino", "arduino-s2", "idf", "idf-s2", "idf-s2-optak", "idf-s2-optak-console", "s2", "component",
+           "all")
 
 
 def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_sources.json"),
@@ -375,8 +392,7 @@ def shared_idf_build(runner, command, env, name, temporary_root, expected):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--target", choices=("arduino", "arduino-s2", "idf", "idf-s2", "idf-s2-optak", "s2",
-                                             "component", "all"), default="all")
+    parser.add_argument("--target", choices=TARGETS, default="all")
     parser.add_argument("--build-dir", type=Path, default=ROOT / ".build/firmware")
     parser.add_argument("--pio", default="pio")
     parser.add_argument("--idf-path", type=Path, default=os.environ.get("IDF_PATH"))
