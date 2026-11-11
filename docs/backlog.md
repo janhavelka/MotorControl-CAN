@@ -1,5 +1,14 @@
 # Executable backlog
 
+Prompt 40 closes the shared passive/local console and exact JSONL contract
+([report](reports/prompt_40.md)). Next independent work is prompt 41: typed device,
+binding/network and diagnostic routes through that same inventory/application.
+Prompt 42 retains motion/action integration, reserved stop dispatch and platform
+parity. Inactive firmware recovery after a later explicit controller start/stop
+must be progressed or rejected by prompt 41's host lifecycle; it must never
+silently restart retired work. Earlier firmware/source gates remain with their
+original owners and are listed by `caps`.
+
 Prompt39 implements conditional one-attempt save/factory restore, independent
 reconciliation and three-field host re-application ([report](reports/prompt_39.md)).
 Remaining Q15 work is device evidence: exact specimen saved-field scope, rearm,

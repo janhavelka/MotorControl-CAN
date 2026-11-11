@@ -1,5 +1,11 @@
 # Implementation roadmap
 
+[Prompt 40](reports/prompt_40.md) delivers the shared local console, exact CAN
+JSONL schema, offline workspace and retained read/recovery correlations. Its
+[working subset](cli_contract.md) is independent of device acquisition and motion
+gates. Prompt 41 is the next console increment; prompt 42 integrates actions,
+simple-move intent and full route/platform parity.
+
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
 It remains Partial for the exact mode-6, switch, direction, offset and reference

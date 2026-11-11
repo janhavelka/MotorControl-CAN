@@ -1,5 +1,14 @@
 # API and CLI naming map
 
+Prompt 40 implements the passive/local subset in
+[`ProbeConsole`](../examples/common/ProbeConsole.h), using one canonical
+`consoleCommands` inventory. [The CLI contract](cli_contract.md) owns exact
+working grammar, schema and capacities. Local routes below marked P40 are now
+implemented and tested. Device routes remain gated, visible only through `caps`;
+P41/P42 retain every listed obligation. `config` is query-only; `host`/`useaddr`
+own actual host target/controller selection in P41. Offline `axis` interpretation
+never configures a live binding or manufactures stationary position evidence.
+
 Prompt 38 implements `LICHUAN_C::prepareCommunicationRead`, `nextCommunication`,
 `advanceCommunication` and `getCommunication` for finite raw records, and
 `prepareCommunication`, `noteCommunicationTransmission` and explicit
@@ -190,7 +199,7 @@ Two inventory states apply to every route. **Implemented**: in help and dispatch
 | Command group | Owner | Preserve/adapt |
 | --- | --- | --- |
 | `help`, `version`, `profile list`, `caps` | P40 (compiled inventory); P41 adds discovery fields | One command inventory; report compiled profile/protocol, motor/feedback config, supported modes and qualification separately; research fixtures are excluded |
-| `config`, `wiring` | P40 | Host-only interface/node/bitrate selection; no silent device writes |
+| `config`, `wiring` | P40 implemented | Query supplied interface/selection facts; declare host wiring use only. Controller/target selection is P41; no device writes |
 | `host` | P41 | Host-only target selection; no silent device writes |
 | `useaddr` | P41 | Retain selection grammar where suitable; validate the selected protocol's endpoint/range, not a universal CAN node-ID limit; multi-axis bindings identify subaxis separately |
 | `status`, `health`, `stats`, `drv`, `memory`, `result` | P40 | Cached diagnostics and retained results, separate network/drive fields |

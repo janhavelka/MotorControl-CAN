@@ -123,6 +123,8 @@ FILES = {
     "examples/device_evidence/CMakeLists.txt", "examples/device_evidence/main.cpp", "examples/device_evidence/README.md",
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
+    "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
     "examples/common/ProbePlatform.h", "examples/common/ProbePlatform.cpp", "test/probe_app_test.cpp",
     "examples/native_probe/CMakeLists.txt", "examples/native_probe/main.cpp", "examples/native_probe/README.md",
     "examples/native_probe/FakeTransport.h", "examples/native_probe/FakeTransport.cpp",
@@ -178,10 +180,11 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "probe_console", "probe_app_local", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})
+        self.tests.append({"name": "native_probe", "command": [str(self.build / "native" / ("native_probe" + suffix)), "--fake"]})
         self.tests.append({"name": "canopen_service_fit", "command": [
             str(self.build / "test/fit_stack" / ("canopen_service_fit" + suffix))]})
         for name, relative, args in (
@@ -191,6 +194,7 @@ class RepositoryTests(unittest.TestCase):
                 ("repository_checks", "scripts/check_repository.py", []),
                 ("planning_integrity", "scripts/check_promptset.py", []),
                 ("version_contract", "test/version_test.py", []),
+                ("console_protocol", "test/console_protocol_test.py", [str(self.build / "test" / ("probe_console_test" + suffix)), str(self.build / "native" / ("native_probe" + suffix))]),
                 ("repository_contract", "test/repository_test.py", []),
                 ("verification_contract", "test/verification_test.py", []),
                 ("firmware_build_contract", "test/firmware_build_test.py", []),
@@ -307,6 +311,17 @@ class RepositoryTests(unittest.TestCase):
         target = next(test for test in self.tests if test["name"] == "version_contract")
         target["command"].append("--skip")
         self.assert_failure("wrong Python command for test/version_test.py", True)
+
+    def test_console_transcript_requires_the_real_built_producer(self):
+        target = next(test for test in self.tests if test["name"] == "console_protocol")
+        target["command"][2] = str(self.root / "wrong_console_test")
+        self.assert_failure("wrong Python command for test/console_protocol_test.py", True)
+        target["command"].pop()
+        self.assert_failure("wrong Python command for test/console_protocol_test.py", True)
+
+    def test_missing_console_producer_has_useful_inventory_diagnostics(self):
+        (self.root / "test/probe_console_test.cpp").unlink()
+        self.assert_failure("missing required repository/package file: test/probe_console_test.cpp", True)
 
     def test_duplicate_inventory_names_and_script_registrations_fail(self):
         self.tests.append(copy.deepcopy(self.tests[0]))

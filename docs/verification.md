@@ -1,5 +1,12 @@
 # Verification
 
+The registered `probe_app_local`, `probe_console` and `console_protocol` contracts
+exercise direct pure APIs, damaged-line/pressure/correlation cases, actual JSONL
+and the real native entry. The isolated package consumer compiles the console
+against installed public headers and runs a native batch. Firmware inventory
+checks require both ProbeConsole.cpp and ProbeAppLocal.cpp; later device route
+and full platform parity remain prompts 41/42.
+
 The `position_parameters` and `position_preview` native gates check the installed pure Lichuan target candidate. They do not qualify a position command or motor completion.
 
 The working skeleton has reproducible native, package and documentation gates.

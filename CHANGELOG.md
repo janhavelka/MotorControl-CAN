@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Shared local console (prompt 40, 2026-11-11)
+
+- Added one shared bounded parser, implemented/gated inventory and explicit CAN
+  JSONL schema for native, Arduino and IDF local routes. Wide exact values use
+  decimal strings; asynchronous request and operation identities remain separate.
+- Added cached diagnostics, explicit local cancel/recovery, retained lookup/release,
+  host wiring declarations and public exact offline axis previews. No device
+  read, setting, network or motion route is enabled by this increment.
+- Added whole-line overflow rejection, reserved control output and callback-delivery
+  checks before terminal release. Owner service continues under console pressure.
+- Added native `--console-fake FILE`, isolated consumer and real-transcript tests.
+  Default firmware shares the console; explicit smoke/bench hooks retain their own
+  input protocol. No physical qualification is claimed.
+
 ### Bench round 12 on `e935f67`: repeatability on powered drives (2026-11-10)
 
 - Four series, both nodes, 6, 30 and 60 rpm: three cycles each of an absolute move to +A and a relative move by -2A, between re-enables from the previous quick stop's release. All 23 completed arrivals landed exactly on target in counts, absolute and relative alike, with no drift; re-energize pulls 0 to -4 counts. `606C` read 5 to 7 while moving at a commanded 6 rpm. Persistence (prompt 39) was not tested: save and factory restore are outside this campaign's authorization. [Report](docs/reports/2026-11-10_bench_r12.md).

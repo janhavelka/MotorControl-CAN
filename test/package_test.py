@@ -156,7 +156,7 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
-        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp",
                     "ConfigurationRestore.h", "ConfigurationRestore.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
@@ -189,7 +189,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbeAppLocal.cpp common/ProbeConsole.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
@@ -215,9 +215,10 @@ target_link_libraries(pdo_configuration_preview PRIVATE MotorControlCAN::MotorCo
 add_executable(action_preview action/main.cpp)
 target_link_libraries(action_preview PRIVATE app)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/console_header.cpp" "#include <ProbeConsole.h>\\n")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePlatform.h>\\n")
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
+    "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "${CMAKE_CURRENT_BINARY_DIR}/console_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
 foreach(target stack adapter owner app native_probe device_evidence discovery_preview units_preview position_preview angle_preview velocity_preview reads_preview
         pdo_configuration_preview action_preview probe_headers)
@@ -230,6 +231,8 @@ foreach(target stack adapter owner app native_probe device_evidence discovery_pr
 endforeach()
 enable_testing()
 add_test(NAME native_probe COMMAND native_probe --fake)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/console.txt" "@1 version\n@2 axis config set command 1\n@3 prepare absolute 9007199254740993 steps native\n")
+add_test(NAME native_console COMMAND native_probe --console-fake "${CMAKE_CURRENT_BINARY_DIR}/console.txt")
 add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME discovery_preview COMMAND discovery_preview)
 add_test(NAME units_preview COMMAND units_preview)

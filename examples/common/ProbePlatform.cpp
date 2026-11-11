@@ -24,6 +24,7 @@ void ProbePlatform::service() noexcept {
             break;
         if (stats_.inputUsed == INPUT_CAPACITY) {
             addSaturating(stats_.inputDropped);
+            inputLoss_ = true;
         } else {
             input_[(inputHead_ + stats_.inputUsed) % INPUT_CAPACITY] = byte;
             ++stats_.inputUsed;
@@ -46,6 +47,11 @@ bool ProbePlatform::takeInput(uint8_t& output) noexcept {
     inputHead_ = (inputHead_ + 1) % INPUT_CAPACITY;
     --stats_.inputUsed;
     return true;
+}
+bool ProbePlatform::takeInputLoss() noexcept {
+    const bool lost = inputLoss_;
+    inputLoss_ = false;
+    return lost;
 }
 bool ProbePlatform::writeOutput(const uint8_t* bytes, size_t size) noexcept {
     if (!bytes && size)

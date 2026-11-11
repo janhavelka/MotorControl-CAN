@@ -1,5 +1,11 @@
 # Native examples and shared application
 
+The shared [local console](cli_contract.md) now uses this application. Host-only
+axis facts live in ProbeAppLocal.cpp, separately from the selected live route;
+ProbeConsole performs parsing/correlation/formatting, never target arithmetic or
+CAN receive. The native entry offers bounded `--console-fake FILE` in addition
+to the unchanged explicit read demonstration.
+
 The [offline units preview](../examples/units_preview/README.md) uses only the
 installed pure Axis/Units API. The [fake native probe](../examples/native_probe/README.md)
 adds the optional CANopenNode adapter, ordinary CanBusOwner and shared ProbeApp.

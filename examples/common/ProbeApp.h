@@ -6,13 +6,68 @@
 #include "AxisSession.h"
 #include "CanBusOwner.h"
 #include "ProbePlatform.h"
+#include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::CanBusOwner;
 using MotorControlCANOwner::Health;
 using MotorControlCANOwner::RequestId;
 using MotorControlCANOwner::SequenceId;
-using MotorControlCANOwner::CanBusOwner;
+/** Local coordinate command; never admits owner work or changes a drive. */
+enum class HostAxisCommandKind : uint8_t {
+    QUERY,     ///< Inspect cached offline interpretation.
+    CONFIGURE, ///< Reconstruct explicit offline coordinate facts.
+    ORIGIN,    ///< Establish host zero from supplied stationary evidence.
+    PREPARE    ///< Preview target arithmetic without admitting motion.
+};
+/** Explicit host facts supported by the common AxisConfig. */
+enum class HostAxisField : uint8_t {
+    COMMAND_SCALE,    ///< Command increments per motor turn.
+    GEAR,             ///< Motor turns per load turn.
+    FULL_STEP_SCALE,  ///< Optional full motor steps per motor turn.
+    LEAD,             ///< Millimetres of load travel per load turn.
+    ENCODER_SCALE,    ///< Selected encoder counts per configured feedback basis.
+    ENCODER_ID,       ///< Application identity of the feedback source.
+    ENCODER_BASIS,    ///< Motor turn, load turn or millimetre feedback basis.
+    ENCODER_POLARITY, ///< Feedback polarity, exactly +1 or -1.
+    POLARITY,         ///< Command polarity, exactly +1 or -1.
+    NATIVE_LIMITS,    ///< Inclusive absolute command-coordinate bounds.
+    SOFT_LIMITS,      ///< Optional inclusive absolute command-coordinate bounds.
+    RELATIVE_BASES    ///< Explicit actual/commanded/queued witness-policy bitmask.
+};
+/** Copied exact local intent. Unused fields do not affect a command. */
+struct HostAxisCommand {
+    HostAxisCommandKind kind = HostAxisCommandKind::QUERY; ///< Selected operation.
+    HostAxisField field = HostAxisField::COMMAND_SCALE;    ///< CONFIGURE fact.
+    MotorControlCAN::Rational value;       ///< Scale, integer setting or exact native origin.
+    MotorControlCAN::Rational secondValue; ///< Inclusive maximum for a limits field.
+    bool clear = false;                    ///< Clear optional scale or software limits only.
+    MotorControlCAN::EncoderBasis encoderBasis = MotorControlCAN::EncoderBasis::
+        MOTOR_TURN;                            ///< ENCODER_BASIS selection, not an inferred scale.
+    MotorControlCAN::PositionRequest position; ///< PREPARE arithmetic intent.
+};
+/** Owned output, published only on successful local dispatch. */
+struct HostAxisView {
+    MotorControlCAN::AxisConfig configuration; ///< Active only when configured.
+    MotorControlCAN::PreparedTarget prepared;  ///< Active for successful PREPARE.
+    bool configured = false;                   ///< Explicit host interpretation exists.
+    bool offline = true;         ///< This workspace is never the selected live binding.
+    bool referenceKnown = false; ///< Stored qualified native witness; not a freshness claim.
+};
+/** Explicit application interface facts; unknown fields are not zero-valued evidence. */
+struct HostInterfaceFacts {
+    bool interfaceKnown = false;       ///< Qualifies interfaceId.
+    uint32_t interfaceId = 0;          ///< Application physical-interface identity.
+    bool bitrateKnown = false;         ///< Qualifies bitrateBitsPerSecond.
+    uint32_t bitrateBitsPerSecond = 0; ///< Supplied controller configuration, never changed here.
+};
+/** Host wiring declaration only; no terminal function, electrical state or model claim. */
+enum class HostWiringUse : uint8_t {
+    UNKNOWN,  ///< No host wiring declaration exists.
+    UNUSED,   ///< Application declares the host label unconnected.
+    CONNECTED ///< Application declares a connection, without electrical qualification.
+};
 /** One selected target and one finite typed read. No startup request, command
  * parser, firmware startup, discovery, motion or retry engine. The application
  * owns read stepping; the owner alone receives and retains service terminals.
@@ -27,6 +82,70 @@ class ProbeApp {
     ProbeApp(CanBusOwner& owner, ProbePlatform& platform) noexcept;
     ProbeApp(const ProbeApp&) = delete;            ///< No copying live reservation/result handles.
     ProbeApp& operator=(const ProbeApp&) = delete; ///< Stationary application storage.
+    /** @return Borrowed offline interpretation, null before explicit initialization. */
+    const MotorControlCAN::AxisConfig* axisConfig() const noexcept;
+    /** @return Borrowed stored witness, null before a qualified native relation is supplied. */
+    const MotorControlCAN::AxisReference* axisReference() const noexcept;
+    /** Establish an explicit offline arithmetic workspace without geometry or position evidence.
+     * The synthetic identity never adopts selected(), reserves work or enters a live session.
+     * @return Local validation status; unchanged if already initialized.
+     */
+    MotorControlCAN::Status initializeOfflineAxis() noexcept;
+    /** Copy an initial explicit host interpretation, isolated from all live bindings.
+     * @param config Valid caller facts; origins/soft limits must be unknown.
+     * @return Local status; atomic failure, including an already established workspace.
+     */
+    MotorControlCAN::Status establishHostAxis(const MotorControlCAN::AxisConfig& config) noexcept;
+    /** Checked core reconfiguration with caller-qualified evidence; never synthesizes standstill.
+     * @param candidate Desired facts with current epochs. @param evidence Current witness.
+     * @return configureAxis status; configuration and retained witness atomic on failure.
+     */
+    MotorControlCAN::Status
+    configureHostAxis(const MotorControlCAN::AxisConfig& candidate,
+                      const MotorControlCAN::AxisReference& evidence) noexcept;
+    /** Retain a checked caller position witness with its original observation time.
+     * @param reference Matching current native relation; supplied time/age retained unchanged.
+     * @return Core validation status; no inference of idle, stationary or physical evidence.
+     */
+    MotorControlCAN::Status
+    setHostAxisReference(const MotorControlCAN::AxisReference& reference) noexcept;
+    /** Establish a host zero using the ordinary checked core API.
+     * @param native Exact native coordinate of zero. @param evidence Qualified stationary witness.
+     * @return Core status; atomic failure, no device-counter change.
+     */
+    MotorControlCAN::Status
+    setHostAxisOrigin(int64_t native, const MotorControlCAN::AxisReference& evidence) noexcept;
+    /** Pure target arithmetic with stored evidence only when required.
+     * @param request Exact intent, including current configuration generation.
+     * @param nowUs Supplied preparation microseconds, no observation-time renewal.
+     * @param output Owned target, unchanged on failure. @return preparePosition status.
+     */
+    MotorControlCAN::Status previewPosition(const MotorControlCAN::PositionRequest& request,
+                                            uint64_t nowUs,
+                                            MotorControlCAN::PreparedTarget& output) const noexcept;
+    /** Dispatch host commands. CONFIGURE edits an offline workspace by explicit reconstruction;
+     * it cannot establish origin, reference or drive applicability. ORIGIN requires a supplied
+     * stationary witness. PREPARE fills the current generation, never admits motion.
+     * @param command Copied local intent. @param nowUs Supplied nondecreasing us for evidence.
+     * @param output Owned snapshot, unchanged on failure. @return Local/core status.
+     */
+    MotorControlCAN::Status executeHostAxis(const HostAxisCommand& command, uint64_t nowUs,
+                                            HostAxisView& output) noexcept;
+    /** @param facts Explicit firmware/application facts; no controller configuration occurs.
+     * @return False unchanged for known zero bitrate; unknown payload fields are ignored.
+     */
+    bool setHostInterfaceFacts(const HostInterfaceFacts& facts) noexcept;
+    /** @return Cached application facts, with explicit unknown flags; no I/O. */
+    HostInterfaceFacts hostInterfaceFacts() const noexcept { return hostInterface_; }
+    /** Host labels di0..di6 use slots 0..6; do0..do2 use slots 7..9.
+     * @param terminal Finite label slot, below 10. @param use Explicit host declaration.
+     * @return False unchanged for invalid slot/value. No model/electrical claim or I/O.
+     */
+    bool setHostWiring(uint8_t terminal, HostWiringUse use) noexcept;
+    /** @param terminal Slot below 10. @param output Declaration, unchanged for invalid slot.
+     * @return True for a valid host label, independent of selected model applicability.
+     */
+    bool hostWiring(uint8_t terminal, HostWiringUse& output) const noexcept;
     /** Select explicit configured route facts without device traffic.
      * @param[in] target Copied valid channel/node epoch; no presence/model claim.
      * @return False unchanged while a read is retained or for invalid/unknown binding.
@@ -164,6 +283,11 @@ class ProbeApp {
   private:
     CanBusOwner& owner_;
     ProbePlatform& platform_;
+    MotorControlCAN::AxisConfig hostAxis_;
+    MotorControlCAN::AxisReference hostReference_;
+    HostInterfaceFacts hostInterface_;
+    HostWiringUse hostWiring_[10] = {};
+    bool hostAxisConfigured_ = false;
     AxisSession* axes_[2] = {nullptr, nullptr};
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
     MotorControlCAN::LICHUAN_C::ReadContext read_;
