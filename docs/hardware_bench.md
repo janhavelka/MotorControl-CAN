@@ -1063,7 +1063,7 @@ or `commanded` with `--base-position`, the reviewed commanded position; for eith
 trial's own experiment record) and the move's identity arguments; `--rpm` is at most 60 and
 `--duration-ms` at most 20000 and below `--deadline-ms`. It refuses `--start-qualified` and
 `--stop-qualified` with any value, because no record of this fixture measured either fact, and
-`--unattended-waiver`. `request.json` holds `velocity_scope` and the send entry `scope`, both
+`--unattended-waiver` without `--waiver-covers-motion`. `request.json` holds `velocity_scope` and the send entry `scope`, both
 `ATTENDED_EXPERIMENT`. `home` takes `--method 17|18|24|29`, `--search-rpm`, `--creep-rpm`,
 `--ramp-ms` and `--offset`; it asks no shaft question, since it writes nothing. Both keep their request
 in `RouteWork` and are refused with `reason=memory` when that block cannot be allocated.
@@ -1094,8 +1094,12 @@ the user's own written statement that they accept the trial unattended: TEXT is 
 `unattended: not observed`, and the line's attended field still reads 1, recording that the host's
 gate was met by the waiver. It refuses `enable`, whose start report needs the attendant's power-up
 shaft observation, `velocity`, whose start and stop are unmeasured so that the attendant's cutoff is
-its only control beyond its own stop, and `--fault-led prompt`. The independent cutoff is then absent, so keep such a
-campaign to bounded, slow, short cases. `--dry-run` prints the plan without enumerating, prompting or creating anything. Exit status: 0
+its only control beyond its own stop, and `--fault-led prompt`. `--waiver-covers-motion` states that the
+user's statement explicitly accepts unattended enables and velocity runs with nobody holding the cutoff
+(first given on 2026-11-11 for a night soak): with it, `velocity` and a `--released-by-recorded-stop` enable
+are admitted, with the same scope, bounds and S16 alerts, and `request.json` (`covers_motion`) and the send
+entry (`waiver_covers_motion`) record it. A power-up enable still needs a relayed shaft. The independent
+cutoff is then absent, so keep such a campaign to bounded cases the library and firmware already stop. `--dry-run` prints the plan without enumerating, prompting or creating anything. Exit status: 0
 complete, 3 a consistent record of a failure, 2 nothing admitted, 1 damaged or unfinished, and 4,
 whatever else holds, after a velocity record whose node may still turn (backlog S16): `TRIAL_VELOCITY`
 shows `needs=1` or `fenced=1` and no stop of the record left (`TRIAL_STOP` `own=0` or `exec=0`, and
