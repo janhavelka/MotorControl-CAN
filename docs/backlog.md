@@ -138,6 +138,75 @@ resolve the above facts by themselves.
 | I02 | FieldCore-like consumer and multi-drive contrasts | 45-46: IDs/generations/effects without importing FieldCore types; one physical receiver and protocol-specific services |
 | I03 | Native package and support/documentation closure | 49-50: installed scope matches actual APIs/tests/firmware/qualification; no placeholder profile or invented release status |
 
+## Wanted features (requested 2026-11-12)
+
+The user wants, in future: changes of velocity, ramps and targets during motion; several drives operating at
+once, including a SYNC attempt even though the Lichuan sources do not document it; and the S2 memory needed for
+both. These are wanted features with their evidence gates, not delivered behavior. Details and sources:
+[on-the-fly changes](reports/2026-11-12_on_the_fly_changes.md), [multi-drive preparation](reports/2026-11-12_multidrive_preparation.md),
+[S2 memory](reports/2026-11-12_s2_memory.md).
+
+**Changes during motion.** EN86/ZH86 p12 document controlword bit 5 (update motion parameters immediately) with
+arrows only from `000F` (`15->63`, `15->127`); a set-point buffer, bit 9, the meaning of clearing bit 4 in a curve and
+a `60FF` change while running are undocumented. Today the library refuses immediate update and has one rate per
+velocity run.
+
+| ID | Wanted work | Owner | Smallest next step |
+| --- | --- | --- | --- |
+| F01 | Record gates Q22 to Q26 (change semantics) in `device_conflicts.md` and the ledger | 29 (33, 35) | Documentation only |
+| F02 | Measure a velocity rate change during a run (positive rates only) | 35 via 29 | Trial T6, node 1, 30 to 60 rpm |
+| F03 | Host velocity change step in `VelocityContext`, closed by default, never extending the deadline or stop | 35 | Fake-owner tests |
+| F04 | Console `velocity change ID ...` | 42 (43) | Native console tests |
+| F05 | Measure bare parameter writes and the bit 4 falling edge during a mode 1 curve | 33 via 29 | Trials T1, T2 |
+| F06 | Measure an immediate same-endpoint speed change (`003F`) | 33 | Trial T3 |
+| F07 | Measure stops from `003F` and after a velocity change | 31 | Trial T8 |
+| F08 | Host replacement move (absolute, same direction) with original/replacement relation, as RS `INTERRUPT_CURRENT` | 33 | After F05 to F07 |
+| F09 | Console `move retarget ID ...` and `move speed ID RPM` | 42 | After F08 |
+| F10 | Measure what ramp times mean under a change | 35, 33 | Trial T7 |
+| F11 | Measure retargets to a new endpoint ahead of the position | 33 | Trial T4 |
+| F12 | Python scenarios for velocity steps and position changes | 44 | After F04 |
+| F13 | Finite qualification of the change routes | 47 | Subset of F02 to F12 |
+| F14 | Measure buffered set-points (bit 5 = 0) | 33 | Trial T5 |
+| F15 | Keep refused: relative change mid-curve, reversal, `60FF` sign change or zero during a run | 33, 35 | None until Q03 and F11 close |
+| F16 | Deliver changes by RPDO | 18, 38 | Design only, after Q17 |
+
+**Several drives at once.** The core, owner and application already keep axes separate (two SDO channels, per-node
+heartbeat and EMCY, one `AxisSession` per axis; host tests run two concurrent moves with separate stops). Limits: one
+bench route at a time, one console motion attachment, compile-time capacity 2. SYNC audit (all five vendor PDFs, every
+page, and the EDS): the manuals only claim "multi-axis high-speed bus synchronization control" (EN86, ZH86 and ZH57
+p3) and describe no SYNC object; the EDS has `1005` SYNC COB-ID (RW U32, default `0x80`) and writable PDO transmission
+types (`1400:02`..`1403:02`, `1800:02`..`1803:02`, U8, default 255, no range given), and no `1006`, `1007` or `1019`.
+A drive can therefore at most consume SYNC; the host must produce it. Modes are 1, 3 and 6 only (no IP or CSP).
+
+| ID | Wanted work | Owner | Smallest next step |
+| --- | --- | --- | --- |
+| M01 | Paired `MOVE` route where the partner node also moves | 45, bench | Host test, then HM1 and HM2 |
+| M02 | Stop-all contract: separate per-axis stops, no NMT stop, group success only when every axis is observed stopped, no re-enable or replay | 45 | Host tests, then HM3 and HM4 |
+| M03 | Console: stop axis B while axis A's operation is retained; then per-axis attachments and stop slots | 42, 45 | Native console test |
+| M04 | Caller-sized owner and adapter storage (channels, sequences, requests, urgent slots) for more than two axes, after RS `BusStorage` | 45, 46 | Design review |
+| M05 | `AxisSession` shared operation storage (R03) without losing its fences | example code | `sizeof` and host tests |
+| M06 | A distinct producer per session in `ProbeApp::openAxis` | example code | Host test |
+| M07 | Measure the skew of triggers sent to both drives in one owner turn | 48 | HM6 |
+| M08 | TPDO monitoring of several axes (PDO-aware soak, sample provenance) | 17, 18 | After S13, D11 and Q17 |
+| M09 | Review a controlword-only RPDO map before any RPDO start or stop (today RPDO1 also writes target, mode and homing method) | 18 | Map review |
+| M10 | SYNC evidence: `1005` present, no `1006`, synchronous PDO types unqualified | 29 | Read `1005` and `1400:02`..`1803:02` on both nodes |
+| M11 | Cap and ledger rules for paired admissions in `s2_bench.py` | bench | Runner tests |
+| M12 | Example policy for a fault on one axis: stop the others explicitly, with per-axis results | 45 | Host test, then HM9 |
+| M13 | **Undocumented SYNC trial** (requested): a host SYNC producer as an explicit owner service (COB-ID `0x80`, application-timed, never automatic); then (a) a SYNC with every PDO at type 255 (expect no change and no EMCY); (b) TPDO1 type 1 on one node with SYNC at 10 to 100 ms: one TPDO per SYNC or not, latency, then restore 255 without a save; (c) after M09, a synchronous RPDO controlword on both nodes and one SYNC as a common start trigger, start skew compared with M07. Never set `1005` bit 30 (no `1006`). Each step reports works, ignored or refused | New prompt after 46; 18, 48 | Owner SYNC service design, then step (a) |
+
+**S2 memory.** The task stack (12288 bytes) is not the cause. About 210 KB of fixed worst-case storage is resident at
+once: two `AxisSession`s 71504, `BenchRoute` 42896 (route record 37592), `FirmwareProbe` 31128, record arena 23688,
+`SdoClient` 11056, `RouteWork` 8448, console 15952 after `o`; SDK, ROM and cache about 91 KB. No PSRAM, no Wi-Fi.
+
+| ID | Wanted work | Owner | Saving and next step |
+| --- | --- | --- | --- |
+| R01 | IDF configuration: DCache 0 KB, FreeRTOS, heap, ringbuf and lock code to flash (optionally `-Os`, smaller `esp_timer` stack) | firmware examples | +31128 heap measured by linking (+34864 with `-Os`); one bench boot, `M`, short regression with service gaps |
+| R02 | One shared record arena for the mutually exclusive bench records (route, acquisition, raw/PDO, soak, capture) | s2_bench, examples/common | 42120 always, 60736 with soak or capture (computed); host tests |
+| R03 | One operation slot in `AxisSession` (enable, move, velocity, home and clear are already exclusive through `busy()`) | example code | 14688 per axis (computed) |
+| R04 | Owner trace entries without an embedded 264-byte completion; drop unused PDO routes | owner, adapters | About 4200, and 856 per route |
+| R05 | Core contract review: per-field binding copies and the duplicate payload in provenance | core, review | 3840 to 4800 and 1792 per axis; a contract change |
+| R06 | Axis count after savings: bench 2 today; lean application 4, 5 with R01, 8 (7 with PDO) with R01 and R03 | M04 | Raise the compile-time axis limits first |
+
 ## Tool and physical gates
 
 | ID | Current limit | Owner / next action |
