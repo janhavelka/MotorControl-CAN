@@ -25,6 +25,11 @@ static unsigned checks = 0;
 namespace {
 using OwnerRig::budget;
 using OwnerRig::route;
+// The rig pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that need node 2 run when the
+// capacity set has two channels; a one-channel set configures node 1 alone and runs the others.
+// Channels beyond two stay unconfigured and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -169,7 +174,7 @@ struct Rig {
         configure(nodeGeneration, bindingGeneration);
     }
     void configure(uint32_t nodeGeneration, uint32_t bindingGeneration = 3) {
-        for (uint8_t i = 0; i < 2; ++i) {
+        for (uint8_t i = 0; i < FIXTURE_NODES; ++i) {
             auto channel = route(i + 1);
             channel.binding.bindingGeneration = bindingGeneration;
             CHECK(services.configure(i, channel, true, true));
@@ -372,7 +377,7 @@ void failureStreakSurvivesRecoveryOnAnOpenRoute() {
     r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(2, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.releaseRecovery(recovery));
-    CHECK(!r.services.unresolved(0) && !r.services.unresolved(1));
+    CHECK(!r.services.unresolved(0) && (!PAIRED_CHANNELS || !r.services.unresolved(1)));
     CHECK(r.health().consecutiveFailures == 1 && r.health().state == O::DriverState::DEGRADED);
     const auto freshSequence = r.sequence();
     const auto reconcile = r.admit(r.request(freshSequence));
@@ -601,6 +606,8 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
         historicalTimeout |= diagnostic.kind == O::DiagnosticKind::TERMINAL &&
                              diagnostic.completion.service.effectUncertain;
     CHECK(historicalTimeout);
+    if (!PAIRED_CHANNELS)
+        return; // The live work below needs node 2: node 1 stays quarantined by the timeout.
     const auto second = r.sequence(2);
     const auto read = r.admit(r.request(second));
     r.turn(151);
@@ -637,9 +644,11 @@ void exactIngressEnqueueAndAdmissionBoundaries() {
     const auto sequence = r.sequence();
     for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i)
         r.admit(r.request(sequence, i + 1));
-    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
-    r.admit(r.request(sequence, 7), true);
-    CHECK(r.owner.admitUrgent(r.request(sequence, 8), 0, rejected) ==
+    // Every ordinary slot is taken; the channel's one urgent slot still admits the next step.
+    const unsigned next = O::CanBusOwner::REQUESTS + 1;
+    CHECK(r.owner.admit(r.request(sequence, next), 0, rejected) == O::BusAdmission::RESULTS_FULL);
+    r.admit(r.request(sequence, next), true);
+    CHECK(r.owner.admitUrgent(r.request(sequence, next + 1), 0, rejected) ==
           O::BusAdmission::RESULTS_FULL);
     CHECK(r.owner.stats().resultsRejected == 2 && r.owner.stats().queueRejected == 4);
     CHECK(r.owner.receiveOverflow(0, 7));
@@ -1030,7 +1039,8 @@ int main() {
     cachedStateAndKnownZero();
     abortFailureThenIndependentRead();
     failureStreakSurvivesRecoveryOnAnOpenRoute();
-    heavyTurnFitsTheTrace();
+    if (PAIRED_CHANNELS)
+        heavyTurnFitsTheTrace();
     freshHeartbeatPreservesServiceFailure();
     heartbeatPolicyAndControllerRecovery();
     receiveIntervalsBoundHealthWithoutFresheningDeliveryTime();
@@ -1038,14 +1048,16 @@ int main() {
     segmentedServiceCountsOnce();
     statisticsResetPreservesUncertaintyHistoryAndLiveWork();
     exactIngressEnqueueAndAdmissionBoundaries();
-    fullTraceDoesNotDelayOrdinaryOrUrgentWork();
+    if (PAIRED_CHANNELS)
+        fullTraceDoesNotDelayOrdinaryOrUrgentWork();
     configurationHistoryAndBindingReset();
     requalifiedPdoDoesNotPromoteRetainedSample();
     recoveryTimeoutAndCounterSaturation();
     discoveredUnsupportedServiceIsHealthNeutral();
     malformedReplyAndCleanupTransmissionCountSeparately();
     deadlineWinsCancellationAtSameCutoff();
-    exactRetirementAlsoRetiresFinalReports();
+    if (PAIRED_CHANNELS)
+        exactRetirementAlsoRetiresFinalReports();
     std::printf("CAN owner health: %u checks passed\n", checks);
     std::printf(
         "host bytes: CanBusOwner=%zu Health=%zu Stats=%zu Diagnostic=%zu OwnerResources=%zu\n",

@@ -15,6 +15,11 @@ namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
 namespace O = MotorControlCANOwner;
+// The rig binds node 1 on slot 0 and node 2 (the `other` drive) on slot 1. A one-channel capacity
+// set binds node 1 alone; scenarios that use node 2 then run only with two channels. Channels
+// beyond two stay unconfigured.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned RIG_NODES = PAIRED_CHANNELS ? 2 : 1;
 using OwnerRig::budget;
 using OwnerRig::frame;
 const uint64_t TICK = 500, DURATION = 120000, DEADLINE = 300000;
@@ -297,7 +302,7 @@ struct Rig {
     Rig() : owner(services, wire.callbacks(), 73), session(owner) {
         wire.session = &session;
         wire.services = &services;
-        for (unsigned node = 1; node <= 2; ++node) {
+        for (unsigned node = 1; node <= RIG_NODES; ++node) {
             CHECK(services.configure(uint8_t(node - 1), target(node).channel, true, true));
             C::NetworkRoute network;
             network.binding = target(node).channel.binding;

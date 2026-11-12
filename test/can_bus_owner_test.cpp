@@ -26,6 +26,11 @@ static unsigned checks = 0;
 namespace {
 using OwnerRig::budget;
 using OwnerRig::route;
+// The rig pairs node 1 on slot 0 with node 2 (or a shared-peer channel) on slot 1. Scenarios that
+// need slot 1 run when the capacity set has two channels; a one-channel set configures node 1
+// alone and runs the others. Channels beyond two stay unconfigured and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -165,7 +170,7 @@ struct Rig {
         fake.owner = &owner;
         fake.services = &services;
         fake.current = route().binding;
-        for (uint8_t i = 0; i < 2; ++i) {
+        for (uint8_t i = 0; i < FIXTURE_NODES; ++i) {
             C::SdoChannel selected = route(i + 1);
             if (sharedPeer && i == 1) {
                 // A synthetic server's explicitly distinct SDO channel, not a
@@ -425,9 +430,11 @@ void copiedAdmissionAndRetainedPressure() {
     first.transfer.deadlineUs = 1;
     for (unsigned i = 1; i < O::CanBusOwner::REQUESTS; ++i)
         ids[i] = r.admit(r.request(sequence, i + 1));
+    // The next increasing step after every ordinary slot holds one.
+    const uint32_t next = O::CanBusOwner::REQUESTS + 1;
     O::RequestId rejected;
     rejected.generation = 999;
-    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(sequence, next), 0, rejected) == O::BusAdmission::RESULTS_FULL);
     CHECK(rejected.generation == 999 && r.fake.sentCount == 0);
     CHECK(!r.owner.releaseSequence(sequence));
     r.turn(0, budget(0, 1, 0, 1));
@@ -444,7 +451,8 @@ void copiedAdmissionAndRetainedPressure() {
         r.respond(ids[i], 1, 0x6041, 0x1200 + i);
     }
     saved.unchanged(*retained);
-    CHECK(r.owner.admit(r.request(sequence, 7), r.now, rejected) == O::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(sequence, next), r.now, rejected) ==
+          O::BusAdmission::RESULTS_FULL);
     CHECK(r.owner.beginOperation(sequence, 2, 2000, r.now));
     saved.unchanged(*retained); // A new intent can begin without discarding old evidence.
     O::RequestId foreign = ids[0];
@@ -455,7 +463,7 @@ void copiedAdmissionAndRetainedPressure() {
     ++wrong.generation;
     CHECK(!r.owner.result(wrong) && !r.owner.release(wrong));
     CHECK(r.owner.release(ids[0]) && !r.owner.release(ids[0]));
-    const O::RequestId reused = r.admit(r.request(sequence, 7));
+    const O::RequestId reused = r.admit(r.request(sequence, next));
     CHECK(reused.slot == ids[0].slot && reused.generation != ids[0].generation);
     CHECK(!r.owner.result(ids[0]) && !r.owner.release(ids[0]));
     r.turn(r.now);
@@ -756,7 +764,7 @@ void checkedAbortTxReportsAndGuard() {
     CHECK(guard.fake.guards == 1 && !guard.done(withdrawn).service.transmissionPossible);
 }
 
-void boundedCallbacksAndOneShotTransportFailure() {
+void boundedCallbacks() {
     Rig bounded;
     const auto firstSequence = bounded.sequence(1, 1);
     const auto secondSequence = bounded.sequence(2, 2);
@@ -787,6 +795,9 @@ void boundedCallbacksAndOneShotTransportFailure() {
     CHECK(bounded.fake.rxRead == 10 && bounded.fake.reportRead == 12);
     bounded.respond(first, 1, 0x6041, 1);
     bounded.respond(second, 2, 0x6041, 2);
+}
+
+void oneShotTransportFailure() {
     for (unsigned failure = 0; failure < 2; ++failure) {
         Rig r;
         r.fake.autoConfirm = false;
@@ -993,7 +1004,8 @@ void rejectedIngressRemainsDiagnosticOnly() {
     r.fake.push(frame(0x345, 1), 2); // Future capture must not enter normal routing at time zero.
     r.turn(0, budget(8, 0, 0, 0));
     CHECK(r.fake.observations == 2 && r.fake.transmits == 0);
-    CHECK(!r.services.node(0)->heartbeat.present && !r.services.node(1)->heartbeat.present);
+    CHECK(!r.services.node(0)->heartbeat.present &&
+          (!PAIRED_CHANNELS || !r.services.node(1)->heartbeat.present));
     C::NetworkObservation diagnostic;
     CHECK(!r.services.takeNetworkObservation(diagnostic));
     // Protocol-format fixture: valid Classical extended RTR, no payload to decode.
@@ -1142,12 +1154,14 @@ void checkFailedControlRetention(Rig& r, O::SequenceId sequence, O::RequestId fa
     const Saved<L::DriverSettingsContext> oldSettings(settings);
     const Saved<O::Completion> retained(r.done(failed));
     CHECK(!r.owner.releaseSequence(sequence));
-    // A retained failure and quarantined node cannot starve a different node.
-    const auto other = r.sequence(2, 2, 21);
-    const auto read = r.admit(r.request(other));
-    r.turn(r.now);
-    r.respond(read, 2, 0x6041, 0x1234);
-    CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+    // A retained failure and quarantined node cannot starve a different node (two channels).
+    if (PAIRED_CHANNELS) {
+        const auto other = r.sequence(2, 2, 21);
+        const auto read = r.admit(r.request(other));
+        r.turn(r.now);
+        r.respond(read, 2, 0x6041, 0x1234);
+        CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+    }
     r.turn(r.now + 1);
     retained.unchanged(r.done(failed));
     oldSettings.unchanged(settings);
@@ -1201,15 +1215,17 @@ void actualControlUncertainDownloadAndFailedReadback() {
         const Saved<O::Completion> retained(terminal);
         const Saved<L::DriverSettingsContext> oldSettings(settings);
         r.fake.settings = nullptr;
-        const auto other = r.sequence(2, 2, 21);
-        const auto read = r.admit(r.request(other));
-        r.turn(r.now);
-        r.respond(read, 2, 0x6041, 0x1234);
-        retained.unchanged(r.done(id));
-        oldSettings.unchanged(settings);
-        CHECK(r.fake.current.configurationGeneration == 7 && r.fake.guards == 1 &&
-              r.fake.sentCount == 3 && r.fake.sent[2].id == 0x602);
-        CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+        if (PAIRED_CHANNELS) { // The other node's read leaves this terminal alone.
+            const auto other = r.sequence(2, 2, 21);
+            const auto read = r.admit(r.request(other));
+            r.turn(r.now);
+            r.respond(read, 2, 0x6041, 0x1234);
+            retained.unchanged(r.done(id));
+            oldSettings.unchanged(settings);
+            CHECK(r.fake.current.configurationGeneration == 7 && r.fake.guards == 1 &&
+                  r.fake.sentCount == 3 && r.fake.sent[2].id == 0x602);
+            CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+        }
         CHECK(r.owner.release(id) && r.owner.releaseSequence(sequence));
     }
     {
@@ -1307,17 +1323,22 @@ int main() {
     serviceCutoffCannotExtendOperation();
     finiteUploadExperimentBootstrap();
     copiedAdmissionAndRetainedPressure();
-    fairProducersAndBusyChannel();
+    if (PAIRED_CHANNELS)
+        fairProducersAndBusyChannel();
     passiveDispatchDuringTransferAndBudgets();
     invalidAdmissionSequenceAndIdExhaustion();
     queueAgeAndServiceEvidence();
     checkedAbortTxReportsAndGuard();
-    boundedCallbacksAndOneShotTransportFailure();
-    nodeInvalidationKeepsOtherChannelAndTerminals();
-    sharedPeerQuarantineRejectsNewSequenceAtomically();
-    sharedPeerQuarantineRetiresActiveBeforeLaterRxOrTx();
+    if (PAIRED_CHANNELS) {
+        boundedCallbacks();
+        nodeInvalidationKeepsOtherChannelAndTerminals();
+        sharedPeerQuarantineRejectsNewSequenceAtomically();
+        sharedPeerQuarantineRetiresActiveBeforeLaterRxOrTx();
+    }
+    oneShotTransportFailure();
     staleNegativeReportDoesNotFailNewSegment();
-    alternateChannelUsesConfiguredBindingAndSharesExclusion();
+    if (PAIRED_CHANNELS)
+        alternateChannelUsesConfiguredBindingAndSharesExclusion();
     rejectedIngressRemainsDiagnosticOnly();
     publicReadAndConfirmedControlSetting();
     actualControlUncertainDownloadAndFailedReadback();

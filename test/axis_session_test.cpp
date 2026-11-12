@@ -31,6 +31,11 @@ static const char* scenario = "";
 namespace {
 using OwnerRig::budget;
 using OwnerRig::frame;
+// The rig pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that need node 2 run when the
+// capacity set has two channels; a one-channel set configures node 1 alone and runs the others.
+// Channels beyond two stay unconfigured and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, static_cast<const void*>(&value), sizeof value); }
@@ -158,7 +163,7 @@ struct Rig {
     unsigned served = 0;
     bool serviceA = true;
     Rig() : owner(services, wire.callbacks(), 73), a(owner), b(owner) {
-        for (unsigned node = 1; node <= 2; ++node) {
+        for (unsigned node = 1; node <= FIXTURE_NODES; ++node) {
             const L::ReadTarget t = target(node);
             CHECK(services.configure(uint8_t(node - 1), t.channel, true, true));
             C::NetworkRoute network;
@@ -193,10 +198,11 @@ struct Rig {
                 push(replyTo(f, drive[f.id - 0x601]));
         }
         uint32_t emcy[2] = {};
-        const M::Generation epoch[2] = {services.node(0)->route.generation,
-                                        services.node(1)->route.generation};
+        const M::Generation epoch[2] = {
+            services.node(0)->route.generation,
+            PAIRED_CHANNELS ? services.node(1)->route.generation : M::Generation()};
         if (asyncTraffic)
-            for (unsigned node = 1; node <= 2; ++node) {
+            for (unsigned node = 1; node <= FIXTURE_NODES; ++node) {
                 M::Frame heartbeat = frame(0x700 + node, 1);
                 heartbeat.data[0] = 5;
                 push(heartbeat);
@@ -217,7 +223,7 @@ struct Rig {
             b.service(now);
         }
         if (asyncTraffic && work.rx)
-            for (unsigned node = 1; node <= 2; ++node) {
+            for (unsigned node = 1; node <= FIXTURE_NODES; ++node) {
                 const C::NodeSnapshot* state = services.node(uint8_t(node - 1));
                 // A frame at the same instant as an invalidation boundary is not evidence.
                 if (state->route.generation != epoch[node - 1])
@@ -1209,7 +1215,7 @@ void twoNodePressure() {
         const uint32_t opA = begin(r, r.a);
         const uint64_t deadlineA = r.opDeadline;
         const uint32_t opB = begin(r, r.b);
-        const unsigned fromA = hog ? O::CanBusOwner::REQUESTS : 3;
+        const unsigned fromA = hog ? O::CanBusOwner::REQUESTS : O::CanBusOwner::REQUESTS / 2;
         for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
             const bool first = i < fromA;
             O::BusRequest work;
@@ -1220,14 +1226,16 @@ void twoNodePressure() {
             O::RequestId id;
             CHECK(r.owner.admit(work, r.now, id) == O::BusAdmission::ACCEPTED);
         }
+        // One more step on each axis, above every step used so far (at most REQUESTS).
+        const uint32_t moreStep = O::CanBusOwner::REQUESTS + 3;
         O::BusRequest more;
         more.sequence = r.a.sequence();
-        more.transfer = service(r, 1, opA, 9, 0x2100);
+        more.transfer = service(r, 1, opA, moreStep, 0x2100);
         more.transfer.deadlineUs = deadlineA;
         O::RequestId refused;
         CHECK(r.owner.admit(more, r.now, refused) == O::BusAdmission::RESULTS_FULL);
         more.sequence = r.b.sequence();
-        more.transfer = service(r, 2, opB, 9, 0x2100);
+        more.transfer = service(r, 2, opB, moreStep, 0x2100);
         CHECK(r.owner.admit(more, r.now, refused) == O::BusAdmission::RESULTS_FULL);
         // A stop on axis 1 runs with its terminal left unread.
         const unsigned from = r.wire.sentCount;
@@ -2575,9 +2583,12 @@ void onlyFreshCurrentStateQualifies() {
     // 000B-only. Mode 3 running after latest 000F has its own DEC-8 project-policy stop row.
     for (unsigned variant = 0; variant < 7; ++variant)
         for (unsigned allowed = 0; allowed < 2; ++allowed) {
+            if (variant == 0 && !PAIRED_CHANNELS)
+                continue; // Another axis's state needs node 2.
             Rig r;
             openAxis(r, r.a, 1);
-            openAxis(r, r.b, 2);
+            if (PAIRED_CHANNELS)
+                openAxis(r, r.b, 2);
             L::ReadContext state;
             if (variant == 1)
                 r.drive[0].mode = 6;
@@ -4045,6 +4056,8 @@ void rejectedFinalZeroBlocks() {
         CHECK(r.wire.sentCount == stop + 1 && isWord(r, stop, WORD_QUICK));
         onlyClearTraffic(r, from, run.index(), run.values(), 0, 1);
         // Node 2 has its own session, which no block of node 1 reaches.
+        if (!PAIRED_CHANNELS)
+            continue;
         openAxis(r, r.b, 2);
         r.drive[1].monitor = 8;
         L::ReadContext other;
@@ -4110,7 +4123,8 @@ void allScenarios() {
     RUN(withdrawnHistoryStaysWithdrawn);
     RUN(writeSettlingAfterStopDoesNotRestore);
     RUN(idleAtEnableStillStops);
-    RUN(twoNodePressure);
+    if (PAIRED_CHANNELS)
+        RUN(twoNodePressure);
     RUN(escalationFromQueuedHalt);
     RUN(escalationFromInFlightHalt);
     RUN(escalationFromObservation);

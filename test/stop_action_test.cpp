@@ -25,6 +25,11 @@ static unsigned checks = 0;
 namespace {
 using OwnerRig::budget;
 using OwnerRig::frame;
+// The rig pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that need node 2 run when the
+// capacity set has two channels; a one-channel set configures node 1 alone and runs the others.
+// Channels beyond two stay unconfigured and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -113,7 +118,7 @@ struct Rig {
     uint64_t deadline = 10000;
     L::ReadTarget selectedTarget() const { return target(selectedNode); }
     Rig() : owner(services, wire.callbacks(), 73) {
-        for (unsigned node = 1; node <= 2; ++node) {
+        for (unsigned node = 1; node <= FIXTURE_NODES; ++node) {
             const L::ReadTarget t = target(node);
             CHECK(services.configure(uint8_t(node - 1), t.channel, true, true));
             C::NetworkRoute network;
@@ -1581,7 +1586,8 @@ int main() {
     cancellationAndLostReplies(3);
     interruptQueuedWorkPreservesResultsAndFencesOldOperations();
     reservedUrgentCapacity();
-    quarantineAndOtherNodeProgress();
+    if (PAIRED_CHANNELS)
+        quarantineAndOtherNodeProgress();
     generationsRebootFaultAndCorrelation();
     exactDeadlineAndRepeatedStopRejection();
     drainMarkerConsumesOld000F();

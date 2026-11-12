@@ -27,6 +27,9 @@ static const char* scenario = "";
 #include "support/MoveRig.h"
 namespace {
 using namespace MoveRig;
+// Scenarios on Rig(true) bind node 2 on slot 1 beside node 1; they need a capacity set with two
+// channels. A one-channel set runs the others, which bind node 1 alone.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 
 L::MoveEvidence relEvidence(L::RelativeBase base = L::RelativeBase::ACTUAL,
                             L::CompletionRule rule = L::CompletionRule::AFTER_ABSENCE) {
@@ -2342,7 +2345,8 @@ void replayCompleted(const CompletedReplay& t) {
 }
 void completedReplays() {
     for (const CompletedReplay& t : COMPLETED)
-        replayCompleted(t);
+        if (t.node == 1 || PAIRED_CHANNELS) // Node 2's trial binds slot 1.
+            replayCompleted(t);
 }
 
 // 32. Trials 832 and 1109: node 1's production relative move +600 at 6 rpm from an ACTUAL witness, node
@@ -2638,8 +2642,10 @@ void runAll() {
     interruptionMatrix();
     cancelAroundHandoff();
     stopFromHeldTrigger();
-    bothNodesUrgent();
-    urgentBesideOtherNode();
+    if (PAIRED_CHANNELS) {
+        bothNodesUrgent();
+        urgentBesideOtherNode();
+    }
     ambiguousLateAck();
     explicitRecovery();
     repeatedValues();
@@ -2657,11 +2663,14 @@ void runAll() {
     emcyDuringMove();
     faultFence();
     lostTriggerThenStop();
-    stopsBesideObserver();
+    if (PAIRED_CHANNELS)
+        stopsBesideObserver();
     counterZeroAfterMove();
     completedReplays();
-    stoppedReplays();
-    node2Base();
+    if (PAIRED_CHANNELS) {
+        stoppedReplays();
+        node2Base();
+    }
 }
 } // namespace
 

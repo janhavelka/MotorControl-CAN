@@ -22,6 +22,9 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+// FirmwareSmoke reads its two fixture nodes on slots 0 and 1, so the cases that reach node 2 need
+// a capacity set with two channels; a one-channel set runs the others.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 
 L::ReadTarget target() {
     L::ReadTarget value;
@@ -1195,7 +1198,7 @@ E::SmokeConfig smokeConfig() {
 // The finite shared-image check: passive until the one trigger, then exactly one start and
 // one identity read per node, a final marker, and nothing more for the rest of the boot.
 void smokeCheck() {
-    for (unsigned variant = 0; variant < 2; ++variant) {
+    for (unsigned variant = 0; PAIRED_CHANNELS && variant < 2; ++variant) {
         Rig r(true, false);
         CHECK(r.firmware.prepare(silentConfig(E::SilentLevel::HIGH)));
         E::FirmwareSmoke smoke(smokeConfig());
@@ -1308,7 +1311,7 @@ void smokeFailures() {
         CHECK(std::strstr(r.bytes.out, "SMOKE node=1 stopped: controller not running failure=1\n"));
         CHECK(!std::strstr(r.bytes.out, "SMOKE node=2") && !std::strstr(r.bytes.out, "SMOKE done"));
     }
-    {
+    if (PAIRED_CHANNELS) {
         Rig r(true, false); // The console has no room: the check waits, CAN service does not.
         CHECK(r.firmware.prepare(silentConfig(E::SilentLevel::HIGH)));
         E::FirmwareSmoke smoke(smokeConfig());

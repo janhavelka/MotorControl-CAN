@@ -12,6 +12,9 @@ namespace C = MotorControlCAN::CANOPEN;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
+// Cases on slot 1 (node 2, or a second channel of node 1) need a capacity set with two channels;
+// a one-channel set runs the rest on slot 0. Further channels stay unconfigured.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 
 C::SdoChannel route(uint8_t node = 1) {
     C::SdoChannel c;
@@ -827,12 +830,14 @@ void strayDuringOrdinaryTransferIsRetained() {
 int main() {
     cancelEveryTxBoundary(); failedPremisesCannotReopen(); controllerCacheSurvivesLocalInvalidation();
     cleanupEligibilityAfterReleaseAndInvalidation();
-    distinctRouteAndUnrelatedEvents(); partialWorkflowAndReadEffects();
+    if (PAIRED_CHANNELS) distinctRouteAndUnrelatedEvents();
+    partialWorkflowAndReadEffects();
     duplicateSegmentsAndSameObjectPayloads();
     toggleWrapAmbiguityLimitation();
     capturedAndProcessingTime(); terminalPrecedenceAndLaterObservations();
     sameTimeTerminalOrdering(); segmentCaptureAndBorrowedObservation(); extendedObservationPreservesLiveRequest();
-    staleBeforeHandoffAndObservedDuplicates(); transmitEligibilityAndBindingInvalidation();
+    staleBeforeHandoffAndObservedDuplicates();
+    if (PAIRED_CHANNELS) transmitEligibilityAndBindingInvalidation();
     oneHandoffCannotBecomeNewIntent();
     nonwrappingTimeAndZeroCapture();
     drainMarkerClientBoundary();

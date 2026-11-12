@@ -16,6 +16,8 @@ static unsigned checks = 0;
     } while (false)
 #include "support/ReferenceRig.h"
 namespace {
+// Rig::addSecondNode binds node 2 on slot 1; that needs a capacity set with two channels.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 const uint16_t CLEAR = 0x2301;
 const uint16_t ALARM = L::MONITOR_ALARM;
 
@@ -545,7 +547,8 @@ int main() {
     delayedFinalZeroAck();
     rebootDuringClear();
     emcyDuringClear();
-    twoNodeIsolation();
+    if (PAIRED_CHANNELS)
+        twoNodeIsolation();
     valueOneFlagIsChecked();
     cancellationAndDeadlineRaces();
     staleConfigurationAfterPreparation();

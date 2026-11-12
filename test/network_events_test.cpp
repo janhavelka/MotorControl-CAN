@@ -16,6 +16,11 @@ namespace {
 unsigned checks = 0;
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
 
+// Scenarios that pair two channels (two nodes, or two channels of one node) need at least two;
+// a one-channel capacity set runs the others. Channels beyond two stay unused and must not change
+// any outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+
 template <typename T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -370,11 +375,18 @@ void passiveConfigurationAndIdentifierExclusion() {
     CHECK(owner.receiveNetwork(heartbeat(network().heartbeatId), network(), 0, 0));
     CHECK(owner.configure(0, sdo(), true, true));
     CHECK(owner.node(0)->heartbeat.present);
-    CHECK(owner.configureNetwork(1, network(2), C::NetworkObserver(), 0));
-    CHECK(owner.configure(1, sdo(2), true, true));
-    CHECK(!owner.configureNetwork(2, network(3), C::NetworkObserver(), 0));
-    CHECK(!owner.node(2));
-    for (unsigned cross = 0; cross < 4; ++cross) {
+    // Every configured slot takes its own node; the first slot past the capacity set is refused.
+    for (unsigned slot = 1; slot < C::SdoClient::CHANNELS; ++slot) {
+        const uint8_t node = uint8_t(slot + 1);
+        CHECK(owner.configureNetwork(uint8_t(slot), network(node), C::NetworkObserver(), 0));
+        CHECK(owner.configure(uint8_t(slot), sdo(node), true, true));
+    }
+    const uint8_t pastLast = uint8_t(C::SdoClient::CHANNELS);
+    const C::NetworkRoute beyond = network(uint8_t(pastLast + 1));
+    CHECK(!owner.configureNetwork(pastLast, beyond, C::NetworkObserver(), 0));
+    CHECK(!owner.node(pastLast));
+    // Identifier exclusion across two slots needs a second channel.
+    for (unsigned cross = 0; PAIRED_CHANNELS && cross < 4; ++cross) {
         C::SdoClient sdoFirst;
         CHECK(sdoFirst.configure(0, sdo(), true, true));
         C::NetworkRoute candidate = network(2);
@@ -826,15 +838,15 @@ int main() {
     captureOrderAndIndependentEmergencyTimes();
     rejectedRepresentationsAndCopiedUnknowns();
     passiveConfigurationAndIdentifierExclusion();
-    eventsInterleaveWithTwoNormalSdoConsumers();
+    if (PAIRED_CHANNELS) eventsInterleaveWithTwoNormalSdoConsumers();
     fullHistoryCannotSuppressResetAndCacheInvalidation();
     allInvalidationCausesAndTerminalRetention();
-    sameNodeChannelsShareFactsAndObserverDeduplication();
+    if (PAIRED_CHANNELS) sameNodeChannelsShareFactsAndObserverDeduplication();
     epochExhaustionAndDelayedResetCannotRestoreCoordinates();
     checkedSdoTimeRejectsMalformedTrafficAndFaultsRemainIndependent();
-    sdoHistoryCannotDowngradeNewerServiceProof();
-    networkAttachmentPreservesIndependentSdoHistory();
-    directWithdrawalAndControllerScope();
+    if (PAIRED_CHANNELS) sdoHistoryCannotDowngradeNewerServiceProof();
+    if (PAIRED_CHANNELS) networkAttachmentPreservesIndependentSdoHistory();
+    if (PAIRED_CHANNELS) directWithdrawalAndControllerScope();
     passiveInvalidationCannotAdmitFirstSdoOrReuseOldEpoch();
     std::printf("network_events: %u checks passed\n", checks);
 }

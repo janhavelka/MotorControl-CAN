@@ -410,13 +410,22 @@ bool sameLine(const char* got, const char* captured, const char* skip) {
     std::fprintf(stderr, "produced: %s\ncaptured: %s\n", got, captured);
     return false;
 }
+// The capture ran on firmware with two SDO channels, both bound, so its DISC lines say free=0.
+// Under another capacity set the scan sees CHANNELS - 2 free slots; only then is `free` compared
+// by key and its value checked against that count instead (freeValue below).
+constexpr bool CAPTURED_LAYOUT = C::SdoClient::CHANNELS == 2;
 // The skip list of each record line's tag.
 const char* skipFor(const char* line) {
     return starts(line, "DISC_T ")        ? "completed"
            : starts(line, "DISC_SELECT ") ? "tx0 tx1"
            : starts(line, "RESULT ")      ? "op req oreq admitted completed"
-           : starts(line, "DISC ")        ? "gap"
+           : starts(line, "DISC ")        ? (CAPTURED_LAYOUT ? "gap" : "gap free")
                                           : "";
+}
+// The decimal value of the line's ` free=` token, or -1 without one.
+long freeValue(const char* line) {
+    const char* at = std::strstr(line, " free=");
+    return at ? std::strtol(at + 6, nullptr, 10) : -1;
 }
 // The probe and identity replies of 2026-11-09 11:19Z, from the RESULT lines of
 // docs/bench/20261109T1119Z-r2-p37_discovery/rx.txt: the probe lines 16-17, the identity uploads
@@ -603,8 +612,11 @@ void replayDiscovery20261109() {
         CHECK(rig.wire.sentCount == sent + 2 * p.replyCount);
         char out[32][E::DISCOVERY_BENCH_LINE];
         CHECK(rig.lines(out, 32) == p.lineCount);
-        for (unsigned i = 0; i < p.lineCount; ++i)
+        for (unsigned i = 0; i < p.lineCount; ++i) {
             CHECK(sameLine(out[i], p.lines[i], skipFor(p.lines[i])));
+            if (!CAPTURED_LAYOUT && starts(p.lines[i], "DISC "))
+                CHECK(freeValue(out[i]) == long(C::SdoClient::CHANNELS) - 2);
+        }
         const E::DiscoveryBenchRecord& r = *rig.bench.record();
         CHECK(r.selection.txBefore == r.selection.txAfter);
         CHECK(rig.bench.release());
