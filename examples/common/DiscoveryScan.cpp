@@ -40,7 +40,9 @@ bool DiscoveryScan::begin(const DiscoveryPlan& p, const DiscoveryInterface& actu
         return false;
     uint8_t slots[DiscoveryPlan::CAPACITY] = {};
     uint32_t sessions[DiscoveryPlan::CAPACITY] = {};
-    for (uint8_t i = 0; i < p.count; ++i) {
+    // p.count <= CAPACITY is checked above; the second bound lets GCC see it at CAPACITY 1
+    // (-Warray-bounds with sanitizers and -O3 otherwise flags slots[i] in the duplicate check).
+    for (uint8_t i = 0; i < p.count && i < uint8_t(DiscoveryPlan::CAPACITY); ++i) {
         const auto& wanted = p.targets[i];
         const auto& route = wanted.target.channel;
         if (route.binding.endpoint.bus != actual.bus ||
