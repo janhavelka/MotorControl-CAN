@@ -107,6 +107,10 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Pending | 47 | - |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Pending | G-09; lists all inherited gates as a scoped software candidate | - |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Pending | 49; lists all inherited gates as a scoped software candidate | - |
+| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Pending | 17, 24, 38, 42; Lichuan SYNC undocumented (M10, M13); RPDO trial after the M09 map review | - |
+| 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Pending | 29, 33, 35, 42; gates Q22-Q26 (F01); measurements F02-F14 first | - |
+| 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Pending | 42, 45, 51; capacity study, group-stop rules M02, S2 memory B01-B03 | - |
+| 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Pending | 48, 51, 52, 53; bench authorization and fixture facts | - |
 
 ## Next ready
 

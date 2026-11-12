@@ -1,6 +1,6 @@
-# MotorControl-CAN implementation prompts 1-50
+# MotorControl-CAN implementation prompts 1-54
 
-Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `50_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `54_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -8,7 +8,12 @@ The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes
 precedence over the historical execution-branch instructions for that period.
 
-Create one new branch at the start of a new execution and retain it across all 50 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
+Create one new branch at the start of a new execution and retain it across all 54 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
+
+Prompts 51-54 were added on 2026-11-12 at the user's request (SYNC master, changes during motion,
+multi-axis with configurable capacity and group stop, and their hardware qualification). By the
+ascending-order rule they run after prompt 50 unless the user reorders them; their dependencies are
+real prerequisites, and prompt 53's group stop and capacity work can start once 45 and 51 are done.
 
 ## Shared contracts
 
@@ -92,6 +97,10 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | 47 |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | 42, 44, 46 |
 | 50 | [Final independent release-candidate review](50_final_review.md) | 49 |
+| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | 17, 24, 38, 42 |
+| 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | 29, 33, 35, 42 |
+| 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | 42, 45, 51 |
+| 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | 48, 51, 52, 53 |
 
 ## Completion and external blockers
 
