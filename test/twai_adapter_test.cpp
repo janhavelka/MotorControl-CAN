@@ -25,6 +25,11 @@ static unsigned checks = 0;
 namespace {
 using OwnerRig::budget;
 using OwnerRig::route;
+// The rig pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that need node 2 run when the
+// capacity set has two channels; a one-channel set configures node 1 alone and runs the others.
+// Channels beyond two stay unconfigured and must not change any outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 
 M::Frame frame(uint32_t id, uint8_t count = 8) {
     M::Frame value;
@@ -209,7 +214,7 @@ struct Rig {
     O::SequenceId lastSequence; // Most recent reservation from a request helper.
     explicit Rig(bool start = true)
         : adapter(services, sdk.driver()), owner(services, tap.wrap(adapter.transport()), 127) {
-        for (uint8_t i = 0; i < 2; ++i) {
+        for (uint8_t i = 0; i < FIXTURE_NODES; ++i) {
             CHECK(services.configure(i, route(i + 1), true, true));
             C::NetworkRoute network;
             network.binding = route(i + 1).binding;
@@ -340,17 +345,19 @@ void startupValidationAndOwnedCapacity() {
     // Capacity is one slot per SDO channel plus the one NMT frame, the most the
     // owner can have outstanding, so ordinary work is never refused for capacity.
     CHECK(E::TwaiAdapter::TX_CAPACITY == C::SdoClient::CHANNELS + 1);
-    CHECK(t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
-    CHECK(!t.transmit(t.context, original, arbitraryId(r.services, 4), 1));
+    for (uint32_t n = 3; n <= E::TwaiAdapter::TX_CAPACITY; ++n)
+        CHECK(t.transmit(t.context, original, arbitraryId(r.services, n), 1));
+    const uint32_t beyond = E::TwaiAdapter::TX_CAPACITY + 1;
+    CHECK(!t.transmit(t.context, original, arbitraryId(r.services, beyond), 1));
     // Unqualified direct IDs reach negative reports, never the SDK. Reports
     // retain the same capacity slots until explicitly consumed.
     CHECK(r.owner.service(1, O::ServiceBudget()));
     r.adapterOnly(1);
-    CHECK(!t.transmit(t.context, original, arbitraryId(r.services, 4), 1));
+    CHECK(!t.transmit(t.context, original, arbitraryId(r.services, beyond), 1));
     O::TxReport report;
     CHECK(t.takeTxReport(t.context, report) && !report.transmitted && report.provedUnsent);
     CHECK(report.id.sdo.request.generation == 1);
-    CHECK(t.transmit(t.context, original, arbitraryId(r.services, 4), 1));
+    CHECK(t.transmit(t.context, original, arbitraryId(r.services, beyond), 1));
     CHECK(r.sdk.submits == 0);
     CHECK(r.adapter.shutdown());
 }
@@ -544,7 +551,8 @@ void faultsRecoveryAndFailureOwnership() {
     for (unsigned kind = 0; kind < 3; ++kind) {
         Rig r;
         const auto first = r.request(1, true);
-        r.request(2, true);
+        if (PAIRED_CHANNELS)
+            r.request(2, true); // Queued behind the first; one channel has the active one only.
         r.turn(0);
         r.turn(1);
         CHECK(r.sdk.submits == 1);
@@ -1023,13 +1031,12 @@ void noAckStaysActiveUntilRecoveryRetiresBothSlots() {
     O::Transport t = r.adapter.transport();
     O::TxReport report;
     CHECK(!t.takeTxReport(t.context, report));
-    CHECK(t.transmit(t.context, frame(0x123), arbitraryId(r.services, 91), 2));
-    CHECK(t.transmit(t.context, frame(0x124), arbitraryId(r.services, 92), 2));
-    CHECK(t.transmit(t.context, frame(0x125), arbitraryId(r.services, 93), 2));
-    CHECK(!t.transmit(t.context, frame(0x126), arbitraryId(r.services, 94), 2));
-    CHECK(t.retire(t.context, arbitraryId(r.services, 91), 2));
-    CHECK(t.retire(t.context, arbitraryId(r.services, 92), 2));
-    CHECK(t.retire(t.context, arbitraryId(r.services, 93), 2));
+    for (uint32_t n = 0; n < E::TwaiAdapter::TX_CAPACITY; ++n)
+        CHECK(t.transmit(t.context, frame(0x123 + n), arbitraryId(r.services, 91 + n), 2));
+    const uint32_t beyond = E::TwaiAdapter::TX_CAPACITY;
+    CHECK(!t.transmit(t.context, frame(0x123 + beyond), arbitraryId(r.services, 91 + beyond), 2));
+    for (uint32_t n = 0; n < E::TwaiAdapter::TX_CAPACITY; ++n)
+        CHECK(t.retire(t.context, arbitraryId(r.services, 91 + n), 2));
 }
 
 // C-04: the interrupt lands between the turn's poll and the submit attempt.
@@ -1677,8 +1684,8 @@ void nmtProvedUnsentLeavesNoIntent() {
         r.turn(2);
         CHECK(r.sdk.attempts == 1 && r.sdk.attempted[0].data[1] == 0);
         CHECK(!r.owner.nmtResult(id)->transmissionPossible);
-        checkNoIntent(r, 0);
-        checkNoIntent(r, 1);
+        for (uint8_t slot = 0; slot < FIXTURE_NODES; ++slot)
+            checkNoIntent(r, slot);
     }
 }
 
@@ -1824,8 +1831,9 @@ void nmtIntentReturnsAtSdkSubmission() {
     r.sdk.push(heartbeatOf(1), true, 12);
     r.turn(12);
     CHECK(r.services.node(0)->transitionObserved && !r.services.node(0)->transitionPending);
-
-    // SDK may have accepted it: the intent stays and a heartbeat can still show it.
+}
+// SDK may have accepted it: the intent stays and a heartbeat can still show it.
+void uncertainNmtSubmissionKeepsTheIntent() {
     Rig uncertain;
     uncertain.sdk.submitResult = E::TwaiSubmit::FAILED_UNCERTAIN;
     C::NmtRequestId id;
@@ -1910,21 +1918,27 @@ int main() {
     requiredPreOperationalIsRecheckedBeforeSdkSubmit();
     requiredPreOperationalAgeIsRecheckedBeforeSdkSubmit();
     arbitrationLossThenSuccessIsOneSubmission();
-    noAckStaysActiveUntilRecoveryRetiresBothSlots();
+    if (PAIRED_CHANNELS)
+        noAckStaysActiveUntilRecoveryRetiresBothSlots();
     rxInterruptDuringPromotionDefersWithoutQuarantine();
     sameTickReplyOvertakesTxDoneAndBlocksUrgentForOneTurn();
-    controllerFailureWhileQueuedAndActive();
+    if (PAIRED_CHANNELS)
+        controllerFailureWhileQueuedAndActive();
     busOffWithAnActiveFrameAndAFinalReport();
     retirementNeverImpliesNotDelivered();
     deferredWithdrawalNeverTouchesTheSdk();
     responseClockStartsAtSdkSubmission();
-    pendingFrameDoesNotQuarantineAHealthyAxis();
+    if (PAIRED_CHANNELS)
+        pendingFrameDoesNotQuarantineAHealthyAxis();
     laterFrameProvedUnsentKeepsEarlierEffects();
     nmtProvedUnsentEndsWithNoPossibleTransmission();
     receiveBoundsStayConservativeAndDeferLaterFrames();
     nmtProvedUnsentLeavesNoIntent();
-    nmtQueuedBehindAnActiveFrameNeverClaimsTransmission();
-    nmtIntentReturnsAtSdkSubmission();
+    if (PAIRED_CHANNELS) {
+        nmtQueuedBehindAnActiveFrameNeverClaimsTransmission();
+        nmtIntentReturnsAtSdkSubmission();
+    }
+    uncertainNmtSubmissionKeepsTheIntent();
     holdNeedsNoPriorPollInTheTurn();
     std::printf("TWAI adapter: %u checks; host sizeof(TwaiAdapter)=%zu\n", checks,
                 sizeof(E::TwaiAdapter));

@@ -12,6 +12,9 @@ namespace C = MotorControlCAN::CANOPEN;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
+// Cases on slot 1 (a second node, or a second channel of node 1) need a capacity set with two
+// channels; a one-channel set runs the rest on slot 0. Further channels stay unconfigured.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 
 C::SdoChannel route(uint8_t node = 1) {
     C::SdoChannel result;
@@ -100,20 +103,22 @@ void admissionAndRoutes() {
     CHECK(!client.configure(C::SdoClient::CHANNELS, route(), true, true));
     CHECK(client.configure(0, route(), true, true));
     CHECK(!client.configure(0, route(), true, true));
-    C::SdoChannel duplicate = route(2);
-    duplicate.serverToClientId = route().serverToClientId;
-    CHECK(!client.configure(1, duplicate, true, true));
-    duplicate = route(2); duplicate.clientToServerId = route().serverToClientId;
-    CHECK(!client.configure(1, duplicate, true, true));
-    duplicate = route(2); duplicate.serverToClientId = route().clientToServerId;
-    CHECK(!client.configure(1, duplicate, true, true));
-    duplicate = route(2); duplicate.clientToServerId = route().clientToServerId;
-    duplicate.binding.endpoint.profile = 99; duplicate.binding.endpoint.subaxis = 71;
-    ++duplicate.binding.bindingGeneration; ++duplicate.binding.configurationGeneration;
-    CHECK(!client.configure(1, duplicate, true, true));
-    duplicate = route(2); ++duplicate.binding.endpoint.bus;
-    CHECK(!client.configure(1, duplicate, true, true));
-    CHECK(client.configure(1, route(2), true, true));
+    if (PAIRED_CHANNELS) { // Identifier and binding exclusion across two slots.
+        C::SdoChannel duplicate = route(2);
+        duplicate.serverToClientId = route().serverToClientId;
+        CHECK(!client.configure(1, duplicate, true, true));
+        duplicate = route(2); duplicate.clientToServerId = route().serverToClientId;
+        CHECK(!client.configure(1, duplicate, true, true));
+        duplicate = route(2); duplicate.serverToClientId = route().clientToServerId;
+        CHECK(!client.configure(1, duplicate, true, true));
+        duplicate = route(2); duplicate.clientToServerId = route().clientToServerId;
+        duplicate.binding.endpoint.profile = 99; duplicate.binding.endpoint.subaxis = 71;
+        ++duplicate.binding.bindingGeneration; ++duplicate.binding.configurationGeneration;
+        CHECK(!client.configure(1, duplicate, true, true));
+        duplicate = route(2); ++duplicate.binding.endpoint.bus;
+        CHECK(!client.configure(1, duplicate, true, true));
+        CHECK(client.configure(1, route(2), true, true));
+    }
     for (unsigned fault = 0; fault < 12; ++fault) {
         C::SdoTransfer bad = work();
         switch (fault) {
@@ -140,11 +145,13 @@ void admissionAndRoutes() {
     CHECK(!client.admit(0, tooLarge, 0, sentinel)); CHECK(client.port(0)->accepted == 0);
     const C::SdoRequestId first = admit(client, work());
     CHECK(!client.admit(0, work(), 0, sentinel));
-    const C::SdoRequestId second = admit(client, work(2, false, 2), 1);
-    CHECK(!client.admit(1, work(2, false, 2), 0, sentinel));
+    if (PAIRED_CHANNELS) {
+        const C::SdoRequestId second = admit(client, work(2, false, 2), 1);
+        CHECK(!client.admit(1, work(2, false, 2), 0, sentinel));
+        CHECK(!client.release(second));
+    }
     C::SdoClient foreign;
     CHECK(!foreign.result(first) && !foreign.release(first) && !foreign.cancel(first, 0));
-    CHECK(!client.release(second));
     M::Frame output = reply(0xa5); C::SdoTxId tx; tx.frame = 91;
     const M::Frame original = output; const C::SdoTxId oldTx = tx;
     CHECK(!client.nextTx(99, 0, output, tx));
@@ -982,11 +989,12 @@ void settledMarkerCannotOutliveContraryEvidence() {
 int main() {
     boundedRawUploads();
     admissionAndRoutes(); expeditedTransfers(); segmentedUploads(); segmentedDownloads();
-    abortWhileStaged(); confirmationAfterReply(); malformedAndAbort();
+    if (PAIRED_CHANNELS) abortWhileStaged();
+    confirmationAfterReply(); malformedAndAbort();
     deadlinesAndCancellation();
     unsupportedAndEffects();
     acceptedUploads();
-    channelsAndFailure();
+    if (PAIRED_CHANNELS) channelsAndFailure();
     outerQueueDeadline();
     matchedAbortNeedsACleanChannel();
     settledMarkerCannotOutliveContraryEvidence();

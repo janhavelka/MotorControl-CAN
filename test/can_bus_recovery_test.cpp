@@ -25,6 +25,17 @@ static unsigned checks = 0;
 namespace {
 using OwnerRig::budget;
 using OwnerRig::route;
+// The rig pairs node 1 on slot 0 with node 2 (or a shared-peer channel) on slot 1. Scenarios that
+// need slot 1 run when the capacity set has two channels; a one-channel set configures node 1
+// alone and runs the others. Channels beyond two stay unconfigured unless a scenario fills the
+// whole store (bindExtraNodes), and change no outcome otherwise.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
+// The second fixture route is still open. A one-channel set has no second route; scenarios that put
+// work on it run only with two channels, so there this states only that nothing reached it.
+bool secondRouteOpen(const C::SdoClient& services) {
+    return !PAIRED_CHANNELS || !services.unresolved(1);
+}
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -215,7 +226,7 @@ struct Rig {
     explicit Rig(uint32_t serial = 0, uint32_t epoch = 1, bool retirement = true, bool confirmed = true,
                  bool sharedPeer = false)
         : owner(services, fake.transport(retirement), 73, serial, epoch) {
-        for (uint8_t i = 0; i < 2; ++i) {
+        for (uint8_t i = 0; i < FIXTURE_NODES; ++i) {
             if (sharedPeer && i == 1) {
                 // A synthetic server's distinct SDO channel and logical axis on the same node.
                 C::SdoChannel selected = route(1);
@@ -286,6 +297,30 @@ struct Rig {
     }
 };
 
+// Binds nodes 3..CHANNELS on the slots past the rig's two, the way the rig binds nodes 1 and 2.
+// A scenario that proves a boundary of the whole store uses them to fill the storage a larger
+// capacity set adds; with the default two channels this binds nothing.
+void bindExtraNodes(Rig& r) {
+    for (unsigned node = 3; node <= C::SdoClient::CHANNELS; ++node) {
+        CHECK(r.services.configure(uint8_t(node - 1), route(node), true, true));
+        C::NetworkRoute n;
+        n.binding = route(node).binding;
+        n.generation = 11;
+        n.heartbeatId = 0x700 + node;
+        n.emcyId = 0x80 + node;
+        CHECK(r.services.configureNetwork(uint8_t(node - 1), n, C::NetworkObserver(), r.now));
+    }
+}
+// Reserves every sequence slot past the rig's two, on those extra nodes, so that the next
+// reservation finds the store as full as the default two-slot set leaves it.
+void holdExtraSequences(Rig& r) {
+    bindExtraNodes(r);
+    for (unsigned node = 3; node <= O::CanBusOwner::SEQUENCES; ++node) {
+        O::SequenceId held;
+        CHECK(r.owner.beginSequence(route(node).binding, 3, r.now, held));
+    }
+}
+
 void urgentCapacityAndPriority() {
     Rig r;
     const auto ordinary = r.sequence(1, 1), urgent = r.sequence(2, 4);
@@ -295,7 +330,8 @@ void urgentCapacityAndPriority() {
     O::RequestId rejected;
     rejected.generation = 987;
     const Saved<O::RequestId> unchanged(rejected);
-    CHECK(r.owner.admit(r.request(ordinary, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(ordinary, O::CanBusOwner::REQUESTS + 1), 0, rejected) ==
+          O::BusAdmission::RESULTS_FULL);
     unchanged.unchanged(rejected);
     const auto reserved = r.admit(r.request(urgent), true);
     CHECK(reserved.slot >= O::CanBusOwner::REQUESTS);
@@ -314,8 +350,13 @@ void urgentCapacityAndPriority() {
     for (const auto id : pending)
         CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
     CHECK(r.fake.sentCount == 1);
+}
 
-    // Six unread ordinary successes occupy all ordinary slots. New operation
+void urgentReservationOutsideOrdinaryResults() {
+    O::RequestId rejected;
+    rejected.generation = 987;
+    const Saved<O::RequestId> unchanged(rejected);
+    // Unread ordinary successes occupy all ordinary slots. New operation
     // admission still has a separate urgent terminal reservation.
     Rig full;
     const auto sequence = full.sequence();
@@ -333,8 +374,8 @@ void urgentCapacityAndPriority() {
     full.turn(full.now, budget(0, 1, 0, 1));
     full.complete(extra);
     first.unchanged(full.done(results[0]));
-    // Contract change (W6): six ordinary plus this channel's one urgent request. The second
-    // urgent slot in TOTAL_REQUESTS belongs to node 2, which this sequence cannot take.
+    // Contract change (W6): every ordinary slot plus this channel's one urgent request. The other
+    // urgent slots in TOTAL_REQUESTS belong to other channels, which this sequence cannot take.
     CHECK(full.fake.sentCount == O::CanBusOwner::REQUESTS + 1);
     CHECK(full.owner.admitUrgent(full.request(sequence, 2), full.now, rejected) ==
           O::BusAdmission::RESULTS_FULL);
@@ -725,15 +766,22 @@ void repliesBeforeFinalTxReportDoNotLoseRetirement() {
 
 void recoveryHasSeparateCapacityAndFiniteBudget() {
     Rig r;
+    // Contract change (W6): the urgent slots are per channel, so filling every slot takes one axis
+    // per channel. Channels past the rig's two get their own nodes here.
+    bindExtraNodes(r);
     const auto sequence = r.sequence();
-    // Contract change (W6): the urgent slots are per channel, so filling every slot takes both
-    // axes. Node 1's urgent request is oldest, so node 1 still has the one frame on the wire.
-    const auto otherAxis = r.sequence(2, 2);
+    // Node 1's urgent request is oldest, so node 1 still has the one frame on the wire.
+    O::SequenceId otherAxes[C::SdoClient::CHANNELS];
+    for (unsigned node = 2; node <= C::SdoClient::CHANNELS; ++node)
+        otherAxes[node - 1] = r.sequence(node, 2);
     O::RequestId pending[O::CanBusOwner::TOTAL_REQUESTS];
     pending[0] = r.admit(r.request(sequence, 1, true), true);
     for (unsigned i = 1; i <= O::CanBusOwner::REQUESTS; ++i)
         pending[i] = r.admit(r.request(sequence, i + 1, true));
-    pending[O::CanBusOwner::REQUESTS + 1] = r.admit(r.request(otherAxis, 1, true), true);
+    for (unsigned node = 2; node <= C::SdoClient::CHANNELS; ++node)
+        pending[O::CanBusOwner::REQUESTS + node - 1] =
+            r.admit(r.request(otherAxes[node - 1], 1, true), true);
+    CHECK(r.owner.resources().queued == O::CanBusOwner::TOTAL_REQUESTS);
     r.turn(0, budget(0, 1, 0, 1));
     CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x601);
     O::RecoveryId recovery;
@@ -771,9 +819,10 @@ void recoveryHasSeparateCapacityAndFiniteBudget() {
     r.turn(12, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.recoveryResult(unchanged)->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(r.services.controllerState() == C::ControllerState::AVAILABLE);
-    // Contract change (W5): recovery quarantines the route with a frame out, not the idle one.
-    CHECK(r.services.unresolved(0) && !r.services.unresolved(1));
-    CHECK(r.fake.sentCount == 1 && !r.owner.sequence(sequence) && !r.owner.sequence(otherAxis));
+    // Contract change (W5): recovery quarantines the route with a frame out, not the idle ones.
+    CHECK(r.services.unresolved(0) && r.fake.sentCount == 1 && !r.owner.sequence(sequence));
+    for (unsigned node = 2; node <= C::SdoClient::CHANNELS; ++node)
+        CHECK(!r.services.unresolved(uint8_t(node - 1)) && !r.owner.sequence(otherAxes[node - 1]));
 }
 
 void missingRecoveryHooksRetainFailure() {
@@ -1017,7 +1066,7 @@ void unknownControllerWithdrawsFreshness() {
     CHECK(node.nmt == C::NmtState::OPERATIONAL && node.emcy.errorCode == 0x2310 &&
           node.emcyCount == 1);
     // Contract change (W5): UNKNOWN acts through RECOVERING, so only the route with work is held.
-    CHECK(r.services.unresolved(0) && !r.services.unresolved(1));
+    CHECK(r.services.unresolved(0) && secondRouteOpen(r.services));
     CHECK(r.done(first).service.effectUncertain && r.owner.result(next));
     CHECK(!r.owner.sequence(sequence) &&
           !r.owner.reportController(C::ControllerState::AVAILABLE, 1));
@@ -1888,6 +1937,8 @@ void markerSuccessThroughOwner() {
     r.complete(independent, 2);
     // Contract change (W6): new work needs a new reservation, and the invalid one no longer has
     // to be released first. Retained results stay readable and the old identity stays dead.
+    // A free slot goes first, so a larger set's further slots are held before this reservation.
+    holdExtraSequences(r);
     O::SequenceId fresh;
     CHECK(r.owner.beginSequence(route(1).binding, 1, r.now, fresh));
     CHECK(fresh.slot == sequence.slot && fresh.generation != sequence.generation);
@@ -2023,7 +2074,7 @@ void abortOnLiveFrameQuarantines() {
     const C::SdoCompletion& rejected = r.done(id).service;
     CHECK(rejected.outcome == C::SdoOutcome::SERVER_ABORT && rejected.abortCode == 0x06020000u);
     CHECK(rejected.effectPossible && rejected.effectUncertain);
-    CHECK(r.services.unresolved(0) && !r.services.unresolved(1) && !r.owner.sequence(sequence));
+    CHECK(r.services.unresolved(0) && secondRouteOpen(r.services) && !r.owner.sequence(sequence));
     CHECK(!r.services.node(0)->sdo.present);
     markerRefused(r, markerWork(r.now), O::BusAdmission::INHIBITED);
     r.fake.report(0);
@@ -2081,7 +2132,7 @@ void successOvertakingItsReportStaysPossible() {
             const Saved<O::Completion> settled(r.done(id));
             O::RecoveryId recovery;
             raise(r, event, recovery);
-            CHECK(r.services.unresolved(0) == !reported && !r.services.unresolved(1));
+            CHECK(r.services.unresolved(0) == !reported && secondRouteOpen(r.services));
             settled.unchanged(r.done(id));
             CHECK(!r.done(id).service.effectUncertain);
             retireRecovery(r, recovery);
@@ -2310,7 +2361,12 @@ void urgentSlotsBelongToTheirAxes() {
 }
 
 void ordinaryAndUrgentPressureAreIndependent() {
-    {   // All six ordinary slots hold unread results: both urgent slots stay free and usable.
+    // The two fixture axes use urgent slots REQUESTS and REQUESTS + 1. With more channels the
+    // other axes' urgent slots stay free, so "every slot" here means every slot those two can use;
+    // with the default two channels that is TOTAL_REQUESTS.
+    const unsigned allSlots = O::CanBusOwner::REQUESTS + 2;
+    const uint32_t afterOrdinary = O::CanBusOwner::REQUESTS + 1; // Node 1's step after its last.
+    {   // All ordinary slots hold unread results: both urgent slots stay free and usable.
         Rig r;
         const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
         O::RequestId ordinary[O::CanBusOwner::REQUESTS];
@@ -2323,35 +2379,38 @@ void ordinaryAndUrgentPressureAreIndependent() {
         CHECK(r.owner.resources().retained == O::CanBusOwner::REQUESTS);
         const Saved<O::Completion> firstOrdinary(r.done(ordinary[0]));
         O::RequestId refused;
-        CHECK(r.owner.admit(r.request(one, 7), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admit(r.request(one, afterOrdinary), r.now, refused) ==
+              O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.admit(r.request(two, 1), r.now, refused) == O::BusAdmission::RESULTS_FULL);
-        const auto urgentOne = r.admit(r.request(one, 7, true, 0x2346), true);
+        const auto urgentOne = r.admit(r.request(one, afterOrdinary, true, 0x2346), true);
         const auto urgentTwo = r.admit(r.request(two, 1, true, 0x2347), true);
         CHECK(urgentOne.slot == O::CanBusOwner::REQUESTS && urgentTwo.slot == O::CanBusOwner::REQUESTS + 1);
         r.turn(r.now, budget(0, 2, 0, 2));
         CHECK(r.fake.sentCount == O::CanBusOwner::REQUESTS + 2);
-        expectWrite(r.fake.sent[6], 1, 0x2346);
-        expectWrite(r.fake.sent[7], 2, 0x2347);
-        r.fake.report(6);
-        r.fake.report(7);
+        expectWrite(r.fake.sent[O::CanBusOwner::REQUESTS], 1, 0x2346);
+        expectWrite(r.fake.sent[O::CanBusOwner::REQUESTS + 1], 2, 0x2347);
+        r.fake.report(O::CanBusOwner::REQUESTS);
+        r.fake.report(O::CanBusOwner::REQUESTS + 1);
         stray(r, serverFrame(1, 0x60, 0x2346));
         stray(r, serverFrame(2, 0x60, 0x2347));
-        CHECK(r.owner.resources().retained == O::CanBusOwner::TOTAL_REQUESTS);
+        CHECK(r.owner.resources().retained == allSlots);
         // Everything is unread now. Nothing is evicted, and each slot refuses its own next user.
         CHECK(r.owner.admit(r.request(two, 2), r.now, refused) == O::BusAdmission::RESULTS_FULL);
-        CHECK(r.owner.admitUrgent(r.request(one, 8), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admitUrgent(r.request(one, afterOrdinary + 1), r.now, refused) ==
+              O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.admitUrgent(r.request(two, 2), r.now, refused) == O::BusAdmission::RESULTS_FULL);
         stopRefused(r, stopWork(r.now, 1), O::BusAdmission::RESULTS_FULL);
         stopRefused(r, stopWork(r.now, 2), O::BusAdmission::RESULTS_FULL);
         firstOrdinary.unchanged(r.done(ordinary[0]));
         // Releasing ordinary storage frees ordinary storage, not urgent.
         CHECK(r.owner.release(ordinary[0]));
-        CHECK(r.owner.admitUrgent(r.request(one, 8), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admitUrgent(r.request(one, afterOrdinary + 1), r.now, refused) ==
+              O::BusAdmission::RESULTS_FULL);
         const auto next = r.admit(r.request(two, 2, false, 0x2349));
         CHECK(next.slot == ordinary[0].slot);
         r.turn(r.now, budget(0, 1, 0, 1));
-        CHECK(r.fake.sentCount == 9);
-        expectUpload(r.fake.sent[8], 2, 0x2349);
+        CHECK(r.fake.sentCount == O::CanBusOwner::REQUESTS + 3);
+        expectUpload(r.fake.sent[O::CanBusOwner::REQUESTS + 2], 2, 0x2349);
         // Releasing node 1's urgent result opens only that slot, though node 2's is unread.
         CHECK(r.owner.release(urgentOne));
         CHECK(r.owner.admitUrgent(r.request(two, 3), r.now, refused) == O::BusAdmission::RESULTS_FULL);
@@ -2359,7 +2418,7 @@ void ordinaryAndUrgentPressureAreIndependent() {
         const auto stop = admitStop(r, stopWork(r.now, 1));
         CHECK(stop.slot == urgentOne.slot);
     }
-    {   // Both urgent results unread: all six ordinary slots still serve both axes.
+    {   // Both urgent results unread: every ordinary slot still serves both axes.
         Rig r;
         const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
         const auto urgentOne = r.admit(r.request(one, 1, true), true);
@@ -2380,10 +2439,12 @@ void ordinaryAndUrgentPressureAreIndependent() {
             r.complete(id, node, false, index);
         }
         O::RequestId refused;
-        CHECK(r.owner.admit(r.request(one, 9), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        // Above every step either axis used (at most REQUESTS + 1).
+        CHECK(r.owner.admit(r.request(one, O::CanBusOwner::REQUESTS + 3), r.now, refused) ==
+              O::BusAdmission::RESULTS_FULL);
         savedOne.unchanged(r.done(urgentOne));
         savedTwo.unchanged(r.done(urgentTwo));
-        CHECK(r.owner.resources().retained == O::CanBusOwner::TOTAL_REQUESTS);
+        CHECK(r.owner.resources().retained == allSlots);
     }
 }
 
@@ -2485,6 +2546,7 @@ void reusedReservationKeepsOldIdentityDead() {
     Rig r;
     const auto old = r.sequence(1, 1);
     const auto bystander = r.sequence(2, 4); // Takes the free slot, so a new reservation must reuse.
+    holdExtraSequences(r);                   // So do the further slots of a larger capacity set.
     const auto settled = r.admit(r.request(old, 1));
     r.turn(0, budget(0, 1, 0, 1));
     r.complete(settled);
@@ -2508,7 +2570,8 @@ void reusedReservationKeepsOldIdentityDead() {
         CHECK(!r.owner.invalidate(old, r.now));
         CHECK(!r.owner.advanceConfiguration(old, changed, r.now));
         // Releasing a reused identity succeeds with nothing to do: it cannot free the new holder.
-        CHECK(r.owner.releaseSequence(old) && r.owner.resources().reservations == 2);
+        CHECK(r.owner.releaseSequence(old) &&
+              r.owner.resources().reservations == O::CanBusOwner::SEQUENCES);
         CHECK(r.owner.sequence(bystander));
         O::RequestId refused;
         CHECK(r.owner.admit(copied, r.now, refused) == O::BusAdmission::INVALID);
@@ -2575,6 +2638,7 @@ void reusedReservationKeepsOldIdentityDead() {
     {   // An invalidated reservation of another axis does not block a new axis.
         Rig other;
         const auto first = other.sequence(1, 1), second = other.sequence(2, 2);
+        holdExtraSequences(other); // No free slot is left, as with the default two.
         CHECK(other.owner.invalidate(first, other.now));
         O::SequenceId replacement;
         CHECK(other.owner.beginSequence(route(1).binding, 1, other.now, replacement));
@@ -3626,7 +3690,8 @@ void controllerEventsEndAStop() {
             CHECK(ended.outcome == (event == ControllerEvent::BUS_OFF ? C::SdoOutcome::BUS_OFF
                                                                       : C::SdoOutcome::CANCELLED));
             CHECK(ended.transmissionPossible && !ended.transmissionConfirmed && ended.effectUncertain);
-            CHECK(!ended.protocolAcknowledged && r.services.unresolved(0) && !r.services.unresolved(1));
+            CHECK(!ended.protocolAcknowledged && r.services.unresolved(0) &&
+                  secondRouteOpen(r.services));
             const Saved<O::Completion> saved(r.done(stop.id));
             retireRecovery(r, recovery);
             manyTurns(r);
@@ -4216,59 +4281,79 @@ void asynchronousDeliveryContinuesDuringStop() {
 
 } // namespace
 int main() {
-    urgentCapacityAndPriority();
+    // Scenarios that use node 2, the shared-peer channel or slot 1 run with two channels.
+    if (PAIRED_CHANNELS)
+        urgentCapacityAndPriority();
+    urgentReservationOutsideOrdinaryResults();
     urgentKeepsSequenceOrder();
     cancellationPhasesAndTerminalPrecedence();
     cleanupHandoffNeedsRetirement();
     captureTimeCannotRewriteAnExpiredTerminal();
-    unprovedRetirementBlocksOnlyItsChannel();
-    groupInvalidationDoesNotCancelOtherProducer();
+    if (PAIRED_CHANNELS) {
+        unprovedRetirementBlocksOnlyItsChannel();
+        groupInvalidationDoesNotCancelOtherProducer();
+    }
     staleQueuedFramesAfterBoundaries();
     refusedEnqueueStillNeedsRetirement();
-    exactRetirementControlsPhysicalDeparture();
-    recoveryActuallyRetiresLocalQueues();
+    if (PAIRED_CHANNELS) {
+        exactRetirementControlsPhysicalDeparture();
+        recoveryActuallyRetiresLocalQueues();
+    }
     repliesBeforeFinalTxReportDoNotLoseRetirement();
     recoveryHasSeparateCapacityAndFiniteBudget();
     missingRecoveryHooksRetainFailure();
-    twoVendorBindingsShareRecoveryWithoutInventingEvidence();
-    wrongEpochIngressAndReportsRemainDiagnostic();
+    if (PAIRED_CHANNELS) {
+        twoVendorBindingsShareRecoveryWithoutInventingEvidence();
+        wrongEpochIngressAndReportsRemainDiagnostic();
+    }
     recoveryCannotRequalifyPdo();
     configurationWaitsForExternalRetirement();
     unknownControllerWithdrawsFreshness();
     exhaustionClockBoundariesAndOverflow();
     absentObjectAbortLeavesRouteOpen();
-    controllerEventsQuarantineOnlyPossibleWork();
-    bootAndBindingStillQuarantineIdleRoutes();
+    if (PAIRED_CHANNELS) {
+        controllerEventsQuarantineOnlyPossibleWork();
+        bootAndBindingStillQuarantineIdleRoutes();
+    }
     markerRefusals();
     pendingMarkerTraffic();
-    markerSuccessThroughOwner();
+    if (PAIRED_CHANNELS)
+        markerSuccessThroughOwner();
     quietTimeHeartbeatEpochAndReadbackCannotReopen();
     retiredCleanupAbortReleasesTheMarker();
     markerReopensOnlyAfterItsTxRetires();
     markerTerminalDoesNotQualifyService();
     abortOnLiveFrameQuarantines();
-    rejectedStepEndsQueuedSteps();
+    if (PAIRED_CHANNELS)
+        rejectedStepEndsQueuedSteps();
     successOvertakingItsReportStaysPossible();
-    urgentSlotsBelongToTheirAxes();
-    ordinaryAndUrgentPressureAreIndependent();
-    staleEpochsRefuseUrgentWork();
-    reusedReservationKeepsOldIdentityDead();
-    beginUrgentOperationRetiresOnlyUnsentWork();
+    if (PAIRED_CHANNELS) {
+        urgentSlotsBelongToTheirAxes();
+        ordinaryAndUrgentPressureAreIndependent();
+        staleEpochsRefuseUrgentWork();
+        reusedReservationKeepsOldIdentityDead();
+        beginUrgentOperationRetiresOnlyUnsentWork();
+    }
     findSequenceServesOtherProducers();
     stopAfterLostTriggerStaysUnqualified();
     lateReplyDoesNotWithdrawPendingStop();
-    stopRoutesAndCapacity();
+    if (PAIRED_CHANNELS)
+        stopRoutesAndCapacity();
     stopWaitsBehindLiveWork();
     stopResultIsFinalAcrossManyTurns();
     controllerEventsEndAStop();
-    stopNetworkAndTransportInhibits();
+    if (PAIRED_CHANNELS)
+        stopNetworkAndTransportInhibits();
     onlyTheExactStopPasses();
     stopStateRefusalsAreTheSameBusy();
-    stopWaitsForPeerChannel();
+    if (PAIRED_CHANNELS)
+        stopWaitsForPeerChannel();
     retainedRepliesLeaveMarkersPossible();
     findSequenceRejectsOverlappingOutput();
-    stopLeavesProducerFairness();
-    asynchronousDeliveryContinuesDuringStop();
+    if (PAIRED_CHANNELS) {
+        stopLeavesProducerFairness();
+        asynchronousDeliveryContinuesDuringStop();
+    }
     std::printf("can_bus_recovery_test: %u checks\n", checks);
     return 0;
 }

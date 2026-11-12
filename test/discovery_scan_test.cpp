@@ -29,6 +29,12 @@ template <class T> struct Saved {
 } // namespace
 #include "support/OwnerRig.h"
 namespace {
+// The fixture pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that configure both, or scan
+// both in one plan, need two channels and two plan targets; a one-channel capacity set runs the
+// single-target scenarios with slot 0 alone. Further channels stay free and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr bool PAIRED_TARGETS = E::DiscoveryPlan::CAPACITY >= 2;
+constexpr unsigned FIXTURE_CHANNELS = PAIRED_CHANNELS ? 2 : 1;
 L::ReadTarget target(unsigned node = 1) {
     L::ReadTarget value;
     value.channel = OwnerRig::route(node);
@@ -135,7 +141,7 @@ struct Rig {
     E::DiscoveryScan scan;
     E::DiscoveryInterface actual;
     uint64_t now = 0;
-    explicit Rig(unsigned channels = 2, bool networkOnly = false)
+    explicit Rig(unsigned channels = FIXTURE_CHANNELS, bool networkOnly = false)
         : platform(E::ProbeCallbacks()), owner(services, wire.callbacks(), 137),
           app(owner, platform), scan(app, owner, services) {
         actual.bitrate = 500000;
@@ -198,7 +204,8 @@ void activeReadsAndRetention() {
         const unsigned count = identity ? 18 : 2;
         CHECK(rig.wire.sentCount == count && rig.scan.summary().servicesAdmitted == count);
         CHECK(rig.scan.summary().attempted == 2 && rig.scan.summary().occupiedSlotsAtStart == 2 &&
-              rig.scan.summary().freeSlotsAtStart == 0 && !rig.scan.summary().unresolvedSlots);
+              rig.scan.summary().freeSlotsAtStart == C::SdoClient::CHANNELS - 2 &&
+              !rig.scan.summary().unresolvedSlots);
         for (uint8_t i = 0; i < 2; ++i) {
             const E::DiscoveryFinding* f = rig.scan.result(i);
             CHECK(f && f->slot == i && !f->heartbeat.present && !f->bootup.present);
@@ -310,7 +317,9 @@ void atomicPlanRefusal() {
         case 3:
             p.count = E::DiscoveryPlan::CAPACITY + 1;
             break;
-        case 4:
+        case 4: // A second target on a slot this rig never configured; needs room for two.
+            if (!PAIRED_TARGETS)
+                continue;
             p.count = 2;
             p.targets[1].target = target(2);
             p.maximumServices = 2;
@@ -349,9 +358,12 @@ void atomicPlanRefusal() {
     CHECK(!rig.scan.service(rig.actual, UINT64_MAX));
     CHECK(!rig.scan.cancel(UINT64_MAX));
     rig.finish();
-    CHECK(rig.scan.summary().occupiedSlotsAtStart == 1 && rig.scan.summary().freeSlotsAtStart == 1);
+    CHECK(rig.scan.summary().occupiedSlotsAtStart == 1 &&
+          rig.scan.summary().freeSlotsAtStart == C::SdoClient::CHANNELS - 1);
 }
 void cancellationAndDeadline() {
+    if (!PAIRED_TARGETS)
+        return; // Every case here scans both fixture nodes; deadlineCutoff scans one.
     for (unsigned sent = 0; sent < 2; ++sent) {
         Rig rig;
         rig.wire.silent[0] = true;
@@ -402,6 +414,8 @@ void cancellationAndDeadline() {
     CHECK(changedAfterTx.scan.result(0)->outcome == E::DiscoveryOutcome::INVALIDATED &&
           changedAfterTx.scan.result(0)->read.uncertain &&
           changedAfterTx.scan.result(0)->unresolved);
+}
+void deadlineCutoff() {
     Rig cutoff;
     CHECK(cutoff.scan.begin(cutoff.plan(E::DiscoveryMode::PROBE, 1), cutoff.actual, 0, 10));
     while (!cutoff.wire.sentCount)
@@ -426,20 +440,22 @@ void passiveObservations() {
               (late ? E::DiscoveryOutcome::NO_RESPONSE : E::DiscoveryOutcome::PRESENCE));
         CHECK(!cutoff.wire.sentCount);
     }
-    Rig rig;
-    E::DiscoveryPlan p = rig.plan(E::DiscoveryMode::PASSIVE);
-    CHECK(rig.scan.begin(p, rig.actual, 0, 10));
-    rig.wire.push(heartbeat(1, 5), 1);
-    rig.wire.push(heartbeat(2, 0), 1);
-    rig.turn(1);
-    rig.finish();
-    CHECK(!rig.wire.sentCount && !rig.scan.summary().servicesAdmitted);
-    const E::DiscoveryFinding& hb = *rig.scan.result(0);
-    const E::DiscoveryFinding& boot = *rig.scan.result(1);
-    CHECK(hb.heartbeat.present && hb.heartbeat.receivedUs == 1);
-    CHECK(hb.outcome == E::DiscoveryOutcome::PRESENCE);
-    CHECK(boot.bootup.present && !boot.heartbeat.present && boot.bootup.receivedUs == 1);
-    CHECK(boot.outcome == E::DiscoveryOutcome::PRESENCE);
+    if (PAIRED_TARGETS) { // Heartbeat and boot-up of the two fixture nodes in one plan.
+        Rig rig;
+        E::DiscoveryPlan p = rig.plan(E::DiscoveryMode::PASSIVE);
+        CHECK(rig.scan.begin(p, rig.actual, 0, 10));
+        rig.wire.push(heartbeat(1, 5), 1);
+        rig.wire.push(heartbeat(2, 0), 1);
+        rig.turn(1);
+        rig.finish();
+        CHECK(!rig.wire.sentCount && !rig.scan.summary().servicesAdmitted);
+        const E::DiscoveryFinding& hb = *rig.scan.result(0);
+        const E::DiscoveryFinding& boot = *rig.scan.result(1);
+        CHECK(hb.heartbeat.present && hb.heartbeat.receivedUs == 1);
+        CHECK(hb.outcome == E::DiscoveryOutcome::PRESENCE);
+        CHECK(boot.bootup.present && !boot.heartbeat.present && boot.bootup.receivedUs == 1);
+        CHECK(boot.outcome == E::DiscoveryOutcome::PRESENCE);
+    }
     Rig duplicate;
     CHECK(duplicate.scan.begin(duplicate.plan(E::DiscoveryMode::PASSIVE, 1), duplicate.actual, 0,
                                50));
@@ -600,6 +616,8 @@ void lifecycleAtPublication() {
     CHECK(!retired.heartbeat.present && !retired.bootup.present && retired.bindingCurrent);
     CHECK(retired.outcome == E::DiscoveryOutcome::NO_RESPONSE);
     CHECK(retiredHeartbeat.wire.observed == 2 && !retiredHeartbeat.wire.sentCount);
+    if (!PAIRED_TARGETS)
+        return; // The batch case scans both fixture nodes.
 
     Rig batch;
     batch.wire.silent[1] = true;
@@ -676,23 +694,28 @@ void passiveWithoutServicePremises() {
         CHECK(f.bindingCurrent == !bootup);
         CHECK(f.bootup.present == bool(bootup) && f.heartbeat.present == !bootup);
         CHECK(rig.scan.summary().occupiedSlotsAtStart == 1 &&
-              rig.scan.summary().freeSlotsAtStart == 1);
+              rig.scan.summary().freeSlotsAtStart == C::SdoClient::CHANNELS - 1);
         CHECK(!rig.services.channel(0) && !rig.wire.sentCount &&
               !rig.scan.summary().servicesAdmitted);
     }
 }
 } // namespace
 int main() {
-    activeReadsAndRetention();
+    if (PAIRED_TARGETS)
+        activeReadsAndRetention();
     explicitInterpretation();
     atomicPlanRefusal();
     cancellationAndDeadline();
+    deadlineCutoff();
     passiveObservations();
-    selectionAndInvalidation();
+    if (PAIRED_CHANNELS)
+        selectionAndInvalidation();
     qualifiedPdoOnly();
-    permanentSlotsAndSilence();
+    if (PAIRED_TARGETS)
+        permanentSlotsAndSilence();
     lifecycleAtPublication();
-    negativeIdentitySurvivesInvalidation();
+    if (PAIRED_TARGETS)
+        negativeIdentitySurvivesInvalidation();
     passiveWithoutServicePremises();
     std::printf("discovery_scan: %u checks passed (synthetic only)\n", checks);
 }

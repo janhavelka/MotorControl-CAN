@@ -31,6 +31,9 @@ const uint32_t presentStateAbort = 0x08000022u;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+// The admission refusal below fills the ordinary slots from node 2 on slot 1; that needs a
+// capacity set with two channels. A one-channel set runs every other case on node 1 alone.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 template <size_t N> void label(char (&out)[N], const char* value) {
     CHECK(std::strlen(value) < N);
     std::strcpy(out, value);
@@ -595,7 +598,7 @@ void prefixAndInterruption() {
     CHECK(!deadline.wire.transmitted && !deadline.collector.record()->attemptedCount);
     CHECK(deadline.collector.release());
 }
-void admissionAndGrantFailure() {
+void admissionFailure() {
     Rig r;
     r.turn(0);
     L::ReadTarget second = target();
@@ -635,7 +638,9 @@ void admissionAndGrantFailure() {
     CHECK(r.collector.record()->attemptedCount == 1 && !r.wire.transmitted);
     CHECK(r.collector.release()); // Other producer's queued work remains owned and untouched.
     CHECK(r.owner.resources().queued == O::CanBusOwner::REQUESTS);
+}
 
+void grantFailure() {
     Rig grant;
     auto p = grant.plan();
     CHECK(grant.collector.begin(p, 0) == E::EvidenceAdmission::ACCEPTED);
@@ -1047,7 +1052,9 @@ int main() {
     cleanupTail();
     authoritativeRetirement();
     prefixAndInterruption();
-    admissionAndGrantFailure();
+    if (PAIRED_CHANNELS)
+        admissionFailure();
+    grantFailure();
     capacityAndNoRetry();
     networkAndHeartbeat();
     motionReadinessUploadsOnly();

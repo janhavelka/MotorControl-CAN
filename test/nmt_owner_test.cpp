@@ -11,6 +11,11 @@ static unsigned checks = 0;
 #include "support/OwnerRig.h"
 namespace {
 using OwnerRig::frame;
+// The rig pairs node 1 on slot 0 with node 2 on slot 1. Scenarios that need node 2 run when the
+// capacity set has two channels; a one-channel set configures node 1 alone and runs the others.
+// Channels beyond two stay unconfigured and change no outcome.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
+constexpr unsigned FIXTURE_NODES = PAIRED_CHANNELS ? 2 : 1;
 C::SdoChannel route(unsigned node) {
     C::SdoChannel out;
     out.binding.logicalAxisId = 100 + node;
@@ -110,7 +115,7 @@ struct Rig {
     Wire wire;
     O::CanBusOwner owner;
     Rig() : owner(services, wire.transport(), 127) {
-        for (uint8_t i = 0; i < 2; ++i) {
+        for (uint8_t i = 0; i < FIXTURE_NODES; ++i) {
             CHECK(services.configure(i, route(i + 1), true, true));
             C::NetworkRoute network;
             network.binding = route(i + 1).binding;
@@ -232,16 +237,19 @@ void cancellationAndUncertainEnqueue() {
         CHECK(r.wire.retireCalls == 1 && r.owner.releaseNmt(id));
         C::NmtRequestId refused;
         CHECK(!r.owner.admitNmt(r.work(), 2, refused));
-        r.wire.accept = true;
-        const auto other = r.request(2, 2);
-        CHECK(r.owner.service(3, budget()) && r.wire.sentCount == 2);
-        CHECK(!r.owner.result(other));
-        CHECK(r.wire.ids[1].kind == O::TransportTxId::Kind::SDO &&
-              r.wire.ids[1].sdo.request.channel == 1);
-        r.wire.final(0, true); // Late proof retires old handoff, never rewrites released result.
-        CHECK(r.owner.service(4, budget()));
-        CHECK(r.owner.admitNmt(r.work(C::NmtCommand::START, 2), 5, refused));
-        CHECK(r.wire.sentCount == 2); // No automatic replay of the first request.
+        if (PAIRED_CHANNELS) { // Node 2's SDO work goes on while the old handoff is unproved.
+            r.wire.accept = true;
+            const auto other = r.request(2, 2);
+            CHECK(r.owner.service(3, budget()) && r.wire.sentCount == 2);
+            CHECK(!r.owner.result(other));
+            CHECK(r.wire.ids[1].kind == O::TransportTxId::Kind::SDO &&
+                  r.wire.ids[1].sdo.request.channel == 1);
+            // Late proof retires old handoff, never rewrites released result.
+            r.wire.final(0, true);
+            CHECK(r.owner.service(4, budget()));
+            CHECK(r.owner.admitNmt(r.work(C::NmtCommand::START, 2), 5, refused));
+            CHECK(r.wire.sentCount == 2); // No automatic replay of the first request.
+        }
     }
     {
         Rig r;
@@ -374,7 +382,8 @@ int main() {
     copiedExplicitIntentAndReports();
     cancellationAndUncertainEnqueue();
     finiteDeadlineAndRecovery();
-    twoNodePendingSdoAndBroadcast();
+    if (PAIRED_CHANNELS)
+        twoNodePendingSdoAndBroadcast();
     ownerPreservesConservativeReceiveBounds();
     std::printf("NMT owner: %u checks passed\n", checks);
 }

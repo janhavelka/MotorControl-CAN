@@ -11,6 +11,9 @@ namespace C = MotorControlCAN::CANOPEN;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
+// Cases on slot 1 (node 2, or a second channel of node 1) need a capacity set with two channels;
+// a one-channel set runs the rest on slot 0. Further channels stay unconfigured.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 template <typename T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -175,16 +178,18 @@ void invalidAdmissionsAndFrozenMembership() {
     }
     C::SdoClient owner; setup(owner, false);
     const auto id = admitNmt(owner, request(C::NmtCommand::START, true), 1);
-    CHECK(!owner.configure(1, channel(2), true, true));
-    CHECK(!owner.configureNetwork(1, route(2), C::NetworkObserver(), 1));
+    // The pending broadcast freezes membership: slot 1 joins only after its release. A
+    // one-channel set has no slot 1 to join.
+    CHECK(!PAIRED_CHANNELS || !owner.configure(1, channel(2), true, true));
+    CHECK(!PAIRED_CHANNELS || !owner.configureNetwork(1, route(2), C::NetworkObserver(), 1));
     C::NmtRequestId other; const Saved<C::NmtRequestId> saved(other);
     CHECK(!owner.admitNmt(request(), 1, other)); CHECK(saved.unchanged(other));
     CHECK(!owner.releaseNmt(id)); CHECK(owner.cancelNmt(id, 2));
     CHECK(owner.nmtResult(id)->outcome == C::NmtOutcome::CANCELLED);
     CHECK(!owner.nmtResult(id)->transmissionPossible && !owner.node(0)->intentPresent);
-    CHECK(!owner.configureNetwork(1, route(2), C::NetworkObserver(), 2));
+    CHECK(!PAIRED_CHANNELS || !owner.configureNetwork(1, route(2), C::NetworkObserver(), 2));
     CHECK(owner.releaseNmt(id));
-    CHECK(owner.configureNetwork(1, route(2), C::NetworkObserver(), 2));
+    CHECK(!PAIRED_CHANNELS || owner.configureNetwork(1, route(2), C::NetworkObserver(), 2));
     C::SdoClient noAnchor; CHECK(noAnchor.configure(0, channel(), true, true));
     CHECK(!noAnchor.admitNmt(request(C::NmtCommand::START, true), 0, other));
 }
@@ -769,14 +774,15 @@ void configurationPremisesIncludePendingTransition() {
 int main() {
     codecAndOwnedVectors(); invalidAdmissionsAndFrozenMembership(); queueFailureAndDeadlines();
     transitionObservations(); serviceStatesAndAges(); disabledProducerReconciliation();
-    broadcastEffectsAndFrozenResults(); sdoDeadlinesAndStopUncertainty();
+    if (PAIRED_CHANNELS) broadcastEffectsAndFrozenResults();
+    sdoDeadlinesAndStopUncertainty();
     eligibilityRecheckedAtHandoff(); nmtDeadlineWinsLifecycleEquality();
     stoppedTransitionProbeDoesNotInventExactState(); preexistingTerminalsSurviveReset();
     invalidatedStartIntentCannotCompleteInNewEpoch(); resetObservationRequiresQualifiedWireEvidence();
     explicitStopRetiresQueuedAndPossibleSdo(); nmtCutoffsDoNotWrap();
     networkAttachmentPreservesServiceProof(); unknownCaptureCannotReplacePendingServiceProof();
     checkedAbortQualifiesServiceAndLeavesChannelOpen();
-    networkAttachmentSelectsUsableChannelProof();
+    if (PAIRED_CHANNELS) networkAttachmentSelectsUsableChannelProof();
     controllerEventWithdrawsUnanchoredServiceProof();
     configurationPremisesIncludePendingTransition();
     std::printf("nmt_services: %u checks\n", checks);

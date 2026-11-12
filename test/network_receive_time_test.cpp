@@ -10,6 +10,8 @@ namespace C = MotorControlCAN::CANOPEN;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
+// A scenario on two channels of one node needs a capacity set with two; the others use slot 0.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 template <typename T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -433,7 +435,8 @@ int main() {
     recoveryClearsBoundedQualification();
     transitionNeedsTheWholeIntervalAfterIt();
     rebootRevokesBoundedQualification();
-    olderBoundedReplyCannotRefreshNewerQualification();
+    if (PAIRED_CHANNELS)
+        olderBoundedReplyCannotRefreshNewerQualification();
     invalidReplyBoundsChangeNothing();
     std::printf("Conservative network receive time: %u checks\n", checks);
 }

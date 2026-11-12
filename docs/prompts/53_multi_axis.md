@@ -89,10 +89,10 @@ the capacity study inventories, and the ESP-IDF PSRAM placement documentation it
    8, 183 us at 32); about 95 % is the expiry scan that `CanBusOwner::transmit` repeats for every channel. A
    candidate (return before `expire` when the channel has no staged frame) brings N = 32 to about 15 to 19 us with
    every native test unchanged, but it can delay an expiry or invalidation by one turn, so it needs a review of
-   expiry ordering before it is applied, then a board `maxServiceGapUs` measurement; (b) eight existing native tests
-   hard-code the default capacity and fail when the whole suite is built with another N (`twai_adapter`,
-   `discovery_bench`, `can_bus_owner`, `can_bus_recovery`, `can_bus_health`, `axis_session`, `network_events`,
-   `discovery_scan`); decide whether they derive their counts from the constants or stay default-only.
+   expiry ordering before it is applied, then a board `maxServiceGapUs` measurement ([prompt 56](56_host_throughput.md)
+   owns this now, with the safer variant "C"); (b) **done on 2026-11-12:** the native tests derive their counts from
+   the capacity constants, and the whole suite passes when configured with 1, 2, 8 and 32 channels; two-node
+   scenarios skip at one channel, and the S2 bench tests build only with at least two channels.
 2. Storage placement: the application owns the storage objects, so an S3 application can put cold, bulky storage in
    PSRAM by allocating it once at startup (`heap_caps_aligned_alloc(..., MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)`) with an
    internal-RAM fallback; `EXT_RAM_BSS_ATTR` needs `CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY`, makes PSRAM mandatory to

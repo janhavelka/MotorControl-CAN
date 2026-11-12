@@ -24,6 +24,9 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+// A case that binds a second, network-only slot beside the console's session needs a capacity set
+// with two channels; a one-channel set runs the others.
+constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 
 void contains(const std::string& output, const char* wanted) {
     if (output.find(wanted) == std::string::npos)
@@ -842,7 +845,8 @@ int main() {
     resultAndOutputPressureNeverOrphanReads();
     staleSelectionCannotAdmit();
     discoveryUsesOneOwnerAndCountsFields();
-    passiveDiscoveryNeedsNoSdoSession();
+    if (PAIRED_CHANNELS)
+        passiveDiscoveryNeedsNoSdoSession();
     discoveryBackedCapabilitiesFitWholeRecords();
     discoveryInterfaceChangePreventsHandoff();
     decodedDebugReportsOnlyCheckedEvents();

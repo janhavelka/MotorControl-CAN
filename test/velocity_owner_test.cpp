@@ -54,7 +54,7 @@ void completeRunsKeepPreparationAnchor() {
             if (indexOf(f) == 0x6040 && valueOf(f) == (kind ? 0x000bu : 0x010fu))
                 CHECK(r.sentAt[i] >= c.stopDueUs && r.sentAt[i] < c.deadlineUs);
         }
-        CHECK(downloads == 7 && r.services.node(1)->heartbeat.present);
+        CHECK(downloads == 7 && (!PAIRED_CHANNELS || r.services.node(1)->heartbeat.present));
         const Saved<L::VelocityContext> terminal(c);
         const unsigned sent = r.wire.sentCount;
         r.step();
@@ -1601,8 +1601,10 @@ int main() {
     releasedModeChangeAndQualifiedReverse();
     completedStopCannotReuseOldReleasedAdmission();
     staleGenerationAtControllerHandover();
-    ordinaryResultsPressureCannotRestartDuration();
-    urgentStopSurvivesOrdinaryPressure();
+    if (PAIRED_CHANNELS) { // The ordinary pressure comes from node 2's reservation.
+        ordinaryResultsPressureCannotRestartDuration();
+        urgentStopSurvivesOrdinaryPressure();
+    }
     cancellationNeverAddsAStop();
     cancellationAfterHandoverRetainsEveryPossibleWord();
     faultAndBootInvalidateQueuedMotion();
