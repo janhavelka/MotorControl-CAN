@@ -47,7 +47,9 @@ before any implementation depends on them.
    a mid-run `60FF` change; bare `6081`/`6083`/`6084` writes during a curve; the bit 4 falling edge during a curve;
    an immediate same-endpoint speed change (`003F`); a whole-target replacement ahead of the position with bit 5 = 1 and
    with bit 5 = 0; stops from `003F` and after a change; what ramp times mean under a change. Each trial records raw
-   traffic, `6041` bits 10 and 12, `6064` and `606C` per cycle, and is reported as works, ignored or refused.
+   traffic, `6041` bits 10 and 12, `6064` and `606C` per cycle, and is reported as works, ignored or refused. Also
+   the no-motion mode probe (backlog D17): with the drive not enabled, which undocumented `6060` values (2, 4, 7, 8,
+   9, 10) the firmware accepts and shows in `6061`; an accepted value opens nothing by itself.
 2. A velocity change step in `VelocityContext` (prepare/next/advance), closed by default, opened by the measured
    evidence or an explicit experiment scope; the run's own stop and deadline are unchanged.
 3. A profile-position replacement lifecycle (speed change, ramp change, whole new target) with an original/replacement

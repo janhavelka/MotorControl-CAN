@@ -26,6 +26,31 @@ only when every axis is observed stopped by its own settlement rule; any axis un
 replays or clears faults; (6) the group stop has its own reserved capacity and output so ordinary work cannot starve
 it; (7) after a group stop, every axis's earlier motion stays as uncertain as its own evidence says.
 
+The user asked (2026-11-12) whether a network-level stop, or a network stop first and then individual stops, would be
+better, and whether the library can stop the motors from a signal on the drives' inputs. Recorded answers and work:
+
+- **NMT Stop is not used, before or instead of the per-axis stops.** In the CiA 301 Stopped state a node serves
+  neither SDO nor PDO, so stop commands sent after it are not acted on until the application sends Pre-operational or
+  Start. What the motor does on NMT Stop is the CiA402 `6007` abort-connection option, which the Lichuan EDS does not
+  have; the manuals say nothing. Measured so far: NMT Stop to a released node 2 changed neither its CiA402 state nor its
+  position (2026-11-06, backlog D15); an enabled or moving drive was never sent one. Its reaction during motion is a
+  measurement (backlog M14, in prompt 54), never a library stop path.
+- **One frame to all drives, a shared quick-stop RPDO (backlog M16).** CANopen lets several drives consume one PDO.
+  One RPDO with the same COB-ID on every axis, a controlword-only map (after the M09 review), asynchronous type 255 and
+  volatile configuration would let one frame carry `000B` to every drive at the same instant. Only the quick-stop word
+  is allowed: in the generic CiA402 state machine `000B` (bit 2 clear) never leads to an enabled state, while a shared
+  `010F` HALT would enable a drive that is switched on but not enabled, so it is refused. The Lichuan manuals document
+  `000B` only from `000F`, so its effect from the other states is part of the measurement. Each axis's result still
+  comes from its own observation (rules 1 and 3), and the per-axis SDO stops stay available. Experiment scope until
+  measured.
+- **Wired stop input (backlog M15).** DI function 5 (stop) or 6 (emergency stop) on each drive (EN86/ZH86 p8),
+  wired in parallel to one signal (a button, a relay or an MCU output), stops every drive without CAN or the MCU's
+  software. The library already writes these assignments (`prepareIoSettings`, DI0..DI6, codes 0..13, never saved; one
+  field measured as lost at a power cycle) and reads the input states (`2101`). The installed core never drives MCU pins (no device I/O); an example
+  may own a stop output on its own GPIO. The drive's reaction (ramp, final state, alarm, what re-enabling needs, active
+  level) is undocumented and needs a wired fixture, a physical action by the user. Neither the input nor any protocol
+  command is safety-rated; a certified emergency stop removes motor power by machine design.
+
 Boundaries: the installed core stays C++11, heap-free and caller-owned: capacity is a compile-time application choice
 (template parameter, configuration header or caller-provided storage, as the capacity study recommends), never
 allocated by the core; one owner per physical interface; axis identity independent of node IDs; CANopen node IDs
@@ -61,7 +86,10 @@ the capacity study inventories, and the ESP-IDF PSRAM placement documentation it
    Apply the S2 savings (backlog B01 to B03) where they are example or configuration changes.
 3. Concurrent independent motion: two or more axes moving at once through one owner, each with its own session and
    results, and a stop of one axis while the others continue (backlog M01, M03, M06).
-4. Group stop with rules 1 to 7 above, its own reserved capacity and per-axis results (backlog M02, M12).
+4. Group stop with rules 1 to 7 above, its own reserved capacity and per-axis results (backlog M02, M12). Then, as
+   explicit experiment scope after the M09 map review, the shared quick-stop RPDO (M16) beside the per-axis stops,
+   and an example stop output plus the DI stop-function settings for a wired stop line (M15); host tests for both,
+   hardware in prompt 54.
 5. Console and bench: per-axis motion attachments, a stop of axis B while axis A's operation is retained, `stop all`
    with per-axis records, paired bench routes and runner cap/ledger rules (backlog M01, M03, M11).
 6. Synchronized start via prompt 51's synchronous RPDO trigger where its trials succeeded; otherwise a same-turn SDO
@@ -76,7 +104,7 @@ the actual final commit. Hardware runs belong to prompt 54.
 
 ## Documentation and delegation
 
-Update the owner, application, CLI and firmware guides, coverage, backlog M01-M13 and B01-B06, CHANGELOG and Doxygen in
+Update the owner, application, CLI and firmware guides, coverage, backlog M01-M16 and B01-B06, CHANGELOG and Doxygen in
 the same stage. Disjoint agents may own the capacity change, the group-stop helper and the console work after the
 shared contracts are agreed; a stronger reviewer challenges group-stop and capacity-exhaustion semantics. The lead
 integrates and runs combined checks. Record `docs/reports/prompt_53.md`. Commit and sync on the current branch before
