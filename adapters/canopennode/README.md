@@ -107,14 +107,18 @@ from the immutable terminal. It survives release; copy it for longer history.
 Observed idle/duplicate/pre-handoff responses quarantine the route. `invalidate`
 withdraws a binding without reopening or erasing earlier possible effects.
 
-Two slots mean two explicit physical channels, not simultaneous aliases for
-one reply ID. The application owns all scheduling, controller queues and RX.
+`SdoClient::CHANNELS` slots (two by default; see [Capacity.h](Capacity.h) and the
+[capacity set](../../docs/can_owner.md#capacity-set)) mean that many explicit physical
+channels, not simultaneous aliases for one reply ID. Set a different count for the whole
+application build only: with CMake the cache variable `MOTORCONTROLCAN_SDO_CHANNELS`,
+which `MotorControlCAN::CanopenNode` passes on as a PUBLIC definition. A unit compiled with
+another count fails to link. The application owns all scheduling, controller queues and RX.
 No retry, motion command, stop, fault clear or recovery action is implicit.
 
 ## Passive node evidence
 
 Include `NetworkState.h` with `SdoClient.h`. `configureNetwork` reserves passive
-routing in the same two-slot table, with explicit heartbeat/EMCY IDs and a
+routing in the same slot table, with explicit heartbeat/EMCY IDs and a
 borrowed stationary `NetworkObserver` for actual cache invalidation. It can
 precede SDO setup; one anchor per physical node is shared by its SDO channels.
 Offer every frame once through the ordinary receive path, preserving qualified

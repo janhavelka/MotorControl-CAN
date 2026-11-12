@@ -49,25 +49,84 @@ the entire native terminal into the already reserved owner slot and immediately
 releases native result storage. An older unread owner completion therefore
 cannot monopolize a service channel.
 
+Capacities marked N follow the application's capacity set (next section); the values in
+brackets are the defaults, which keep the earlier two-channel layout.
+
 | Storage | Capacity | Authority/lifetime |
 | --- | --- | --- |
-| Service channels / physical-node anchors | Existing adapter 2 slots | One active native request per actual channel; explicit routes and shared node anchors |
-| PDO wire routes / raw network history | Existing adapter 8 / 4 | Actual map/sample qualification and FIFO/drop policy remain [service contracts](canopen_services.md#one-owner-independent-sample-provenance) |
-| Logical-axis reservations | 2 | Span operations and service gaps; exclude the same logical axis or physical node across all its SDO channels |
-| Ordinary request/results | 6 total | Queued, active and unread terminals share ordinary slots; admission reserves result storage before TX |
-| Urgent request/result | 1 separate slot per channel | Ordinary work cannot use it, and one axis's unread result cannot block another's. Urgent work uses an existing reservation; a best-effort stop or drain marker needs none |
+| Service channels / physical-node anchors | `SdoClient::CHANNELS` = N [2] | One active native request per actual channel; explicit routes and shared node anchors |
+| PDO wire routes / raw network history | `PDO_ROUTES` [8] / 4 | Actual map/sample qualification and FIFO/drop policy remain [service contracts](canopen_services.md#one-owner-independent-sample-provenance) |
+| Logical-axis reservations | `SEQUENCES` = N [2] | One per channel binding. Span operations and service gaps; exclude the same logical axis or physical node across all its SDO channels |
+| Ordinary request/results | `REQUESTS` = max(6, N + 4) [6] total | Queued, active and unread terminals share ordinary slots; admission reserves result storage before TX |
+| Urgent request/result | `URGENT_REQUESTS` = N: 1 separate slot per channel | Ordinary work cannot use it, and one axis's unread result cannot block another's. Urgent work uses an existing reservation; a best-effort stop or drain marker needs none |
 | Recovery result | 1 separate slot | Pending or unread recovery blocks another recovery independently of request/result pressure |
 | External TX tracking | 1 frame per service channel plus 1 NMT frame | Tagged exact handoff/epoch retained until final controller report, proven retirement or successful whole-controller recovery; includes cleanup aborts |
 | NMT request/result | 1 separate retained slot | Explicit manager intent; TX outcome and observed network transition remain independent |
-| Producer identities | 4, numbered 1..4 | Cyclic eligible-producer selection, independent of CAN node/subaxis or motor kind |
-| Active associations | 2 slot indexes/native handles | Refer to existing channels and canonical result slots; no second client or node state |
-| Binding health | At most 2 channel-associated records | Cached logical-service totals, failure streak, timestamps and communication projection; protocol state stays in the adapter |
-| Owner diagnostic history | 8 complete copied records | Oldest-first pull; overflow replaces the oldest copy and increments `traceOverwritten`; independent of authoritative RX and retained results |
+| Producer identities | `PRODUCERS` = max(4, N + 2) [4], numbered 1..PRODUCERS | Cyclic eligible-producer selection, independent of CAN node/subaxis or motor kind |
+| Active associations | N [2] slot indexes/native handles, one per channel | Refer to existing channels and canonical result slots; no second client or node state |
+| Binding health | At most N [2] channel-associated records | Cached logical-service totals, failure streak, timestamps and communication projection; protocol state stays in the adapter |
+| Owner diagnostic history | `TRACE_CAPACITY` 24 complete copied records | Oldest-first pull; overflow replaces the oldest copy and increments `traceOverwritten`; independent of authoritative RX and retained results |
 
 Two channels for one physical peer are synthetic ownership contrasts, not a
 claim that Lichuan provides a second server. The retained
 [prompt-6 proof](../experiments/api_ownership/README.md) stays test-only; its
 one-channel bridge, three slots and urgent prototype are not this owner.
+
+## Capacity set
+
+The installed core has no axis, node or channel capacity. The adapters and examples take
+theirs from one header, [Capacity.h](../adapters/canopennode/Capacity.h), whose
+compile-time defaults reproduce the two-channel layout byte for byte:
+
+| Macro | Default | Checked range | Sizes |
+| --- | --- | --- | --- |
+| `MOTORCONTROLCAN_SDO_CHANNELS` | 2 | at least 1; channels + requests at most 255 | `SdoClient::CHANNELS`, and with it `SEQUENCES`, `URGENT_REQUESTS`, `TwaiAdapter::TX_CAPACITY` (N + 1) and the `ProbeApp` sessions |
+| `MOTORCONTROLCAN_OWNER_REQUESTS` | max(6, channels + 4) | at least 1 | `CanBusOwner::REQUESTS` |
+| `MOTORCONTROLCAN_OWNER_PRODUCERS` | max(4, channels + 2) | 1..255 | `CanBusOwner::PRODUCERS` |
+| `MOTORCONTROLCAN_PDO_ROUTES` | 8 | 1..255 | `SdoClient::PDO_ROUTES`, independent of the channel count |
+| `MOTORCONTROLCAN_DISCOVERY_TARGETS` | min(channels, 2) | 1..channels, at most 28 | `DiscoveryPlan::CAPACITY`; larger scans run as several plans |
+
+`static_assert` refuses values outside these ranges, including the 8-bit slot indexes
+(`RequestId::slot`, `SequenceId::slot`, `SdoRequestId::channel`). `NETWORK_HISTORY`,
+`TRACE_CAPACITY`, the per-turn limits and the TWAI RX ring stay fixed: they bound one
+turn's work or one diagnostic history, not the number of axes.
+
+One program uses one capacity set. Set it for the whole application build, never on one
+target or source file:
+
+- CMake: the cache variables of the same names, for example
+  `-DMOTORCONTROLCAN_SDO_CHANNELS=8`. They are PUBLIC compile definitions of
+  `MotorControlCAN::CanopenNode`, so the owner, the TWAI adapter, the examples and every
+  consumer inherit them. An empty value keeps the derived default.
+- ESP-IDF: the integers of [Kconfig.capacity](../adapters/canopennode/Kconfig.capacity),
+  sourced by the application's `Kconfig.projbuild` and applied by `capacity.cmake` to the
+  component that compiles the adapter and example sources. Zero keeps a derived default.
+- PlatformIO: `build_flags = ${env.build_flags} -DMOTORCONTROLCAN_SDO_CHANNELS=8`, which
+  reach every source of the environment.
+
+Every unit that includes the header references the link tag
+`CapacityLinkTag<channels, requests, producers, PDO routes, discovery targets>`, and
+`SdoClient.cpp` defines only its own set. A unit compiled with other values therefore fails
+to link with an undefined reference that names its own set, instead of running with two
+layouts of one object. This guards
+native builds of separate static libraries on GCC and Clang. A linker that drops
+unreferenced sections (`--gc-sections`, as ESP-IDF links) may drop the check; those builds
+compile all adapter sources in one component with one set. MSVC is not a supported
+compiler here and has no equivalent check.
+
+The application still owns placement: every sized object is caller-owned, so a larger set
+can live in static internal RAM or in a block reserved at startup. A capacity is a storage
+count, not a timing qualification:
+
+- The TWAI adapter submits at most one SDK frame per service turn. Stopping N axes needs at
+  least N turns to hand off, plus each channel's in-flight exchange.
+- Owner CPU per turn grows faster than N. On the host (x86-64, MinGW GCC 15.1, `-O3`,
+  2026-11-12), one `service()` turn with every ordinary and urgent slot queued and one
+  exchange in flight per channel took 0.5 us at N = 2, 4.7 us at N = 8 and 183 us at
+  N = 32; `capacity_n32` prints its own measurement. About 95 % of it is the expiry scan
+  that each channel's transmit attempt repeats. No target figure exists yet; measure
+  `maxServiceGapUs` on the board before relying on a large N.
+- Bus time, CANopen node IDs 1..127 and the per-turn limits above stay real limits.
 
 ## Admission and lifetime
 
@@ -195,14 +254,15 @@ application supplies RX budget. Diagnostics never acquire another receiver.
 Each turn settles deadlines, progresses an explicitly requested recovery within
 its budget, takes controller reports, routes RX, retires invalid external
 handoffs, then services staged frames and eligible new requests. Producer
-selection cycles 1..4, skipping
+selection cycles 1..PRODUCERS, skipping
 busy/ineligible channels; earlier nonterminal steps in the same sequence retain
 FIFO order. Reservations do not block other nodes or passive delivery. Sequence
 order is not a success dependency: dependent work is admitted only after its
 caller has checked/advanced the prior result.
 
-All scans and callbacks have fixed bounds: seven request slots, two reservations
-and four producers per selection. Selected-stack progression retains its
+All scans and callbacks have fixed bounds: `TOTAL_REQUESTS` request slots,
+`SEQUENCES` reservations and `PRODUCERS` producers per selection (eight, two and four
+with the default capacity set). Selected-stack progression retains its
 existing bounded per-channel calls and 32-byte FIFO drain. These are source work
 bounds, not measured board service gaps.
 
@@ -307,8 +367,8 @@ urgent slot of its channel: `TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS`, and
 a node number or to a reservation index. One channel cannot take another's slot,
 and an unread urgent result on one channel leaves the others free. The next urgent
 admission on the same channel returns `RESULTS_FULL` until that result is released.
-It reuses one of the existing two reservations; there is no extra urgent axis
-reservation. Ordinary request/result pressure cannot consume these slots, but route
+It reuses the axis's existing reservation, one per channel; there is no extra urgent
+axis reservation. Ordinary request/result pressure cannot consume these slots, but route
 validity, result lifetime and the same-sequence FIFO still apply. Eligible urgent
 work gets the next safe dispatch opportunity. It neither preempts an active request
 nor cancels earlier intent. An occupied or quarantined channel does not become free

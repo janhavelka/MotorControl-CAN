@@ -18,6 +18,9 @@ set_target_properties(${COMPONENT_LIB} PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF
     C_STANDARD 99 C_STANDARD_REQUIRED YES)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror -fstack-usage)
+# The adapters and examples compile in this component: one capacity set for all of them.
+include("${can_root}/adapters/canopennode/capacity.cmake")
+motorcontrolcan_capacity_definitions(${COMPONENT_LIB})
 idf_component_get_property(core_lib MotorControlCAN COMPONENT_LIB)
 target_compile_options(${core_lib} PRIVATE -fstack-usage)
 execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${can_root}"

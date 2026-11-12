@@ -5,6 +5,15 @@
 
 namespace MotorControlCAN {
 namespace CANOPEN {
+// The one definition of the capacity link tag (Capacity.h): only units compiled with this
+// file's capacity set find it.
+template <unsigned Channels, unsigned Requests, unsigned Producers, unsigned PdoRoutes,
+          unsigned DiscoveryTargets>
+void CapacityLinkTag<Channels, Requests, Producers, PdoRoutes, DiscoveryTargets>::check() {}
+template struct CapacityLinkTag<
+    unsigned(AdapterCapacity::SDO_CHANNELS), unsigned(AdapterCapacity::OWNER_REQUESTS),
+    unsigned(AdapterCapacity::OWNER_PRODUCERS), unsigned(AdapterCapacity::PDO_ROUTES),
+    unsigned(AdapterCapacity::DISCOVERY_TARGETS)>;
 namespace {
 // Server responses that name their object. Segment frames do not.
 bool frameMultiplexer(const Frame& f, uint16_t& index, uint8_t& subindex) {

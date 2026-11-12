@@ -15,6 +15,7 @@
  * clears a fault, saves, reconfigures a PDO or reopens a route.
  */
 #pragma once
+#include "BenchNodes.h"
 #include "FirmwareProbe.h"
 
 #if defined(__GNUC__)
@@ -148,7 +149,7 @@ enum class SoakEnd : uint8_t {
 };
 /** Fixed sizes of the soak's retained evidence. */
 enum {
-    SOAK_NODES = 2,          ///< Nodes 1 and 2 in adapter slots 0 and 1.
+    SOAK_NODES = BENCH_NODES, ///< Nodes 1 and 2 in adapter slots 0 and 1.
     SOAK_TRACE = 128,        ///< Copied trace entries; the oldest is overwritten.
     SOAK_DUMP_ENTRIES = 96,  ///< Most entries in one anomaly dump.
     SOAK_DUMPS_PER_KIND = 2, ///< Full dumps kept for each anomaly kind.
@@ -252,11 +253,11 @@ class Soak {
     bool active() const noexcept { return s_.phase != PHASE_IDLE; }
     /** @return Why the last soak ended, or NONE. */
     SoakEnd ended() const noexcept { return s_.end; }
-    /** @param node Node 1 or 2.
+    /** @param node Node 1..SOAK_NODES.
      * @return Totals of the current or last soak. Other values read node 1's totals.
      */
     const SoakNodeStats& nodeStats(unsigned node) const noexcept {
-        return s_.nodes[node == 2 ? 1 : 0];
+        return s_.nodes[node >= 1 && node <= SOAK_NODES ? node - 1 : 0];
     }
     /** @return Pressure totals of the current or last soak. */
     const SoakPressure& pressure() const noexcept { return s_.pressure; }

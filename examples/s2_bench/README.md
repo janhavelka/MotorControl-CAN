@@ -345,7 +345,9 @@ swallowed whole) or `TRIAL_REFUSED reason=memory` (an arming).
 **Premise (`o`).** The console's `host SLOT` and `useaddr NODE` select only an existing configured slot. `o` configures
 both nodes' routes exactly as every bench command configures its node on first use (`ensureRoute`: the predefined
 connection set, an exclusive initially unused server session that is not service confirmation, network route epoch 1),
-so slot 0 is node 1 and slot 1 is node 2, the same channels `BenchRoute` opens its sessions on through
+so slot 0 is node 1 and slot 1 is node 2 (`BENCH_NODES` in [BenchNodes.h](BenchNodes.h) fixes the fixture at
+these two drives; an image built with more SDO channels leaves the others unused), the same channels `BenchRoute`
+opens its sessions on through
 `ProbeApp::openAxis`. It also gives the application the controller's interface facts (interface 0, the 1 Mbit/s `c`
 applied), which `discover` and `nmt` need. It needs `c` first and sends, selects and grants nothing:
 `CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; ...`, or `CONSOLE refused reason=state|route|memory|facts; no work`.

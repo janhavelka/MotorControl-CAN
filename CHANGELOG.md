@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Configurable adapter capacity (prompt 53 item 1, 2026-11-12)
+
+- The SDO channel count is no longer fixed at two. One adapter header,
+  `adapters/canopennode/Capacity.h`, maps `MOTORCONTROLCAN_SDO_CHANNELS` (default 2),
+  `MOTORCONTROLCAN_OWNER_REQUESTS` (max(6, channels + 4)), `MOTORCONTROLCAN_OWNER_PRODUCERS`
+  (max(4, channels + 2)), `MOTORCONTROLCAN_PDO_ROUTES` (8) and
+  `MOTORCONTROLCAN_DISCOVERY_TARGETS` (min(channels, 2)) into the adapter and example
+  constants, checked by `static_assert`. The defaults keep today's layouts and sizes.
+  `CanBusOwner::SEQUENCES` and `URGENT_REQUESTS`, `TwaiAdapter::TX_CAPACITY` and the
+  `ProbeApp` sessions follow the channel count. The installed core is unchanged: it has no
+  axis capacity.
+- Set the values for the whole application build: CMake cache variables (PUBLIC definitions
+  of `MotorControlCAN::CanopenNode`), the ESP-IDF menu `adapters/canopennode/Kconfig.capacity`
+  that both firmware applications source, or PlatformIO `build_flags`. A unit compiled with
+  another set fails to link on GCC and Clang (`CapacityLinkTag`).
+- Fixed the owner's in-flight index initializer, which was correct only for two channels: with
+  more, the extra channels started as if slot 0 were active, and one channel did not compile.
+- The console `discover` command accepts any configured slot; the plan size alone is bounded
+  by `DiscoveryPlan::CAPACITY`, and larger scans run as several plans.
+- New tests `capacity`, `capacity_n1`, `capacity_n8` and `capacity_n32` build the adapters and
+  the shared application at each channel count, and `capacity_mismatch` requires a mixed build
+  to fail to link. The owner's turn cost grows faster than the channel count (host: 4.7 us at
+  8 channels, 183 us at 32, every slot queued); see the owner guide before relying on large
+  counts. These are storage and scheduling checks on fakes, not drive, bus or timing evidence.
+- The S2 bench keeps its two-drive fixture as `BENCH_NODES` (`BenchNodes.h`), so a build with
+  more channels compiles it unchanged.
+
 ### Python Console and evidence primitives (prompt 43, 2026-11-12)
 
 - Added a bounded reusable Python Console for the actual CAN JSONL schema,

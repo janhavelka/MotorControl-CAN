@@ -58,10 +58,13 @@ struct DiscoveryTarget {
     MotorControlCAN::LICHUAN_C::ReadTarget target; ///< Full route/node/configuration provenance.
     DiscoveryExpectation expected; ///< Optional explicit interpretation constraints.
 };
-/** Frozen finite plan. The target limit is the current owner capacity, not CANopen node capacity. */
+/** Frozen finite plan. The target limit is a storage count, not CANopen node capacity: targets are
+ * existing permanent channel slots, and more slots than CAPACITY are scanned in several plans,
+ * one after another.
+ */
 struct DiscoveryPlan {
     enum {
-        CAPACITY = MotorControlCAN::CANOPEN::SdoClient::CHANNELS ///< Existing permanent slots.
+        CAPACITY = MotorControlCAN::CANOPEN::AdapterCapacity::DISCOVERY_TARGETS ///< Targets per plan (Capacity.h, default min(channels, 2)).
     };
     DiscoveryTarget targets[CAPACITY]; ///< Copied input; unused elements have no meaning.
     uint8_t count = 0;                 ///< 1..CAPACITY, unique physical channels and node bindings.

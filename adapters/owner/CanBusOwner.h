@@ -17,12 +17,17 @@ namespace MotorControlCANOwner {
  */
 class CanBusOwner {
   public:
+    /** Storage counts and per-turn limits. REQUESTS and PRODUCERS come from the application's
+     * capacity set (Capacity.h); URGENT_REQUESTS and SEQUENCES follow the SDO channel count,
+     * because each channel anchors one binding with one usable reservation. The per-turn limits
+     * and TRACE_CAPACITY are fixed: they bound one turn's work, not the number of axes.
+     */
     enum {
-        REQUESTS = 6,        ///< Queued + active + unread terminal capacity, shared ordinary slots.
-        URGENT_REQUESTS = MotorControlCAN::CANOPEN::SdoClient::CHANNELS, ///< One reserved urgent request/result slot per channel, so one axis cannot block another's. Never used by ordinary work.
-        TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS, ///< All copied work/result storage.
-        SEQUENCES = 2,     ///< Logical-axis reservations, independent of wire node numbering.
-        PRODUCERS = 4,     ///< Cyclic eligible-producer fairness, FIFO within each sequence.
+        REQUESTS = int(MotorControlCAN::CANOPEN::AdapterCapacity::OWNER_REQUESTS), ///< Queued + active + unread terminal capacity, shared ordinary slots 0..REQUESTS-1.
+        URGENT_REQUESTS = int(MotorControlCAN::CANOPEN::SdoClient::CHANNELS), ///< One reserved urgent request/result slot per channel, slot REQUESTS + channel, so one axis cannot block another's. Never used by ordinary work.
+        TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS, ///< All copied work/result storage, at most 255.
+        SEQUENCES = int(MotorControlCAN::CANOPEN::SdoClient::CHANNELS), ///< Logical-axis reservations, one per channel binding, independent of wire node numbering.
+        PRODUCERS = int(MotorControlCAN::CANOPEN::AdapterCapacity::OWNER_PRODUCERS), ///< Cyclic eligible-producer fairness, identities 1..PRODUCERS, FIFO within each sequence.
         RX_LIMIT = 8,      ///< Maximum receive callback calls per service turn.
         TX_LIMIT = 2,      ///< Maximum one-shot enqueue callbacks per turn.
         EVENT_LIMIT = 8,   ///< Maximum TX report callback calls per turn.
@@ -372,7 +377,7 @@ class CanBusOwner {
     bool recoveryOccupied_ = false, recoveryTerminal_ = false, inhibited_ = false;
     uint64_t lastUs_ = 0;
     uint8_t nextProducer_ = 1, nextChannel_ = 0;
-    int active_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS] = {-1, -1};
+    int active_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS]; ///< In-flight slot per channel; -1 none, set by the constructor.
     bool entered_ = false;
     struct HealthRecord {
         Binding binding;

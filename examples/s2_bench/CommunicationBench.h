@@ -6,6 +6,7 @@
  * never a download producer; H yields exactly one 1017:00 download, matched by its preflight.
  */
 #pragma once
+#include "BenchNodes.h"
 #include "BenchTerminal.h"
 #include "DeviceEvidence.h"
 #include <MotorControlCAN/profiles/lichuan_c/Communication.h>

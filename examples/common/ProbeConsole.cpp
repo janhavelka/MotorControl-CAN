@@ -2273,7 +2273,8 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             }
             for (size_t n = 3; n < count; ++n) {
                 uint32_t slot = 0;
-                if (!unsignedDecimal(line.token(n), slot) || slot >= DiscoveryPlan::CAPACITY) {
+                // A target is any configured channel slot; CAPACITY bounds only the count.
+                if (!unsignedDecimal(line.token(n), slot) || slot >= N::SdoClient::CHANNELS) {
                     reject("invalid_slot");
                     return;
                 }

@@ -173,7 +173,7 @@ velocity run.
 
 **Several drives at once.** The core, owner and application already keep axes separate (two SDO channels, per-node
 heartbeat and EMCY, one `AxisSession` per axis; host tests run two concurrent moves with separate stops). Limits: one
-bench route at a time, one console motion attachment, compile-time capacity 2. SYNC audit (all five vendor PDFs, every
+bench route at a time, one console motion attachment, compile-time capacity 2 by default (settable since 2026-11-12, M04). SYNC audit (all five vendor PDFs, every
 page, and the EDS): the manuals only claim "multi-axis high-speed bus synchronization control" (EN86, ZH86 and ZH57
 p3) and describe no SYNC object; the EDS has `1005` SYNC COB-ID (RW U32, default `0x80`) and writable PDO transmission
 types (`1400:02`..`1403:02`, `1800:02`..`1803:02`, U8, default 255, no range given), and no `1006`, `1007` or `1019`.
@@ -186,7 +186,7 @@ enough for all of my purposes", 2026-11-12); prompts 51 and 54 test exactly that
 | M01 | Paired `MOVE` route where the partner node also moves | 45, bench | Host test, then HM1 and HM2 |
 | M02 | Stop-all contract: separate per-axis stops, no NMT stop, group success only when every axis is observed stopped, no re-enable or replay | 45 | Host tests, then HM3 and HM4 |
 | M03 | Console: stop axis B while axis A's operation is retained; then per-axis attachments and stop slots | 42, 45 | Native console test |
-| M04 | Caller-sized owner and adapter storage (channels, sequences, requests, urgent slots) for more than two axes, after RS `BusStorage` | 45, 46 | Design review |
+| M04 | Caller-sized owner and adapter storage (channels, sequences, requests, urgent slots) for more than two axes | 53 | **Software delivered 2026-11-12**: compile-time capacity set in `adapters/canopennode/Capacity.h` (default 2, host-tested at 1, 2, 8 and 32; N = 8 firmware links); owed: owner turn cost at large N and its board measurement, eight default-only tests ([prompt 53](prompts/53_multi_axis.md) item 1) |
 | M05 | `AxisSession` shared operation storage (B03) without losing its fences | example code | `sizeof` and host tests |
 | M06 | A distinct producer per session in `ProbeApp::openAxis` | example code | Host test |
 | M07 | Measure the skew of triggers sent to both drives in one owner turn | 48 | HM6 |
@@ -211,7 +211,7 @@ once: two `AxisSession`s 71504, `BenchRoute` 42896 (route record 37592), `Firmwa
 | B03 | One operation slot in `AxisSession` (enable, move, velocity, home and clear are already exclusive through `busy()`) | example code | 14688 per axis (computed) |
 | B04 | Owner trace entries without an embedded 264-byte completion; drop unused PDO routes | owner, adapters | About 4200, and 856 per route |
 | B05 | Core contract review: per-field binding copies and the duplicate payload in provenance | core, review | 3840 to 4800 and 1792 per axis; a contract change |
-| B06 | Axis count after savings: bench 2 today; lean application 4, 5 with B01, 8 (7 with PDO) with B01 and B03 | M04 | Raise the compile-time axis limits first |
+| B06 | Axis count after savings: bench 2 today; lean application 4, 5 with B01, 8 (7 with PDO) with B01 and B03 | M04 | The compile-time limit is now settable (M04); apply B01 and B03, then measure |
 
 ## Tool and physical gates
 

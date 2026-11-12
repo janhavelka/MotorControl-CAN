@@ -32,6 +32,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     MOTORCONTROLCAN_CAN_RX_DEPTH=${CONFIG_MOTORCONTROLCAN_CAN_RX_DEPTH}
     MOTORCONTROLCAN_CAN_SILENT_PIN=${CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN}
     MOTORCONTROLCAN_CAN_SILENT_LEVEL=${CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL})
+# The adapters and examples compile in this component: one capacity set for all of them.
+include("${can_root}/adapters/canopennode/capacity.cmake")
+motorcontrolcan_capacity_definitions(${COMPONENT_LIB})
 set_target_properties(${COMPONENT_LIB} PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF
     C_STANDARD 99 C_STANDARD_REQUIRED YES)

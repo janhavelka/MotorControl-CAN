@@ -42,6 +42,26 @@ set_target_properties(canopennode_sdo PROPERTIES
 add_library(MotorControlCANCanopenNode STATIC SdoClient.cpp Network.cpp Nmt.cpp Pdo.cpp)
 add_library(MotorControlCAN::CanopenNode ALIAS MotorControlCANCanopenNode)
 target_include_directories(MotorControlCANCanopenNode PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# One capacity set for the whole application (Capacity.h). PUBLIC, so the owner, the TWAI adapter,
+# the examples and every consumer compile with the same values; never set them on one target.
+set(MOTORCONTROLCAN_SDO_CHANNELS "2" CACHE STRING "SDO channels (axis routes) on one CAN interface")
+set(MOTORCONTROLCAN_OWNER_REQUESTS "" CACHE STRING
+    "Ordinary owner request slots; empty derives max(6, channels + 4)")
+set(MOTORCONTROLCAN_OWNER_PRODUCERS "" CACHE STRING
+    "Owner fairness producers; empty derives max(4, channels + 2)")
+set(MOTORCONTROLCAN_PDO_ROUTES "8" CACHE STRING "Bound PDO wire routes on one CAN interface")
+set(MOTORCONTROLCAN_DISCOVERY_TARGETS "" CACHE STRING
+    "Targets of one discovery plan; empty derives min(channels, 2)")
+foreach(setting SDO_CHANNELS OWNER_REQUESTS OWNER_PRODUCERS PDO_ROUTES DISCOVERY_TARGETS)
+    set(value "${MOTORCONTROLCAN_${setting}}")
+    if(value STREQUAL "")
+        continue() # Capacity.h derives it; its static_asserts check every relation.
+    endif()
+    if(NOT value MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "MOTORCONTROLCAN_${setting} must be a positive decimal count, not '${value}'")
+    endif()
+    target_compile_definitions(MotorControlCANCanopenNode PUBLIC MOTORCONTROLCAN_${setting}=${value})
+endforeach()
 target_link_libraries(MotorControlCANCanopenNode PUBLIC MotorControlCAN::MotorControlCAN canopennode_sdo)
 set_target_properties(MotorControlCANCanopenNode PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
