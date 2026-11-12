@@ -546,7 +546,7 @@ class Night:
 
     def go(self, only=None):
         # Cv / Cm: console velocity and console move sessions on the bench image (conmo.py, shared console).
-        rotation = ["Pa", "Pb", "Vq", "Cv", "Pa", "Cm", "Pb", "Vh"]
+        rotation = ["Pa", "Cm", "Pb", "Vq", "Cv", "Pa", "Pb", "Vh"]  # Cm right after Pa: mode 1 with a start record.
         while utc() < self.end and not self.stopfile():
             active = [n for n in (1, 2) if not self.s["nodes"][str(n)]["retired"] and (only is None or n == only)]
             if not active:

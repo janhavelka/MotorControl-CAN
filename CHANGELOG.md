@@ -17,6 +17,8 @@
   `scripts/s2_bench_console.py` (one-step bench console helper); `s2_bench.py
   --waiver-covers-motion` for an unattended waiver that explicitly covers enables and
   velocity runs.
+- Bench `MODE_THREE` admits the latched release a moving quick stop leaves, as `MODE_ONE`
+  and the velocity route already do. Night soak report: `docs/reports/2026-11-12_night_soak.md`.
 
 ### Motion console and platform parity (prompt42, 2026-11-11)
 
