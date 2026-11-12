@@ -20,6 +20,9 @@ EXPORTS = {
     "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
+    "scripts/bench_probe.py", "scripts/_bench_evidence.py", "docs/runners.md",
+    "test/bench_console_test.py", "test/bench_console_adversarial_test.py",
+    "test/bench_probe_cli_test.py", "test/bench_evidence_test.py", "test/bench_console_native_test.py",
     "include/MotorControlCAN/profiles/lichuan_c/Persistence.h", "src/profiles/lichuan_c/Persistence.cpp",
     "test/persistence_test.cpp", "test/configuration_restore_test.cpp",
     "examples/common/ConfigurationRestore.h", "examples/common/ConfigurationRestore.cpp",
@@ -314,6 +317,12 @@ def inventory_checks(root, listing, build, errors):
             args = matches[0]["command"][2:]
             if len(args) != 4 or args[::2] != ["--cmake", "--compiler"]:
                 errors.append("CTest inventory: package_test.py requires explicit --cmake and --compiler")
+        elif source.name == "bench_console_native_test.py":
+            native_probe = next((test["command"][0] for test in tests
+                                 if test["name"] == "native_probe" and test["command"]), "")
+            if not native_probe:
+                errors.append("CTest inventory: Python client requires native_probe producer")
+            python_command(matches[0], source, [native_probe])
         elif source.name == "console_protocol_test.py":
             # Transcript validation must invoke the actual built shared console.
             native_probe = next((test["command"][0] for test in tests

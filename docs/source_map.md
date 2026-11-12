@@ -1,9 +1,22 @@
 # Live source and responsibility map
 
-Prompts40-42 implement one shared conditional console. [The CLI contract](cli_contract.md)
+Prompts40-43 implement one shared conditional console and bounded Python client. [The CLI contract](cli_contract.md)
 owns grammar, exact JSONL, source gates and capacity; [the P42 source audit](audit/PROMPT_42_SOURCES.md)
 records current RS and original vendor evidence. No device qualification is inferred
 from a native fake or compile result.
+
+## Python Console and evidence primitives (prompt 43)
+
+[The runner guide](runners.md) owns exact offline/live invocation, dependencies,
+client limits and evidence interpretation. The [source audit](audit/PROMPT_43_SOURCES.md)
+records refreshed sibling runner responsibilities and the distinct CAN schema.
+
+| Responsibility | Implementation / focused test | Boundary |
+| --- | --- | --- |
+| Stream framing, handshake, request/operation correlation and one finite invocation | [bench_probe.py](../scripts/bench_probe.py); [CLI tests](../test/bench_probe_cli_test.py), [adversarial streams](../test/bench_console_adversarial_test.py) | One borrowed stream; explicit route/version; no replay, firmware epoch inference, motion or campaign |
+| Pure retained evidence projections | [_bench_evidence.py](../scripts/_bench_evidence.py); [summary tests](../test/bench_evidence_test.py) | Bounded owned JSON copies; exact values; caller-supplied evidence kind; no I/O or state inference |
+| Client against the real native producer | [bench_console_native_test.py](../test/bench_console_native_test.py) | Probe/identity/state records and Q20 refusal from existing native fixtures; host testing only |
+| Shared record schema | [console_jsonl.py](../scripts/console_jsonl.py); [producer transcript tests](../test/console_protocol_test.py) | Same schema validation as existing host tooling; no copied CAN driver |
 
 
 ## Motion console attachment (prompt42)

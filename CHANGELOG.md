@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Python Console and evidence primitives (prompt 43, 2026-11-12)
+
+- Added a bounded reusable Python Console for the actual CAN JSONL schema,
+  explicit identity/capability checks, retained request/operation correlation
+  and poisoned sessions after framing loss or disconnect, without replay.
+- Added pure exact evidence summaries, bounded transcripts and one explicit
+  probe/typed-read invocation with required live fixture facts and optional
+  `pyserial==3.5`. Plan and self-test modes need no serial dependency or hardware.
+- Kept unknown firmware epochs, DEC-1/Q20 read gates and native uncertainty
+  explicit. This increment adds host automation primitives; live campaigns and
+  hardware qualification remain separate.
+
 ### Console on the bench and night soak (2026-11-11)
 
 - `ProbeMotion::cancelNormal` now refuses while the retained ordinary work is a velocity

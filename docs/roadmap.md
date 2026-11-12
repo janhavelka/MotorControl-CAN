@@ -5,7 +5,10 @@ one shared console and the existing axis session. Independent retained stop resu
 explicit host motion intent and bounded stop admission preserve uncertainty under
 console pressure. The [CLI contract](cli_contract.md#finite-motion-and-actions-prompt-42)
 records working grammar and native qualification gates. No hardware ran in this stage.
-The next executable software assignment is prompt43, the independent Python client.
+Prompt43 adds the [tested Python console client](runners.md), pure evidence and
+one explicit typed probe/read with offline plan/self-test. No hardware ran in
+this stage. The next executable software assignment is prompt44, finite campaigns
+and sessions over this client; no repetition is implemented by prompt43.
 
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
@@ -112,7 +115,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 38 | Communication commissioning | 89 typed reads and conditional heartbeat workflow implemented; remaining node/route changes need Q16 firmware evidence. [Report](reports/prompt_38.md); no implicit persistence or guessed-route retry. |
 | 39 | Save/reset | Conditional one-attempt save/factory restore, raw 2300 read, independent reconciliation and three-field host re-application implemented. Q15 full effects/rearm/restart and hardware qualification remain pending; [report](reports/prompt_39.md). |
 | 40-42 | Shared parser, typed device and motion routes | P40 local and P41 typed device integration delivered; P42 motion/action and full platform parity next. Native source/firmware prerequisites remain explicit. |
-| 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |
+| 43-44 | Python session/parser and finite campaigns | 43 client/evidence/finite read implemented and host-tested; 44 campaigns remain pending. Explicit connection and retained failure evidence; no uncertain-write replay |
 | 45-46 | Integrated faults and FieldCore-like/alternate-drive consumers | Pending; test real resumed settings/remap through owner and preserve framework independence |
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; bounded two-node S2 connectivity exists, while motor/load and sustained qualification retain their separate fixture/evidence requirements |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
