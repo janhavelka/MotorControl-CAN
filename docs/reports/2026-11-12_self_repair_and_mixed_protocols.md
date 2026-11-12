@@ -137,10 +137,19 @@ attempt and no retry.
 
 ### 1.4 Lely and CiA 301
 
-**Lely:** no source exists in the repository and none was found on disk. Its SDO timeout handling is not
-established here. Only its heartbeat-loss default is recorded: it resets the failing node, boots it and starts it,
-with no application involvement (`docs/reports/2026-11-12_multiaxis_sync_survey.md:106`, D through that survey). The
-library rejects that default (`:122`).
+**Lely:** no source exists in the repository.
+
+A partial, unretained copy exists in this session's scratchpad, from the survey work. It has `driver.hpp` and
+`nmt.c` but not `csdo.c`, and it has no provenance record. Its driver API documentation says: "If, after the request
+is initiated, the timeout expires before receiving a response from the server, the client aborts the transfer with
+abort code `SdoErrc::TIMEOUT`" (`driver.hpp:505-508` in that copy). That matches the CANopenNode and python-canopen
+behaviour.
+
+How Lely reuses the channel after the abort, and how it matches late replies, is not established here.
+
+Its heartbeat-loss default is recorded: it resets the failing node, boots it and starts it, with no application
+involvement (`docs/reports/2026-11-12_multiaxis_sync_survey.md:106`, D through that survey). The library rejects
+that default (`:122`).
 
 **CiA 301:** the only retained statements are CANopenNode's comments on the abort frame layout (`CO_SDOserver.h:96-101`),
 the abort codes (`:290-299`) and the toggle encoding (`:126-169`). No retained source states that a server answers
@@ -615,7 +624,8 @@ clocks.
 ## 8. Not established
 
 - The Lichuan's SDO server order and duplicate behaviour (Q18). Whether its firmware ignores extended frames.
-- Lely's SDO client timeout handling: there is no source here.
+- Lely's SDO channel reuse and late-reply matching. Only the abort-on-timeout statement of an unretained scratchpad
+  copy of its `driver.hpp` was seen.
 - Whether TX-done fires at bus-off on the node API (`docs/adapters/twai_sdk.md:49`).
 - The submit-to-done maximum under PDO load.
 - Whether deleting the node resets TEC immediately (I: the clock reset suggests it does).
