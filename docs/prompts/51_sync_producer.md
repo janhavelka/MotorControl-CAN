@@ -12,8 +12,17 @@ commands (and see whether that works or not eventhough not documented)"; "could 
 Deliver the application MCU as the CANopen SYNC producer on classic CAN, with passive SYNC observation, typed SYNC and
 PDO communication reads, a conditional synchronous PDO transmission-type setting and the trials that establish what the
 Lichuan drives actually do with SYNC. Synchronized operation here means a common SYNC instant for sampling and for
-latching set-points or a start trigger at modest rates (for example 10 to 100 ms); it is not CSP or IP, which the
-Lichuan does not offer (modes 1, 3 and 6 only).
+latching set-points or a start trigger at modest rates; it is not CSP or IP, which the Lichuan manuals do not offer
+(documented modes 1, 3 and 6; the firmware's accepted set is unmeasured, backlog D17).
+
+Target period, the user's words (2026-11-12): "10ms updating would be enough for all of my purposes". 10 ms is the
+design and qualification period of this prompt and of prompt 54: the trials include 10 ms, the producer and owner are
+sized for it, and the result states whether 10 ms works for each measured use (sampling, set-point latching, start
+trigger). Slower periods are fallbacks, not the goal. Computed budget, to be measured, not assumed: at 1 Mbit/s one
+SYNC (DLC 0) is about 0.05 ms and one 8-byte PDO about 0.13 ms of bus time, so one SYNC plus one RPDO and one TPDO
+per axis every 10 ms is about 6 % bus load for 2 axes and about 50 % for 19; today's host TX design sends one frame
+per service turn, so at a 1 ms turn one period holds at most 10 host frames (the SYNC plus about 9 RPDOs), which is the
+host-side limit until a TX change is designed and proven.
 
 Lichuan facts from the SYNC audit (backlog M10, M13): the CANopen manuals only claim "multi-axis high-speed bus
 synchronization control" (EN86, ZH86 and ZH57 p3) and describe no SYNC object; the EDS declares `1005` SYNC COB-ID (RW
@@ -72,6 +81,13 @@ in `device_conflicts.md` and the ledger before implementation depends on them.
    and what the live `1400:05` = 1000 RPDO event timer does; (c) a synchronous RPDO controlword on both nodes and one
    SYNC as a common start trigger, start skew compared with the same-turn SDO trigger skew (backlog M07). On the S2
    image no flash write may occur during SYNC production or motion: its TWAI driver runs without the cache-safe ISR.
+9. The 10 ms plan (backlog M13), run when items 1 to 6 exist on the bench image: (b) at exactly 10 ms on one node,
+   then on both; production jitter of the SYNC against the application's time and the owner turn; one TPDO per SYNC
+   per node, with missed, duplicated and late samples counted; bus load and service gaps; at least 10 minutes. What
+   10 ms set-point updating means depends on prompt 52's measurements and is tested in prompt 54: in mode 3 a new
+   `60FF` per SYNC needs no handshake if F02 shows a mid-run change takes effect; in mode 1 each new `607A` needs the
+   bit 4 set-point handshake (a falling and a rising edge, so at least two controlwords per update) and the Lichuan
+   holds bit 12 until `000F`, so a 10 ms position stream may be impossible; the trial reports which applies.
 
 ## Verify and exit
 

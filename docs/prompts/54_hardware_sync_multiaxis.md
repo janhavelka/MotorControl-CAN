@@ -25,13 +25,23 @@ symbol. This does not relax vendor evidence, safety, uncertainty or verification
 1. A short existing-feature regression on the image under test (enable, moves, velocity, stops, console), then the
    focused series below; every run retains raw traffic, timing and service gaps.
 2. SYNC: production at the chosen periods with bus load and service gaps; synchronized TPDO sampling of both nodes;
-   the synchronous RPDO start trigger and its skew (backlog M13, HM6).
+   the synchronous RPDO start trigger and its skew (backlog M13, HM6). The user's target period is 10 ms ("10ms
+   updating would be enough for all of my purposes", 2026-11-12), so the qualification run is: both nodes at a 10 ms
+   SYNC for at least 30 minutes with one TPDO per SYNC per node (jitter, missed and late samples, bus load, service
+   gaps), then, only where prompt 52 opened it, a 10 ms set-point stream latched on SYNC (`60FF` in mode 3; `607A` in
+   mode 1 only if its handshake measured as workable), with a stop of one axis during the stream and the group stop.
+   A 10 ms result that fails is reported with the longest period that passed.
 3. Changes during motion: each operation prompt 52 opened, at several speeds and ramps, with stops during and after a
    change (backlog F13).
 4. Multi-axis: both nodes moving at once with one stopped while the other continues, the group stop including a lost
    reply and a refused axis, a fault on one axis with the other stopped explicitly (HM1 to HM9), and a sustained mixed
    soak.
-5. Root-cause every anomaly with a native regression where representable; a later passing run is not a fix.
+5. Stop reactions (backlog M14 to M16): NMT Stop to one node during a slow velocity run (6 to 30 rpm), then
+   Pre-operational and reads of `6041`, `6064` and `606C`, then the run's own stop, reported as stopped, kept running
+   or faulted; the shared quick-stop RPDO on both nodes during motion, with the skew between the two stops; and, once
+   the user has wired a stop signal to a DI, the DI stop (5) and emergency-stop (6) functions during motion, with the
+   final state and what re-enabling needs.
+6. Root-cause every anomaly with a native regression where representable; a later passing run is not a fix.
 
 ## Verify and exit
 
