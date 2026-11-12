@@ -175,12 +175,13 @@ homing ran on the bench. For example, homing on the current position or an index
 
 ## 5. Multi-axis and stopping
 
-**5.1 Axis count fixed at 2 (being changed now).** SDO channels, owner reservations and the example app hold two axes,
-and the owner's `active_` initializer is written for exactly two. For example, a third drive is refused. The installed
-core has no axis limit.
-- Kind: Accidental (adapters and examples). Changing now (M04, prompt 53).
-- Change: the compile-time capacity header in the capacity report. Cost: low; the 8-bit slot index caps it near 125
-  axes.
+**5.1 Axis count fixed at 2 (changed later the same day).** SDO channels, owner reservations and the example app hold
+two axes, and the owner's `active_` initializer is written for exactly two. For example, a third drive is refused. The
+installed core has no axis limit.
+- Kind: Accidental (adapters and examples). **Changed in `1236435`:** the count is now a build setting
+  (`MOTORCONTROLCAN_SDO_CHANNELS`, default 2, `adapters/canopennode/Capacity.h`), host-tested at 1, 2, 8 and 32.
+- Remaining: the 8-bit slot index caps it near 125 axes; the owner's turn cost grows faster than the axis count
+  (prompt 53 item 1); bus time and one frame per turn (7.1) stay.
 - Evidence: `adapters/canopennode/SdoClient.h:50`; `adapters/owner/CanBusOwner.h:24`, `:375`; `examples/common/ProbeApp.h:359`
   (lines at `4a976a6`; these files are being edited in the working tree now).
 
