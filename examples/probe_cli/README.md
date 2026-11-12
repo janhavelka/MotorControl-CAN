@@ -64,7 +64,9 @@ For an actual application use `probe_cli` with explicit build definitions
 `MOTORCONTROLCAN_COMPILE_FIXTURE=0`. A transceiver silent input adds
 `MOTORCONTROLCAN_CAN_SILENT_PIN` and its `MOTORCONTROLCAN_CAN_SILENT_LEVEL` (0 or 1).
 Supply them in that environment's `build_flags`, retaining `${env.build_flags}`.
-No working pin/bitrate defaults exist. Pins are checked against the SDK capability
+The same `build_flags` set the image's [capacity set](../../docs/can_owner.md#capacity-set),
+for example `-DMOTORCONTROLCAN_SDO_CHANNELS=8`; they reach every shared source, so the
+whole image sees one set. No working pin/bitrate defaults exist. Pins are checked against the SDK capability
 masks of the target. GPIO19/20 belong to the S3 USB Serial/JTAG console; automatic
 Arduino CDC startup is disabled. GPIO43 (the ROM's boot-message output, U0TXD) and
 GPIO26..32 (the flash bus) are refused as well, at compile time. A valid local

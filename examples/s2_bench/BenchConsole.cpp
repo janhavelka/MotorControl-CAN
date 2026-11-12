@@ -157,7 +157,7 @@ bool BenchConsole::attachRoute(BenchRoute& route) noexcept {
     return true;
 }
 bool BenchConsole::attachAxis(unsigned node, BenchAxis& axis) noexcept {
-    if (node < 1 || node > 2 || axes_[node - 1] || !axis.motion.matches(firmware_.app(), firmware_.owner()))
+    if (node < 1 || node > BENCH_NODES || axes_[node - 1] || !axis.motion.matches(firmware_.app(), firmware_.owner()))
         return false;
     axes_[node - 1] = &axis;
     return true;
@@ -532,7 +532,7 @@ bool BenchConsole::ownsDownload(MotorControlCANOwner::SequenceId sequence,
 }
 bool BenchConsole::preflight(MotorControlCANOwner::SequenceId sequence,
                              const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept {
-    for (unsigned node = 1; node <= 2; ++node) {
+    for (unsigned node = 1; node <= BENCH_NODES; ++node) {
         BenchAxis* axis = axes_[node - 1];
         if (axis && axis->motion.ownsDownload(sequence, transfer))
             return axis->motion.preflight(sequence, transfer, now, fault(node));

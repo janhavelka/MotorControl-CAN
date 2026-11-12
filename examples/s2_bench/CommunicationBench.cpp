@@ -92,7 +92,7 @@ const char* CommunicationReads::begin(const CommunicationBenchRequest& r, uint64
     if (occupied_)
         return "busy";
     if (!r.id || r.id <= lastId_ || r.id > UINT32_MAX - (COMMUNICATION_GROUPS - 1) ||
-        (r.node != 1 && r.node != 2) || !r.firstGrant ||
+        r.node < 1 || r.node > BENCH_NODES || !r.firstGrant ||
         r.firstGrant > UINT32_MAX - (COMMUNICATION_UPLOADS - 1) || r.deadlineUs <= now ||
         now < lastUs_ || now < owner_.lastTimeUs())
         return "invalid";
@@ -435,7 +435,7 @@ const char* HeartbeatCommission::begin(const HeartbeatBenchRequest& r, uint64_t 
     // Prompt 38 reviewed exactly raw 0 to raw 1000; there is no other value and no reverse.
     if (r.producerTimeRaw != 1000)
         return "value";
-    if (!r.id || r.id <= lastId_ || r.id == UINT32_MAX || (r.node != 1 && r.node != 2) ||
+    if (!r.id || r.id <= lastId_ || r.id == UINT32_MAX || r.node < 1 || r.node > BENCH_NODES ||
         !r.firstGrant || r.firstGrant > UINT32_MAX - (HEARTBEAT_TERMINALS - 1) ||
         r.deadlineUs <= now || now < lastUs_ || now < owner_.lastTimeUs())
         return "invalid";

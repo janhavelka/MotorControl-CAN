@@ -7,15 +7,18 @@
  * selection after the scan and prints the result. It never configures, rebinds or frees a route.
  */
 #pragma once
+#include "BenchNodes.h"
 #include "BenchTerminal.h"
 #include "DiscoveryScan.h"
 
 namespace MotorControlCANExample {
 enum {
-    DISCOVERY_BENCH_TARGETS = 2,    ///< Both configured bench slots: node 1 and node 2.
-    DISCOVERY_BENCH_TERMINALS = 18, ///< Nine identity uploads per node at most.
+    DISCOVERY_BENCH_TARGETS = BENCH_NODES, ///< Both configured bench slots: node 1 and node 2.
+    DISCOVERY_BENCH_TERMINALS = 9 * BENCH_NODES, ///< Nine identity uploads per node at most.
     DISCOVERY_BENCH_LINE = 320      ///< Line buffer; the longest line at its widest fits.
 };
+static_assert(unsigned(DISCOVERY_BENCH_TARGETS) <= unsigned(DiscoveryPlan::CAPACITY),
+              "The D line scans every fixture node in one plan: MOTORCONTROLCAN_DISCOVERY_TARGETS >= BENCH_NODES");
 /** One checked D-line request; the plan around it is fixed by the bench. */
 struct DiscoveryBenchRequest {
     uint32_t id = 0;                             ///< Nonzero increasing bench identity, printed only.

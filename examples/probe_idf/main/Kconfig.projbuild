@@ -56,4 +56,5 @@ config MOTORCONTROLCAN_SMOKE_IDENTITY_U8
     bool "Fixture answers 1009/100A in one byte (measured, not EDS)"
     depends on MOTORCONTROLCAN_SMOKE_HOOK
     default n
+rsource "../../../adapters/canopennode/Kconfig.capacity"
 endmenu

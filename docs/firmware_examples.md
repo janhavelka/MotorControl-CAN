@@ -404,9 +404,10 @@ configuration with the same UART0 pins.
 | USB callbacks | One zero-tick single-byte read/write attempt; no flush or host wait |
 | S2 UART | RX 256 bytes / TX FIFO only; one-byte callbacks, exclusive UART0; no SDK console or event queue |
 | Silent input | One application GPIO, two SDK calls per request; requested level only |
-| CAN ingress/TX | Application-selected RX depth 1..16; two total copied TX slots, one active SDK frame |
+| CAN ingress/TX | Application-selected RX depth 1..16; SDO channels + 1 copied TX slots (three by default), one active SDK frame |
+| SDO channels and sessions | `MOTORCONTROLCAN_SDO_CHANNELS`, default 2: one channel, reservation, urgent slot and `ProbeApp` session per axis route |
 | Owner turn | RX 8, TX 2, reports 8, starts 2, recovery poll 1 maximum |
-| Diagnostics | Existing eight copied owner records; no second authoritative receive path |
+| Diagnostics | Existing 24 copied owner records; no second authoritative receive path |
 | Acquisition history | One retained record: up to 15 full terminals / 64 traffic copies, initial/final owner counters/resources and observed service gaps; loss interrupts acquisition |
 | Smoke check | One 240-byte pending line; one read in flight; nine identity fields per node |
 | Separate S2 raw history | 20 terminals / 96 traffic copies / 16 post-terminal tail copies; fixed inventory, same owner, never concurrent with typed acquisition |
@@ -418,6 +419,26 @@ so this counter is not total physical USB loss. The platform retains original
 install/uninstall errors. SDK lifecycle allocation/internal locks and its CAN RX
 ISR have no established elapsed-time bound. Capacity counts are not timing or
 physical qualification guarantees.
+
+### Capacity set
+
+Both firmware builds use the one capacity set of the adapters and examples
+([Capacity.h](../adapters/canopennode/Capacity.h), described in the
+[owner guide](can_owner.md#capacity-set)). The defaults keep two SDO channels and the
+sizes the S2 memory report measured. Set another count for the whole image only:
+
+- ESP-IDF: the `MotorControl-CAN adapter capacity` menu, which both applications'
+  `Kconfig.projbuild` source from `adapters/canopennode/Kconfig.capacity`, for example
+  `CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=8` in an `sdkconfig.defaults` fragment. Each
+  application applies it to its `main` component, which compiles every adapter and example
+  source, beside the `MOTORCONTROLCAN_CAN_*` board definitions.
+- PlatformIO: `build_flags = ${env.build_flags} -DMOTORCONTROLCAN_SDO_CHANNELS=8` in the
+  environment. `build_flags` reach the shared sources that `scripts/pio_firmware.py` adds.
+
+More channels need more internal RAM: each added channel costs about 2.7 KB in the adapters
+and owner on S2/S3, before any per-axis session the application places. The S2 bench keeps
+its two-drive fixture (`BENCH_NODES` in `examples/s2_bench/BenchNodes.h`), so a build with
+more channels compiles it unchanged and leaves the other channels unused.
 
 The [two-node S2 capture](reports/2026-11-02_s2_live_connection.md) completed
 20 raw uploads per node, with 40 RX/40 TX, zero reported CAN errors/drops and

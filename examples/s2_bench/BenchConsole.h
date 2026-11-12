@@ -129,7 +129,7 @@ class BenchConsole {
      * that node's route session. @return False for an invalid node or a second attachment. */
     bool attachAxis(unsigned node, BenchAxis& axis) noexcept;
     /** @param node 1 or 2. @return Whether that node has a motion attachment. */
-    bool hasAxis(unsigned node) const noexcept { return node >= 1 && node <= 2 && axes_[node - 1]; }
+    bool hasAxis(unsigned node) const noexcept { return node >= 1 && node <= BENCH_NODES && axes_[node - 1]; }
     /** Take one input byte; the first byte of a line must be `@`.
      * @param byte Input byte. @param nowUs Supplied platform time.
      * @param bench The bench's activity, judged when the line ends.
@@ -217,7 +217,7 @@ class BenchConsole {
     // Motion: the route whose arming records are consumed, one attachment per node, the node the
     // console's motion routes act on, the last arming consumed and its line, scratch for armed().
     BenchRoute* route_ = nullptr;
-    BenchAxis* axes_[2] = {nullptr, nullptr};
+    BenchAxis* axes_[BENCH_NODES] = {};
     unsigned attached_ = 0;
     uint32_t consumedTrial_ = 0; // The last arming record looked at, whatever its outcome.
     uint32_t appliedTrial_ = 0;  // The last arming applied successfully, to the attached node.
@@ -225,8 +225,8 @@ class BenchConsole {
     struct StopBudget {
         bool named = false; // A successful move or velocity arming of this node gave them.
         uint32_t deadlineMs = 0, bestEffortMs = 0, intervalMs = 0;
-    } budgets_[2];
+    } budgets_[BENCH_NODES];
     RouteArming arming_;
-    uint32_t emcyBaseline_[2] = {0, 0};
+    uint32_t emcyBaseline_[BENCH_NODES] = {};
 };
 } // namespace MotorControlCANExample

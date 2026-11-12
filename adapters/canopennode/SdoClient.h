@@ -4,6 +4,7 @@
  */
 #pragma once
 #include <MotorControlCAN/canopen/SdoTransfer.h>
+#include "Capacity.h"
 #include "NetworkState.h"
 #include "Nmt.h"
 #include "PdoState.h"
@@ -32,7 +33,7 @@ struct SdoDrainPremises {
     bool orderedServer = false; ///< The server answers one request at a time and in order (Q18).
 };
 /** Bounded optional stack adapter extracted from the prompt-6 channel storage.
- * Two physical channels, each with one active/retained request, one 32-byte
+ * CHANNELS physical channels (Capacity.h, default two), each with one active/retained request, one 32-byte
  * upstream FIFO, owned 32-byte upload and retirable software TX staging.
  * One cooperative application context dispatches every frame on this interface.
  * No controller I/O, heap, clock reads, automatic retries, ISR use or reentrancy.
@@ -46,10 +47,13 @@ struct SdoDrainPremises {
  */
 class SdoClient {
 public:
-    /** Fixed storage capacities, independent of the number of network nodes or PDOs. */
-    enum { CHANNELS = 2, ///< Channels on this physical interface.
+    /** Fixed storage capacities, independent of the number of network nodes or PDOs.
+     * CHANNELS and PDO_ROUTES come from the application's capacity set (Capacity.h); the whole
+     * application is compiled with one set. NETWORK_HISTORY is a fixed diagnostic bound.
+     */
+    enum { CHANNELS = AdapterCapacity::SDO_CHANNELS, ///< Channels on this physical interface, slots 0..CHANNELS-1.
            NETWORK_HISTORY = 4, ///< Copied passive/unknown frame records; overflow drops newest.
-           PDO_ROUTES = 8 ///< Permanently bound PDO wire routes on this interface; distinct from profile set count.
+           PDO_ROUTES = AdapterCapacity::PDO_ROUTES ///< Permanently bound PDO wire routes on this interface; distinct from profile set count.
     };
     SdoClient() = default; ///< Initializes storage without configuring or transmitting a route.
     SdoClient(const SdoClient&) = delete; ///< Callback addresses and owner identities cannot be copied.

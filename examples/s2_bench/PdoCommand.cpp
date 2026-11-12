@@ -26,7 +26,7 @@ bool comma(const char*& text, const char* end) noexcept {
 }
 bool node(const char*& text, const char* end, uint8_t& output) noexcept {
     uint32_t value = 0;
-    if (!number(text, end, value) || value < 1 || value > 2)
+    if (!number(text, end, value) || value < 1 || value > BENCH_NODES)
         return false;
     output = uint8_t(value);
     return true;
@@ -114,7 +114,7 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
             return false;
         ++text;
         if (!comma(text, end) || !number(text, end, result.seconds) || result.seconds < 1 ||
-            result.seconds > 60 || !comma(text, end) || !number(text, end, value) || value > 2)
+            result.seconds > 60 || !comma(text, end) || !number(text, end, value) || value > BENCH_NODES)
             return false;
         result.select = uint8_t(value);
         if (!comma(text, end) || !number(text, end, value) || value > 1 ||

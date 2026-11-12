@@ -169,7 +169,7 @@ def check_package(args, work, summary):
         "reads": ("examples/reads_preview", ["main.cpp"]),
         "pdo": ("examples/pdo_configuration_preview", ["main.cpp"]),
         "action": ("examples/action_preview", ["main.cpp"]),
-        "adapter": ("adapters/canopennode", ["SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
+        "adapter": ("adapters/canopennode", ["Capacity.h", "SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
                      "Nmt.h", "Nmt.cpp", "PdoState.h", "Pdo.cpp", "CO_driver_target.h", "Driver.cpp"]),
     }
     for destination, (relative, names) in copied.items():

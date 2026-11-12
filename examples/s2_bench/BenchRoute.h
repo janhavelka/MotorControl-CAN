@@ -221,10 +221,13 @@
  * the same channel is still refused, which fails closed.
  */
 #pragma once
+#include "BenchNodes.h"
 #include "FirmwareProbe.h"
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCANExample {
+static_assert(unsigned(BENCH_NODES) <= unsigned(MotorControlCAN::CANOPEN::SdoClient::CHANNELS),
+              "The bench needs one SDO channel per fixture node: MOTORCONTROLCAN_SDO_CHANNELS >= BENCH_NODES");
 /** Fixed route selection; not an object selector. */
 enum class RouteKind : uint8_t {
     NONE,         ///< Unparsed or empty plan; refused.
@@ -264,7 +267,7 @@ enum class RouteKind : uint8_t {
  * policy and the documentary native ranges, never a drive timing or safety claim. */
 struct RoutePlan {
     RouteKind kind = RouteKind::NONE; ///< Selected route.
-    uint8_t node = 0;                 ///< Node 1 or 2, adapter slot node - 1.
+    uint8_t node = 0;                 ///< Node 1..BENCH_NODES, adapter slot node - 1.
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
     /** ENABLE: the host's record, 1 EnableStart::NO_MOTION_WRITE_RECORDED or 2
@@ -673,14 +676,14 @@ struct RouteRecord {
      * read at the new epoch. */
     bool configurationFollowed = false;
     /** Raw group values, 0 the prior read and 1 the matched readback; present only when published. */
-    bool groupPresent[2] = {false, false};
-    uint16_t limitSelector[2] = {0, 0}; ///< SETTINGS_2202: 2202.
-    uint16_t limitEntries[2] = {0, 0};  ///< SETTINGS_2202: 607D:00, raw as read (two bytes, MEASURED_U16).
-    int32_t limitMinimum[2] = {0, 0};   ///< SETTINGS_2202: 607D:01.
-    int32_t limitMaximum[2] = {0, 0};   ///< SETTINGS_2202: 607D:02.
-    uint16_t ioEntries[2] = {0, 0};     ///< IO_DI3: 2400:00.
-    uint16_t ioPolarity[2] = {0, 0};    ///< IO_DI3: 2400:01, every bit.
-    uint16_t ioFunctions[2][7] = {};    ///< IO_DI3: 2400:02..08, DI0..6 raw.
+    bool groupPresent[BENCH_NODES] = {};
+    uint16_t limitSelector[BENCH_NODES] = {}; ///< SETTINGS_2202: 2202.
+    uint16_t limitEntries[BENCH_NODES] = {};  ///< SETTINGS_2202: 607D:00, raw as read (two bytes, MEASURED_U16).
+    int32_t limitMinimum[BENCH_NODES] = {};   ///< SETTINGS_2202: 607D:01.
+    int32_t limitMaximum[BENCH_NODES] = {};   ///< SETTINGS_2202: 607D:02.
+    uint16_t ioEntries[BENCH_NODES] = {};     ///< IO_DI3: 2400:00.
+    uint16_t ioPolarity[BENCH_NODES] = {};    ///< IO_DI3: 2400:01, every bit.
+    uint16_t ioFunctions[BENCH_NODES][7] = {};    ///< IO_DI3: 2400:02..08, DI0..6 raw.
     /** IO_DI3: one fresh MONITORS and INPUTS read after the readback; the next two fields hold it. */
     bool inputsPresent = false;
     uint16_t logicalInputs = 0; ///< 2101 raw.
@@ -701,7 +704,7 @@ struct RouteRecord {
     RouteSnapshot observerCheck;       ///< The observer's check read.
     RouteSnapshot observerLast;        ///< Its latest complete cycle.
     /** Copied RX frames per node, 1 and 2, and those the owner's dispatch did not accept. */
-    uint16_t nodeRx[2] = {0, 0}, nodeUnmatched[2] = {0, 0};
+    uint16_t nodeRx[BENCH_NODES] = {}, nodeUnmatched[BENCH_NODES] = {};
     /** The owner's whole-interface counters at admission and at the terminal: rxDropped,
      * unmatchedFrames and rxLost. A dropped frame has no node. */
     uint32_t droppedBefore = 0, droppedAfter = 0, unmatchedBefore = 0, unmatchedAfter = 0;
@@ -798,7 +801,7 @@ class BenchRoute {
     bool workAttached() const noexcept { return work_ != nullptr; }
     /** @param node Node 1 or 2. @return Whether that node has a session attached. */
     bool attached(unsigned node) const noexcept {
-        return node >= 1 && node <= 2 && sessions_[node - 1] != nullptr;
+        return node >= 1 && node <= BENCH_NODES && sessions_[node - 1] != nullptr;
     }
     /** @param node Node 1 or 2. @return The attached session, or null. */
     const AxisSession* session(unsigned node) const noexcept {
@@ -917,7 +920,7 @@ class BenchRoute {
     FirmwareProbe& firmware_;
     MotorControlCAN::CANOPEN::SdoClient& services_;
     RouteCallbacks callbacks_;
-    AxisSession* sessions_[2] = {nullptr, nullptr};
+    AxisSession* sessions_[BENCH_NODES] = {};
     const Step* steps_ = nullptr;
     // Scratch and work outside RouteRecord: too large for the task stack.
     MotorControlCAN::LICHUAN_C::DriverContext context_;
@@ -928,8 +931,8 @@ class BenchRoute {
     // and relative witness, which the session borrows until that node's move is terminal. Written only
     // while that node's move is idle.
     MotorControlCAN::LICHUAN_C::IdentityObservation identity_;
-    MotorControlCAN::AxisConfig moveAxes_[2];
-    MotorControlCAN::AxisReference moveReferences_[2];
+    MotorControlCAN::AxisConfig moveAxes_[BENCH_NODES];
+    MotorControlCAN::AxisReference moveReferences_[BENCH_NODES];
     // requestMove's other inputs, borrowed for that call only; kept here, off the owner task's stack.
     MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;
     MotorControlCAN::MoveRequest moveRequest_;
@@ -941,19 +944,19 @@ class BenchRoute {
     uint32_t writeOperation_ = 0, overwritten_ = 0, rxLost_ = 0;
     // Each node's latest acknowledged POSITION or RELATIVE trigger, 001F or 005F, and the 010F of a
     // finished POSITION's planned HALT: the only words a REARM may follow.
-    uint32_t triggerOperation_[2] = {0, 0}, haltOperation_[2] = {0, 0};
-    uint64_t triggerUs_[2] = {0, 0}, haltUs_[2] = {0, 0};
+    uint32_t triggerOperation_[BENCH_NODES] = {}, haltOperation_[BENCH_NODES] = {};
+    uint64_t triggerUs_[BENCH_NODES] = {}, haltUs_[BENCH_NODES] = {};
     // The acknowledged word write of the active route, for WORD67's 0007 to follow its own 0006.
     uint32_t writtenOperation_ = 0;
     uint64_t writtenUs_ = 0;
     // Earliest bound of the latest fresh read's 6064 and 606C: a relative witness's observation time.
     uint64_t feedbackUs_ = 0;
     // Each node's latest acknowledged 607A download of this object, for TRIAL_BASE; never authority.
-    int32_t commanded_[2] = {0, 0};
-    uint32_t commandedTrial_[2] = {0, 0}, commandedEpoch_[2] = {0, 0};
-    bool commandedKnown_[2] = {false, false}, commandedRelative_[2] = {false, false};
+    int32_t commanded_[BENCH_NODES] = {};
+    uint32_t commandedTrial_[BENCH_NODES] = {}, commandedEpoch_[BENCH_NODES] = {};
+    bool commandedKnown_[BENCH_NODES] = {}, commandedRelative_[BENCH_NODES] = {};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::HOME) + 1][2] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::HOME) + 1][BENCH_NODES] = {};
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;
     RoutePlan armedPlan_;
@@ -961,7 +964,7 @@ class BenchRoute {
     uint64_t armedFeedbackUs_ = 0;
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET)
     // and node.
-    uint8_t settingsCases_[4][2] = {};
+    uint8_t settingsCases_[4][BENCH_NODES] = {};
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
@@ -977,9 +980,9 @@ class BenchRoute {
     /// MOVE: the planned stop was asked for, whatever its path. VELOCITY: the route's own fallback
     /// QUICK_STOP after a run that ended needing a stop with none sent (backlog S16).
     bool stopAttempted_ = false;
-    bool modeAdmitted_[2] = {false, false};
+    bool modeAdmitted_[BENCH_NODES] = {};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
-    uint32_t emcyBaseline_[2] = {0, 0}; ///< Each node's emcyCount when this route last handled it.
+    uint32_t emcyBaseline_[BENCH_NODES] = {}; ///< Each node's emcyCount when this route last handled it.
     const char* endWhy_ = "none";
 
     bool continueOperations(AxisSession& session, uint8_t slot, uint64_t nowUs) noexcept;

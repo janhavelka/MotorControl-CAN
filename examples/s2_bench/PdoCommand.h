@@ -7,6 +7,7 @@
  * for one bounded local action; it admits nothing and establishes no device fact.
  */
 #pragma once
+#include "BenchNodes.h"
 #include <stddef.h>
 #include <stdint.h>
 

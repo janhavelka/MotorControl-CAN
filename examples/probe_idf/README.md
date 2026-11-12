@@ -58,6 +58,13 @@ The OPTAK_FGI_2025 S2 board configuration is
 GPIO18 at level 1, 1 Mbit/s, RX depth 16. A configured image boots `INACTIVE`:
 silence requested, controller closed, until an explicit `FirmwareProbe::start`.
 
+The number of SDO channels, and with it the owner's reservations and the application's
+sessions, is the image's capacity set: `CONFIG_MOTORCONTROLCAN_SDO_CHANNELS` (default 2)
+and the other integers of the `MotorControl-CAN adapter capacity` menu, which
+`main/Kconfig.projbuild` sources from `adapters/canopennode/Kconfig.capacity`.
+`main/CMakeLists.txt` applies them to the whole `main` component. See the
+[capacity set](../../docs/can_owner.md#capacity-set) for ranges and limits.
+
 ## Shared-image smoke check (test-only)
 
 [`sdkconfig.optak_s2_smoke`](sdkconfig.optak_s2_smoke) adds the test-only

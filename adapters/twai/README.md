@@ -40,7 +40,7 @@ identifiers/DLC and unsupported frame metadata before SDK admission.
 
 | Storage | Bound and owner |
 | --- | --- |
-| Adapter TX slots | Two total, including waiting, SDK active and retained reports |
+| Adapter TX slots | `TX_CAPACITY` = SDO channels + 1 (three with the default [capacity set](../../docs/can_owner.md#capacity-set)), including waiting, SDK active and retained reports: the most the owner can have outstanding |
 | Active SDK TX | At most one of those slots; immutable owned frame and payload |
 | ISR RX ring | Sixteen entries of storage; active application-selected depth 1..16 |
 | TX completion mailbox | One copied result awaiting cooperative consumption |

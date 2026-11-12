@@ -356,7 +356,7 @@ class ProbeApp {
     HostInterfaceFacts hostInterface_;
     HostWiringUse hostWiring_[10] = {};
     bool hostAxisConfigured_ = false;
-    AxisSession* axes_[2] = {nullptr, nullptr};
+    AxisSession* axes_[CanBusOwner::SEQUENCES] = {}; // One open session per reservation.
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
     MotorControlCAN::LICHUAN_C::DriverContext driverRead_;
     SequenceId sequence_;

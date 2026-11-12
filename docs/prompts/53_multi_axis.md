@@ -78,6 +78,21 @@ the capacity study inventories, and the ESP-IDF PSRAM placement documentation it
    latent `CanBusOwner.h` `active_{-1, -1}` initialiser, which is wrong for any channel count but two. Build and test
    with N = 1, 2, 8 and 32, measure the owner's turn cost at N = 32, and state the host TX limit: the TWAI adapter sends
    at most one frame per service turn, so stopping N axes needs at least N turns.
+   **Delivered early on 2026-11-12 at the user's request** ("Relax the limitation on axis in the can adapter and
+   example"): `adapters/canopennode/Capacity.h` with the five macros, CMake cache variables, the shared IDF
+   `Kconfig.capacity`, PlatformIO `build_flags`, the `CapacityLinkTag` link check, the `active_` fix, `BENCH_NODES`,
+   and the `capacity`, `capacity_n1`, `capacity_n8`, `capacity_n32` and `capacity_mismatch` tests (see the
+   [owner guide](../can_owner.md) and CHANGELOG). Decisions: a configuration header, not RS `BusStorage` spans
+   (spans stay the upgrade path for per-interface capacities or split placement); the definitions are PUBLIC on
+   `MotorControlCANCanopenNode`; discovery targets are at most 28 (nine services per target in an 8-bit budget).
+   Still owed here: (a) the owner turn cost grows faster than N (host, every slot queued: 0.5 us at N = 2, 4.7 us at
+   8, 183 us at 32); about 95 % is the expiry scan that `CanBusOwner::transmit` repeats for every channel. A
+   candidate (return before `expire` when the channel has no staged frame) brings N = 32 to about 15 to 19 us with
+   every native test unchanged, but it can delay an expiry or invalidation by one turn, so it needs a review of
+   expiry ordering before it is applied, then a board `maxServiceGapUs` measurement; (b) eight existing native tests
+   hard-code the default capacity and fail when the whole suite is built with another N (`twai_adapter`,
+   `discovery_bench`, `can_bus_owner`, `can_bus_recovery`, `can_bus_health`, `axis_session`, `network_events`,
+   `discovery_scan`); decide whether they derive their counts from the constants or stay default-only.
 2. Storage placement: the application owns the storage objects, so an S3 application can put cold, bulky storage in
    PSRAM by allocating it once at startup (`heap_caps_aligned_alloc(..., MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)`) with an
    internal-RAM fallback; `EXT_RAM_BSS_ATTR` needs `CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY`, makes PSRAM mandatory to

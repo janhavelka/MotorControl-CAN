@@ -26,7 +26,11 @@ uint64_t cutoff(uint64_t now, uint64_t deadline, uint32_t interval) {
 CanBusOwner::CanBusOwner(C::SdoClient& services, const Transport& transport, uint32_t identity,
                          uint32_t lastIssued, uint32_t controllerEpoch) noexcept
     : services_(services), transport_(transport), identity_(identity), lastId_(lastIssued),
-      controllerEpoch_(controllerEpoch), inhibited_(!controllerEpoch) {}
+      controllerEpoch_(controllerEpoch), inhibited_(!controllerEpoch) {
+    // Every channel starts idle, whatever the channel count: zero would mean slot 0 is active.
+    for (int& index : active_)
+        index = -1;
+}
 bool CanBusOwner::valid(SequenceId id) const noexcept {
     return id.owner == this && id.slot < SEQUENCES && id.generation &&
            sequences_[id.slot].occupied && sequences_[id.slot].generation == id.generation;

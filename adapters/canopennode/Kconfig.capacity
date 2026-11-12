@@ -1,0 +1,36 @@
+# Capacity set of the adapters and examples (Capacity.h) for one ESP-IDF application. Each
+# application's Kconfig.projbuild sources this file with rsource, and its component that compiles the
+# adapter and example sources applies the values with motorcontrolcan_capacity_definitions
+# (capacity.cmake). Zero selects the value Capacity.h derives from the channel count.
+menu "MotorControl-CAN adapter capacity"
+config MOTORCONTROLCAN_SDO_CHANNELS
+    int "SDO channels (drive axis routes) on the CAN interface"
+    default 2
+    range 1 125
+    help
+        One channel per axis route. Sizes the SDO store, the owner's reservations and urgent
+        slots, the TWAI TX slots and the application's sessions. A storage count only: the TWAI
+        adapter submits one frame per service turn, so stopping N axes needs at least N turns,
+        and owner CPU per turn and bus time limit how many axes are served at a given rate.
+config MOTORCONTROLCAN_OWNER_REQUESTS
+    int "Ordinary owner request slots (0: channels + 4, at least 6)"
+    default 0
+    range 0 250
+    help
+        Shared queued, active and unread ordinary requests. Channels plus requests must not
+        exceed 255; Capacity.h refuses other values at compile time.
+config MOTORCONTROLCAN_OWNER_PRODUCERS
+    int "Owner fairness producers (0: channels + 2, at least 4)"
+    default 0
+    range 0 255
+config MOTORCONTROLCAN_PDO_ROUTES
+    int "Bound PDO wire routes on the CAN interface"
+    default 8
+    range 1 255
+config MOTORCONTROLCAN_DISCOVERY_TARGETS
+    int "Targets of one discovery plan (0: channels, at most 2)"
+    default 0
+    range 0 28
+    help
+        Larger scans run as several plans. At most the channel count.
+endmenu

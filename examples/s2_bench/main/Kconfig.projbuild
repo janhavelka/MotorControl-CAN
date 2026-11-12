@@ -1,0 +1,4 @@
+menu "MotorControl-CAN S2 bench"
+# The bench fixture keeps BENCH_NODES (BenchNodes.h) drives; more channels compile it unchanged.
+rsource "../../../adapters/canopennode/Kconfig.capacity"
+endmenu

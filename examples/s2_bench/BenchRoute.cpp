@@ -159,7 +159,7 @@ struct Range {
         uint16_t(offsetof(RoutePlan, member)),                                                      \
             uint8_t(sizeof(static_cast<RoutePlan*>(nullptr)->member)), range.low, range.high        \
     }
-constexpr Range NODE = {1, 2}, TRIAL = {1, UINT32_MAX}, FLAG = {0, 1}, SIGNED32 = {INT32_MIN, INT32_MAX};
+constexpr Range NODE = {1, BENCH_NODES}, TRIAL = {1, UINT32_MAX}, FLAG = {0, 1}, SIGNED32 = {INT32_MIN, INT32_MAX};
 constexpr Range ACTION_MS = {1, 55000}, OPTIONAL_MS = {0, 55000}, ACTION_INTERVAL = {10, 10000};
 constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_MAX}, SOURCE = {1, 2};
 constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
@@ -168,7 +168,7 @@ constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = 
 constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 2}, SHAFT = {1, 2}, KIND = {1, 2};
 constexpr Range WORD_CYCLES = {1, 4}, PREDECESSOR = {1, 3}, RELATIVE_BASE = {0, 2};
 // 2202 codes 0 and 1 only (EN86/ZH86 p18); the EDS default 10 is not a documented code. DI3 cases 1..4.
-constexpr Range LIMIT_CODE = {0, 1}, DI3_CASE = {1, 4}, OBSERVER = {0, 2};
+constexpr Range LIMIT_CODE = {0, 1}, DI3_CASE = {1, 4}, OBSERVER = {0, BENCH_NODES};
 // Documentary native ranges (EN86/ZH86 p11). A move admits what prepareMoveAbsolute does (Q11).
 constexpr Range RPM = {0, 3000}, RAMP_MS = {0, 2000}, MOVE_RPM = {1, 3000}, MOVE_RAMP_MS = {1, 2000};
 // VELOCITY's StatusLayout numbers, 1 EN86 to 4 OP86 (routePlanValid refuses 3, ZH57). HOME's Lichuan
@@ -714,7 +714,7 @@ bool BenchRoute::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
                            uint64_t now) noexcept {
     // Positive ownership precedes the session's permissive preflight. An unrelated producer
     // cannot borrow a session's default acceptance to send an unnotified settings write.
-    for (unsigned slot = 0; slot < 2; ++slot) {
+    for (unsigned slot = 0; slot < BENCH_NODES; ++slot) {
         AxisSession* session = sessions_[slot];
         if (!session || !session->ownsDownload(sequence, transfer))
             continue;
@@ -749,7 +749,7 @@ bool BenchRoute::unhandledFault(uint8_t slot) const noexcept {
            (node->emcyCount != emcyBaseline_[slot] + 1 || node->emcy.errorCode != 0);
 }
 void BenchRoute::noteEmcyHandled() noexcept {
-    for (uint8_t slot = 0; slot < 2; ++slot)
+    for (uint8_t slot = 0; slot < BENCH_NODES; ++slot)
         if (const C::NodeSnapshot* node = services_.node(slot))
             emcyBaseline_[slot] = node->emcyCount;
 }
@@ -768,7 +768,7 @@ bool BenchRoute::noteSettings(SequenceId sequence, const C::SdoTransfer& transfe
     return L::noteDriverTransmission(tx, work_->live, work_->binding, now).isOk();
 }
 bool BenchRoute::attach(unsigned node, AxisSession& session) noexcept {
-    if (node < 1 || node > 2 || sessions_[node - 1] || session.isOpen())
+    if (node < 1 || node > BENCH_NODES || sessions_[node - 1] || session.isOpen())
         return false;
     sessions_[node - 1] = &session;
     return true;
@@ -1194,7 +1194,7 @@ void BenchRoute::copyTraffic(const Diagnostic& in, bool tail) noexcept {
     // their node in the low seven bits.
     const unsigned from = in.frame.id & 0x7fu;
     if (!tail && in.kind == DiagnosticKind::RX && !in.frame.extended && in.frame.id >= 0x80 && in.frame.id < 0x780 &&
-        from >= 1 && from <= 2) {
+        from >= 1 && from <= BENCH_NODES) {
         ++record_.nodeRx[from - 1];
         record_.nodeUnmatched[from - 1] = uint16_t(record_.nodeUnmatched[from - 1] + !in.accepted);
     }
@@ -1482,7 +1482,7 @@ const char* BenchRoute::closeSessions(uint8_t& closed) noexcept {
     if (firmware_.app().readContext().state != M::ReadState::EMPTY || firmware_.app().pendingRequest().owner)
         return "state";
     // Every check before the first close, so that a refusal closes nothing.
-    for (uint8_t slot = 0; slot < 2; ++slot) {
+    for (uint8_t slot = 0; slot < BENCH_NODES; ++slot) {
         const AxisSession* s = sessions_[slot];
         if (!s || !s->isOpen())
             continue;
@@ -1491,7 +1491,7 @@ const char* BenchRoute::closeSessions(uint8_t& closed) noexcept {
         if (configurationOwed(*s))
             return "configuration";
     }
-    for (uint8_t slot = 0; slot < 2; ++slot) {
+    for (uint8_t slot = 0; slot < BENCH_NODES; ++slot) {
         AxisSession* s = sessions_[slot];
         if (!s || !s->isOpen())
             continue;
@@ -1523,7 +1523,7 @@ bool BenchRoute::armed(RouteArming& output) const noexcept {
 }
 // The console's motion counts as a route of the same kind: begin's caps, nothing else.
 bool BenchRoute::consoleMotionAllowed(unsigned node, RouteKind kind) const noexcept {
-    if (node < 1 || node > 2 || !isMotion(kind) || kind == RouteKind::STOP)
+    if (node < 1 || node > BENCH_NODES || !isMotion(kind) || kind == RouteKind::STOP)
         return false;
     const unsigned index = node - 1, stop = kind == RouteKind::VELOCITY ? 1 : 0;
     const unsigned stopCase = unsigned(RouteKind::STOP);
@@ -1532,7 +1532,7 @@ bool BenchRoute::consoleMotionAllowed(unsigned node, RouteKind kind) const noexc
            motionCases_[stopCase][index] + stop <= ROUTE_MOTION_PER_CASE;
 }
 void BenchRoute::countConsoleMotion(unsigned node, RouteKind kind) noexcept {
-    if (node < 1 || node > 2 || !isMotion(kind))
+    if (node < 1 || node > BENCH_NODES || !isMotion(kind))
         return;
     const auto add = [](uint8_t& value) {
         if (value != UINT8_MAX)

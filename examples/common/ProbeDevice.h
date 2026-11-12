@@ -56,7 +56,8 @@ class ProbeDevice {
     const MotorControlCAN::CANOPEN::PdoRecord* pdo(uint8_t slot) const noexcept;
     /** Start a finite scan over explicitly supplied existing slots at the current bitrate.
      * @param mode Passive, probe or identity. @param slots Borrowed slot list.
-     * @param count 1..CHANNELS. @param nowUs Supplied us. @param deadlineUs Immutable cutoff.
+     * @param count 1..DiscoveryPlan::CAPACITY; scan more slots in further plans. @param nowUs Supplied us.
+     * @param deadlineUs Immutable cutoff.
      * @param options Explicit upload timing/width policy.
      * @return Local status; copies plan before progression, no immediate traffic.
      */

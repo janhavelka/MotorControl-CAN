@@ -125,6 +125,13 @@ bool ensureRoute(C::SdoClient& services, unsigned node, bool& configured, uint64
     configured = true;
     return true;
 }
+// Every fixture node's route, in node order, as each command configures its node on first use.
+bool ensureFixtureRoutes(C::SdoClient& services, bool (&configured)[E::BENCH_NODES], uint64_t now) {
+    for (unsigned node = 1; node <= E::BENCH_NODES; ++node)
+        if (!ensureRoute(services, node, configured[node - 1], now))
+            return false;
+    return true;
+}
 bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence* raw, bool rawPlan,
               unsigned node, bool& configured, uint32_t id, uint64_t now, bool heartbeat = false,
               bool motionReadiness = false, const E::PdoCommand* pdoCommand = nullptr,
@@ -575,13 +582,12 @@ E::Soak* soakStorage(E::FirmwareProbe& firmware, C::SdoClient& services, E::Soak
     return soak;
 }
 const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::SoakTwaiTap& tap,
-                      E::IdfTwaiDriver& driver, E::Soak*& soak, bool configured[2], const char* text, size_t size,
+                      E::IdfTwaiDriver& driver, E::Soak*& soak, bool (&configured)[E::BENCH_NODES], const char* text, size_t size,
                       uint64_t now) {
     E::SoakPlan plan;
     if (!E::parseSoakCommand(text, size, plan))
         return "parse";
-    if (!ensureRoute(services, 1, configured[0], now) ||
-        !ensureRoute(services, 2, configured[1], now))
+    if (!ensureFixtureRoutes(services, configured, now))
         return "route";
     soak = soakStorage(firmware, services, tap, driver);
     if (!soak)
@@ -654,6 +660,9 @@ const size_t ARENA_ALIGN =
            alignof(E::HeartbeatCommission));
 // Bit order of BenchMemory::granted and HEAP reserved=: route, session 1, session 2, arena, work.
 enum { RESERVE_ROUTE, RESERVE_SESSION1, RESERVE_SESSION2, RESERVE_ARENA, RESERVE_WORK, RESERVE_COUNT };
+// One session block per fixture node, node n at RESERVE_SESSION1 + n - 1.
+static_assert(int(RESERVE_SESSION1) + int(E::BENCH_NODES) == int(RESERVE_ARENA),
+              "One reserved session block per fixture node");
 struct BenchMemory {
     E::BenchBlock blocks[RESERVE_COUNT];
     uint32_t granted = 0;
@@ -761,11 +770,11 @@ E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services, 
     return route;
 }
 // Each node's session as placed, for that node's console motion attachment (BenchConsole.h).
-E::AxisSession* placedSessions[2] = {nullptr, nullptr};
+E::AxisSession* placedSessions[E::BENCH_NODES] = {};
 bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned node) {
     if (route.attached(node))
         return true;
-    void* memory = benchBlock(node == 1 ? RESERVE_SESSION1 : RESERVE_SESSION2, alignof(E::AxisSession),
+    void* memory = benchBlock(RESERVE_SESSION1 + (node - 1), alignof(E::AxisSession),
                               sizeof(E::AxisSession));
     if (!memory)
         return false;
@@ -798,7 +807,7 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
     return (memory && route.attachWork(*new (memory) E::RouteWork())) || !needed;
 }
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
-                       E::BenchRoute*& route, E::BenchConsole* console, bool configured[2], const char* text,
+                       E::BenchRoute*& route, E::BenchConsole* console, bool (&configured)[E::BENCH_NODES], const char* text,
                        size_t size, uint64_t now) {
     // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
     size_t body = 0;
@@ -816,6 +825,7 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
     route = routeStorage(firmware, services, driver);
     // Both nodes' sessions on the first route, from their reservations: a later two-node route or
     // observed move never depends on what else the heap has given away meanwhile.
+    static_assert(E::BENCH_NODES == 2, "3 - node is the other node of the two-node fixture");
     if (route && !route->attached(3 - plan.node))
         sessionStorage(firmware, *route, 3 - plan.node);
     if (!route || !sessionStorage(firmware, *route, plan.node) ||
@@ -930,8 +940,8 @@ void ownerTask(void*) {
     }
     line(firmware, "S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw "
                    "v/b=motion-reads S=soak X=soak-stop T=trial A=trial-abort\n");
-    bool attempted = false, configured[2] = {}, used[2] = {}, heartbeatUsed[2] = {},
-         readinessUsed[2] = {}, dumping = false, reported = false;
+    bool attempted = false, configured[E::BENCH_NODES] = {}, used[E::BENCH_NODES] = {},
+         heartbeatUsed[E::BENCH_NODES] = {}, readinessUsed[E::BENCH_NODES] = {}, dumping = false, reported = false;
     C::NmtRequestId nmtRequest;
     // Admission time of the retained NMT request. A frame received between it and the TX completion
     // may precede or follow the NMT frame on the wire; the result line prints both.
@@ -940,7 +950,8 @@ void ownerTask(void*) {
     bool pdoUsed = false;
     unsigned networkCursor = 0;
     bool controllerReady = false;
-    uint32_t acquisition = 0, grants[2] = {}, grantedOperation[2] = {}, grantedStep[2] = {};
+    uint32_t acquisition = 0, grants[E::BENCH_NODES] = {}, grantedOperation[E::BENCH_NODES] = {},
+             grantedStep[E::BENCH_NODES] = {};
     unsigned dumpCursor = 0;
     E::Soak* soak = nullptr;
     E::PdoWatch* watch = nullptr;
@@ -952,7 +963,9 @@ void ownerTask(void*) {
     bool pdoCollecting = false;
     uint64_t pdoCollectUs = 0;
     // PDO record, write and E-line grants follow every fixed experiment's grants on the slot.
-    uint32_t pdoGrant[2] = {10000, 10000};
+    uint32_t pdoGrant[E::BENCH_NODES];
+    for (uint32_t& grant : pdoGrant)
+        grant = 10000;
     // The soak request is the one multi-byte command: `S` then text up to a line end.
     char soakText[40] = {};
     size_t soakLength = 0;
@@ -1032,7 +1045,7 @@ void ownerTask(void*) {
                 L::PreparedRead next;
                 if (L::nextRead(read, now, next) && next.ready) {
                     const unsigned slot = read.target.channel.binding.endpoint.address - 1;
-                    if (slot < 2 && next.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED &&
+                    if (slot < E::BENCH_NODES && next.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED &&
                         (next.transfer.operation != grantedOperation[slot] ||
                          next.transfer.step != grantedStep[slot])) {
                         if (grants[slot] == UINT32_MAX ||
@@ -1409,8 +1422,7 @@ void ownerTask(void*) {
                             !record && !rawRecord && !pdoRecord && acquisition != UINT32_MAX &&
                             firmware.platform().nowUs(now)) {
                             refusal = "route";
-                            if (ensureRoute(services, 1, configured[0], now) &&
-                                ensureRoute(services, 2, configured[1], now)) {
+                            if (ensureFixtureRoutes(services, configured, now)) {
                                 discovery = arena.acquire<E::DiscoveryBench>(
                                     ARENA_DISCOVERY, arenaIdle, firmware.app(), firmware.owner(),
                                     services);
@@ -1689,8 +1701,7 @@ void ownerTask(void*) {
                 const char* refusal = "state";
                 if (controllerReady && firmware.platform().nowUs(now)) {
                     refusal = "route";
-                    if (ensureRoute(services, 1, configured[0], now) &&
-                        ensureRoute(services, 2, configured[1], now)) {
+                    if (ensureFixtureRoutes(services, configured, now)) {
                         if (!commands)
                             commands = consoleStorage(firmware, services);
                         refusal = !commands                       ? "memory"
