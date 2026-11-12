@@ -142,7 +142,7 @@ resolve the above facts by themselves.
 
 The user wants, in future: changes of velocity, ramps and targets during motion; several drives operating at
 once, including a SYNC attempt even though the Lichuan sources do not document it; and the S2 memory needed for
-both. These are wanted features with their evidence gates, not delivered behavior. Details and sources:
+both. These are wanted features with their evidence gates, not delivered behavior. Prompts [51](prompts/51_sync_producer.md) (SYNC master), [52](prompts/52_motion_changes.md) (changes during motion), [53](prompts/53_multi_axis.md) (multi-axis, capacity, group stop) and [54](prompts/54_hardware_sync_multiaxis.md) (their hardware qualification) own them. The user's standing wishes, 2026-11-12: the MCU is the SYNC master on usual classic CAN; test changes with motion already in place, including replacing the whole target, not only bit 5 parameter updates; the library should allow everything such drives can offer as openly as possible (typed where documented, an explicit recorded experiment scope where not); capacity as large as the MCU allows, optionally in PSRAM. Details and sources:
 [on-the-fly changes](reports/2026-11-12_on_the_fly_changes.md), [multi-drive preparation](reports/2026-11-12_multidrive_preparation.md),
 [S2 memory](reports/2026-11-12_s2_memory.md).
 
@@ -184,7 +184,7 @@ A drive can therefore at most consume SYNC; the host must produce it. Modes are 
 | M02 | Stop-all contract: separate per-axis stops, no NMT stop, group success only when every axis is observed stopped, no re-enable or replay | 45 | Host tests, then HM3 and HM4 |
 | M03 | Console: stop axis B while axis A's operation is retained; then per-axis attachments and stop slots | 42, 45 | Native console test |
 | M04 | Caller-sized owner and adapter storage (channels, sequences, requests, urgent slots) for more than two axes, after RS `BusStorage` | 45, 46 | Design review |
-| M05 | `AxisSession` shared operation storage (R03) without losing its fences | example code | `sizeof` and host tests |
+| M05 | `AxisSession` shared operation storage (B03) without losing its fences | example code | `sizeof` and host tests |
 | M06 | A distinct producer per session in `ProbeApp::openAxis` | example code | Host test |
 | M07 | Measure the skew of triggers sent to both drives in one owner turn | 48 | HM6 |
 | M08 | TPDO monitoring of several axes (PDO-aware soak, sample provenance) | 17, 18 | After S13, D11 and Q17 |
@@ -200,12 +200,12 @@ once: two `AxisSession`s 71504, `BenchRoute` 42896 (route record 37592), `Firmwa
 
 | ID | Wanted work | Owner | Saving and next step |
 | --- | --- | --- | --- |
-| R01 | IDF configuration: DCache 0 KB, FreeRTOS, heap, ringbuf and lock code to flash (optionally `-Os`, smaller `esp_timer` stack) | firmware examples | +31128 heap measured by linking (+34864 with `-Os`); one bench boot, `M`, short regression with service gaps |
-| R02 | One shared record arena for the mutually exclusive bench records (route, acquisition, raw/PDO, soak, capture) | s2_bench, examples/common | 42120 always, 60736 with soak or capture (computed); host tests |
-| R03 | One operation slot in `AxisSession` (enable, move, velocity, home and clear are already exclusive through `busy()`) | example code | 14688 per axis (computed) |
-| R04 | Owner trace entries without an embedded 264-byte completion; drop unused PDO routes | owner, adapters | About 4200, and 856 per route |
-| R05 | Core contract review: per-field binding copies and the duplicate payload in provenance | core, review | 3840 to 4800 and 1792 per axis; a contract change |
-| R06 | Axis count after savings: bench 2 today; lean application 4, 5 with R01, 8 (7 with PDO) with R01 and R03 | M04 | Raise the compile-time axis limits first |
+| B01 | IDF configuration: DCache 0 KB, FreeRTOS, heap, ringbuf and lock code to flash (optionally `-Os`, smaller `esp_timer` stack) | firmware examples | +31128 heap measured by linking (+34864 with `-Os`); one bench boot, `M`, short regression with service gaps |
+| B02 | One shared record arena for the mutually exclusive bench records (route, acquisition, raw/PDO, soak, capture) | s2_bench, examples/common | 42120 always, 60736 with soak or capture (computed); host tests |
+| B03 | One operation slot in `AxisSession` (enable, move, velocity, home and clear are already exclusive through `busy()`) | example code | 14688 per axis (computed) |
+| B04 | Owner trace entries without an embedded 264-byte completion; drop unused PDO routes | owner, adapters | About 4200, and 856 per route |
+| B05 | Core contract review: per-field binding copies and the duplicate payload in provenance | core, review | 3840 to 4800 and 1792 per axis; a contract change |
+| B06 | Axis count after savings: bench 2 today; lean application 4, 5 with R01, 8 (7 with PDO) with R01 and R03 | M04 | Raise the compile-time axis limits first |
 
 ## Tool and physical gates
 

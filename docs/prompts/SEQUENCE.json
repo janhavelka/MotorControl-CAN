@@ -667,6 +667,67 @@
         "19"
       ],
       "kind": "software"
+    },
+    {
+      "id": 51,
+      "file": "51_sync_producer.md",
+      "title": "Host SYNC producer and synchronous PDO operation",
+      "depends_on": [
+        17,
+        24,
+        38,
+        42
+      ],
+      "source_stages": [
+        "07"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 52,
+      "file": "52_motion_changes.md",
+      "title": "Changes of velocity, ramps and targets during motion",
+      "depends_on": [
+        29,
+        33,
+        35,
+        42
+      ],
+      "source_stages": [
+        "10",
+        "11"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 53,
+      "file": "53_multi_axis.md",
+      "title": "Multi-axis operation, configurable capacity and group stop",
+      "depends_on": [
+        42,
+        45,
+        51
+      ],
+      "source_stages": [
+        "12",
+        "17"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 54,
+      "file": "54_hardware_sync_multiaxis.md",
+      "title": "Hardware qualification of SYNC, motion changes and multi-axis operation",
+      "depends_on": [
+        48,
+        51,
+        52,
+        53
+      ],
+      "source_stages": [
+        "18"
+      ],
+      "kind": "qualification"
     }
   ]
 }

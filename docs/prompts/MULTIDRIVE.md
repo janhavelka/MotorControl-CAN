@@ -54,6 +54,10 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 48 | Related models, brake/stop/watchdog behavior and load limits need separate evidence; no family-wide extrapolation. |
 | 49 | Keep research, fixtures, implemented scope, firmware builds and hardware qualification in separate support columns. |
 | 50 | Final candidate claims only verified scope; additional profiles follow ADD_DRIVE with their own evidence and implementation. |
+| 51 | SYNC production and synchronous PDO semantics are per-profile facts; other protocols get no invented SYNC, and a profile without synchronous PDO support refuses the trigger. |
+| 52 | Change operations are per-profile capabilities with their own evidence; common requests carry exact units and refuse unsupported changes before admission. |
+| 53 | Axes are identified independently of node IDs, mix motor kinds and profiles under one owner per interface, and stop individually; capacity is an application choice, not a profile assumption. |
+| 54 | Qualify only the actual drives, firmware and configuration; another family's SYNC or multi-axis behavior is never inferred. |
 
 ## Required contrasting test cases
 

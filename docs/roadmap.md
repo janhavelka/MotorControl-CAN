@@ -2,7 +2,7 @@
 
 Wanted features (2026-11-12): changes of velocity, ramps and targets during motion, several drives at once
 (including an undocumented SYNC trial) and S2 memory savings are listed with their gates in the
-[backlog](backlog.md) items F01-F16, M01-M13 and R01-R06; none is delivered yet.
+[backlog](backlog.md) items F01-F16, M01-M13 and B01-B06; none is delivered yet.
 
 Prompt42 connects finite position/angle, velocity, homing and explicit actions to
 one shared console and the existing axis session. Independent retained stop results,
