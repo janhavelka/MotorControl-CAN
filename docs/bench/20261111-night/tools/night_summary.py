@@ -23,6 +23,11 @@ for r in rows:
     if r.get("kind") == "anomaly":
         anomalies.append(r)
         continue
+    if r.get("kind") == "console":
+        routes[(r["node"], "console-" + r["session"] + ("-ok" if r["rc"] == 0 else "-rc%d" % r["rc"]))] += 1
+        continue
+    if r.get("kind"):
+        continue
     series.add(r["series"])
     routes[(r["node"], r["route"])] += 1
     rcs[(r["route"].split("-")[0], r["rc"])] += 1

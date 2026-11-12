@@ -1,13 +1,13 @@
 {
-  "trial": 4278,
-  "series": 102,
+  "trial": 5150,
+  "series": 167,
   "rng": 20261111,
   "nodes": {
     "1": {
-      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111-night\\S0102-n1-Vq\\20261111T212422Z-velocity-quick-60-n1-4278",
+      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261111-night\\S0166-n1-Vq\\20261111T232637Z-velocity-quick-60-n1-5146",
       "retired": null,
-      "rot": 66,
-      "anomalies": 4,
+      "rot": 131,
+      "anomalies": 5,
       "mode": "01"
     },
     "2": {
@@ -20,7 +20,7 @@
         "6064": 18483,
         "6041": "1437"
       },
-      "watched": "2026-11-11T21:13:59+00:00"
+      "watched": "2026-11-11T23:24:21+00:00"
     }
   }
 }

@@ -1,5 +1,10 @@
 # Prompt execution progress
 
+The 2026-11-11 [unattended night soak](../reports/2026-11-12_night_soak.md) ran the prompt 40-42 console on
+hardware: shared-image local routes, burst and soak, the smoke identity reads, typed device routes and console
+moves/velocity on the bench image, plus 151 motion series. Bench fixes `cf6ec7c` (velocity `cancel` refused) and
+`e693f16`. Node 2 is left enabled and halted (backlog S20); this is drive-report evidence, not qualification.
+
 Prompt42 adds finite motion/actions to the shared console through actual typed
 preparations and one per-axis `ProbeMotion` / `AxisSession`. Stop intent, native
 components, uncertain motion and normal/fast terminal retention remain separate.
