@@ -73,6 +73,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | Maintained links and retained reference/ledger integrity | `python scripts/check_promptset.py` | Quick and full |
 | Native core, exact units/axis targets, Classical frames, checked SDO/network envelopes, selected-engine vectors, passive node/axis-cache lifecycle, offline previews, native consumers, ordinary application owner, retained ownership proof and multidrive contracts | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full; C++11, strict private warnings |
 | Python version/checker/planning regressions | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full |
+| Python console and pure evidence | `bench_console_contract`, `bench_console_adversarial`, `bench_probe_cli`, `bench_evidence`, `bench_console_native` | Quick/full; hostile split streams, offline serial-free CLI, fake live transport and the real native C++ console producer; no port opened |
 | Source, relocated install and exported-source consumers; missing dependency rejection | `test/package_test.py` / `package_contract` | Full; isolated paths, C++11 and C++17/no RTTI |
 | Doxygen output, API inventory and deliberate documentation failures | `doxygen Doxyfile`, verifier API check, `test/documentation_test.py` | Full; exact Doxygen 1.13.2 |
 | ASan/UBSan | `scripts/verify.py --mode full --sanitize` | Explicit full option; required in supported CI job |

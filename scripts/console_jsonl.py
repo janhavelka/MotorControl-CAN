@@ -9,6 +9,7 @@ uint32 integer id and a string command and type. Only an unsolicited debug trace
 """
 
 import json
+import math
 
 SCHEMA = "motorcontrolcan.console/1"
 PROTOCOL = 3
@@ -21,7 +22,8 @@ def unique_object(pairs):
     """Repeated keys make a record ambiguous even when json.loads accepts it."""
     result = {}
     for key, value in pairs:
-        assert key not in result, "duplicate JSON key: " + key
+        if key in result:
+            raise AssertionError("duplicate JSON key: " + key)
         result[key] = value
     return result
 
@@ -32,7 +34,13 @@ def reject_constant(value):
 
 def parse_record(line):
     """One record; AssertionError for a repeated key or a non-finite constant, ValueError otherwise."""
-    return json.loads(line, object_pairs_hook=unique_object, parse_constant=reject_constant)
+    def finite_float(text):
+        value = float(text)
+        if not math.isfinite(value):
+            reject_constant(text)
+        return value
+    return json.loads(line, object_pairs_hook=unique_object, parse_constant=reject_constant,
+                      parse_float=finite_float)
 
 
 def is_uint32(value, low=0):

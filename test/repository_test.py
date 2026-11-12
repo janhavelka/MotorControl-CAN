@@ -18,6 +18,9 @@ import check_repository as checker
 
 # Independent fixture inventory: deleting a checker rule must not weaken tests.
 FILES = {
+    "scripts/bench_probe.py", "scripts/_bench_evidence.py", "docs/runners.md",
+    "test/bench_console_test.py", "test/bench_console_adversarial_test.py",
+    "test/bench_probe_cli_test.py", "test/bench_evidence_test.py", "test/bench_console_native_test.py",
     "include/MotorControlCAN/profiles/lichuan_c/Persistence.h", "src/profiles/lichuan_c/Persistence.cpp",
     "test/persistence_test.cpp", "test/configuration_restore_test.cpp",
     "examples/common/ConfigurationRestore.h", "examples/common/ConfigurationRestore.cpp",
@@ -196,6 +199,11 @@ class RepositoryTests(unittest.TestCase):
                 ("repository_checks", "scripts/check_repository.py", []),
                 ("planning_integrity", "scripts/check_promptset.py", []),
                 ("version_contract", "test/version_test.py", []),
+                ("bench_console_native", "test/bench_console_native_test.py", [str(self.build / "native" / ("native_probe" + suffix))]),
+                ("bench_console_contract", "test/bench_console_test.py", []),
+                ("bench_console_adversarial", "test/bench_console_adversarial_test.py", []),
+                ("bench_probe_cli", "test/bench_probe_cli_test.py", []),
+                ("bench_evidence", "test/bench_evidence_test.py", []),
                 ("console_protocol", "test/console_protocol_test.py", [str(self.build / "test" / ("probe_console_test" + suffix)), str(self.build / "native" / ("native_probe" + suffix)), str(self.build / "test" / ("motion_console_test" + suffix))]),
                 ("repository_contract", "test/repository_test.py", []),
                 ("verification_contract", "test/verification_test.py", []),
@@ -325,6 +333,13 @@ class RepositoryTests(unittest.TestCase):
         target = next(test for test in self.tests if test["name"] == "console_protocol")
         target["command"][4] = str(self.root / "wrong_motion_test")
         self.assert_failure("wrong Python command for test/console_protocol_test.py", True)
+
+    def test_python_client_requires_real_native_console_producer(self):
+        target = next(test for test in self.tests if test["name"] == "bench_console_native")
+        target["command"][2] = str(self.root / "copied_success_fixture")
+        self.assert_failure("wrong Python command for test/bench_console_native_test.py", True)
+        target["command"].pop()
+        self.assert_failure("wrong Python command for test/bench_console_native_test.py", True)
 
     def test_missing_console_producer_has_useful_inventory_diagnostics(self):
         (self.root / "test/probe_console_test.cpp").unlink()
