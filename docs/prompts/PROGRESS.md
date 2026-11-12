@@ -111,6 +111,19 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Pending | 29, 33, 35, 42; gates Q22-Q26 (F01); measurements F02-F14 first | - |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Pending | 42, 45, 51; capacity study, group-stop rules M02, S2 memory B01-B03 | - |
 | 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Pending | 48, 51, 52, 53; bench authorization and fixture facts | - |
+| 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | Pending | 24, 42, 45; DEC-3a SDO premise then Q18; one unplug action by the user | - |
+| 56 | [Host throughput: faster service passes, event wake and owner turn cost](56_host_throughput.md) | Pending | 27, 42, 53; pass timing measured before changes | - |
+| 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | Pending | 30, 42, 45; release trials from mode 1 idle and halted mode 3 | - |
+| 58 | [Measured records through the library API and the console](58_measured_records.md) | Pending | 42, 57; records reviewed against raw evidence | - |
+| 59 | [Velocity in full range and in both directions](59_velocity_range_direction.md) | Pending | 35, 52, 58; attended above-limit probe; reverse after the probe | - |
+| 60 | [User units for speed and acceleration](60_user_units.md) | Pending | 10, 59; ramp law Q11 from prompt 59 | - |
+| 61 | [Node setting, bitrate procedure, command-PDO maps and save trials](61_drive_configuration.md) | Pending | 38, 39, 41, 42; save proof waits for a natural power cycle; not after 18 | - |
+| 62 | [Wired stop line and host-loss watchdog](62_stop_line.md) | Pending | 21, 42, 53; trials wait for the user's optocoupler wiring | - |
+| 63 | [Other CAN protocols on the same bus as CANopen](63_mixed_protocols.md) | Pending | 46, 55; Lichuan 29-bit behavior measured first | - |
+| 64 | [Common axis interface for several drive brands](64_common_axis_interface.md) | Pending | 46, 53; test-only second profile, no placeholder production profile | - |
+| 65 | [Optional library package for the bus code and the axis API](65_application_package.md) | Pending | 49, 64; vendor material excluded from packages | - |
+| 66 | [Hardware qualification of self-repair, regular operations and configuration](66_hardware_regular_operation.md) | Pending | 54-63; written waiver for an unattended night | - |
+| 67 | [ESP32-S3, PSRAM and further MCU qualification](67_s3_psram_qualification.md) | Pending | 53, 56, 65; waits for the user's S3 boards | - |
 
 ## Next ready
 

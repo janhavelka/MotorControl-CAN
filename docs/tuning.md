@@ -215,3 +215,71 @@ python scripts/check_lichuan_ledger_test.py
 python scripts/generate_lichuan_objects_test.py
 ctest --test-dir <build> -R "^(tuning|settings_write|settings_owner|can_bus_owner)$" --output-on-failure
 ```
+
+## Changing gains and currents
+
+The library reads every gain and current word, but writes only the loop selector `2500`. No other
+row has a typed write, because no source gives a safe range for it. Meanings come from the
+original EN86/ZH86 PDF pages 19-20. Every row is U16 RW in the EDS, with no default and no limits.
+"Specimens" means the identical readings of 2026-11-04 listed above.
+
+| Index | Meaning | Unit and range evidence | Specimens | Library access today |
+| --- | --- | --- | --- | --- |
+| 2500 | Loop mode: 0 noneffective, 1 open, 2 closed loop | 0..2, documented | 2 | Read; typed write `prepareControlSettings` (console `control set`); never run on a drive |
+| 2501 | Encoder resolution | No unit or range | 4000 | Read only |
+| 2502 | Maximum peak current | mA, no range. EN86 PDF p3 gives 8 A maximum output current, but both drives read 8400 (8.4 A); no source explains this | 8400 | Read only |
+| 2503..2505 | Closed-loop maximum, closed-loop base and open-loop maximum current ratios | %, no base, range or ordering | 100, 40, 100 | Read only |
+| 2506, 2507 | Locking (holding) current ratio and time | % and ms, no range or zero meaning | 40, 200 | Read only |
+| 2508..250D | Filters, position alarm threshold, in-position threshold and time | No units; "factory default, adjustment not required generally" | Listed above | Read only |
+| 250E..2519 | Current, velocity and position loop gains | No unit, scale or range; same note | Listed above | Read only |
+| 251A..2520 | EDS-only names | Names only | Listed above | Read only |
+
+Read them with `prepareTuningRead` and `getTuning`, or the console `tuning ... read` lines. Each
+upload needs its own one-use review (Q20).
+
+### How to change them today
+
+- **The vendor's debugging software.** This is the manufacturer's route. The manuals list an RS232
+  debugging port (EN86 PDF p3-5). They say I/O functions can be set "through the CANopen bus or the
+  upper computer debugging software" (EN86/ZH86 PDF p8). OP86 PDF p4, a page copied from the 57C
+  manual, says the software and its adapter cable come from Lichuan sales or after-sales. The
+  manuals do not say that the tool edits `2502..2520`, whether it saves, or which firmware it
+  supports. This project has not obtained or run it. Use it with Lichuan's settings for the
+  installed motor.
+- **No DIP switch.** SW1..SW8 set only the node, the bitrate and the termination (EN86 PDF p9-10).
+- **Not through this library.** No typed write, console line or bench route exists for
+  `2501..2520`. The S2 bench's raw `W` line writes PDO records only. The generic SDO layer could
+  carry a raw download from your own code, but nothing would check the value, and nothing here
+  has tried it. Treat that as unsupported and unsafe.
+
+Risks of any change:
+
+- A current above the motor's rating can overheat or damage the motor. The installed LC60H2127's
+  rated phase current is not established.
+- Wrong gains can make the loop oscillate, drop holding torque or raise the position
+  out-of-tolerance alarm. Widening `250A` can hide a real fault.
+- The motor may be energized when a change lands. See the warning under "Explicit loop mutation
+  and retained effects" above.
+- Nobody has measured whether a change to these words is volatile. Other bench writes (`1017`, the
+  TPDO1 map, `2400:01`, `6083`) were gone after one power cycle with no save. After a save
+  (`2300=2`) a change may stay, and the library cannot write most of these words back. What a
+  factory restore does to them is unknown.
+
+### What a typed write needs
+
+Prompt 22 owns these rows. Before a row or group gets a write, it needs:
+
+1. The manufacturer's range, unit and convention for the installed firmware. For `2502`: peak or
+   RMS, and why 8400 exceeds 8 A. For `2503..2506`: the percent base and ordering. For `2507`:
+   delay or duration.
+2. The installed motor's rated phase current, from its nameplate or datasheet.
+3. A check of the whole current tuple before any current write, as MotorControl-RS
+   `validateIntermediateCurrentTuple` does.
+4. One attended trial per group on one specimen: one write and its readback, with a phase-current
+   probe, an unloaded shaft and the power cutoff at hand. Then the original value goes back, and a
+   power cycle shows whether the change was volatile.
+5. The `2500` lifecycle above: whole-candidate validation, withdrawal at possible transmission,
+   readback and retained uncertainty, with no save.
+
+The page checks, the evidence labels and the proposed trials are in the
+[configuration evidence report](reports/2026-11-12_configuration_evidence.md).

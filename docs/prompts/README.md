@@ -1,6 +1,6 @@
-# MotorControl-CAN implementation prompts 1-54
+# MotorControl-CAN implementation prompts 1-67
 
-Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `54_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `67_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -8,12 +8,19 @@ The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes
 precedence over the historical execution-branch instructions for that period.
 
-Create one new branch at the start of a new execution and retain it across all 54 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
+Create one new branch at the start of a new execution and retain it across all 67 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
 
 Prompts 51-54 were added on 2026-11-12 at the user's request (SYNC master, changes during motion,
 multi-axis with configurable capacity and group stop, and their hardware qualification). By the
 ascending-order rule they run after prompt 50 unless the user reorders them; their dependencies are
 real prerequisites, and prompt 53's group stop and capacity work can start once 45 and 51 are done.
+
+Prompts 55-67 were added later on 2026-11-12 at the user's request: communication self-repair and retry policy,
+host throughput, regular enable/release/mode select, measured records from the console, full-range and
+reverse velocity, user units, node/bitrate/RPDO/save configuration, the wired stop line, other CAN protocols on
+the same bus, a common axis interface for several brands, an optional package for the bus code, and their
+hardware qualification on the S2 bench and on ESP32-S3 boards. They also run in ascending order unless the
+user reorders them; every feature lands as library API, and the examples consume it.
 
 ## Shared contracts
 
@@ -101,6 +108,19 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | 29, 33, 35, 42 |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | 42, 45, 51 |
 | 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | 48, 51, 52, 53 |
+| 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | 24, 42, 45 |
+| 56 | [Host throughput: faster service passes, event wake and owner turn cost](56_host_throughput.md) | 27, 42, 53 |
+| 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | 30, 42, 45 |
+| 58 | [Measured records through the library API and the console](58_measured_records.md) | 42, 57 |
+| 59 | [Velocity in full range and in both directions](59_velocity_range_direction.md) | 35, 52, 58 |
+| 60 | [User units for speed and acceleration](60_user_units.md) | 10, 59 |
+| 61 | [Node setting, bitrate procedure, command-PDO maps and save trials](61_drive_configuration.md) | 38, 39, 41, 42 |
+| 62 | [Wired stop line and host-loss watchdog](62_stop_line.md) | 21, 42, 53 |
+| 63 | [Other CAN protocols on the same bus as CANopen](63_mixed_protocols.md) | 46, 55 |
+| 64 | [Common axis interface for several drive brands](64_common_axis_interface.md) | 46, 53 |
+| 65 | [Optional library package for the bus code and the axis API](65_application_package.md) | 49, 64 |
+| 66 | [Hardware qualification of self-repair, regular operations and configuration](66_hardware_regular_operation.md) | 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 |
+| 67 | [ESP32-S3, PSRAM and further MCU qualification](67_s3_psram_qualification.md) | 53, 56, 65 |
 
 ## Completion and external blockers
 

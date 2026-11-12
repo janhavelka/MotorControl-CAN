@@ -728,6 +728,200 @@
         "18"
       ],
       "kind": "qualification"
+    },
+    {
+      "id": 55,
+      "file": "55_self_repair.md",
+      "title": "Communication self-repair, node presence and retry policy",
+      "depends_on": [
+        24,
+        42,
+        45
+      ],
+      "source_stages": [
+        "06",
+        "12"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 56,
+      "file": "56_host_throughput.md",
+      "title": "Host throughput: faster service passes, event wake and owner turn cost",
+      "depends_on": [
+        27,
+        42,
+        53
+      ],
+      "source_stages": [
+        "12",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 57,
+      "file": "57_regular_drive_operations.md",
+      "title": "Regular enable, release, mode select and firmware identity policy",
+      "depends_on": [
+        30,
+        42,
+        45
+      ],
+      "source_stages": [
+        "09"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 58,
+      "file": "58_measured_records.md",
+      "title": "Measured records through the library API and the console",
+      "depends_on": [
+        42,
+        57
+      ],
+      "source_stages": [
+        "15",
+        "18"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 59,
+      "file": "59_velocity_range_direction.md",
+      "title": "Velocity in full range and in both directions",
+      "depends_on": [
+        35,
+        52,
+        58
+      ],
+      "source_stages": [
+        "11"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 60,
+      "file": "60_user_units.md",
+      "title": "User units for speed and acceleration",
+      "depends_on": [
+        10,
+        59
+      ],
+      "source_stages": [
+        "04"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 61,
+      "file": "61_drive_configuration.md",
+      "title": "Node setting, bitrate procedure, command-PDO maps and save trials",
+      "depends_on": [
+        38,
+        39,
+        41,
+        42
+      ],
+      "source_stages": [
+        "07",
+        "13"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 62,
+      "file": "62_stop_line.md",
+      "title": "Wired stop line and host-loss watchdog",
+      "depends_on": [
+        21,
+        42,
+        53
+      ],
+      "source_stages": [
+        "08",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 63,
+      "file": "63_mixed_protocols.md",
+      "title": "Other CAN protocols on the same bus as CANopen",
+      "depends_on": [
+        46,
+        55
+      ],
+      "source_stages": [
+        "02",
+        "12"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 64,
+      "file": "64_common_axis_interface.md",
+      "title": "Common axis interface for several drive brands",
+      "depends_on": [
+        46,
+        53
+      ],
+      "source_stages": [
+        "01",
+        "17"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 65,
+      "file": "65_application_package.md",
+      "title": "Optional library package for the bus code and the axis API",
+      "depends_on": [
+        49,
+        64
+      ],
+      "source_stages": [
+        "03",
+        "19"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 66,
+      "file": "66_hardware_regular_operation.md",
+      "title": "Hardware qualification of self-repair, regular operations and configuration",
+      "depends_on": [
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "source_stages": [
+        "18"
+      ],
+      "kind": "qualification"
+    },
+    {
+      "id": 67,
+      "file": "67_s3_psram_qualification.md",
+      "title": "ESP32-S3, PSRAM and further MCU qualification",
+      "depends_on": [
+        53,
+        56,
+        65
+      ],
+      "source_stages": [
+        "14",
+        "18"
+      ],
+      "kind": "qualification"
     }
   ]
 }

@@ -406,3 +406,5 @@ three TWAI questions stay open.
 
 Later, when the second real profile (N5) is built: a common per-profile interface (1.1) and an owner split for other
 protocols (1.3).
+
+**Correction (2026-11-12, later the same day).** The host-TX figure of about 1000 frames/s is tick arithmetic, not a measurement. Retained night traces show that during SDO work a service pass ran only about every 3 ms, so the host sent at most about 300 frames/s; see the [host throughput report](2026-11-12_host_throughput.md) and [prompt 56](../prompts/56_host_throughput.md). The text above is kept as written.
