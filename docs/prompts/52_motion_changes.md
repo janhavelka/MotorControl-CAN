@@ -20,9 +20,10 @@ Lichuan facts ([on-the-fly study](../reports/2026-11-12_on_the_fly_changes.md)):
 update after the current curve, 1: update immediately) with arrows only from `000F` (`15->63`, `15->127`); not
 documented are bit 9, a set-point buffer, what clearing bit 4 does during a curve, and whether a `60FF` change while
 running takes effect. The EDS allows `6040`, `607A`, `6081`, `6083`, `6084` and `60FF` in PDOs. The library refuses
-immediate update today because a second set-point needs bit 4 to fall during the curve. Negative velocity stays
-refused (Q03 and the user's instruction); a relative change mid-curve, reversal and a `60FF` sign change or zero during
-a run stay refused until measured (backlog F15).
+immediate update today because a second set-point needs bit 4 to fall during the curve. Negative velocity as such is
+[prompt 59](59_velocity_range_direction.md)'s work (the user asked on 2026-11-12 for velocity mode to allow it once the
+datasheet treatment is settled or measured); a relative change mid-curve, reversal and a `60FF` sign change or zero
+during a run stay refused here until measured (backlog F15).
 
 Boundaries: a change never extends the run's deadline or stop reserve, never enables, never replays an unconfirmed
 write and never removes the run's own stop; a change admitted after a stop request is refused; uncertainty after an

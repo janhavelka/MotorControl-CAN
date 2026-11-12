@@ -105,8 +105,12 @@ the capacity study inventories, and the ESP-IDF PSRAM placement documentation it
    explicit experiment scope after the M09 map review, the shared quick-stop RPDO (M16) beside the per-axis stops,
    and an example stop output plus the DI stop-function settings for a wired stop line (M15); host tests for both,
    hardware in prompt 54.
-5. Console and bench: per-axis motion attachments, a stop of axis B while axis A's operation is retained, `stop all`
-   with per-axis records, paired bench routes and runner cap/ledger rules (backlog M01, M03, M11).
+5. Console and bench: independent control of every axis from the console, the user's words (2026-11-12): "i want this
+   feature - to be able to stop one axis using the console - pretty much independent control of axes". Each axis has
+   its own motion attachment, start, change and stop commands and its own reserved stop slots, so a stop of axis B
+   never waits for or disturbs axis A's operation; `stop ID` and `stop all` with per-axis records; paired bench routes
+   and runner cap/ledger rules (backlog M01, M03, M11). Every console command goes through the library API (the
+   per-axis session of prompt 64 once it exists), so the console adds no motion logic of its own.
 6. Synchronized start via prompt 51's synchronous RPDO trigger where its trials succeeded; otherwise a same-turn SDO
    trigger with its measured skew stated as the limit (backlog M07).
 

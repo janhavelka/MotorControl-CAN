@@ -168,7 +168,7 @@ velocity run.
 | F12 | Python scenarios for velocity steps and position changes | 44 | After F04 |
 | F13 | Finite qualification of the change routes | 47 | Subset of F02 to F12 |
 | F14 | Measure buffered set-points (bit 5 = 0) | 33 | Trial T5 |
-| F15 | Keep refused: relative change mid-curve, reversal, `60FF` sign change or zero during a run | 33, 35 | None until Q03 and F11 close |
+| F15 | Keep refused: relative change mid-curve, reversal, `60FF` sign change or zero during a run (negative velocity itself moves to [prompt 59](prompts/59_velocity_range_direction.md)) | 33, 35, 59 | None until Q03 and F11 close |
 | F16 | Deliver changes by RPDO | 18, 38 | Design only, after Q17 |
 
 **Several drives at once.** The core, owner and application already keep axes separate (two SDO channels, per-node
@@ -197,8 +197,31 @@ enough for all of my purposes", 2026-11-12); prompts 51 and 54 test exactly that
 | M12 | Example policy for a fault on one axis: stop the others explicitly, with per-axis results | 45 | Host test, then HM9 |
 | M13 | **Undocumented SYNC trial** (requested): a host SYNC producer as an explicit owner service (COB-ID `0x80`, application-timed, never automatic); then (a) a SYNC with every PDO at type 255 (expect no change and no EMCY); (b) TPDO1 type 1 on one node with SYNC at 10 to 100 ms: one TPDO per SYNC or not, latency, then restore 255 without a save; (c) after M09, a synchronous RPDO controlword on both nodes and one SYNC as a common start trigger, start skew compared with M07. Never set `1005` bit 30 (no `1006`). Each step reports works, ignored or refused. Target period 10 ms (the user's): when the producer exists, a 10 ms run on one node then both, at least 10 minutes, counting missed and late TPDOs, SYNC jitter, bus load and service gaps; 10 ms set-point updates follow prompt 52's measurements | 51, then 54 | Owner SYNC service design, then step (a) |
 | M14 | Measure what NMT Stop does to an enabled, moving drive (no `6007` in the EDS; only a released node has received one, D15). One node at 6 to 30 rpm, NMT Stop, then Pre-operational, read `6041`, `6064`, `606C`, then the run's own stop; reported as stopped, kept running or faulted. Never a library stop path: in Stopped, SDO and PDO are not served, so "NMT Stop first, then per-axis stops" would block the stops | 53, 54 | Bench trial after 53's host work |
-| M15 | Wired stop line: DI function 5 (stop) or 6 (emergency stop) on each drive, one signal wired in parallel (button, relay or an application-owned MCU output). `prepareIoSettings` already sets the function; an example output and the drive's reaction (ramp, final state, alarm, re-enable) are missing. Not safety-rated | 53, 54 | The user wires a signal to one DI; then a trial during motion |
+| M15 | Wired stop line: DI function 5 (stop) or 6 (emergency stop) on each drive, one signal wired in parallel (button, relay or an application-owned MCU output). `prepareIoSettings` already sets the function; an example output and the drive's reaction (ramp, final state, alarm, re-enable) are missing. Not safety-rated | 62 | The user wires a signal to one DI; then a trial during motion |
 | M16 | Shared quick-stop RPDO: one COB-ID on every drive, controlword-only map, type 255, volatile, carrying only `000B` (a shared `010F` would enable a switched-on drive). One frame stops every axis at once; each axis still settles from its own observation | 53 after M09, 54 | Map review (M09), then host tests |
+
+
+**Second round of requests (2026-11-12).** Each request below is owned by a numbered prompt; every feature lands as
+library API, and the examples consume it.
+
+| Request | Prompt |
+| --- | --- |
+| Self-repair of stuck SDO channels and of an unanswered frame; per-node presence; opt-in retry and fault-clear policy (D14, H04, Q18) | [55](prompts/55_self_repair.md) |
+| More frames per pass: measured pass timing, owner turn cost, event wake | [56](prompts/56_host_throughput.md) |
+| Regular enable and release (free the shaft), typed mode select, firmware identity reported instead of locked (D04, D17, S20) | [57](prompts/57_regular_drive_operations.md) |
+| Measured records loaded through the API and the console; records from the retained bench evidence | [58](prompts/58_measured_records.md) |
+| Velocity in full range and above, and reverse velocity (Q03, Q11, F02, F15) | [59](prompts/59_velocity_range_direction.md) |
+| User units for speed and acceleration | [60](prompts/60_user_units.md) |
+| Node setting, bitrate procedure, command-PDO maps, save and factory-restore trials (D09, Q13, Q15-Q17, M09) | [61](prompts/61_drive_configuration.md) |
+| Wired stop line with optocoupled MCU outputs and a host-loss watchdog (M15, D10) | [62](prompts/62_stop_line.md) |
+| Other CAN protocols on the same bus as CANopen | [63](prompts/63_mixed_protocols.md) |
+| One common axis interface for several drive brands | [64](prompts/64_common_axis_interface.md) |
+| The bus code and the axis API as an optional installable package | [65](prompts/65_application_package.md) |
+| Hardware qualification of the above on the S2 bench | [66](prompts/66_hardware_regular_operation.md) |
+| ESP32-S3 boards, PSRAM placement and further MCUs | [67](prompts/67_s3_psram_qualification.md) |
+
+Gains and currents stay read-only until their ranges are known; how to change them today is in
+[the tuning guide](tuning.md). Independent per-axis control from the console is prompt 53 item 5.
 
 **S2 memory.** The task stack (12288 bytes) is not the cause. About 210 KB of fixed worst-case storage is resident at
 once: two `AxisSession`s 71504, `BenchRoute` 42896 (route record 37592), `FirmwareProbe` 31128, record arena 23688,

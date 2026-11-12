@@ -2,6 +2,8 @@
 
 Apply [COMMON.md](COMMON.md). Prerequisites: [17](17_pdo_observations.md), [24](24_owner_recovery.md), [38](38_communication_commissioning.md), [42](42_cli_motion_routes.md).
 
+The 10 ms trial also needs [prompt 56](56_host_throughput.md) (faster service passes); the rest of this prompt does not.
+
 ## Objective and boundaries
 
 The user's requirements, verbatim (2026-11-12): "I want to enable the syncing - master (the mcu) will send these -
@@ -21,8 +23,10 @@ sized for it, and the result states whether 10 ms works for each measured use (s
 trigger). Slower periods are fallbacks, not the goal. Computed budget, to be measured, not assumed: at 1 Mbit/s one
 SYNC (DLC 0) is about 0.05 ms and one 8-byte PDO about 0.13 ms of bus time, so one SYNC plus one RPDO and one TPDO
 per axis every 10 ms is about 6 % bus load for 2 axes and about 50 % for 19; today's host TX design sends one frame
-per service turn, so at a 1 ms turn one period holds at most 10 host frames (the SYNC plus about 9 RPDOs), which is the
-host-side limit until a TX change is designed and proven.
+per service pass, and retained traces show a pass only about every 3 ms during SDO work (not every 1 ms as first
+written; [host throughput report](../reports/2026-11-12_host_throughput.md)), so a 10 ms period holds only about 3
+host frames today. [Prompt 56](56_host_throughput.md)'s shorter passes and event wake are a precondition for a 10 ms
+period with more than one axis.
 
 Lichuan facts from the SYNC audit (backlog M10, M13): the CANopen manuals only claim "multi-axis high-speed bus
 synchronization control" (EN86, ZH86 and ZH57 p3) and describe no SYNC object; the EDS declares `1005` SYNC COB-ID (RW

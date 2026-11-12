@@ -440,3 +440,5 @@ installed headers.
 - The owner turn cost at large N is an estimate from loop structure. It needs the step-3 measurement.
 - The host-TX bound assumes one service turn per 1 ms tick, as reported in the multi-drive preparation. It was not
   re-measured here.
+
+**Correction (2026-11-12, later the same day).** The host-TX figure of about 1000 frames/s is tick arithmetic, not a measurement. Retained night traces show that during SDO work a service pass ran only about every 3 ms, so the host sent at most about 300 frames/s; see the [host throughput report](2026-11-12_host_throughput.md) and [prompt 56](../prompts/56_host_throughput.md). The text above is kept as written.

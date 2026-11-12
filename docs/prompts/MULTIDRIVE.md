@@ -58,6 +58,19 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 52 | Change operations are per-profile capabilities with their own evidence; common requests carry exact units and refuse unsupported changes before admission. |
 | 53 | Axes are identified independently of node IDs, mix motor kinds and profiles under one owner per interface, and stop individually; capacity is an application choice, not a profile assumption. |
 | 54 | Qualify only the actual drives, firmware and configuration; another family's SYNC or multi-axis behavior is never inferred. |
+| 55 | Self-repair and retry classes are per-protocol services; other protocols get their own timeouts and never inherit SDO resync or NMT semantics. |
+| 56 | Throughput changes keep one owner per interface and the exact TX retirement proof for every protocol on it. |
+| 57 | Enable, release and mode select are per-profile operations with their own words and evidence; product identity selects the profile, firmware identity is reported. |
+| 58 | Records are keyed by profile and product identity and carry their own evidence; one family's record never qualifies another. |
+| 59 | Speed ranges, clamp behavior and direction rules are per-profile measured facts with exact native units. |
+| 60 | User units convert host-side to each profile's native units and refuse what a profile cannot represent. |
+| 61 | Node, bitrate, PDO and save mechanics are per-profile; protocols without these services refuse them before any work. |
+| 62 | Stop-input functions and polarity values are per-profile documented facts; MCU pins stay application-owned. |
+| 63 | Protocols share one interface only through a checked identifier plan; no protocol receives another's semantics. |
+| 64 | The common interface carries exact units and capability refusals; native words, objects and evidence stay in each profile. |
+| 65 | Packages expose profile-neutral components and each profile's API without vendor material. |
+| 66 | Qualify only the actual drives, firmware and configuration; another family's behavior is never inferred. |
+| 67 | Each MCU and board needs its own adapter proof and qualification; results never transfer between chips. |
 
 ## Required contrasting test cases
 
