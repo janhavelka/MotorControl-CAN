@@ -20,6 +20,16 @@ start and stop and claims neither. No record of this fixture measured them, so -
 bounds for that scope. request.json and the send entry record the scope. It needs the attendant with the
 independent cutoff in hand: --unattended-waiver refuses velocity, unless --waiver-covers-motion (below).
 
+--range-probe (protocol 9, prompt 59) sets the V line's last field: the library's
+VelocityEvidence::rangeProbe raises that rate cap to 6000 rpm (twice the documented 3000, project policy,
+never a drive limit) and requires both ramps of at least 200 ms; a probe still claims and qualifies
+nothing, and every running cycle carries the library's over-speed stop. Without it nothing changed: 60 rpm.
+A ramp under 200 ms with it, or a rate over 6000, is refused here before anything is sent. Under
+--unattended-waiver it needs --waiver-covers-motion like every velocity line; the user's waiver of 2026-11-13
+("Unattended, I accept it": the velocity ladder, above-limit probe and resolution grid without them at the
+bench) explicitly covers the above-limit part of that campaign only. request.json's velocity_scope and the
+send entry record range_probe.
+
 After a velocity record whose TRIAL_VELOCITY shows needs=1 (or fenced=1) and in which no stop left
 (TRIAL_STOP own=0 or exec=0, and no TRIAL_BEST_EFFORT with own=1 and a nonzero exec), the runner prints
 "ALERT: node N MAY BE RUNNING: no stop left; use the cutoff" to stderr at once, before the attendant's
@@ -86,6 +96,15 @@ attended and counted like the settings routes, three per node, with no motion we
 EN86/ZH86 p13's 0..3000 rpm: it shows whether the drive range-checks the value before any negative one is
 sent. The runner refuses a value outside that range before anything is sent.
 
+subdivision (protocol 9, prompt 59 Part 3) writes one volatile 2201 value, --value 400..51200 (the range
+both EN86/ZH86 claims admit), through the library's prepareSubdivisionSettings, like settings-2202: a fresh
+2200/2201 read, a clean STATUS and MONITORS read that must report the drive released (2100 bit 4), the one
+2201 download and the library's readback, then one more 2200/2201 read. 2200 is never written; no 6040, no
+enable, no save. The record's TRIAL_DRIVER lines hold 2200 and 2201 before, as read back and after, and
+TRIAL_SUBDIVISION the write's terminal; TRIAL_SETTINGS holds the configuration epochs before and after. It is
+attended and counted like the settings routes, three per node, with no motion weight. A value outside the
+range is refused before anything is sent.
+
 close-sessions sends one 'x': the firmware closes its idle route sessions, so that K, H and the raw and PDO
 experiments can reserve those nodes again in the same MCU boot (backlog S15). It sends nothing on CAN and
 is no stop, release or disable. It is refused, with nothing changed, while any record is held (release it
@@ -149,6 +168,9 @@ TRIALS = {
     # Ledger gate Q03: one 60FF write and its readback on a drive that reports itself released in mode 3.
     # The drive stays released, so it has the settings routes' attended class too.
     "velocity-target": ("F", False, "gate Q03 60FF encoding probe"),
+    # Prompt 59 Part 3: one volatile 2201 write and its readback on a released drive, as settings-2202 writes
+    # 2202: a settings route, attended and counted, no motion weight.
+    "subdivision": ("K", False, "prompt 59 2201 subdivision"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -156,15 +178,15 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # Attended routes that are not motion: one send counts one case, never motion weight. The two settings
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
-SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target")
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
 # Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
 # without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
-# the F route (gate Q03's 60FF probe). Any other image would misread the line, so it is refused before
-# anything is sent.
-ROUTE_PROTOCOL = 8
+# the F route (gate Q03's 60FF probe), 9 the V line's last field, prompt 59's range probe, and the K route
+# (one 2201 write). Any other image would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 9
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -220,6 +242,15 @@ VELOCITY_WINDOW_CYCLES = VELOCITY_WINDOW_MS // VELOCITY_SPACING_MS
 VELOCITY_SCOPE = "ATTENDED_EXPERIMENT"
 VELOCITY_EXPERIMENT_RPM = 60
 VELOCITY_EXPERIMENT_DURATION_MS = 20000
+# Prompt 59's range probe (Velocity.h VELOCITY_RANGE_PROBE_MAXIMUM_RPM, VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS):
+# the same scope with the rate cap raised to twice the documented 3000 rpm and both ramps at least 200 ms.
+# Project policy, never a drive range.
+VELOCITY_RANGE_PROBE_RPM = 6000
+VELOCITY_RANGE_PROBE_RAMP_MS = 200
+VELOCITY_DOCUMENTED_RPM = 3000
+# subdivision's 2201 value (Settings.h SUBDIVISION_MINIMUM, SUBDIVISION_MAXIMUM): the range both EN86/ZH86
+# claims admit. 0..399 and 51201..65535 stay untested.
+SUBDIVISION_RANGE = (400, 51200)
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -336,7 +367,10 @@ def trial_line(args, parser):
         deadline = _within(parser, "deadline-ms", args.deadline_ms, 1, 55000)
         if duration >= deadline:
             parser.error("--duration-ms must be below --deadline-ms: the run's own stop settles after it")
-        fields += [1, _within(parser, "rpm", args.rpm, 1, 3000),
+        # The firmware's rate field (BenchRoute.cpp VELOCITY_RPM, routePlanValid): 1..3000, or up to the range
+        # probe's ceiling with its flag. The scope's own caps, 60 and 6000, are check_bounds' refusals.
+        top = VELOCITY_RANGE_PROBE_RPM if args.range_probe else VELOCITY_DOCUMENTED_RPM
+        fields += [1, _within(parser, "rpm", args.rpm, 1, top),
                    _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000), duration,
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000), deadline, STOP_KINDS[args.kind],
@@ -345,6 +379,7 @@ def trial_line(args, parser):
                            ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
+        fields.append(1 if args.range_probe else 0)  # Protocol 9: the line's last field.
     elif args.command == "home":
         if args.method is None:
             parser.error("--method is required for this route (%s)" % ", ".join(str(m) for m in HOME_METHODS))
@@ -404,6 +439,8 @@ def trial_line(args, parser):
         fields += [1, DI3_CHANGES[args.di3_change]]
     elif args.command == "velocity-target":
         fields += [1, _within(parser, "value", args.value, *VELOCITY_TARGET_RANGE)]
+    elif args.command == "subdivision":
+        fields += [1, _within(parser, "value", args.value, *SUBDIVISION_RANGE)]
     elif args.command in ("counter-zero", "clear-alarm"):
         fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
                    _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
@@ -464,8 +501,10 @@ def trial_line(args, parser):
     if args.command != "home" and any(getattr(args, name) is not None for name in
                                       ("method", "search_rpm", "creep_rpm", "ramp_ms", "offset")):
         parser.error("--method, --search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
-    if args.command != "velocity-target" and args.value is not None:
-        parser.error("--value belongs to velocity-target")
+    if args.command not in ("velocity-target", "subdivision") and args.value is not None:
+        parser.error("--value belongs to velocity-target and subdivision")
+    if args.command != "velocity" and args.range_probe:
+        parser.error("--range-probe belongs to velocity")
     if args.command != "enable" and args.released_by_recorded_stop is not None:
         parser.error("--released-by-recorded-stop belongs to enable")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
@@ -509,6 +548,8 @@ def plan_bounds(command, fields):
         return 4 + 5 + 1 + 4, 0  # SOFT_LIMITS, STATUS and MONITORS, the write, the readback.
     if command == "io-di3":
         return 9 + 5 + 1 + 9 + 4, 0  # The input group, the state, the write, the readback, 2101 and 60FD.
+    if command == "subdivision":
+        return 2 + 5 + 1 + 2 + 2, 0  # DRIVER, STATUS and MONITORS, the 2201 write, the readback, DRIVER again.
     if command == "mode1":
         cycles, interval = fields[3:5]
         # The readiness reads less their image, a second full read when the first reports mode 3, 6060, the cycles.
@@ -586,10 +627,14 @@ def check_bounds(command, fields):
         raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
                       "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
     if command == "velocity":
-        rpm, duration, deadline = fields[3], fields[6], fields[8]
-        if rpm > VELOCITY_EXPERIMENT_RPM:
-            raise Refused("velocity rpm: %d is over the %s scope's %d rpm" % (rpm, VELOCITY_SCOPE,
-                                                                           VELOCITY_EXPERIMENT_RPM))
+        rpm, up, down, duration, deadline, probe = fields[3], fields[4], fields[5], fields[6], fields[8], fields[-1]
+        cap = VELOCITY_RANGE_PROBE_RPM if probe else VELOCITY_EXPERIMENT_RPM
+        if rpm > cap:
+            raise Refused("velocity rpm: %d is over the %s scope's %d rpm%s" % (
+                rpm, VELOCITY_SCOPE, cap, " with the range probe" if probe else " (6000 only with --range-probe)"))
+        if probe and min(up, down) < VELOCITY_RANGE_PROBE_RAMP_MS:
+            raise Refused("velocity range probe ramps: %d ms up and %d ms down; the library requires at least %d ms "
+                          "for each" % (up, down, VELOCITY_RANGE_PROBE_RAMP_MS))
         if duration > VELOCITY_EXPERIMENT_DURATION_MS:
             raise Refused("velocity duration: %d ms is over the %s scope's %d ms" %
                           (duration, VELOCITY_SCOPE, VELOCITY_EXPERIMENT_DURATION_MS))
@@ -1189,6 +1234,21 @@ def dry_run(args, fields):
                   "the experiment's chosen budget, not a drive timing; the record's TRIAL_VELOCITY_WINDOW and "
                   "TRIAL_VELOCITY_SAMPLE which=2..4 bracket the enable report" %
                   (VELOCITY_WINDOW_MS, VELOCITY_SPACING_MS, VELOCITY_WINDOW_CYCLES))
+            if fields[-1]:
+                print("  range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap %d rpm (project policy, "
+                      "never a drive limit), both ramps at least %d ms, the library's over-speed stop in every "
+                      "running cycle; the run qualifies nothing" %
+                      (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
+            else:
+                print("  no range probe: the experiment's %d rpm cap" % VELOCITY_EXPERIMENT_RPM)
+        if args.command == "subdivision":
+            print("  prompt 59 Part 3, 2201: one fresh 2200/2201 read and a clean STATUS and MONITORS read that "
+                  "must report released (2100 bit 4, no running or alarm); the library refuses before any write "
+                  "otherwise")
+            print("  then one download 2B 01 22 00 %s (2201 = %d), the library's 2200/2201 readback, and one more "
+                  "2200/2201 read at the advanced configuration epoch; 2200 never written; no 6040, no enable, no "
+                  "save, no retry; when the drive applies the value is unmeasured (Q04)" %
+                  (" ".join("%02X" % byte for byte in fields[3].to_bytes(2, "little") + b"\0\0"), fields[3]))
         print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
@@ -1222,8 +1282,13 @@ def arguments(argv):
     trial.add_argument("--soft-limit-code", choices=sorted(SOFT_LIMIT_CODES), help="settings-2202: the 2202 code")
     trial.add_argument("--di3-change", choices=sorted(DI3_CHANGES), help="io-di3: the one DI3 change")
     velocity = parser.add_argument_group("velocity: the attended experiment's evidence, never defaulted; also "
-                                         "--rpm (at most %d), ramps, --interval-ms, --deadline-ms, --kind, --record "
-                                         "(the trial's own) and the identity fields" % VELOCITY_EXPERIMENT_RPM)
+                                         "--rpm (at most %d, or %d with --range-probe), ramps, --interval-ms, "
+                                         "--deadline-ms, --kind, --record (the trial's own) and the identity fields" %
+                                         (VELOCITY_EXPERIMENT_RPM, VELOCITY_RANGE_PROBE_RPM))
+    velocity.add_argument("--range-probe", action="store_true",
+                          help="prompt 59's range probe: rate cap %d rpm, both ramps at least %d ms; still the "
+                               "attended experiment, qualifying nothing" %
+                               (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
     velocity.add_argument("--duration-ms", type=int, help="FiniteVelocityRequest duration from the request, below "
                                                           "--deadline-ms and at most %d" %
                                                           VELOCITY_EXPERIMENT_DURATION_MS)
@@ -1237,9 +1302,10 @@ def arguments(argv):
     home.add_argument("--creep-rpm", type=int, help="6099:02 motor rpm, 1..3000")
     home.add_argument("--ramp-ms", type=int, help="609A ms, 1..2000")
     home.add_argument("--offset", type=int, help="607C native offset, -1000000..1000000")
-    probe = parser.add_argument_group("velocity-target: gate Q03's one 60FF write on a released mode 3 drive")
-    probe.add_argument("--value", type=int, help="The signed 60FF value, %d..%d; 3001 is the range probe" %
-                       VELOCITY_TARGET_RANGE)
+    probe = parser.add_argument_group("velocity-target: gate Q03's one 60FF write on a released mode 3 drive; "
+                                      "subdivision: prompt 59's one volatile 2201 write on a released drive")
+    probe.add_argument("--value", type=int, help="velocity-target: the signed 60FF value, %d..%d; 3001 is the range "
+                       "probe. subdivision: the 2201 value, %d..%d" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE))
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
@@ -1376,9 +1442,13 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
         if args.command == "velocity":
+            probe = bool(fields[-1])
             meta["velocity_scope"] = {"gate": VELOCITY_SCOPE, "start_qualified": False, "stop_qualified": False,
-                                      "record": fields[10], "maximum_rpm": VELOCITY_EXPERIMENT_RPM,
+                                      "record": fields[10], "range_probe": probe,
+                                      "maximum_rpm": VELOCITY_RANGE_PROBE_RPM if probe else VELOCITY_EXPERIMENT_RPM,
                                       "maximum_duration_ms": VELOCITY_EXPERIMENT_DURATION_MS}
+            if probe:
+                meta["velocity_scope"]["minimum_ramp_ms"] = VELOCITY_RANGE_PROBE_RAMP_MS
         if args.command == "enable":
             stop = getattr(args, "start_record", None)
             meta["enable_start"] = "RELEASED_BY_RECORDED_STOP" if stop else "NO_MOTION_WRITE_RECORDED"
@@ -1405,6 +1475,7 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
             entry["settings"] = 1
         if args.command == "velocity":
             entry["scope"] = VELOCITY_SCOPE
+            entry["range_probe"] = bool(fields[-1])
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
         if args.waiver_covers_motion:

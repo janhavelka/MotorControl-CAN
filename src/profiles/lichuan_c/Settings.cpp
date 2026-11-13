@@ -25,11 +25,14 @@ bool settingsShape(const DriverSettingsContext& c) {
     const bool io = read.kind == ReadKind::IO_INPUT_CONFIGURATION;
     const bool control = read.kind == ReadKind::CONTROL;
     const bool selector = read.kind == ReadKind::DRIVER_SOFT_LIMITS;
+    const bool subdivision = read.kind == ReadKind::DRIVER;
     const GroupPlan* plan = groupPlan(read.kind);
-    if ((!io && !control && !selector && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) || !plan ||
-        read.count != plan->count)
+    if ((!io && !control && !selector && !subdivision &&
+         read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) ||
+        !plan || read.count != plan->count)
         return false;
-    const uint16_t allowed = io ? 0x1fe : control || selector ? 1 : 7;
+    // The DRIVER group's 2200 is read back with 2201 but never written.
+    const uint16_t allowed = io ? 0x1fe : control || selector ? 1 : subdivision ? 2 : 7;
     if ((c.changed & ~allowed) || (c.confirmed & ~c.changed) || c.cursor > read.count ||
         (c.state == SettingsState::WRITING &&
          (c.cursor >= read.count || !(c.changed & (1u << c.cursor)) ||
@@ -39,6 +42,9 @@ bool settingsShape(const DriverSettingsContext& c) {
                     (c.reservation.model == SettingsModel::OL86_C && c.requested[0] == 2)))
         return false;
     if (selector && c.requested[0] > 1)
+        return false;
+    if (subdivision && (c.requested[0] > UINT16_MAX || c.requested[1] < SUBDIVISION_MINIMUM ||
+                        c.requested[1] > SUBDIVISION_MAXIMUM))
         return false;
     // Prepared words are U16 and DI codes documented. High polarity bits have no bound to check.
     if (io && (c.requested[0] > UINT16_MAX || c.requested[1] > UINT16_MAX))
@@ -262,6 +268,37 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
     output.requested[2] = uint32_t(old.minimumNative);
     output.requested[3] = uint32_t(old.maximumNative);
     select(output, prior, 0);
+    return Ok();
+}
+Status prepareSubdivisionSettings(DriverSettingsContext& output, const AxisReservation& r,
+                                  const ReadTarget& currentTarget, const DriverContext& prior,
+                                  const ReadContext& state, const SubdivisionSettings& settings,
+                                  uint32_t operation, uint64_t now, uint64_t deadline,
+                                  const ReadOptions& options, uint64_t age) noexcept {
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
+        return error(ReadError::OVERLAP, "subdivision settings preparation overlaps input");
+    Status s = validateStopped(r, currentTarget, prior, ReadKind::DRIVER, state, operation, now,
+                               deadline, options, age);
+    if (!s)
+        return s;
+    // Project policy: a new command scale under torque could move the shaft, and no source says when
+    // 2201 takes effect, so the drive must report released.
+    if (!(stateWord(state, StateBlock::MONITORS, 0) & MONITOR_RELEASED))
+        return error(ReadError::STATE, "2201 change refused unless 2100 reports released");
+    DriverObservation old;
+    if (!getDriver(prior, r.target, now, age, old) || old.group != DriverGroup::DRIVER)
+        return error(ReadError::STATE, "fresh reserved read of 2200 and 2201 required");
+    if (settings.subdivisionRaw < SUBDIVISION_MINIMUM || settings.subdivisionRaw > SUBDIVISION_MAXIMUM)
+        return error(ReadError::VALUE, "2201 candidate outside 400..51200");
+    publish(output, r, DriverGroup::DRIVER, operation, now, deadline, options);
+    output.requested[0] = old.directionRaw;
+    output.requested[1] = settings.subdivisionRaw;
+    select(output, prior, 1);
     return Ok();
 }
 Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r,

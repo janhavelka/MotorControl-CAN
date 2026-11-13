@@ -19,26 +19,26 @@ NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
          "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home",
-         "F": "velocity-target"}
+         "F": "velocity-target", "K": "subdivision"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home", "F": "velocity-target"}
-# Protocol 6's routes and protocol 8's F. `bench_route_test --transcript` prints the earlier ones only;
-# `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names them (see
+          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision"}
+# Protocol 6's routes, protocol 8's F and protocol 9's K. `bench_route_test --transcript` prints the earlier
+# ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names them (see
 # check_trial_transcript).
-NEW_LETTERS = frozenset("NVOF")
+NEW_LETTERS = frozenset("NVOFK")
 
 
 def check_trial_transcript(path, every=False):
     """Every record the real BenchRoute prints must parse whole, with its expected verdict. every: the
     transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records, protocol
-    8's velocity-target records and the 2026-11-10 chain from a released mode 3 drive (mode1, enable, move,
-    position)."""
+    8's velocity-target records, the 2026-11-10 chain from a released mode 3 drive (mode1, enable, move,
+    position) and protocol 9's range-probe velocity and subdivision records."""
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 39 if every else 26
+    wanted_count = 42 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -53,10 +53,13 @@ def check_trial_transcript(path, every=False):
                 "status": "captured"}
         report = evidence.replay_bytes(body, meta)
         # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed. Home is refused before
-        # any write by design, and one velocity line names 61 rpm, over the attended experiment's 60, which
-        # the library refuses.
+        # any write by design, and one velocity line names 61 rpm without the range probe (its last field),
+        # over the attended experiment's 60, which the library refuses. A subdivision of 25600 on a drive that
+        # does not report released is the library's refusal too.
         lost = line.startswith("G2,13,")
-        refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60)
+        probe = line[0] == "V" and fields[-1] == "1"
+        held = line[0] == "K" and fields[3] == "25600"
+        refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60 and not probe) or held
         # Backlog S16: word 15's reply lost, then the route's fallback 000B after that failed terminal.
         fallback = line.startswith("V1,9,")
         # Gate Q03: the fake refuses the 3001 range probe with the value range's abort.
@@ -158,6 +161,12 @@ def check_trial_transcript(path, every=False):
         # Protocol 7: every velocity record names the attended experiment and claims no start or stop.
         if line[0] == "V" and b" gate=2 start=0 stop=0 " not in body:
             problems.append("%s: a velocity record without the attended experiment scope" % line)
+        # Protocol 9: the plan and the evidence name the line's range probe.
+        if line[0] == "V" and (body.count(b" probe=%s\n" % fields[-1].encode("ascii")) != 2 or
+                               report.unknown_fields):
+            problems.append("%s: the range probe is not in its plan and evidence" % line)
+        if line[0] == "K":
+            problems += _check_subdivision_record(line, fields, body, report, held)
         if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
         # The routes read 607D:00 and 60FE:00 in two bytes, as both specimens answered them. Against
@@ -201,6 +210,32 @@ def _check_target_record(line, fields, body, meta, report, ranged):
               body.replace(b" data=%s match=1 " % written, b" data=00000000 match=1 "))
     if "velocity_target_differs_from_record" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
         problems.append("%s: a summary that differs from the record was accepted" % line)
+    return problems
+
+
+def _check_subdivision_record(line, fields, body, report, held):
+    """One subdivision record of the transcript (protocol 9): its summaries, and on the wire only its one 2201
+    download, never 2200, 6040 or another object; held is the library's refusal, with no download at all."""
+    problems = []
+    kinds = set(report.kinds)
+    if not {"TRIAL_LAST", "TRIAL_SETTINGS", "TRIAL_DRIVER", "TRIAL_SUBDIVISION"} <= kinds:
+        problems.append("%s: no state, settings, driver or subdivision summary" % line)
+    value = int(fields[3])
+    sent = [r.values["data"] for r in report.records if r.kind == "TRAFFIC" and r.status == "parsed" and
+            r.values["k"] == evidence.TX and 0x600 < r.values["id"] <= 0x67F]
+    downloads = [data for data in sent if data[:2] not in ("40", "80")]
+    drivers = [r.values for r in report.records if r.kind == "TRIAL_DRIVER" and r.status == "parsed"]
+    if [v["which"] for v in drivers] != [0, 1, 2]:
+        problems.append("%s: not the three DRIVER summaries" % line)
+    if held:
+        if downloads or b"TRIAL_STATUS code=" not in body or b" written=0 outcome=255 " not in body:
+            problems.append("%s: not a refusal with nothing written: %s" % (line, downloads))
+        return problems
+    if downloads != ["2b012200" + value.to_bytes(2, "little").hex() + "0000"]:
+        problems.append("%s: not exactly one 2201 download of its value: %s" % (line, downloads))
+    if b"TRIAL_SUBDIVISION requested=%d written=1 outcome=0 ack=1 " % value not in body or \
+            [(v["present"], v["2201"]) for v in drivers][1:] != [(True, value), (True, value)]:
+        problems.append("%s: not an acknowledged write with its readback and the read after it" % line)
     return problems
 
 
@@ -346,7 +381,7 @@ VELOCITY = ["--command", "velocity", "--node", "1", "--trial", "30", "--rpm", "6
             "--kind", "halt", "--record", "351", "--layout", "zh86", "--device-type", "0x00040192",
             "--hardware-version", "0x12", "--software-version", "0x34", "--vendor-id", "0x300", "--product-code",
             "0x8605", "--revision", "0x10001", "--model-code", "0x86", "--firmware-code", "0x123"]
-VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,5000,15500,1,351,2,262546,18,52,768,34309,65537,134,291")
+VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,5000,15500,1,351,2,262546,18,52,768,34309,65537,134,291,0")
 # A velocity record's run and stop lines as BenchRoute prints them (test/bench_route_test.cpp's fallback
 # cases on its fake, never a measurement). STOP_NONE is trial 1009's: the run asked for its HALT and nothing
 # left. STOP_OWN is the run's own HALT after its acknowledged 000F; BEST_LEFT the route's fallback 000B.
@@ -1132,8 +1167,8 @@ class BenchTest(unittest.TestCase):
                                      ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            # Older images, protocol 7's among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 9):
+            # Older images, protocols 7 and 8 among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 10):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1542,7 +1577,7 @@ class BenchTest(unittest.TestCase):
         quick = list(VELOCITY)
         quick[quick.index("--kind") + 1] = "quick"
         quick[quick.index("--layout") + 1] = "op86"
-        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,5000,15500,2,351,4,262546,18,52,768,34309,65537,134,291")
+        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,5000,15500,2,351,4,262546,18,52,768,34309,65537,134,291,0")
         for method in (17, 18, 29):
             argv = list(HOME)
             argv[argv.index("--method") + 1] = str(method)
@@ -1718,7 +1753,7 @@ class BenchTest(unittest.TestCase):
         self.assertIn(status, (0, 1), err)
         self.assertEqual(self.meta()["velocity_scope"],
                          {"gate": "ATTENDED_EXPERIMENT", "start_qualified": False, "stop_qualified": False,
-                          "record": 351, "maximum_rpm": 60, "maximum_duration_ms": 20000})
+                          "record": 351, "range_probe": False, "maximum_rpm": 60, "maximum_duration_ms": 20000})
         send = [entry for entry in self.entries() if entry["event"] == "send"]
         self.assertEqual([entry.get("scope") for entry in send], ["ATTENDED_EXPERIMENT"])
 
@@ -1892,7 +1927,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=8", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=9", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -1931,6 +1966,205 @@ class BenchTest(unittest.TestCase):
         board.routes = 7
         status, _, err_text = self.run_main(probe(6, trial="70"), Backend(board), Operator("ATTENDED 70"))
         self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"))
+
+    def test_protocol_nine_refuses_older_images(self):
+        # Protocol 9 added the V line's last field and the K route: an image that speaks 8 would read a V line
+        # one field long and know no K, so nothing is sent to it.
+        self.assertEqual(bench.ROUTE_PROTOCOL, 9)
+        for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
+                                                 "--value", "10000"], "40")):
+            self.clear_output()
+            self.ledger.write_bytes(b"")
+            board = Board()
+            board.routes = 8
+            status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED " + trial, "none"))
+            self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+
+    def test_range_probe_line_bounds_and_records(self):
+        def probe(**values):
+            argv = list(VELOCITY) + ["--range-probe"]
+            for name, value in values.items():
+                argv[argv.index("--" + name.replace("_", "-")) + 1] = str(value)
+            return argv
+        tail = "351,2,262546,18,52,768,34309,65537,134,291"
+        # The firmware's grammar (BenchRoute.cpp VELOCITY_FIELDS): the probe flag is the line's last field.
+        for argv, line in ((probe(), "TV1,30,1,6,200,200,12000,5000,15500,1,%s,1" % tail),
+                           (probe(rpm=3000), "TV1,30,1,3000,200,200,12000,5000,15500,1,%s,1" % tail),
+                           (probe(rpm=6000, ramp_up_ms=2000), "TV1,30,1,6000,2000,200,12000,5000,15500,1,%s,1" % tail),
+                           (VELOCITY, "TV1,30,1,6,200,200,12000,5000,15500,1,%s,0" % tail)):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line), argv)
+            bench.check_bounds(args.command, fields)  # No refusal: the scope's caps hold.
+            self.assertEqual(bench.plan_bounds(args.command, fields), (118, 15500))  # The flag changes no bound.
+            self.assertEqual(bench.motion_weight(args.command, fields), (2, 1))
+        # Without the probe nothing changed: 60 rpm is the cap and 61 is refused here, unsent and uncounted.
+        args, fields = bench.arguments(BASE + probe(rpm=60) + LEDGER + ["--output", "x"])
+        bench.check_bounds(args.command, fields)
+        for argv, reason in ((probe(rpm=3000, ramp_up_ms=199),
+                              "velocity range probe ramps: 199 ms up and 200 ms down; the library requires at least "
+                              "200 ms"),
+                             (probe(rpm=6, ramp_down_ms=199), "velocity range probe ramps: 200 ms up and 199 ms down"),
+                             (probe(rpm=6000, ramp_up_ms=1), "velocity range probe ramps: 1 ms up"),
+                             ([a for a in probe(rpm=61) if a != "--range-probe"],
+                              "velocity rpm: 61 is over the ATTENDED_EXPERIMENT scope's 60 rpm (6000 only with "
+                              "--range-probe)")):
+            self.clear_output()
+            self.ledger.write_bytes(b"")
+            board = Board()
+            operator = Operator("ATTENDED 30", "none")
+            status, _, err = self.run_main(argv, Backend(board), operator)
+            self.assertEqual(status, 2, err)
+            self.assertIn("REFUSED: %s" % reason, err)
+            self.assertEqual((board.writes, operator.questions), ([], []))
+            self.assertFalse(self.output.exists())
+            self.assertEqual(self.ledger.read_bytes(), b"")
+        # Over 6000 with the probe, over 3000 without it, and the probe on another route: refused by the parser,
+        # nothing created.
+        waiver = ["--unattended-waiver", "do a full night soak without my attendance", "--waiver-covers-motion"]
+        for argv, text in ((probe(rpm=6001), "--rpm must be 1..6000"),
+                           ([a for a in probe(rpm=3001) if a != "--range-probe"], "--rpm must be 1..3000"),
+                           (MODE3 + ["--range-probe"], "--range-probe belongs to velocity"),
+                           (probe(rpm=3001) + waiver[:2], "--unattended-waiver refuses velocity")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        # A probe takes a waiver that covers motion as any velocity does, above 3000 rpm too: the user's waiver of
+        # 2026-11-13 covers the above-limit part of that campaign.
+        for rpm in (3000, 6000):
+            args, fields = bench.arguments(BASE + probe(rpm=rpm) + waiver + LEDGER + ["--output", "x"])
+            self.assertEqual(fields[-1], 1)
+        # The dry run states the probe; the record and the send entry keep it.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + probe(rpm=3000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
+                       Operator())
+        self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
+        self.assertIn("routes=9", out.getvalue())
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        board = Board()
+        status, _, err = self.run_main(probe(rpm=3000), Backend(board), Operator("ATTENDED 30", "none"))
+        self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TV1,30,1,3000,200,200,12000,5000,15500,1,%s,1" % tail).encode()])
+        self.assertEqual(self.meta()["velocity_scope"],
+                         {"gate": "ATTENDED_EXPERIMENT", "start_qualified": False, "stop_qualified": False,
+                          "record": 351, "range_probe": True, "maximum_rpm": 6000, "maximum_duration_ms": 20000,
+                          "minimum_ramp_ms": 200})
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e["scope"], e["range_probe"]) for e in send],
+                         [("V", 2, 1, "ATTENDED_EXPERIMENT", True)])
+        # The S16 alert reads a probe's record as any velocity's.
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        board = Board()
+        board.answer = velocity_record(30, RUN_NEEDS, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1)
+        status, _, err = self.run_main(probe(rpm=3000), Backend(board), Operator("ATTENDED 30", "none"))
+        self.assertEqual(status, bench.VELOCITY_ALERT_STATUS, err)
+        self.assertIn("ALERT: node 1 MAY BE RUNNING", err)
+
+    def test_subdivision_line_bounds_dry_run_and_campaign(self):
+        def subdivision(value, node="1", trial="40"):
+            return ["--command", "subdivision", "--node", node, "--trial", trial, "--value", str(value)]
+        # The firmware's grammar (BenchRoute.cpp SUBDIVISION_FIELDS): node, trial, attended and the 2201 value.
+        for value in (400, 1000, 4000, 10000, 25600, 51200):
+            args, fields = bench.arguments(BASE + subdivision(value) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("TK1,40,1,%d" % value))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (12, 0))
+            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+            bench.check_bounds(args.command, fields)
+        self.assertEqual(bench.TRIALS["subdivision"][0], "K")
+        self.assertIn("K", bench.SETTINGS_LETTERS)
+        self.assertNotIn("K", bench.MOTION_ROUTES)
+        self.assertEqual(evidence.TRIAL_ROUTES["subdivision"], "subdivision")
+        # Outside 400..51200, missing, on another route or with a velocity's flag: refused by the parser.
+        for argv, text in ((subdivision(399), "--value must be 400..51200"),
+                           (subdivision(51201), "--value must be 400..51200"),
+                           (subdivision(0), "--value must be 400..51200"),
+                           (subdivision(65535), "--value must be 400..51200"),
+                           (subdivision(1000)[:-2], "--value is required for this route"),
+                           (MODE3 + ["--value", "1000"], "--value belongs to velocity-target and subdivision"),
+                           (subdivision(1000) + ["--range-probe"], "--range-probe belongs to velocity"),
+                           (subdivision(1000) + ["--fault-led", "prompt"], "--fault-led belongs to"),
+                           (subdivision(1000, node="3"), "--node must be 1..2")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        # Attended and counted like the settings routes: the campaign is required.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + subdivision(1000) + ["--output", "x"])
+        # The dry run touches nothing and states the bytes and the reads.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + subdivision(10000) + ["--dry-run", "--campaign", str(self.ledger)],
+                                Untouchable(), Clock(), Operator())
+        self.assertEqual(status, 0)
+        text = out.getvalue()
+        for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
+                     "must report released (2100 bit 4, no running or alarm)",
+                     "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
+                     "no 6040, no enable, no save", "routes=9", repr(signed("TK1,40,1,10000").encode("ascii"))):
+            self.assertIn(part, text)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # One send: the attended confirmation only, a settings entry with no motion weight, then the record.
+        board = Board()
+        operator = Operator("ATTENDED 40")
+        status, _, err_text = self.run_main(subdivision(10000), Backend(board), operator)
+        self.assertIn(status, (0, 1), err_text)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TK1,40,1,10000").encode()])
+        self.assertEqual(len(operator.questions), 1)
+        self.assertEqual(self.meta()["plan"], "prompt 59 2201 subdivision")
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("K", 0, 0, 1)])
+        # Three per node across boots, never toward the twelve motion admissions; node 2 has its own count, and
+        # settings-2202's count is apart.
+        self.write_ledger([dict(send_entry("K", 1, n, 0), settings=1) for n in (1, 2, 3)] +
+                          [send_entry("M", 1, n) for n in range(4, 16)])
+        self.clear_output()
+        board = Board()
+        status, _, err_text = self.run_main(subdivision(1000, trial="60"), Backend(board), Operator("ATTENDED 60"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("subdivision admissions on node 1, the cap is 3", err_text)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        status, _, err_text = self.run_main(subdivision(1000, node="2", trial="60"), Backend(Board()),
+                                            Operator("ATTENDED 60"))
+        self.assertIn(status, (0, 1), err_text)
+        # A K send without its settings mark is an inconsistent entry.
+        self.ledger.write_bytes(chain([send_entry("K", 1, 4, 0)]))
+        board = Board()
+        status, _, err_text = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("inconsistent send entry", err_text)
+        # Unattended only under the user's waiver, as settings-2202.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        operator = Operator()
+        status, _, err_text = self.run_main(subdivision(1000, trial="70") + ["--unattended-waiver", "I accept it"],
+                                            Backend(Board()), operator)
+        self.assertIn(status, (0, 1), err_text)
+        self.assertEqual(operator.questions, [])
+        self.assertEqual(self.meta()["operator"]["attended"],
+                         {"unattended": True, "waiver": "I accept it", "accepted": True})
+
+    def test_subdivision_record_reads_through_the_evidence_parser(self):
+        # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's): the
+        # grammar names every summary, and a refused write is failed evidence with nothing written.
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_PLAN route=subdivision node=1 trial=1 attended=1 value=10000\n"
+            b"TRIAL_DRIVER which=1 present=1 2200=0000 2201=10000\n"
+            b"TRIAL_SUBDIVISION requested=10000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"
+            b"TRIAL_PLAN route=velocity node=1 trial=2 attended=1 rpm=3000 up=200 down=200 dur=12000 interval=5000 "
+            b"deadline=15500 kind=1 probe=1\n")
+        self.assertEqual([(r.kind, r.status, r.extra) for r in lines],
+                         [("TRIAL_PLAN", "parsed", {}), ("TRIAL_DRIVER", "parsed", {}),
+                          ("TRIAL_SUBDIVISION", "parsed", {}), ("TRIAL_PLAN", "parsed", {})])
+        self.assertEqual(lines[1].values, {"which": 1, "present": 1, "2200": 0, "2201": 10000})
+        self.assertEqual(lines[2].values["requested"], 10000)
+        self.assertEqual(lines[3].values["probe"], 1)
+        self.assertIn("subdivision", evidence.SLOT_STEP_ROUTES)
 
     def test_close_sessions_reply_decides_the_status(self):
         board = Board()

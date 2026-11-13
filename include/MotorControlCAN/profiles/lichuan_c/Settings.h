@@ -55,6 +55,18 @@ enum class SoftLimitEnable : uint16_t {
 struct SoftLimitSettings {
     SoftLimitEnable enable = SoftLimitEnable::UNKNOWN; ///< Requested 2202 code 0 or 1.
 };
+/** Lowest 2201 subdivision a candidate may name: the detailed EN86/ZH86 p18 range, the one both
+ * manual claims admit (p11 gives 0..65535). */
+constexpr uint16_t SUBDIVISION_MINIMUM = 400;
+/** Highest 2201 subdivision a candidate may name; same source as SUBDIVISION_MINIMUM. */
+constexpr uint16_t SUBDIVISION_MAXIMUM = 51200;
+/** Explicit 2201 candidate; the default 0 is invalid. 2200 has no typed write and is never changed. */
+struct SubdivisionSettings {
+    /** Requested 2201, SUBDIVISION_MINIMUM..SUBDIVISION_MAXIMUM. Command pulses per motor turn was
+     * measured only at 1000 (node 1, 2026-11-03); at another value the scale, and when it takes effect,
+     * are unmeasured (Q04). */
+    uint16_t subdivisionRaw = 0;
+};
 /** Complete explicit DI register candidate for the seven documented 86C inputs.
  * It has no DO, filter or output-command field: those keep the per-field gates in docs/io_settings.md.
  * A code says what a register holds, not that the terminal is wired or the function effective.
@@ -164,6 +176,33 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
                                 const ReadContext& state, const SoftLimitSettings& settings,
                                 uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                                 const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
+/** Prepare one explicit, volatile write of the 2201 subdivision; 2200 is read back, never written.
+ * Matching readback proves the stored word only. When the drive applies it (at once, at the next
+ * enable or only after a power cycle) and the resulting pulses per turn are unmeasured (Q04), and no
+ * save is sent, so a power cycle may restore the stored value. The write advances the configuration
+ * generation like every settings call, so targets prepared under the old scale go stale; the caller
+ * must also treat retained positions as being in the old scale.
+ * The state rule is project policy, stricter than 2202's: a clean state read with no running, alarm
+ * or undocumented 2100 bit, and 2100 reporting the drive released, so the scale never changes under
+ * torque.
+ * @param[out] output Owned context, unchanged on rejection; no input overlap.
+ * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
+ * @param[in] current Actual current route and epochs; the reservation's target must equal it.
+ * @param[in] prior Fresh complete DRIVER context under that reservation.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation, reporting released.
+ * @param[in] settings Explicit candidate in SUBDIVISION_MINIMUM..SUBDIVISION_MAXIMUM.
+ * @param[in] operation Nonzero unique live operation identity.
+ * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
+ * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
+ * @param[in] options Nonzero service budgets, clamped by the overall deadline.
+ * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap for all prerequisites.
+ * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
+ */
+Status prepareSubdivisionSettings(DriverSettingsContext& output, const AxisReservation& reservation,
+                                  const ReadTarget& current, const DriverContext& prior,
+                                  const ReadContext& state, const SubdivisionSettings& settings,
+                                  uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                                  const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
 /** Prepare complete explicit DI assignment/polarity, preserving unknown polarity bits.
  * A stored undocumented function code is replaced, never carried: a candidate cannot name one.
  * The state rule is project policy, as no source gives a state for 2400: it is 2202's rule, and RS

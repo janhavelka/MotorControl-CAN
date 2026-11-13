@@ -207,6 +207,25 @@ A matching readback proves the stored code and nothing else. The call reports no
 coordinate sign, activation time or protection. It advances the configuration
 generation like any explicit setting, so prepared targets and earlier evidence go stale.
 
+## The 2201 subdivision (prompt 59)
+
+`prepareSubdivisionSettings` writes `2201` alone; `2200` is part of the same
+`DRIVER` read group, read back and compared, and never written. The candidate must
+lie in `SUBDIVISION_MINIMUM`..`SUBDIVISION_MAXIMUM` (400..51200), the range both
+manual claims admit (EN86/ZH86 p11 says 0..65535, p18 400..51200); 0..399 and
+51201..65535 stay untested. The state rule is project policy and stricter than
+`2202`'s: a clean STATUS and MONITORS read with no running, alarm or undocumented
+`2100` bit, and `2100` reporting the drive released, so the command scale never
+changes under torque. No save is sent.
+
+A matching readback proves the stored word only. When the drive applies the new
+value (at once, at the next enable or only after a power cycle) and how many command
+pulses then make one motor turn are unmeasured (Q04); only `2201=1000` with 1000
+pulses per turn was measured (node 1, 2026-11-03). The call advances the
+configuration generation like every explicit setting, so prepared targets go stale,
+and retained positions are in the old scale. Prompt 59's grid uses five values
+inside the overlap (1000, 4000, 10000, 25600, 51200), not a range sweep.
+
 ## Setting decisions
 
 `Settled` means a typed write exists for that domain. It does not mean the effect is
@@ -215,7 +234,7 @@ physically established. Pages are PDF pages. No value below is hardware-qualifie
 | Object | Decision | Evidence | What closes the rest |
 | --- | --- | --- | --- |
 | `2200` | **Gate kept, no write.** A domain is not enough: effect is needed too | EN86/ZH86 p18 say only `0 Pulse Sign`, `1 Pulse /Sign`, and neither says what the codes do under CAN; EDS `[2200]` U16 RW default 0; both specimens 0 | The same native target at each code, a finite move, independent shaft observation and raw `6064`, plus a power cycle for activation. Motion, so packet 19 or later. A flip with no motion shows only that the code is accepted, so it closes nothing |
-| `2201` | **Gate kept, no write.** At most 400..51200 if later admitted | p11 0..65535 versus p18 400..51200; EDS default 0; both specimens 1000 | Manufacturer range, then at the baseline and one other in-range value: raw `6064`, `607A`, `607D` after the write, and measured displacement for one fixed native target. The ratio gives the scale; a power cycle between them gives activation. No sweep |
+| `2201` | **Settled, 400..51200** (prompt 59, 2026-11-13), only while released, volatile, no save | p11 0..65535 versus p18 400..51200; EDS default 0; both specimens 1000 | Activation and scale: at the baseline and one other in-range value, raw `6064`, `607A`, `607D` after the write, and measured displacement for one fixed native target. The ratio gives the scale; a power cycle between them gives activation. Prompt 59's five-point grid, not a sweep |
 | `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` (project policy) and no homing report | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0. On 2026-11-04 both specimens accepted codes 1 and 0, each written and read back (trials 604 to 607, [report](reports/2026-11-04_bench.md)) | Enforcement, which that readback does not show. See the note below: no test closes this until `607D` has a domain |
 | `607D:01/:02` | **Gate kept, no write.** No admissible domain | EDS and EN86 p16/p17, ZH86 p17 give I32 and a name only; both specimens signed extremes. `607A` and `607C` ranges are not its range | **A manufacturer range or coordinate basis.** See the note below. `2100` bits need homing first, so no no-motion test can show the frame |
 | `6060` | **Gate kept, no write here.** Codes 1, 3, 6 share U8 and I8 encoding; 0 is undefined | p11, p13; EDS `[6060]` WO U8 versus manual RW I8; both specimens display 0 with `6041` low bits 7, the documentary pattern for `6040=15` | Packet 15's isolated `6060:00=1` with fresh mode, status, monitor, error and feedback evidence and independent shaft observation. Enabling in mode 3 or 6 and changing mode while enabled are separate gates (Q03, Q11, Q21). ZH86 p13 says the motor starts at the end of `6,7,15` in mode 3, with `60FF` reading 120 on both specimens, so code 3 is not a no-motion test |

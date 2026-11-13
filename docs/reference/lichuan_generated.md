@@ -18,7 +18,7 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
 | Read shape descriptors | 192 | Prompt 19/20/21/22/35/36/38/39 source width/representation only; read effects remain unqualified |
 | Typed reads | 192 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 14 | Conditional scalar setting rows, not complete object permission; model/state scope below |
+| Typed settings | 15 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 1 | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |
 
@@ -3468,14 +3468,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes command subdivision and invalidates dependent coordinate evidence. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement. Prompt 59 (2026-11-13): typed volatile write prepareSubdivisionSettings, 400..51200 only, only while 2100 reports released, 2200 read back and never written, readback required, no save; activation timing and the resulting pulses per turn stay unmeasured (Q04).", "write_policy": "qualification_required"} |
 | Conflicts | ["C12"] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
-| Typed setting scope | `null` (not stated) |
-| Setting coverage D/I/H/Q | not reported |
+| Typed setting scope | explicit_subdivision_400_to_51200_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MicDivide"} |
 

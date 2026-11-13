@@ -183,7 +183,8 @@ GRAMMAR = (
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
-        "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i?"),
+        "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
+        "probe:u?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -224,8 +225,9 @@ GRAMMAR = (
         "read:b target:i known:b prev:i prevTrial:u prevRelative:b basis:u witness:i"),
     # The host's move evidence as the firmware received it, then the session's MoveContext and its
     # five kept samples (admission, latest, acceptance, absence, completed), raw.
-    # settings-2202 and io-di3: the transaction's result, its configuration epochs and whether the owner and
-    # the session followed; then the group raw, which=0 the prior read and which=1 the matched readback.
+    # settings-2202, io-di3 and subdivision: the transaction's result, its configuration epochs and whether the
+    # owner and the session followed; then the group raw, which=0 the prior read and which=1 the matched
+    # readback (subdivision: TRIAL_DRIVER below).
     Row("TRIAL_SETTINGS", "TRIAL_SETTINGS ", "summary",
         "prepared:b noop:b state:u outcome:u>settingsOutcome changed:x confirmed:x effects:b "
         "uncertain:b>settingsUncertain cfg0:u cfg1:u>configuration followed:b",
@@ -273,12 +275,13 @@ GRAMMAR = (
     # home (protocol 6): the reads requestHome consumed and its refusal; gate is always 0 (CLOSED).
     Row("TRIAL_HOME", "TRIAL_HOME ", "summary",
         "method:u gate:u identity:b io:b state:b driver:b 2101:x 2200:x 2201:x admitted:b"),
-    # velocity (protocol 6; protocol 7 adds gate, always 2 ATTENDED_EXPERIMENT, with start and stop 0): the
-    # host's evidence as received, the session's VelocityContext, its preparation-anchored timeline and its
-    # admission and latest samples, raw. Its stop is TRIAL_STOP.
+    # velocity (protocol 6; protocol 7 adds gate, always 2 ATTENDED_EXPERIMENT, with start and stop 0;
+    # protocol 9 adds probe, prompt 59's range probe, also on TRIAL_PLAN): the host's evidence as received,
+    # the session's VelocityContext, its preparation-anchored timeline and its admission and latest samples,
+    # raw. Its stop is TRIAL_STOP.
     Row("TRIAL_VELOCITY_EVIDENCE", "TRIAL_VELOCITY_EVIDENCE ", "summary",
         "record:u layout:u gate:u start:b stop:b kind:u max:u reverse:b modeChange:b dt:x hw:x sw:x vid:x pc:x "
-        "rev:x mc:x fc:x"),
+        "rev:x mc:x fc:x probe:b?"),
     Row("TRIAL_VELOCITY", "TRIAL_VELOCITY ", "summary",
         "own:b state:u phase:u outcome:u>velocityOutcome first:u int:u setup:u exec:u completion:u>velocityCompletion "
         "stop:u sexec:u uncertain:b>velocityUncertain effects:b needs:b fenced:b>velocityFenced running:b cycles:u "
@@ -301,6 +304,12 @@ GRAMMAR = (
     # standstill, 2 not). Raw: what the bytes mean for the drive's signedness is the reviewer's.
     Row("TRIAL_VELOCITY_TARGET", "TRIAL_VELOCITY_TARGET ", "summary",
         "value:i tx:h written:b outcome:u ack:b uncertain:b abort:x read:b size:u data:h match:b after:u"),
+    # subdivision (protocol 9, prompt 59): after TRIAL_SETTINGS, 2200 and 2201 raw (2201 decimal) of the prior
+    # read (which=0), the readback uploads as delivered (1) and the DRIVER read after the transaction (2),
+    # then the 2201 download's own terminal (outcome 255 while none settled). Raw: the reviewer judges them.
+    Row("TRIAL_DRIVER", "TRIAL_DRIVER ", "summary", "which:u present:b 2200:x 2201:u"),
+    Row("TRIAL_SUBDIVISION", "TRIAL_SUBDIVISION ", "summary",
+        "requested:u written:b outcome:u ack:b uncertain:b abort:x"),
     Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
     Row("RELEASED", "TRIAL record released", "response"),
     Row("RELEASE_REFUSED", "TRIAL release refused", "response"),
@@ -574,7 +583,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "released-quick": "released-quick", "word67": "word67", "relative": "relative",
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
-                "velocity-target": "velocity-target"}
+                "velocity-target": "velocity-target", "subdivision": "subdivision"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -1093,7 +1102,7 @@ def _check_terminal(report, result, position, rows, previous):
 # field at that field's slot and reads back from slot 10, and a state read that includes 1003 skips the
 # entry slots its count leaves unread. Their steps rise with gaps; the header's terminal count still
 # shows a missing RESULT line.
-SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm"))
+SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm", "subdivision"))
 # Backlog S16: a velocity record may hold stop work after its first failed terminal, the run's own stop
 # after a failure or the route's fallback QUICK_STOP after a run that ended needing a stop with none sent
 # (BenchRoute::serviceAction). Only a 6040 download of 010F or 000B and the stop cycle's MONITORS, STATUS

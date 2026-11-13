@@ -40,7 +40,9 @@ the documented value, project policy); a range probe never reads as qualified; n
 best-effort stop on any doubt. Exploring the boundary is the goal: a plateau, a stall or a resettable alarm ends that
 run, not the ladder (see the continuation rule in item 2). Only damage signs (smell, smoke, heat, a loose part,
 grinding) or a non-resettable alarm end the ladder on that node; a non-resettable alarm leaves the node for its next
-natural power cycle, which is not requested.
+natural power cycle, which is not requested. On 2026-11-13 the user waived the attendant for this ladder campaign only
+("Unattended, I accept it": the velocity ladder, above-limit probe and resolution grid without them at the bench,
+motors bolted, free shafts); the runner records it with `--unattended-waiver` and `--waiver-covers-motion`.
 
 ## Read and audit
 

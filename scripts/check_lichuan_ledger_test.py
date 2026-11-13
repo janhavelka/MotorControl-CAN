@@ -218,8 +218,8 @@ class LedgerTests(unittest.TestCase):
     def test_setting_subsets_keep_scope_policy_and_qualification_separate(self):
         data = self.changed()
         rows = [e for o in data["objects"] for e in o["entries"] if "setting_coverage" in e]
-        self.assertEqual(len(rows), 14)
-        self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 4)
+        self.assertEqual(len(rows), 15)
+        self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 5)
         self.assertEqual(sum(e["owner_prompt"] == 21 for e in rows), 8)
         self.assertEqual(sum(e["owner_prompt"] == 22 for e in rows), 1)
         self.assertEqual(sum(e["owner_prompt"] == 38 for e in rows), 1)
@@ -238,13 +238,21 @@ class LedgerTests(unittest.TestCase):
         entry(data, "0x2202:00")["setting_scope"] = "position_parameters_86c"
         self.reject(data, "setting coverage")
         # 2200 is a retained gate: neither manual says what its codes do under CAN.
-        for key in ("0x2200:00", "0x2201:00", "0x607D:01", "0x607D:02"):
+        for key in ("0x2200:00", "0x607D:01", "0x607D:02"):
             data = self.changed()
             e = entry(data, key)
             e["setting_scope"] = "explicit_soft_limit_selector_86c"
             e["setting_coverage"] = dict(documented=True, implemented=True,
                                           host_tested=True, hardware_qualified=False)
             self.reject(data, "setting coverage outside")
+        # 2201's typed write (prompt 59) is its own 400..51200 subset; another subset's scope is refused,
+        # and so is a hardware qualification claim.
+        data = self.changed()
+        entry(data, "0x2201:00")["setting_scope"] = "explicit_soft_limit_selector_86c"
+        self.reject(data, "requires exact model-bound subset scope")
+        data = self.changed()
+        entry(data, "0x2201:00")["setting_coverage"]["hardware_qualified"] = True
+        self.reject(data, "setting coverage")
         data = self.changed()
         e = entry(data, "0x60FE:01")
         e["setting_scope"] = "explicit_di_configuration_86c"

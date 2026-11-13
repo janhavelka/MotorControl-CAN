@@ -72,6 +72,21 @@ context keeps the gate it was prepared with: a run under the experiment never
 reads as qualified, and a successful terminal qualifies nothing by itself. The
 attendant's independent power cutoff is the control the library cannot see.
 
+**Range probe (prompt 59).** `VelocityEvidence::rangeProbe`, admitted only under
+`ATTENDED_EXPERIMENT`, raises the experiment's rate bound from 60 rpm to
+`VELOCITY_RANGE_PROBE_MAXIMUM_RPM` (6000 rpm, twice the documented 3000) and
+refuses ramps under `VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS` (200 ms). Both are
+project policy for the attended range ladder and say nothing about what the drive
+or motor reaches; `60FF=3001` was stored unchecked (trial 2001), so the drive's own
+behavior above 3000 is what the probe measures. Any other gate with `rangeProbe` is
+refused as `ARGUMENT`, and a probe run qualifies nothing.
+
+**Over-speed stop (every gate).** An enable-report or running cycle whose `606C`
+magnitude exceeds the command's by more than a fifth plus
+`VELOCITY_OVERSPEED_MARGIN_RPM` (10 rpm) ends the run as `OBSERVATION_SCOPE` with
+its stop requested. The bound is project policy; `606C` is the drive's own report
+(2 rpm steps at cruise on both specimens), not an independent speed observation.
+
 The selected conditional sequence follows **ZH86 PDF p13**: mode 3, observe mode
 3, target/ramp writes, then `6,7,15`. **EN86 PDF p13** enables before parameters
 and refers to position trigger bits; the library does not combine those recipes.

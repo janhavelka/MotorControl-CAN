@@ -32,6 +32,17 @@ constexpr uint32_t VELOCITY_EXPERIMENT_MAXIMUM_RPM = 60;
 /** Longest preparation-anchored duration an ATTENDED_EXPERIMENT can request, in microseconds.
  * Project policy, as above; the setup budget must still fit inside it. */
 constexpr uint64_t VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US = 20000000;
+/** Highest positive rate an ATTENDED_EXPERIMENT with rangeProbe can state, in motor rpm: twice the
+ * documented 3000 rpm (EN86 p13), as project policy for the prompt 59 range probe. It says nothing about
+ * what the drive or motor can reach. */
+constexpr uint32_t VELOCITY_RANGE_PROBE_MAXIMUM_RPM = 6000;
+/** Shortest 6083 and 6084 ramp a range probe admits, in ms. Project policy, so a probe step never
+ * starts or stops at the drive's shortest documented ramp. */
+constexpr uint32_t VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS = 200;
+/** Over-speed allowance of every running cycle, in motor rpm: a running or enable cycle whose 606C
+ * magnitude exceeds the command's by more than a fifth of it plus this value ends the run with its stop
+ * requested. Project policy; 606C read in 2 rpm steps at cruise on both specimens. */
+constexpr uint32_t VELOCITY_OVERSPEED_MARGIN_RPM = 10;
 /** Most extra final-enable cycles one enable report window can schedule: enableWindowUs divided by
  * enableSpacingUs, rounded down, may not exceed it. Project policy bounding the observation count and
  * the setup budget; it says nothing about the drive. */
@@ -65,6 +76,11 @@ struct VelocityEvidence {
     uint8_t modeChangeFromRaw =
         0; ///< Exact qualified released source mode (0, 1 or 6), never a wildcard.
     bool reverseQualified = false;  ///< Negative 60FF behavior independently established.
+    /** ATTENDED_EXPERIMENT only: the prompt 59 range probe. It raises the experiment's rate cap from
+     * VELOCITY_EXPERIMENT_MAXIMUM_RPM to VELOCITY_RANGE_PROBE_MAXIMUM_RPM and requires ramps of at
+     * least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS. A probe run qualifies nothing, as every experiment;
+     * any other gate refuses it. */
+    bool rangeProbe = false;
     uint32_t maximumForwardRpm = 0; ///< Qualified positive range, 1..3000 rpm.
     uint32_t maximumReverseRpm = 0; ///< Qualified magnitude if reverseQualified, at most 3000 rpm.
 };

@@ -9731,7 +9731,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement.",
+            "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement. Prompt 59 (2026-11-13): typed volatile write prepareSubdivisionSettings, 400..51200 only, only while 2100 reports released, 2200 read back and never written, readback required, no save; activation timing and the resulting pulses per turn stay unmeasured (Q04).",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9743,6 +9743,13 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_subdivision_400_to_51200_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
