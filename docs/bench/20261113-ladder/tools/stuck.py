@@ -91,6 +91,14 @@ for step in argv[3:]:
             st = lad.read(node)
             lad.say("  INVEST target {}: rc={} {} state={}".format(value, rc, line.group(0)[:200] if line else None, st))
             lad.note(kind="invest-target", node=node, value=value, rc=rc, dir=d, state=st)
+        elif step.startswith("sub:"):
+            # One 2201 write with the record's before, readback and after reads (route subdivision), fresh boot.
+            value = int(step.split(":")[1])
+            st = lad.begin_series(node, "sub{}".format(value))  # releases a power-up state first
+            ok, text = lad.subdivision(node, value)
+            drv = re.findall(r"TRIAL_DRIVER which=(\d) present=(\d) 2200=([0-9a-f]{4}) 2201=(\d+)", text)
+            st = lad.read(node)
+            lad.say("  INVEST sub {}: ok={} driver={} state={}".format(value, ok, drv, st))
         elif step == "state":
             st = boot("state")
             lad.say("  INVEST state: {}".format(st))

@@ -73,8 +73,8 @@ firmware, stack and documentation gates and CI on the actual final commit.
 
 Bench, under the applicable authorization, each step needing a user power cycle afterwards:
 
-1. After a power cycle, read `2201` and `2500` (node 2 was left at 51200 and closed loop without a save) to establish
-   whether they persist.
+1. Whether `2500` persists without a save: write 1, power-cycle, read. (`2201` was measured volatile on 2026-11-13:
+   node 2's unsaved 51200 read 1000 after a power cycle.)
 2. In a reproduced fault state (one 3300 rpm run at 51200): a mode 1 enable, and the word 7 guard's `0x0000` within
    100 ms of word 7, recording whether the FF05 and the pull still occur.
 3. The discriminator: 3000 rpm with a 500 ms ramp at 51200 (pulse limit versus the `250A` deviation threshold).

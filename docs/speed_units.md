@@ -140,7 +140,10 @@ speed: FF05 from 4250 rpm on node 1 and from 4625 rpm on node 2 at `2201=1000` w
 200 ms ramp faults on both. Only at `2201=51200` did it fall: node 2 was clean to 3000 rpm (2.56 MHz) and faulted
 at 3200 rpm (2.73 MHz), node 1 between 2344 and 3516 rpm, so about 2.6 to 2.7 MHz of command pulses on both (a
 pulse-rate ceiling or the deviation threshold `250A`, which in pulses is about 28° there; not established). After an
-FF05 at 51200 both drives faulted at every later enable until a power cycle (see the bench report).
+FF05 at 51200 both drives faulted at every later enable until a power cycle
+([enable-fault report](reports/2026-11-13_enable_fault_state.md)); keep `rpm × 2201 / 60` below about 2.5 MHz. A
+`2201` written without a save does not survive a power cycle: node 2, written to 51200 at 16:23Z, read 1000 after the
+power cycle at 17:38Z.
 
 ## The ramp-time problem
 
