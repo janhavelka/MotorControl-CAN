@@ -75,6 +75,7 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 69 | Drive I/O functions and polarity values are per-profile documented facts; MCU pins and the watchdog stay board facts. |
 | 70 | The axis table records each axis's profile and expected product identity; checks run each profile's own readbacks. |
 | 71 | Qualify only the actual board, wiring, drives and firmware; nothing transfers between boards or families. |
+| 72 | Pulse-rate limits, enable-fault signatures and the release word are per-profile, per-firmware measured facts; the common axis reports only the typed signal. |
 
 ## Required contrasting test cases
 

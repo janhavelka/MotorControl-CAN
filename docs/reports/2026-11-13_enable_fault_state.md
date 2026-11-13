@@ -96,7 +96,8 @@ the `250A` deviation threshold, which the 3000 rpm, 500 ms ramp run would separa
   is not proof.
 - If a short slow enable reports `606C` nonzero at word 7, stop enabling and plan a power cycle.
 
-**For the library (proposed, not implemented; backlog S21).**
+**For the library (proposed, not implemented; backlog S21; planned in [prompt 57](../prompts/57_regular_drive_operations.md)
+for the release and [prompt 72](../prompts/72_enable_fault_guards.md) for the rest).**
 
 1. A pulse-rate admission check: refuse a velocity or position rate whose `rpm × 2201 / 60` exceeds a profile limit,
    with the measured value as evidence and the margin as project policy.
@@ -115,6 +116,10 @@ difference is routine (table above) and was zero in a faulting enable.
   `60FF=60`, in the enable-fault state. Every enable route refuses it while `606C` is nonzero.
 - Node 1: clean since the power cycle; after its reverse runs, released (`6041=C050`, `2100=0015`), `2201=1000`,
   `60FF=60`.
+- 17:30Z (user, relayed): "i see both drives green leds - not cycled yet". At 17:33Z a check through the library:
+  node 1 ran 60 rpm (running reported, cruise ratio 0.987, released afterwards); node 2 was refused before any write
+  (`606C` 1711 while released, trial 6036). Node 2 is not operable until a power cycle; its green LED matches its
+  report of no alarm, which this state does not need.
 
 Next, each needing a power cycle:
 

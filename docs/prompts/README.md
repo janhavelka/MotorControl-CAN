@@ -130,6 +130,7 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 69 | [Application I/O and hardware watchdog examples](69_application_io_watchdog.md) | 62, 68 |
 | 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | 55, 57, 61, 68 |
 | 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | 66, 69, 70 |
+| 72 | [Enable-fault guards: pulse-rate admission, word 7 guard and fault-state reporting](72_enable_fault_guards.md) | 57, 59 |
 
 ## Completion and external blockers
 

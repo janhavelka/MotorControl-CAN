@@ -128,6 +128,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 69 | [Application I/O and hardware watchdog examples](69_application_io_watchdog.md) | Pending | 62, 68; trials wait for the user's watchdog, optocoupler and switch wiring | - |
 | 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | Pending | 55, 57, 61, 68; startup verifies only unless the table opts in | - |
 | 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | Pending | 66, 69, 70; hardware trials wait for the user's wiring; S3 after 67 | - |
+| 72 | [Enable-fault guards: pulse-rate admission, word 7 guard and fault-state reporting](72_enable_fault_guards.md) | Pending | 57, 59; backlog S21 gaps; its bench steps each need a user power cycle | - |
 
 ## Next ready
 

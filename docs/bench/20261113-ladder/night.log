@@ -9178,3 +9178,67 @@ ladder.py: error: --interval-ms must be 20..5000
 17:14:03Z   state n1 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0 1001=00 603f=0000 607a=5000 60ff=60
 17:14:03Z   INVEST target 60: rc=0 TRIAL_VELOCITY_TARGET value=60 tx=3c000000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000 read=1 size=4 data=3c000000 match=1 after=1 state={'1001': '00', '603f': '0000', '2100': '0015', '6041': 'c050', '6061': '03', '6064': -1112002, '606c': 0, '607a': 5000, '60ff': 60}
 17:14:03Z stuck.py ended
+17:32:30Z ##### series 205 node 1 check (S0205-n1-check)
+17:32:34Z === start
+17:32:38Z   exit 0 (4.2 s)
+17:32:38Z === 6032 read node 1
+17:32:40Z   TRIAL id=6032 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+17:32:40Z   TRIAL_PLAN route=actions node=1 trial=6032 attended=0
+17:32:40Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0
+17:32:40Z   exit 0 (2.4 s)
+17:32:40Z === release 6032
+17:32:42Z   exit 0 (1.6 s)
+17:32:42Z   state n1 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+17:32:42Z === 6033 velocity-quick-60 n1
+17:33:07Z   TRIAL id=6033 node=1 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=5000 lossCancel=0
+17:33:07Z   TRIAL_PLAN route=velocity node=1 trial=6033 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=2 probe=0 reverse=0
+17:33:07Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0
+17:33:07Z   TRIAL_VELOCITY own=1 state=3 phase=5 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=9 sop=10 rpm=60 code=1 detail=4
+17:33:07Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=11872978
+17:33:07Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=10
+17:33:07Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+17:33:07Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+17:33:07Z   exit 3 (24.7 s)
+17:33:07Z === release 6033
+17:33:08Z   exit 0 (1.6 s)
+17:33:08Z   RESULT n1 60 rpm s=1000 -> failure=10 why=velocity measured=59.2 ratio=0.9872 606c=[60, 58]
+17:33:08Z === 6034 read node 1
+17:33:11Z   TRIAL id=6034 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5000 lossCancel=0
+17:33:11Z   TRIAL_PLAN route=actions node=1 trial=6034 attended=0
+17:33:11Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1101183 606c=0
+17:33:11Z   exit 0 (2.5 s)
+17:33:11Z === release 6034
+17:33:12Z   exit 0 (1.7 s)
+17:33:12Z   state n1 2100=0015 6041=c050 6061=03 6064=-1101183 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+17:33:12Z   INVEST check: failure=10 why=velocity stuck=False sample=('c437', '58') state={'1001': '00', '603f': '0000', '2100': '0015', '6041': 'c050', '6061': '03', '6064': -1101183, '606c': 0, '607a': 5000, '60ff': 60}
+17:33:12Z stuck.py ended
+17:33:13Z ##### series 206 node 2 check (S0206-n2-check)
+17:33:16Z === start
+17:33:20Z   exit 0 (4.2 s)
+17:33:20Z === 6035 read node 2
+17:33:22Z   TRIAL id=6035 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+17:33:22Z   TRIAL_PLAN route=actions node=2 trial=6035 attended=0
+17:33:22Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711
+17:33:22Z   exit 0 (2.4 s)
+17:33:22Z === release 6035
+17:33:24Z   exit 0 (1.7 s)
+17:33:24Z   state n2 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711 1001=00 603f=0000 607a=5000 60ff=60
+17:33:24Z === 6036 velocity-halt-60 n2
+17:33:26Z   TRIAL id=6036 node=2 route=velocity failure=8 why=velocity lost=0 terminals=18 traffic=54 tail=0 tailLost=0 summaries=5 step=2 cycles=0 motion=2 case=1 unsettled=0 gap=5000 lossCancel=0
+17:33:26Z   TRIAL_PLAN route=velocity node=2 trial=6036 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=1 probe=0 reverse=0
+17:33:26Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711
+17:33:26Z   exit 3 (2.2 s)
+17:33:26Z === release 6036
+17:33:28Z   exit 0 (1.6 s)
+17:33:28Z   RESULT n2 60 rpm s=51200 -> failure=8 why=velocity measured=-1 ratio=-1 606c=None
+17:33:28Z === 6037 read node 2
+17:33:30Z   TRIAL id=6037 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5000 lossCancel=0
+17:33:30Z   TRIAL_PLAN route=actions node=2 trial=6037 attended=0
+17:33:30Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711
+17:33:30Z   exit 0 (2.5 s)
+17:33:30Z === release 6037
+17:33:32Z   exit 0 (1.7 s)
+17:33:32Z   state n2 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711 1001=00 603f=0000 607a=5000 60ff=60
+17:33:32Z   INVEST check: failure=8 why=velocity stuck=False sample=None state={'1001': '00', '603f': '0000', '2100': '0011', '6041': '8050', '6061': '03', '6064': 26655924, '606c': 1711, '607a': 5000, '60ff': 60}
+17:33:32Z stuck.py ended
+17:34:30Z   OBSERVATION (user, relayed before 17:32Z): "i see both drives green leds - not cycled yet"; node 1 check clean, node 2 refused at admission (606C 1711): power cycle needed
