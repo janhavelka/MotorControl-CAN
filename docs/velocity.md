@@ -54,7 +54,7 @@ experiment gates (`EnableGate::ATTENDED_EXPERIMENT`, the `ISOLATED_EXPERIMENT`
 scopes of the PDO and communication settings). Under it `startQualified`,
 `stopQualified`, `modeChangeQualified` and `reverseQualified` must all be false,
 so the drive must already report released and stationary in mode 3 and only a
-positive rate can be prepared. The rate is at most
+positive rate can be prepared, unless the reverse probe below is set. The rate is at most
 `VELOCITY_EXPERIMENT_MAXIMUM_RPM` (60 rpm) and the duration at most
 `VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US` (20 s). These two bounds are project
 policy for an unmeasured start and stop; they say nothing about the drive.
@@ -81,6 +81,25 @@ or motor reaches; `60FF=3001` was stored unchecked (trial 2001), so the drive's 
 behavior above 3000 is what the probe measures. Any other gate with `rangeProbe` is
 refused as `ARGUMENT`, and a probe run qualifies nothing.
 
+**Reverse probe (prompt 59 item 4).** `VelocityEvidence::reverseProbe`, admitted only
+under `ATTENDED_EXPERIMENT`, is the run that measures what a negative `60FF` does. No
+source states a direction rule: the EDS and the p17 dictionaries declare `60FF` I32,
+the EN86/ZH86 p13 mode tables give it as UNSIGNED32 0~3000 ([Q03](device_conflicts.md),
+open), and `606C` already reads signed rpm (-60 during a 60 rpm move in the negative
+direction, trial 706). With the probe, `maximumReverseRpm` states the experiment's
+reverse range, 1 to the experiment's cap (60 rpm, or 6000 with `rangeProbe`), and a
+rate down to its negation is admitted and written as its two's complement I32 (-6 is
+`23 FF 60 00 FA FF FF FF`); positive rates are unchanged and zero stays refused. From the enable report on, before running is
+observed too, a cycle whose `606C` opposes the command by more than
+`VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM` (2 rpm, one cruise step) ends the run as
+`OBSERVATION_SCOPE` (`"reported velocity opposes the command"`) with its stop requested;
+without the probe a wrong-sign report before running is only no running evidence. The
+margin is project policy, and `606C` is the drive's report, not an independent direction
+observation. `reverseQualified` stays a `MEASURED` claim that only a reviewed reverse
+record (prompt 58) sets; the probe beside it, or under any other gate, is refused as
+`ARGUMENT`, and a probe run qualifies nothing. A sign change during a run stays with
+prompt 52's measurements (F15).
+
 **Over-speed stop (every gate).** An enable-report or running cycle whose `606C`
 magnitude exceeds the command's by more than a fifth plus
 `VELOCITY_OVERSPEED_MARGIN_RPM` (10 rpm) ends the run as `OBSERVATION_SCOPE` with
@@ -92,7 +111,8 @@ The selected conditional sequence follows **ZH86 PDF p13**: mode 3, observe mode
 and refers to position trigger bits; the library does not combine those recipes.
 EDS `[60FF]` specifies I32/default120, while the mode table says U32/0..3000 rpm.
 The signed representation is retained without inferring a negative operating
-range. OP86 p11 agrees with ZH86 but has the retained 57/86 heading conflict.
+range; only the reverse probe above sends a negative value, as an experiment.
+OP86 p11 agrees with ZH86 but has the retained 57/86 heading conflict.
 See [Q03/Q11](device_conflicts.md) and the [original facts](audit/LICHUAN_MOTION_FACTS.md).
 
 ## Sequence and timing

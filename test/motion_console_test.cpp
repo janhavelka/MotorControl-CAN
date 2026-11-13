@@ -518,9 +518,14 @@ void explicitEnableAndAlarmClear() {
         contains(output, "\"result\":\"accepted\"");
         CHECK(r.motion.normalResult().kind == E::MotionKind::ALARM_CLEAR);
         CHECK(r.motion.normalResult().state == M::ActionState::SUCCEEDED);
-        CHECK(downloadAt(r, first, 0x2301, 2, 1));
-        CHECK(downloadAt(r, first + 1, 0x2301, 2, 0));
-        CHECK(!downloadsFrom(r, first, 0x2300) && !downloadsFrom(r, first, 0x6040));
+        // The session's default method since 2026-11-13, CONTROLWORD_BIT7: exactly 2B 40 60 00 80 00 00 00,
+        // then 2B 40 60 00 00 00 00 00, and no enable word (6, 7, 15), 2301 or save.
+        const uint8_t reset[] = {0x2b, 0x40, 0x60, 0, 0x80, 0, 0, 0}, manual[] = {0x2b, 0x40, 0x60, 0, 0, 0, 0, 0};
+        CHECK(frameIs(r, first, reset) && frameIs(r, first + 1, manual));
+        CHECK(downloadsFrom(r, first, 0x6040) == 2 && wordsFrom(r, first, 0x0080) == 1 &&
+              wordsFrom(r, first, 0) == 1);
+        CHECK(!wordsFrom(r, first, 6) && !wordsFrom(r, first, 7) && !wordsFrom(r, first, 15));
+        CHECK(!downloadsFrom(r, first, 0x2300) && !downloadsFrom(r, first, 0x2301));
         transcript += output;
     }
 }

@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Velocity reverse probe (prompt 59 item 4, 2026-11-13)
+
+- `VelocityEvidence::reverseProbe`, admitted only under `VelocityGate::ATTENDED_EXPERIMENT`, admits a negative
+  rate down to `-maximumReverseRpm` within the experiment's magnitude cap (60 rpm, or 6000 with `rangeProbe`) and
+  writes `60FF` as its two's complement I32 (-6 is `23 FF 60 00 FA FF FF FF`). Positive rates are unchanged and zero
+  stays refused. From the enable report on, before running is observed too, a `606C` against the command by more
+  than `VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM` (2 rpm) ends the run as `OBSERVATION_SCOPE` with its stop requested.
+  `reverseQualified` stays a `MEASURED`-only claim; a probe run qualifies nothing, and Q03 stays open.
+- S2 bench protocol 12 (`PONG routes=12`): the `TV` line's last field is the reverse probe (runner `--reverse`;
+  `--rpm` stays the magnitude). `TRIAL_PLAN` ends in `reverse=` and `TRIAL_VELOCITY_EVIDENCE` in `reverseProbe=`;
+  `request.json` and the send entry record the probe; `s2_evidence` parses the new fields. The runner refuses
+  protocol 11 images.
+
+### Alarm clear default: the controlword reset (2026-11-13)
+
+- **Behavior change.** `prepareClearAlarm` and `AxisSession::requestClearAlarm` now default to
+  `AlarmClearMethod::CONTROLWORD_BIT7` (`2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00`)
+  instead of `OBJECT_2301`, on the user's decision "Alarm clear - pick the best method" and the bench
+  evidence of the same day ([report](docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md)):
+  on two CL86-C specimens of one firmware, `FF05` in mode 3 only, the controlword reset cleared the alarm
+  and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times, while `2301` cleared it 8 of 9
+  times but left `6041=8010`, `2100=0001`, which only a following `6040` = `0x0080` released, and once
+  (`2201=51200`) the alarm came back right after. **Migration:** `OBJECT_2301` stays selectable, and a
+  caller that relied on the default to write `2301` now names it. The console `alarm-clear`, which takes
+  no options, and `ProbeMotion::requestAlarmClear` follow the new default; the S2 `clear-alarm` route
+  still names its method. Under the default the acknowledged reset words become the session's latest
+  controlword, ending at `0x0000`, which is no stop predecessor. Mode 1 clears, other alarms, firmwares
+  and models stay unmeasured for either method ([fault clearing](docs/fault_reference_actions.md#two-reset-methods)).
+
 ### S2 controlword experiment route, protocol 11 (2026-11-13)
 
 - S2 bench route `controlword` (`TT<node>,<trial>,1,<word>,<cycles>,<interval>`, `PONG routes=11`): an

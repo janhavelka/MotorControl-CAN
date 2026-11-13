@@ -246,7 +246,7 @@ const ConsoleCommand commands[] = {
      "Request an absolute host target; axis origin is required.", nullptr, 42},
     {"alarm-clear", "alarm-clear", "ProbeMotion::requestAlarmClear",
      "fresh acquired state and native action gates", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Explicit alarm-clear sequence; success never re-enables motion.", nullptr, 42},
+     "Explicit alarm clear, 6040 0x0080 then 0; success never re-enables motion.", nullptr, 42},
     {"position-clear", "position-clear", "ProbeMotion::requestPositionClear",
      "stationary state and native counter-clear gates", E::DEVICE_ACTION, C::ASYNCHRONOUS,
      "Clear device counter to zero; no save or host-origin shortcut.", nullptr, 42},

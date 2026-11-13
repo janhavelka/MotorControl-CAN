@@ -313,7 +313,7 @@ constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
 // VELOCITY: every evidence value is the host's, as for MOVE; none has a firmware default. The line
 // has no start or stop flag: the route's scope is the library's ATTENDED_EXPERIMENT, which claims neither.
-// The last field is the prompt 59 range probe (protocol 9).
+// After the identity come the prompt 59 range probe (protocol 9) and reverse probe (protocol 12).
 constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(trial, TRIAL),
                                      ROUTE_FIELD(attended, FLAG),
@@ -334,7 +334,8 @@ constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(firmware.revision, U32),
                                      ROUTE_FIELD(firmware.modelCode, U16),
                                      ROUTE_FIELD(firmware.firmwareCode, U16),
-                                     ROUTE_FIELD(rangeProbe, FLAG)};
+                                     ROUTE_FIELD(rangeProbe, FLAG),
+                                     ROUTE_FIELD(reverse, FLAG)};
 // HOME: the request requestHome would convert and check; with the closed gate none of it is reached.
 constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(trial, TRIAL),
                                  ROUTE_FIELD(attended, FLAG),      ROUTE_FIELD(method, METHOD),
@@ -2834,7 +2835,8 @@ void BenchRoute::startMove(uint64_t now) noexcept {
 // VELOCITY through the session, which then admits every write, cycle and its own stop itself. The
 // evidence is the host's line, never defaulted; this route adds only what it can state: the attended
 // experiment scope, which claims no start or stop qualification, the line's rpm as the whole forward
-// range, and neither reverse nor a mode change.
+// range (and with the reverse probe as the whole reverse range), and neither a reverse qualification nor
+// a mode change.
 void BenchRoute::startVelocity(uint64_t now) noexcept {
     const RoutePlan& p = record_.plan;
     L::ReadTarget target;
@@ -2871,10 +2873,14 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     // Prompt 59's range probe, from the line only: the library then admits up to 6000 rpm with ramps of at
     // least 200 ms and still claims nothing. Without it the experiment's 60 rpm cap applies.
     evidence.rangeProbe = p.rangeProbe;
+    // Prompt 59 item 4's reverse probe, from the line only (protocol 12): the rate is then -rpm, which the
+    // library writes as 60FF's two's complement I32, with the line's rpm as the reverse range; the library
+    // ends the run on a 606C of the other sign from the enable report on. It claims nothing (Q03 open).
+    evidence.reverseProbe = p.reverse;
     evidence.maximumForwardRpm = p.rpm;
-    evidence.maximumReverseRpm = 0;
+    evidence.maximumReverseRpm = p.reverse ? p.rpm : 0;
     M::FiniteVelocityRequest& request = w.velocityRequest;
-    request.velocity.value = M::Rational(int64_t(p.rpm));
+    request.velocity.value = M::Rational(p.reverse ? -int64_t(p.rpm) : int64_t(p.rpm));
     request.velocity.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
     request.velocity.configurationGeneration = axisConfig.binding.configurationGeneration;
     request.durationUs = uint64_t(p.durationMs) * 1000;
@@ -3713,12 +3719,13 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         case RouteKind::VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu dur=%lu interval=%lu "
-                       "deadline=%lu kind=%u probe=%u\n",
+                       "deadline=%lu kind=%u probe=%u reverse=%u\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
                        static_cast<unsigned long>(p.durationMs), static_cast<unsigned long>(p.intervalMs),
-                       static_cast<unsigned long>(p.deadlineMs), unsigned(p.stopKind), unsigned(p.rangeProbe));
+                       static_cast<unsigned long>(p.deadlineMs), unsigned(p.stopKind), unsigned(p.rangeProbe),
+                       unsigned(p.reverse));
         case RouteKind::VELOCITY_TARGET:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%ld\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
@@ -4131,19 +4138,21 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         if (!index--) {
             // The host's record as the firmware received it, and what this route adds: the experiment
             // gate (2, ATTENDED_EXPERIMENT), no start or stop qualification, the line's rpm as the whole
-            // forward range, no reverse and no mode change, and the line's range probe. Never a firmware
-            // default.
+            // forward range, no reverse qualification (reverse=0) and no mode change, the line's range
+            // probe and its reverse probe (protocol 12), with which the line's rpm is the reverse range
+            // too. Never a firmware default.
             const L::MoveFirmware& f = p.firmware;
             return put(out, size,
                        "TRIAL_VELOCITY_EVIDENCE record=%lu layout=%u gate=%u start=0 stop=0 kind=%u max=%lu "
                        "reverse=0 modeChange=0 dt=%08lx hw=%04x sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x "
-                       "fc=%04x probe=%u\n",
+                       "fc=%04x probe=%u reverseProbe=%u\n",
                        static_cast<unsigned long>(p.record), unsigned(p.layout), unsigned(velocityGate(p)),
                        unsigned(p.stopKind), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(f.deviceType), unsigned(f.hardwareVersion),
                        unsigned(f.softwareVersion), static_cast<unsigned long>(f.vendorId),
                        static_cast<unsigned long>(f.productCode), static_cast<unsigned long>(f.revision),
-                       unsigned(f.modelCode), unsigned(f.firmwareCode), unsigned(p.rangeProbe));
+                       unsigned(f.modelCode), unsigned(f.firmwareCode), unsigned(p.rangeProbe),
+                       unsigned(p.reverse));
         }
         if (r.velocityRequested) {
             const L::VelocityContext& v = axis().velocityAction();

@@ -20,7 +20,7 @@ start and stop and claims neither. No record of this fixture measured them, so -
 bounds for that scope. request.json and the send entry record the scope. It needs the attendant with the
 independent cutoff in hand: --unattended-waiver refuses velocity, unless --waiver-covers-motion (below).
 
---range-probe (protocol 9, prompt 59) sets the V line's last field: the library's
+--range-probe (protocol 9, prompt 59) sets the V line's field after the identity: the library's
 VelocityEvidence::rangeProbe raises that rate cap to 6000 rpm (twice the documented 3000, project policy,
 never a drive limit) and requires both ramps of at least 200 ms; a probe still claims and qualifies
 nothing, and every running cycle carries the library's over-speed stop. Without it nothing changed: 60 rpm.
@@ -29,6 +29,17 @@ A ramp under 200 ms with it, or a rate over 6000, is refused here before anythin
 ("Unattended, I accept it": the velocity ladder, above-limit probe and resolution grid without them at the
 bench) explicitly covers the above-limit part of that campaign only. request.json's velocity_scope and the
 send entry record range_probe.
+
+--reverse (protocol 12, prompt 59 item 4) sets the V line's last field: the library's
+VelocityEvidence::reverseProbe, under the same attended experiment. --rpm stays the rate's magnitude; the run's
+rate is then -rpm, which the library writes as 60FF's two's complement I32 (-6 is 23 FF 60 00 FA FF FF FF), with
+--rpm as the reverse range too. The magnitude keeps the experiment's cap, 60 rpm, or 6000 with --range-probe.
+No source states which way a negative 60FF turns (ledger conflict Q03: EDS and p17 I32, p13 U32 0~3000), so
+from the enable report on, before running is reported too, a 606C against the command by more than 2 rpm ends
+the run with its own stop. A reverse probe still claims and qualifies nothing: reverseQualified stays false
+until a reviewed record. It is a velocity line in every other respect, also under --unattended-waiver, and the
+S16 alert reads its record as any velocity's. request.json's velocity_scope (reverse_probe, rate_rpm) and the
+send entry (reverse_probe) record it; --reverse on another route is refused.
 
 clear-alarm (protocol 10) needs --method, never defaulted: 2301 writes 2301 1 then 0 (EN86 p18, EDS), and
 controlword writes 6040 0x0080 then 0x0000 (EN86/ZH86 p15, OP86 p13), each second value only after the first
@@ -204,11 +215,11 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
 # Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
 # without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
-# the F route (gate Q03's 60FF probe), 9 the V line's last field, prompt 59's range probe, and the K route
-# (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route (one
-# reviewed non-enabling 6040 word). Any other image would misread the line, so it is refused before anything is
-# sent.
-ROUTE_PROTOCOL = 11
+# the F route (gate Q03's 60FF probe), 9 the V line's field after the identity, prompt 59's range probe, and
+# the K route (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route
+# (one reviewed non-enabling 6040 word), 12 the V line's last field, prompt 59's reverse probe. Any other image
+# would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 12
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -282,6 +293,9 @@ VELOCITY_EXPERIMENT_DURATION_MS = 20000
 VELOCITY_RANGE_PROBE_RPM = 6000
 VELOCITY_RANGE_PROBE_RAMP_MS = 200
 VELOCITY_DOCUMENTED_RPM = 3000
+# Prompt 59 item 4's reverse probe (Velocity.h VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM): from the enable report on,
+# a 606C against the command by more than this ends the run with its stop. Project policy, never a drive fact.
+VELOCITY_REVERSE_SIGN_MARGIN_RPM = 2
 # subdivision's 2201 value (Settings.h SUBDIVISION_MINIMUM, SUBDIVISION_MAXIMUM): the range both EN86/ZH86
 # claims admit. 0..399 and 51201..65535 stay untested.
 SUBDIVISION_RANGE = (400, 51200)
@@ -413,7 +427,8 @@ def trial_line(args, parser):
                            ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
-        fields.append(1 if args.range_probe else 0)  # Protocol 9: the line's last field.
+        fields.append(1 if args.range_probe else 0)  # Protocol 9: the field after the identity.
+        fields.append(1 if args.reverse else 0)  # Protocol 12: the line's last field, the reverse probe.
     elif args.command == "home":
         if args.method is None or args.method not in [str(m) for m in HOME_METHODS]:
             parser.error("--method is required for this route (%s)" % ", ".join(str(m) for m in HOME_METHODS))
@@ -557,6 +572,8 @@ def trial_line(args, parser):
         parser.error("--word belongs to controlword")
     if args.command != "velocity" and args.range_probe:
         parser.error("--range-probe belongs to velocity")
+    if args.command != "velocity" and args.reverse:
+        parser.error("--reverse belongs to velocity")
     if args.command != "enable" and args.released_by_recorded_stop is not None:
         parser.error("--released-by-recorded-stop belongs to enable")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
@@ -687,11 +704,13 @@ def check_bounds(command, fields):
         raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
                       "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
     if command == "velocity":
-        rpm, up, down, duration, deadline, probe = fields[3], fields[4], fields[5], fields[6], fields[8], fields[-1]
+        rpm, up, down, duration, deadline, probe, reverse = (fields[3], fields[4], fields[5], fields[6], fields[8],
+                                                             fields[-2], fields[-1])
         cap = VELOCITY_RANGE_PROBE_RPM if probe else VELOCITY_EXPERIMENT_RPM
         if rpm > cap:
-            raise Refused("velocity rpm: %d is over the %s scope's %d rpm%s" % (
-                rpm, VELOCITY_SCOPE, cap, " with the range probe" if probe else " (6000 only with --range-probe)"))
+            raise Refused("velocity rpm: %s%d is over the %s scope's %d rpm%s" % (
+                "the reverse probe's magnitude " if reverse else "", rpm, VELOCITY_SCOPE, cap,
+                " with the range probe" if probe else " (6000 only with --range-probe)"))
         if probe and min(up, down) < VELOCITY_RANGE_PROBE_RAMP_MS:
             raise Refused("velocity range probe ramps: %d ms up and %d ms down; the library requires at least %d ms "
                           "for each" % (up, down, VELOCITY_RANGE_PROBE_RAMP_MS))
@@ -781,6 +800,11 @@ def _send_problem(entry):
     if route == "T" and (len(fields) != 6 or fields[3] not in {str(word) for word in CONTROLWORDS} or
                          entry.get("controlword") != "0x%04X" % int(fields[3])):
         return "controlword %r does not match a reviewed word on the line" % (entry.get("controlword"),)
+    # Protocol 12: a V entry names its reverse probe, the line's last (22nd) field; earlier V lines had 21 fields
+    # and their entries no such name.
+    if route == "V" and "reverse_probe" in entry and \
+            (len(fields) != 22 or entry["reverse_probe"] is not (fields[-1] == "1")):
+        return "reverse_probe %r does not match the line's reverse field" % (entry["reverse_probe"],)
     return None
 
 
@@ -1335,13 +1359,22 @@ def dry_run(args, fields):
                   "the experiment's chosen budget, not a drive timing; the record's TRIAL_VELOCITY_WINDOW and "
                   "TRIAL_VELOCITY_SAMPLE which=2..4 bracket the enable report" %
                   (VELOCITY_WINDOW_MS, VELOCITY_SPACING_MS, VELOCITY_WINDOW_CYCLES))
-            if fields[-1]:
+            if fields[-2]:
                 print("  range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap %d rpm (project policy, "
                       "never a drive limit), both ramps at least %d ms, the library's over-speed stop in every "
                       "running cycle; the run qualifies nothing" %
                       (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
             else:
                 print("  no range probe: the experiment's %d rpm cap" % VELOCITY_EXPERIMENT_RPM)
+            if fields[-1]:
+                written = (-fields[3] & 0xFFFFFFFF).to_bytes(4, "little")
+                print("  reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate %d rpm, 60FF written "
+                      "23 FF 60 00 %s (two's complement I32; Q03 open, no source states the direction); from the "
+                      "enable report on, before running too, a 606C against the command by more than %d rpm ends the "
+                      "run with its own stop; reverseQualified stays 0, the run qualifies nothing" %
+                      (-fields[3], " ".join("%02X" % byte for byte in written), VELOCITY_REVERSE_SIGN_MARGIN_RPM))
+            else:
+                print("  no reverse probe: a positive rate, 60FF %d" % fields[3])
         if args.command == "clear-alarm":
             name = next(k for k, v in CLEAR_METHODS.items() if v == fields[5])
             print("  clear method %s: after the library's admission, %s, then %s only after the first one's "
@@ -1404,6 +1437,11 @@ def arguments(argv):
                           help="prompt 59's range probe: rate cap %d rpm, both ramps at least %d ms; still the "
                                "attended experiment, qualifying nothing" %
                                (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
+    velocity.add_argument("--reverse", action="store_true",
+                          help="prompt 59's reverse probe: the rate is -rpm (60FF two's complement), with the "
+                               "experiment's magnitude cap; a 606C of the other sign beyond %d rpm ends the run; still "
+                               "the attended experiment, qualifying nothing (Q03 open)" %
+                               VELOCITY_REVERSE_SIGN_MARGIN_RPM)
     velocity.add_argument("--duration-ms", type=int, help="FiniteVelocityRequest duration from the request, below "
                                                           "--deadline-ms and at most %d" %
                                                           VELOCITY_EXPERIMENT_DURATION_MS)
@@ -1564,13 +1602,18 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
         if args.command == "velocity":
-            probe = bool(fields[-1])
+            probe, reverse = bool(fields[-2]), bool(fields[-1])
             meta["velocity_scope"] = {"gate": VELOCITY_SCOPE, "start_qualified": False, "stop_qualified": False,
                                       "record": fields[10], "range_probe": probe,
                                       "maximum_rpm": VELOCITY_RANGE_PROBE_RPM if probe else VELOCITY_EXPERIMENT_RPM,
                                       "maximum_duration_ms": VELOCITY_EXPERIMENT_DURATION_MS}
             if probe:
                 meta["velocity_scope"]["minimum_ramp_ms"] = VELOCITY_RANGE_PROBE_RAMP_MS
+            # Protocol 12: the reverse probe and the signed rate it requests; the reverse qualification stays false.
+            meta["velocity_scope"].update(reverse_probe=reverse, reverse_qualified=False,
+                                          rate_rpm=-fields[3] if reverse else fields[3])
+            if reverse:
+                meta["velocity_scope"]["reverse_sign_margin_rpm"] = VELOCITY_REVERSE_SIGN_MARGIN_RPM
         if args.command == "clear-alarm":
             meta["clear_method"] = args.method
         if args.command == "controlword":
@@ -1601,7 +1644,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
             entry["settings"] = 1
         if args.command == "velocity":
             entry["scope"] = VELOCITY_SCOPE
-            entry["range_probe"] = bool(fields[-1])
+            entry["range_probe"] = bool(fields[-2])
+            entry["reverse_probe"] = bool(fields[-1])
         if args.command == "clear-alarm":
             entry["clear_method"] = args.method
         if args.command == "controlword":

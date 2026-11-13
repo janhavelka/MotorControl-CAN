@@ -217,7 +217,9 @@ class ProbeMotion {
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
      * @return Atomic native/local preparation status. */
     MotorControlCAN::Status requestEnable(uint64_t nowUs, uint64_t deadlineUs) noexcept;
-    /** Dispatch explicit alarm clear, retaining an unresolved value-1 effect.
+    /** Dispatch explicit alarm clear, retaining an unresolved value-1 effect. Uses
+     * AxisSession::requestClearAlarm's default method, AlarmClearMethod::CONTROLWORD_BIT7 (6040 0x0080,
+     * then 0x0000); no console grammar selects OBJECT_2301.
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
      * @return Native/local preparation status; no new work is sent on refusal. */
     MotorControlCAN::Status requestAlarmClear(uint64_t nowUs, uint64_t deadlineUs) noexcept;

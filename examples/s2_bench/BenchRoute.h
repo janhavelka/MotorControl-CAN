@@ -121,14 +121,20 @@
  *   stay false and no line field can set them. The rest of VelocityEvidence comes only from the host's
  *   line (record, status layout, stop kind, raw identity), never defaulted here. The line's own rpm is
  *   the forward maximum, at most VELOCITY_EXPERIMENT_MAXIMUM_RPM, and the duration at most
- *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; reverse and a mode change are
- *   never claimed, so the drive must already read mode 3 (MODE_THREE). The line's last field is the
- *   prompt 59 range probe: with 1 the route sets VelocityEvidence::rangeProbe, the rate may reach
+ *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; a reverse qualification and a
+ *   mode change are never claimed, so the drive must already read mode 3 (MODE_THREE). The field after
+ *   the identity is the prompt 59 range probe: with 1 the route sets VelocityEvidence::rangeProbe, the rate may reach
  *   VELOCITY_RANGE_PROBE_MAXIMUM_RPM (6000, twice the documented 3000; project policy, not a drive
  *   limit) and both ramps must be at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS, which routePlanValid
  *   checks as the library does; with 0 the rate stays 1..3000 on the line and the library's 60 rpm
  *   experiment cap applies. A probe run claims and qualifies nothing either, and every running cycle
- *   carries the library's over-speed stop (VELOCITY_OVERSPEED_MARGIN_RPM). The session writes 60FF, 6083,
+ *   carries the library's over-speed stop (VELOCITY_OVERSPEED_MARGIN_RPM). From protocol 12 a reverse
+ *   field follows: with 1 the route sets VelocityEvidence::reverseProbe (prompt 59 item 4), requests the
+ *   negated rpm, which the library writes as its two's complement I32, and states the line's rpm as the
+ *   reverse range too (maximumReverseRpm); the library's cap applies to the magnitude, and from the enable
+ *   report on a 606C against the command by more than VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM ends the run
+ *   with its stop requested. reverseQualified stays false: no record measured a negative 60FF (Q03 open),
+ *   and a reverse probe qualifies nothing. The session writes 60FF, 6083,
  *   6084, then 6, 7, 15, runs its cycles and asks for its own stop at the preparation-anchored due time.
  *   Every run sets the library's final-enable report window (backlog S17) to the experiment's chosen
  *   budget, ROUTE_VELOCITY_WINDOW_MS with cycles ROUTE_VELOCITY_SPACING_MS apart: while word 7's report
@@ -372,9 +378,10 @@ struct RoutePlan {
     /** MOVE: 0, or the other node, read through its own route and session while the move runs, at the
      * move's interval, and never written. It must first read stationary: running and alarm clear, 606C 0. */
     uint8_t observer = 0;
-    /** POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000. VELOCITY: the positive 60FF
-     * target in motor rpm and the evidence's forward maximum: 1..3000 (EN86/ZH86 p13), where the library
-     * refuses above VELOCITY_EXPERIMENT_MAXIMUM_RPM (60) for this attended experiment; with rangeProbe
+    /** POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000. VELOCITY: the 60FF target's
+     * magnitude in motor rpm, positive unless reverse, and the evidence's forward maximum (with reverse its
+     * reverse maximum too): 1..3000 (EN86/ZH86 p13), where the library refuses above
+     * VELOCITY_EXPERIMENT_MAXIMUM_RPM (60) for this attended experiment; with rangeProbe
      * 1..VELOCITY_RANGE_PROBE_MAXIMUM_RPM (6000), project policy for prompt 59, never a drive range. */
     uint32_t rpm = 0;
     uint32_t rampUpMs = 0;   ///< POSITION, RELATIVE: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE, VELOCITY: 1..2000.
@@ -401,6 +408,11 @@ struct RoutePlan {
     /** VELOCITY: the prompt 59 range probe, VelocityEvidence::rangeProbe. The rate may then reach 6000
      * rpm and both ramps must be at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS; a probe qualifies nothing. */
     bool rangeProbe = false;
+    /** VELOCITY (protocol 12): the prompt 59 reverse probe, VelocityEvidence::reverseProbe. The route then
+     * requests -rpm, written as 60FF's two's complement I32, with rpm as the reverse range, and the library
+     * ends the run on a 606C of the other sign beyond VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM; with
+     * rangeProbe too the magnitude may reach 6000 rpm. A reverse probe qualifies nothing (Q03 stays open). */
+    bool reverse = false;
     /** SUBDIVISION: the 2201 candidate, SUBDIVISION_MINIMUM..SUBDIVISION_MAXIMUM (400..51200, the range both
      * EN86/ZH86 claims admit). Command pulses per turn at another value than 1000 are unmeasured (Q04). */
     uint16_t subdivision = 0;
@@ -451,7 +463,7 @@ inline bool isArming(RouteKind kind) noexcept {
  * <observer>,<stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
  * `N<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `V<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<durationMs>,<intervalMs>,<deadlineMs>,<stopKind>,<record>,
- * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<rangeProbe>`;
+ * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<rangeProbe>,<reverse>`;
  * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>`;
  * `F<node>,<trial>,<attended>,<value>`;
  * `K<node>,<trial>,<attended>,<subdivision>`;

@@ -125,23 +125,34 @@ struct PreparedAction {
  * its second value only after the first one's acknowledgement, never repeats a write and never writes
  * any other object or value. No source says which of the two a firmware honors, or whether they are
  * equivalent, and none states a hold time between the two writes.
+ *
+ * CONTROLWORD_BIT7 is prepareClearAlarm's default since 2026-11-13, a project decision from the bench
+ * (docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md): two CL86-C specimens of one firmware
+ * (1000=00040192, 1009=000C, 100A=0020), FF05 raised by mode 3 velocity runs at the speed or
+ * acceleration limit, and no other alarm. There CONTROLWORD_BIT7 cleared the alarm and left the drive
+ * released (6041=8050, 2100=0011) 11 of 11 times, on both specimens. OBJECT_2301 cleared it 8 of 9
+ * times but left 6041=8010 with 2100=0001, not released, which no S2 bench route admits and which
+ * only a later 6040 0x0080 released; once, at 2201=51200, the FF05 came back right after the 2301
+ * clear. Mode 1 clears, other alarms, firmwares and models are unmeasured for either method.
  */
 enum class AlarmClearMethod : uint8_t {
-    /** Default. 2301:00 U16 1, then 0: EN86 PDF p18 "Alarm reset, 0: Noneffective; 1: Effective", U16
-     * RW, and EDS Obj.ClearAlm, U16 RW, PDO, default 0. ZH86 p18 and OP86 omit 2301. The 0 is library
-     * policy (D-27). Ran once on a specimen: node 1, mode 3, 2026-11-13, trial 5323 (see
-     * prepareClearAlarm). */
+    /** 2301:00 U16 1, then 0: EN86 PDF p18 "Alarm reset, 0: Noneffective; 1: Effective", U16 RW, and
+     * EDS Obj.ClearAlm, U16 RW, PDO, default 0. ZH86 p18 and OP86 omit 2301. The 0 is library policy
+     * (D-27). prepareClearAlarm's default until 2026-11-13; still selectable by name. Ran 9 times on
+     * 2026-11-13, first node 1, mode 3, trial 5323 (see prepareClearAlarm): on its own it can leave
+     * 6041=8010 with 2100=0001, which needs a further 6040 0x0080 that this method never writes. */
     OBJECT_2301,
-    /** 6040:00 U16 0x0080, then 0x0000. EN86 and ZH86 PDF p15 and OP86 p13, "3.5.2 Alarm reset": set
-     * bit 7 of 6040 to 1 to reset the drive alarm, "It should be set to 0 manually"; ZH86 p12 and OP86
-     * p10 list the step 15->128 "alarm reset" in the position-mode word table, which EN86 p12
-     * lacks. 0x0000 is that manual return. No source gives a predecessor other than 15, so sending
+    /** Default. 6040:00 U16 0x0080, then 0x0000. EN86 and ZH86 PDF p15 and OP86 p13, "3.5.2 Alarm
+     * reset": set bit 7 of 6040 to 1 to reset the drive alarm, "It should be set to 0 manually"; ZH86
+     * p12 and OP86 p10 list the step 15->128 "alarm reset" in the position-mode word table, which EN86
+     * p12 lacks. 0x0000 is that manual return. No source gives a predecessor other than 15, so sending
      * 0x0080 after whatever word the drive last took is project policy: this action never sends the 15,
      * which would be an enable. Both words have bits 0..3 clear, which the p12 tables pair with 6041 low
      * bits 000 (6040=0), so on a drive reporting itself switched on they may also release it
-     * (inference). Not run on a specimen by 2026-11-13: what the drive reports after a bit-7 reset,
-     * whether 6041 low bits or bit 4 change, and whether bit 7 acts on its rising edge or its level are
-     * unknown. Neither word is an allowed stop predecessor (stopPredecessorAllowed). */
+     * (inference; every measured clear was admitted already released). Measured as above: 6041=8050 and
+     * 2100=0011 after the clear. The action reads only after the second word, so these records do not
+     * show which word acted, and whether bit 7 acts on its rising edge or its level is unknown. Neither
+     * word is an allowed stop predecessor (stopPredecessorAllowed). */
     CONTROLWORD_BIT7
 };
 /** What ties the admission's 603F code to the alarm that 2100 reported in the same read. */
@@ -334,7 +345,8 @@ struct ActionContext {
     bool predecessorDocumented = false; ///< STOP only: false for DEC-8 project-decision arrows.
     PredecessorBasis predecessorBasis = PredecessorBasis::NONE; ///< STOP only: which sources show it.
     bool finalErrorRead = false; ///< CLEAR_ALARM only: alarm reported clear; read ERRORS once.
-    /** CLEAR_ALARM only: the reset its two downloads write. Every other context keeps OBJECT_2301. */
+    /** CLEAR_ALARM only: the reset its two downloads write. Every other context keeps OBJECT_2301, the
+     * neutral value the context checks require; it is not prepareClearAlarm's default method. */
     AlarmClearMethod clearMethod = AlarmClearMethod::OBJECT_2301;
     /** QUICK_STOP only. Mode 1: set when a cycle after the command reported 2100 released and 6041 low
      * bits 000 with 2100 running still set, and options.maximumAgeUs covers a seven-field cycle.
@@ -537,14 +549,16 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
  * node 1 (firmware 1000=00040192, 1009=000c, 100A=0020) on 2026-11-13, trial 5323, the 2301 method
  * admitted from 2100=001D, 6041=C018, 606C 0 and, in the first cycle after the 0's acknowledgement,
  * read 2100=0001 (alarm, running and released clear), 2102=0000, 6041=8010 and 6061=3; the earlier
- * rule, released in every cycle, ended that attempt OBSERVATION_SCOPE. One specimen, one firmware:
- * what 8010 beside 0001 means for torque is not established (the power-up holding report is
- * 8037/0001), and the controlword method has not run. Cycles read no FEEDBACK. ERRORS and
- * ERROR_HISTORY may consume data, so polling reads MONITORS and STATUS only and never rereads the
- * history. 603F may keep its old raw value; the final read keeps it raw. A persisting alarm repolls
- * until the deadline and never repeats a write. maximumAgeUs must cover five fields at the queue
- * plus response budgets, service.identityWidths must stay DECLARED_U16 and service.countWidths
- * DECLARED_U8.
+ * rule, released in every cycle, ended that attempt OBSERVATION_SCOPE. What 8010 beside 0001 means
+ * for torque is not established (the power-up holding report is 8037/0001). That report completes
+ * a 2301 attempt, yet on the bench only a later 6040 0x0080 released the drive from it, a word the
+ * 2301 method never writes. The controlword method's 11 clears on both specimens, one firmware,
+ * ended with 6041=8050 and 2100=0011, which this rule completes (AlarmClearMethod). Cycles read no
+ * FEEDBACK. ERRORS and ERROR_HISTORY may consume data, so polling reads MONITORS and STATUS only and
+ * never rereads the history. 603F may keep its old raw value; the final read keeps it raw. A
+ * persisting alarm repolls until the deadline and never repeats a write. maximumAgeUs must cover
+ * five fields at the queue plus response budgets, service.identityWidths must stay DECLARED_U16 and
+ * service.countWidths DECLARED_U8.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite, FEEDBACK too for a mode 3 latched release; its raw
@@ -552,7 +566,9 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Nonzero caller policies.
  * @param[in] method The reset to write, kept in clearMethod. Another value returns INVALID_CONFIG
- * with ActionError::ARGUMENT. The default keeps the 2301 calls written before the method existed.
+ * with ActionError::ARGUMENT. The default, CONTROLWORD_BIT7 since 2026-11-13, is the method that
+ * cleared FF05 and left the drive released on the bench (AlarmClearMethod gives the counts and
+ * scope); before then it was OBJECT_2301, which a caller now names to keep the 2301 writes.
  * @return Local validation only. Caller/owner separately retains EMCY/error history;
  * this action never erases failed operations, retries, enables or resumes work. An observed
  * alarm-clear report is not proof that the cause is gone or permission to close an incident.
@@ -560,7 +576,7 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
 Status prepareClearAlarm(ActionContext& output, const AxisReservation& reservation,
                          const ReadContext& state, uint32_t operation, uint64_t nowUs,
                          uint64_t deadlineUs, const ActionOptions& options,
-                         AlarmClearMethod method = AlarmClearMethod::OBJECT_2301) noexcept;
+                         AlarmClearMethod method = AlarmClearMethod::CONTROLWORD_BIT7) noexcept;
 /** Prepare an explicit zero-only device counter clear; nonzero is UNSUPPORTED right after the
  * overlap check, before any state, axis or budget check.
  * Writes 2302 U16 values 0, 1, 0, each after the previous acknowledgement. The leading 0 arms the

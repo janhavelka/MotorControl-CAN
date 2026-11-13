@@ -1821,7 +1821,8 @@ void faultFence() {
         budgets.observationIntervalUs = 1000;
         budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
         const unsigned clearAt = r.wire.sentCount;
-        CHECK(r.a.requestClearAlarm(alarm, budgets, r.now + LEAD, r.now).isOk());
+        // The 2301 method by name, the default before 2026-11-13; the check below counts its writes.
+        CHECK(r.a.requestClearAlarm(alarm, budgets, r.now + LEAD, r.now, L::AlarmClearMethod::OBJECT_2301).isOk());
         finishAll(r);
         CHECK(r.a.clearAction().state == M::ActionState::SUCCEEDED && !(r.drive.monitor & L::MONITOR_ALARM));
         CHECK(downloadsFrom(r, clearAt, 0x2301) == 2 && !r.a.clearBlocked());
