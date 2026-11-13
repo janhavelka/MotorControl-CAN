@@ -1,0 +1,27 @@
+{
+  "trial": 5677,
+  "series": 122,
+  "rng": 20261113,
+  "nodes": {
+    "1": {
+      "stoprec": null,
+      "retired": null,
+      "rot": 58,
+      "subdivision": 1000,
+      "alarms": 1,
+      "anomalies": 13,
+      "mode": "03",
+      "clears": 13
+    },
+    "2": {
+      "stoprec": null,
+      "retired": null,
+      "rot": 33,
+      "subdivision": 1000,
+      "alarms": 6,
+      "anomalies": 2,
+      "mode": "03",
+      "clears": 7
+    }
+  }
+}

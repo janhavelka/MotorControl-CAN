@@ -33,10 +33,12 @@ night.KEYS = night.KEYS + ("TRIAL_SUBDIVISION", "TRIAL_DRIVER", "TRIAL_SETTINGS"
 
 PART1 = [60, 120, 240, 480, 720, 960, 1200, 1500, 1800, 2100, 2400, 2700, 3000]
 PART2 = [3001, 3300, 3600, 4000, 4500, 5000, 6000]
-GRID = {4000: [1500, 3000, 4500, 6000],
-        10000: [600, 1200, 1800, 3000, 4500, 6000],
-        25600: [235, 469, 703, 1172, 1758, 2344, 3516, 4688, 6000],
-        51200: [117, 234, 352, 586, 879, 1172, 1758, 2344, 3516, 4688, 6000]}
+# Microstepping grid (prompt 59 Part 3): rpm per 2201 value for pulse rates 100k..2M+ pulses/s, capped at 4500 rpm,
+# just above the measured top speed at 2201=1000 (4000 clean, 4500 FF05 on node 1).
+GRID = {4000: [1500, 3000, 4000, 4500],
+        10000: [600, 1200, 1800, 3000, 4000, 4500],
+        25600: [235, 469, 703, 1172, 1758, 2344, 3516, 4000, 4500],
+        51200: [117, 234, 352, 586, 879, 1172, 1758, 2344, 3516, 4000, 4500]}
 
 
 def ramps(rpm):
@@ -175,10 +177,28 @@ class Ladder(night.Night):
         return ok, text
 
     def clear_alarm(self, node):
-        rc, text, d, _ = self.motion(node, "clear-alarm", ["clear-alarm", "--deadline-ms", "3000", "--interval-ms",
-                                                           "500"], ok=(0, 3), seconds=60)
-        self.note(kind="clear-alarm", node=node, rc=rc, dir=d)
-        return rc
+        """Recover a resettable alarm (measured 2026-11-13, node 1): the typed clear, alternating its two methods so
+        both are measured, then, if the drive reads 6041 8010 (low bits 000, not released), one 6040 = 0x0080 word,
+        which moved 8010 to the released 8050/0011 (trial 5405; 0000, 000B and 0006 did nothing, trials 5402-5404).
+        Never an enable. Returns the state read after the recovery."""
+        nd = self.s["nodes"][str(node)]
+        method = "controlword" if nd.get("clears", 0) % 2 == 0 else "2301"
+        nd["clears"] = nd.get("clears", 0) + 1
+        self.save()
+        rc, text, d, _ = self.motion(node, "clear-alarm-" + method,
+                                     ["clear-alarm", "--deadline-ms", "3000", "--interval-ms", "500", "--method",
+                                      method], ok=(0, 3), seconds=60)
+        st = self.read(node)
+        self.note(kind="clear-alarm", node=node, method=method, rc=rc, dir=d, state=st)
+        self.say("  after the {} clear: {}".format(method, st))
+        if st and not self.alarm_state(st) and not self.released(st) and not self.enabled(st) and                 (int(st["6041"], 16) & 0x07) == 0:
+            rc2, text2, d2, _ = self.motion(node, "controlword-0080", ["controlword", "--word", "0x0080", "--cycles",
+                                                                       "3", "--interval-ms", "500"], ok=(0, 3),
+                                            seconds=60)
+            st = self.read(node)
+            self.note(kind="controlword-0080", node=node, rc=rc2, dir=d2, state=st)
+            self.say("  after 6040=0x0080: {}".format(st))
+        return st
 
     # ---- series
     def begin(self, node, kind):
@@ -189,10 +209,9 @@ class Ladder(night.Night):
                 raise
             st = self.read(node)
             self.say("  fault at series start: typed alarm clear first ({})".format(st))
-            self.clear_alarm(node)
-            st = self.read(node)
-            if not st or self.alarm_state(st):
-                raise night.Retire("alarm did not clear: {}".format(st))
+            st = self.clear_alarm(node)
+            if not st or self.alarm_state(st) or not self.released(st):
+                raise night.Retire("alarm not recovered to a release: {}".format(st))
             return st
 
     def begin_series(self, node, label):
@@ -303,14 +322,13 @@ class Ladder(night.Night):
                     self.note(kind="alarm", node=node, rpm=rpm, state=st)
                     nd["alarms"] = nd.get("alarms", 0) + 1
                     self.save()
-                    if nd["alarms"] > 10:
-                        raise night.Retire("more than ten alarms on this node: {}".format(code))
+                    if nd["alarms"] > 40:
+                        raise night.Retire("more than forty alarms on this node: {}".format(code))
                     if code[1].lower() not in ("ff05", "0000"):
                         raise night.Retire("alarm {} not documented as resettable".format(code))
-                    self.clear_alarm(node)
-                    st = self.read(node)
-                    if self.alarm_state(st):
-                        raise night.Retire("alarm did not clear")
+                    st = self.clear_alarm(node)
+                    if not st or self.alarm_state(st) or not self.released(st):
+                        raise night.Retire("alarm not recovered to a release: {}".format(st))
                     break  # A fresh series after the clear.
                 else:
                     alarms_in_row, last_alarm = 0, None
@@ -333,9 +351,11 @@ class Ladder(night.Night):
             st = self.read(node)
         return st
 
-    def grid(self, node):
+    def grid(self, node, only=None):
         nd = self.s["nodes"][str(node)]
         for value, rpms in GRID.items():
+            if only and value not in only:
+                continue
             st = self.to_released_clear(node)
             ok, _ = self.subdivision(node, value)
             if not ok:
@@ -359,10 +379,11 @@ class Ladder(night.Night):
 if __name__ == "__main__":
     wt, plan = sys.argv[1], sys.argv[2]
     lad = Ladder(wt, "--dry" in sys.argv)
-    node = int(plan[1] if plan[0] in "ns" else plan[-1])
+    node = int(plan[1] if plan[0] in "ns" else plan.split(":")[0][-1])
     try:
         if plan.startswith("grid"):
-            lad.grid(node)
+            # grid1 or grid1:51200,25600 (only those 2201 values)
+            lad.grid(node, [int(v) for v in plan.split(":")[1].split(",")] if ":" in plan else None)
         else:
             steps = plan.split(":")[1].split(",") if ":" in plan else PART1 + PART2
             good = lad.ladder(node, steps, int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3].isdigit() else None,
@@ -371,4 +392,13 @@ if __name__ == "__main__":
     except night.Retire as error:
         lad.say("!!! " + str(error))
         lad.safe(node, str(error))
+    if plan.startswith("grid") and lad.s["nodes"][str(node)].get("subdivision", 1000) != 1000:
+        # The grid ended early: put 2201 back to the measured 1000 (volatile, no save) if the drive allows it.
+        try:
+            lad.to_released_clear(node)
+            ok, _ = lad.subdivision(node, 1000)
+            lad.say("  restore 2201=1000 after an early end: {}".format(ok))
+        except night.Retire as error:
+            lad.say("!!! restore of 2201 failed: {} (2201 stays {} until a power cycle)".format(
+                error, lad.s["nodes"][str(node)].get("subdivision")))
     lad.say("ladder {} ended".format(plan))

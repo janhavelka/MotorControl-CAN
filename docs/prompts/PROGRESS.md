@@ -115,7 +115,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 56 | [Host throughput: faster service passes, event wake and owner turn cost](56_host_throughput.md) | Pending | 27, 42, 53; pass timing measured before changes | - |
 | 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | Pending | 30, 42, 45; release trials from mode 1 idle and halted mode 3 | - |
 | 58 | [Measured records through the library API and the console](58_measured_records.md) | Pending | 42, 57; records reviewed against raw evidence | - |
-| 59 | [Velocity in full range and in both directions](59_velocity_range_direction.md) | Pending | 35, 52, 58; attended above-limit probe; reverse after the probe | - |
+| 59 | [Velocity in full range and in both directions](59_velocity_range_direction.md) | Partial | 35, 52, 58; range probe, `2201` write and the speed, edge-acceleration and subdivision runs done early on 2026-11-13 ([report](../reports/2026-11-13_velocity_limits_and_fault_recovery.md)); position ladder, reverse and records owed | - |
 | 60 | [User units for speed and acceleration](60_user_units.md) | Pending | 10, 59; ramp law Q11 from prompt 59 | - |
 | 61 | [Node setting, bitrate procedure, command-PDO maps and save trials](61_drive_configuration.md) | Pending | 38, 39, 41, 42; save proof waits for a natural power cycle; not after 18 | - |
 | 62 | [Wired stop line and host-loss watchdog](62_stop_line.md) | Pending | 21, 42, 53; trials wait for the user's optocoupler wiring | - |
