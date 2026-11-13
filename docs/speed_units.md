@@ -132,6 +132,14 @@ nominal internal pulse rate is rpm × `2201` / 60: 50,000 pulses/s at 3000 rpm w
 measures. The only documented speed-related failure is the position out-of-tolerance alarm (`603F=FF05`), whose listed
 causes include "Too fast" (documented, EN86 p20).
 
+**Measured on 2026-11-13** ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md), two specimens,
+one firmware, velocity mode): a `2201` write takes effect at the next enable without a power cycle, and `6081`/`60FF`
+stay motor rpm at every subdivision while `6064` counts in the new pulses. Runs were clean at command pulse rates up
+to 2 MHz (2344 rpm at `2201=51200`), so there is no 200 kHz or 500 kHz limit on this drive. The limit is the motor's
+speed: FF05 from 4250 rpm on node 1 and from 4625 rpm on node 2 at `2201=1000` with 2000 ms ramps; 4000 rpm with a
+200 ms ramp faults on both. Only at `2201=51200` did it fall, to between 2344 and 3516 rpm (a pulse-rate ceiling or
+the deviation threshold `250A`, which in pulses is about 28° there; not established).
+
 ## The ramp-time problem
 
 ### A time, not an acceleration

@@ -104,6 +104,13 @@ drive's report after the clear means for torque (below).
 
 ## Two reset methods
 
+**Measured on 2026-11-13** ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md), FF05 raised by
+velocity runs at the speed or acceleration limit, two specimens, one firmware): `CONTROLWORD_BIT7` cleared the alarm
+and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times. `OBJECT_2301` cleared it 8 of 9 times but left
+`6041=8010`, `2100=0001`, which only a following `6040` = 0x0080 word released (8 of 8; 0x0000, 0x000B and 0x0006 did
+nothing, and an NMT Reset Node changed nothing); once, at `2201=51200`, the FF05 came back right after the `2301`
+clear. The controlword method is the recommended recovery; the default parameter value is still `OBJECT_2301`.
+
 `prepareClearAlarm(..., AlarmClearMethod method = OBJECT_2301)` and
 `AxisSession::requestClearAlarm(..., method)` choose the reset. The method changes
 the two writes and nothing else: admission, the incident, the cycles, completion,

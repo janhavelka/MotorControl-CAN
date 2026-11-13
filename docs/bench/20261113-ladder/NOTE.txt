@@ -1,0 +1,21 @@
+Velocity ladder, acceleration and microstepping limits and fault recovery, 2026-11-13 11:58Z to 15:10Z
+(report: docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md).
+
+The user's written waiver for this campaign only: "Unattended, I accept it" (option text: "Waiver for this ladder
+campaign only: run the velocity ladder, above-limit probe and resolution grid without me at the bench. I take
+responsibility; motors bolted, free shafts."). Motion routes carry it through s2_bench.py --unattended-waiver TEXT
+--waiver-covers-motion. One relayed physical observation (user, during the first fault): node 1 shaft turns free,
+red LED blinking. Everything else is a drive report.
+
+Contents:
+- night.log: the lead's log (every route, its key record lines and decisions).
+- ladder.jsonl: one entry per velocity run (measured cruise, ratio, outcome, EMCY), classification, alarm, clear and
+  recovery, plus the relayed observation.
+- results.jsonl, state.json: the driver's route log and state (trial counter, subdivision, alarms per node).
+- cw-campaign*.jsonl, final-campaign.jsonl: the ledgers of the controlword experiments and the final 60FF writes.
+- run-*.out: driver console output.
+- packed/: one lossless tar.xz per evidence directory (series S<nnnn>-n<node>-<label> with their ledgers, plus the
+  root directories of the controlword, NMT reset and final routes); packed/MANIFEST.json lists every member's
+  SHA-256 and size and each archive's SHA-256. The raw directories are kept outside the repository.
+- tools/: ladder.py (the driver, built on night.py from the night soak), program.sh, pack_ladder.py, unretire.py,
+  en_reset.py and plans/ (the NMT reset experiment plan), copied from the lead's scratchpad for provenance.
