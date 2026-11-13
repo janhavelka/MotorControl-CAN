@@ -95,6 +95,9 @@ the `250A` deviation threshold, which the 3000 rpm, 500 ms ramp run would separa
 - After any FF05 at a fine resolution, prove the drive with a short slow enable before trusting it; a cleared alarm
   is not proof.
 - If a short slow enable reports `606C` nonzero at word 7, stop enabling and plan a power cycle.
+- The alarm does not show this state. Between attempts the drive reports no alarm (`2100` alarm clear after the
+  clear, `603F` 0), and both drives showed green LEDs (user, 17:30Z); the alarm, FF05, appears only 0.5 s into an
+  enable. The tells are `606C` nonzero at word 7, or nonzero while released and stationary.
 
 **For the library (proposed, not implemented; backlog S21; planned in [prompt 57](../prompts/57_regular_drive_operations.md)
 for the release and [prompt 72](../prompts/72_enable_fault_guards.md) for the rest).**
@@ -112,19 +115,26 @@ difference is routine (table above) and was zero in a faulting enable.
 
 ## State left and next measurements
 
-- Node 2: released `8050`/`0011`, mode 3, `2201=51200`, `2500=2` (read back), `606C` reading 1711, `6064=26655924`,
-  `60FF=60`, in the enable-fault state. Every enable route refuses it while `606C` is nonzero.
-- Node 1: clean since the power cycle; after its reverse runs, released (`6041=C050`, `2100=0015`), `2201=1000`,
-  `60FF=60`.
+- Node 2, before the second power cycle: released `8050`/`0011`, mode 3, `2201=51200`, `2500=2` (read back), `606C`
+  reading 1711, `6064=26655924`, `60FF=60`, in the enable-fault state. Every enable route refused it while `606C`
+  was nonzero.
+- Node 1, before the second power cycle: clean since the first; after its reverse runs, released (`6041=C050`,
+  `2100=0015`), `2201=1000`, `60FF=60`.
 - 17:30Z (user, relayed): "i see both drives green leds - not cycled yet". At 17:33Z a check through the library:
   node 1 ran 60 rpm (running reported, cruise ratio 0.987, released afterwards); node 2 was refused before any write
   (`606C` 1711 while released, trial 6036). Node 2 is not operable until a power cycle; its green LED matches its
   report of no alarm, which this state does not need.
 
-Next, each needing a power cycle:
+**Second power cycle (user, "cycled", before 17:38Z).** Both drives came up in the power-up report (`8037`/`0001`,
+`6064` 0, `606C` 0, `60FF=120`, the EDS default). Node 2's `2201` read 1000 (trial 6048): the 51200 written at
+16:23Z without a save did not survive, so `2201` is volatile (M). `2500` read 2, as before the cycle, so its
+persistence is still unknown. After the usual power-up release both drives ran 60 rpm at `2201=1000` cleanly (node 2
+trial 6052, node 1 trial 6063, ratio 0.992, HALT confirmed). So the power cycle cleared the state again, for the
+second time on node 2.
 
-1. Power cycle node 2, then read `2201` and `2500`: they were never saved, so this shows whether they persist.
-   Restore `2201=1000` afterwards.
+Next, each needing a power cycle (planned in [prompt 72](../prompts/72_enable_fault_guards.md)):
+
+1. Whether `2500` persists: write 1 without a save, power-cycle, read.
 2. In a reproduced fault state (one 3300 rpm FF05 at 51200): a mode 1 enable, and proposal 3 timed within 100 ms
    of word 7.
 3. The discriminator: 3000 rpm with a 500 ms ramp at 51200.
