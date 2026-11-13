@@ -88,8 +88,8 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
-                             "arm-move", "arm-velocity", "arm-witness"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::ARM_WITNESS) + 1, "one name per route");
+                             "arm-move", "arm-velocity", "arm-witness", "subdivision"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::SUBDIVISION) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -101,17 +101,22 @@ bool isMotion(RouteKind kind) {
            kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY;
 }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
-bool isSettings(RouteKind kind) { return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3; }
+// The library's settings transactions: one candidate, its writes and its readback, with a configuration
+// epoch advance. SUBDIVISION is prompt 59's 2201 write.
+bool isSettings(RouteKind kind) {
+    return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3 || kind == RouteKind::SUBDIVISION;
+}
 // The console's arming: reads only, attended, no motion weight of its own.
 bool isArm(RouteKind kind) { return isArming(kind); }
-// Attended routes without motion weight, each with its own row of settingsCases_: the two settings
-// writes, HOME, which reads what requestHome consumes and is refused before any write, and VELOCITY_TARGET,
-// one 60FF write to a drive that reports itself released. -1 for others.
+// Attended routes without motion weight, each with its own row of settingsCases_: the settings writes,
+// HOME, which reads what requestHome consumes and is refused before any write, and VELOCITY_TARGET, one
+// 60FF write to a drive that reports itself released. -1 for others.
 int attendedCase(RouteKind kind) {
-    return kind == RouteKind::SETTINGS_2202 ? 0
-           : kind == RouteKind::IO_DI3      ? 1
-           : kind == RouteKind::HOME        ? 2
+    return kind == RouteKind::SETTINGS_2202     ? 0
+           : kind == RouteKind::IO_DI3          ? 1
+           : kind == RouteKind::HOME            ? 2
            : kind == RouteKind::VELOCITY_TARGET ? 3
+           : kind == RouteKind::SUBDIVISION     ? 4
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
@@ -177,6 +182,15 @@ constexpr Range LAYOUT = {1, 4}, METHOD = {17, 29};
 // VELOCITY_TARGET's 60FF value: p13's documentary 0..3000 rpm, its negation, and 3001, one above it, the
 // range probe (gate Q03). Wider values decide nothing more and are refused.
 constexpr Range PROBE_VALUE = {-3000, 3001};
+// VELOCITY's rate field: up to the prompt 59 range probe's ceiling, twice the documented 3000 rpm (project
+// policy). routePlanValid keeps 1..3000 without the probe's flag, as before.
+constexpr Range VELOCITY_RPM = {1, L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM};
+static_assert(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM == 6000, "the host's runner states 6000 rpm");
+// SUBDIVISION's 2201 value: the range both manual claims admit, as prepareSubdivisionSettings checks it.
+constexpr Range SUBDIVISION_VALUE = {L::SUBDIVISION_MINIMUM, L::SUBDIVISION_MAXIMUM};
+static_assert(L::SUBDIVISION_MINIMUM == 400 && L::SUBDIVISION_MAXIMUM == 51200, "the host's runner states 400..51200");
+static_assert(L::OBJECT_2200_00.widthBytes == 2 && L::OBJECT_2201_00.widthBytes == 2,
+              "SUBDIVISION keeps 2200 and 2201 readbacks in two bytes, as declared");
 // One fixed field list per route letter, in flash and in line order. The parser stores each field
 // through it and routePlanValid reads the same fields back, so both judge the same ranges.
 constexpr Field READ_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL)};
@@ -261,10 +275,11 @@ constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
 // VELOCITY: every evidence value is the host's, as for MOVE; none has a firmware default. The line
 // has no start or stop flag: the route's scope is the library's ATTENDED_EXPERIMENT, which claims neither.
+// The last field is the prompt 59 range probe (protocol 9).
 constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(trial, TRIAL),
                                      ROUTE_FIELD(attended, FLAG),
-                                     ROUTE_FIELD(rpm, MOVE_RPM),
+                                     ROUTE_FIELD(rpm, VELOCITY_RPM),
                                      ROUTE_FIELD(rampUpMs, MOVE_RAMP_MS),
                                      ROUTE_FIELD(rampDownMs, MOVE_RAMP_MS),
                                      ROUTE_FIELD(durationMs, ACTION_MS),
@@ -280,7 +295,8 @@ constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(firmware.productCode, U32),
                                      ROUTE_FIELD(firmware.revision, U32),
                                      ROUTE_FIELD(firmware.modelCode, U16),
-                                     ROUTE_FIELD(firmware.firmwareCode, U16)};
+                                     ROUTE_FIELD(firmware.firmwareCode, U16),
+                                     ROUTE_FIELD(rangeProbe, FLAG)};
 // HOME: the request requestHome would convert and check; with the closed gate none of it is reached.
 constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(trial, TRIAL),
                                  ROUTE_FIELD(attended, FLAG),      ROUTE_FIELD(method, METHOD),
@@ -289,6 +305,9 @@ constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(t
 // VELOCITY_TARGET: the one signed value; nothing else on the line is written.
 constexpr Field PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                   ROUTE_FIELD(velocityValue, PROBE_VALUE)};
+// SUBDIVISION: the one 2201 value; 2200 is read back, never written.
+constexpr Field SUBDIVISION_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL),
+                                        ROUTE_FIELD(attended, FLAG), ROUTE_FIELD(subdivision, SUBDIVISION_VALUE)};
 // ARM_MOVE: MOVE's start position, interval and evidence, without the request the console supplies, then
 // the budgets of the console's later stops. Every evidence value is the host's, as for MOVE.
 constexpr Field ARM_MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
@@ -375,8 +394,9 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'F', RouteKind::VELOCITY_TARGET, PROBE_FIELDS, countOf(PROBE_FIELDS)},
                                 {'Y', RouteKind::ARM_MOVE, ARM_MOVE_FIELDS, countOf(ARM_MOVE_FIELDS)},
                                 {'B', RouteKind::ARM_VELOCITY, ARM_VELOCITY_FIELDS, countOf(ARM_VELOCITY_FIELDS)},
-                                {'X', RouteKind::ARM_WITNESS, ARM_WITNESS_FIELDS, countOf(ARM_WITNESS_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::ARM_WITNESS), "one grammar per route");
+                                {'X', RouteKind::ARM_WITNESS, ARM_WITNESS_FIELDS, countOf(ARM_WITNESS_FIELDS)},
+                                {'K', RouteKind::SUBDIVISION, SUBDIVISION_FIELDS, countOf(SUBDIVISION_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::SUBDIVISION), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -507,6 +527,9 @@ unsigned terminalBound(const RoutePlan& p) {
         // IO_INPUT_CONFIGURATION (2400:00..08), STATUS and MONITORS, the one changed field's write, the
         // group's readback, then MONITORS and INPUTS once.
         return 9 + 5 + 1 + 9 + 4;
+    case RouteKind::SUBDIVISION:
+        // DRIVER (2200, 2201), STATUS and MONITORS, the 2201 write, the group's readback, DRIVER once more.
+        return 2 + 5 + 1 + 2 + 2;
     case RouteKind::WORD67:
         // Two full reads, the 0006 and its cycles, the 0007 and its cycles.
         return 9 + 9 + 1 + 7u * p.wordCycles + 1 + 7u * p.cycles;
@@ -660,8 +683,13 @@ bool routePlanValid(const RoutePlan& p) noexcept {
     }
     case RouteKind::VELOCITY:
         // The duration starts at preparation and must end before the run's deadline; ZH57 is no 86C
-        // dialect, which the library refuses too.
-        return p.durationMs < p.deadlineMs && p.layout != unsigned(L::StatusLayout::ZH57);
+        // dialect, which the library refuses too. Above the documented 3000 rpm only as the prompt 59 range
+        // probe, whose ramps the library requires at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS: refused
+        // here as the library would refuse it, before the line is counted.
+        return p.durationMs < p.deadlineMs && p.layout != unsigned(L::StatusLayout::ZH57) &&
+               (p.rangeProbe ? p.rampUpMs >= L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS &&
+                                   p.rampDownMs >= L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS
+                             : p.rpm <= 3000);
     case RouteKind::HOME:
         return p.method == 17 || p.method == 18 || p.method == 24 || p.method == 29;
     case RouteKind::ARM_MOVE: {
@@ -994,6 +1022,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.probeOutcome = r.probeSize = r.probeAfter = 0;
     r.probeAbort = 0;
     std::memset(r.probeRead, 0, sizeof r.probeRead);
+    std::memset(r.driverPresent, 0, sizeof r.driverPresent);
+    std::memset(r.driverDirection, 0, sizeof r.driverDirection);
+    std::memset(r.driverSubdivision, 0, sizeof r.driverSubdivision);
+    r.driverReadback = 0;
     // Older copies belong to earlier work; this record starts with an empty owner trace.
     for (unsigned i = 0; i < MotorControlCANOwner::CanBusOwner::TRACE_CAPACITY && owner.takeDiagnostic(diagnostic_);
          ++i) {
@@ -1081,6 +1113,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                {STEP_SETTINGS, 0},
                                {STEP_STATE, INPUTS_STATE},
                                {STEP_END, 0}};
+    // 2201 as 2202 is written, then DRIVER read once more at the epoch the write's notice reached.
+    static const Step subdivision[] = {{STEP_PRIOR, uint8_t(L::DriverGroup::DRIVER)},
+                                       {STEP_STATE, STOP_STATE},
+                                       {STEP_SETTINGS, 0},
+                                       {STEP_GROUP, uint8_t(L::DriverGroup::DRIVER)},
+                                       {STEP_END, 0}};
     // Two fresh full reads of a released, stationary drive, then the one 6060=3 and its cycles.
     static const Step modeThree[] = {{STEP_STATE, FULL},
                                      {STEP_SECOND, FULL},
@@ -1110,8 +1148,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     static const Step armWitness[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_WITNESS, 0}, {STEP_END, 0}};
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
-                                  modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::ARM_WITNESS) + 1,
+                                  modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
+                                  subdivision};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::SUBDIVISION) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1588,6 +1627,25 @@ bool BenchRoute::settle(uint64_t now) noexcept {
         record_.probeAbort = done.abortCode;
     }
     if (steps_[stepIndex_].kind == STEP_SETTINGS) {
+        // SUBDIVISION keeps its write's terminal and its readback's values raw, whatever the library then
+        // judges: a drive that stores another 2201 than the one written is the measurement.
+        if (record_.plan.kind == RouteKind::SUBDIVISION && t.subindex == 0 &&
+            (t.index == L::OBJECT_2200_00.index || t.index == L::OBJECT_2201_00.index)) {
+            const unsigned which = t.index == L::OBJECT_2201_00.index ? 1u : 0u;
+            if (t.direction == C::SdoDirection::DOWNLOAD && which) {
+                record_.probeWritten = true;
+                record_.probeOutcome = uint8_t(done.outcome);
+                record_.probeAcknowledged = done.protocolAcknowledged;
+                record_.probeUncertain = done.effectUncertain;
+                record_.probeAbort = done.abortCode;
+            } else if (t.direction == C::SdoDirection::UPLOAD && done.outcome == C::SdoOutcome::SUCCESS &&
+                       done.size == 2) {
+                const uint16_t value = uint16_t(done.data[0] | unsigned(done.data[1]) << 8);
+                (which ? record_.driverSubdivision : record_.driverDirection)[1] = value;
+                record_.driverReadback = uint8_t(record_.driverReadback | 1u << which);
+                record_.driverPresent[1] = record_.driverReadback == 3;
+            }
+        }
         // The transaction consumes every terminal of its own, failures included, and decides what follows.
         RouteWork& w = *work_;
         if (!L::advanceDriver(w.transaction, w.live, w.binding, done, now))
@@ -1891,6 +1949,8 @@ void BenchRoute::readDone(uint64_t now) noexcept {
     readActive_ = false;
     if (steps_[stepIndex_].kind == STEP_PRIOR)
         work_->prior = context_; // Assigned in place: the next read reuses context_.
+    if (steps_[stepIndex_].kind == STEP_GROUP && record_.plan.kind == RouteKind::SUBDIVISION)
+        publishGroup(2, &context_, now); // The DRIVER read after the transaction, at the new epoch.
     if (steps_[stepIndex_].kind == STEP_HOME_STATE)
         work_->observer = context_.read; // HOME's state, kept while DRIVER is read into context_.
     if (steps_[stepIndex_].kind == STEP_OBSERVE)
@@ -2689,6 +2749,9 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     evidence.modeChangeQualified = false;
     evidence.modeChangeFromRaw = 0;
     evidence.reverseQualified = false;
+    // Prompt 59's range probe, from the line only: the library then admits up to 6000 rpm with ramps of at
+    // least 200 ms and still claims nothing. Without it the experiment's 60 rpm cap applies.
+    evidence.rangeProbe = p.rangeProbe;
     evidence.maximumForwardRpm = p.rpm;
     evidence.maximumReverseRpm = 0;
     M::FiniteVelocityRequest& request = w.velocityRequest;
@@ -2861,6 +2924,12 @@ void BenchRoute::startSettings(uint64_t now) noexcept {
         options.countWidths = L::CountWidths::MEASURED_U16; // The readback's 607D:00, as the prior read it.
         status = L::prepareSoftLimitSettings(w.transaction, live, target, w.prior, context_.read, limits, operation, now,
                                              deadline, options, SETTINGS_AGE_US);
+    } else if (p.kind == RouteKind::SUBDIVISION) {
+        // The library's own rule decides: released, clean, and the value in 400..51200. No save follows.
+        L::SubdivisionSettings subdivision;
+        subdivision.subdivisionRaw = p.subdivision;
+        status = L::prepareSubdivisionSettings(w.transaction, live, target, w.prior, context_.read, subdivision,
+                                               operation, now, deadline, options, SETTINGS_AGE_US);
     } else {
         status = L::prepareIoSettings(w.transaction, live, target, w.prior, context_.read, io, operation, now, deadline,
                                       options, SETTINGS_AGE_US);
@@ -2964,12 +3033,28 @@ bool BenchRoute::followConfiguration(uint64_t now) noexcept {
     return firmware_.app().openAxis(session, target, L::SettingsModel::CL86_C, now) != nullptr;
 }
 // Raw group values for the record: the prior read (`read`), or the transaction's matched readback.
+// SUBDIVISION: also the DRIVER read after the transaction (which 2); its readback values are the raw
+// uploads settle() kept, so the matched readback only confirms that the library published it.
 void BenchRoute::publishGroup(unsigned which, const L::DriverContext* read, uint64_t now) noexcept {
     RouteWork& w = *work_;
     L::ReadTarget target;
     if (!currentTarget(target))
         return;
     RouteRecord& r = record_;
+    if (r.plan.kind == RouteKind::SUBDIVISION) {
+        const M::Status ok = read ? L::getDriver(*read, target, now, SETTINGS_AGE_US, w.limits)
+                                  : L::getDriver(w.transaction, w.live, target, now, SETTINGS_AGE_US, w.limits);
+        if (!ok || w.limits.group != L::DriverGroup::DRIVER)
+            return;
+        if (which != 1) {
+            r.driverDirection[which] = w.limits.directionRaw;
+            r.driverSubdivision[which] = w.limits.subdivisionRaw;
+            r.driverPresent[which] = true;
+        }
+        if (which < 2)
+            r.groupPresent[which] = true;
+        return;
+    }
     if (r.plan.kind == RouteKind::SETTINGS_2202) {
         const M::Status ok = read ? L::getDriver(*read, target, now, SETTINGS_AGE_US, w.limits)
                                   : L::getDriver(w.transaction, w.live, target, now, SETTINGS_AGE_US, w.limits);
@@ -3452,9 +3537,10 @@ unsigned BenchRoute::summaryCount() const noexcept {
         count += 1;
     if (r.plan.kind == RouteKind::RELATIVE || (r.plan.kind == RouteKind::MOVE && r.plan.relativeBase))
         count += 1;
-    // TRIAL_SETTINGS and the prior and readback group lines; then IO_DI3's TRIAL_INPUTS.
+    // TRIAL_SETTINGS and the prior and readback group lines; then IO_DI3's TRIAL_INPUTS. SUBDIVISION: three
+    // TRIAL_DRIVER lines (prior, readback, the read after) and TRIAL_SUBDIVISION.
     if (isSettings(r.plan.kind))
-        count += 3 + (r.plan.kind == RouteKind::IO_DI3);
+        count += r.plan.kind == RouteKind::SUBDIVISION ? 5 : 3 + (r.plan.kind == RouteKind::IO_DI3);
     // TRIAL_OBSERVER, its check and last reads, and TRIAL_NODES.
     if (r.plan.kind == RouteKind::MOVE && r.plan.observer)
         count += 4;
@@ -3485,16 +3571,20 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         case RouteKind::VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu dur=%lu interval=%lu "
-                       "deadline=%lu kind=%u\n",
+                       "deadline=%lu kind=%u probe=%u\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
                        static_cast<unsigned long>(p.durationMs), static_cast<unsigned long>(p.intervalMs),
-                       static_cast<unsigned long>(p.deadlineMs), unsigned(p.stopKind));
+                       static_cast<unsigned long>(p.deadlineMs), unsigned(p.stopKind), unsigned(p.rangeProbe));
         case RouteKind::VELOCITY_TARGET:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%ld\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
                        static_cast<long>(p.velocityValue));
+        case RouteKind::SUBDIVISION:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%u\n", routeName(p.kind),
+                       unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
+                       unsigned(p.subdivision));
         case RouteKind::HOME:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u method=%u search=%lu creep=%lu ramp=%lu "
@@ -3711,25 +3801,43 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(r.settingsEffects), unsigned(r.settingsUncertain),
                        static_cast<unsigned long>(r.configurationBefore),
                        static_cast<unsigned long>(r.configurationAfter), unsigned(r.configurationFollowed));
-        if (index < 2) {
-            // Raw, 0 the prior read and 1 the matched readback; a value not published reads present=0.
-            const unsigned w = index;
-            if (p.kind == RouteKind::SETTINGS_2202)
-                return put(out, size, "TRIAL_LIMITS which=%u present=%u 2202=%04x entries=%u min=%ld max=%ld\n", w,
-                           unsigned(r.groupPresent[w]), unsigned(r.limitSelector[w]), unsigned(r.limitEntries[w]),
-                           static_cast<long>(r.limitMinimum[w]), static_cast<long>(r.limitMaximum[w]));
-            const uint16_t* f = r.ioFunctions[w];
-            return put(out, size,
-                       "TRIAL_IO which=%u present=%u entries=%u polarity=%04x di0=%04x di1=%04x di2=%04x di3=%04x "
-                       "di4=%04x di5=%04x di6=%04x\n",
-                       w, unsigned(r.groupPresent[w]), unsigned(r.ioEntries[w]), unsigned(r.ioPolarity[w]),
-                       unsigned(f[0]), unsigned(f[1]), unsigned(f[2]), unsigned(f[3]), unsigned(f[4]), unsigned(f[5]),
-                       unsigned(f[6]));
+        if (p.kind == RouteKind::SUBDIVISION) {
+            // Raw 2200 and 2201: 0 the prior read, 1 the readback uploads as delivered, 2 the read after the
+            // transaction; an entry not held reads present=0. Then the 2201 download's own terminal (outcome
+            // 255 while none settled). The epochs and the transaction's verdict are TRIAL_SETTINGS'.
+            if (index < 3)
+                return put(out, size, "TRIAL_DRIVER which=%u present=%u 2200=%04x 2201=%u\n", index,
+                           unsigned(r.driverPresent[index]), unsigned(r.driverDirection[index]),
+                           unsigned(r.driverSubdivision[index]));
+            index -= 3;
+            if (!index--)
+                return put(out, size,
+                           "TRIAL_SUBDIVISION requested=%u written=%u outcome=%u ack=%u uncertain=%u abort=%08lx\n",
+                           unsigned(p.subdivision), unsigned(r.probeWritten),
+                           r.probeWritten ? unsigned(r.probeOutcome) : 255u, unsigned(r.probeAcknowledged),
+                           unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort));
+        } else {
+            if (index < 2) {
+                // Raw, 0 the prior read and 1 the matched readback; a value not published reads present=0.
+                const unsigned w = index;
+                if (p.kind == RouteKind::SETTINGS_2202)
+                    return put(out, size, "TRIAL_LIMITS which=%u present=%u 2202=%04x entries=%u min=%ld max=%ld\n",
+                               w, unsigned(r.groupPresent[w]), unsigned(r.limitSelector[w]),
+                               unsigned(r.limitEntries[w]), static_cast<long>(r.limitMinimum[w]),
+                               static_cast<long>(r.limitMaximum[w]));
+                const uint16_t* f = r.ioFunctions[w];
+                return put(out, size,
+                           "TRIAL_IO which=%u present=%u entries=%u polarity=%04x di0=%04x di1=%04x di2=%04x di3=%04x "
+                           "di4=%04x di5=%04x di6=%04x\n",
+                           w, unsigned(r.groupPresent[w]), unsigned(r.ioEntries[w]), unsigned(r.ioPolarity[w]),
+                           unsigned(f[0]), unsigned(f[1]), unsigned(f[2]), unsigned(f[3]), unsigned(f[4]),
+                           unsigned(f[5]), unsigned(f[6]));
+            }
+            index -= 2;
+            if (p.kind == RouteKind::IO_DI3 && !index--)
+                return put(out, size, "TRIAL_INPUTS present=%u 2101=%04x 60fd=%08lx\n", unsigned(r.inputsPresent),
+                           unsigned(r.logicalInputs), static_cast<unsigned long>(r.digitalInputs));
         }
-        index -= 2;
-        if (p.kind == RouteKind::IO_DI3 && !index--)
-            return put(out, size, "TRIAL_INPUTS present=%u 2101=%04x 60fd=%08lx\n", unsigned(r.inputsPresent),
-                       unsigned(r.logicalInputs), static_cast<unsigned long>(r.digitalInputs));
     }
     if (p.kind == RouteKind::MOVE && p.observer) {
         if (!index--)
@@ -3841,18 +3949,19 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         if (!index--) {
             // The host's record as the firmware received it, and what this route adds: the experiment
             // gate (2, ATTENDED_EXPERIMENT), no start or stop qualification, the line's rpm as the whole
-            // forward range, no reverse and no mode change. Never a firmware default.
+            // forward range, no reverse and no mode change, and the line's range probe. Never a firmware
+            // default.
             const L::MoveFirmware& f = p.firmware;
             return put(out, size,
                        "TRIAL_VELOCITY_EVIDENCE record=%lu layout=%u gate=%u start=0 stop=0 kind=%u max=%lu "
                        "reverse=0 modeChange=0 dt=%08lx hw=%04x sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x "
-                       "fc=%04x\n",
+                       "fc=%04x probe=%u\n",
                        static_cast<unsigned long>(p.record), unsigned(p.layout), unsigned(velocityGate(p)),
                        unsigned(p.stopKind), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(f.deviceType), unsigned(f.hardwareVersion),
                        unsigned(f.softwareVersion), static_cast<unsigned long>(f.vendorId),
                        static_cast<unsigned long>(f.productCode), static_cast<unsigned long>(f.revision),
-                       unsigned(f.modelCode), unsigned(f.firmwareCode));
+                       unsigned(f.modelCode), unsigned(f.firmwareCode), unsigned(p.rangeProbe));
         }
         if (r.velocityRequested) {
             const L::VelocityContext& v = axis().velocityAction();

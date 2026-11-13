@@ -118,7 +118,13 @@
  *   line (record, status layout, stop kind, raw identity), never defaulted here. The line's own rpm is
  *   the forward maximum, at most VELOCITY_EXPERIMENT_MAXIMUM_RPM, and the duration at most
  *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; reverse and a mode change are
- *   never claimed, so the drive must already read mode 3 (MODE_THREE). The session writes 60FF, 6083,
+ *   never claimed, so the drive must already read mode 3 (MODE_THREE). The line's last field is the
+ *   prompt 59 range probe: with 1 the route sets VelocityEvidence::rangeProbe, the rate may reach
+ *   VELOCITY_RANGE_PROBE_MAXIMUM_RPM (6000, twice the documented 3000; project policy, not a drive
+ *   limit) and both ramps must be at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS, which routePlanValid
+ *   checks as the library does; with 0 the rate stays 1..3000 on the line and the library's 60 rpm
+ *   experiment cap applies. A probe run claims and qualifies nothing either, and every running cycle
+ *   carries the library's over-speed stop (VELOCITY_OVERSPEED_MARGIN_RPM). The session writes 60FF, 6083,
  *   6084, then 6, 7, 15, runs its cycles and asks for its own stop at the preparation-anchored due time.
  *   Every run sets the library's final-enable report window (backlog S17) to the experiment's chosen
  *   budget, ROUTE_VELOCITY_WINDOW_MS with cycles ROUTE_VELOCITY_SPACING_MS apart: while word 7's report
@@ -151,6 +157,17 @@
  *   retry. The write is this session's own, so the enable refuses after it in this boot, and a session
  *   that may still have work running (velocity, home or move fence, fault block) refuses it first.
  *   Attended, with the settings routes' caps and no motion weight: the drive is released throughout.
+ * - SUBDIVISION, prompt 59 Part 3: one volatile 2201 write through prepareSubdivisionSettings, built and
+ *   driven like SETTINGS_2202. A fresh DRIVER read (2200, 2201) as the prior, a clean STATUS and MONITORS
+ *   read, the library's candidate on the session's reservation, its one 2201 download and its DRIVER
+ *   readback, then one more fresh DRIVER read at the configuration epoch the write's notice reached. The
+ *   library refuses unless 2100 reports the drive released, a value outside SUBDIVISION_MINIMUM..
+ *   SUBDIVISION_MAXIMUM (400..51200) or an unclean state; 2200 is read back and never written. The value
+ *   on the line equal to the prior 2201 succeeds unchanged with nothing sent. No 6040, no enable, no save:
+ *   a power cycle may restore the stored value, and when the drive applies it is unmeasured (Q04). The
+ *   epoch advance makes targets and positions prepared at the old scale stale, and the session is closed
+ *   and opened again on the new binding as for SETTINGS_2202. Settings class: attended, the settings
+ *   routes' caps, no motion weight.
  * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
  *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
  *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
@@ -261,7 +278,10 @@ enum class RouteKind : uint8_t {
     /** The console's witness arming: two fresh full reads of a stationary drive at the host's reviewed 6064,
      * judged as MOVE judges an idle enabled drive or as RELEASED_QUICK judges a released one, then no write;
      * the console's stepsperturn and axis origin take it as their witness; `TX`. Attended. */
-    ARM_WITNESS
+    ARM_WITNESS,
+    /** Prompt 59, one volatile 2201 subdivision write and its DRIVER readback on a released drive, then a
+     * fresh DRIVER read; `TK`. Settings, not motion. */
+    SUBDIVISION
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -330,8 +350,9 @@ struct RoutePlan {
      * move's interval, and never written. It must first read stationary: running and alarm clear, 606C 0. */
     uint8_t observer = 0;
     /** POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000. VELOCITY: the positive 60FF
-     * target in motor rpm, 1..3000 (EN86/ZH86 p13), and the evidence's forward maximum; the library
-     * refuses above VELOCITY_EXPERIMENT_MAXIMUM_RPM (60) for this attended experiment. */
+     * target in motor rpm and the evidence's forward maximum: 1..3000 (EN86/ZH86 p13), where the library
+     * refuses above VELOCITY_EXPERIMENT_MAXIMUM_RPM (60) for this attended experiment; with rangeProbe
+     * 1..VELOCITY_RANGE_PROBE_MAXIMUM_RPM (6000), project policy for prompt 59, never a drive range. */
     uint32_t rpm = 0;
     uint32_t rampUpMs = 0;   ///< POSITION, RELATIVE: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE, VELOCITY: 1..2000.
     uint32_t rampDownMs = 0; ///< POSITION, RELATIVE: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE, VELOCITY: 1..2000.
@@ -354,6 +375,12 @@ struct RoutePlan {
     /** VELOCITY: VelocityEvidence::layout, the StatusLayout number 1 EN86, 2 ZH86 or 4 OP86: the
      * statusword dialect the run's alarm and running reports are read in. */
     uint8_t layout = 0;
+    /** VELOCITY: the prompt 59 range probe, VelocityEvidence::rangeProbe. The rate may then reach 6000
+     * rpm and both ramps must be at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS; a probe qualifies nothing. */
+    bool rangeProbe = false;
+    /** SUBDIVISION: the 2201 candidate, SUBDIVISION_MINIMUM..SUBDIVISION_MAXIMUM (400..51200, the range both
+     * EN86/ZH86 claims admit). Command pulses per turn at another value than 1000 are unmeasured (Q04). */
+    uint16_t subdivision = 0;
     uint8_t method = 0;          ///< HOME: Lichuan HomingMethod 17, 18, 24 or 29.
     uint32_t searchRpm = 0;      ///< HOME: 6099:01 search rate in motor rpm, 1..3000 (EN86/ZH86 p13).
     uint32_t creepRpm = 0;       ///< HOME: 6099:02 creep rate in motor rpm, 1..3000.
@@ -388,9 +415,10 @@ inline bool isArming(RouteKind kind) noexcept {
  * <observer>,<stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
  * `N<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `V<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<durationMs>,<intervalMs>,<deadlineMs>,<stopKind>,<record>,
- * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>`;
+ * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<rangeProbe>`;
  * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>`;
  * `F<node>,<trial>,<attended>,<value>`;
+ * `K<node>,<trial>,<attended>,<subdivision>`;
  * `Y<node>,<trial>,<attended>,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,
  * <completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,
  * <2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
@@ -409,8 +437,9 @@ bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcep
 /** The parser's own range and consistency check of a plan, however it was built: every field the
  * route uses within its stated range, a planned stop naming all of its policy and no stop naming
  * none, a move signal value within its mask, a nonzero relative displacement, and a move base that
- * is 0 when absolute and the start position for ACTUAL; a velocity duration below its deadline and a
- * layout other than 3 (ZH57, no 86C dialect); a home method of 17, 18, 24 or 29; an enable whose start 2
+ * is 0 when absolute and the start position for ACTUAL; a velocity duration below its deadline, a
+ * layout other than 3 (ZH57, no 86C dialect), a rate of at most 3000 rpm without the range probe and
+ * ramps of at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS with it; a home method of 17, 18, 24 or 29; an enable whose start 2
  * (released by a recorded stop) carries shaft 1. Fields the route does not use are not judged.
  * @param plan Borrowed for this call.
  * @return True when parseRouteCommand could have produced these route fields.
@@ -497,13 +526,13 @@ enum {
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
 constexpr uint32_t ROUTE_GRANT_BASE = 100000;
-/** Work of SETTINGS_2202, IO_DI3, VELOCITY, HOME and a MOVE with an observer node, which the caller places once,
- * beside BenchRoute's own block, as it places a session: these contexts are too large to add to that
- * block. Written only while such a route runs; its contents are history afterwards.
+/** Work of SETTINGS_2202, IO_DI3, SUBDIVISION, VELOCITY, HOME and a MOVE with an observer node, which the
+ * caller places once, beside BenchRoute's own block, as it places a session: these contexts are too large to
+ * add to that block. Written only while such a route runs; its contents are history afterwards.
  */
 struct RouteWork {
-    /** The fresh group read the candidate is built and checked against: SOFT_LIMITS or
-     * IO_INPUT_CONFIGURATION. HOME: its IO_INPUT_CONFIGURATION read, requestHome's input mapping. */
+    /** The fresh group read the candidate is built and checked against: SOFT_LIMITS, IO_INPUT_CONFIGURATION
+     * or DRIVER (SUBDIVISION). HOME: its IO_INPUT_CONFIGURATION read, requestHome's input mapping. */
     MotorControlCAN::LICHUAN_C::DriverContext prior;
     MotorControlCAN::LICHUAN_C::DriverSettingsContext transaction; ///< The one write and its readback.
     /** The session's reservation as the transaction holds it: the owner's sequence, acquired before
@@ -659,7 +688,8 @@ struct RouteRecord {
     bool commandedRelative = false; ///< It was a displacement, with a 005F trigger.
     uint8_t witnessBasis = 0;       ///< Relative MOVE: the witness's basis, 1 ACTUAL or 2 COMMANDED.
     int32_t witnessPosition = 0;    ///< Relative MOVE: the witness's native position.
-    /** SETTINGS_2202 and IO_DI3: the library prepared the candidate; the fields below hold its result. */
+    /** SETTINGS_2202, IO_DI3 and SUBDIVISION: the library prepared the candidate; the fields below hold its
+     * result. */
     bool settingsPrepared = false;
     /** The candidate equalled the prior readback: the library succeeded with nothing to write, and
      * nothing was sent. */
@@ -675,7 +705,8 @@ struct RouteRecord {
     /** The owner's reservation and the session follow configurationAfter: later routes on this node
      * read at the new epoch. */
     bool configurationFollowed = false;
-    /** Raw group values, 0 the prior read and 1 the matched readback; present only when published. */
+    /** Raw group values, 0 the prior read and 1 the matched readback; present only when published.
+     * SUBDIVISION: the same two facts; its DRIVER values are in driverPresent and the fields after it. */
     bool groupPresent[BENCH_NODES] = {};
     uint16_t limitSelector[BENCH_NODES] = {}; ///< SETTINGS_2202: 2202.
     uint16_t limitEntries[BENCH_NODES] = {};  ///< SETTINGS_2202: 607D:00, raw as read (two bytes, MEASURED_U16).
@@ -725,7 +756,8 @@ struct RouteRecord {
     /** HOME: requestHome returned OK. It cannot with the closed gate; the route then withdraws it at once,
      * before any service could admit its first write. */
     bool homeAdmitted = false;
-    /** VELOCITY_TARGET: the 60FF download's terminal settled; the next four fields hold it. */
+    /** VELOCITY_TARGET: the 60FF download's terminal settled; SUBDIVISION: the transaction's 2201 download's
+     * terminal settled. The next four fields hold it, raw. */
     bool probeWritten = false;
     uint8_t probeOutcome = 0;       ///< Its SdoOutcome.
     bool probeAcknowledged = false; ///< The server acknowledged the download.
@@ -739,6 +771,14 @@ struct RouteRecord {
     /** VELOCITY_TARGET: 0 no full read after the readback was judged, 1 it reported the check's
      * standstill, 2 it did not. */
     uint8_t probeAfter = 0;
+    /** SUBDIVISION: 2200 and 2201 raw. 0 the prior DRIVER read, through getDriver; 1 the transaction's
+     * readback uploads as their terminals delivered them, whatever the library then judged, so a value
+     * the drive stored differently stays on record; 2 the fresh DRIVER read after the transaction, through
+     * getDriver. driverPresent names the entries that hold both values. */
+    bool driverPresent[3] = {};
+    uint16_t driverDirection[3] = {};   ///< SUBDIVISION: 2200 of each entry; never written.
+    uint16_t driverSubdivision[3] = {}; ///< SUBDIVISION: 2201 of each entry.
+    uint8_t driverReadback = 0;         ///< SUBDIVISION: entry 1's uploads held, bit 0 2200 and bit 1 2201.
 };
 /** BenchRoute::kept bits: facts that refuse later work and survive closeSessions. */
 enum SessionKept : uint8_t {
@@ -962,9 +1002,9 @@ class BenchRoute {
     RoutePlan armedPlan_;
     int32_t armedPosition_ = 0;
     uint64_t armedFeedbackUs_ = 0;
-    // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET)
-    // and node.
-    uint8_t settingsCases_[4][BENCH_NODES] = {};
+    // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
+    // SUBDIVISION) and node.
+    uint8_t settingsCases_[5][BENCH_NODES] = {};
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;

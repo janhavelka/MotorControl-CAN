@@ -214,19 +214,22 @@ def setting_coverage_errors(entry):
     index, sub = entry.get("index"), entry.get("subindex")
     motion = index in (0x6081, 0x6083, 0x6084) and sub == 0
     selector = index == 0x2202 and sub == 0
+    subdivision = index == 0x2201 and sub == 0
     di = index == 0x2400 and type(sub) is int and 1 <= sub <= 8
     loop_mode = (index == 0x2500 and type(sub) is int and sub == 0 and
                  entry.get("read_owner_prompt") == 22 and not read_owner_errors(entry))
     heartbeat = (index == 0x1017 and sub == 0 and entry.get("read_owner_prompt") == 19 and
                  entry.get("type") == dict(eds_code="0x0006", name="U16", width_bytes=2, signed=False))
     review = entry.get("review", {})
-    if (not (motion or selector or di or loop_mode or heartbeat) or
-            entry.get("owner_prompt") != (38 if heartbeat else 20 if motion or selector else (21 if di else 22)) or
+    if (not (motion or selector or subdivision or di or loop_mode or heartbeat) or
+            entry.get("owner_prompt") != (38 if heartbeat else 20 if motion or selector or subdivision
+                                          else (21 if di else 22)) or
             entry.get("access_reviewed") != "RW" or generation_disposition(entry) != "resolved" or
             review.get("write_policy") != "qualification_required"):
         return [label + "outside the reviewed conditional typed subset"]
     expected_scope = ("position_parameters_86c" if motion else
                       "explicit_soft_limit_selector_86c" if index == 0x2202 else
+                      "explicit_subdivision_400_to_51200_86c" if subdivision else
                       "explicit_di_configuration_86c" if di else
                       "explicit_heartbeat_0_to_1000_cl86c" if heartbeat else "explicit_loop_mode_86c")
     errors = []

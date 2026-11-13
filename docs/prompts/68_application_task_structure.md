@@ -16,6 +16,50 @@ between it and the application, a headless job runner that drives axes without t
 example. Prompt 69 adds the I/O and watchdog examples on top of this structure; prompt 70 adds startup checks,
 settings storage and reboot handling.
 
+The user's direction (2026-11-13): "Regarding the own CAN task - you can get inspired with fieldcore-node which
+already has rs485 and other tasks implemented the way i want - take the best practices applicable for CANbus operation
+and apply these (you could even copy the naming conventions etc)". FieldCore-node's RS485 runtime (read-only study at
+HEAD `5ad9292d`: `include/TunnelMonitor/rs485/Rs485Task.h`, `src/.../Rs485Diagnostics.cpp`,
+`Rs485RuntimeIngress.h`, `contracts/MotorControl.h`, `src/system/WatchdogRuntime.cpp`) is the model. Adopt:
+
+- Three layers and names: the owner (`CanBusOwner`, as `Rs485Task`), a runtime file with the task, queue and
+  free functions `canRuntimeSubmit...`, `canRuntimeInspect...`, `canRuntimeTake...`, `canRuntimeCancel...`,
+  `canRuntimeStats`, `canRuntimeServiceHealth`, and a pure C++ `CanRuntimeDetail::IngressState` without RTOS calls,
+  so the host build steps the same code. Task string `"CanTask"`; example-layer constants and globals in
+  FieldCore's style (`kWorkerStackBytes`, `kWorkerPriority`, `kWorkerCore`, `g_commandQueue`,
+  `g_commandQueueStorage`, `g_workerStack`, `g_workerHandle`, `g_statsMux`); test hooks end in `...ForTest`; the
+  library's own namespaces and enum style win where they conflict.
+- Reserve-then-enqueue: under a short critical section the submit call validates the command, reserves its terminal
+  slot and assigns a never-reused token, then `xQueueSend(..., 0)`; on a full queue it rolls the reservation back and
+  returns `QueueFull`. "Accepted" therefore means delivery and exactly one terminal are both reserved.
+- Terminal results stay in their reserved slots, read by inspect (non-consuming) then take (exact identity); they are
+  never aged away. The event queue carries notifications only (state, presence, faults, self-repair), overwriting the
+  oldest entry and counting losses, so a full event queue can never lose a terminal.
+- Command identity is the caller's request ID plus its source plus the owner's token, compared exactly; each producer
+  (console, job runner, application) has its own ID range. The original deadline travels with the command, and work
+  that expired in the queue gets an exact terminal at dequeue.
+- Per-axis stop slots outside the queue, serviced first every pass, mapped to the owner's urgent class; ordinary work
+  on that axis is refused while a stop is held, and a stop or an uncertain result sets a motion inhibit with a
+  generation that only an explicit fresh standstill read clears (FieldCore's `motionInhibited`, `inhibitGeneration`).
+- A documented per-pass bound (for example one queued command, one stop, two result transfers), status published as a
+  whole copy under `portMUX` before the terminal it explains becomes visible.
+- Health in the shape of `Rs485RuntimeStats` and `ServiceHealth`: heartbeat every pass, stack free minimum every pass,
+  queue depth, high-water and overflow, slow-pass count and maximum, worst service gap, init attempts.
+- The task and queues are created once (`xTaskCreateStaticPinnedToCore`, `xQueueCreateStatic`), separately from the
+  TWAI install; a failed install is retried at fixed due times without recreating the task or replaying anything, and
+  commands still get typed terminals while the bus is down. Recovery is a reserved request with one retained result.
+- The task watchdog sequence of `WatchdogRuntime` (status, init or reconfigure, add) with recorded block reasons and a
+  test hook that withholds the feed; unlike FieldCore, which subscribes only its loop task, the CAN task itself is
+  subscribed, and that difference is stated.
+
+Not transferred, with reasons: FieldCore's fixed 2 to 5 ms poll delays (CAN heartbeat, PDO and EMCY arrive at any time;
+use prompt 56's event wake with a bounded wait); RS485 half-duplex timing and one transaction per bus (CAN is
+arbitrated multi-master, concurrency is per SDO channel); master/slave round-robin polling (the owner must receive every
+frame); sensor retry and backoff (never for motor commands); presence from miss counts alone (CAN also has heartbeat
+and boot-up evidence, prompt 55); PSRAM runtime buffers (static storage here); one global motor lane pair (CAN needs
+lanes per axis); UART-style recovery (CAN bus-off and controller epochs differ). FieldCore is Arduino-only, so the
+Arduino and ESP-IDF parity here is this project's own rule.
+
 Boundaries: examples only. If an example needs something the library API does not offer, the gap is closed in the
 library with its own tests and documentation, never worked around in example code, and the example then calls the
 API. The examples add sequencing, not motion logic, units or protocol rules of their own. The CAN task is the only

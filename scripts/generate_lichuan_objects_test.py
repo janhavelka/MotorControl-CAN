@@ -510,7 +510,7 @@ class GenerationTests(unittest.TestCase):
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
         self.assertIn("| Read shape descriptors | 192 |", document)
-        self.assertIn("| Typed settings | 14 |", document)
+        self.assertIn("| Typed settings | 15 |", document)
         self.assertIn("| Workflows | 1 | Explicit typed heartbeat scope only", document)
         self.assertIn("position_parameters_86c", document)
         self.assertIn("explicit_di_configuration_86c", document)

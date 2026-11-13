@@ -301,13 +301,17 @@ due time (`velocity`, the library's attended experiment scope, which claims no s
 qualification, with the rest of its evidence from the host's line only), the reads `requestHome` consumes with
 its refusal before any write (`home`, gate always closed), and for ledger gate Q03 one `60FF` write of a
 signed value -3000..3001 with its raw readback on a drive that reports itself released in mode 3
-(`velocity-target`, attended, no enable). The settings routes, `velocity`, `home` and
+(`velocity-target`, attended, no enable). Prompt 59 (protocol 9) adds the `velocity` line's range probe, its
+last field: the library's `VelocityEvidence::rangeProbe`, up to 6000 rpm with ramps of at least 200 ms, still the
+attended experiment, qualifying nothing; and `subdivision` (`TK`), one volatile `2201` write of 400..51200
+through `prepareSubdivisionSettings` on a drive that reports itself released, with its readback and one more
+`2200`/`2201` read, settings class, no enable and no save. The settings routes, `velocity`, `home` and
 an observed move use one more block, `RouteWork` (8432 bytes on the S2), allocated on first use like
 the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=8` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` gains `routes=9` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
 with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
@@ -328,8 +332,8 @@ facility, [`BenchConsole`](BenchConsole.h). It is one `ProbeConsole` with one `P
 application, owner, service store and `DeviceEvidence`, wired as `EspProbeMain.cpp` wires them, and served after the
 firmware turn and every bench record's, before input. It adds no receiver, sender, retry or recovery, and nothing runs
 before the first `o` or `@` byte: until then the image is byte for byte the bench image above, and `scripts/s2_bench.py`
-never sends either byte. `PONG` keeps `routes=8`: the arming lines below are new route letters, and no earlier line
-changed.
+never sends either byte. The arming lines below came as new route letters in protocol 8, with no earlier line
+changed; protocol 9 (`PONG routes=9`) changed only the `TV` line and added `TK`.
 
 **Allocation.** The console is three blocks from internal heap, allocated on the first `o` or `@` and never freed, like
 the soak, watch and capture: `ProbeConsole` 6744, `ProbeDevice` 6664 and the rest 2672 bytes on the S2 (pinned

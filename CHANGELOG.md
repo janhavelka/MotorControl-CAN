@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Velocity range probe and subdivision setting (prompt 59 preparation, 2026-11-13)
+
+- `VelocityEvidence::rangeProbe`, only under `VelocityGate::ATTENDED_EXPERIMENT`, raises the
+  experiment's rate bound from 60 rpm to `VELOCITY_RANGE_PROBE_MAXIMUM_RPM` (6000 rpm) and
+  refuses ramps under `VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS` (200 ms). Both are project policy;
+  a probe run qualifies nothing. Any other gate with the flag is refused.
+- Every velocity run now ends with its stop requested when an enable-report or running cycle
+  reports `606C` above the command by more than a fifth plus `VELOCITY_OVERSPEED_MARGIN_RPM`
+  (10 rpm). This is stricter than before for all gates.
+- `prepareSubdivisionSettings` writes `2201` alone, 400..51200 (the range both manual claims
+  admit), only while `2100` reports the drive released, with `2200` read back and never written,
+  readback required and no save. The configuration generation advances as for every setting.
+  When the drive applies the value and the resulting pulses per turn are unmeasured (Q04).
+- S2 bench route protocol 9: the velocity line's range-probe flag (`--range-probe`) and the new
+  `subdivision` route (`K`, `--value`), with record lines `TRIAL_DRIVER` and
+  `TRIAL_SUBDIVISION`. The ledger gives `2201` a typed setting scope; host tests cover the
+  boundaries, state rules, failed downloads and readbacks, and the over-speed stop.
+
 ### Configurable adapter capacity (prompt 53 item 1, 2026-11-12)
 
 - The SDO channel count is no longer fixed at two. One adapter header,

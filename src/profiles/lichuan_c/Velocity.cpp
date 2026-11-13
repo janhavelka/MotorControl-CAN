@@ -169,17 +169,27 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
         (e.gate == VelocityGate::MEASURED && (!e.startQualified || !e.stopQualified)))
         return error(VelocityError::CAPABILITY,
                      "mode3 start and stop need selected-firmware evidence", Err::UNSUPPORTED);
+    // The range probe is the one experiment allowed above the documented 3000 rpm (prompt 59).
+    const bool probe = experiment && e.rangeProbe;
     if ((e.gate != VelocityGate::MEASURED && !experiment) || !e.record ||
-        e.layout == StatusLayout::UNSPECIFIED || e.layout > StatusLayout::OP86 ||
-        e.layout == StatusLayout::ZH57 || !e.maximumForwardRpm || e.maximumForwardRpm > 3000 ||
+        (e.rangeProbe && !experiment) || e.layout == StatusLayout::UNSPECIFIED ||
+        e.layout > StatusLayout::OP86 || e.layout == StatusLayout::ZH57 || !e.maximumForwardRpm ||
+        e.maximumForwardRpm > (probe ? VELOCITY_RANGE_PROBE_MAXIMUM_RPM : 3000) ||
         (e.reverseQualified ? !e.maximumReverseRpm || e.maximumReverseRpm > 3000
                             : e.maximumReverseRpm != 0) ||
         e.stopKind != o.stopKind)
         return error(VelocityError::ARGUMENT, "invalid selected velocity evidence scope");
     if (experiment && (e.startQualified || e.stopQualified || e.modeChangeQualified ||
-                       e.reverseQualified || e.maximumForwardRpm > VELOCITY_EXPERIMENT_MAXIMUM_RPM))
+                       e.reverseQualified ||
+                       e.maximumForwardRpm > (probe ? VELOCITY_RANGE_PROBE_MAXIMUM_RPM
+                                                    : VELOCITY_EXPERIMENT_MAXIMUM_RPM)))
         return error(VelocityError::ARGUMENT,
                      "an attended velocity experiment claims no qualification and stays slow");
+    if (probe && (profile.rampUpTimeMs < VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS ||
+                  profile.rampDownTimeMs < VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS))
+        return error(VelocityError::RANGE, "a velocity range probe needs ramps of at least 200 ms",
+                     Err::ILLEGAL_VALUE);
+    static_assert(VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS == 200, "the message names 200 ms");
     if (experiment && request.durationUs > VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US)
         return error(VelocityError::TIME, "an attended velocity experiment is at most 20 s");
     // Outside the experiment a window would claim that the enable report arrives within it; no
@@ -251,6 +261,7 @@ Status shape(const VelocityContext& c, uint64_t now) {
         (c.evidence.gate != VelocityGate::MEASURED &&
          c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         (c.options.enableWindowUs && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        (c.evidence.rangeProbe && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         c.stopDueUs <= c.startedUs ||
         c.stopDueUs >= c.deadlineUs || c.deadlineUs > uint64_t(INT64_MAX) ||
         now > uint64_t(INT64_MAX) || c.servicedUs < c.startedUs || now < c.servicedUs ||
@@ -509,6 +520,15 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     }
     if (c.observation == VelocityObservation::ENABLE)
         c.enableReport = s;
+    // Over-speed (prompt 59, project policy): above the command by a fifth plus the margin. 606C is
+    // what the drive reports, not an independent speed observation.
+    const int64_t commanded = c.rate.effectiveNative < 0 ? -c.rate.effectiveNative : c.rate.effectiveNative;
+    const int64_t reported = s.velocity < 0 ? -int64_t(s.velocity) : int64_t(s.velocity);
+    if (reported > commanded + commanded / 5 + int64_t(VELOCITY_OVERSPEED_MARGIN_RPM)) {
+        failure(c, ActionOutcome::OBSERVATION_SCOPE, now, "reported velocity exceeds the command",
+                true);
+        return;
+    }
     const bool moving = (s.monitor & MONITOR_RUNNING) &&
                         interpreted.running == StateIndication::YES &&
                         (c.rate.effectiveNative > 0 ? s.velocity > 0 : s.velocity < 0);

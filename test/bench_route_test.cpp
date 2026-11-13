@@ -3037,12 +3037,13 @@ struct VelocitySpec {
     unsigned layout = 2;
     unsigned long dt = DEVICE_TYPE, hw = HARDWARE, sw = SOFTWARE, vid = VENDOR, pc = PRODUCT, rev = REVISION;
     unsigned long mc = MODEL, fc = FIRMWARE;
+    unsigned probe = 0; // Protocol 9: prompt 59's range probe, the line's last field.
 };
 std::string velocityLine(unsigned node, uint32_t& trial, const VelocitySpec& v = VelocitySpec()) {
     char text[300];
-    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", node,
-                  id(trial).c_str(), v.attended, v.rpm, v.up, v.down, v.duration, v.interval, v.deadline, v.kind,
-                  v.record, v.layout, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc);
+    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u",
+                  node, id(trial).c_str(), v.attended, v.rpm, v.up, v.down, v.duration, v.interval, v.deadline, v.kind,
+                  v.record, v.layout, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc, v.probe);
     return text;
 }
 std::string modeThreeLine(unsigned node, uint32_t& trial, unsigned cycles = 2, unsigned interval = 200,
@@ -3417,9 +3418,11 @@ void testVelocity() {
     std::string text = r->dump();
     CHECK(has(text, "route=velocity failure=0 why=none "));
     CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=6 attended=1 rpm=6 up=200 down=200 dur=12000 "
-                    "interval=5000 deadline=15500 kind=1\n"));
+                    "interval=5000 deadline=15500 kind=1 probe=0\n"));
     CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
-                    "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123\n"));
+                    "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123 "
+                    "probe=0\n"));
+    CHECK(!c.evidence.rangeProbe);
     // The session's context keeps the experiment gate after success: the run qualified nothing.
     CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && !c.evidence.startQualified &&
           !c.evidence.stopQualified && !c.evidence.modeChangeQualified && !c.evidence.reverseQualified &&
@@ -4918,6 +4921,364 @@ void testReleasedModeOneRefusals() {
         CHECK(r->downloadsFrom(first) == 0 && e.statusPresent && e.statusDetail == int32_t(M::ActionError::STATE));
     }
 }
+// ------------------------------------------------------------------- prompt 59 (protocol 9)
+// The V line's last field, the range probe: up to 6000 rpm on the line, both ramps at least 200 ms with it,
+// 1..3000 without it as before, and the protocol 8 line, which has no such field, refused.
+void testParseRangeProbe() {
+    scenario = "parse-range-probe";
+    CHECK(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM == 6000 && L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS == 200);
+    E::RoutePlan p;
+    uint32_t trial = 0;
+    VelocitySpec plain;
+    VelocitySpec probe;
+    probe.probe = 1;
+    for (unsigned rpm : {1u, 6u, 60u, 61u, 3000u, 3001u, 6000u}) {
+        probe.rpm = rpm;
+        const std::string line = velocityLine(1, trial, probe);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::VELOCITY &&
+              p.rangeProbe && p.rpm == rpm && p.rampUpMs == 200 && p.rampDownMs == 200);
+    }
+    // Without the probe nothing changed: 1..3000 on the line, the library's 60 rpm cap after it.
+    for (unsigned rpm : {1u, 61u, 3000u}) {
+        plain.rpm = rpm;
+        const std::string line = velocityLine(1, trial, plain);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && !p.rangeProbe && p.rpm == rpm);
+    }
+    plain.rpm = 6;
+    std::vector<std::string> bad;
+    VelocitySpec w = probe;
+    w.rpm = 6001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = probe;
+    w.rpm = 0;
+    bad.push_back(velocityLine(1, trial, w));
+    // The library's ramp floor holds for every probe, however slow.
+    for (unsigned rpm : {6u, 3000u, 6000u}) {
+        w = probe;
+        w.rpm = rpm;
+        w.up = 199;
+        bad.push_back(velocityLine(1, trial, w));
+        w = probe;
+        w.rpm = rpm;
+        w.down = 199;
+        bad.push_back(velocityLine(1, trial, w));
+    }
+    w = plain;
+    w.rpm = 3001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = plain;
+    w.rpm = 6000;
+    bad.push_back(velocityLine(1, trial, w));
+    w = plain;
+    w.probe = 2;
+    bad.push_back(velocityLine(1, trial, w));
+    {
+        // The protocol 8 line: the same fields without the probe's.
+        const std::string current = velocityLine(1, trial, plain);
+        bad.push_back(current.substr(0, current.rfind(',')));
+        const std::string fast = velocityLine(1, trial, probe);
+        bad.push_back(fast.substr(0, fast.rfind(',')) + ",-1");
+    }
+    for (const std::string& text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text.data(), text.size(), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text.c_str());
+        CHECK(!E::parseRouteCommand(text.data(), text.size(), untouched));
+        CHECK(untouched.kind == E::RouteKind::NONE && untouched.trial == 0);
+    }
+    // A plan built in code is judged the same way.
+    probe.rpm = 6000;
+    const std::string top = velocityLine(1, trial, probe);
+    CHECK(E::parseRouteCommand(top.data(), top.size(), p) && E::routePlanValid(p));
+    E::RoutePlan built = p;
+    built.rangeProbe = false;
+    CHECK(!E::routePlanValid(built));
+    built.rpm = 3000;
+    CHECK(E::routePlanValid(built));
+    built = p;
+    built.rampUpMs = 199;
+    CHECK(!E::routePlanValid(built));
+    built = p;
+    built.rampDownMs = 199;
+    CHECK(!E::routePlanValid(built));
+    built = p;
+    built.rpm = 6001;
+    CHECK(!E::routePlanValid(built));
+    // The longest velocity line, the probe's included, fits ROUTE_LINE with its integrity field.
+    VelocitySpec longest;
+    longest.rpm = 6000;
+    longest.probe = 1;
+    longest.up = longest.down = 2000;
+    longest.deadline = 55000;
+    longest.duration = 54999;
+    longest.interval = 5000;
+    longest.kind = 2;
+    longest.record = longest.dt = longest.vid = longest.pc = longest.rev = 4294967295ul;
+    longest.hw = longest.sw = longest.mc = longest.fc = 65535;
+    uint32_t big = 4294967294u;
+    const std::string line = velocityLine(2, big, longest);
+    CHECK(line.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(line.data(), line.size(), p) && p.rangeProbe);
+}
+// A range probe through the route and the library on this fake's mode 3, which turns at whatever 60FF it
+// was given: the run is the library's attended experiment with VelocityEvidence::rangeProbe, claims
+// nothing, and its 60FF is the line's rate. Every value is this fake's, never a drive's.
+void testVelocityRangeProbe() {
+    for (unsigned rpm : {61u, 3000u, 6000u}) {
+        scenario = rpm == 61 ? "velocity-range-probe-61" : rpm == 3000 ? "velocity-range-probe-3000"
+                                                                        : "velocity-range-probe-6000";
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        VelocitySpec spec;
+        spec.rpm = rpm;
+        spec.probe = 1;
+        VelocitySpec quiet = spec;
+        quiet.attended = 0;
+        CHECK(std::strcmp(r->start(velocityLine(1, trial, quiet)), "unattended") == 0);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+        if (v.failure != E::RouteFailure::NONE)
+            std::fprintf(stderr, "%s", r->dump().c_str());
+        CHECK(v.failure == E::RouteFailure::NONE && v.velocityRequested && v.plan.rangeProbe);
+        CHECK(v.motionTotal == 2 && v.caseCount == 1); // Counted as every velocity, with its own stop.
+        const L::VelocityContext& c = r->one.velocityAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.rate.effectiveNative == int64_t(rpm) && c.runningObserved);
+        CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && c.evidence.rangeProbe &&
+              !c.evidence.startQualified && !c.evidence.stopQualified && !c.evidence.reverseQualified &&
+              c.evidence.maximumForwardRpm == rpm);
+        const std::vector<M::Frame> sent = downloads(*r, first, 1);
+        const uint8_t target[8] = {0x23, 0xff, 0x60, 0, uint8_t(rpm), uint8_t(rpm >> 8), 0, 0};
+        CHECK(sent.size() == 7 && frameIs(sent[0], target));
+        const std::string text = r->dump();
+        char plan[160];
+        std::snprintf(plan, sizeof plan,
+                      "TRIAL_PLAN route=velocity node=1 trial=%lu attended=1 rpm=%u up=200 down=200 dur=12000 "
+                      "interval=5000 deadline=15500 kind=1 probe=1\n",
+                      static_cast<unsigned long>(trial), rpm);
+        CHECK(has(text, plan) && has(text, " gate=2 start=0 stop=0 ") && has(text, " fc=0123 probe=1\n"));
+        r->release();
+    }
+    // Refused before anything is admitted or counted: a plan built in code with a probe ramp under 200 ms,
+    // or above 3000 rpm without the probe, as the parser refuses the line.
+    scenario = "velocity-range-probe-plan";
+    std::unique_ptr<Rig> r(new Rig);
+    releasedModeThree(r->driver.drives[0]);
+    uint32_t trial = 0;
+    qualified(*r, trial);
+    VelocitySpec spec;
+    spec.probe = 1;
+    spec.rpm = 6000;
+    E::RoutePlan p;
+    const std::string line = velocityLine(1, trial, spec);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    const size_t first = r->driver.requests.size();
+    E::RoutePlan shortRamp = p;
+    shortRamp.rampUpMs = 199;
+    const char* refusal = r->route.begin(shortRamp, r->console.now);
+    CHECK(refusal && std::strcmp(refusal, "plan") == 0);
+    E::RoutePlan unprobed = p;
+    unprobed.rangeProbe = false;
+    refusal = r->route.begin(unprobed, r->console.now);
+    CHECK(refusal && std::strcmp(refusal, "plan") == 0);
+    CHECK(!r->route.record() && r->route.motionAdmissions() == 0 && r->driver.requests.size() == first);
+}
+// SUBDIVISION's line: K, node, trial, attended and the 2201 value, 400..51200.
+std::string subdivisionLine(unsigned node, uint32_t& trial, unsigned value, unsigned attended = 1) {
+    return "K" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," + std::to_string(value);
+}
+const Address DRIVER_GROUP[] = {{0x2200, 0}, {0x2201, 0}};
+// This fake keeps no 2201 of its own (it reads 0 and ignores a download), so a route that needs one takes
+// its uploads from this script, in the route's order: DRIVER (2200 0 and the prior 2201), STATUS and
+// MONITORS of a released drive (2100 as given, 6041 8050, mode 3), the readback and the read after it.
+// Every value is this test's own.
+std::vector<Captured> driverScript(uint16_t prior, uint16_t readback, uint16_t after, uint16_t monitor = 0x0011) {
+    return {{0x2200, 0, 2, 0},      {0x2201, 0, 2, prior},     {0x2100, 0, 2, monitor}, {0x2101, 0, 2, 0xa580},
+            {0x2102, 0, 2, 0xf008}, {0x6041, 0, 2, 0x8050},    {0x6061, 0, 1, 3},       {0x2200, 0, 2, 0},
+            {0x2201, 0, 2, readback}, {0x2200, 0, 2, 0},       {0x2201, 0, 2, after}};
+}
+void scripted(Drive& d, const std::vector<Captured>& script) {
+    d.script = script.data();
+    d.scriptLength = unsigned(script.size());
+    d.scriptAt = 0;
+}
+void testParseSubdivision() {
+    scenario = "parse-subdivision";
+    // Appended after ARM_WITNESS: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::ARM_WITNESS) == 24 && unsigned(E::RouteKind::SUBDIVISION) == 25);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::SUBDIVISION), "subdivision") == 0);
+    CHECK(L::SUBDIVISION_MINIMUM == 400 && L::SUBDIVISION_MAXIMUM == 51200);
+    E::RoutePlan p;
+    for (unsigned value : {400u, 1000u, 4000u, 10000u, 25600u, 51200u}) {
+        uint32_t trial = 4;
+        const std::string line = subdivisionLine(2, trial, value);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::SUBDIVISION && p.node == 2 &&
+              p.trial == 5 && p.attended && p.subdivision == value && E::routePlanValid(p));
+    }
+    // Outside 400..51200 (0..399 and 51201..65535 stay untested on a drive), and every malformed form.
+    const char* const bad[] = {"K1,5,1,399", "K1,5,1,0",   "K1,5,1,51201", "K1,5,1,65535", "K1,5,1,65536",
+                               "K1,5,1,-1",  "K1,5,2,1000", "K1,5,1",       "K1,5,1,1000,0", "k1,5,1,1000",
+                               "K0,5,1,1000", "K3,5,1,1000", "K1,0,1,1000",  "K1,5,1,+1000"};
+    for (const char* text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text, std::strlen(text), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text);
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched) && untouched.kind == E::RouteKind::NONE);
+    }
+    uint32_t trial = 0;
+    const std::string line = subdivisionLine(1, trial, 10000);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    E::RoutePlan built = p;
+    built.subdivision = 399;
+    CHECK(!E::routePlanValid(built));
+    built.subdivision = 51201;
+    CHECK(!E::routePlanValid(built));
+}
+// Prompt 59 Part 3: one 2201 write through prepareSubdivisionSettings, its readback and a DRIVER read after
+// it, the configuration epoch the write's notice reached and the session following it, as for 2202.
+void testSubdivision() {
+    scenario = "subdivision";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(subdivisionLine(1, trial, 10000, 0)), "unattended") == 0);
+    const uint32_t before = configuration(*r, 1);
+    const std::vector<Captured> script = driverScript(1000, 10000, 10000);
+    scripted(d, script);
+    const E::RouteRecord& s = r->run(subdivisionLine(1, trial, 10000));
+    d.script = nullptr;
+    CHECK(d.scriptAt == script.size());
+    CHECK(s.failure == E::RouteFailure::NONE && s.settingsPrepared && !s.settingsNoop && s.terminalCount == 12);
+    CHECK(s.motionTotal == 0 && s.caseCount == 1 && r->route.motionAdmissions() == 0);
+    size_t at = 0;
+    expectUploads(*r, at, 1, DRIVER_GROUP, 2);
+    expectUploads(*r, at, 1, STOP_STATE, 5);
+    const uint8_t write[8] = {0x2b, 0x01, 0x22, 0, 0x10, 0x27, 0, 0}; // 2201 = 10000; 2200 is never written.
+    CHECK(download(r->driver.requests[at++], 1, write));
+    expectUploads(*r, at, 1, DRIVER_GROUP, 2);
+    expectUploads(*r, at, 1, DRIVER_GROUP, 2);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 1);
+    // One notice advanced the epoch once; the owner and the reopened session are at it, with no latest word.
+    CHECK(s.configurationBefore == before && s.configurationAfter == before + 1 && s.configurationFollowed);
+    CHECK(configuration(*r, 1) == before + 1 && r->one.isOpen() &&
+          r->one.binding().configurationGeneration == before + 1 && !r->one.latestControl());
+    CHECK(s.driverPresent[0] && s.driverPresent[1] && s.driverPresent[2] && s.driverSubdivision[0] == 1000 &&
+          s.driverSubdivision[1] == 10000 && s.driverSubdivision[2] == 10000 && s.probeWritten && s.probeAcknowledged);
+    std::string text = r->dump();
+    CHECK(has(text, "route=subdivision failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=subdivision node=1 trial=2 attended=1 value=10000\n"));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=0c "));
+    CHECK(has(text, "TRIAL_SETTINGS prepared=1 noop=0 state=3 outcome=1 changed=2 confirmed=2 effects=1 uncertain=0 "
+                    "cfg0=1 cfg1=2 followed=1\n"));
+    CHECK(has(text, "TRIAL_DRIVER which=0 present=1 2200=0000 2201=1000\n"));
+    CHECK(has(text, "TRIAL_DRIVER which=1 present=1 2200=0000 2201=10000\n"));
+    CHECK(has(text, "TRIAL_DRIVER which=2 present=1 2200=0000 2201=10000\n"));
+    CHECK(has(text, "TRIAL_SUBDIVISION requested=10000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"));
+    CHECK(has(text, "object=2201:00 dir=1 outcome=0 ack=1"));
+    r->release();
+    // Later routes read at the new epoch through the reopened session.
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    // The value the drive already holds: the library succeeds unchanged, nothing is sent, the epoch stays.
+    size_t first = r->driver.requests.size();
+    const std::vector<Captured> same = driverScript(10000, 0, 0);
+    scripted(d, same);
+    const E::RouteRecord& unchanged = r->run(subdivisionLine(1, trial, 10000));
+    d.script = nullptr;
+    CHECK(d.scriptAt == 7);
+    CHECK(unchanged.failure == E::RouteFailure::NONE && std::strcmp(unchanged.why, "unchanged") == 0 &&
+          unchanged.settingsNoop && unchanged.terminalCount == 7 && r->downloadsFrom(first) == 0);
+    CHECK(!unchanged.configurationFollowed && unchanged.configurationAfter == unchanged.configurationBefore &&
+          configuration(*r, 1) == before + 1);
+    text = r->dump();
+    CHECK(has(text, "TRIAL_DRIVER which=0 present=1 2200=0000 2201=10000\n") &&
+          has(text, "TRIAL_DRIVER which=1 present=0 ") && has(text, "TRIAL_DRIVER which=2 present=0 "));
+    CHECK(has(text, "TRIAL_SUBDIVISION requested=10000 written=0 outcome=255 ack=0 uncertain=0 abort=00000000\n"));
+    r->release();
+    // Back to 1000, at the epoch after that.
+    const std::vector<Captured> back = driverScript(10000, 1000, 1000);
+    scripted(d, back);
+    CHECK(r->run(subdivisionLine(1, trial, 1000)).failure == E::RouteFailure::NONE && configuration(*r, 1) == before + 2);
+    d.script = nullptr;
+    r->release();
+    // Three per route and node, counted whatever the outcome, and never motion; 2202 keeps its own count.
+    CHECK(std::strcmp(r->start(subdivisionLine(1, trial, 4000)), "budget") == 0 && r->route.motionAdmissions() == 0);
+    CHECK(r->run(limitsLine(1, trial, 0)).failure == E::RouteFailure::NONE);
+    r->release();
+    // Nothing else on the wire: never 6040, 6060 or a save, only the three settings downloads.
+    for (const M::Frame& f : downloads(*r, 0, 1))
+        CHECK(indexOf(f) == 0x2201 || indexOf(f) == 0x2202);
+    // A plan built in code outside 400..51200 is refused before anything.
+    E::RoutePlan p;
+    const std::string line = subdivisionLine(2, trial, 400);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    p.subdivision = 399;
+    first = r->driver.requests.size();
+    CHECK(std::strcmp(r->route.begin(p, r->console.now), "plan") == 0 && r->driver.requests.size() == first);
+}
+// The library's refusals send nothing; a drive that stores another value, a lost reply and an abort end the
+// route with the write's terminal and whatever readback arrived on record, and nothing is sent again.
+void testSubdivisionFailures() {
+    scenario = "subdivision-unreleased";
+    std::unique_ptr<Rig> r(new Rig); // This fake's 2100 reads 0001: not released.
+    uint32_t trial = 0;
+    const E::RouteRecord& held = r->run(subdivisionLine(1, trial, 10000));
+    CHECK(held.failure == E::RouteFailure::REFUSED && std::strcmp(held.why, "settings") == 0 && held.statusPresent &&
+          !held.settingsPrepared && r->downloadsFrom(0) == 0 && held.terminalCount == 7);
+    CHECK(std::strcmp(held.statusMessage, "2201 change refused unless 2100 reports released") == 0);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL_STATUS code=") && has(text, "TRIAL_DRIVER which=0 present=1 2200=0000 2201=0\n") &&
+          has(text, "TRIAL_SUBDIVISION requested=10000 written=0 outcome=255 "));
+    r->release();
+    scenario = "subdivision-alarm";
+    Drive& d = r->driver.drives[0];
+    d.monitor = uint16_t(0x0011 | L::MONITOR_ALARM);
+    const E::RouteRecord& alarm = r->run(subdivisionLine(1, trial, 10000));
+    CHECK(alarm.failure == E::RouteFailure::REFUSED && r->downloadsFrom(0) == 0 && configuration(*r, 1) == 1);
+    r->release();
+    // This fake keeps no 2201, so its readback reads 0: the transaction fails, the 0 stays on record raw,
+    // no DRIVER read follows, and the epoch the notice reached is followed.
+    scenario = "subdivision-readback-differs";
+    d.monitor = 0x0011;
+    const E::RouteRecord& differs = r->run(subdivisionLine(1, trial, 10000));
+    CHECK(differs.failure == E::RouteFailure::SERVICE && std::strcmp(differs.why, "settings") == 0);
+    CHECK(differs.probeWritten && differs.probeAcknowledged && !differs.probeUncertain && differs.driverPresent[1] &&
+          differs.driverSubdivision[1] == 0 && !differs.driverPresent[2] && differs.terminalCount == 10);
+    CHECK(r->downloadsFrom(0) == 1 && differs.configurationAfter == differs.configurationBefore + 1);
+    text = r->dump();
+    CHECK(has(text, "TRIAL_DRIVER which=1 present=1 2200=0000 2201=0\n") && has(text, "TRIAL_DRIVER which=2 present=0 ") &&
+          has(text, "TRIAL_SUBDIVISION requested=10000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"));
+    r->release();
+    // A lost reply to the write: uncertain, never sent again, no readback.
+    scenario = "subdivision-lost";
+    Drive& e = r->driver.drives[1];
+    e.monitor = 0x0011;
+    e.silentIndex = 0x2201;
+    e.writesOnly = true;
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& lost = r->run(subdivisionLine(2, trial, 10000));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && std::strcmp(lost.why, "uncertain") == 0);
+    CHECK(lost.settingsEffects && lost.settingsUncertain && lost.probeWritten && lost.probeUncertain &&
+          !lost.probeAcknowledged && !lost.driverPresent[1] && lost.driverReadback == 0);
+    CHECK(downloads(*r, first, 2).size() == 1);
+    CHECK(has(r->dump(), "TRIAL_SUBDIVISION requested=10000 written=1 "));
+    r->turns(500);
+    CHECK(downloads(*r, first, 2).size() == 1);
+    // An abort of the write: its code on record, no readback.
+    scenario = "subdivision-abort";
+    std::unique_ptr<Rig> a(new Rig);
+    Drive& f = a->driver.drives[0];
+    f.monitor = 0x0011;
+    f.abortIndex = 0x2201;
+    f.abortCode = 0x06090030;
+    f.writesOnly = true;
+    const E::RouteRecord& aborted = a->run(subdivisionLine(1, trial, 51200));
+    CHECK(aborted.failure == E::RouteFailure::SERVICE && aborted.probeWritten && !aborted.probeAcknowledged &&
+          aborted.probeAbort == 0x06090030u && aborted.driverReadback == 0 && a->downloadsFrom(0) == 1);
+    const uint8_t top[8] = {0x2b, 0x01, 0x22, 0, 0x00, 0xc8, 0, 0}; // 51200 = C800.
+    CHECK(frameIs(downloads(*a, 0, 1)[0], top));
+    CHECK(has(a->dump(), " abort=06090030\n"));
+}
 void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
@@ -5134,6 +5495,30 @@ void writeTranscript(const char* path, bool all) {
             CHECK(k2->run(moved).failure == E::RouteFailure::ACTION && k2->route.record()->stopRequested);
             append(*k2, moved);
         }
+        // Prompt 59 (protocol 9): a range-probe velocity at 3000 rpm on a released mode 3 fake; then on a
+        // scripted fake one 2201 write of 10000 with its readback and the DRIVER read after it, and a 25600
+        // the library refuses because this fake's 2100 then reads 0001, not released.
+        std::unique_ptr<Rig> p59(new Rig);
+        releasedModeThree(p59->driver.drives[0]);
+        trial = 0;
+        qualified(*p59, trial);
+        VelocitySpec probe;
+        probe.rpm = 3000;
+        probe.probe = 1;
+        const std::string ranged59 = velocityLine(1, trial, probe);
+        CHECK(p59->run(ranged59).failure == E::RouteFailure::NONE);
+        append(*p59, ranged59);
+        std::unique_ptr<Rig> k3(new Rig);
+        const std::vector<Captured> script = driverScript(1000, 10000, 10000);
+        scripted(k3->driver.drives[0], script);
+        trial = 0;
+        const std::string written = subdivisionLine(1, trial, 10000);
+        CHECK(k3->run(written).failure == E::RouteFailure::NONE);
+        k3->driver.drives[0].script = nullptr;
+        append(*k3, written);
+        const std::string held = subdivisionLine(1, trial, 25600);
+        CHECK(k3->run(held).failure == E::RouteFailure::REFUSED);
+        append(*k3, held);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -6276,6 +6661,11 @@ int main(int argc, char** argv) {
     testReleasedModeOneChain();
     testReleasedLatchedEnable();
     testReleasedModeOneRefusals();
+    testParseRangeProbe();
+    testVelocityRangeProbe();
+    testParseSubdivision();
+    testSubdivision();
+    testSubdivisionFailures();
     testCloseRefusals();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();

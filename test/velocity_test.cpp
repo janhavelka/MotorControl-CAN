@@ -64,6 +64,7 @@ struct Rig {
     // The lagging report, changeable between cycles; the enable report's 6041.
     uint16_t lagStatus = 0x8033, lagMonitor = 0x0001, runningStatus = 0x4007;
     int32_t lagPosition = 0, lagVelocity = 0;
+    int32_t runningVelocity = 0; // Nonzero: 606C after word 15 instead of the commanded rpm.
     // Backlog S18: the admission reports the release a moving quick stop left, 2100 latchedMonitor (0015,
     // running latched) with 6041 latchedStatus; 2100 0015 stays in the cycles of words below
     // latchClearedBy. 6064 reads latchedPosition, plus creep from word 6's cycle on; 606C reads
@@ -149,8 +150,12 @@ struct Rig {
         if (index == 0x6064)
             return uint32_t((latched ? latchedPosition + (control ? creep : 0) : 0) +
                             (control == 7 || control == 15 ? pull : 0));
+        // Running reports the commanded whole rpm, as both specimens did at cruise, so the over-speed check
+        // (VELOCITY_OVERSPEED_MARGIN_RPM) is not what a test meets unless it sets runningVelocity.
         if (index == 0x606c)
-            return control == 15 ? uint32_t(request.velocity.value.numerator < 0 ? -120 : 120)
+            return control == 15 ? uint32_t(runningVelocity ? runningVelocity
+                                                            : int32_t(request.velocity.value.numerator /
+                                                                      int64_t(request.velocity.value.denominator)))
                    : latched && !control ? uint32_t(latchedVelocity)
                                          : 0u;
         return 0;
@@ -857,7 +862,8 @@ void enableWindowThenRunning() {
     CHECK(c.enablePending == 3 && c.pendingFirst.present && c.pendingFirst.cycle == 3 &&
           c.pendingFirst.statusword == 0x8033 && c.pendingLast.cycle == 5 && c.pendingLast.monitor == 0x0001);
     CHECK(c.enableReport.present && c.enableReport.cycle == 6 && c.enableReport.statusword == 0xc437 &&
-          c.enableReport.velocity == 120 && c.observations == 6 && !c.runningPolls);
+          c.enableReport.velocity == int32_t(L::VELOCITY_EXPERIMENT_MAXIMUM_RPM) && c.observations == 6 &&
+          !c.runningPolls);
     const uint64_t ack = c.commandHistory[2].completedUs;
     CHECK(c.pendingFirst.earliestUs >= ack && c.pendingLast.earliestUs >= c.pendingFirst.latestUs + 2 * 20000 &&
           c.enableReport.earliestUs >= c.pendingLast.latestUs + 20000 && c.enableReport.earliestUs - ack <= 100000);
@@ -1485,6 +1491,282 @@ void windowReferenceIsWord7sCycle() {
         }
     }
 }
+// Prompt 59's range probe: an ATTENDED_EXPERIMENT with rangeProbe, stating up to
+// VELOCITY_RANGE_PROBE_MAXIMUM_RPM with both ramps at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS.
+void probe(Rig& r, int64_t rpm = L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM) {
+    experiment(r);
+    r.evidence.rangeProbe = true;
+    r.evidence.maximumForwardRpm = L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM;
+    r.request.velocity.value = M::Rational(rpm);
+    r.profile.rampUpTimeMs = r.profile.rampDownTimeMs = L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS;
+}
+// Refused by both validation and preparation with exactly this status, the candidate unchanged.
+void refusedAs(Rig& r, M::Err code, M::VelocityError detail) {
+    const M::Status checked = L::validateVelocity(r.context, r.live, r.target, r.initial, r.identity, r.evidence,
+                                                  r.request, r.profile, r.axis, 42, r.now, DEADLINE, r.options);
+    CHECK(!checked && checked.code == code && checked.detail == int32_t(detail));
+    const M::Status status = r.prepare();
+    CHECK(!status && status.code == code && status.detail == int32_t(detail));
+    r.reject();
+}
+void rangeProbeScope() {
+    {
+        // Without the probe the experiment keeps its 60 rpm cap, and its ramps keep only the 1..2000 ms rule.
+        Rig r;
+        experiment(r);
+        r.profile.rampUpTimeMs = r.profile.rampDownTimeMs = 1;
+        CHECK(r.prepare() && r.context.rate.effectiveNative == 60 && !r.context.evidence.rangeProbe);
+        Rig over;
+        experiment(over);
+        over.request.velocity.value = M::Rational(int64_t(L::VELOCITY_EXPERIMENT_MAXIMUM_RPM + 1));
+        refusedAs(over, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        for (uint32_t cap : {L::VELOCITY_EXPERIMENT_MAXIMUM_RPM + 1, L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM}) {
+            Rig wide;
+            experiment(wide);
+            wide.evidence.maximumForwardRpm = cap; // The probe's cap needs the probe.
+            refusedAs(wide, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        }
+    }
+    {
+        // The probe admits its cap, with its 60FF bytes little-endian: 6000 = 0x1770.
+        Rig r;
+        probe(r);
+        CHECK(r.prepare());
+        CHECK(r.context.rate.effectiveNative == 6000 && r.context.evidence.rangeProbe &&
+              r.context.profile.rampUpTimeMs == 200 && r.context.profile.rampDownTimeMs == 200);
+        const L::PreparedVelocity first = r.next(START);
+        CHECK(first.ready && first.transfer.direction == C::SdoDirection::DOWNLOAD &&
+              first.transfer.index == 0x60ff && first.transfer.subindex == 0 && first.transfer.size == 4);
+        CHECK(first.transfer.data[0] == 0x70 && first.transfer.data[1] == 0x17 && first.transfer.data[2] == 0 &&
+              first.transfer.data[3] == 0);
+    }
+    {
+        // One rpm over the cap, as a request or as the evidence's range, is refused; so is 6000.5, which must
+        // not round into the admitted 6000.
+        Rig rate;
+        probe(rate, int64_t(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM) + 1);
+        refusedAs(rate, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        Rig range;
+        probe(range);
+        range.evidence.maximumForwardRpm = L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM + 1;
+        refusedAs(range, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig half;
+        probe(half);
+        half.request.velocity.value = M::Rational(12001, 2);
+        half.request.velocity.rounding = M::Rounding::TOWARD_ZERO;
+        half.request.velocity.maximumQuantizationError = M::Rational(1, 2);
+        refusedAs(half, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+    }
+    {
+        // Ramps: 199 ms on either side is refused, 200 and 2000 are admitted, and 2001 keeps the general refusal.
+        struct Ramp {
+            uint32_t up, down;
+            bool admitted;
+        };
+        const Ramp ramps[] = {{199, 200, false}, {200, 199, false}, {199, 199, false}, {1, 2000, false},
+                              {200, 200, true},  {2000, 2000, true}, {200, 2001, false}};
+        for (const Ramp& k : ramps) {
+            Rig r;
+            probe(r);
+            r.profile.rampUpTimeMs = k.up;
+            r.profile.rampDownTimeMs = k.down;
+            if (k.admitted)
+                CHECK(r.prepare());
+            else
+                refusedAs(r, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        }
+    }
+    {
+        // The probe is still an experiment: no qualification, no reverse, no duration past 20 s.
+        for (unsigned bad = 0; bad < 4; ++bad) {
+            Rig r;
+            probe(r);
+            if (bad == 0)
+                r.evidence.startQualified = true;
+            else if (bad == 1)
+                r.evidence.stopQualified = true;
+            else if (bad == 2) {
+                r.evidence.reverseQualified = true;
+                r.evidence.maximumReverseRpm = 3000;
+            } else
+                r.evidence.modeChangeQualified = true;
+            refusedAs(r, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        }
+        Rig reverse;
+        probe(reverse, -int64_t(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM));
+        refusedAs(reverse, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        const uint64_t longest = L::VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US;
+        for (uint64_t extra : {uint64_t(0), uint64_t(1)}) {
+            Rig r;
+            probe(r);
+            r.options.maxPolls = 3000;
+            r.request.durationUs = longest + extra;
+            const M::Status status = r.prepare(START + longest + 5000000);
+            if (extra) {
+                CHECK(!status && status.code == M::Err::INVALID_CONFIG &&
+                      status.detail == int32_t(M::VelocityError::TIME));
+                r.reject(START + longest + 5000000);
+            } else
+                CHECK(status);
+        }
+    }
+    {
+        // No other gate takes the probe, even inside its own range; MEASURED keeps 3000 rpm.
+        Rig measured;
+        measured.evidence.rangeProbe = true;
+        refusedAs(measured, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig fast;
+        fast.evidence.rangeProbe = true;
+        fast.evidence.maximumForwardRpm = L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM;
+        fast.request.velocity.value = M::Rational(int64_t(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM));
+        fast.profile.rampUpTimeMs = fast.profile.rampDownTimeMs = 200;
+        refusedAs(fast, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig closed;
+        probe(closed);
+        closed.evidence.gate = L::VelocityGate::CLOSED;
+        refusedAs(closed, M::Err::UNSUPPORTED, M::VelocityError::CAPABILITY);
+        Rig top;
+        top.request.velocity.value = M::Rational(3000);
+        CHECK(top.prepare() && top.context.rate.effectiveNative == 3000);
+        Rig above;
+        above.request.velocity.value = M::Rational(3001);
+        refusedAs(above, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        for (uint32_t cap : {uint32_t(3001), L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM}) {
+            Rig wide;
+            wide.evidence.maximumForwardRpm = cap;
+            refusedAs(wide, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        }
+    }
+}
+// A probe run at 6000 rpm runs, stops and succeeds as any experiment, and reads as qualified nowhere.
+void rangeProbeRunQualifiesNothing() {
+    Rig r;
+    probe(r);
+    r.reachRunning();
+    const L::VelocityContext& c = r.context;
+    CHECK(c.latest.velocity == 6000 && c.enableReport.velocity == 6000 && c.firstFailure == M::ActionOutcome::NONE);
+    // The ramps went out as stated, after the 60FF.
+    CHECK(c.setupEvidenceMask == 7 && c.setupHistory[1].transfer.index == 0x6083 &&
+          c.setupHistory[1].transfer.data[0] == 0xc8 && c.setupHistory[1].transfer.data[1] == 0 &&
+          c.setupHistory[2].transfer.index == 0x6084 && c.setupHistory[2].transfer.data[0] == 0xc8 &&
+          c.setupHistory[2].transfer.data[1] == 0);
+    bool due = false;
+    CHECK(L::serviceVelocity(r.context, r.live, r.target, c.stopDueUs, false, due) && due);
+    r.now = c.stopDueUs;
+    static L::ActionContext halt;
+    CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, c.commandHistory[2], L::StopKind::HALT, 43, r.now,
+                                 DEADLINE, stopOptions(r)));
+    runStop(r, halt, 0x0001, 0x9437);
+    CHECK(L::advanceVelocityStop(r.context, halt, r.now));
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.completion == M::ActionCompletion::OBSERVED && !c.needsStop);
+    CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && c.evidence.rangeProbe &&
+          !c.evidence.startQualified && !c.evidence.stopQualified && !c.evidence.modeChangeQualified &&
+          !c.evidence.reverseQualified && !c.evidence.maximumReverseRpm);
+}
+// The over-speed rule of every gate: a cycle from the enable report on whose 606C magnitude exceeds
+// |command| + |command| / 5 + VELOCITY_OVERSPEED_MARGIN_RPM ends the run with its stop requested.
+enum class Gate { MEASURED, REVERSE, EXPERIMENT, PROBE };
+void overSpeedRig(Rig& r, Gate gate, int64_t rpm) {
+    if (gate == Gate::EXPERIMENT)
+        experiment(r);
+    else if (gate == Gate::PROBE)
+        probe(r);
+    else if (gate == Gate::REVERSE) {
+        r.evidence.reverseQualified = true;
+        r.evidence.maximumReverseRpm = 3000;
+    }
+    r.request.velocity.value = M::Rational(rpm);
+}
+int32_t overSpeedLimit(int64_t rpm) {
+    const int64_t magnitude = rpm < 0 ? -rpm : rpm;
+    return int32_t(magnitude + magnitude / 5 + int64_t(L::VELOCITY_OVERSPEED_MARGIN_RPM));
+}
+void overSpeedFailed(const L::VelocityContext& c, int32_t reported) {
+    CHECK(c.state == M::ActionState::ACTIVE && c.phase == L::VelocityPhase::STOPPING && c.stopRequested &&
+          c.needsStop && c.uncertain && c.stopRequestedUs == c.servicedUs);
+    CHECK(c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+          std::strcmp(c.status.msg, "reported velocity exceeds the command") == 0);
+    CHECK(c.latest.present && c.latest.velocity == reported && c.latest.cycle == c.observations);
+}
+void overSpeedEndsTheRun() {
+    struct Case {
+        Gate gate;
+        int64_t rpm;
+    };
+    // 120 + 24 + 10, 123 + 24 + 10 (the fifth rounds down), 60 + 12 + 10, 7 + 1 + 10, 6000 + 1200 + 10.
+    const Case cases[] = {{Gate::MEASURED, 120}, {Gate::REVERSE, -123}, {Gate::EXPERIMENT, 60},
+                          {Gate::EXPERIMENT, 7}, {Gate::PROBE, 6000}};
+    for (const Case& k : cases) {
+        const int32_t sign = k.rpm < 0 ? -1 : 1;
+        const int32_t limit = overSpeedLimit(k.rpm);
+        {
+            // At the limit, in the enable report and every running cycle, the run continues.
+            Rig r;
+            overSpeedRig(r, k.gate, k.rpm);
+            r.runningVelocity = sign * limit;
+            r.reachRunning();
+            for (unsigned step = 0; step < 200 && r.context.runningPolls < 3 &&
+                                    r.context.state == M::ActionState::ACTIVE &&
+                                    r.context.phase != L::VelocityPhase::STOPPING;
+                 ++step)
+                r.serveOne();
+            CHECK(r.context.runningPolls == 3 && r.context.firstFailure == M::ActionOutcome::NONE &&
+                  r.context.state == M::ActionState::ACTIVE && r.context.latest.velocity == sign * limit &&
+                  r.context.enableReport.velocity == sign * limit);
+        }
+        {
+            // One more, in the first cycle after word 15: that cycle reported the enable, then ended the run.
+            Rig r;
+            overSpeedRig(r, k.gate, k.rpm);
+            r.runningVelocity = sign * (limit + 1);
+            CHECK(r.prepare());
+            serveUntil(r, false);
+            const L::VelocityContext& c = r.context;
+            overSpeedFailed(c, sign * (limit + 1));
+            CHECK(c.enableReport.present && c.enableReport.cycle == c.latest.cycle && !c.runningPolls &&
+                  !c.runningObserved && c.commandEvidenceMask == 7 && c.observations == 3);
+            L::PreparedVelocity work;
+            CHECK(L::nextVelocity(c, r.observation, r.live, r.target, r.now + 20000, work) && !work.ready &&
+                  !work.observe);
+            static L::ActionContext stop;
+            CHECK(L::validateVelocityStop(stop, c, r.live, r.target, c.commandHistory[2], c.options.stopKind, 43, r.now,
+                                          DEADLINE, stopOptions(r)));
+        }
+        {
+            // One more in a later running cycle; the run's own HALT then settles the fence, the failure kept.
+            Rig r;
+            overSpeedRig(r, k.gate, k.rpm);
+            r.reachRunning();
+            r.runningVelocity = sign * (limit + 1);
+            serveUntil(r, false);
+            const L::VelocityContext& c = r.context;
+            overSpeedFailed(c, sign * (limit + 1));
+            CHECK(c.runningObserved && c.runningPolls == 1 && c.enableReport.velocity == int32_t(k.rpm));
+            static L::ActionContext halt;
+            CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, c.commandHistory[2], L::StopKind::HALT, 43,
+                                         r.now, DEADLINE, stopOptions(r)));
+            runStop(r, halt, 0x0001, 0x9437);
+            CHECK(halt.state == M::ActionState::SUCCEEDED && L::advanceVelocityStop(r.context, halt, r.now));
+            CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+                  !c.needsStop && c.completion == M::ActionCompletion::OBSERVED && c.stopOperation == 43);
+        }
+    }
+    {
+        // The rule is on magnitude: reversed 606C within it is a contradicted direction, beyond it over-speed.
+        const int32_t limit = overSpeedLimit(120);
+        for (int32_t reported : {-limit, -(limit + 1)}) {
+            Rig r;
+            r.reachRunning();
+            r.runningVelocity = reported;
+            serveUntil(r, false);
+            const L::VelocityContext& c = r.context;
+            CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && c.needsStop &&
+                  c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE && c.latest.velocity == reported);
+            CHECK(std::strcmp(c.status.msg, reported == -limit ? "running velocity evidence contradicted"
+                                                               : "reported velocity exceeds the command") == 0);
+        }
+    }
+}
 } // namespace
 int main() {
     windowReferenceIsWord7sCycle();
@@ -1505,5 +1787,8 @@ int main() {
     timingAndRetainedFailure();
     definiteRetirementRefinesOnlyItsOwnNotice();
     finalEnableCannotOutliveDuration();
+    rangeProbeScope();
+    rangeProbeRunQualifiesNothing();
+    overSpeedEndsTheRun();
     std::printf("finite velocity: %u checks passed\n", checks);
 }
