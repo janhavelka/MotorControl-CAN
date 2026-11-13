@@ -5352,6 +5352,322 @@ void testSubdivisionFailures() {
     CHECK(frameIs(downloads(*a, 0, 1)[0], top));
     CHECK(has(a->dump(), " abort=06090030\n"));
 }
+// ------------------------------------------------- protocol 11: one reviewed non-enabling controlword
+std::string controlwordLine(unsigned node, uint32_t& trial, unsigned word, unsigned cycles = 3, unsigned interval = 100,
+                            unsigned attended = 1) {
+    return "T" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," + std::to_string(word) +
+           "," + std::to_string(cycles) + "," + std::to_string(interval);
+}
+// This fake as node 1 read after trial 5323's 2301 clear: 6041=8010, 2100=0001, mode 3, 606C 0, which no other
+// route admits. Every response to a word here is this fake's own choice (0006 sets low bits 001 and, with
+// releaseWords, 2100 released; 000B clears the low bits and sets released; 0000 and 0080 change nothing):
+// nothing shows what a CL86-C does.
+void lowBitsZero(Drive& d) {
+    d.mode = 3;
+    d.monitor = 0x0001;
+    d.status = 0x8010;
+    d.velocity = 0;
+    d.position = 6761;
+    d.releaseWords = true;
+}
+void testParseControlword() {
+    scenario = "parse-controlword";
+    // Appended after SUBDIVISION: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::SUBDIVISION) == 25 && unsigned(E::RouteKind::CONTROLWORD) == 26);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::CONTROLWORD), "controlword") == 0);
+    // Only the reviewed set; never a word with bits 0, 1 and 2 all set.
+    for (unsigned word = 0; word <= 0xffff; ++word) {
+        const bool reviewed = word == 0x0000 || word == 0x0006 || word == 0x000b || word == 0x0080;
+        CHECK(E::controlwordReviewed(uint16_t(word)) == reviewed);
+        CHECK(!reviewed || (word & 0x0007) != 0x0007);
+    }
+    E::RoutePlan p;
+    for (unsigned word : {0u, 6u, 11u, 128u}) {
+        uint32_t t = 4;
+        const std::string line = controlwordLine(2, t, word, 10, 2000);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::CONTROLWORD &&
+              p.node == 2 && p.trial == 5 && p.attended && p.controlword == word && p.cycles == 10 &&
+              p.intervalMs == 2000);
+    }
+    const char* const bad[] = {"T1,5,1,7,3,100",   "T1,5,1,15,3,100",  "T1,5,1,31,3,100",  "T1,5,1,271,3,100",
+                               "T1,5,1,1,3,100",   "T1,5,1,2,3,100",   "T1,5,1,127,3,100", "T1,5,1,129,3,100",
+                               "T1,5,1,134,3,100", "T1,5,1,6,0,100",   "T1,5,1,6,11,100",  "T1,5,1,6,3,99",
+                               "T1,5,1,6,3,2001",  "T1,5,2,6,3,100",   "T1,5,1,6,3",       "T1,5,1,6,3,100,0",
+                               "T1,5,1,-6,3,100",  "T1,5,1,0x6,3,100", "T1,5,1,+6,3,100",  "T0,5,1,6,3,100",
+                               "T3,5,1,6,3,100",   "T1,0,1,6,3,100",   "t1,5,1,6,3,100",   "T1,5,1,,3,100"};
+    for (const char* text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text, std::strlen(text), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text);
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched));
+        CHECK(untouched.kind == E::RouteKind::NONE && untouched.trial == 0);
+    }
+    // The host's line: `TT`, the command byte and then the route, with its integrity field.
+    CHECK(E::routeLineCrc("T1,5,1,6,3,100", 14) == 0xda04cd66u); // zlib.crc32(b"TT1,5,1,6,3,100")
+    const std::string sent = signLine("T1,5,1,6,3,100");
+    size_t body = 0;
+    CHECK(E::checkRouteIntegrity(sent.data(), sent.size(), body) && body == 14 &&
+          E::parseRouteCommand(sent.data(), body, p) && p.controlword == 6);
+    // A plan built in code is judged as the parser judges a line: a forbidden or unknown word is refused
+    // before anything is admitted, whatever the field's range would hold.
+    const std::string line = "T1,9,1,6,3,100";
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p) && E::routePlanValid(p));
+    std::unique_ptr<Rig> r(new Rig);
+    lowBitsZero(r->driver.drives[0]);
+    for (unsigned word : {0x0007u, 0x000fu, 0x001fu, 0x010fu, 0x0001u, 0x0086u, 0x008fu, 0xffffu}) {
+        E::RoutePlan built = p;
+        built.controlword = uint16_t(word);
+        CHECK(!E::routePlanValid(built) && std::strcmp(r->route.begin(built, r->console.now), "plan") == 0);
+    }
+    CHECK(r->driver.requests.empty() && !r->route.record() && r->route.motionAdmissions() == 0);
+}
+// The admitted word: one fresh full read, the one 6040 download, the stated cycles each kept, one more full read,
+// nothing else. Each reviewed word is its exact frame.
+void testControlword() {
+    scenario = "controlword";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    lowBitsZero(d);
+    uint32_t trial = 0;
+    CHECK(refusedAs(r->start(controlwordLine(1, trial, 6, 3, 100, 0)), "unattended"));
+    // Neither eligibility nor RouteWork is needed: the write is the route's own, under its own grant.
+    std::unique_ptr<Rig> bare(new Rig(false));
+    lowBitsZero(bare->driver.drives[0]);
+    uint32_t bareTrial = 0;
+    CHECK(bare->run(controlwordLine(1, bareTrial, 6)).failure == E::RouteFailure::NONE);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(controlwordLine(1, trial, 6, 3, 100));
+    CHECK(v.failure == E::RouteFailure::NONE && v.checkPassed && !v.firstPresent && v.cycles == 3);
+    CHECK(v.controlMarked == 0 && !v.controlEnabled && !v.controlMoving);
+    CHECK(v.probeWritten && v.probeOutcome == uint8_t(C::SdoOutcome::SUCCESS) && v.probeAcknowledged &&
+          !v.probeUncertain && v.probeAbort == 0);
+    // Motion class, as every 6040 write: one admission on its own row.
+    CHECK(v.motionTotal == 1 && v.caseCount == 1 && r->route.motionAdmissions() == 1);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t write[8] = {0x2b, 0x40, 0x60, 0, 0x06, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, write));
+    for (unsigned cycle = 0; cycle < 3; ++cycle)
+        expectUploads(*r, at, 1, IMAGE, 7);
+    expectUploads(*r, at, 1, FULL, 9);
+    CHECK(at == r->driver.requests.size() && v.terminalCount == 9 + 1 + 3 * 7 + 9);
+    CHECK(downloads(*r, first, 1).size() == 1 && downloads(*r, first, 2).empty());
+    // Each cycle kept, the first right after the acknowledgement and the rest at least the interval apart.
+    CHECK(v.controlCycles[0].statusword == 0x8011 && v.controlCycles[0].monitor == 0x0011 &&
+          v.controlCycles[2].statusword == 0x8011 && v.controlCycles[0].blocks == 0x1c);
+    CHECK(v.controlCycleUs[1] - v.controlCycleUs[0] >= 100000 && v.controlCycleUs[2] - v.controlCycleUs[1] >= 100000 &&
+          v.controlCycleUs[3] == 0);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=2 node=1 route=controlword failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=controlword node=1 trial=2 attended=1 word=0006 cycles=3 interval=100\n"));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=6761 "
+                    "606c=0\n"));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8011 6061=03 6064=6761 "
+                    "606c=0\n"));
+    CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=1 word=0006 "));
+    CHECK(has(text, "TRIAL_CONTROLWORD word=0006 tx=2b40600006000000 written=1 outcome=0 ack=1 uncertain=0 "
+                    "abort=00000000 cycles=3 marked=0 enabled=0 moving=0 alert=0\n"));
+    for (const char* which : {"which=1 ", "which=2 ", "which=3 "})
+        CHECK(has(text, (std::string("TRIAL_CONTROLWORD_CYCLE ") + which + "us=").c_str()));
+    CHECK(!has(text, "TRIAL_CONTROLWORD_CYCLE which=4 ") && !has(text, "TRIAL_FIRST "));
+    CHECK(has(text, " blocks=1c 2100=0011 6041=8011 6061=03 6064=6761 606c=0 enabled=0 moving=0\n"));
+    CHECK(has(text, " object=6040:00 dir=1 outcome=0 ack=1 "));
+    r->release();
+    // The word is the session's own write: the enable refuses after it in this boot.
+    CHECK(refusedAs(r->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800"), "history"));
+    // Two more on node 1 reach the per-case cap of three; the fourth is refused before anything is sent.
+    lowBitsZero(d);
+    for (unsigned i = 0; i < 2; ++i) {
+        CHECK(r->run(controlwordLine(1, trial, 0, 1, 100)).failure == E::RouteFailure::NONE);
+        r->release();
+    }
+    const size_t capped = r->driver.requests.size();
+    CHECK(refusedAs(r->start(controlwordLine(1, trial, 0)), "budget") && r->driver.requests.size() == capped);
+    CHECK(r->route.motionAdmissions() == 3);
+
+    // Every reviewed word is its exact frame, once, at most ten cycles at up to 2000 ms.
+    const struct {
+        unsigned word;
+        uint8_t lo, hi;
+        uint16_t status, monitor;
+    } words[] = {{0x0000, 0x00, 0, 0x8010, 0x0001},
+                 {0x0006, 0x06, 0, 0x8011, 0x0011},
+                 {0x000b, 0x0b, 0, 0x8010, 0x0011},
+                 {0x0080, 0x80, 0, 0x8010, 0x0001}};
+    for (const auto& w : words) {
+        scenario = "controlword-frames";
+        std::unique_ptr<Rig> f(new Rig);
+        lowBitsZero(f->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = f->run(controlwordLine(1, t, w.word, w.word == 0x80 ? 10 : 2, w.word ? 100 : 2000),
+                                         120000);
+        const std::vector<M::Frame> sent = downloads(*f, 0, 1);
+        const uint8_t frame[8] = {0x2b, 0x40, 0x60, 0, w.lo, w.hi, 0, 0};
+        CHECK(y.failure == E::RouteFailure::NONE && sent.size() == 1 && frameIs(sent[0], frame));
+        CHECK(y.cycles == (w.word == 0x80 ? 10u : 2u) && y.last.statusword == w.status && y.last.monitor == w.monitor);
+        CHECK(y.terminalCount == 9 + 1 + 7 * y.cycles + 9 && f->driver.drives[0].lastWord == w.word);
+        if (!w.word)
+            CHECK(y.controlCycleUs[1] - y.controlCycleUs[0] >= 2000000);
+        char line[160];
+        std::snprintf(line, sizeof line, "TRIAL_CONTROLWORD word=%04x tx=2b406000%02x%02x0000 written=1 outcome=0 ",
+                      w.word, unsigned(w.lo), unsigned(w.hi));
+        const std::string dumped = f->dump();
+        CHECK(has(dumped, line) && has(dumped, w.word == 0x80 ? "TRIAL_CONTROLWORD_CYCLE which=10 " : " cycles=2 "));
+    }
+}
+// Refused before the word, with nothing sent: each admission condition on the one fresh read, a changed latest
+// word, and the starts the check admits (the fault bit either way, modes 0, 1, 3 and 6).
+void testControlwordRefusals() {
+    struct Case {
+        const char* why;
+        void (*apply)(Drive&);
+    };
+    const Case cases[] = {
+        {"status", [](Drive& f) { f.status = 0x8037; }}, // The power-up report: low bits 111.
+        {"status", [](Drive& f) { f.status = 0x8031; }}, // Ready to switch on, low bits 001.
+        {"status", [](Drive& f) { f.status = 0x8033; }}, // Switched on, low bits 011.
+        {"status", [](Drive& f) { f.status = 0x8027; }},
+        {"status", [](Drive& f) { f.status = 0x8014; }}, // Bit 2 alone.
+        {"running", [](Drive& f) { f.monitor = 0x0005; }},
+        {"running", [](Drive& f) { f.monitor = 0x0015; }}, // The released latch is running too: refused here.
+        {"velocity", [](Drive& f) { f.velocity = 1; }},
+        {"velocity", [](Drive& f) { f.velocity = -30; }},
+        {"mode", [](Drive& f) { f.mode = 2; }},
+        {"mode", [](Drive& f) { f.mode = 4; }},
+        {"mode", [](Drive& f) { f.mode = 0xff; }},
+    };
+    for (const Case& c : cases) {
+        scenario = c.why;
+        std::unique_ptr<Rig> s(new Rig);
+        lowBitsZero(s->driver.drives[0]);
+        c.apply(s->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(controlwordLine(1, t, 6));
+        if (std::strcmp(y.why, c.why) != 0)
+            std::fprintf(stderr, "controlword %s: %s\n", c.why, y.why);
+        CHECK(y.failure == E::RouteFailure::PREREQUISITE && std::strcmp(y.why, c.why) == 0 && !y.checkPassed);
+        CHECK(s->downloadsFrom(0) == 0 && !y.probeWritten && y.cycles == 0 && y.terminalCount == 9);
+        CHECK(y.motionTotal == 1 && y.caseCount == 1); // Counted at admission, as every motion route.
+        CHECK(has(s->dump(), " written=0 outcome=255 ack=0 uncertain=0 abort=00000000 cycles=0 marked=0 enabled=0 "
+                             "moving=0 alert=0\n"));
+    }
+    // Admitted: the fault bit set or clear, an alarm or fault code on record, and modes 0, 1, 3 and 6.
+    const Case admitted[] = {
+        {"fault-bit", [](Drive& f) { f.status = 0x8018; }},
+        {"alarm", [](Drive& f) { f.monitor = uint16_t(0x0001 | L::MONITOR_ALARM); f.errorCode = 0xff05; f.errorRegister = 0x81; }},
+        {"mode0", [](Drive& f) { f.mode = 0; }},
+        {"mode1", [](Drive& f) { f.mode = 1; }},
+        {"mode6", [](Drive& f) { f.mode = 6; }},
+        {"released", [](Drive& f) { f.monitor = 0x0011; f.status = 0x8050; }},
+    };
+    for (const Case& c : admitted) {
+        scenario = c.why;
+        std::unique_ptr<Rig> s(new Rig);
+        lowBitsZero(s->driver.drives[0]);
+        c.apply(s->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(controlwordLine(1, t, 0x80, 1, 100));
+        CHECK(y.failure == E::RouteFailure::NONE && y.checkPassed && s->downloadsFrom(0) == 1 && y.cycles == 1);
+    }
+
+    // Another writer between the check and the word: the word recorded at admission is not the latest.
+    scenario = "controlword-predecessor";
+    std::unique_ptr<Rig> w(new Rig);
+    lowBitsZero(w->driver.drives[0]);
+    uint32_t trial = 0;
+    const size_t mark = w->driver.requests.size();
+    CHECK(!w->start(controlwordLine(1, trial, 6)));
+    for (unsigned i = 0; i < 20000 && w->route.active() && w->route.record()->step < 2; ++i)
+        w->turn();
+    CHECK(w->route.active() && w->route.record()->checkPassed && w->downloadsFrom(mark) == 0);
+    ownWord(*w, 0x0000);
+    finishRoute(*w);
+    CHECK(w->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(w->route.record()->why, "control") == 0 && !w->route.record()->probeWritten);
+    CHECK(w->downloadsFrom(mark) == 1 && w->driver.drives[0].lastWord == 0); // Only the other writer's word.
+}
+// A read after the word that reports switched on, enabled or 606C nonzero ends the route there with the mark
+// and nothing more sent; a failed or lost word ends it at its terminal. No second word, no stop, no retry.
+void testControlwordMarks() {
+    scenario = "controlword-enabled";
+    std::unique_ptr<Rig> e(new Rig);
+    Drive& d = e->driver.drives[0];
+    lowBitsZero(d);
+    // This fake's 0080 reports the power-up pattern: a drive that would then hold torque.
+    d.resetBit7 = true;
+    d.monitorAfterReset = 0x0001;
+    d.statusAfterReset = 0x8037;
+    uint32_t trial = 0;
+    const E::RouteRecord& y = e->run(controlwordLine(1, trial, 0x80, 5, 100));
+    CHECK(y.failure == E::RouteFailure::OBSERVATION && std::strcmp(y.why, "enabled") == 0 && y.checkPassed);
+    CHECK(y.cycles == 1 && y.controlMarked == 1 && y.controlEnabled && !y.controlMoving);
+    CHECK(y.terminalCount == 9 + 1 + 7 && e->downloadsFrom(0) == 1);
+    std::string text = e->dump();
+    CHECK(has(text, "TRIAL id=1 node=1 route=controlword failure=9 why=enabled "));
+    CHECK(has(text, "TRIAL_CONTROLWORD word=0080 tx=2b40600080000000 written=1 outcome=0 ack=1 uncertain=0 "
+                    "abort=00000000 cycles=1 marked=1 enabled=1 moving=0 alert=1\n"));
+    CHECK(has(text, " blocks=1c 2100=0001 6041=8037 6061=03 6064=6761 606c=0 enabled=1 moving=0\n"));
+    const size_t after = e->driver.requests.size();
+    e->turns(500);
+    CHECK(e->driver.requests.size() == after); // Nothing more: no stop, no read, no second word.
+
+    scenario = "controlword-moving";
+    std::unique_ptr<Rig> m(new Rig);
+    lowBitsZero(m->driver.drives[0]);
+    m->driver.drives[0].trapWord = 0x000b;
+    m->driver.drives[0].trapVelocity = -30;
+    trial = 0;
+    const E::RouteRecord& z = m->run(controlwordLine(1, trial, 0x0b, 4, 100));
+    CHECK(z.failure == E::RouteFailure::OBSERVATION && std::strcmp(z.why, "velocity") == 0);
+    CHECK(z.cycles == 1 && z.controlMarked == 1 && !z.controlEnabled && z.controlMoving && m->downloadsFrom(0) == 1);
+    CHECK(has(m->dump(), " cycles=1 marked=1 enabled=0 moving=1 alert=1\n"));
+
+    // The final full read is marked too, as read cycles + 1.
+    scenario = "controlword-final";
+    std::unique_ptr<Rig> l(new Rig);
+    lowBitsZero(l->driver.drives[0]);
+    trial = 0;
+    CHECK(!l->start(controlwordLine(1, trial, 6, 2, 100)));
+    for (unsigned i = 0; i < 80000 && l->route.active() && l->route.record()->cycles < 2; ++i)
+        l->turn();
+    CHECK(l->route.active() && l->route.record()->cycles == 2);
+    l->driver.drives[0].velocity = 7;
+    finishRoute(*l);
+    const E::RouteRecord& f = *l->route.record();
+    CHECK(f.failure == E::RouteFailure::OBSERVATION && std::strcmp(f.why, "velocity") == 0 && f.controlMarked == 3 &&
+          f.controlMoving && f.last.velocity == 7 && f.terminalCount == 9 + 1 + 14 + 9);
+    CHECK(has(l->dump(), " cycles=2 marked=3 enabled=0 moving=1 alert=1\n"));
+
+    // A server abort of the word ends the route at that terminal: no cycle, no read after it.
+    scenario = "controlword-abort";
+    std::unique_ptr<Rig> a(new Rig);
+    lowBitsZero(a->driver.drives[0]);
+    a->driver.drives[0].abortIndex = 0x6040;
+    a->driver.drives[0].abortCode = 0x08000022;
+    a->driver.drives[0].writesOnly = true;
+    trial = 0;
+    const E::RouteRecord& b = a->run(controlwordLine(1, trial, 6));
+    CHECK(b.failure == E::RouteFailure::SERVICE && std::strcmp(b.why, "uncertain") == 0 && b.checkPassed);
+    CHECK(b.probeWritten && b.probeOutcome == uint8_t(C::SdoOutcome::SERVER_ABORT) && !b.probeAcknowledged &&
+          b.probeUncertain && b.probeAbort == 0x08000022 && b.cycles == 0 && b.terminalCount == 10);
+    CHECK(has(a->dump(), " written=1 outcome=1 ack=0 uncertain=1 abort=08000022 cycles=0 marked=0 "));
+    const size_t aborted = a->driver.requests.size();
+    a->turns(500);
+    CHECK(a->driver.requests.size() == aborted && a->downloadsFrom(0) == 1);
+
+    // A lost reply: the word's effect is unknown and nothing more is sent.
+    scenario = "controlword-lost";
+    std::unique_ptr<Rig> q(new Rig);
+    lowBitsZero(q->driver.drives[0]);
+    q->driver.drives[0].silentIndex = 0x6040;
+    q->driver.drives[0].writesOnly = true;
+    trial = 0;
+    const E::RouteRecord& g = q->run(controlwordLine(1, trial, 0x0b));
+    CHECK(g.failure == E::RouteFailure::SERVICE && std::strcmp(g.why, "uncertain") == 0);
+    CHECK(g.probeWritten && g.probeUncertain && !g.probeAcknowledged && g.cycles == 0 && q->downloadsFrom(0) == 1);
+    q->turns(400);
+    CHECK(q->downloadsFrom(0) == 1);
+}
 void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
@@ -5611,6 +5927,22 @@ void writeTranscript(const char* path, bool all) {
         const std::string held = subdivisionLine(1, trial, 25600);
         CHECK(k3->run(held).failure == E::RouteFailure::REFUSED);
         append(*k3, held);
+        // Protocol 11: one 0006 from what node 1 read after trial 5323's clear, with three cycles; then on a fake
+        // whose 0080 reports the power-up pattern, the marked record that ends at its first cycle (word 128).
+        std::unique_ptr<Rig> t1(new Rig);
+        lowBitsZero(t1->driver.drives[0]);
+        trial = 0;
+        const std::string shutdown = controlwordLine(1, trial, 6, 3, 100);
+        CHECK(t1->run(shutdown).failure == E::RouteFailure::NONE);
+        append(*t1, shutdown);
+        std::unique_ptr<Rig> t2(new Rig);
+        lowBitsZero(t2->driver.drives[0]);
+        t2->driver.drives[0].resetBit7 = true;
+        t2->driver.drives[0].monitorAfterReset = 0x0001;
+        t2->driver.drives[0].statusAfterReset = 0x8037;
+        const std::string marked = controlwordLine(1, trial, 0x80, 3, 100);
+        CHECK(t2->run(marked).failure == E::RouteFailure::OBSERVATION);
+        append(*t2, marked);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -6758,6 +7090,10 @@ int main(int argc, char** argv) {
     testParseSubdivision();
     testSubdivision();
     testSubdivisionFailures();
+    testParseControlword();
+    testControlword();
+    testControlwordRefusals();
+    testControlwordMarks();
     testCloseRefusals();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();

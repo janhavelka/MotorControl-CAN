@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### S2 controlword experiment route, protocol 11 (2026-11-13)
+
+- S2 bench route `controlword` (`TT<node>,<trial>,1,<word>,<cycles>,<interval>`, `PONG routes=11`): an
+  attended single-word experiment for a drive that reports `6041` low bits `000` and that no other route
+  admits (node 1 after trial 5323: `8010`/`0001`, unchanged by an NMT Reset Node). One fresh full read must
+  show `6041` bits 0..2 clear, `2100` running clear, `606C` 0 and mode 0, 1, 3 or 6; then exactly one
+  `2B 40 60 00 <lo> <hi> 00 00` of a reviewed word only (`0000`, `0006`, `000B`, `0080`; the runner, the
+  firmware parser and the write all refuse `0007`, `000F`, `001F`, `010F` and every other word), 1..10
+  STATUS/MONITORS/FEEDBACK cycles 100..2000 ms apart and one more full read. A read after the word that
+  reports `6041` bit 1 or 2 or `606C` nonzero ends the route there (`why=enabled` or `velocity`), and
+  `scripts/s2_bench.py --command controlword --word ...` prints an ALERT to use the cutoff and exits 4.
+  Motion class, as every 6040 write. `TRIAL_CONTROLWORD` and `TRIAL_CONTROLWORD_CYCLE` are new record lines
+  that `scripts/s2_evidence.py` parses and checks against the record. Nothing has been measured with it yet
+  ([fault clearing](docs/fault_reference_actions.md#completion-measured-2026-11-13)).
+
 ### Two alarm reset methods, the measured mode 3 completion and NMT reset experiments (2026-11-13)
 
 - `AlarmClearMethod` and a defaulted last parameter of `prepareClearAlarm` (and

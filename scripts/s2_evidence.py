@@ -184,7 +184,7 @@ GRAMMAR = (
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
         "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
-        "probe:u?"),
+        "probe:u? word:x?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -311,6 +311,14 @@ GRAMMAR = (
     Row("TRIAL_DRIVER", "TRIAL_DRIVER ", "summary", "which:u present:b 2200:x 2201:u"),
     Row("TRIAL_SUBDIVISION", "TRIAL_SUBDIVISION ", "summary",
         "requested:u written:b outcome:u ack:b uncertain:b abort:x"),
+    # controlword (protocol 11): the line's word and its exact request, the one 6040 download's terminal (outcome
+    # 255 while none settled), the completed cycles and the read after the word that reported 6041 bit 1 or 2 or
+    # 606C nonzero and ended the route (marked: 1..cycles a cycle, cycles + 1 the final read, 0 none; alert repeats
+    # it). Then each cycle raw, with the read's completion time and its own mark bits. Never judged as a transition.
+    Row("TRIAL_CONTROLWORD", "TRIAL_CONTROLWORD ", "summary",
+        "word:x tx:h written:b outcome:u ack:b uncertain:b abort:x cycles:u marked:u enabled:b moving:b alert:b"),
+    Row("TRIAL_CONTROLWORD_CYCLE", "TRIAL_CONTROLWORD_CYCLE ", "summary",
+        "which:u us:u blocks:x 2100:x 6041:x 6061:x 6064:i 606c:i enabled:b moving:b"),
     Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
     Row("RELEASED", "TRIAL record released", "response"),
     Row("RELEASE_REFUSED", "TRIAL release refused", "response"),
@@ -584,7 +592,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "released-quick": "released-quick", "word67": "word67", "relative": "relative",
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
-                "velocity-target": "velocity-target", "subdivision": "subdivision"}
+                "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -619,6 +627,8 @@ _HISTORY_ENTRIES = tuple((0x1003, subindex, 4) for subindex in range(1, 5))
 # velocity-target: two full reads, the 60FF download and, only after its acknowledgement, its upload and one
 # more full read. 60FF is four bytes under both of its claims (EDS I32, EN86/ZH86 p13 U32).
 _TRIAL_VELOCITY_TARGET = _FULL + _FULL + ((0x60FF, 0, 4), (0x60FF, 0, 4)) + _FULL
+# controlword (protocol 11): the full read, the one 6040 download, at most ten image cycles, one more full read.
+CONTROLWORD_CYCLES = 10
 
 
 def _trial_history(results):
@@ -634,6 +644,18 @@ def _trial_history(results):
     return rows, (len(rows),)
 
 
+def _trial_controlword(results):
+    """The controlword route's plan: the full read, the 6040 download, then as many image cycles as the record's
+    own terminals begin (a 2100 upload where the next cycle would start, at most ten), then the full read. A
+    successful record holds at least one cycle and the final read; a marked or failed one may end sooner."""
+    cycles = 0
+    start = len(_FULL) + 1
+    while cycles < CONTROLWORD_CYCLES and len(results) > start + len(_IMAGE) * cycles and             tuple(results[start + len(_IMAGE) * cycles].values["object"]) == (0x2100, 0):
+        cycles += 1
+    rows = _FULL + ((0x6040, 0, 2),) + _IMAGE * cycles + _FULL
+    return rows, ((len(rows),) if cycles else ())
+
+
 # name: (rows, plan sizes a successful record may have), or a function of the record's terminals
 # returning them, for a plan whose length its own replies decide.
 INVENTORIES = {
@@ -646,6 +668,7 @@ INVENTORIES = {
     "trial_tuning": (_TRIAL_TUNING, (45,)),
     "trial_history": _trial_history,
     "trial_velocity-target": (_TRIAL_VELOCITY_TARGET, (29,)),
+    "trial_controlword": _trial_controlword,
 }
 
 
@@ -1459,6 +1482,8 @@ def _check_trial(report, records, meta):
             _check_history(report, summary, [r for r in records if r.role == "terminal" and r.status == "parsed"])
         if summary.kind == "TRIAL_VELOCITY_TARGET":
             _check_velocity_target(report, summary, records)
+        if summary.kind == "TRIAL_CONTROLWORD":
+            _check_controlword(report, summary, records)
     if header["route"] == "clear-alarm":
         _check_clear_method(report, records, meta)
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
@@ -1577,6 +1602,60 @@ def _check_velocity_target(report, summary, records):
         problems.append("match differs from the bytes")
     if problems:
         report.error("velocity_target_differs_from_record", summary.number, "; ".join(problems))
+
+
+# controlword's reviewed set (protocol 11; BenchRoute.cpp REVIEWED_CONTROLWORDS): none has bits 0, 1 and 2 all set.
+CONTROLWORDS = frozenset((0x0000, 0x0006, 0x000B, 0x0080))
+_CONTROLWORD_ENABLED = 0x0006  # 6041 bit 1 switched on, bit 2 operation enabled.
+
+
+def _check_controlword(report, summary, records):
+    """TRIAL_CONTROLWORD repeats the record's own evidence: the plan's reviewed word, the one 6040 request on the
+    wire, that download's terminal, the cycle lines and the mark. A summary is never a second, different
+    observation, and the first marked read ends the record."""
+    values = summary.values
+    parsed = [r for r in records if r.status == "parsed"]
+    plans = [r.values for r in parsed if r.kind == "TRIAL_PLAN" and "word" in r.values]
+    cycles = [r.values for r in parsed if r.kind == "TRIAL_CONTROLWORD_CYCLE"]
+    results = [r.values for r in parsed if r.role == "terminal" and tuple(r.values["object"]) == (0x6040, 0)]
+    downloads = [v for v in results if v.get("dir") == 1]
+    requests = [bytes.fromhex(r.values["data"]) for r in parsed if r.role in ("traffic", "tail") and
+                r.values["k"] == TX and 0x600 < r.values["id"] <= 0x67F and
+                bytes.fromhex(r.values["data"])[:4] == bytes.fromhex("2b406000")]
+    word = values["word"]
+    frame = bytes.fromhex("2b406000") + (word & 0xFFFF).to_bytes(2, "little") + bytes(2)
+    problems = []
+    if word not in CONTROLWORDS:
+        problems.append("word %04x is not a reviewed controlword" % word)
+    if not plans or plans[0]["word"] != word:
+        problems.append("word differs from TRIAL_PLAN")
+    if bytes.fromhex(values["tx"]) != frame:
+        problems.append("tx is not the word's request")
+    if len(downloads) > 1 or len(requests) > 1:
+        problems.append("more than one 6040 download")
+    if any(request != frame for request in requests):
+        problems.append("the wire request is not the word")
+    if values["written"] != bool(downloads):
+        problems.append("written differs from the download terminals")
+    elif downloads:
+        download = downloads[0]
+        if (values["outcome"], values["ack"], values["uncertain"], values["abort"]) != (
+                download["outcome"], download["ack"], download["uncertain"], download["abort"]):
+            problems.append("download terminal differs")
+    elif values["outcome"] != 255:
+        problems.append("outcome without a download")
+    if [c["which"] for c in cycles] != list(range(1, values["cycles"] + 1)):
+        problems.append("cycle lines are not 1..cycles")
+    for cycle in cycles:
+        if cycle["enabled"] != bool(cycle["6041"] & _CONTROLWORD_ENABLED) or cycle["moving"] != bool(cycle["606c"]):
+            problems.append("cycle %d marks differ from its values" % cycle["which"])
+    marked = [c["which"] for c in cycles if c["enabled"] or c["moving"]]
+    if len(marked) > 1 or marked != ([values["marked"]] if 0 < values["marked"] <= values["cycles"] else []):
+        problems.append("marked differs from the cycle lines")
+    if values["alert"] != bool(values["marked"]) or values["alert"] != (values["enabled"] or values["moving"]):
+        problems.append("alert differs from the mark")
+    if problems:
+        report.error("controlword_differs_from_record", summary.number, "; ".join(problems))
 
 
 def _check_request(report, meta):

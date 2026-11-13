@@ -19,26 +19,26 @@ NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
          "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home",
-         "F": "velocity-target", "K": "subdivision"}
+         "F": "velocity-target", "K": "subdivision", "T": "controlword"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision"}
-# Protocol 6's routes, protocol 8's F and protocol 9's K. `bench_route_test --transcript` prints the earlier
-# ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names them (see
-# check_trial_transcript).
-NEW_LETTERS = frozenset("NVOFK")
+          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword"}
+# Protocol 6's routes, protocol 8's F, protocol 9's K and protocol 11's T. `bench_route_test --transcript` prints
+# the earlier ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names
+# them (see check_trial_transcript).
+NEW_LETTERS = frozenset("NVOFKT")
 
 
 def check_trial_transcript(path, every=False):
     """Every record the real BenchRoute prints must parse whole, with its expected verdict. every: the
     transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records, protocol
     8's velocity-target records, the 2026-11-10 chain from a released mode 3 drive (mode1, enable, move,
-    position) and protocol 9's range-probe velocity and subdivision records."""
+    position), protocol 9's range-probe velocity and subdivision records and protocol 11's controlword records."""
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 42 if every else 26
+    wanted_count = 44 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -68,8 +68,10 @@ def check_trial_transcript(path, every=False):
         # route's own QUICK_STOP: 21 on a reported move, the sequenced 000B; 22 with word 15's reply lost, a
         # failed terminal and the DEC-2 000B after it.
         enable_stop = line.startswith(("E1,21,", "E1,22,"))
+        # Protocol 11: the 0080 on a fake that then reports the power-up pattern ends at its first cycle, marked.
+        marked = line[0] == "T" and fields[3] == "128"
         wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged or
-                  enable_stop else "complete")
+                  enable_stop or marked else "complete")
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
         if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
@@ -167,6 +169,8 @@ def check_trial_transcript(path, every=False):
             problems.append("%s: the range probe is not in its plan and evidence" % line)
         if line[0] == "K":
             problems += _check_subdivision_record(line, fields, body, report, held)
+        if line[0] == "T":
+            problems += _check_controlword_record(line, fields, body, meta, report, marked)
         if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
         # The routes read 607D:00 and 60FE:00 in two bytes, as both specimens answered them. Against
@@ -209,6 +213,39 @@ def _check_target_record(line, fields, body, meta, report, ranged):
     forged = (body.replace(b" abort=06090030 read=0 ", b" abort=06090031 read=0 ") if ranged else
               body.replace(b" data=%s match=1 " % written, b" data=00000000 match=1 "))
     if "velocity_target_differs_from_record" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
+        problems.append("%s: a summary that differs from the record was accepted" % line)
+    return problems
+
+
+def _check_controlword_record(line, fields, body, meta, report, marked):
+    """One controlword record of the transcript (protocol 11): its summaries, exactly its one 6040 download on
+    the wire, a mark that ends the record with nothing after it, and a summary that differs from the record
+    refused as such."""
+    problems = []
+    kinds = set(report.kinds)
+    if not {"TRIAL_CHECK", "TRIAL_LAST", "TRIAL_CONTROL", "TRIAL_CONTROLWORD", "TRIAL_CONTROLWORD_CYCLE"} <= kinds:
+        problems.append("%s: no check, last read, control, controlword or cycle summary" % line)
+    if not report.inventory_checked:
+        problems.append("%s: fixed inventory not checked" % line)
+    word = int(fields[3])
+    sent = [r.values["data"] for r in report.records if r.kind == "TRAFFIC" and r.status == "parsed" and
+            r.values["k"] == evidence.TX and 0x600 < r.values["id"] <= 0x67F]
+    downloads = [data for data in sent if data[:2] not in ("40", "80")]
+    frame = "2b406000" + word.to_bytes(2, "little").hex() + "0000"
+    if downloads != [frame]:
+        problems.append("%s: not exactly one 6040 download of its word: %s" % (line, downloads))
+    cycles = [r.values for r in report.records if r.kind == "TRIAL_CONTROLWORD_CYCLE" and r.status == "parsed"]
+    if marked:
+        if not (report.failure_name == "OBSERVATION" and b" cycles=1 marked=1 enabled=1 moving=0 alert=1\n" in body
+                and len(cycles) == 1 and report.terminals == 17):
+            problems.append("%s: not a record marked at its first cycle with nothing after it" % line)
+        if bench.controlword_alert("controlword", [int(fields[0]), int(fields[1])], body) is None:
+            problems.append("%s: a marked record without the runner's alert" % line)
+    elif not (b" cycles=%s marked=0 enabled=0 moving=0 alert=0\n" % fields[4].encode("ascii") in body and
+              len(cycles) == int(fields[4])):
+        problems.append("%s: not an unmarked record with every cycle" % line)
+    forged = body.replace(b"tx=" + frame.encode("ascii"), b"tx=2b4060000f000000")
+    if "controlword_differs_from_record" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
         problems.append("%s: a summary that differs from the record was accepted" % line)
     return problems
 
@@ -1167,8 +1204,8 @@ class BenchTest(unittest.TestCase):
                                      ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            # Older images, protocols 7 and 8 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 11):
+            # Older images, protocols 7 to 10 among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1927,7 +1964,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=10", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=11", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -1969,8 +2006,8 @@ class BenchTest(unittest.TestCase):
 
     def test_protocol_nine_refuses_older_images(self):
         # Protocol 9 added the V line's last field and the K route: an image that speaks 8 would read a V line
-        # one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 10)
+        # one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line, 11 added T.
+        self.assertEqual(bench.ROUTE_PROTOCOL, 11)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -2004,7 +2041,7 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
-                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=10",
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=11",
                      repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
             self.assertIn(part, out.getvalue())
         self.assertFalse(self.output.exists())
@@ -2041,6 +2078,153 @@ class BenchTest(unittest.TestCase):
         status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20"))
         self.assertEqual(status, 2, err)
         self.assertIn("inconsistent send entry", err)
+
+    def test_controlword_line_bounds_dry_run_and_campaign(self):
+        def word(value, node="1", trial="40", cycles="3", interval="500"):
+            return ["--command", "controlword", "--node", node, "--trial", trial, "--word", value, "--cycles", cycles,
+                    "--interval-ms", interval]
+        # The firmware's grammar (BenchRoute.cpp CONTROLWORD_FIELDS): node, trial, attended, the word in decimal, the
+        # cycles and their spacing. Only the reviewed set, as the firmware's REVIEWED_CONTROLWORDS and the parser's.
+        self.assertEqual(sorted(bench.CONTROLWORDS), [0x0000, 0x0006, 0x000B, 0x0080])
+        self.assertEqual(set(bench.CONTROLWORDS), set(evidence.CONTROLWORDS))
+        self.assertTrue(all(value & 0x0007 != 0x0007 for value in bench.CONTROLWORDS))
+        for text, decimal in (("0x0000", 0), ("0x0006", 6), ("0x000B", 11), ("0x80", 128), ("6", 6), ("0", 0)):
+            args, fields = bench.arguments(BASE + word(text) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("TT1,40,1,%d,3,500" % decimal))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (9 + 1 + 3 * 7 + 9, 1500))
+            self.assertEqual(bench.motion_weight(args.command, fields), (1, 0))
+            bench.check_bounds(args.command, fields)
+        args, fields = bench.arguments(BASE + word("6", cycles="10", interval="2000") + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.plan_bounds(args.command, fields), (89, 20000))
+        self.assertEqual(bench.TRIALS["controlword"][0], "T")
+        self.assertIn("T", bench.MOTION_ROUTES)  # Motion class, as every 6040 write.
+        self.assertNotIn("T", bench.SETTINGS_LETTERS)
+        self.assertEqual(evidence.TRIAL_ROUTES["controlword"], "controlword")
+        # Every word that could switch on or enable, and every unreviewed word: refused, nothing created.
+        for text in ("0x0007", "0x000F", "0x001F", "0x010F", "0x0001", "0x0002", "0x0086", "0x008F", "0xFFFF", "-1",
+                     "7", "15", "128000"):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=text), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + word(text) + LEDGER + ["--output", "x"])
+            self.assertIn("is refused: only the reviewed non-enabling words", err.getvalue())
+        missing = [a for a in word("6") if a not in ("--word", "6")]
+        for argv, text in ((word("6", cycles="0"), "--cycles must be 1..10"),
+                           (word("6", cycles="11"), "--cycles must be 1..10"),
+                           (word("6", interval="99"), "--interval-ms must be 100..2000"),
+                           (word("6", interval="2001"), "--interval-ms must be 100..2000"),
+                           (missing, "--word is required for this route"),
+                           (MODE3 + ["--word", "6"], "--word belongs to controlword"),
+                           (word("6") + ["--fault-led", "prompt"], "--fault-led belongs to"),
+                           (word("6", node="3"), "--node must be 1..2")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        # Motion class: the campaign is required.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + word("6") + ["--output", "x"])
+        # The dry run touches nothing and states the admission, the bytes and the alert.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + word("0x80") + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
+                                Clock(), Operator())
+        self.assertEqual(status, 0)
+        text = out.getvalue()
+        for part in ("require the operator to type: ATTENDED 40", "at most 40 terminals of 128 and 1500 ms",
+                     "6041 bits 0..2 clear (bit 3 either way), 2100 running clear, 606C 0 and mode 0, 1, 3 or 6",
+                     "one download 2B 40 60 00 80 00 00 00 (0x0080, fault reset, a bit 7 edge from 0), 3 "
+                     "STATUS/MONITORS/FEEDBACK cycles 500 ms apart and one more full read",
+                     "no second word, no retry, no enable, no 6060, 60FF or 2301 write", "runner prints ALERT and exits 4",
+                     "routes=11", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
+            self.assertIn(part, text)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # One send: the attended confirmation, a motion entry that names its word, the record, the shaft question.
+        board = Board()
+        operator = Operator("ATTENDED 40", "none")
+        status, _, err = self.run_main(word("0x0006"), Backend(board), operator)
+        self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TT1,40,1,6,3,500").encode()])
+        self.assertEqual((self.meta()["controlword"], self.meta()["plan"]),
+                         ("0x0006", "protocol 11 controlword from low bits 000"))
+        self.assertNotIn("controlword_alert", self.meta())
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings"), e["controlword"]) for e in send],
+                         [("T", 1, 0, None, "0x0006")])
+        # Three per node across boots, counted toward the twelve motion admissions; node 2 has its own count.
+        entries = [{"event": "send", "route": "T", "node": 1, "trial": n, "motion": 1, "stop": 0,
+                    "controlword": "0x0000", "line": bench.sign_line("TT1,%d,1,0,3,500" % n)} for n in (1, 2, 3)]
+        self.write_ledger(entries)
+        self.clear_output()
+        board = Board()
+        status, _, err = self.run_main(word("0", trial="60"), Backend(board), Operator("ATTENDED 60", "none"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("the campaign holds 3 controlword admissions on node 1, the cap is 3", err)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        status, _, err = self.run_main(word("0", node="2", trial="60"), Backend(Board()), Operator("ATTENDED 60", "none"))
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(self.entries()[-2]["motion"], 1)
+        # A T entry is consistent only with a reviewed word that its line and its controlword name alike.
+        self.assertIsNone(bench._send_problem(entries[0]))
+        for bad in (dict(entries[0], controlword="0x0006"),
+                    dict(entries[0], line=bench.sign_line("TT1,1,1,7,3,500"), controlword="0x0007"),
+                    dict(entries[0], line=bench.sign_line("TT1,1,1,15,3,500"), controlword="0x000F"),
+                    dict(entries[0], line=bench.sign_line("TT1,1,1,0,3"), controlword="0x0000"),
+                    {k: v for k, v in entries[0].items() if k != "controlword"}):
+            self.assertIn("controlword", bench._send_problem(bad))
+        # An image of protocol 10 knows no T route: nothing is sent to it.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        board = Board()
+        board.routes = 10
+        status, _, err = self.run_main(word("6", trial="70"), Backend(board), Operator("ATTENDED 70", "none"))
+        self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+
+    def test_controlword_alert_reaches_the_attendant_and_exits_4(self):
+        def answer(trial, *lines, node=1):
+            text = record("controlword", node, trial).replace(" summaries=2 ", " summaries=%d " % (2 + len(lines)))
+            head, end = text.split("END trial ")
+            return head + "".join(lines) + "END trial " + end
+        marked = ("TRIAL_CONTROLWORD word=0080 tx=2b40600080000000 written=1 outcome=0 ack=1 uncertain=0 "
+                  "abort=00000000 cycles=1 marked=1 enabled=1 moving=0 alert=1\n")
+        cycle = ("TRIAL_CONTROLWORD_CYCLE which=1 us=1000 blocks=1c 2100=0001 6041=8037 6061=03 6064=6761 606c=0 "
+                 "enabled=1 moving=0\n")
+        last = "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8011 6061=03 6064=6761 606c=7\n"
+        final = marked.replace(" cycles=1 marked=1 enabled=1 moving=0 ", " cycles=1 marked=2 enabled=0 moving=1 ")
+        clean = marked.replace(" marked=1 enabled=1 moving=0 alert=1", " marked=0 enabled=0 moving=0 alert=0")
+        fields = [1, 40]
+        alert = ("node 1 MAY BE ENABLED OR TURNING after controlword 0x0080 (read 1: 6041=8037 606C=0); nothing more "
+                 "was sent; use the cutoff")
+        self.assertEqual(bench.controlword_alert("controlword", fields, answer(40, last, marked, cycle).encode()),
+                         alert)
+        # The final full read is TRIAL_LAST's.
+        self.assertEqual(bench.controlword_alert("controlword", fields, answer(40, last, final, cycle).encode()),
+                         alert.replace("(read 1: 6041=8037 606C=0)", "(read 2: 6041=8011 606C=7)"))
+        # No mark, another trial, a line after END and another route are not this record's alert.
+        self.assertIsNone(bench.controlword_alert("controlword", fields, answer(40, last, clean, cycle).encode()))
+        self.assertIsNone(bench.controlword_alert("controlword", fields, answer(39, marked, cycle).encode()))
+        self.assertIsNone(bench.controlword_alert("controlword", fields, (answer(40) + marked).encode()))
+        self.assertIsNone(bench.controlword_alert("velocity", fields, answer(40, marked, cycle).encode()))
+        self.assertIn("ALERT: node N MAY BE ENABLED OR TURNING", bench.__doc__)
+        # Printed at once and again after the dump, kept in request.json, exit 4.
+        board = Board()
+        board.answer = answer(40, last, marked, cycle)
+        argv = ["--command", "controlword", "--node", "1", "--trial", "40", "--word", "0x80", "--cycles", "3",
+                "--interval-ms", "500"]
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40", "none"))
+        self.assertEqual(status, bench.VELOCITY_ALERT_STATUS, err)
+        self.assertEqual(err.count("ALERT: " + alert + "\n"), 2)
+        self.assertEqual(self.meta()["controlword_alert"], alert)
+        # No mark: no alert, the ordinary status.
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        board = Board()
+        board.answer = answer(40, last, clean, cycle)
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40", "none"))
+        self.assertNotEqual(status, 4, err)
+        self.assertNotIn("MAY BE ENABLED", err)
+        self.assertNotIn("controlword_alert", self.meta())
 
     def test_range_probe_line_bounds_and_records(self):
         def probe(**values):
@@ -2102,7 +2286,7 @@ class BenchTest(unittest.TestCase):
             bench.main(BASE + probe(rpm=3000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
-        self.assertIn("routes=10", out.getvalue())
+        self.assertIn("routes=11", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2166,7 +2350,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=10", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=11", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")

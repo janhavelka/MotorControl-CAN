@@ -46,8 +46,20 @@ cutoff", follows a released-start enable record (start 2) whose enable did not s
 have reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1) and from which no stop left; it is
 kept as enable_alert. The firmware's own QUICK_STOP after such a failure is what normally leaves.
 
+controlword (protocol 11, the T route) is the attended single-word experiment for a drive that reports 6041 low
+bits 000 and no route admits (node 1 after trial 5323's 2301 clear: 6041=8010, 2100=0001): --word names one of
+the reviewed non-enabling words only, 0x0000 (disable voltage), 0x0006 (shutdown), 0x000B (quick stop) or 0x0080
+(fault reset, a bit 7 edge from 0); 0x0007, 0x000F, 0x001F, 0x010F and every other word are refused here, by the
+firmware's parser and before its write. One fresh full read must show 6041 bits 0..2 clear, 2100 running clear,
+606C 0 and mode 0, 1, 3 or 6; then exactly one 2B 40 60 00 <lo> <hi> 00 00, --cycles 1..10 STATUS, MONITORS and
+FEEDBACK reads --interval-ms 100..2000 apart, each a TRIAL_CONTROLWORD_CYCLE line, and one more full read. No
+second word, no retry, no enable, no 6060, 60FF or 2301 write. Motion class, as every 6040 write is. When a read
+after the word reports 6041 bit 1 or 2 (switched on or enabled) or 606C nonzero, the firmware ends the route
+there and TRIAL_CONTROLWORD shows alert=1; the runner then prints "ALERT: node N MAY BE ENABLED OR TURNING after
+controlword 0xWWWW ...; use the cutoff" at once and at the end, keeps it as controlword_alert and exits 4.
+
 A trial's exit status: 0 a complete record; 1 a damaged, unfinished or contradictory capture; 2 refused,
-nothing admitted; 3 a consistent record of a failure; 4 either alert above, whatever else holds.
+nothing admitted; 3 a consistent record of a failure; 4 any alert above, whatever else holds.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
@@ -176,6 +188,9 @@ TRIALS = {
     # Prompt 59 Part 3: one volatile 2201 write and its readback on a released drive, as settings-2202 writes
     # 2202: a settings route, attended and counted, no motion weight.
     "subdivision": ("K", False, "prompt 59 2201 subdivision"),
+    # Protocol 11: one reviewed non-enabling 6040 word on a drive that reports low bits 000, then its cycles.
+    # Every 6040 write is motion class (released-quick, word67, rearm, clear-alarm's bit 7).
+    "controlword": ("T", True, "protocol 11 controlword from low bits 000"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -190,9 +205,10 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
 # without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
 # the F route (gate Q03's 60FF probe), 9 the V line's last field, prompt 59's range probe, and the K route
-# (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7). Any other image would
-# misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 10
+# (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route (one
+# reviewed non-enabling 6040 word). Any other image would misread the line, so it is refused before anything is
+# sent.
+ROUTE_PROTOCOL = 11
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -212,6 +228,13 @@ CLEAR_METHOD_BYTES = {"2301": ("2B 01 23 00 01 00 00 00", "2B 01 23 00 00 00 00 
 # velocity-target's value (BenchRoute.cpp PROBE_VALUE): EN86/ZH86 p13's 0..3000 rpm, its negation, and 3001,
 # one above it, the range probe. No rate, unit or direction is claimed for any value.
 VELOCITY_TARGET_RANGE = (-3000, 3001)
+# controlword's reviewed set (BenchRoute.cpp REVIEWED_CONTROLWORDS), decimal on the T line. None has bits 0, 1 and
+# 2 all set, which the CiA402 switch-on (0x0007) and enable-operation (0x000F) commands need; every other word is
+# refused. Which of them moves the drive from low bits 000 to the released report is unmeasured.
+CONTROLWORDS = {0x0000: "disable voltage", 0x0006: "shutdown", 0x000B: "quick stop",
+                0x0080: "fault reset, a bit 7 edge from 0"}
+CONTROLWORD_CYCLES = (1, 10)
+CONTROLWORD_INTERVAL_MS = (100, 2000)
 # The first entry's predecessor digest.
 LEDGER_GENESIS = "0" * 64
 STOP_KINDS = {"halt": 1, "quick": 2}
@@ -450,6 +473,15 @@ def trial_line(args, parser):
         fields += [1, DI3_CHANGES[args.di3_change]]
     elif args.command == "velocity-target":
         fields += [1, _within(parser, "value", args.value, *VELOCITY_TARGET_RANGE)]
+    elif args.command == "controlword":
+        if args.word is None:
+            parser.error("--word is required for this route: one of %s" % _reviewed_words())
+        if args.word not in CONTROLWORDS:
+            parser.error("--word 0x%04X is refused: only the reviewed non-enabling words %s; never 0x0007, 0x000F, "
+                         "0x001F, 0x010F or another word that could switch on or enable" %
+                         (args.word & 0xFFFFFFFF, _reviewed_words()))
+        fields += [1, args.word, _within(parser, "cycles", args.cycles, *CONTROLWORD_CYCLES),
+                   _within(parser, "interval-ms", args.interval_ms, *CONTROLWORD_INTERVAL_MS)]
     elif args.command == "subdivision":
         fields += [1, _within(parser, "value", args.value, *SUBDIVISION_RANGE)]
     elif args.command in ("counter-zero", "clear-alarm"):
@@ -521,6 +553,8 @@ def trial_line(args, parser):
         parser.error("--method belongs to home and clear-alarm")
     if args.command not in ("velocity-target", "subdivision") and args.value is not None:
         parser.error("--value belongs to velocity-target and subdivision")
+    if args.command != "controlword" and args.word is not None:
+        parser.error("--word belongs to controlword")
     if args.command != "velocity" and args.range_probe:
         parser.error("--range-probe belongs to velocity")
     if args.command != "enable" and args.released_by_recorded_stop is not None:
@@ -530,6 +564,10 @@ def trial_line(args, parser):
     if args.command in FAULT_LED_ROUTES and args.fault_led is None:
         parser.error("--fault-led is required: prompt, or unobserved when nobody can see the drive")
     return fields
+
+
+def _reviewed_words():
+    return ", ".join("0x%04X (%s)" % item for item in sorted(CONTROLWORDS.items()))
 
 
 def sign_line(body):
@@ -586,6 +624,9 @@ def plan_bounds(command, fields):
         return 9 + 9 + 9 + 2, 0  # Identity, 2400:00..08, the full read, 2200 and 2201. No write.
     if command == "velocity-target":
         return 9 + 9 + 1 + 1 + 9, 0  # Two full reads, the 60FF write, its upload, one more full read.
+    if command == "controlword":
+        cycles, interval = fields[4:6]
+        return 9 + 1 + 7 * cycles + 9, cycles * interval  # The full read, the word, the cycles, a full read.
     if command == "enable":
         start, deadline, interval = fields[3], fields[8], fields[9]
         # Start 2 reserves the route's own QUICK_STOP after a failure once word 15 may have left.
@@ -736,6 +777,10 @@ def _send_problem(entry):
     if route == "C" and "clear_method" in entry and \
             (entry["clear_method"] not in CLEAR_METHODS or fields[5:] != [str(CLEAR_METHODS[entry["clear_method"]])]):
         return "clear_method %r does not match the line's method field" % (entry["clear_method"],)
+    # Protocol 11: a T line holds only a reviewed word, and its entry names the same one.
+    if route == "T" and (len(fields) != 6 or fields[3] not in {str(word) for word in CONTROLWORDS} or
+                         entry.get("controlword") != "0x%04X" % int(fields[3])):
+        return "controlword %r does not match a reviewed word on the line" % (entry.get("controlword"),)
     return None
 
 
@@ -1115,6 +1160,39 @@ def enable_alert(command, fields, data):
     return "node %d MAY BE MOVING: the enable failed after word 15 and no stop left; use the cutoff" % node
 
 
+def controlword_alert(command, fields, data):
+    """The attendant's alert after a controlword record (protocol 11), or None. It fires when TRIAL_CONTROLWORD
+    shows alert=1: a read after the word reported 6041 bit 1 or 2 (switched on or enabled) or 606C nonzero, and
+    the firmware ended the route there with nothing more sent. The marked read is the TRIAL_CONTROLWORD_CYCLE of
+    that number, or TRIAL_LAST for the final read. Only lines between this trial's TRIAL header and its END
+    count."""
+    if command != "controlword":
+        return None
+    node, trial = fields[0], fields[1]
+    header = "TRIAL id=%d node=%d route=controlword " % (trial, node)
+    summary, cycles, last = None, {}, None
+    inside = False
+    for line in bytes(data).decode("utf8", errors="replace").splitlines():
+        if line.startswith(header):
+            inside = True
+        elif inside and line.startswith("END trial "):
+            break
+        elif inside:
+            values = pong_values(line)
+            if line.startswith("TRIAL_CONTROLWORD "):
+                summary = values
+            elif line.startswith("TRIAL_CONTROLWORD_CYCLE "):
+                cycles[values.get("which")] = values
+            elif line.startswith("TRIAL_LAST "):
+                last = values
+    if summary is None or summary.get("alert") != "1":
+        return None
+    read = cycles.get(summary.get("marked")) or last or {}
+    return ("node %d MAY BE ENABLED OR TURNING after controlword 0x%s (read %s: 6041=%s 606C=%s); nothing more "
+            "was sent; use the cutoff" % (node, summary.get("word", "?").upper(), summary.get("marked", "?"),
+                                          read.get("6041", "?"), read.get("606c", "?")))
+
+
 def run_trial(args, fields, port, clock, meta, record=None):
     """Ping, check the image, send one line, capture to the record's END. Returns the stop reason.
     record, when given, is called just before the line is written; if it raises nothing is sent."""
@@ -1268,6 +1346,16 @@ def dry_run(args, fields):
             name = next(k for k, v in CLEAR_METHODS.items() if v == fields[5])
             print("  clear method %s: after the library's admission, %s, then %s only after the first one's "
                   "acknowledgement; no enable, 6060 or other write, no retry" % ((name,) + CLEAR_METHOD_BYTES[name]))
+        if args.command == "controlword":
+            word = fields[3]
+            print("  protocol 11: refused before any write unless one fresh full read shows 6041 bits 0..2 clear (bit 3 "
+                  "either way), 2100 running clear, 606C 0 and mode 0, 1, 3 or 6, with the session's latest word "
+                  "unchanged since admission")
+            print("  then one download 2B 40 60 00 %02X %02X 00 00 (0x%04X, %s), %d STATUS/MONITORS/FEEDBACK cycles "
+                  "%d ms apart and one more full read; no second word, no retry, no enable, no 6060, 60FF or 2301 "
+                  "write" % (word & 0xFF, word >> 8, word, CONTROLWORDS[word], fields[4], fields[5]))
+            print("  a read after the word with 6041 bit 1 or 2 or 606C nonzero ends the route there (alert=1): the "
+                  "runner prints ALERT and exits 4; use the cutoff")
         if args.command == "subdivision":
             print("  prompt 59 Part 3, 2201: one fresh 2200/2201 read and a clean STATUS and MONITORS read that "
                   "must report released (2100 bit 4, no running or alarm); the library refuses before any write "
@@ -1336,6 +1424,10 @@ def arguments(argv):
                                       "subdivision: prompt 59's one volatile 2201 write on a released drive")
     probe.add_argument("--value", type=int, help="velocity-target: the signed 60FF value, %d..%d; 3001 is the range "
                        "probe. subdivision: the 2201 value, %d..%d" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE))
+    word = parser.add_argument_group("controlword (protocol 11): one reviewed non-enabling 6040 word on a drive that "
+                                     "reports low bits 000; also --cycles 1..10 and --interval-ms 100..2000")
+    word.add_argument("--word", type=lambda text: int(text, 0),
+                      help="the one 6040 word, only %s" % ", ".join("0x%04X" % w for w in sorted(CONTROLWORDS)))
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
@@ -1481,6 +1573,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                 meta["velocity_scope"]["minimum_ramp_ms"] = VELOCITY_RANGE_PROBE_RAMP_MS
         if args.command == "clear-alarm":
             meta["clear_method"] = args.method
+        if args.command == "controlword":
+            meta["controlword"] = "0x%04X" % fields[3]
         if args.command == "enable":
             stop = getattr(args, "start_record", None)
             meta["enable_start"] = "RELEASED_BY_RECORDED_STOP" if stop else "NO_MOTION_WRITE_RECORDED"
@@ -1510,6 +1604,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
             entry["range_probe"] = bool(fields[-1])
         if args.command == "clear-alarm":
             entry["clear_method"] = args.method
+        if args.command == "controlword":
+            entry["controlword"] = "0x%04X" % fields[3]
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
         if args.waiver_covers_motion:
@@ -1527,7 +1623,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                 meta["reason"] = reason
                 # Before the attendant's questions after the route: the cutoff may be needed now.
                 body = data[meta["prefix_bytes"]:]
-                for key, check in (("velocity_alert", velocity_alert), ("enable_alert", enable_alert)):
+                for key, check in (("velocity_alert", velocity_alert), ("enable_alert", enable_alert),
+                                   ("controlword_alert", controlword_alert)):
                     alert = check(args.command, fields, body)
                     if alert:
                         meta[key] = alert
@@ -1575,9 +1672,9 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     import s2_evidence  # Imported here: s2_evidence imports this module's COMMANDS.
     report = s2_evidence.replay_capture(args.output, manifest=Path(args.output) / "absent.json")
     print("verdict:", report.verdict, "failure:", report.failure_name or report.failure, "reason:", meta["reason"])
-    # 4: a velocity or released-start enable record whose node may still move, whatever else the record shows;
-    # 2: nothing admitted; 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
-    alert = meta.get("velocity_alert") or meta.get("enable_alert")
+    # 4: a velocity, released-start enable or controlword record whose node may still move, whatever else the
+    # record shows; 2: nothing admitted; 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
+    alert = meta.get("velocity_alert") or meta.get("enable_alert") or meta.get("controlword_alert")
     if alert:
         print("ALERT: " + alert, file=sys.stderr)
         return VELOCITY_ALERT_STATUS

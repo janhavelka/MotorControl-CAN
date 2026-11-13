@@ -945,7 +945,7 @@ class FirmwareTextTest(unittest.TestCase):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
         self.assertIn("pdo=5", widest)
-        self.assertIn("routes=10", widest)
+        self.assertIn("routes=11", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
         self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.

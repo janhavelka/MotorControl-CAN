@@ -174,6 +174,20 @@ explains. The shaft was not observed. One specimen, one firmware, one alarm:
 this qualifies nothing, and whether the drive enables again from this report is a
 separate measurement.
 
+**The state after the clear, and its open transition** (device-reported, node 1,
+2026-11-13, image `abe945b`, route protocol 10). After trial 5323 node 1 kept
+reporting `6041=8010`, `2100=0001`, `6061=3`, `606C=0`, a steady `6064`, `1001=00`,
+`603F=0000`, with `60FF` still the stored `4500`. No bench route admits that report:
+`mode1` refuses it (`why=unreleased`), `stop` refuses it (failure 11), and a velocity
+needs the released report (`8050`/`0011`, or the latched `0015`). An NMT Reset Node
+changed nothing: the drive sent only its boot-up frame, and the next reads were the
+same. The power-up report is `8037`/`0001` (holding torque) and the released report
+after a `000B` is `8050`/`0011`. Which non-enabling controlword moves this report to
+the released one is the question of the S2 `controlword` route (protocol 11, `TT`;
+[hardware bench](hardware_bench.md)): one fresh full read with `6041` low bits `000`,
+then exactly one reviewed word, `0000`, `0006`, `000B` or `0080`, and observation
+cycles. Nothing has been measured with it yet.
+
 ## Rearm and the final zero
 
 EN86 p18 and EDS `[2301]` define U16 `0` ineffective and `1` effective. The
