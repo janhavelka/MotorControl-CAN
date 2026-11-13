@@ -186,13 +186,26 @@
  *   and released clear, 606C 0, 1001 and 603F 0) or both pass RELEASED_QUICK's released check, then the
  *   end. No 000F is required, so a host scale or origin can be set before the enable: a configuration
  *   change drops the session's latest controlword, and an enabled session cannot be enabled again.
+ * - CONTROLWORD, protocol 11, an attended single-word experiment: which non-enabling controlword moves a drive
+ *   that reports 6041 low bits 000 (node 1 read 6041=8010, 2100=0001 after the 2301 clear of trial 5323,
+ *   2026-11-13) to the released report. One fresh full read (ERRORS, MONITORS, STATUS, FEEDBACK) must show
+ *   6041 bits 0..2 clear (bit 3 either way), 2100 running clear, 606C 0 and mode 0, 1, 3 or 6, and the
+ *   session's latest word recorded at admission must still be the latest. Then exactly one 6040 download of
+ *   the line's word through AxisSession::admitPrepared under its own grant, `2B 40 60 00 <lo> <hi> 00 00`,
+ *   only from the reviewed set controlwordReviewed admits (0000, 0006, 000B, 0080; never a word with bits 0,
+ *   1 and 2 all set, which the CiA402 switch-on and enable commands need). Then the stated number of fresh
+ *   STATUS, MONITORS and FEEDBACK cycles, each kept for a TRIAL_CONTROLWORD_CYCLE line, then one more full
+ *   read. A read after the write that reports 6041 bit 1 or 2 (switched on or enabled) or 606C nonzero ends
+ *   the route there with OBSERVATION and marks the record, so the host can tell the attendant to use the
+ *   cutoff; nothing more is sent. No second word, no retry, no enable, no 6060, 60FF or 2301 write. Motion
+ *   class, as every 6040 write is (RELEASED_QUICK, WORD67, REARM, CLEAR_ALARM's bit 7).
  *
  * No route exchange starts once less than its queue and response budget remains before its operation
  * deadline or the route cutoff: the route then ends there with failure DEADLINE and nothing in flight.
  * A 000B is exempt, as a stop word.
  *
  * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE,
- * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY), every settings route, HOME and VELOCITY_TARGET needs an attended flag
+ * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY, CONTROLWORD), every settings route, HOME and VELOCITY_TARGET needs an attended flag
  * that the host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion
  * routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside
  * POSITION, RELATIVE or MOVE, and VELOCITY's own stop, counts as one more; a start 2 ENABLE's own stop
@@ -287,7 +300,10 @@ enum class RouteKind : uint8_t {
     ARM_WITNESS,
     /** Prompt 59, one volatile 2201 subdivision write and its DRIVER readback on a released drive, then a
      * fresh DRIVER read; `TK`. Settings, not motion. */
-    SUBDIVISION
+    SUBDIVISION,
+    /** Protocol 11, one reviewed non-enabling 6040 word (controlwordReviewed) on a drive that reports low bits
+     * 000, then observation cycles and a full read; `TT`. Motion class. */
+    CONTROLWORD
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -311,14 +327,15 @@ struct RoutePlan {
      * immutable deadline after its request, beyond its duration; its own stop settles before it.
      * 1..55000. */
     uint32_t deadlineMs = 0;
-    /** MODE_ONE, MODE_THREE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing. ENABLE,
+    /** MODE_ONE, MODE_THREE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing; CONTROLWORD
+     * 100..2000 ms. ENABLE,
      * STOP, COUNTER_ZERO and CLEAR_ALARM: the action's observation interval. MOVE: the move's
      * MoveOptions::observationIntervalUs, in milliseconds, and the observer's cycle spacing. VELOCITY:
      * VelocityOptions::pollIntervalUs in milliseconds, its stop's observation interval too. */
     uint32_t intervalMs = 0;
     /** Fresh observation cycles: MODE_ONE and MODE_THREE 1..10, for MODE_ONE from a released mode 3 start
      * the most it waits for 6061=1; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16; WORD67 1..16 after
-     * its 0007. */
+     * its 0007; CONTROLWORD 1..ROUTE_CONTROLWORD_CYCLES after its word. */
     uint16_t cycles = 0;
     uint8_t wordCycles = 0;  ///< WORD67: fresh observation cycles after its 0006, 1..4.
     /** REARM: the acknowledged latest word the host expects it to follow on that node: 1 the 001F of a
@@ -399,7 +416,16 @@ struct RoutePlan {
      * (EN86/ZH86 p13), its negation, and 3001, one above it, to see whether the drive range-checks. No
      * rate, unit or direction is claimed for any value, and the drive stays released. */
     int32_t velocityValue = 0;
+    /** CONTROLWORD: the one 6040 word, decimal on the line; only a word controlwordReviewed admits. */
+    uint16_t controlword = 0;
 };
+/** CONTROLWORD's reviewed set, the only words the parser, routePlanValid and the write admit: 0x0000 disable
+ * voltage, 0x0006 shutdown, 0x000B quick stop and 0x0080 fault reset (a rising bit 7 edge from 0). None has
+ * bits 0, 1 and 2 all set, which the CiA402 switch-on (0x0007) and enable-operation (0x000F) commands need, so
+ * 0007, 000F, 001F, 010F and every other word are refused. Which of them moves this firmware from low bits 000
+ * to the released report is the route's open question: nothing is measured yet.
+ * @param word Candidate controlword. @return True only for the four reviewed words. */
+bool controlwordReviewed(uint16_t word) noexcept;
 /** @param kind Route. @return True for the shared console's armings, ARM_MOVE, ARM_VELOCITY and ARM_WITNESS. */
 inline bool isArming(RouteKind kind) noexcept {
     return kind == RouteKind::ARM_MOVE || kind == RouteKind::ARM_VELOCITY || kind == RouteKind::ARM_WITNESS;
@@ -434,7 +460,8 @@ inline bool isArming(RouteKind kind) noexcept {
  * <2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
  * `B<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,<1009>,<100A>,
  * <1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
- * `X<node>,<trial>,<attended>,<startPosition>`
+ * `X<node>,<trial>,<attended>,<startPosition>`;
+ * `T<node>,<trial>,<attended>,<word>,<cycles>,<intervalMs>`
  * (one line each, at most ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
@@ -530,6 +557,8 @@ enum {
     ROUTE_VELOCITY_SPACING_MS = 300,
     /** Most extra seven-field cycles the window adds: ROUTE_VELOCITY_WINDOW_MS / ROUTE_VELOCITY_SPACING_MS. */
     ROUTE_VELOCITY_WINDOW_CYCLES = ROUTE_VELOCITY_WINDOW_MS / ROUTE_VELOCITY_SPACING_MS,
+    /** CONTROLWORD's most observation cycles after its word, each kept for its own record line. */
+    ROUTE_CONTROLWORD_CYCLES = 10,
     /** Longest request text after `T` the firmware collects, integrity field included; a longer one
      * is refused. The longest move line with its field is 220 bytes. */
     ROUTE_LINE = 256
@@ -767,7 +796,8 @@ struct RouteRecord {
      * before any service could admit its first write. */
     bool homeAdmitted = false;
     /** VELOCITY_TARGET: the 60FF download's terminal settled; SUBDIVISION: the transaction's 2201 download's
-     * terminal settled. The next four fields hold it, raw. */
+     * terminal settled; CONTROLWORD: its one 6040 download's terminal settled. The next four fields hold it,
+     * raw. */
     bool probeWritten = false;
     uint8_t probeOutcome = 0;       ///< Its SdoOutcome.
     bool probeAcknowledged = false; ///< The server acknowledged the download.
@@ -789,6 +819,15 @@ struct RouteRecord {
     uint16_t driverDirection[3] = {};   ///< SUBDIVISION: 2200 of each entry; never written.
     uint16_t driverSubdivision[3] = {}; ///< SUBDIVISION: 2201 of each entry.
     uint8_t driverReadback = 0;         ///< SUBDIVISION: entry 1's uploads held, bit 0 2200 and bit 1 2201.
+    /** CONTROLWORD: each completed observation cycle's STATUS, MONITORS and FEEDBACK read, in order; `cycles`
+     * holds the count. */
+    RouteSnapshot controlCycles[ROUTE_CONTROLWORD_CYCLES];
+    uint64_t controlCycleUs[ROUTE_CONTROLWORD_CYCLES] = {}; ///< CONTROLWORD: owner time each cycle's read completed.
+    /** CONTROLWORD: the first read after the word that reported 6041 bit 1 or 2 or 606C nonzero, which ended
+     * the route: 1..cycles an observation cycle, cycles + 1 the final full read; 0 none. */
+    uint8_t controlMarked = 0;
+    bool controlEnabled = false; ///< CONTROLWORD: that read reported 6041 bit 1 (switched on) or bit 2 (enabled).
+    bool controlMoving = false;  ///< CONTROLWORD: that read reported 606C nonzero.
 };
 /** BenchRoute::kept bits: facts that refuse later work and survive closeSessions. */
 enum SessionKept : uint8_t {
@@ -958,7 +997,9 @@ class BenchRoute {
         /** MODE_ONE: a second fresh state read, kept as STEP_SECOND keeps it, only when the first read
          * reported mode 3; skipped otherwise. */
         STEP_SECOND_RELEASED,
-        STEP_CHECK_WITNESS ///< ARM_WITNESS's check of both reads: stationary, idle or released, at the reviewed 6064.
+        STEP_CHECK_WITNESS, ///< ARM_WITNESS's check of both reads: stationary, idle or released, at the reviewed 6064.
+        STEP_CHECK_CONTROLWORD, ///< CONTROLWORD's admission check of its fresh full read.
+        STEP_CHECK_CONTROLWORD_AFTER ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
     };
     struct Step {
         uint8_t kind;
@@ -1005,8 +1046,9 @@ class BenchRoute {
     int32_t commanded_[BENCH_NODES] = {};
     uint32_t commandedTrial_[BENCH_NODES] = {}, commandedEpoch_[BENCH_NODES] = {};
     bool commandedKnown_[BENCH_NODES] = {}, commandedRelative_[BENCH_NODES] = {};
-    // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::HOME) + 1][BENCH_NODES] = {};
+    // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
+    // RouteKind up to CONTROLWORD, the last motion route.
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::CONTROLWORD) + 1][BENCH_NODES] = {};
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;
     RoutePlan armedPlan_;
@@ -1074,6 +1116,8 @@ class BenchRoute {
     const char* checkTargetState(const RouteSnapshot& snapshot) const noexcept;
     const char* checkVelocityTarget() const noexcept;
     const char* checkTargetAfter() const noexcept;
+    const char* checkControlword() const noexcept;
+    bool markControlword(const RouteSnapshot& snapshot, uint8_t which, uint64_t nowUs) noexcept;
     void startVelocity(uint64_t nowUs) noexcept;
     void startHome(uint64_t nowUs) noexcept;
     bool rearmable(uint8_t slot, const AxisSession& session, uint8_t predecessor) const noexcept;

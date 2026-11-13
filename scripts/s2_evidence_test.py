@@ -722,6 +722,79 @@ class ClearMethod(unittest.TestCase):
         self.assertEqual(self.problems(2, 0, self.OBJECT, {}, own=0, terminals=False), set())
 
 
+class ControlwordRecord(unittest.TestCase):
+    """controlword (protocol 11): TRIAL_CONTROLWORD repeats its record's own evidence, the plan's reviewed word, the
+    one 6040 request, its terminal, the cycle lines and the mark. The lines are the firmware's formats (BenchRoute.cpp);
+    the values are this test's, never a drive's."""
+    PLAN = "TRIAL_PLAN route=controlword node=1 trial=40 attended=1 word=%04x cycles=%d interval=500"
+    SUMMARY = ("TRIAL_CONTROLWORD word=%04x tx=%s written=1 outcome=0 ack=1 uncertain=0 abort=00000000 cycles=%d "
+               "marked=%d enabled=%d moving=%d alert=%d")
+    CYCLE = ("TRIAL_CONTROLWORD_CYCLE which=%d us=%d blocks=1c 2100=0011 6041=%04x 6061=03 6064=6761 606c=%d "
+             "enabled=%d moving=%d")
+    RESULT = ("RESULT op=14 req=14 oreq=56 step=1 object=6040:00 dir=1 outcome=0 ack=1 possible=1 uncertain=0 "
+              "abort=00000000 cleanup=0 size=0 data=00000000 admitted=15455976 completed=15458976 ne=1 reason=0 "
+              "st=3f node=1")
+
+    def problems(self, word=6, cycles=((0x8011, 0), (0x8011, 0)), marked=0, enabled=0, moving=0, alert=None,
+                 tx=None, wire=1, plan=None, marks=None):
+        request = "2b406000" + (word & 0xFFFF).to_bytes(2, "little").hex() + "0000"
+        lines = [self.PLAN % (word if plan is None else plan, len(cycles)),
+                 self.SUMMARY % (word, tx or request, len(cycles), marked, enabled, moving,
+                                 int(bool(marked)) if alert is None else alert)]
+        for which, (status, velocity) in enumerate(cycles, 1):
+            bits = marks[which - 1] if marks else (int(bool(status & 6)), int(bool(velocity)))
+            lines.append(self.CYCLE % ((which, 1000 * which, status, velocity) + bits))
+        lines.append(self.RESULT)
+        lines += [frame(evidence.TX, 15455976, 0x601, request)] * wire
+        records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
+        self.assertTrue(all(r.status == "parsed" and not r.extra for r in records),
+                        [(r.raw, r.reason, r.extra) for r in records if r.status != "parsed" or r.extra])
+        report = evidence.Report(path="controlword")
+        evidence._check_controlword(report, records[1], records)
+        return codes(report)
+
+    def test_reviewed_words_and_marks_agree(self):
+        self.assertEqual(evidence.CONTROLWORDS, frozenset((0x0000, 0x0006, 0x000B, 0x0080)))
+        self.assertEqual(evidence.TRIAL_ROUTES["controlword"], "controlword")
+        for word in sorted(evidence.CONTROLWORDS):
+            self.assertEqual(self.problems(word), set(), word)
+        # The first marked read ends the record: a cycle that reports switched on or enabled, one with 606C, and the
+        # final read after every cycle (cycles + 1, with no cycle line of its own).
+        self.assertEqual(self.problems(0x80, ((0x8037, 0),), marked=1, enabled=1), set())
+        self.assertEqual(self.problems(0x0B, ((0x8011, 0), (0x8010, -30)), marked=2, moving=1), set())
+        self.assertEqual(self.problems(6, ((0x8011, 0), (0x8011, 0)), marked=3, moving=1), set())
+        # Low bits 001 (ready to switch on) is no mark.
+        self.assertEqual(self.problems(6, ((0x8031, 0),)), set())
+
+    def test_any_disagreement_is_named(self):
+        differs = {"controlword_differs_from_record"}
+        self.assertEqual(self.problems(6, tx="2b4060000f000000"), differs)  # Another request in the summary.
+        self.assertEqual(self.problems(6, plan=0x0B), differs)               # Another word in the plan.
+        for word in (0x0007, 0x000F, 0x001F, 0x010F, 0x0001):                # Never a reviewed word.
+            self.assertEqual(self.problems(word), differs, word)
+        self.assertEqual(self.problems(6, wire=2), differs)                  # A second 6040 request.
+        self.assertEqual(self.problems(0x80, ((0x8037, 0),), marked=1, enabled=1, alert=0), differs)
+        self.assertEqual(self.problems(0x80, ((0x8037, 0),)), differs)       # An enabled cycle left unmarked.
+        self.assertEqual(self.problems(6, ((0x8011, 0), (0x8037, 0))), differs)
+        self.assertEqual(self.problems(0x80, ((0x8037, 0), (0x8037, 0)), marked=1, enabled=1), differs)  # Not ended.
+        self.assertEqual(self.problems(6, ((0x8011, 0),), marks=((1, 0),)), differs)  # Marks against the values.
+        self.assertEqual(self.problems(6, ((0x8011, 0),), marked=2, enabled=0, moving=0), differs)
+
+    def test_inventory_follows_the_record_cycles(self):
+        def results(objects):
+            return [mock.Mock(values={"object": list(item[:2])}) for item in objects]
+        full, image = evidence._FULL, evidence._IMAGE
+        word = ((0x6040, 0, 2),)
+        for cycles in (1, 3, 10):
+            rows, sizes = evidence._trial_controlword(results(full + word + image * cycles + full))
+            self.assertEqual((rows, sizes), (full + word + image * cycles + full, (19 + 7 * cycles,)))
+        # Marked at its first cycle: a prefix of the plan, which a failed record may be.
+        rows, _ = evidence._trial_controlword(results(full + word + image))
+        self.assertEqual(rows[:17], full + word + image)
+        # No cycle: no successful plan size.
+        self.assertEqual(evidence._trial_controlword(results(full + word))[1], ())
+
+
 class TraceLoss(unittest.TestCase):
     def test_trace_saturation_is_failed_evidence(self):
         ok, frames = first_step_ok()

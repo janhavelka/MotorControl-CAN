@@ -78,8 +78,24 @@ static_assert(L::OBJECT_607A_00.widthBytes == 4 && L::OBJECT_607A_00.signedValue
 // sequence's first two words. Each is its own operation under its own grant.
 static_assert(L::OBJECT_6040_00.widthBytes == 2 && !L::OBJECT_6040_00.signedValue,
               "word write width follows the generated declaration");
-enum Word : uint8_t { WORD_REARM, WORD_QUICK, WORD_SIX, WORD_SEVEN };
+// WORD_LINE is CONTROLWORD's word from the line, judged against its reviewed set; it has no WORDS entry.
+enum Word : uint8_t { WORD_REARM, WORD_QUICK, WORD_SIX, WORD_SEVEN, WORD_LINE };
 constexpr uint16_t WORDS[] = {0x000f, 0x000b, 0x0006, 0x0007};
+static_assert(sizeof WORDS / sizeof WORDS[0] == WORD_LINE, "WORD_LINE is past the fixed words");
+// CONTROLWORD's reviewed set (protocol 11): 0000 disable voltage, 0006 shutdown, 000B quick stop, 0080 fault reset.
+// The CiA402 switch-on (0007) and enable-operation (000F) commands both need bits 0, 1 and 2; no reviewed word
+// has all three. Which of them moves this firmware from low bits 000 to the released report is unmeasured.
+constexpr uint16_t REVIEWED_CONTROLWORDS[] = {0x0000, 0x0006, 0x000b, 0x0080};
+constexpr uint16_t SWITCH_ON_BITS = 0x0007;
+constexpr bool nonEnabling(uint16_t word) { return (word & SWITCH_ON_BITS) != SWITCH_ON_BITS; }
+static_assert(sizeof REVIEWED_CONTROLWORDS / sizeof REVIEWED_CONTROLWORDS[0] == 4 &&
+                  nonEnabling(REVIEWED_CONTROLWORDS[0]) && nonEnabling(REVIEWED_CONTROLWORDS[1]) &&
+                  nonEnabling(REVIEWED_CONTROLWORDS[2]) && nonEnabling(REVIEWED_CONTROLWORDS[3]) &&
+                  !nonEnabling(0x0007) && !nonEnabling(0x000f) && !nonEnabling(0x001f) && !nonEnabling(0x010f),
+              "no reviewed controlword can switch on or enable");
+// CONTROLWORD's mark on a read after its word: 6041 bit 1 (switched on) or bit 2 (operation enabled). Low bits
+// 001 (ready to switch on, 0x31 after word 6 from a release) is not marked.
+constexpr uint16_t CONTROLWORD_ENABLED_BITS = 0x0006;
 // STEP_OBSERVE's argument: every planned cycle, or WORD67's cycles after its 0006 only.
 enum Observe : uint8_t { OBSERVE_ALL, OBSERVE_WORD_SIX };
 // MOVE takes these enumerations as numbers from the host line.
@@ -91,17 +107,20 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
-                             "arm-move", "arm-velocity", "arm-witness", "subdivision"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::SUBDIVISION) + 1, "one name per route");
+                             "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::CONTROLWORD) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
 // MODE_THREE changes the drive's mode and VELOCITY runs the motor. HOME writes nothing and VELOCITY_TARGET
-// writes one target to a released drive: not motion.
+// writes one target to a released drive: not motion. CONTROLWORD writes 6040 to move the drive's state
+// machine, as RELEASED_QUICK and WORD67 do, and its 0080 may let a drive act again as CLEAR_ALARM's bit 7 may:
+// motion class like every 6040 write.
 bool isMotion(RouteKind kind) {
     return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) ||
            (kind >= RouteKind::RELEASED_QUICK && kind <= RouteKind::RELATIVE) || kind == RouteKind::COUNTER_ZERO ||
-           kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY;
+           kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY ||
+           kind == RouteKind::CONTROLWORD;
 }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 // The library's settings transactions: one candidate, its writes and its readback, with a configuration
@@ -194,6 +213,10 @@ static_assert(unsigned(L::AlarmClearMethod::OBJECT_2301) == 0 && unsigned(L::Ala
 // policy). routePlanValid keeps 1..3000 without the probe's flag, as before.
 constexpr Range VELOCITY_RPM = {1, L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM};
 static_assert(L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM == 6000, "the host's runner states 6000 rpm");
+// CONTROLWORD's word field, decimal on the line: 0..128 bounds it, and routePlanValid admits only the reviewed
+// set. Its cycles 1..ROUTE_CONTROLWORD_CYCLES at 100..2000 ms, host campaign policy.
+constexpr Range CONTROLWORD_WORD = {0, 0x0080}, CONTROLWORD_CYCLES = {1, ROUTE_CONTROLWORD_CYCLES},
+                CONTROLWORD_INTERVAL = {100, 2000};
 // SUBDIVISION's 2201 value: the range both manual claims admit, as prepareSubdivisionSettings checks it.
 constexpr Range SUBDIVISION_VALUE = {L::SUBDIVISION_MINIMUM, L::SUBDIVISION_MAXIMUM};
 static_assert(L::SUBDIVISION_MINIMUM == 400 && L::SUBDIVISION_MAXIMUM == 51200, "the host's runner states 400..51200");
@@ -378,6 +401,13 @@ constexpr Field ARM_VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
 // ARM_WITNESS: the host's reviewed 6064 both reads must show; nothing else.
 constexpr Field ARM_WITNESS_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                         ROUTE_FIELD(startPosition, SIGNED32)};
+// CONTROLWORD: the one word, then its observation cycles and their spacing.
+constexpr Field CONTROLWORD_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                        ROUTE_FIELD(trial, TRIAL),
+                                        ROUTE_FIELD(attended, FLAG),
+                                        ROUTE_FIELD(controlword, CONTROLWORD_WORD),
+                                        ROUTE_FIELD(cycles, CONTROLWORD_CYCLES),
+                                        ROUTE_FIELD(intervalMs, CONTROLWORD_INTERVAL)};
 #undef ROUTE_FIELD
 struct Grammar {
     char letter;
@@ -410,8 +440,10 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'Y', RouteKind::ARM_MOVE, ARM_MOVE_FIELDS, countOf(ARM_MOVE_FIELDS)},
                                 {'B', RouteKind::ARM_VELOCITY, ARM_VELOCITY_FIELDS, countOf(ARM_VELOCITY_FIELDS)},
                                 {'X', RouteKind::ARM_WITNESS, ARM_WITNESS_FIELDS, countOf(ARM_WITNESS_FIELDS)},
-                                {'K', RouteKind::SUBDIVISION, SUBDIVISION_FIELDS, countOf(SUBDIVISION_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::SUBDIVISION), "one grammar per route");
+                                {'K', RouteKind::SUBDIVISION, SUBDIVISION_FIELDS, countOf(SUBDIVISION_FIELDS)},
+                                // The last free capital: the line reads `TT...`, the command byte and then the route.
+                                {'T', RouteKind::CONTROLWORD, CONTROLWORD_FIELDS, countOf(CONTROLWORD_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::CONTROLWORD), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -586,6 +618,9 @@ unsigned terminalBound(const RoutePlan& p) {
         return 9 + 9;
     case RouteKind::ARM_WITNESS:
         return 9 + 9;
+    case RouteKind::CONTROLWORD:
+        // The full read, the one word, seven-field cycles, the final full read.
+        return 9 + 1 + 7u * p.cycles + 9;
     default:
         return ROUTE_TERMINALS + 1;
     }
@@ -627,6 +662,7 @@ uint32_t durationBound(const RoutePlan& p) {
     case RouteKind::MODE_THREE:
     case RouteKind::REARM:
     case RouteKind::RELEASED_QUICK:
+    case RouteKind::CONTROLWORD:
         return p.cycles * p.intervalMs;
     case RouteKind::WORD67:
         return (p.wordCycles + p.cycles) * p.intervalMs;
@@ -638,6 +674,12 @@ uint32_t durationBound(const RoutePlan& p) {
 
 const char* routeName(RouteKind kind) noexcept {
     return unsigned(kind) < sizeof names / sizeof names[0] ? names[unsigned(kind)] : "none";
+}
+bool controlwordReviewed(uint16_t word) noexcept {
+    for (uint16_t reviewed : REVIEWED_CONTROLWORDS)
+        if (word == reviewed)
+            return true;
+    return false;
 }
 bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcept {
     if (!text || size < 2 || size > ROUTE_LINE)
@@ -716,6 +758,9 @@ bool routePlanValid(const RoutePlan& p) noexcept {
     case RouteKind::ARM_VELOCITY:
         return p.layout != unsigned(L::StatusLayout::ZH57) && p.stopIntervalMs >= 10 &&
                (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
+    case RouteKind::CONTROLWORD:
+        // Only the reviewed set: 0..128 on the line also holds 0007, 000F, 001F and every unreviewed word.
+        return controlwordReviewed(p.controlword);
     default:
         return true;
     }
@@ -1041,6 +1086,11 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     std::memset(r.driverDirection, 0, sizeof r.driverDirection);
     std::memset(r.driverSubdivision, 0, sizeof r.driverSubdivision);
     r.driverReadback = 0;
+    for (RouteSnapshot& c : r.controlCycles)
+        c = RouteSnapshot();
+    std::memset(r.controlCycleUs, 0, sizeof r.controlCycleUs);
+    r.controlMarked = 0;
+    r.controlEnabled = r.controlMoving = false;
     // Older copies belong to earlier work; this record starts with an empty owner trace.
     for (unsigned i = 0; i < MotorControlCANOwner::CanBusOwner::TRACE_CAPACITY && owner.takeDiagnostic(diagnostic_);
          ++i) {
@@ -1161,11 +1211,17 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         {STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_END, 0}};
     static const Step armVelocity[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_VELOCITY, 0}, {STEP_END, 0}};
     static const Step armWitness[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_WITNESS, 0}, {STEP_END, 0}};
+    // One fresh full read and its check, the one line word, the cycles (each marked), one more full read
+    // (marked too), then the end.
+    static const Step controlword[] = {{STEP_STATE, FULL},           {STEP_CHECK_CONTROLWORD, 0},
+                                       {STEP_WORD_WRITE, WORD_LINE}, {STEP_OBSERVE, OBSERVE_ALL},
+                                       {STEP_STATE, FULL},           {STEP_CHECK_CONTROLWORD_AFTER, 0},
+                                       {STEP_END, 0}};
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
-                                  subdivision};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::SUBDIVISION) + 1,
+                                  subdivision, controlword};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::CONTROLWORD) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1633,7 +1689,8 @@ bool BenchRoute::settle(uint64_t now) noexcept {
         finish(RouteFailure::CORRELATION, "terminal", now);
         return true;
     }
-    if (steps_[stepIndex_].kind == STEP_TARGET_WRITE) {
+    if (steps_[stepIndex_].kind == STEP_TARGET_WRITE ||
+        (steps_[stepIndex_].kind == STEP_WORD_WRITE && record_.plan.kind == RouteKind::CONTROLWORD)) {
         // The probe's own result, whatever it is: an abort code is the measurement.
         record_.probeWritten = true;
         record_.probeOutcome = uint8_t(done.outcome);
@@ -1771,18 +1828,20 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_CHECK_MODE_THREE:
     case STEP_CHECK_VELOCITY:
     case STEP_CHECK_TARGET:
-    case STEP_CHECK_WITNESS: {
+    case STEP_CHECK_WITNESS:
+    case STEP_CHECK_CONTROLWORD: {
         record_.checkPresent = true;
         record_.check = record_.last;
-        const char* why = step.kind == STEP_CHECK_MODE         ? checkMode()
-                          : step.kind == STEP_CHECK_POSITION   ? checkPosition()
-                          : step.kind == STEP_CHECK_REARM      ? checkRearm()
-                          : step.kind == STEP_CHECK_MOVE       ? checkMove()
-                          : step.kind == STEP_CHECK_MODE_THREE ? checkModeThree()
-                          : step.kind == STEP_CHECK_VELOCITY   ? checkVelocity()
-                          : step.kind == STEP_CHECK_TARGET     ? checkVelocityTarget()
-                          : step.kind == STEP_CHECK_WITNESS    ? checkWitness()
-                                                               : checkReleased();
+        const char* why = step.kind == STEP_CHECK_MODE           ? checkMode()
+                          : step.kind == STEP_CHECK_POSITION     ? checkPosition()
+                          : step.kind == STEP_CHECK_REARM        ? checkRearm()
+                          : step.kind == STEP_CHECK_MOVE         ? checkMove()
+                          : step.kind == STEP_CHECK_MODE_THREE   ? checkModeThree()
+                          : step.kind == STEP_CHECK_VELOCITY     ? checkVelocity()
+                          : step.kind == STEP_CHECK_TARGET       ? checkVelocityTarget()
+                          : step.kind == STEP_CHECK_WITNESS      ? checkWitness()
+                          : step.kind == STEP_CHECK_CONTROLWORD  ? checkControlword()
+                                                                 : checkReleased();
         record_.checkPassed = why == nullptr;
         if (why)
             finish(RouteFailure::PREREQUISITE, why, now);
@@ -1809,6 +1868,11 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
             nextStep(now);
         return;
     }
+    case STEP_CHECK_CONTROLWORD_AFTER:
+        // The final full read is marked as each cycle is; it counts as read cycles + 1.
+        if (!markControlword(record_.last, uint8_t(record_.cycles + 1u), now))
+            nextStep(now);
+        return;
     case STEP_ENABLE:
         startEnable(now);
         return;
@@ -2132,11 +2196,13 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
         value = uint32_t(p.velocityValue);
     } else if (steps_[stepIndex_].kind == STEP_WORD_WRITE) {
         const uint8_t word = steps_[stepIndex_].arg;
-        if (subStep_ || word >= sizeof WORDS / sizeof WORDS[0])
+        // CONTROLWORD's line word, judged against the reviewed set once more here, however the plan was built.
+        const bool line = word == WORD_LINE && p.kind == RouteKind::CONTROLWORD && controlwordReviewed(p.controlword);
+        if (subStep_ || (!line && word >= sizeof WORDS / sizeof WORDS[0]))
             return false; // One word, never a second.
-        t.index = L::OBJECT_6040_00.index; // 2B 40 60 00 0F 00 00 00, 0B, 06 or 07.
+        t.index = L::OBJECT_6040_00.index; // 2B 40 60 00 0F 00 00 00, 0B, 06 or 07; CONTROLWORD's 00, 06, 0B or 80.
         t.size = L::OBJECT_6040_00.widthBytes;
-        value = WORDS[word];
+        value = line ? p.controlword : WORDS[word];
     } else {
         const L::ObjectDescriptor* const objects[] = {&L::OBJECT_607A_00, &L::OBJECT_6081_00,
                                                       &L::OBJECT_6083_00, &L::OBJECT_6084_00,
@@ -2512,6 +2578,44 @@ const char* BenchRoute::checkTargetAfter() const noexcept {
     if (const char* why = checkTargetState(record_.last))
         return why;
     return record_.last.position != record_.check.position ? "position" : nullptr;
+}
+// CONTROLWORD's admission, on its one fresh full read: 6041 bits 0..2 clear (bit 3, the fault bit, either
+// way), 2100 running clear, 606C 0 and a mode of 0, 1, 3 or 6. 1001, 603F, the 2100 alarm and released bits are
+// recorded and not judged: the experiment starts from whatever low bits 000 state the drive reports (8010 with
+// 2100=0001 after trial 5323's clear). The latest word recorded at admission must still be the latest, as for
+// RELEASED_QUICK: another writer since would make the read stale.
+const char* BenchRoute::checkControlword() const noexcept {
+    if (const char* why = predecessor(STEP_WORD_WRITE, WORD_LINE))
+        return why;
+    const RouteSnapshot& s = record_.last;
+    if ((s.blocks & FULL) != FULL)
+        return "snapshot";
+    if (!controlwordReviewed(record_.plan.controlword))
+        return "word"; // routePlanValid refused it already; judged again before anything is written.
+    if (s.statusword & L::STATUS_LOW_BITS)
+        return "status";
+    if (s.monitor & L::MONITOR_RUNNING)
+        return "running";
+    if (s.velocity)
+        return "velocity";
+    if (s.mode != 0 && s.mode != 1 && s.mode != 3 && s.mode != 6)
+        return "mode";
+    return nullptr;
+}
+// CONTROLWORD's mark on a read after its word: 6041 bit 1 (switched on) or bit 2 (enabled), or 606C nonzero.
+// The first such read ends the route there with OBSERVATION and nothing more sent, so that the host's alert
+// reaches the attendant at once: the drive may then hold torque or turn, and the cutoff is the control.
+// which: 1..cycles an observation cycle, cycles + 1 the final full read.
+bool BenchRoute::markControlword(const RouteSnapshot& s, uint8_t which, uint64_t now) noexcept {
+    const bool enabled = (s.statusword & CONTROLWORD_ENABLED_BITS) != 0;
+    const bool moving = s.velocity != 0;
+    if (!enabled && !moving)
+        return false;
+    record_.controlMarked = which;
+    record_.controlEnabled = enabled;
+    record_.controlMoving = moving;
+    finish(RouteFailure::OBSERVATION, enabled ? "enabled" : "velocity", now);
+    return true;
 }
 // The acknowledged latest word of a finished record of this object on that node, as the host named
 // it: 1 POSITION's 001F, 2 that record's planned HALT 010F, 3 RELATIVE's 005F. Its operation and
@@ -3471,6 +3575,24 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
     ++record_.cycles;
     const RouteSnapshot& s = record_.last;
     const RoutePlan& p = record_.plan;
+    if (p.kind == RouteKind::CONTROLWORD) {
+        // Every cycle is kept and marked; an alarm or a changed 6064 is a fact to record, not an end, because the
+        // word's effect on them is part of the question.
+        const unsigned at = record_.cycles - 1u;
+        if (at < ROUTE_CONTROLWORD_CYCLES) {
+            record_.controlCycles[at] = s;
+            record_.controlCycleUs[at] = now;
+        }
+        if (markControlword(s, uint8_t(record_.cycles), now) || endFailure_ != RouteFailure::NONE)
+            return;
+        if (record_.cycles >= p.cycles) {
+            nextStep(now); // The final full read.
+            return;
+        }
+        const uint64_t next = cycleStartUs_ + uint64_t(p.intervalMs) * 1000;
+        nextCycleUs_ = next > now ? next : now;
+        return;
+    }
     const char* why = nullptr;
     // MODE_ONE after a released start: its check took two reads (firstPresent).
     const bool releasedModeOne = p.kind == RouteKind::MODE_ONE && record_.firstPresent;
@@ -3546,11 +3668,15 @@ unsigned BenchRoute::summaryCount() const noexcept {
                      r.statusPresent;
     // TRIAL_REARM, or TRIAL_CONTROL; then TRIAL_BASE.
     if (r.plan.kind == RouteKind::REARM || r.plan.kind == RouteKind::RELEASED_QUICK || r.plan.kind == RouteKind::WORD67 ||
-        r.plan.kind == RouteKind::MODE_THREE || r.plan.kind == RouteKind::VELOCITY_TARGET)
+        r.plan.kind == RouteKind::MODE_THREE || r.plan.kind == RouteKind::VELOCITY_TARGET ||
+        r.plan.kind == RouteKind::CONTROLWORD)
         count += 1;
     // VELOCITY_TARGET: its write, readback and the read after it.
     if (r.plan.kind == RouteKind::VELOCITY_TARGET)
         count += 1;
+    // CONTROLWORD: TRIAL_CONTROLWORD, then one TRIAL_CONTROLWORD_CYCLE per completed cycle.
+    if (r.plan.kind == RouteKind::CONTROLWORD)
+        count += 1 + (r.cycles < ROUTE_CONTROLWORD_CYCLES ? r.cycles : unsigned(ROUTE_CONTROLWORD_CYCLES));
     if (r.plan.kind == RouteKind::RELATIVE || (r.plan.kind == RouteKind::MOVE && r.plan.relativeBase))
         count += 1;
     // TRIAL_SETTINGS and the prior and readback group lines; then IO_DI3's TRIAL_INPUTS. SUBDIVISION: three
@@ -3601,6 +3727,11 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%u\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
                        unsigned(p.subdivision));
+        case RouteKind::CONTROLWORD:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u word=%04x cycles=%u interval=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), unsigned(p.controlword), unsigned(p.cycles),
+                       static_cast<unsigned long>(p.intervalMs));
         case RouteKind::HOME:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u method=%u search=%lu creep=%lu ramp=%lu "
@@ -3773,7 +3904,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    static_cast<unsigned long>(latest ? latest->transfer.operation : 0));
     }
     if ((p.kind == RouteKind::RELEASED_QUICK || p.kind == RouteKind::WORD67 || p.kind == RouteKind::MODE_THREE ||
-         p.kind == RouteKind::VELOCITY_TARGET) &&
+         p.kind == RouteKind::VELOCITY_TARGET || p.kind == RouteKind::CONTROLWORD) &&
         !index--) {
         // What the session knew at admission, which may be nothing, and the latest word after the route.
         return put(out, size,
@@ -3799,6 +3930,34 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort),
                    unsigned(r.probeReadPresent), unsigned(r.probeSize), unsigned(b[0]), unsigned(b[1]),
                    unsigned(b[2]), unsigned(b[3]), unsigned(match), unsigned(r.probeAfter));
+    }
+    if (p.kind == RouteKind::CONTROLWORD) {
+        if (!index--) {
+            // The word and its exact request, the download's terminal (outcome 255 while none settled), the
+            // completed cycles and the mark: the read that reported switched on, enabled or 606C nonzero (1..cycles
+            // a cycle, cycles + 1 the final read, 0 none). alert repeats it for the host's cutoff alert.
+            const unsigned w = p.controlword;
+            return put(out, size,
+                       "TRIAL_CONTROLWORD word=%04x tx=2b406000%02x%02x0000 written=%u outcome=%u ack=%u uncertain=%u "
+                       "abort=%08lx cycles=%u marked=%u enabled=%u moving=%u alert=%u\n",
+                       w, w & 0xffu, w >> 8, unsigned(r.probeWritten), r.probeWritten ? unsigned(r.probeOutcome) : 255u,
+                       unsigned(r.probeAcknowledged), unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort),
+                       unsigned(r.cycles), unsigned(r.controlMarked), unsigned(r.controlEnabled),
+                       unsigned(r.controlMoving), unsigned(r.controlMarked != 0));
+        }
+        const unsigned kept = r.cycles < ROUTE_CONTROLWORD_CYCLES ? r.cycles : unsigned(ROUTE_CONTROLWORD_CYCLES);
+        if (index < kept) {
+            // Each cycle raw, with the read's completion time and its own mark bits.
+            const RouteSnapshot& s = r.controlCycles[index];
+            return put(out, size,
+                       "TRIAL_CONTROLWORD_CYCLE which=%u us=%llu blocks=%02x 2100=%04x 6041=%04x 6061=%02x 6064=%ld "
+                       "606c=%ld enabled=%u moving=%u\n",
+                       index + 1u, static_cast<unsigned long long>(r.controlCycleUs[index]), unsigned(s.blocks),
+                       unsigned(s.monitor), unsigned(s.statusword), unsigned(s.mode), static_cast<long>(s.position),
+                       static_cast<long>(s.velocity), unsigned((s.statusword & CONTROLWORD_ENABLED_BITS) != 0),
+                       unsigned(s.velocity != 0));
+        }
+        index -= kept;
     }
     if ((p.kind == RouteKind::RELATIVE || (p.kind == RouteKind::MOVE && p.relativeBase)) && !index--) {
         // The base the displacement meets: the 607A uploaded before the writes, this object's record of

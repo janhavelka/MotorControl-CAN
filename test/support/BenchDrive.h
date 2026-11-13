@@ -114,6 +114,7 @@ struct Drive {
     int32_t endpoint = 0, commanded = 0;
     int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
     uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
+    int32_t trapVelocity = 0;                // With trapWord: 606C reads this after that word when nonzero.
     // This 6040 word clears the latch, 2100 running and 6041 bit 14 (word 7 cleared both in trials 308 and
     // 1742: 4031/0014 to 0033/0000, C031/0015 to 8033/0001).
     uint16_t latchWord = 0;
@@ -349,8 +350,11 @@ struct Drive {
                     status = uint16_t((status & ~0x0060u) | 0x0040u);
                 if (word == 7)
                     position += pullAtWord7;
-                if (trapWord && word == trapWord)
+                if (trapWord && word == trapWord) {
                     monitor = uint16_t(monitor | trapMonitor);
+                    if (trapVelocity)
+                        velocity = trapVelocity;
+                }
                 if (latchWord && word == latchWord) {
                     monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
                     status = uint16_t(status & ~0x4000u);

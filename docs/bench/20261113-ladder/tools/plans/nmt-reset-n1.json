@@ -1,0 +1,50 @@
+{
+  "purpose": "Fault recovery experiment: node 1 sits at 6041 8010, 2100 0001 after the 2301 clear of its FF05 (trial 5323) and no route admits that state; one NMT Reset Node to node 1 with a watch running, to see whether it returns to the power-up report",
+  "authorization": "user 2026-11-13: first read the datasheets and try different approaches to recover a fault driver so you can recover and test more thoroughly the settings and be sure you can recover from that; waiver for this ladder campaign: Unattended, I accept it",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller after the flash"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "bind node 1 in this boot (identity uploads only)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P40",
+      "expect": "PDOW admitted",
+      "note": "watch before the reset, so a boot-up frame is recorded"
+    },
+    {
+      "wait_s": 2,
+      "note": "baseline"
+    },
+    {
+      "send": "N1,r",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "NMT Reset Node to node 1 only"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 10,
+      "note": "boot-up and settling"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK"
+    }
+  ]
+}
