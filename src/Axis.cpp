@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Adapted from MotorControl-RS Axis.cpp, copyright (c) 2026 Jan Havelka.
+// Adapted from MotorControl-RS Axis.cpp, copyright (c) 2026 THYMOS Solution s.r.o., Jan Havelka.
 // See LICENSE and docs/axis_contract.md for intentional CAN differences.
 #include "MotorControlCAN/Axis.h"
 #include "ExactArithmetic.h"

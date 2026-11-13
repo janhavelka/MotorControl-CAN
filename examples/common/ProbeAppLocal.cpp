@@ -2,7 +2,7 @@
  * @brief Offline host facts and pure coordinate previews; no owner or platform I/O.
  * SPDX-License-Identifier: MIT
  */
-// Host field dispatch follows MotorControl-RS ProbeApp.cpp, copyright (c) 2026 Jan Havelka.
+// Host field dispatch follows MotorControl-RS ProbeApp.cpp, copyright (c) 2026 THYMOS Solution s.r.o., Jan Havelka.
 #include "ProbeApp.h"
 
 namespace MotorControlCANExample {

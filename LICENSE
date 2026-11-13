@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Jan Havelka
+Copyright (c) 2026 THYMOS Solution s.r.o., Jan Havelka (https://www.thymos.cz, info@thymos.cz)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,7 @@ SOFTWARE.
 
 Original vendor manuals, EDS, standards, extracts and reference snapshots retain
 their owners' rights. This license does not relicense those materials.
-Copied MotorControl-RS source retains Jan Havelka's MIT attribution.
+Copied MotorControl-RS source retains its MIT attribution to THYMOS Solution s.r.o., Jan Havelka.
 The optional CANopenNode experiment retains its separate upstream license.
 Vendor material, research snapshots and experiment dependencies are excluded
 from the portable library distribution and installation.

@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "description": "Portable C++11 exact units, axis targets, checked Lichuan native position parameters, finite typed reads and conditional settings/actions. Development library: confirmed motion and firmware qualification remain pending. Optional controller adapters are provided separately in the repository.",
   "keywords": ["can", "canopen", "stepper", "servo", "motion"],
-  "authors": [{"name": "Jan Havelka", "maintainer": true}],
+  "authors": [
+    {"name": "THYMOS Solution s.r.o.", "email": "info@thymos.cz", "url": "https://www.thymos.cz"},
+    {"name": "Jan Havelka", "email": "info@thymos.cz", "url": "https://www.thymos.cz", "maintainer": true}
+  ],
   "repository": {"type": "git", "url": "https://github.com/janhavelka/MotorControl-CAN.git"},
   "license": "MIT",
   "frameworks": "*",

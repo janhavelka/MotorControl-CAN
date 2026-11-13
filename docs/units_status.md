@@ -121,8 +121,8 @@ quantization never treats a rounded binary64 origin as the exact input.
 
 ## Reuse, differences and verification
 
-The arithmetic adapts Jan Havelka's MIT MotorControl-RS `Units.cpp`,
-`UnitFactors.h` and reusable `Axis.cpp` helpers at revision
+The arithmetic adapts the MIT MotorControl-RS `Units.cpp`,
+`UnitFactors.h` and reusable `Axis.cpp` helpers (copyright (c) 2026 THYMOS Solution s.r.o., Jan Havelka) at revision
 `bd831c859daa9c8c07b8d27a2dd879bb4e750511`; attribution remains in source and
 the software license. RS is not a dependency. CAN keeps exact overloads as its
 ordinary dimensional API instead of RS's engineering-double path. Unit settings,

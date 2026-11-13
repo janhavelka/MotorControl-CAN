@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Adapted from MotorControl-RS Units.cpp, UnitFactors.h and Axis.cpp
-// Copyright (c) 2026 Jan Havelka. See LICENSE and docs/units_status.md.
+// Copyright (c) 2026 THYMOS Solution s.r.o., Jan Havelka. See LICENSE and docs/units_status.md.
 #include "MotorControlCAN/Units.h"
 #include "ExactArithmetic.h"
 #include <cmath>
