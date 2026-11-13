@@ -24,6 +24,13 @@ Deliver three regular library operations and one policy change, with the evidenc
   every measured power-up enable and left node 1's shaft free by hand; settled from the drive's report, never by TX.
   No manual names the shaft-free word, so the record states that this is measured, not documented. Release from mode 1
   idle and from the halted mode 3 state are bench trials (the halted case may also resolve backlog S20).
+  Added 2026-11-13 (backlog S21, [report](../reports/2026-11-13_enable_fault_state.md)): release must also cover the
+  switched-on, stationary, alarm-free state a refused enable leaves (`6041=8033`, `2100=0001`, energized), which no
+  library action admitted: the stop refuses a stationary report and the clear needs an alarm. There `6040=0x0000`
+  (disable voltage) released node 2 once (trial 5991, to `8050`/`2100=0011`); word 6 from `8033` is unmeasured, and
+  from `8010` (after a `2301` clear) `0x0000`, `0x0006` and `000B` did nothing while `0x0080` released it. Choose
+  the word per measured predecessor state, refuse unmeasured ones, and give [prompt 72](72_enable_fault_guards.md)'s
+  word 7 guard this release.
 - **Identity policy:** motion stays refused when the product identity differs (`1000`, `1018:01` vendor, `1018:02`
   product, `2000`), because another product is another profile. A different firmware identity (`1009`, `100A`,
   `1018:03`, `2001`) no longer refuses: the operation runs and its terminal result carries "firmware unqualified" with

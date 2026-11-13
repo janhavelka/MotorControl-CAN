@@ -982,6 +982,19 @@
         "18"
       ],
       "kind": "qualification"
+    },
+    {
+      "id": 72,
+      "file": "72_enable_fault_guards.md",
+      "title": "Enable-fault guards: pulse-rate admission, word 7 guard and fault-state reporting",
+      "depends_on": [
+        57,
+        59
+      ],
+      "source_stages": [
+        "11"
+      ],
+      "kind": "software"
     }
   ]
 }
