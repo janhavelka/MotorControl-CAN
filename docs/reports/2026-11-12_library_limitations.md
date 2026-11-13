@@ -238,6 +238,7 @@ motors from a Linux PC with SocketCAN or a USB-CAN adapter.
 - Kind: Missing.
 - Change: a SocketCAN adapter that reuses the owner. Cost: medium; it needs its own model of when a frame has left
   the kernel queues.
+- Decision (2026-11-13): not wanted. The user does not need a PC USB-CAN adapter, so no prompt owns it.
 - Evidence: `examples/native_probe/README.md:3-7`.
 
 ## 7. Timing and throughput

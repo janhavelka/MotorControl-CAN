@@ -11,7 +11,11 @@ Facts ([motion capability report](../reports/2026-11-12_motion_capability_eviden
 no CiA402 factor group (`6091`, `6092`, `608F`, `6096`, `6097`, `60A8`, `60A9`), so conversion is host-side. The
 library already has the host unit layer (`Units.h`, `Axis.h`): gear ratio, lead, scale, polarity, frames and exact
 rounding with the error reported, for positions and speeds. What stays native-only: ramps are milliseconds and speeds
-are whole rpm, so 2.5 rpm cannot be sent (refuse with EXACT, or NEAREST gives 2 with the error reported).
+are whole rpm, so 2.5 rpm cannot be sent (refuse with EXACT, or NEAREST gives 2 with the error reported). The
+[speed units guide](../speed_units.md) and the [units re-audit](../reports/2026-11-13_units_reaudit.md) (2026-11-13)
+hold the reviewed facts: no finer speed unit on any page, the p11 figure shows the ramp as the time from rest to the
+commanded speed (a figure only; Q11 open), and the delivered rate is 0.99201 x floor(rpm x 1000 / 60) counts/s at
+`2201=1000`, cause unknown.
 
 Deliver the missing parts in the same style as the CiA402 factor group, the industry standard: acceleration and
 deceleration in user units per second squared (for example mm/s^2, rev/s^2, deg/s^2) converted to ramp milliseconds,
@@ -21,7 +25,9 @@ from 0 to the target speed; trials 709 and 713 fit it, Q11 open) and stays refus
 
 Boundaries: exact checked arithmetic, no floating point in the installed core unless a reviewed decision allows it;
 ramps under 1 ms or over 2000 ms are refused, never clamped silently; a unit request never widens a drive or record
-limit; native operations stay available.
+limit; native operations stay available. Conversions use the effective whole rpm and report it; the 0.992 shortfall is
+reported as an observation, never compensated silently. The common name for ramp times is decided against RS (its ESS
+profile uses `accelerationTime`/`decelerationTime`) and the Lichuan names (`rampUpTimeMs`/`rampDownTimeMs`).
 
 ## Read and audit
 

@@ -922,6 +922,66 @@
         "18"
       ],
       "kind": "qualification"
+    },
+    {
+      "id": 68,
+      "file": "68_application_task_structure.md",
+      "title": "Application task structure and headless operation examples",
+      "depends_on": [
+        55,
+        56,
+        57,
+        64
+      ],
+      "source_stages": [
+        "12",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 69,
+      "file": "69_application_io_watchdog.md",
+      "title": "Application I/O and hardware watchdog examples",
+      "depends_on": [
+        62,
+        68
+      ],
+      "source_stages": [
+        "08",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 70,
+      "file": "70_startup_settings_reboot.md",
+      "title": "Startup checks, application settings storage and reboot handling examples",
+      "depends_on": [
+        55,
+        57,
+        61,
+        68
+      ],
+      "source_stages": [
+        "13",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 71,
+      "file": "71_hardware_application_examples.md",
+      "title": "Hardware qualification of the application examples",
+      "depends_on": [
+        66,
+        69,
+        70
+      ],
+      "source_stages": [
+        "18"
+      ],
+      "kind": "qualification"
     }
   ]
 }

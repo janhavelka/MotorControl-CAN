@@ -220,6 +220,19 @@ library API, and the examples consume it.
 | Hardware qualification of the above on the S2 bench | [66](prompts/66_hardware_regular_operation.md) |
 | ESP32-S3 boards, PSRAM placement and further MCUs | [67](prompts/67_s3_psram_qualification.md) |
 
+**Third round of requests (2026-11-13).** Examples of everything an upper firmware does, prepared before the
+hardware exists; the trials wait for the user's wiring. The PC USB-CAN adapter is not wanted (the user, 2026-11-13).
+
+| Request | Prompt |
+| --- | --- |
+| Pulse-rate boundaries (200 kHz, 500 kHz and beyond) through a five-point subdivision grid; keep exploring after the first plateau, stall or resettable alarm (Q04) | [59](prompts/59_velocity_range_direction.md) |
+| Units documented, the rpm problem re-audited against the manuals | [speed units guide](speed_units.md), [re-audit](reports/2026-11-13_units_reaudit.md), [60](prompts/60_user_units.md) |
+| What happens when the MCU dies, and the usual protection (D10, M15) | [host-loss guide](host_loss.md), [62](prompts/62_stop_line.md), [69](prompts/69_application_io_watchdog.md) |
+| Own CAN task with bounded queues, headless job runner, minimal integration example | [68](prompts/68_application_task_structure.md) |
+| Hardware watchdog IC, MCU inputs and outputs, drive DI and DO through the API | [69](prompts/69_application_io_watchdog.md) |
+| Startup checks, application settings storage, drive reboot handling, MCU reset reason and event log | [70](prompts/70_startup_settings_reboot.md) |
+| Hardware qualification of the application examples | [71](prompts/71_hardware_application_examples.md) |
+
 Gains and currents stay read-only until their ranges are known; how to change them today is in
 [the tuning guide](tuning.md). Independent per-axis control from the console is prompt 53 item 5.
 
