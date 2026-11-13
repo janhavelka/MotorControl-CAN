@@ -205,11 +205,13 @@ def metadata_checks(root, errors):
             errors.append(f"library.json: invalid {section} identity/layout")
     if metadata.get("headers") != ["MotorControlCAN/MotorControlCAN.h"]:
         errors.append("library.json: headers must name the implemented umbrella header")
-    authors = metadata.get("authors")
-    if not isinstance(authors, list) or not any(
-            isinstance(author, dict) and author.get("name") == "Jan Havelka" and
-            author.get("maintainer") is True for author in authors):
-        errors.append("library.json: Jan Havelka must be a maintainer")
+    if metadata.get("authors") != [
+            {"name": "THYMOS Solution s.r.o.", "email": "info@thymos.cz",
+             "url": "https://www.thymos.cz"},
+            {"name": "Jan Havelka", "email": "info@thymos.cz",
+             "url": "https://www.thymos.cz", "maintainer": True}]:
+        errors.append("library.json: authors must be THYMOS Solution s.r.o. and "
+                      "Jan Havelka (maintainer) with info@thymos.cz and https://www.thymos.cz")
     export = metadata.get("export")
     entries = export.get("include") if isinstance(export, dict) else None
     if (not isinstance(entries, list) or any(not isinstance(item, str) for item in entries)

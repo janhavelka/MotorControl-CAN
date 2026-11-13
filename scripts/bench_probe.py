@@ -3,7 +3,7 @@
 """Bounded MotorControl-CAN console client and one explicit probe/read invocation.
 
 Framing/correlation responsibilities follow MotorControl-RS bench_probe, copyright
-(c) 2026 Jan Havelka. This is the distinct CAN schema, not an RTU/CAN driver.
+(c) 2026 THYMOS Solution s.r.o., Jan Havelka. This is the distinct CAN schema, not an RTU/CAN driver.
 Imports and offline modes need only Python 3.10+. Live serial is loaded explicitly.
 No retry, reconnect, motion, configuration write or campaign is implied by connection.
 """

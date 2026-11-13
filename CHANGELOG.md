@@ -985,6 +985,7 @@ This repository contains planning/reference material and native service/API owne
 
 ### Changed
 
+- Unified author, copyright and contact metadata: THYMOS Solution s.r.o., Jan Havelka, info@thymos.cz.
 - Moved pure PDO evidence/time value types into installed headers, forwarded by
   the existing adapter; shared bounded route comparison avoids duplicate policy.
 - Assigned all readable ledger rows separate read owners and read coverage;
