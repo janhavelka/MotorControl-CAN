@@ -133,6 +133,17 @@ TRIAL_SUBDIVISION the write's terminal; TRIAL_SETTINGS holds the configuration e
 attended and counted like the settings routes, three per node, with no motion weight. A value outside the
 range is refused before anything is sent.
 
+loop (protocol 13, backlog S21) writes one volatile 2500 loop selector, --value 0 (noneffective), 1 (open loop) or
+2 (closed loop) (EN86/ZH86 p19), through the library's prepareControlSettings, like subdivision: a fresh 2500/2501
+read, a clean STATUS and MONITORS read, the one 2500 download and the library's 2500/2501 readback, then one more
+2500/2501 read. Its T line's route letter is the lowercase l (`Tl`), because no capital is left. The library refuses
+2100 running, an alarm or an undocumented 2100 bit, and closed loop while 2501 reads 0; the firmware route also
+requires 2100 to report released (bit 4), its own rule, which the library leaves undecided. 2501 is never written; no
+6040, no enable, no save. A selector read back is register acceptance only, not a measured loop change, and what 0
+does is unknown. The record's TRIAL_CONTROL_GROUP lines hold 2500 and 2501 before, as read back and after, and
+TRIAL_LOOP the write's terminal; TRIAL_SETTINGS holds the configuration epochs. It is attended and counted like the
+settings routes, three per node, with no motion weight. A value outside 0..2 is refused before anything is sent.
+
 close-sessions sends one 'x': the firmware closes its idle route sessions, so that K, H and the raw and PDO
 experiments can reserve those nodes again in the same MCU boot (backlog S15). It sends nothing on CAN and
 is no stop, release or disable. It is refused, with nothing changed, while any record is held (release it
@@ -202,6 +213,9 @@ TRIALS = {
     # Protocol 11: one reviewed non-enabling 6040 word on a drive that reports low bits 000, then its cycles.
     # Every 6040 write is motion class (released-quick, word67, rearm, clear-alarm's bit 7).
     "controlword": ("T", True, "protocol 11 controlword from low bits 000"),
+    # Protocol 13 (backlog S21): one 2500 loop selector write and its readback on a released drive, as subdivision
+    # writes 2201: a settings route. Lowercase, because every capital letter is taken.
+    "loop": ("l", False, "protocol 13 2500 loop selector"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -209,7 +223,7 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # Attended routes that are not motion: one send counts one case, never motion weight. The two settings
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
-SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision")
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
@@ -217,9 +231,9 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
 # the F route (gate Q03's 60FF probe), 9 the V line's field after the identity, prompt 59's range probe, and
 # the K route (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route
-# (one reviewed non-enabling 6040 word), 12 the V line's last field, prompt 59's reverse probe. Any other image
-# would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 12
+# (one reviewed non-enabling 6040 word), 12 the V line's last field, prompt 59's reverse probe, 13 the l route (one
+# 2500 loop selector write). Any other image would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 13
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -299,6 +313,9 @@ VELOCITY_REVERSE_SIGN_MARGIN_RPM = 2
 # subdivision's 2201 value (Settings.h SUBDIVISION_MINIMUM, SUBDIVISION_MAXIMUM): the range both EN86/ZH86
 # claims admit. 0..399 and 51201..65535 stay untested.
 SUBDIVISION_RANGE = (400, 51200)
+# loop's 2500 value (Tuning.h LoopMode, EN86/ZH86 p19), as prepareControlSettings admits it for CL86-C: 0..2.
+LOOP_MODES = {0: "noneffective", 1: "open loop", 2: "closed loop"}
+LOOP_RANGE = (0, 2)
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -499,6 +516,8 @@ def trial_line(args, parser):
                    _within(parser, "interval-ms", args.interval_ms, *CONTROLWORD_INTERVAL_MS)]
     elif args.command == "subdivision":
         fields += [1, _within(parser, "value", args.value, *SUBDIVISION_RANGE)]
+    elif args.command == "loop":
+        fields += [1, _within(parser, "value", args.value, *LOOP_RANGE)]
     elif args.command in ("counter-zero", "clear-alarm"):
         fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
                    _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
@@ -566,8 +585,8 @@ def trial_line(args, parser):
         parser.error("--search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
     if args.command not in ("home", "clear-alarm") and args.method is not None:
         parser.error("--method belongs to home and clear-alarm")
-    if args.command not in ("velocity-target", "subdivision") and args.value is not None:
-        parser.error("--value belongs to velocity-target and subdivision")
+    if args.command not in ("velocity-target", "subdivision", "loop") and args.value is not None:
+        parser.error("--value belongs to velocity-target, subdivision and loop")
     if args.command != "controlword" and args.word is not None:
         parser.error("--word belongs to controlword")
     if args.command != "velocity" and args.range_probe:
@@ -623,6 +642,8 @@ def plan_bounds(command, fields):
         return 9 + 5 + 1 + 9 + 4, 0  # The input group, the state, the write, the readback, 2101 and 60FD.
     if command == "subdivision":
         return 2 + 5 + 1 + 2 + 2, 0  # DRIVER, STATUS and MONITORS, the 2201 write, the readback, DRIVER again.
+    if command == "loop":
+        return 2 + 5 + 1 + 2 + 2, 0  # CONTROL, STATUS and MONITORS, the 2500 write, the readback, CONTROL again.
     if command == "mode1":
         cycles, interval = fields[3:5]
         # The readiness reads less their image, a second full read when the first reports mode 3, 6060, the cycles.
@@ -1397,6 +1418,14 @@ def dry_run(args, fields):
                   "2200/2201 read at the advanced configuration epoch; 2200 never written; no 6040, no enable, no "
                   "save, no retry; when the drive applies the value is unmeasured (Q04)" %
                   (" ".join("%02X" % byte for byte in fields[3].to_bytes(2, "little") + b"\0\0"), fields[3]))
+        if args.command == "loop":
+            print("  protocol 13, 2500: one fresh 2500/2501 read and a clean STATUS and MONITORS read; the library "
+                  "refuses 2100 running, an alarm or an undocumented bit, and closed loop while 2501 reads 0, and the "
+                  "route refuses unless 2100 reports released (bit 4), all before any write")
+            print("  then one download 2B 00 25 00 %02X 00 00 00 (2500 = %d, %s), the library's 2500/2501 readback, "
+                  "and one more 2500/2501 read at the advanced configuration epoch; 2501 never written; no 6040, no "
+                  "enable, no save, no retry; a read-back selector is register acceptance only" %
+                  (fields[3], fields[3], LOOP_MODES[fields[3]]))
         print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
@@ -1459,9 +1488,11 @@ def arguments(argv):
     home.add_argument("--ramp-ms", type=int, help="609A ms, 1..2000")
     home.add_argument("--offset", type=int, help="607C native offset, -1000000..1000000")
     probe = parser.add_argument_group("velocity-target: gate Q03's one 60FF write on a released mode 3 drive; "
-                                      "subdivision: prompt 59's one volatile 2201 write on a released drive")
+                                      "subdivision: prompt 59's one volatile 2201 write on a released drive; "
+                                      "loop: protocol 13's one volatile 2500 write on a released drive")
     probe.add_argument("--value", type=int, help="velocity-target: the signed 60FF value, %d..%d; 3001 is the range "
-                       "probe. subdivision: the 2201 value, %d..%d" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE))
+                       "probe. subdivision: the 2201 value, %d..%d. loop: the 2500 code, %d..%d (0 noneffective, 1 open "
+                       "loop, 2 closed loop)" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE + LOOP_RANGE))
     word = parser.add_argument_group("controlword (protocol 11): one reviewed non-enabling 6040 word on a drive that "
                                      "reports low bits 000; also --cycles 1..10 and --interval-ms 100..2000")
     word.add_argument("--word", type=lambda text: int(text, 0),

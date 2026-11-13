@@ -226,9 +226,9 @@ GRAMMAR = (
         "read:b target:i known:b prev:i prevTrial:u prevRelative:b basis:u witness:i"),
     # The host's move evidence as the firmware received it, then the session's MoveContext and its
     # five kept samples (admission, latest, acceptance, absence, completed), raw.
-    # settings-2202, io-di3 and subdivision: the transaction's result, its configuration epochs and whether the
-    # owner and the session followed; then the group raw, which=0 the prior read and which=1 the matched
-    # readback (subdivision: TRIAL_DRIVER below).
+    # settings-2202, io-di3, subdivision and loop: the transaction's result, its configuration epochs and whether
+    # the owner and the session followed; then the group raw, which=0 the prior read and which=1 the matched
+    # readback (subdivision: TRIAL_DRIVER below; loop: TRIAL_CONTROL_GROUP).
     Row("TRIAL_SETTINGS", "TRIAL_SETTINGS ", "summary",
         "prepared:b noop:b state:u outcome:u>settingsOutcome changed:x confirmed:x effects:b "
         "uncertain:b>settingsUncertain cfg0:u cfg1:u>configuration followed:b",
@@ -313,6 +313,11 @@ GRAMMAR = (
     Row("TRIAL_DRIVER", "TRIAL_DRIVER ", "summary", "which:u present:b 2200:x 2201:u"),
     Row("TRIAL_SUBDIVISION", "TRIAL_SUBDIVISION ", "summary",
         "requested:u written:b outcome:u ack:b uncertain:b abort:x"),
+    # loop (protocol 13, backlog S21): after TRIAL_SETTINGS, 2500 and 2501 raw (decimal) of the prior CONTROL read
+    # (which=0), the readback uploads as delivered (1) and the CONTROL read after the transaction (2), then the 2500
+    # download's own terminal (outcome 255 while none settled). A read-back selector is register acceptance only.
+    Row("TRIAL_CONTROL_GROUP", "TRIAL_CONTROL_GROUP ", "summary", "which:u present:b 2500:u 2501:u"),
+    Row("TRIAL_LOOP", "TRIAL_LOOP ", "summary", "requested:u written:b outcome:u ack:b uncertain:b abort:x"),
     # controlword (protocol 11): the line's word and its exact request, the one 6040 download's terminal (outcome
     # 255 while none settled), the completed cycles and the read after the word that reported 6041 bit 1 or 2 or
     # 606C nonzero and ended the route (marked: 1..cycles a cycle, cycles + 1 the final read, 0 none; alert repeats
@@ -594,7 +599,8 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "released-quick": "released-quick", "word67": "word67", "relative": "relative",
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
-                "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword"}
+                "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
+                "loop": "loop"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -1128,7 +1134,7 @@ def _check_terminal(report, result, position, rows, previous):
 # field at that field's slot and reads back from slot 10, and a state read that includes 1003 skips the
 # entry slots its count leaves unread. Their steps rise with gaps; the header's terminal count still
 # shows a missing RESULT line.
-SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm", "subdivision"))
+SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm", "subdivision", "loop"))
 # Backlog S16: a velocity record may hold stop work after its first failed terminal, the run's own stop
 # after a failure or the route's fallback QUICK_STOP after a run that ended needing a stop with none sent
 # (BenchRoute::serviceAction). Only a 6040 download of 010F or 000B and the stop cycle's MONITORS, STATUS

@@ -838,6 +838,43 @@ class ReverseProbeRecord(unittest.TestCase):
             self.assertEqual(evidence.parse_line(1, text).status, "malformed", text)
 
 
+class LoopRecord(unittest.TestCase):
+    """Protocol 13 (backlog S21): a loop record's TRIAL_CONTROL_GROUP lines hold 2500 and 2501 raw in decimal, and
+    TRIAL_LOOP the 2500 download's terminal. The lines are BenchRoute's format with this test's numbers, never a
+    drive's."""
+    PLAN = "TRIAL_PLAN route=loop node=1 trial=2 attended=1 value=1"
+    GROUP = "TRIAL_CONTROL_GROUP which=0 present=1 2500=2 2501=4000"
+    LOOP = "TRIAL_LOOP requested=1 written=1 outcome=0 ack=1 uncertain=0 abort=06090030"
+
+    def parsed(self, text):
+        record = evidence.parse_line(1, text)
+        self.assertEqual((record.status, record.extra), ("parsed", {}), (text, record.reason))
+        return record
+
+    def test_lines_parse_as_their_own_rows(self):
+        self.assertEqual(self.parsed(self.PLAN).values["value"], 1)
+        group = self.parsed(self.GROUP)
+        # Not TRIAL_CONTROL, whose head is a prefix of the name but not of the line.
+        self.assertEqual((group.kind, group.values), ("TRIAL_CONTROL_GROUP",
+                                                      {"which": 0, "present": 1, "2500": 2, "2501": 4000}))
+        loop = self.parsed(self.LOOP)
+        self.assertEqual((loop.kind, loop.values["requested"], loop.values["abort"]), ("TRIAL_LOOP", 1, 0x06090030))
+        # Outcome 255 while no terminal settled; an undocumented stored 2500 word stays raw.
+        self.assertEqual(self.parsed(self.LOOP.replace("outcome=0", "outcome=255")).values["outcome"], 255)
+        self.assertEqual(self.parsed(self.GROUP.replace("2500=2", "2500=65535")).values["2500"], 65535)
+
+    def test_malformed_lines_are_named(self):
+        for text in (self.GROUP.replace("present=1", "present=2"), self.GROUP.replace("2501=4000", "2501=0fa0"),
+                     self.GROUP.replace(" 2501=4000", ""), self.LOOP.replace("written=1", "written=2"),
+                     self.LOOP.replace("abort=06090030", "abort=x")):
+            self.assertEqual(evidence.parse_line(1, text).status, "malformed", text)
+
+    def test_route_is_a_slot_step_trial(self):
+        self.assertEqual(evidence.TRIAL_ROUTES["loop"], "loop")
+        self.assertIn("loop", evidence.SLOT_STEP_ROUTES)
+        self.assertEqual(evidence.EXPECTED["loop"].family, "TRIAL")
+
+
 class TraceLoss(unittest.TestCase):
     def test_trace_saturation_is_failed_evidence(self):
         ok, frames = first_step_ok()

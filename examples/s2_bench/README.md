@@ -313,13 +313,16 @@ whose fresh full read reports `6041` low bits `000`, exactly one reviewed non-en
 reports switched on, enabled or `606C` nonzero ends it at once. Protocol 12 adds the `velocity` line's last
 field, prompt 59's reverse probe (`VelocityEvidence::reverseProbe`): the rate is the negated `<rpm>`, written as
 `60FF`'s two's complement, and a `606C` against it by more than 2 rpm from the enable report on ends the run with its
-own stop; it qualifies nothing. The settings routes, `velocity`, `home` and
+own stop; it qualifies nothing. Protocol 13 adds `loop` (`Tl`, lowercase because every capital is taken), one
+volatile `2500` loop selector write of 0, 1 or 2 through `prepareControlSettings` on a drive that reports itself
+released (the route's own rule beside the library's), with its readback and one more `2500`/`2501` read, settings
+class, no enable and no save. The settings routes, `velocity`, `home` and
 an observed move use one more block, `RouteWork` (8432 bytes on the S2), allocated on first use like
 the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=12` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` gains `routes=13` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
 with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
@@ -342,8 +345,8 @@ firmware turn and every bench record's, before input. It adds no receiver, sende
 before the first `o` or `@` byte: until then the image is byte for byte the bench image above, and `scripts/s2_bench.py`
 never sends either byte. The arming lines below came as new route letters in protocol 8, with no earlier line
 changed; protocol 9 changed only the `TV` line and added `TK`, protocol 10 only the `TC`
-line, which names its reset method, protocol 11 only added `TT`, the controlword experiment, and protocol 12
-(`PONG routes=12`) only the `TV` line's reverse field.
+line, which names its reset method, protocol 11 only added `TT`, the controlword experiment, protocol 12
+only the `TV` line's reverse field, and protocol 13 (`PONG routes=13`) only added `Tl`, the loop selector write.
 
 **Allocation.** The console is three blocks from internal heap, allocated on the first `o` or `@` and never freed, like
 the soak, watch and capture: `ProbeConsole` 6744, `ProbeDevice` 6664 and the rest 2672 bytes on the S2 (pinned
