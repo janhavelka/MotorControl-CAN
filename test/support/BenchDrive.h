@@ -119,6 +119,18 @@ struct Drive {
     uint16_t latchWord = 0;
     uint16_t stepWord = 0; // This 6040 word adds stepBy to 6064: a drive that moves after the word.
     int32_t stepBy = 0;
+    // This fake's alarm reset, made by 2301=1 and, with resetBit7, by 6040=0x0080: 2100's alarm bit clears and
+    // 603F reads 0 afterwards. With monitorAfterReset nonzero, 2100 and 6041 then read monitorAfterReset and
+    // statusAfterReset instead, as node 1 read 0001 and 8010 after the 2301 clear of trial 5323. No drive's
+    // controlword reset is claimed: none has run.
+    bool resetBit7 = false;
+    uint16_t monitorAfterReset = 0, statusAfterReset = 0;
+    void resetAlarm() {
+        monitor = monitorAfterReset ? monitorAfterReset : uint16_t(monitor & ~L::MONITOR_ALARM);
+        if (monitorAfterReset)
+            status = statusAfterReset;
+        errorCode = 0;
+    }
     // This 6040 word is acknowledged and changes nothing the fake reports, as trial 1009's 000F still
     // read 8033 and 2100 0001 in the cycle after it. Off by default.
     uint16_t staleWord = 0;
@@ -345,6 +357,8 @@ struct Drive {
                 }
                 if (stepWord && word == stepWord)
                     position += stepBy;
+                if (resetBit7 && word == 0x0080)
+                    resetAlarm();
                 const bool trigger = word == 0x001f || word == 0x005f;
                 if (trigger)
                     monitor = uint16_t(monitor | monitorAfterTrigger);
@@ -376,9 +390,7 @@ struct Drive {
             } else if (index == 0x2202) {
                 limitSelector = word;
             } else if (index == 0x2301 && word == 1) {
-                // This fake's alarm clear: the 1 clears 2100's alarm bit, and 603F reads 0 afterwards.
-                monitor = uint16_t(monitor & ~L::MONITOR_ALARM);
-                errorCode = 0;
+                resetAlarm();
             } else if (index == 0x2302 && word == 1) {
                 position = 0; // This fake's counter clear.
             } else if (index == 0x2400 && sub < 9) {

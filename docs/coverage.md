@@ -75,7 +75,10 @@ Packets 17 and 18 add `AlarmIncident::codeLink`, always `UNRESOLVED`, and
 `valueOneMayRemain` (Q13), and the FEEDBACK and `606C=0` admission with
 `CounterBaseline` (Q14). Both have an application caller,
 `AxisSession::requestClearAlarm` and `requestCounterZero` (backlog S12). The
-counter zero ran on node 2 (trial 323); no alarm clear has run.
+counter zero ran on node 2 (trial 323). On 2026-11-13 `AlarmClearMethod` added the
+controlword reset (`6040` `0x0080`, then `0x0000`) beside `2301`, host-tested only; the `2301`
+clear ran once, on node 1's `FF05` in mode 3 (trial 5323), and set the measured mode 3
+completion rule.
 
 [Prompt 31](reports/prompt_31.md) adds conditional native halt/quick-stop coverage
 to R06/R12/R13/R20: exact single writes, fresh typed not-running observations and

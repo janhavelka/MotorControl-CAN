@@ -33,9 +33,16 @@ void nmtLines() {
     CHECK(parse("N1,o", c) && c.kind == E::PdoCommandKind::NMT && c.node == 1 && c.nmt == 0x01);
     CHECK(parse("N2,p", c) && c.node == 2 && c.nmt == 0x80);
     CHECK(parse("N1,s", c) && c.node == 1 && c.nmt == 0x02);
+    // PONG pdo=5: Reset Node and Reset Communication, the attended fault-recovery experiments.
+    CHECK(parse("N1,r", c) && c.kind == E::PdoCommandKind::NMT && c.node == 1 && c.nmt == 0x81);
+    CHECK(parse("N2,c", c) && c.kind == E::PdoCommandKind::NMT && c.node == 2 && c.nmt == 0x82);
     refused("N0,o");
     refused("N3,o");
-    refused("N1,r");
+    refused("N3,r");
+    refused("N1,R");
+    refused("N1,rr");
+    refused("N1,x");
+    refused("N1,n");
     refused("N1,");
     refused("N1o");
     refused("N1,oo");

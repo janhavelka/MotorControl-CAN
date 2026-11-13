@@ -249,10 +249,11 @@ GRAMMAR = (
         "gap:u n1rx:u n1unmatched:u n2rx:u n2unmatched:u dropped0:u dropped1:u unmatched0:u unmatched1:u "
         "lost0:u lost1:u"),
     # counter-zero and clear-alarm: the session's clear context, each write by slot, the alarm incident
-    # or the counter baseline, and the extra observation, all raw.
+    # or the counter baseline, and the extra observation, all raw. method (protocol 10): the context's
+    # AlarmClearMethod, 0 for 2301 and 1 for 6040 bit 7; TRIAL_PLAN's method is the line's 1 or 2.
     Row("TRIAL_CLEAR", "TRIAL_CLEAR ", "summary",
         "own:b kind:u state:u outcome:u>clearOutcome exec:u completion:u uncertain:b>clearUncertain effects:b "
-        "one:b>valueOneMayRemain coords:b final:b observations:u op:u blocked:b>clearBlocked",
+        "one:b>valueOneMayRemain coords:b final:b observations:u op:u blocked:b>clearBlocked method:u?",
         signals=(("health", "clearOutcome"), ("health", "clearUncertain"), ("health", "valueOneMayRemain"),
                  ("health", "clearBlocked")), per_node=True),
     Row("TRIAL_CLEAR_STEP", "TRIAL_CLEAR_STEP ", "summary",
@@ -1458,6 +1459,8 @@ def _check_trial(report, records, meta):
             _check_history(report, summary, [r for r in records if r.role == "terminal" and r.status == "parsed"])
         if summary.kind == "TRIAL_VELOCITY_TARGET":
             _check_velocity_target(report, summary, records)
+    if header["route"] == "clear-alarm":
+        _check_clear_method(report, records, meta)
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
                  "trial": meta.get("trial")}
     for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
@@ -1488,6 +1491,44 @@ def _check_history(report, summary, results):
     if read != wanted:
         report.error("history_differs_from_terminals", summary.number,
                      "summary %s terminals %s" % (sorted(wanted.items()), sorted(read.items())))
+
+
+# clear-alarm's reset method from protocol 10, as request.json and the C line name it, and the object and the
+# two values each writes (examples/s2_bench/BenchRoute.h). TRIAL_CLEAR's method is the library's
+# AlarmClearMethod, the line's number less one.
+CLEAR_METHODS = {"2301": 1, "controlword": 2}
+CLEAR_WRITES = {1: ((0x2301, 0), (0x0001, 0x0000)), 2: ((0x6040, 0), (0x0080, 0x0000))}
+
+
+def _check_clear_method(report, records, meta):
+    """A clear-alarm record names one method throughout: request.json's clear_method, the plan's method, the
+    session context's method, the writes it kept and every download among its terminals. A record from before
+    protocol 10 names none and is not judged; a request that names one needs a plan that does too."""
+    parsed = [r for r in records if r.status == "parsed"]
+    plan = next((r for r in parsed if r.kind == "TRIAL_PLAN"), None)
+    requested = meta.get("clear_method")
+    if plan is None or "method" not in plan.values:
+        if requested is not None:
+            report.error("clear_method_missing", plan.number if plan else None, "request names %s" % requested)
+        return
+    method = plan.values["method"]
+    if method not in CLEAR_WRITES or (requested is not None and CLEAR_METHODS.get(requested) != method):
+        report.error("clear_method_differs", plan.number, "plan method %d, request %s" % (method, requested))
+        return
+    target, values = CLEAR_WRITES[method]
+    clear = next((r for r in parsed if r.kind == "TRIAL_CLEAR"), None)
+    # The context is this request's only when own=1; otherwise it and its steps are an earlier clear's.
+    own = clear is not None and clear.values["own"] == 1
+    if own and clear.values.get("method", method - 1) != method - 1:
+        report.error("clear_method_differs", clear.number, "context method %d" % clear.values["method"])
+    for step in (r for r in parsed if r.kind == "TRIAL_CLEAR_STEP"):
+        v = step.values
+        if own and v["present"] and v["slot"] < 2 and (tuple(v["object"]) != target or v["value"] != values[v["slot"]]):
+            report.error("clear_write_differs", step.number,
+                         "slot %d wrote %04x:%02x=%04x" % (v["slot"], v["object"][0], v["object"][1], v["value"]))
+    for result in (r for r in parsed if r.role == "terminal" and r.values.get("dir") == 1):
+        if tuple(result.values["object"]) != target:
+            report.error("clear_write_differs", result.number, "download of %04x:%02x" % tuple(result.values["object"]))
 
 
 def _check_velocity_target(report, summary, records):

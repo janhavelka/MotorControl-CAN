@@ -30,6 +30,11 @@ A ramp under 200 ms with it, or a rate over 6000, is refused here before anythin
 bench) explicitly covers the above-limit part of that campaign only. request.json's velocity_scope and the
 send entry record range_probe.
 
+clear-alarm (protocol 10) needs --method, never defaulted: 2301 writes 2301 1 then 0 (EN86 p18, EDS), and
+controlword writes 6040 0x0080 then 0x0000 (EN86/ZH86 p15, OP86 p13), each second value only after the first
+one's acknowledgement. The C line carries it as 1 or 2; the library's admission and completion are the same
+for both, and no other object or value is written. request.json's clear_method and the send entry record it.
+
 After a velocity record whose TRIAL_VELOCITY shows needs=1 (or fenced=1) and in which no stop left
 (TRIAL_STOP own=0 or exec=0, and no TRIAL_BEST_EFFORT with own=1 and a nonzero exec), the runner prints
 "ALERT: node N MAY BE RUNNING: no stop left; use the cutoff" to stderr at once, before the attendant's
@@ -157,7 +162,7 @@ TRIALS = {
     "io-di3": ("J", False, "packet 13 P2/P3"),
     # The session's two clears: counter zero moves the position reference, so both are motion class.
     "counter-zero": ("Z", True, "counter zero, 2302 0 1 0"),
-    "clear-alarm": ("C", True, "alarm clear, 2301 1 0"),
+    "clear-alarm": ("C", True, "alarm clear, 2301 1 0 or 6040 0080 0000"),
     # Prompt 35: one 6060=3 on a drive that reports itself released, then the library's finite velocity
     # run from released mode 3, with its own stop at the due time.
     "mode3": ("N", True, "prompt 35 released mode 3"),
@@ -185,8 +190,9 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
 # without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
 # the F route (gate Q03's 60FF probe), 9 the V line's last field, prompt 59's range probe, and the K route
-# (one 2201 write). Any other image would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 9
+# (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7). Any other image would
+# misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 10
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -198,6 +204,11 @@ ALWAYS_STOP_LETTERS = frozenset(TRIALS[command][0] for command in ALWAYS_STOP_RO
 LAYOUTS = {"en86": 1, "zh86": 2, "op86": 4}
 # Lichuan homing methods with an 86C sequence (EN86/ZH86 p13-15); numbers are profile-local.
 HOME_METHODS = (17, 18, 24, 29)
+# clear-alarm's reset method (protocol 10), as the C line numbers it: 2301 writes 2301 1 then 0 (EN86 p18, EDS);
+# controlword writes 6040 0x0080 then 0x0000 (EN86/ZH86 p15, OP86 p13). No default: every record names it.
+CLEAR_METHODS = {"2301": 1, "controlword": 2}
+CLEAR_METHOD_BYTES = {"2301": ("2B 01 23 00 01 00 00 00", "2B 01 23 00 00 00 00 00"),
+                      "controlword": ("2B 40 60 00 80 00 00 00", "2B 40 60 00 00 00 00 00")}
 # velocity-target's value (BenchRoute.cpp PROBE_VALUE): EN86/ZH86 p13's 0..3000 rpm, its negation, and 3001,
 # one above it, the range probe. No rate, unit or direction is claimed for any value.
 VELOCITY_TARGET_RANGE = (-3000, 3001)
@@ -381,9 +392,9 @@ def trial_line(args, parser):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
         fields.append(1 if args.range_probe else 0)  # Protocol 9: the line's last field.
     elif args.command == "home":
-        if args.method is None:
+        if args.method is None or args.method not in [str(m) for m in HOME_METHODS]:
             parser.error("--method is required for this route (%s)" % ", ".join(str(m) for m in HOME_METHODS))
-        fields += [1, args.method, _within(parser, "search-rpm", args.search_rpm, 1, 3000),
+        fields += [1, int(args.method), _within(parser, "search-rpm", args.search_rpm, 1, 3000),
                    _within(parser, "creep-rpm", args.creep_rpm, 1, 3000),
                    _within(parser, "ramp-ms", args.ramp_ms, 1, 2000),
                    _within(parser, "offset", args.offset, -1000000, 1000000)]
@@ -444,6 +455,11 @@ def trial_line(args, parser):
     elif args.command in ("counter-zero", "clear-alarm"):
         fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
                    _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
+        if args.command == "clear-alarm":
+            if args.method not in CLEAR_METHODS:
+                parser.error("--method is required for this route (%s): the reset it writes" %
+                             " or ".join(CLEAR_METHODS))
+            fields.append(CLEAR_METHODS[args.method])
     elif args.command == "released-quick":
         fields += [1, _within(parser, "cycles", args.cycles, 1, 16),
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
@@ -499,8 +515,10 @@ def trial_line(args, parser):
     if args.command != "velocity" and any(getattr(args, name) is not None for name in ("duration_ms", "layout")):
         parser.error("--duration-ms and --layout belong to velocity")
     if args.command != "home" and any(getattr(args, name) is not None for name in
-                                      ("method", "search_rpm", "creep_rpm", "ramp_ms", "offset")):
-        parser.error("--method, --search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
+                                      ("search_rpm", "creep_rpm", "ramp_ms", "offset")):
+        parser.error("--search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
+    if args.command not in ("home", "clear-alarm") and args.method is not None:
+        parser.error("--method belongs to home and clear-alarm")
     if args.command not in ("velocity-target", "subdivision") and args.value is not None:
         parser.error("--value belongs to velocity-target and subdivision")
     if args.command != "velocity" and args.range_probe:
@@ -714,6 +732,10 @@ def _send_problem(entry):
         return "line names another route, node or trial"
     if route in STOP_LETTERS and (fields[-5] != "0") != bool(stop):
         return "line's stop kind does not match stop %d" % stop
+    # Protocol 10 entries name the clear's method; earlier C lines had five fields and no method.
+    if route == "C" and "clear_method" in entry and \
+            (entry["clear_method"] not in CLEAR_METHODS or fields[5:] != [str(CLEAR_METHODS[entry["clear_method"]])]):
+        return "clear_method %r does not match the line's method field" % (entry["clear_method"],)
     return None
 
 
@@ -1242,6 +1264,10 @@ def dry_run(args, fields):
                       (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
             else:
                 print("  no range probe: the experiment's %d rpm cap" % VELOCITY_EXPERIMENT_RPM)
+        if args.command == "clear-alarm":
+            name = next(k for k, v in CLEAR_METHODS.items() if v == fields[5])
+            print("  clear method %s: after the library's admission, %s, then %s only after the first one's "
+                  "acknowledgement; no enable, 6060 or other write, no retry" % ((name,) + CLEAR_METHOD_BYTES[name]))
         if args.command == "subdivision":
             print("  prompt 59 Part 3, 2201: one fresh 2200/2201 read and a clean STATUS and MONITORS read that "
                   "must report released (2100 bit 4, no running or alarm); the library refuses before any write "
@@ -1297,8 +1323,11 @@ def arguments(argv):
     # Kept only to refuse them: the line has no such field, and no record measured either fact.
     velocity.add_argument("--start-qualified", help=argparse.SUPPRESS)
     velocity.add_argument("--stop-qualified", help=argparse.SUPPRESS)
-    home = parser.add_argument_group("home: the request the library refuses before any write")
-    home.add_argument("--method", type=int, choices=HOME_METHODS, help="Lichuan homing method")
+    home = parser.add_argument_group("home: the request the library refuses before any write; clear-alarm: "
+                                     "the reset it writes")
+    home.add_argument("--method", choices=[str(m) for m in HOME_METHODS] + sorted(CLEAR_METHODS),
+                      help="home: Lichuan homing method; clear-alarm: 2301 (2301 1, 0) or controlword (6040 "
+                           "0x0080, 0x0000), required, no default")
     home.add_argument("--search-rpm", type=int, help="6099:01 motor rpm, 1..3000")
     home.add_argument("--creep-rpm", type=int, help="6099:02 motor rpm, 1..3000")
     home.add_argument("--ramp-ms", type=int, help="609A ms, 1..2000")
@@ -1450,6 +1479,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                                       "maximum_duration_ms": VELOCITY_EXPERIMENT_DURATION_MS}
             if probe:
                 meta["velocity_scope"]["minimum_ramp_ms"] = VELOCITY_RANGE_PROBE_RAMP_MS
+        if args.command == "clear-alarm":
+            meta["clear_method"] = args.method
         if args.command == "enable":
             stop = getattr(args, "start_record", None)
             meta["enable_start"] = "RELEASED_BY_RECORDED_STOP" if stop else "NO_MOTION_WRITE_RECORDED"
@@ -1477,6 +1508,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
         if args.command == "velocity":
             entry["scope"] = VELOCITY_SCOPE
             entry["range_probe"] = bool(fields[-1])
+        if args.command == "clear-alarm":
+            entry["clear_method"] = args.method
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
         if args.waiver_covers_motion:

@@ -52,7 +52,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `T...` / `scripts/s2_bench.py --command readiness-actions` and the other routes | One named attended route, below |
 | `A` / `trial-abort` | Withdraw the active route locally; sends no stop |
 | `x` / `close-sessions` | Close the idle route sessions so that `K`, `H` and the raw and PDO experiments can reserve their nodes again in this boot (backlog S15); sends nothing, no stop or disable; drops only the latest controlwords, keeps every fence, trial identity and cap |
-| `N<node>,<o\|p\|s>` / `scripts/s2_pdo.py` | One addressed NMT Start, Enter Pre-operational or Stop through the owner; resets are not offered |
+| `N<node>,<o\|p\|s\|r\|c>` / `scripts/s2_pdo.py` | One addressed NMT Start, Enter Pre-operational or Stop through the owner; from PONG `pdo=5` also Reset Node (`r`, `81`) or Reset Communication (`c`, `82`), attended fault-recovery experiments only, which nothing else in the image sends |
 | `P<seconds>`, `P0` | Watch received frames for 1..600 s at the driver tap, or end the watch; sends nothing |
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
@@ -80,6 +80,7 @@ The `N`, `P`, `R`, `W` and `E` lines (`PdoCommand.h`) end with a line feed and u
 
 - **Watch** (`PdoWatch.h`): the TWAI tap copies every frame the adapter delivers into a 32-frame ring, without taking it from the owner, so the watch runs beside any record, NMT request or soak. SDO frames are only counted. Per ID it keeps count, gaps, mean and deviation, data changes and the last payload, and prints each frame as `PDOW_F` while the console has room. A frame's `hi` is the ISR clock sample at enqueue, an upper bound and never a bus timestamp, so gaps include ISR and service latency. `tapDropped` or `unprinted` above 0 qualifies the output. A watched frame is not a qualified PDO sample.
 - **NMT** (`N`): the owner admits one request at a time, with a 250 ms queue budget and a 5 s deadline; release its `NMT request` result with `r` before the next. TX completion is local evidence; the drive's state comes only from its heartbeat or from frames that follow. NMT Stop is not a motor stop, and in Stopped the owner refuses SDO until Pre-operational or Start.
+- **NMT resets** (`N<node>,r` and `N<node>,c`, PONG `pdo=5`, 2026-11-13): Reset Node and Reset Communication, admitted exactly as the other `N` commands and sent by no other path. They are attended fault-recovery experiments: a boot-up that follows invalidates every fact about the node (its route epoch, sessions, reservations and evidence), as an unsolicited boot-up does. `scripts/s2_pdo.py` refuses one unless a `P` watch was started before it in the plan and not ended, so that the boot-up frame (`0x700` + node, one byte `00`) is in the record if one follows; `analyze` reports it under `nmt_resets`. What either reset does to a drive alarm, its parameters or its CiA402 state is not documented for this drive and has not been measured.
 - **PDO record and write** (`R`, `W`): raw evidence experiments with one-use grants that follow the fixed experiments' grants on the same slot. Run `h`/`j` and `m` before them in a boot, or they refuse. `W` stays an isolated raw experiment; the supported event-timer change is `E`. A write changes only bit 31 of `:01`, or sets `:02` to 0..240, 254 or 255, or `:03`/`:05` to 0..65535. Each needs its PDO record read first, because an exact read of a different width would be aborted by the client and leave the node's route unresolved until an MCU restart. A write qualifies no sample and establishes no unit, persistence or drive effect.
 
 - **TPDO1 event timer** (`E`), host-tested and replayed once on node 2 in both directions (2026-11-06, [packet 7](../../docs/reports/bench_closure_18_33/packet_7.md#bench-replay-2026-11-06)): the profile's supported production transition, run by `PdoExperiment` through `prepareTpdo1Configuration` with an `EVENT_TIMER` request, `nextPdoConfiguration`, `notePdoConfigurationTransmission`, `advancePdoConfiguration` and `getTpdo1Configuration`. It writes only `1800:05`, from raw 100 to raw 0 or from raw 0 to raw 100, in qualified Pre-operational. It waits for a node heartbeat after its reservation, then makes nine exact baseline reads (`1800:01/02/03/05`, `1A00:00..04`), one acknowledged download (`2B 00 18 05 64 00 00 00` for 100, `2B 00 18 05 00 00 00 00` for 0) and the same nine reads again. The profile refuses before the write unless the drive is a CL86-C and the baseline is COB-ID `0x180+node` valid and standard, type 255, inhibit raw 100, count 3, `60410010 60610008 60640020 0` and the other literal; any other line value (200, 10 and so on) is refused by the parser. Scope is `FIXTURE_QUALIFIED` for these two specimens. Deadline 8 s; an admitted line sets the node's evidence age policy to 3 s for the rest of the boot, as `m` does, and a refused line leaves it as it was. It can repeat after `r`. Its nineteen grants come from the `R`/`W` sequence on that slot (above 10000), and grants on a slot only increase, so after any `R`, `W` or `E` on a node these fixed-grant commands fail at their first grant on that node until the next MCU boot, with nothing sent (an `AUTHORIZATION` record, or an interrupted typed read for `1`/`2`): `1`/`2` (typed identity, grants from 1), `3`/`4` (1000), `h`/`j` (2000), `m` (3000, node 1) and `v`/`b` (4000). Run them first. A failure ends the record with the confirmed, first-effect and failed step and any uncertainty; nothing is rolled back or retried, and a restoration is a separate `E` line after a known outcome. An unresolved route is refused at the next reservation. The node's own TPDO1 route, if one is installed, is withdrawn before the write and again after the epoch advance, and the readback starts after that boundary, so the confirmed readback can be installed later. The values are raw: on these specimens raw 100 gave periods of about 101 ms on the S2's clock while Operational, and raw 0 sent no periodic frame while stationary; no unit, zero meaning or persistence is claimed. A confirmed change qualifies no PDO sample.
@@ -295,7 +296,8 @@ enable and stop, the isolated packet 19 position and packet 21 relative experime
 a named predecessor, the packet 20 move (absolute, or relative on a measured base, optionally with
 the other node observed), the `000B` and words `0006`/`0007` on an evidenced released drive (packets
 16 and 15), the `2202` and DI3 settings transactions (packets 12 and 13), the session's counter
-zero and alarm clear, and for prompts 35 and 36 one `6060:00=3` on a drive that reports itself
+zero and alarm clear (from protocol 10 the `TC` line names its reset, `2301` 1 then 0 or `6040` `0080` then
+`0000`), and for prompts 35 and 36 one `6060:00=3` on a drive that reports itself
 released (`mode3`), the session's finite velocity run from released mode 3 with its own stop at the
 due time (`velocity`, the library's attended experiment scope, which claims no start or stop
 qualification, with the rest of its evidence from the host's line only), the reads `requestHome` consumes with
@@ -311,7 +313,7 @@ the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=9` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` gains `routes=10` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
 with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
@@ -333,7 +335,8 @@ application, owner, service store and `DeviceEvidence`, wired as `EspProbeMain.c
 firmware turn and every bench record's, before input. It adds no receiver, sender, retry or recovery, and nothing runs
 before the first `o` or `@` byte: until then the image is byte for byte the bench image above, and `scripts/s2_bench.py`
 never sends either byte. The arming lines below came as new route letters in protocol 8, with no earlier line
-changed; protocol 9 (`PONG routes=9`) changed only the `TV` line and added `TK`.
+changed; protocol 9 changed only the `TV` line and added `TK`, and protocol 10 (`PONG routes=10`) only the `TC`
+line, which names its reset method.
 
 **Allocation.** The console is three blocks from internal heap, allocated on the first `o` or `@` and never freed, like
 the soak, watch and capture: `ProbeConsole` 6744, `ProbeDevice` 6664 and the rest 2672 bytes on the S2 (pinned

@@ -226,6 +226,17 @@ void testParse() {
           p.stopKind == 1 && p.stopAfter == 4 && p.stopDeadlineMs == 2000 && p.stopIntervalMs == 100);
     const std::string quiet = "P1,9,1,0,16,1,1000,1000,8,250,0,0,0,0,0";
     CHECK(E::parseRouteCommand(quiet.data(), quiet.size(), p) && !p.stopKind);
+    // Protocol 10: the C line names its reset method, 1 for 2301 and 2 for 6040 bit 7, and Z keeps five fields.
+    CHECK(E::parseRouteCommand("C2,10,1,3000,500,1", 18, p) && p.kind == E::RouteKind::CLEAR_ALARM && p.node == 2 &&
+          p.deadlineMs == 3000 && p.intervalMs == 500 && p.clearMethod == 1);
+    CHECK(E::parseRouteCommand("C1,11,1,3000,500,2", 18, p) && p.kind == E::RouteKind::CLEAR_ALARM && p.clearMethod == 2);
+    CHECK(E::parseRouteCommand("Z1,12,1,3000,500", 16, p) && p.kind == E::RouteKind::COUNTER_ZERO && p.clearMethod == 0);
+    const char* const clears[] = {"C1,10,1,3000,500", "C1,10,1,3000,500,0", "C1,10,1,3000,500,3",
+                                  "C1,10,1,3000,500,1,", "C1,10,1,3000,500,-1", "Z1,12,1,3000,500,1"};
+    for (const char* text : clears) {
+        E::RoutePlan untouched;
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched) && untouched.kind == E::RouteKind::NONE);
+    }
     const char* const bad[] = {"", "A", "A1", "A1,", "A0,5", "A3,5", "A1,0", "A1,5,", "A1,5,1", "X1,5",
                                "a1,5", "A1, 5", "A+1,5", "A1,-5", "A1,99999999999", "A1,4294967296",
                                "M1,6,1,0,250", "M1,6,1,11,250", "M1,6,1,3,99", "M1,6,2,3,250", "M1,6,1,3",
@@ -2970,11 +2981,11 @@ void testClearAlarm() {
     uint32_t trial = 0;
     // As for an enable, the session's ordinary writes need service qualification: an earlier route's
     // bounded reply gives it, and without one the clear is refused before anything is sent.
-    CHECK(std::strcmp(r->start("C1," + id(trial) + ",1,3000,500"), "eligibility") == 0);
+    CHECK(std::strcmp(r->start("C1," + id(trial) + ",1,3000,500,1"), "eligibility") == 0);
     CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
     r->release();
     // No alarm reported: refused before the library is asked, nothing written.
-    const E::RouteRecord& none = r->run("C1," + id(trial) + ",1,3000,500");
+    const E::RouteRecord& none = r->run("C1," + id(trial) + ",1,3000,500,1");
     CHECK(none.failure == E::RouteFailure::PREREQUISITE && std::strcmp(none.why, "no-alarm") == 0 &&
           r->downloadsFrom(0) == 0 && !none.clearRequested);
     r->release();
@@ -2982,7 +2993,7 @@ void testClearAlarm() {
     d.errorCode = 0xff05;
     d.errorRegister = 0x01;
     const size_t first = r->driver.requests.size();
-    const E::RouteRecord& c = r->run("C1," + id(trial) + ",1,3000,500");
+    const E::RouteRecord& c = r->run("C1," + id(trial) + ",1,3000,500,1");
     if (c.failure != E::RouteFailure::NONE)
         std::fprintf(stderr, "%s", r->dump().c_str());
     CHECK(c.failure == E::RouteFailure::NONE && c.clearRequested && c.checkPassed && c.motionTotal == 2);
@@ -2995,49 +3006,68 @@ void testClearAlarm() {
           has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 "));
     CHECK(has(text, "TRIAL_BASELINE present=0 "));
     r->release();
-    // Mode 3, as node 1 read it after FF05 on 2026-11-13 (trials 5203, 5210): 2100=001D, the latched
-    // release, with 606C 0. The route's read takes FEEDBACK, so the library admits it; the writes stay
-    // 2301 1, then 0, with no enable, controlword or mode write. The latch may stay after the clear.
+    // Mode 3, as node 1 read it after FF05 on 2026-11-13 (trials 5203, 5210, 5323): 2100=001D, the latched
+    // release, 6041=C018, with 606C 0. The route's read takes FEEDBACK, so the library admits it. Method 1
+    // writes 2301 1, then 0; method 2 writes 6040 0x0080, then 0x0000; neither writes anything else. This
+    // fake then reports what trial 5323 read after its 2301 clear, 2100=0001 and 6041=8010, which completes
+    // the attempt under either method; no controlword reset has run on a specimen.
     scenario = "clear-alarm-mode3";
     const Address alarmRead[] = {{0x1001, 0}, {0x603f, 0}, {0x1003, 0}, {0x2100, 0}, {0x2101, 0},
                                  {0x2102, 0}, {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}};
     const uint8_t one[8] = {0x2b, 0x01, 0x23, 0, 1, 0, 0, 0}, zero[8] = {0x2b, 0x01, 0x23, 0, 0, 0, 0, 0};
-    for (unsigned spinning = 0; spinning < 2; ++spinning) {
-        std::unique_ptr<Rig> m(new Rig);
-        Drive& t = m->driver.drives[0];
-        t.mode = 3;
-        t.monitor = 0x001d;
-        t.errorCode = 0xff05;
-        t.errorRegister = 0x81;
-        t.position = 5497761;
-        t.velocity = spinning ? 4 : 0;
-        trial = 0;
-        CHECK(m->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
-        m->release();
-        size_t at = m->driver.requests.size();
-        const E::RouteRecord& x = m->run("C1," + id(trial) + ",1,3000,500");
-        expectUploads(*m, at, 1, alarmRead, unsigned(sizeof alarmRead / sizeof alarmRead[0]));
-        std::string text = m->dump();
-        CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=81 603f=ff05 2100=001d "));
-        if (spinning) {
-            // 606C nonzero beside running is not the latched release: the library refuses, nothing is sent.
-            CHECK(x.failure == E::RouteFailure::REFUSED && std::strcmp(x.why, "clear") == 0 && x.statusPresent &&
-                  !x.clearRequested);
-            CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x001d);
-            continue;
+    const uint8_t reset[8] = {0x2b, 0x40, 0x60, 0, 0x80, 0, 0, 0}, word0[8] = {0x2b, 0x40, 0x60, 0, 0, 0, 0, 0};
+    for (unsigned method = 1; method <= 2; ++method)
+        for (unsigned spinning = 0; spinning < 2; ++spinning) {
+            std::unique_ptr<Rig> m(new Rig);
+            Drive& t = m->driver.drives[0];
+            t.mode = 3;
+            t.monitor = 0x001d;
+            t.status = 0xc018;
+            t.errorCode = 0xff05;
+            t.errorRegister = 0x81;
+            t.position = 5497761;
+            t.velocity = spinning ? 4 : 0;
+            t.resetBit7 = method == 2;
+            t.monitorAfterReset = 0x0001;
+            t.statusAfterReset = 0x8010;
+            trial = 0;
+            CHECK(m->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+            m->release();
+            size_t at = m->driver.requests.size();
+            const E::RouteRecord& x = m->run("C1," + id(trial) + ",1,3000,500," + std::to_string(method));
+            expectUploads(*m, at, 1, alarmRead, unsigned(sizeof alarmRead / sizeof alarmRead[0]));
+            std::string text = m->dump();
+            CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=81 603f=ff05 2100=001d 6041=c018 "));
+            CHECK(has(text, method == 1 ? " interval=500 method=1\n" : " interval=500 method=2\n"));
+            if (spinning) {
+                // 606C nonzero beside running is not the latched release: the library refuses, nothing is sent.
+                CHECK(x.failure == E::RouteFailure::REFUSED && std::strcmp(x.why, "clear") == 0 && x.statusPresent &&
+                      !x.clearRequested);
+                CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x001d);
+                continue;
+            }
+            if (x.failure != E::RouteFailure::NONE)
+                std::fprintf(stderr, "%s", text.c_str());
+            CHECK(x.failure == E::RouteFailure::NONE && x.clearRequested && x.checkPassed && x.motionTotal == 1);
+            if (method == 1)
+                CHECK(download(m->driver.requests[at++], 1, one) && download(m->driver.requests[at++], 1, zero));
+            else
+                CHECK(download(m->driver.requests[at++], 1, reset) && download(m->driver.requests[at++], 1, word0));
+            CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x0001 && t.status == 0x8010 && t.mode == 3);
+            const L::ActionContext& a = m->one.clearAction();
+            CHECK(a.state == M::ActionState::SUCCEEDED && a.incident.modeRaw == 3 && a.incident.monitor == 0x001d &&
+                  a.incident.statusword == 0xc018 && a.monitorObservation.monitor == 0x0001 &&
+                  a.statusObservation.statusword == 0x8010 && !m->one.clearBlocked());
+            CHECK(a.clearMethod == (method == 1 ? L::AlarmClearMethod::OBJECT_2301 : L::AlarmClearMethod::CONTROLWORD_BIT7));
+            CHECK(has(text, "TRIAL_INCIDENT present=1 1001=81 603f=ff05 count=0 2100=001d "));
+            CHECK(has(text, method == 1 ? " blocked=0 method=0\n" : " blocked=0 method=1\n"));
+            if (method == 1)
+                CHECK(has(text, "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 ") &&
+                      has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 "));
+            else
+                CHECK(has(text, "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 ") &&
+                      has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 "));
         }
-        if (x.failure != E::RouteFailure::NONE)
-            std::fprintf(stderr, "%s", text.c_str());
-        CHECK(x.failure == E::RouteFailure::NONE && x.clearRequested && x.checkPassed && x.motionTotal == 1);
-        CHECK(download(m->driver.requests[at++], 1, one) && download(m->driver.requests[at++], 1, zero));
-        CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x0015 && t.mode == 3);
-        const L::ActionContext& a = m->one.clearAction();
-        CHECK(a.state == M::ActionState::SUCCEEDED && a.incident.modeRaw == 3 && a.incident.monitor == 0x001d &&
-              a.monitorObservation.monitor == 0x0015 && !m->one.clearBlocked());
-        CHECK(has(text, "TRIAL_INCIDENT present=1 1001=81 603f=ff05 count=0 2100=001d "));
-        CHECK(has(text, "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 ") &&
-              has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 "));
-    }
     // An EMCY during the clear withdraws it with DRIVE_FAULT; nothing more is written.
     scenario = "clear-alarm-emcy";
     std::unique_ptr<Rig> e(new Rig);
@@ -3051,7 +3081,7 @@ void testClearAlarm() {
     CHECK(e->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
     e->release();
     const size_t sent = e->driver.requests.size();
-    CHECK(!e->start("C1," + id(trial) + ",1,3000,500"));
+    CHECK(!e->start("C1," + id(trial) + ",1,3000,500,1"));
     for (unsigned i = 0; i < 40000 && e->downloadsFrom(sent) < 1; ++i)
         e->turn();
     M::Frame emcy = frame(0x81, 8);
@@ -5434,10 +5464,29 @@ void writeTranscript(const char* path, bool all) {
     alarmed.mode = 1;
     alarmed.monitor = uint16_t(1 | L::MONITOR_ALARM);
     alarmed.errorCode = 0xff05;
-    const std::string clear = "C1," + id(trial) + ",1,3000,500";
+    const std::string clear = "C1," + id(trial) + ",1,3000,500,1";
     CHECK(c->run(clear).failure == E::RouteFailure::NONE);
     append(*c, clear);
     if (all) {
+        // Protocol 10: the controlword method's clear in mode 3, on a fake that reports what trial 5323 read
+        // after its 2301 clear. Its two downloads are 6040 0x0080 and 0x0000.
+        std::unique_ptr<Rig> w(new Rig);
+        Drive& reset = w->driver.drives[0];
+        reset.mode = 3;
+        reset.monitor = 0x001d;
+        reset.status = 0xc018;
+        reset.errorCode = 0xff05;
+        reset.errorRegister = 0x81;
+        reset.resetBit7 = true;
+        reset.monitorAfterReset = 0x0001;
+        reset.statusAfterReset = 0x8010;
+        trial = 0;
+        CHECK(w->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+        w->turns(5);
+        w->route.release();
+        const std::string word = "C1," + id(trial) + ",1,3000,500,2";
+        CHECK(w->run(word).failure == E::RouteFailure::NONE);
+        append(*w, word);
         // Prompts 35 and 36, in the procedure's order on a fake of its own: after a quick stop from the
         // enable's 000F, HOME refused before any write, MODE_THREE, VELOCITY to its own HALT; then a
         // velocity the library refuses for the host's closed start flag.

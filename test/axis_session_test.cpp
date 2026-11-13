@@ -3525,7 +3525,9 @@ struct ClearRun {
     ConfigurationWatch watch;
     unsigned from = 0;
     uint64_t deadline = 0;
-    explicit ClearRun(bool counterClear, uint64_t window = 4000, uint64_t interval = 10) : counter(counterClear) {
+    explicit ClearRun(bool counterClear, uint64_t window = 4000, uint64_t interval = 10,
+                      L::AlarmClearMethod method = L::AlarmClearMethod::OBJECT_2301)
+        : counter(counterClear) {
         openAxis(r, r.a);
         r.drive[0].monitor = counter ? 0 : 8; // Idle; the alarm clear needs the alarm bit.
         readState(r, r.a, state, 1, counter ? COUNTER_STATE : ALARM_STATE);
@@ -3550,7 +3552,7 @@ struct ClearRun {
         deadline = r.now + window;
         const M::Status requested =
             counter ? r.a.requestCounterZero(state, 0, axis, reference, clearOptions(interval), deadline, r.now)
-                    : r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now);
+                    : r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now, method);
         CHECK(requested.isOk() && r.a.clearActive() && r.a.busy());
         CHECK(r.wire.sentCount == from); // A request yields no traffic.
     }
@@ -3657,6 +3659,39 @@ void clearAlarmThroughSession() {
         session.unchanged(r.a);
         quiet(r);
     }
+}
+// The controlword method through the session: 6040 U16 0x0080, then 0x0000, each written once through
+// the same admission and notices as the 2301 writes, then the same cycles and one ERRORS read. Each
+// acknowledged word becomes the session's latest controlword like any other, so 0x0000 is the latest at
+// the end, and no stop may follow it. This fake acknowledges both words and changes nothing for them.
+void clearAlarmByControlwordThroughSession() {
+    ClearRun run(false, 4000, 10, L::AlarmClearMethod::CONTROLWORD_BIT7);
+    Rig& r = run.r;
+    const L::ActionContext& clear = run.action();
+    CHECK(clear.actionKind == M::ActionKind::CLEAR_ALARM &&
+          clear.clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7 && clear.incident.present &&
+          clear.incident.monitor == 8 && !r.a.latestControl());
+    for (unsigned i = 0; i < 40 && clear.commandEvidenceMask != 3; ++i)
+        r.step();
+    CHECK(isClearWrite(r, run.from, 0x6040, 0x0080) && isClearWrite(r, run.from + 1, 0x6040, 0));
+    CHECK(clear.commandHistory[0].outcome == C::SdoOutcome::SUCCESS &&
+          clear.commandHistory[1].outcome == C::SdoOutcome::SUCCESS);
+    r.drive[0].monitor = 0;
+    finishClear(r, r.a);
+    CHECK(clear.state == M::ActionState::SUCCEEDED && clear.outcome == M::ActionOutcome::OBSERVED &&
+          clear.execution == M::ActionExecution::ACKNOWLEDGED && !clear.valueOneMayRemain && !r.a.clearBlocked());
+    CHECK(uploads(r, run.from, 0x1001) == 1 && uploads(r, run.from, 0x603f) == 1 && uploads(r, run.from, 0x1003) == 0);
+    const uint16_t words[] = {0x0080, 0x0000};
+    onlyClearTraffic(r, run.from, 0x6040, words, 2);
+    const C::SdoCompletion* latest = r.a.latestControl();
+    CHECK(latest && latest->outcome == C::SdoOutcome::SUCCESS && latest->transfer.index == 0x6040 &&
+          latest->transfer.data[0] == 0 && latest->transfer.data[1] == 0 &&
+          latest->transfer.operation == clear.operation);
+    CHECK(!L::stopPredecessorAllowed(0, L::StopKind::HALT) && !L::stopPredecessorAllowed(0, L::StopKind::QUICK_STOP));
+    // Nothing follows a clear: this session wrote, so an enable is refused.
+    const M::Status enable = r.a.requestEnable(run.state, L::EnableEvidence(), clearOptions(), r.now + 1000, r.now);
+    CHECK(!enable && enable.detail == int32_t(M::ActionError::STATE) && r.a.motionHistoryWritten());
+    quiet(r);
 }
 void counterZeroThroughSession() {
     ClearRun run(true);
@@ -4161,6 +4196,7 @@ void allScenarios() {
     RUN(ownerRefusalKeepsRetainedStop);
     RUN(waitingStopEnds);
     RUN(clearAlarmThroughSession);
+    RUN(clearAlarmByControlwordThroughSession);
     RUN(counterZeroThroughSession);
     RUN(counterZeroRefusesNonzero);
     RUN(clearRefusalsChangeNothing);

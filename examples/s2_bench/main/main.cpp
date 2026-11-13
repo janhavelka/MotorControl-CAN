@@ -59,7 +59,7 @@ void formatLine(char* output, size_t capacity, const char* pattern, ...) {
 // Output is copied once into the ordinary bounded platform queue; CAN service never
 // waits for serial output. A one-shot response that does not fit waits here, and no
 // further command is taken until it has gone, so a response is not silently lost.
-// 320 bytes: PONG with every field at its widest is 300 with its newline (scripts/s2_pdo_test.py).
+// 320 bytes: PONG with every field at its widest is 301 with its newline (scripts/s2_pdo_test.py).
 DRAM_ATTR char retainedResponse[320];
 size_t retainedSize = 0;
 bool written(E::FirmwareProbe& firmware, const char* text, size_t size) {
@@ -620,7 +620,8 @@ E::PdoWatch* watchStorage(E::FirmwareProbe& firmware, E::SoakTwaiTap& tap) {
     watch = new (memory) E::PdoWatch(tap, output);
     return watch;
 }
-// One addressed NMT request: q and w send Pre-operational, an N line any of its three commands.
+// One addressed NMT request: q and w send Pre-operational, an N line any of its five commands. Reset
+// Node and Reset Communication come only from an N line (pdo=5); nothing else here sends either.
 bool admitNmt(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned slot,
               C::NmtCommand command, uint32_t id, C::NmtRequestId& output, uint64_t& admittedUs) {
     const auto* node = services.node(slot);
@@ -979,7 +980,8 @@ void ownerTask(void*) {
     // settings routes and the move's observer node (5), then the N, V and O routes of prompts 35 and
     // 36 (6), then the V line without the host's start and stop flags, run as the library's attended
     // experiment (7), then the F route, gate Q03's one 60FF write and readback on a released drive (8),
-    // then prompt 59's range-probe field at the end of the V line and the K route, one 2201 write (9).
+    // then prompt 59's range-probe field at the end of the V line and the K route, one 2201 write (9),
+    // then the C line's reset method at its end, 2301 or 6040 bit 7 (10).
     E::BenchRoute* route = nullptr;
     // The arena's current occupant, refreshed each turn and after each acquisition. D and K never
     // download, so the dispatcher below asks only for the raw, PDO and H collectors: a download of
@@ -1890,7 +1892,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=9 trial=%u motion=%u pdo=4 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=10 trial=%u motion=%u pdo=5 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

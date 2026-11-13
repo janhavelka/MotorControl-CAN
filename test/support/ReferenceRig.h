@@ -82,7 +82,10 @@ struct Wire : OwnerRig::WireBase {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
         if (!w.action || work.operation != w.action->operation)
             return true;
-        CHECK(w.reservation && w.current && (work.index == 0x2301 || work.index == 0x2302));
+        // The alarm clear's controlword method writes 6040 0x0080 and 0x0000; nothing else writes 6040.
+        CHECK(w.reservation && w.current &&
+              (work.index == 0x2301 || work.index == 0x2302 ||
+               (work.index == 0x6040 && w.action->clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7)));
         ++w.notices;
         if (work.index == 0x2302) {
             CHECK(w.axis && w.reference);
@@ -161,6 +164,12 @@ struct Rig {
     int32_t feedbackPosition = 123; ///< 6064 the fake drive reports to prerequisite reads.
     int32_t feedbackVelocity = 0;   ///< 606C the fake drive reports to every read.
     uint8_t errorRegister = 1;      ///< 1001 reported with a nonzero 603F.
+    /** 6041 the fake drive reports to every read. All bits set by default: no low-bit pattern or dialect
+     * bit decides a mode 1 clear or a counter zero. A mode 3 clear completes only with low bits 000 and
+     * bits 3 and 7 clear, so its tests set what node 1 read (C018 alarmed, 8010 after the clear). */
+    uint16_t statusword = 0xffff;
+    /** prepare's alarm clear method; commands() writes that method's two values. */
+    L::AlarmClearMethod clearMethod = L::AlarmClearMethod::OBJECT_2301;
     // A second node on the same interface, for fault isolation.
     O::SequenceId sequence2;
     L::AxisReservation reservation2;
@@ -298,7 +307,7 @@ struct Rig {
         case 0x603f:
             return error;
         case 0x6041:
-            return 0xffff; // Conflicting statusword dialect never decides success.
+            return statusword;
         case 0x6061:
             return mode;
         case 0x6064:
@@ -336,7 +345,7 @@ struct Rig {
                                               deadline, policy()));
         else
             CHECK(L::prepareClearAlarm(action, reservation, state, operation, now, deadline,
-                                       policy()));
+                                       policy(), clearMethod));
         wire.action = &action;
     }
     L::PreparedAction next(const L::ActionContext& action) {
@@ -392,6 +401,9 @@ struct Rig {
             command(action, 0x2302, 1);
             command(action, 0x2302, 0);
             synchronize();
+        } else if (clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7) {
+            command(action, 0x6040, 0x0080);
+            command(action, 0x6040, 0x0000);
         } else {
             command(action, 0x2301, 1);
             command(action, 0x2301, 0);

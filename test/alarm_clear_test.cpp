@@ -19,12 +19,22 @@ namespace {
 // Rig::addSecondNode binds node 2 on slot 1; that needs a capacity set with two channels.
 constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
 const uint16_t CLEAR = 0x2301;
+const uint16_t CONTROL = 0x6040;
 const uint16_t ALARM = L::MONITOR_ALARM;
+const L::AlarmClearMethod METHODS[] = {L::AlarmClearMethod::OBJECT_2301,
+                                       L::AlarmClearMethod::CONTROLWORD_BIT7};
+// The one object a method writes.
+uint16_t written(L::AlarmClearMethod method) {
+    return method == L::AlarmClearMethod::CONTROLWORD_BIT7 ? CONTROL : CLEAR;
+}
+// 6041 as node 1 reported it on 2026-11-13: C018 with the FF05 alarm (bit 3 set, low bits 000), 8010 after
+// the 2301 clear (trial 5323), and 8050, the 0x50 pattern of every measured release.
+const uint16_t ALARMED_STATUS = 0xc018, CLEARED_STATUS = 0x8010, RELEASED_STATUS = 0x8050;
 
 M::Status attempt(Rig& r, L::ActionContext& action) {
     r.begin();
     return L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now, r.deadline,
-                                r.policy());
+                                r.policy(), r.clearMethod);
 }
 // Poll a persisting alarm for `cycles` complete cycles, then let the deadline end the attempt.
 void persistUntilDeadline(Rig& r, L::ActionContext& action, unsigned cycles) {
@@ -109,7 +119,8 @@ void admissionScope() {
 // run and then read 2100=001D (in place, running, alarm, released), 6041=C018 and 606C 0, which the
 // mode 1 rule refused. Admitted released, with running clear, or running set as that latched
 // release with 606C zero in the same read's FEEDBACK block. The writes, the cycles and the final
-// read are as in mode 1.
+// read are as in mode 1; completion needs 6041 low bits 000 and its alarm bits clear, the release
+// either way, as trial 5323 reported after the 2301 clear (2100=0001, 6041=8010).
 const uint16_t IN_PLACE = L::MONITOR_POSITION_COMPLETE;
 const uint16_t RELEASED = L::MONITOR_RELEASED;
 const uint16_t LATCH = L::MONITOR_RUNNING;
@@ -118,45 +129,54 @@ const uint16_t LATCHED_ALARM = uint16_t(IN_PLACE | LATCH | ALARM | RELEASED);
 void modeThreeAdmission() {
     CHECK(RELEASED_ALARM == 0x0019 && LATCHED_ALARM == 0x001d);
     struct Admitted {
-        uint16_t monitor, after;
+        uint16_t monitor, after, status;
         uint8_t mask;
     };
-    // The latch may stay after the alarm clears, or clear with it.
-    const Admitted admitted[] = {{RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x1f},
-                                 {RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x0f},
-                                 {LATCHED_ALARM, uint16_t(IN_PLACE | LATCH | RELEASED), 0x1f},
-                                 {LATCHED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x1f}};
-    for (const Admitted& item : admitted) {
-        Rig r;
-        r.errorRegister = 0x81; // As node 1 read it.
-        r.acquire(item.monitor, 3, 0xff05, item.mask);
-        L::ActionContext action;
-        r.prepare(action, false);
-        const L::AlarmIncident& incident = action.incident;
-        CHECK(incident.present && incident.codeLink == L::AlarmCodeLink::UNRESOLVED &&
-              incident.modeRaw == 3 && incident.monitor == item.monitor &&
-              incident.errorCode == 0xff05 && incident.errorRegister == 0x81);
-        CHECK(action.actionKind == M::ActionKind::CLEAR_ALARM &&
-              action.phase == L::ActionPhase::COMMAND && !action.valueOneMayRemain &&
-              !action.coordinatesInvalidated);
-        const Saved<L::AlarmIncident> kept(action.incident);
-        const unsigned from = r.wire.sentCount;
-        r.commands(action, false); // 2B 01 23 00 01 00 00 00, then 2B 01 23 00 00 00 00 00.
-        r.cycle(action, item.after, 0, 0xff05, 3);
-        CHECK(action.state == M::ActionState::SUCCEEDED &&
-              action.outcome == M::ActionOutcome::OBSERVED &&
-              action.completion == M::ActionCompletion::OBSERVED && !action.valueOneMayRemain);
-        CHECK(action.monitorObservation.monitor == item.after &&
-              action.statusObservation.modeRaw == 3 && action.observations == 1);
-        CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
-              action.extraObservation.errorCode == 0xff05);
-        // Only the two 2301 writes: no 6040, 6060, target or any other download. The cycles read
-        // MONITORS and STATUS, then ERRORS once; never FEEDBACK or the history.
-        r.onlyActionTraffic(from, CLEAR, 2);
-        CHECK(r.uploadsOf(from, 0x6064) == 0 && r.uploadsOf(from, 0x606c) == 0 &&
-              r.uploadsOf(from, 0x1003) == 0 && r.uploadsOf(from, 0x603f) == 1);
-        kept.unchanged(action.incident);
-    }
+    // The latch clears with the alarm, and the release may stay or go.
+    const Admitted admitted[] = {{RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), RELEASED_STATUS, 0x1f},
+                                 {RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), RELEASED_STATUS, 0x0f},
+                                 {RELEASED_ALARM, IN_PLACE, CLEARED_STATUS, 0x0f},
+                                 {LATCHED_ALARM, uint16_t(IN_PLACE | RELEASED), RELEASED_STATUS, 0x1f},
+                                 {LATCHED_ALARM, IN_PLACE, CLEARED_STATUS, 0x1f}}; // Trial 5323.
+    for (L::AlarmClearMethod method : METHODS)
+        for (const Admitted& item : admitted) {
+            Rig r;
+            r.clearMethod = method;
+            r.errorRegister = 0x81; // As node 1 read it.
+            r.statusword = ALARMED_STATUS;
+            r.acquire(item.monitor, 3, 0xff05, item.mask);
+            L::ActionContext action;
+            r.prepare(action, false);
+            const L::AlarmIncident& incident = action.incident;
+            CHECK(incident.present && incident.codeLink == L::AlarmCodeLink::UNRESOLVED &&
+                  incident.modeRaw == 3 && incident.monitor == item.monitor &&
+                  incident.errorCode == 0xff05 && incident.errorRegister == 0x81 &&
+                  incident.statusword == ALARMED_STATUS);
+            CHECK(action.actionKind == M::ActionKind::CLEAR_ALARM && action.clearMethod == method &&
+                  action.phase == L::ActionPhase::COMMAND && !action.valueOneMayRemain &&
+                  !action.coordinatesInvalidated);
+            const Saved<L::AlarmIncident> kept(action.incident);
+            const unsigned from = r.wire.sentCount;
+            // 2B 01 23 00 01 00 00 00, then 2B 01 23 00 00 00 00 00; or 2B 40 60 00 80 00 00 00, then
+            // 2B 40 60 00 00 00 00 00 (Rig::command compares the bytes).
+            r.commands(action, false);
+            r.statusword = item.status;
+            r.cycle(action, item.after, 0, 0xff05, 3);
+            CHECK(action.state == M::ActionState::SUCCEEDED &&
+                  action.outcome == M::ActionOutcome::OBSERVED &&
+                  action.completion == M::ActionCompletion::OBSERVED && !action.valueOneMayRemain);
+            CHECK(action.monitorObservation.monitor == item.after &&
+                  action.statusObservation.statusword == item.status &&
+                  action.statusObservation.modeRaw == 3 && action.observations == 1);
+            CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
+                  action.extraObservation.errorCode == 0xff05);
+            // Only the method's two writes: no 6060, target or any other download, and for 2301 no 6040.
+            // The cycles read MONITORS and STATUS, then ERRORS once; never FEEDBACK or the history.
+            r.onlyActionTraffic(from, written(method), 2);
+            CHECK(r.uploadsOf(from, 0x6064) == 0 && r.uploadsOf(from, 0x606c) == 0 &&
+                  r.uploadsOf(from, 0x1003) == 0 && r.uploadsOf(from, 0x603f) == 1);
+            kept.unchanged(action.incident);
+        }
     struct Refused {
         uint16_t monitor;
         uint8_t mode, mask;
@@ -179,87 +199,264 @@ void modeThreeAdmission() {
         {RELEASED_ALARM, 2, 0x1f, 0},
         {RELEASED_ALARM, 0x83, 0x1f, 0}, // The complete byte decides, not its low bits.
     };
-    for (const Refused& item : refused) {
-        Rig r;
-        r.feedbackVelocity = item.velocity;
-        r.acquire(item.monitor, item.mode, 0xff05, item.mask);
-        const unsigned from = r.wire.sentCount;
-        L::ActionContext action;
-        const Saved<L::ActionContext> empty(action);
-        const M::Status status = attempt(r, action);
-        CHECK(!status && status.detail == int32_t(M::ActionError::STATE));
-        empty.unchanged(action);
-        CHECK(r.wire.sentCount == from);
-    }
+    // Either method is refused alike: the method changes the writes, never the admission.
+    for (L::AlarmClearMethod method : METHODS)
+        for (const Refused& item : refused) {
+            Rig r;
+            r.clearMethod = method;
+            r.feedbackVelocity = item.velocity;
+            r.acquire(item.monitor, item.mode, 0xff05, item.mask);
+            const unsigned from = r.wire.sentCount;
+            L::ActionContext action;
+            const Saved<L::ActionContext> empty(action);
+            const M::Status status = attempt(r, action);
+            CHECK(!status && status.detail == int32_t(M::ActionError::STATE));
+            empty.unchanged(action);
+            CHECK(r.wire.sentCount == from);
+        }
     // Any other code is refused in mode 3 too.
     const uint16_t codes[] = {0, 0xff01, 0xff04};
-    for (uint16_t code : codes) {
-        Rig r;
-        r.acquire(LATCHED_ALARM, 3, code);
-        L::ActionContext action;
-        const Saved<L::ActionContext> empty(action);
-        CHECK(!attempt(r, action));
-        empty.unchanged(action);
-    }
+    for (L::AlarmClearMethod method : METHODS)
+        for (uint16_t code : codes) {
+            Rig r;
+            r.clearMethod = method;
+            r.acquire(LATCHED_ALARM, 3, code);
+            L::ActionContext action;
+            const Saved<L::ActionContext> empty(action);
+            CHECK(!attempt(r, action));
+            empty.unchanged(action);
+        }
 }
 
-// Completion needs the admission's mode: after a mode 3 admission every cycle must read mode 3 and
-// released, and running only as the latch the admission read. Anything else ends the attempt
-// OBSERVATION_SCOPE, even with the alarm reported clear: no final ERRORS read, no further write.
-// A mode 1 admission is held to mode 1 in the same way.
+// Completion needs the admission's mode. After a mode 3 admission every cycle must read mode 3 and 6041
+// low bits 000; while the alarm is reported, released too, and running only as the latch the admission
+// read; once it is not, running clear, the release either way. Anything else ends the attempt
+// OBSERVATION_SCOPE, even with the alarm reported clear: no final ERRORS read, no further write. A mode 1
+// admission is held to mode 1 in the same way, and 6041 decides nothing there. Both methods alike.
 void completionNeedsTheAdmissionMode() {
     struct Case {
         uint16_t admitted;
         uint8_t mode;
         uint16_t report;
         uint8_t reportMode;
+        uint16_t status;
     };
     const Case outside[] = {
-        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 1},        // Changed to mode 1.
-        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 1}, // The same after a latch.
-        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 0},
-        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 6},
-        // Running reported, but the admission read no latch.
-        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 3},
-        {RELEASED_ALARM, 3, IN_PLACE, 3},                      // Release gone.
-        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH), 3},     // Release gone beside the latch.
-        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | ALARM), 3}, // And with the alarm set.
-        {ALARM, 1, 0, 3},                                      // A mode 1 admission in mode 3.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 1, RELEASED_STATUS},        // Changed to mode 1.
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 1, RELEASED_STATUS}, // The same after a latch.
+        {LATCHED_ALARM, 3, IN_PLACE, 1, CLEARED_STATUS}, // Trial 5323's report, but in mode 1.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 0, RELEASED_STATUS},
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 6, RELEASED_STATUS},
+        // Running reported with the alarm clear, after an admission with or without the latch.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 3, RELEASED_STATUS},
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 3, RELEASED_STATUS},
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH), 3, CLEARED_STATUS},
+        // Running beside the alarm, where the admission read no latch.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | LATCH | ALARM | RELEASED), 3, ALARMED_STATUS},
+        // The release gone while the alarm is still reported, beside the latch or not.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | ALARM), 3, ALARMED_STATUS},
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | ALARM), 3, ALARMED_STATUS},
+        // Any switched-on 6041 pattern, with the alarm reported clear or not: word 6, 7 and 15 reports
+        // (8031, 8033, 8037), a quick stop's 8027, and 8437, energized at standstill.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 3, 0x8031},
+        {LATCHED_ALARM, 3, IN_PLACE, 3, 0x8033},
+        {LATCHED_ALARM, 3, IN_PLACE, 3, 0x8037},
+        {RELEASED_ALARM, 3, IN_PLACE, 3, 0x8027},
+        {RELEASED_ALARM, 3, IN_PLACE, 3, 0x8437},
+        {RELEASED_ALARM, 3, RELEASED_ALARM, 3, 0xc019},
+        {LATCHED_ALARM, 3, LATCHED_ALARM, 3, 0xc01f},
+        {ALARM, 1, 0, 3, CLEARED_STATUS}, // A mode 1 admission in mode 3.
     };
-    for (const Case& item : outside) {
+    for (L::AlarmClearMethod method : METHODS)
+        for (const Case& item : outside) {
+            Rig r;
+            r.clearMethod = method;
+            r.statusword = ALARMED_STATUS;
+            r.acquire(item.admitted, item.mode);
+            L::ActionContext action;
+            r.prepare(action, false);
+            const unsigned from = r.wire.sentCount;
+            r.commands(action, false);
+            r.statusword = item.status;
+            r.cycle(action, item.report, 0, 0xff05, item.reportMode);
+            CHECK(action.state == M::ActionState::FAILED &&
+                  action.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+                  action.completion == M::ActionCompletion::NOT_OBSERVED && !action.finalErrorRead);
+            CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain &&
+                  !action.valueOneMayRemain);
+            CHECK(action.monitorObservation.monitor == item.report &&
+                  action.statusObservation.statusword == item.status &&
+                  action.statusObservation.modeRaw == item.reportMode);
+            CHECK(!r.next(action).ready);
+            r.onlyActionTraffic(from, written(method), 2);
+            CHECK(r.uploadsOf(from, 0x603f) == 0 && r.uploadsOf(from, 0x1001) == 0);
+        }
+    // In scope but not complete, so the attempt repolls: the alarm still reported beside the latch or
+    // the release, or 2100 reporting it clear while 6041 bit 3 (ZH86 p12) or bit 7 (EN86 p12, OP86 p10)
+    // still reads set. A later report of trial 5323's shape completes it.
+    struct Pending {
+        uint16_t admitted, report, status;
+    };
+    const Pending pending[] = {{LATCHED_ALARM, LATCHED_ALARM, ALARMED_STATUS},
+                               {RELEASED_ALARM, RELEASED_ALARM, ALARMED_STATUS},
+                               {LATCHED_ALARM, IN_PLACE, 0x8018},
+                               {LATCHED_ALARM, IN_PLACE, 0x8090},
+                               {RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x8058},
+                               {RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x80d0}};
+    for (L::AlarmClearMethod method : METHODS)
+        for (const Pending& item : pending) {
+            Rig r;
+            r.clearMethod = method;
+            r.statusword = ALARMED_STATUS;
+            r.acquire(item.admitted, 3);
+            L::ActionContext action;
+            r.prepare(action, false);
+            const unsigned from = r.wire.sentCount;
+            r.commands(action, false);
+            r.statusword = item.status;
+            r.cycle(action, item.report, 0, 0xff05, 3);
+            CHECK(action.state == M::ActionState::ACTIVE && action.phase == L::ActionPhase::WAITING &&
+                  !action.finalErrorRead);
+            CHECK(!r.next(action).ready);
+            r.turn(action.eligibleUs, O::ServiceBudget());
+            r.statusword = CLEARED_STATUS;
+            r.cycle(action, IN_PLACE, 0, 0, 3);
+            CHECK(action.state == M::ActionState::SUCCEEDED && action.observations == 2 &&
+                  action.extraObservation.errorCode == 0);
+            r.onlyActionTraffic(from, written(method), 2);
+        }
+    // A mode 1 attempt judges 2100 alone: the rig's 6041 of FFFF, every bit set, still completes it.
+    for (L::AlarmClearMethod method : METHODS) {
         Rig r;
-        r.acquire(item.admitted, item.mode);
+        r.clearMethod = method;
+        r.acquire(ALARM);
         L::ActionContext action;
         r.prepare(action, false);
+        r.commands(action, false);
+        r.cycle(action);
+        CHECK(action.state == M::ActionState::SUCCEEDED && action.statusObservation.statusword == 0xffff);
+    }
+}
+
+// Trial 5323, node 1, 2026-11-13, image 6dee27b: the 2301 clear admitted in mode 3 from 2100=001D,
+// 6041=C018, 6061=3, 606C 0, 1001=81, 603F=FF05 and a 1003 count of 0. The first cycle after the 0's
+// acknowledgement read 2100=0001, 2101=0000, 2102=0000, 6041=8010 and 6061=3: alarm, running and the
+// release clear, low bits 000. The rule of that image, released in every cycle, ended it
+// OBSERVATION_SCOPE (failure=10 why=clear); this rule completes it, then reads ERRORS once. The same
+// report completes the controlword method, which has not run on a specimen.
+void trialFiveThreeTwoThree() {
+    for (L::AlarmClearMethod method : METHODS) {
+        Rig r;
+        r.clearMethod = method;
+        r.errorRegister = 0x81;
+        r.statusword = 0xc018;
+        r.acquire(0x001d, 3, 0xff05);
+        L::ActionContext action;
+        r.prepare(action, false);
+        CHECK(action.incident.monitor == 0x001d && action.incident.statusword == 0xc018 &&
+              action.incident.modeRaw == 3 && action.incident.errorRegister == 0x81);
         const unsigned from = r.wire.sentCount;
         r.commands(action, false);
-        r.cycle(action, item.report, 0, 0xff05, item.reportMode);
-        CHECK(action.state == M::ActionState::FAILED &&
-              action.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
-              action.completion == M::ActionCompletion::NOT_OBSERVED && !action.finalErrorRead);
-        CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain &&
-              !action.valueOneMayRemain);
-        CHECK(action.monitorObservation.monitor == item.report &&
-              action.statusObservation.modeRaw == item.reportMode);
-        CHECK(!r.next(action).ready);
-        r.onlyActionTraffic(from, CLEAR, 2);
-        CHECK(r.uploadsOf(from, 0x603f) == 0 && r.uploadsOf(from, 0x1001) == 0);
+        r.statusword = 0x8010;
+        r.cycle(action, 0x0001, 0, 0xff05, 3);
+        CHECK(action.state == M::ActionState::SUCCEEDED && action.outcome == M::ActionOutcome::OBSERVED &&
+              action.completion == M::ActionCompletion::OBSERVED && action.observations == 1);
+        CHECK(action.monitorObservation.monitor == 0x0001 && action.statusObservation.statusword == 0x8010 &&
+              action.statusObservation.modeRaw == 3);
+        // The final ERRORS read keeps 603F raw: node 1 still read FF05 there, beside 1001.
+        CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
+              action.extraObservation.errorCode == 0xff05 && action.extraObservation.errorRegister == 0x81);
+        r.onlyActionTraffic(from, written(method), 2);
+        CHECK(r.uploadsOf(from, 0x603f) == 1 && r.uploadsOf(from, 0x1001) == 1 && r.uploadsOf(from, 0x1003) == 0);
     }
-    // A persisting alarm beside the latch repolls in mode 3, and a later report clears it.
+}
+
+// The controlword method: 6040 U16 0x0080, then 0x0000 only after the 0x0080's acknowledgement, and no
+// other download. It shares the 2301 method's admission and incident exactly, and an unknown method is
+// refused before any check of the read.
+void controlwordMethod() {
     Rig r;
-    r.acquire(LATCHED_ALARM, 3);
+    r.clearMethod = L::AlarmClearMethod::CONTROLWORD_BIT7;
+    r.acquire(ALARM);
     L::ActionContext action;
     r.prepare(action, false);
+    CHECK(action.clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7 &&
+          action.actionKind == M::ActionKind::CLEAR_ALARM);
     const unsigned from = r.wire.sentCount;
-    r.commands(action, false);
-    r.cycle(action, LATCHED_ALARM, 0, 0xff05, 3);
-    CHECK(action.state == M::ActionState::ACTIVE && action.phase == L::ActionPhase::WAITING);
-    CHECK(!r.next(action).ready);
-    r.turn(action.eligibleUs, O::ServiceBudget());
-    r.cycle(action, uint16_t(IN_PLACE | LATCH | RELEASED), 0, 0, 3);
-    CHECK(action.state == M::ActionState::SUCCEEDED && action.observations == 2 &&
-          action.extraObservation.errorCode == 0);
-    r.onlyActionTraffic(from, CLEAR, 2);
+    // The first word is yielded again, unchanged, until its own terminal: the 0x0000 never precedes it.
+    const L::PreparedAction first = r.next(action);
+    CHECK(first.ready && first.transfer.index == CONTROL && first.transfer.subindex == 0 &&
+          first.transfer.size == 2 && first.transfer.data[0] == 0x80 && first.transfer.data[1] == 0);
+    const O::RequestId id = r.admit(first.transfer);
+    r.turn(r.now);
+    const L::PreparedAction again = r.next(action);
+    CHECK(again.ready && again.transfer.step == first.transfer.step && again.transfer.data[0] == 0x80);
+    r.wire.push(reply(first.transfer), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    CHECK(L::advanceAction(action, r.reservation, r.current, r.result(id), r.now));
+    CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED && action.commandCursor == 1 &&
+          action.commandHistory[0].transfer.index == CONTROL && action.commandHistory[0].transfer.data[0] == 0x80);
+    r.command(action, CONTROL, 0x0000); // 2B 40 60 00 00 00 00 00.
+    r.cycle(action);
+    CHECK(action.state == M::ActionState::SUCCEEDED && action.commandHistory[1].transfer.data[0] == 0);
+    r.onlyActionTraffic(from, CONTROL, 2);
+    const uint8_t words[2][8] = {{0x2b, 0x40, 0x60, 0, 0x80, 0, 0, 0}, {0x2b, 0x40, 0x60, 0, 0, 0, 0, 0}};
+    unsigned seen = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        if (isDownload(r.wire.sent[i]))
+            CHECK(seen < 2 && !std::memcmp(r.wire.sent[i].data, words[seen++], 8));
+    CHECK(seen == 2);
+    // Admission parity: each case admits or refuses alike under both methods, with the same detail, and
+    // an admitted context differs only in clearMethod.
+    struct Case {
+        uint16_t monitor;
+        uint8_t mode, mask;
+        uint16_t code;
+        int32_t velocity;
+    };
+    const Case cases[] = {{ALARM, 1, 0x1f, 0xff05, 0},          {ALARM, 1, 0x0f, 0xff05, 0},
+                          {RELEASED_ALARM, 3, 0x0f, 0xff05, 0}, {LATCHED_ALARM, 3, 0x1f, 0xff05, 0},
+                          {LATCHED_ALARM, 3, 0x1f, 0xff05, 5},  {LATCHED_ALARM, 3, 0x0f, 0xff05, 0},
+                          {uint16_t(IN_PLACE | ALARM), 3, 0x1f, 0xff05, 0}, // Mode 3 not released.
+                          {uint16_t(ALARM | LATCH), 1, 0x1f, 0xff05, 0},    {0, 1, 0x1f, 0xff05, 0},
+                          {ALARM, 1, 0x1f, 0xff01, 0},          {ALARM, 6, 0x1f, 0xff05, 0},
+                          {ALARM, 1, 0x1e, 0xff05, 0}};
+    for (const Case& item : cases) {
+        L::ActionContext results[2];
+        M::Status statuses[2];
+        for (unsigned m = 0; m < 2; ++m) {
+            Rig s;
+            s.clearMethod = METHODS[m];
+            s.feedbackVelocity = item.velocity;
+            s.acquire(item.monitor, item.mode, item.code, item.mask);
+            statuses[m] = attempt(s, results[m]);
+            CHECK(results[m].state == (statuses[m] ? M::ActionState::ACTIVE : M::ActionState::EMPTY));
+        }
+        CHECK(bool(statuses[0]) == bool(statuses[1]) && statuses[0].detail == statuses[1].detail);
+        if (!statuses[0])
+            continue;
+        const L::AlarmIncident &a = results[0].incident, &b = results[1].incident;
+        CHECK(a.present && b.present && a.codeLink == b.codeLink && a.readOperation == b.readOperation &&
+              a.earliestUs == b.earliestUs && a.latestUs == b.latestUs && a.errorRegister == b.errorRegister &&
+              a.errorCode == b.errorCode && a.errorCount == b.errorCount &&
+              !std::memcmp(a.errorHistory, b.errorHistory, sizeof a.errorHistory) && a.monitor == b.monitor &&
+              a.logicalInputs == b.logicalInputs && a.logicalOutputs == b.logicalOutputs &&
+              a.statusword == b.statusword && a.modeRaw == b.modeRaw);
+        CHECK(results[0].clearMethod == METHODS[0] && results[1].clearMethod == METHODS[1] &&
+              results[0].phase == results[1].phase && results[0].operation == results[1].operation &&
+              results[0].deadlineUs == results[1].deadlineUs && results[0].step == results[1].step &&
+              results[0].commandCursor == 0 && results[1].commandCursor == 0);
+    }
+    // An unknown method is refused with ARGUMENT, before anything else, and changes nothing.
+    Rig u;
+    u.acquire(ALARM);
+    u.begin();
+    L::ActionContext refused;
+    const Saved<L::ActionContext> empty(refused);
+    const M::Status status = L::prepareClearAlarm(refused, u.reservation, u.state, u.operation, u.now, u.deadline,
+                                                  u.policy(), L::AlarmClearMethod(2));
+    CHECK(!status && status.detail == int32_t(M::ActionError::ARGUMENT));
+    empty.unchanged(refused);
 }
 
 // The admission's mode and monitor are part of the checked shape: a context holding an incident
@@ -356,89 +553,118 @@ void latchedErrorValue() {
     }
 }
 
-// The controlword reset route has no path: no stop follows a reset word, and a 6040 terminal
-// cannot settle a clear's work even with every identity copied.
-void controlwordRouteRejected() {
+// No stop follows a reset word, and the two methods never cross: a 6040 terminal cannot settle the
+// 2301 method's work, nor a 2301 terminal the controlword method's, even with every identity copied.
+// A context whose method is out of range, or set on another action, is refused by every call.
+void methodsDoNotCross() {
     const uint16_t words[] = {0x0080, 0x008f, 0x0000};
     for (uint16_t word : words)
         CHECK(!L::stopPredecessorAllowed(word, L::StopKind::HALT) &&
               !L::stopPredecessorAllowed(word, L::StopKind::QUICK_STOP));
+    for (L::AlarmClearMethod method : METHODS) {
+        const bool control = method == L::AlarmClearMethod::CONTROLWORD_BIT7;
+        Rig r;
+        r.clearMethod = method;
+        r.acquire(ALARM);
+        L::ActionContext action;
+        r.prepare(action, false);
+        const unsigned from = r.wire.sentCount;
+        const L::PreparedAction work = r.next(action);
+        CHECK(work.ready && work.transfer.index == written(method) &&
+              work.transfer.data[0] == (control ? 0x80 : 1));
+        C::SdoCompletion forged;
+        forged.transfer = work.transfer;
+        forged.transfer.index = control ? CLEAR : CONTROL;
+        forged.transfer.data[0] = control ? 1 : 0x80;
+        forged.outcome = C::SdoOutcome::SUCCESS;
+        forged.admittedUs = forged.completedUs = r.now;
+        forged.nodeGeneration = r.current.nodeGeneration;
+        forged.queued = forged.transmissionPossible = forged.transmissionConfirmed = true;
+        forged.protocolAcknowledged = forged.effectPossible = true;
+        const Saved<L::ActionContext> before(action);
+        const M::Status status = L::advanceAction(action, r.reservation, r.current, forged, r.now);
+        CHECK(!status && status.detail == int32_t(M::ActionError::CORRELATION));
+        before.unchanged(action);
+        // An out-of-range method is refused by every call.
+        L::PreparedAction blank;
+        action.clearMethod = L::AlarmClearMethod(2);
+        CHECK(!L::nextAction(action, r.reservation, r.current, r.now, blank));
+        action.clearMethod = method;
+        before.unchanged(action);
+        r.commands(action, false);
+        r.cycle(action);
+        CHECK(action.state == M::ActionState::SUCCEEDED);
+        r.onlyActionTraffic(from, written(method), 2); // No byte of the other object left the owner.
+    }
+    // Only an alarm clear carries the controlword method.
     Rig r;
-    r.acquire(ALARM);
-    L::ActionContext action;
-    r.prepare(action, false);
-    const unsigned from = r.wire.sentCount;
-    const L::PreparedAction work = r.next(action);
-    CHECK(work.ready && work.transfer.index == CLEAR && work.transfer.data[0] == 1);
-    C::SdoCompletion forged;
-    forged.transfer = work.transfer;
-    forged.transfer.index = 0x6040;
-    forged.transfer.data[0] = 0x80;
-    forged.outcome = C::SdoOutcome::SUCCESS;
-    forged.admittedUs = forged.completedUs = r.now;
-    forged.nodeGeneration = r.current.nodeGeneration;
-    forged.queued = forged.transmissionPossible = forged.transmissionConfirmed = true;
-    forged.protocolAcknowledged = forged.effectPossible = true;
-    const Saved<L::ActionContext> before(action);
-    const M::Status status = L::advanceAction(action, r.reservation, r.current, forged, r.now);
-    CHECK(!status && status.detail == int32_t(M::ActionError::CORRELATION));
-    before.unchanged(action);
-    r.commands(action, false);
-    r.cycle(action);
-    CHECK(action.state == M::ActionState::SUCCEEDED);
-    r.onlyActionTraffic(from, CLEAR, 2); // No 6040 byte left the owner.
+    r.acquire(0);
+    L::ActionContext counter;
+    r.prepare(counter, true);
+    L::PreparedAction work;
+    CHECK(L::nextAction(counter, r.reservation, r.current, r.now, work) && work.ready);
+    counter.clearMethod = L::AlarmClearMethod::CONTROLWORD_BIT7;
+    CHECK(!L::nextAction(counter, r.reservation, r.current, r.now, work));
 }
 
-// Each write fails at each boundary. The prefix stays, nothing replays, and the value-1
-// consequence is set exactly when the 1 may have landed and the 0 has no positive ACK.
+// Each write fails at each boundary, under both methods. The prefix stays, nothing replays, and the
+// value-1 consequence is set exactly when the first value (2301 1, or 6040 0x0080) may have landed and
+// the 0 has no positive ACK.
 void prefixFailureAtEveryStage() {
-    for (unsigned slot = 0; slot < 2; ++slot)
-        for (Stage stage : STAGES) {
-            Rig r;
-            r.acquire(ALARM);
-            L::ActionContext action;
-            r.prepare(action, false);
-            const Saved<L::AlarmIncident> incident(action.incident);
-            const unsigned from = r.wire.sentCount;
-            if (slot)
-                r.command(action, CLEAR, 1);
-            const Saved<C::SdoCompletion> prefix(action.commandHistory[0]);
-            const Rig::Failure f = r.failCommand(action, stage);
-            CHECK(action.state == M::ActionState::FAILED &&
-                  action.completion == M::ActionCompletion::NOT_OBSERVED);
-            const bool acked = acknowledged(stage);
-            CHECK(acked == (f.admitted && f.terminal.outcome == C::SdoOutcome::SUCCESS));
-            CHECK(action.outcome == outcomeAt(stage));
-            CHECK(action.commandEvidenceMask ==
-                  uint8_t((1u << (slot + (f.admitted ? 1 : 0))) - 1));
-            if (f.admitted)
-                CHECK(action.commandHistory[slot].outcome == f.terminal.outcome);
-            if (slot) {
-                prefix.unchanged(action.commandHistory[0]);
-                CHECK(action.commandHistory[0].protocolAcknowledged &&
-                      action.execution == M::ActionExecution::ACKNOWLEDGED);
-            } else {
-                CHECK(action.execution == (!sent(stage) ? M::ActionExecution::NOT_TRANSMITTED
-                                           : stage == Stage::ABORTED ? M::ActionExecution::REJECTED
-                                           : acked ? M::ActionExecution::ACKNOWLEDGED
-                                                   : M::ActionExecution::UNKNOWN));
+    for (L::AlarmClearMethod method : METHODS)
+        for (unsigned slot = 0; slot < 2; ++slot)
+            for (Stage stage : STAGES) {
+                const uint16_t index = written(method);
+                const uint8_t first = method == L::AlarmClearMethod::CONTROLWORD_BIT7 ? 0x80 : 1;
+                Rig r;
+                r.clearMethod = method;
+                r.acquire(ALARM);
+                L::ActionContext action;
+                r.prepare(action, false);
+                const Saved<L::AlarmIncident> incident(action.incident);
+                const unsigned from = r.wire.sentCount;
+                if (slot)
+                    r.command(action, index, first);
+                const Saved<C::SdoCompletion> prefix(action.commandHistory[0]);
+                const Rig::Failure f = r.failCommand(action, stage);
+                CHECK(action.state == M::ActionState::FAILED &&
+                      action.completion == M::ActionCompletion::NOT_OBSERVED);
+                const bool acked = acknowledged(stage);
+                CHECK(acked == (f.admitted && f.terminal.outcome == C::SdoOutcome::SUCCESS));
+                CHECK(action.outcome == outcomeAt(stage));
+                CHECK(action.commandEvidenceMask ==
+                      uint8_t((1u << (slot + (f.admitted ? 1 : 0))) - 1));
+                if (f.admitted)
+                    CHECK(action.commandHistory[slot].outcome == f.terminal.outcome);
+                if (slot) {
+                    prefix.unchanged(action.commandHistory[0]);
+                    CHECK(action.commandHistory[0].protocolAcknowledged &&
+                          action.execution == M::ActionExecution::ACKNOWLEDGED);
+                } else {
+                    CHECK(action.execution == (!sent(stage) ? M::ActionExecution::NOT_TRANSMITTED
+                                               : stage == Stage::ABORTED ? M::ActionExecution::REJECTED
+                                               : acked ? M::ActionExecution::ACKNOWLEDGED
+                                                       : M::ActionExecution::UNKNOWN));
+                }
+                const bool oneLanded = slot || sent(stage);
+                CHECK(action.valueOneMayRemain == (oneLanded && !(slot && acked)));
+                CHECK(action.uncertain == oneLanded);
+                CHECK(r.services.unresolved(0) == ambiguous(stage));
+                CHECK(r.wire.sentCount == f.sent + (sent(stage) ? 1u : 0u));
+                r.onlyActionTraffic(from, index, slot + (sent(stage) ? 1u : 0u));
+                incident.unchanged(action.incident);
+                CHECK(r.axis.originKnown && r.reference.nativeKnown); // An alarm clear moves no epoch.
+                if (f.admitted)
+                    r.lateReplyChangesNothing(action, f);
+                // The first value was never sent a second time, and the 0 never without its ACK.
+                unsigned ones = 0, zeros = 0;
+                for (unsigned i = from; i < r.wire.sentCount; ++i) {
+                    ones += isDownload(r.wire.sent[i]) && r.wire.sent[i].data[4] == first;
+                    zeros += isDownload(r.wire.sent[i]) && r.wire.sent[i].data[4] == 0;
+                }
+                CHECK(ones == (oneLanded ? 1u : 0u));
+                CHECK(zeros == (slot && sent(stage) ? 1u : 0u));
             }
-            const bool oneLanded = slot || sent(stage);
-            CHECK(action.valueOneMayRemain == (oneLanded && !(slot && acked)));
-            CHECK(action.uncertain == oneLanded);
-            CHECK(r.services.unresolved(0) == ambiguous(stage));
-            CHECK(r.wire.sentCount == f.sent + (sent(stage) ? 1u : 0u));
-            r.onlyActionTraffic(from, CLEAR, slot + (sent(stage) ? 1u : 0u));
-            incident.unchanged(action.incident);
-            CHECK(r.axis.originKnown && r.reference.nativeKnown); // An alarm clear moves no epoch.
-            if (f.admitted)
-                r.lateReplyChangesNothing(action, f);
-            // The 1 was never sent a second time.
-            unsigned ones = 0;
-            for (unsigned i = from; i < r.wire.sentCount; ++i)
-                ones += isDownload(r.wire.sent[i]) && r.wire.sent[i].data[4] == 1;
-            CHECK(ones == (oneLanded ? 1u : 0u));
-        }
 }
 
 // The final 0 goes out and its ACK comes late: the route stays unresolved, the late ACK settles
@@ -731,10 +957,12 @@ int main() {
     admissionScope();
     modeThreeAdmission();
     completionNeedsTheAdmissionMode();
+    trialFiveThreeTwoThree();
+    controlwordMethod();
     incidentShapeIsChecked();
     staleCodeWithLaterIncident();
     latchedErrorValue();
-    controlwordRouteRejected();
+    methodsDoNotCross();
     prefixFailureAtEveryStage();
     delayedFinalZeroAck();
     rebootDuringClear();

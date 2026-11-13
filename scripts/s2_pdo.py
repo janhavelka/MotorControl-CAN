@@ -4,19 +4,24 @@
 run: validates the recorded USB identity, opens only that port (neither EN nor BOOT is driven),
 pings, refuses unless the image speaks the lines the plan uses (PONG pdo=1: N, P, R, W; pdo=2 adds
 E; pdo=3 adds C, the bounded silent capture; pdo=4 adds D, K and H: the discovery scan, the typed
-communication reads and the guarded heartbeat commissioning) with no soak, trial, watch or capture
+communication reads and the guarded heartbeat commissioning; pdo=5 adds the N line's r and c, NMT Reset
+Node and Reset Communication) with no soak, trial, watch or capture
 held, then sends the plan's steps in order and captures every byte to rx.bin. A step sends one
 console command (a single byte, or an N, P, R, W, E, C, D, K, H, S line of
 examples/s2_bench/PdoCommand.h and the soak) and
 waits for its expected reply; a refusal or a missing reply ends the plan. The plan is the
 only source of device commands: nothing is retried, replayed or added, and no NMT, write or stop
-is sent on the plan's behalf. If the plan ends early while a watch runs, only "P0" is sent, and
+is sent on the plan's behalf. A reset (N<node>,r or N<node>,c) is an attended fault-recovery experiment:
+it invalidates every fact about that node, nothing else in the firmware sends one, and the plan must start
+a watch (P<seconds>) before it and not end it, so that the record holds the boot-up frame if one follows;
+the watch must last past the reset. If the plan ends early while a watch runs, only "P0" is sent, and
 while a capture collects, only "C0"; each ends local work and sends nothing on CAN. Whatever state
 the drives were left in, Operational included, is recorded and reported, not repaired.
 
 analyze: replays rx.bin offline through the s2_evidence grammar and reports, per received ID, the
 watch's frames and on-device statistics, every NMT request with its TX completion time, the first
-and last frame of each ID around each NMT request, heartbeat states, every PDO record read or
+and last frame of each ID around each NMT request, for each reset the first boot-up frame (0x700 + node,
+one byte 00) printed after it, heartbeat states, every PDO record read or
 write with its raw values, every capture record with its frames per ID, and every D, K and H
 record with its header and typed lines. Times are the S2's monotonic microseconds: a frame's hi is its ISR clock
 sample at enqueue, an upper bound, never an exact bus timestamp. A watched frame is not a qualified
@@ -59,7 +64,7 @@ LINE_COMMANDS = ("N", "P", "R", "W", "E", "C", "D", "K", "H", "S")
 # same through its digits. Neither is ever sent to an image that does not serve it.
 # pdo=4 adds D, K and H; on a pdo=3 image "K1" would be UNKNOWN then a node-1 identity read.
 PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC"),
-                 "4": frozenset("NPRWECDKH")}
+                 "4": frozenset("NPRWECDKH"), "5": frozenset("NPRWECDKH")}
 PDO_LETTERS = "NPRWECDKH"
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
@@ -74,7 +79,12 @@ CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END
            "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture"),
            "D": ("DISC admitted", "END discovery"), "K": ("COMM admitted", "END comm"),
            "H": ("HB admitted", "END heartbeat")}
-NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
+NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational", 0x81: "reset-node", 0x82: "reset-communication"}
+# The N line's letter for each command (examples/s2_bench/PdoCommand.cpp). r and c, the two resets, need PONG
+# pdo=5: an older image refuses them as syntax. They are attended fault-recovery experiments only.
+NMT_LETTERS = {"o": 1, "s": 2, "p": 0x80, "r": 0x81, "c": 0x82}
+RESET_COMMANDS = frozenset((0x81, 0x82))
+RESET_PROTOCOL = 5
 # The record each command leaves held, and the reply of the r that releases it. The bench firmware
 # admits R, W, E, h, j, 3, 4 and m only with no NMT result and no PDO record held, and N only with
 # no record of any kind held; while a D, K or H record is held it admits nothing but p, s, n, d and r
@@ -115,9 +125,19 @@ def discovery_plan(text):
     return mode, seconds, select, expect
 
 
+def nmt_plan(text):
+    """(node, command byte) of an N line, or None when it is not one the firmware admits."""
+    fields = text[1:].split(",")
+    if text[:1] != "N" or len(fields) != 2 or fields[0] not in ("1", "2") or fields[1] not in NMT_LETTERS:
+        return None
+    return int(fields[0]), NMT_LETTERS[fields[1]]
+
+
 def line_problem(text):
-    """Why a D, K or H line is not one the firmware admits, or None. Checked before anything is sent:
+    """Why a D, K, H or N line is not one the firmware admits, or None. Checked before anything is sent:
     an H line names prompt 38's one reviewed value, raw 1000, and no reverse transition exists."""
+    if text[0] == "N" and nmt_plan(text) is None:
+        return "%r is not N<1|2>,<o|s|p|r|c>" % text
     if text[0] == "D" and discovery_plan(text) is None:
         return "%r is not D<o|p|i>,<seconds 1..60>,<select 0..2>,<expect 0|1, 1 only with i>" % text
     if text[0] == "K" and text not in ("K1", "K2"):
@@ -140,6 +160,7 @@ def check_plan(plan):
             raise SessionError("the plan must state its %s" % key)
     steps = []
     held = None  # (kind, step number) of the record the plan has not released yet.
+    watching = False  # A P<seconds> step was sent and no P0 has ended it.
     for number, step in enumerate(plan["steps"], 1):
         if not isinstance(step, dict):
             raise SessionError("step %d is not an object" % number)
@@ -186,6 +207,13 @@ def check_plan(plan):
                                    (number, scan[1], scan[1]))
         if "require" in step:
             check_requirements(number, step["require"])
+        text = step.get("send", "")
+        if text[:1] == "P" and text[1:].isdigit():
+            watching = int(text[1:]) > 0
+        reset = nmt_plan(text) if text[:1] == "N" else None
+        if reset and reset[1] in RESET_COMMANDS and not watching:
+            raise SessionError("step %d: %r is an NMT reset; start a watch (P<seconds>) before it, so that the "
+                               "record holds the boot-up frame if one follows" % (number, text))
         held = check_release(number, step, held)
         steps.append(step)
     return steps
@@ -371,7 +399,7 @@ def terminal_problem(step, lines):
         if len(nmts) != 1:
             return "nmt_result_unparsed"
         v = nmts[0].values
-        wanted = {"o": 1, "s": 2, "p": 0x80}[text.split(",")[1]]
+        wanted = NMT_LETTERS[text.split(",")[1]]
         if v.get("target") != int(text[1]) or v.get("cmd") != wanted:
             return "nmt_wrong_request"
         if v.get("outcome") != 0 or v.get("txConfirmed") != 1:
@@ -685,6 +713,10 @@ def preflight(capture, steps=()):
         return values, "image_without_pdo_lines"
     if not letters <= PDO_PROTOCOLS[values["pdo"]]:
         return values, "image_without_pdo_config"
+    resets = [step for step in steps if step.get("send", "")[:1] == "N" and nmt_plan(step["send"]) and
+              nmt_plan(step["send"])[1] in RESET_COMMANDS]
+    if resets and int(values["pdo"]) < RESET_PROTOCOL:
+        return values, "image_without_nmt_reset"
     if values.get("soak") != "0":
         return values, "soak_running"
     if values.get("trial") != "0":
@@ -916,6 +948,29 @@ def commissioning(records):
     return out
 
 
+def nmt_resets(nmts, watches):
+    """Each NMT reset with the boot-up frames a watch printed after its TX completion: 0x700 + node, one data
+    byte 00, timed. covered says whether a watch began before that completion and had not ended by it; only
+    then can the absence of a boot-up mean anything, and only with unprinted 0. A boot-up shows that the node
+    reported one, not what it reset or kept."""
+    out = []
+    for nmt in nmts:
+        if nmt["cmd"] not in RESET_COMMANDS:
+            continue
+        ident = "%03x" % (0x700 + nmt["target"])
+        covering = [w for w in watches if w["begin"]["t"] <= nmt["completed"] and
+                    (w["end"] is None or w["end"]["t"] > nmt["completed"])]
+        boots = sorted(f["hi"] for w in watches for f in w["frames"].get(ident, [])
+                       if f["timed"] and f["dlc"] == 1 and f["data"] == "00" and f["hi"] > nmt["completed"])
+        last = [(w["end"] or (w["sums"][-1] if w["sums"] else {})) for w in covering]
+        out.append({"line": nmt["line"], "target": nmt["target"], "name": nmt["name"],
+                    "txConfirmed": nmt["txConfirmed"], "completed": nmt["completed"], "covered": bool(covering),
+                    "unprinted": sum(item.get("unprinted", 0) for item in last) if covering else None,
+                    "boot_ups": len(boots), "first_boot_up": boots[0] if boots else None,
+                    "first_boot_up_delay_us": boots[0] - nmt["completed"] if boots else None})
+    return out
+
+
 def analyze(directory):
     directory = Path(directory)
     data = (directory / "rx.bin").read_bytes()
@@ -967,6 +1022,7 @@ def analyze(directory):
     report["pdo_records"] = groups
     report["maps"] = {"%d/%d" % key: ["%04x:%02x/%d" % e for e in entries] for key, entries in maps.items()}
     report["nmt"] = nmts
+    report["nmt_resets"] = nmt_resets(nmts, watches)
     report["watches"] = []
     for watch in watches:
         last = watch["end"] or (watch["sums"][-1] if watch["sums"] else {})
@@ -1060,6 +1116,8 @@ def main(argv=None):
                 print("  %s %s" % (ident, json.dumps(entry)))
         for nmt in report["nmt"]:
             print("nmt %s" % json.dumps(nmt))
+        for reset in report["nmt_resets"]:
+            print("nmt_reset %s" % json.dumps(reset))
         for item in report["commissioning"]:
             print("%s %s" % (item["kind"], json.dumps(item["header"])))
             for entry in item["lines"]:

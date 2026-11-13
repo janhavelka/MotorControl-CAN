@@ -673,6 +673,55 @@ class TrialHistory(unittest.TestCase):
         self.assertEqual(evidence.TRIAL_ROUTES["readiness-history"], "history")
 
 
+class ClearMethod(unittest.TestCase):
+    """clear-alarm from protocol 10 names one method throughout: request.json, the plan, the context, its kept
+    writes and its download terminals. The lines are the firmware's formats; the values are this test's."""
+    PLAN = "TRIAL_PLAN route=clear-alarm node=1 trial=5323 attended=1 deadline=3000 interval=500"
+    CLEAR = ("TRIAL_CLEAR own=%d kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 "
+             "coords=0 final=1 observations=1 op=14 blocked=0")
+    STEP = "TRIAL_CLEAR_STEP slot=%d present=1 object=%s value=%04x outcome=0 ack=1 possible=1 uncertain=0"
+    RESULT = ("RESULT op=14 req=14 oreq=56 step=%d object=%s dir=1 outcome=0 ack=1 possible=1 uncertain=0 "
+              "abort=00000000 cleanup=0 size=0 data=00000000 admitted=15455976 completed=15458976 ne=1 reason=0 "
+              "st=3f node=1")
+    OBJECT = (("2301:00", 1), ("2301:00", 0))
+    CONTROL = (("6040:00", 0x80), ("6040:00", 0))
+
+    def problems(self, plan, context, writes, meta, own=1, terminals=True):
+        lines = [self.PLAN + ("" if plan is None else " method=%d" % plan),
+                 self.CLEAR % own + ("" if context is None else " method=%d" % context)]
+        lines += [self.STEP % (slot, name, value) for slot, (name, value) in enumerate(writes)]
+        if terminals:
+            lines += [self.RESULT % (slot + 1, name) for slot, (name, _) in enumerate(writes)]
+        records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
+        self.assertTrue(all(r.status == "parsed" for r in records), [r.raw for r in records if r.status != "parsed"])
+        report = evidence.Report(path="clear")
+        evidence._check_clear_method(report, records, meta)
+        return codes(report)
+
+    def test_one_method_throughout(self):
+        self.assertEqual(self.problems(1, 0, self.OBJECT, {"clear_method": "2301"}), set())
+        self.assertEqual(self.problems(2, 1, self.CONTROL, {"clear_method": "controlword"}), set())
+        # A transcript replay carries no request.json method: the record still agrees with itself.
+        self.assertEqual(self.problems(2, 1, self.CONTROL, {}), set())
+
+    def test_any_disagreement_is_named(self):
+        self.assertEqual(self.problems(2, 1, self.CONTROL, {"clear_method": "2301"}), {"clear_method_differs"})
+        self.assertEqual(self.problems(3, 2, self.CONTROL, {}), {"clear_method_differs"})
+        self.assertEqual(self.problems(2, 0, self.CONTROL, {}), {"clear_method_differs"})
+        self.assertEqual(self.problems(2, 1, self.OBJECT, {}), {"clear_write_differs"})
+        self.assertEqual(self.problems(1, 0, (("2301:00", 1), ("2301:00", 1)), {}), {"clear_write_differs"})
+        self.assertEqual(self.problems(1, 0, (("6040:00", 0x80), ("6040:00", 0)), {}), {"clear_write_differs"})
+        # A download of another object among the terminals, whatever the context says.
+        self.assertEqual(self.problems(2, 1, self.OBJECT, {}, own=0), {"clear_write_differs"})
+
+    def test_earlier_records_and_foreign_contexts(self):
+        # Protocol 9 records name no method and are not judged; a request that names one needs the plan's.
+        self.assertEqual(self.problems(None, None, self.OBJECT, {}), set())
+        self.assertEqual(self.problems(None, None, self.OBJECT, {"clear_method": "2301"}), {"clear_method_missing"})
+        # own=0: the context and its kept steps are an earlier clear's, and this request wrote nothing.
+        self.assertEqual(self.problems(2, 0, self.OBJECT, {}, own=0, terminals=False), set())
+
+
 class TraceLoss(unittest.TestCase):
     def test_trace_saturation_is_failed_evidence(self):
         ok, frames = first_step_ok()

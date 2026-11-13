@@ -2281,3 +2281,152 @@ ladder.py: error: --interval-ms must be 20..5000
 12:50:05Z   start record withdrawn: the failing route may have reached the drive after it
 12:50:05Z !!! node 2 retired for the night
 12:50:05Z ladder s2:3500x1000,3500x500,3500x200,4000x1000,4000x500,4000x200 ended
+12:56:05Z ##### series 54 node 1 L60 (S0054-n1-L60)
+12:56:08Z === start
+12:56:13Z   exit 0 (4.1 s)
+12:56:13Z === 5321 read node 1
+12:56:15Z   TRIAL id=5321 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:56:15Z   TRIAL_PLAN route=actions node=1 trial=5321 attended=0
+12:56:15Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=001d 6041=c018 6061=03 6064=5497625 606c=0
+12:56:15Z   exit 0 (2.3 s)
+12:56:15Z === release 5321
+12:56:16Z   exit 0 (1.6 s)
+12:56:16Z   state n1 2100=001d 6041=c018 6061=03 6064=5497625 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:56:16Z === 5322 read node 1
+12:56:19Z   TRIAL id=5322 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:56:19Z   TRIAL_PLAN route=actions node=1 trial=5322 attended=0
+12:56:19Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=001d 6041=c018 6061=03 6064=5497625 606c=0
+12:56:19Z   exit 0 (2.3 s)
+12:56:19Z === release 5322
+12:56:20Z   exit 0 (1.7 s)
+12:56:20Z   state n1 2100=001d 6041=c018 6061=03 6064=5497625 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:56:20Z   fault at series start: typed alarm clear first ({'1001': '00', '603f': '0000', '2100': '001d', '6041': 'c018', '6061': '03', '6064': 5497625, '606c': 0, '607a': 5000, '60ff': 4500})
+12:56:20Z === 5323 clear-alarm n1
+12:56:23Z   TRIAL id=5323 node=1 route=clear-alarm failure=10 why=clear lost=0 terminals=17 traffic=52 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0
+12:56:23Z   TRIAL_PLAN route=clear-alarm node=1 trial=5323 attended=1 deadline=3000 interval=500
+12:56:23Z   TRIAL_LAST passed=1 blocks=1d 1001=81 603f=ff05 2100=001d 6041=c018 6061=03 6064=5497625 606c=0
+12:56:23Z   exit 3 (2.1 s)
+12:56:23Z === release 5323
+12:56:24Z   exit 0 (1.7 s)
+12:56:24Z === 5324 read node 1
+12:56:27Z   TRIAL id=5324 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5002 lossCancel=0
+12:56:27Z   TRIAL_PLAN route=actions node=1 trial=5324 attended=0
+12:56:27Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:56:27Z   exit 0 (2.4 s)
+12:56:27Z === release 5324
+12:56:28Z   exit 0 (1.6 s)
+12:56:28Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:56:28Z !!! not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:56:28Z !!! node 1: not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:56:28Z === 5325 read node 1
+12:56:31Z   TRIAL id=5325 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5002 lossCancel=0
+12:56:31Z   TRIAL_PLAN route=actions node=1 trial=5325 attended=0
+12:56:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:56:31Z   exit 0 (2.4 s)
+12:56:31Z === release 5325
+12:56:32Z   exit 0 (1.6 s)
+12:56:32Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:56:32Z   start record withdrawn: the failing route may have reached the drive after it
+12:56:32Z !!! node 1 retired for the night
+12:56:32Z ladder n1:60 ended
+12:57:24Z ##### series 55 node 1 L60 (S0055-n1-L60)
+12:57:27Z === start
+12:57:31Z   exit 0 (4.1 s)
+12:57:31Z === 5326 read node 1
+12:57:34Z   TRIAL id=5326 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:57:34Z   TRIAL_PLAN route=actions node=1 trial=5326 attended=0
+12:57:34Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:57:34Z   exit 0 (2.3 s)
+12:57:34Z === release 5326
+12:57:35Z   exit 0 (1.6 s)
+12:57:35Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:57:35Z   post-clear state 8010: best-effort quick stop, then a fresh series
+12:57:35Z === release alert
+12:57:37Z   RELEASE refused
+12:57:37Z   exit 0 (1.6 s)
+12:57:37Z === 5327 emergency stop n1
+12:57:38Z   TRIAL id=5327 node=1 route=stop failure=11 why=stop lost=0 terminals=5 traffic=15 tail=0 tailLost=0 summaries=3 step=1 cycles=0 motion=1 case=1 unsettled=0 gap=4002 lossCancel=0
+12:57:38Z   TRIAL_PLAN route=stop node=1 trial=5327 attended=1 kind=2 deadline=2000 be=2000 interval=250
+12:57:38Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=0 606c=0
+12:57:38Z   verdict: failed-evidence failure: REFUSED reason: ended
+12:57:38Z   exit 3 (1.0 s)
+12:57:38Z === release emergency-5327
+12:57:39Z   exit 0 (1.6 s)
+12:57:39Z ##### series 56 node 1 L60c (S0056-n1-L60c)
+12:57:43Z === start
+12:57:47Z   exit 0 (4.1 s)
+12:57:47Z === 5328 read node 1
+12:57:49Z   TRIAL id=5328 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:57:49Z   TRIAL_PLAN route=actions node=1 trial=5328 attended=0
+12:57:49Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:57:49Z   exit 0 (2.3 s)
+12:57:49Z === release 5328
+12:57:51Z   exit 0 (1.6 s)
+12:57:51Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:57:51Z !!! not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:57:51Z !!! node 1: not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:57:51Z === 5329 read node 1
+12:57:53Z   TRIAL id=5329 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:57:53Z   TRIAL_PLAN route=actions node=1 trial=5329 attended=0
+12:57:53Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:57:53Z   exit 0 (2.3 s)
+12:57:53Z === release 5329
+12:57:55Z   exit 0 (1.6 s)
+12:57:55Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:57:55Z   start record withdrawn: the failing route may have reached the drive after it
+12:57:55Z !!! node 1 retired for the night
+12:57:55Z ladder n1:60 ended
+12:58:16Z ##### series 57 node 1 L60 (S0057-n1-L60)
+12:58:19Z === start
+12:58:23Z   exit 0 (4.1 s)
+12:58:23Z === 5330 read node 1
+12:58:26Z   TRIAL id=5330 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:58:26Z   TRIAL_PLAN route=actions node=1 trial=5330 attended=0
+12:58:26Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:58:26Z   exit 0 (2.3 s)
+12:58:26Z === release 5330
+12:58:27Z   exit 0 (1.6 s)
+12:58:27Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:58:27Z   post-clear state 8010: mode 1, best-effort quick stop, then a fresh series
+12:58:27Z === 5331 mode1 n1
+12:58:30Z   TRIAL id=5331 node=1 route=mode1 failure=8 why=unreleased lost=0 terminals=24 traffic=72 tail=0 tailLost=0 summaries=5 step=6 cycles=0 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0
+12:58:30Z   TRIAL_PLAN route=mode1 node=1 trial=5331 attended=1 cycles=3 interval=500
+12:58:30Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:58:30Z   exit 3 (2.5 s)
+12:58:30Z === release 5331
+12:58:31Z   exit 0 (1.6 s)
+12:58:31Z === release alert
+12:58:33Z   RELEASE refused
+12:58:33Z   exit 0 (1.7 s)
+12:58:33Z === 5332 emergency stop n1
+12:58:34Z   TRIAL id=5332 node=1 route=stop failure=11 why=stop lost=0 terminals=5 traffic=15 tail=0 tailLost=0 summaries=3 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=4002 lossCancel=0
+12:58:34Z   TRIAL_PLAN route=stop node=1 trial=5332 attended=1 kind=2 deadline=2000 be=2000 interval=250
+12:58:34Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=0 606c=0
+12:58:34Z   verdict: failed-evidence failure: REFUSED reason: ended
+12:58:34Z   exit 3 (1.0 s)
+12:58:34Z === release emergency-5332
+12:58:36Z   exit 0 (1.7 s)
+12:58:36Z ##### series 58 node 1 L60c (S0058-n1-L60c)
+12:58:39Z === start
+12:58:43Z   exit 0 (4.2 s)
+12:58:43Z === 5333 read node 1
+12:58:46Z   TRIAL id=5333 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:58:46Z   TRIAL_PLAN route=actions node=1 trial=5333 attended=0
+12:58:46Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:58:46Z   exit 0 (2.3 s)
+12:58:46Z === release 5333
+12:58:47Z   exit 0 (1.6 s)
+12:58:47Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:58:47Z !!! not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:58:47Z !!! node 1: not released at series start: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8010', '6061': '03', '6064': 5497620, '606c': 0, '607a': 5000, '60ff': 4500}
+12:58:47Z === 5334 read node 1
+12:58:49Z   TRIAL id=5334 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+12:58:49Z   TRIAL_PLAN route=actions node=1 trial=5334 attended=0
+12:58:49Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8010 6061=03 6064=5497620 606c=0
+12:58:49Z   exit 0 (2.3 s)
+12:58:49Z === release 5334
+12:58:51Z   exit 0 (1.6 s)
+12:58:51Z   state n1 2100=0001 6041=8010 6061=03 6064=5497620 606c=0 1001=00 603f=0000 607a=5000 60ff=4500
+12:58:51Z   start record withdrawn: the failing route may have reached the drive after it
+12:58:51Z !!! node 1 retired for the night
+12:58:51Z ladder n1:60 ended
