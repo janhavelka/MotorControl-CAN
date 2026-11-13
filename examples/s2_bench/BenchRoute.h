@@ -105,6 +105,8 @@
  *   request; the session admits every write and read itself. Motion class. CLEAR_ALARM's read also
  *   takes FEEDBACK, so that the library can admit mode 3's latched release (2100 running beside
  *   released, 606C zero); the route itself checks only the alarm and leaves mode and running to it.
+ *   From protocol 10 the CLEAR_ALARM line names its method, 2301 or 6040 bit 7, which the session
+ *   passes to prepareClearAlarm; the reads, the check and the library's admission are the same for both.
  * - MODE_THREE, prompt 35's released mode change. Two fresh full reads that must both report the
  *   drive released and stationary (2100 bit 4 set, alarm clear, running clear or only the latch a moving
  *   000B leaves, 6041 low bits 000 or 001,
@@ -267,7 +269,9 @@ enum class RouteKind : uint8_t {
     SETTINGS_2202,  ///< Packet 12 T1/T2, one 2202 code and its readback; `TD`. Settings, not motion.
     IO_DI3,         ///< Packet 13 P2/P3, one DI3 change in 2400 and its readback; `TJ`. Settings.
     COUNTER_ZERO,   ///< AxisSession::requestCounterZero, 2302 0, 1, 0; `TZ`. Motion class: it moves the origin.
-    CLEAR_ALARM,    ///< AxisSession::requestClearAlarm, 2301 1, 0; `TC`. Motion class.
+    /** AxisSession::requestClearAlarm, 2301 1, 0 or, from protocol 10, 6040 0x0080, 0x0000 as the line's
+     * method names; `TC`. Motion class. */
+    CLEAR_ALARM,
     MODE_THREE,     ///< Prompt 35, one 6060:00=3 on an evidenced released drive; `TN`. Motion class.
     VELOCITY,       ///< Prompt 35, AxisSession::requestVelocity from released mode 3; `TV`. Motion class.
     HOME,           ///< Prompt 36, AxisSession::requestHome's admission reads and refusal; `TO`. Attended.
@@ -384,6 +388,9 @@ struct RoutePlan {
      * EN86/ZH86 claims admit). Command pulses per turn at another value than 1000 are unmeasured (Q04). */
     uint16_t subdivision = 0;
     uint8_t method = 0;          ///< HOME: Lichuan HomingMethod 17, 18, 24 or 29.
+    /** CLEAR_ALARM (protocol 10): the reset requestClearAlarm writes, 1 AlarmClearMethod::OBJECT_2301 (2301 1,
+     * then 0) or 2 CONTROLWORD_BIT7 (6040 0x0080, then 0x0000). No default: the line always names it. */
+    uint8_t clearMethod = 0;
     uint32_t searchRpm = 0;      ///< HOME: 6099:01 search rate in motor rpm, 1..3000 (EN86/ZH86 p13).
     uint32_t creepRpm = 0;       ///< HOME: 6099:02 creep rate in motor rpm, 1..3000.
     uint32_t homeRampMs = 0;     ///< HOME: 609A ramp time, 1..2000 ms.
@@ -410,7 +417,8 @@ inline bool isArming(RouteKind kind) noexcept {
  * `Q<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `W<node>,<trial>,<attended>,<wordCycles>,<cycles>,<intervalMs>`;
  * `D|J<node>,<trial>,<attended>,<code>`;
- * `Z|C<node>,<trial>,<attended>,<deadlineMs>,<intervalMs>`;
+ * `Z<node>,<trial>,<attended>,<deadlineMs>,<intervalMs>`;
+ * `C<node>,<trial>,<attended>,<deadlineMs>,<intervalMs>,<clearMethod>`;
  * `G<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<deadlineMs>,<intervalMs>,
  * <record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,
  * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,

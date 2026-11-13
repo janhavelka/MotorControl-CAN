@@ -1,7 +1,8 @@
 /** @file PdoCommand.h
  * @brief Bench console lines for the PDO sessions: NMT, watch, PDO record read and write, the
- * supported TPDO1 event-timer configuration, the bounded silent capture, and (PONG pdo=4) the
- * discovery scan, the typed communication reads and the guarded heartbeat commissioning.
+ * supported TPDO1 event-timer configuration, the bounded silent capture, (PONG pdo=4) the
+ * discovery scan, the typed communication reads and the guarded heartbeat commissioning, and
+ * (PONG pdo=5) the N line's two reset commands.
  * SPDX-License-Identifier: MIT
  * Application only: parsing, no I/O, clock, heap or device access. A parsed line is a request
  * for one bounded local action; it admits nothing and establishes no device fact.
@@ -14,7 +15,10 @@
 namespace MotorControlCANExample {
 /** One console line kind, named by its first character. */
 enum class PdoCommandKind : uint8_t {
-    NMT,   ///< `N<node>,<o|p|s>`: one addressed NMT Start, Enter Pre-operational or Stop.
+    /** `N<node>,<o|p|s|r|c>`: one addressed NMT Start, Enter Pre-operational or Stop, or (pdo=5) Reset
+     * Node or Reset Communication. A reset is an attended experiment: it invalidates every fact about the
+     * node, and the record shows a boot-up only when a watch runs beside it. */
+    NMT,
     WATCH, ///< `P<seconds>`: watch received frames 1..600 s; `P0` ends a running watch early.
     READ,  ///< `R<node>,<t|r>,<set>`: nine uploads of one transmit or receive PDO set 0..3.
     WRITE, ///< `W<node>,<set>,<subindex>,<baseline>,<value>`: one TPDO communication entry.
@@ -40,7 +44,9 @@ enum class PdoCommandKind : uint8_t {
 struct PdoCommand {
     PdoCommandKind kind = PdoCommandKind::NMT;
     uint8_t node = 0;      ///< NMT, READ, WRITE, CONFIGURE: CANopen node 1 or 2 of this fixture.
-    uint8_t nmt = 0;       ///< NMT: CiA 301 command byte, 0x01 Start, 0x02 Stop, 0x80 Pre-operational.
+    /** NMT: CiA 301 command byte, 0x01 Start, 0x02 Stop, 0x80 Pre-operational, 0x81 Reset Node, 0x82 Reset
+     * Communication. */
+    uint8_t nmt = 0;
     uint32_t seconds = 0;  ///< WATCH: 0 ends a running watch, else 1..600 s. CAPTURE: 1..600 s, 0 for C0.
     bool transmit = false; ///< READ: true 0x1800/0x1A00 + set, false 0x1400/0x1600 + set.
     uint8_t set = 0;       ///< READ, WRITE: PDO set 0..3, so TPDO1..TPDO4 or RPDO1..RPDO4.

@@ -208,6 +208,16 @@ class Ladder(night.Night):
             st = self.begin(node, label + "b")
             if self.enabled(st):
                 raise night.Retire("power-up state not released by the best-effort quick stop: {}".format(st))
+        if st and not self.released(st) and not self.enabled(st) and not self.alarm_state(st) and \
+                (int(st["6041"], 16) & 0x7f) == 0x10:
+            # After the 2301 clear in mode 3 (trial 5323) the drive read 6041 8010, 2100 0001: alarm gone, low bits
+            # 000, not the released 8050. The best-effort 000B released the similar power-up state (trials 503/506).
+            self.say("  post-clear state {}: mode 1, best-effort quick stop, then a fresh series".format(st["6041"]))
+            if st["6061"] != "01":
+                # The stop route refused 8010 in mode 3 (trial 5327); from mode 1 the power-up state took 000B.
+                self.motion(node, "mode1", ["mode1", "--cycles", "3", "--interval-ms", "500"], ok=(0, 3), seconds=60)
+            self.emergency(node)
+            st = self.begin(node, label + "c")
         if not st or not self.released(st):
             raise night.Retire("not released at series start: {}".format(st))
         if st["6061"] != "03":

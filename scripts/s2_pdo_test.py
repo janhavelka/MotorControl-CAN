@@ -241,7 +241,7 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="5"), "image_without_pdo_lines"),
+                           (Board(watch=1), "watch_running"), (Board(pdo="6"), "image_without_pdo_lines"),
                            (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
@@ -944,7 +944,8 @@ class FirmwareTextTest(unittest.TestCase):
         for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
-        self.assertIn("pdo=4", widest)
+        self.assertIn("pdo=5", widest)
+        self.assertIn("routes=10", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
         self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.
@@ -1184,6 +1185,94 @@ class AnalyzeTest(unittest.TestCase):
         write = report["pdo_records"][0]
         self.assertEqual(write["header"]["failure"], 4)
         self.assertEqual(write["results"][1]["abort"], "06090030")
+
+
+RESET_REPLY = (b"NMT admitted node=1 cmd=129; addressed, no drive-stop claim; network observation separate\n"
+               b"NMT request=4 target=1 cmd=129 outcome=0 possible=1 txConfirmed=1 completed=900 admitted=800; x\n")
+
+
+class NmtResetTest(unittest.TestCase):
+    """PONG pdo=5: the N line's r (Reset Node, 0x81) and c (Reset Communication, 0x82), attended fault-recovery
+    experiments. Checked as every N line is, refused on an older image, and only with a watch running before
+    them, so that a boot-up that follows is in the record."""
+
+    WATCH_STEP = {"send": "P30", "expect": "PDOW admitted"}
+
+    def reset(self, text):
+        return {"send": text, "expect": "NMT admitted", "end": "NMT request"}
+
+    def test_plan_rules(self):
+        for text in ("N1,r", "N2,r", "N1,c", "N2,c"):
+            self.assertEqual(len(pdo.check_plan(plan(self.WATCH_STEP, self.reset(text), {"wait_s": 2}))), 3)
+            self.assertEqual(pdo.nmt_plan(text)[1], 0x81 if text.endswith("r") else 0x82)
+        self.assertEqual(pdo.NMT_NAMES[0x81], "reset-node")
+        self.assertEqual(pdo.NMT_NAMES[0x82], "reset-communication")
+        for steps in ((self.reset("N1,r"),),  # No watch to record a boot-up.
+                      (self.WATCH_STEP, {"send": "P0", "expect": "PDOW_STOPPING"}, self.reset("N1,c")),
+                      (self.WATCH_STEP, self.reset("N3,r")), (self.WATCH_STEP, self.reset("N1,x")),
+                      (self.WATCH_STEP, self.reset("N1,R")), (self.WATCH_STEP, self.reset("N1,rr")),
+                      (self.WATCH_STEP, self.reset("N1,r,1")),
+                      (self.WATCH_STEP, {"send": "N1,r", "expect": "NMT", "end": "NMT request"}),
+                      (self.WATCH_STEP, {"send": "N1,r", "expect": "NMT admitted", "end": "END raw"}),
+                      # Its result is held like any N's: released before the next.
+                      (self.WATCH_STEP, self.reset("N1,r"), self.reset("N1,o"))):
+            with self.assertRaises(pdo.SessionError, msg=steps):
+                pdo.check_plan(plan(*steps))
+        # The other commands need no watch, as before.
+        self.assertEqual(len(pdo.check_plan(plan(self.reset("N1,o")))), 1)
+
+    def session(self, board, steps):
+        root = Path(tempfile.mkdtemp())
+        path = root / "plan.json"
+        path.write_text(json.dumps(plan(*steps)), encoding="utf-8")
+        out = root / "session"
+        code = pdo.run(Args(path, out), Backend(board), Clock())
+        return code, json.loads((out / "session.json").read_text(encoding="utf-8")), out
+
+    def test_an_image_before_pdo5_is_never_sent_a_reset(self):
+        for version in ("1", "4"):
+            board = Board({b"P30\n": WATCH, b"N1,r\n": RESET_REPLY}, pdo=version)
+            code, meta, _ = self.session(board, [self.WATCH_STEP, self.reset("N1,r")])
+            self.assertEqual((code, meta["reason"]), (1, "image_without_nmt_reset"))
+            self.assertEqual(board.writes, [b"p"])
+        board = Board({b"P30\n": WATCH, b"N1,r\n": RESET_REPLY}, pdo="5")
+        code, meta, _ = self.session(board, [self.WATCH_STEP, self.reset("N1,r"), {"wait_s": 0.05}])
+        self.assertEqual((code, meta["reason"]), (0, "completed"))
+        self.assertEqual(board.writes, [b"p", b"P30\n", b"N1,r\n"])
+
+    def test_the_terminal_names_the_reset(self):
+        # The firmware's result must carry the node and command sent, outcome 0 and a confirmed TX.
+        for reply, problem in ((RESET_REPLY.replace(b"cmd=129 outcome", b"cmd=130 outcome"), "nmt_wrong_request"),
+                               (RESET_REPLY.replace(b"txConfirmed=1", b"txConfirmed=0"), "nmt_not_transmitted"),
+                               (RESET_REPLY.replace(b"target=1 cmd", b"target=2 cmd"), "nmt_wrong_request")):
+            board = Board({b"P30\n": WATCH, b"N1,r\n": reply}, pdo="5")
+            code, meta, _ = self.session(board, [self.WATCH_STEP, self.reset("N1,r"), {"wait_s": 0.05}])
+            self.assertEqual((code, meta["reason"], meta["steps"][1]["problem"]), (1, "terminal_failed", problem))
+
+    def test_analysis_reports_the_boot_up(self):
+        frame = "PDOW_F n=%d t=%d id=%s ext=0 rtr=0 dlc=%d data=%s timed=1 exact=0 lo=%d hi=%d gap=0"
+        lines = ["PDOW_BEGIN n=0 t=1 seconds=30 ring=32 ids=16",
+                 frame % (1, 500, "701", 1, "05", 490, 500),  # Its heartbeat before the reset.
+                 "NMT request=4 target=1 cmd=129 outcome=0 possible=1 txConfirmed=1 completed=900 admitted=800; x",
+                 frame % (2, 1500, "702", 1, "00", 1490, 1500),  # Node 2's boot-up is not node 1's.
+                 frame % (3, 2500, "701", 1, "00", 2490, 2500),  # The boot-up after the reset.
+                 frame % (4, 3500, "701", 1, "7f", 3490, 3500),  # Then Pre-operational heartbeats.
+                 "PDOW_END n=5 t=40000 reason=duration frames=4 printed=4 unprinted=0 tapDropped=0 untimed=0 sdo=0 "
+                 "idOverflow=0"]
+        report = AnalyzeTest.capture(self, lines)
+        self.assertEqual((report["unknown"], report["malformed"]), ([], []))
+        self.assertEqual([n["name"] for n in report["nmt"]], ["reset-node"])
+        self.assertEqual(report["nmt_resets"], [
+            {"line": 3, "target": 1, "name": "reset-node", "txConfirmed": 1, "completed": 900, "covered": True,
+             "unprinted": 0, "boot_ups": 1, "first_boot_up": 2500, "first_boot_up_delay_us": 1600}])
+        self.assertEqual(report["watches"][0]["ids"]["701"]["heartbeat_states"],
+                         [(500, "05"), (2500, "00"), (3500, "7f")])
+        # No boot-up printed: reported as none, with whether a watch covered the reset at all.
+        quiet = AnalyzeTest.capture(self, [line for line in lines if "data=00" not in line])
+        self.assertEqual((quiet["nmt_resets"][0]["boot_ups"], quiet["nmt_resets"][0]["first_boot_up"],
+                          quiet["nmt_resets"][0]["covered"]), (0, None, True))
+        bare = AnalyzeTest.capture(self, [lines[2]])
+        self.assertEqual((bare["nmt_resets"][0]["covered"], bare["nmt_resets"][0]["unprinted"]), (False, None))
 
 
 class RetainedTest(unittest.TestCase):

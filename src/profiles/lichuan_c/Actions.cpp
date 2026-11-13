@@ -51,6 +51,11 @@ constexpr uint16_t RELEASED_PATTERN_MASK = 0x007f, RELEASED_PATTERN = 0x0050;
 // to 0033; 1742: C031 to 8033). ZH86 and OP86 call it running; no meaning is assigned to it here.
 constexpr uint16_t RELEASED_LATCH_STATUS_BIT = 0x4000;
 bool releasedStart(const EnableEvidence& e) { return e.start == EnableStart::RELEASED_BY_RECORDED_STOP; }
+// 6041 bit 3, the alarm bit of ZH86 p12, and bit 7, that of EN86 p12 and OP86 p10. A mode 3 alarm clear
+// completes only with both clear: node 1 read C018 with its alarm and 8010 after the 2301 clear (trial 5323).
+constexpr uint16_t STATUS_ALARM_BITS = 0x0088;
+// CONTROLWORD_BIT7's first word, 6040 bit 7 alone (EN86/ZH86 p15, OP86 p13; 15->128 in ZH86 p12, OP86 p10).
+constexpr uint8_t ALARM_RESET_WORD = 0x80;
 // An alarm clear's incident as prepareClearAlarm admits it. Its cycles are judged against this mode
 // and monitor, so a context holding any other shape is refused rather than judged.
 bool clearAdmitted(const AlarmIncident& i) {
@@ -104,6 +109,8 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
         (c.actionKind == ActionKind::CLEAR_ALARM && !clearAdmitted(c.incident)) ||
+        c.clearMethod > AlarmClearMethod::CONTROLWORD_BIT7 ||
+        (c.actionKind != ActionKind::CLEAR_ALARM && c.clearMethod != AlarmClearMethod::OBJECT_2301) ||
         (c.standstillObserving &&
          (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP ||
           (c.stopModeRaw != 1 &&
@@ -190,9 +197,11 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
     t.channel = c.reservation.target.channel;
     t.operation = t.request = c.operation;
     t.step = c.step;
-    t.index = c.actionKind == ActionKind::STOP || enabling(c) ? 0x6040
-              : c.actionKind == ActionKind::CLEAR_ALARM      ? 0x2301
-                                                             : 0x2302;
+    const bool resetWord = c.actionKind == ActionKind::CLEAR_ALARM &&
+                           c.clearMethod == AlarmClearMethod::CONTROLWORD_BIT7;
+    t.index = c.actionKind == ActionKind::STOP || enabling(c) || resetWord ? 0x6040
+              : c.actionKind == ActionKind::CLEAR_ALARM                   ? 0x2301
+                                                                          : 0x2302;
     t.direction = CANOPEN::SdoDirection::DOWNLOAD;
     t.size = 2;
     if (c.actionKind == ActionKind::STOP) {
@@ -200,6 +209,8 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
         t.data[1] = c.kind == StopKind::HALT && c.stopModeRaw != 6 ? 1 : 0;
     } else if (enabling(c))
         t.data[0] = uint8_t(ENABLE_WORDS[c.commandCursor]);
+    else if (resetWord)
+        t.data[0] = c.commandCursor == 0 ? ALARM_RESET_WORD : 0; // 0x0080, then the manual 0x0000.
     else
         t.data[0] = c.actionKind == ActionKind::CLEAR_ALARM ? uint8_t(c.commandCursor == 0)
                                                             : uint8_t(c.commandCursor == 1);
@@ -440,15 +451,24 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         break;
     }
     case ActionKind::CLEAR_ALARM:
-        // Mode 3 (project policy, 2026-11-13): every cycle must still report released, and running
-        // only as the latch the admission itself read. Cycles read no FEEDBACK, so the release is
-        // the evidence that the drive stays de-energized; nothing here re-reads 606C.
-        if (c.incident.modeRaw == 3)
-            outsideScope |= !(monitor & MONITOR_RELEASED) ||
-                            (running && !(c.incident.monitor & MONITOR_RUNNING));
-        else
+        if (c.incident.modeRaw == 3) {
+            // Mode 3 (project policy, 2026-11-13). No cycle may report a switched-on pattern in 6041
+            // bits 0..2: the drive keeps its 60FF target. While the alarm is reported the drive must
+            // stay released, running only as the latch the admission read. Measured on node 1 (trial
+            // 5323): the first cycle after the 2301 clear read 2100=0001 and 6041=8010, alarm, running
+            // and released clear with low bits 000, so once the alarm clears the release may go either
+            // way, running may not stay, and 6041's own alarm bits must read clear too. Cycles read no
+            // FEEDBACK; nothing here re-reads 606C.
+            const uint16_t status = c.statusObservation.statusword;
+            outsideScope |= (status & STATUS_LOW_BITS) != 0 ||
+                            (alarm ? !(monitor & MONITOR_RELEASED) ||
+                                         (running && !(c.incident.monitor & MONITOR_RUNNING))
+                                   : running);
+            done = !alarm && !(status & STATUS_ALARM_BITS);
+        } else {
             outsideScope |= running;
-        done = !alarm;
+            done = !alarm;
+        }
         break;
     case ActionKind::SET_DEVICE_POSITION:
         outsideScope |= running || alarm;
@@ -603,10 +623,12 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
 }
 void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadContext& state,
                      ActionKind kind, uint32_t operation, uint64_t now, uint64_t deadline,
-                     const ActionOptions& options) {
+                     const ActionOptions& options,
+                     AlarmClearMethod method = AlarmClearMethod::OBJECT_2301) {
     new (static_cast<void*>(&c)) ActionContext();
     c.reservation = r;
     c.actionKind = kind;
+    c.clearMethod = method;
     c.options = options;
     c.operation = operation;
     c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
@@ -891,16 +913,21 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
 
 Status prepareClearAlarm(ActionContext& output, const AxisReservation& r,
                          const ReadContext& state, uint32_t operation, uint64_t now,
-                         uint64_t deadline, const ActionOptions& options) noexcept {
+                         uint64_t deadline, const ActionOptions& options,
+                         AlarmClearMethod method) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "alarm preparation overlaps input");
+    if (method > AlarmClearMethod::CONTROLWORD_BIT7)
+        return error(ActionError::ARGUMENT, "unknown alarm clear method");
+    // One admission for both methods: the reset route changes the two writes and nothing else.
     const Status s =
         validateExplicit(r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
     if (!s)
         return s;
-    publishExplicit(output, r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
+    publishExplicit(output, r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options,
+                    method);
     return Ok();
 }
 

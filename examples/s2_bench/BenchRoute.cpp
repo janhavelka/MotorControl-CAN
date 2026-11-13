@@ -185,6 +185,11 @@ constexpr Range LAYOUT = {1, 4}, METHOD = {17, 29};
 // VELOCITY_TARGET's 60FF value: p13's documentary 0..3000 rpm, its negation, and 3001, one above it, the
 // range probe (gate Q03). Wider values decide nothing more and are refused.
 constexpr Range PROBE_VALUE = {-3000, 3001};
+// CLEAR_ALARM's reset method on the line (protocol 10): 1 OBJECT_2301, 2 CONTROLWORD_BIT7, AlarmClearMethod
+// plus one, as the line numbers stop kinds. No 0: the line always names it.
+constexpr Range CLEAR_METHOD = {1, 2};
+static_assert(unsigned(L::AlarmClearMethod::OBJECT_2301) == 0 && unsigned(L::AlarmClearMethod::CONTROLWORD_BIT7) == 1,
+              "the host line numbers the alarm clear methods 1 and 2");
 // VELOCITY's rate field: up to the prompt 59 range probe's ceiling, twice the documented 3000 rpm (project
 // policy). routePlanValid keeps 1..3000 without the probe's flag, as before.
 constexpr Range VELOCITY_RPM = {1, L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM};
@@ -242,6 +247,13 @@ constexpr Field DI3_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIA
                                 ROUTE_FIELD(code, DI3_CASE)};
 constexpr Field CLEAR_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                   ROUTE_FIELD(deadlineMs, ACTION_MS), ROUTE_FIELD(intervalMs, ACTION_INTERVAL)};
+// CLEAR_ALARM: COUNTER_ZERO's fields, then the reset method (protocol 10).
+constexpr Field ALARM_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                  ROUTE_FIELD(trial, TRIAL),
+                                  ROUTE_FIELD(attended, FLAG),
+                                  ROUTE_FIELD(deadlineMs, ACTION_MS),
+                                  ROUTE_FIELD(intervalMs, ACTION_INTERVAL),
+                                  ROUTE_FIELD(clearMethod, CLEAR_METHOD)};
 constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(trial, TRIAL),
                                  ROUTE_FIELD(attended, FLAG),
@@ -390,7 +402,7 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'D', RouteKind::SETTINGS_2202, LIMIT_FIELDS, countOf(LIMIT_FIELDS)},
                                 {'J', RouteKind::IO_DI3, DI3_FIELDS, countOf(DI3_FIELDS)},
                                 {'Z', RouteKind::COUNTER_ZERO, CLEAR_FIELDS, countOf(CLEAR_FIELDS)},
-                                {'C', RouteKind::CLEAR_ALARM, CLEAR_FIELDS, countOf(CLEAR_FIELDS)},
+                                {'C', RouteKind::CLEAR_ALARM, ALARM_FIELDS, countOf(ALARM_FIELDS)},
                                 {'N', RouteKind::MODE_THREE, MODE_FIELDS, countOf(MODE_FIELDS)},
                                 {'V', RouteKind::VELOCITY, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)},
                                 {'O', RouteKind::HOME, HOME_FIELDS, countOf(HOME_FIELDS)},
@@ -3108,7 +3120,8 @@ void BenchRoute::startClear(uint64_t now) noexcept {
     }
     M::Status status;
     if (p.kind == RouteKind::CLEAR_ALARM) {
-        status = axis().requestClearAlarm(context_.read, options, deadline, now);
+        status = axis().requestClearAlarm(context_.read, options, deadline, now,
+                                          L::AlarmClearMethod(p.clearMethod - 1u));
     } else {
         // The axis and witness the counter's 1 withdraws, borrowed until the clear is terminal: this
         // node's move configuration, at the session's binding, and a witness that knows no position.
@@ -3660,11 +3673,17 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        static_cast<unsigned long>(p.stopIntervalMs), unsigned(p.relativeBase),
                        static_cast<long>(p.base), unsigned(p.observer));
         case RouteKind::COUNTER_ZERO:
-        case RouteKind::CLEAR_ALARM:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u deadline=%lu interval=%lu\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<unsigned long>(p.deadlineMs),
                        static_cast<unsigned long>(p.intervalMs));
+        case RouteKind::CLEAR_ALARM:
+            // method: the line's 1 (2301) or 2 (6040 bit 7), from protocol 10.
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u deadline=%lu interval=%lu method=%u\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), static_cast<unsigned long>(p.deadlineMs),
+                       static_cast<unsigned long>(p.intervalMs), unsigned(p.clearMethod));
         case RouteKind::ARM_MOVE:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld interval=%lu record=%lu as=%u am=%04x "
@@ -3886,13 +3905,14 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         if (!index--)
             return put(out, size,
                        "TRIAL_CLEAR own=%u kind=%u state=%u outcome=%u exec=%u completion=%u uncertain=%u "
-                       "effects=%u one=%u coords=%u final=%u observations=%lu op=%lu blocked=%u\n",
+                       "effects=%u one=%u coords=%u final=%u observations=%lu op=%lu blocked=%u method=%u\n",
                        unsigned(c.state != M::ActionState::EMPTY && c.startedUs >= r.actionRequestedUs),
                        unsigned(c.actionKind), unsigned(c.state), unsigned(c.outcome), unsigned(c.execution),
                        unsigned(c.completion), unsigned(c.uncertain), unsigned(c.effectsPossible),
                        unsigned(c.valueOneMayRemain), unsigned(c.coordinatesInvalidated),
                        unsigned(c.finalErrorRead), static_cast<unsigned long>(c.observations),
-                       static_cast<unsigned long>(c.operation), unsigned(axis().clearBlocked()));
+                       static_cast<unsigned long>(c.operation), unsigned(axis().clearBlocked()),
+                       unsigned(c.clearMethod)); // The library's AlarmClearMethod, 0 2301, 1 6040 bit 7.
         if (index < 3) {
             // Each write's terminal by slot: alarm 1 then 0 in slots 0 and 1, counter 0, 1, 0.
             const unsigned w = index;

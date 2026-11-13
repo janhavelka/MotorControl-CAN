@@ -494,14 +494,19 @@ class AxisSession {
     bool homeNeedsStop() const noexcept { return homeNeedsStop_; }
     /** @return Latest failed home admission/handover check; no motor or protocol outcome. */
     const MotorControlCAN::Status& homeRefusal() const noexcept { return homeRefusal_; }
-    /** Request one explicit alarm clear on this axis through prepareClearAlarm: 2301 U16 1, then 0
-     * after the 1's acknowledgement. No specimen has run it. Starts a new owner operation, then prepares
+    /** Request one explicit alarm clear on this axis through prepareClearAlarm: by default 2301 U16 1,
+     * then 0 after the 1's acknowledgement; with AlarmClearMethod::CONTROLWORD_BIT7, 6040 U16 0x0080, then
+     * 0x0000 after the 0x0080's acknowledgement. The 2301 method ran once on a specimen (node 1, mode 3,
+     * 2026-11-13); the controlword method has not. Starts a new owner operation, then prepares
      * clearAction() in place. Yields no traffic here: service() admits each write and read on this
-     * reservation, as for an enable. After the 0's acknowledgement it reads MONITORS and STATUS until 2100
-     * reports the alarm clear, then ERRORS once. An alarm that persists after both acknowledgements is
-     * that result: it is repolled until the deadline and never written again. Nothing follows the clear:
-     * no enable, controlword, mode, target, save or resume, and requestEnable stays refused because this
-     * session has written. An observed clear is a drive report, not proof that the cause is gone.
+     * reservation, as for an enable. After the second acknowledgement it reads MONITORS and STATUS until
+     * they report the completion prepareClearAlarm describes, then ERRORS once. An alarm that persists
+     * after both acknowledgements is that result: it is repolled until the deadline and never written
+     * again. Nothing follows the clear: no enable, mode, target, save or resume, and requestEnable stays
+     * refused because this session has written. The controlword method's acknowledged words become this
+     * session's latest controlword like any other, ending at 0x0000, which stopPredecessorAllowed does not
+     * list, so requestStop then treats it as requestStop describes an unsupported predecessor. An observed
+     * clear is a drive report, not proof that the cause is gone.
      * @param[in] state Complete fresh SDO read of ERRORS, ERROR_HISTORY, MONITORS and STATUS under this
      * reservation, as prepareClearAlarm requires: 2100 alarm set, raw 603F FF05, and mode 1 with
      * running clear or mode 3 released. Running in mode 3 also needs FEEDBACK reading 606C zero in
@@ -510,6 +515,7 @@ class AxisSession {
      * @param[in] options Copied budgets, as prepareClearAlarm requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of both writes and every observation.
      * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @param[in] method prepareClearAlarm's reset route; the default keeps earlier callers on 2301.
      * @return prepareClearAlarm's status, or a local refusal with ActionError::STATE (busy, clearBlocked()
      * or identities exhausted), TARGET (no usable reservation) or TIME. On such a refusal nothing
      * changes, and on success nothing has been admitted. If the owner then refuses the operation, which
@@ -517,9 +523,11 @@ class AxisSession {
      * nothing sent and STATE is returned. The owner keeps only the latest EMCY: an application that
      * needs the incident's EMCY copies it before this call, and routes a later one to cancelClear.
      */
-    MotorControlCAN::Status requestClearAlarm(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                              const MotorControlCAN::LICHUAN_C::ActionOptions& options,
-                                              uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status requestClearAlarm(
+        const MotorControlCAN::LICHUAN_C::ReadContext& state,
+        const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs, uint64_t nowUs,
+        MotorControlCAN::LICHUAN_C::AlarmClearMethod method =
+            MotorControlCAN::LICHUAN_C::AlarmClearMethod::OBJECT_2301) noexcept;
     /** Request one explicit zero-only device counter clear on this axis through
      * prepareSetDevicePosition: 2302 U16 0, 1, 0, each after the previous acknowledgement, all on the
      * original binding. No specimen has run it. Starts a new owner operation, then prepares
@@ -798,7 +806,8 @@ class AxisSession {
                                        int64_t nativePosition, MotorControlCAN::AxisConfig* axis,
                                        MotorControlCAN::AxisReference* reference,
                                        const MotorControlCAN::LICHUAN_C::ActionOptions& options,
-                                       uint64_t deadlineUs, uint64_t nowUs) noexcept;
+                                       uint64_t deadlineUs, uint64_t nowUs,
+                                       MotorControlCAN::LICHUAN_C::AlarmClearMethod method) noexcept;
     void withdrawClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void endClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void afterClear() noexcept;

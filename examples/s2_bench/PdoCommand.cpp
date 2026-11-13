@@ -52,9 +52,15 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
         result.kind = PdoCommandKind::NMT;
         if (!node(text, end, result.node) || !comma(text, end) || text == end)
             return false;
-        // Reset commands are deliberately absent: they invalidate every node fact and are not
-        // part of these experiments.
-        result.nmt = *text == 'o' ? 0x01 : *text == 's' ? 0x02 : *text == 'p' ? 0x80 : 0;
+        // From PONG pdo=5, r and c send Reset Node and Reset Communication, the fault-recovery
+        // experiments of 2026-11-13. Each invalidates every fact about that node, and nothing but an
+        // N line the attendant typed sends one: no other path of this firmware does.
+        result.nmt = *text == 'o'   ? 0x01
+                     : *text == 's' ? 0x02
+                     : *text == 'p' ? 0x80
+                     : *text == 'r' ? 0x81
+                     : *text == 'c' ? 0x82
+                                    : 0;
         if (!result.nmt)
             return false;
         ++text;

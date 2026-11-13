@@ -1075,19 +1075,20 @@ void AxisSession::serviceHome(uint64_t now) noexcept {
     }
 }
 M::Status AxisSession::requestClearAlarm(const L::ReadContext& state, const L::ActionOptions& options,
-                                         uint64_t deadline, uint64_t now) noexcept {
-    return startClear(state, 0, nullptr, nullptr, options, deadline, now);
+                                         uint64_t deadline, uint64_t now, L::AlarmClearMethod method) noexcept {
+    return startClear(state, 0, nullptr, nullptr, options, deadline, now, method);
 }
 M::Status AxisSession::requestCounterZero(const L::ReadContext& state, int64_t nativePosition,
                                           M::AxisConfig& axis, M::AxisReference& reference,
                                           const L::ActionOptions& options, uint64_t deadline,
                                           uint64_t now) noexcept {
-    return startClear(state, nativePosition, &axis, &reference, options, deadline, now);
+    return startClear(state, nativePosition, &axis, &reference, options, deadline, now,
+                      L::AlarmClearMethod::OBJECT_2301);
 }
 // One request path for both clears; a null axis is the alarm clear.
 M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePosition, M::AxisConfig* axis,
                                   M::AxisReference* reference, const L::ActionOptions& options,
-                                  uint64_t deadline, uint64_t now) noexcept {
+                                  uint64_t deadline, uint64_t now, L::AlarmClearMethod method) noexcept {
     const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
     if (now < latestUs())
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TIME),
@@ -1111,7 +1112,7 @@ M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePos
     const M::Status prepared =
         axis ? L::prepareSetDevicePosition(clear_, reservation_, state, nativePosition, *axis, next, now,
                                            deadline, options)
-             : L::prepareClearAlarm(clear_, reservation_, state, next, now, deadline, options);
+             : L::prepareClearAlarm(clear_, reservation_, state, next, now, deadline, options, method);
     if (!prepared)
         return prepared;
     clearTarget_ = reservation_.target;

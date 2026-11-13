@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Two alarm reset methods, the measured mode 3 completion and NMT reset experiments (2026-11-13)
+
+- `AlarmClearMethod` and a defaulted last parameter of `prepareClearAlarm` (and
+  `AxisSession::requestClearAlarm`): `OBJECT_2301`, the default and the earlier behavior (`2301`
+  1, then 0; EN86 p18, EDS), or `CONTROLWORD_BIT7` (`6040` U16 `0x0080`, then `0x0000`; EN86/ZH86
+  p15 and OP86 p13 "Alarm reset", `15->128` in ZH86 p12 and OP86 p10). Both share admission,
+  cycles, completion, the one final ERRORS read and `valueOneMayRemain`; each second write waits
+  for the first one's acknowledgement, and nothing else is written. `ActionContext::clearMethod`
+  keeps the choice; an unknown method is `ActionError::ARGUMENT`. The controlword method has not
+  run on a specimen.
+- Mode 3 completion changed for both methods. Trial 5323 (node 1, 2026-11-13) cleared `FF05` with
+  `2301` and then read `2100=0001`, `6041=8010`, `6061=3`, which the release-in-every-cycle rule
+  ended `OBSERVATION_SCOPE`. A mode 3 cycle now completes with `6041` low bits `000`, `2100` alarm
+  and running clear and `6041` bits 3 and 7 clear, the release either way; any switched-on low
+  bits, running with the alarm clear or a mode change end it, and an alarm still reported keeps it
+  polling. Running beside a cleared alarm, which the earlier rule accepted after a latched
+  admission, now ends it. Mode 1 is unchanged. What `8010` beside `0001` means for torque is not
+  established. See [fault clearing](docs/fault_reference_actions.md#completion-measured-2026-11-13).
+- S2 bench route protocol 10: the `clear-alarm` line ends in its method (`1` `2301`, `2`
+  controlword); `scripts/s2_bench.py --method 2301|controlword` is required for it, and
+  request.json and the send entry hold `clear_method`. `TRIAL_PLAN` gains `method=`, `TRIAL_CLEAR`
+  the context's `method=`, and `scripts/s2_evidence.py` checks that one method runs through the
+  request, the plan, the context, its kept writes and its download terminals.
+- S2 PONG `pdo=5`: the `N` line takes `r` (NMT Reset Node, `0x81`) and `c` (Reset Communication,
+  `0x82`), attended experiments that no other path sends. `scripts/s2_pdo.py` checks them as every
+  `N`, refuses them on an older image or without a watch started before them, and `analyze` lists
+  each under `nmt_resets` with the first boot-up frame printed after it. Nothing about either reset's
+  effect on this drive is documented or measured.
+
 ### Alarm clear in mode 3 (2026-11-13)
 
 - `prepareClearAlarm` also admits mode 3, as project policy: node 1 raised `FF05` in a mode 3

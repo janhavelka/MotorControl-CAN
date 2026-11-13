@@ -1168,7 +1168,7 @@ class BenchTest(unittest.TestCase):
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
             # Older images, protocols 7 and 8 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 10):
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 11):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1508,12 +1508,12 @@ class BenchTest(unittest.TestCase):
         counter = ["--command", "counter-zero", "--node", "1", "--trial", "7", "--deadline-ms", "3000",
                    "--interval-ms", "500"]
         alarm = ["--command", "clear-alarm", "--node", "2", "--trial", "8", "--deadline-ms", "3000",
-                 "--interval-ms", "500"]
+                 "--interval-ms", "500", "--method", "2301"]
         watched = list(MOVE) + ["--observer", "2"]
         watched[watched.index("--deadline-ms") + 1] = "6000"
         watched[watched.index("--interval-ms") + 1] = "2000"
         for argv, line, bounds in ((limits, "TD1,5,1,1", (14, 0)), (di3, "TJ2,6,1,3", (28, 0)),
-                                   (counter, "TZ1,7,1,3000,500", (66, 3000)), (alarm, "TC2,8,1,3000,500", (58, 3000))):
+                                   (counter, "TZ1,7,1,3000,500", (66, 3000)), (alarm, "TC2,8,1,3000,500,1", (58, 3000))):
             args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
             self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
             self.assertEqual(bench.plan_bounds(args.command, fields), bounds, argv[1])
@@ -1927,7 +1927,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=9", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=10", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -1969,8 +1969,8 @@ class BenchTest(unittest.TestCase):
 
     def test_protocol_nine_refuses_older_images(self):
         # Protocol 9 added the V line's last field and the K route: an image that speaks 8 would read a V line
-        # one field long and know no K, so nothing is sent to it.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 9)
+        # one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line.
+        self.assertEqual(bench.ROUTE_PROTOCOL, 10)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -1979,6 +1979,68 @@ class BenchTest(unittest.TestCase):
             board.routes = 8
             status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED " + trial, "none"))
             self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+
+    def test_clear_alarm_names_its_method(self):
+        # Protocol 10: the C line's last field is the reset method, 1 for 2301 (2301 1, 0) and 2 for the
+        # controlword (6040 0x0080, 0x0000). It has no default, request.json and the send entry name it, and an
+        # image that speaks protocol 9 is refused before any line.
+        alarm = ["--command", "clear-alarm", "--node", "1", "--trial", "9", "--deadline-ms", "3000",
+                 "--interval-ms", "500"]
+        for method, line in (("2301", "TC1,9,1,3000,500,1"), ("controlword", "TC1,9,1,3000,500,2")):
+            args, fields = bench.arguments(BASE + alarm + ["--method", method] + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (58, 3000))
+            self.assertEqual(bench.motion_weight(args.command, fields), (1, 0))
+        counter = ["--command", "counter-zero", "--node", "1", "--trial", "7", "--deadline-ms", "3000",
+                   "--interval-ms", "500"]
+        for argv in (alarm, alarm + ["--method", "24"], alarm + ["--method", "6040"], alarm + ["--method", ""],
+                     counter + ["--method", "2301"], ["controlword" if a == "24" else a for a in HOME],
+                     MODE3 + ["--method", "2301"]):
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + alarm + ["--method", "controlword", "--dry-run", "--campaign", str(self.ledger)],
+                                Untouchable(), Clock(), Operator())
+        self.assertEqual(status, 0)
+        for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=10",
+                     repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
+            self.assertIn(part, out.getvalue())
+        self.assertFalse(self.output.exists())
+        for trial, (method, word) in enumerate((("2301", "1"), ("controlword", "2")), 9):
+            self.clear_output()
+            board = Board()
+            argv = list(alarm) + ["--method", method]
+            argv[argv.index("--trial") + 1] = str(trial)
+            status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED %d" % trial, "none"))
+            self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+            self.assertEqual(board.writes, [b"p", signed("TC1,%d,1,3000,500,%s" % (trial, word)).encode()])
+            self.assertEqual(self.meta()["clear_method"], method)
+            send = [entry for entry in self.entries() if entry["event"] == "send"]
+            self.assertEqual((send[-1]["route"], send[-1]["clear_method"], send[-1]["motion"]), ("C", method, 1))
+        # An image of protocol 9 would read a sixth field as trailing text: nothing is sent to it.
+        self.clear_output()
+        board = Board()
+        board.routes = 9
+        argv = list(alarm) + ["--method", "2301"]
+        argv[argv.index("--trial") + 1] = "11"  # Above the campaign's trials 9 and 10.
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 11"))
+        self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+        # A send entry whose clear_method differs from its line's field is inconsistent; one without it, from
+        # protocol 9, is not.
+        entry = {"event": "send", "route": "C", "node": 1, "trial": 4, "motion": 1, "stop": 0,
+                 "line": bench.sign_line("TC1,4,1,3000,500,1")}
+        self.assertIsNone(bench._send_problem(dict(entry, clear_method="2301")))
+        self.assertIsNone(bench._send_problem(dict(entry, line=bench.sign_line("TC1,4,1,3000,500"))))
+        for bad in (dict(entry, clear_method="controlword"), dict(entry, clear_method="6040"),
+                    dict(entry, clear_method="2301", line=bench.sign_line("TC1,4,1,3000,500"))):
+            self.assertIn("clear_method", bench._send_problem(bad))
+        self.write_ledger([dict(entry, clear_method="controlword")])
+        self.clear_output()
+        status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("inconsistent send entry", err)
 
     def test_range_probe_line_bounds_and_records(self):
         def probe(**values):
@@ -2040,7 +2102,7 @@ class BenchTest(unittest.TestCase):
             bench.main(BASE + probe(rpm=3000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
-        self.assertIn("routes=9", out.getvalue())
+        self.assertIn("routes=10", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2104,7 +2166,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=9", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=10", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
