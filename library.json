@@ -8,6 +8,7 @@
     {"name": "Jan Havelka", "email": "info@thymos.cz", "url": "https://www.thymos.cz", "maintainer": true}
   ],
   "repository": {"type": "git", "url": "https://github.com/janhavelka/MotorControl-CAN.git"},
+  "homepage": "https://github.com/janhavelka/MotorControl-CAN",
   "license": "MIT",
   "frameworks": "*",
   "platforms": "*",
