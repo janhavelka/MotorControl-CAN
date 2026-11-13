@@ -145,11 +145,14 @@ struct AlarmIncident {
     uint16_t errorCode = 0;        ///< ERRORS: 603F raw, FF05 at admission; possibly an earlier event's.
     uint8_t errorCount = 0;        ///< ERROR_HISTORY: active entries, 0..4.
     uint32_t errorHistory[4] = {}; ///< ERROR_HISTORY: native error values, layout undocumented.
-    uint16_t monitor = 0;          ///< MONITORS: 2100 raw.
+    /** MONITORS: 2100 raw. Running set here only in mode 3, beside released: the latched release,
+     * after which later cycles may keep reporting running. */
+    uint16_t monitor = 0;
     uint16_t logicalInputs = 0;    ///< MONITORS: 2101 raw.
     uint16_t logicalOutputs = 0;   ///< MONITORS: 2102 raw.
     uint16_t statusword = 0;       ///< STATUS: 6041 raw.
-    uint8_t modeRaw = 0;           ///< STATUS: 6061 complete byte.
+    /** STATUS: 6061 complete byte, 1 or 3; every cycle of the attempt must repeat it. */
+    uint8_t modeRaw = 0;
 };
 /** SET_DEVICE_POSITION only: the raw feedback read at admission, kept after later cycles replace
  * extraObservation. When startPosition was already zero, a later raw zero shows no change at all.
@@ -476,19 +479,32 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
                          uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare one CL86-C/OL86-C alarm-clear attempt; emits no enable, controlword or motion command.
  * Requires complete fresh SDO ERRORS/ERROR_HISTORY/MONITORS/STATUS acquired under
- * reservation: mode 1, 2100 running clear and alarm set, raw 603F=FF05. That code narrows the
- * attempt; it does not identify the reported alarm, so incident.codeLink is UNRESOLVED (D-26).
+ * reservation: 2100 alarm set and raw 603F=FF05, in one of two modes. Mode 1: 2100 running clear.
+ * Mode 3: 2100 released set, and running either clear or, as the latched release a moving stop or
+ * the FF05 run left (2100=001D), set with a fresh FEEDBACK block in the same read reporting 606C
+ * raw zero; without that block a running report is refused. The FF05 code narrows the attempt; it
+ * does not identify the reported alarm, so incident.codeLink is UNRESOLVED (D-26). EN86/ZH86 p20
+ * name no mode for the resettable class, so both modes are project policy: mode 1 is where the
+ * clear was designed, and mode 3 was added after a mode 3 run raised FF05 on node 1 on 2026-11-13,
+ * which the mode 1 rule refused and which the bench's mode 1 route could not leave while 1001 was
+ * set. Mode 3 needs the release because the drive keeps its 60FF target and nothing documents what
+ * it does after a clear. Neither mode has run a clear on a specimen.
  * Writes 2301 U16=1, then 0 only after the 1's acknowledgement. The 0 returns to the documented
  * ineffective value as library policy: no source requires an edge, a rearm or a pulse, and no
- * arming 0 precedes the 1 (D-27). Completion requires fresh mode 1, running and alarm clear in
- * 2100 after the 0's acknowledgement, then one ERRORS read: ERRORS and ERROR_HISTORY may consume
- * data, so polling reads MONITORS and STATUS only and never rereads the history. 603F may keep
- * its old raw value; the final read keeps it raw. A persisting alarm repolls until the deadline
- * and never repeats a write. maximumAgeUs must cover five fields at the queue plus response
- * budgets, service.identityWidths must stay DECLARED_U16 and service.countWidths DECLARED_U8.
+ * arming 0 precedes the 1 (D-27). Completion requires a fresh cycle after the 0's acknowledgement
+ * in the admission's mode (incident.modeRaw) with 2100 alarm clear, then one ERRORS read. Mode 1
+ * cycles must read running clear. Mode 3 cycles must read released set, and running may stay set
+ * only after a latched admission; cycles read no FEEDBACK, so the release is the evidence that the
+ * drive stays de-energized. Any other report ends the attempt OBSERVATION_SCOPE. ERRORS and
+ * ERROR_HISTORY may consume data, so polling reads MONITORS and STATUS only and never rereads the
+ * history. 603F may keep its old raw value; the final read keeps it raw. A persisting alarm repolls
+ * until the deadline and never repeats a write. maximumAgeUs must cover five fields at the queue
+ * plus response budgets, service.identityWidths must stay DECLARED_U16 and service.countWidths
+ * DECLARED_U8.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
- * @param[in] state Complete fresh prerequisite; its raw values stay in incident.
+ * @param[in] state Complete fresh prerequisite, FEEDBACK too for a mode 3 latched release; its raw
+ * values other than FEEDBACK stay in incident.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Nonzero caller policies.
  * @return Local validation only. Caller/owner separately retains EMCY/error history;

@@ -39,8 +39,8 @@ void persistUntilDeadline(Rig& r, L::ActionContext& action, unsigned cycles) {
     CHECK(action.state == M::ActionState::FAILED && action.outcome == M::ActionOutcome::DEADLINE);
 }
 
-// Only FF05 with a reported alarm, mode 1 and running clear is admitted, on either 86C model.
-// The code narrows the attempt; it never identifies the alarm.
+// Only FF05 with a reported alarm is admitted, on either 86C model: here mode 1 with running clear,
+// mode 3 in modeThreeAdmission. The code narrows the attempt; it never identifies the alarm.
 void admissionScope() {
     for (unsigned model = 0; model < 2; ++model) {
         Rig r;
@@ -75,7 +75,7 @@ void admissionScope() {
     const Case cases[] = {{0, 1, all},
                           {uint16_t(ALARM | L::MONITOR_RUNNING), 1, all},
                           {ALARM, 0, all},
-                          {ALARM, 3, all},
+                          {ALARM, 3, all}, // Mode 3 without the release.
                           {ALARM, 6, all},
                           {ALARM, 1, noErrors},
                           {ALARM, 1, noHistory}};
@@ -103,6 +103,195 @@ void admissionScope() {
         CHECK(!L::prepareClearAlarm(action, stale, r.state, r.operation, r.now, r.deadline, r.policy()));
         empty.unchanged(action);
     }
+}
+
+// Mode 3 is project policy since the bench finding of 2026-11-13: node 1 raised FF05 in a mode 3
+// run and then read 2100=001D (in place, running, alarm, released), 6041=C018 and 606C 0, which the
+// mode 1 rule refused. Admitted released, with running clear, or running set as that latched
+// release with 606C zero in the same read's FEEDBACK block. The writes, the cycles and the final
+// read are as in mode 1.
+const uint16_t IN_PLACE = L::MONITOR_POSITION_COMPLETE;
+const uint16_t RELEASED = L::MONITOR_RELEASED;
+const uint16_t LATCH = L::MONITOR_RUNNING;
+const uint16_t RELEASED_ALARM = uint16_t(IN_PLACE | ALARM | RELEASED);
+const uint16_t LATCHED_ALARM = uint16_t(IN_PLACE | LATCH | ALARM | RELEASED);
+void modeThreeAdmission() {
+    CHECK(RELEASED_ALARM == 0x0019 && LATCHED_ALARM == 0x001d);
+    struct Admitted {
+        uint16_t monitor, after;
+        uint8_t mask;
+    };
+    // The latch may stay after the alarm clears, or clear with it.
+    const Admitted admitted[] = {{RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x1f},
+                                 {RELEASED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x0f},
+                                 {LATCHED_ALARM, uint16_t(IN_PLACE | LATCH | RELEASED), 0x1f},
+                                 {LATCHED_ALARM, uint16_t(IN_PLACE | RELEASED), 0x1f}};
+    for (const Admitted& item : admitted) {
+        Rig r;
+        r.errorRegister = 0x81; // As node 1 read it.
+        r.acquire(item.monitor, 3, 0xff05, item.mask);
+        L::ActionContext action;
+        r.prepare(action, false);
+        const L::AlarmIncident& incident = action.incident;
+        CHECK(incident.present && incident.codeLink == L::AlarmCodeLink::UNRESOLVED &&
+              incident.modeRaw == 3 && incident.monitor == item.monitor &&
+              incident.errorCode == 0xff05 && incident.errorRegister == 0x81);
+        CHECK(action.actionKind == M::ActionKind::CLEAR_ALARM &&
+              action.phase == L::ActionPhase::COMMAND && !action.valueOneMayRemain &&
+              !action.coordinatesInvalidated);
+        const Saved<L::AlarmIncident> kept(action.incident);
+        const unsigned from = r.wire.sentCount;
+        r.commands(action, false); // 2B 01 23 00 01 00 00 00, then 2B 01 23 00 00 00 00 00.
+        r.cycle(action, item.after, 0, 0xff05, 3);
+        CHECK(action.state == M::ActionState::SUCCEEDED &&
+              action.outcome == M::ActionOutcome::OBSERVED &&
+              action.completion == M::ActionCompletion::OBSERVED && !action.valueOneMayRemain);
+        CHECK(action.monitorObservation.monitor == item.after &&
+              action.statusObservation.modeRaw == 3 && action.observations == 1);
+        CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
+              action.extraObservation.errorCode == 0xff05);
+        // Only the two 2301 writes: no 6040, 6060, target or any other download. The cycles read
+        // MONITORS and STATUS, then ERRORS once; never FEEDBACK or the history.
+        r.onlyActionTraffic(from, CLEAR, 2);
+        CHECK(r.uploadsOf(from, 0x6064) == 0 && r.uploadsOf(from, 0x606c) == 0 &&
+              r.uploadsOf(from, 0x1003) == 0 && r.uploadsOf(from, 0x603f) == 1);
+        kept.unchanged(action.incident);
+    }
+    struct Refused {
+        uint16_t monitor;
+        uint8_t mode, mask;
+        int32_t velocity;
+    };
+    const Refused refused[] = {
+        {LATCHED_ALARM, 3, 0x1f, 1},  // 606C nonzero beside the latch: not the latched release.
+        {LATCHED_ALARM, 3, 0x1f, -1},
+        {LATCHED_ALARM, 3, 0x0f, 0},  // No FEEDBACK block: the latch cannot be told from a run.
+        {uint16_t(IN_PLACE | ALARM), 3, 0x1f, 0},         // Not released.
+        {uint16_t(IN_PLACE | LATCH | ALARM), 3, 0x1f, 0}, // Running and not released.
+        {uint16_t(IN_PLACE | RELEASED), 3, 0x1f, 0},      // No alarm.
+        {RELEASED_ALARM, 3, 0x1e, 0},                     // No ERRORS.
+        {RELEASED_ALARM, 3, 0x1d, 0},                     // No ERROR_HISTORY.
+        {LATCHED_ALARM, 1, 0x1f, 0},  // Mode 1 admits no running report, latched or not.
+        {RELEASED_ALARM, 0, 0x1f, 0},
+        {LATCHED_ALARM, 0, 0x1f, 0},
+        {RELEASED_ALARM, 6, 0x1f, 0},
+        {LATCHED_ALARM, 6, 0x1f, 0},
+        {RELEASED_ALARM, 2, 0x1f, 0},
+        {RELEASED_ALARM, 0x83, 0x1f, 0}, // The complete byte decides, not its low bits.
+    };
+    for (const Refused& item : refused) {
+        Rig r;
+        r.feedbackVelocity = item.velocity;
+        r.acquire(item.monitor, item.mode, 0xff05, item.mask);
+        const unsigned from = r.wire.sentCount;
+        L::ActionContext action;
+        const Saved<L::ActionContext> empty(action);
+        const M::Status status = attempt(r, action);
+        CHECK(!status && status.detail == int32_t(M::ActionError::STATE));
+        empty.unchanged(action);
+        CHECK(r.wire.sentCount == from);
+    }
+    // Any other code is refused in mode 3 too.
+    const uint16_t codes[] = {0, 0xff01, 0xff04};
+    for (uint16_t code : codes) {
+        Rig r;
+        r.acquire(LATCHED_ALARM, 3, code);
+        L::ActionContext action;
+        const Saved<L::ActionContext> empty(action);
+        CHECK(!attempt(r, action));
+        empty.unchanged(action);
+    }
+}
+
+// Completion needs the admission's mode: after a mode 3 admission every cycle must read mode 3 and
+// released, and running only as the latch the admission read. Anything else ends the attempt
+// OBSERVATION_SCOPE, even with the alarm reported clear: no final ERRORS read, no further write.
+// A mode 1 admission is held to mode 1 in the same way.
+void completionNeedsTheAdmissionMode() {
+    struct Case {
+        uint16_t admitted;
+        uint8_t mode;
+        uint16_t report;
+        uint8_t reportMode;
+    };
+    const Case outside[] = {
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 1},        // Changed to mode 1.
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 1}, // The same after a latch.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 0},
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | RELEASED), 6},
+        // Running reported, but the admission read no latch.
+        {RELEASED_ALARM, 3, uint16_t(IN_PLACE | LATCH | RELEASED), 3},
+        {RELEASED_ALARM, 3, IN_PLACE, 3},                      // Release gone.
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH), 3},     // Release gone beside the latch.
+        {LATCHED_ALARM, 3, uint16_t(IN_PLACE | LATCH | ALARM), 3}, // And with the alarm set.
+        {ALARM, 1, 0, 3},                                      // A mode 1 admission in mode 3.
+    };
+    for (const Case& item : outside) {
+        Rig r;
+        r.acquire(item.admitted, item.mode);
+        L::ActionContext action;
+        r.prepare(action, false);
+        const unsigned from = r.wire.sentCount;
+        r.commands(action, false);
+        r.cycle(action, item.report, 0, 0xff05, item.reportMode);
+        CHECK(action.state == M::ActionState::FAILED &&
+              action.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+              action.completion == M::ActionCompletion::NOT_OBSERVED && !action.finalErrorRead);
+        CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain &&
+              !action.valueOneMayRemain);
+        CHECK(action.monitorObservation.monitor == item.report &&
+              action.statusObservation.modeRaw == item.reportMode);
+        CHECK(!r.next(action).ready);
+        r.onlyActionTraffic(from, CLEAR, 2);
+        CHECK(r.uploadsOf(from, 0x603f) == 0 && r.uploadsOf(from, 0x1001) == 0);
+    }
+    // A persisting alarm beside the latch repolls in mode 3, and a later report clears it.
+    Rig r;
+    r.acquire(LATCHED_ALARM, 3);
+    L::ActionContext action;
+    r.prepare(action, false);
+    const unsigned from = r.wire.sentCount;
+    r.commands(action, false);
+    r.cycle(action, LATCHED_ALARM, 0, 0xff05, 3);
+    CHECK(action.state == M::ActionState::ACTIVE && action.phase == L::ActionPhase::WAITING);
+    CHECK(!r.next(action).ready);
+    r.turn(action.eligibleUs, O::ServiceBudget());
+    r.cycle(action, uint16_t(IN_PLACE | LATCH | RELEASED), 0, 0, 3);
+    CHECK(action.state == M::ActionState::SUCCEEDED && action.observations == 2 &&
+          action.extraObservation.errorCode == 0);
+    r.onlyActionTraffic(from, CLEAR, 2);
+}
+
+// The admission's mode and monitor are part of the checked shape: a context holding an incident
+// that prepareClearAlarm could not have admitted is refused by every call, so no edit widens
+// completion.
+void incidentShapeIsChecked() {
+    Rig r;
+    r.acquire(LATCHED_ALARM, 3);
+    L::ActionContext action;
+    r.prepare(action, false);
+    const Saved<L::ActionContext> admitted(action);
+    L::PreparedAction work;
+    CHECK(L::nextAction(action, r.reservation, r.current, r.now, work) && work.ready);
+    const uint8_t modes[] = {0, 1, 2, 6};
+    for (uint8_t mode : modes) {
+        action.incident.modeRaw = mode;
+        CHECK(!L::nextAction(action, r.reservation, r.current, r.now, work));
+    }
+    action.incident.modeRaw = 3;
+    const uint16_t monitors[] = {uint16_t(LATCHED_ALARM & ~RELEASED),
+                                 uint16_t(LATCHED_ALARM & ~ALARM)};
+    for (uint16_t monitor : monitors) {
+        action.incident.monitor = monitor;
+        CHECK(!L::nextAction(action, r.reservation, r.current, r.now, work));
+    }
+    action.incident.monitor = LATCHED_ALARM;
+    action.incident.present = false;
+    CHECK(!L::nextAction(action, r.reservation, r.current, r.now, work));
+    action.incident.present = true;
+    admitted.unchanged(action);
+    CHECK(L::nextAction(action, r.reservation, r.current, r.now, work) && work.ready &&
+          work.transfer.index == CLEAR && work.transfer.data[0] == 1);
 }
 
 // A retained 603F=FF05 beside a later alarm admits exactly as a fresh one would. The application
@@ -540,6 +729,9 @@ void staleConfigurationAfterPreparation() {
 } // namespace
 int main() {
     admissionScope();
+    modeThreeAdmission();
+    completionNeedsTheAdmissionMode();
+    incidentShapeIsChecked();
     staleCodeWithLaterIncident();
     latchedErrorValue();
     controlwordRouteRejected();

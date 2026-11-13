@@ -31,7 +31,9 @@ constexpr uint8_t STOP_STATE = 0x0c; // MONITORS and STATUS, what requestStop ju
 constexpr uint8_t ERROR_STATE = 0x01;   // 1001 and 603F.
 constexpr uint8_t HISTORY_STATE = 0x02; // 1003:00 and only the entries its count names.
 constexpr uint8_t INPUTS_STATE = 0x24;  // MONITORS (2100..2102) and INPUTS (60FD).
-constexpr uint8_t ALARM_STATE = 0x0f;   // ERRORS, ERROR_HISTORY, MONITORS, STATUS: requestClearAlarm's read.
+// ERRORS, ERROR_HISTORY, MONITORS, STATUS and FEEDBACK: requestClearAlarm's read. FEEDBACK lets the library
+// admit the mode 3 latched release (2100 running beside released, 606C zero), as node 1 read it after FF05.
+constexpr uint8_t ALARM_STATE = 0x1f;
 static_assert(FULL == (1u << unsigned(L::StateBlock::ERRORS) | 1u << unsigned(L::StateBlock::MONITORS) |
                        1u << unsigned(L::StateBlock::STATUS) | 1u << unsigned(L::StateBlock::FEEDBACK)),
               "FULL is ERRORS, MONITORS, STATUS and FEEDBACK");
@@ -41,6 +43,7 @@ static_assert(ERROR_STATE == 1u << unsigned(L::StateBlock::ERRORS) &&
               "ERROR_STATE and HISTORY_STATE are single blocks");
 static_assert(INPUTS_STATE == (1u << unsigned(L::StateBlock::MONITORS) | 1u << unsigned(L::StateBlock::INPUTS)),
               "INPUTS_STATE is MONITORS and INPUTS");
+static_assert(ALARM_STATE == (FULL | HISTORY_STATE), "ALARM_STATE is FULL and ERROR_HISTORY");
 // The settings prerequisites, the prior group and then the state, must both be younger than this when
 // the candidate is prepared and published: fourteen exchanges at the route budgets.
 constexpr uint64_t SETTINGS_AGE_US = 14 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
@@ -545,9 +548,9 @@ unsigned terminalBound(const RoutePlan& p) {
         // MONITORS, STATUS and FEEDBACK; 0, 1, 0; then cycles of the same seven fields to the deadline.
         return 7 + 3 + 7 * (2 + p.deadlineMs / p.intervalMs);
     case RouteKind::CLEAR_ALARM:
-        // ERRORS, 1003:00 and at most four entries, MONITORS and STATUS; 1, 0; cycles of MONITORS and
-        // STATUS to the deadline; then ERRORS once.
-        return 2 + 5 + 5 + 2 + 5 * (2 + p.deadlineMs / p.intervalMs) + 2;
+        // ERRORS, 1003:00 and at most four entries, MONITORS, STATUS and FEEDBACK; 1, 0; cycles of
+        // MONITORS and STATUS to the deadline; then ERRORS once.
+        return 2 + 5 + 5 + 2 + 2 + 5 * (2 + p.deadlineMs / p.intervalMs) + 2;
     case RouteKind::MODE_THREE:
         // Two full reads, the 6060 write, then a full first cycle and image cycles.
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);

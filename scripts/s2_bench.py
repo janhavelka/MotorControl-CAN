@@ -607,8 +607,9 @@ def plan_bounds(command, fields):
         return 7 + 3 + 7 * (2 + deadline // interval), deadline  # The state, 0 1 0, seven-field cycles.
     if command == "clear-alarm":
         deadline, interval = fields[3:5]
-        # ERRORS, 1003 with at most four entries, MONITORS and STATUS; 1 0; five-field cycles; ERRORS once.
-        return 2 + 5 + 5 + 2 + 5 * (2 + deadline // interval) + 2, deadline
+        # ERRORS, 1003 with at most four entries, MONITORS, STATUS and FEEDBACK (the mode 3 latched release
+        # needs 606C); 1 0; five-field cycles; ERRORS once.
+        return 2 + 5 + 5 + 2 + 2 + 5 * (2 + deadline // interval) + 2, deadline
     raise ValueError("no bound for %s" % command)
 
 
