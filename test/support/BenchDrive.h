@@ -106,6 +106,9 @@ struct Drive {
     // 6041 bits 5 and 6 as one firmware's releases showed them (trials 1704, 1782, 1883): 0006, 0007 and
     // 000F set bit 5 and clear bit 6 (0x50 to 0x31), 000B sets bit 6 and clears bit 5. Off by default.
     bool releasePattern = false;
+    // A 0000 clears the 6041 low bits and, with releaseWords, sets 2100 released: this fake's own choice for
+    // the disable-voltage experiment from 8033 (backlog S21). Off by default: 0000 otherwise changes nothing.
+    bool disableVoltage = false;
     int32_t pullAtWord7 = 0;  // Added to 6064 by a 0007: the position report moving to an internal command.
     bool ignoreMode = false;  // A 6060 download is acknowledged and changes nothing the fake reports.
     int32_t stepAfterMode = 0; // Added to 6064 by a 6060 download.
@@ -338,10 +341,11 @@ struct Drive {
                                      : word == 7  ? 3
                                      : word == 15 ? 7
                                      : word == 0x000b && releaseWords ? 0
+                                     : word == 0 && disableVoltage    ? 0
                                                                       : uint16_t(status & 7u);
                 if (followWords)
                     status = uint16_t((status & ~L::STATUS_LOW_BITS) | low);
-                if (releaseWords && (word == 6 || word == 0x000b))
+                if (releaseWords && (word == 6 || word == 0x000b || (word == 0 && disableVoltage)))
                     monitor = uint16_t(monitor | L::MONITOR_RELEASED);
                 if (releaseWords && (word == 7 || word == 15))
                     monitor = uint16_t(monitor & ~L::MONITOR_RELEASED);

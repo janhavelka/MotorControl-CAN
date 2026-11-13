@@ -310,7 +310,8 @@ through `prepareSubdivisionSettings` on a drive that reports itself released, wi
 `2200`/`2201` read, settings class, no enable and no save. Protocol 11 adds `controlword` (`TT`): on a drive
 whose fresh full read reports `6041` low bits `000`, exactly one reviewed non-enabling `6040` word (`0000`,
 `0006`, `000B` or `0080`), its observation cycles and one more full read, motion class; a read that then
-reports switched on, enabled or `606C` nonzero ends it at once. Protocol 12 adds the `velocity` line's last
+reports switched on, enabled or `606C` nonzero ends it at once. Word `0000` alone is also admitted from low bits
+`001` or `011` (never `111`), for a drive left switched on with no alarm and no admitted stop (backlog S21). Protocol 12 adds the `velocity` line's last
 field, prompt 59's reverse probe (`VelocityEvidence::reverseProbe`): the rate is the negated `<rpm>`, written as
 `60FF`'s two's complement, and a `606C` against it by more than 2 rpm from the enable report on ends the run with its
 own stop; it qualifies nothing. Protocol 13 adds `loop` (`Tl`, lowercase because every capital is taken), one

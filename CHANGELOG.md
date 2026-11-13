@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Disable voltage from a switched-on drive (backlog S21, 2026-11-13)
+
+- The S2 bench `controlword` route (`TT`) also admits word `0000` alone from `6041` low bits `001` or `011`
+  (never `111`), with `2100` running clear, `606C` 0 and the other unchanged conditions. Node 2 stayed switched on
+  (`8033`, `2100=0001`, no alarm) after the velocity enable refused at word 7 in open loop (trial 5976): the clear
+  needs an alarm, the stop refuses a stationary drive and the route needed low bits `000`. Line and protocol
+  unchanged (13); every other word keeps the low bits `000` rule.
+
 ### Loop selector bench route (backlog S21, 2026-11-13)
 
 - S2 bench protocol 13 (`PONG routes=13`): the `loop` route (`Tl`, lowercase because every capital is taken; runner
