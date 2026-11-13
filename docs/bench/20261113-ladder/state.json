@@ -1,6 +1,6 @@
 {
-  "trial": 5910,
-  "series": 167,
+  "trial": 5999,
+  "series": 197,
   "rng": 20261113,
   "nodes": {
     "1": {
@@ -8,7 +8,7 @@
       "retired": null,
       "rot": 58,
       "subdivision": 1000,
-      "alarms": 1,
+      "alarms": 0,
       "anomalies": 18,
       "mode": "03",
       "clears": 17
@@ -16,12 +16,12 @@
     "2": {
       "stoprec": null,
       "retired": null,
-      "rot": 38,
-      "subdivision": 1000,
-      "alarms": 7,
+      "rot": 41,
+      "subdivision": 51200,
+      "alarms": 0,
       "anomalies": 10,
       "mode": "03",
-      "clears": 10
+      "clears": 14
     }
   }
 }

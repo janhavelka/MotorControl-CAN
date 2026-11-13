@@ -9,6 +9,10 @@
   (`8033`, `2100=0001`, no alarm) after the velocity enable refused at word 7 in open loop (trial 5976): the clear
   needs an alarm, the stop refuses a stationary drive and the route needed low bits `000`. Line and protocol
   unchanged (13); every other word keeps the low bits `000` rule.
+- Measured with it on node 2 (trial 5991): `0x0000` released `8033` to `8050`/`2100=0011`. The investigation of the
+  enable-fault state is in `docs/reports/2026-11-13_enable_fault_state.md`; backlog S21, the fault guide, the
+  afternoon report and the drive actions word 7 row are corrected (the `6064` step at word 7 is a counter switch, not
+  the cause; only a power cycle cleared the state).
 
 ### Loop selector bench route (backlog S21, 2026-11-13)
 

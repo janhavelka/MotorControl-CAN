@@ -147,14 +147,11 @@ later enable. At enable word 7 (`6041=8033`, before word 15) the drive reports 1
 command. The library's velocity enable refuses it at once (word 7's cycle must be stationary), and the drive raises
 FF05 (`6041=803B`). On node 1 at 51200 the rotor moved about 7300 counts (about 51°) before the fault. Nothing
 software could reach cleared it: the controlword clear and the `2301` clear (both remove the alarm, and the next
-enable faults again), counter zero (`6064` to 0), NMT Reset Node, and `2201` back to 51200 or 1000. Inferred
-explanation, not established: after a fault or a quick stop the rotor coasts while the drive keeps its command
-position. At the next enable the closed loop drives the rotor back toward it. At 51200 that error is far above the
-4000-pulse threshold, so the drive faults instead. This fits the unexplained step back of `6064` by 10,000 to 16,000
-counts at enable after quick stops at 1000 pulses per turn, and the enable-time rotor pull recorded earlier. If it
-holds, an enable after a coast can move the shaft back several turns without a motion command. A power cycle is the
-remaining reset, and it needs the user. Not tried: the loop selector `2500` (open/closed loop), which has no bench
-route.
+enable faults again), counter zero (`6064` to 0), NMT Reset Node, and `2201` back to 51200 or 1000. The explanation
+first written here (the command position kept through coasts, recovered by the loop at enable) does not hold: the
+`6064` step at word 7 is a routine counter switch, clean enables had larger steps, and one faulting enable had none.
+The later investigation, with the power cycle that cleared the state, the loop selector, the open-loop enable and
+`6040=0x0000`, is in [the enable-fault report](2026-11-13_enable_fault_state.md).
 
 **Reverse velocity.** Implemented and host-tested (`8090d85`: `VelocityEvidence::reverseProbe`, runner `--reverse`,
 route protocol 12) and flashed, but not run: both drives are in the enable-fault state.
@@ -167,6 +164,6 @@ enable faults until a power cycle.
 - Why the top speed differs by about 400 rpm between the specimens; the supply voltage and motor nameplates.
 - The 51200 limit: pulse-rate ceiling or the deviation threshold in pulses (a write of `250A` would separate them;
   it is not authorized).
-- Whether a power cycle clears the enable-fault state, and whether the loop selector `2500` or HALT-only stopping
-  (no coast) avoids it; then the reverse runs and the 51200 discriminator with HALT stops.
+- The enable-fault state: a power cycle cleared it, nothing else did; what it is stays open
+  ([enable-fault report](2026-11-13_enable_fault_state.md)). Then the reverse runs and the 51200 discriminator.
 - The cruise ratio of about 0.99 (units re-audit) and the step back of `6064` at enable.

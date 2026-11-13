@@ -1,5 +1,9 @@
 Velocity ladder, acceleration and microstepping limits and fault recovery, 2026-11-13 11:58Z to 15:10Z
-(report: docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md).
+(report: docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md). Continued after the user's power cycle,
+16:17Z to 17:03Z, with the enable-fault investigation (backlog S21; report:
+docs/reports/2026-11-13_enable_fault_state.md): series S0168 to S0197 and the NMT plan directories
+20261113T162844Z-nmt-resetcomm-n2, 20261113T170219Z-nmt-reset-n2 (refused: the MCU reset was skipped, nothing sent)
+and 20261113T170233Z-nmt-reset-n2. run-investigate.out is that driver's console output.
 
 The user's written waiver for this campaign only: "Unattended, I accept it" (option text: "Waiver for this ladder
 campaign only: run the velocity ladder, above-limit probe and resolution grid without me at the bench. I take
@@ -18,4 +22,6 @@ Contents:
   root directories of the controlword, NMT reset and final routes); packed/MANIFEST.json lists every member's
   SHA-256 and size and each archive's SHA-256. The raw directories are kept outside the repository.
 - tools/: ladder.py (the driver, built on night.py from the night soak), program.sh, pack_ladder.py, unretire.py,
-  en_reset.py and plans/ (the NMT reset experiment plan), copied from the lead's scratchpad for provenance.
+  en_reset.py, stuck.py (the investigation steps), minepull.py (coasts against word 7 steps), timeline.py (one
+  record's controlword and read timeline) and plans/ (the NMT experiment plans), copied from the lead's scratchpad
+  for provenance.

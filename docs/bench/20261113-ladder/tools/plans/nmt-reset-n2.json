@@ -1,0 +1,50 @@
+{
+  "purpose": "Enable-fault investigation: node 2 released by 6040=0000 after an open-loop word 7, closed loop restored, but 606C reads a held 1711 rpm with 6064 frozen at the command counter; one NMT Reset Node to node 2 with a watch running, to see whether it clears the held reports",
+  "authorization": "user 2026-11-13: power cycled - investigate the finding thoroughly and investigate all other possible options; waiver for this ladder campaign: Unattended, I accept it",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller after the flash"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "bind node 2 in this boot (identity uploads only)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P40",
+      "expect": "PDOW admitted",
+      "note": "watch before the reset, so a boot-up frame is recorded"
+    },
+    {
+      "wait_s": 2,
+      "note": "baseline"
+    },
+    {
+      "send": "N2,r",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "NMT Reset Node to node 2 only"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 10,
+      "note": "boot-up and settling"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK"
+    }
+  ]
+}

@@ -128,7 +128,7 @@ class Ladder(night.Night):
             raise night.Retire("unexpected exit {} after {} {}".format(rc, t, label))
         return rc, text, directory, rec
 
-    def velocity_run(self, node, rpm, kind="quick", probe=None, ramp=None):
+    def velocity_run(self, node, rpm, kind="quick", probe=None, ramp=None, reverse=False):
         up, down = (ramp, ramp) if ramp else ramps(rpm)
         probe = rpm > 60 if probe is None else probe
         # The night soak's settled pattern: 12 s at 4 s cycles, 5 s reserve (118 terminals). A quick stop at due needs
@@ -138,14 +138,15 @@ class Ladder(night.Night):
         t = str(self.s["trial"] + 1)
         args = ["velocity", "--rpm", str(rpm), "--ramp-up-ms", str(up), "--ramp-down-ms", str(down),
                 "--duration-ms", str(duration), "--interval-ms", str(interval), "--deadline-ms",
-                str(duration + reserve), "--kind", kind, "--record", t, "--layout", "zh86"] + night.IDENT +             (["--range-probe"] if probe else [])
+                str(duration + reserve), "--kind", kind, "--record", t, "--layout", "zh86"] + night.IDENT +             (["--range-probe"] if probe else []) + (["--reverse"] if reverse else [])
         if not self.fits(node, args):
             raise night.Retire("plan error: no velocity plan fits at %d rpm" % rpm)
         rc, text, d, rec = self.motion(node, "velocity-{}-{}".format(kind, rpm), args, ok=(0, 3, 4), seconds=90)
         emcy = re.search(r"TRIAL_EMCY data=([0-9a-f]+)", text)
         head = re.search(r"TRIAL id=\d+ node=\d route=\S+ failure=(\d+) why=(\S+)", text)
         vline = re.search(r"TRIAL_VELOCITY own=.*", text)
-        result = {"node": node, "rpm": rpm, "stop_kind": kind, "probe": probe, "up": up, "down": down,
+        result = {"node": node, "rpm": -rpm if reverse else rpm, "stop_kind": kind, "probe": probe, "up": up,
+                  "down": down, "reverse": reverse,
                   "subdivision": self.s["nodes"][str(node)]["subdivision"], "rc": rc, "dir": d,
                   "failure": head.group(1) if head else None, "why": head.group(2) if head else None,
                   "velocity": vline.group(0)[:300] if vline else None, "emcy": emcy.group(1) if emcy else None}
@@ -154,7 +155,8 @@ class Ladder(night.Night):
             result.update(c)
             if "cps" in c:
                 result["rpm_measured"] = c["cps"] * 60.0 / result["subdivision"]
-                result["ratio"] = result["rpm_measured"] / rpm
+                # The ratio compares like signs: a reverse run must measure a negative rate.
+                result["ratio"] = result["rpm_measured"] / (-rpm if reverse else rpm)
                 result["pulse_rate"] = rpm * result["subdivision"] / 60.0
         self.note(kind="velocity", **result)
         self.say("  RESULT n{} {} rpm s={} -> failure={} why={} measured={} ratio={} 606c={}".format(
@@ -254,7 +256,7 @@ class Ladder(night.Night):
     def alarm_state(self, st):
         return st and (st["1001"] != "00" or st["603f"] != "0000" or (int(st["2100"], 16) & 0x0008))
 
-    def ladder(self, node, steps, last_good=None, sweep=False, stop_first=False):
+    def ladder(self, node, steps, last_good=None, sweep=False, stop_first=False, reverse=False):
         """Run steps (rpm list) with the continuation rule, three velocity runs per series."""
         nd = self.s["nodes"][str(node)]
         # A step is RPM, RPMxRAMP_MS (both ramps) or either with a trailing q (quick stop at due, even from a plain
@@ -281,7 +283,7 @@ class Ladder(night.Night):
                 # otherwise a quick stop at due, whose settlement may run out of reserve (DEADLINE) after a clean run.
                 word = int(st["2100"], 16)
                 kind = "halt" if (word & 0x0001) and not (word & 0x0004) and not opts[1] else "quick"
-                rc, text, d, res = self.velocity_run(node, rpm, kind=kind, ramp=opts[0])
+                rc, text, d, res = self.velocity_run(node, rpm, kind=kind, ramp=opts[0], reverse=reverse)
                 runs += 1
                 st = self.read(node)
                 if st and self.enabled(st):
@@ -518,7 +520,11 @@ if __name__ == "__main__":
     lad = Ladder(wt, "--dry" in sys.argv)
     node = int(re.match(r"[a-z]+(\d)", plan).group(1))
     try:
-        if plan.startswith("sub"):
+        if plan.startswith("rev"):
+            # rev1:6,30,60,... reverse velocity sweep (each step once) on the probe
+            good = lad.ladder(node, plan.split(":")[1].split(","), None, sweep=True, reverse=True)
+            lad.say("highest clean reverse step on node {}: {}".format(node, good))
+        elif plan.startswith("sub"):
             # sub1:51200:3516[:2344][:sweep] - set 2201, run the steps (continuation rule from the given last clean
             # step, or a sweep), then restore 2201=1000 below.
             parts = plan.split(":")

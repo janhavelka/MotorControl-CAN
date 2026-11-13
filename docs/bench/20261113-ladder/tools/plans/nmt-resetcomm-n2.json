@@ -1,0 +1,50 @@
+{
+  "purpose": "Fault recovery experiment: node 2 is in the enable-fault state after a pulse-ceiling FF05 at 2201=51200; one NMT Reset Communication to node 2 with a watch running, to see whether it returns to the power-up report",
+  "authorization": "user 2026-11-13: first read the datasheets and try different approaches to recover a fault driver so you can recover and test more thoroughly the settings and be sure you can recover from that; waiver for this ladder campaign: Unattended, I accept it",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller after the flash"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "bind node 2 in this boot (identity uploads only)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P40",
+      "expect": "PDOW admitted",
+      "note": "watch before the reset, so a boot-up frame is recorded"
+    },
+    {
+      "wait_s": 2,
+      "note": "baseline"
+    },
+    {
+      "send": "N2,c",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "NMT Reset Communication to node 2 only"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 10,
+      "note": "boot-up and settling"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK"
+    }
+  ]
+}
