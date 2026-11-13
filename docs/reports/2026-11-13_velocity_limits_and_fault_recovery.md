@@ -98,8 +98,8 @@ following the coasting rotor. Approaches tried, in order:
 | Toggling enable (6, 7, 15) | Not a documented reset; not tried: in mode 3 it starts the motor at the stored `60FF` |
 
 After every recovery the next run was clean (first: node 1, 60 rpm, HALT settled, trial 5343). Recommendation: use the
-controlword method as the recovery; the `2301` method needs the extra `6040` = 0x0080 word afterwards. The library's
-default method is still `OBJECT_2301`; changing it is a decision for the next change.
+controlword method as the recovery; the `2301` method needs the extra `6040` = 0x0080 word afterwards. It became the
+library's default the same afternoon (`8090d85`).
 
 ## Library and bench changes made for this session
 
@@ -114,10 +114,59 @@ back as hygiene), `6064` far from zero (node 1 about 183 million counts after th
 position-mode ladder, reverse velocity, `2201` outside the five grid values, the 25600 bisection, whether a `2201`
 value survives a power cycle.
 
+## Afternoon: position mode, the 51200 limit and the enable-fault state
+
+The user then asked: "Do this> the position-mode speed ladder, reverse velocity, and pinning down the 51200 limit",
+and "Alarm clear - pick the best method". The controlword reset became the library default (`8090d85`).
+
+**Position mode (node 2, 2201 = 1000).** Finite moves through the library's `move` route under the measured move
+record, travelling long enough to cruise (half of each ramp plus 1.2 s at speed):
+
+| rpm | Peak `606C` | Peak `6064` slope | Arrival error |
+| --- | --- | --- | --- |
+| 300 | 300 | 298 | 0 |
+| 600 | 596 | 595 | 0 |
+| 1200 | 1192 | 1154 | 0 |
+| 1800 | 1786 | 1730 | 0 |
+| 2400 | 2381 | 2307 | 0 |
+| 3000 | 2975 | 2884 | 0 |
+
+Every move ended exactly on its target. The slope column is coarse (one to two second samples). Node 1's position
+ladder could not run (below). Above 3000 rpm position mode needs its own probe (`6081` is capped at the documented
+3000 rpm in the library); not done.
+
+**The 51200 limit.** Node 2, ascending at 2201 = 51200 with 2000 ms ramps and stopping at the first fault: clean at
+60, 2344, 2600, 2800 and 3000 rpm (2.56 MHz), FF05 at 3200 rpm (2.73 MHz). Node 1 had been clean at 2344 and faulted
+at 3516. Both drives were far below their own speed limit (node 2 runs 4500 rpm at 1000 pulses per turn), so at 51200
+the limit is about 2.6 to 2.7 MHz of command pulses on both drives. A pulse-rate ceiling fits this; the deviation
+threshold (`250A`, about 28° at 51200) is not excluded. The discriminating run (3000 rpm with a 500 ms ramp) could not
+be made: the drive faulted at the enable first (below).
+
+**The enable-fault state.** After an FF05 at 51200, both drives (node 1 at 15:22Z, node 2 at 15:48Z) fault at every
+later enable. At enable word 7 (`6041=8033`, before word 15) the drive reports 175 to 256 rpm in `606C` with no motion
+command. The library's velocity enable refuses it at once (word 7's cycle must be stationary), and the drive raises
+FF05 (`6041=803B`). On node 1 at 51200 the rotor moved about 7300 counts (about 51°) before the fault. Nothing
+software could reach cleared it: the controlword clear and the `2301` clear (both remove the alarm, and the next
+enable faults again), counter zero (`6064` to 0), NMT Reset Node, and `2201` back to 51200 or 1000. Inferred
+explanation, not established: after a fault or a quick stop the rotor coasts while the drive keeps its command
+position. At the next enable the closed loop drives the rotor back toward it. At 51200 that error is far above the
+4000-pulse threshold, so the drive faults instead. This fits the unexplained step back of `6064` by 10,000 to 16,000
+counts at enable after quick stops at 1000 pulses per turn, and the enable-time rotor pull recorded earlier. If it
+holds, an enable after a coast can move the shaft back several turns without a motion command. A power cycle is the
+remaining reset, and it needs the user. Not tried: the loop selector `2500` (open/closed loop), which has no bench
+route.
+
+**Reverse velocity.** Implemented and host-tested (`8090d85`: `VelocityEvidence::reverseProbe`, runner `--reverse`,
+route protocol 12) and flashed, but not run: both drives are in the enable-fault state.
+
+Both drives were left released and alarm-free (`6041=8050`, `2100=0011`) at `2201=1000` with `60FF=60`. Their next
+enable faults until a power cycle.
+
 ## Open questions
 
 - Why the top speed differs by about 400 rpm between the specimens; the supply voltage and motor nameplates.
 - The 51200 limit: pulse-rate ceiling or the deviation threshold in pulses (a write of `250A` would separate them;
   it is not authorized).
-- Whether the controlword method should become the library's default and the console's recovery command.
+- Whether a power cycle clears the enable-fault state, and whether the loop selector `2500` or HALT-only stopping
+  (no coast) avoids it; then the reverse runs and the 51200 discriminator with HALT stops.
 - The cruise ratio of about 0.99 (units re-audit) and the step back of `6064` at enable.

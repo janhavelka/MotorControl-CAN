@@ -111,6 +111,9 @@ class Ladder(night.Night):
         head = re.search(r"TRIAL id=\d+ node=\d route=\S+ failure=(\d+) why=(\S+)", text)
         rec = {"series": self.s["series"], "node": node, "trial": int(t), "route": label, "args": args, "rc": rc,
                "failure": head.group(1) if head else None, "why": head.group(2) if head else None, "dir": directory}
+        sample = re.search(r"TRIAL_MOVE_SAMPLE which=1 .*?position=(-?\d+)", text)
+        if sample:
+            rec["move_final"] = int(sample.group(1))  # night.move reads the arrival from here
         self.record(**rec)
         if rc == 4:
             self.say("!!! ALERT on node {}: release and quick stop now".format(node))
@@ -182,7 +185,7 @@ class Ladder(night.Night):
         which moved 8010 to the released 8050/0011 (trial 5405; 0000, 000B and 0006 did nothing, trials 5402-5404).
         Never an enable. Returns the state read after the recovery."""
         nd = self.s["nodes"][str(node)]
-        method = "controlword" if nd.get("clears", 0) % 2 == 0 else "2301"
+        method = "controlword"  # The best method, chosen 2026-11-13 (11 of 11 direct releases).
         nd["clears"] = nd.get("clears", 0) + 1
         self.save()
         rc, text, d, _ = self.motion(node, "clear-alarm-" + method,
@@ -212,7 +215,9 @@ class Ladder(night.Night):
             st = self.clear_alarm(node)
             if not st or self.alarm_state(st) or not self.released(st):
                 raise night.Retire("alarm not recovered to a release: {}".format(st))
-            return st
+            # A fresh boot: the clear's 6040 writes are this boot's controlword history, after which the runner
+            # refuses a mode write.
+            return super().begin(node, kind + "c")
 
     def begin_series(self, node, label):
         st = self.begin(node, label)
@@ -249,7 +254,7 @@ class Ladder(night.Night):
     def alarm_state(self, st):
         return st and (st["1001"] != "00" or st["603f"] != "0000" or (int(st["2100"], 16) & 0x0008))
 
-    def ladder(self, node, steps, last_good=None, sweep=False):
+    def ladder(self, node, steps, last_good=None, sweep=False, stop_first=False):
         """Run steps (rpm list) with the continuation rule, three velocity runs per series."""
         nd = self.s["nodes"][str(node)]
         # A step is RPM, RPMxRAMP_MS (both ramps) or either with a trailing q (quick stop at due, even from a plain
@@ -291,8 +296,13 @@ class Ladder(night.Night):
                 bad = not running or first not in (0, 6) or res.get("ratio", 0) < 0.9
                 self.note(kind="classified", node=node, rpm=rpm, first=first, running=running, bad=bad,
                           ratio=res.get("ratio"))
+                if bad and stop_first:
+                    self.say("  {} rpm failed: stop at the first fault (each fault risks the enable-fault state)".format(rpm))
+                    queue[:] = []
                 if not bad:
                     last_good = rpm if last_good is None or rpm > last_good else last_good
+                elif stop_first:
+                    pass
                 elif rpm == 1:
                     self.say("  1 rpm once: not repeated")
                 elif why == "step" and self.boundary_done:
@@ -351,6 +361,130 @@ class Ladder(night.Night):
             st = self.read(node)
         return st
 
+    def zero_step(self, node, st, label):
+        """Counter zero in mode 1 (needs 2100 running clear), then a fresh boot."""
+        if st["6061"] != "01":
+            self.motion(node, "mode1", ["mode1", "--cycles", "3", "--interval-ms", "500"], seconds=60)
+        self.motion(node, "counter-zero", ["counter-zero", "--deadline-ms", "3000", "--interval-ms", "500"],
+                    ok=(0, 3), seconds=60)
+        st = self.begin(node, label + "z")
+        self.say("  after counter zero: 6064={}".format(st["6064"] if st else None))
+        if not st or abs(st["6064"]) > 200000 or not self.released(st):
+            raise night.Retire("counter zero did not bring 6064 near zero: {}".format(st))
+        return st
+
+    def position_series(self, node, label):
+        """A series ready for position moves (night soak pattern; each mode or controlword step in its own MCU boot,
+        because the runner refuses a mode write after this boot's controlword history). Steps by state, at most six:
+        counter zero when 6064 is large and the running latch is clear (mode 1 needed; node 1 faulted at an enable with
+        6064 near 183 million after the 51200 runs); a settled stop record from a 60 rpm HALT run and the halted quick
+        stop when none is valid; when 6064 is large and latched, an enable in mode 1 (its word 7 clears the latch,
+        trial 308) and a stationary quick stop. Then mode 1 and the released-by-recorded-stop enable."""
+        nd = self.s["nodes"][str(node)]
+        st = self.begin(node, label)
+        latched = lambda x: bool(int(x["2100"], 16) & 0x0004)
+        big = lambda x: abs(x["6064"]) > 200000
+        for step in range(6):
+            if not st or not self.released(st):
+                raise night.Retire("not released at position series start: {}".format(st))
+            valid = nd.get("stoprec") and self.good_stop(nd["stoprec"], node)
+            if big(st) and not latched(st):
+                if st["6061"] != "01":
+                    self.motion(node, "mode1", ["mode1", "--cycles", "3", "--interval-ms", "500"], seconds=60)
+                self.motion(node, "counter-zero", ["counter-zero", "--deadline-ms", "3000", "--interval-ms", "500"],
+                            ok=(0, 3), seconds=60)
+                st = self.begin(node, label + "z")
+                self.say("  after counter zero: 6064={}".format(st["6064"] if st else None))
+                if st and big(st):
+                    raise night.Retire("counter zero did not bring 6064 near zero: {}".format(st))
+            elif not valid:
+                if st["6061"] != "03":
+                    self.motion(node, "mode3", ["mode3", "--cycles", "2", "--interval-ms", "500"], seconds=60)
+                    st = self.read(node)
+                # HALT only with 2100 bit 0 set: the 0014 latch (bit 0 clear) left node 2 halted with no accepted
+                # stop (S20); the 0015 latch is what the night soak's HALT series started from.
+                if not (int(st["2100"], 16) & 0x0001):
+                    raise night.Retire("no HALT start for a stop record from 2100={}".format(st["2100"]))
+                self.velocity_run(node, 60, kind="halt", probe=False)
+                st = self.read(node)
+                if st and self.alarm_state(st):
+                    raise night.Retire("alarm during the stop-record run: {}".format(st))
+                text, d = self.quick(node, "stop-quick-halted")
+                if not self.good_stop(d, node):
+                    raise night.Retire("halted quick stop did not settle; no start record")
+                nd["stoprec"] = d
+                self.save()
+                st = self.begin(node, label + "r")
+            elif big(st) and latched(st):
+                if st["6061"] != "01":
+                    self.motion(node, "mode1", ["mode1", "--cycles", "3", "--interval-ms", "500"], seconds=60)
+                    st = self.read(node)
+                self.enable(node, st)
+                text, d = self.quick(node, "stop-quick-stationary")
+                if not self.good_stop(d, node):
+                    raise night.Retire("stationary quick stop did not settle")
+                nd["stoprec"] = d
+                self.save()
+                st = self.begin(node, label + "u")
+                self.say("  after enable and stationary quick stop: 2100={} 6041={}".format(st["2100"], st["6041"]))
+            else:
+                break
+        else:
+            raise night.Retire("position series start did not converge: {}".format(st))
+        if st["6061"] != "01":
+            self.motion(node, "mode1", ["mode1", "--cycles", "3", "--interval-ms", "500"], seconds=60)
+            st = self.read(node)
+            if not st or st["6061"] != "01" or not self.released(st):
+                raise night.Retire("mode 1 not reported released: {}".format(st))
+        return self.enable(node, st)
+
+    def position_ladder(self, node, rpms):
+        """Position-mode speed ladder: finite moves to completion at each rpm (ramps 1000 ms below 1200 rpm, 2000 ms
+        from 1200), about 2 s of travel at speed, alternating toward zero; three moves per series, then a stationary
+        quick stop whose record starts the next series."""
+        night.LIMIT = 900000
+        queue = list(rpms)
+        while queue:
+            pos = self.position_series(node, "P{}".format(queue[0]))
+            for _ in range(3):
+                if not queue:
+                    break
+                if self.stopfile():
+                    raise night.Retire("STOP file present")
+                rpm = queue.pop(0)
+                up, down = ramps(rpm)
+                try:
+                    # Travel long enough to cruise: half of each ramp plus 1.2 s at speed (prompt 59 plan).
+                    cruise_s = (up + down) / 2000.0 + 1.2
+                    final, text, d = self.move(node, pos, rpm, up, down, cruise_s, cruise_s + 0.2)
+                except night.Retire as error:
+                    self.note(kind="position", node=node, rpm=rpm, ok=False, reason=str(error))
+                    self.say("  POSITION n{} {} rpm failed: {}".format(node, rpm, error))
+                    st = self.read(node)
+                    if self.alarm_state(st):
+                        st = self.clear_alarm(node)
+                    if st and self.enabled(st):
+                        self.quick(node, "stop-quick-safe")
+                    nd = self.s["nodes"][str(node)]
+                    nd["stoprec"] = None
+                    self.save()
+                    break
+                pts = [(int(m.group(2)), int.from_bytes(bytes.fromhex(m.group(1)), "little", signed=True)) for m in
+                       re.finditer(r"object=6064:00 .*?outcome=0 .*?size=4 data=([0-9a-f]{8}) .*?completed=(\d+)", text)]
+                speeds = [int.from_bytes(bytes.fromhex(m.group(1)), "little", signed=True) for m in
+                          re.finditer(r"object=606c:00 .*?outcome=0 .*?size=4 data=([0-9a-f]{8})", text)]
+                slopes = [abs(p2 - p1) * 1e6 / (t2 - t1) for (t1, p1), (t2, p2) in zip(pts, pts[1:]) if t2 > t1]
+                peak = max(slopes) * 60.0 / self.s["nodes"][str(node)].get("subdivision", 1000) if slopes else None
+                self.note(kind="position", node=node, rpm=rpm, ok=True, final=final, dir=d, peak_rpm=peak,
+                          max_606c=max((abs(v) for v in speeds), default=None))
+                self.say("  POSITION n{} {} rpm -> final {} peak slope {} rpm, max |606C| {}".format(
+                    node, rpm, final, round(peak) if peak else None, max((abs(v) for v in speeds), default=None)))
+                pos = final
+            text, d = self.quick(node, "stop-quick")
+            nd = self.s["nodes"][str(node)]
+            nd["stoprec"] = d if self.good_stop(d, node) else None
+            self.save()
+
     def grid(self, node, only=None):
         nd = self.s["nodes"][str(node)]
         for value, rpms in GRID.items():
@@ -378,21 +512,39 @@ class Ladder(night.Night):
 
 if __name__ == "__main__":
     wt, plan = sys.argv[1], sys.argv[2]
+    if (LADDER / "HOLD").exists() and plan.startswith(tuple((LADDER / "HOLD").read_text(encoding="utf-8").split())):
+        print("plan {} held by HOLD".format(plan))
+        sys.exit(0)
     lad = Ladder(wt, "--dry" in sys.argv)
-    node = int(plan[1] if plan[0] in "ns" else plan.split(":")[0][-1])
+    node = int(re.match(r"[a-z]+(\d)", plan).group(1))
     try:
-        if plan.startswith("grid"):
+        if plan.startswith("sub"):
+            # sub1:51200:3516[:2344][:sweep] - set 2201, run the steps (continuation rule from the given last clean
+            # step, or a sweep), then restore 2201=1000 below.
+            parts = plan.split(":")
+            value, steps = int(parts[1]), parts[2].split(",")
+            last = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else None
+            lad.to_released_clear(node)
+            ok, _ = lad.subdivision(node, value)
+            if not ok:
+                raise night.Retire("subdivision {} not confirmed".format(value))
+            good = lad.ladder(node, steps, last, sweep="sweep" in parts, stop_first="first" in parts)
+            lad.say("highest clean step on node {} at 2201={}: {}".format(node, value, good))
+        elif plan.startswith("pos"):
+            # pos1:300,600,... position-mode ladder on node 1
+            lad.position_ladder(node, [int(x) for x in plan.split(":")[1].split(",")])
+        elif plan.startswith("grid"):
             # grid1 or grid1:51200,25600 (only those 2201 values)
             lad.grid(node, [int(v) for v in plan.split(":")[1].split(",")] if ":" in plan else None)
         else:
             steps = plan.split(":")[1].split(",") if ":" in plan else PART1 + PART2
             good = lad.ladder(node, steps, int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3].isdigit() else None,
-                              sweep=plan.startswith("s"))
+                              sweep=plan.startswith("s") and not plan.startswith("sub"))
             lad.say("highest clean step on node {}: {}".format(node, good))
     except night.Retire as error:
         lad.say("!!! " + str(error))
         lad.safe(node, str(error))
-    if plan.startswith("grid") and lad.s["nodes"][str(node)].get("subdivision", 1000) != 1000:
+    if lad.s["nodes"][str(node)].get("subdivision", 1000) != 1000:
         # The grid ended early: put 2201 back to the measured 1000 (volatile, no save) if the drive allows it.
         try:
             lad.to_released_clear(node)

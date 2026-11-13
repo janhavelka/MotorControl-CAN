@@ -106,6 +106,12 @@ drive's report after the clear means for torque (below).
 
 ## Two reset methods
 
+**Enable-fault state (measured 2026-11-13, both specimens).** After an FF05 at `2201=51200`, every later enable
+faulted. At word 7 the drive reported 175 to 256 rpm in `606C` with no motion command, then FF05. Neither clear
+method, counter zero, NMT Reset Node nor a `2201` change cleared it; only a power cycle is left. Inferred cause: the
+command position kept while the rotor coasted, which the closed loop tries to recover at the enable. Clearing the
+alarm is therefore not proof that the drive can be enabled again; check with a short slow run.
+
 **Measured on 2026-11-13** ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md), FF05 raised by
 velocity runs at the speed or acceleration limit, two specimens, one firmware): `CONTROLWORD_BIT7` cleared the alarm
 and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times. `OBJECT_2301` cleared it 8 of 9 times but left
