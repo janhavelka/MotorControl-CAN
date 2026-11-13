@@ -1,5 +1,8 @@
 # Status and exact units
 
+The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
+explained in [Speed, ramp and position units](speed_units.md).
+
 The installed [Units.h](../include/MotorControlCAN/Units.h) and
 [implementation](../src/Units.cpp) provide pure C++11 arithmetic. They perform no
 I/O, allocation, clock access, configuration mutation or motion. Calls borrow

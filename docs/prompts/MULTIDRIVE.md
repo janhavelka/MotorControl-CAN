@@ -71,6 +71,10 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 65 | Packages expose profile-neutral components and each profile's API without vendor material. |
 | 66 | Qualify only the actual drives, firmware and configuration; another family's behavior is never inferred. |
 | 67 | Each MCU and board needs its own adapter proof and qualification; results never transfer between chips. |
+| 68 | The CAN task, queues and job runner use the common axis interface; profile-specific words stay in each profile. |
+| 69 | Drive I/O functions and polarity values are per-profile documented facts; MCU pins and the watchdog stay board facts. |
+| 70 | The axis table records each axis's profile and expected product identity; checks run each profile's own readbacks. |
+| 71 | Qualify only the actual board, wiring, drives and firmware; nothing transfers between boards or families. |
 
 ## Required contrasting test cases
 

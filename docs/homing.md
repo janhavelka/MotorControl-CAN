@@ -1,5 +1,8 @@
 # Lichuan homing and reference evidence
 
+The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
+explained in [Speed, ramp and position units](speed_units.md).
+
 Homing is conditional on evidence for the selected drive, firmware and physical
 fixture. The original CL86-C/OL86-C manuals document four methods; they do not
 qualify a connected specimen, its switch wiring or physical reference accuracy.

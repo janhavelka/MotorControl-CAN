@@ -1,6 +1,6 @@
-# MotorControl-CAN implementation prompts 1-67
+# MotorControl-CAN implementation prompts 1-71
 
-Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `67_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `71_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -8,7 +8,7 @@ The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes
 precedence over the historical execution-branch instructions for that period.
 
-Create one new branch at the start of a new execution and retain it across all 67 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
+Create one new branch at the start of a new execution and retain it across all 71 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
 
 Prompts 51-54 were added on 2026-11-12 at the user's request (SYNC master, changes during motion,
 multi-axis with configurable capacity and group stop, and their hardware qualification). By the
@@ -21,6 +21,11 @@ reverse velocity, user units, node/bitrate/RPDO/save configuration, the wired st
 the same bus, a common axis interface for several brands, an optional package for the bus code, and their
 hardware qualification on the S2 bench and on ESP32-S3 boards. They also run in ascending order unless the
 user reorders them; every feature lands as library API, and the examples consume it.
+
+Prompts 68-71 were added on 2026-11-13 at the user's request for examples of everything an upper firmware does:
+a dedicated CAN task with bounded queues and a headless job runner, a hardware watchdog with MCU and
+drive I/O, startup checks with settings storage and reboot handling, and their hardware qualification.
+They are prepared and host-tested before the hardware exists; the trials wait for the user's wiring.
 
 ## Shared contracts
 
@@ -121,6 +126,10 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 65 | [Optional library package for the bus code and the axis API](65_application_package.md) | 49, 64 |
 | 66 | [Hardware qualification of self-repair, regular operations and configuration](66_hardware_regular_operation.md) | 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 |
 | 67 | [ESP32-S3, PSRAM and further MCU qualification](67_s3_psram_qualification.md) | 53, 56, 65 |
+| 68 | [Application task structure and headless operation examples](68_application_task_structure.md) | 55, 56, 57, 64 |
+| 69 | [Application I/O and hardware watchdog examples](69_application_io_watchdog.md) | 62, 68 |
+| 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | 55, 57, 61, 68 |
+| 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | 66, 69, 70 |
 
 ## Completion and external blockers
 

@@ -1,5 +1,8 @@
 # Lichuan native position parameters and finite moves
 
+The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
+explained in [Speed, ramp and position units](speed_units.md).
+
 `LICHUAN_C::preparePositionParameters` prepares an owned numeric candidate for
 the documented CL86-C/OL86-C position objects. It performs no I/O and yields no
 service work; the gated absolute and relative moves below build on it. The

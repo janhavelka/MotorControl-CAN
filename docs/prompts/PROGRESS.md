@@ -124,6 +124,10 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 65 | [Optional library package for the bus code and the axis API](65_application_package.md) | Pending | 49, 64; vendor material excluded from packages | - |
 | 66 | [Hardware qualification of self-repair, regular operations and configuration](66_hardware_regular_operation.md) | Pending | 54-63; written waiver for an unattended night | - |
 | 67 | [ESP32-S3, PSRAM and further MCU qualification](67_s3_psram_qualification.md) | Pending | 53, 56, 65; waits for the user's S3 boards | - |
+| 68 | [Application task structure and headless operation examples](68_application_task_structure.md) | Pending | 55, 56, 57, 64; library gaps closed in the API, not in the example | - |
+| 69 | [Application I/O and hardware watchdog examples](69_application_io_watchdog.md) | Pending | 62, 68; trials wait for the user's watchdog, optocoupler and switch wiring | - |
+| 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | Pending | 55, 57, 61, 68; startup verifies only unless the table opts in | - |
+| 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | Pending | 66, 69, 70; hardware trials wait for the user's wiring; S3 after 67 | - |
 
 ## Next ready
 

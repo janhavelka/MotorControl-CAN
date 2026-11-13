@@ -22,7 +22,9 @@ run, so a broken wire, a lost supply or a dead MCU stops the drives; a plain pul
 MCU can freeze its pin at the run level; a watchdog that needs a changing signal (a charge pump, a retriggerable
 monostable or a supervisor IC's watchdog input) drops the line when the toggling stops. The CANopen way, a drive-side
 heartbeat consumer (`1016`) with an abort-connection reaction (`6007`), does not exist in the Lichuan EDS (backlog D10,
-M14), so this line is the host-loss stop for this family.
+M14), so this line is the host-loss stop for this family. The [host-loss guide](../host_loss.md) records the failure
+cases, the wiring sketch and candidate watchdog chips; [prompt 69](69_application_io_watchdog.md) adds the watchdog IC,
+MCU input and output examples on top of this prompt.
 
 Boundaries: the installed core never drives MCU pins (no device I/O); GPIO, pin choice and the watchdog circuit belong
 to the application and board; there is no default pin, the pin is a required board fact. DI configuration is explicit

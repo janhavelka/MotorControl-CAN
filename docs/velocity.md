@@ -1,5 +1,8 @@
 # Finite Lichuan velocity
 
+The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
+explained in [Speed, ramp and position units](speed_units.md).
+
 `prepareVelocity`, `nextVelocity`, `advanceVelocity` and `serviceVelocity` operate
 on caller-owned `VelocityContext`. `AxisSession::requestVelocity` connects them
 to the existing owner and urgent stop. No CLI or second SDO engine is required.

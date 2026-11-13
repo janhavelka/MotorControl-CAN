@@ -52,6 +52,8 @@ exact JSONL schema, bounded output and visible P41/P42 route gates.
 | [Native driver groups](driver_settings.md) | Typed native reads and confirmed parameter writes; concrete prerequisites, partial effects/readback and remaining source gates |
 | [Typed reads](reads.md) | Finite raw identity/state/configuration reads, checked getters, SDO/PDO provenance, time/skew and the unresolved non-consuming probe gate |
 | [Status and exact units](units_status.md) | Implemented rational parsing, dimensional conversion, rounding, explicit radians/float quantization and unchanged failure outputs |
+| [Speed, ramp and position units](speed_units.md) | The Lichuan's native units, the whole-rpm and ramp-time limits with worked examples, and what the host unit layer does about them |
+| [When the host MCU fails](host_loss.md) | What the drives do when the MCU hangs, resets or loses power, the usual stop-line and watchdog protection, and the library's part |
 | [Axis coordinates and references](axis_contract.md) | Production pure configuration, origins, generation/freshness, position/velocity targets and offline preview |
 | [CANopen services](canopen_services.md) | Installed pure SDO checks, channel/width correlation, signed words, abort/segmented evidence and worked vectors; bounded production lifecycle, timestamped observations and ambiguity settlement, passive node events and synchronous cache invalidation in the optional application owner |
 | [Reviewed object generation](reference/lichuan_objects.md) and [generated coverage](reference/lichuan_generated.md) | Compact profile-scoped declarations, optional strings, withholding/exclusions, semantic coverage and reproducible freshness command |
