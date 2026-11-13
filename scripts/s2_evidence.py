@@ -179,12 +179,13 @@ GRAMMAR = (
         "step:u cycles:u motion:u case:u unsettled:b gap:u lossCancel:b?",
         signals=_RECORD_HEALTH + (("health", "why"), ("health", "lossCancel")), per_node=True),
     # pred: a rearm's named predecessor; c6: word67's cycles after 0006; rel and base: a move's relative
-    # base (0 absolute) and witness position. Records before 2026-11-04 have none of them.
+    # base (0 absolute) and witness position. Records before 2026-11-04 have none of them. reverse (protocol
+    # 12): a velocity's reverse probe, with which its rpm is the magnitude of a negative rate.
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
         "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
-        "probe:u? word:x?"),
+        "probe:u? reverse:b? word:x?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -277,12 +278,13 @@ GRAMMAR = (
     Row("TRIAL_HOME", "TRIAL_HOME ", "summary",
         "method:u gate:u identity:b io:b state:b driver:b 2101:x 2200:x 2201:x admitted:b"),
     # velocity (protocol 6; protocol 7 adds gate, always 2 ATTENDED_EXPERIMENT, with start and stop 0;
-    # protocol 9 adds probe, prompt 59's range probe, also on TRIAL_PLAN): the host's evidence as received,
-    # the session's VelocityContext, its preparation-anchored timeline and its admission and latest samples,
-    # raw. Its stop is TRIAL_STOP.
+    # protocol 9 adds probe, prompt 59's range probe, also on TRIAL_PLAN; protocol 12 adds reverseProbe,
+    # prompt 59's reverse probe, TRIAL_PLAN's reverse, while reverse stays the qualification, always 0): the
+    # host's evidence as received, the session's VelocityContext, its preparation-anchored timeline and its
+    # admission and latest samples, raw. TRIAL_VELOCITY's rpm is the signed rate. Its stop is TRIAL_STOP.
     Row("TRIAL_VELOCITY_EVIDENCE", "TRIAL_VELOCITY_EVIDENCE ", "summary",
         "record:u layout:u gate:u start:b stop:b kind:u max:u reverse:b modeChange:b dt:x hw:x sw:x vid:x pc:x "
-        "rev:x mc:x fc:x probe:b?"),
+        "rev:x mc:x fc:x probe:b? reverseProbe:b?"),
     Row("TRIAL_VELOCITY", "TRIAL_VELOCITY ", "summary",
         "own:b state:u phase:u outcome:u>velocityOutcome first:u int:u setup:u exec:u completion:u>velocityCompletion "
         "stop:u sexec:u uncertain:b>velocityUncertain effects:b needs:b fenced:b>velocityFenced running:b cycles:u "

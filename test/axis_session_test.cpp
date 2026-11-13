@@ -2405,7 +2405,8 @@ struct AlarmRun {
         options.service = reads();
         options.observationIntervalUs = 10;
         options.maximumAgeUs = 1000;
-        CHECK(L::prepareClearAlarm(action, reservation, state, operation, r.now, r.opDeadline, options));
+        CHECK(L::prepareClearAlarm(action, reservation, state, operation, r.now, r.opDeadline, options,
+                                   L::AlarmClearMethod::OBJECT_2301)); // The runs check 2301's bytes.
         from = r.wire.sentCount;
     }
     // One service through the session, and back into the action.
@@ -3516,6 +3517,8 @@ struct ConfigurationWatch {
     }
 };
 // One clear requested on node 1 from a fresh prerequisite read, with an axis whose coordinates are known.
+// An alarm clear names `method` to the session, OBJECT_2301 unless given; with sessionDefault it names
+// none and takes requestClearAlarm's own default, and `method` is then ignored.
 struct ClearRun {
     Rig r;
     bool counter;
@@ -3526,7 +3529,7 @@ struct ClearRun {
     unsigned from = 0;
     uint64_t deadline = 0;
     explicit ClearRun(bool counterClear, uint64_t window = 4000, uint64_t interval = 10,
-                      L::AlarmClearMethod method = L::AlarmClearMethod::OBJECT_2301)
+                      L::AlarmClearMethod method = L::AlarmClearMethod::OBJECT_2301, bool sessionDefault = false)
         : counter(counterClear) {
         openAxis(r, r.a);
         r.drive[0].monitor = counter ? 0 : 8; // Idle; the alarm clear needs the alarm bit.
@@ -3551,8 +3554,9 @@ struct ClearRun {
         from = r.wire.sentCount;
         deadline = r.now + window;
         const M::Status requested =
-            counter ? r.a.requestCounterZero(state, 0, axis, reference, clearOptions(interval), deadline, r.now)
-                    : r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now, method);
+            counter          ? r.a.requestCounterZero(state, 0, axis, reference, clearOptions(interval), deadline, r.now)
+            : sessionDefault ? r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now)
+                             : r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now, method);
         CHECK(requested.isOk() && r.a.clearActive() && r.a.busy());
         CHECK(r.wire.sentCount == from); // A request yields no traffic.
     }
@@ -3597,7 +3601,7 @@ void checkBlocked(const E::AxisSession& s, const M::Status& status, int32_t deta
 }
 void clearAlarmThroughSession() {
     for (unsigned persist = 0; persist < 2; ++persist) {
-        ClearRun run(false, persist ? 1000 : 4000, persist ? 100 : 10);
+        ClearRun run(false, persist ? 1000 : 4000, persist ? 100 : 10, L::AlarmClearMethod::OBJECT_2301);
         Rig& r = run.r;
         const L::ActionContext& clear = run.action();
         CHECK(clear.actionKind == M::ActionKind::CLEAR_ALARM && clear.incident.present &&
@@ -3664,8 +3668,9 @@ void clearAlarmThroughSession() {
 // the same admission and notices as the 2301 writes, then the same cycles and one ERRORS read. Each
 // acknowledged word becomes the session's latest controlword like any other, so 0x0000 is the latest at
 // the end, and no stop may follow it. This fake acknowledges both words and changes nothing for them.
-void clearAlarmByControlwordThroughSession() {
-    ClearRun run(false, 4000, 10, L::AlarmClearMethod::CONTROLWORD_BIT7);
+// It is requestClearAlarm's default since 2026-11-13, so a request that names no method runs the same
+// way: exactly 2B 40 60 00 80 00 00 00, then 2B 40 60 00 00 00 00 00, to 0x601.
+void clearAlarmByControlword(ClearRun& run) {
     Rig& r = run.r;
     const L::ActionContext& clear = run.action();
     CHECK(clear.actionKind == M::ActionKind::CLEAR_ALARM &&
@@ -3673,6 +3678,7 @@ void clearAlarmByControlwordThroughSession() {
           clear.incident.monitor == 8 && !r.a.latestControl());
     for (unsigned i = 0; i < 40 && clear.commandEvidenceMask != 3; ++i)
         r.step();
+    // isClearWrite compares all eight bytes, the identifier 0x601 and a classic data frame.
     CHECK(isClearWrite(r, run.from, 0x6040, 0x0080) && isClearWrite(r, run.from + 1, 0x6040, 0));
     CHECK(clear.commandHistory[0].outcome == C::SdoOutcome::SUCCESS &&
           clear.commandHistory[1].outcome == C::SdoOutcome::SUCCESS);
@@ -3692,6 +3698,12 @@ void clearAlarmByControlwordThroughSession() {
     const M::Status enable = r.a.requestEnable(run.state, L::EnableEvidence(), clearOptions(), r.now + 1000, r.now);
     CHECK(!enable && enable.detail == int32_t(M::ActionError::STATE) && r.a.motionHistoryWritten());
     quiet(r);
+}
+void clearAlarmByControlwordThroughSession() {
+    for (unsigned byDefault = 0; byDefault < 2; ++byDefault) {
+        ClearRun run(false, 4000, 10, L::AlarmClearMethod::CONTROLWORD_BIT7, byDefault != 0);
+        clearAlarmByControlword(run);
+    }
 }
 void counterZeroThroughSession() {
     ClearRun run(true);
@@ -4098,7 +4110,8 @@ void rejectedFinalZeroBlocks() {
         L::ReadContext other;
         readState(r, r.b, other, 2, ALARM_STATE);
         const unsigned second = r.wire.sentCount;
-        CHECK(!r.b.clearBlocked() && r.b.requestClearAlarm(other, clearOptions(), r.now + 4000, r.now));
+        CHECK(!r.b.clearBlocked() && r.b.requestClearAlarm(other, clearOptions(), r.now + 4000, r.now,
+                                                           L::AlarmClearMethod::OBJECT_2301));
         for (unsigned i = 0; i < 40 && r.b.clearAction().commandEvidenceMask != 3; ++i)
             r.step();
         r.drive[1].monitor = 0;

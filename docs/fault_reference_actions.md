@@ -14,8 +14,10 @@ The only alarm so far, `FF05` on node 1 in mode 3 on 2026-11-13, was first refus
 mode 1 admission of that time, which led to the
 [mode 3 admission](fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13) (packets 17 and 18). The
 `2301` method then ran once with writes, on that alarm (trial 5323), and its report led to the
-[completion rule](fault_reference_actions.md#completion-measured-2026-11-13). The
-[controlword method](fault_reference_actions.md#two-reset-methods) has not run.
+[completion rule](fault_reference_actions.md#completion-measured-2026-11-13). Later that day both
+methods ran on `FF05` alarms of both specimens, and the
+[controlword method](fault_reference_actions.md#two-reset-methods), the only one that left the drive
+released, became the default.
 
 ## Supported transition tables
 
@@ -30,7 +32,7 @@ but the controlword method's `6040` `0x0080` and `0x0000`.
 
 | Case | Fault provenance | Mode and state | Native route and values | Rearm and ACK | Required new observation | Raw error and history | Final uncertainty |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Admitted attempt | One read under the reservation: `2100` alarm set and raw `603F=FF05`, with `1001` and the `1003` count and entries. `incident.codeLink=UNRESOLVED`: the code does not identify the alarm (D-26) | `6061=1` with `2100` running clear, or `6061=3` with `2100` released and running clear or latched beside the release with `606C` raw `0` in the same read's FEEDBACK (policy, [below](fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13)). `6041` kept raw at admission. Both methods admit alike | `OBJECT_2301` (default): `2301:00` U16 `1`, then `0` (source: EN86 p18 and EDS; ZH86 p18 and OP86 omit `2301`). `CONTROLWORD_BIT7`: `6040:00` U16 `0x0080`, then `0x0000` (source: EN86/ZH86 p15, OP86 p13; `15->128` in ZH86 p12 and OP86 p10). [Methods](fault_reference_actions.md#two-reset-methods) | The second value returns to the documented ineffective value: for `2301` as policy, since no source requires an edge, rearm or pulse and no arming `0` precedes the `1` (D-27); for `6040` as p15's manual return. Each write needs its own matching ACK before the next; the first write's ACK is `execution=ACKNOWLEDGED` | After the second ACK, MONITORS and STATUS in the admission's mode until the [completion rule](fault_reference_actions.md#completion-measured-2026-11-13) holds: mode 1 with `2100` running and alarm clear; mode 3 with `6041` low bits `000`, `2100` alarm and running clear and `6041` bits 3 and 7 clear, the release either way. Then one ERRORS read | `incident` keeps the admission values. The final ERRORS read is kept raw, even when `603F` still reads `FF05`. `1003` is never read again | `OBSERVED` means a later report without the alarm, not that the cause is gone. `valueOneMayRemain` if the second write lacks a positive ACK |
+| Admitted attempt | One read under the reservation: `2100` alarm set and raw `603F=FF05`, with `1001` and the `1003` count and entries. `incident.codeLink=UNRESOLVED`: the code does not identify the alarm (D-26) | `6061=1` with `2100` running clear, or `6061=3` with `2100` released and running clear or latched beside the release with `606C` raw `0` in the same read's FEEDBACK (policy, [below](fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13)). `6041` kept raw at admission. Both methods admit alike | `CONTROLWORD_BIT7` (default since 2026-11-13): `6040:00` U16 `0x0080`, then `0x0000` (source: EN86/ZH86 p15, OP86 p13; `15->128` in ZH86 p12 and OP86 p10). `OBJECT_2301`: `2301:00` U16 `1`, then `0` (source: EN86 p18 and EDS; ZH86 p18 and OP86 omit `2301`). [Methods](fault_reference_actions.md#two-reset-methods) | The second value returns to the documented ineffective value: for `2301` as policy, since no source requires an edge, rearm or pulse and no arming `0` precedes the `1` (D-27); for `6040` as p15's manual return. Each write needs its own matching ACK before the next; the first write's ACK is `execution=ACKNOWLEDGED` | After the second ACK, MONITORS and STATUS in the admission's mode until the [completion rule](fault_reference_actions.md#completion-measured-2026-11-13) holds: mode 1 with `2100` running and alarm clear; mode 3 with `6041` low bits `000`, `2100` alarm and running clear and `6041` bits 3 and 7 clear, the release either way. Then one ERRORS read | `incident` keeps the admission values. The final ERRORS read is kept raw, even when `603F` still reads `FF05`. `1003` is never read again | `OBSERVED` means a later report without the alarm, not that the cause is gone. `valueOneMayRemain` if the second write lacks a positive ACK |
 | Alarm persists after both ACKs | As admitted | Each cycle needs the admission's mode and that mode's rule, else `OBSERVATION_SCOPE`: in mode 3 the alarm still reported needs the release and running only after a latched admission, and `6041` bits 3 or 7 still set with `2100` alarm clear keep the attempt polling | No further write | No write repeats | Repolls MONITORS and STATUS only, at `observationIntervalUs`, until the deadline | Unchanged | `DEADLINE`, `execution=ACKNOWLEDGED`, `uncertain` |
 | Withdrawal during the attempt | A new EMCY, boot-up, lifecycle change or cancel, delivered by the application | Any | The admitted write or read settles; nothing new is yielded | A terminal that still correlates joins `commandHistory` or the observation evidence. After a node-epoch change it no longer does, and the application ends the attempt locally with `INVALIDATED` | None | Unchanged; the owner's newest EMCY is separate | Outcome is the withdrawal reason; `valueOneMayRemain` follows the same rule |
 | Rejected before work | Any other code, including `FF01` overcurrent, `FF02..FF04` (never mapped from LED counts) and `0`; no alarm; missing ERRORS or ERROR_HISTORY; stale or foreign read | Mode other than 1 or 3; running in mode 1; mode 3 not released; mode 3 running without a FEEDBACK block or with `606C` nonzero | None | None | None | None | Output unchanged |
@@ -109,9 +111,18 @@ velocity runs at the speed or acceleration limit, two specimens, one firmware): 
 and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times. `OBJECT_2301` cleared it 8 of 9 times but left
 `6041=8010`, `2100=0001`, which only a following `6040` = 0x0080 word released (8 of 8; 0x0000, 0x000B and 0x0006 did
 nothing, and an NMT Reset Node changed nothing); once, at `2201=51200`, the FF05 came back right after the `2301`
-clear. The controlword method is the recommended recovery; the default parameter value is still `OBJECT_2301`.
+clear.
 
-`prepareClearAlarm(..., AlarmClearMethod method = OBJECT_2301)` and
+**Default (project decision, 2026-11-13).** On the user's decision "Alarm clear - pick the best method" and this
+evidence, `CONTROLWORD_BIT7` is the default of `prepareClearAlarm` and `AxisSession::requestClearAlarm`, and so of
+the console `alarm-clear` and `ProbeMotion::requestAlarmClear`, which name no method. It was `OBJECT_2301` before;
+`OBJECT_2301` stays selectable, and a caller that needs the `2301` writes names it. The scope of the evidence is
+narrow: one firmware (`1000=00040192`, `1009=000C`, `100A=0020`), two specimens, `FF05` only, every clear admitted
+in mode 3 from a released drive. Mode 1 clears, other alarms, other firmwares and OL86-C are unmeasured for either
+method. `OBJECT_2301` on its own can complete in `6041=8010`, `2100=0001`, a report no S2 bench route admits, from which
+only a later `6040` = 0x0080 released the drive; the `2301` method never writes that word.
+
+`prepareClearAlarm(..., AlarmClearMethod method = CONTROLWORD_BIT7)` and
 `AxisSession::requestClearAlarm(..., method)` choose the reset. The method changes
 the two writes and nothing else: admission, the incident, the cycles, completion,
 the single final ERRORS read, `valueOneMayRemain` and every refusal are shared.
@@ -120,8 +131,8 @@ no write repeats, and no other object or value is written.
 
 | Method | Writes (exact frames to node `n`) | Sources | Measured |
 | --- | --- | --- | --- |
-| `OBJECT_2301` | `2B 01 23 00 01 00 00 00`, then `2B 01 23 00 00 00 00 00` | EN86 p18 "Alarm reset, 0: Noneffective; 1: Effective", U16 RW; EDS `Obj.ClearAlm` U16 RW, PDO, default 0. ZH86 p18 and OP86 omit `2301`. The `0` is policy (D-27) | Once with writes: node 1, mode 3, 2026-11-13, trial 5323 ([below](fault_reference_actions.md#completion-measured-2026-11-13)) |
-| `CONTROLWORD_BIT7` | `2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00` | EN86 and ZH86 p15, OP86 p13, "3.5.2 Alarm reset": "Set Bit7 of Control Word 6040h-00 to 1 to reset the drive alarm. It should be set to 0 manually." ZH86 p12 and OP86 p10 list `15->128`, "alarm reset", in the position-mode word table; EN86 p12 lacks the row | Nothing: not run |
+| `OBJECT_2301` | `2B 01 23 00 01 00 00 00`, then `2B 01 23 00 00 00 00 00` | EN86 p18 "Alarm reset, 0: Noneffective; 1: Effective", U16 RW; EDS `Obj.ClearAlm` U16 RW, PDO, default 0. ZH86 p18 and OP86 omit `2301`. The `0` is policy (D-27) | 9 attempts on 2026-11-13, mode 3, `FF05`, first node 1 trial 5323 ([below](fault_reference_actions.md#completion-measured-2026-11-13)): 8 cleared the alarm and left `6041=8010`, `2100=0001`; once (`2201=51200`) the alarm came back right after |
+| `CONTROLWORD_BIT7` (default) | `2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00` | EN86 and ZH86 p15, OP86 p13, "3.5.2 Alarm reset": "Set Bit7 of Control Word 6040h-00 to 1 to reset the drive alarm. It should be set to 0 manually." ZH86 p12 and OP86 p10 list `15->128`, "alarm reset", in the position-mode word table; EN86 p12 lacks the row | 11 of 11 on 2026-11-13, both specimens, mode 3, `FF05`: alarm cleared, drive released (`6041=8050`, `2100=0011`) |
 
 Pages checked on the original PDFs on 2026-11-13 (text layer; the p12 tables also
 in the [re-audit](reports/2026-11-13_fault_recovery_and_motor_limits.md)). The
@@ -129,10 +140,12 @@ manuals give the reset only after word 15; no source gives another predecessor,
 so sending `0x0080` after whatever word the drive last took is policy: the action
 never sends the 15, which would be an enable. Both words have bits 0..3 clear,
 which the p12 tables pair with `6041` low bits `000` (`6040=0`), so on a drive
-reporting itself switched on they may also release it (inference). Unknown: what
-the drive reports after a bit 7 reset, whether `6041` low bits or bit 4 change,
-whether bit 7 acts on its rising edge or its level, which of the two methods a
-firmware honors, and whether they are equivalent. No hold time between the two
+reporting itself switched on they may also release it (inference; every measured
+clear was admitted from a released drive). Measured on this firmware: after a bit 7
+reset the drive reported `6041=8050`, `2100=0011`, and after a `2301` clear
+`8010`/`0001`, so the two are not equivalent here. Unknown: which of the two words
+acted (the action reads only after the `0x0000`), whether bit 7 acts on its rising
+edge or its level, and what other firmwares honor. No hold time between the two
 writes is documented. Each acknowledged word of the controlword method becomes the
 `AxisSession`'s latest controlword like any other, ending at `0x0000`, which
 `stopPredecessorAllowed` does not list.
@@ -193,14 +206,17 @@ after a `000B` is `8050`/`0011`. Which non-enabling controlword moves this repor
 the released one is the question of the S2 `controlword` route (protocol 11, `TT`;
 [hardware bench](hardware_bench.md)): one fresh full read with `6041` low bits `000`,
 then exactly one reviewed word, `0000`, `0006`, `000B` or `0080`, and observation
-cycles. Nothing has been measured with it yet.
+cycles. Measured with it later on 2026-11-13 ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md)):
+`0000`, `000B` and `0006` changed nothing (trials 5402 to 5404); `0080` released the
+drive at once to `8050`/`0011`, mode and position kept (trial 5405, then 8 of 8).
 
 ## Rearm and the final zero
 
 EN86 p18 and EDS `[2301]` define U16 `0` ineffective and `1` effective. The
 second write returns to the documented ineffective value as library policy, not
-a manufacturer pulse, edge or rearm rule. No hold time, auto-clear behavior or
-equivalence to the controlword reset is known. The controlword method's
+a manufacturer pulse, edge or rearm rule. No hold time or auto-clear behavior is
+known, and on the measured firmware it is not equivalent to the controlword reset
+([methods](fault_reference_actions.md#two-reset-methods)). The controlword method's
 `0x0000` is EN86/ZH86 p15's "set to 0 manually"; whether bit 7 acts on its edge
 or its level is not documented either.
 
@@ -318,12 +334,13 @@ and the restarted application has no coordinate confidence to restore.
 caller of both actions (backlog S12), tested through the real owner in
 `axis_session_test`. The S2 bench's `counter-zero` and `clear-alarm` routes call
 it. `requestCounterZero` ran once on a specimen (below). `requestClearAlarm`'s first
-two attempts on 2026-11-13 were refused before any write, and its `2301` method then
-ran once (trial 5323, above). The route's read includes FEEDBACK, for the mode 3
-latched release.
+two attempts on 2026-11-13 were refused before any write, its `2301` method then
+ran (trial 5323 first, above), and later its controlword method
+([methods](fault_reference_actions.md#two-reset-methods)). The route's read includes
+FEEDBACK, for the mode 3 latched release.
 
 - **Request.** `requestClearAlarm(state, options, deadlineUs, nowUs, method)`, the
-  method defaulting to `OBJECT_2301`, and
+  method defaulting to `CONTROLWORD_BIT7` (`OBJECT_2301` before 2026-11-13), and
   `requestCounterZero(state, nativePosition, axis, reference, options,
   deadlineUs, nowUs)` prepare `clearAction()` on the session's reservation. The
   two share that one slot, and `actionKind` says which ran. Either is refused,
@@ -350,7 +367,7 @@ latched release.
   flight settles into the context as evidence, and `preflight()` refuses a
   withdrawn clear's write at handover. The clear's writes withdrew the latest
   controlword, so the stop usually takes the `000B` branch. A first write
-  cancelled unsent restores that word. Under the controlword method an
+  cancelled unsent restores that word. Under the controlword method, the default, an
   acknowledged reset word becomes the latest instead (`0x0080`, then `0x0000`);
   neither is a stop predecessor, so a fresh idle report refuses the stop and any
   other report takes the `000B` branch, as for enable words 6 and 7.
@@ -381,8 +398,8 @@ is local withdrawal after retiring admitted work, not another drive command.
 Rejected calls preserve their outputs.
 
 The [prompt 32 report](reports/prompt_32.md) separates implemented conditional
-paths and host tests from missing model/firmware qualification. The controlword
-reset's effect on a drive (implemented, never run), other fault classes, arbitrary
+paths and host tests from missing model/firmware qualification. Both resets' effect
+beyond `FF05` in mode 3 on the one measured firmware, other fault classes, arbitrary
 device-position setting and internal resume/counter relationships remain precise
 gates. Counter zero, host origin,
 successful homing, release and factory reset stay distinct. No action here
@@ -391,10 +408,11 @@ publishes a home reference or qualified physical measurement.
 ### Physical cases
 
 Both need the lead at the bench, one drive, the independent drive-power cutoff
-in hand and a free, table-mounted shaft. The alarm clear's `2301` method ran once,
-on node 1's `FF05` in mode 3 (trial 5323,
-[above](fault_reference_actions.md#completion-measured-2026-11-13)); its controlword
-method has not run. The counter zero ran once:
+in hand and a free, table-mounted shaft. The alarm clear ran on `FF05` in mode 3
+on 2026-11-13: the `2301` method 9 times, first on node 1 (trial 5323,
+[above](fault_reference_actions.md#completion-measured-2026-11-13)), and the
+controlword method 11 times on both specimens
+([methods](fault_reference_actions.md#two-reset-methods)). The counter zero ran once:
 
 **Counter zero, node 2, 2026-11-04** (trial 323, the bench `counter-zero`
 route, [report](reports/2026-11-04_bench.md)). Node 2 was switched on and
@@ -422,8 +440,8 @@ The cases as planned:
    completion rule puts outside its scope, an uncertain write, lost evidence or a
    bus fault. A persisting alarm is retained as the result. One attempt per
    identified incident; a repeat, or the other method, is a new reviewed trial.
-   The controlword method's first run also records `6041` and `2100` before and
-   after, since neither is documented for a bit 7 reset.
+   Record `6041` and `2100` before and after under either method: neither is
+   documented for a reset, and the two methods ended in different reports.
 2. **Counter zero.** Stationary, alarm-free drive in mode 1 with `606C` zero and
    an independent shaft mark. Record `607A`, `6064`, `606C`, the monitor words,
    `6041` and the axis reference metadata. At power-up both specimens read

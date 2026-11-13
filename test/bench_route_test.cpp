@@ -3110,13 +3110,14 @@ struct VelocitySpec {
     unsigned layout = 2;
     unsigned long dt = DEVICE_TYPE, hw = HARDWARE, sw = SOFTWARE, vid = VENDOR, pc = PRODUCT, rev = REVISION;
     unsigned long mc = MODEL, fc = FIRMWARE;
-    unsigned probe = 0; // Protocol 9: prompt 59's range probe, the line's last field.
+    unsigned probe = 0;   // Protocol 9: prompt 59's range probe, the field after the identity.
+    unsigned reverse = 0; // Protocol 12: prompt 59's reverse probe, the line's last field.
 };
 std::string velocityLine(unsigned node, uint32_t& trial, const VelocitySpec& v = VelocitySpec()) {
     char text[300];
-    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u",
+    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%u",
                   node, id(trial).c_str(), v.attended, v.rpm, v.up, v.down, v.duration, v.interval, v.deadline, v.kind,
-                  v.record, v.layout, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc, v.probe);
+                  v.record, v.layout, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc, v.probe, v.reverse);
     return text;
 }
 std::string modeThreeLine(unsigned node, uint32_t& trial, unsigned cycles = 2, unsigned interval = 200,
@@ -3491,11 +3492,11 @@ void testVelocity() {
     std::string text = r->dump();
     CHECK(has(text, "route=velocity failure=0 why=none "));
     CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=6 attended=1 rpm=6 up=200 down=200 dur=12000 "
-                    "interval=5000 deadline=15500 kind=1 probe=0\n"));
+                    "interval=5000 deadline=15500 kind=1 probe=0 reverse=0\n"));
     CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
                     "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123 "
-                    "probe=0\n"));
-    CHECK(!c.evidence.rangeProbe);
+                    "probe=0 reverseProbe=0\n"));
+    CHECK(!c.evidence.rangeProbe && !c.evidence.reverseProbe && !c.evidence.maximumReverseRpm);
     // The session's context keeps the experiment gate after success: the run qualified nothing.
     CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && !c.evidence.startQualified &&
           !c.evidence.stopQualified && !c.evidence.modeChangeQualified && !c.evidence.reverseQualified &&
@@ -5046,11 +5047,13 @@ void testParseRangeProbe() {
     w.probe = 2;
     bad.push_back(velocityLine(1, trial, w));
     {
-        // The protocol 8 line: the same fields without the probe's.
+        // The protocol 8 line: the same fields without the probe's (and without protocol 12's reverse field).
         const std::string current = velocityLine(1, trial, plain);
-        bad.push_back(current.substr(0, current.rfind(',')));
+        const std::string eleven = current.substr(0, current.rfind(','));
+        bad.push_back(eleven.substr(0, eleven.rfind(',')));
         const std::string fast = velocityLine(1, trial, probe);
-        bad.push_back(fast.substr(0, fast.rfind(',')) + ",-1");
+        const std::string fastEleven = fast.substr(0, fast.rfind(','));
+        bad.push_back(fastEleven.substr(0, fastEleven.rfind(',')) + ",-1,0");
     }
     for (const std::string& text : bad) {
         E::RoutePlan untouched;
@@ -5077,10 +5080,12 @@ void testParseRangeProbe() {
     built = p;
     built.rpm = 6001;
     CHECK(!E::routePlanValid(built));
-    // The longest velocity line, the probe's included, fits ROUTE_LINE with its integrity field.
+    // The longest velocity line, the probe's and the reverse field included, fits ROUTE_LINE with its integrity
+    // field.
     VelocitySpec longest;
     longest.rpm = 6000;
     longest.probe = 1;
+    longest.reverse = 1;
     longest.up = longest.down = 2000;
     longest.deadline = 55000;
     longest.duration = 54999;
@@ -5090,7 +5095,8 @@ void testParseRangeProbe() {
     longest.hw = longest.sw = longest.mc = longest.fc = 65535;
     uint32_t big = 4294967294u;
     const std::string line = velocityLine(2, big, longest);
-    CHECK(line.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(line.data(), line.size(), p) && p.rangeProbe);
+    CHECK(line.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(line.data(), line.size(), p) && p.rangeProbe &&
+          p.reverse);
 }
 // A range probe through the route and the library on this fake's mode 3, which turns at whatever 60FF it
 // was given: the run is the library's attended experiment with VelocityEvidence::rangeProbe, claims
@@ -5127,9 +5133,10 @@ void testVelocityRangeProbe() {
         char plan[160];
         std::snprintf(plan, sizeof plan,
                       "TRIAL_PLAN route=velocity node=1 trial=%lu attended=1 rpm=%u up=200 down=200 dur=12000 "
-                      "interval=5000 deadline=15500 kind=1 probe=1\n",
+                      "interval=5000 deadline=15500 kind=1 probe=1 reverse=0\n",
                       static_cast<unsigned long>(trial), rpm);
-        CHECK(has(text, plan) && has(text, " gate=2 start=0 stop=0 ") && has(text, " fc=0123 probe=1\n"));
+        CHECK(has(text, plan) && has(text, " gate=2 start=0 stop=0 ") &&
+              has(text, " fc=0123 probe=1 reverseProbe=0\n"));
         r->release();
     }
     // Refused before anything is admitted or counted: a plan built in code with a probe ramp under 200 ms,
@@ -5155,6 +5162,194 @@ void testVelocityRangeProbe() {
     refusal = r->route.begin(unprobed, r->console.now);
     CHECK(refusal && std::strcmp(refusal, "plan") == 0);
     CHECK(!r->route.record() && r->route.motionAdmissions() == 0 && r->driver.requests.size() == first);
+}
+// ------------------------------------------------------------------- prompt 59 item 4 (protocol 12)
+// The V line's last field, the reverse probe: 0 or 1 after the range probe. The rate field keeps its ranges, 1..3000
+// and 1..6000 with the range probe, as the magnitude; the protocol 11 line, which has no such field, is refused.
+void testParseReverse() {
+    scenario = "parse-reverse";
+    E::RoutePlan p;
+    uint32_t trial = 0;
+    VelocitySpec reverse;
+    reverse.reverse = 1;
+    for (unsigned rpm : {1u, 6u, 60u, 61u, 3000u}) {
+        reverse.rpm = rpm;
+        const std::string line = velocityLine(1, trial, reverse);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::VELOCITY && p.reverse &&
+              !p.rangeProbe && p.rpm == rpm && E::routePlanValid(p));
+    }
+    VelocitySpec both = reverse;
+    both.probe = 1;
+    for (unsigned rpm : {1u, 3001u, 6000u}) {
+        both.rpm = rpm;
+        const std::string line = velocityLine(1, trial, both);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.reverse && p.rangeProbe && p.rpm == rpm);
+    }
+    // Without the field's 1 nothing changed: a positive rate.
+    const std::string plain = velocityLine(1, trial);
+    CHECK(E::parseRouteCommand(plain.data(), plain.size(), p) && !p.reverse && !p.rangeProbe);
+    std::vector<std::string> bad;
+    VelocitySpec w = reverse;
+    w.rpm = 0;
+    bad.push_back(velocityLine(1, trial, w));
+    w.rpm = 3001; // Above 3000 only with the range probe, reverse or not.
+    bad.push_back(velocityLine(1, trial, w));
+    w = both;
+    w.rpm = 6001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = both;
+    w.rpm = 6000;
+    w.up = 199;
+    bad.push_back(velocityLine(1, trial, w));
+    w = reverse;
+    w.reverse = 2;
+    bad.push_back(velocityLine(1, trial, w));
+    reverse.rpm = 6;
+    {
+        // A signed rate is no form of this line: the sign is the reverse field's alone.
+        const std::string line = velocityLine(1, trial, VelocitySpec());
+        size_t at = 0;
+        for (unsigned comma = 0; comma < 3; ++comma)
+            at = line.find(',', at) + 1;
+        bad.push_back(line.substr(0, at) + "-" + line.substr(at));
+        // The protocol 11 line, without the reverse field, and the field as -1 or with one field more.
+        const std::string current = velocityLine(1, trial, reverse);
+        bad.push_back(current.substr(0, current.rfind(',')));
+        bad.push_back(current.substr(0, current.rfind(',')) + ",-1");
+        bad.push_back(current + ",0");
+    }
+    for (const std::string& text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text.data(), text.size(), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text.c_str());
+        CHECK(!E::parseRouteCommand(text.data(), text.size(), untouched));
+        CHECK(untouched.kind == E::RouteKind::NONE && untouched.trial == 0);
+    }
+    // A plan built in code is judged the same way: the reverse field changes no range.
+    const std::string line = velocityLine(1, trial, reverse);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p) && E::routePlanValid(p));
+    E::RoutePlan built = p;
+    built.rpm = 3001;
+    CHECK(!E::routePlanValid(built));
+    built.rangeProbe = true;
+    CHECK(E::routePlanValid(built));
+}
+// Reverse probes through the route and the library on this fake's mode 3, which turns at whatever 60FF it was
+// given, here negative: the route requests -rpm under VelocityEvidence::reverseProbe, 60FF goes out as its two's
+// complement, 606C reads the negative rate and the run's own HALT settles it. Then a fake that turns against its
+// 60FF: its enable report ends the run before running is observed, and the run's own HALT follows. Every value is
+// this fake's, never a drive's: no direction of a CL86-C is shown.
+void testVelocityReverse() {
+    struct Case {
+        unsigned rpm, probe;
+    };
+    const Case cases[] = {{6, 0}, {60, 0}, {3000, 1}};
+    for (const Case& k : cases) {
+        scenario = k.rpm == 6 ? "velocity-reverse-6" : k.rpm == 60 ? "velocity-reverse-60" : "velocity-reverse-3000";
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        VelocitySpec spec;
+        spec.rpm = k.rpm;
+        spec.probe = k.probe;
+        spec.reverse = 1;
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+        if (v.failure != E::RouteFailure::NONE)
+            std::fprintf(stderr, "%s", r->dump().c_str());
+        CHECK(v.failure == E::RouteFailure::NONE && v.velocityRequested && v.plan.reverse);
+        CHECK(v.motionTotal == 2 && v.caseCount == 1); // Counted as every velocity, with its own stop.
+        const L::VelocityContext& c = r->one.velocityAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.completion == M::ActionCompletion::OBSERVED && !c.needsStop &&
+              c.runningObserved && c.rate.effectiveNative == -int64_t(k.rpm) &&
+              c.enableReport.velocity == -int32_t(k.rpm));
+        CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && c.evidence.reverseProbe &&
+              c.evidence.rangeProbe == bool(k.probe) && !c.evidence.reverseQualified && !c.evidence.startQualified &&
+              !c.evidence.stopQualified && c.evidence.maximumReverseRpm == k.rpm &&
+              c.evidence.maximumForwardRpm == k.rpm);
+        const uint32_t raw = uint32_t(-int32_t(k.rpm));
+        const uint8_t target[8] = {0x23, 0xff, 0x60, 0, uint8_t(raw), uint8_t(raw >> 8), uint8_t(raw >> 16),
+                                   uint8_t(raw >> 24)},
+                      halt[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+        const std::vector<M::Frame> sent = downloads(*r, first, 1);
+        CHECK(sent.size() == 7 && frameIs(sent[0], target) && frameIs(sent[6], halt));
+        if (k.rpm == 6) {
+            const uint8_t minusSix[8] = {0x23, 0xff, 0x60, 0, 0xfa, 0xff, 0xff, 0xff};
+            CHECK(frameIs(sent[0], minusSix) && r->driver.drives[0].velocityTarget == -6);
+        }
+        CHECK(!r->one.velocityNeedsStop());
+        const std::string text = r->dump();
+        char plan[200], evidence[80], summary[40], sample[40];
+        std::snprintf(plan, sizeof plan,
+                      "TRIAL_PLAN route=velocity node=1 trial=%lu attended=1 rpm=%u up=200 down=200 dur=12000 "
+                      "interval=5000 deadline=15500 kind=1 probe=%u reverse=1\n",
+                      static_cast<unsigned long>(trial), k.rpm, k.probe);
+        std::snprintf(evidence, sizeof evidence, " max=%u reverse=0 ", k.rpm);
+        std::snprintf(summary, sizeof summary, " rpm=-%u code=", k.rpm);
+        std::snprintf(sample, sizeof sample, " velocity=-%u lo=", k.rpm);
+        CHECK(has(text, plan) && has(text, evidence) && has(text, " fc=0123 probe=") &&
+              has(text, " reverseProbe=1\n") && has(text, summary) && has(text, sample));
+        CHECK(has(text, "TRIAL_VELOCITY own=1 state=2 ") && has(text, " needs=0 fenced=0 running=1 "));
+        r->release();
+    }
+    {
+        // Refused before anything is admitted or counted: a reverse plan above 3000 rpm without the range probe.
+        scenario = "velocity-reverse-plan";
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        VelocitySpec spec;
+        spec.reverse = 1;
+        E::RoutePlan p;
+        const std::string line = velocityLine(1, trial, spec);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+        p.rpm = 3001;
+        const size_t first = r->driver.requests.size();
+        const char* refusal = r->route.begin(p, r->console.now);
+        CHECK(refusal && std::strcmp(refusal, "plan") == 0);
+        CHECK(!r->route.record() && r->route.motionAdmissions() == 0 && r->driver.requests.size() == first);
+        // Over the attended experiment's 60 rpm without the range probe: the library refuses before any write.
+        spec.rpm = 61;
+        const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+        CHECK(v.failure == E::RouteFailure::REFUSED && std::strcmp(v.why, "velocity") == 0 && !v.velocityRequested);
+        CHECK(v.statusPresent && v.statusCode == int(M::Err::INVALID_CONFIG) &&
+              v.statusDetail == int32_t(M::VelocityError::ARGUMENT) && downloads(*r, first, 1).empty());
+        r->release();
+    }
+    scenario = "velocity-reverse-wrong-sign";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedModeThree(d);
+    d.reverseSpin = true;
+    uint32_t trial = 0;
+    qualified(*r, trial);
+    VelocitySpec spec;
+    spec.reverse = 1;
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+    CHECK(v.failure == E::RouteFailure::ACTION && std::strcmp(v.why, "velocity") == 0 && v.velocityRequested);
+    const L::VelocityContext& c = r->one.velocityAction();
+    CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+          std::strcmp(c.status.msg, "reported velocity opposes the command") == 0);
+    // The enable report itself ended the run, with 606C +6 against the -6 command, before running was observed.
+    CHECK(!c.runningObserved && !c.runningPolls && c.enableReport.present && c.enableReport.velocity == 6 &&
+          c.latest.velocity == 6 && c.observations == 3 && c.stopRequested && c.stopRequestedUs < c.stopDueUs);
+    // Its own HALT left at once and settled the fence: that cycle had reported the drive running.
+    CHECK(c.stopOperation && c.completion == M::ActionCompletion::OBSERVED && !c.needsStop &&
+          !r->one.velocityNeedsStop());
+    const uint8_t target[8] = {0x23, 0xff, 0x60, 0, 0xfa, 0xff, 0xff, 0xff},
+                  halt[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+    const std::vector<M::Frame> sent = downloads(*r, first, 1);
+    CHECK(sent.size() == 7 && frameIs(sent[0], target) && frameIs(sent[6], halt) && d.velocity == 0);
+    const L::ActionContext& h = r->one.stopAction(L::StopKind::HALT);
+    const E::RouteTerminal* stopTerminal = terminalOf(v, 0x6040, h.operation);
+    CHECK(stopTerminal && stopTerminal->admittedUs < c.stopDueUs);
+    const std::string text = r->dump();
+    CHECK(has(text, "TRIAL_VELOCITY own=1 state=3 ") && has(text, " needs=0 fenced=0 running=0 ") &&
+          has(text, " rpm=-6 code=") && has(text, " reverse=1\n") && has(text, " reverseProbe=1\n"));
+    CHECK(has(text, "TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 "));
 }
 // SUBDIVISION's line: K, node, trial, attended and the 2201 value, 400..51200.
 std::string subdivisionLine(unsigned node, uint32_t& trial, unsigned value, unsigned attended = 1) {
@@ -5916,6 +6111,26 @@ void writeTranscript(const char* path, bool all) {
         const std::string ranged59 = velocityLine(1, trial, probe);
         CHECK(p59->run(ranged59).failure == E::RouteFailure::NONE);
         append(*p59, ranged59);
+        // Prompt 59 item 4 (protocol 12): a -6 rpm reverse probe on a released mode 3 fake, then one on a fake that
+        // turns against its 60FF, whose enable report ends the run with its own HALT (trial 42 marks it for
+        // s2_bench_test.py).
+        std::unique_ptr<Rig> reversed(new Rig);
+        releasedModeThree(reversed->driver.drives[0]);
+        trial = 0;
+        qualified(*reversed, trial);
+        VelocitySpec backward;
+        backward.reverse = 1;
+        const std::string reverse59 = velocityLine(1, trial, backward);
+        CHECK(reversed->run(reverse59).failure == E::RouteFailure::NONE);
+        append(*reversed, reverse59);
+        std::unique_ptr<Rig> against(new Rig);
+        releasedModeThree(against->driver.drives[0]);
+        against->driver.drives[0].reverseSpin = true;
+        trial = 40;
+        qualified(*against, trial);
+        const std::string wrong59 = velocityLine(1, trial, backward);
+        CHECK(wrong59.compare(0, 6, "V1,42,") == 0 && against->run(wrong59).failure == E::RouteFailure::ACTION);
+        append(*against, wrong59);
         std::unique_ptr<Rig> k3(new Rig);
         const std::vector<Captured> script = driverScript(1000, 10000, 10000);
         scripted(k3->driver.drives[0], script);
@@ -7087,6 +7302,8 @@ int main(int argc, char** argv) {
     testReleasedModeOneRefusals();
     testParseRangeProbe();
     testVelocityRangeProbe();
+    testParseReverse();
+    testVelocityReverse();
     testParseSubdivision();
     testSubdivision();
     testSubdivisionFailures();

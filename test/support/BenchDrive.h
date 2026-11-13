@@ -142,8 +142,9 @@ struct Drive {
     M::Frame staleRequest = M::Frame();
     // This fake's mode 3: 0007 to 000F starts the 60FF target, and reports it as 2100 running, 606C at
     // the target and, with spinBit, 6041 bit 14 (the ZH86 running bit); 010F and 000B end it. Off by
-    // default, so every earlier suite keeps its fake. No drive's velocity behavior is claimed.
-    bool spins = false, spinBit = true;
+    // default, so every earlier suite keeps its fake. No drive's velocity behavior is claimed. With
+    // reverseSpin it reports 606C at the target's negation: a drive turning against its 60FF.
+    bool spins = false, spinBit = true, reverseSpin = false;
     // 2202, 607D and 2400:00..08 as this fake stores them: written by downloads, read back as written.
     // The 2400 defaults keep what earlier suites read: undocumented codes on DI3..DI6 and polarity 0101.
     uint16_t limitSelector = 0;
@@ -381,7 +382,7 @@ struct Drive {
                 if (spins && mode == 3 && word == 0x000f && previous == 0x0007) {
                     monitor = uint16_t(monitor | L::MONITOR_RUNNING);
                     status = uint16_t(spinBit ? status | 0x4000 : status);
-                    velocity = velocityTarget;
+                    velocity = reverseSpin ? -velocityTarget : velocityTarget;
                 } else if (spins && mode == 3 && (word == 0x010f || word == 0x000b)) {
                     monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
                     status = uint16_t(status & ~0x4000);

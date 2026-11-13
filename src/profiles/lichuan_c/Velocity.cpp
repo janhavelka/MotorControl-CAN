@@ -15,7 +15,8 @@ constexpr uint8_t CYCLE_MASK =
 constexpr uint16_t ENABLE_WORDS[3] = {6, 7, 15};
 // 60FF and 6060 have no writable generated descriptor because their signedness claims conflict.
 // This qualified sequence owns only their agreed wire widths: 60FF four bytes, 6060 one byte
-// (EDS [60FF]/[6060], ZH86 PDF p13). Signed velocity remains separately evidence-gated.
+// (EDS [60FF]/[6060], ZH86 PDF p13). Signed velocity remains separately evidence-gated: a negative rate
+// needs reverseQualified (MEASURED) or the attended reverse probe, and goes out as its two's complement I32.
 constexpr uint16_t PARAMETER_INDEXES[3] = {0x60ff, 0x6083, 0x6084};
 static_assert(OBJECT_6083_00.widthBytes == 4 && OBJECT_6084_00.widthBytes == 4 &&
                   OBJECT_6040_00.widthBytes == 2,
@@ -120,7 +121,8 @@ Status rateRange(const PreparedVelocityTarget& rate, const VelocityEvidence& e) 
     if (rate.rateBasis != NativeRateBasis::MOTOR_TURNS || rate.rateTime != TimeUnit::MINUTE ||
         rate.representation != NativeRepresentation::INTEGER)
         return error(VelocityError::RATE_BASIS, "60FF requires integer motor turns per minute");
-    const int64_t lower = e.reverseQualified ? -int64_t(e.maximumReverseRpm) : 0;
+    // check() admitted maximumReverseRpm only with a reverse claim (MEASURED) or a reverse probe (experiment).
+    const int64_t lower = e.reverseQualified || e.reverseProbe ? -int64_t(e.maximumReverseRpm) : 0;
     const int64_t upper = e.maximumForwardRpm;
     const int64_t value = rate.effectiveNative;
     if (!value || value < lower || value > upper)
@@ -171,18 +173,20 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
                      "mode3 start and stop need selected-firmware evidence", Err::UNSUPPORTED);
     // The range probe is the one experiment allowed above the documented 3000 rpm (prompt 59).
     const bool probe = experiment && e.rangeProbe;
+    const uint32_t cap = probe ? VELOCITY_RANGE_PROBE_MAXIMUM_RPM : VELOCITY_EXPERIMENT_MAXIMUM_RPM;
+    // The reverse probe is the one experiment allowed a negative rate (prompt 59 item 4, Q03 open): its
+    // magnitude has the experiment's own cap, and it claims nothing, so reverseQualified stays MEASURED's.
+    const bool reverse = e.reverseQualified || e.reverseProbe;
     if ((e.gate != VelocityGate::MEASURED && !experiment) || !e.record ||
-        (e.rangeProbe && !experiment) || e.layout == StatusLayout::UNSPECIFIED ||
+        ((e.rangeProbe || e.reverseProbe) && !experiment) || e.layout == StatusLayout::UNSPECIFIED ||
         e.layout > StatusLayout::OP86 || e.layout == StatusLayout::ZH57 || !e.maximumForwardRpm ||
         e.maximumForwardRpm > (probe ? VELOCITY_RANGE_PROBE_MAXIMUM_RPM : 3000) ||
-        (e.reverseQualified ? !e.maximumReverseRpm || e.maximumReverseRpm > 3000
-                            : e.maximumReverseRpm != 0) ||
+        (reverse ? !e.maximumReverseRpm || e.maximumReverseRpm > (e.reverseProbe ? cap : 3000)
+                 : e.maximumReverseRpm != 0) ||
         e.stopKind != o.stopKind)
         return error(VelocityError::ARGUMENT, "invalid selected velocity evidence scope");
     if (experiment && (e.startQualified || e.stopQualified || e.modeChangeQualified ||
-                       e.reverseQualified ||
-                       e.maximumForwardRpm > (probe ? VELOCITY_RANGE_PROBE_MAXIMUM_RPM
-                                                    : VELOCITY_EXPERIMENT_MAXIMUM_RPM)))
+                       e.reverseQualified || e.maximumForwardRpm > cap))
         return error(VelocityError::ARGUMENT,
                      "an attended velocity experiment claims no qualification and stays slow");
     if (probe && (profile.rampUpTimeMs < VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS ||
@@ -261,7 +265,8 @@ Status shape(const VelocityContext& c, uint64_t now) {
         (c.evidence.gate != VelocityGate::MEASURED &&
          c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         (c.options.enableWindowUs && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
-        (c.evidence.rangeProbe && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        ((c.evidence.rangeProbe || c.evidence.reverseProbe) &&
+         c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         c.stopDueUs <= c.startedUs ||
         c.stopDueUs >= c.deadlineUs || c.deadlineUs > uint64_t(INT64_MAX) ||
         now > uint64_t(INT64_MAX) || c.servicedUs < c.startedUs || now < c.servicedUs ||
@@ -520,6 +525,16 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     }
     if (c.observation == VelocityObservation::ENABLE)
         c.enableReport = s;
+    // The reverse probe's sign check (prompt 59 item 4, project policy): no source says which way a
+    // negative 60FF turns (Q03), so a 606C against the command by more than one 2 rpm step ends the run
+    // from the enable report on, before running was observed too. 606C is what the drive reports, not an
+    // independent direction observation.
+    if (c.evidence.reverseProbe &&
+        (c.rate.effectiveNative > 0 ? s.velocity < -int32_t(VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM)
+                                    : s.velocity > int32_t(VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM))) {
+        failure(c, ActionOutcome::OBSERVATION_SCOPE, now, "reported velocity opposes the command", true);
+        return;
+    }
     // Over-speed (prompt 59, project policy): above the command by a fifth plus the margin. 606C is
     // what the drive reports, not an independent speed observation.
     const int64_t commanded = c.rate.effectiveNative < 0 ? -c.rate.effectiveNative : c.rate.effectiveNative;

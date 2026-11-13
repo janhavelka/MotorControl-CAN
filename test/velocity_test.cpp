@@ -1767,6 +1767,262 @@ void overSpeedEndsTheRun() {
         }
     }
 }
+// Prompt 59 item 4's reverse probe: an ATTENDED_EXPERIMENT with reverseProbe, stating a negative range up to
+// the experiment's own cap (60 rpm, or 6000 with the range probe). Q03 stays open: nothing here is a drive fact.
+void reverseProbe(Rig& r, int64_t rpm, bool range = false) {
+    if (range)
+        probe(r, rpm);
+    else {
+        experiment(r);
+        r.request.velocity.value = M::Rational(rpm);
+    }
+    r.evidence.reverseProbe = true;
+    r.evidence.maximumReverseRpm = range ? L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM : L::VELOCITY_EXPERIMENT_MAXIMUM_RPM;
+}
+void reverseProbeScope() {
+    CHECK(L::VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM == 2);
+    {
+        // Admitted: -1 and -60 at the experiment's cap, -6000 with the range probe; positive rates as before.
+        struct Admitted {
+            int64_t rpm;
+            bool range;
+        };
+        const Admitted admitted[] = {{-1, false}, {-60, false}, {1, false},     {60, false},
+                                     {-1, true},  {-6000, true}, {6000, true}, {-3001, true}};
+        for (const Admitted& k : admitted) {
+            Rig r;
+            reverseProbe(r, k.rpm, k.range);
+            CHECK(r.prepare());
+            CHECK(r.context.rate.effectiveNative == k.rpm && r.context.evidence.reverseProbe &&
+                  !r.context.evidence.reverseQualified && r.context.evidence.rangeProbe == k.range);
+        }
+    }
+    {
+        // One rpm past the cap either way, as a request or as the evidence's range, and zero, are refused.
+        Rig below;
+        reverseProbe(below, -61);
+        refusedAs(below, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        Rig above;
+        reverseProbe(above, 61);
+        refusedAs(above, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        Rig deep;
+        reverseProbe(deep, -6001, true);
+        refusedAs(deep, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        Rig zero;
+        reverseProbe(zero, 0);
+        refusedAs(zero, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        // -60.5 must not round into the admitted -60.
+        Rig half;
+        reverseProbe(half, -60);
+        half.request.velocity.value = M::Rational(-121, 2);
+        half.request.velocity.rounding = M::Rounding::TOWARD_ZERO;
+        half.request.velocity.maximumQuantizationError = M::Rational(1, 2);
+        refusedAs(half, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        // A narrower stated range is the bound, as for the forward one.
+        Rig narrow;
+        reverseProbe(narrow, -31);
+        narrow.evidence.maximumReverseRpm = 30;
+        refusedAs(narrow, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        narrow.request.velocity.value = M::Rational(-30);
+        CHECK(narrow.prepare() && narrow.context.rate.effectiveNative == -30);
+        for (uint32_t range : {uint32_t(0), L::VELOCITY_EXPERIMENT_MAXIMUM_RPM + 1}) {
+            Rig wide;
+            reverseProbe(wide, -6);
+            wide.evidence.maximumReverseRpm = range;
+            refusedAs(wide, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        }
+        Rig wider;
+        reverseProbe(wider, -6, true);
+        wider.evidence.maximumReverseRpm = L::VELOCITY_RANGE_PROBE_MAXIMUM_RPM + 1;
+        refusedAs(wider, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        // Without the probe an experiment states no reverse range and admits no negative rate, as before.
+        Rig unprobed;
+        reverseProbe(unprobed, -6);
+        unprobed.evidence.reverseProbe = false;
+        refusedAs(unprobed, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        unprobed.evidence.maximumReverseRpm = 0;
+        refusedAs(unprobed, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+        // The range probe's ramp floor holds for a reverse range probe too.
+        Rig ramp;
+        reverseProbe(ramp, -6000, true);
+        ramp.profile.rampDownTimeMs = L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS - 1;
+        refusedAs(ramp, M::Err::ILLEGAL_VALUE, M::VelocityError::RANGE);
+    }
+    {
+        // The probe claims nothing: no reverse qualification beside it, and no gate but the experiment takes it.
+        Rig claimed;
+        reverseProbe(claimed, -6);
+        claimed.evidence.reverseQualified = true;
+        refusedAs(claimed, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig measured;
+        measured.evidence.reverseProbe = true;
+        measured.evidence.maximumReverseRpm = L::VELOCITY_EXPERIMENT_MAXIMUM_RPM;
+        measured.request.velocity.value = M::Rational(-6);
+        refusedAs(measured, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        measured.request.velocity.value = M::Rational(6);
+        refusedAs(measured, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig both;
+        both.evidence.reverseProbe = both.evidence.reverseQualified = true;
+        both.evidence.maximumReverseRpm = 3000;
+        both.request.velocity.value = M::Rational(-6);
+        refusedAs(both, M::Err::INVALID_CONFIG, M::VelocityError::ARGUMENT);
+        Rig closed;
+        reverseProbe(closed, -6);
+        closed.evidence.gate = L::VelocityGate::CLOSED;
+        refusedAs(closed, M::Err::UNSUPPORTED, M::VelocityError::CAPABILITY);
+        // MEASURED keeps its own reverse claim, unchanged.
+        Rig qualified;
+        qualified.evidence.reverseQualified = true;
+        qualified.evidence.maximumReverseRpm = 3000;
+        qualified.request.velocity.value = M::Rational(-3000);
+        CHECK(qualified.prepare() && !qualified.context.evidence.reverseProbe);
+    }
+    {
+        // 60FF goes out as the two's complement I32: -6 is FA FF FF FF (frame 23 FF 60 00 FA FF FF FF).
+        Rig r;
+        reverseProbe(r, -6);
+        CHECK(r.prepare() && r.context.rate.effectiveNative == -6);
+        const L::PreparedVelocity first = r.next(START);
+        CHECK(first.ready && first.transfer.direction == C::SdoDirection::DOWNLOAD &&
+              first.transfer.index == 0x60ff && first.transfer.subindex == 0 && first.transfer.size == 4);
+        CHECK(first.transfer.data[0] == 0xfa && first.transfer.data[1] == 0xff && first.transfer.data[2] == 0xff &&
+              first.transfer.data[3] == 0xff);
+        Rig deep;
+        reverseProbe(deep, -6000, true);
+        CHECK(deep.prepare());
+        const L::PreparedVelocity widest = deep.next(START);
+        CHECK(widest.ready && widest.transfer.data[0] == 0x90 && widest.transfer.data[1] == 0xe8 &&
+              widest.transfer.data[2] == 0xff && widest.transfer.data[3] == 0xff);
+    }
+}
+// The run's sign check: with the probe a 606C against the command by more than 2 rpm ends the run with its stop
+// requested, from the enable report on, also before running was observed; 2 rpm is tolerated.
+void reverseFailed(const L::VelocityContext& c, int32_t reported) {
+    CHECK(c.state == M::ActionState::ACTIVE && c.phase == L::VelocityPhase::STOPPING && c.stopRequested &&
+          c.needsStop && c.uncertain && c.stopRequestedUs == c.servicedUs);
+    CHECK(c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+          std::strcmp(c.status.msg, "reported velocity opposes the command") == 0);
+    CHECK(c.latest.present && c.latest.velocity == reported && c.latest.cycle == c.observations);
+}
+void reverseProbeRuns() {
+    {
+        // A -6 rpm probe runs as any experiment: 606C reads -6, running is observed, its HALT settles, and it
+        // qualifies nothing.
+        Rig r;
+        reverseProbe(r, -6);
+        r.reachRunning();
+        const L::VelocityContext& c = r.context;
+        CHECK(c.latest.velocity == -6 && c.enableReport.velocity == -6 && c.firstFailure == M::ActionOutcome::NONE);
+        CHECK(c.setupEvidenceMask == 7 && c.setupHistory[0].transfer.index == 0x60ff &&
+              c.setupHistory[0].transfer.data[0] == 0xfa && c.setupHistory[0].transfer.data[3] == 0xff);
+        bool due = false;
+        CHECK(L::serviceVelocity(r.context, r.live, r.target, c.stopDueUs, false, due) && due);
+        r.now = c.stopDueUs;
+        static L::ActionContext halt;
+        CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, c.commandHistory[2], L::StopKind::HALT, 43,
+                                     r.now, DEADLINE, stopOptions(r)));
+        runStop(r, halt, 0x0001, 0x9437);
+        CHECK(L::advanceVelocityStop(r.context, halt, r.now));
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.completion == M::ActionCompletion::OBSERVED && !c.needsStop);
+        CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && c.evidence.reverseProbe &&
+              !c.evidence.reverseQualified && !c.evidence.startQualified && !c.evidence.stopQualified &&
+              c.evidence.maximumReverseRpm == L::VELOCITY_EXPERIMENT_MAXIMUM_RPM);
+    }
+    // Each command sign against the opposite report, before running (the enable report) and after it.
+    for (int64_t rpm : {int64_t(-6), int64_t(6), int64_t(-6000)}) {
+        const int32_t wrong = rpm < 0 ? 3 : -3;
+        {
+            // The first cycle after word 15 reports the enable with 606C 3 rpm the wrong way: that cycle ends the
+            // run, which never reported running, and its own HALT then settles the fence, the failure kept.
+            Rig r;
+            reverseProbe(r, rpm, rpm == -6000);
+            r.runningVelocity = wrong;
+            CHECK(r.prepare());
+            serveUntil(r, false);
+            const L::VelocityContext& c = r.context;
+            reverseFailed(c, wrong);
+            CHECK(c.enableReport.present && c.enableReport.cycle == c.latest.cycle && !c.runningPolls &&
+                  !c.runningObserved && c.commandEvidenceMask == 7 && c.observations == 3);
+            L::PreparedVelocity work;
+            CHECK(L::nextVelocity(c, r.observation, r.live, r.target, r.now + 20000, work) && !work.ready &&
+                  !work.observe);
+            static L::ActionContext halt;
+            CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, c.commandHistory[2], L::StopKind::HALT, 43,
+                                         r.now, DEADLINE, stopOptions(r)));
+            runStop(r, halt, 0x0001, 0x9437);
+            CHECK(halt.state == M::ActionState::SUCCEEDED && L::advanceVelocityStop(r.context, halt, r.now));
+            CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+                  !c.needsStop && c.completion == M::ActionCompletion::OBSERVED && c.stopOperation == 43);
+        }
+        {
+            // After running was observed, the same report ends the run under the probe's own message.
+            Rig r;
+            reverseProbe(r, rpm, rpm == -6000);
+            r.reachRunning();
+            r.runningVelocity = wrong;
+            serveUntil(r, false);
+            reverseFailed(r.context, wrong);
+            CHECK(r.context.runningObserved && r.context.runningPolls == 1 &&
+                  r.context.enableReport.velocity == int32_t(rpm));
+        }
+        {
+            // 2 rpm the wrong way is tolerated before running: the run continues to its due time, never
+            // observing running. After running it still contradicts the running evidence, as without the probe.
+            const int32_t tolerated = rpm < 0 ? 2 : -2;
+            Rig r;
+            reverseProbe(r, rpm, rpm == -6000);
+            r.runningVelocity = tolerated;
+            CHECK(r.prepare());
+            for (unsigned step = 0; step < 200 && r.context.runningPolls < 3 &&
+                                    r.context.state == M::ActionState::ACTIVE &&
+                                    r.context.phase != L::VelocityPhase::STOPPING;
+                 ++step)
+                r.serveOne();
+            CHECK(r.context.runningPolls == 3 && r.context.firstFailure == M::ActionOutcome::NONE &&
+                  r.context.state == M::ActionState::ACTIVE && !r.context.runningObserved &&
+                  r.context.latest.velocity == tolerated && r.context.enableReport.velocity == tolerated);
+            Rig late;
+            reverseProbe(late, rpm, rpm == -6000);
+            late.reachRunning();
+            late.runningVelocity = tolerated;
+            serveUntil(late, false);
+            CHECK(late.context.phase == L::VelocityPhase::STOPPING && late.context.stopRequested &&
+                  std::strcmp(late.context.status.msg, "running velocity evidence contradicted") == 0);
+        }
+    }
+    {
+        // Without the probe, a MEASURED reverse record keeps the earlier rule: a wrong-sign enable report is not
+        // running evidence, and nothing ends the run before running was observed.
+        Rig r;
+        r.evidence.reverseQualified = true;
+        r.evidence.maximumReverseRpm = 3000;
+        r.request.velocity.value = M::Rational(-6);
+        r.runningVelocity = 6;
+        CHECK(r.prepare());
+        for (unsigned step = 0; step < 200 && r.context.runningPolls < 3 && r.context.state == M::ActionState::ACTIVE &&
+                                r.context.phase != L::VelocityPhase::STOPPING;
+             ++step)
+            r.serveOne();
+        CHECK(r.context.runningPolls == 3 && r.context.firstFailure == M::ActionOutcome::NONE &&
+              !r.context.runningObserved && r.context.enableReport.velocity == 6);
+    }
+    {
+        // A wrong sign beyond the over-speed limit reads as the probe's direction failure.
+        Rig r;
+        reverseProbe(r, -60);
+        r.runningVelocity = overSpeedLimit(-60) + 1;
+        CHECK(r.prepare());
+        serveUntil(r, false);
+        reverseFailed(r.context, overSpeedLimit(-60) + 1);
+        // The same magnitude the right way is over-speed, as without the probe.
+        Rig fast;
+        reverseProbe(fast, -60);
+        fast.runningVelocity = -(overSpeedLimit(-60) + 1);
+        CHECK(fast.prepare());
+        serveUntil(fast, false);
+        overSpeedFailed(fast.context, -(overSpeedLimit(-60) + 1));
+    }
+}
 } // namespace
 int main() {
     windowReferenceIsWord7sCycle();
@@ -1790,5 +2046,7 @@ int main() {
     rangeProbeScope();
     rangeProbeRunQualifiesNothing();
     overSpeedEndsTheRun();
+    reverseProbeScope();
+    reverseProbeRuns();
     std::printf("finite velocity: %u checks passed\n", checks);
 }

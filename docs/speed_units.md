@@ -25,7 +25,7 @@ The page-by-page audit behind this guide is the [units re-audit](reports/2026-11
 | Position unit | Command pulses, ±1,000,000; 1000 pulses per motor turn at `2201=1000` (documented range EN86 p11; scale measured) |
 | Unit conversion in the drive | None. The EDS has no CiA402 factor group (`6091`, `6092`, `608F`, `6096`, `6097`, `60A8`, `60A9`) (documented, EDS) |
 | Delivered speed | 0.992 × the command, after truncation to whole pulses per second (measured fit, cause unknown) |
-| Negative velocity | Refused today; prompt 59 measures it |
+| Negative velocity | Refused without `reverseQualified`, which no record states; prompt 59's attended reverse probe sends one to measure it |
 
 ## Native units
 
@@ -212,7 +212,10 @@ turns backwards (measured, -60 during a -60 rpm position move), and a positive `
 counter-clockwise seen from the shaft end with `2200=0` (measured, [round 7](reports/2026-11-10_bench_r7.md)). Today
 the library refuses a negative velocity unless a record states `reverseQualified`, which no record does
 ([velocity](velocity.md)). Position moves take a positive speed; the direction comes from the target. Prompt 59
-measures a negative `60FF` and, if it runs in reverse at the commanded magnitude, opens signed velocity.
+measures a negative `60FF` and, if it runs in reverse at the commanded magnitude, opens signed velocity. Its
+instrument is the attended experiment's reverse probe (`VelocityEvidence::reverseProbe`, bench `--reverse`): the
+rate goes out as the two's complement I32 (-6 is `FA FF FF FF`), and a `606C` against the command by more than
+2 rpm ends the run with its stop; the probe qualifies nothing ([velocity](velocity.md)).
 
 ## How the library handles units today
 

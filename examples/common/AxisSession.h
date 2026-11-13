@@ -494,10 +494,13 @@ class AxisSession {
     bool homeNeedsStop() const noexcept { return homeNeedsStop_; }
     /** @return Latest failed home admission/handover check; no motor or protocol outcome. */
     const MotorControlCAN::Status& homeRefusal() const noexcept { return homeRefusal_; }
-    /** Request one explicit alarm clear on this axis through prepareClearAlarm: by default 2301 U16 1,
-     * then 0 after the 1's acknowledgement; with AlarmClearMethod::CONTROLWORD_BIT7, 6040 U16 0x0080, then
-     * 0x0000 after the 0x0080's acknowledgement. The 2301 method ran once on a specimen (node 1, mode 3,
-     * 2026-11-13); the controlword method has not. Starts a new owner operation, then prepares
+    /** Request one explicit alarm clear on this axis through prepareClearAlarm: by default
+     * (AlarmClearMethod::CONTROLWORD_BIT7, since 2026-11-13) 6040 U16 0x0080, then 0x0000 after the
+     * 0x0080's acknowledgement; with AlarmClearMethod::OBJECT_2301, 2301 U16 1, then 0 after the 1's
+     * acknowledgement. On 2026-11-13 (two specimens, one firmware, FF05 in mode 3 only) the controlword
+     * method cleared the alarm and left the drive released (6041=8050, 2100=0011) 11 of 11 times; the
+     * 2301 method cleared it 8 of 9 times but left 6041=8010, 2100=0001, which only a later 6040 0x0080
+     * released (AlarmClearMethod). Starts a new owner operation, then prepares
      * clearAction() in place. Yields no traffic here: service() admits each write and read on this
      * reservation, as for an enable. After the second acknowledgement it reads MONITORS and STATUS until
      * they report the completion prepareClearAlarm describes, then ERRORS once. An alarm that persists
@@ -515,7 +518,8 @@ class AxisSession {
      * @param[in] options Copied budgets, as prepareClearAlarm requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of both writes and every observation.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @param[in] method prepareClearAlarm's reset route; the default keeps earlier callers on 2301.
+     * @param[in] method prepareClearAlarm's reset route, with its default, CONTROLWORD_BIT7; a caller
+     * that needs the 2301 writes, the default before 2026-11-13, names OBJECT_2301.
      * @return prepareClearAlarm's status, or a local refusal with ActionError::STATE (busy, clearBlocked()
      * or identities exhausted), TARGET (no usable reservation) or TIME. On such a refusal nothing
      * changes, and on success nothing has been admitted. If the owner then refuses the operation, which
@@ -527,7 +531,7 @@ class AxisSession {
         const MotorControlCAN::LICHUAN_C::ReadContext& state,
         const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs, uint64_t nowUs,
         MotorControlCAN::LICHUAN_C::AlarmClearMethod method =
-            MotorControlCAN::LICHUAN_C::AlarmClearMethod::OBJECT_2301) noexcept;
+            MotorControlCAN::LICHUAN_C::AlarmClearMethod::CONTROLWORD_BIT7) noexcept;
     /** Request one explicit zero-only device counter clear on this axis through
      * prepareSetDevicePosition: 2302 U16 0, 1, 0, each after the previous acknowledgement, all on the
      * original binding. No specimen has run it. Starts a new owner operation, then prepares

@@ -343,7 +343,8 @@ void completionNeedsTheAdmissionMode() {
 // acknowledgement read 2100=0001, 2101=0000, 2102=0000, 6041=8010 and 6061=3: alarm, running and the
 // release clear, low bits 000. The rule of that image, released in every cycle, ended it
 // OBSERVATION_SCOPE (failure=10 why=clear); this rule completes it, then reads ERRORS once. The same
-// report completes the controlword method, which has not run on a specimen.
+// report completes the controlword method, whose own bench clears ended 8050/0011 instead (see
+// defaultIsControlword).
 void trialFiveThreeTwoThree() {
     for (L::AlarmClearMethod method : METHODS) {
         Rig r;
@@ -457,6 +458,63 @@ void controlwordMethod() {
                                                   u.policy(), L::AlarmClearMethod(2));
     CHECK(!status && status.detail == int32_t(M::ActionError::ARGUMENT));
     empty.unchanged(refused);
+}
+
+// A call that names no method writes the controlword reset, the default since 2026-11-13: on two
+// specimens of one firmware it cleared FF05 in mode 3 and left 6041=8050, 2100=0011 11 of 11 times,
+// where the 2301 method left 8010/0001 (bench report of that day). Exact frames to node 1:
+// 2B 40 60 00 80 00 00 00, then 2B 40 60 00 00 00 00 00, and no 2301 byte. The bench's mode 3 report
+// completes it. OBJECT_2301 stays selectable by name and still writes 2301.
+void defaultIsControlword() {
+    const uint8_t words[2][8] = {{0x2b, 0x40, 0x60, 0, 0x80, 0, 0, 0}, {0x2b, 0x40, 0x60, 0, 0, 0, 0, 0}};
+    for (unsigned mode3 = 0; mode3 < 2; ++mode3) {
+        Rig r;
+        r.clearMethod = L::AlarmClearMethod::CONTROLWORD_BIT7; // Only Rig::commands' expectation.
+        if (mode3) {
+            r.errorRegister = 0x81;
+            r.statusword = ALARMED_STATUS;
+            r.acquire(LATCHED_ALARM, 3);
+        } else {
+            r.acquire(ALARM);
+        }
+        r.begin();
+        L::ActionContext action;
+        CHECK(L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now, r.deadline, r.policy()));
+        r.wire.action = &action;
+        CHECK(action.clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7 &&
+              action.actionKind == M::ActionKind::CLEAR_ALARM && action.incident.present);
+        const unsigned from = r.wire.sentCount;
+        r.commands(action, false);
+        if (mode3) {
+            r.statusword = RELEASED_STATUS;
+            r.cycle(action, uint16_t(IN_PLACE | RELEASED), 0, 0xff05, 3);
+        } else {
+            r.cycle(action);
+        }
+        CHECK(action.state == M::ActionState::SUCCEEDED && action.outcome == M::ActionOutcome::OBSERVED &&
+              !action.valueOneMayRemain);
+        r.onlyActionTraffic(from, CONTROL, 2); // Exactly two 6040 downloads, no other download.
+        unsigned seen = 0;
+        for (unsigned i = from; i < r.wire.sentCount; ++i)
+            if (isDownload(r.wire.sent[i]))
+                CHECK(seen < 2 && r.wire.sent[i].id == 0x601 &&
+                      !std::memcmp(r.wire.sent[i].data, words[seen++], 8));
+        CHECK(seen == 2);
+    }
+    // The 2301 method by name: 2B 01 23 00 01 00 00 00, then 2B 01 23 00 00 00 00 00.
+    Rig r;
+    r.acquire(ALARM);
+    r.begin();
+    L::ActionContext action;
+    CHECK(L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now, r.deadline, r.policy(),
+                               L::AlarmClearMethod::OBJECT_2301));
+    r.wire.action = &action;
+    CHECK(action.clearMethod == L::AlarmClearMethod::OBJECT_2301);
+    const unsigned from = r.wire.sentCount;
+    r.commands(action, false); // Rig's clearMethod is OBJECT_2301 here; it compares the bytes.
+    r.cycle(action);
+    CHECK(action.state == M::ActionState::SUCCEEDED);
+    r.onlyActionTraffic(from, CLEAR, 2);
 }
 
 // The admission's mode and monitor are part of the checked shape: a context holding an incident
@@ -959,6 +1017,7 @@ int main() {
     completionNeedsTheAdmissionMode();
     trialFiveThreeTwoThree();
     controlwordMethod();
+    defaultIsControlword();
     incidentShapeIsChecked();
     staleCodeWithLaterIncident();
     latchedErrorValue();

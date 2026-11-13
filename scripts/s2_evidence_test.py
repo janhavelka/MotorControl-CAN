@@ -795,6 +795,49 @@ class ControlwordRecord(unittest.TestCase):
         self.assertEqual(evidence._trial_controlword(results(full + word))[1], ())
 
 
+class ReverseProbeRecord(unittest.TestCase):
+    """Protocol 12 (prompt 59 item 4): a velocity record names its reverse probe in TRIAL_PLAN (reverse) and
+    TRIAL_VELOCITY_EVIDENCE (reverseProbe, beside reverse, the qualification, always 0), and its signed rate in
+    TRIAL_VELOCITY and its samples. The lines are BenchRoute's format with this test's numbers, never a drive's."""
+    PLAN = ("TRIAL_PLAN route=velocity node=1 trial=2 attended=1 rpm=6 up=200 down=200 dur=12000 interval=5000 "
+            "deadline=15500 kind=1 probe=0 reverse=1")
+    EVIDENCE = ("TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
+                "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123 "
+                "probe=0 reverseProbe=1")
+    RUN = ("TRIAL_VELOCITY own=1 state=3 phase=5 outcome=12 first=12 int=0 setup=1 exec=1 completion=1 stop=1 "
+           "sexec=1 uncertain=0 effects=1 needs=0 fenced=0 running=0 cycles=3 polls=0 op=9 sop=10 rpm=-6 code=1 "
+           "detail=4")
+    SAMPLE = ("TRIAL_VELOCITY_SAMPLE which=4 present=1 cycle=3 status=4037 monitor=0004 mode=03 position=0 "
+              "velocity=-6 lo=10 hi=20")
+
+    def parsed(self, text):
+        record = evidence.parse_line(1, text)
+        self.assertEqual((record.status, record.extra), ("parsed", {}), (text, record.reason))
+        return record.values
+
+    def test_reverse_fields_parse_with_their_signs(self):
+        plan = self.parsed(self.PLAN)
+        self.assertEqual((plan["route"], plan["rpm"], plan["probe"], plan["reverse"]), ("velocity", 6, 0, 1))
+        record = self.parsed(self.EVIDENCE)
+        self.assertEqual((record["reverse"], record["reverseProbe"], record["probe"], record["max"]), (0, 1, 0, 6))
+        self.assertEqual(self.parsed(self.RUN)["rpm"], -6)
+        self.assertEqual(self.parsed(self.SAMPLE)["velocity"], -6)
+
+    def test_earlier_records_have_no_reverse_field(self):
+        # Protocol 9 to 11 records end in probe=; nothing about them changes.
+        plan = self.parsed(self.PLAN.replace(" reverse=1", ""))
+        self.assertNotIn("reverse", plan)
+        record = self.parsed(self.EVIDENCE.replace(" reverseProbe=1", ""))
+        self.assertNotIn("reverseProbe", record)
+        self.assertEqual(record["reverse"], 0)
+
+    def test_a_reverse_field_is_a_flag(self):
+        for text in (self.PLAN.replace(" reverse=1", " reverse=2"), self.PLAN.replace(" reverse=1", " reverse=-1"),
+                     self.EVIDENCE.replace(" reverseProbe=1", " reverseProbe=2"),
+                     self.EVIDENCE + " reverseProbe=0"):
+            self.assertEqual(evidence.parse_line(1, text).status, "malformed", text)
+
+
 class TraceLoss(unittest.TestCase):
     def test_trace_saturation_is_failed_evidence(self):
         ok, frames = first_step_ok()

@@ -214,6 +214,12 @@ struct FakeDrive {
             monitor = uint16_t(monitor | L::MONITOR_RELEASED);
             const unsigned inPlace = monitor & L::MONITOR_POSITION_COMPLETE ? 0x8000u : 0u;
             status = running ? uint16_t(0x4050) : uint16_t(inPlace | 0x0050u);
+        } else if (w == 0x0000 && lastWord == 0x0080) {
+            // Manufactured from the 2026-11-13 bench clears (two specimens, one firmware, FF05 in mode 3):
+            // the controlword alarm reset, 0x0080 then 0x0000, cleared the alarm and left 6041=8050 and
+            // 2100=0011. Those records read only after the 0x0000, so which word acted is not shown; this
+            // fake clears the alarm bit at the 0x0000, as it does at 2301's 0, and changes nothing else.
+            monitor = uint16_t(monitor & ~L::MONITOR_ALARM);
         }
         if (followEnable && (w == 6 || w == 7 || w == 15)) {
             const uint16_t low = w == 6 ? 1 : w == 7 ? 3 : 7;
@@ -268,7 +274,8 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
         else if (isWord)
             drive.word(word);
         else if (index == 0x2301) {
-            // Manufactured: the documented 1-then-0 clear ends the alarm. No specimen has run it.
+            // Manufactured: the documented 1-then-0 clear ends the alarm. On 2026-11-13 it cleared FF05
+            // 8 of 9 times on the bench and left 6041=8010, 2100=0001, which this fake does not model.
             if (value == 0 && drive.clearOne)
                 drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_ALARM);
             drive.clearOne = value == 1;

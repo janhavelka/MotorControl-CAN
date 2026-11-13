@@ -21,9 +21,10 @@ enum class VelocityGate : uint8_t {
      * startQualified, stopQualified, modeChangeQualified and reverseQualified must all be false, so
      * the drive must already report released and stationary in mode 3. The rate is at most
      * VELOCITY_EXPERIMENT_MAXIMUM_RPM and the duration at most
-     * VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US. Every other check is unchanged. The attendant's
-     * independent power cutoff is the control the library cannot see. The context keeps this gate,
-     * so a run under it never reads as qualified, and a successful terminal qualifies nothing. */
+     * VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US; it is positive unless VelocityEvidence::reverseProbe is
+     * set. Every other check is unchanged. The attendant's independent power cutoff is the control the
+     * library cannot see. The context keeps this gate, so a run under it never reads as qualified, and a
+     * successful terminal qualifies nothing. */
     ATTENDED_EXPERIMENT
 };
 /** Highest positive rate an ATTENDED_EXPERIMENT can state, in motor rpm. Project policy for an
@@ -43,6 +44,11 @@ constexpr uint32_t VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS = 200;
  * magnitude exceeds the command's by more than a fifth of it plus this value ends the run with its stop
  * requested. Project policy; 606C read in 2 rpm steps at cruise on both specimens. */
 constexpr uint32_t VELOCITY_OVERSPEED_MARGIN_RPM = 10;
+/** Largest 606C magnitude of the sign opposite to the command that a VelocityEvidence::reverseProbe run
+ * tolerates, in motor rpm: from the enable report on, a cycle whose 606C opposes the command by more ends
+ * the run with its stop requested, also before running was observed. Project policy; 606C read in 2 rpm
+ * steps at cruise on both specimens, so one step either way is not read as a direction. */
+constexpr uint32_t VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM = 2;
 /** Most extra final-enable cycles one enable report window can schedule: enableWindowUs divided by
  * enableSpacingUs, rounded down, may not exceed it. Project policy bounding the observation count and
  * the setup budget; it says nothing about the drive. */
@@ -75,14 +81,27 @@ struct VelocityEvidence {
         false; ///< Mode change while released established; enabled changes always reject.
     uint8_t modeChangeFromRaw =
         0; ///< Exact qualified released source mode (0, 1 or 6), never a wildcard.
-    bool reverseQualified = false;  ///< Negative 60FF behavior independently established.
+    /** Negative 60FF behavior independently established; MEASURED only, never by an experiment. */
+    bool reverseQualified = false;
     /** ATTENDED_EXPERIMENT only: the prompt 59 range probe. It raises the experiment's rate cap from
      * VELOCITY_EXPERIMENT_MAXIMUM_RPM to VELOCITY_RANGE_PROBE_MAXIMUM_RPM and requires ramps of at
      * least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS. A probe run qualifies nothing, as every experiment;
      * any other gate refuses it. */
     bool rangeProbe = false;
+    /** ATTENDED_EXPERIMENT only: the prompt 59 reverse probe, the run that measures what a negative 60FF
+     * does. No source states a direction rule: the EDS and the p17 dictionaries declare 60FF I32, while
+     * the EN86/ZH86 p13 mode tables give it as UNSIGNED32 0~3000 (ledger conflict Q03, open). With it a
+     * negative rate is admitted down to -maximumReverseRpm, written as its two's complement I32, with the
+     * experiment's own magnitude cap (VELOCITY_EXPERIMENT_MAXIMUM_RPM, or VELOCITY_RANGE_PROBE_MAXIMUM_RPM
+     * with rangeProbe); positive rates stay as without it, and zero stays refused. From the enable report
+     * on, every cycle also checks 606C's sign (VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM). A reverse probe run
+     * qualifies nothing, so reverseQualified stays false: only a reviewed record, under MEASURED, sets that.
+     * Any other gate refuses it. */
+    bool reverseProbe = false;
     uint32_t maximumForwardRpm = 0; ///< Qualified positive range, 1..3000 rpm.
-    uint32_t maximumReverseRpm = 0; ///< Qualified magnitude if reverseQualified, at most 3000 rpm.
+    /** Negative rate magnitude, in motor rpm: with reverseQualified the qualified range, 1..3000; with
+     * reverseProbe the experiment's stated range, 1 to its cap; otherwise 0. */
+    uint32_t maximumReverseRpm = 0;
 };
 /** Native ramps are milliseconds, not rpm/s. Zero semantics remain unsupported. */
 struct VelocityProfile {
@@ -245,8 +264,10 @@ struct VelocityContext {
  * Non-enabled stationary admission, exact identity, integer rpm, nonzero rate, supported ramps,
  * duration coverage and fixed stop budget are checked before publication. No I/O occurs.
  * CLOSED, a MEASURED record without both start and stop facts, an ATTENDED_EXPERIMENT that
- * claims any qualification or exceeds its rate or duration bound, and a nonzero enable report window
- * under any gate but ATTENDED_EXPERIMENT are refused. The admission's 2100 running bit must be clear,
+ * claims any qualification or exceeds its rate or duration bound, and a nonzero enable report window,
+ * a range probe or a reverse probe under any gate but ATTENDED_EXPERIMENT are refused. A negative rate
+ * needs reverseQualified (MEASURED) or reverseProbe (ATTENDED_EXPERIMENT) and a magnitude within
+ * maximumReverseRpm. The admission's 2100 running bit must be clear,
  * except in mode 3 together with the release, 6041 low bits 000 and 606C zero: the latch a moving quick
  * stop left on both specimens (2100 0015, 6041 C050; reads 1514 and 1608, backlog S18). Word 6's cycle
  * must then repeat the admission's 6064, and from word 7's cycle on the latch must be clear.

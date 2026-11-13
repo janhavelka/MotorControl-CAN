@@ -347,6 +347,13 @@ paths as a direct native caller. The installed core has no parser or scheduler.
 | `enable`, `alarm-clear`, `position-clear` | Native action via `ProbeMotion` / `AxisSession` | Explicit device action; retained asynchronous operation |
 | `stop normal`, `stop fast` | `ProbeMotion::requestStop` / `AxisSession::requestStop` | Independent retained stop request; reserved admission/output |
 
+`alarm-clear` takes no options. It calls `AxisSession::requestClearAlarm` with its
+default method, `AlarmClearMethod::CONTROLWORD_BIT7` since 2026-11-13: `6040` U16
+`0x0080`, then `0x0000` (`2B 40 60 00 80 00 00 00`, `2B 40 60 00 00 00 00 00`).
+Before that date it wrote `2301` `1`, then `0`. No console grammar selects
+`OBJECT_2301`; an application that needs it names it in its own call. The choice
+and its bench evidence are in [fault clearing](fault_reference_actions.md#two-reset-methods).
+
 `UNIT` is `steps`, `fullsteps`, `counts`, `turn`, `deg`, `rad` or `mm`.
 `FRAME` is `native`, `motor` or `load`. `RATE` is `rpm`, `turns/s`, or a
 `UNIT/s` spelling. `POLICY` is `exact`, `nearest` (ties to even), `zero`, `floor`
