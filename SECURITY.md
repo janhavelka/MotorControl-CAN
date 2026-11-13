@@ -8,14 +8,13 @@ no network I/O, drive commands or authentication.
 
 ## Reporting
 
-No verified private vulnerability reporting channel is established yet. This
-remains a release prerequisite. For a non-sensitive defect, use the
+Report a suspected vulnerability privately by email to `info@thymos.cz`. Do
+not post credentials, private network details or an exploit requiring
+coordinated disclosure in a public issue. For a non-sensitive defect, use the
 [repository issue tracker](https://github.com/janhavelka/MotorControl-CAN/issues)
 with the affected commit/version, build toolchain, minimal reproducer and
-observed versus expected behavior. Do not post credentials, private network
-details or an exploit requiring coordinated disclosure in a public issue.
-This policy does not imply that GitHub private vulnerability reporting is
-enabled or that a private address exists.
+observed versus expected behavior. This policy does not imply that GitHub
+private vulnerability reporting is enabled.
 
 ## Scope and integration responsibilities
 
