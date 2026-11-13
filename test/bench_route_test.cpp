@@ -5547,6 +5547,251 @@ void testSubdivisionFailures() {
     CHECK(frameIs(downloads(*a, 0, 1)[0], top));
     CHECK(has(a->dump(), " abort=06090030\n"));
 }
+// ------------------------------------------------- protocol 13: one 2500 loop selector write
+// LOOP's line: l (lowercase, every capital is taken), node, trial, attended and the 2500 code, 0..2.
+std::string loopLine(unsigned node, uint32_t& trial, unsigned code, unsigned attended = 1) {
+    return "l" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," + std::to_string(code);
+}
+const Address CONTROL_GROUP[] = {{0x2500, 0}, {0x2501, 0}};
+// This fake keeps no 2500 of its own (2500 reads 0, 2501 reads 1, and it ignores a download), so a route that
+// needs other values takes its uploads from this script, in the route's order: CONTROL (the prior 2500 and 2501),
+// STATUS and MONITORS (2100 as given, 6041 8050, mode 3), the readback and the read after it. Every value is this
+// test's own; 2501 = 4000 repeats what both specimens reported (docs/tuning.md), it shows nothing here.
+std::vector<Captured> controlScript(uint16_t prior, uint16_t readback, uint16_t after, uint16_t encoder = 4000,
+                                    uint16_t monitor = 0x0011) {
+    return {{0x2500, 0, 2, prior},   {0x2501, 0, 2, encoder}, {0x2100, 0, 2, monitor}, {0x2101, 0, 2, 0xa580},
+            {0x2102, 0, 2, 0xf008},  {0x6041, 0, 2, 0x8050},  {0x6061, 0, 1, 3},       {0x2500, 0, 2, readback},
+            {0x2501, 0, 2, encoder}, {0x2500, 0, 2, after},   {0x2501, 0, 2, encoder}};
+}
+void testParseLoop() {
+    scenario = "parse-loop";
+    // Appended after CONTROLWORD: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::CONTROLWORD) == 26 && unsigned(E::RouteKind::LOOP) == 27);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::LOOP), "loop") == 0);
+    CHECK(unsigned(L::LoopMode::INEFFECTIVE) == 0 && unsigned(L::LoopMode::CLOSED_LOOP) == 2);
+    E::RoutePlan p;
+    for (unsigned code : {0u, 1u, 2u}) {
+        uint32_t trial = 4;
+        const std::string line = loopLine(2, trial, code);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::LOOP && p.node == 2 &&
+              p.trial == 5 && p.attended && p.loopMode == code && E::routePlanValid(p));
+    }
+    // Only the documented 0..2 (EN86/ZH86 p19), and every malformed form. The capital L is RELATIVE's longer line.
+    const char* const bad[] = {"l1,5,1,3",   "l1,5,1,255", "l1,5,1,256", "l1,5,1,65535", "l1,5,1,-1",
+                               "l1,5,2,1",   "l1,5,1",     "l1,5,1,1,0", "L1,5,1,1",     "l0,5,1,1",
+                               "l3,5,1,1",   "l1,0,1,1",   "l1,5,1,+1",  "l1,5,1,",      "l1,5,1,0x1"};
+    for (const char* text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text, std::strlen(text), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text);
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched) && untouched.kind == E::RouteKind::NONE);
+    }
+    uint32_t trial = 0;
+    const std::string line = loopLine(1, trial, 1);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    E::RoutePlan built = p;
+    built.loopMode = 3;
+    CHECK(!E::routePlanValid(built));
+    // The host's line: `Tl`, the command byte and then the route, with its integrity field.
+    const std::string text = "l1,7,1,2";
+    char crc[9];
+    std::snprintf(crc, sizeof crc, "%08lx", static_cast<unsigned long>(E::routeLineCrc(text.data(), text.size())));
+    const std::string signedLine = text + ",K" + crc;
+    size_t body = 0;
+    CHECK(E::checkRouteIntegrity(signedLine.data(), signedLine.size(), body) && body == text.size());
+    CHECK(E::parseRouteCommand(signedLine.data(), body, p) && p.kind == E::RouteKind::LOOP && p.loopMode == 2);
+}
+// Protocol 13 (backlog S21): one 2500 write through prepareControlSettings, its readback and a CONTROL read after
+// it, the configuration epoch the write's notice reached and the session following it, as for 2201.
+void testLoop() {
+    scenario = "loop";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(loopLine(1, trial, 1, 0)), "unattended") == 0);
+    const uint32_t before = configuration(*r, 1);
+    // Closed loop to open loop, the S21 question.
+    const std::vector<Captured> script = controlScript(2, 1, 1);
+    scripted(d, script);
+    const E::RouteRecord& s = r->run(loopLine(1, trial, 1));
+    d.script = nullptr;
+    CHECK(d.scriptAt == script.size());
+    CHECK(s.failure == E::RouteFailure::NONE && s.settingsPrepared && !s.settingsNoop && s.terminalCount == 12);
+    CHECK(s.motionTotal == 0 && s.caseCount == 1 && r->route.motionAdmissions() == 0);
+    size_t at = 0;
+    expectUploads(*r, at, 1, CONTROL_GROUP, 2);
+    expectUploads(*r, at, 1, STOP_STATE, 5);
+    const uint8_t write[8] = {0x2b, 0x00, 0x25, 0, 0x01, 0, 0, 0}; // 2500 = 1; 2501 is never written.
+    CHECK(download(r->driver.requests[at++], 1, write));
+    expectUploads(*r, at, 1, CONTROL_GROUP, 2);
+    expectUploads(*r, at, 1, CONTROL_GROUP, 2);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 1);
+    // One notice advanced the epoch once; the owner and the reopened session are at it, with no latest word.
+    CHECK(s.configurationBefore == before && s.configurationAfter == before + 1 && s.configurationFollowed);
+    CHECK(configuration(*r, 1) == before + 1 && r->one.isOpen() &&
+          r->one.binding().configurationGeneration == before + 1 && !r->one.latestControl());
+    CHECK(s.controlPresent[0] && s.controlPresent[1] && s.controlPresent[2] && s.controlLoop[0] == 2 &&
+          s.controlLoop[1] == 1 && s.controlLoop[2] == 1 && s.controlEncoder[0] == 4000 &&
+          s.controlEncoder[1] == 4000 && s.controlEncoder[2] == 4000 && s.controlReadback == 3);
+    CHECK(s.probeWritten && s.probeAcknowledged && !s.probeUncertain && s.probeAbort == 0);
+    std::string text = r->dump();
+    CHECK(has(text, "route=loop failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=loop node=1 trial=2 attended=1 value=1\n"));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=0c "));
+    CHECK(has(text, "TRIAL_SETTINGS prepared=1 noop=0 state=3 outcome=1 changed=1 confirmed=1 effects=1 uncertain=0 "
+                    "cfg0=1 cfg1=2 followed=1\n"));
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=0 present=1 2500=2 2501=4000\n"));
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=1 present=1 2500=1 2501=4000\n"));
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=2 present=1 2500=1 2501=4000\n"));
+    CHECK(has(text, "TRIAL_LOOP requested=1 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"));
+    CHECK(has(text, "object=2500:00 dir=1 outcome=0 ack=1"));
+    r->release();
+    // Later routes read at the new epoch through the reopened session.
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    // The selector the drive already holds: the library succeeds unchanged, nothing is sent, the epoch stays.
+    size_t first = r->driver.requests.size();
+    const std::vector<Captured> same = controlScript(1, 0, 0);
+    scripted(d, same);
+    const E::RouteRecord& unchanged = r->run(loopLine(1, trial, 1));
+    d.script = nullptr;
+    CHECK(d.scriptAt == 7);
+    CHECK(unchanged.failure == E::RouteFailure::NONE && std::strcmp(unchanged.why, "unchanged") == 0 &&
+          unchanged.settingsNoop && unchanged.terminalCount == 7 && r->downloadsFrom(first) == 0);
+    CHECK(!unchanged.configurationFollowed && unchanged.configurationAfter == unchanged.configurationBefore &&
+          configuration(*r, 1) == before + 1);
+    text = r->dump();
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=0 present=1 2500=1 2501=4000\n") &&
+          has(text, "TRIAL_CONTROL_GROUP which=1 present=0 ") && has(text, "TRIAL_CONTROL_GROUP which=2 present=0 "));
+    CHECK(has(text, "TRIAL_LOOP requested=1 written=0 outcome=255 ack=0 uncertain=0 abort=00000000\n"));
+    r->release();
+    // Back to closed loop, at the epoch after that.
+    const std::vector<Captured> back = controlScript(1, 2, 2);
+    scripted(d, back);
+    CHECK(r->run(loopLine(1, trial, 2)).failure == E::RouteFailure::NONE && configuration(*r, 1) == before + 2);
+    d.script = nullptr;
+    r->release();
+    // Three per route and node, counted whatever the outcome, and never motion; 2201 keeps its own count (an
+    // unchanged 1000 here, nothing sent).
+    CHECK(std::strcmp(r->start(loopLine(1, trial, 1)), "budget") == 0 && r->route.motionAdmissions() == 0);
+    const std::vector<Captured> driver = driverScript(1000, 1000, 1000);
+    scripted(d, driver);
+    CHECK(r->run(subdivisionLine(1, trial, 1000)).failure == E::RouteFailure::NONE);
+    d.script = nullptr;
+    r->release();
+    // Code 0, noneffective, is the library's to admit on CL86_C: written as given, on node 2's own count.
+    Drive& e = r->driver.drives[1];
+    first = r->driver.requests.size();
+    const std::vector<Captured> zero = controlScript(1, 0, 0);
+    scripted(e, zero);
+    const E::RouteRecord& ineffective = r->run(loopLine(2, trial, 0));
+    e.script = nullptr;
+    CHECK(ineffective.failure == E::RouteFailure::NONE && ineffective.caseCount == 1 && e.scriptAt == zero.size());
+    const uint8_t none[8] = {0x2b, 0x00, 0x25, 0, 0x00, 0, 0, 0};
+    const std::vector<M::Frame> sent = downloads(*r, first, 2);
+    CHECK(sent.size() == 1 && frameIs(sent[0], none));
+    r->release();
+    // Nothing else on node 1's wire: never 6040, 6060, 2501 or a save, only the two 2500 downloads.
+    for (const M::Frame& f : downloads(*r, 0, 1))
+        CHECK(indexOf(f) == 0x2500 || indexOf(f) == 0x2201);
+    CHECK(downloads(*r, 0, 1).size() == 2);
+    // A plan built in code outside 0..2 is refused before anything.
+    E::RoutePlan p;
+    const std::string line = loopLine(2, trial, 1);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    p.loopMode = 3;
+    first = r->driver.requests.size();
+    CHECK(std::strcmp(r->route.begin(p, r->console.now), "plan") == 0 && r->driver.requests.size() == first);
+}
+// The route's released rule and the library's refusals send nothing; a drive that stores another selector, a
+// lost reply and an abort end the route with the write's terminal and whatever readback arrived on record, and
+// nothing is sent again.
+void testLoopFailures() {
+    scenario = "loop-unreleased";
+    std::unique_ptr<Rig> r(new Rig); // This fake's 2100 reads 0001: not released. 2500 reads 0, 2501 reads 1.
+    uint32_t trial = 0;
+    const E::RouteRecord& held = r->run(loopLine(1, trial, 1));
+    CHECK(held.failure == E::RouteFailure::PREREQUISITE && std::strcmp(held.why, "released") == 0 &&
+          !held.statusPresent && !held.settingsPrepared && r->downloadsFrom(0) == 0 && held.terminalCount == 7);
+    std::string text = r->dump();
+    CHECK(has(text, "route=loop failure=") && has(text, " why=released "));
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=0 present=1 2500=0 2501=1\n") &&
+          has(text, "TRIAL_CONTROL_GROUP which=1 present=0 ") &&
+          has(text, "TRIAL_LOOP requested=1 written=0 outcome=255 "));
+    r->release();
+    scenario = "loop-alarm";
+    Drive& d = r->driver.drives[0];
+    d.monitor = uint16_t(0x0011 | L::MONITOR_ALARM);
+    const E::RouteRecord& alarm = r->run(loopLine(1, trial, 1));
+    CHECK(alarm.failure == E::RouteFailure::REFUSED && std::strcmp(alarm.why, "settings") == 0 &&
+          alarm.statusPresent && !alarm.settingsPrepared && r->downloadsFrom(0) == 0 && configuration(*r, 1) == 1);
+    CHECK(std::strcmp(alarm.statusMessage,
+                      "clean reserved state with no running, alarm or undocumented report required") == 0);
+    CHECK(has(r->dump(), "TRIAL_STATUS code="));
+    r->release();
+    scenario = "loop-running";
+    d.monitor = uint16_t(0x0011 | L::MONITOR_RUNNING);
+    const E::RouteRecord& running = r->run(loopLine(1, trial, 1));
+    CHECK(running.failure == E::RouteFailure::REFUSED && std::strcmp(running.why, "settings") == 0 &&
+          r->downloadsFrom(0) == 0);
+    r->release();
+    // Closed loop while 2501 reads 0: the library's own project rule.
+    scenario = "loop-encoder-zero";
+    std::unique_ptr<Rig> z(new Rig);
+    const std::vector<Captured> zero = controlScript(1, 0, 0, 0);
+    scripted(z->driver.drives[0], zero);
+    const E::RouteRecord& encoder = z->run(loopLine(1, trial, 2));
+    z->driver.drives[0].script = nullptr;
+    CHECK(encoder.failure == E::RouteFailure::REFUSED && z->driver.drives[0].scriptAt == 7 && z->downloadsFrom(0) == 0);
+    CHECK(std::strcmp(encoder.statusMessage, "closed loop refused while 2501 reads zero") == 0);
+    z->release();
+    // The drive answers the readback with the old selector: the transaction fails at 2500, which stays on record
+    // raw, no 2501 readback and no CONTROL read follow, and the epoch the notice reached is followed.
+    scenario = "loop-readback-differs";
+    const std::vector<Captured> kept = controlScript(2, 2, 2);
+    scripted(z->driver.drives[0], kept);
+    const E::RouteRecord& differs = z->run(loopLine(1, trial, 1));
+    z->driver.drives[0].script = nullptr;
+    CHECK(differs.failure == E::RouteFailure::SERVICE && std::strcmp(differs.why, "settings") == 0);
+    CHECK(z->driver.drives[0].scriptAt == 8 && differs.terminalCount == 9 && z->downloadsFrom(0) == 1);
+    CHECK(differs.probeWritten && differs.probeAcknowledged && !differs.probeUncertain && differs.controlLoop[1] == 2 &&
+          differs.controlReadback == 1 && !differs.controlPresent[1] && !differs.controlPresent[2]);
+    CHECK(differs.configurationAfter == differs.configurationBefore + 1 && differs.configurationFollowed);
+    text = z->dump();
+    CHECK(has(text, "TRIAL_CONTROL_GROUP which=1 present=0 2500=2 2501=0\n") &&
+          has(text, "TRIAL_CONTROL_GROUP which=2 present=0 ") &&
+          has(text, "TRIAL_LOOP requested=1 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"));
+    z->release();
+    // A lost reply to the write: uncertain, never sent again, no readback.
+    scenario = "loop-lost";
+    Drive& e = r->driver.drives[1];
+    e.monitor = 0x0011;
+    e.silentIndex = 0x2500;
+    e.writesOnly = true;
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& lost = r->run(loopLine(2, trial, 1));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && std::strcmp(lost.why, "uncertain") == 0);
+    CHECK(lost.settingsEffects && lost.settingsUncertain && lost.probeWritten && lost.probeUncertain &&
+          !lost.probeAcknowledged && !lost.controlPresent[1] && lost.controlReadback == 0);
+    CHECK(downloads(*r, first, 2).size() == 1);
+    CHECK(has(r->dump(), "TRIAL_LOOP requested=1 written=1 "));
+    r->turns(500);
+    CHECK(downloads(*r, first, 2).size() == 1);
+    // An abort of the write: its code on record, no readback.
+    scenario = "loop-abort";
+    std::unique_ptr<Rig> a(new Rig);
+    Drive& f = a->driver.drives[0];
+    f.monitor = 0x0011;
+    f.abortIndex = 0x2500;
+    f.abortCode = 0x06090030;
+    f.writesOnly = true;
+    const E::RouteRecord& aborted = a->run(loopLine(1, trial, 2));
+    CHECK(aborted.failure == E::RouteFailure::SERVICE && aborted.probeWritten && !aborted.probeAcknowledged &&
+          aborted.probeAbort == 0x06090030u && aborted.controlReadback == 0 && a->downloadsFrom(0) == 1);
+    const uint8_t closed[8] = {0x2b, 0x00, 0x25, 0, 0x02, 0, 0, 0};
+    CHECK(frameIs(downloads(*a, 0, 1)[0], closed));
+    CHECK(has(a->dump(), " abort=06090030\n"));
+}
 // ------------------------------------------------- protocol 11: one reviewed non-enabling controlword
 std::string controlwordLine(unsigned node, uint32_t& trial, unsigned word, unsigned cycles = 3, unsigned interval = 100,
                             unsigned attended = 1) {
@@ -6158,6 +6403,19 @@ void writeTranscript(const char* path, bool all) {
         const std::string marked = controlwordLine(1, trial, 0x80, 3, 100);
         CHECK(t2->run(marked).failure == E::RouteFailure::OBSERVATION);
         append(*t2, marked);
+        // Protocol 13: on a scripted fake one 2500 write of 1 (closed to open loop) with its readback and the
+        // CONTROL read after it, then a 2 on this fake's own 2100 0001, which the route refuses as not released.
+        std::unique_ptr<Rig> l1(new Rig);
+        const std::vector<Captured> loopScript = controlScript(2, 1, 1);
+        scripted(l1->driver.drives[0], loopScript);
+        trial = 0;
+        const std::string openLoop = loopLine(1, trial, 1);
+        CHECK(l1->run(openLoop).failure == E::RouteFailure::NONE);
+        l1->driver.drives[0].script = nullptr;
+        append(*l1, openLoop);
+        const std::string unreleased = loopLine(1, trial, 2);
+        CHECK(l1->run(unreleased).failure == E::RouteFailure::PREREQUISITE);
+        append(*l1, unreleased);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -7311,6 +7569,9 @@ int main(int argc, char** argv) {
     testControlword();
     testControlwordRefusals();
     testControlwordMarks();
+    testParseLoop();
+    testLoop();
+    testLoopFailures();
     testCloseRefusals();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();

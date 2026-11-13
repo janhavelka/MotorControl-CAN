@@ -178,6 +178,18 @@
  *   epoch advance makes targets and positions prepared at the old scale stale, and the session is closed
  *   and opened again on the new binding as for SETTINGS_2202. Settings class: attended, the settings
  *   routes' caps, no motion weight.
+ * - LOOP, protocol 13 (backlog S21): one volatile 2500 loop selector write through prepareControlSettings,
+ *   built and driven like SUBDIVISION. A fresh CONTROL read (2500, 2501) as the prior, a clean STATUS and
+ *   MONITORS read, the library's candidate on the session's reservation (model CL86_C), its one 2500
+ *   download and its CONTROL readback (2500 and the unchanged 2501), then one more fresh CONTROL read at the
+ *   configuration epoch the write's notice reached. The library admits 0 (noneffective), 1 (open loop) and
+ *   2 (closed loop, refused while 2501 reads 0) and refuses running, an alarm, an undocumented 2100 bit or
+ *   an unclean state; 2501 is read back and never written. The route adds one bench rule the library does
+ *   not have (it leaves 2100 bit 4 undecided): 2100 must report released, so the write never lands on a
+ *   drive that may hold torque; otherwise it ends PREREQUISITE "released" before the library is called. The
+ *   value equal to the prior 2500 succeeds unchanged with nothing sent. No 6040, no enable, no save: a power
+ *   cycle may restore the stored selector, and an acknowledged or read-back selector is register acceptance
+ *   only, not a measured loop change. Settings class: attended, the settings routes' caps, no motion weight.
  * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
  *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
  *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
@@ -309,7 +321,10 @@ enum class RouteKind : uint8_t {
     SUBDIVISION,
     /** Protocol 11, one reviewed non-enabling 6040 word (controlwordReviewed) on a drive that reports low bits
      * 000, then observation cycles and a full read; `TT`. Motion class. */
-    CONTROLWORD
+    CONTROLWORD,
+    /** Protocol 13, one volatile 2500 loop selector write and its CONTROL readback on a released drive, then a
+     * fresh CONTROL read; `Tl`, lowercase because every capital is taken. Settings, not motion. */
+    LOOP
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -430,6 +445,9 @@ struct RoutePlan {
     int32_t velocityValue = 0;
     /** CONTROLWORD: the one 6040 word, decimal on the line; only a word controlwordReviewed admits. */
     uint16_t controlword = 0;
+    /** LOOP: the 2500 candidate, LoopMode 0 INEFFECTIVE, 1 OPEN_LOOP or 2 CLOSED_LOOP (EN86/ZH86 p19), as
+     * prepareControlSettings admits them for CL86_C. What 0 does and when a change applies are unmeasured. */
+    uint8_t loopMode = 0;
 };
 /** CONTROLWORD's reviewed set, the only words the parser, routePlanValid and the write admit: 0x0000 disable
  * voltage, 0x0006 shutdown, 0x000B quick stop and 0x0080 fault reset (a rising bit 7 edge from 0). None has
@@ -467,6 +485,7 @@ inline bool isArming(RouteKind kind) noexcept {
  * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>`;
  * `F<node>,<trial>,<attended>,<value>`;
  * `K<node>,<trial>,<attended>,<subdivision>`;
+ * `l<node>,<trial>,<attended>,<loopMode>`;
  * `Y<node>,<trial>,<attended>,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,
  * <completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,
  * <2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
@@ -577,13 +596,14 @@ enum {
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
 constexpr uint32_t ROUTE_GRANT_BASE = 100000;
-/** Work of SETTINGS_2202, IO_DI3, SUBDIVISION, VELOCITY, HOME and a MOVE with an observer node, which the
+/** Work of SETTINGS_2202, IO_DI3, SUBDIVISION, LOOP, VELOCITY, HOME and a MOVE with an observer node, which the
  * caller places once, beside BenchRoute's own block, as it places a session: these contexts are too large to
  * add to that block. Written only while such a route runs; its contents are history afterwards.
  */
 struct RouteWork {
     /** The fresh group read the candidate is built and checked against: SOFT_LIMITS, IO_INPUT_CONFIGURATION
-     * or DRIVER (SUBDIVISION). HOME: its IO_INPUT_CONFIGURATION read, requestHome's input mapping. */
+     * DRIVER (SUBDIVISION) or CONTROL (LOOP). HOME: its IO_INPUT_CONFIGURATION read, requestHome's input
+     * mapping. */
     MotorControlCAN::LICHUAN_C::DriverContext prior;
     MotorControlCAN::LICHUAN_C::DriverSettingsContext transaction; ///< The one write and its readback.
     /** The session's reservation as the transaction holds it: the owner's sequence, acquired before
@@ -594,6 +614,7 @@ struct RouteWork {
     MotorControlCAN::Binding binding;
     MotorControlCAN::LICHUAN_C::DriverObservation limits; ///< Scratch for getDriver.
     MotorControlCAN::LICHUAN_C::IoObservation io;         ///< Scratch for getIo.
+    MotorControlCAN::LICHUAN_C::ControlObservation control; ///< LOOP: scratch for getControl.
     /** MOVE with an observer: the other node's state reads, on that node's own route and session. HOME:
      * its full state read, kept for requestHome while DRIVER is read after it. */
     MotorControlCAN::LICHUAN_C::ReadContext observer;
@@ -739,8 +760,8 @@ struct RouteRecord {
     bool commandedRelative = false; ///< It was a displacement, with a 005F trigger.
     uint8_t witnessBasis = 0;       ///< Relative MOVE: the witness's basis, 1 ACTUAL or 2 COMMANDED.
     int32_t witnessPosition = 0;    ///< Relative MOVE: the witness's native position.
-    /** SETTINGS_2202, IO_DI3 and SUBDIVISION: the library prepared the candidate; the fields below hold its
-     * result. */
+    /** SETTINGS_2202, IO_DI3, SUBDIVISION and LOOP: the library prepared the candidate; the fields below hold
+     * its result. */
     bool settingsPrepared = false;
     /** The candidate equalled the prior readback: the library succeeded with nothing to write, and
      * nothing was sent. */
@@ -757,7 +778,8 @@ struct RouteRecord {
      * read at the new epoch. */
     bool configurationFollowed = false;
     /** Raw group values, 0 the prior read and 1 the matched readback; present only when published.
-     * SUBDIVISION: the same two facts; its DRIVER values are in driverPresent and the fields after it. */
+     * SUBDIVISION: the same two facts; its DRIVER values are in driverPresent and the fields after it. LOOP:
+     * the same; its CONTROL values are in controlPresent and the fields after it. */
     bool groupPresent[BENCH_NODES] = {};
     uint16_t limitSelector[BENCH_NODES] = {}; ///< SETTINGS_2202: 2202.
     uint16_t limitEntries[BENCH_NODES] = {};  ///< SETTINGS_2202: 607D:00, raw as read (two bytes, MEASURED_U16).
@@ -808,8 +830,8 @@ struct RouteRecord {
      * before any service could admit its first write. */
     bool homeAdmitted = false;
     /** VELOCITY_TARGET: the 60FF download's terminal settled; SUBDIVISION: the transaction's 2201 download's
-     * terminal settled; CONTROLWORD: its one 6040 download's terminal settled. The next four fields hold it,
-     * raw. */
+     * terminal settled; LOOP: its 2500 download's; CONTROLWORD: its one 6040 download's terminal settled. The
+     * next four fields hold it, raw. */
     bool probeWritten = false;
     uint8_t probeOutcome = 0;       ///< Its SdoOutcome.
     bool probeAcknowledged = false; ///< The server acknowledged the download.
@@ -831,6 +853,13 @@ struct RouteRecord {
     uint16_t driverDirection[3] = {};   ///< SUBDIVISION: 2200 of each entry; never written.
     uint16_t driverSubdivision[3] = {}; ///< SUBDIVISION: 2201 of each entry.
     uint8_t driverReadback = 0;         ///< SUBDIVISION: entry 1's uploads held, bit 0 2200 and bit 1 2201.
+    /** LOOP: 2500 and 2501 raw, entries as for SUBDIVISION's: 0 the prior CONTROL read, through getControl; 1
+     * the transaction's readback uploads as their terminals delivered them, whatever the library then judged;
+     * 2 the fresh CONTROL read after the transaction. controlPresent names the entries that hold both. */
+    bool controlPresent[3] = {};
+    uint16_t controlLoop[3] = {};    ///< LOOP: 2500 of each entry, including an undocumented word.
+    uint16_t controlEncoder[3] = {}; ///< LOOP: 2501 of each entry; never written.
+    uint8_t controlReadback = 0;     ///< LOOP: entry 1's uploads held, bit 0 2500 and bit 1 2501.
     /** CONTROLWORD: each completed observation cycle's STATUS, MONITORS and FEEDBACK read, in order; `cycles`
      * holds the count. */
     RouteSnapshot controlCycles[ROUTE_CONTROLWORD_CYCLES];
@@ -1067,8 +1096,8 @@ class BenchRoute {
     int32_t armedPosition_ = 0;
     uint64_t armedFeedbackUs_ = 0;
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
-    // SUBDIVISION) and node.
-    uint8_t settingsCases_[5][BENCH_NODES] = {};
+    // SUBDIVISION, LOOP) and node.
+    uint8_t settingsCases_[6][BENCH_NODES] = {};
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;

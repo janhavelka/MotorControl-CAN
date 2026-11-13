@@ -19,27 +19,27 @@ NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
          "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home",
-         "F": "velocity-target", "K": "subdivision", "T": "controlword"}
+         "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword"}
-# Protocol 6's routes, protocol 8's F, protocol 9's K and protocol 11's T. `bench_route_test --transcript` prints
+          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop"}
+# Protocol 6's routes, protocol 8's F, protocol 9's K, protocol 11's T and protocol 13's l. `bench_route_test --transcript` prints
 # the earlier ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names
 # them (see check_trial_transcript).
-NEW_LETTERS = frozenset("NVOFKT")
+NEW_LETTERS = frozenset("NVOFKTl")
 
 
 def check_trial_transcript(path, every=False):
     """Every record the real BenchRoute prints must parse whole, with its expected verdict. every: the
     transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records, protocol
     8's velocity-target records, the 2026-11-10 chain from a released mode 3 drive (mode1, enable, move,
-    position), protocol 9's range-probe velocity and subdivision records, protocol 11's controlword records and
-    protocol 12's reverse-probe velocity records."""
+    position), protocol 9's range-probe velocity and subdivision records, protocol 11's controlword records,
+    protocol 12's reverse-probe velocity records and protocol 13's loop records."""
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 46 if every else 26
+    wanted_count = 48 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -60,6 +60,8 @@ def check_trial_transcript(path, every=False):
         lost = line.startswith("G2,13,")
         probe = line[0] == "V" and fields[-2] == "1"
         held = line[0] == "K" and fields[3] == "25600"
+        # Protocol 13: a loop record of 2 on a fake whose 2100 does not report released is the route's own refusal.
+        unreleased = line[0] == "l" and fields[3] == "2"
         refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60 and not probe) or held
         # Backlog S16: word 15's reply lost, then the route's fallback 000B after that failed terminal.
         fallback = line.startswith("V1,9,")
@@ -76,7 +78,7 @@ def check_trial_transcript(path, every=False):
         reverse = line[0] == "V" and fields[-1] == "1"
         wrong_sign = line.startswith("V1,42,")
         wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged or
-                  enable_stop or marked or wrong_sign else "complete")
+                  enable_stop or marked or wrong_sign or unreleased else "complete")
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
         if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
@@ -184,6 +186,8 @@ def check_trial_transcript(path, every=False):
             problems.append("%s: the range and reverse probes are not in its plan and evidence" % line)
         if line[0] == "K":
             problems += _check_subdivision_record(line, fields, body, report, held)
+        if line[0] == "l":
+            problems += _check_loop_record(line, fields, body, report, unreleased)
         if line[0] == "T":
             problems += _check_controlword_record(line, fields, body, meta, report, marked)
         if line[0] in "AIUH" and not report.inventory_checked:
@@ -287,6 +291,33 @@ def _check_subdivision_record(line, fields, body, report, held):
         problems.append("%s: not exactly one 2201 download of its value: %s" % (line, downloads))
     if b"TRIAL_SUBDIVISION requested=%d written=1 outcome=0 ack=1 " % value not in body or \
             [(v["present"], v["2201"]) for v in drivers][1:] != [(True, value), (True, value)]:
+        problems.append("%s: not an acknowledged write with its readback and the read after it" % line)
+    return problems
+
+
+def _check_loop_record(line, fields, body, report, unreleased):
+    """One loop record of the transcript (protocol 13): its summaries, and on the wire only its one 2500 download,
+    never 2501, 6040 or another object; unreleased is the route's own refusal, with no download at all."""
+    problems = []
+    kinds = set(report.kinds)
+    if not {"TRIAL_LAST", "TRIAL_SETTINGS", "TRIAL_CONTROL_GROUP", "TRIAL_LOOP"} <= kinds:
+        problems.append("%s: no state, settings, control group or loop summary" % line)
+    value = int(fields[3])
+    sent = [r.values["data"] for r in report.records if r.kind == "TRAFFIC" and r.status == "parsed" and
+            r.values["k"] == evidence.TX and 0x600 < r.values["id"] <= 0x67F]
+    downloads = [data for data in sent if data[:2] not in ("40", "80")]
+    groups = [r.values for r in report.records if r.kind == "TRIAL_CONTROL_GROUP" and r.status == "parsed"]
+    if [v["which"] for v in groups] != [0, 1, 2]:
+        problems.append("%s: not the three CONTROL summaries" % line)
+    if unreleased:
+        if downloads or report.failure_name != "PREREQUISITE" or b" why=released " not in body or \
+                b" written=0 outcome=255 " not in body:
+            problems.append("%s: not the released refusal with nothing written: %s" % (line, downloads))
+        return problems
+    if downloads != ["2b002500" + value.to_bytes(2, "little").hex() + "0000"]:
+        problems.append("%s: not exactly one 2500 download of its value: %s" % (line, downloads))
+    if b"TRIAL_LOOP requested=%d written=1 outcome=0 ack=1 " % value not in body or \
+            [(v["present"], v["2500"]) for v in groups][1:] != [(True, value), (True, value)]:
         problems.append("%s: not an acknowledged write with its readback and the read after it" % line)
     return problems
 
@@ -1219,8 +1250,8 @@ class BenchTest(unittest.TestCase):
                                      ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            # Older images, protocols 7 to 11 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13):
+            # Older images, protocols 7 to 12 among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1981,7 +2012,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=12", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=13", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2024,8 +2055,8 @@ class BenchTest(unittest.TestCase):
     def test_protocol_nine_refuses_older_images(self):
         # Protocol 9 added the V line's range probe field and the K route: an image that speaks 8 would read a V
         # line one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line, 11
-        # added T, 12 the V line's reverse field.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 12)
+        # added T, 12 the V line's reverse field, 13 the l route.
+        self.assertEqual(bench.ROUTE_PROTOCOL, 13)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -2059,7 +2090,7 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
-                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=12",
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=13",
                      repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
             self.assertIn(part, out.getvalue())
         self.assertFalse(self.output.exists())
@@ -2153,7 +2184,7 @@ class BenchTest(unittest.TestCase):
                      "one download 2B 40 60 00 80 00 00 00 (0x0080, fault reset, a bit 7 edge from 0), 3 "
                      "STATUS/MONITORS/FEEDBACK cycles 500 ms apart and one more full read",
                      "no second word, no retry, no enable, no 6060, 60FF or 2301 write", "runner prints ALERT and exits 4",
-                     "routes=12", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
+                     "routes=13", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2307,7 +2338,7 @@ class BenchTest(unittest.TestCase):
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
         self.assertIn("no reverse probe: a positive rate, 60FF 3000", out.getvalue())
-        self.assertIn("routes=12", out.getvalue())
+        self.assertIn("routes=13", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2389,7 +2420,7 @@ class BenchTest(unittest.TestCase):
         for text in ("reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate -6 rpm, 60FF written "
                      "23 FF 60 00 FA FF FF FF (two's complement I32; Q03 open",
                      "a 606C against the command by more than 2 rpm ends the run with its own stop",
-                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=12",
+                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=13",
                      repr(signed("TV1,30,1,6,200,200,12000,5000,15500,1,%s,0,1" % tail).encode("ascii"))):
             self.assertIn(text, out.getvalue())
         # The record and the send entry keep it.
@@ -2463,7 +2494,7 @@ class BenchTest(unittest.TestCase):
                            (subdivision(0), "--value must be 400..51200"),
                            (subdivision(65535), "--value must be 400..51200"),
                            (subdivision(1000)[:-2], "--value is required for this route"),
-                           (MODE3 + ["--value", "1000"], "--value belongs to velocity-target and subdivision"),
+                           (MODE3 + ["--value", "1000"], "--value belongs to velocity-target, subdivision and loop"),
                            (subdivision(1000) + ["--range-probe"], "--range-probe belongs to velocity"),
                            (subdivision(1000) + ["--fault-led", "prompt"], "--fault-led belongs to"),
                            (subdivision(1000, node="3"), "--node must be 1..2")):
@@ -2484,7 +2515,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=12", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=13", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2528,6 +2559,109 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(operator.questions, [])
         self.assertEqual(self.meta()["operator"]["attended"],
                          {"unattended": True, "waiver": "I accept it", "accepted": True})
+
+    def test_loop_line_bounds_dry_run_and_campaign(self):
+        def loop(value, node="1", trial="40"):
+            return ["--command", "loop", "--node", node, "--trial", trial, "--value", str(value)]
+        # The firmware's grammar (BenchRoute.cpp LOOP_FIELDS): node, trial, attended and the 2500 code, after the
+        # lowercase route letter l (every capital is taken).
+        for value in (0, 1, 2):
+            args, fields = bench.arguments(BASE + loop(value) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("Tl1,40,1,%d" % value))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (12, 0))
+            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+            bench.check_bounds(args.command, fields)
+        self.assertEqual(bench.TRIALS["loop"][0], "l")
+        self.assertEqual(len({letter for letter, _, _ in bench.TRIALS.values()}), len(bench.TRIALS))
+        self.assertIn("l", bench.SETTINGS_LETTERS)
+        self.assertNotIn("l", bench.MOTION_ROUTES)
+        self.assertEqual(evidence.TRIAL_ROUTES["loop"], "loop")
+        # Outside 0..2, missing, on another route or with a velocity's flag: refused by the parser.
+        for argv, text in ((loop(3), "--value must be 0..2"),
+                           (loop(-1), "--value must be 0..2"),
+                           (loop(255), "--value must be 0..2"),
+                           (loop(1)[:-2], "--value is required for this route"),
+                           (MODE3 + ["--value", "1"], "--value belongs to velocity-target, subdivision and loop"),
+                           (loop(1) + ["--range-probe"], "--range-probe belongs to velocity"),
+                           (loop(1) + ["--word", "6"], "--word belongs to controlword"),
+                           (loop(1) + ["--fault-led", "prompt"], "--fault-led belongs to"),
+                           (loop(1, node="3"), "--node must be 1..2")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        # Attended and counted like the settings routes: the campaign is required.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + loop(1) + ["--output", "x"])
+        # The dry run touches nothing and states the bytes, the reads and the released rule.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + loop(1) + ["--dry-run", "--campaign", str(self.ledger)],
+                                Untouchable(), Clock(), Operator())
+        self.assertEqual(status, 0)
+        text = out.getvalue()
+        for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
+                     "route refuses unless 2100 reports released (bit 4)", "closed loop while 2501 reads 0",
+                     "one download 2B 00 25 00 01 00 00 00 (2500 = 1, open loop)", "2501 never written",
+                     "no 6040, no enable, no save", "routes=13", repr(signed("Tl1,40,1,1").encode("ascii"))):
+            self.assertIn(part, text)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # One send: the attended confirmation only, a settings entry with no motion weight, then the record.
+        board = Board()
+        operator = Operator("ATTENDED 40")
+        status, _, err_text = self.run_main(loop(1), Backend(board), operator)
+        self.assertIn(status, (0, 1), err_text)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("Tl1,40,1,1").encode()])
+        self.assertEqual(len(operator.questions), 1)
+        self.assertEqual(self.meta()["plan"], "protocol 13 2500 loop selector")
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("l", 0, 0, 1)])
+        # Three per node across boots, never toward the twelve motion admissions; node 2 has its own count, and
+        # subdivision's count is apart.
+        self.write_ledger([dict(send_entry("l", 1, n, 0), settings=1) for n in (1, 2, 3)] +
+                          [dict(send_entry("K", 1, n, 0), settings=1) for n in (4, 5)])
+        self.clear_output()
+        board = Board()
+        status, _, err_text = self.run_main(loop(2, trial="60"), Backend(board), Operator("ATTENDED 60"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("loop admissions on node 1, the cap is 3", err_text)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        status, _, err_text = self.run_main(loop(2, node="2", trial="60"), Backend(Board()), Operator("ATTENDED 60"))
+        self.assertIn(status, (0, 1), err_text)
+        # An l send without its settings mark is an inconsistent entry.
+        self.ledger.write_bytes(chain([send_entry("l", 1, 4, 0)]))
+        board = Board()
+        status, _, err_text = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("inconsistent send entry", err_text)
+        # An image that speaks protocol 12 knows no l route: nothing but the ping is sent to it.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        board = Board()
+        board.routes = 12
+        status, _, err = self.run_main(loop(1, trial="70"), Backend(board), Operator("ATTENDED 70", "none"))
+        self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+
+    def test_loop_record_reads_through_the_evidence_parser(self):
+        # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's): the
+        # grammar names every summary, and TRIAL_CONTROL_GROUP is not read as TRIAL_CONTROL.
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_PLAN route=loop node=1 trial=1 attended=1 value=1\n"
+            b"TRIAL_CONTROL_GROUP which=0 present=1 2500=2 2501=4000\n"
+            b"TRIAL_CONTROL_GROUP which=1 present=0 2500=2 2501=0\n"
+            b"TRIAL_LOOP requested=1 written=1 outcome=0 ack=1 uncertain=0 abort=00000000\n"
+            b"TRIAL_LOOP requested=1 written=0 outcome=255 ack=0 uncertain=0 abort=00000000\n")
+        self.assertEqual([(r.kind, r.status, r.extra) for r in lines],
+                         [("TRIAL_PLAN", "parsed", {}), ("TRIAL_CONTROL_GROUP", "parsed", {}),
+                          ("TRIAL_CONTROL_GROUP", "parsed", {}), ("TRIAL_LOOP", "parsed", {}),
+                          ("TRIAL_LOOP", "parsed", {})])
+        self.assertEqual(lines[1].values, {"which": 0, "present": 1, "2500": 2, "2501": 4000})
+        self.assertEqual(lines[2].values["present"], 0)
+        self.assertEqual((lines[3].values["requested"], lines[3].values["written"]), (1, 1))
+        self.assertEqual(lines[4].values["outcome"], 255)
+        self.assertIn("loop", evidence.SLOT_STEP_ROUTES)
 
     def test_subdivision_record_reads_through_the_evidence_parser(self):
         # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's): the

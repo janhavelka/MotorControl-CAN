@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Loop selector bench route (backlog S21, 2026-11-13)
+
+- S2 bench protocol 13 (`PONG routes=13`): the `loop` route (`Tl`, lowercase because every capital is taken; runner
+  `--command loop --value 0|1|2`) writes one volatile `2500` loop selector through `prepareControlSettings`, built
+  as `subdivision`: fresh `CONTROL` and state reads, the one `2500` download with the library's readback, one more
+  `CONTROL` read, and the configuration epoch before and after. The library's rules apply (no running, alarm or
+  undocumented `2100` bit; closed loop only while `2501` reads nonzero), and the route also requires `2100` to
+  report released. No `6040`, enable or save; settings class, three per node. Records add `TRIAL_CONTROL_GROUP`
+  and `TRIAL_LOOP`, which `s2_evidence.py` reads. For backlog S21 (the enable-fault state); not run on hardware.
+
 ### Velocity reverse probe (prompt 59 item 4, 2026-11-13)
 
 - `VelocityEvidence::reverseProbe`, admitted only under `VelocityGate::ATTENDED_EXPERIMENT`, admits a negative

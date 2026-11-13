@@ -107,8 +107,8 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
-                             "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::CONTROLWORD) + 1, "one name per route");
+                             "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::LOOP) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -124,9 +124,10 @@ bool isMotion(RouteKind kind) {
 }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 // The library's settings transactions: one candidate, its writes and its readback, with a configuration
-// epoch advance. SUBDIVISION is prompt 59's 2201 write.
+// epoch advance. SUBDIVISION is prompt 59's 2201 write, LOOP protocol 13's 2500 write.
 bool isSettings(RouteKind kind) {
-    return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3 || kind == RouteKind::SUBDIVISION;
+    return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3 || kind == RouteKind::SUBDIVISION ||
+           kind == RouteKind::LOOP;
 }
 // The console's arming: reads only, attended, no motion weight of its own.
 bool isArm(RouteKind kind) { return isArming(kind); }
@@ -139,6 +140,7 @@ int attendedCase(RouteKind kind) {
            : kind == RouteKind::HOME            ? 2
            : kind == RouteKind::VELOCITY_TARGET ? 3
            : kind == RouteKind::SUBDIVISION     ? 4
+           : kind == RouteKind::LOOP            ? 5
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
@@ -222,6 +224,14 @@ constexpr Range SUBDIVISION_VALUE = {L::SUBDIVISION_MINIMUM, L::SUBDIVISION_MAXI
 static_assert(L::SUBDIVISION_MINIMUM == 400 && L::SUBDIVISION_MAXIMUM == 51200, "the host's runner states 400..51200");
 static_assert(L::OBJECT_2200_00.widthBytes == 2 && L::OBJECT_2201_00.widthBytes == 2,
               "SUBDIVISION keeps 2200 and 2201 readbacks in two bytes, as declared");
+// LOOP's 2500 value: the three documented selectors (EN86/ZH86 p19) prepareControlSettings admits for CL86_C;
+// the library refuses 2 itself while 2501 reads 0.
+constexpr Range LOOP_VALUE = {unsigned(L::LoopMode::INEFFECTIVE), unsigned(L::LoopMode::CLOSED_LOOP)};
+static_assert(unsigned(L::LoopMode::INEFFECTIVE) == 0 && unsigned(L::LoopMode::OPEN_LOOP) == 1 &&
+                  unsigned(L::LoopMode::CLOSED_LOOP) == 2,
+              "the host's runner states 2500 codes 0, 1 and 2");
+static_assert(L::OBJECT_2500_00.widthBytes == 2 && L::OBJECT_2501_00.widthBytes == 2,
+              "LOOP keeps 2500 and 2501 readbacks in two bytes, as declared");
 // One fixed field list per route letter, in flash and in line order. The parser stores each field
 // through it and routePlanValid reads the same fields back, so both judge the same ranges.
 constexpr Field READ_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL)};
@@ -347,6 +357,9 @@ constexpr Field PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TR
 // SUBDIVISION: the one 2201 value; 2200 is read back, never written.
 constexpr Field SUBDIVISION_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL),
                                         ROUTE_FIELD(attended, FLAG), ROUTE_FIELD(subdivision, SUBDIVISION_VALUE)};
+// LOOP: the one 2500 value; 2501 is read back, never written.
+constexpr Field LOOP_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                 ROUTE_FIELD(loopMode, LOOP_VALUE)};
 // ARM_MOVE: MOVE's start position, interval and evidence, without the request the console supplies, then
 // the budgets of the console's later stops. Every evidence value is the host's, as for MOVE.
 constexpr Field ARM_MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
@@ -443,8 +456,10 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'X', RouteKind::ARM_WITNESS, ARM_WITNESS_FIELDS, countOf(ARM_WITNESS_FIELDS)},
                                 {'K', RouteKind::SUBDIVISION, SUBDIVISION_FIELDS, countOf(SUBDIVISION_FIELDS)},
                                 // The last free capital: the line reads `TT...`, the command byte and then the route.
-                                {'T', RouteKind::CONTROLWORD, CONTROLWORD_FIELDS, countOf(CONTROLWORD_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::CONTROLWORD), "one grammar per route");
+                                {'T', RouteKind::CONTROLWORD, CONTROLWORD_FIELDS, countOf(CONTROLWORD_FIELDS)},
+                                // No capital is left: lowercase from protocol 13, the line reads `Tl...`.
+                                {'l', RouteKind::LOOP, LOOP_FIELDS, countOf(LOOP_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::LOOP), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -577,6 +592,9 @@ unsigned terminalBound(const RoutePlan& p) {
         return 9 + 5 + 1 + 9 + 4;
     case RouteKind::SUBDIVISION:
         // DRIVER (2200, 2201), STATUS and MONITORS, the 2201 write, the group's readback, DRIVER once more.
+        return 2 + 5 + 1 + 2 + 2;
+    case RouteKind::LOOP:
+        // CONTROL (2500, 2501), STATUS and MONITORS, the 2500 write, the group's readback, CONTROL once more.
         return 2 + 5 + 1 + 2 + 2;
     case RouteKind::WORD67:
         // Two full reads, the 0006 and its cycles, the 0007 and its cycles.
@@ -1087,6 +1105,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     std::memset(r.driverDirection, 0, sizeof r.driverDirection);
     std::memset(r.driverSubdivision, 0, sizeof r.driverSubdivision);
     r.driverReadback = 0;
+    std::memset(r.controlPresent, 0, sizeof r.controlPresent);
+    std::memset(r.controlLoop, 0, sizeof r.controlLoop);
+    std::memset(r.controlEncoder, 0, sizeof r.controlEncoder);
+    r.controlReadback = 0;
     for (RouteSnapshot& c : r.controlCycles)
         c = RouteSnapshot();
     std::memset(r.controlCycleUs, 0, sizeof r.controlCycleUs);
@@ -1185,6 +1207,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                        {STEP_SETTINGS, 0},
                                        {STEP_GROUP, uint8_t(L::DriverGroup::DRIVER)},
                                        {STEP_END, 0}};
+    // 2500 as 2201 is written, then CONTROL read once more at the epoch the write's notice reached.
+    static const Step loop[] = {{STEP_PRIOR, uint8_t(L::DriverGroup::CONTROL)},
+                                {STEP_STATE, STOP_STATE},
+                                {STEP_SETTINGS, 0},
+                                {STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)},
+                                {STEP_END, 0}};
     // Two fresh full reads of a released, stationary drive, then the one 6060=3 and its cycles.
     static const Step modeThree[] = {{STEP_STATE, FULL},
                                      {STEP_SECOND, FULL},
@@ -1221,8 +1249,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
-                                  subdivision, controlword};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::CONTROLWORD) + 1,
+                                  subdivision, controlword, loop};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::LOOP) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1719,6 +1747,25 @@ bool BenchRoute::settle(uint64_t now) noexcept {
                 record_.driverPresent[1] = record_.driverReadback == 3;
             }
         }
+        // LOOP the same for 2500 and 2501: a drive that stores another selector than the one written is the
+        // measurement.
+        if (record_.plan.kind == RouteKind::LOOP && t.subindex == 0 &&
+            (t.index == L::OBJECT_2500_00.index || t.index == L::OBJECT_2501_00.index)) {
+            const unsigned which = t.index == L::OBJECT_2501_00.index ? 1u : 0u;
+            if (t.direction == C::SdoDirection::DOWNLOAD && !which) {
+                record_.probeWritten = true;
+                record_.probeOutcome = uint8_t(done.outcome);
+                record_.probeAcknowledged = done.protocolAcknowledged;
+                record_.probeUncertain = done.effectUncertain;
+                record_.probeAbort = done.abortCode;
+            } else if (t.direction == C::SdoDirection::UPLOAD && done.outcome == C::SdoOutcome::SUCCESS &&
+                       done.size == 2) {
+                const uint16_t value = uint16_t(done.data[0] | unsigned(done.data[1]) << 8);
+                (which ? record_.controlEncoder : record_.controlLoop)[1] = value;
+                record_.controlReadback = uint8_t(record_.controlReadback | 1u << which);
+                record_.controlPresent[1] = record_.controlReadback == 3;
+            }
+        }
         // The transaction consumes every terminal of its own, failures included, and decides what follows.
         RouteWork& w = *work_;
         if (!L::advanceDriver(w.transaction, w.live, w.binding, done, now))
@@ -2029,8 +2076,9 @@ void BenchRoute::readDone(uint64_t now) noexcept {
     readActive_ = false;
     if (steps_[stepIndex_].kind == STEP_PRIOR)
         work_->prior = context_; // Assigned in place: the next read reuses context_.
-    if (steps_[stepIndex_].kind == STEP_GROUP && record_.plan.kind == RouteKind::SUBDIVISION)
-        publishGroup(2, &context_, now); // The DRIVER read after the transaction, at the new epoch.
+    if (steps_[stepIndex_].kind == STEP_GROUP &&
+        (record_.plan.kind == RouteKind::SUBDIVISION || record_.plan.kind == RouteKind::LOOP))
+        publishGroup(2, &context_, now); // The DRIVER or CONTROL read after the transaction, at the new epoch.
     if (steps_[stepIndex_].kind == STEP_HOME_STATE)
         work_->observer = context_.read; // HOME's state, kept while DRIVER is read into context_.
     if (steps_[stepIndex_].kind == STEP_OBSERVE)
@@ -3010,6 +3058,11 @@ void BenchRoute::startSettings(uint64_t now) noexcept {
         finish(RouteFailure::PREREQUISITE, "prior", now);
         return;
     }
+    // LOOP: this route's own rule, stricter than prepareControlSettings, which leaves 2100 bit 4 undecided. Both
+    // specimens hold torque at power-up with bit 4 clear, and a selector change on an energized motor may snap
+    // the rotor (docs/tuning.md), so the write goes only to a drive whose clean read reports released.
+    if (p.kind == RouteKind::LOOP && !(record_.last.monitor & L::MONITOR_RELEASED))
+        return finish(RouteFailure::PREREQUISITE, "released", now);
     L::IoSettings io;
     if (p.kind == RouteKind::IO_DI3) {
         // One thing changes; every other field is the prior readback's. A stored undocumented function
@@ -3055,6 +3108,13 @@ void BenchRoute::startSettings(uint64_t now) noexcept {
         subdivision.subdivisionRaw = p.subdivision;
         status = L::prepareSubdivisionSettings(w.transaction, live, target, w.prior, context_.read, subdivision,
                                                operation, now, deadline, options, SETTINGS_AGE_US);
+    } else if (p.kind == RouteKind::LOOP) {
+        // The library's own rules decide the rest: a clean state with no running, alarm or undocumented 2100
+        // bit, a documented selector, and closed loop only while 2501 reads nonzero. No save follows.
+        L::ControlSettings control;
+        control.loopMode = static_cast<L::LoopMode>(p.loopMode);
+        status = L::prepareControlSettings(w.transaction, live, target, w.prior, context_.read, control, operation,
+                                           now, deadline, options, SETTINGS_AGE_US);
     } else {
         status = L::prepareIoSettings(w.transaction, live, target, w.prior, context_.read, io, operation, now, deadline,
                                       options, SETTINGS_AGE_US);
@@ -3159,7 +3219,8 @@ bool BenchRoute::followConfiguration(uint64_t now) noexcept {
 }
 // Raw group values for the record: the prior read (`read`), or the transaction's matched readback.
 // SUBDIVISION: also the DRIVER read after the transaction (which 2); its readback values are the raw
-// uploads settle() kept, so the matched readback only confirms that the library published it.
+// uploads settle() kept, so the matched readback only confirms that the library published it. LOOP: the
+// same with CONTROL.
 void BenchRoute::publishGroup(unsigned which, const L::DriverContext* read, uint64_t now) noexcept {
     RouteWork& w = *work_;
     L::ReadTarget target;
@@ -3175,6 +3236,21 @@ void BenchRoute::publishGroup(unsigned which, const L::DriverContext* read, uint
             r.driverDirection[which] = w.limits.directionRaw;
             r.driverSubdivision[which] = w.limits.subdivisionRaw;
             r.driverPresent[which] = true;
+        }
+        if (which < 2)
+            r.groupPresent[which] = true;
+        return;
+    }
+    if (r.plan.kind == RouteKind::LOOP) {
+        // The same three entries for CONTROL (2500, 2501).
+        const M::Status ok = read ? L::getControl(*read, target, now, SETTINGS_AGE_US, w.control)
+                                  : L::getControl(w.transaction, w.live, target, now, SETTINGS_AGE_US, w.control);
+        if (!ok)
+            return;
+        if (which != 1) {
+            r.controlLoop[which] = w.control.loopModeRaw;
+            r.controlEncoder[which] = w.control.encoderResolutionRaw;
+            r.controlPresent[which] = true;
         }
         if (which < 2)
             r.groupPresent[which] = true;
@@ -3686,9 +3762,12 @@ unsigned BenchRoute::summaryCount() const noexcept {
     if (r.plan.kind == RouteKind::RELATIVE || (r.plan.kind == RouteKind::MOVE && r.plan.relativeBase))
         count += 1;
     // TRIAL_SETTINGS and the prior and readback group lines; then IO_DI3's TRIAL_INPUTS. SUBDIVISION: three
-    // TRIAL_DRIVER lines (prior, readback, the read after) and TRIAL_SUBDIVISION.
+    // TRIAL_DRIVER lines (prior, readback, the read after) and TRIAL_SUBDIVISION; LOOP three TRIAL_CONTROL_GROUP
+    // lines and TRIAL_LOOP.
     if (isSettings(r.plan.kind))
-        count += r.plan.kind == RouteKind::SUBDIVISION ? 5 : 3 + (r.plan.kind == RouteKind::IO_DI3);
+        count += r.plan.kind == RouteKind::SUBDIVISION || r.plan.kind == RouteKind::LOOP
+                     ? 5
+                     : 3 + (r.plan.kind == RouteKind::IO_DI3);
     // TRIAL_OBSERVER, its check and last reads, and TRIAL_NODES.
     if (r.plan.kind == RouteKind::MOVE && r.plan.observer)
         count += 4;
@@ -3734,6 +3813,10 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%u\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
                        unsigned(p.subdivision));
+        case RouteKind::LOOP:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%u\n", routeName(p.kind),
+                       unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
+                       unsigned(p.loopMode));
         case RouteKind::CONTROLWORD:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u word=%04x cycles=%u interval=%lu\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
@@ -4002,6 +4085,19 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                 return put(out, size,
                            "TRIAL_SUBDIVISION requested=%u written=%u outcome=%u ack=%u uncertain=%u abort=%08lx\n",
                            unsigned(p.subdivision), unsigned(r.probeWritten),
+                           r.probeWritten ? unsigned(r.probeOutcome) : 255u, unsigned(r.probeAcknowledged),
+                           unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort));
+        } else if (p.kind == RouteKind::LOOP) {
+            // Raw 2500 and 2501 in the same three entries, then the 2500 download's own terminal (outcome 255
+            // while none settled).
+            if (index < 3)
+                return put(out, size, "TRIAL_CONTROL_GROUP which=%u present=%u 2500=%u 2501=%u\n", index,
+                           unsigned(r.controlPresent[index]), unsigned(r.controlLoop[index]),
+                           unsigned(r.controlEncoder[index]));
+            index -= 3;
+            if (!index--)
+                return put(out, size, "TRIAL_LOOP requested=%u written=%u outcome=%u ack=%u uncertain=%u abort=%08lx\n",
+                           unsigned(p.loopMode), unsigned(r.probeWritten),
                            r.probeWritten ? unsigned(r.probeOutcome) : 255u, unsigned(r.probeAcknowledged),
                            unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort));
         } else {
