@@ -51,6 +51,13 @@ constexpr uint16_t RELEASED_PATTERN_MASK = 0x007f, RELEASED_PATTERN = 0x0050;
 // to 0033; 1742: C031 to 8033). ZH86 and OP86 call it running; no meaning is assigned to it here.
 constexpr uint16_t RELEASED_LATCH_STATUS_BIT = 0x4000;
 bool releasedStart(const EnableEvidence& e) { return e.start == EnableStart::RELEASED_BY_RECORDED_STOP; }
+// An alarm clear's incident as prepareClearAlarm admits it. Its cycles are judged against this mode
+// and monitor, so a context holding any other shape is refused rather than judged.
+bool clearAdmitted(const AlarmIncident& i) {
+    const bool running = (i.monitor & MONITOR_RUNNING) != 0;
+    return i.present && i.codeLink == AlarmCodeLink::UNRESOLVED && (i.monitor & MONITOR_ALARM) &&
+           ((i.modeRaw == 1 && !running) || (i.modeRaw == 3 && (i.monitor & MONITOR_RELEASED)));
+}
 ReadTarget expectedTarget(const ActionContext& c) {
     ReadTarget target = c.reservation.target;
     if (c.coordinatesInvalidated)
@@ -96,6 +103,7 @@ Status shape(const ActionContext& c, uint64_t now) {
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
+        (c.actionKind == ActionKind::CLEAR_ALARM && !clearAdmitted(c.incident)) ||
         (c.standstillObserving &&
          (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP ||
           (c.stopModeRaw != 1 &&
@@ -389,9 +397,11 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const uint16_t monitor = c.monitorObservation.monitor;
     const bool running = (monitor & MONITOR_RUNNING) != 0;
     const bool alarm = (monitor & MONITOR_ALARM) != 0;
-    const uint8_t expectedMode = c.actionKind == ActionKind::STOP ? c.stopModeRaw
-                                 : enabling(c)                    ? c.enable.evidence.modeRaw
-                                                                  : 1;
+    const uint8_t expectedMode =
+        c.actionKind == ActionKind::STOP          ? c.stopModeRaw
+        : enabling(c)                             ? c.enable.evidence.modeRaw
+        : c.actionKind == ActionKind::CLEAR_ALARM ? c.incident.modeRaw
+                                                  : 1;
     bool outsideScope = c.statusObservation.modeRaw != expectedMode;
     bool done = false;
     bool wantStandstill = false;
@@ -430,7 +440,14 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         break;
     }
     case ActionKind::CLEAR_ALARM:
-        outsideScope |= running;
+        // Mode 3 (project policy, 2026-11-13): every cycle must still report released, and running
+        // only as the latch the admission itself read. Cycles read no FEEDBACK, so the release is
+        // the evidence that the drive stays de-energized; nothing here re-reads 606C.
+        if (c.incident.modeRaw == 3)
+            outsideScope |= !(monitor & MONITOR_RELEASED) ||
+                            (running && !(c.incident.monitor & MONITOR_RUNNING));
+        else
+            outsideScope |= running;
         done = !alarm;
         break;
     case ActionKind::SET_DEVICE_POSITION:
@@ -530,16 +547,28 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
         return error(ActionError::ARGUMENT, "invalid explicit action reservation or budgets");
     ReadWindow status, monitors;
     const uint64_t age = options.maximumAgeUs;
+    const bool clear = kind == ActionKind::CLEAR_ALARM;
     if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
         state.startedUs < r.acquiredUs ||
         !validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) ||
         !validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors) ||
-        status.earliestUs < r.acquiredUs || monitors.earliestUs < r.acquiredUs ||
-        uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
-        (raw(state, StateBlock::MONITORS, 0) & MONITOR_RUNNING))
-        return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
-    const bool alarmed = (raw(state, StateBlock::MONITORS, 0) & MONITOR_ALARM) != 0;
-    if (kind == ActionKind::CLEAR_ALARM) {
+        status.earliestUs < r.acquiredUs || monitors.earliestUs < r.acquiredUs)
+        return error(ActionError::STATE, clear ? "fresh SDO STATUS and MONITORS evidence required"
+                                               : "fresh mode 1 not-running SDO evidence required");
+    const uint8_t mode = uint8_t(raw(state, StateBlock::STATUS, 1));
+    const uint16_t monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
+    const bool running = (monitor & MONITOR_RUNNING) != 0;
+    const bool alarmed = (monitor & MONITOR_ALARM) != 0;
+    if (clear) {
+        // Mode 3 is project policy since 2026-11-13: node 1 raised FF05 in a mode 3 run and then
+        // read 2100=001D, which the mode 1 rule refused, and the bench's mode 1 route refuses while
+        // 1001 is set, so the alarm had no clear route but a power cycle. EN86/ZH86 p20 name no
+        // mode for the resettable class. Mode 3 also needs released: nothing documents what a drive
+        // that keeps its 60FF target does after a clear, so only a de-energized one is admitted.
+        if ((mode != 1 && mode != 3) || (mode == 1 && running) ||
+            (mode == 3 && !(monitor & MONITOR_RELEASED)))
+            return error(ActionError::STATE,
+                         "mode 1 with running clear, or mode 3 released, required");
         // EN86 p16 names FF05 position deviation and p20 lists a resettable position
         // out-of-tolerance LED class; linking them is an inference (D-26). FF05 only narrows the
         // attempt: 603F may keep an earlier code, so it cannot say the reported alarm is that event.
@@ -551,8 +580,19 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
             return error(ActionError::STATE,
                          "alarm reported with raw 603F FF05 and error history required; "
                          "the code does not identify the alarm");
+        // Running beside the release in mode 3 is the latch a moving stop leaves (2100=0014/0015,
+        // trials 1513 and 1607) and the FF05 run left (001D, trials 5199 and 5203). It is admitted
+        // only with 606C reading zero in this same read; a read without FEEDBACK cannot show that.
+        ReadWindow feedback;
+        if (running &&
+            (!validateStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, feedback) ||
+             feedback.earliestUs < r.acquiredUs || raw(state, StateBlock::FEEDBACK, 1)))
+            return error(ActionError::STATE, "mode 3 running report admitted only as the latched "
+                                             "release, with fresh 606C zero");
         return Ok();
     }
+    if (mode != 1 || running)
+        return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
     if (alarmed)
         return error(ActionError::STATE, "counter clear requires no reported alarm");
     ReadWindow feedback;

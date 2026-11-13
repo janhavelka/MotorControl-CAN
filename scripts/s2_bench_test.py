@@ -1513,7 +1513,7 @@ class BenchTest(unittest.TestCase):
         watched[watched.index("--deadline-ms") + 1] = "6000"
         watched[watched.index("--interval-ms") + 1] = "2000"
         for argv, line, bounds in ((limits, "TD1,5,1,1", (14, 0)), (di3, "TJ2,6,1,3", (28, 0)),
-                                   (counter, "TZ1,7,1,3000,500", (66, 3000)), (alarm, "TC2,8,1,3000,500", (56, 3000))):
+                                   (counter, "TZ1,7,1,3000,500", (66, 3000)), (alarm, "TC2,8,1,3000,500", (58, 3000))):
             args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
             self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
             self.assertEqual(bench.plan_bounds(args.command, fields), bounds, argv[1])

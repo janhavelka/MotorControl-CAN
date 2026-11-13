@@ -2995,6 +2995,49 @@ void testClearAlarm() {
           has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 "));
     CHECK(has(text, "TRIAL_BASELINE present=0 "));
     r->release();
+    // Mode 3, as node 1 read it after FF05 on 2026-11-13 (trials 5203, 5210): 2100=001D, the latched
+    // release, with 606C 0. The route's read takes FEEDBACK, so the library admits it; the writes stay
+    // 2301 1, then 0, with no enable, controlword or mode write. The latch may stay after the clear.
+    scenario = "clear-alarm-mode3";
+    const Address alarmRead[] = {{0x1001, 0}, {0x603f, 0}, {0x1003, 0}, {0x2100, 0}, {0x2101, 0},
+                                 {0x2102, 0}, {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}};
+    const uint8_t one[8] = {0x2b, 0x01, 0x23, 0, 1, 0, 0, 0}, zero[8] = {0x2b, 0x01, 0x23, 0, 0, 0, 0, 0};
+    for (unsigned spinning = 0; spinning < 2; ++spinning) {
+        std::unique_ptr<Rig> m(new Rig);
+        Drive& t = m->driver.drives[0];
+        t.mode = 3;
+        t.monitor = 0x001d;
+        t.errorCode = 0xff05;
+        t.errorRegister = 0x81;
+        t.position = 5497761;
+        t.velocity = spinning ? 4 : 0;
+        trial = 0;
+        CHECK(m->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+        m->release();
+        size_t at = m->driver.requests.size();
+        const E::RouteRecord& x = m->run("C1," + id(trial) + ",1,3000,500");
+        expectUploads(*m, at, 1, alarmRead, unsigned(sizeof alarmRead / sizeof alarmRead[0]));
+        std::string text = m->dump();
+        CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=81 603f=ff05 2100=001d "));
+        if (spinning) {
+            // 606C nonzero beside running is not the latched release: the library refuses, nothing is sent.
+            CHECK(x.failure == E::RouteFailure::REFUSED && std::strcmp(x.why, "clear") == 0 && x.statusPresent &&
+                  !x.clearRequested);
+            CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x001d);
+            continue;
+        }
+        if (x.failure != E::RouteFailure::NONE)
+            std::fprintf(stderr, "%s", text.c_str());
+        CHECK(x.failure == E::RouteFailure::NONE && x.clearRequested && x.checkPassed && x.motionTotal == 1);
+        CHECK(download(m->driver.requests[at++], 1, one) && download(m->driver.requests[at++], 1, zero));
+        CHECK(m->downloadsFrom(at) == 0 && t.monitor == 0x0015 && t.mode == 3);
+        const L::ActionContext& a = m->one.clearAction();
+        CHECK(a.state == M::ActionState::SUCCEEDED && a.incident.modeRaw == 3 && a.incident.monitor == 0x001d &&
+              a.monitorObservation.monitor == 0x0015 && !m->one.clearBlocked());
+        CHECK(has(text, "TRIAL_INCIDENT present=1 1001=81 603f=ff05 count=0 2100=001d "));
+        CHECK(has(text, "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 ") &&
+              has(text, "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 "));
+    }
     // An EMCY during the clear withdraws it with DRIVE_FAULT; nothing more is written.
     scenario = "clear-alarm-emcy";
     std::unique_ptr<Rig> e(new Rig);

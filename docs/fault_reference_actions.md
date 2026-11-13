@@ -9,8 +9,10 @@ The core performs no I/O and owns copies of the evidence it consumes.
 Evidence classes below: **source** means the original vendor page or EDS says it;
 **inference** is our reading of a source; **policy** is a project decision;
 **host** is fake-owner test evidence; **device-reported** is a drive's own report on a
-named specimen, not an independent physical observation. The counter zero ran once, on node 2 on 2026-11-04 (below); no
-specimen has had an alarm, so the alarm clear has not run (packets 17 and 18).
+named specimen, not an independent physical observation. The counter zero ran once, on node 2 on 2026-11-04 (below).
+The alarm clear has not run on a specimen: the only alarm so far, `FF05` on node 1 in mode 3 on
+2026-11-13, was refused before any write by the mode 1 admission of that time, which led to the
+[mode 3 admission](fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13) (packets 17 and 18).
 
 ## Supported transition tables
 
@@ -24,10 +26,10 @@ enable, a controlword, a mode, a target, a save, a restore or an NMT command.
 
 | Case | Fault provenance | Mode and state | Native route and values | Rearm and ACK | Required new observation | Raw error and history | Final uncertainty |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Admitted attempt | One read under the reservation: `2100` alarm set and raw `603F=FF05`, with `1001` and the `1003` count and entries. `incident.codeLink=UNRESOLVED`: the code does not identify the alarm (D-26) | `6061=1`, `2100` running clear. `6041` kept raw, never decisive | `2301:00` U16 `1`, then `0` (source: EN86 p18 and EDS; ZH86 p18 and OP86 omit `2301`) | The `0` returns to the documented ineffective value as policy. No source requires an edge, rearm or pulse, and no arming `0` precedes the `1` (D-27). Each write needs its own matching ACK before the next; the `1`'s ACK is `execution=ACKNOWLEDGED` | After the `0`'s ACK, MONITORS and STATUS until `2100` alarm clear with mode 1 and running clear, then one ERRORS read | `incident` keeps the admission values. The final ERRORS read is kept raw, even when `603F` still reads `FF05`. `1003` is never read again | `OBSERVED` means a later report without the alarm bit, not that the cause is gone. `valueOneMayRemain` if the `0` lacks a positive ACK |
-| Alarm persists after both ACKs | As admitted | Each cycle needs mode 1 and running clear, else `OBSERVATION_SCOPE` | No further write | No write repeats | Repolls MONITORS and STATUS only, at `observationIntervalUs`, until the deadline | Unchanged | `DEADLINE`, `execution=ACKNOWLEDGED`, `uncertain` |
+| Admitted attempt | One read under the reservation: `2100` alarm set and raw `603F=FF05`, with `1001` and the `1003` count and entries. `incident.codeLink=UNRESOLVED`: the code does not identify the alarm (D-26) | `6061=1` with `2100` running clear, or `6061=3` with `2100` released and running clear or latched beside the release with `606C` raw `0` in the same read's FEEDBACK (policy, [below](fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13)). `6041` kept raw, never decisive | `2301:00` U16 `1`, then `0` (source: EN86 p18 and EDS; ZH86 p18 and OP86 omit `2301`) | The `0` returns to the documented ineffective value as policy. No source requires an edge, rearm or pulse, and no arming `0` precedes the `1` (D-27). Each write needs its own matching ACK before the next; the `1`'s ACK is `execution=ACKNOWLEDGED` | After the `0`'s ACK, MONITORS and STATUS until `2100` alarm clear in the admission's mode: mode 1 with running clear, or mode 3 with released set and running only after a latched admission. Then one ERRORS read | `incident` keeps the admission values. The final ERRORS read is kept raw, even when `603F` still reads `FF05`. `1003` is never read again | `OBSERVED` means a later report without the alarm bit, not that the cause is gone. `valueOneMayRemain` if the `0` lacks a positive ACK |
+| Alarm persists after both ACKs | As admitted | Each cycle needs the admission's mode and that mode's rule above, else `OBSERVATION_SCOPE` | No further write | No write repeats | Repolls MONITORS and STATUS only, at `observationIntervalUs`, until the deadline | Unchanged | `DEADLINE`, `execution=ACKNOWLEDGED`, `uncertain` |
 | Withdrawal during the attempt | A new EMCY, boot-up, lifecycle change or cancel, delivered by the application | Any | The admitted write or read settles; nothing new is yielded | A terminal that still correlates joins `commandHistory` or the observation evidence. After a node-epoch change it no longer does, and the application ends the attempt locally with `INVALIDATED` | None | Unchanged; the owner's newest EMCY is separate | Outcome is the withdrawal reason; `valueOneMayRemain` follows the same rule |
-| Rejected before work | Any other code, including `FF01` overcurrent, `FF02..FF04` (never mapped from LED counts) and `0`; no alarm; missing ERRORS or ERROR_HISTORY; stale or foreign read | Mode other than 1, running | None | None | None | None | Output unchanged |
+| Rejected before work | Any other code, including `FF01` overcurrent, `FF02..FF04` (never mapped from LED counts) and `0`; no alarm; missing ERRORS or ERROR_HISTORY; stale or foreign read | Mode other than 1 or 3; running in mode 1; mode 3 not released; mode 3 running without a FEEDBACK block or with `606C` nonzero | None | None | None | None | Output unchanged |
 | Controlword reset | `6040` bit 7 (EN86/ZH86 p15) or `15->128` (ZH86 p12, OP86 p10) | n/a | Not implemented. No API sends it; `stopPredecessorAllowed(0x0080)` is false and a `6040` terminal does not correlate with a clear | n/a | n/a | n/a | Separate question in Q13 |
 
 ### Device counter zero (packet 18)
@@ -56,6 +58,50 @@ nothing about which event, or which reset class, the reported alarm belongs to.
 The `FF05` requirement only narrows the attempt. An application that saw `603F`
 already reading `FF05` while the alarm was clear (for instance a previous
 attempt's final ERRORS read) has direct evidence that the code is not fresh.
+
+## Mode 3 admission (project policy, 2026-11-13)
+
+No source ties the clear to a mode: EN86/ZH86 p20 mark the position
+out-of-tolerance class resettable and name none. The mode 1 restriction was
+library policy from where the clear was designed; no specimen had an alarm then,
+and none has run a clear since. Mode 3 is now admitted too, as policy, for the
+following reason.
+
+**Finding** (device-reported, node 1, firmware `1000=00040192`, `1009=000c`,
+`100A=0020`, 2026-11-13, [ladder records](bench/20261113-ladder/)). A mode 3 run
+at 4500 rpm with 2000 ms ramps (trial 5198, the range probe) raised EMCY
+`05 FF 81 ...`: `603F=FF05`, `1001=81`. The drive then read `2100=001D` (in
+place, running, alarm, released), `6041=C018`, `6061=3`, `606C=0` (trials 5199
+to 5202). Both clear attempts (trials 5203 and 5210) were refused before any
+write with "fresh mode 1 not-running SDO evidence required", and the `mode1`
+route refused the mode change while `1001` was set (trial 5208, `why=error-register`).
+So the alarm had no clear route but a power cycle.
+
+**Rule.** Mode 3 is admitted with `2100` alarm set, raw `603F=FF05`, ERRORS and
+ERROR_HISTORY as in mode 1, and `2100` released set. `2100` running may be
+clear, or set beside the release as the latch a moving stop leaves (`0014`/`0015`
+in trials 1513 and 1607) and the `FF05` run left (`001D`): then the same read
+must include a fresh FEEDBACK block with `606C` raw `0`, and a read without it is
+refused. Mode 1 is unchanged: running set there is refused, latched or not.
+
+**Why released.** The drive keeps its `60FF` target (4500 after the finding), and
+no source says what a drive does after a clear. A de-energized drive is the only
+one admitted, and every later cycle must still report released: a cycle that
+does not ends the attempt `OBSERVATION_SCOPE`, with that report kept. The action
+still sends no enable, `6040` or `6060`, and nothing resumes the run.
+
+**Completion.** Every cycle must repeat the admission's mode
+(`incident.modeRaw`): a mode 3 attempt is not completed by a report in mode 1,
+nor a mode 1 attempt by one in mode 3. Running may stay set only after a latched
+admission; whether the latch clears with the alarm is unmeasured, so both are
+accepted. Cycles read MONITORS and STATUS only, as in mode 1, so `606C` is not
+read again: the release is the evidence that the drive stays de-energized.
+Context checks refuse an incident that admission could not have produced.
+
+Not established: whether `2301` clears this alarm in mode 3 at all, what `2100`
+and `6041` then report, and whether a later enable resumes the retained target.
+The first attempt is the next measurement; one success on one firmware
+qualifies nothing.
 
 ## Rearm and the final zero
 
@@ -174,7 +220,8 @@ and the restarted application has no coordinate confidence to restore.
 caller of both actions (backlog S12), tested through the real owner in
 `axis_session_test`. The S2 bench's `counter-zero` and `clear-alarm` routes call
 it. `requestCounterZero` ran once on a specimen (below); `requestClearAlarm` has
-not, because no alarm has occurred.
+not: the `clear-alarm` route's two attempts on 2026-11-13 were refused before any
+write (above). The route's read now includes FEEDBACK, for the mode 3 latched release.
 
 - **Request.** `requestClearAlarm(state, options, deadlineUs, nowUs)` and
   `requestCounterZero(state, nativePosition, axis, reference, options,
@@ -240,8 +287,8 @@ publishes a home reference or qualified physical measurement.
 ### Physical cases
 
 Both need the lead at the bench, one drive, the independent drive-power cutoff
-in hand and a free, table-mounted shaft. The alarm clear has not run. The
-counter zero ran once:
+in hand and a free, table-mounted shaft. The alarm clear has not run (its only
+attempts were refused, above). The counter zero ran once:
 
 **Counter zero, node 2, 2026-11-04** (trial 323, the bench `counter-zero`
 route, [report](reports/2026-11-04_bench.md)). Node 2 was switched on and
@@ -264,8 +311,9 @@ The cases as planned:
    `prepareClearAlarm` through the public path, recording the exact bytes
    `2B 01 23 00 01 00 00 00` and `2B 01 23 00 00 00 00 00`, each TX report and
    ACK, the later cycles and the single final ERRORS read, and the LED. Abort,
-   with no further write, on any running report, mode change, uncertain write,
-   lost evidence or bus fault. A persisting alarm is retained as the result.
+   with no further write, on any running report other than an admitted mode 3
+   latch, a lost release in mode 3, a mode change, an uncertain write, lost
+   evidence or a bus fault. A persisting alarm is retained as the result.
    One attempt per identified incident; a repeat is a new reviewed trial.
 2. **Counter zero.** Stationary, alarm-free drive in mode 1 with `606C` zero and
    an independent shaft mark. Record `607A`, `6064`, `606C`, the monitor words,

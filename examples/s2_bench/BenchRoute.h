@@ -102,7 +102,9 @@
  *   readback, as both specimens answered it.
  * - COUNTER_ZERO and CLEAR_ALARM. A fresh read of what AxisSession::requestCounterZero or
  *   requestClearAlarm judges, CLEAR_ALARM refused unless it reports the alarm, then the session's
- *   request; the session admits every write and read itself. Motion class.
+ *   request; the session admits every write and read itself. Motion class. CLEAR_ALARM's read also
+ *   takes FEEDBACK, so that the library can admit mode 3's latched release (2100 running beside
+ *   released, 606C zero); the route itself checks only the alarm and leaves mode and running to it.
  * - MODE_THREE, prompt 35's released mode change. Two fresh full reads that must both report the
  *   drive released and stationary (2100 bit 4 set, alarm clear, running clear or only the latch a moving
  *   000B leaves, 6041 low bits 000 or 001,

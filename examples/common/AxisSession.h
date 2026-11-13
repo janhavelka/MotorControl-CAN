@@ -503,9 +503,10 @@ class AxisSession {
      * no enable, controlword, mode, target, save or resume, and requestEnable stays refused because this
      * session has written. An observed clear is a drive report, not proof that the cause is gone.
      * @param[in] state Complete fresh SDO read of ERRORS, ERROR_HISTORY, MONITORS and STATUS under this
-     * reservation, as prepareClearAlarm requires: 2100 alarm set and running clear, mode 1, raw 603F
-     * FF05. Not held inside clearAction(). Its raw values stay in clearAction().incident, whose codeLink
-     * is UNRESOLVED: the code does not identify the alarm.
+     * reservation, as prepareClearAlarm requires: 2100 alarm set, raw 603F FF05, and mode 1 with
+     * running clear or mode 3 released. Running in mode 3 also needs FEEDBACK reading 606C zero in
+     * the same read (the latched release). Not held inside clearAction(). Its raw values stay in
+     * clearAction().incident, whose codeLink is UNRESOLVED: the code does not identify the alarm.
      * @param[in] options Copied budgets, as prepareClearAlarm requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of both writes and every observation.
      * @param[in] nowUs Nondecreasing supplied microseconds.

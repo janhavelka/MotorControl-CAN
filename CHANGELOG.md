@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Alarm clear in mode 3 (2026-11-13)
+
+- `prepareClearAlarm` also admits mode 3, as project policy: node 1 raised `FF05` in a mode 3
+  run and read `2100=001D`, which the mode 1 rule refused, leaving only a power cycle. Mode 3
+  needs `2100` released, and running either clear or latched beside the release with `606C`
+  zero in the same read's FEEDBACK block. Completion now needs the admission's mode
+  (`incident.modeRaw`); mode 3 cycles must keep the release. Writes are unchanged (`2301` 1,
+  then 0), with no enable, controlword or mode write. Mode 1 is unchanged.
+- The S2 `clear-alarm` route's read adds FEEDBACK, two more terminals; the line and protocol 9
+  are unchanged. See [fault clearing](docs/fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13).
+
 ### Velocity range probe and subdivision setting (prompt 59 preparation, 2026-11-13)
 
 - `VelocityEvidence::rangeProbe`, only under `VelocityGate::ATTENDED_EXPERIMENT`, raises the
