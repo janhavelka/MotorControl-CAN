@@ -2631,8 +2631,11 @@ const char* BenchRoute::checkTargetAfter() const noexcept {
 // CONTROLWORD's admission, on its one fresh full read: 6041 bits 0..2 clear (bit 3, the fault bit, either
 // way), 2100 running clear, 606C 0 and a mode of 0, 1, 3 or 6. 1001, 603F, the 2100 alarm and released bits are
 // recorded and not judged: the experiment starts from whatever low bits 000 state the drive reports (8010 with
-// 2100=0001 after trial 5323's clear). The latest word recorded at admission must still be the latest, as for
-// RELEASED_QUICK: another writer since would make the read stale.
+// 2100=0001 after trial 5323's clear). Word 0000 alone is also admitted from low bits 001 or 011 (ready to
+// switch on, switched on; never 111): node 2 stayed at 8033 with 2100=0001 after the velocity enable refused
+// at word 7 in open loop (trial 5976, backlog S21), with no alarm to clear and no stop admitted, and 0000 is
+// the CiA402 disable-voltage command, which enables nothing. The latest word recorded at admission must still
+// be the latest, as for RELEASED_QUICK: another writer since would make the read stale.
 const char* BenchRoute::checkControlword() const noexcept {
     if (const char* why = predecessor(STEP_WORD_WRITE, WORD_LINE))
         return why;
@@ -2641,7 +2644,8 @@ const char* BenchRoute::checkControlword() const noexcept {
         return "snapshot";
     if (!controlwordReviewed(record_.plan.controlword))
         return "word"; // routePlanValid refused it already; judged again before anything is written.
-    if (s.statusword & L::STATUS_LOW_BITS)
+    const uint16_t low = s.statusword & L::STATUS_LOW_BITS;
+    if (low && !(record_.plan.controlword == 0x0000 && (low == 0x0001 || low == 0x0003)))
         return "status";
     if (s.monitor & L::MONITOR_RUNNING)
         return "running";

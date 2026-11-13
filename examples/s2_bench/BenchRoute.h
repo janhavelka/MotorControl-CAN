@@ -208,7 +208,11 @@
  *   that reports 6041 low bits 000 (node 1 read 6041=8010, 2100=0001 after the 2301 clear of trial 5323,
  *   2026-11-13) to the released report. One fresh full read (ERRORS, MONITORS, STATUS, FEEDBACK) must show
  *   6041 bits 0..2 clear (bit 3 either way), 2100 running clear, 606C 0 and mode 0, 1, 3 or 6, and the
- *   session's latest word recorded at admission must still be the latest. Then exactly one 6040 download of
+ *   session's latest word recorded at admission must still be the latest. Word 0000 alone is also admitted
+ *   from low bits 001 or 011 (never 111) under the same other conditions: node 2 stayed switched on at 8033
+ *   with 2100=0001 after the velocity enable refused at word 7 in open loop (trial 5976, backlog S21), with no
+ *   alarm to clear and no stop admitted. 0000 is the CiA402 disable-voltage command; what this drive does
+ *   with it there is the experiment. Then exactly one 6040 download of
  *   the line's word through AxisSession::admitPrepared under its own grant, `2B 40 60 00 <lo> <hi> 00 00`,
  *   only from the reviewed set controlwordReviewed admits (0000, 0006, 000B, 0080; never a word with bits 0,
  *   1 and 2 all set, which the CiA402 switch-on and enable commands need). Then the stated number of fresh

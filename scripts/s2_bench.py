@@ -63,7 +63,10 @@ the reviewed non-enabling words only, 0x0000 (disable voltage), 0x0006 (shutdown
 (fault reset, a bit 7 edge from 0); 0x0007, 0x000F, 0x001F, 0x010F and every other word are refused here, by the
 firmware's parser and before its write. One fresh full read must show 6041 bits 0..2 clear, 2100 running clear,
 606C 0 and mode 0, 1, 3 or 6; then exactly one 2B 40 60 00 <lo> <hi> 00 00, --cycles 1..10 STATUS, MONITORS and
-FEEDBACK reads --interval-ms 100..2000 apart, each a TRIAL_CONTROLWORD_CYCLE line, and one more full read. No
+FEEDBACK reads --interval-ms 100..2000 apart, each a TRIAL_CONTROLWORD_CYCLE line, and one more full read. Word
+0x0000 alone is also admitted from 6041 low bits 001 or 011 (ready to switch on, switched on; never 111) under the
+other conditions: node 2 stayed at 8033 with 2100=0001 after the velocity enable refused at word 7 in open loop
+(trial 5976, backlog S21), with no alarm to clear and no stop admitted. No
 second word, no retry, no enable, no 6060, 60FF or 2301 write. Motion class, as every 6040 write is. When a read
 after the word reports 6041 bit 1 or 2 (switched on or enabled) or 606C nonzero, the firmware ends the route
 there and TRIAL_CONTROLWORD shows alert=1; the runner then prints "ALERT: node N MAY BE ENABLED OR TURNING after
@@ -210,7 +213,8 @@ TRIALS = {
     # Prompt 59 Part 3: one volatile 2201 write and its readback on a released drive, as settings-2202 writes
     # 2202: a settings route, attended and counted, no motion weight.
     "subdivision": ("K", False, "prompt 59 2201 subdivision"),
-    # Protocol 11: one reviewed non-enabling 6040 word on a drive that reports low bits 000, then its cycles.
+    # Protocol 11: one reviewed non-enabling 6040 word on a drive that reports low bits 000, then its cycles;
+    # 0x0000 also from low bits 001 or 011 (backlog S21). The plan label keeps its protocol 11 text.
     # Every 6040 write is motion class (released-quick, word67, rearm, clear-alarm's bit 7).
     "controlword": ("T", True, "protocol 11 controlword from low bits 000"),
     # Protocol 13 (backlog S21): one 2500 loop selector write and its readback on a released drive, as subdivision
@@ -1494,7 +1498,8 @@ def arguments(argv):
                        "probe. subdivision: the 2201 value, %d..%d. loop: the 2500 code, %d..%d (0 noneffective, 1 open "
                        "loop, 2 closed loop)" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE + LOOP_RANGE))
     word = parser.add_argument_group("controlword (protocol 11): one reviewed non-enabling 6040 word on a drive that "
-                                     "reports low bits 000; also --cycles 1..10 and --interval-ms 100..2000")
+                                     "reports low bits 000 (0x0000 also from 001 or 011); also --cycles 1..10 and "
+                                     "--interval-ms 100..2000")
     word.add_argument("--word", type=lambda text: int(text, 0),
                       help="the one 6040 word, only %s" % ", ".join("0x%04X" % w for w in sorted(CONTROLWORDS)))
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")

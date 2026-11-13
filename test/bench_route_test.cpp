@@ -5964,8 +5964,8 @@ void testControlwordRefusals() {
     };
     const Case cases[] = {
         {"status", [](Drive& f) { f.status = 0x8037; }}, // The power-up report: low bits 111.
-        {"status", [](Drive& f) { f.status = 0x8031; }}, // Ready to switch on, low bits 001.
-        {"status", [](Drive& f) { f.status = 0x8033; }}, // Switched on, low bits 011.
+        {"status", [](Drive& f) { f.status = 0x8031; }}, // Ready to switch on, low bits 001: only 0000 from it.
+        {"status", [](Drive& f) { f.status = 0x8033; }}, // Switched on, low bits 011: only 0000 from it.
         {"status", [](Drive& f) { f.status = 0x8027; }},
         {"status", [](Drive& f) { f.status = 0x8014; }}, // Bit 2 alone.
         {"running", [](Drive& f) { f.monitor = 0x0005; }},
@@ -6025,6 +6025,62 @@ void testControlwordRefusals() {
     CHECK(w->route.record()->failure == E::RouteFailure::PREREQUISITE &&
           std::strcmp(w->route.record()->why, "control") == 0 && !w->route.record()->probeWritten);
     CHECK(w->downloadsFrom(mark) == 1 && w->driver.drives[0].lastWord == 0); // Only the other writer's word.
+}
+// Word 0000 alone from a switched-on drive (backlog S21: node 2 at 8033, 2100=0001 after the velocity enable
+// refused at word 7 in open loop, trial 5976). Admitted from low bits 001 and 011 under the other conditions;
+// never from 111, never another word. What the drive does with it is the experiment: this fake either releases
+// (disableVoltage) or keeps 8033, which the first read after the word marks as switched on.
+void testControlwordSwitchedOn() {
+    for (const uint16_t status : {uint16_t(0x8033), uint16_t(0x8031)}) {
+        scenario = "controlword-disable";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        lowBitsZero(d);
+        d.status = status;
+        d.disableVoltage = true;
+        uint32_t trial = 0;
+        const E::RouteRecord& y = r->run(controlwordLine(1, trial, 0, 3, 100));
+        const uint8_t frame[8] = {0x2b, 0x40, 0x60, 0, 0, 0, 0, 0};
+        const std::vector<M::Frame> sent = downloads(*r, 0, 1);
+        CHECK(y.failure == E::RouteFailure::NONE && y.checkPassed && y.cycles == 3 && y.controlMarked == 0);
+        CHECK(sent.size() == 1 && frameIs(sent[0], frame) && d.lastWord == 0);
+        CHECK(y.last.statusword == 0x8030 && y.last.monitor == 0x0011); // This fake's release.
+        CHECK(has(r->dump(), status == 0x8033 ? " 2100=0001 6041=8033 6061=03 6064=6761 606c=0\n"
+                                                : " 2100=0001 6041=8031 6061=03 6064=6761 606c=0\n"));
+    }
+    // The drive keeps 8033: the first read after the word marks it, and nothing more is sent.
+    scenario = "controlword-disable-kept";
+    std::unique_ptr<Rig> k(new Rig);
+    lowBitsZero(k->driver.drives[0]);
+    k->driver.drives[0].status = 0x8033;
+    uint32_t trial = 0;
+    const E::RouteRecord& z = k->run(controlwordLine(1, trial, 0, 3, 100));
+    CHECK(z.failure == E::RouteFailure::OBSERVATION && std::strcmp(z.why, "enabled") == 0 && z.checkPassed);
+    CHECK(z.cycles == 1 && z.controlMarked == 1 && z.controlEnabled && k->downloadsFrom(0) == 1);
+    CHECK(has(k->dump(), " cycles=1 marked=1 enabled=1 moving=0 alert=1\n"));
+    // Every other reviewed word from 001 or 011, and 0000 from 111, a turning drive or running, is refused.
+    const struct {
+        unsigned word;
+        uint16_t status, monitor;
+        int32_t velocity;
+        const char* why;
+    } refused[] = {{0x0006, 0x8033, 0x0001, 0, "status"},   {0x000b, 0x8033, 0x0001, 0, "status"},
+                   {0x0080, 0x8031, 0x0001, 0, "status"},   {0x0000, 0x8037, 0x0001, 0, "status"},
+                   {0x0000, 0x8027, 0x0001, 0, "status"},   {0x0000, 0x8033, 0x0005, 0, "running"},
+                   {0x0000, 0x8033, 0x0001, 121, "velocity"}};
+    for (const auto& c : refused) {
+        scenario = "controlword-switched-on-refused";
+        std::unique_ptr<Rig> s(new Rig);
+        Drive& f = s->driver.drives[0];
+        lowBitsZero(f);
+        f.status = c.status;
+        f.monitor = c.monitor;
+        f.velocity = c.velocity;
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(controlwordLine(1, t, c.word, 1, 100));
+        CHECK(y.failure == E::RouteFailure::PREREQUISITE && std::strcmp(y.why, c.why) == 0 && !y.checkPassed);
+        CHECK(s->downloadsFrom(0) == 0 && !y.probeWritten && y.cycles == 0);
+    }
 }
 // A read after the word that reports switched on, enabled or 606C nonzero ends the route there with the mark
 // and nothing more sent; a failed or lost word ends it at its terminal. No second word, no stop, no retry.
@@ -7568,6 +7624,7 @@ int main(int argc, char** argv) {
     testParseControlword();
     testControlword();
     testControlwordRefusals();
+    testControlwordSwitchedOn();
     testControlwordMarks();
     testParseLoop();
     testLoop();
