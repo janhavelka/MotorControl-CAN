@@ -77,6 +77,20 @@ for step in argv[3:]:
             st = lad.read(node)
             lad.say("  INVEST disable: rc={} cycles={} {} state={}".format(rc, cyc, line.group(0) if line else None, st))
             lad.note(kind="invest-disable", node=node, rc=rc, cycles=cyc, dir=d, state=st)
+        elif step.startswith("target:"):
+            # One 60FF write and readback (route velocity-target, no enable) on a released drive, fresh boot.
+            value = step.split(":")[1]
+            st = boot("target{}".format(value))
+            t = lad.next()
+            d = lad.out("target-{}-n{}-{}".format(value, node, t))
+            rc, text = lad.run("{} target {} n{}".format(t, value, node),
+                               ["--command", "velocity-target", "--node", str(node), "--trial", t, "--value", value] +
+                               night.UNATT + lad.camp() + ["--seconds", "40", "--output", d])
+            lad.release(t)
+            line = re.search(r"TRIAL_VELOCITY_TARGET .*", text)
+            st = lad.read(node)
+            lad.say("  INVEST target {}: rc={} {} state={}".format(value, rc, line.group(0)[:200] if line else None, st))
+            lad.note(kind="invest-target", node=node, value=value, rc=rc, dir=d, state=st)
         elif step == "state":
             st = boot("state")
             lad.say("  INVEST state: {}".format(st))

@@ -3,7 +3,9 @@ Velocity ladder, acceleration and microstepping limits and fault recovery, 2026-
 16:17Z to 17:03Z, with the enable-fault investigation (backlog S21; report:
 docs/reports/2026-11-13_enable_fault_state.md): series S0168 to S0197 and the NMT plan directories
 20261113T162844Z-nmt-resetcomm-n2, 20261113T170219Z-nmt-reset-n2 (refused: the MCU reset was skipped, nothing sent)
-and 20261113T170233Z-nmt-reset-n2. run-investigate.out is that driver's console output.
+and 20261113T170233Z-nmt-reset-n2. run-investigate.out is that driver's console output. Node 1's reverse
+velocity sweep (S0198 to S0203, 17:08Z to 17:13Z) and its 60FF=60 write-back (S0204) follow; run-reverse.out
+is that sweep's console output.
 
 The user's written waiver for this campaign only: "Unattended, I accept it" (option text: "Waiver for this ladder
 campaign only: run the velocity ladder, above-limit probe and resolution grid without me at the bench. I take

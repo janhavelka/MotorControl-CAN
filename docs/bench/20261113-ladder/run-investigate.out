@@ -959,3 +959,31 @@
 17:03:09Z   state n2 2100=0011 6041=8050 6061=03 6064=26655924 606c=1711 1001=00 603f=0000 607a=5000 60ff=60
 17:03:09Z   INVEST state: {'1001': '00', '603f': '0000', '2100': '0011', '6041': '8050', '6061': '03', '6064': 26655924, '606c': 1711, '607a': 5000, '60ff': 60}
 17:03:09Z stuck.py ended
+17:13:42Z ##### series 204 node 1 target60 (S0204-n1-target60)
+17:13:46Z === start
+17:13:50Z   exit 0 (4.2 s)
+17:13:50Z === 6029 read node 1
+17:13:52Z   TRIAL id=6029 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+17:13:52Z   TRIAL_PLAN route=actions node=1 trial=6029 attended=0
+17:13:52Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0
+17:13:52Z   exit 0 (2.4 s)
+17:13:52Z === release 6029
+17:13:54Z   exit 0 (1.7 s)
+17:13:54Z   state n1 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0 1001=00 603f=0000 607a=5000 60ff=-3000
+17:13:54Z === 6030 target 60 n1
+17:13:57Z   TRIAL id=6030 node=1 route=velocity-target failure=0 why=none lost=0 terminals=29 traffic=87 tail=0 tailLost=0 summaries=7 step=7 cycles=0 motion=0 case=1 unsettled=0 gap=5007 lossCancel=0
+17:13:57Z   TRIAL_PLAN route=velocity-target node=1 trial=6030 attended=1 value=60
+17:13:57Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0
+17:13:57Z   exit 0 (3.1 s)
+17:13:57Z === release 6030
+17:13:59Z   exit 0 (1.7 s)
+17:13:59Z === 6031 read node 1
+17:14:01Z   TRIAL id=6031 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+17:14:01Z   TRIAL_PLAN route=actions node=1 trial=6031 attended=0
+17:14:01Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0
+17:14:01Z   exit 0 (2.5 s)
+17:14:01Z === release 6031
+17:14:03Z   exit 0 (1.7 s)
+17:14:03Z   state n1 2100=0015 6041=c050 6061=03 6064=-1112002 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+17:14:03Z   INVEST target 60: rc=0 TRIAL_VELOCITY_TARGET value=60 tx=3c000000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000 read=1 size=4 data=3c000000 match=1 after=1 state={'1001': '00', '603f': '0000', '2100': '0015', '6041': 'c050', '6061': '03', '6064': -1112002, '606c': 0, '607a': 5000, '60ff': 60}
+17:14:03Z stuck.py ended

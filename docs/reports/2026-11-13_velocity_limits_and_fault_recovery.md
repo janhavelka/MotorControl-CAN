@@ -154,7 +154,21 @@ The later investigation, with the power cycle that cleared the state, the loop s
 `6040=0x0000`, is in [the enable-fault report](2026-11-13_enable_fault_state.md).
 
 **Reverse velocity.** Implemented and host-tested (`8090d85`: `VelocityEvidence::reverseProbe`, runner `--reverse`,
-route protocol 12) and flashed, but not run: both drives are in the enable-fault state.
+route protocol 12). Run on node 1 at 17:08Z to 17:13Z, after the power cycle, at `2201=1000` (image `0db0c1f`), one
+run per step through the reverse probe, with 1000 ms ramps up to 1000 rpm and 2000 ms above:
+
+| Command | `606C` cruise | `6064` slope | Ratio | Stop |
+| --- | --- | --- | --- | --- |
+| −60 | −60 | −59.5 | 0.992 | HALT, confirmed |
+| −300 | −296, −298 | −297.6 | 0.992 | HALT, confirmed |
+| −1000 | −991 | −989.5 | 0.990 | Quick stop, unconfirmed (the known reserve limit) |
+| −2000 | −1983 | −1980.0 | 0.990 | As above |
+| −3000 | −2975, −2973 | −2972.3 | 0.991 | As above |
+
+A negative `60FF` (two's complement) runs `6064` down and reports a negative `606C` at the same ratio as forward
+runs; no run tripped the 2 rpm sign check. Which way the shaft turns was not observed, so Q03's physical direction
+stays open. Node 2 was not run (enable-fault state). Afterwards node 1's `60FF` was written back to 60 (trial 6030,
+read back).
 
 Both drives were left released and alarm-free (`6041=8050`, `2100=0011`) at `2201=1000` with `60FF=60`. Their next
 enable faults until a power cycle.
@@ -165,5 +179,6 @@ enable faults until a power cycle.
 - The 51200 limit: pulse-rate ceiling or the deviation threshold in pulses (a write of `250A` would separate them;
   it is not authorized).
 - The enable-fault state: a power cycle cleared it, nothing else did; what it is stays open
-  ([enable-fault report](2026-11-13_enable_fault_state.md)). Then the reverse runs and the 51200 discriminator.
+  ([enable-fault report](2026-11-13_enable_fault_state.md)). Then node 2's reverse runs and the 51200
+  discriminator.
 - The cruise ratio of about 0.99 (units re-audit) and the step back of `6064` at enable.

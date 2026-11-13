@@ -113,7 +113,8 @@ difference is routine (table above) and was zero in a faulting enable.
 
 - Node 2: released `8050`/`0011`, mode 3, `2201=51200`, `2500=2` (read back), `606C` reading 1711, `6064=26655924`,
   `60FF=60`, in the enable-fault state. Every enable route refuses it while `606C` is nonzero.
-- Node 1: power-up report `8037`/`0001` since the power cycle, untouched since.
+- Node 1: clean since the power cycle; after its reverse runs, released (`6041=C050`, `2100=0015`), `2201=1000`,
+  `60FF=60`.
 
 Next, each needing a power cycle:
 
@@ -122,4 +123,5 @@ Next, each needing a power cycle:
 2. In a reproduced fault state (one 3300 rpm FF05 at 51200): a mode 1 enable, and proposal 3 timed within 100 ms
    of word 7.
 3. The discriminator: 3000 rpm with a 500 ms ramp at 51200.
-4. Reverse velocity and node 1's position ladder, both still owed to prompt 59.
+4. Node 1's position ladder and node 2's reverse runs, still owed to prompt 59. Node 1's reverse runs were made
+   at 17:08Z to 17:13Z, all clean ([afternoon report](2026-11-13_velocity_limits_and_fault_recovery.md)).
