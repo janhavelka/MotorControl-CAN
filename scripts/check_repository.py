@@ -200,6 +200,7 @@ def metadata_checks(root, errors):
             errors.append(f"library.json: {field} must be {expected_value!r}")
     for section, expected_value in (
             ("build", {"includeDir": "include", "srcDir": "src"}),
+            ("homepage", "https://github.com/janhavelka/MotorControl-CAN"),
             ("repository", {"type": "git", "url": "https://github.com/janhavelka/MotorControl-CAN.git"})):
         if metadata.get(section) != expected_value:
             errors.append(f"library.json: invalid {section} identity/layout")
