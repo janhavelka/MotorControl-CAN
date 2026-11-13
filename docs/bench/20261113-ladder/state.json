@@ -1,12 +1,12 @@
 {
-  "trial": 5999,
-  "series": 197,
+  "trial": 6031,
+  "series": 204,
   "rng": 20261113,
   "nodes": {
     "1": {
       "stoprec": null,
       "retired": null,
-      "rot": 58,
+      "rot": 63,
       "subdivision": 1000,
       "alarms": 0,
       "anomalies": 18,
