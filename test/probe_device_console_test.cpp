@@ -518,6 +518,49 @@ void explicitCaptureUsesExistingCollector() {
     CHECK(gated.attempts() == 0 && !gated.evidence.record());
 }
 
+void captureRejectsForeignCollectorsBeforeAdmission() {
+    Rig local, foreign;
+    foreign.select();
+    E::ProbeApp app(local.owner, local.platform);
+    E::DeviceEvidence wrongApp(foreign.app, local.owner);
+    E::DeviceEvidence wrongOwner(app, foreign.owner);
+    E::DeviceEvidence matching(app, local.owner);
+    E::ProbeConsole console(app, local.owner, local.platform);
+    E::DeviceEvidence* rejected[] = {&foreign.evidence, &wrongApp, &wrongOwner};
+    const E::AcquisitionPlan plan = capturePlan(foreign, L::ReadKind::IDENTITY);
+    for (E::DeviceEvidence* collector : rejected) {
+        E::ProbeDevice device(app, local.owner, local.services, collector);
+        CHECK(!device.matches(app, local.owner));
+        CHECK(!app.attachDevice(device));
+        CHECK(!console.attachDevice(device));
+        CHECK(!device.setCapturePlan(plan));
+        CHECK(device.capture(local.now) == E::EvidenceAdmission::INVALID);
+        CHECK(!collector->record());
+        CHECK(app.readContext().state == M::ReadState::EMPTY);
+        CHECK(foreign.app.readContext().state == M::ReadState::EMPTY);
+    }
+    // Refusing another graph must also leave the app's sole attachment available.
+    E::ProbeDevice device(app, local.owner, local.services, &matching);
+    CHECK(device.matches(app, local.owner) && console.attachDevice(device));
+    CHECK(device.selectSlot(0) && device.setCapturePlan(plan));
+    const char* request = "@20 capture-read\n";
+    for (const char* p = request; *p; ++p)
+        console.feed(static_cast<uint8_t>(*p), local.now);
+    CHECK(matching.record() && app.readContext().state == M::ReadState::ACTIVE);
+    CHECK(foreign.app.readContext().state == M::ReadState::EMPTY);
+    for (unsigned i = 0; i < 1000; ++i) {
+        ++local.now;
+        local.bytes.now = local.now;
+        CHECK(local.wire.fake.setTime(local.now));
+        CHECK(app.service(local.now) && matching.service(local.now));
+        console.service(local.now);
+    }
+    CHECK(matching.record()->terminal && matching.record()->terminalCount == 9);
+    CHECK(local.wire.fake.transmitted() == 9 && foreign.attempts() == 0);
+    contains(local.bytes.output, "\"outcome\":\"SUCCESS\"");
+    contains(local.bytes.output, "\"acquisition_id\":1");
+}
+
 void failedReadKeepsNativeEvidence() {
     Rig abort(E::FakeTransport::Mode::ABORT);
     abort.select();
@@ -631,6 +674,69 @@ void discoveryUsesOneOwnerAndCountsFields() {
     CHECK(active.wire.fake.transmitted() == 9);
 }
 
+void discoveryPreservesExplicitHostSelection() {
+    Rig rejected;
+    const auto target = E::FakeTransport::target();
+    const auto options = rejected.device.readOptions(L::ReadKind::IDENTITY);
+    const L::ReadKind wrongKinds[] = {L::ReadKind::CONFIG, L::ReadKind::STATE,
+                                    L::ReadKind::DRIVER_MOTION_PARAMETERS};
+    for (L::ReadKind kind : wrongKinds)
+        CHECK(!rejected.app.requestDiscoveryRead(kind, target, rejected.now, 1000000, options));
+    CHECK(!rejected.app.selected() && rejected.app.readContext().state == M::ReadState::EMPTY);
+    rejected.turn();
+    CHECK(rejected.attempts() == 0 && rejected.owner.resources().queued == 0 &&
+          rejected.owner.resources().active == 0 && rejected.owner.resources().retained == 0);
+    for (unsigned selected = 0; selected < (PAIRED_CHANNELS ? 2u : 1u); ++selected)
+        for (unsigned cancel = 0; cancel < 2; ++cancel) {
+            Rig r;
+            L::ReadTarget original = E::FakeTransport::target();
+            original.channel.binding.logicalAxisId = 10;
+            original.channel.binding.endpoint.address = 6;
+            original.channel.clientToServerId = 0x606;
+            original.channel.serverToClientId = 0x586;
+            if (selected) {
+                CHECK(r.services.configure(1, original.channel, true, true));
+                C::NetworkRoute route;
+                route.binding = original.channel.binding;
+                route.generation = original.nodeGeneration;
+                route.heartbeatId = 0x706;
+                route.emcyId = 0x86;
+                CHECK(r.services.configureNetwork(1, route, C::NetworkObserver(), r.now));
+                CHECK(r.device.selectSlot(1));
+            }
+            const auto selectionUnchanged = [&]() {
+                const auto* current = r.app.selected();
+                if (!selected)
+                    return current == nullptr;
+                return current && current->nodeGeneration == original.nodeGeneration &&
+                       M::sameBinding(current->channel.binding, original.channel.binding) &&
+                       current->channel.clientToServerId == original.channel.clientToServerId &&
+                       current->channel.serverToClientId == original.channel.serverToClientId;
+            };
+            r.line("@10 discover identity 1000 0");
+            for (unsigned i = 0; i < 100 && r.wire.fake.transmitted() == 0; ++i) {
+                r.turn();
+                CHECK(selectionUnchanged());
+            }
+            CHECK(r.device.discovery().active() && r.wire.fake.transmitted() == 1);
+            CHECK(r.app.readContext().target.channel.binding.endpoint.address == 5);
+            if (cancel)
+                r.line("@11 discover cancel");
+            for (unsigned i = 0; i < 1000; ++i) {
+                r.turn();
+                CHECK(selectionUnchanged());
+            }
+            CHECK(r.device.discovery().complete());
+            CHECK(r.wire.fake.transmitted() == (cancel ? 1u : 9u));
+            const auto* finding = r.device.discovery().result(0);
+            CHECK(finding && finding->requested.target.channel.binding.endpoint.address == 5);
+            CHECK(finding->outcome == (cancel ? E::DiscoveryOutcome::CANCELLED
+                                             : E::DiscoveryOutcome::GENERIC_IDENTITY));
+            contains(r.command("@12 release 1"), "\"ok\":true");
+            CHECK(selectionUnchanged());
+        }
+}
+
 void passiveDiscoveryNeedsNoSdoSession() {
     Rig r;
     C::NetworkRoute route;
@@ -708,6 +814,40 @@ void discoveryInterfaceChangePreventsHandoff() {
         CHECK(r.device.discovery().summary().interfaceChanged);
         const auto* found = r.device.discovery().result(0);
         CHECK(found && found->outcome == E::DiscoveryOutcome::INVALIDATED);
+    }
+}
+
+void discoveryTerminationReasonsSurviveResultLookup() {
+    for (unsigned reason = 0; reason < 3; ++reason) {
+        Rig r;
+        r.line("@10 discover passive 5 0");
+        r.turn();
+        if (reason == 0)
+            r.line("@11 discover cancel");
+        else if (reason == 1) {
+            auto changed = r.app.hostInterfaceFacts();
+            changed.bitrateBitsPerSecond = 500000;
+            CHECK(r.app.setHostInterfaceFacts(changed));
+        } else
+            r.turn(5000);
+        r.drain();
+        CHECK(r.device.discovery().complete() && r.attempts() == 0);
+        const auto& summary = r.device.discovery().summary();
+        CHECK(reason != 0 || summary.cancelled);
+        CHECK(summary.interfaceChanged == (reason == 1));
+        CHECK(summary.deadlineExpired == (reason == 2));
+        const bool outcomes[] = {summary.cancelled, summary.interfaceChanged,
+                                 summary.deadlineExpired};
+        const std::string terminal = recordWith(r.bytes.output, "\"type\":\"terminal\"");
+        const std::string retained = r.command("@20 result 1");
+        const char* flags[][2] = {{"\"cancelled\":false", "\"cancelled\":true"},
+                                  {"\"interface_changed\":false", "\"interface_changed\":true"},
+                                  {"\"deadline_exhausted\":false", "\"deadline_exhausted\":true"}};
+        for (unsigned flag = 0; flag < 3; ++flag) {
+            contains(terminal, flags[flag][outcomes[flag]]);
+            contains(retained, flags[flag][outcomes[flag]]);
+        }
+        CHECK(r.attempts() == 0);
     }
 }
 
@@ -840,15 +980,18 @@ int main() {
     monitorOwnsSampleGaps();
     monitorDeadlineAndGapCancellationRemainDistinct();
     explicitCaptureUsesExistingCollector();
+    captureRejectsForeignCollectorsBeforeAdmission();
     failedReadKeepsNativeEvidence();
     cancelSettlesInflightWithoutNextField();
     resultAndOutputPressureNeverOrphanReads();
     staleSelectionCannotAdmit();
     discoveryUsesOneOwnerAndCountsFields();
+    discoveryPreservesExplicitHostSelection();
     if (PAIRED_CHANNELS)
         passiveDiscoveryNeedsNoSdoSession();
     discoveryBackedCapabilitiesFitWholeRecords();
     discoveryInterfaceChangePreventsHandoff();
+    discoveryTerminationReasonsSurviveResultLookup();
     decodedDebugReportsOnlyCheckedEvents();
     explicitNmtScope();
     inactiveFirmwareRecoveryCannotStartController();

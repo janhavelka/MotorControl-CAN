@@ -204,6 +204,17 @@ M::Status ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
                             const L::ReadOptions& options, uint8_t mask, bool ordinary) noexcept {
     if (!selected_)
         return M::Status(M::Err::INVALID_CONFIG, 0, "select an explicitly configured target first");
+    return requestAt(kind, target_, now, deadline, options, mask, ordinary);
+}
+bool ProbeApp::requestDiscoveryRead(L::ReadKind kind, const L::ReadTarget& target,
+                                     uint64_t now, uint64_t deadline,
+                                     const L::ReadOptions& options) noexcept {
+    return (kind == L::ReadKind::PROBE || kind == L::ReadKind::IDENTITY) &&
+           requestAt(kind, target, now, deadline, options, 0, false).isOk();
+}
+M::Status ProbeApp::requestAt(L::ReadKind kind, const L::ReadTarget& target, uint64_t now,
+                              uint64_t deadline, const L::ReadOptions& options, uint8_t mask,
+                              bool ordinary) noexcept {
     if (driverRead_.read.state != M::ReadState::EMPTY)
         return M::Status(M::Err::INVALID_CONFIG, 0,
                          "release the retained read before another request");
@@ -213,7 +224,7 @@ M::Status ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ReadError::ARGUMENT),
                          "state mask is only valid for a state read");
     // An open session holds the axis's reservation, and its stop outranks any read.
-    const AxisSession* session = axis(target_.channel.binding);
+    const AxisSession* session = axis(target.channel.binding);
     if (session && session->busy())
         return M::Status(M::Err::INVALID_CONFIG, 0, "axis session is busy");
     SequenceId held;
@@ -226,20 +237,20 @@ M::Status ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
     if (last == UINT32_MAX)
         return M::Status(M::Err::ILLEGAL_VALUE, 0, "read operation identifiers exhausted");
     const M::Status validated =
-        L::validateRead(kind, target_, last + 1, now, deadline, options, mask);
+        L::validateRead(kind, target, last + 1, now, deadline, options, mask);
     if (!validated)
         return validated;
-    const ReadPreparation preparation = {kind, target_, last + 1, now, deadline, options, mask};
+    const ReadPreparation preparation = {kind, target, last + 1, now, deadline, options, mask};
     if (ordinary) {
         const M::Status permitted = ordinaryReadPolicy(preparation);
         if (!permitted)
             return permitted;
     }
     SequenceId sequence = held;
-    if (!session && !owner_.beginSequence(target_.channel.binding, 1, now, sequence))
+    if (!session && !owner_.beginSequence(target.channel.binding, 1, now, sequence))
         return M::Status(M::Err::INVALID_CONFIG, 0, "owner cannot reserve the selected binding");
     const Sequence* reservation = owner_.sequence(sequence);
-    if (!reservation || reservation->nodeGeneration != target_.nodeGeneration ||
+    if (!reservation || reservation->nodeGeneration != target.nodeGeneration ||
         !owner_.beginOperation(sequence, last + 1, deadline, now)) {
         if (!session)
             owner_.releaseSequence(sequence);
@@ -284,8 +295,9 @@ bool ProbeApp::interruptRead(uint64_t now) noexcept {
 }
 bool ProbeApp::current() const noexcept {
     const Sequence* reservation = owner_.sequence(sequence_);
-    return reservation && reservation->nodeGeneration == target_.nodeGeneration &&
-           M::sameBinding(reservation->binding, target_.channel.binding);
+    const auto& target = driverRead_.read.target;
+    return reservation && reservation->nodeGeneration == target.nodeGeneration &&
+           M::sameBinding(reservation->binding, target.channel.binding);
 }
 bool ProbeApp::service(uint64_t now) noexcept {
     ServiceBudget budget;

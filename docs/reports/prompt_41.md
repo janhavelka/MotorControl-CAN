@@ -1,5 +1,8 @@
 # Prompt 41 typed device and network console
 
+See the [2026-11-15 independent re-audit](prompts_41_42_audit.md) for subsequent
+ownership/selection/evidence corrections and current integrated verification.
+
 Implementation on `promptset/motorcontrol-can`, entry/base checkpoint
 `a4bfc0802cc76454a4cc4ccd883891a598cd880b`, upstream
 `origin/promptset/motorcontrol-can`. Promptset v2 base remains `7878f7c`.

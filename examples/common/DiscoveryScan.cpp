@@ -319,10 +319,9 @@ bool DiscoveryScan::advance(const DiscoveryInterface& actual, uint64_t now) noex
         }
     } else if (cursor_ < plan_.count && !startedRead_) {
         const auto& t = plan_.targets[cursor_].target;
-        const bool prepared =
-            app_.select(t) && (plan_.mode == DiscoveryMode::PROBE
-                                   ? app_.requestProbe(now, deadlineUs_, plan_.options)
-                                   : app_.requestIdentity(now, deadlineUs_, plan_.options));
+        const bool prepared = app_.requestDiscoveryRead(
+            plan_.mode == DiscoveryMode::PROBE ? L::ReadKind::PROBE : L::ReadKind::IDENTITY, t,
+            now, deadlineUs_, plan_.options);
         ++summary_.attempted;
         if (!prepared) {
             finish(cursor_, DiscoveryOutcome::LOCAL_REJECTION, now);

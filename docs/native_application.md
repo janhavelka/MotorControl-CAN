@@ -37,6 +37,10 @@ It does not auto-run at firmware startup.
 | [FakeTransport](../examples/native_probe/FakeTransport.h) | Native-only synthetic server and fixed ingress/TX-report queues. Explicitly supplied time and events; no physical driver. |
 
 All objects are stationary, caller owned and serviced in one cooperative context.
+Discovery borrows the same read context through
+`requestDiscoveryRead(PROBE|IDENTITY, target, ...)`. Its explicit acquisition target
+does not change `selected()`, even temporarily. The normal selected-target getters
+still reject observations for another target; the scan retains its own copied findings.
 Constructing them, selecting a target, querying cached health and servicing an
 idle application generate no CAN command. Selection is explicit route metadata,
 not presence detection or model identification. Identity and configuration reads

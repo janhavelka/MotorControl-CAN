@@ -1,5 +1,10 @@
 # API and CLI naming map
 
+The [2026-11-15 audit](reports/prompts_41_42_audit.md) corrects attachment ownership,
+keeps discovery independent of host selection and preserves native terminal causes.
+The command inventory describes result/release/cancel for all tracked operation kinds;
+the [JSONL contract](cli_contract.md) specifies their frozen evidence fields.
+
 Prompts 40-42 implement the shared bounded console in
 [`ProbeConsole`](../examples/common/ProbeConsole.h), with one `consoleCommands`
 inventory. [The CLI contract](cli_contract.md#typed-device-increment-prompt-41)

@@ -26,7 +26,8 @@ timestamps and native coordinates are decimal **strings**. Unknown values are
 `null`; known booleans and zero remain `false` and zero. No float round trip is
 used for an integer. Binary floating previews are explicitly approximate. Inactive exact-error fractions are `null`, never a default zero-error claim.
 
-Local commands return `type:"reply"`, `command`, `ok` and typed `status` (stable Err label); terminal `detail` preserves the signed call-specific detail.
+Local commands return `type:"reply"`, `command`, `ok` and typed `status` (stable Err label).
+`detail` is a signed, route-specific code or acknowledgement mask, as described below.
 Asynchronous admission returns `result:"accepted"` and an operation ID. The
 terminal `type:"terminal"` retains the original `id`, `command_id`, operation ID,
 `outcome`, `status` and `uncertain`. Each admitted operation freezes its human or
@@ -76,8 +77,12 @@ only; it claims no detected model, firmware match or hardware qualification.
 `config` inspects host facts only. Interface/bitrate configuration comes from the
 application, not guessed board settings. `wiring` records host declarations;
 labels do not establish terminal existence, function assignment or electrical
-level. `stats reset` clears documented counters only. `cancel` withdraws local read or motion
-work, never a finite velocity (below); `recover` requests bounded host recovery, with a caller-console policy of
+level. `stats reset` clears documented counters only. `result` and `release` cover all
+tracked operation kinds. `cancel` withdraws cancellable read, settings, commissioning,
+discovery, capture or motion work; NMT uses its owner cancellation boundary. It never
+cancels a finite velocity (below), stop or recovery. Ordinary sequenced work settles
+in-flight evidence before withdrawal; explicit capture interruption retains its stronger
+quarantine boundary. Neither is a motor stop. `recover` requests bounded host recovery, with a caller-console policy of
 one second, without stopping/resetting/enabling a drive or replaying work.
 
 The offline axis workspace is separate from selected live bindings. It starts
@@ -206,6 +211,11 @@ Discovery publishes `type:"finding"` with operation/ordinal, address,
 strings/nulls in typed source order. Currentness describes scan completion, not
 future freshness. `discover inspect ORDINAL` retrieves the same retained facts.
 One valid reply never proves a duplicate-free bus or a supported model.
+Discovery preserves the explicit host selection, including an unselected app, throughout
+the scan. Its retained `DISCOVERY_FINISHED` terminal and `result ID` include independent
+`cancelled`, `interface_changed` and `deadline_exhausted` booleans from the frozen scan
+summary. A passive scan normally ends at its finite deadline, so `deadline_exhausted`
+alone does not mean failure; each finding retains its own presence/no-response outcome.
 Passive discovery also accepts an already configured network-only slot: it needs
 no SDO session and invents none. Active discovery and host selection require an
 actual configured SDO channel/fresh-session premise.
@@ -221,6 +231,13 @@ Only checked heartbeat/EMCY fields are decoded; an unknown frame is
 
 Settings terminals include `confirmed_mask`, `changed_mask` and `effects_possible`
 independently of `uncertain`, native abort and the original operation outcome.
+Settings and communication/persistence/PDO terminals also retain `native_outcome_code`
+(the public `ReadOutcome` enum value) and signed `status_detail` (the original
+`Status::detail`). These distinguish cancellation, invalidation and service timeout
+even when the route's summary outcome and `detail` mask are identical. Both survive
+`result ID`; they do not reinterpret the unsigned `abort_code` as a signed detail.
+An optional capture collector must belong to the same app/owner graph as `ProbeDevice`;
+a mismatched graph refuses attachment and capture before any work is admitted.
 Q20 rejection returns `UNSUPPORTED` and the typed read detail, not a protocol abort
 or application-health failure. Parsing errors remain `ILLEGAL_VALUE`.
 

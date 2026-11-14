@@ -1,5 +1,8 @@
 # Prompt42 motion console and platform parity
 
+See the [2026-11-15 independent re-audit](prompts_41_42_audit.md) for the current
+source/stop review, console boundary corrections and repeated platform gates.
+
 Scope: finite motion/action parsing and application integration, retaining the
 existing installed operations and sole owner. Entry revision was `7bd63d15` on
 `promptset/motorcontrol-can`, synchronized with its upstream; `main` was its

@@ -727,12 +727,21 @@ void consolePartialWriteKeepsUncertaintyThroughLookupAndRelease() {
     fixture.terminal(501, "\"detail\":2");
     CHECK(rig.settings.context().outcome == M::ReadOutcome::SERVICE_TIMEOUT);
     CHECK(rig.settings.context().confirmed == 2 && rig.drive.downloads == 2);
+    char nativeOutcome[48], statusDetail[48];
+    std::snprintf(nativeOutcome, sizeof nativeOutcome, "\"native_outcome_code\":%u",
+                  unsigned(rig.settings.context().outcome));
+    std::snprintf(statusDetail, sizeof statusDetail, "\"status_detail\":%ld",
+                  static_cast<long>(rig.settings.context().status.detail));
+    fixture.terminal(501, nativeOutcome);
+    fixture.terminal(501, statusDetail);
     const unsigned sent = rig.wire.sentCount;
     fixture.command("@502 result 1");
     fixture.drain();
     fixture.record(502, "\"outcome\":\"SETTINGS_FAILED\"");
     fixture.record(502, "\"uncertain\":true");
     fixture.record(502, "\"command_id\":501,\"operation_id\":1");
+    fixture.record(502, nativeOutcome);
+    fixture.record(502, statusDetail);
     CHECK(rig.wire.sentCount == sent && rig.settings.retained());
     fixture.command("@503 release 1");
     fixture.drain();
@@ -740,6 +749,121 @@ void consolePartialWriteKeepsUncertaintyThroughLookupAndRelease() {
     CHECK(!rig.settings.retained() && rig.wire.sentCount == sent);
     CHECK(!rig.owner.matchesChannel(rig.current.channel, rig.current.nodeGeneration));
     CHECK(rig.drive.find(0x2400, 3).raw == 2 && rig.drive.downloads == 2);
+}
+void consoleCancelledSettingsRetainTheirNativeReasonWithoutTraffic() {
+    ConsoleFixture fixture;
+    Rig& rig = fixture.rig;
+    L::DriverContext prior;
+    L::ReadContext state;
+    rig.prerequisites(prior, state, L::DriverGroup::SOFT_LIMITS);
+    const unsigned sent = rig.wire.sentCount;
+    fixture.command("@521 driver limits 1");
+    CHECK(rig.settings.retained() && rig.settings.active());
+    fixture.command("@522 cancel 1"); // Withdraw before the next owner service can send it.
+    fixture.drain();
+    fixture.record(521, "\"result\":\"accepted\",\"operation_id\":1");
+    fixture.record(522, "\"ok\":true");
+    fixture.terminal(521, "\"outcome\":\"SETTINGS_FAILED\"");
+    CHECK(rig.settings.context().outcome == M::ReadOutcome::CANCELLED);
+    CHECK(rig.settings.context().outcome != M::ReadOutcome::SERVICE_TIMEOUT);
+    CHECK(!rig.settings.context().uncertain && !rig.settings.context().effectsPossible);
+    CHECK(rig.wire.sentCount == sent && rig.drive.downloads == 0);
+    char nativeOutcome[48], statusDetail[48];
+    std::snprintf(nativeOutcome, sizeof nativeOutcome, "\"native_outcome_code\":%u",
+                  unsigned(rig.settings.context().outcome));
+    std::snprintf(statusDetail, sizeof statusDetail, "\"status_detail\":%ld",
+                  static_cast<long>(rig.settings.context().status.detail));
+    fixture.terminal(521, nativeOutcome);
+    fixture.terminal(521, statusDetail);
+    CHECK(rig.settings.release()); // Lookup must use its frozen record after native storage is freed.
+    fixture.command("@523 result 1");
+    fixture.drain();
+    fixture.record(523, "\"command_id\":521,\"operation_id\":1");
+    fixture.record(523, nativeOutcome);
+    fixture.record(523, statusDetail);
+    fixture.record(523, "\"uncertain\":false");
+    CHECK(rig.wire.sentCount == sent && rig.drive.downloads == 0);
+}
+void consoleDriverCandidateUsesTypedUnitsAndReadback() {
+    ConsoleFixture fixture;
+    Rig& rig = fixture.rig;
+    const C::SdoCompletion control = rig.acknowledgeControl();
+    L::DriverContext prior;
+    L::ReadContext state;
+    rig.prerequisites(prior, state, L::DriverGroup::MOTION_PARAMETERS, &control);
+    const unsigned sent = rig.wire.sentCount;
+    const unsigned downloads = rig.drive.downloads;
+    const uint32_t operation = rig.session.nextOperation();
+    const char* invalid[] = {"@601 driver set 3001 200 300",
+                             "@601 driver set 120 2001 300",
+                             "@601 driver set 120 200 2001",
+                             "@601 driver set 120 200",
+                             "@601 driver set 120 200 300 extra",
+                             "@601 driver set 120 1.5 300"};
+    for (const char* command : invalid) {
+        const uint32_t rejected = fixture.console.stats().invalid;
+        fixture.command(command);
+        fixture.drain();
+        CHECK(fixture.console.stats().invalid == rejected + 1);
+        CHECK(!rig.settings.retained() && rig.session.nextOperation() == operation);
+        CHECK(rig.wire.sentCount == sent && rig.drive.downloads == downloads);
+    }
+    fixture.record(601, "\"ok\":false");
+    fixture.command("@602 driver set 120 200 300");
+    fixture.drain();
+    fixture.record(602, "\"result\":\"accepted\",\"operation_id\":1");
+    fixture.terminal(602, "\"outcome\":\"SETTINGS_READBACK_MATCHED\"");
+    CHECK(rig.settings.context().state == L::SettingsState::SUCCEEDED);
+    CHECK(rig.drive.downloads == downloads + 3);
+    CHECK(rig.drive.find(0x6081).raw == 120 && rig.drive.find(0x6083).raw == 200 &&
+          rig.drive.find(0x6084).raw == 300);
+    L::DriverObservation observed;
+    CHECK(L::getDriver(rig.settings.context(), rig.settings.context().reservation, rig.current,
+                       rig.now, AGE, observed));
+    CHECK(observed.positionSpeedRpm == 120 && observed.rampUpTimeMs == 200 &&
+          observed.rampDownTimeMs == 300);
+    const unsigned completedSent = rig.wire.sentCount;
+    fixture.command("@603 result 1");
+    fixture.drain();
+    fixture.record(603, "\"command_id\":602,\"operation_id\":1");
+    CHECK(rig.wire.sentCount == completedSent);
+}
+void consoleControlCandidatePreservesEncoderAndRejectsInvalidInput() {
+    ConsoleFixture fixture;
+    Rig& rig = fixture.rig;
+    L::DriverContext prior;
+    L::ReadContext state;
+    rig.prerequisites(prior, state, L::DriverGroup::CONTROL);
+    const unsigned sent = rig.wire.sentCount;
+    const uint32_t operation = rig.session.nextOperation();
+    const char* invalid[] = {"@611 control set 3", "@611 control set -1",
+                             "@611 control set 1.5", "@611 control set",
+                             "@611 control set 1 extra"};
+    for (const char* command : invalid) {
+        const uint32_t rejected = fixture.console.stats().invalid;
+        fixture.command(command);
+        fixture.drain();
+        CHECK(fixture.console.stats().invalid == rejected + 1);
+        CHECK(!rig.settings.retained() && rig.session.nextOperation() == operation);
+        CHECK(rig.wire.sentCount == sent && rig.drive.downloads == 0);
+    }
+    fixture.record(611, "\"ok\":false");
+    fixture.command("@612 control set 1");
+    fixture.drain();
+    fixture.record(612, "\"result\":\"accepted\",\"operation_id\":1");
+    fixture.terminal(612, "\"outcome\":\"SETTINGS_READBACK_MATCHED\"");
+    CHECK(rig.settings.context().state == L::SettingsState::SUCCEEDED);
+    CHECK(rig.drive.downloads == 1 && rig.drive.find(0x2500).raw == 1);
+    CHECK(rig.drive.find(0x2501).raw == 4000);
+    L::ControlObservation observed;
+    CHECK(L::getControl(rig.settings.context(), rig.settings.context().reservation, rig.current,
+                        rig.now, AGE, observed));
+    CHECK(observed.loopMode == L::LoopMode::OPEN_LOOP && observed.encoderResolutionRaw == 4000);
+    const unsigned completedSent = rig.wire.sentCount;
+    fixture.command("@613 result 1");
+    fixture.drain();
+    fixture.record(613, "\"command_id\":612,\"operation_id\":1");
+    CHECK(rig.wire.sentCount == completedSent);
 }
 } // namespace
 int main() {
@@ -753,5 +877,8 @@ int main() {
     recordedReapplicationRequiresExactHelperPreparation();
     consoleSettingsRejectBeforeAdmissionAndRetainMatchedResult();
     consolePartialWriteKeepsUncertaintyThroughLookupAndRelease();
+    consoleCancelledSettingsRetainTheirNativeReasonWithoutTraffic();
+    consoleDriverCandidateUsesTypedUnitsAndReadback();
+    consoleControlCandidatePreservesEncoderAndRejectsInvalidInput();
     std::printf("probe_settings_app: %u checks passed (HOST_FAKE only)\n", checks);
 }

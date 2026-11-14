@@ -219,6 +219,20 @@ class ProbeApp {
     requestOrdinaryRead(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs,
                         uint64_t deadlineUs, const MotorControlCAN::LICHUAN_C::ReadOptions& options,
                         uint8_t stateMask = 0) noexcept;
+    /** Prepare an explicitly requested discovery read without changing host selection.
+     * @param kind PROBE or IDENTITY; other read kinds are rejected before reservation.
+     * @param target Copied configured route/node epochs, independent of selected().
+     * @param nowUs Nondecreasing supplied microseconds, zero valid.
+     * @param deadlineUs Exclusive immutable future cutoff.
+     * @param options Explicit reviewed acquisition budgets/width policy, not read permission.
+     * @return Same preparation/retention contract as requestIdentity, except that no host
+     * selection is required or published. Discovery consumes the typed read context directly;
+     * selected-target getters still require their matching host selection. No I/O or retry.
+     */
+    bool requestDiscoveryRead(MotorControlCAN::LICHUAN_C::ReadKind kind,
+                              const MotorControlCAN::LICHUAN_C::ReadTarget& target,
+                              uint64_t nowUs, uint64_t deadlineUs,
+                              const MotorControlCAN::LICHUAN_C::ReadOptions& options) noexcept;
     /** Cancel the current read locally, retaining any pending owner terminal for advanceRead.
      * @param nowUs Nondecreasing supplied microseconds; earlier terminal/deadline wins.
      * @return False for no active read or invalid time; true performs no receive/new TX.
@@ -370,6 +384,11 @@ class ProbeApp {
                                     uint64_t deadlineUs,
                                     const MotorControlCAN::LICHUAN_C::ReadOptions& options,
                                     uint8_t mask = 0, bool ordinary = false) noexcept;
+    MotorControlCAN::Status requestAt(MotorControlCAN::LICHUAN_C::ReadKind kind,
+                                      const MotorControlCAN::LICHUAN_C::ReadTarget& target,
+                                      uint64_t nowUs, uint64_t deadlineUs,
+                                      const MotorControlCAN::LICHUAN_C::ReadOptions& options,
+                                      uint8_t mask, bool ordinary) noexcept;
     bool current() const noexcept;
 };
 } // namespace MotorControlCANExample

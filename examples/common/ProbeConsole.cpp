@@ -79,13 +79,13 @@ const ConsoleCommand commands[] = {
      E::HOST_CONFIGURATION, C::REPLY, "Inspect counters; reset clears totals only.", nullptr, 40},
     {"drv", "drv", "CanBusOwner::resources; ProbePlatform::stats", "cached resources", E::CACHE,
      C::REPLY, "Inspect queue, result and console pressure.", nullptr, 40},
-    {"result", "result [ID]", "retained read/recovery evidence", "retained operation", E::CACHE,
+    {"result", "result [ID]", "ProbeConsole retained operation evidence", "retained operation", E::CACHE,
      C::REPLY, "Inspect without consuming the retained result.", nullptr, 40},
-    {"release", "release ID", "ProbeApp::releaseRead; owner.releaseRecovery", "delivered terminal",
+    {"release", "release ID", "tracked operation's public release", "delivered terminal",
      E::HOST_CONFIGURATION, C::REPLY, "Release result storage; never releases a motor.", nullptr,
      40},
-    {"cancel", "cancel [ID]", "ProbeApp::cancelRead", "active tracked read", E::LOCAL_CANCEL,
-     C::REPLY, "Cancel local read work; this is not motor stop.", nullptr, 40},
+    {"cancel", "cancel [ID]", "tracked operation's public cancel", "active cancellable operation", E::LOCAL_CANCEL,
+     C::REPLY, "Withdraw local work and settle in-flight evidence; this is not motor stop.", nullptr, 40},
     {"recover", "recover", "CanBusOwner::recover", "explicit host recovery", E::HOST_RECOVERY,
      C::ASYNCHRONOUS, "Attempt bounded host recovery without device commands.", nullptr, 40},
     {"axis", "axis config [set FIELD VALUE [MAXIMUM]] | axis origin INTEGER",
@@ -1038,12 +1038,21 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 body.add("%lu", static_cast<unsigned long>(abortCode));
             else
                 body.add("null");
+            if (op.discovery && device_ && device_->discovery().complete() &&
+                device_->discoveryOperation() == op.nativeOperation) {
+                const auto& summary = device_->discovery().summary();
+                body.add(",\"cancelled\":%s,\"interface_changed\":%s,\"deadline_exhausted\":%s",
+                         boolean(summary.cancelled), boolean(summary.interfaceChanged),
+                         boolean(summary.deadlineExpired));
+            }
             if (op.settings && settings_ && settings_->retained() &&
                 settings_->context().operation == op.nativeOperation) {
                 const auto& settings = settings_->context();
-                body.add(",\"confirmed_mask\":%u,\"changed_mask\":%u,\"effects_possible\":%s",
+                body.add(",\"confirmed_mask\":%u,\"changed_mask\":%u,\"effects_possible\":%s,"
+                         "\"native_outcome_code\":%u,\"status_detail\":%ld",
                          unsigned(settings.confirmed), unsigned(settings.changed),
-                         boolean(settings.effectsPossible));
+                         boolean(settings.effectsPossible), unsigned(settings.outcome),
+                         static_cast<long>(settings.status.detail));
             }
             if (op.commissioning && commissioning_ && commissioning_->retained() &&
                 (commissioning_->communication() ? commissioning_->communication()->operation
@@ -1052,16 +1061,19 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                                                  : 0) == op.nativeOperation) {
                 if (const auto* c = commissioning_->communication())
                     body.add(",\"write_acknowledged\":%s,\"readback_matched\":%s,\"restart\":null,"
-                             "\"persistent\":null",
-                             boolean(c->writeAcknowledged), boolean(c->readbackMatched));
+                             "\"persistent\":null,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             boolean(c->writeAcknowledged), boolean(c->readbackMatched),
+                             unsigned(c->outcome), static_cast<long>(c->status.detail));
                 else if (const auto* c = commissioning_->persistence())
                     body.add(",\"execution_code\":%u,\"attempts\":%u,\"durability_known\":false,"
-                             "\"restart\":null",
-                             unsigned(c->execution), unsigned(c->attempts));
+                             "\"restart\":null,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             unsigned(c->execution), unsigned(c->attempts), unsigned(c->outcome),
+                             static_cast<long>(c->status.detail));
                 else if (const auto* c = commissioning_->pdo())
                     body.add(",\"acknowledged_mask\":%u,\"map_confirmed\":%s,\"samples_qualified\":"
-                             "false",
-                             unsigned(c->acknowledgedMask), boolean(c->mapConfirmed));
+                             "false,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             unsigned(c->acknowledgedMask), boolean(c->mapConfirmed),
+                             unsigned(c->outcome), static_cast<long>(c->status.detail));
             }
             if (op.capture && device_ && device_->evidence() && device_->evidence()->record() &&
                 device_->evidence()->record()->plan.id == op.nativeOperation) {

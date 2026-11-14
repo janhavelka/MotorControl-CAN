@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Device and motion console audit (prompts 41-42, 2026-11-15)
+
+- Reject capture collectors from a different application/owner before attachment.
+  Active discovery now prepares reads on explicit targets without changing host selection.
+- Preserve discovery cancellation/interface/deadline flags and typed settings/
+  commissioning outcome/status details in terminal records and retained lookups.
+  Correct result/release/cancel inventory descriptions and add console driver/control
+  parity, pre-admission rejection and ownership regressions. Existing device gates remain.
+
 ### Finite Python campaigns and recorded sessions (prompt 44, 2026-11-14)
 
 - Add named read-only, position, stop, finite velocity, homing and settings plans

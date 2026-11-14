@@ -1,5 +1,11 @@
 # Prompt execution progress
 
+The 2026-11-15 [fresh audit of prompts41-42](../reports/prompts_41_42_audit.md)
+corrects capture graph ownership, discovery selection and retained failure evidence,
+with independent source/route/motion reviews and new console regressions.
+This audit adds no device permissions or hardware qualification; next planned software
+work remains45.
+
 Prompt44 implements the finite [campaign/session family](../bench_scenarios.md)
 over the existing Console: six named classes, bounded position comparisons and
 exclusive deterministic evidence packages. Host tests preserve primary failures

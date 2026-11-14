@@ -747,6 +747,23 @@ void consolePreparedFamiliesRetainSuccessAndUncertainty() {
             fixture.record(602, lost ? "\"uncertain\":true" : "\"ok\":true", true);
             fixture.record(602, "\"command_id\":602,\"operation_id\":1", true);
             CHECK(rig.drive.downloads == 1 && rig.wire.guards == 1 && rig.commissioning.retained());
+            const M::ReadOutcome nativeOutcome =
+                family == 0 ? rig.commissioning.communication()->outcome
+                : family == 1 ? rig.commissioning.persistence()->outcome
+                              : rig.commissioning.pdo()->outcome;
+            const M::Status nativeStatus =
+                family == 0 ? rig.commissioning.communication()->status
+                : family == 1 ? rig.commissioning.persistence()->status
+                              : rig.commissioning.pdo()->status;
+            CHECK(nativeOutcome == (lost ? M::ReadOutcome::SERVICE_TIMEOUT
+                                          : M::ReadOutcome::SUCCESS));
+            char outcomeField[48], detailField[48];
+            std::snprintf(outcomeField, sizeof outcomeField, "\"native_outcome_code\":%u",
+                          unsigned(nativeOutcome));
+            std::snprintf(detailField, sizeof detailField, "\"status_detail\":%ld",
+                          static_cast<long>(nativeStatus.detail));
+            fixture.record(602, outcomeField, true);
+            fixture.record(602, detailField, true);
             if (family == 0) {
                 fixture.record(
                     602, lost ? "\"write_acknowledged\":false" : "\"write_acknowledged\":true",
@@ -770,6 +787,8 @@ void consolePreparedFamiliesRetainSuccessAndUncertainty() {
             fixture.drain();
             fixture.record(603, lost ? failure : success);
             fixture.record(603, "\"command_id\":602,\"operation_id\":1");
+            fixture.record(603, outcomeField);
+            fixture.record(603, detailField);
             CHECK(rig.wire.sentCount == finalSent);
             fixture.command("@604 release 1");
             fixture.drain();

@@ -126,7 +126,8 @@ struct DiscoverySummary {
 };
 /** Stationary application scan. Borrowed app/owner/services must be the same existing owner graph.
  * It owns no controller/receiver/node registry and sends no downloads, NMT or drain markers.
- * The app is exclusively borrowed during a scan; ordinary owner passive dispatch continues.
+ * The app's read storage is exclusively borrowed during a scan; host selection is preserved
+ * throughout, and ordinary owner passive dispatch continues.
  */
 class DiscoveryScan {
   public:

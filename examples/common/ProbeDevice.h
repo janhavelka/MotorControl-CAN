@@ -16,7 +16,8 @@ class ProbeSettings;
 class ProbeDevice {
   public:
     /** @param app Existing app. @param owner Its owner. @param services Its service storage.
-     * @param evidence Optional existing collector, serviced externally after the app turn.
+     * @param evidence Optional collector on this same app/owner graph, serviced externally
+     * after the app turn. A foreign collector refuses attachment and capture without work.
      */
     ProbeDevice(ProbeApp& app, CanBusOwner& owner, MotorControlCAN::CANOPEN::SdoClient& services,
                 DeviceEvidence* evidence = nullptr) noexcept;
@@ -30,7 +31,8 @@ class ProbeDevice {
     /** @param app Expected app. @param owner Expected owner.
      * @return Exact immutable resource graph, independent of attachment state; no I/O. */
     bool usesGraph(const ProbeApp& app, const CanBusOwner& owner) const noexcept {
-        return &app == &app_ && &owner == &owner_ && owner_.usesServices(services_);
+        return &app == &app_ && &owner == &owner_ && app_.usesOwner(owner_) &&
+               owner_.usesServices(services_) && (!evidence_ || evidence_->usesGraph(app_, owner_));
     }
     /** Supply established native width/timing policy without wire work or permission.
      * @param options Nonzero budgets, declared/measured identity/count conventions, pdoNumber0.

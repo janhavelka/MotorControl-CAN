@@ -14,8 +14,7 @@ ProbeDevice::ProbeDevice(ProbeApp& app, CanBusOwner& owner, C::SdoClient& servic
                          DeviceEvidence* evidence) noexcept
     : app_(app), owner_(owner), services_(services), scan_(app, owner, services),
       evidence_(evidence) {
-    attached_ =
-        app_.usesOwner(owner_) && owner_.usesServices(services_) && app_.attachDevice(*this);
+    attached_ = usesGraph(app, owner) && app_.attachDevice(*this);
     readOptions_.queueTimeoutUs = readOptions_.responseTimeoutUs = 100000;
 }
 bool ProbeDevice::setReadOptions(const L::ReadOptions& options) noexcept {
@@ -166,7 +165,7 @@ bool ProbeDevice::requestNmt(C::NmtCommand command, bool broadcast, uint32_t req
     return owner_.admitNmt(work, now, output);
 }
 bool ProbeDevice::setCapturePlan(const AcquisitionPlan& plan) noexcept {
-    if (!evidence_ || evidence_->record())
+    if (!attached_ || !evidence_ || evidence_->record())
         return false;
     capturePlan_ = plan;
     captureReady_ = true;
