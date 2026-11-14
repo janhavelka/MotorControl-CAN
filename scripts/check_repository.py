@@ -20,6 +20,9 @@ EXPORTS = {
     "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
+    "scripts/bench_motion.py", "scripts/bench_repeat.py", "scripts/bench_scenarios.py", "scripts/bench_session.py",
+    "docs/bench_scenarios.md", "test/bench_campaign_plans_test.py",
+    "test/bench_campaign_adversarial_test.py", "test/bench_session_test.py",
     "scripts/bench_probe.py", "scripts/_bench_evidence.py", "docs/runners.md",
     "test/bench_console_test.py", "test/bench_console_adversarial_test.py",
     "test/bench_probe_cli_test.py", "test/bench_evidence_test.py", "test/bench_console_native_test.py",

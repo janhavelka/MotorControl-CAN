@@ -1,6 +1,7 @@
 # Live source and responsibility map
 
-Prompts40-43 implement one shared conditional console and bounded Python client. [The CLI contract](cli_contract.md)
+Prompts40-44 implement one shared conditional console, bounded Python client and
+finite campaigns. [The CLI contract](cli_contract.md)
 owns grammar, exact JSONL, source gates and capacity; [the P42 source audit](audit/PROMPT_42_SOURCES.md)
 records current RS and original vendor evidence. No device qualification is inferred
 from a native fake or compile result.
@@ -13,10 +14,24 @@ records refreshed sibling runner responsibilities and the distinct CAN schema.
 
 | Responsibility | Implementation / focused test | Boundary |
 | --- | --- | --- |
-| Stream framing, handshake, request/operation correlation and one finite invocation | [bench_probe.py](../scripts/bench_probe.py); [CLI tests](../test/bench_probe_cli_test.py), [adversarial streams](../test/bench_console_adversarial_test.py) | One borrowed stream; explicit route/version; no replay, firmware epoch inference, motion or campaign |
+| Stream framing, handshake, request/operation correlation and checked public commands | [bench_probe.py](../scripts/bench_probe.py); [CLI tests](../test/bench_probe_cli_test.py), [adversarial streams](../test/bench_console_adversarial_test.py) | One borrowed stream; explicit route/version; no replay, firmware epoch inference or implicit motion |
 | Pure retained evidence projections | [_bench_evidence.py](../scripts/_bench_evidence.py); [summary tests](../test/bench_evidence_test.py) | Bounded owned JSON copies; exact values; caller-supplied evidence kind; no I/O or state inference |
 | Client against the real native producer | [bench_console_native_test.py](../test/bench_console_native_test.py) | Probe/identity/state records and Q20 refusal from existing native fixtures; host testing only |
 | Shared record schema | [console_jsonl.py](../scripts/console_jsonl.py); [producer transcript tests](../test/console_protocol_test.py) | Same schema validation as existing host tooling; no copied CAN driver |
+
+## Finite Python campaigns and session ownership (prompt 44)
+
+[The runner guide](runners.md) owns shared live arguments, supplied fixture
+records, artifact paths and failure semantics. [The scenario catalogue](bench_scenarios.md)
+owns finite commands and prerequisites. [The source audit](audit/PROMPT_44_SOURCES.md)
+records refreshed sibling campaign behavior and rejected recovery assumptions.
+
+| Responsibility | Implementation / focused test | Boundary |
+| --- | --- | --- |
+| Named plans, prerequisite validation and scenario-owned cleanup | [bench_scenarios.py](../scripts/bench_scenarios.py), [bench_motion.py](../scripts/bench_motion.py); [plan tests](../test/bench_campaign_plans_test.py) | Public CLI only; fixture declarations grant no native qualification; Q20 remains enforced |
+| Position setup comparison | [bench_repeat.py](../scripts/bench_repeat.py); [campaign failure tests](../test/bench_campaign_adversarial_test.py) | 1..20 write/verify pairs and one stop; no arbitrary scenario, save, restore or replay |
+| Port, Console and artifact lifetime | [bench_session.py](../scripts/bench_session.py); [session integration tests](../test/bench_session_test.py) | Reserve evidence before port access; scenario callback owns cleanup; bounded summary plus streamed log and deterministic report package |
+| Command/cleanup evidence helpers | [bench_probe.py](../scripts/bench_probe.py); [campaign failure tests](../test/bench_campaign_adversarial_test.py) | Preserve primary, cleanup and uncertainty separately; disconnected/evidence-failed sessions send no new work |
 
 
 ## Motion console attachment (prompt42)

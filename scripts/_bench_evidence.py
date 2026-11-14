@@ -23,7 +23,7 @@ MAX_SUMMARY_BYTES = 262144
 MAX_SUMMARY_DEPTH = 16
 MAX_OPERATIONS = 16
 EVIDENCE_KINDS = ("planned", "skipped", "host-tested", "live-observed")
-INTERRUPTIONS = (None, "framing_loss", "reboot", "disconnect", "deadline")
+INTERRUPTIONS = (None, "framing_loss", "reboot", "disconnect", "deadline", "interrupted")
 
 
 class BenchError(RuntimeError):

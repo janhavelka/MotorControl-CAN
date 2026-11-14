@@ -42,6 +42,7 @@ exact JSONL schema, bounded output and visible P41/P42 route gates.
 | Material | Purpose |
 | --- | --- |
 | [Python console client](runners.md) | Bounded correlation, exact evidence, offline plans/self-test and one explicit typed probe/read; no automatic retry or campaign |
+| [Finite campaign catalogue](bench_scenarios.md) | Named plans, explicit prerequisites, one planned cleanup, bounded position comparison and deterministic session evidence; no physical qualification |
 | [Drive-state interpretation and action gates](drive_actions.md) | Checked documentary decoder, raw evidence and disagreements; the gated enable sequence and its transition table, which ran on both specimens (attended, one firmware); release's exact gap |
 | [Device evidence conflicts](device_conflicts.md) and [offline evidence procedure](../examples/device_evidence/README.md) | Prompt 29 source questions, capability gates and the bounded typed-read collector; no live qualification |
 | [Firmware examples](firmware_examples.md) | Shared Arduino/IDF startup, explicit configuration, bounded USB/time and three real compile gates |

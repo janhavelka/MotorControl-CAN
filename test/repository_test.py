@@ -18,6 +18,9 @@ import check_repository as checker
 
 # Independent fixture inventory: deleting a checker rule must not weaken tests.
 FILES = {
+    "scripts/bench_motion.py", "scripts/bench_repeat.py", "scripts/bench_scenarios.py", "scripts/bench_session.py",
+    "docs/bench_scenarios.md", "test/bench_campaign_plans_test.py",
+    "test/bench_campaign_adversarial_test.py", "test/bench_session_test.py",
     "scripts/bench_probe.py", "scripts/_bench_evidence.py", "docs/runners.md",
     "test/bench_console_test.py", "test/bench_console_adversarial_test.py",
     "test/bench_probe_cli_test.py", "test/bench_evidence_test.py", "test/bench_console_native_test.py",
@@ -204,6 +207,9 @@ class RepositoryTests(unittest.TestCase):
                 ("bench_console_adversarial", "test/bench_console_adversarial_test.py", []),
                 ("bench_probe_cli", "test/bench_probe_cli_test.py", []),
                 ("bench_evidence", "test/bench_evidence_test.py", []),
+                ("bench_campaign_plans", "test/bench_campaign_plans_test.py", []),
+                ("bench_campaign_adversarial", "test/bench_campaign_adversarial_test.py", []),
+                ("bench_session", "test/bench_session_test.py", []),
                 ("console_protocol", "test/console_protocol_test.py", [str(self.build / "test" / ("probe_console_test" + suffix)), str(self.build / "native" / ("native_probe" + suffix)), str(self.build / "test" / ("motion_console_test" + suffix))]),
                 ("repository_contract", "test/repository_test.py", []),
                 ("verification_contract", "test/verification_test.py", []),

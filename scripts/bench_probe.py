@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+from contextlib import contextmanager
 import re
 import secrets
 import sys
@@ -100,6 +101,8 @@ def read_fields(command):
 
 def supported_command(command):
     """Only forms whose record shapes this client implements; reject others before I/O."""
+    if campaign_form(command) is not None:
+        return True
     if command in ("version", "profile list", "caps", "help", "config", "status", "health", "stats", "drv", "memory"):
         return True
     tokens = command.split()
@@ -117,6 +120,41 @@ def supported_command(command):
     else:
         return False
     return not tail or len(tail) == 1 and _decimal(tail[0]) and 1 <= int(tail[0]) <= 60000
+
+
+def campaign_form(command):
+    """Narrow public campaign grammar; no raw objects, persistence or recovery.
+
+    Native validation remains authoritative for units, state and firmware.
+    The return describes console record shape, never drive permission.
+    """
+    if command in ("host", "wiring", "load", "home methods", "motion write", "motion verify"):
+        return "reply"
+    if command == "axis config":
+        return "axis"
+    number = r"-?(?:0|[1-9][0-9]*)"
+    positive_integer = r"[1-9][0-9]*"
+    if re.fullmatch(r"(?:accel|decel) " + positive_integer + r" ms", command):
+        return "reply"
+    if re.fullmatch(r"speed " + positive_integer + r" rpm", command):
+        return "reply"
+    if command in ("stop normal", "stop fast"):
+        return "stop"
+    if re.fullmatch(r"move (?:relative|absolute) " + number + r" steps native " +
+                   positive_integer + r" configured setup (?:write|verify)(?: basis actual)?", command):
+        return "motion"
+    if re.fullmatch(r"velocity " + number + r" rpm motor " + positive_integer + r" configured (?:normal|fast)", command):
+        return "motion"
+    if re.fullmatch(r"home (?:17|18|24|29) " + positive_integer + " " + positive_integer + " " + positive_integer + r" zero", command):
+        return "motion"
+    unsigned_integer = r"(?:0|[1-9][0-9]*)"
+    if re.fullmatch(r"driver set " + unsigned_integer + " " + unsigned_integer + " " + unsigned_integer, command):
+        return "settings"
+    return None
+
+
+def _slot(command):
+    return command if campaign_form(command) == "stop" else "ordinary"
 
 
 @dataclass
@@ -143,6 +181,7 @@ class Command:
     phase: str = "waiting_reply"
     input_bytes: int = 0
     turns: int = 0
+    turn_limit: int = MAX_TURNS
 
 
 class Console:
@@ -171,6 +210,8 @@ class Console:
         self.handshake = {}
         self.pending, self.operations = {}, {}
         self.last_operation_id = 0
+        self.last_admission_request = 0
+        self.seen_operations = set()  # Bounded by MAX_COMMANDS, including released history.
         self.capabilities = {}
         self.buffer = bytearray()
         self.raw_lines, self.parse_failures = deque(maxlen=64), deque(maxlen=16)
@@ -216,6 +257,12 @@ class Console:
             self._fail("console disconnected", "disconnect")
         try:
             data = self.port.read(READ_CHUNK)
+        except KeyboardInterrupt:
+            try:
+                self._fail("interrupted transport read; framing unknown")
+            except BenchError:
+                pass
+            raise
         except (OSError, EOFError) as error:
             self._fail("console read disconnected: " + str(error), "disconnect")
         if type(data) is not bytes or len(data) > READ_CHUNK:
@@ -335,20 +382,33 @@ class Console:
             self._status(item)
             if item.get("result") == "accepted":
                 capability = self.capabilities.get(family)
-                if (not item["ok"] or not capability or capability["completion"] != "asynchronous" or
+                if (not item["ok"] or not capability or campaign_form(handle.command) in ("reply", "axis") or
+                        capability["completion"] != "asynchronous" or
                         handle.accepted or not is_uint32(item.get("operation_id"), 1)):
                     self._fail("duplicate/invalid operation admission")
                 operation = item["operation_id"]
-                if operation <= self.last_operation_id or len(self.operations) >= MAX_OPERATIONS:
-                    self._fail("reused operation identity or retained capacity exhausted")
+                slot = _slot(handle.command)
+                occupied = sum(_slot(existing.command) == slot for existing in self.operations.values())
+                # Allocation is monotonic; delivery is not: reserved stop replies
+                # precede an older ordinary receipt in ProbeConsole::service.
+                regressed = operation < self.last_operation_id and handle.id >= self.last_admission_request
+                if operation in self.seen_operations:
+                    self._fail("reused native operation identity")
+                if regressed:
+                    self._fail("native operation regressed on a newer request; firmware epoch unresolved")
+                if occupied >= (MAX_OPERATIONS if slot == "ordinary" else 1):
+                    self._fail("retained native operation capacity exhausted")
                 handle.accepted, handle.operation_id, handle.phase = True, operation, "admitted"
                 self.operations[operation] = handle
-                self.last_operation_id = operation
+                self.seen_operations.add(operation)
+                if operation > self.last_operation_id:
+                    self.last_operation_id, self.last_admission_request = operation, handle.id
             elif handle.accepted:
                 self._fail("ordinary reply replaced an admitted operation")
             else:
                 capability = self.capabilities.get(family)
-                if item["ok"] and capability and capability["completion"] == "asynchronous":
+                if (item["ok"] and capability and capability["completion"] == "asynchronous" and
+                        campaign_form(handle.command) not in ("reply", "axis")):
                     self._fail("asynchronous route returned success without admission/terminal")
                 # Cached result inspection has a new request ID, but original command_id.
                 if family == "result" and "outcome" in item:
@@ -375,6 +435,9 @@ class Console:
                         self._fail("pending lookup regressed retained terminal evidence")
                 if handle.command in ("caps", "help") and item.get("ok") and item.get("result") != "complete":
                     self._fail("inventory lacks final complete record")
+                if handle.command == "axis config" and item["ok"]:
+                    if {row.get("part") for row in handle.records if row["type"] == "axis"} != {"geometry", "feedback", "limits", "provenance"}:
+                        self._fail("axis listing is incomplete")
                 handle.terminal, handle.phase = item, "completed"
         elif kind == "terminal":
             self._status(item)
@@ -394,13 +457,34 @@ class Console:
                 values = [row for row in handle.records if row["type"] == "value"]
                 if any(int(row["latest_us"]) > int(item["completed_us"]) for row in values):
                     self._fail("terminal precedes its native observations")
+            form = campaign_form(handle.command)
+            if form in ("motion", "stop", "settings"):
+                self._campaign_terminal(handle, item, form)
             handle.terminal, handle.phase = item, "completed"
         else:
+            if kind == "axis" and handle.command == "axis config" and not handle.accepted:
+                if (item.get("part") not in ("geometry", "feedback", "limits", "provenance") or
+                        any(row.get("part") == item["part"] for row in handle.records)):
+                    self._fail("invalid/duplicate axis listing part")
+                self._append(handle, item)
+                return
             if (not handle.accepted or not is_uint32(item.get("operation_id"), 1) or
                     item["operation_id"] != handle.operation_id):
                 self._fail("value/finding lacks matching admission")
             if family in ("probe", "read") and kind != "value":
                 self._fail("typed read received an unexpected record kind")
+            form = campaign_form(handle.command)
+            if form in ("motion", "stop", "settings"):
+                if form == "motion" and kind == "motion_value":
+                    self._motion_value(item)
+                    if any(row.get("field") == item["field"] for row in handle.records if row["type"] == kind):
+                        self._fail("duplicate motion value")
+                elif form == "stop" and kind == "stop_attempt":
+                    self._stop_attempt(item)
+                    if any(row.get("attempt") == item["attempt"] for row in handle.records if row["type"] == kind):
+                        self._fail("duplicate stop attempt")
+                else:
+                    self._fail("unexpected campaign intermediate record")
             if kind == "value":
                 self._value_fields(item)
                 expected = read_fields(handle.command)
@@ -435,12 +519,83 @@ class Console:
             if raw is None or int(item["native_signed"]) != (int(raw) if int(raw) < 1 << (bits - 1) else int(raw) - (1 << bits)):
                 self._fail("signed value disagrees with native raw word")
 
+    def _motion_value(self, item):
+        if (item.get("field") not in ("target", "speed", "creep_speed") or
+                item.get("unit") != ("steps" if item["field"] == "target" else "rpm") or
+                not _decimal(item.get("native"), signed=True) or
+                not -(2**63) <= int(item["native"]) < 2**63 or type(item.get("exact")) is not bool):
+            self._fail("invalid motion value shape")
+        if item["field"] == "target" and (type(item.get("relative")) is not bool or
+                not _decimal(item.get("endpoint_native"), signed=True) or not -(2**63) <= int(item["endpoint_native"]) < 2**63):
+            self._fail("invalid exact motion endpoint")
+        if item["exact"]:
+            value = item.get("requested_endpoint" if item["field"] == "target" else "requested")
+            error = item.get("error")
+            if (type(value) is not list or len(value) != 4 or not _decimal(value[0], signed=True) or
+                    not -(2**63) <= int(value[0]) < 2**63 or
+                    any(not _decimal(part) or int(part) > 2**64 - 1 for part in value[1:3]) or
+                    not 0 <= int(value[1]) < int(value[2]) or type(value[3]) is not bool or
+                    type(error) is not list or len(error) != 3 or
+                    any(not _decimal(part) or int(part) > 2**64 - 1 for part in error[:2]) or
+                    int(error[1]) == 0 or type(error[2]) is not bool):
+                self._fail("invalid exact motion fraction/quantization")
+        else:
+            bound = item.get("error_bound")
+            if type(bound) is not str or len(bound) > 32:
+                self._fail("missing explicit approximation bound")
+            try:
+                valid = math.isfinite(float(bound)) and float(bound) >= 0
+            except ValueError:
+                valid = False
+            if not valid:
+                self._fail("invalid approximation bound")
+
+    def _stop_attempt(self, item):
+        if (item.get("attempt") not in ("sequenced", "first_best_effort", "best_effort") or
+                not _uint(item.get("native_operation")) or type(item.get("outcome")) is not str or
+                not _uint(item.get("execution_code"), 3) or not _uint(item.get("completion_code"), 1) or
+                type(item.get("uncertain")) is not bool or
+                item.get("reply_qualifies") is not (item["attempt"] == "sequenced") or
+                "abort_code" not in item or item["abort_code"] is not None and not _uint(item["abort_code"])):
+            self._fail("invalid stop component/qualification evidence")
+        if item["attempt"] != "sequenced" and (item["execution_code"] == 1 or item["completion_code"] != 0):
+            self._fail("best-effort stop cannot establish acknowledgement/completion")
+
+    def _campaign_terminal(self, handle, item, form):
+        expected = "SETTINGS_READBACK_MATCHED" if form == "settings" else "OBSERVED"
+        if item["ok"] and (item["outcome"] != expected or item["uncertain"] or item["abort_code"] is not None):
+            self._fail("contradictory successful campaign terminal")
+        if form in ("motion", "stop"):
+            for key in ("execution_code", "completion_code", "native_operation"):
+                if key in item and not _uint(item[key]):
+                    self._fail("invalid native campaign terminal field")
+                if item["ok"] and key not in item:
+                    self._fail("successful motion lacks native evidence")
+            if item["ok"] and (item["completion_code"] != 1 or item["execution_code"] not in ((1,) if form == "motion" else (0, 1))):
+                self._fail("successful campaign lacks acknowledged/observed evidence")
+            if item["ok"] and form == "motion":
+                fields = {row.get("field") for row in handle.records if row["type"] == "motion_value"}
+                expected = {"move": {"target", "speed"}, "velocity": {"speed"}, "home": {"speed", "creep_speed"}}[handle.family]
+                if not expected.issubset(fields):
+                    self._fail("successful motion lacks its prepared exact values")
+            if form == "stop" and "stop_path_code" in item and not _uint(item["stop_path_code"], 255):
+                self._fail("invalid stop path evidence")
+            if form == "stop" and item["ok"] and not any(row["type"] == "stop_attempt" and
+                    row["attempt"] == "sequenced" and row["completion_code"] == 1 for row in handle.records):
+                self._fail("successful stop lacks qualifying component evidence")
+        if form == "settings":
+            if any(not _uint(item.get(key), 65535) for key in ("confirmed_mask", "changed_mask")) or type(item.get("effects_possible")) is not bool:
+                self._fail("missing settings partial-effect evidence")
+            if (item["changed_mask"] & ~7 or item["confirmed_mask"] & ~item["changed_mask"] or
+                    item["ok"] and item["confirmed_mask"] != item["changed_mask"]):
+                self._fail("driver settings terminal contradicts its confirmed partial effects")
+
     def pump(self):
         """Process one bounded read and all its complete lines; never extends a deadline."""
         self._check()
         for handle in self.pending.values():
             handle.turns += 1
-            if handle.turns > MAX_TURNS:
+            if handle.turns > handle.turn_limit:
                 self._fail("command service turn capacity exhausted")
         data = self._read()
         self._check()
@@ -460,10 +615,13 @@ class Console:
         family = command.split()[0]
         if self.identified and (family not in self.capabilities or not self.capabilities[family]["implemented"]):
             raise BenchError("route unavailable in validated command inventory")
-        if family in ("probe", "read") and sum(handle.family in ("probe", "read")
-                for handle in self.pending.values()) >= MAX_OPERATIONS:
+        asynchronous = family in ("probe", "read") or campaign_form(command) in ("motion", "stop", "settings")
+        slot = _slot(command)
+        if asynchronous and sum(_slot(handle.command) == slot and (handle.accepted or handle.phase == "waiting_reply")
+                for handle in self.pending.values() if handle.family in ("probe", "read") or campaign_form(handle.command) in ("motion", "stop", "settings")) >= (MAX_OPERATIONS if slot == "ordinary" else 1):
             raise BenchError("retained native operation capacity exhausted before handoff")
-        if len(self.pending) >= MAX_PENDING or self.next_id > ID_MAX or self.next_id - self.first_id >= MAX_COMMANDS:
+        if (sum(campaign_form(handle.command) != "stop" for handle in self.pending.values()) >= MAX_PENDING and
+                campaign_form(command) != "stop") or len(self.pending) >= MAX_PENDING + 2 or self.next_id > ID_MAX or self.next_id - self.first_id >= MAX_COMMANDS:
             raise BenchError("client request capacity exhausted")
         identity = self.next_id
         wire = f"@{identity} {command}\n".encode("ascii")
@@ -487,12 +645,21 @@ class Console:
         else:
             self._fail("pre-handoff input turn capacity exhausted")
         handle = Command(self, identity, command, family, deadline, self.host_epoch)
+        handle.turn_limit = MAX_TURNS
+        if campaign_form(command) in ("motion", "stop", "settings"):
+            handle.turn_limit = max(MAX_TURNS, min(65536, math.ceil(timeout_s / IDLE_SECONDS) + 1))
         self._event("intent", request_id=identity, command=command, deadline_s=deadline)
         self.next_id += 1
         self.pending[identity] = handle
         handle.transmitted = True  # Even an exception can follow a partial host write.
         try:
             size = self.port.write(wire)
+        except KeyboardInterrupt:
+            try:
+                self._fail("interrupted transport write; handoff/framing unknown")
+            except BenchError:
+                pass
+            raise
         except (OSError, EOFError) as error:
             self._fail("serial write failed; handoff uncertain: " + str(error), "disconnect")
         if type(size) is not int or size != len(wire):
@@ -628,6 +795,138 @@ class Console:
                     partial_line_hex=bytes(self.buffer).hex(), parse_failures=list(self.parse_failures))
 
 
+@contextmanager
+def open_port(port, baud, timeout_s):
+    """Explicit single serial ownership, pyserial3.5 only; no reconnect or cleanup I/O."""
+    import serial
+    if getattr(serial, "VERSION", None) != "3.5":
+        raise BenchError("live console requires pyserial==3.5")
+    connection = serial.Serial(port=None, baudrate=baud, timeout=0, write_timeout=min(timeout_s, 2.0))
+    try:
+        connection.dtr = connection.rts = False
+        connection.port = port
+        connection.open()
+        yield connection
+    finally:
+        connection.close()
+
+
+def validate_fixture(fixture, capability=None):
+    """Validate supplied provenance only; cannot grant native firmware qualifications.
+
+    The declared model/firmware/dialect and source records are retained verbatim.
+    Generic identity never establishes that these declarations match hardware.
+    """
+    if type(fixture) is not dict or fixture.get("protocol") != "canopen" or fixture.get("profile") != PROFILE:
+        raise ValueError("fixture must explicitly select canopen/lichuan_c")
+    for name in ("model", "firmware", "dialect"):
+        if type(fixture.get(name)) is not str or not 1 <= len(fixture[name]) <= 256:
+            raise ValueError("fixture requires explicit " + name + " provenance")
+    caps = fixture.get("capabilities")
+    if type(caps) is not dict or any(type(value) is not bool for value in caps.values()):
+        raise ValueError("fixture capabilities must be explicit booleans")
+    if any(name not in fixture for name in ("heartbeat", "pdo_map")):
+        raise ValueError("fixture must record heartbeat and PDO map facts, explicitly null if unknown")
+    if capability is None:
+        return
+    if capability not in ("position", "stop", "velocity", "homing", "settings") or caps.get(capability) is not True:
+        raise ValueError("fixture lacks declared capability: " + str(capability))
+    sections = {"position": ("command_scale", "reference", "io", "stop", "configuration"),
+                "velocity": ("command_scale", "io", "stop", "configuration"),
+                "homing": ("command_scale", "reference", "io", "stop", "configuration"),
+                "stop": ("stop",), "settings": ("configuration",)}
+    for name in sections[capability]:
+        value = fixture.get(name)
+        if type(value) is not dict or type(value.get("evidence")) is not str or not value["evidence"].strip():
+            raise ValueError("fixture requires supplied " + name + " evidence")
+    if capability == "homing" and fixture["io"].get("home_inputs_permit") is not True:
+        raise ValueError("home_inputs_permit is not established for the declared method")
+
+
+def require_prerequisites(console, fixture, capability):
+    """Cached protocol/inventory check plus caller declarations; performs no I/O."""
+    validate_fixture(fixture, capability)
+    if not console.identified or not console.synchronized:
+        raise BenchError("identified synchronized console required")
+    family = {"position": "move", "stop": "stop", "velocity": "velocity", "homing": "home", "settings": "driver"}[capability]
+    if console.capabilities.get(family, {}).get("implemented") is not True:
+        raise BenchError("compiled public route unavailable: " + family)
+
+
+def checked(console, command, *, record, timeout_s=5.0, role="primary", release=True):
+    """One recorded command, no retry. Preserve primary failure across later cleanup.
+
+    Summaries retain the latest16 operations and the first primary failure; every
+    complete record also streams through Console's owned evidence callback.
+    A known successful retained result is released only after its summary is copied.
+    Failure/uncertainty retains firmware results and stops ordinary scenario work.
+    """
+    handle, error, terminal = None, None, None
+    before_id = console.next_id
+    try:
+        handle = console.begin(command, timeout_s=timeout_s)
+        terminal = console.wait(handle)
+        if not terminal["ok"] or terminal.get("uncertain") is True:
+            raise BenchError(command + " failed/refused: " + str(terminal.get("outcome", terminal.get("error", terminal.get("status")))))
+        return terminal
+    except BaseException as failure:
+        error = failure
+        if handle is None:
+            handle = console.pending.get(before_id)
+        if handle is not None and handle.terminal is None and handle.interruption is None:
+            handle.interruption = "interrupted"
+        if role == "primary":
+            record.setdefault("primary_error", str(failure) or type(failure).__name__)
+        raise
+    finally:
+        if handle is not None:
+            summary = console.summary(handle, evidence_kind=record.get("evidence_kind", "host-tested"))
+            summary["role"] = role
+            record["operations_seen"] = record.get("operations_seen", 0) + 1
+            record["operations_failed"] = record.get("operations_failed", 0) + int(error is not None)
+            record.setdefault("operations", []).append(summary)
+            del record["operations"][:-16]
+            if role == "primary" and error is not None:
+                record.setdefault("primary_failure", summary)
+            form = campaign_form(command)
+            if form == "motion" and handle.transmitted and (handle.accepted or handle.terminal is None):
+                record["motion_handoff"] = True
+            if role == "cleanup":
+                record.setdefault("cleanup_stop_attempts", []).append(summary)
+            if error is None and release and handle.accepted:
+                try:
+                    result = console.release(handle, timeout_s=timeout_s)
+                    if not result["ok"]:
+                        raise BenchError("explicit result release refused")
+                except BaseException as failure:
+                    record.setdefault("release_error", str(failure) or type(failure).__name__)
+                    raise
+
+
+def cleanup_stop_attempts(console, record, *, stop="normal", timeout_s=5.0):
+    """At most one preplanned public stop, distinct from all primary evidence.
+
+    No recover, escalation, retry or reconnect. Broken framing/evidence prohibits
+    further I/O. False means completion was not established, never standstill.
+    """
+    if stop not in ("normal", "fast"):
+        raise ValueError("explicit normal or fast cleanup required")
+    if record.get("cleanup_stop_attempts"):
+        return False
+    if not record.get("motion_handoff") or not console.synchronized:
+        record["cleanup_stop_attempts"] = [dict(attempted=False, evidence_kind="skipped",
+            reason="no motion handoff" if not record.get("motion_handoff") else "unsynchronized; no cleanup traffic")]
+        return not record.get("motion_handoff")
+    try:
+        checked(console, "stop " + stop, record=record, timeout_s=timeout_s, role="cleanup")
+        return True
+    except BaseException as failure:
+        record.setdefault("cleanup_error", str(failure) or type(failure).__name__)
+        if not record.get("cleanup_stop_attempts"):
+            record["cleanup_stop_attempts"] = [dict(attempted=False, evidence_kind="skipped", reason=record["cleanup_error"])]
+        return False
+
+
 class EvidenceLog:
     """Exclusive JSONL transcript, at most 2048 events/2 MiB including a limit notice.
 
@@ -635,8 +934,8 @@ class EvidenceLog:
     Exhaustion fails closed; the caller stops issuing work and retains uncertainty.
     No environment, port enumeration or unrelated files are captured.
     """
-    def __init__(self, path):
-        self.file = Path(path).open("x", encoding="ascii", newline="\n")
+    def __init__(self, path=None, *, file=None):
+        self.file = file if file is not None else Path(path).open("x", encoding="ascii", newline="\n")
         self.events = self.bytes = 0
         self.exhausted = False
 

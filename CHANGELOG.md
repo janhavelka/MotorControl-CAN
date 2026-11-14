@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Finite Python campaigns and recorded sessions (prompt 44, 2026-11-14)
+
+- Add named read-only, position, stop, finite velocity, homing and settings plans
+  in `bench_scenarios.py`, the `bench_motion.py` entry and a position-only
+  `bench_repeat.py` comparison of `write`/`verify` through ordinary moves. Plans
+  remain hardware-independent; live actions require explicit route/version and
+  supplied fixture provenance, with native qualification and Q20 gates unchanged.
+- Add `bench_session.py` as the single port/Console/artifact owner, with exclusive
+  summary/transcript/report reservations, bounded retained evidence and a
+  deterministic report ZIP. Scenario-owned cleanup is a separate planned
+  operation; failed or uncertain primary work remains failed even after cleanup.
+  There is no reconnect, command replay or automatic save/restore. See
+  [the runner guide](docs/runners.md) and [scenario catalogue](docs/bench_scenarios.md).
+  Campaign hardware qualification remains pending.
+
 ### Disable voltage from a switched-on drive (backlog S21, 2026-11-13)
 
 - The S2 bench `controlword` route (`TT`) also admits word `0000` alone from `6041` low bits `001` or `011`

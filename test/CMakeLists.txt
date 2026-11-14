@@ -632,6 +632,10 @@ add_test(NAME bench_console_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CU
 add_test(NAME bench_console_adversarial COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_console_adversarial_test.py")
 add_test(NAME bench_probe_cli COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_probe_cli_test.py")
 add_test(NAME bench_evidence COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_evidence_test.py")
+add_test(NAME bench_campaign_plans COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_campaign_plans_test.py")
+add_test(NAME bench_campaign_adversarial COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_campaign_adversarial_test.py")
+add_test(NAME bench_session COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/bench_session_test.py")
+set_tests_properties(bench_campaign_plans bench_campaign_adversarial bench_session PROPERTIES TIMEOUT 45)
 set_tests_properties(bench_console_native bench_console_contract bench_console_adversarial bench_probe_cli bench_evidence PROPERTIES TIMEOUT 30)
 set_tests_properties(probe_app_local probe_console console_protocol PROPERTIES TIMEOUT 30)
 

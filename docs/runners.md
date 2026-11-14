@@ -1,10 +1,12 @@
-# Python console client
+# Python console client and finite campaigns
 
 `scripts/bench_probe.py` provides one bounded console session and one explicit
 probe or typed read. It uses [the shared console protocol](cli_contract.md),
 through the application's existing owner and read routes. Python does not own
-a CAN controller or implement a second CANopen driver. Campaigns, repetition
-and session orchestration belong to prompt 44.
+a CAN controller or implement a second CANopen driver. `bench_motion`,
+`bench_repeat` and `bench_scenarios` add finite public-command campaigns through
+the shared `bench_session` owner. The private `_bench_evidence` module interprets
+supplied records through helpers exported by `bench_probe`.
 
 ## Setup and offline use
 
@@ -29,7 +31,8 @@ python scripts/bench_probe.py --self-test
 files. Omitted fixture facts remain null. Its default `--scenario quick` plans
 one probe; it is not a sweep or repeated campaign. `--self-test` exercises the
 client with a scripted host stream and prints `host-tested` evidence. Neither
-mode is a live result. There is no `--list`, `--count` or automatic recovery mode.
+mode is a live result. `bench_probe` has no `--list`, `--count` or automatic
+recovery mode.
 
 ## One live invocation
 
@@ -86,8 +89,9 @@ Call `drain_startup(seconds)` and
 neither admission nor device success. `pump()` dispatches available records,
 and `wait(handle)` waits under the original cutoff. `command(...)` combines
 begin/wait. `release(handle)` explicitly releases a checked admitted terminal.
-The reusable API supports the finite read forms and cached/local lookup routes
-listed by `supported_command`; it does not accept arbitrary firmware commands.
+The reusable API supports the finite public forms listed by `supported_command`,
+including the campaign forms described in [the scenario catalogue](bench_scenarios.md).
+It does not accept arbitrary firmware commands.
 
 Request IDs, admitted operation IDs, original command IDs, record kind, native
 terminal and deadline are checked independently. Exact decimal strings remain
@@ -128,8 +132,8 @@ neither CAN TX nor protocol acknowledgement.
 | Resource | Bound |
 | --- | --- |
 | Console wire record | 511 bytes including newline; JSON nesting at most 16 levels |
-| Client storage | Four pending requests, two retained admitted operations, 128 records per request |
-| Input/work | 65536 received bytes per command, 1 MiB per session, 1024 commands, 8192 pump turns per pending request |
+| Client storage | Four ordinary/cached pending requests plus one reserved normal-stop and one fast-stop request; two ordinary admitted operations plus one per stop kind; 128 records per request |
+| Input/work | 65536 received bytes per command, 1 MiB per session, 1024 commands; 8192 pump turns for reads/cached work, campaign requests allow at most65536 under the same immutable deadline |
 | In-memory diagnostics | Latest 64 raw lines and 16 parse failures; dropped raw-line count retained |
 | Live JSONL | 2048 events and 2 MiB including a reserved limit notice; 16384 bytes per event |
 | Pure summary | 256 records, 262144 serialized ASCII JSON bytes, 16 container levels; execution summary at most 16 operations |
@@ -149,5 +153,167 @@ invocation never becomes a passing campaign. Offline success and
 `live-observed` parsing never establish physical completion or qualification.
 
 The [prompt-43 source audit](audit/PROMPT_43_SOURCES.md) records which RS and
-sensor runner behaviors were adopted or rejected. [The source map](source_map.md)
-locates the client, pure summaries and their focused tests.
+sensor client behaviors were adopted or rejected. The
+[campaign audit](audit/PROMPT_44_SOURCES.md) checks the finite runners and cleanup
+differences. [The source map](source_map.md) locates implementations and tests.
+
+## Finite campaign tools
+
+The six-file family shares one parser and evidence path:
+
+| File | Usable role |
+| --- | --- |
+| `bench_probe.py` | Reusable `Console`, checked commands, fixture validation and one probe/read invocation |
+| `bench_motion.py` | One explicitly selected finite action/motion/settings scenario; read-only `quick` default |
+| `bench_repeat.py` | Position-only `write`/`verify` comparison, 1..20 pairs, default one pair, one planned final stop |
+| `bench_scenarios.py` | Named plan construction and execution; only runner with `--list`; read-only `quick` default |
+| `bench_session.py` | Owns the port, `Console`, session identity and evidence artifacts; reusable functions and the same named-scenario CLI |
+| `_bench_evidence.py` | Private pure evidence interpretation behind `bench_probe`; no port or command execution |
+
+Run these plans without serial, fixture files or artifact creation:
+
+```text
+python scripts/bench_scenarios.py --list
+python scripts/bench_scenarios.py --plan-only
+python scripts/bench_motion.py --plan-only --scenario position --kind relative --target 100 --rpm 60 --ramp-up-ms 100 --ramp-down-ms 200 --setup verify --stop-policy fast
+python scripts/bench_repeat.py --plan-only --count 3 --target 100 --rpm 60 --ramp-up-ms 100 --ramp-down-ms 200 --stop-policy fast
+```
+
+The campaign and session CLIs accept `--plan-only`. It returns a distinct `planned`
+verdict and leaves absent fixture facts unobserved. Motion/settings plans still
+require their explicit campaign parameters. The
+[scenario catalogue](bench_scenarios.md) specifies each parameter, command,
+capability and finite deadline. Repeat plans exactly `2*count` ordinary relative
+moves and reports their aggregate requested displacement. It accepts no arbitrary
+scenario, persistence action or restoration. `verify` may write differences;
+there is no available stored-only policy.
+
+Live campaign invocations use `--out NEW_PREFIX`, while the single-invocation
+`bench_probe` interface above retains `--log NEW_LOG.jsonl`. For example:
+
+```text
+python scripts/bench_scenarios.py --scenario quick --port SERIAL_PORT --baud CONSOLE_BAUD --profile lichuan_c --node NODE --can-bitrate CAN_BITS_PER_SECOND --expected-library-version MAJOR.MINOR.PATCH --out NEW_PREFIX
+```
+
+Each live campaign requires explicit port, console baud, profile, node, CAN
+bitrate, expected library version and output prefix. Device campaigns additionally
+require `--fixture PATH`. Nothing opens a connection on import. The session
+identifies and selects the existing host route, then its first active upload is
+the DEC-1 accepted `probe`. `quick` follows it with one identity read. It does not
+use a Q20-gated configuration read as a startup baseline. Missing native
+prerequisites remain a named refusal; no runner enables a drive or writes
+settings to make admission succeed.
+
+| Shared campaign/session option | Meaning and bound |
+| --- | --- |
+| `--port`, `--baud`, `--profile`, `--node`, `--can-bitrate`, `--expected-library-version` | Same explicit interface/version meanings and numeric ranges as the one-invocation client; all required live |
+| `--out` | Required live artifact prefix in an existing directory; no `--log` alias |
+| `--fixture` | Supplied strict JSON prerequisite record, at most 16384 bytes and 16 container levels |
+| `--firmware` | Optional supplied image file, at most 64 MiB; retain path, byte count and SHA256 only |
+| `--timeout` | Per-command immutable host deadline, finite `(0,60]` seconds, default 15; velocity requires more than its duration plus the application's 10-second cutoff |
+| `--startup` | Bounded initial banner collection, finite `(0,60]` seconds, default 0.2 |
+| `--request-timeout-ms` | Explicit probe/identity application budget, 1..60000 ms, default 1000 |
+
+`--timeout` is a command deadline, not an overall campaign duration. A campaign
+has a finite command count and each command keeps its own cutoff. These are
+host policies and existing application budgets, never invented device timing.
+There is no campaign `--release` flag: successful admitted terminals are copied
+into evidence and explicitly released before proceeding. Failed or uncertain
+results remain retained; release is local result ownership, not a motor action.
+
+## Supplied fixture records
+
+A device campaign's `--fixture` is a JSON object supplied for this invocation.
+It declares `protocol:"canopen"`, `profile:"lichuan_c"`, nonempty `model`,
+`firmware` and `dialect` strings, and a `capabilities` object with explicit
+boolean values. Enable the capability for the selected scenario and, when
+planned, `stop`. Each required evidence section is an object with a nonempty
+`evidence` string pointing to the relevant retained source/fixture evidence.
+
+| Scenario | Required evidence sections |
+| --- | --- |
+| Position | `command_scale`, `reference`, `io`, `stop`, `configuration` |
+| Velocity | `command_scale`, `io`, `stop`, `configuration` |
+| Homing | `command_scale`, `reference`, `io`, `stop`, `configuration` |
+| Stop | `stop` |
+| Settings | `configuration` |
+
+`stop.method` must equal the requested `normal` or `fast` policy. Homing also
+requires `io.home_inputs_permit:true` and an integer `io.method` matching the
+requested method. These are declarations of supplied provenance, validated before
+port access. They neither prove a match to the connected drive nor grant native
+application qualification. Keep effective map, heartbeat, scale/reference,
+configuration, I/O, firmware/dialect and relevant evidence references in these
+sections; unknown facts remain unknown. The ordinary application still checks
+current native prerequisites and the same Q20 acquisition gate.
+`heartbeat` and `pdo_map` keys must be present, explicitly null when unavailable.
+I/O evidence records effective protective assignments; ordinary motion does not
+inherently require a connected homing switch.
+
+## Campaign failures and cleanup
+
+Each scenario owns its preplanned cleanup in `run(console, record)`. The shared
+session owns connection and evidence lifetime. Position/home plan one separate
+stop; finite velocity uses its native stop and plans a separate stop only on
+failure. Repeat plans one stop for the complete comparison. Settings never
+restore or save automatically. A stop is attempted at most once when motion
+handoff is possible and framing/evidence remain usable. A pure prerequisite
+refusal sends no cleanup stop. A poisoned stream records skipped cleanup and
+sends no further command.
+
+`cleanup_stop_attempts` retains the distinct attempt or its skipped reason.
+Successful cleanup cannot erase a failed or uncertain primary operation; failed
+cleanup makes otherwise successful requested work fail. Port-close and evidence
+failures also prevent a passing session. A stop terminal establishes only its
+reported evidence. It proves no physical standstill, restoration or electrical
+timing. There is no automatic recovery, reconnect, command replay or fault clear.
+
+## Session artifacts and report package
+
+`--out NEW_PREFIX` reserves `NEW_PREFIX.json`, `NEW_PREFIX.jsonl` and
+`NEW_PREFIX.zip` before opening the port. A supplied suffix is replaced with
+these suffixes, so use a new plain prefix for each run. The parent directory must
+exist. Any existing artifact rejects the invocation without opening the port or
+overwriting earlier evidence. A reservation failure removes only this call's
+new empty reservations.
+
+The summary records scenario intent, supplied fixture facts, library/profile
+identity, selected route, command/operation identities, native terminal evidence,
+cleanup, host deadlines, elapsed time and bounded client/drop diagnostics. Before
+and successful after-snapshots use cached `config`, `status`, `health`, `stats`,
+`drv` and `memory`; cached configuration is distinct from Q20-gated device
+configuration acquisition. Summaries keep the latest 16 operations, separate
+total/failure counts and the first primary failure. Repeated trial evidence stays
+bounded by the repeat count. Summary JSON is limited to 512 KiB.
+Operation ID allocation and receipt delivery are separate: reserved stop output
+can precede an earlier ordinary receipt. The client retains at most1024 seen IDs
+for the session and rejects reuse or epoch regression on newer requests.
+Caller inputs are limited to4096 encoded bytes. Device fixture sessions retain
+the cached four-part axis listing when the firmware advertises it; a detached
+offline workspace is not promoted to native scale or reference qualification.
+
+The transcript streams the ordinary Console events and raw received bytes as
+hex under the same 2048-event/2-MiB bounds as `bench_probe`. It retains unsuccessful
+stop evidence and has no unrelated host inventory. SDK identity and firmware
+epoch remain null when the console supplies none. A supplied firmware hash does
+not attest the flashed image; the image itself is excluded from the report.
+Physical observation remains absent unless independently supplied and retained.
+
+The ZIP contains only `manifest.json`, `summary.json` and `transcript.jsonl`, in
+that sorted order. The manifest records byte counts and SHA256 hashes of the
+exact summary/transcript bytes. Entries use `ZIP_STORED`, fixed permissions and
+the timestamp 1980-01-01 00:00:00. Identical input artifacts produce identical ZIP
+bytes; two live runs naturally differ in their evidence and times. Packaging
+scans no directories and adds no firmware, environment dump or unrelated files.
+
+Session verdicts distinguish `planned`, injected `host-tested`, checked
+`live-observed`, `failed` and `interrupted` evidence. A live console result never
+claims physical qualification. Exit 0 means a valid plan or successful requested
+console workload, exit 1 an execution/cleanup failure, and exit 2 invalid input
+or setup failure. A package/evidence-write failure returns nonzero; an incomplete
+artifact set is not a passing session, even if one file contains earlier
+successful work. Retain failed artifacts and select a new output prefix for a
+separate invocation.
+Packaging failure truncates this attempt's archive, so it cannot retain an older
+passing summary. The loose summary is rewritten as failed where storage permits;
+an unavailable evidence medium can leave incomplete artifacts and a nonzero exit.

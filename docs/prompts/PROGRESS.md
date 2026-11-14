@@ -1,11 +1,17 @@
 # Prompt execution progress
 
+Prompt44 implements the finite [campaign/session family](../bench_scenarios.md)
+over the existing Console: six named classes, bounded position comparisons and
+exclusive deterministic evidence packages. Host tests preserve primary failures
+through cleanup and stream/artifact errors. Started2026-11-14 at23:00 Prague;
+no hardware was used. See [report44](../reports/prompt_44.md).
+
 Prompt43 delivers the [bounded Python console client](../runners.md), pure exact
 evidence summaries, offline plan/self-test and one explicit typed probe/read.
 It uses the existing schema/routes and never retries or reconnects after uncertain
 handoff. Firmware boot identity remains unknown. This stage used host fakes and
 the real native console producer, with no hardware. See [report43](../reports/prompt_43.md).
-Next executable software: prompt44 finite campaigns and sessions.
+Prompt44 now supplies finite campaigns and sessions; next software work is45.
 
 The 2026-11-11 [unattended night soak](../reports/2026-11-12_night_soak.md) ran the prompt 40-42 console on
 hardware: shared-image local routes, burst and soak, the smoke identity reads, typed device routes and console
@@ -100,7 +106,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | Complete | Exact native/source/firmware prerequisites, Q20 ordinary read policy and Q15 persistence uncertainty; no grant/review created by CLI | [Report](../reports/prompt_41.md) |
 | 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | Complete | Exact native firmware/scale/reference/input qualification; D-17 release, stored-only setup and qualification-install routes remain caps-only gates. Arduino S2 SDK console conflict remains; no hardware qualification claimed | [Report](../reports/prompt_42.md) |
 | 43 | [Python Console and evidence primitives](43_python_console.md) | Complete | Existing P41 read qualifications/Q20; no firmware boot identity in schema1; no live qualification | [Report](../reports/prompt_43.md) |
-| 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Pending | Motion routes through 42 | - |
+| 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Complete | Existing42 native qualification and Q20 gates; hardware campaigns remain47-48 | [Report](../reports/prompt_44.md) |
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Pending | Motion APIs for the remaining traces | - |
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Pending | X-01 | - |
 | 47 | [Finite hardware qualification](47_hardware_finite.md) | Pending | W9, fixture facts, applicable bench authorization | - |
@@ -133,5 +139,5 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 ## Next ready
 
 1. Every handoff packet has run its host scope. A first attended campaign ran packet 15 P1 to P3 on both nodes and packet 19's move, rearm and a moving HALT on node 1 ([report](../reports/2026-11-03_attended_bench.md)). A second, unattended on the user's written waiver, ran packet 20's `move` route on node 2 and a stationary `000B` on each node ([report](../reports/2026-11-03_unattended_bench.md)). A third, on 2026-11-04, retested the quick-stop fix and ran stop, I/O, tuning-read, counter-zero, relative and two-node trials ([report](../reports/2026-11-04_bench.md)). On the count-width image `2920479` it then ran packet 12 T1/T2, `2202` codes 0 and 1 written and read back on both nodes (trials 604 to 607), and run B of the console A/B soak ([`20261104-soak-ab-keepalive3`](../bench/20261104-soak-ab-keepalive3/summary.txt)). A fourth, on 2026-11-05, ran library moves at 10 to 120 rpm, a HALT at 300 rpm and a quick stop at about 100 rpm ([report](../reports/2026-11-05_motion_and_stress.md)). What remains physically is item 3, from [packet 22](../reports/handoff_19_33/packet_22.md#next-smallest-measurement): the trials that need an operator, a probe or an alarm.
-2. Prompts40-43 software is implemented. Prompt44 can build finite campaigns over the shared console and Python client, preserving exact gates and uncertainty.
+2. Prompts40-44 software now supplies the shared console, Python client and finite campaigns. Prompt45 is the next integration assignment; physical qualification remains separately gated.
 3. Still owed physically: packet 13 P4 (an output, with meters), packet 14 T1/T2 (`2500`, with a phase-current probe), packet 17 (an alarm clear, on a naturally present alarm) and a `1003` read with the fault LED observed ([backlog H03, H04](../backlog.md)). They follow their own prerequisites and the [bench conditions](../hardware_bench.md). Packet 12 T1/T2 and run B of the console A/B soak are done (item 1).
