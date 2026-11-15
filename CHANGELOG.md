@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Python client and campaign audit (prompts 43-44, 2026-11-15)
+
+- Preserve pending-result admission and explicit release failures without erasing
+  native terminals. Respect configured long waits with finite work bounds and
+  reject requests whose deadline expires before handoff.
+- Keep completed result retention independent of later commands' byte/turn budgets,
+  while preserving bounded trailing-byte drainage and cached waits without I/O.
+- Retain interrupted invocations and independent port/log close errors. Fence
+  short or failed evidence writes, count complete limit notices and invalidate
+  a passing session ZIP independently of failed summary remediation.
+- Report summary finalization failure separately from the primary read outcome;
+  publish completion only after successful closure and preserve failure exit codes.
+- Add adversarial regressions through the actual client/session paths; keep
+  no-replay, scenario-owned cleanup and physical qualification boundaries intact.
+
 ### Device and motion console audit (prompts 41-42, 2026-11-15)
 
 - Reject capture collectors from a different application/owner before attachment.

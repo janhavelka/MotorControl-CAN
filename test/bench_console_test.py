@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Client success, resource and finite live-wrapper checks on injected host fixtures."""
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
@@ -266,8 +266,10 @@ for payload in (b'{"id":1,"id":2}\\n', b'{"value":NaN}\\n', b'{"value":Infinity}
             handle = console.begin("probe 10")
             with self.assertRaises(bench.BenchError):
                 console.wait(handle)
-        self.assertLessEqual(handle.turns, 5)
+        self.assertLessEqual(handle.turn_limit, 65536)
+        self.assertLessEqual(handle.turns, handle.turn_limit + 1)
         self.assertFalse(console.synchronized)
+        self.assert_no_more_io(console, port)
 
     def test_trace_flood_drops_old_raw_lines_without_consuming_command_records(self):
         console, port, _ = self.client()
@@ -330,6 +332,8 @@ class TranscriptBounds(unittest.TestCase):
                 log.close()
             lines = path.read_text().splitlines()
             self.assertEqual(len(lines), 2048)
+            self.assertEqual(log.events, 2048)
+            self.assertEqual(log.bytes, path.stat().st_size)
             self.assertEqual(json.loads(lines[-1]), dict(event="evidence_limit", status="interrupted"))
 
     def test_log_byte_and_single_event_limits_are_finite(self):
@@ -348,7 +352,7 @@ class TranscriptBounds(unittest.TestCase):
 
 
 class InjectedLive(unittest.TestCase):
-    def run_fixture(self, outcome, *, release=False):
+    def run_fixture(self, outcome, *, release=False, close_failure=None, summary_failure=None):
         """Use genuine live orchestration with a fake serial module and injected time."""
         clock = Clock()
         class SerialPort(Port):
@@ -357,6 +361,12 @@ class InjectedLive(unittest.TestCase):
                 self.selected = None
                 self.handler = self.respond
                 self.opened = self.closed = 0
+                self.probe_started = False
+
+            def read(self, count):
+                if outcome == "interrupt_read" and self.probe_started and not self.buffer:
+                    raise KeyboardInterrupt()
+                return super().read(count)
 
             def open(self):
                 self.opened += 1
@@ -364,6 +374,8 @@ class InjectedLive(unittest.TestCase):
             def close(self):
                 self.closed += 1
                 self.is_open = False
+                if close_failure == "port":
+                    raise OSError("injected port close failure")
 
             def respond(self, identity, command):
                 if command == "useaddr 10":
@@ -373,36 +385,104 @@ class InjectedLive(unittest.TestCase):
                     return reply(identity, "config", interface=0, bitrate_bits_per_second=500000,
                                  selected_node=self.selected, bus_traffic=False)
                 if command == "probe 10":
+                    self.probe_started = True
                     response = admission(identity)
-                    if outcome == "timeout":
+                    if outcome in ("timeout", "interrupt_read", "interrupt_sleep"):
                         return response
-                    if outcome == "abort":
+                    if outcome in ("abort", "abort_release_refused"):
                         return response + terminal(identity, ok=False, abort_code=0xFFFFFFFF)
                     return response + value(identity) + terminal(identity)
                 if command == "release 1":
+                    if outcome in ("release_refused", "abort_release_refused"):
+                        return record(identity, "reply", "release", ok=False,
+                                      status="ILLEGAL_VALUE", error="result_not_releasable")
                     return reply(identity, "release")
                 return self.handshake(identity, command)
         port = SerialPort()
         serial = types.SimpleNamespace(VERSION="3.5", Serial=mock.Mock(return_value=port))
         console_type = bench.Console
+        def sleeper(seconds):
+            if outcome == "interrupt_sleep" and port.probe_started:
+                raise KeyboardInterrupt()
+            clock.sleep(seconds)
+
         def console_factory(actual_port, **options):
-            return console_type(actual_port, **options, clock=clock, sleeper=clock.sleep,
+            return console_type(actual_port, **options, clock=clock, sleeper=sleeper,
                                 first_id=1, host_epoch="injected-live")
+        log_type = bench.EvidenceLog
+        logs = []
+        class ObservedLog(log_type):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                logs.append(self)
+
+            def close(self):
+                super().close()
+                if close_failure == "log":
+                    raise OSError("injected log close failure")
+
+        real_open = Path.open
+        class FaultySummary:
+            def __init__(self, file):
+                self.file = file
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                self.file.close()
+                if summary_failure == "close":
+                    raise OSError("injected summary close failure")
+
+            def write(self, text):
+                if summary_failure == "write":
+                    raise OSError("injected summary write failure")
+                return self.file.write(text)
+
+            def flush(self):
+                if summary_failure == "flush":
+                    raise OSError("injected summary flush failure")
+                self.file.flush()
+
+        def open_with_summary_fault(file_path, *args, **kwargs):
+            file = real_open(file_path, *args, **kwargs)
+            if summary_failure and file_path.name.endswith(".summary.json") and args and args[0] == "x":
+                return FaultySummary(file)
+            return file
+
         with tempfile.TemporaryDirectory(prefix="CAN fake serial ") as directory:
             path = Path(directory) / "evidence.jsonl"
-            args = bench.parser().parse_args(["--port", "FAKE", "--baud", "115200",
+            arguments = ["--port", "FAKE", "--baud", "115200",
                 "--profile", "lichuan_c", "--node", "10", "--can-bitrate", "500000",
                 "--expected-library-version", "0.1.0", "--log", str(path), "--timeout", "0.02",
-                "--startup", "0.001", "--request-timeout-ms", "10"] + (["--release"] if release else []))
-            with mock.patch.dict(sys.modules, {"serial": serial}), mock.patch.object(bench, "Console", console_factory), redirect_stdout(io.StringIO()):
-                code = bench.run_live(args)
-            summary = json.loads(path.with_name(path.name + ".summary.json").read_text())
+                "--startup", "0.001", "--request-timeout-ms", "10"] + (["--release"] if release else [])
+            args = bench.parser().parse_args(arguments)
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.dict(sys.modules, {"serial": serial}), \
+                    mock.patch.object(bench, "Console", console_factory), \
+                    mock.patch.object(bench, "EvidenceLog", ObservedLog), \
+                    mock.patch.object(Path, "open", open_with_summary_fault), \
+                    redirect_stdout(stdout), redirect_stderr(stderr):
+                try:
+                    code = bench.main(arguments) if close_failure or summary_failure else bench.run_live(args)
+                finally:
+                    logs_closed = all(log.file.closed for log in logs)
+                    # Release a leaked fake file so a product failure does not
+                    # prevent Windows from deleting the disposable fixture.
+                    for log in logs:
+                        if not log.file.closed:
+                            log.file.close()
+            summary_text = path.with_name(path.name + ".summary.json").read_text()
+            summary = None if summary_failure and not summary_text else json.loads(summary_text)
             events = [json.loads(line) for line in path.read_text().splitlines()]
         self.assertEqual((port.opened, port.closed), (1, 1))
+        self.assertTrue(logs_closed, "port cleanup failure skipped evidence log close")
         self.assertEqual(sum(b" probe " in item for item in port.writes), 1)
         self.assertFalse(any(b"recover" in item or b"stop" in item for item in port.writes))
         self.assertEqual(sum(b" release " in item for item in port.writes), int(release))
         self.assertTrue(any(item["event"] == "intent" for item in events))
+        if summary_failure:
+            return code, dict(summary=summary, stdout=stdout.getvalue(), stderr=stderr.getvalue())
         self.assertFalse(summary["hardware_qualified"])
         return code, summary
 
@@ -424,10 +504,71 @@ class InjectedLive(unittest.TestCase):
         self.assertEqual(summary["operation"]["classification"], "native_rejection")
         self.assertEqual(summary["operation"]["abort_code"], 0xFFFFFFFF)
 
+    def test_keyboard_interrupt_retains_admitted_unknown_outcome(self):
+        for outcome, interruption in (("interrupt_read", "framing_loss"),
+                                      ("interrupt_sleep", "interrupted")):
+            with self.subTest(outcome=outcome):
+                try:
+                    code, summary = self.run_fixture(outcome)
+                except KeyboardInterrupt:
+                    self.fail("live interruption escaped without publishing its failure summary")
+                self.assertNotEqual(code, 0)
+                self.assertTrue(summary.get("error"))
+                operation = summary["operation"]
+                self.assertTrue(operation["admission"])
+                self.assertEqual(operation["operation_id"], 1)
+                self.assertEqual(operation["classification"], "unknown_after_admission")
+                self.assertEqual(operation["interruption"], interruption)
+                self.assertFalse(operation["terminal_known"])
+                self.assertIsNone(operation["outcome"])
+
     def test_release_happens_only_when_explicitly_requested(self):
         code, summary = self.run_fixture("success", release=True)
         self.assertEqual(code, 0)
         self.assertEqual(summary["operation"]["outcome"], "SUCCESS")
+
+    def test_close_failure_is_retained_separately_from_successful_read(self):
+        for target in ("port", "log"):
+            with self.subTest(target=target):
+                code, summary = self.run_fixture("success", close_failure=target)
+                self.assertNotEqual(code, 0)
+                self.assertTrue(summary.get("error"))
+                self.assertTrue(summary["operation"]["terminal_known"])
+                self.assertEqual(summary["operation"]["outcome"], "SUCCESS")
+
+    def test_refused_release_fails_invocation_without_erasing_read_terminal(self):
+        for outcome in ("release_refused", "abort_release_refused"):
+            with self.subTest(outcome=outcome):
+                code, summary = self.run_fixture(outcome, release=True)
+                self.assertEqual(code, 1)
+                self.assertTrue(summary.get("error"))
+                operation = summary["operation"]
+                self.assertTrue(operation["terminal_known"])
+                self.assertEqual(operation["operation_id"], 1)
+                self.assertEqual(operation["classification"],
+                                 "native_rejection" if outcome.startswith("abort") else "terminal")
+                self.assertEqual(operation["outcome"],
+                                 "REPLY_ERROR" if outcome.startswith("abort") else "SUCCESS")
+                self.assertEqual(operation["abort_code"],
+                                 0xFFFFFFFF if outcome.startswith("abort") else None)
+
+    def test_summary_finalization_failure_preserves_primary_diagnosis(self):
+        for outcome in ("success", "timeout"):
+            for fault in ("write", "flush", "close"):
+                with self.subTest(outcome=outcome, fault=fault):
+                    code, evidence = self.run_fixture(outcome, summary_failure=fault)
+                    self.assertEqual(code, 1)
+                    self.assertNotIn("completed", evidence["stdout"])
+                    self.assertLessEqual(len(evidence["stderr"]), 4096)
+                    classification = "terminal" if outcome == "success" else "unknown_after_admission"
+                    self.assertIn(classification, evidence["stderr"])
+                    self.assertIn("injected summary " + fault + " failure", evidence["stderr"])
+                    if outcome == "timeout":
+                        self.assertIn("command response deadline expired", evidence["stderr"])
+                    if evidence["summary"] is not None:
+                        operation = evidence["summary"]["operation"]
+                        self.assertEqual(operation["classification"], classification)
+                        self.assertEqual(operation["outcome"], "SUCCESS" if outcome == "success" else None)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 # Prompt 44: finite Python campaigns and sessions
 
+See the [2026-11-15 independent re-audit](prompts_43_44_audit.md) for subsequent
+evidence/session corrections and current integrated verification.
+
 Started 2026-11-14 at23:00 Europe/Prague, as requested (22:00 UTC). The delayed
 start was honored before repository execution. Branch `main`, upstream
 `origin/main`, entry `9e036f6`; no new branch. All activity here is host/fake work;

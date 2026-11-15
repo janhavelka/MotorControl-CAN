@@ -33,6 +33,16 @@ def failed_terminal(identity, operation=1, command_id=None):
                   operation_id=operation, completed_us="9007199254740993", abort_code=None)
 
 
+def successful_probe_result(identity, operation=1):
+    """Checked value and terminal only; the caller supplies the admission receipt."""
+    return (record(identity, "value", "probe", operation_id=operation, index=0x1000,
+                   subindex=0, width=4, raw="42", native_signed=None, unit="raw-code",
+                   current=True, interpretation=None, earliest_us="1", latest_us="2") +
+            record(identity, "terminal", "probe", command_id=identity, operation_id=operation,
+                   ok=True, status="OK", detail=0, outcome="SUCCESS", uncertain=False,
+                   completed_us="3", abort_code=None))
+
+
 class Clock:
     def __init__(self):
         self.now = 0.0
@@ -484,6 +494,165 @@ class AdversarialConsoleTest(unittest.TestCase):
             console.begin("probe 10", timeout_s=0.02)
         self.assertEqual(port.writes, writes)
         self.assert_poisoned_without_replay(console, port)
+
+    def test_pending_result_summary_preserves_confirmed_admission(self):
+        for known in (False, True):
+            with self.subTest(original_retained_by_client=known):
+                console, port, _ = self.client()
+                original_id = 77
+                if known:
+                    port.handler = lambda identity, _: admission(identity)
+                    original = console.begin("probe 10", timeout_s=0.02)
+                    while not original.accepted:
+                        console.pump()
+                    original_id = original.id
+                port.handler = lambda identity, _: reply(identity, "result", result="pending",
+                    operation_id=1, command_id=original_id)
+                lookup = console.begin("result 1", timeout_s=0.02)
+                console.wait(lookup)
+                summary = console.summary(lookup)
+                self.assertTrue(summary["admission"])
+                self.assertEqual(summary["operation_id"], 1)
+                self.assertEqual(summary["classification"], "pending")
+                self.assertFalse(summary["terminal_known"])
+                self.assertIsNone(summary["uncertain"])
+                self.assertEqual(summary["request_id"], lookup.id)
+                self.assertEqual(summary["records"][0]["command_id"], original_id)
+
+    def test_wait_with_explicit_release_surfaces_refusal_and_retains_terminal(self):
+        console, port, _ = self.client()
+        def answer(identity, command):
+            if command == "probe 10":
+                return admission(identity) + failed_terminal(identity)
+            self.assertEqual(command, "release 1")
+            return record(identity, "reply", "release", ok=False, status="ILLEGAL_VALUE",
+                          error="result_not_releasable")
+        port.handler = answer
+        handle = console.begin("probe 10")
+        with self.assertRaises(BenchError):
+            console.wait(handle, release=True)
+        self.assertFalse(handle.released)
+        self.assertIs(console.operations[1], handle)
+        self.assertEqual(handle.terminal["outcome"], "DEADLINE")
+        self.assertTrue(handle.terminal["uncertain"])
+        self.assertTrue(console.synchronized)
+        self.assertEqual(sum(b" release " in item for item in port.writes), 1)
+
+    def test_long_read_budget_accepts_a_terminal_after_eight_seconds(self):
+        console, port, clock = self.client()
+        port.handler = lambda identity, _: admission(identity)
+        handle = console.begin("probe 60000", timeout_s=60)
+        original_read = port.read
+        sent = False
+
+        def delayed_terminal(count):
+            nonlocal sent
+            if not sent and clock.now >= 10:
+                sent = True
+                port.buffer.extend(failed_terminal(handle.id))
+            return original_read(count)
+
+        port.read = delayed_terminal
+        terminal = console.wait(handle)
+        self.assertFalse(terminal["ok"])
+        self.assertGreaterEqual(clock.now, 10)
+        self.assertLess(clock.now, handle.deadline)
+        self.assertIsNone(handle.interruption)
+        self.assertTrue(console.synchronized)
+        self.assertEqual(sum(b" probe " in item for item in port.writes), 1)
+
+    def test_retained_terminal_does_not_spend_another_reads_service_budget(self):
+        console, port, clock = self.client()
+        port.handler = lambda identity, _: admission(identity) + successful_probe_result(identity)
+        first = console.begin("probe 10", timeout_s=0.02)
+        first_terminal = dict(console.wait(first))
+        first_counters = (first.turns, first.input_bytes)
+        port.handler = lambda identity, _: admission(identity, 2)
+        second = console.begin("probe 60000", timeout_s=60)
+        original_read = port.read
+        sent = False
+
+        def delayed_terminal(count):
+            nonlocal sent
+            if not sent and clock.now >= 10:
+                sent = True
+                port.buffer.extend(successful_probe_result(second.id, 2))
+            return original_read(count)
+
+        port.read = delayed_terminal
+        self.assertTrue(console.wait(second)["ok"])
+        self.assertGreaterEqual(clock.now, 10)
+        self.assertLess(clock.now, second.deadline)
+        self.assertLessEqual(second.turns, second.turn_limit)
+        self.assertEqual(first.terminal, first_terminal)
+        self.assertEqual((first.turns, first.input_bytes), first_counters)
+        self.assertIs(console.operations[1], first)
+        self.assertIs(console.operations[2], second)
+        self.assertFalse(first.released)
+        self.assertTrue(console.synchronized)
+        self.assertEqual(sum(b" probe " in item for item in port.writes), 2)
+
+    def test_terminal_with_partial_trailing_line_stays_bounded_with_frozen_clock(self):
+        console, port, _ = self.client()
+        console.sleep = lambda _: None
+        partial = b'{"schema":'
+        port.handler = lambda identity, _: admission(identity) + successful_probe_result(identity) + partial
+        handle = console.begin("probe 10", timeout_s=0.02)
+        with self.assertRaisesRegex(BenchError, "turn capacity"):
+            console.wait(handle)
+        self.assertEqual(handle.terminal["outcome"], "SUCCESS")
+        self.assertEqual(bytes(console.buffer), partial)
+        self.assertLessEqual(handle.turns, handle.turn_limit + 1)
+        self.assert_poisoned_without_replay(console, port)
+
+    def test_wait_on_already_retained_terminal_is_a_cached_read_without_io(self):
+        console, port, _ = self.client()
+        port.handler = lambda identity, _: admission(identity) + successful_probe_result(identity)
+        handle = console.begin("probe 10", timeout_s=0.02)
+        terminal = console.wait(handle)
+        counters = (handle.turns, handle.input_bytes)
+        port.buffer.extend(b'{"schema":')
+        console.sleep = lambda _: None
+
+        def forbidden_io(*_):
+            raise AssertionError("cached terminal wait attempted stream I/O")
+
+        port.read = port.write = forbidden_io
+        self.assertIs(console.wait(handle), terminal)
+        self.assertEqual((handle.turns, handle.input_bytes), counters)
+        self.assertEqual(bytes(port.buffer), b'{"schema":')
+        self.assertTrue(console.synchronized)
+
+    def test_long_startup_window_is_not_cut_off_at_eight_seconds(self):
+        for duration in (10, 60):
+            with self.subTest(duration=duration):
+                clock, port = Clock(), Port()
+                console = Console(port, clock=clock, sleeper=clock.sleep, first_id=1)
+                console.drain_startup(duration)
+                self.assertGreaterEqual(clock.now, duration)
+                self.assertTrue(console.synchronized)
+                self.assertFalse(port.writes)
+
+    def test_deadline_reached_during_preflight_never_hands_off_new_request(self):
+        for seam in ("intent_callback", "empty_read"):
+            with self.subTest(seam=seam):
+                console, port, clock = self.client()
+                writes = list(port.writes)
+                port.handler = lambda *_: b""
+                if seam == "intent_callback":
+                    def emit(event, **fields):
+                        if event == "intent":
+                            clock.now = fields["deadline_s"]
+                    console.emit = emit
+                else:
+                    def elapsed_empty_read(_count):
+                        clock.now += 0.02
+                        return b""
+                    port.read = elapsed_empty_read
+                with self.assertRaises(BenchError):
+                    console.begin("probe 10", timeout_s=0.02)
+                self.assertEqual(port.writes, writes)
+                self.assert_poisoned_without_replay(console, port)
 
     def test_preflight_collects_split_reply_for_existing_request(self):
         console, port, clock = self.client()

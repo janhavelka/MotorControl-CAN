@@ -113,12 +113,17 @@ def _reserve_artifacts(paths, record):
         if close_error is not None:
             record.update(ok=False, verdict="failed", artifact_close_error=str(close_error))
             record.setdefault("primary_error", str(primary or close_error))
+            # Archive invalidation cannot depend on repairing another failed medium.
+            # In particular, a summary close/reopen error must not preserve a passing ZIP.
+            try:
+                with paths[2].open("r+b") as output:
+                    output.truncate(0)  # A closed-but-unflushed archive cannot claim success.
+            except BaseException:
+                pass
             try:
                 with paths[0].open("r+b") as output:
                     output.truncate(0)
                     output.write(_json(record))
-                with paths[2].open("r+b") as output:
-                    output.truncate(0)  # A closed-but-unflushed archive cannot claim success.
             except BaseException:
                 pass
             if primary is None:
@@ -266,7 +271,8 @@ def run_recorded(*, port, baud, out, scenario, inputs, run, profile, node, can_b
             record["elapsed_s"] = max(0, clock() - started)
             record["client"] = console.diagnostics() if console else None
             record["evidence"] = dict(events=evidence.events, bytes=evidence.bytes,
-                                      exhausted=evidence.exhausted, max_events=2048, max_bytes=2 * 1024 * 1024)
+                                      exhausted=evidence.exhausted, failed=evidence.failed,
+                                      max_events=2048, max_bytes=2 * 1024 * 1024)
             try:
                 summary.write(_json(record))
                 summary.flush()

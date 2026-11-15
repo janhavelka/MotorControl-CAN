@@ -1,5 +1,8 @@
 # Prompt 43: Python console and evidence primitives
 
+See the [2026-11-15 independent re-audit](prompts_43_44_audit.md) for subsequent
+correlation/deadline/evidence corrections and current integrated verification.
+
 Date: 2026-11-12. Execution: `main`, upstream `origin/main`; no new branch.
 Entry revision was `3249ee8`; concurrent completed night-soak reporting advanced
 the base to `d8fa2f3` before integration. Its evidence and unrelated editor files

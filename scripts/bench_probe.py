@@ -46,6 +46,15 @@ def positive(value, name, maximum=60.0):
     return float(value)
 
 
+def _turn_limit(duration_s):
+    """Bound idle waits through the supplied deadline, including a final clock check.
+
+    Two spare turns cover floating-point idle accumulation and the terminal drain.
+    Frozen clocks and continuously ready streams still hit a finite hard limit.
+    """
+    return max(MAX_TURNS, min(65536, math.ceil(duration_s / IDLE_SECONDS) + 2))
+
+
 def command_text(command):
     """One complete ASCII command, without a correlation prefix or line terminator."""
     if type(command) is not str or not command or command != command.strip():
@@ -164,6 +173,8 @@ class Command:
     epoch is host-only: schema1 supplies no firmware boot/session ID. transmitted
     means serial handoff attempted, never CAN TX or native acceptance. Deadlines
     use the injected monotonic seconds and never renew on partial progress.
+    A completed terminal still awaits bounded trailing-byte drainage. An empty
+    input boundary marks it retained; later work cannot consume that result's budget.
     """
     owner: object
     id: int
@@ -271,6 +282,8 @@ class Console:
         if self.received > MAX_SESSION_INPUT:
             self._fail("session input capacity exhausted")
         for handle in self.pending.values():
+            if handle.phase == "retained":
+                continue
             handle.input_bytes += len(data)
             if handle.input_bytes > MAX_COMMAND_INPUT:
                 self._fail("command input capacity exhausted")
@@ -326,7 +339,7 @@ class Console:
         if not self.synchronized or self.next_id != self.first_id:
             raise BenchError("startup drain is only permitted before requests")
         deadline = self._now() + duration_s
-        for _ in range(MAX_TURNS):
+        for _ in range(_turn_limit(duration_s)):
             if self._now() >= deadline:
                 if self.buffer:
                     self._fail("incomplete startup line")
@@ -594,12 +607,18 @@ class Console:
         """Process one bounded read and all its complete lines; never extends a deadline."""
         self._check()
         for handle in self.pending.values():
+            if handle.phase == "retained":
+                continue
             handle.turns += 1
             if handle.turns > handle.turn_limit:
                 self._fail("command service turn capacity exhausted")
         data = self._read()
         self._check()
         self._consume(data)
+        if not data and not self.buffer:
+            for handle in self.pending.values():
+                if handle.terminal is not None:
+                    handle.phase = "retained"
         return bool(data)
 
     def begin(self, command, *, timeout_s=3.0):
@@ -632,7 +651,7 @@ class Console:
             raise ValueError("invalid command deadline")
         # Bytes already waiting cannot become a reply to intent not yet sent.
         # This bounded empty read is no device/firmware retirement proof.
-        for _ in range(MAX_TURNS):
+        for _ in range(_turn_limit(timeout_s)):
             if self._now() >= deadline:
                 self._fail("pre-handoff input deadline expired", "deadline")
             if not self.pump():
@@ -645,10 +664,10 @@ class Console:
         else:
             self._fail("pre-handoff input turn capacity exhausted")
         handle = Command(self, identity, command, family, deadline, self.host_epoch)
-        handle.turn_limit = MAX_TURNS
-        if campaign_form(command) in ("motion", "stop", "settings"):
-            handle.turn_limit = max(MAX_TURNS, min(65536, math.ceil(timeout_s / IDLE_SECONDS) + 1))
+        handle.turn_limit = _turn_limit(timeout_s)
         self._event("intent", request_id=identity, command=command, deadline_s=deadline)
+        if self._now() >= deadline:
+            self._fail("command deadline expired before handoff", "deadline")
         self.next_id += 1
         self.pending[identity] = handle
         handle.transmitted = True  # Even an exception can follow a partial host write.
@@ -672,13 +691,14 @@ class Console:
 
         Complete/partial trailing bytes are drained under the original cutoff before
         success returns. A valid terminal followed by damage remains retained evidence,
-        but the poisoned stream can issue no further work. No automatic result polling.
+        but the poisoned stream can issue no further work. An already drained retained
+        result is cached and does not service unrelated traffic. No automatic result polling.
         """
         if not isinstance(handle, Command) or handle.owner is not self or handle.epoch != self.host_epoch or handle.released:
             raise BenchError("foreign/stale command handle")
         if handle.id not in self.pending:
             raise BenchError("request is no longer pending")
-        while True:
+        while handle.phase != "retained":
             data = self.pump()
             if handle.terminal is not None and not data and not self.buffer:
                 break
@@ -690,7 +710,8 @@ class Console:
             del self.pending[handle.id]
         result = handle.terminal
         if release and handle.accepted:
-            self.release(handle)
+            if not self.release(handle)["ok"]:
+                raise BenchError("explicit result release refused")
         return result
 
     def command(self, command, *, timeout_s=3.0, release=False):
@@ -931,28 +952,40 @@ class EvidenceLog:
     """Exclusive JSONL transcript, at most 2048 events/2 MiB including a limit notice.
 
     Raw lines are hex encoded, preserving bytes without terminal escape sequences.
-    Exhaustion fails closed; the caller stops issuing work and retains uncertainty.
+    Exhaustion or a failed write/flush permanently fences further records.
+    Counters include every completely written/flushed record, including a limit notice.
+    The caller stops issuing work and retains uncertainty.
     No environment, port enumeration or unrelated files are captured.
     """
     def __init__(self, path=None, *, file=None):
         self.file = file if file is not None else Path(path).open("x", encoding="ascii", newline="\n")
         self.events = self.bytes = 0
         self.exhausted = False
+        self.failed = False
 
-    def __call__(self, event, **fields):
-        if self.exhausted:
-            raise BenchError("evidence log capacity exhausted")
-        line = json.dumps(dict(event=event, **fields), ensure_ascii=True,
-                          allow_nan=False, separators=(",", ":")) + "\n"
-        if len(line) > 16384 or self.events >= 2047 or self.bytes + len(line) > 2 * 1024 * 1024 - 128:
-            self.exhausted = True
-            self.file.write('{"event":"evidence_limit","status":"interrupted"}\n')
-            self.file.flush()
-            raise BenchError("evidence log capacity exhausted")
-        self.file.write(line)
+    def _write(self, line):
+        """Require a complete flushed record; count only confirmed complete writes."""
+        written = self.file.write(line)
+        if type(written) is not int or written != len(line):
+            raise BenchError("short/invalid evidence write")
         self.file.flush()
         self.events += 1
         self.bytes += len(line)
+
+    def __call__(self, event, **fields):
+        if self.failed:
+            raise BenchError("evidence log failed; no further records permitted")
+        try:
+            line = json.dumps(dict(event=event, **fields), ensure_ascii=True,
+                              allow_nan=False, separators=(",", ":")) + "\n"
+            if len(line) > 16384 or self.events >= 2047 or self.bytes + len(line) > 2 * 1024 * 1024 - 128:
+                self.exhausted = True
+                self._write('{"event":"evidence_limit","status":"interrupted"}\n')
+                raise BenchError("evidence log capacity exhausted")
+            self._write(line)
+        except BaseException:
+            self.failed = True
+            raise
 
     def close(self):
         """Close the host file; sends no console/device command."""
@@ -1086,60 +1119,92 @@ def run_live(args):
 
     No close/recovery path sends cleanup traffic. Failure preserves the attempted
     command, native terminal and stream damage separately. Existing files are
-    never overwritten. A terminal failure returns 1; input errors return 2.
+    never overwritten. Execution/finalization failure returns 1; reservation
+    errors propagate as setup failures. Completion prints only after summary closure.
     """
     log = EvidenceLog(args.log)
-    port = console = handle = None
+    port = console = handle = output = None
     summary_path = args.log.with_name(args.log.name + ".summary.json")
     try:
-        with summary_path.open("x", encoding="ascii", newline="\n") as output:
-            try:
-                log("invocation", plan=invocation(args))
-                import serial  # Optional dependency; never imported by library/offline paths.
-                if getattr(serial, "VERSION", None) != "3.5":
-                    raise BenchError("live console requires pyserial==3.5")
-                port = serial.Serial(port=None, baudrate=args.baud, timeout=0,
-                                     write_timeout=min(args.timeout, 2.0))
-                port.dtr = port.rts = False
-                port.port = args.port
-                port.open()
-                console = Console(port, on_event=log)
-                console.drain_startup(args.startup)
-                console.identify(expected_version=args.expected_library_version,
-                                 profile=args.profile, timeout_s=args.timeout)
-                console.check_config(console.handshake["config"], can_bitrate=args.can_bitrate)
-                selected = console.command(f"useaddr {args.node}", timeout_s=args.timeout)
-                if not selected["ok"]:
-                    raise BenchError("existing host binding selection refused; no probe sent")
-                console.check_config(console.command("config", timeout_s=args.timeout),
-                                     node=args.node, can_bitrate=args.can_bitrate)
-                handle = console.begin(invocation(args)["intent"], timeout_s=args.timeout)
-                terminal = console.wait(handle)
-                if args.release and handle.accepted:
-                    console.release(handle, timeout_s=args.timeout)
-                summary = dict(evidence_kind="live-observed", operation=console.summary(handle, evidence_kind="live-observed"),
-                               hardware_qualified=False, firmware_epoch=None)
-                success = terminal["ok"] and terminal.get("uncertain") is not True
-            except (BenchError, OSError, ImportError, ValueError) as error:
-                if console is not None and handle is None and console.pending:
-                    handle = list(console.pending.values())[-1]
-                operation = console.summary(handle, evidence_kind="live-observed") if handle else None
-                summary = dict(evidence_kind="live-observed" if operation else "skipped", error=str(error),
-                               operation=operation, hardware_qualified=False, firmware_epoch=None)
-                success = False
-            summary["plan"] = invocation(args)
-            summary["client"] = console.diagnostics() if console else None
-            summary["identity"] = console.handshake if console else None
-            output.write(json.dumps(summary, ensure_ascii=True, allow_nan=False, indent=2) + "\n")
-            output.flush()
-            print(("completed" if success else "failed") + ": " +
-                  (summary.get("operation") or {}).get("classification", "no admission") +
-                  f"; evidence {args.log}; summary {summary_path}")
-            return 0 if success else 1
+        output = summary_path.open("x", encoding="ascii", newline="\n")
+        try:
+            log("invocation", plan=invocation(args))
+            import serial  # Optional dependency; never imported by library/offline paths.
+            if getattr(serial, "VERSION", None) != "3.5":
+                raise BenchError("live console requires pyserial==3.5")
+            port = serial.Serial(port=None, baudrate=args.baud, timeout=0,
+                                 write_timeout=min(args.timeout, 2.0))
+            port.dtr = port.rts = False
+            port.port = args.port
+            port.open()
+            console = Console(port, on_event=log)
+            console.drain_startup(args.startup)
+            console.identify(expected_version=args.expected_library_version,
+                             profile=args.profile, timeout_s=args.timeout)
+            console.check_config(console.handshake["config"], can_bitrate=args.can_bitrate)
+            selected = console.command(f"useaddr {args.node}", timeout_s=args.timeout)
+            if not selected["ok"]:
+                raise BenchError("existing host binding selection refused; no probe sent")
+            console.check_config(console.command("config", timeout_s=args.timeout),
+                                 node=args.node, can_bitrate=args.can_bitrate)
+            handle = console.begin(invocation(args)["intent"], timeout_s=args.timeout)
+            terminal = console.wait(handle)
+            if args.release and handle.accepted:
+                if not console.release(handle, timeout_s=args.timeout)["ok"]:
+                    raise BenchError("explicit result release refused")
+            summary = dict(evidence_kind="live-observed", operation=console.summary(handle, evidence_kind="live-observed"),
+                           hardware_qualified=False, firmware_epoch=None)
+            success = terminal["ok"] and terminal.get("uncertain") is not True
+        except (BenchError, OSError, ImportError, ValueError, KeyboardInterrupt) as error:
+            if console is not None and handle is None and console.pending:
+                handle = list(console.pending.values())[-1]
+            if handle is not None and handle.terminal is None and handle.interruption is None:
+                handle.interruption = "interrupted"
+            operation = console.summary(handle, evidence_kind="live-observed") if handle else None
+            summary = dict(evidence_kind="live-observed" if operation else "skipped", error=str(error) or type(error).__name__,
+                           operation=operation, hardware_qualified=False, firmware_epoch=None)
+            success = False
+        finally:
+            # One close failure must neither leak the other resource nor erase a read result.
+            close_errors = {}
+            for name, resource in (("port", port), ("log", log)):
+                if resource is not None:
+                    try:
+                        resource.close()
+                    except BaseException as error:
+                        close_errors[name] = str(error) or type(error).__name__
+            port = log = None
+        if close_errors:
+            success = False
+            summary["close_errors"] = close_errors
+            summary.setdefault("error", next(iter(close_errors.values())))
+        summary["plan"] = invocation(args)
+        summary["client"] = console.diagnostics() if console else None
+        summary["identity"] = console.handshake if console else None
+        try:
+            with output:
+                output.write(json.dumps(summary, ensure_ascii=True, allow_nan=False, indent=2) + "\n")
+                output.flush()
+        except BaseException as error:
+            operation = summary.get("operation") or {}
+            primary = str(summary.get("error") or operation.get("outcome") or "no admission")[:512]
+            artifact = (str(error) or type(error).__name__)[:512]
+            print(f"failed: {operation.get('classification', 'no admission')}; primary: {primary}; "
+                  f"summary: {artifact}; evidence: {str(args.log)[:512]}", file=sys.stderr)
+            return 1
+        finally:
+            output = None
+        print(("completed" if success else "failed") + ": " +
+              (summary.get("operation") or {}).get("classification", "no admission") +
+              f"; evidence {args.log}; summary {summary_path}")
+        return 0 if success else 1
     finally:
-        if port is not None:
-            port.close()
-        log.close()
+        try:
+            if output is not None:
+                output.close()
+        finally:
+            if log is not None:
+                log.close()  # Summary reservation may fail before port I/O.
 
 
 def main(argv=None):

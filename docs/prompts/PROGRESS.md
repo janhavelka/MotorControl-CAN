@@ -1,5 +1,11 @@
 # Prompt execution progress
 
+The 2026-11-15 [fresh audit of prompts 43-44](../reports/prompts_43_44_audit.md)
+corrects client deadlines, release and interrupted evidence, failed log fencing
+and session archive finalization. Independent reviews and actual fake/native
+producer regressions preserve primary uncertainty and prevent replay.
+This adds no physical qualification; next implementation work remains 45.
+
 The 2026-11-15 [fresh audit of prompts41-42](../reports/prompts_41_42_audit.md)
 corrects capture graph ownership, discovery selection and retained failure evidence,
 with independent source/route/motion reviews and new console regressions.

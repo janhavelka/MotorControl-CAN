@@ -1,5 +1,8 @@
 # Live source and responsibility map
 
+The [2026-11-15 runner audit](reports/prompts_43_44_audit.md) verifies client
+correlation, bounded waits and failure-retaining evidence/session ownership.
+
 Prompts40-44 implement one shared conditional console, bounded Python client and
 finite campaigns. [The CLI contract](cli_contract.md)
 owns grammar, exact JSONL, source gates and capacity; [the P42 source audit](audit/PROMPT_42_SOURCES.md)

@@ -70,6 +70,16 @@ Unknown model/firmware matches and `hardware_qualified:false` remain explicit.
 | `--startup` | Bounded initial banner collection in seconds, finite `(0,60]`, default 0.2. |
 | `--release` | Send a separate correlated release after a checked admitted terminal. Omitted by default, so firmware retains the result. |
 
+A requested release refusal makes the invocation fail; it does not erase or
+reinterpret the primary read terminal. Ctrl-C retains the known terminal or
+interrupted/unknown evidence in the summary and exits nonzero. Both port and log
+closure are attempted before a passing summary is published. Closure failures
+are recorded in `close_errors` without replacing an earlier primary error.
+Summary write/flush/close failures return execution status 1 and report the
+primary classification/reason plus the separate artifact error on bounded stderr.
+The raw transcript remains available; completion prints only after summary closure.
+The client does not reopen or retry the failed summary medium.
+
 Connection, inspection and failure cleanup never imply enable, motion,
 reconfiguration, fault clearing or replay. Closing the port sends no cleanup
 command. Hardware qualification and previously retained operations remain
@@ -89,6 +99,14 @@ Call `drain_startup(seconds)` and
 neither admission nor device success. `pump()` dispatches available records,
 and `wait(handle)` waits under the original cutoff. `command(...)` combines
 begin/wait. `release(handle)` explicitly releases a checked admitted terminal.
+Its returned reply reports refusal. The `wait(..., release=True)` and
+`command(..., release=True)` conveniences raise `BenchError` on that refusal,
+leaving the original terminal and unreleased handle available.
+Until an empty input boundary completes trailing-byte drainage, a known terminal
+still has its original finite deadline/work limits. Afterwards its native handle
+is retained: later commands cannot consume that result's byte/turn budget, and
+another `wait(handle)` returns the cached terminal without servicing unrelated
+traffic. Global session limits and explicit release ownership remain unchanged.
 The reusable API supports the finite public forms listed by `supported_command`,
 including the campaign forms described in [the scenario catalogue](bench_scenarios.md).
 It does not accept arbitrary firmware commands.
@@ -124,7 +142,9 @@ record projections. They own bounded copies and perform no I/O, clock access,
 correlation or device-state inference. Evidence kinds are `planned`, `skipped`,
 `host-tested` and `live-observed`. Classifications distinguish local refusal,
 no admission, native rejection, pending/terminal evidence, unknown handoff and
-unknown after admission. A native failure stays distinct from stream damage;
+unknown after admission. A checked pending-result lookup preserves its admitted
+operation ID without claiming a terminal outcome or known native uncertainty.
+A native failure stays distinct from stream damage;
 a later parsing failure cannot erase an already checked terminal. Native
 `uncertain` remains verbatim or null when absent. A serial write attempt proves
 neither CAN TX nor protocol acknowledgement.
@@ -133,16 +153,24 @@ neither CAN TX nor protocol acknowledgement.
 | --- | --- |
 | Console wire record | 511 bytes including newline; JSON nesting at most 16 levels |
 | Client storage | Four ordinary/cached pending requests plus one reserved normal-stop and one fast-stop request; two ordinary admitted operations plus one per stop kind; 128 records per request |
-| Input/work | 65536 received bytes per command, 1 MiB per session, 1024 commands; 8192 pump turns for reads/cached work, campaign requests allow at most65536 under the same immutable deadline |
+| Input/work | 65536 received bytes per command, 1 MiB per session, 1024 commands; startup, preflight and all requests have a deadline-derived allowance of at least 8192 and at most 65536 turns |
 | In-memory diagnostics | Latest 64 raw lines and 16 parse failures; dropped raw-line count retained |
 | Live JSONL | 2048 events and 2 MiB including a reserved limit notice; 16384 bytes per event |
 | Pure summary | 256 records, 262144 serialized ASCII JSON bytes, 16 container levels; execution summary at most 16 operations |
 
-Exhaustion stops further work. These bounds are client/storage limits, not
+Evidence write/flush failure and capacity exhaustion permanently fence the log,
+even if its sink later recovers. `events` and `bytes` count completely written
+and flushed records, including the limit notice; partial failed writes are not
+counted as confirmed records. Session evidence exposes independent `failed` and
+`exhausted` flags. Failure through the Console callback forbids further commands.
+These bounds are client/storage limits, not
 universal drive or CANopen capacities.
 
 Before each handoff, already-buffered input is routed or rejected under finite
 byte/time/turn bounds. Split records for existing work keep its original deadline.
+The candidate deadline is checked again after intent evidence and before serial
+handoff; an already expired request sends nothing. More idle turns do not renew
+the immutable timeout, and frozen clocks still terminate at the finite work limit.
 An empty host read cannot prove that device queues are empty or resolve the
 missing firmware epoch.
 

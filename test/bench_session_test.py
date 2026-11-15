@@ -307,6 +307,44 @@ class SessionTests(unittest.TestCase):
             self.assertIn("SETTINGS_FAILED", report["primary_error"])
             self.assertEqual(report["artifact_error"], "separate disk failure")
 
+    def test_summary_close_and_reopen_failure_still_invalidates_passing_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "summary-close-reopen"
+            execute, _, closed = self.harness(prefix, self.build(), supplied_fixture=False)
+            summary_path = prefix.with_suffix(".json")
+            original_open = Path.open
+            close_error = OSError("summary owner close failed")
+
+            class CloseFailure:
+                def __init__(self, stream):
+                    self.stream = stream
+
+                def __getattr__(self, name):
+                    return getattr(self.stream, name)
+
+                def close(self):
+                    self.stream.close()
+                    raise close_error
+
+            def failing_open(path, mode="r", *args, **kwargs):
+                if path == summary_path and mode == "r+b":
+                    raise OSError("failed summary cannot be reopened")
+                stream = original_open(path, mode, *args, **kwargs)
+                return CloseFailure(stream) if path == summary_path and mode == "x+b" else stream
+
+            with patch.object(Path, "open", new=failing_open):
+                with self.assertRaises(OSError) as caught:
+                    execute()
+            self.assertIs(caught.exception, close_error)
+            self.assertEqual(closed, [True])
+            # A summary recovery failure must not skip invalidating a separately
+            # writable ZIP that still contains the earlier successful verdict.
+            archive_path = prefix.with_suffix(".zip")
+            if zipfile.is_zipfile(archive_path):
+                with zipfile.ZipFile(archive_path) as archive:
+                    self.assertFalse(json.loads(archive.read("summary.json"))["ok"])
+            self.assertTrue(prefix.with_suffix(".jsonl").stat().st_size)
+
     def test_evidence_write_failure_after_handoff_persists_unknown_and_forbids_cleanup(self):
         original_log = probe.EvidenceLog.__call__
 

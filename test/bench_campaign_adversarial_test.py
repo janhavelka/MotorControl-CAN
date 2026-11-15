@@ -444,6 +444,99 @@ class CampaignAdversarial(unittest.TestCase):
         self.assert_no_cleanup_replay(console, port, report)
 
 
+class EvidenceSinkAdversarial(unittest.TestCase):
+    """Retained evidence must survive the sink's write and flush contracts."""
+
+    class Sink:
+        def __init__(self, result=None, error=None):
+            self.result, self.error = result, error
+            self.writes = []
+            self.flushes = 0
+
+        def write(self, line):
+            self.writes.append(line)
+            return self.result(line) if self.result else len(line)
+
+        def flush(self):
+            self.flushes += 1
+            if self.error is not None:
+                raise self.error
+
+    def assert_latched(self, log, sink):
+        """A recovered medium cannot make this failed transcript usable again."""
+        sink.result, sink.error = None, None
+        before = (list(sink.writes), sink.flushes)
+        with self.assertRaises(bench.BenchError):
+            log("intent", command="probe 1000")
+        self.assertEqual((sink.writes, sink.flushes), before)
+
+    def test_short_or_invalid_evidence_write_counts_fail_and_remain_fenced(self):
+        counts = (lambda line: 0, lambda line: len(line) - 1,
+                  lambda line: len(line) + 1, lambda line: -1,
+                  lambda line: None, lambda line: True,
+                  lambda line: float(len(line)), lambda line: str(len(line)))
+        for count in counts:
+            with self.subTest(count=count):
+                sink = self.Sink(result=count)
+                log = bench.EvidenceLog(file=sink)
+                with self.assertRaises(bench.BenchError):
+                    log("intent", command="probe 1000")
+                self.assert_latched(log, sink)
+
+    def test_evidence_flush_failure_or_interruption_remains_fenced(self):
+        for error in (OSError("evidence flush failed"), KeyboardInterrupt("flush interrupted")):
+            with self.subTest(error=type(error).__name__):
+                sink = self.Sink(error=error)
+                log = bench.EvidenceLog(file=sink)
+                with self.assertRaises(type(error)) as caught:
+                    log("intent", command="probe 1000")
+                self.assertIs(caught.exception, error)
+                self.assert_latched(log, sink)
+
+    def test_short_intent_evidence_prevents_console_handoff(self):
+        clock, port = Clock(), CampaignPort()
+        console = bench.Console(port, clock=clock, sleeper=clock.sleep,
+                                first_id=1, host_epoch="short-intent-evidence")
+        console.identify(expected_version="0.1.0")
+        port.handler = lambda *_: b""
+        sink = self.Sink(result=lambda line: len(line) - 1)
+        log = bench.EvidenceLog(file=sink)
+        console.emit = log
+        before = list(port.writes)
+        with self.assertRaises(bench.BenchError):
+            console.begin(MOVE, timeout_s=0.025)
+        self.assertEqual(port.writes, before)
+        self.assertFalse(console.synchronized)
+        self.assertEqual(console.pending, {})
+        self.assert_latched(log, sink)
+        with self.assertRaises(bench.BenchError):
+            console.begin(MOVE, timeout_s=0.025)
+        self.assertEqual(port.writes, before)
+
+    def test_short_received_evidence_keeps_unknown_and_prevents_cleanup(self):
+        clock, port = Clock(), CampaignPort()
+        console = bench.Console(port, clock=clock, sleeper=clock.sleep,
+                                first_id=1, host_epoch="short-received-evidence")
+        console.identify(expected_version="0.1.0")
+        port.handler = lambda identity, command: (reply(identity, "release")
+            if command.startswith("release ") else successful_move(identity))
+        sink = self.Sink(result=lambda line: 0 if '"event":"line"' in line else len(line))
+        log = bench.EvidenceLog(file=sink)
+        console.emit = log
+        report = {}
+        with self.assertRaises(bench.BenchError):
+            bench.checked(console, MOVE, record=report, timeout_s=0.025)
+        self.assertEqual(report["primary_failure"]["classification"], "unknown_after_handoff")
+        self.assertTrue(report["primary_failure"]["transmitted"])
+        self.assertFalse(console.synchronized)
+        before = list(port.writes)
+        self.assertFalse(bench.cleanup_stop_attempts(console, report, stop="normal", timeout_s=0.025))
+        self.assertEqual(port.writes, before)
+        self.assertEqual(sum(b" move " in wire for wire in port.writes), 1)
+        self.assertFalse(any(b" stop " in wire or b" recover" in wire for wire in port.writes))
+        self.assert_latched(log, sink)
+
+
 class CampaignSessionAdversarial(unittest.TestCase):
     """Session ownership and durable failures use an injected in-memory port only."""
     def harness(self, prefix, run, *, opener_error=None, close_error=None):

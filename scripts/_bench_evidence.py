@@ -109,7 +109,8 @@ def summarize_operation(records: list[dict], *, intent: str, evidence_kind: str,
 
     ``transmitted`` means a serial write was attempted, not CAN transmission or
     acceptance. ``operation_id`` is an externally confirmed admitted identity,
-    if supplied. Missing acceptance after a write and interruption therefore
+    if supplied. A checked pending-result lookup also proves admission without
+    claiming a terminal outcome. Missing acceptance after a write and interruption therefore
     remains unknown. ``admission`` means confirmed admission; false alone does
     not prove that unacknowledged work was refused. Native ``uncertain`` is
     copied verbatim, or null if absent;
@@ -140,15 +141,17 @@ def summarize_operation(records: list[dict], *, intent: str, evidence_kind: str,
             records or transmitted or operation_id is not None or interruption is not None):
         raise BenchError("planned/skipped evidence cannot contain execution")
     receipt = next((record for record in records if record.get("result") == "accepted"), None)
+    pending = next((record for record in records if record.get("command") == "result"
+                    and record.get("result") == "pending"), None)
     terminal = next((record for record in records if record.get("type") == "terminal" or (
         record.get("command") == "result" and "command_id" in record
         and "outcome" in record)), None)
-    admitted = operation_id is not None or receipt is not None or terminal is not None
+    admitted = operation_id is not None or receipt is not None or terminal is not None or pending is not None
     final = terminal if terminal is not None else (records[-1] if records else {})
     if operation_id is None:
-        operation_id = (terminal or receipt or {}).get("operation_id")
+        operation_id = (terminal or receipt or pending or {}).get("operation_id")
     if request_id is None:
-        request_id = (terminal or receipt or {}).get("command_id")
+        request_id = (terminal or receipt or pending or {}).get("command_id")
         if request_id is None and records:
             request_id = records[0].get("id")
     if evidence_kind in ("planned", "skipped"):

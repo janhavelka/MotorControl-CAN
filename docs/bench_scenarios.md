@@ -111,3 +111,7 @@ summary artifacts are owned by `bench_session`; their paths, limits and collisio
 rules are documented in [the runner guide](runners.md). Native status, outcome,
 execution, observed completion and uncertainty are retained separately. A stop
 terminal does not establish physical standstill, electrical timing or restoration.
+
+If artifact closure fails, invalidating an independently writable report ZIP does
+not depend on repairing the failed summary file. The original failure and streamed
+evidence remain retained; a storage error never becomes a passing campaign.
