@@ -167,3 +167,14 @@ checks its own source manifest; firmware additionally checks the USB/time/task
 manifest. The selected virtualenv executable keeps its lexical path, and SDK
 constraint checks cannot be disabled. `firmware_build_contract` exercises both
 command boundaries and failed-build evidence retention without installing an SDK.
+
+
+The quick/full operation gate runs `python scripts/check_lichuan_operations.py`.
+Use `--json` for pending ledger obligations and per-row facets. Its finite source
+scanner checks the repository's free-function declaration convention, implementation,
+registered native tests, working console bridges and six offline Python plans;
+it does not replace compilation, behavioral execution or device qualification.
+The evidence map carries API paths and rationale only; device facts remain in
+`docs/reference/lichuan_objects.json`. New public declarations need both map and
+behavioral test evidence. Missing or gated CLI paths require a specific API-only
+reason, never a placeholder success. The checker runs again in prompts49/50.

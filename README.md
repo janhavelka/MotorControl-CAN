@@ -1,5 +1,13 @@
 # MotorControl-CAN
 
+Prompt46 adds an independent installed-package module example and production
+N5/EPOS4/protocol contract tests. No alternate drive is installed or advertised
+as supported. [The handoff](docs/fieldcore_handoff.md) records prospective
+FieldCore integration; [the profile contract](docs/profile_contract.md) explains
+type ownership and extension limits. The operation checker reconciles public
+code/tests/CLI/Python while keeping source and hardware gates separate.
+
+
 The [Prompt45 integration audit](docs/reports/prompt_45.md) strengthens retained
 move/stop uncertainty and fences interrupted host evidence. Cross-node pressure,
 old-map PDO traffic and retained-result exhaustion have deterministic regressions.
@@ -32,8 +40,9 @@ enable/interrupt and checked reference publication. Its firmware and physical-in
 gates remain closed; no homing trial has been run. See [prompt 36](docs/reports/prompt_36.md).
 
 The [finite velocity API](docs/velocity.md) and owner path are implemented behind
-explicit firmware gates. The connected CL86-C specimens have no retained mode3
-startup/stop trial; the default gate remains closed. See the
+explicit firmware gates. Retained specimen mode3 trials are recorded in the
+[bench record](docs/hardware_bench.md); wider rate, reverse and physical
+qualification remain separate. The default evidence gate remains closed. See the
 [offline example](examples/velocity_preview/README.md) and [stage report](docs/reports/prompt_35.md).
 
 

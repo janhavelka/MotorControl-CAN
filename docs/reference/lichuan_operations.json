@@ -1,0 +1,1241 @@
+{
+  "schema_version": 1,
+  "object_ledger": "docs/reference/lichuan_objects.json",
+  "purpose": "API evidence and ownership map only. Device facts, gates and separate read/setting/semantic/hardware coverage remain in the referenced single ledger. A family link does not claim that every manual semantic obligation is implemented.",
+  "families": [
+    {
+      "id": "Reads",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Reads.h",
+      "functions": {
+        "prepareProbe": 1,
+        "checkProbe": 1,
+        "prepareIdentity": 1,
+        "prepareState": 1,
+        "prepareConfig": 1,
+        "validateRead": 1,
+        "resetRead": 1,
+        "nextRead": 1,
+        "advanceRead": 3,
+        "getIdentity": 1,
+        "getStateBlock": 1,
+        "validateStateBlock": 1,
+        "getConfig": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/reads_test.cpp",
+          "ctest": "reads"
+        },
+        {
+          "path": "test/discovery_test.cpp",
+          "ctest": "discovery"
+        },
+        {
+          "path": "test/probe_device_console_test.cpp",
+          "ctest": "probe_device_console"
+        }
+      ],
+      "api_only_reason": "Validation, reset, stepping and checked getters are caller-owned phases of read/probe; exposing each phase as a standalone command would bypass the owner lifecycle.",
+      "console": [
+        {
+          "command": "read",
+          "entry": "prepareIdentity",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ]
+        },
+        {
+          "command": "probe",
+          "entry": "prepareProbe",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "quick"
+      ]
+    },
+    {
+      "id": "DriverSettings",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h",
+      "functions": {
+        "prepareDriverRead": 1,
+        "nextDriver": 1,
+        "advanceDriver": 2,
+        "getDriver": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/DriverReads.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/driver_settings_test.cpp",
+          "ctest": "driver_settings"
+        },
+        {
+          "path": "test/probe_device_console_test.cpp",
+          "ctest": "probe_device_console"
+        }
+      ],
+      "api_only_reason": "Finite group read stepping/getters are phases of driver/io/home/velocity read; every group remains subject to its Q20 acquisition scope.",
+      "console": [
+        {
+          "command": "driver",
+          "entry": "prepareDriverRead",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "IoSettings",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/IoSettings.h",
+      "functions": {
+        "getIo": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/DriverReads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/io_settings_test.cpp",
+          "ctest": "io_settings"
+        },
+        {
+          "path": "test/probe_device_console_test.cpp",
+          "ctest": "probe_device_console"
+        }
+      ],
+      "api_only_reason": "getIo publishes the complete typed observation for io read; it does not provide a terminal action or raw setter.",
+      "console": [
+        {
+          "command": "io",
+          "entry": "getIo",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed.",
+      "preparation_family": "DriverSettings"
+    },
+    {
+      "id": "Tuning",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Tuning.h",
+      "functions": {
+        "prepareControlRead": 1,
+        "prepareTuningRead": 1,
+        "getControl": 2,
+        "getTuning": 1,
+        "prepareControlSettings": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Tuning.cpp",
+        "src/profiles/lichuan_c/DriverReads.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/Settings.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/tuning_test.cpp",
+          "ctest": "tuning"
+        },
+        {
+          "path": "test/settings_owner_test.cpp",
+          "ctest": "settings_owner"
+        },
+        {
+          "path": "test/probe_settings_app_test.cpp",
+          "ctest": "probe_settings_app"
+        }
+      ],
+      "api_only_reason": "Read/getter/stepping and prerequisite functions compose control/tuning commands. Only the reviewed control selector has a setter.",
+      "console": [
+        {
+          "command": "control",
+          "entry": "prepareControlSettings",
+          "implementation": [
+            "examples/common/ProbeSettings.cpp"
+          ]
+        },
+        {
+          "command": "tuning",
+          "entry": "getTuning",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Settings",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Settings.h",
+      "functions": {
+        "prepareDriverSettings": 1,
+        "prepareSoftLimitSettings": 1,
+        "prepareSubdivisionSettings": 1,
+        "prepareIoSettings": 1,
+        "nextDriver": 1,
+        "noteDriverTransmission": 1,
+        "advanceDriver": 2,
+        "getDriver": 1,
+        "getIo": 1,
+        "retireMotionParameters": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Settings.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/DriverReads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/settings_write_test.cpp",
+          "ctest": "settings_write"
+        },
+        {
+          "path": "test/settings_owner_test.cpp",
+          "ctest": "settings_owner"
+        },
+        {
+          "path": "test/probe_settings_app_test.cpp",
+          "ctest": "probe_settings_app"
+        },
+        {
+          "path": "test/probe_device_console_test.cpp",
+          "ctest": "probe_device_console"
+        }
+      ],
+      "api_only_reason": "The native validation, transmission, readback and retirement phases are composed by ProbeSettings. Subdivision remains source-gated and has no working general setter route.",
+      "console": [
+        {
+          "command": "driver",
+          "entry": "prepareDriverSettings",
+          "implementation": [
+            "examples/common/ProbeSettings.cpp"
+          ]
+        },
+        {
+          "command": "io",
+          "entry": "prepareIoSettings",
+          "implementation": [
+            "examples/common/ProbeSettings.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "settings"
+      ]
+    },
+    {
+      "id": "State",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/State.h",
+      "functions": {
+        "interpretStatusword": 1,
+        "getStateInterpretation": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/State.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/drive_state_test.cpp",
+          "ctest": "drive_state"
+        }
+      ],
+      "api_only_reason": "interpretStatusword and getStateInterpretation compare documentary layouts explicitly. The console retains raw status instead of selecting a firmware layout for the user.",
+      "console": [],
+      "python_scenarios": [],
+      "console_api_only_reason": "interpretStatusword and getStateInterpretation compare documentary layouts explicitly. The console retains raw status instead of selecting a firmware layout for the user.",
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Actions",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Actions.h",
+      "functions": {
+        "stopPredecessorAllowed": 1,
+        "stopOptionsValid": 1,
+        "resetAction": 1,
+        "validateStop": 1,
+        "validateEscalation": 1,
+        "prepareStop": 1,
+        "prepareEscalation": 1,
+        "prepareClearAlarm": 1,
+        "prepareSetDevicePosition": 1,
+        "validateEnable": 1,
+        "prepareEnable": 1,
+        "noteActionWithdrawal": 1,
+        "nextAction": 1,
+        "noteActionTransmission": 2,
+        "advanceAction": 2,
+        "prepareBestEffortStop": 1,
+        "nextBestEffortStop": 1,
+        "noteBestEffortAdmission": 1,
+        "advanceBestEffortStop": 2
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Actions.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/State.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/stop_action_test.cpp",
+          "ctest": "stop_action"
+        },
+        {
+          "path": "test/enable_action_test.cpp",
+          "ctest": "enable_action"
+        },
+        {
+          "path": "test/alarm_clear_test.cpp",
+          "ctest": "alarm_clear"
+        },
+        {
+          "path": "test/counter_clear_test.cpp",
+          "ctest": "counter_clear"
+        },
+        {
+          "path": "test/reference_action_test.cpp",
+          "ctest": "reference_action"
+        },
+        {
+          "path": "test/axis_session_test.cpp",
+          "ctest": "axis_session"
+        },
+        {
+          "path": "test/probe_motion_actions_test.cpp",
+          "ctest": "probe_motion_actions"
+        },
+        {
+          "path": "test/motion_console_test.cpp",
+          "ctest": "motion_console"
+        }
+      ],
+      "api_only_reason": "Validation, preparation, transmission, withdrawal and terminal phases belong to the explicit owner/AxisSession action lane. Escalation and best-effort stop require predecessor/uncertainty evidence supplied by the application.",
+      "console": [
+        {
+          "command": "stop",
+          "entry": "prepareStop",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        },
+        {
+          "command": "enable",
+          "entry": "prepareEnable",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        },
+        {
+          "command": "alarm-clear",
+          "entry": "prepareClearAlarm",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        },
+        {
+          "command": "position-clear",
+          "entry": "prepareSetDevicePosition",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "stop"
+      ]
+    },
+    {
+      "id": "Position",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Position.h",
+      "functions": {
+        "preparePositionParameters": 1,
+        "validateMoveAbsolute": 1,
+        "prepareMoveAbsolute": 1,
+        "validateMoveRelative": 1,
+        "prepareMoveRelative": 1,
+        "prepareMoveAngle": 1,
+        "validateMoveAngle": 1,
+        "resetMove": 1,
+        "nextMove": 1,
+        "beginMoveObservation": 1,
+        "validateMoveAdmission": 1,
+        "noteMoveTransmission": 1,
+        "noteMoveWithdrawal": 1,
+        "advanceMove": 2
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Position.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/State.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/position_parameters_test.cpp",
+          "ctest": "position_parameters"
+        },
+        {
+          "path": "test/move_absolute_test.cpp",
+          "ctest": "move_absolute"
+        },
+        {
+          "path": "test/move_relative_test.cpp",
+          "ctest": "move_relative"
+        },
+        {
+          "path": "test/move_angle_test.cpp",
+          "ctest": "move_angle"
+        },
+        {
+          "path": "test/move_common_test.cpp",
+          "ctest": "move_common"
+        },
+        {
+          "path": "test/move_commanded_test.cpp",
+          "ctest": "move_commanded"
+        },
+        {
+          "path": "test/motion_console_test.cpp",
+          "ctest": "motion_console"
+        }
+      ],
+      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands.",
+      "console": [
+        {
+          "command": "move",
+          "entry": "prepareMoveAbsolute",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "position"
+      ]
+    },
+    {
+      "id": "Velocity",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Velocity.h",
+      "functions": {
+        "prepareVelocity": 1,
+        "validateVelocity": 1,
+        "nextVelocity": 1,
+        "beginVelocityObservation": 1,
+        "validateVelocityAdmission": 1,
+        "noteVelocityTransmission": 1,
+        "advanceVelocity": 2,
+        "noteVelocityWithdrawal": 1,
+        "serviceVelocity": 1,
+        "advanceVelocityStop": 3,
+        "validateVelocityStop": 1,
+        "prepareVelocityStop": 1,
+        "validateHaltedVelocityReport": 1,
+        "validateHaltedVelocityQuickStop": 1,
+        "prepareHaltedVelocityQuickStop": 1,
+        "resetVelocity": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Velocity.cpp",
+        "src/profiles/lichuan_c/Actions.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/State.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/velocity_test.cpp",
+          "ctest": "velocity"
+        },
+        {
+          "path": "test/velocity_owner_test.cpp",
+          "ctest": "velocity_owner"
+        },
+        {
+          "path": "test/motion_console_test.cpp",
+          "ctest": "motion_console"
+        }
+      ],
+      "api_only_reason": "The owner/AxisSession supplies finite timing, stop settlement and predecessor evidence. Recovery/escalation phases cannot be safely issued as independent console commands.",
+      "console": [
+        {
+          "command": "velocity",
+          "entry": "prepareVelocity",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "velocity"
+      ]
+    },
+    {
+      "id": "Homing",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Homing.h",
+      "functions": {
+        "validateHome": 1,
+        "prepareHome": 1,
+        "nextHome": 1,
+        "beginHomeObservation": 1,
+        "beginHomeTrigger": 1,
+        "validateHomeAdmission": 1,
+        "noteHomeTransmission": 1,
+        "advanceHome": 2,
+        "noteHomeWithdrawal": 1,
+        "advanceHomeStop": 2,
+        "getHomeReference": 1,
+        "resetHome": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Homing.cpp",
+        "src/profiles/lichuan_c/Actions.cpp",
+        "src/profiles/lichuan_c/Reads.cpp",
+        "src/profiles/lichuan_c/State.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/homing_test.cpp",
+          "ctest": "homing"
+        },
+        {
+          "path": "test/homing_action_test.cpp",
+          "ctest": "homing_action"
+        },
+        {
+          "path": "test/homing_owner_test.cpp",
+          "ctest": "homing_owner"
+        },
+        {
+          "path": "test/installed_consumer/main.cpp",
+          "ctest": "native_consumer"
+        },
+        {
+          "path": "test/motion_console_test.cpp",
+          "ctest": "motion_console"
+        }
+      ],
+      "api_only_reason": "The owner/AxisSession supplies method-specific observations, trigger admission and reference publication; the console cannot manufacture qualification records.",
+      "console": [
+        {
+          "command": "home",
+          "entry": "prepareHome",
+          "implementation": [
+            "examples/common/AxisSession.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [
+        "homing"
+      ]
+    },
+    {
+      "id": "Communication",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
+      "functions": {
+        "prepareCommunicationRead": 1,
+        "nextCommunication": 2,
+        "advanceCommunication": 4,
+        "getCommunication": 2,
+        "prepareCommunication": 1,
+        "prepareCommunicationConfirmation": 1,
+        "noteCommunicationTransmission": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Communication.cpp",
+        "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/communication_test.cpp",
+          "ctest": "communication"
+        },
+        {
+          "path": "test/heartbeat_communication_test.cpp",
+          "ctest": "heartbeat_communication"
+        },
+        {
+          "path": "test/probe_commissioning_app_test.cpp",
+          "ctest": "probe_commissioning_app"
+        }
+      ],
+      "api_only_reason": "Raw communication/map record reads and independent confirmation inspection remain API-only because they require caller-owned exact acquisition/binding evidence. The console exposes only the externally prepared heartbeat transition.",
+      "console": [
+        {
+          "command": "communication",
+          "entry": "nextCommunication",
+          "implementation": [
+            "examples/common/ProbeCommissioning.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Persistence",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Persistence.h",
+      "functions": {
+        "prepareSave": 1,
+        "prepareFactoryRestore": 1,
+        "nextPersistence": 1,
+        "notePersistenceTransmission": 1,
+        "advancePersistence": 2,
+        "verifyPersistence": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Persistence.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/persistence_test.cpp",
+          "ctest": "persistence"
+        },
+        {
+          "path": "test/configuration_restore_test.cpp",
+          "ctest": "configuration_restore"
+        },
+        {
+          "path": "test/probe_commissioning_app_test.cpp",
+          "ctest": "probe_commissioning_app"
+        }
+      ],
+      "api_only_reason": "Transmission, terminal advancement and independent verification are caller-owned phases. Console save/factory-restore consumes an externally reviewed typed plan; it does not invent durability evidence.",
+      "console": [
+        {
+          "command": "persistence",
+          "entry": "nextPersistence",
+          "implementation": [
+            "examples/common/ProbeCommissioning.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "PdoConfiguration",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
+      "functions": {
+        "prepareTpdo1Configuration": 2,
+        "nextPdoConfiguration": 1,
+        "notePdoConfigurationTransmission": 1,
+        "advancePdoConfiguration": 2,
+        "getTpdo1Configuration": 2
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/PdoConfiguration.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/pdo_configuration_test.cpp",
+          "ctest": "pdo_configuration"
+        },
+        {
+          "path": "test/probe_commissioning_app_test.cpp",
+          "ctest": "probe_commissioning_app"
+        }
+      ],
+      "api_only_reason": "Map/timer preparation, transmission and checked getters use an exact externally prepared plan. The console exposes the reviewed TPDO1 subset, not arbitrary remapping.",
+      "console": [
+        {
+          "command": "pdo",
+          "entry": "nextPdoConfiguration",
+          "implementation": [
+            "examples/common/ProbeCommissioning.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Units",
+      "header": "include/MotorControlCAN/Units.h",
+      "functions": {
+        "toNativeQuantity": 1,
+        "addNativeInteger": 1,
+        "convertDisplacement": 3,
+        "convertVelocity": 3,
+        "quantizeInteger": 2,
+        "quantizeFloat": 2,
+        "reduceRational": 1,
+        "parseExactNumber": 1,
+        "rationalToDouble": 1,
+        "validateUnitConfig": 1,
+        "convertAcceleration": 2
+      },
+      "implementation": [
+        "src/Units.cpp",
+        "src/Axis.cpp",
+        "src/profiles/lichuan_c/Position.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/units_test.cpp",
+          "ctest": "units"
+        },
+        {
+          "path": "test/multidrive_contract_test.cpp",
+          "ctest": "multidrive_contract"
+        },
+        {
+          "path": "test/move_relative_test.cpp",
+          "ctest": "move_relative"
+        },
+        {
+          "path": "test/probe_console_test.cpp",
+          "ctest": "probe_console"
+        }
+      ],
+      "api_only_reason": "Exact conversion/quantization helpers support host previews and motion preparation. Acceleration conversion is a common API contrast; the Lichuan console uses native milliseconds.",
+      "console": [
+        {
+          "command": "prepare",
+          "entry": "parseExactNumber",
+          "implementation": [
+            "examples/common/ProbeConsole.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Axis",
+      "header": "include/MotorControlCAN/Axis.h",
+      "functions": {
+        "validateAxisConfig": 1,
+        "configureAxis": 1,
+        "setAxisOrigin": 1,
+        "invalidateAxisReference": 1,
+        "preparePosition": 1,
+        "validatePreparedTarget": 1,
+        "prepareVelocityTarget": 1
+      },
+      "implementation": [
+        "src/Axis.cpp",
+        "src/Units.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/axis_test.cpp",
+          "ctest": "axis"
+        },
+        {
+          "path": "test/move_angle_test.cpp",
+          "ctest": "move_angle"
+        },
+        {
+          "path": "test/probe_console_test.cpp",
+          "ctest": "probe_console"
+        }
+      ],
+      "api_only_reason": "Validation, prepared-target checking and reference invalidation support host coordinate preparation. Invalidation is owned by binding/reset events rather than an independent motor command.",
+      "console": [
+        {
+          "command": "axis",
+          "entry": "configureAxis",
+          "implementation": [
+            "examples/common/ProbeAppLocal.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Discovery",
+      "header": "include/MotorControlCAN/Discovery.h",
+      "functions": {
+        "discoveryProfileCount": 1,
+        "getDiscoveryProfile": 1,
+        "getDiscoveryCapabilities": 1
+      },
+      "implementation": [
+        "src/Discovery.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/discovery_test.cpp",
+          "ctest": "discovery"
+        },
+        {
+          "path": "test/probe_console_test.cpp",
+          "ctest": "probe_console"
+        }
+      ],
+      "api_only_reason": "Profile and capability inspection are pure finite inventory reads, not mixed-protocol probing or hardware detection.",
+      "console": [
+        {
+          "command": "profile",
+          "entry": "getDiscoveryProfile",
+          "implementation": [
+            "examples/common/ProbeConsole.cpp"
+          ]
+        }
+      ],
+      "python_scenarios": [],
+      "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
+    },
+    {
+      "id": "Capabilities",
+      "header": "include/MotorControlCAN/Capabilities.h",
+      "functions": {
+        "requireCapability": 1
+      },
+      "implementation": [
+        "src/Capabilities.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/multidrive_contract_test.cpp",
+          "ctest": "multidrive_contract"
+        }
+      ],
+      "api_only_reason": "Caller-supplied capability and calibration facts are checked by the common production API; no Lichuan device capability or console selector is inferred.",
+      "console": [],
+      "console_api_only_reason": "Caller-supplied capability and calibration facts are checked by the common production API; no Lichuan device capability or console selector is inferred.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "Native",
+      "header": "include/MotorControlCAN/Native.h",
+      "functions": {
+        "convertNativeRamp": 1,
+        "checkNativeInteger": 1
+      },
+      "implementation": [
+        "src/Native.cpp",
+        "src/Units.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/multidrive_contract_test.cpp",
+          "ctest": "multidrive_contract"
+        }
+      ],
+      "api_only_reason": "Native width and ramp dimensions are pure production representation checks. Lichuan commands use their reviewed profile widths/time units; no console acceleration setter is created.",
+      "console": [],
+      "console_api_only_reason": "Native width and ramp dimensions are pure production representation checks. Lichuan commands use their reviewed profile widths/time units; no console acceleration setter is created.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "Endpoint",
+      "header": "include/MotorControlCAN/Endpoint.h",
+      "functions": {
+        "sameBinding": 1,
+        "validateBinding": 1
+      },
+      "implementation": [
+        "src/Endpoint.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/core_test.cpp",
+          "ctest": "core"
+        },
+        {
+          "path": "test/sdo_codec_test.cpp",
+          "ctest": "sdo_codec"
+        }
+      ],
+      "api_only_reason": "Binding comparison/validation is an owner admission boundary. The console selects already bound slots and cannot create routing evidence.",
+      "console": [],
+      "console_api_only_reason": "Binding comparison/validation is an owner admission boundary. The console selects already bound slots and cannot create routing evidence.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "Status",
+      "header": "include/MotorControlCAN/Status.h",
+      "functions": {
+        "Ok": 1,
+        "errToString": 1
+      },
+      "implementation": [
+        "include/MotorControlCAN/Status.h"
+      ],
+      "tests": [
+        {
+          "path": "test/core_test.cpp",
+          "ctest": "core"
+        }
+      ],
+      "api_only_reason": "Local Status construction/error labels are shared result vocabulary, not a device operation or a console command.",
+      "console": [],
+      "console_api_only_reason": "Local Status construction/error labels are shared result vocabulary, not a device operation or a console command.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "Frame",
+      "header": "include/MotorControlCAN/can/Frame.h",
+      "functions": {
+        "validateFrame": 1
+      },
+      "implementation": [
+        "src/can/Frame.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/frame_test.cpp",
+          "ctest": "frame"
+        }
+      ],
+      "api_only_reason": "Frame validation preserves standard/extended/RTR/data facts; owner adapters consume it. The console has no arbitrary frame injection command.",
+      "console": [],
+      "console_api_only_reason": "Frame validation preserves standard/extended/RTR/data facts; owner adapters consume it. The console has no arbitrary frame injection command.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "NetworkCodec",
+      "header": "include/MotorControlCAN/canopen/Network.h",
+      "functions": {
+        "makeNmtRequest": 1,
+        "validateNetworkRoute": 1,
+        "checkNetworkEvent": 1
+      },
+      "implementation": [
+        "src/canopen/Network.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/network_codec_test.cpp",
+          "ctest": "network_codec"
+        },
+        {
+          "path": "test/network_events_test.cpp",
+          "ctest": "network_events"
+        },
+        {
+          "path": "test/nmt_codec_test.cpp",
+          "ctest": "nmt_codec"
+        }
+      ],
+      "api_only_reason": "CANopen-specific frame/event validation underlies the owner nmt/network/heartbeat paths; it is not a generic axis prerequisite or independent console byte interface.",
+      "console": [],
+      "console_api_only_reason": "CANopen-specific frame/event validation underlies the owner nmt/network/heartbeat paths; it is not a generic axis prerequisite or independent console byte interface.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "PdoCodec",
+      "header": "include/MotorControlCAN/canopen/Pdo.h",
+      "functions": {
+        "validatePdoMap": 1,
+        "validatePdoRoute": 1,
+        "samePdoRoute": 1,
+        "decodePdo": 1,
+        "pdoMapFromReadback": 1
+      },
+      "implementation": [
+        "src/canopen/Pdo.cpp",
+        "src/profiles/lichuan_c/Reads.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/pdo_codec_test.cpp",
+          "ctest": "pdo_codec"
+        },
+        {
+          "path": "test/pdo_observations_test.cpp",
+          "ctest": "pdo_observations"
+        },
+        {
+          "path": "test/reads_test.cpp",
+          "ctest": "reads"
+        }
+      ],
+      "api_only_reason": "PDO map/route/sample validation and raw readback projection are CANopen representation services, not profile semantic completion. The console pdo inspection/apply routes use qualified owner records.",
+      "console": [],
+      "console_api_only_reason": "PDO map/route/sample validation and raw readback projection are CANopen representation services, not profile semantic completion. The console pdo inspection/apply routes use qualified owner records.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "PdoFreshness",
+      "header": "include/MotorControlCAN/canopen/PdoState.h",
+      "functions": {
+        "pdoFreshness": 1
+      },
+      "implementation": [
+        "src/canopen/PdoState.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/pdo_observations_test.cpp",
+          "ctest": "pdo_observations"
+        }
+      ],
+      "api_only_reason": "PDO age is supplied owner evidence, not an independent refreshing command or proof of remap retirement.",
+      "console": [],
+      "console_api_only_reason": "PDO age is supplied owner evidence, not an independent refreshing command or proof of remap retirement.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "SdoCodec",
+      "header": "include/MotorControlCAN/canopen/Sdo.h",
+      "functions": {
+        "validateSdoChannel": 1,
+        "checkRequest": 1,
+        "checkReply": 1,
+        "readWord": 1,
+        "readSignedWord": 1
+      },
+      "implementation": [
+        "src/canopen/Sdo.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/sdo_codec_test.cpp",
+          "ctest": "sdo_codec"
+        }
+      ],
+      "api_only_reason": "Scalar SDO shape/word codecs are below typed profile services. No raw SDO console command bypasses per-object effects or typed getters.",
+      "console": [],
+      "console_api_only_reason": "Scalar SDO shape/word codecs are below typed profile services. No raw SDO console command bypasses per-object effects or typed getters.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "ObjectDescriptors",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Objects.h",
+      "functions": {
+        "readDescriptor": 1
+      },
+      "implementation": [
+        "include/MotorControlCAN/profiles/lichuan_c/Objects.h"
+      ],
+      "tests": [
+        {
+          "path": "test/objects_test.cpp",
+          "ctest": "objects"
+        },
+        {
+          "path": "test/communication_test.cpp",
+          "ctest": "communication"
+        }
+      ],
+      "api_only_reason": "Generated readDescriptor returns documentary wire shape only. It never completes typed reads, settings, actions or workflows and has no raw console route.",
+      "console": [],
+      "console_api_only_reason": "Generated readDescriptor returns documentary wire shape only. It never completes typed reads, settings, actions or workflows and has no raw console route.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "ProfilePdoTemplates",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Pdo.h",
+      "functions": {
+        "pdoProfile": 1,
+        "pdoTemplate": 1
+      },
+      "implementation": [
+        "include/MotorControlCAN/profiles/lichuan_c/Pdo.h"
+      ],
+      "tests": [
+        {
+          "path": "test/pdo_codec_test.cpp",
+          "ctest": "pdo_codec"
+        },
+        {
+          "path": "test/can_bus_owner_test.cpp",
+          "ctest": "can_bus_owner"
+        }
+      ],
+      "api_only_reason": "Generated profile/template selection returns documentary map shapes, not current physical configuration, sample qualification or semantic completion.",
+      "console": [],
+      "console_api_only_reason": "Generated profile/template selection returns documentary map shapes, not current physical configuration, sample qualification or semantic completion.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "ServiceEvidence",
+      "header": "include/MotorControlCAN/ActionOperation.h",
+      "functions": {
+        "checkServiceEvidence": 1
+      },
+      "implementation": [
+        "src/ActionOperation.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/multidrive_contract_test.cpp",
+          "ctest": "multidrive_contract"
+        }
+      ],
+      "api_only_reason": "Pure acknowledgement projection preserves absent/unknown protocol acknowledgement independently of completion. It cannot create a drive acceptance or a console operation.",
+      "console": [],
+      "console_api_only_reason": "A service-evidence projection consumes caller facts only; the console already serializes the concrete operation evidence without manufacturing acknowledgement.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named campaign claims independent acknowledgement projection; production contrast tests cover absence, unknown, rejection and observed completion separately."
+    }
+  ],
+  "ledger_bindings": {
+    "read": {
+      "19": "Reads",
+      "20": "DriverSettings",
+      "21": "IoSettings",
+      "22": "Tuning",
+      "35": "DriverSettings",
+      "36": "DriverSettings",
+      "38": "Communication",
+      "39": "DriverSettings"
+    },
+    "setting": {
+      "20": "Settings",
+      "21": "Settings",
+      "22": "Tuning",
+      "38": "Communication"
+    },
+    "manual": {
+      "mode_selection": "Settings",
+      "enable_transition": "Actions",
+      "position_parameters": "Position",
+      "position_trigger": "Position",
+      "position_update_policy": "Position",
+      "position_coordinate_mode": "Position",
+      "position_transition_examples": "Position",
+      "normal_stop": "Actions",
+      "emergency_stop": "Actions",
+      "status_interpretation": "State",
+      "velocity_parameters": "Velocity",
+      "velocity_start_order": "Velocity",
+      "homing_parameters": "Homing",
+      "homing_negative_limit_17": "Homing",
+      "homing_positive_limit_18": "Homing",
+      "homing_positive_origin_24": "Homing",
+      "homing_negative_origin_29": "Homing",
+      "homing_trigger_and_interrupt": "Homing",
+      "homing_status": "Homing",
+      "clear_current_position": "Actions",
+      "save_parameters": "Persistence",
+      "restore_factory_parameters": "Persistence",
+      "fault_reset_controlword": "Actions",
+      "fault_reset_vendor_object": "Actions",
+      "motion_monitor": "Reads",
+      "digital_input_observation": "Reads",
+      "digital_output_observation": "Reads",
+      "default_direction": "DriverSettings",
+      "subdivision_and_position_scale": "Settings",
+      "software_limit_enable": "Settings",
+      "software_node_setting": "Communication",
+      "input_polarity": "Settings",
+      "input_function_assignment": "Settings",
+      "input_filter": "IoSettings",
+      "output_polarity": "IoSettings",
+      "output_function_assignment": "IoSettings",
+      "user_output_command_and_mask": "IoSettings",
+      "drive_loop_mode": "Tuning",
+      "encoder_resolution": "Tuning",
+      "current_settings": "Tuning",
+      "tuning_settings": "Tuning",
+      "error_codes": "Reads",
+      "led_alarm_and_reset_class": "Reads",
+      "product_protocol_and_geometry": "Discovery",
+      "brake_output_wiring": null,
+      "dip_node_selection": null,
+      "dip_bitrate_selection": null,
+      "termination_and_cabling": null,
+      "electrical_input_output_contract": null,
+      "supply_voltage_applicability": null,
+      "status_interpretation_57": null,
+      "output_terminal_labels_57": null,
+      "supply_voltage_applicability_57": null
+    },
+    "operation": {
+      "18": "PdoConfiguration",
+      "19": "Reads",
+      "20": "Settings",
+      "21": "Settings",
+      "22": "Tuning",
+      "30": "Actions",
+      "31": "Actions",
+      "32": "Actions",
+      "33": "Position",
+      "35": "Velocity",
+      "36": "Homing",
+      "38": "Communication",
+      "39": "Persistence"
+    }
+  },
+  "python_plans": {
+    "quick": [],
+    "position": [
+      "--target",
+      "100",
+      "--kind",
+      "relative",
+      "--rpm",
+      "60",
+      "--ramp-up-ms",
+      "100",
+      "--ramp-down-ms",
+      "200",
+      "--setup",
+      "verify",
+      "--stop-policy",
+      "fast"
+    ],
+    "stop": [
+      "--stop-policy",
+      "normal"
+    ],
+    "velocity": [
+      "--rpm",
+      "60",
+      "--duration-ms",
+      "100",
+      "--stop-policy",
+      "fast",
+      "--timeout",
+      "20"
+    ],
+    "homing": [
+      "--method",
+      "17",
+      "--search-rpm",
+      "60",
+      "--return-rpm",
+      "30",
+      "--home-ramp-ms",
+      "100",
+      "--stop-policy",
+      "fast"
+    ],
+    "settings": [
+      "--driver-settings",
+      "60",
+      "100",
+      "200"
+    ]
+  },
+  "python_tests": [
+    {
+      "path": "test/bench_campaign_plans_test.py",
+      "ctest": "bench_campaign_plans"
+    },
+    {
+      "path": "test/bench_campaign_adversarial_test.py",
+      "ctest": "bench_campaign_adversarial"
+    }
+  ]
+}

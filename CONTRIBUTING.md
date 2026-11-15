@@ -123,3 +123,10 @@ run the separate firmware CI jobs for changes to that integration. Inspect the
 actual compiler inputs, not only a successful build message. Update the reviewed
 SDK hash manifest when an explicitly reviewed SDK upgrade changes source bytes.
 Compile fixtures keep CAN disabled; no build check may flash or open a port.
+
+
+After changing a public function or its console bridge, update
+`docs/reference/lichuan_operations.json` and run
+`python scripts/check_lichuan_operations.py`. Device facts stay in the object
+ledger; this map records public/test/CLI/Python evidence and API-only reasons.
+Run `python test/lichuan_operations_test.py` after changing that checker.

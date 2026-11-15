@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/Discovery.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Communication.cpp src/profiles/lichuan_c/HeartbeatCommunication.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/Velocity.cpp src/profiles/lichuan_c/Homing.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/Discovery.cpp src/Capabilities.cpp src/Native.cpp src/ActionOperation.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Communication.cpp src/profiles/lichuan_c/HeartbeatCommunication.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/Velocity.cpp src/profiles/lichuan_c/Homing.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
 
 list(APPEND MOTORCONTROLCAN_SOURCES src/profiles/lichuan_c/Persistence.cpp)
 
@@ -40,6 +40,7 @@ endif()
 option(MOTORCONTROLCAN_BUILD_EXAMPLES "Build offline native examples" OFF)
 if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/units_preview)
+    add_subdirectory(examples/fieldcore_consumer)
     add_subdirectory(examples/position_preview)
     add_subdirectory(examples/angle_preview)
     add_subdirectory(examples/velocity_preview)
@@ -82,6 +83,7 @@ install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
 install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h include/MotorControlCAN/ReadOperation.h
     include/MotorControlCAN/ActionOperation.h include/MotorControlCAN/MoveOperation.h include/MotorControlCAN/VelocityOperation.h include/MotorControlCAN/HomeOperation.h
     include/MotorControlCAN/Units.h include/MotorControlCAN/Axis.h
+    include/MotorControlCAN/Capabilities.h include/MotorControlCAN/Native.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Discovery.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
 install(FILES include/MotorControlCAN/can/Frame.h

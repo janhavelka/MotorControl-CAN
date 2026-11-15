@@ -511,7 +511,7 @@ class GenerationTests(unittest.TestCase):
         document = coverage_document(data, projected_rows(data["objects"]))
         self.assertIn("| Read shape descriptors | 192 |", document)
         self.assertIn("| Typed settings | 15 |", document)
-        self.assertIn("| Workflows | 1 | Explicit typed heartbeat scope only", document)
+        self.assertIn("| Typed heartbeat workflows | 1 | Explicit typed heartbeat scope only", document)
         self.assertIn("position_parameters_86c", document)
         self.assertIn("explicit_di_configuration_86c", document)
         self.assertIn("explicit_loop_mode_86c", document)
@@ -711,6 +711,8 @@ class GenerationTests(unittest.TestCase):
             for row in obj["entries"]:
                 row.pop("read_coverage", None)
                 row.pop("setting_coverage", None)
+        for row in data["manual_only"]:
+            row.pop("operation_coverage", None)
         data["semantic_review"]["binding_policy"] = "Unique explicit binding policy marker"
         data["semantic_review"]["families"][0]["limitations"] = "Unique family capability limit marker"
         data["semantic_review"]["gates"][0]["models"] = ["Unique gate model marker"]
@@ -721,8 +723,22 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("| Models | Owners |", document)
         self.assertIn("| Typed reads | 0 |", document)
         self.assertIn("| Typed settings | 0 |", document)
-        self.assertIn("| Actions | 0 |", document)
-        self.assertIn("| Workflows | 0 |", document)
+        self.assertIn("| Action obligations with conditional public paths | 0 |", document)
+        self.assertIn("| Other manual obligations with conditional public paths | 0 |", document)
+        self.assertIn("| Typed heartbeat workflows | 0 |", document)
+
+    def test_conditional_workflow_facets_do_not_promote_source_or_hardware_coverage(self):
+        before = copy.deepcopy(self.ledger)
+        document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))
+        self.assertEqual(before, self.ledger)
+        self.assertIn("| Action obligations with conditional public paths | 6 |", document)
+        self.assertIn("| Other manual obligations with conditional public paths | 16 |", document)
+        self.assertIn("| normal_stop | 31 | yes/yes/yes/no |", document)
+        self.assertIn("StopKind::HALT", document)
+        self.assertIn("Original semantic gates and hardware qualification remain independent", document)
+        for row in self.ledger["manual_only"]:
+            self.assertFalse(row["coverage"]["implemented"])
+            self.assertFalse(row["coverage"]["hardware_qualified"])
 
     def test_coverage_lists_all_three_source_rpdo1_words(self):
         document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))

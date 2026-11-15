@@ -29,7 +29,7 @@ documentation and CI gates remain prompt 8 work.
 | Reused `canopen_service_fit` test | Original selected-engine exchange/segmentation/failure proof |
 
 The measured Release host layout on x64 MinGW GCC 15.1 is `ServiceWork=112`,
-`ServiceEvidence=104`, `CanBusOwner=1384` bytes. These are `sizeof` values, not
+`ServiceReply=104`, `CanBusOwner=1384` bytes. These are `sizeof` values, not
 peak stack, embedded RAM, timing or heap measurements. The core/owner no-allocation
 claim is source-inspected. Tests use standard output only for reporting.
 
@@ -44,3 +44,7 @@ uses the real `preparePosition`. Complete services, real motion and
 controller qualification retain their assigned later stages. Read
 [owner lifetimes](../../docs/can_owner.md) and
 [service premises](../../docs/canopen_services.md) before reusing this proof.
+
+Prompt46 moved synthetic work/reply/command outcomes into ProofProfile. Shared
+capability/read/action types come from installed production headers; this remains
+test-only. ServiceReply is not production ServiceEvidence.

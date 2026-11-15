@@ -93,7 +93,7 @@ bool CanBusOwner::admitInto(SequenceId sequence, const ServiceWork& work, uint64
         if (s.occupied || s.generation == UINT32_MAX) continue;
         ++s.generation;
         s.occupied = true; s.terminal = false; s.submitted = false;
-        s.sequence = sequence.slot; s.work = work; s.evidence = ServiceEvidence();
+        s.sequence = sequence.slot; s.work = work; s.evidence = ServiceReply();
         storage_.axes[sequence.slot].lastStep = work.step.value;
         storage_.axes[sequence.slot].deadlineUs = work.deadlineUs;
         storage_.lastUs = nowUs;
@@ -245,7 +245,7 @@ bool CanBusOwner::cancel(RequestId id, uint64_t nowUs) {
     } else finish(id.slot, EventKind::CANCEL, nowUs);
     return true;
 }
-const ServiceEvidence* CanBusOwner::result(RequestId id) const {
+const ServiceReply* CanBusOwner::result(RequestId id) const {
     return valid(id) && storage_.slots[id.slot].terminal ? &storage_.slots[id.slot].evidence : nullptr;
 }
 bool CanBusOwner::release(RequestId id) {

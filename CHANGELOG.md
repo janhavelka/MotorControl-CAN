@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Independent consumers and production contrasts (prompt46, 2026-11-15)
+
+- Add a standalone installed-package module example with exact targets, supplied
+  asynchronous evidence and retained typed outcomes, without FieldCore or a stack.
+- Promote only exercised capability, ramp, width and service-evidence primitives;
+  isolate remaining synthetic proof types and remove duplicate outcome definitions.
+- Run N5/EPOS4 and other CAN protocol representation contrasts against production
+  APIs, retaining wrapped-angle vectors and source/hardware limits.
+- Add native/API/CLI/Python reconciliation with negative tests and active quick/full
+  gates. Correct stale generated zero-action coverage through a separate conditional
+  workflow facet; original source and physical qualification gates remain visible.
+- Settle unsent example work at its deadline and reject fake-clock latency overflow.
+
+
 ### Public header and promptset corrections (2026-11-15)
 
 - Expose the common discovery inventory through `MotorControlCAN.h`, with an

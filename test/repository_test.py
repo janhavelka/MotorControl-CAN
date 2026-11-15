@@ -18,6 +18,23 @@ import check_repository as checker
 
 # Independent fixture inventory: deleting a checker rule must not weaken tests.
 FILES = {
+    "test/combined_contract_test.cpp", "test/installed_consumer/core.cpp",
+    "include/MotorControlCAN/Capabilities.h",
+    "include/MotorControlCAN/Native.h",
+    "src/Capabilities.cpp",
+    "src/Native.cpp",
+    "src/ActionOperation.cpp",
+    "scripts/check_lichuan_operations.py",
+    "test/lichuan_operations_test.py",
+    "docs/reference/lichuan_operations.json",
+    "examples/fieldcore_consumer/MotorModule.h",
+    "examples/fieldcore_consumer/MotorModule.cpp",
+    "examples/fieldcore_consumer/FakeOwner.h",
+    "examples/fieldcore_consumer/main.cpp",
+    "examples/fieldcore_consumer/CMakeLists.txt",
+    "examples/fieldcore_consumer/README.md",
+    "test/fieldcore_consumer_test.cpp",
+
     "scripts/bench_motion.py", "scripts/bench_repeat.py", "scripts/bench_scenarios.py", "scripts/bench_session.py",
     "docs/bench_scenarios.md", "test/bench_campaign_plans_test.py",
     "test/bench_campaign_adversarial_test.py", "test/bench_session_test.py",
@@ -188,7 +205,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "fieldcore_consumer", "combined_contract", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})
@@ -196,6 +213,8 @@ class RepositoryTests(unittest.TestCase):
         self.tests.append({"name": "canopen_service_fit", "command": [
             str(self.build / "test/fit_stack" / ("canopen_service_fit" + suffix))]})
         for name, relative, args in (
+                ("lichuan_operations", "scripts/check_lichuan_operations.py", []),
+                ("lichuan_operations_contract", "test/lichuan_operations_test.py", []),
                 ("version_generated", "scripts/generate_version.py", ["check"]),
                 ("objects_generated", "scripts/generate_lichuan_objects.py", ["--check"]),
                 ("objects_generator_contract", "scripts/generate_lichuan_objects_test.py", []),

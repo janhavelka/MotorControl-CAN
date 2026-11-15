@@ -1,5 +1,11 @@
 # MotorControl-CAN documentation
 
+[Independent package consumers and prospective FieldCore handoff](fieldcore_handoff.md)
+show production module ownership without FieldCore or a stack. The
+[profile contract](profile_contract.md) explains production contrast types,
+source-backed test fixtures and remaining extension limits.
+
+
 [Prompt45 integration audit](reports/prompt_45.md): reproducible failures, fixes,
 adversarial coverage and measured host/target resource bounds. These are software
 checks, separate from drive and fixture qualification.

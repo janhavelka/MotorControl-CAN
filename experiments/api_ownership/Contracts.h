@@ -6,10 +6,15 @@
 
 #include <MotorControlCAN/Endpoint.h>
 #include <MotorControlCAN/Axis.h>
+#include <MotorControlCAN/Capabilities.h>
+#include <MotorControlCAN/Native.h>
+#include <MotorControlCAN/ActionOperation.h>
+#include <MotorControlCAN/ReadOperation.h>
 #include <MotorControlCAN/can/Frame.h>
 
 /** Portable proof values and concrete synthetic operations. */
 namespace MotorControlCAN {
+namespace ProofProfile {
 
 /** Host-only identities, never wire correlation tags. Zero is invalid. */
 struct OperationToken {
@@ -71,7 +76,7 @@ enum class EventKind : uint8_t {
  * client's abort from a malformed reply, without inventing a server rejection.
  * Matching host tokens alone cannot qualify an indistinguishable delayed reply.
  * Default evidence is invalid until correlated and qualified by the owner. */
-struct ServiceEvidence {
+struct ServiceReply {
     Binding binding; ///< Original work's full immutable provenance.
     OperationToken operation; ///< Original work's local operation identity.
     StepToken step; ///< Original work's local step identity.
@@ -86,48 +91,6 @@ struct ServiceEvidence {
     Payload payload; ///< Copied upload bytes or retained malformed-reply prefix.
 };
 
-/** Independent motor technology; does not select transport or feedback. */
-enum class MotorKind : uint8_t {
-    UNKNOWN,   ///< Motor technology has not been supplied/established.
-    STEPPER,   ///< Stepper motor; no full-step metadata is implied.
-    BLDC,      ///< Brushless DC motor; no selected feedback is implied.
-    BRUSHED_DC ///< Brushed DC motor.
-};
-/** Selected feedback fact, independent of command scale or full-step metadata. */
-enum class FeedbackKind : uint8_t {
-    UNKNOWN, ///< Selected feedback has not been established.
-    NONE,    ///< Explicit configuration without a selected feedback source.
-    ENCODER, ///< Encoder feedback; resolution/basis require separate evidence.
-    HALL     ///< Hall feedback; does not imply encoder command scale.
-};
-/** Reviewed capabilities/configuration facts supplied by the caller.
- * False means unavailable; selection does not calibrate, enable or brake. */
-struct Capabilities {
-    MotorKind motor = MotorKind::UNKNOWN; ///< Independent selected motor fact.
-    FeedbackKind feedback = FeedbackKind::UNKNOWN; ///< Independent selected feedback fact.
-    bool position = false; ///< Explicit position capability availability.
-    bool velocity = false; ///< Explicit velocity capability availability.
-    bool torque = false; ///< Explicit torque capability; not inferred from current settings.
-    bool brake = false; ///< Explicit brake capability; no output action is implied.
-    bool calibrationRequired = false; ///< Selected operation requires calibration evidence.
-    bool calibrationQualified = false; ///< Caller-qualified required calibration evidence exists.
-};
-
-/** One requested capability; no action is executed by checking availability. */
-enum class Capability : uint8_t {
-    POSITION, ///< Check position capability and required calibration evidence.
-    VELOCITY, ///< Check velocity capability and required calibration evidence.
-    TORQUE,   ///< Check torque capability and required calibration evidence.
-    BRAKE     ///< Check brake capability and required calibration evidence.
-};
-/** Check one declared capability and its supplied calibration requirement.
- * @param[in] facts Caller-supplied independent capability/qualification facts.
- * @param[in] requested Single required capability, with no implicit side effect.
- * @return OK for available and qualified, UNSUPPORTED for absent/unknown
- * capability, INVALID_CONFIG for required unqualified calibration. Detail uses
- * MoveError::UNSUPPORTED_CAPABILITY or CALIBRATION_UNQUALIFIED. No state changes. */
-Status requireCapability(const Capabilities& facts, Capability requested) noexcept;
-
 /** Synthetic profile configuration only; production coordinates live in Axis.h.
  * The proof adds capabilities and an I32 wire limit, never a production profile. */
 struct ProofAxisConfig : AxisConfig {
@@ -136,56 +99,8 @@ struct ProofAxisConfig : AxisConfig {
     ProofAxisConfig() { nativeMinimum = INT32_MIN; nativeMaximum = INT32_MAX; }
 };
 
-/** Fixture dimensions; identical object numbers do not equate these values. */
-enum class RampKind : uint8_t {
-    TIME_MS,                    ///< Native ramp duration in milliseconds.
-    ACCELERATION_RPM_PER_SECOND  ///< Native acceleration in mechanical rpm/s.
-};
-/** Dimension-tagged documentary ramp input. No conversion/trajectory is implied.
- * TIME_MS value is milliseconds; ACCELERATION_RPM_PER_SECOND value is rpm/s. */
-struct NativeRamp {
-    RampKind kind = RampKind::TIME_MS; ///< Dimension tag; no inferred conversion.
-    uint32_t value = 0; ///< Unsigned native value in the dimension selected by kind.
-};
-
-/** Actual operation states; default contexts are EMPTY and yield no work. */
-enum class ReadState : uint8_t {
-    EMPTY,     ///< Not prepared; next/advance reject without mutation.
-    ACTIVE,    ///< Prepared and awaiting one terminal owner event.
-    SUCCEEDED, ///< Complete valid typed read retained for inspection.
-    FAILED     ///< Complete failed read with retained status/evidence.
-};
-/** Read terminal outcome, independent of Status call validity. */
-enum class ReadOutcome : uint8_t {
-    NONE,              ///< No terminal read result yet.
-    SUCCESS,           ///< Complete synthetic identity decoded successfully.
-    REPLY_ERROR,       ///< Invalid reply content/shape or local client abort.
-    PROTOCOL_REJECTED, ///< Checked native server rejection.
-    TRANSPORT_ERROR,   ///< Owner-reported transport failure.
-    CANCELLED,         ///< Locally cancelled; no physical stop is implied.
-    DEADLINE           ///< Absolute operation deadline reached.
-};
-/** Move state follows the established action vocabulary. */
-enum class ActionState : uint8_t {
-    EMPTY,     ///< No prepared write; next/advance reject.
-    ACTIVE,    ///< Write prepared and awaiting a terminal event.
-    SUCCEEDED, ///< Synthetic write acknowledged; not physical completion.
-    FAILED     ///< Failed terminal write with retained uncertainty/evidence.
-};
-/** Trigger/service confirmation, never a shaft movement claim. */
-enum class ActionExecution : uint8_t {
-    NOT_TRANSMITTED, ///< No possible external transmission was reported.
-    ACKNOWLEDGED,    ///< Native selected-service success was checked.
-    REJECTED,        ///< Native rejection checked; partial effects may remain uncertain.
-    UNKNOWN          ///< Possible transmission without checked acknowledgement/rejection.
-};
-/** Native completion observation; never independent physical qualification. */
-enum class ActionCompletion : uint8_t {
-    NOT_OBSERVED, ///< No native motion-completion evidence; always used by this proof.
-    OBSERVED      ///< Native completion evidence observed; no proof path produces this.
-};
 /** Acknowledged synthetic write ends with completion still NOT_OBSERVED. */
-enum class ActionOutcome : uint8_t {
+enum class CommandOutcome : uint8_t {
     NONE,              ///< No terminal write outcome yet.
     OBSERVED,          ///< Reserved observed-completion outcome; unused by this proof.
     ACKNOWLEDGED,      ///< Synthetic command-only write confirmed; completion unobserved.
@@ -238,4 +153,5 @@ enum class MoveError : int32_t {
     UNIT_ERROR_BASE = 100    ///< Numeric failures add UnitError to this base; Err/msg preserved.
 };
 
+} // namespace ProofProfile
 } // namespace MotorControlCAN

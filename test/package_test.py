@@ -18,7 +18,7 @@ import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADERS = {"MotorControlCAN/profiles/lichuan_c/Communication.h", "MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
+HEADERS = {"MotorControlCAN/Capabilities.h", "MotorControlCAN/Native.h", "MotorControlCAN/profiles/lichuan_c/Communication.h", "MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/VelocityOperation.h", "MotorControlCAN/HomeOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN/profiles/lichuan_c/Homing.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h", "MotorControlCAN/profiles/lichuan_c/Persistence.h",
@@ -99,7 +99,7 @@ def check_package(args, work, summary):
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",
-        "src/Endpoint.cpp", "src/Discovery.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
+        "src/Capabilities.cpp", "src/Native.cpp", "src/ActionOperation.cpp", "src/Endpoint.cpp", "src/Discovery.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
         "docs/getting_started.md", "docs/commissioning.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:
@@ -151,6 +151,16 @@ def check_package(args, work, summary):
                "-DMOTORCONTROLCAN_EXPECTED_VERSION=" + version,
                "-DMOTORCONTROLCAN_HEADERS_DIR=" + str(relocated / "sdk/include"))
     consumer(work / "installed consumer", *options)
+    # A separate application copied alone: no test headers, proof, stack or SDK files.
+    module = work / "fieldcore source"
+    shutil.copytree(ROOT / "examples/fieldcore_consumer", module)
+    module_build = work / "fieldcore build"
+    run(*base, "-S", str(module), "-B", str(module_build),
+        "-DCMAKE_PREFIX_PATH=" + str(relocated), "-DCMAKE_CXX_FLAGS=" + strict)
+    run(cmake, "--build", str(module_build))
+    module_exe = module_build / ("fieldcore_consumer.exe" if os.name == "nt" else "fieldcore_consumer")
+    run(str(module_exe))
+
     # Copy only the application/adapter fixture and its pinned stack. Portable
     # headers/library must come from the relocated install, never the checkout.
     probe = work / "native probe consumer"

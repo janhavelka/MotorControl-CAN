@@ -1,5 +1,17 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt46 adds [independent installed consumers](fieldcore_handoff.md), production
+C1-C11 contrasts and mechanical native/API/CLI/Python reconciliation.
+`python scripts/check_lichuan_operations.py --json` reports all202 EDS scalar
+entries and53 manual obligations,192 typed read rows,15 conditional setting
+rows and191 public overloads. These are different measures. The separate
+conditional operation facet records22 host-tested manual workflow obligations;
+original unresolved semantic coverage and hardware gates remain unchanged.
+The [generated coverage](reference/lichuan_generated.md) is authoritative for per-row
+facts; the API evidence map adds no device dictionary. Narrow workflow paths
+and whole-source qualification must never be counted interchangeably.
+
+
 Prompt45's [integration audit](reports/prompt_45.md) connects concrete native and
 Python regressions to every assigned failure scenario. It covers unresolved
 move/stop evidence, cross-node pressure, queued and remote old-map samples, retained

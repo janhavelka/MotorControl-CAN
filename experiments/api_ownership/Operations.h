@@ -42,7 +42,7 @@ struct ReadContext {
     uint64_t startedUs = 0; ///< Supplied preparation microseconds; zero is valid.
     uint64_t deadlineUs = 0; ///< Fixed exclusive supplied-microsecond deadline.
     uint64_t servicedUs = 0; ///< Last successfully consumed owner event/preparation time.
-    ServiceEvidence evidence; ///< Last copied terminal service evidence, including failures.
+    ServiceReply evidence; ///< Last copied terminal service evidence, including failures.
     Identity identity; ///< Decoded marker, published only through checked getIdentity.
 };
 
@@ -62,7 +62,7 @@ struct MoveContext {
     ProofAxisConfig configuration; ///< Copied immutable scales, origin, limits and capability facts.
     int32_t nativeTarget = 0; ///< Exact converted target in native command increments.
     ActionState state = ActionState::EMPTY; ///< Concrete single-step operation phase.
-    ActionOutcome outcome = ActionOutcome::NONE; ///< Retained operation outcome.
+    CommandOutcome outcome = CommandOutcome::NONE; ///< Retained operation outcome.
     Status status; ///< Retained operation/failing-step status, independent of advance return.
     ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< Checked service execution evidence.
     ActionCompletion completion = ActionCompletion::NOT_OBSERVED; ///< No proof path observes motion completion.
@@ -70,7 +70,7 @@ struct MoveContext {
     uint64_t startedUs = 0; ///< Supplied preparation microseconds; zero is valid.
     uint64_t deadlineUs = 0; ///< Immutable exclusive deadline in supplied monotonic microseconds.
     uint64_t servicedUs = 0; ///< Last successfully consumed event/preparation time.
-    ServiceEvidence evidence; ///< Copied terminal service bytes, abort and TX evidence.
+    ServiceReply evidence; ///< Copied terminal service bytes, abort and TX evidence.
 };
 
 /** Prepare one synthetic U32 identity upload; copies binding without I/O.
@@ -105,7 +105,7 @@ Status nextRead(const ReadContext& context, uint64_t nowUs,
  * @return OK means valid advancement, including failed terminal operation;
  * invalid correlation/shape/time leaves context unchanged. Protocol abort bits
  * remain in evidence.abortCode, never narrowed into Status::detail. */
-Status advanceRead(ReadContext& context, const ServiceEvidence& evidence) noexcept;
+Status advanceRead(ReadContext& context, const ServiceReply& evidence) noexcept;
 
 /** Publish a complete correctly typed identity, preserving output on failure.
  * @param[in] context Retained successful identity context.
@@ -160,6 +160,6 @@ Status nextMove(const MoveContext& context, uint64_t nowUs,
  * yields REJECTED while retaining possible partial effects in uncertain.
  * Neither path retries or physically stops. No clock access, I/O, allocation
  * or shared mutable storage. */
-Status advanceMove(MoveContext& context, const ServiceEvidence& evidence) noexcept;
+Status advanceMove(MoveContext& context, const ServiceReply& evidence) noexcept;
 
 } } // namespace MotorControlCAN::ProofProfile

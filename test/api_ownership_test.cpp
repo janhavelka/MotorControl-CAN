@@ -49,7 +49,7 @@ void flows() {
     Observation event; CHECK(owner.takeObservation(event) && event.frame.data[0] == 5 && event.observedUs == 2);
     CHECK(!owner.result(request));
     CHECK(owner.receive(response(), 3));
-    const ServiceEvidence* evidence = owner.result(request);
+    const ServiceReply* evidence = owner.result(request);
     CHECK(evidence && evidence->queued && evidence->transmissionPossible && evidence->protocolAcknowledged);
     CHECK(advanceRead(read, *evidence));
     Identity identity; CHECK(getIdentity(read, binding(), identity) && identity.value == 0x12345678);
@@ -70,7 +70,7 @@ void flows() {
     CHECK(tx.data[0] == 0x23 && tx.data[4] == 0x70 && tx.data[5] == 0x11 && tx.data[6] == 1);
     CHECK(owner.receive(response(TARGET_OBJECT, 0x60), 7));
     CHECK(advanceMove(move, *owner.result(request)));
-    CHECK(move.outcome == ActionOutcome::ACKNOWLEDGED && move.execution == ActionExecution::ACKNOWLEDGED);
+    CHECK(move.outcome == CommandOutcome::ACKNOWLEDGED && move.execution == ActionExecution::ACKNOWLEDGED);
     CHECK(move.completion == ActionCompletion::NOT_OBSERVED && !move.uncertain);
     CHECK(owner.release(request) && owner.releaseSequence(sequence));
     CHECK(move.evidence.protocolAcknowledged && move.nativeTarget == 70000);
@@ -88,7 +88,7 @@ void schedulingAndRetention() {
     CHECK(!owner.admitUrgent(b, work(binding(2), 2), 0, rejectedRequest));
     completeRead(owner, 1); // Earlier same-axis ordinary step precedes urgent.
     CHECK(owner.result(first) && !owner.result(second) && !owner.result(urgent));
-    const ServiceEvidence retained = *owner.result(first);
+    const ServiceReply retained = *owner.result(first);
     completeRead(owner, 3); // Urgent gets the next settled channel boundary.
     CHECK(owner.result(urgent) && !owner.result(second));
     CHECK(owner.release(urgent));
@@ -204,5 +204,5 @@ void eventsAndRejection() {
 int main() {
     flows(); schedulingAndRetention(); cancellationAndDeadlines(); rawAbortRepresentation(); eventsAndRejection();
     std::printf("API ownership proof passed; sizeof(core work)=%zu, evidence=%zu, owner=%zu bytes\n",
-                sizeof(ServiceWork), sizeof(ServiceEvidence), sizeof(CanBusOwner));
+                sizeof(ServiceWork), sizeof(ServiceReply), sizeof(CanBusOwner));
 }

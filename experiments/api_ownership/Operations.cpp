@@ -6,25 +6,6 @@
 
 namespace MotorControlCAN {
 
-Status requireCapability(const Capabilities& facts, Capability requested) noexcept {
-    bool available = false;
-    switch (requested) {
-    case Capability::POSITION: available = facts.position; break;
-    case Capability::VELOCITY: available = facts.velocity; break;
-    case Capability::TORQUE: available = facts.torque; break;
-    case Capability::BRAKE: available = facts.brake; break;
-    }
-    if (!available) {
-        return Status(Err::UNSUPPORTED, static_cast<int32_t>(MoveError::UNSUPPORTED_CAPABILITY),
-                      "requested capability unavailable");
-    }
-    if (facts.calibrationRequired && !facts.calibrationQualified) {
-        return Status(Err::INVALID_CONFIG, static_cast<int32_t>(MoveError::CALIBRATION_UNQUALIFIED),
-                      "required calibration unqualified");
-    }
-    return Ok();
-}
-
 namespace ProofProfile {
 namespace {
 
@@ -37,12 +18,12 @@ Status moveError(MoveError reason, const char* message, Err code = Err::INVALID_
 }
 
 bool correlated(const Binding& binding, OperationToken operation, StepToken step,
-                const ServiceEvidence& evidence) {
+                const ServiceReply& evidence) {
     return sameBinding(binding, evidence.binding) && operation.value == evidence.operation.value &&
         step.value == evidence.step.value;
 }
 
-bool eventShapeValid(const ServiceEvidence& evidence) {
+bool eventShapeValid(const ServiceReply& evidence) {
     if (evidence.payload.length > sizeof evidence.payload.bytes) return false;
     switch (evidence.kind) {
     case EventKind::ACKNOWLEDGED:
@@ -63,7 +44,7 @@ bool eventShapeValid(const ServiceEvidence& evidence) {
 }
 
 bool eventTimeValid(uint64_t startedUs, uint64_t servicedUs, uint64_t deadlineUs,
-                    const ServiceEvidence& evidence) {
+                    const ServiceReply& evidence) {
     if (evidence.observedUs < startedUs || evidence.observedUs < servicedUs) return false;
     return evidence.kind == EventKind::DEADLINE ? evidence.observedUs >= deadlineUs :
         evidence.observedUs < deadlineUs;
@@ -147,7 +128,7 @@ Status nextRead(const ReadContext& context, uint64_t nowUs,
     return Ok();
 }
 
-Status advanceRead(ReadContext& context, const ServiceEvidence& evidence) noexcept {
+Status advanceRead(ReadContext& context, const ServiceReply& evidence) noexcept {
     if (context.state != ReadState::ACTIVE) return readError(ReadError::INVALID_STATE, "read is not active");
     if (!correlated(context.binding, context.operation, context.step, evidence))
         return readError(ReadError::WRONG_CORRELATION, "read evidence provenance mismatch");
@@ -251,7 +232,7 @@ Status nextMove(const MoveContext& context, uint64_t nowUs,
     return Ok();
 }
 
-Status advanceMove(MoveContext& context, const ServiceEvidence& evidence) noexcept {
+Status advanceMove(MoveContext& context, const ServiceReply& evidence) noexcept {
     if (context.state != ActionState::ACTIVE) return moveError(MoveError::INVALID_STATE, "move is not active");
     if (!correlated(context.binding, context.operation, context.step, evidence))
         return moveError(MoveError::WRONG_CORRELATION, "move evidence provenance mismatch");
@@ -267,35 +248,35 @@ Status advanceMove(MoveContext& context, const ServiceEvidence& evidence) noexce
     switch (evidence.kind) {
     case EventKind::ACKNOWLEDGED:
         if (evidence.payload.length != 0) {
-            candidate.outcome = ActionOutcome::REPLY_ERROR;
+            candidate.outcome = CommandOutcome::REPLY_ERROR;
             candidate.status = Status(Err::FRAME_ERROR, 0, "synthetic write ACK has no payload");
         } else {
             candidate.state = ActionState::SUCCEEDED;
-            candidate.outcome = ActionOutcome::ACKNOWLEDGED;
+            candidate.outcome = CommandOutcome::ACKNOWLEDGED;
             candidate.execution = ActionExecution::ACKNOWLEDGED;
             candidate.uncertain = false;
         }
         break;
     case EventKind::PROTOCOL_REJECTED:
-        candidate.outcome = ActionOutcome::PROTOCOL_REJECTED;
+        candidate.outcome = CommandOutcome::PROTOCOL_REJECTED;
         candidate.execution = ActionExecution::REJECTED;
         // A service rejection does not establish that no earlier effect occurred.
         candidate.status = Status(Err::PROTOCOL_ERROR, 0, "native service rejected");
         break;
     case EventKind::REPLY_ERROR:
-        candidate.outcome = ActionOutcome::REPLY_ERROR;
+        candidate.outcome = CommandOutcome::REPLY_ERROR;
         candidate.status = Status(Err::FRAME_ERROR, 0, "malformed native service reply");
         break;
     case EventKind::TRANSPORT_FAILURE:
-        candidate.outcome = ActionOutcome::TRANSPORT_ERROR;
+        candidate.outcome = CommandOutcome::TRANSPORT_ERROR;
         candidate.status = moveError(MoveError::TRANSPORT_FAILURE, "service transport failure");
         break;
     case EventKind::CANCEL:
-        candidate.outcome = ActionOutcome::CANCELLED;
+        candidate.outcome = CommandOutcome::CANCELLED;
         candidate.status = moveError(MoveError::CANCELLED, "local cancellation is not a motor stop");
         break;
     case EventKind::DEADLINE:
-        candidate.outcome = ActionOutcome::DEADLINE;
+        candidate.outcome = CommandOutcome::DEADLINE;
         candidate.status = moveError(MoveError::DEADLINE_EXPIRED, "move deadline reached");
         break;
     }

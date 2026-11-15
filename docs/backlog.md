@@ -3,7 +3,7 @@
 The [November 15 auditor disposition](audit/2026-11-15_auditor_disposition.md)
 checks all 125 findings against current code. The original A-16 omissions were
 fixed earlier; its newer `Discovery.h` umbrella omission is fixed in this review.
-A-17 stays with prompt 49, production contrasts with 46, concurrent axes with 53
+A-17 stays with prompt 49, production contrasts closed by46; extension qualification stays with later drive milestones, concurrent axes with 53
 and reviewed communication repair with 55. Corrected instructions do not close
 their remaining implementation or hardware gates.
 
@@ -144,8 +144,9 @@ resolve the above facts by themselves.
 | S21 | Enable-fault state after a fault above the pulse ceiling | 2026-11-13, 3 of 3 FF05s while running above about 2.6 MHz at `2201=51200` (none after FF05s at 1000, 10000 or 25600): every later enable reports `606C` 121 to 256 rpm at word 7 with no command, pulls the rotor about 0.16 turn and faults 0.5 s later. Only a power cycle cleared it (measured once, both nodes); neither clear, `2302`, NMT Reset Node or Communication, `2201` changes, the `2500` 2-1-2 toggle, an open-loop enable nor `6040=0x0000` did. The cause inside the drive is unknown; the `6064` step at word 7 is a routine counter switch, not the cause. Open: (1) a pulse-rate admission check from `rpm × 2201 / 60`; (2) a library release for a switched-on, stationary, alarm-free drive, which the velocity enable's word 7 refusal leaves energized (`6040=0x0000` released `8033` once, trial 5991); (3) `0x0000` at once on `606C` nonzero at word 7; a mode 1 enable in the state; whether `2500` persists through a power cycle (`2201` measured volatile) ([report](reports/2026-11-13_enable_fault_state.md)). Planned: (2) in [prompt 57](prompts/57_regular_drive_operations.md)'s release, (1), (3) and the bench steps in [prompt 72](prompts/72_enable_fault_guards.md) |
 | S10 | Extend the delivered fixed TPDO1 configuration only with applicable evidence | 18 retains broader routes/settings, timer/SYNC semantics and persistence; sample retirement/provenance remains separate. The 2026-11-06 [PDO sessions](reports/2026-11-06_pdo_stream.md) measured the TPDO1 event timer and the NMT transitions with bench tools only; packet 7 of the [bench continuation](prompts/bench_closure_18_33/7_typed_pdo_subset.md) owns any production extension. Reuse the installed lifecycle and existing owner, preserve per-step uncertainty. |
 | I01 | Integrate delayed 18/20-22 work through completed owner | Prompt45 rechecked existing typed settings and supported TPDO1 owner traces; wider remapping/firmware obligations stay with 18/20-22. [Coverage and precise boundary](reports/prompt_45.md). |
-| I02 | FieldCore-like consumer and multi-drive contrasts | 45-46: IDs/generations/effects without importing FieldCore types; one physical receiver and protocol-specific services |
+| I02 | FieldCore-like consumer and multi-drive contrasts | Closed software scope by [prompt46](reports/prompt_46.md): installed independent consumer and production C1-C11. Actual FieldCore integration and physical qualification are not delivered or requested. |
 | I03 | Native package and support/documentation closure | 49-50: installed scope matches actual APIs/tests/firmware/qualification; no placeholder profile or invented release status |
+| I04 | Standalone typed reads not closed by action prerequisites | 31:605D, 32:2301/2302, 33:607A remain pending software read obligations under their existing Q01/Q04/Q11/Q12/Q13/Q14/Q20 scope. The prompt46 checker lists them; descriptors and operation-specific uploads do not complete standalone getters. |
 
 ## Wanted features (requested 2026-11-12)
 

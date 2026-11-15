@@ -20,6 +20,23 @@ EXPORTS = {
     "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
+    "test/combined_contract_test.cpp", "test/installed_consumer/core.cpp",
+    "include/MotorControlCAN/Capabilities.h",
+    "include/MotorControlCAN/Native.h",
+    "src/Capabilities.cpp",
+    "src/Native.cpp",
+    "src/ActionOperation.cpp",
+    "scripts/check_lichuan_operations.py",
+    "test/lichuan_operations_test.py",
+    "docs/reference/lichuan_operations.json",
+    "examples/fieldcore_consumer/MotorModule.h",
+    "examples/fieldcore_consumer/MotorModule.cpp",
+    "examples/fieldcore_consumer/FakeOwner.h",
+    "examples/fieldcore_consumer/main.cpp",
+    "examples/fieldcore_consumer/CMakeLists.txt",
+    "examples/fieldcore_consumer/README.md",
+    "test/fieldcore_consumer_test.cpp",
+
     "scripts/bench_motion.py", "scripts/bench_repeat.py", "scripts/bench_scenarios.py", "scripts/bench_session.py",
     "docs/bench_scenarios.md", "test/bench_campaign_plans_test.py",
     "test/bench_campaign_adversarial_test.py", "test/bench_session_test.py",
@@ -171,6 +188,7 @@ REQUIRED = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 CHECKS = {
+    "lichuan_operations": ("scripts/check_lichuan_operations.py", []),
     "version_generated": ("scripts/generate_version.py", ["check"]),
     "objects_generated": ("scripts/generate_lichuan_objects.py", ["--check"]),
     "repository_checks": ("scripts/check_repository.py", []),

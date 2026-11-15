@@ -8,6 +8,8 @@
 #pragma once
 
 #include <MotorControlCAN/Status.h>
+#include <MotorControlCAN/Capabilities.h>
+#include <MotorControlCAN/Native.h>
 #include <MotorControlCAN/Units.h>
 #include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/Endpoint.h>

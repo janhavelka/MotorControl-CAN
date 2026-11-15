@@ -1,5 +1,23 @@
 # Live source and responsibility map
 
+## Independent consumers and contrasts (prompt 46)
+
+- [FieldCore-like module](../examples/fieldcore_consumer/README.md): installed
+  concrete preparation/next/advance and retained results; no FieldCore dependency.
+- [Capabilities.h](../include/MotorControlCAN/Capabilities.h),
+  [Native.h](../include/MotorControlCAN/Native.h) and
+  [ActionOperation.h](../include/MotorControlCAN/ActionOperation.h): pure production
+  value/validation owners for independent capabilities, ramp dimensions, widths
+  and optional native response/completion.
+- [Production contrast suite](../test/multidrive_contract_test.cpp): C1-C11,
+  no proof dependency; [combined headers](../test/combined_contract_test.cpp)
+  prevents proof/production type collisions.
+- [Operation checker](../scripts/check_lichuan_operations.py) and
+  [evidence map](reference/lichuan_operations.json): actual public functions,
+  registrations, console bridges and Python plans against the single ledger.
+  [Negative tests](../test/lichuan_operations_test.py) reject missing evidence.
+
+
 The [prompt45 source audit](audit/PROMPT_45_SOURCES.md) refreshes common motion,
 owner/health/parser and FieldCore result seams; its [integration report](reports/prompt_45.md)
 maps failure scenarios to actual native/Python tests and retained counterexamples.

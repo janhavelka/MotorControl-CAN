@@ -1,115 +1,61 @@
-# Typed profile and operation contract
+# Typed profiles and production contrast boundary
 
-Prompt 6 implements one explicitly synthetic namespace,
-`MotorControlCAN::ProofProfile`, under
-[experiments/api_ownership](../experiments/api_ownership/Operations.h). It proves
-the ownership and publication boundary with a fake peer. It is not an installed
-Lichuan, N5 or EPOS4 profile. The [axis contract](axis_contract.md) owns exact
-intent/capabilities; the [architecture](architecture.md) owns dependencies;
-[CANopen services](canopen_services.md) owns the selected service backend; the
-[CAN owner](can_owner.md) owns admission, dispatch, retirement and retained slots.
+Lichuan C is the only compiled drive profile. Conditional reads, settings,
+actions and motion contexts live in `MotorControlCAN::LICHUAN_C`. Their source,
+model, firmware and physical gates remain independent of transport success.
+[Coverage](coverage.md) retains those distinctions.
 
-## Profile responsibility and actual entry points
+Common axes require no CANopen service, statusword or full-step geometry.
+Profiles own native permissions, values, staging/trigger order and interpretation.
+The portable core performs no I/O or scheduling; [the owner](can_owner.md) does.
 
-A real profile owns its typed native observations, object access policy,
-checked native conversion, supported sequences and evidence interpretation.
-Common logical axes do not acquire mandatory NMT, SDO, statusword or CiA402 state.
-Other protocols use their own native services. This proof uses CANopen work
-descriptors and explicitly rejects proprietary bindings at preparation.
+## Production type owners
 
-The actual declarations are in `ProofProfile`; these are declaration excerpts,
-not a runnable application or a promise of installed ABI:
-
-```cpp
-Status prepareIdentity(const Binding& binding, OperationToken operation,
-                       uint64_t nowUs, uint64_t deadlineUs, ReadContext& output) noexcept;
-Status nextRead(const ReadContext& context, uint64_t nowUs,
-                ServiceWork& output, bool& ready) noexcept;
-Status advanceRead(ReadContext& context, const ServiceEvidence& evidence) noexcept;
-Status getIdentity(const ReadContext& context, const Binding& currentBinding,
-                   Identity& output) noexcept;
-Status prepareMoveAbsolute(const PositionRequest& request, const ProofAxisConfig& configuration,
-                           OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,
-                           MoveContext& output) noexcept;
-Status nextMove(const MoveContext& context, uint64_t nowUs,
-                ServiceWork& output, bool& ready) noexcept;
-Status advanceMove(MoveContext& context, const ServiceEvidence& evidence) noexcept;
-```
-
-These preserve the observed RS `prepare…`, `next…`, `advance…` and checked typed
-getter vocabulary. The [current source review](reports/prompt_6_source_review.md)
-records the actual sibling signatures and deliberate CAN differences. There is
-no generic operation engine, result getter or runtime profile registry.
-
-The fake identity is a four-byte U32 marker uploaded from synthetic object
-`0x2000:00`. It is not manufacturer, model or firmware identification. The
-representative absolute target is a four-byte little-endian signed I32 download
-to synthetic `0x2001:00`. These object numbers have no vendor applicability.
-That write is neither CiA402 setpoint staging/triggering nor a complete physical
-motion sequence. Real vendor object permissions and sequences require the
-reviewed ledger and original model-applicable evidence.
-
-## Publication, advancement and retained results
-
-Preparation validates a complete candidate before replacing a caller-owned
-context. It copies the binding, intent and any consumed axis configuration;
-rejected preparation leaves all previous fields unchanged. Context fields are
-inspection-only between calls, and the caller serializes shared access.
-
-`nextRead`/`nextMove` copy the same current work/token while active. They do not
-admit it or advance the operation. `ready=true` means work was produced; terminal
-contexts return `ready=false` without replacing the work output. Invalid state
-or time leaves both outputs unchanged. The owner prevents duplicate admission.
-The current proof operations each use one step; their tokens are local identity,
-not wire tags capable of disambiguating a delayed identical SDO reply.
-
-Advancement checks the complete binding, operation/step identity, bounded
-payload shape and supplied time before publishing a candidate. `observedUs` is
-the owner's supplied current service time, not a separately sampled core clock
-or drive sample time. It cannot precede preparation/last advancement. Normal
-terminal events precede the fixed exclusive deadline, including a spent service
-budget reported as `SERVICE_TIMEOUT`; `DEADLINE` events occur at or after it. The core acquires no time and performs no I/O, allocation,
-retries, logging or persistence. The owner supplies qualified native evidence.
-
-An `Ok()` return from advancement means the event was validly consumed, including
-a terminal failure. `Status` is a local call result with static diagnostic text;
-it is distinct from the retained context's operation `status` and `outcome`.
-
-| Evidence or inspection | Actual proof meaning |
-| --- | --- |
-| `ReadContext.state/outcome/status/evidence` | Successful marker read or retained failed read, including copied raw service evidence |
-| `getIdentity(context, currentBinding, output)` | Publishes only a successful identity of the correct kind and complete current provenance; incomplete, wrong-kind or stale input preserves output |
-| `MoveContext.state/outcome/status/execution/completion/uncertain/evidence` | Concrete target-write result; callers inspect these fields directly |
-| `ACKNOWLEDGED` write | `SUCCEEDED`, outcome/execution `ACKNOWLEDGED`, completion `NOT_OBSERVED`; no physical completion claim |
-| Checked server abort | `PROTOCOL_REJECTED`, execution `REJECTED`; possible partial effects remain `uncertain` after possible transmission |
-| Malformed reply/local client abort | `REPLY_ERROR`; preserves native abort evidence and possible-write uncertainty without inventing server rejection |
-| Cancellation/deadline/transport failure | Before possible TX: `NOT_TRANSMITTED`; after possible TX without confirmation: `UNKNOWN` and `uncertain` |
-
-Raw native abort bits remain unsigned `abortCode` with `abortValid`, separate
-from signed generic `Status::detail`. Service acknowledgement, motion observation
-and physical standstill are different evidence. No proof path enables, homes,
-clears a fault, saves settings, stops a motor or replays an uncertain write.
-
-Contexts own copied admitted data/results; event input is borrowed only during
-the call. Terminal context evidence survives repeated inspection and release of
-the owner's service-result slot. Successful explicit preparation replaces the
-context; owner result release is a separate lifetime described in
-[can_owner.md](can_owner.md).
-
-## API and CLI coverage intent
-
-The [API/CLI map](api_cli_mapping.md) remains the authoritative planned route
-inventory. This proof creates no CLI parser, installed drive or discoverable
-profile. N5/EPOS4 documentary fixtures remain excluded from support lists.
-
-| Planned user route | Contract evidence present now | Implementation still owned later |
+| Contract | Production owner | Limit |
 | --- | --- | --- |
-| `read identity` | Typed prepare/next/advance/getter and copied result provenance | Reviewed device identity objects and real typed read coverage |
-| `move absolute`, `moveto` | Exact intent, synthetic target work and retained acknowledgement/uncertainty | Actual profile staging, trigger, readiness and completion evidence |
-| `axis config`, `axis origin`, `prepare` | [Production pure axis arithmetic/reference policy](axis_contract.md), consumed by the synthetic proof | Later CLI and profile/native conversion, permission and device operations |
-| `velocity`, `caps` | Wide signed intent and independent capability checks | Velocity sequence, native conversion and CLI routes |
+| Motor / feedback / mode capability | Capabilities.h / requireCapability | Independent explicit facts, no implicit calibration or enabling. Mechanical holding brakes remain distinct from electrical braking. |
+| Exact coordinates / rates | Units.h, Axis.h | Explicit command, feedback and gearing; no assumed encoder resolution or full-step geometry. |
+| Ramp dimension / width | Native.h / convertNativeRamp, checkNativeInteger | Time cannot become acceleration. Input acceleration is an explicitly normalized rational with units; raw vendor scaling remains profile work. Width fit is not operating-range permission. |
+| Execution / completion | ActionOperation.h | Native acceptance, possible TX and native completion remain distinct. |
+| Optional response | ActionOperation.h / checkServiceEvidence | Pure projection of already-qualified facts; no-ack TX remains UNKNOWN execution. Native trajectory-done may have nonzero final velocity and is not standstill. |
+| Request/result provenance | ReadOperation.h and concrete contexts | Concrete lifecycles validate binding, generations, supplied time and effects; a generic projection cannot qualify raw traffic. |
 
-The installed/package migration belongs to prompt 7, strict documentation gates
-to prompt 8, and production arithmetic to prompts 9–10. Later stages implement
-their specifically assigned native operations; no synthetic success substitutes
-for those obligations.
+These bounded C++11 values introduce no runtime registry or generic service
+engine. Unknown future protocols may need additional contracts.
+
+## Contrasts, not supported products
+
+The registered multidrive_contract test links production directly. Its
+[source review](audit/PROMPT_46_CONTRAST_SOURCES.md) reopens primary evidence,
+records actual EPOS4 bytes and retains unresolved claims.
+
+| Fixture | Production contract exercised |
+| --- | --- |
+| N5 stepper/BLDC and EPOS4 | No required step geometry, independent motor/feedback/modes and subaxis identity, distinct command/feedback scales, signed wide rates, float quantization. Existing wrapped-angle vectors remain unchanged. |
+| N5 60A9/6097, EPOS4 rpm/s, Lichuan ms | Exact acceleration conversions with explicit factors, including non-unity6097; time/acceleration rejection. No N5 unit decoder is claimed. |
+| N5 I16 6042 vs I32 60FF | Checked width rejection; 60FF is I32 in all three reviewed profiles. |
+| N5 3202 | p38 example values are constrained bitfields, never Endpoint.profile or a motor enumeration. |
+| VESC / ODrive / moteus | Extended data, standard RTR and empty-data alternative, FD rejection, optional acknowledgement/completion/calibration. No mixed-protocol probing. |
+| Object policy | Lichuan U16 2300 persistence is separate from N5 U32 NanoJ Control, absent in EPOS4 rel13740. N5/EPOS4 1010/1011 signatures grant no Lichuan capability. |
+| PDO resources | Production map validation accepts local four/eight-set policies without changing axes or installing another profile. |
+
+## Consumption and coverage
+
+The [FieldCore-like consumer](fieldcore_handoff.md) uses installed public APIs
+without FieldCore or a stack. Package tests separately build core-header-only
+and Lichuan consumers, C++11 and C++17/no-RTTI, and independent public headers.
+Lichuan always builds; no selected-profile option is advertised.
+
+The combined fixture target includes production and historical proof headers
+together. Shared capability/read/action types now come from production; synthetic
+work, ServiceReply and CommandOutcome live only in ProofProfile. This removes
+namespace/type collisions. Nothing under experiments is installed, and its fake
+marker/write objects are not manufacturer capabilities.
+
+`python scripts/check_lichuan_operations.py` reconciles installed public
+functions/overloads with implementation, registered behavioral tests and working
+CLI paths or specific API-only rationale. Its evidence map references the single
+object ledger without copying device facts. Descriptor, read, setting, narrow
+conditional workflow, original semantic obligation and physical qualification
+counts remain separate. The JSON report retains pending obligations. The
+[CLI map](api_cli_mapping.md) owns route grammar and gates.

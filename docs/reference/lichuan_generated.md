@@ -15,14 +15,44 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Resolved compact descriptors | 194 | Native type and restrictive policy only |
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
-| Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
+| Manual-only semantic items | 53 | Source obligations retained independently from conditional software workflows |
 | Read shape descriptors | 192 | Prompt 19/20/21/22/35/36/38/39 source width/representation only; read effects remain unqualified |
 | Typed reads | 192 | Implemented scalar read rows; see separate read coverage, not whole-object support |
 | Typed settings | 15 | Conditional scalar setting rows, not complete object permission; model/state scope below |
-| Actions | 0 | Assigned semantic prompts remain pending |
-| Workflows | 1 | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |
+| Typed heartbeat workflows | 1 | Explicit typed heartbeat scope only; independent of manual operation facets |
+| Action obligations with conditional public paths | 6 | Narrow software action scope below; not whole-source or physical qualification |
+| Other manual obligations with conditional public paths | 16 | Operation facets below, not descriptor counts |
 
 Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic function / hardware-qualified. Generator and declaration tests do not change a semantic coverage field. `resolved` describes native declaration scope only; other conflicts and every listed qualification gate remain visible. `withheld` and `excluded` entries have no ObjectDescriptor or ObjectMetadata constant.
+
+## Conditional public operation coverage
+
+These are implemented, host-tested conditional API paths. Original semantic gates and hardware qualification remain independent. Run `python scripts/check_lichuan_operations.py` to reconcile public functions, registered tests, CLI and Python evidence.
+
+| Manual obligation | Owner | Operation D/I/H/Q | Explicit software scope |
+| --- | ---: | --- | --- |
+| enable_transition | 30 | yes/yes/yes/no | Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission. |
+| position_parameters | 33 | yes/yes/yes/no | Position.h prepareMoveAbsolute/Relative: finite checked native parameter staging with explicit setup policy. |
+| position_trigger | 33 | yes/yes/yes/no | Position.h nextMove/advanceMove: matched trigger acceptance kept separate from native completion. |
+| position_update_policy | 33 | yes/yes/yes/no | Position.h explicit write/verify setup policy, no replay of unknown effects. |
+| position_coordinate_mode | 33 | yes/yes/yes/no | Position.h absolute/relative checked targets under explicit axis/reference and profile scope. |
+| position_transition_examples | 33 | yes/yes/yes/no | Position.h finite mode-1 sequence under explicit predecessor/history evidence. |
+| normal_stop | 31 | yes/yes/yes/no | Actions.h prepareStop StopKind::HALT (CLI normal): predecessor-specific finite controller report, not independent standstill. |
+| emergency_stop | 31 | yes/yes/yes/no | Actions.h prepareStop StopKind::QUICK_STOP (CLI fast): selected reviewed stop, no universal safety-stop qualification. |
+| velocity_parameters | 35 | yes/yes/yes/no | Velocity.h typed signed native RPM and millisecond ramps, explicit finite options. |
+| velocity_start_order | 35 | yes/yes/yes/no | Velocity.h finite mode-3 order with retained setup/trigger effects and explicit stop. |
+| homing_parameters | 36 | yes/yes/yes/no | Homing.h typed native mode-6 settings under required method/input/reference evidence. |
+| homing_negative_limit_17 | 36 | yes/yes/yes/no | Homing.h method17 conditional finite workflow; physical limit evidence remains mandatory. |
+| homing_positive_limit_18 | 36 | yes/yes/yes/no | Homing.h method18 conditional finite workflow; physical limit evidence remains mandatory. |
+| homing_positive_origin_24 | 36 | yes/yes/yes/no | Homing.h method24 conditional finite workflow; source/fixture gates remain. |
+| homing_negative_origin_29 | 36 | yes/yes/yes/no | Homing.h method29 conditional finite workflow; source/fixture gates remain. |
+| homing_trigger_and_interrupt | 36 | yes/yes/yes/no | Homing.h retained trigger/withdrawal/stop evidence; cancel does not mean motor stop. |
+| homing_status | 36 | yes/yes/yes/no | Homing.h mode-6 native completion under selected dialect, not generic physical qualification. |
+| clear_current_position | 32 | yes/yes/yes/no | Actions.h prepareSetDevicePosition accepts documented zero only, separate from host origin. |
+| save_parameters | 39 | yes/yes/yes/no | Persistence.h prepareSave: explicit 2300=2 under review, readback/uncertainty retained. |
+| restore_factory_parameters | 39 | yes/yes/yes/no | Persistence.h prepareFactoryRestore: explicit 2300=1, no hidden restart or configuration replay. |
+| fault_reset_controlword | 32 | yes/yes/yes/no | Actions.h prepareClearAlarm CONTROLWORD_BIT7: selected 6040 bit7 pair and fresh narrow report. |
+| fault_reset_vendor_object | 32 | yes/yes/yes/no | Actions.h prepareClearAlarm OBJECT_2301: selected 1/0 pair; known release uncertainty retained. |
 
 ## Original source identity and applicability
 
@@ -5892,6 +5922,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "State-transition example; no startup enable and no enable as stop/reset preamble.", "gate_ids": ["Q01", "Q11"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission. |
 
 ### position_parameters
 
@@ -5910,6 +5942,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 33 and handoff packets 20/21 implement preparePositionParameters and the evidence-gated absolute/relative lifecycle through nextMove/advanceMove. Prompt 34 adds prepareMoveAngle on that same absolute lifecycle: production common wrapped conversion, exact endpoint, explicit path/tie/frame/error policy, ACTUAL witness and epoch rechecks; test/move_angle_test.cpp and examples/angle_preview exercise it. Native 607A requested/effective bounds, U32 rpm/ms limits and conservative approximate bounds remain checked. The caller retains raw 2200/2201 configuration provenance and establishes independent physical scale/direction. See docs/position_parameters.md. No angle physical qualification or unresolved firmware/scale/relative-base evidence is claimed; whole-function coverage remains false. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Position.h prepareMoveAbsolute/Relative: finite checked native parameter staging with explicit setup policy. |
 
 ### position_trigger
 
@@ -5927,6 +5961,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Position.h nextMove/advanceMove: matched trigger acceptance kept separate from native completion. |
 
 ### position_update_policy
 
@@ -5944,6 +5980,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Position.h explicit write/verify setup policy, no replay of unknown effects. |
 
 ### position_coordinate_mode
 
@@ -5961,6 +5999,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Position.h absolute/relative checked targets under explicit axis/reference and profile scope. |
 
 ### position_transition_examples
 
@@ -5978,6 +6018,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Position.h finite mode-1 sequence under explicit predecessor/history evidence. |
 
 ### normal_stop
 
@@ -5996,6 +6038,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;271 example is not a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 31 and handoff packet 7 implement the conditional CL86-C/OL86-C mode-1 transition from the session's latest acknowledged 6040 word: 000F as documented, and 001F/005F/003F/007F and 010F-to-000B as DEC-8 project decisions with predecessorDocumented=false, followed by fresh STATUS/MONITORS reads reporting not-running. BestEffortStop is the separate DEC-2 000B path, which never succeeds. See docs/stop_actions.md, test/stop_action_test.cpp and test/axis_session_test.cpp. Whole-function coverage remains false: other modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareStop StopKind::HALT (CLI normal): predecessor-specific finite controller report, not independent standstill. |
 
 ### emergency_stop
 
@@ -6014,6 +6058,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;11 example is not a safety-rated stop or a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 31 and handoff packet 7 implement the conditional CL86-C/OL86-C mode-1 transition from the session's latest acknowledged 6040 word: 000F as documented, and 001F/005F/003F/007F and 010F-to-000B as DEC-8 project decisions with predecessorDocumented=false, followed by fresh STATUS/MONITORS reads reporting not-running. BestEffortStop is the separate DEC-2 000B path, which never succeeds. See docs/stop_actions.md, test/stop_action_test.cpp and test/axis_session_test.cpp. Whole-function coverage remains false: other modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareStop StopKind::QUICK_STOP (CLI fast): selected reviewed stop, no universal safety-stop qualification. |
 
 ### status_interpretation
 
@@ -6048,6 +6094,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Common positive range does not resolve negative motion or start order.", "gate_ids": ["Q01", "Q03", "Q11"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Velocity.h typed signed native RPM and millisecond ramps, explicit finite options. |
 
 ### velocity_start_order
 
@@ -6065,6 +6113,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "No universal start recipe selected.", "gate_ids": ["Q01", "Q03"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Velocity.h finite mode-3 order with retained setup/trigger effects and explicit stop. |
 
 ### homing_parameters
 
@@ -6082,6 +6132,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14", "Q10"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h typed native mode-6 settings under required method/input/reference evidence. |
 
 ### homing_negative_limit_17
 
@@ -6099,6 +6151,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h method17 conditional finite workflow; physical limit evidence remains mandatory. |
 
 ### homing_positive_limit_18
 
@@ -6116,6 +6170,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h method18 conditional finite workflow; physical limit evidence remains mandatory. |
 
 ### homing_positive_origin_24
 
@@ -6133,6 +6189,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h method24 conditional finite workflow; source/fixture gates remain. |
 
 ### homing_negative_origin_29
 
@@ -6150,6 +6208,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h method29 conditional finite workflow; source/fixture gates remain. |
 
 ### homing_trigger_and_interrupt
 
@@ -6167,6 +6227,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h retained trigger/withdrawal/stop evidence; cancel does not mean motor stop. |
 
 ### homing_status
 
@@ -6184,6 +6246,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Retain method-specific direction, trigger and switch requirements; no reference publication from stale completion.", "gate_ids": ["Q01", "Q21", "Q02", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Homing.h mode-6 native completion under selected dialect, not generic physical qualification. |
 
 ### clear_current_position
 
@@ -6202,6 +6266,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Explicit2302 rising edge followed by manual return0; reference effects require evidence.", "gate_ids": ["Q01", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 32 and packet 18 implement zero-only prepareSetDevicePosition with acknowledged 2302 U16 values 0,1,0. Admission needs fresh MONITORS, STATUS and FEEDBACK (mode 1, running and alarm clear, 606C raw zero) and keeps admission 6064 in CounterBaseline. Coordinate/reference withdrawal happens exactly once before possible value-1 transmission, owner epoch synchronization only after retirement, then fresh raw 6064 zero observation. A failure after a possible value 1 without an acknowledged final 0 sets valueOneMayRemain. See docs/fault_reference_actions.md, test/counter_clear_test.cpp and test/reference_action_test.cpp. Arbitrary positions, physical home, exact affected counter mapping, held-1 effects and firmware qualification remain unsupported/unqualified; no specimen has run it; whole-function coverage is not claimed. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareSetDevicePosition accepts documented zero only, separate from host origin. |
 
 ### save_parameters
 
@@ -6220,6 +6286,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2300=2 explicit persistent action; SDO ACK does not prove durability.", "gate_ids": ["Q01", "Q15"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Persistence.h prepareSave: explicit 2300=2 under review, readback/uncertainty retained. |
 
 ### restore_factory_parameters
 
@@ -6238,6 +6306,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2300=1 explicit factory reset; no implicit save/restart.", "gate_ids": ["Q01", "Q15"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Persistence.h prepareFactoryRestore: explicit 2300=1, no hidden restart or configuration replay. |
 
 ### fault_reset_controlword
 
@@ -6256,6 +6326,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Set bit7, manually return0; trigger edge/pulse width not specified.", "gate_ids": ["Q01", "Q13"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 32 keeps this route unimplemented: bit 7 assertion/manual clearing and full-word 15-&gt;128 do not establish an admitted current-state transition or equivalent 2301 behavior. No enabling preamble or fallback is installed. The separate vendor-object conditional path is documented in docs/fault_reference_actions.md. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareClearAlarm CONTROLWORD_BIT7: selected 6040 bit7 pair and fresh narrow report. |
 
 ### fault_reset_vendor_object
 
@@ -6274,6 +6346,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2301 action kept separate from6040 reset; no replay.", "gate_ids": ["Q01", "Q13"], "status": "complete", "write_policy": "qualification_required"} |
 | implementation_scope | Prompt 32 and packet 17 implement a conditional CL86-C/OL86-C alarm-clear attempt through prepareClearAlarm, admitted with a reported 2100 alarm and raw 603F=FF05, in mode 1 with 2100 running clear or, since 2026-11-13, in mode 3 with 2100 released and running clear or latched beside the release with 606C zero in the same read. Both modes are project policy (EN86/ZH86 p20 name no mode); mode 3 followed a mode 3 FF05 on node 1 that the mode 1 rule refused. Completion needs the admission's mode. The code narrows the attempt but does not identify the alarm: AlarmIncident.codeLink is UNRESOLVED (D-26). 2301 U16 writes 1 then 0 (explicit ineffective-value policy, not a proved edge/rearm; no arming 0, D-27), new monitor alarm-clear observation, one final ERRORS read, preserved raw 603F/history. A failure after a possible 1 without an acknowledged 0 sets valueOneMayRemain. See docs/fault_reference_actions.md, test/alarm_clear_test.cpp and test/reference_action_test.cpp. Other fault classes, fault identity, internal resume/rearm behavior and firmware qualification remain gated; no specimen has run it; whole-function coverage is not claimed. |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareClearAlarm OBJECT_2301: selected 1/0 pair; known release uncertainty retained. |
 
 ### motion_monitor
 

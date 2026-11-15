@@ -180,6 +180,7 @@ def main(argv=None):
         runner.run("repository", [sys.executable, ROOT / "scripts/check_repository.py"])
         runner.run("version", [sys.executable, ROOT / "scripts/generate_version.py", "check"])
         runner.run("objects", [sys.executable, ROOT / "scripts/generate_lichuan_objects.py", "--check"])
+        runner.run("operations", [sys.executable, ROOT / "scripts/check_lichuan_operations.py"])
         doxygen = None
         if args.mode == "full":
             doxygen = runner.tool("doxygen", "doxygen")

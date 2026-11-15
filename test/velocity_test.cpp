@@ -477,6 +477,32 @@ void timingAndRetainedFailure() {
         CHECK(!r.next(r.context.stopDueUs).ready);
     }
 }
+void resetUnusedStoragePreservesTheRetainedResult() {
+    Rig r;
+    r.reachRunning(); // Every simulated exchange has already delivered its terminal.
+    CHECK(L::advanceVelocity(r.context, r.observation, r.live, r.target,
+                             M::VelocityInterruption::CANCELLED, r.now));
+    CHECK(r.context.state == M::ActionState::FAILED && r.context.needsStop);
+    // An owner copies its terminal before releasing/reusing context storage. Reset is no stop.
+    const L::VelocityContext retained = r.context;
+    const Saved<M::AxisConfig> axis(r.axis);
+    const Saved<L::ReadContext> observation(r.observation);
+    L::resetVelocity(r.context);
+    CHECK(r.context.state == M::ActionState::EMPTY && r.context.operation == 0 &&
+          r.context.outcome == M::ActionOutcome::NONE && r.context.deadlineUs == 0);
+    CHECK(r.context.setupEvidenceMask == 0 && r.context.commandEvidenceMask == 0 &&
+          !r.context.transmissionNoted && !r.context.effectsPossible &&
+          !r.context.runningObserved && !r.context.observationEvidencePresent);
+    CHECK(r.context.execution == M::ActionExecution::NOT_TRANSMITTED &&
+          r.context.completion == M::ActionCompletion::NOT_OBSERVED);
+    CHECK(retained.operation == 42 && retained.outcome == M::ActionOutcome::CANCELLED &&
+          retained.execution == M::ActionExecution::ACKNOWLEDGED && retained.needsStop);
+    axis.unchanged(r.axis);
+    observation.unchanged(r.observation);
+    // Reset does not manufacture admission; a later operation must prepare from current inputs.
+    L::PreparedVelocity work;
+    CHECK(!L::nextVelocity(r.context, r.observation, r.live, r.target, r.now, work));
+}
 void definiteRetirementRefinesOnlyItsOwnNotice() {
     for (uint16_t word : {uint16_t(6), uint16_t(7)}) {
         Rig r;
@@ -2041,6 +2067,7 @@ int main() {
     bestEffortSettlementRequiresQuickStopPolicy();
     preparationBoundaries();
     timingAndRetainedFailure();
+    resetUnusedStoragePreservesTheRetainedResult();
     definiteRetirementRefinesOnlyItsOwnNotice();
     finalEnableCannotOutliveDuration();
     rangeProbeScope();

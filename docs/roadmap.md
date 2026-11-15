@@ -129,7 +129,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 40-42 | Shared parser, typed device and motion routes | P40 local and P41 typed device integration delivered; P42 motion/action and full platform parity next. Native source/firmware prerequisites remain explicit. |
 | 43-44 | Python session/parser and finite campaigns | Client and finite campaigns/session evidence implemented and host-tested. Physical campaign qualification remains47-48; explicit connection, finite bounds and no uncertain-write replay |
 | 45 | Integrated ownership/motion faults | Complete software audit and fixes; real fake-owner settings/TPDO1 tests, retained failure evidence and bounded pressure traces. Existing firmware/remapping gates remain Partial in their original prompts. |
-| 46 | FieldCore-like/alternate-drive consumers | Pending; independent package/consumer/drive-contrast audit |
+| 46 | FieldCore-like/alternate-drive consumers | Independent installed consumer, production contrasts and operation reconciliation; physical support remains Lichuan-only and gated. [Report](reports/prompt_46.md) |
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; bounded two-node S2 connectivity exists, while motor/load and sustained qualification retain their separate fixture/evidence requirements |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 

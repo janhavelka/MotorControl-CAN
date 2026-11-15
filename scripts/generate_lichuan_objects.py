@@ -467,6 +467,8 @@ def coverage_document(data, rows):
     counts = Counter(row["review"]["generation_type"] for row in rows)
     read_rows = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36, 38, 39)]
     implemented_reads = sum(row.get("read_coverage", {}).get("implemented", False) for row in rows)
+    operations = [r for r in data["manual_only"] if r.get("operation_coverage", {}).get("implemented")]
+    action_rows = [r for r in operations if r["owner_prompt"] in (30, 31, 32)]
     lines = ["# Generated Lichuan native declarations and semantic coverage\n\n",
              "Generated from `" + LEDGER_PATH + "` by `" + COMMAND + "`. Do not edit.\n\n",
              "This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has no "
@@ -485,23 +487,33 @@ def coverage_document(data, rows):
              "| Resolved compact descriptors | {} | Native type and restrictive policy only |\n".format(counts["resolved"]),
              "| Withheld declarations | {} | Unresolved complete signed type, raw claims retained |\n".format(counts["withheld"]),
              "| Excluded reserved entries | {} | No descriptor or operation route |\n".format(counts["excluded"]),
-             "| Manual-only semantic items | {} | Reviewed evidence, semantic functions pending |\n".format(len(data["manual_only"])),
+             "| Manual-only semantic items | {} | Source obligations retained independently from conditional software workflows |\n".format(len(data["manual_only"])),
              "| Read shape descriptors | {} | Prompt 19/20/21/22/35/36/38/39 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
              "| Typed reads | {} | Implemented scalar read rows; see separate read coverage, not whole-object support |\n".format(implemented_reads),
              "| Typed settings | {} | Conditional scalar setting rows, not complete object permission; model/state scope below |\n".format(
                  sum(row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
-             "| Actions | 0 | Assigned semantic prompts remain pending |\n",
-             "| Workflows | {} | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |\n\n".format(
+             "| Typed heartbeat workflows | {} | Explicit typed heartbeat scope only; independent of manual operation facets |\n".format(
                  sum(row.get("setting_scope") == "explicit_heartbeat_0_to_1000_cl86c" and
                      row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
+             "| Action obligations with conditional public paths | {} | Narrow software action scope below; not whole-source or physical qualification |\n".format(len(action_rows)),
+             "| Other manual obligations with conditional public paths | {} | Operation facets below, not descriptor counts |\n\n".format(len(operations) - len(action_rows)),
              "Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic "
              "function / hardware-qualified. Generator and declaration tests do not change a "
              "semantic coverage field. `resolved` describes native declaration scope only; other "
              "conflicts and every listed qualification gate remain visible. `withheld` and "
              "`excluded` entries have no ObjectDescriptor or ObjectMetadata constant.\n\n",
-             "## Original source identity and applicability\n\n",
+             "## Conditional public operation coverage\n\n",
+             "These are implemented, host-tested conditional API paths. Original semantic gates and "
+             "hardware qualification remain independent. Run `python scripts/check_lichuan_operations.py` "
+             "to reconcile public functions, registered tests, CLI and Python evidence.\n\n",
+             "| Manual obligation | Owner | Operation D/I/H/Q | Explicit software scope |\n| --- | ---: | --- | --- |\n",
+             "".join("| {} | {} | {} | {} |\n".format(r["key"], r["owner_prompt"],
+                 coverage_text(r["operation_coverage"]), text(r["operation_scope"])) for r in operations),
+             "\n## Original source identity and applicability\n\n",
              "| Source | Title and version | Acquired file / SHA-256 | URL | Applicability evidence |\n",
              "| --- | --- | --- | --- | --- |\n"]
+    # The operation facet is deliberately separate from unresolved source semantics.
+    # Its evidence map is checked against actual public code, tests and console paths.
     for source in data["sources"]:
         lines.append("| {} | {} | {} | {} | {} |\n".format(
             source["id"], text(source["manifest_title"] + "; " + source["revision"]),

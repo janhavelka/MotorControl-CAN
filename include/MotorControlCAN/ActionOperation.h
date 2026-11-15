@@ -32,6 +32,39 @@ enum class ActionCompletion : uint8_t {
     NOT_OBSERVED, ///< No qualifying completion report.
     OBSERVED      ///< Concrete action's documented report acquired.
 };
+/** Native command-response capability, independent of controller CAN acknowledgement. */
+enum class AcknowledgementSupport : uint8_t {
+    UNKNOWN, ///< Selected protocol's response contract is not established.
+    NONE, ///< Reviewed setter has no native acknowledgement.
+    RESPONSE ///< A correlated native acceptance/rejection response exists.
+};
+/** Caller-qualified facts for one command, borrowed only during checkServiceEvidence.
+ * These facts do not establish binding, permission, correlation or sample provenance;
+ * the concrete service qualifies those before supplying them. No wire work is performed.
+ */
+struct ServiceEvidence {
+    bool admitted = false; ///< Local owner accepted the command; no TX claim.
+    bool transmissionPossible = false; ///< External transmission can no longer be excluded.
+    bool transmissionConfirmed = false; ///< Controller identifies actual transmission.
+    AcknowledgementSupport acknowledgement = AcknowledgementSupport::UNKNOWN; ///< Explicit native contract.
+    bool acknowledged = false; ///< Checked matching native acceptance, never CAN ACK alone.
+    bool rejected = false; ///< Checked matching native rejection; no rollback implied.
+    bool completionObserved = false; ///< Qualified native completion report, not necessarily standstill.
+};
+/** Separate command execution and native completion projections; no physical qualification. */
+struct ServiceOutcome {
+    ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< Native acceptance evidence.
+    ActionCompletion completion = ActionCompletion::NOT_OBSERVED; ///< Native completion evidence.
+};
+/** Check consistent supplied facts and atomically project their narrow meaning.
+ * @param evidence Caller-qualified borrowed facts; no pointers are retained.
+ * @param output Unchanged on failure; must not overlap evidence.
+ * @return INVALID_CONFIG for contradictory facts/overlap, otherwise OK. Admission or
+ * confirmed TX without native response leaves execution UNKNOWN once TX is possible.
+ * A no-ack setter does not acquire synthetic confirmation. completionObserved means
+ * only the selected native report: trajectories may complete at nonzero velocity.
+ */
+Status checkServiceEvidence(const ServiceEvidence& evidence, ServiceOutcome& output) noexcept;
 /** Terminal operation result, independent of command execution and application health. */
 enum class ActionOutcome : uint8_t {
     NONE,              ///< Active or empty.

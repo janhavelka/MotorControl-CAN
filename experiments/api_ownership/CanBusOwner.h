@@ -10,6 +10,7 @@
 /** Application example boundary; stack types are confined to this directory. */
 namespace MotorControlCANExample {
 using namespace MotorControlCAN;
+using namespace MotorControlCAN::ProofProfile;
 class CanBusOwner;
 
 /** Stationary owner and nonwrapping slot generation; never transmitted on CAN. */
@@ -123,7 +124,7 @@ public:
      * @param[in] id Current request. Null for pending, stale or foreign handles.
      * @return Borrowed immutable terminal view, or null when no result is available.
      */
-    const ServiceEvidence* result(RequestId id) const;
+    const ServiceReply* result(RequestId id) const;
     /** Release only a matching terminal slot; does not release its axis reservation.
      * @param[in] id Current request. False leaves storage unchanged.
      * No terminal release clears channel uncertainty or authorizes retransmission.
@@ -160,7 +161,7 @@ private:
         uint32_t generation = 0;
         uint8_t sequence = 0;
         ServiceWork work;
-        ServiceEvidence evidence;
+        ServiceReply evidence;
     };
     // One authoritative application table. The bridge's terminal is transient
     // client scratch, not a second retained request registry or RX dispatcher.

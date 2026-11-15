@@ -433,6 +433,44 @@ void validation() {
     reversed.request.searchSpeed.value = M::Rational(120);
     CHECK(reversed.prepare()); // Explicit positive native magnitude is independent of polarity.
 }
+void validationAndStorageReset() {
+    Rig r;
+    const Saved<Rig> before(r);
+    CHECK(L::validateHome(r.home, r.live, r.target, r.initial, r.control, r.identity, r.inputs,
+                          r.driver, r.evidence, r.request, r.axis, 42, r.now, DEADLINE, r.options));
+    before.unchanged(r); // Validation admits no write and changes no context or prerequisite.
+    r.evidence.gate = L::HomeGate::CLOSED;
+    const Saved<Rig> refused(r);
+    const M::Status validation = L::validateHome(
+        r.home, r.live, r.target, r.initial, r.control, r.identity, r.inputs, r.driver,
+        r.evidence, r.request, r.axis, 42, r.now, DEADLINE, r.options);
+    CHECK(validation.code == M::Err::UNSUPPORTED);
+    refused.unchanged(r);
+    const M::Status preparation = r.prepare();
+    CHECK(preparation.code == validation.code && preparation.detail == validation.detail);
+    refused.unchanged(r);
+    r.evidence.gate = L::HomeGate::MEASURED;
+    r.complete(); // No owner exchange remains outstanding.
+    M::AxisReference witness;
+    CHECK(L::getHomeReference(r.home, r.target, r.axis, r.now, 1000, witness));
+    const Saved<M::AxisConfig> axis(r.axis);
+    const Saved<M::AxisReference> reference(r.reference);
+    const Saved<M::AxisReference> savedWitness(witness);
+    L::resetHome(r.home);
+    CHECK(r.home.state == M::ActionState::EMPTY && r.home.operation == 0 &&
+          r.home.outcome == M::ActionOutcome::NONE && r.home.deadlineUs == 0);
+    CHECK(r.home.setupEvidenceMask == 0 && !r.home.triggerEvidencePresent &&
+          !r.home.observationEvidencePresent && !r.home.completed.present &&
+          !r.home.coordinatesInvalidated);
+    CHECK(r.home.execution == M::ActionExecution::NOT_TRANSMITTED &&
+          r.home.completion == M::ActionCompletion::NOT_OBSERVED);
+    CHECK(!L::getHomeReference(r.home, r.target, r.axis, r.now, 1000, witness));
+    savedWitness.unchanged(witness);
+    // Releasing the result neither undoes the homing coordinate epoch nor creates a new reference.
+    CHECK(r.axis.binding.configurationGeneration == 8 && r.axis.referenceGeneration == 2);
+    axis.unchanged(r.axis);
+    reference.unchanged(r.reference);
+}
 void failuresAndCorrelation() {
     for (unsigned index = 0; index < 5; ++index) {
         Rig r;
@@ -743,6 +781,7 @@ void retirementAndAtomicity() {
 int main() {
     methodsAndReference();
     validation();
+    validationAndStorageReset();
     failuresAndCorrelation();
     observationPolicy();
     stationaryStatus();
