@@ -3100,8 +3100,8 @@ void testClearAlarm() {
 // ------------------------------------------------------------------- prompts 35 and 36
 // The host's VELOCITY line. Every evidence value here is this fake's, never a measurement.
 // The defaults fit the record with the route's enable report window (S17): identity, full read, three
-// parameters, three words with a cycle each, six window cycles, three running cycles and the stop's
-// word, one cycle and a best-effort pair: 118 of ROUTE_TERMINALS.
+// parameters, three words with a cycle each, six window cycles, four joint running/stop cycles
+// and three stop terminals: 118 of ROUTE_TERMINALS.
 struct VelocitySpec {
     unsigned attended = 1, rpm = 6, up = 200, down = 200;
     unsigned long duration = 12000, interval = 5000, deadline = 15500;
@@ -3441,7 +3441,7 @@ void testVelocity() {
     VelocitySpec dense = spec;
     dense.interval = 100;
     CHECK(std::strcmp(r->start(velocityLine(1, trial, dense)), "capacity") == 0);
-    // Trial 1308's plan no longer fits with the enable report window's six cycles: 160 terminals.
+    // Trial 1308's plan does not fit the joint running/early-stop bound: 153 terminals.
     VelocitySpec old = spec;
     old.interval = 2000;
     old.deadline = 18000;
@@ -3859,6 +3859,59 @@ void testVelocityEnableWindow() {
     CHECK(has(text, "TRIAL_VELOCITY own=1 state=2 ") && has(text, " needs=0 fenced=0 running=1 "));
     CHECK(has(text, "TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 "));
 }
+// An early failure retains the original stop deadline, not merely deadline-duration.
+// Six extra enable cycles followed by overspeed and a stop that never settles exercise
+// the joint cycle reservation without ever reaching a RUNNING observation.
+void testVelocityJointRunningStopBound() {
+    const unsigned deadlines[] = {20000, 20001, 23000, 25000, 25001, 22000};
+    const unsigned intervals[] = {5000, 5000, 5000, 5000, 5000, 4000};
+    const unsigned bounds[] = {118, 125, 125, 125, 132, 132};
+    for (unsigned test = 0; test < 6; ++test) {
+        scenario = "velocity-joint-early-stop-bound";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        releasedModeThree(d);
+        d.staleWord = 0x000f;
+        d.staleCycles = 6;
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        VelocitySpec spec;
+        spec.kind = 2;
+        spec.deadline = deadlines[test];
+        spec.interval = intervals[test];
+        const char* refusal = r->start(velocityLine(1, trial, spec));
+        if (bounds[test] > 128) {
+            CHECK(refusal && std::strcmp(refusal, "capacity") == 0);
+            CHECK(!r->route.active() && r->route.motionAdmissions() == 0);
+            continue;
+        }
+        CHECK(!refusal);
+        bool forcedOverspeed = false;
+        for (unsigned n = 0; n < 40000 && r->route.active(); ++n) {
+            if (!forcedOverspeed && !d.staleCycles && d.lastWord == 0x000f) {
+                // The last ENABLE cycle reports running but excessive speed. The stop is
+                // acknowledged yet deliberately changes no report, so every later cycle remains.
+                forcedOverspeed = true;
+                d.velocity = 100;
+                d.spins = d.followWords = d.releaseWords = d.releasePattern = false;
+            }
+            r->turn();
+        }
+        CHECK(forcedOverspeed && !r->route.active());
+        const E::RouteRecord& record = *r->route.record();
+        const L::VelocityContext& run = r->one.velocityAction();
+        CHECK(record.velocityRequested && !record.evidenceLost);
+        CHECK(run.enablePending == 6 && run.runningPolls == 0 && run.options.maxPolls == 3);
+        CHECK(run.stopRequestedUs < run.stopDueUs && run.stopRequestedUs < run.startedUs + 2000000);
+        CHECK(run.stopExecution == M::ActionExecution::ACKNOWLEDGED);
+        CHECK(wordsFrom(*r, 0, 1, 0x000b) == 1 && !record.stopRequested);
+        CHECK(record.terminalCount <= bounds[test]);
+        // For23s the five nonsettling stop cycles plus all setup reach123 terminals.
+        if (deadlines[test] == 23000)
+            CHECK(record.terminalCount == 123);
+    }
+}
+
 // HOME: the reads requestHome consumes, then its refusal before any write; no motion weight.
 void testHome() {
     scenario = "home-fresh";
@@ -7605,6 +7658,7 @@ int main(int argc, char** argv) {
     testVelocityFailures();
     testVelocityFallbackStop();
     testVelocityEnableWindow();
+    testVelocityJointRunningStopBound();
     testHome();
     testVelocityHomePlan();
     testParseVelocityTarget();

@@ -619,11 +619,16 @@ unsigned terminalBound(const RoutePlan& p) {
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
     case RouteKind::VELOCITY:
         // Identity and full read; 60FF, 6083, 6084; 6, 7, 15, each followed by one seven-field cycle; at
-        // most ROUTE_VELOCITY_WINDOW_CYCLES more after 15 inside the enable report window; at most maxPolls
-        // running cycles; then the session's stop over the rest of the deadline at the same interval. The
-        // drive already reads mode 3, so no mode write or mode cycle.
-        return 9 + 9 + 3 + 3 + 7 * 3 + 7 * ROUTE_VELOCITY_WINDOW_CYCLES + 7 * velocityPolls(p) +
-               stopTerminals(p.deadlineMs - p.durationMs, p.intervalMs);
+        // most ROUTE_VELOCITY_WINDOW_CYCLES more after 15. RUNNING waits an interval; an early own stop
+        // adds one immediate cycle but keeps the original deadline. Together their cycle starts are
+        // bounded by ceil(deadline/interval), including an incomplete final cycle. S16's separate
+        // fallback has at most ceil(duration/interval)-1 running plus ceil(stop span/interval) stop
+        // cycles, within the same bound. Three extra terminals cover a stop word and held pair.
+        // Up to five unsent stop attempts instead have no stop cycles: admitting the first drops
+        // 000F evidence, and one unused seven-field cycle covers the two extra attempts. The drive
+        // already reads mode 3, so no mode write or mode cycle. Runtime maxPolls is unchanged.
+        return 9 + 9 + 3 + 3 + 7 * 3 + 7 * ROUTE_VELOCITY_WINDOW_CYCLES +
+               7 * ((p.deadlineMs + p.intervalMs - 1) / p.intervalMs) + 3;
     case RouteKind::HOME:
         // Identity, IO_INPUT_CONFIGURATION (2400:00..08), the full read and DRIVER (2200, 2201). No write.
         return 9 + 9 + 9 + 2;

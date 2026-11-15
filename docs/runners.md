@@ -265,7 +265,7 @@ receiver is introduced. The transcript preserves `trace` records, exact payload
 hex, identifiers/format, `processed_us` decimal strings and host receive times.
 Before debug off, a fixed 0.2-second observation window keeps raw diagnostics
 enabled. Current firmware copies at most 24 owner diagnostics per service turn
-into a separate 128-entry application buffer (3072 bytes of compact records),
+into a separate 80-entry application buffer (1920 bytes of compact records),
 independent of UART pressure, and serializes one record per turn. All diagnostic
 kinds remain represented. Debug off captures the remaining bounded owner queue,
 stops capture and reports `trace_pending`: buffered records that follow its FIFO

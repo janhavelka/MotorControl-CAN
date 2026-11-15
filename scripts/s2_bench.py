@@ -656,12 +656,14 @@ def plan_bounds(command, fields):
         cycles, interval = fields[3:5]
         return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval  # Two full reads, 6060, the cycles.
     if command == "velocity":
-        duration, interval, deadline = fields[6:9]
-        polls = -(-duration // interval)  # The library's maxPolls: the fewest cycles covering the duration.
-        # Identity, full read, 60FF 6083 6084, 6 7 15 with a cycle each, the enable report window's cycles,
-        # the running cycles, then the session's stop over the rest of the deadline at the same interval.
-        return (9 + 9 + 3 + 3 + 7 * 3 + 7 * VELOCITY_WINDOW_CYCLES + 7 * polls +
-                _stop_terminals(deadline - duration, interval), deadline)
+        interval, deadline = fields[7:9]
+        # RUNNING waits one interval; an early own stop adds one immediate cycle and retains the
+        # original deadline. Their joint start bound also covers S16's separate fallback. The
+        # no-observation path can use five unsent stop attempts: its unused seven-field cycle plus
+        # the three reserved stop terminals cover these. Runtime maxPolls stays ceil(duration/interval).
+        cycles = -(-deadline // interval)
+        return (9 + 9 + 3 + 3 + 7 * 3 + 7 * VELOCITY_WINDOW_CYCLES + 7 * cycles +
+                3, deadline)
     if command == "home":
         return 9 + 9 + 9 + 2, 0  # Identity, 2400:00..08, the full read, 2200 and 2201. No write.
     if command == "velocity-target":

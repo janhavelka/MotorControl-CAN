@@ -7,13 +7,16 @@
 - Add explicit raw tracing to finite Python campaigns and retain bounded trailing
   records after `debug off`. Observed trace loss fails the requested capture while
   preserving the workload result and any earlier failure.
-- Copy burst diagnostics into a fixed 128-record application buffer independently
+- Copy burst diagnostics into a fixed 80-record application buffer independently
   of console output pressure. Keep one ordinary reply slot available, report
   local drops separately from owner overwrites, and drain copied records after off.
 - Compare one optional SDK version prefix symmetrically during flashed-image
   checks; revision/dirty suffixes and all other identity fields remain exact.
 - Allocate the S2 bench console's largest block first after a measured fragmented
   heap refusal. Partial allocation still frees all unconstructed blocks.
+- Size the trace buffer for both S2 axis contexts and refine the finite velocity
+  record reservation across running, early stop and the existing explicit fallback.
+  Runtime timing, stop deadlines and the 128-terminal cap are unchanged.
 - Increase the full verifier's aggregate hang guard to cover the measured suite;
   individual test limits and checks are unchanged.
 

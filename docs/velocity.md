@@ -72,6 +72,13 @@ context keeps the gate it was prepared with: a run under the experiment never
 reads as qualified, and a successful terminal qualifies nothing by itself. The
 attendant's independent power cutoff is the control the library cannot see.
 
+The S2 bench has an existing, explicit unattended-motion waiver exception,
+described in [bench facts](hardware_bench.md). Its historical `attended=1` and
+`ATTENDED_EXPERIMENT` labels then mean the host admission gate was satisfied by
+that recorded waiver, not that an observer or cutoff operator is present. Record
+those absent facts separately and keep every qualification flag false. This does
+not change the native scope, rate, duration, stop or uncertainty checks.
+
 **Range probe (prompt 59).** `VelocityEvidence::rangeProbe`, admitted only under
 `ATTENDED_EXPERIMENT`, raises the experiment's rate bound from 60 rpm to
 `VELOCITY_RANGE_PROBE_MAXIMUM_RPM` (6000 rpm, twice the documented 3000) and

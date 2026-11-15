@@ -156,6 +156,41 @@ void s2ConsoleRegionModel() {
     CHECK(blocks[0].memory && !blocks[1].memory && blocks[2].memory && small.calls == 3);
 }
 
+// Preserve the 128-record failure above. The 80-record console saves 1152 bytes;
+// if that saving extends the constrained post-console extent, both 3856-byte
+// axes fit. The SDK's actual placement still requires the bench HEAP check.
+void s2TwoAxisConsoleModel() {
+    const size_t console80 = 8672, device = 6664, wrapper = 2552, axis = 3856;
+    Regions before;
+    before.count = 3;
+    before.free[0] = 12864;
+    before.free[1] = 7780;
+    before.free[2] = 3276;
+    E::BenchAllocator allocator;
+    allocator.context = &before;
+    allocator.allocate = Regions::allocate;
+    E::BenchBlock blocks[3];
+    const size_t sizes[3] = {device, console80, wrapper};
+    for (unsigned i = 0; i < 3; ++i) {
+        blocks[i].size = sizes[i];
+        blocks[i].alignment = 8;
+    }
+    CHECK(E::reserveLargestFirst(allocator, blocks, 3) == 0x7);
+    CHECK(before.order[0] == console80 && before.order[1] == device && before.order[2] == wrapper);
+    Regions oldConsole;
+    oldConsole.count = 4;
+    oldConsole.free[0] = 4436;
+    oldConsole.free[1] = 3016;
+    oldConsole.free[2] = 1112;
+    oldConsole.free[3] = 720;
+    Regions smallerConsole = oldConsole;
+    smallerConsole.free[1] += (128 - 80) * 24;
+    CHECK(Regions::allocate(&oldConsole, 8, axis));
+    CHECK(!Regions::allocate(&oldConsole, 8, axis));
+    CHECK(Regions::allocate(&smallerConsole, 8, axis));
+    CHECK(Regions::allocate(&smallerConsole, 8, axis));
+}
+
 struct Counted {
     static unsigned built, destroyed;
     unsigned value;
@@ -202,6 +237,7 @@ int main() {
     largestFirstOrderAndRefusals();
     s2RegionModel();
     s2ConsoleRegionModel();
+    s2TwoAxisConsoleModel();
     arenaOccupancy();
     std::printf("bench heap: %u checks passed\n", checks);
 }

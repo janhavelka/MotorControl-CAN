@@ -229,11 +229,11 @@ drain, so debug cannot steal its copies. Unsolicited debug is always JSONL with
 Only checked heartbeat/EMCY fields are decoded; an unknown frame is
 `decoded:false`. These observations never qualify a drive watchdog or motion.
 
-The application copies at most 24 owner diagnostics per console turn into 128
+The application copies at most 24 owner diagnostics per console turn into 80
 compact records (24 bytes each), independently of UART pressure. Serialization
 emits at most one per turn and keeps one ordinary reply slot free. `debug off`
 captures the bounded remaining owner tail, stops intake, and continues emitting
-copied records. Its ordinary FIFO reply reports `trace_pending` (0..128 copied
+copied records. Its ordinary FIFO reply reports `trace_pending` (0..80 copied
 records following that reply), cumulative `trace_dropped` for the application
 buffer, and the existing owner `trace_overwritten` counter. Already enqueued
 trace lines precede the reply. `drained()` includes the copied tail. Counters

@@ -1747,13 +1747,13 @@ class BenchTest(unittest.TestCase):
         # and two 10 ms enable intervals, and a deadline that leaves 2800 ms or less after it, both after the
         # firmware counted the line (test/bench_route_test.cpp testVelocityRefusals): refused here, unsent and
         # uncounted. 1308's line (2000 ms interval, 18000 ms deadline) no longer fits the record with the
-        # window: 45 + 42 + 42 + 31 = 160 terminals.
+        # window and the joint running/early-stop bound: 87 + 7*ceil(18000/2000) + 3 = 153.
         old = list(velocity(12000, 18000))
         old[old.index("--interval-ms") + 1] = "2000"
-        self.assertEqual(bounds(old)[0], 160)
+        self.assertEqual(bounds(old)[0], 153)
         for argv, reason in ((velocity(11469, 15500), "velocity duration: 11469 ms"),
                              (velocity(12000, 14800), "velocity deadline: 14800 ms leaves 2800 ms"),
-                             (dense, "capacity"), (old, "capacity: this plan can produce 160 terminals")):
+                             (dense, "capacity"), (old, "capacity: this plan can produce 153 terminals")):
             self.clear_output()
             board = Board()
             operator = Operator("ATTENDED 30", "none")
@@ -1774,6 +1774,33 @@ class BenchTest(unittest.TestCase):
         self.assertIn("enable report window 2000 ms, cycles 300 ms apart, at most 6 more after word 15", out.getvalue())
         self.assertIn("VelocityEvidence gate ATTENDED_EXPERIMENT, startQualified 0, stopQualified 0", out.getvalue())
 
+    def test_velocity_joint_running_and_early_stop_reservation_boundaries(self):
+        # Deadlines straddle cycle-start boundaries. The immediate STOP cycle must
+        # remain reserved even when an early failure prevents the first RUNNING cycle.
+        for deadline, wanted in ((20000, 118), (20001, 125), (23000, 125), (25000, 125), (25001, 132)):
+            argv = list(VELOCITY)
+            argv[argv.index("--deadline-ms") + 1] = str(deadline)
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.plan_bounds(args.command, fields), (wanted, deadline))
+            if wanted <= 128:
+                bench.check_bounds(args.command, fields)
+            else:
+                with self.assertRaisesRegex(bench.Refused, "capacity"):
+                    bench.check_bounds(args.command, fields)
+        bad = list(VELOCITY)
+        bad[bad.index("--duration-ms") + 1] = "11469"
+        bad[bad.index("--deadline-ms") + 1] = "23000"
+        args, fields = bench.arguments(BASE + bad + LEDGER + ["--output", "x"])
+        with self.assertRaisesRegex(bench.Refused, "velocity duration"):
+            bench.check_bounds(args.command, fields)
+        dense_stop = list(VELOCITY)
+        dense_stop[dense_stop.index("--interval-ms") + 1] = "4000"
+        dense_stop[dense_stop.index("--deadline-ms") + 1] = "22000"
+        args, fields = bench.arguments(BASE + dense_stop + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.plan_bounds(args.command, fields), (132, 22000))
+        with self.assertRaisesRegex(bench.Refused, "capacity"):
+            bench.check_bounds(args.command, fields)
+
     def test_velocity_experiment_bounds_and_attendant(self):
         def changed(**values):
             argv = list(VELOCITY)
@@ -1782,11 +1809,11 @@ class BenchTest(unittest.TestCase):
             return argv
         # The attended experiment's bounds, the library's: 60 rpm and 20000 ms. The library would refuse
         # them only after the firmware counted the line, so they are refused here, unsent and uncounted.
-        # With the enable report window (S17) no duration over 15000 ms fits the record at the longest
-        # interval, so the 20000 ms bound is reached as capacity first.
+        # A26000 ms deadline exceeds the joint-cycle record bound even at the longest interval,
+        # so this over-duration candidate reaches capacity first.
         for argv, reason in ((changed(rpm=61), "velocity rpm: 61 is over the ATTENDED_EXPERIMENT scope's 60 rpm"),
                              (changed(duration_ms=20001, deadline_ms=26000, interval_ms=5000),
-                              "capacity: this plan can produce 139 terminals")):
+                              "capacity: this plan can produce 132 terminals")):
             self.clear_output()
             board = Board()
             operator = Operator("ATTENDED 30", "none")

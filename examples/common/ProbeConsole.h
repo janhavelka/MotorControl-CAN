@@ -89,7 +89,7 @@ class ProbeConsole {
         ORDINARY_REPLIES = 2,   ///< Complete ordinary records; no partial overwrite.
         CONTROL_REPLIES = 2,    ///< Additional records reserved for local cancel/recover replies.
         INPUT_BUDGET = 32,      ///< Maximum buffered input bytes consumed per service turn.
-        TRACE_CAPACITY = 128,   ///< Application diagnostic copies; independent of UART pressure.
+        TRACE_CAPACITY = 80,    ///< Application diagnostic copies; independent of UART pressure.
         OPERATION_CAPACITY = 2, ///< Ordinary retained correlations; no unread eviction.
         TOTAL_OPERATION_CAPACITY = 5 ///< Two ordinary, normal stop, fast stop, host recovery.
     };
