@@ -178,3 +178,13 @@ The evidence map carries API paths and rationale only; device facts remain in
 `docs/reference/lichuan_objects.json`. New public declarations need both map and
 behavioral test evidence. Missing or gated CLI paths require a specific API-only
 reason, never a placeholder success. The checker runs again in prompts49/50.
+
+
+Prompt46 audit strengthens the operation evidence map to schema2: bindings name
+actual typed public entries/getters; CLI evidence names the current inventory API
+expression and a finite application dispatch path; Python plan commands must
+exercise the claimed family's routes. Checked I/O/tuning getters are native-only
+where the console emits raw context values. Current operation facets cannot be
+promoted to hardware-qualified until prompts47/48 establish the retained evidence
+schema. Lexical association checks do not prove C++ overload/branch execution;
+registered behavioral and package gates remain required.

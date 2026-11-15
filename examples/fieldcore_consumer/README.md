@@ -61,6 +61,9 @@ The implemented lane is direct:
 
 The fake schedules one terminal 500 us after each admission and advances a
 caller-supplied monotonic time. This is simulation latency, not drive timing.
+Every module entry and owner turn checks the inclusive `0..INT64_MAX` time
+domain before mutation. Fake admission also reserves room for its 500-us latency;
+an invalid time preserves pending terminals and caller outputs.
 The executable bounds itself to 200 owner turns. A real scheduler owns time,
 fairness, queue/result capacity and the immutable operation deadline. It honors
 `eligibleUs`, queue/response budgets and the complete transfer deadline. The
@@ -81,7 +84,9 @@ rebinding, configuration or reference changes must withdraw affected queued work
 and current observations. Keep the actual live reservation and target separate
 from the frozen move. `interrupt(INVALIDATED)` handles local withdrawal; an
 outstanding exchange first retains its withdrawal reason, then consumes the
-owner's actual terminal. Cancellation sends no stop and gives no standstill
+owner's actual terminal. Only after recording withdrawal does terminal retirement
+use the original admitted route; changed live ownership still refuses ordinary
+advancement and new admission. Cancellation sends no stop and gives no standstill
 evidence. An urgent stop would need its own reserved lane, operation and result;
 this bounded example implements the ordinary move lane only.
 
@@ -100,7 +105,9 @@ board/transceiver route, bounded resource/service measurements and qualification
 rejection, no duplicate outstanding step, rejected correlation retention,
 acknowledgement without completion, exact result take, configuration invalidation
 before TX, unsent and pending-trigger deadline expiry, bounded fake-latency
-arithmetic, and cancellation while an unconfirmed trigger is in flight. A settled
-physical TX with missing SDO acknowledgement ends with `UNKNOWN` execution and
+arithmetic, and cancellation while an unconfirmed trigger is in flight. Route
+or reservation invalidation during setup, trigger or observation retires
+only the original exchange after explicit withdrawal, including at its cutoff.
+A settled physical TX with missing SDO acknowledgement ends with `UNKNOWN` execution and
 retained uncertainty. All checks are host-only. See the prospective
 [FieldCore handoff](../../docs/fieldcore_handoff.md) for the integration boundary.

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  * These application-local types belong to neither FieldCore nor the installed library.
  * Calls perform no I/O, allocation, clock access, automatic retry or implicit motor action.
+ * Supplied timestamps outside 0..INT64_MAX refuse before changing contexts or outputs.
  */
 #pragma once
 #include <MotorControlCAN/profiles/lichuan_c/Position.h>
@@ -15,6 +16,12 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 /** Installed Lichuan finite-move and checked-read contracts. */
 namespace L = MotorControlCAN::LICHUAN_C;
+
+/** Check the supplied nonwrapping microsecond domain without reading a clock or changing storage.
+ * @param[in] nowUs Caller timestamp, valid inclusively from zero through INT64_MAX.
+ * @return OK only within that domain; other values return INVALID_CONFIG without side effects.
+ */
+M::Status validateTime(uint64_t nowUs);
 
 /** Actual current owner facts, separate from the move's frozen preparation snapshot.
  * The caller serializes updates and supplies this live value on every owner turn.
@@ -125,6 +132,8 @@ M::Status admitStep(MotorModule& module, const LiveAxis& live, uint64_t nowUs,
  * move, so inspect the typed result rather than interpreting this local Status as motor success.
  * @param[in,out] module Outstanding lane; unchanged when correlation or evidence refuses.
  * @param[in] live Actual current route and reservation, including any qualified invalidation.
+ * After an explicit withdrawal is recorded, the frozen admitted route identifies this terminal
+ * for retirement only. Without withdrawal, changed live facts refuse; they never admit new work.
  * @param[in] completion Actual copied owner terminal, including identities, times and raw evidence.
  * @param[in] wire Owner's separate physical settlement classification for this exchange.
  * @param[in] nowUs Nondecreasing processing microseconds, at least completion.completedUs.

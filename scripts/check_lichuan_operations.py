@@ -25,13 +25,13 @@ from check_lichuan_ledger import ROOT, generation_disposition, validate_ledger
 
 MAP_PATH = "docs/reference/lichuan_operations.json"
 LEDGER_PATH = "docs/reference/lichuan_objects.json"
-PROFILE = "include/MotorControlCAN/profiles/lichuan_c"
-GENERATED = {"Types.h", "Objects.h", "Catalogue.h", "Pdo.h"}
 CALL = re.compile(r"\b([A-Za-z_]\w*)\s*\(")
 FUNCTION = re.compile(
     r"^[ \t]*(?:(?:inline|constexpr|static|explicit)\s+)*"
     r"(?:[\w:<>]+[ \t*&]+)+(?P<name>[A-Za-z_]\w*)\s*"
     r"\((?P<args>[^;{}]*?)\)\s*(?:const\s*)?(?:noexcept\s*)?(?P<end>[;{])", re.M)
+CLI_FUNCTION = re.compile(FUNCTION.pattern.replace(
+    "(?P<name>", r"(?P<owner>(?:[A-Za-z_]\w*::)*)(?P<name>"), re.M)
 NON_CALLS = {"if", "while", "for", "switch", "sizeof", "alignof", "static_cast",
              "reinterpret_cast", "const_cast", "dynamic_cast", "decltype"}
 
@@ -47,21 +47,33 @@ def code_only(text):
     return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', '""', text)
 
 
+def free_function_code(text):
+    """Mask balanced class/struct bodies without depending on indentation."""
+    code = code_only(text)
+    masked = list(code)
+    for match in re.finditer(r"\b(?:class|struct)\s+\w+[^;{}]*\{", code):
+        depth, cursor = 1, match.end()
+        while cursor < len(code) and depth:
+            depth += (code[cursor] == "{") - (code[cursor] == "}")
+            cursor += 1
+        if depth == 0:
+            masked[match.start():cursor] = ["\n" if char == "\n" else " "
+                                          for char in code[match.start():cursor]]
+    return "".join(masked)
+
+
 @lru_cache(maxsize=128)
 def public_functions(text):
     """Map ordinary namespace free-function names to overload counts."""
-    # Public profile structs have no methods. Common value constructors are
-    # indented and excluded by declaration ownership, not treated as operations.
-    return Counter(m["name"] for m in FUNCTION.finditer(code_only(text))
-                   if not m[0][0].isspace() and m["name"] not in NON_CALLS
-                   and not m[0].startswith("return "))
+    return Counter(m["name"] for m in FUNCTION.finditer(free_function_code(text))
+                   if m["name"] not in NON_CALLS and not m[0].lstrip().startswith("return "))
 
 
 @lru_cache(maxsize=128)
-def bodies(text):
+def bodies(text, qualified=False):
     code = code_only(text)
     found = []
-    for match in FUNCTION.finditer(code):
+    for match in (CLI_FUNCTION if qualified else FUNCTION).finditer(code):
         if match["end"] != "{" or match["name"] in NON_CALLS:
             continue
         start, depth, cursor = match.end(), 1, match.end()
@@ -69,7 +81,8 @@ def bodies(text):
             depth += (code[cursor] == "{") - (code[cursor] == "}")
             cursor += 1
         if depth == 0:
-            found.append((match["name"], code[start:cursor - 1]))
+            owner = match["owner"] if qualified else ""
+            found.append((owner + match["name"], code[start:cursor - 1]))
     return found
 
 
@@ -134,8 +147,74 @@ def command_inventory(text):
         words = re.findall(r'"((?:\\.|[^"\\])*)"', fields[0])
         if words:
             result["".join(words)] = {"working": fields[7].strip() == "nullptr",
-                                      "api": fields[2], "grammar": fields[1]}
+                                      "api": "".join(re.findall(r'"((?:\\.|[^"\\])*)"', fields[2])),
+                                      "grammar": fields[1]}
     return result
+
+
+def cli_reaches_entry(texts, dispatch, entry):
+    """Follow one named application bridge, restricted to its declared files.
+
+    Qualified definitions are needed only here. Native test reachability keeps
+    its existing namespace-free convention; this is not a C++ type resolver.
+    """
+    functions = defaultdict(list)
+    for text in texts:
+        for name, body in bodies(text, qualified=True):
+            functions[name].append(body)
+    if dispatch not in functions:
+        return False
+    pending, seen = [dispatch], set()
+    while pending:
+        name = pending.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        calls = {call for body in functions[name] for call in CALL.findall(body)} - NON_CALLS
+        # Inspect outgoing calls: a getter bridge sharing its native name does
+        # not count merely because it is the selected dispatch function.
+        if entry in calls:
+            return True
+        pending.extend(candidate for candidate in functions
+                       if candidate.rsplit("::", 1)[-1] in calls and candidate not in seen)
+    return False
+
+
+def binding_family(binding):
+    return binding.get("family") if isinstance(binding, dict) else binding
+
+
+def binding_errors(binding, role, families, label):
+    """Validate API references, without copying any object or firmware facts."""
+    if not isinstance(binding, dict) or binding.get("role") != role:
+        return [label + ": descriptor/codec is not a typed " + role +
+                " implementation; binding requires explicit public entry evidence"]
+    errors = []
+    refs = binding.get("entries", [])
+    if not isinstance(refs, list) or not refs:
+        return [label + ": typed " + role + " binding has no public entries"]
+    names = []
+    for reference in refs:
+        owner, separator, name = reference.partition(".") if isinstance(reference, str) else ("", "", "")
+        family = families.get(owner)
+        if not separator or not family or name not in family["functions"]:
+            errors.append(label + ": binding references an absent public entry " + str(reference))
+        else:
+            names.append(name)
+    selected = families.get(binding.get("family"))
+    if not selected:
+        errors.append(label + ": binding has no public family")
+    elif not any(reference.startswith(binding["family"] + ".") for reference in refs
+                 if isinstance(reference, str)):
+        errors.append(label + ": public entries do not belong to the selected family")
+    if role in ("read", "setting") and (not any(n.startswith("prepare") for n in names) or
+                                        not any(n.startswith("get") for n in names)):
+        errors.append(label + ": descriptor/codec is not a typed " + role + " implementation")
+    if role == "workflow" and selected:
+        functions = selected["functions"]
+        if not all(any(n.startswith(phase) for n in functions) for phase in ("prepare", "next", "advance")):
+            errors.append(label + ": descriptor/codec is not a typed workflow implementation")
+    return errors
 
 
 def cmake_source(text):
@@ -177,6 +256,9 @@ def operation_facet_errors(row):
                 errors.append(key + ": claimed workflow needs completed behavioral tests")
             if coverage["hardware_qualified"] and not row.get("operation_qualification_evidence"):
                 errors.append(key + ": workflow hardware qualification lacks retained device evidence")
+            if coverage["hardware_qualified"]:
+                errors.append(key + ": workflow hardware qualification is not admitted by the current evidence schema; "
+                              "prompts 47/48 must establish retained qualification evidence before promotion")
     if row.get("coverage", {}).get("implemented") and row.get("review", {}).get("gate_ids"):
         errors.append(key + ": unresolved semantic gates cannot be silently promoted by operation coverage")
     return errors
@@ -192,8 +274,8 @@ def check(root=ROOT, mapping=None, ledger=None):
                "python_plans", "python_tests"}
     if set(mapping) - allowed:
         errors.append("operation map contains fields outside API/coverage references")
-    if mapping.get("schema_version") != 1 or mapping.get("object_ledger") != LEDGER_PATH:
-        errors.append("operation map must reference the single reviewed object ledger")
+    if mapping.get("schema_version") != 2 or mapping.get("object_ledger") != LEDGER_PATH:
+        errors.append("operation map requires API-evidence schema 2 and the single reviewed object ledger")
     # The ledger verifier retains original EDS accounting and all 53 manual
     # obligations. Removing an unimplemented row cannot improve coverage.
     errors.extend(validate_ledger(ledger, root))
@@ -209,8 +291,7 @@ def check(root=ROOT, mapping=None, ledger=None):
     for family in families:
         label = str(family.get("id"))
         allowed_family = {"id", "header", "functions", "implementation", "tests", "api_only_reason",
-                          "console", "python_scenarios", "console_api_only_reason", "python_api_only_reason",
-                          "preparation_family"}
+                          "console", "python_scenarios", "console_api_only_reason", "python_api_only_reason"}
         if set(family) - allowed_family:
             errors.append(label + ": operation map cannot duplicate device facts")
         if label in family_ids:
@@ -262,17 +343,28 @@ def check(root=ROOT, mapping=None, ledger=None):
             entry = route.get("entry")
             if entry not in actual:
                 errors.append(label + ": CLI entry is not a typed public function")
+            if command in commands and route.get("api") != commands[command]["api"]:
+                errors.append(label + ": CLI API expression differs from the selected command")
             paths = route.get("implementation", [])
             bridge = [(root / p).read_text(encoding="utf-8") for p in paths if (root / p).is_file()]
-            if len(bridge) != len(paths) or not paths or not any(
-                    entry in set(CALL.findall(code_only(text))) for text in bridge):
+            if (len(bridge) != len(paths) or not paths or
+                    not cli_reaches_entry(bridge, route.get("dispatch"), entry)):
                 errors.append(label + ": CLI bridge does not call public entry " + str(entry))
+            console = route.get("console_dispatch", {})
+            console_path = root / console.get("path", "")
+            dispatch = route.get("dispatch", "")
+            if (not console_path.is_file() or not dispatch or
+                    (console.get("function") != dispatch and not cli_reaches_entry(
+                        [console_path.read_text(encoding="utf-8")], console.get("function"),
+                        dispatch.rsplit("::", 1)[-1]))):
+                errors.append(label + ": console dispatch does not call its declared application bridge")
         if not family.get("console") and not family.get("console_api_only_reason"):
             errors.append(label + ": no CLI route or concrete API-only reason")
         if not family.get("python_scenarios") and not family.get("python_api_only_reason"):
             errors.append(label + ": no Python scenario or concrete API-only reason")
     rows = [e for obj in ledger.get("objects", []) for e in obj.get("entries", [])]
     bindings = mapping.get("ledger_bindings", {})
+    family_map = {f["id"]: f for f in families}
     if set(bindings.get("manual", {})) != {r["key"] for r in ledger.get("manual_only", [])}:
         errors.append("manual API/pending inventory differs from the reviewed ledger")
     counts = Counter(read_hardware_qualified=0, setting_hardware_qualified=0,
@@ -288,7 +380,8 @@ def check(root=ROOT, mapping=None, ledger=None):
         for facet, owner_field, coverage_field in (("read", "read_owner_prompt", "read_coverage"),
                                                   ("setting", "owner_prompt", "setting_coverage")):
             coverage = row.get(coverage_field, {})
-            family = bindings.get(facet, {}).get(str(row.get(owner_field)))
+            binding = bindings.get(facet, {}).get(str(row.get(owner_field)))
+            family = binding_family(binding)
             item["facets"][facet] = {"implemented": coverage.get("implemented", False),
                                       "owner_prompt": row.get(owner_field), "family": family}
             if facet == "read" and row.get(owner_field) is not None and not coverage.get("implemented"):
@@ -299,13 +392,7 @@ def check(root=ROOT, mapping=None, ledger=None):
                 if family not in family_ids:
                     errors.append(key + ": implemented " + facet + " has no typed public family")
                 else:
-                    selected = next(f for f in families if f["id"] == family)
-                    functions = selected["functions"]
-                    preparation = next((f["functions"] for f in families
-                                        if f["id"] == selected.get("preparation_family")), functions)
-                    if (not any(n.startswith("prepare") for n in preparation) or
-                            not any(n.startswith("get") for n in functions)):
-                        errors.append(key + ": descriptor/codec is not a typed " + facet + " implementation")
+                    errors.extend(binding_errors(binding, facet, family_map, key))
                 counts[facet + "_implemented"] += 1
             if coverage.get("hardware_qualified"):
                 counts[facet + "_hardware_qualified"] += 1
@@ -319,8 +406,11 @@ def check(root=ROOT, mapping=None, ledger=None):
         item["facets"]["semantic"] = row.get("coverage", {})
         item["facets"]["operation"] = row.get("operation_coverage", {})
         if operation.get("implemented"):
-            if bindings.get("operation", {}).get(str(row["owner_prompt"])) not in family_ids:
+            binding = bindings.get("operation", {}).get(str(row["owner_prompt"]))
+            if binding_family(binding) not in family_ids:
                 errors.append(key + ": implemented workflow has no public operation family")
+            else:
+                errors.extend(binding_errors(binding, "workflow", family_map, key))
             counts["operation_implemented"] += 1
         if operation.get("hardware_qualified"):
             counts["operation_hardware_qualified"] += 1
@@ -334,7 +424,8 @@ def check(root=ROOT, mapping=None, ledger=None):
         errors.extend(operation_facet_errors(row))
         operation = row.get("operation_coverage")
         operation = operation if isinstance(operation, dict) else {}
-        family = bindings.get("manual", {}).get(row["key"])
+        binding = bindings.get("manual", {}).get(row["key"])
+        family = binding_family(binding)
         if family is not None and family not in family_ids:
             errors.append(row["key"] + ": manual operation family missing")
         if row.get("coverage", {}).get("implemented") and family is None:
@@ -342,7 +433,11 @@ def check(root=ROOT, mapping=None, ledger=None):
         if operation.get("implemented"):
             if family not in family_ids:
                 errors.append(row["key"] + ": implemented manual workflow has no public family")
+            else:
+                errors.extend(binding_errors(binding, "workflow", family_map, row["key"]))
             counts["manual_operation_implemented"] += 1
+        elif isinstance(binding, dict) and binding.get("role") == "workflow" and binding.get("entries"):
+            errors.append(row["key"] + ": public workflow entry evidence lost its implemented operation facet")
         if operation.get("hardware_qualified"):
             counts["manual_operation_hardware_qualified"] += 1
         manual_inventory.append({"key": row["key"], "owner_prompt": row["owner_prompt"],
@@ -377,6 +472,11 @@ def check(root=ROOT, mapping=None, ledger=None):
                     route = commands.get(command.split()[0])
                     if route is None or not route["working"]:
                         errors.append(name + ": Python plan emits an absent/gated CLI command")
+                emitted = {command.split()[0] for command in scenario.commands}
+                for family in families:
+                    if name in family.get("python_scenarios", []) and not emitted.intersection(
+                            route["command"] for route in family.get("console", [])):
+                        errors.append(family["id"] + ": Python scenario does not exercise a mapped family CLI route: " + name)
                 if scenario.plan.get("hardware_qualified") is not False:
                     errors.append(name + ": an offline plan cannot claim hardware qualification")
             except (ValueError, SystemExit, TypeError) as error:

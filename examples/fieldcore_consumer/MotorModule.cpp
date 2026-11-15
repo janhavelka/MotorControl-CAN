@@ -22,11 +22,23 @@ void projectTerminal(MotorModule& module) {
 }
 } // namespace
 
+M::Status validateTime(uint64_t nowUs) {
+    return nowUs <= uint64_t(INT64_MAX)
+               ? M::Ok()
+               : M::Status(M::Err::INVALID_CONFIG, 0, "consumer time outside 0..INT64_MAX");
+}
+
 M::Status prepareMove(MotorModule& module, const LiveAxis& live, const L::ReadContext& state,
                       const C::SdoCompletion& control, const L::IdentityObservation& identity,
                       const L::MoveEvidence& evidence, const M::MoveRequest& request,
                       const L::MoveProfile& profile, const L::MoveOptions& options,
                       uint32_t operation, uint64_t nowUs, uint64_t deadlineUs) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
+    const M::Status cutoff = validateTime(deadlineUs);
+    if (!cutoff)
+        return cutoff;
     if (module.outstanding || module.resultReady || module.move.state == M::ActionState::ACTIVE)
         return unavailable();
     const M::Status prepared = L::prepareMoveAbsolute(
@@ -44,6 +56,9 @@ M::Status prepareMove(MotorModule& module, const LiveAxis& live, const L::ReadCo
 
 M::Status nextStep(MotorModule& module, const LiveAxis& live, uint64_t nowUs,
                    L::PreparedMove& output) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
     if (module.outstanding || module.resultReady) {
         output = L::PreparedMove();
         return M::Ok();
@@ -69,6 +84,9 @@ M::Status nextStep(MotorModule& module, const LiveAxis& live, uint64_t nowUs,
 
 M::Status admitStep(MotorModule& module, const LiveAxis& live, uint64_t nowUs,
                     C::SdoTransfer& ownerCopy) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
     L::PreparedMove work;
     const M::Status yielded = nextStep(module, live, nowUs, work);
     if (!yielded)
@@ -89,10 +107,19 @@ M::Status admitStep(MotorModule& module, const LiveAxis& live, uint64_t nowUs,
 
 M::Status advance(MotorModule& module, const LiveAxis& live, const C::SdoCompletion& completion,
                   WireSettlement wire, uint64_t nowUs) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
     if (!module.outstanding)
         return unavailable();
-    const M::Status consumed = L::advanceMove(module.move, module.observation, live.reservation,
-                                             live.target, completion, nowUs);
+    // A recorded withdrawal prevents this terminal from advancing the move. Its frozen route
+    // identifies the already admitted exchange even after actual live ownership has changed.
+    // Until withdrawal, the actual live facts remain mandatory; frozen facts never admit work.
+    const bool withdrawn = module.move.withdrawal != M::MoveInterruption::NONE;
+    const auto reservation = withdrawn ? module.move.reservation : live.reservation;
+    const auto target = withdrawn ? module.move.reservation.target : live.target;
+    const M::Status consumed = L::advanceMove(module.move, module.observation, reservation,
+                                             target, completion, nowUs);
     if (!consumed)
         return consumed;
     module.outstanding = false;
@@ -103,6 +130,9 @@ M::Status advance(MotorModule& module, const LiveAxis& live, const C::SdoComplet
 
 M::Status interrupt(MotorModule& module, const LiveAxis& live, M::MoveInterruption reason,
                     uint64_t nowUs) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
     if (module.outstanding)
         return L::noteMoveWithdrawal(module.move, live.reservation, live.target, reason, nowUs);
     const M::Status consumed = L::advanceMove(module.move, module.observation, live.reservation,

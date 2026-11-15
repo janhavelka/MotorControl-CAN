@@ -95,14 +95,16 @@ Prompt 32 adds conditional `prepareClearAlarm` and zero-only
 `prepareSetDevicePosition`, using the installed `nextAction/advanceAction`.
 The [fault/reference guide](fault_reference_actions.md) defines literal writes,
 retained trigger/rearm evidence and the axis-aware `noteActionTransmission`
-overload. Prompt42 installs the corresponding conditional CLI routes; the controlword reset route
-and unsupported device-position values do not gain fallback implementations.
+overload. Prompt42 installs the corresponding conditional CLI routes. Alarm clear
+explicitly selects CONTROLWORD_BIT7 (default) or OBJECT_2301 through the same typed
+API. Neither route falls back to the other; unsupported device-position values refuse.
 
 Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
 STATUS and MONITORS reads for explicit documentary comparison.
 Packet 10 adds `interpretStatusword` for one raw word, with the same meanings. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
-no CLI route for an enable. `prepareEnable` exists and is gated: it ran attended on both specimens,
+a conditional `enable` CLI route through `prepareEnable` and AxisSession. It remains
+evidence-gated; it ran attended on both specimens,
 on one firmware, through a bench route ([attended report](reports/2026-11-03_attended_bench.md)),
 which qualifies nothing, and `prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
 Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
@@ -127,49 +129,51 @@ Prompt 26 adds example `ProbeApp` selection, explicit `requestIdentity` and
 `requestConfig`, `service`, `advanceRead`, checked `getIdentity/getConfig`,
 concrete `readContext` inspection and explicit `releaseRead`. It uses the
 existing owner `result/release` lifecycle. [The shared application](native_application.md)
-contains no command parser or live startup procedure; future CLI routes must
-invoke these public paths instead of adding a second receiver.
+contains no separate parser or implicit live startup procedure. The shared
+ProbeConsole routes invoke these public paths through the same receiver.
 
 Prompt 25 implements application `Health`, `DriverState`, `Stats`, checked
 `health/driverState`, cached `stats/resources`, local `clearStats`, explicit
 host heartbeat-age policy and bounded `takeDiagnostic` copies. Their rules are
-in the [owner guide](can_owner.md#passive-communication-health). The future CLI
-must use those cached APIs; prompt40 supplies those cached health/stats routes.
+in the [owner guide](can_owner.md#passive-communication-health). Prompt40 supplies
+health/stats routes using those cached APIs without traffic.
 
 Prompt 23 implements application `RequestId`, `SequenceId`, `BusAdmission`,
-`Completion` and `admit/service/result/release` in examples/common.
+`Completion` and `admit/service/result/release` in adapters/owner.
 `beginSequence/beginOperation` preserve exclusion across prerequisite and setting
 operations. [The owner contract](can_owner.md) defines the controller/event
 boundary; operation stepping stays outside the scheduler. Prompt 24 adds
 `admitUrgent`, per-request `cancel`, `invalidate`, `invalidateProducer`, `recover`,
 `recoveryResult` and `releaseRecovery`, with independent urgent/recovery storage
-and explicit transport retirement. These are application APIs, not CLI routes
-or validated drive stops. The next operation may retain previous terminal results.
+and explicit transport retirement. The local cancel/recover CLI routes call
+these application APIs; they are not validated drive stops. The next operation
+may retain previous terminal results.
 
 Prompt 22 adds `prepareControlRead`, `prepareTuningRead`, `getControl` and
 `getTuning`, plus explicit `prepareControlSettings` through the existing
 `nextDriver/advanceDriver` lifecycle; packet 14 adds its clean state read.
 [The tuning guide](tuning.md) lists exact rows, the conditional 2500 write and
-each withheld row's next evidence. Planned CLI owner is 41; no route or broad
-tuning-write capability is implemented.
+each withheld row's next evidence. Prompt41 implements `control read|set` and
+typed tuning-group reads through these APIs. No broad tuning setter exists.
 
 The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds real native
 `prepareDriverSettings`, `prepareSoftLimitSettings`
 and `prepareIoSettings`, overloaded
 `nextDriver/advanceDriver`, `noteDriverTransmission` and checked typed readback
 getters. Confirmed position parameters, the 2202 selector and DI settings
-are explicit bounded register transactions; no CLI, enable, physical direction or
-output-action route is implied.
+are explicit bounded register transactions. Prompt41 exposes the supported
+`driver` and `io` read/settings groups through ProbeSettings; gated fields remain
+refused. This does not add enabling, physical direction or an output action.
 
 
 Prompt 21 adds four [I/O read groups](io_settings.md) through the same
 `prepareDriverRead/nextDriver/advanceDriver` lifecycle with checked `getIo`.
-Output actions and unresolved DO reassignment remain explicitly gated; future CLI routes do
-not supply missing firmware/terminal semantics.
+Output actions and unresolved DO reassignment remain explicitly gated. Existing
+CLI routes cannot supply missing firmware/terminal semantics.
 
 Prompt 20 implements `prepareDriverRead/nextDriver/advanceDriver/getDriver` for
-the [native read groups](driver_settings.md); prompt 35 adds the fourth group, raw `VELOCITY_TARGET` (`60FF`), with its Q20 acquisition gate. Confirmed settings progression is implemented; future CLI routes and unresolved
-setting groups retain their assigned owners.
+the [native read groups](driver_settings.md); prompt 35 adds the fourth group, raw `VELOCITY_TARGET` (`60FF`), with its Q20 acquisition gate. Confirmed settings progression and its conditional
+CLI attachment are implemented; unresolved setting groups retain their assigned owners.
 
 Use free `camelCase` functions/fields, `PascalCase` types, `CAPS_CASE` constants and enum values, namespace `MotorControlCAN`, and profile namespace `MotorControlCAN::LICHUAN_C`. Keep `Status { Err code; int32_t detail; const char* msg; }`, free `Ok()`, `Status::isOk()`, explicit bool and free `errToString()` returning static-lifetime labels. Preserve `OK`, `INVALID_CONFIG`, `ILLEGAL_VALUE`, `UNSUPPORTED` and `FRAME_ERROR`; select `PROTOCOL_ERROR` for a checked native service rejection. Do not retain `CRC_ERROR` or RTU `EXCEPTION`. A raw SDO abort needs a separate `uint32_t abortCode` with validity in protocol evidence; never truncate or silently sign-convert it into generic detail.
 

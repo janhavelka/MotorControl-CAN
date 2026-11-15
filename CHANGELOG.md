@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Independent prompt46 audit (2026-11-15)
+
+- Retire withdrawn example transfers against their original admitted identity
+  after live binding changes, preserving correlation and uncertainty without
+  admitting new work under stale facts.
+- Reject example timestamps outside the documented monotonic domain before
+  changing module, output or fake-owner storage.
+- Strengthen operation evidence against wrong-family, unrelated CLI and false
+  qualification claims; reconcile current conditional routes and ledger scopes.
+- Exercise native protocol acknowledgement/completion without identifiable
+  controller TX confirmation. N5/EPOS4 remain fixtures, with no new physical claim.
+
+
 ### Independent consumers and production contrasts (prompt46, 2026-11-15)
 
 - Add a standalone installed-package module example with exact targets, supplied

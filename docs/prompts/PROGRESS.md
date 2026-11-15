@@ -65,7 +65,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 43 | [Python Console and evidence primitives](43_python_console.md) | Complete | Existing P41 read qualifications/Q20; no firmware boot identity in schema1; no live qualification | [Report](../reports/prompt_43.md) |
 | 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Complete | Existing42 native qualification and Q20 gates; hardware campaigns remain47-48 | [Report](../reports/prompt_44.md) |
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Complete software audit | Existing firmware/remapping/physical gates remain with their owners | [Report](../reports/prompt_45.md) |
-| 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Complete software scope | Surveyed profiles remain fixtures; physical/source gates stay with their owners | [Report](../reports/prompt_46.md) |
+| 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Complete software scope | Surveyed profiles remain fixtures; physical/source gates stay with their owners | [Report](../reports/prompt_46.md); [fresh audit](../reports/prompt_46_audit.md) |
 | 47 | [Finite hardware qualification](47_hardware_finite.md) | Pending | W9, fixture facts, applicable bench authorization | - |
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Pending | 47 | - |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Pending | G-09; lists all inherited gates as a scoped software candidate | - |

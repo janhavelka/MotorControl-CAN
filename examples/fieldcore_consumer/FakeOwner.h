@@ -19,7 +19,7 @@ struct FakeOwner {
     int32_t target = 0;
 
     bool canAdmit(uint64_t nowUs) const {
-        return !pending && nowUs <= UINT64_MAX - 500;
+        return !pending && nowUs <= uint64_t(INT64_MAX) - 500;
     }
     bool admit(const C::SdoTransfer& transfer, M::Generation node, uint64_t nowUs) {
         if (!canAdmit(nowUs))
@@ -39,7 +39,7 @@ struct FakeOwner {
         return true;
     }
     bool poll(uint64_t nowUs) {
-        if (!pending || nowUs < dueUs)
+        if (!validateTime(nowUs) || !pending || nowUs < dueUs)
             return false;
         if (ready)
             return true;
@@ -199,6 +199,9 @@ inline M::Status start(MotorModule& module, const Fixture& f, uint64_t nowUs) {
 // One cooperative owner turn. Other heartbeat/PDO/EMCY dispatch belongs beside this in real code.
 inline M::Status service(MotorModule& module, const LiveAxis& live, FakeOwner& owner,
                          uint64_t nowUs) {
+    const M::Status time = validateTime(nowUs);
+    if (!time)
+        return time;
     if (owner.pending) {
         if (!owner.poll(nowUs))
             return M::Ok();
@@ -207,15 +210,16 @@ inline M::Status service(MotorModule& module, const LiveAxis& live, FakeOwner& o
             owner.release();
         return consumed;
     }
-    // Reserve the complete fake admission premise before a cycle or possible-TX notice mutates
-    // the module. The same serialized owner then copies the transfer without another rejection.
-    if (!owner.canAdmit(nowUs))
-        return M::Status(M::Err::INVALID_CONFIG, 0, "fake owner cannot admit at supplied time");
     // A yielded wait can expire without another owner terminal. End it locally instead of
     // repeatedly returning nextMove's TIME error while leaving an ACTIVE operation retained.
     if (!module.outstanding && module.move.state == M::ActionState::ACTIVE &&
         nowUs >= module.move.deadlineUs)
         return interrupt(module, live, M::MoveInterruption::DEADLINE, nowUs);
+    // Reserve the complete fake admission premise before a cycle or possible-TX notice mutates
+    // the module. The same serialized owner then copies the transfer without another rejection.
+    if (!module.resultReady && module.move.state == M::ActionState::ACTIVE &&
+        !owner.canAdmit(nowUs))
+        return M::Status(M::Err::INVALID_CONFIG, 0, "fake owner cannot admit at supplied time");
     L::PreparedMove work;
     const M::Status next = nextStep(module, live, nowUs, work);
     if (!next || !work.ready)

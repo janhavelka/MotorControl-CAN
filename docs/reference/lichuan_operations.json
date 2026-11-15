@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "object_ledger": "docs/reference/lichuan_objects.json",
   "purpose": "API evidence and ownership map only. Device facts, gates and separate read/setting/semantic/hardware coverage remain in the referenced single ledger. A family link does not claim that every manual semantic obligation is implemented.",
   "families": [
@@ -45,14 +45,26 @@
           "entry": "prepareIdentity",
           "implementation": [
             "examples/common/ProbeApp.cpp"
-          ]
+          ],
+          "api": "ProbeApp::requestOrdinaryRead/typed getters",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         },
         {
           "command": "probe",
           "entry": "prepareProbe",
           "implementation": [
             "examples/common/ProbeApp.cpp"
-          ]
+          ],
+          "api": "ProbeApp::requestOrdinaryRead/checkProbe",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [
@@ -82,14 +94,59 @@
           "ctest": "probe_device_console"
         }
       ],
-      "api_only_reason": "Finite group read stepping/getters are phases of driver/io/home/velocity read; every group remains subject to its Q20 acquisition scope.",
+      "api_only_reason": "Finite group read stepping is owned by ProbeApp. Console group reads use prepareDriverRead and serialize raw ReadContext fields; checked getDriver remains a native observation projection, not an independently dispatched command. Each group retains its exact acquisition scope.",
       "console": [
         {
           "command": "driver",
           "entry": "prepareDriverRead",
           "implementation": [
             "examples/common/ProbeApp.cpp"
-          ]
+          ],
+          "api": "prepareDriverRead/ProbeSettings::requestDriver/requestSoftLimits",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
+        },
+        {
+          "command": "io",
+          "entry": "prepareDriverRead",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ],
+          "api": "prepareDriverRead/ProbeSettings::requestIo",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
+        },
+        {
+          "command": "control",
+          "entry": "prepareDriverRead",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ],
+          "api": "prepareControlRead/ProbeSettings::requestControl",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
+        },
+        {
+          "command": "tuning",
+          "entry": "prepareDriverRead",
+          "implementation": [
+            "examples/common/ProbeApp.cpp"
+          ],
+          "api": "prepareTuningRead/getTuning",
+          "dispatch": "ProbeApp::requestOrdinaryRead",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [],
@@ -114,19 +171,11 @@
           "ctest": "probe_device_console"
         }
       ],
-      "api_only_reason": "getIo publishes the complete typed observation for io read; it does not provide a terminal action or raw setter.",
-      "console": [
-        {
-          "command": "io",
-          "entry": "getIo",
-          "implementation": [
-            "examples/common/ProbeApp.cpp"
-          ]
-        }
-      ],
+      "api_only_reason": "The io read command acquires the driver-read group and emits its raw ReadContext fields. It does not call the checked IoSettings getIo getter; API consumers use that getter for the complete typed observation.",
+      "console": [],
       "python_scenarios": [],
       "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed.",
-      "preparation_family": "DriverSettings"
+      "console_api_only_reason": "The io read command acquires the driver-read group and emits its raw ReadContext fields. It does not call the checked IoSettings getIo getter; API consumers use that getter for the complete typed observation."
     },
     {
       "id": "Tuning",
@@ -158,21 +207,20 @@
           "ctest": "probe_settings_app"
         }
       ],
-      "api_only_reason": "Read/getter/stepping and prerequisite functions compose control/tuning commands. Only the reviewed control selector has a setter.",
+      "api_only_reason": "The control setter is composed by ProbeSettings. prepareControlRead, prepareTuningRead and checked getControl/getTuning remain API-only wrappers/projections: console read groups use prepareDriverRead and emit raw ReadContext fields. Only the reviewed control selector has a setter.",
       "console": [
         {
           "command": "control",
           "entry": "prepareControlSettings",
           "implementation": [
             "examples/common/ProbeSettings.cpp"
-          ]
-        },
-        {
-          "command": "tuning",
-          "entry": "getTuning",
-          "implementation": [
-            "examples/common/ProbeApp.cpp"
-          ]
+          ],
+          "api": "prepareControlRead/ProbeSettings::requestControl",
+          "dispatch": "ProbeSettings::requestControl",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [],
@@ -223,14 +271,39 @@
           "entry": "prepareDriverSettings",
           "implementation": [
             "examples/common/ProbeSettings.cpp"
-          ]
+          ],
+          "api": "prepareDriverRead/ProbeSettings::requestDriver/requestSoftLimits",
+          "dispatch": "ProbeSettings::requestDriver",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         },
         {
           "command": "io",
           "entry": "prepareIoSettings",
           "implementation": [
             "examples/common/ProbeSettings.cpp"
-          ]
+          ],
+          "api": "prepareDriverRead/ProbeSettings::requestIo",
+          "dispatch": "ProbeSettings::requestIo",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
+        },
+        {
+          "command": "driver",
+          "entry": "prepareSoftLimitSettings",
+          "implementation": [
+            "examples/common/ProbeSettings.cpp"
+          ],
+          "api": "prepareDriverRead/ProbeSettings::requestDriver/requestSoftLimits",
+          "dispatch": "ProbeSettings::requestSoftLimits",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [
@@ -329,29 +402,57 @@
           "command": "stop",
           "entry": "prepareStop",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestStop/AxisSession",
+          "dispatch": "ProbeMotion::requestStop",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         },
         {
           "command": "enable",
           "entry": "prepareEnable",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestEnable",
+          "dispatch": "ProbeMotion::requestEnable",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         },
         {
           "command": "alarm-clear",
           "entry": "prepareClearAlarm",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestAlarmClear",
+          "dispatch": "ProbeMotion::requestAlarmClear",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         },
         {
           "command": "position-clear",
           "entry": "prepareSetDevicePosition",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestPositionClear",
+          "dispatch": "ProbeMotion::requestPositionClear",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         }
       ],
       "python_scenarios": [
@@ -418,8 +519,15 @@
           "command": "move",
           "entry": "prepareMoveAbsolute",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestMove/AxisSession",
+          "dispatch": "ProbeMotion::requestMove",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         }
       ],
       "python_scenarios": [
@@ -473,8 +581,15 @@
           "command": "velocity",
           "entry": "prepareVelocity",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "makeFiniteVelocity/ProbeMotion::requestVelocity",
+          "dispatch": "ProbeMotion::requestVelocity",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         }
       ],
       "python_scenarios": [
@@ -532,8 +647,15 @@
           "command": "home",
           "entry": "prepareHome",
           "implementation": [
+            "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
-          ]
+          ],
+          "api": "ProbeMotion::requestHome/prepareDriverRead",
+          "dispatch": "ProbeMotion::requestHome",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
         }
       ],
       "python_scenarios": [
@@ -578,7 +700,13 @@
           "entry": "nextCommunication",
           "implementation": [
             "examples/common/ProbeCommissioning.cpp"
-          ]
+          ],
+          "api": "ProbeCommissioning/prepareCommunication",
+          "dispatch": "ProbeCommissioning::requestCommunication",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [],
@@ -620,7 +748,13 @@
           "entry": "nextPersistence",
           "implementation": [
             "examples/common/ProbeCommissioning.cpp"
-          ]
+          ],
+          "api": "ProbeCommissioning/prepareSave/prepareFactoryRestore",
+          "dispatch": "ProbeCommissioning::requestPersistence",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [],
@@ -657,7 +791,13 @@
           "entry": "nextPdoConfiguration",
           "implementation": [
             "examples/common/ProbeCommissioning.cpp"
-          ]
+          ],
+          "api": "SdoClient::pdo; ProbeCommissioning::requestPdo",
+          "dispatch": "ProbeCommissioning::requestPdo",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
         }
       ],
       "python_scenarios": [],
@@ -709,7 +849,13 @@
           "entry": "parseExactNumber",
           "implementation": [
             "examples/common/ProbeConsole.cpp"
-          ]
+          ],
+          "api": "preparePosition via ProbeApp::executeHostAxis",
+          "dispatch": "axisCommand",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchLocal"
+          }
         }
       ],
       "python_scenarios": [],
@@ -745,14 +891,46 @@
           "ctest": "probe_console"
         }
       ],
-      "api_only_reason": "Validation, prepared-target checking and reference invalidation support host coordinate preparation. Invalidation is owned by binding/reset events rather than an independent motor command.",
+      "api_only_reason": "Validation, prepared-target checking and reference invalidation support host coordinate preparation. Invalidation is owned by binding/reset events rather than an independent motor command. axis config reconstructs an offline workspace through validateAxisConfig; stepsperturn reaches configureAxis only with the motion owner's live stationary witness.",
       "console": [
         {
           "command": "axis",
-          "entry": "configureAxis",
+          "entry": "validateAxisConfig",
           "implementation": [
             "examples/common/ProbeAppLocal.cpp"
-          ]
+          ],
+          "api": "ProbeApp::executeHostAxis",
+          "dispatch": "ProbeApp::executeHostAxis",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchLocal"
+          }
+        },
+        {
+          "command": "stepsperturn",
+          "entry": "configureAxis",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp"
+          ],
+          "api": "ProbeMotion::configureCommandScale/configureAxis",
+          "dispatch": "ProbeMotion::configureCommandScale",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "prepare",
+          "entry": "preparePosition",
+          "implementation": [
+            "examples/common/ProbeAppLocal.cpp"
+          ],
+          "api": "preparePosition via ProbeApp::executeHostAxis",
+          "dispatch": "ProbeApp::executeHostAxis",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchLocal"
+          }
         }
       ],
       "python_scenarios": [],
@@ -786,7 +964,13 @@
           "entry": "getDiscoveryProfile",
           "implementation": [
             "examples/common/ProbeConsole.cpp"
-          ]
+          ],
+          "api": "compiled profile inventory",
+          "dispatch": "ProbeConsole::dispatchLocal",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchLocal"
+          }
         }
       ],
       "python_scenarios": [],
@@ -1091,46 +1275,282 @@
   ],
   "ledger_bindings": {
     "read": {
-      "19": "Reads",
-      "20": "DriverSettings",
-      "21": "IoSettings",
-      "22": "Tuning",
-      "35": "DriverSettings",
-      "36": "DriverSettings",
-      "38": "Communication",
-      "39": "DriverSettings"
+      "19": {
+        "family": "Reads",
+        "role": "read",
+        "entries": [
+          "Reads.prepareIdentity",
+          "Reads.prepareState",
+          "Reads.prepareConfig",
+          "Reads.getIdentity",
+          "Reads.getStateBlock",
+          "Reads.getConfig"
+        ]
+      },
+      "20": {
+        "family": "DriverSettings",
+        "role": "read",
+        "entries": [
+          "DriverSettings.prepareDriverRead",
+          "DriverSettings.getDriver"
+        ]
+      },
+      "21": {
+        "family": "IoSettings",
+        "role": "read",
+        "entries": [
+          "DriverSettings.prepareDriverRead",
+          "IoSettings.getIo"
+        ]
+      },
+      "22": {
+        "family": "Tuning",
+        "role": "read",
+        "entries": [
+          "Tuning.prepareControlRead",
+          "Tuning.prepareTuningRead",
+          "Tuning.getControl",
+          "Tuning.getTuning"
+        ]
+      },
+      "35": {
+        "family": "DriverSettings",
+        "role": "read",
+        "entries": [
+          "DriverSettings.prepareDriverRead",
+          "DriverSettings.getDriver"
+        ]
+      },
+      "36": {
+        "family": "DriverSettings",
+        "role": "read",
+        "entries": [
+          "DriverSettings.prepareDriverRead",
+          "DriverSettings.getDriver"
+        ]
+      },
+      "38": {
+        "family": "Communication",
+        "role": "read",
+        "entries": [
+          "Communication.prepareCommunicationRead",
+          "Communication.getCommunication"
+        ]
+      },
+      "39": {
+        "family": "DriverSettings",
+        "role": "read",
+        "entries": [
+          "DriverSettings.prepareDriverRead",
+          "DriverSettings.getDriver"
+        ]
+      }
     },
     "setting": {
-      "20": "Settings",
-      "21": "Settings",
-      "22": "Tuning",
-      "38": "Communication"
+      "20": {
+        "family": "Settings",
+        "role": "setting",
+        "entries": [
+          "Settings.prepareDriverSettings",
+          "Settings.prepareSoftLimitSettings",
+          "Settings.prepareSubdivisionSettings",
+          "Settings.getDriver"
+        ]
+      },
+      "21": {
+        "family": "Settings",
+        "role": "setting",
+        "entries": [
+          "Settings.prepareIoSettings",
+          "Settings.getIo"
+        ]
+      },
+      "22": {
+        "family": "Tuning",
+        "role": "setting",
+        "entries": [
+          "Tuning.prepareControlSettings",
+          "Tuning.getControl"
+        ]
+      },
+      "38": {
+        "family": "Communication",
+        "role": "setting",
+        "entries": [
+          "Communication.prepareCommunication",
+          "Communication.getCommunication"
+        ]
+      }
     },
     "manual": {
       "mode_selection": "Settings",
-      "enable_transition": "Actions",
-      "position_parameters": "Position",
-      "position_trigger": "Position",
-      "position_update_policy": "Position",
-      "position_coordinate_mode": "Position",
-      "position_transition_examples": "Position",
-      "normal_stop": "Actions",
-      "emergency_stop": "Actions",
+      "enable_transition": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareEnable"
+        ]
+      },
+      "position_parameters": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.preparePositionParameters"
+        ]
+      },
+      "position_trigger": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.nextMove",
+          "Position.advanceMove"
+        ]
+      },
+      "position_update_policy": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.prepareMoveAbsolute",
+          "Position.prepareMoveRelative"
+        ]
+      },
+      "position_coordinate_mode": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.prepareMoveAbsolute",
+          "Position.prepareMoveRelative"
+        ]
+      },
+      "position_transition_examples": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.prepareMoveAbsolute",
+          "Position.nextMove",
+          "Position.advanceMove"
+        ]
+      },
+      "normal_stop": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareStop"
+        ]
+      },
+      "emergency_stop": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareStop"
+        ]
+      },
       "status_interpretation": "State",
-      "velocity_parameters": "Velocity",
-      "velocity_start_order": "Velocity",
-      "homing_parameters": "Homing",
-      "homing_negative_limit_17": "Homing",
-      "homing_positive_limit_18": "Homing",
-      "homing_positive_origin_24": "Homing",
-      "homing_negative_origin_29": "Homing",
-      "homing_trigger_and_interrupt": "Homing",
-      "homing_status": "Homing",
-      "clear_current_position": "Actions",
-      "save_parameters": "Persistence",
-      "restore_factory_parameters": "Persistence",
-      "fault_reset_controlword": "Actions",
-      "fault_reset_vendor_object": "Actions",
+      "velocity_parameters": {
+        "family": "Velocity",
+        "role": "workflow",
+        "entries": [
+          "Velocity.prepareVelocity"
+        ]
+      },
+      "velocity_start_order": {
+        "family": "Velocity",
+        "role": "workflow",
+        "entries": [
+          "Velocity.prepareVelocity",
+          "Velocity.nextVelocity",
+          "Velocity.advanceVelocity"
+        ]
+      },
+      "homing_parameters": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "homing_negative_limit_17": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "homing_positive_limit_18": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "homing_positive_origin_24": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "homing_negative_origin_29": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "homing_trigger_and_interrupt": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.beginHomeTrigger",
+          "Homing.noteHomeWithdrawal",
+          "Homing.advanceHomeStop"
+        ]
+      },
+      "homing_status": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.advanceHome",
+          "Homing.getHomeReference"
+        ]
+      },
+      "clear_current_position": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareSetDevicePosition"
+        ]
+      },
+      "save_parameters": {
+        "family": "Persistence",
+        "role": "workflow",
+        "entries": [
+          "Persistence.prepareSave",
+          "Persistence.verifyPersistence"
+        ]
+      },
+      "restore_factory_parameters": {
+        "family": "Persistence",
+        "role": "workflow",
+        "entries": [
+          "Persistence.prepareFactoryRestore",
+          "Persistence.verifyPersistence"
+        ]
+      },
+      "fault_reset_controlword": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareClearAlarm"
+        ]
+      },
+      "fault_reset_vendor_object": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareClearAlarm"
+        ]
+      },
       "motion_monitor": "Reads",
       "digital_input_observation": "Reads",
       "digital_output_observation": "Reads",
@@ -1162,19 +1582,97 @@
       "supply_voltage_applicability_57": null
     },
     "operation": {
-      "18": "PdoConfiguration",
-      "19": "Reads",
-      "20": "Settings",
-      "21": "Settings",
-      "22": "Tuning",
-      "30": "Actions",
-      "31": "Actions",
-      "32": "Actions",
-      "33": "Position",
-      "35": "Velocity",
-      "36": "Homing",
-      "38": "Communication",
-      "39": "Persistence"
+      "18": {
+        "family": "PdoConfiguration",
+        "role": "workflow",
+        "entries": [
+          "PdoConfiguration.prepareTpdo1Configuration"
+        ]
+      },
+      "19": {
+        "family": "Reads",
+        "role": "workflow",
+        "entries": [
+          "Reads.prepareProbe"
+        ]
+      },
+      "20": {
+        "family": "Settings",
+        "role": "workflow",
+        "entries": [
+          "Settings.prepareDriverSettings"
+        ]
+      },
+      "21": {
+        "family": "Settings",
+        "role": "workflow",
+        "entries": [
+          "Settings.prepareDriverSettings"
+        ]
+      },
+      "22": {
+        "family": "Tuning",
+        "role": "workflow",
+        "entries": [
+          "Tuning.prepareControlRead"
+        ]
+      },
+      "30": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareStop"
+        ]
+      },
+      "31": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareStop"
+        ]
+      },
+      "32": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareStop"
+        ]
+      },
+      "33": {
+        "family": "Position",
+        "role": "workflow",
+        "entries": [
+          "Position.preparePositionParameters"
+        ]
+      },
+      "35": {
+        "family": "Velocity",
+        "role": "workflow",
+        "entries": [
+          "Velocity.prepareVelocity"
+        ]
+      },
+      "36": {
+        "family": "Homing",
+        "role": "workflow",
+        "entries": [
+          "Homing.prepareHome"
+        ]
+      },
+      "38": {
+        "family": "Communication",
+        "role": "workflow",
+        "entries": [
+          "Communication.prepareCommunicationRead"
+        ]
+      },
+      "39": {
+        "family": "Persistence",
+        "role": "workflow",
+        "entries": [
+          "Persistence.prepareSave"
+        ]
+      }
     }
   },
   "python_plans": {

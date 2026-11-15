@@ -58,6 +58,16 @@ class OperationsTests(unittest.TestCase):
         self.assertRejected("function/overload inventory", edits={path: (ROOT / path).read_text() +
                             "\nStatus inventedTypedRead(ReadContext& output);\n"})
 
+    def test_indented_namespace_free_function_is_not_silently_unmapped(self):
+        path = "include/MotorControlCAN/profiles/lichuan_c/Reads.h"
+        self.assertRejected("function/overload inventory", edits={path: (ROOT / path).read_text() +
+                            "\nnamespace Added {\n  Status inventedTypedRead(ReadContext& output);\n}\n"})
+
+    def test_family_only_legacy_schema_cannot_claim_new_entry_reconciliation(self):
+        mapping = deepcopy(self.mapping)
+        mapping["schema_version"] = 1
+        self.assertRejected("requires API-evidence schema 2", mapping=mapping)
+
     def test_new_overload_is_not_silently_unmapped(self):
         path = "include/MotorControlCAN/profiles/lichuan_c/Reads.h"
         self.assertRejected("function/overload inventory", edits={path: (ROOT / path).read_text() +
@@ -149,6 +159,60 @@ class OperationsTests(unittest.TestCase):
         mapping["ledger_bindings"]["read"]["19"] = "ObjectDescriptors"
         self.assertRejected("descriptor/codec is not a typed read implementation", mapping=mapping)
 
+    def test_binding_cannot_borrow_unrelated_family_entry_evidence(self):
+        mapping = deepcopy(self.mapping)
+        mapping["ledger_bindings"]["read"]["19"]["family"] = "DriverSettings"
+        self.assertRejected("public entries do not belong to the selected family", mapping=mapping)
+
+    def test_descriptor_does_not_complete_manual_workflow(self):
+        mapping = deepcopy(self.mapping)
+        mapping["ledger_bindings"]["manual"]["enable_transition"] = {
+            "family": "ObjectDescriptors", "role": "workflow",
+            "entries": ["ObjectDescriptors.readDescriptor"]}
+        self.assertRejected("descriptor/codec is not a typed workflow implementation", mapping=mapping)
+
+    def test_binding_requires_real_public_entry_in_its_named_family(self):
+        mapping = deepcopy(self.mapping)
+        mapping["ledger_bindings"]["manual"]["enable_transition"]["entries"] = ["Actions.prepareMissing"]
+        self.assertRejected("absent public entry Actions.prepareMissing", mapping=mapping)
+
+    def test_manual_workflow_entry_evidence_retains_implemented_facet(self):
+        ledger = deepcopy(self.ledger)
+        row = next(row for row in ledger["manual_only"] if row["key"] == "enable_transition")
+        del row["operation_coverage"]
+        self.assertRejected("lost its implemented operation facet", ledger=ledger)
+
+    def test_operation_hardware_qualification_cannot_use_an_arbitrary_evidence_label(self):
+        ledger = deepcopy(self.ledger)
+        row = next(row for row in ledger["manual_only"] if row["key"] == "enable_transition")
+        row["operation_coverage"]["hardware_qualified"] = True
+        row["operation_qualification_evidence"] = "invented"
+        self.assertRejected("prompts 47/48 must establish retained qualification evidence", ledger=ledger)
+
+    def test_working_but_unrelated_command_is_not_a_cli_route(self):
+        mapping = deepcopy(self.mapping)
+        self.family(mapping, "Actions")["console"][0]["command"] = "profile"
+        self.assertRejected("CLI API expression differs", mapping=mapping)
+
+    def test_unrelated_call_in_bridge_file_does_not_prove_dispatch_reachability(self):
+        mapping = deepcopy(self.mapping)
+        route = self.family(mapping, "Axis")["console"][0]
+        route["entry"] = "configureAxis"
+        # ProbeAppLocal.cpp contains this call only in configureHostAxis, which
+        # the console's offline executeHostAxis path does not call.
+        self.assertRejected("CLI bridge does not call public entry configureAxis", mapping=mapping)
+
+    def test_application_bridge_must_be_called_by_the_actual_console_dispatch(self):
+        path = "examples/common/ProbeConsole.cpp"
+        source = (ROOT / path).read_text().replace("app_.requestOrdinaryRead(", "app_.staleOrdinaryRead(")
+        self.assertRejected("console dispatch does not call its declared application bridge", edits={path: source})
+
+    def test_getter_bridge_must_call_the_native_getter_despite_sharing_its_name(self):
+        source = "bool ProbeApp::getIo() { return true; }\n"
+        self.assertFalse(checker.cli_reaches_entry([source], "ProbeApp::getIo", "getIo"))
+        source = "bool ProbeApp::getIo() { return L::getIo(context); }\n"
+        self.assertTrue(checker.cli_reaches_entry([source], "ProbeApp::getIo", "getIo"))
+
     def test_original_eds_obligation_cannot_be_deleted(self):
         ledger = deepcopy(self.ledger)
         ledger["objects"][-1]["entries"].pop()
@@ -214,6 +278,20 @@ class OperationsTests(unittest.TestCase):
         self.family(mapping, "Velocity")["python_scenarios"] = []
         self.assertRejected("Python scenario catalogue differs", mapping=mapping)
 
+    def test_python_family_claim_requires_its_ordinary_cli_route(self):
+        mapping = deepcopy(self.mapping)
+        self.family(mapping, "Reads")["python_scenarios"] = []
+        self.family(mapping, "Reads")["python_api_only_reason"] = "Use the native read API."
+        self.family(mapping, "Capabilities")["python_scenarios"] = ["quick"]
+        self.assertRejected("Python scenario does not exercise a mapped family CLI route", mapping=mapping)
+
+    def test_working_python_command_cannot_replace_the_claimed_family_plan(self):
+        path = "scripts/bench_scenarios.py"
+        original = (ROOT / path).read_text()
+        self.assertIn('f"read identity ', original)
+        source = original.replace('f"read identity ', 'f"profile list ')
+        self.assertRejected("Python scenario does not exercise a mapped family CLI route", edits={path: source})
+
     def test_python_plan_is_built_and_rejects_absent_required_parameters(self):
         mapping = deepcopy(self.mapping)
         mapping["python_plans"]["velocity"] = []
@@ -234,6 +312,23 @@ Status prepareHome(HomeContext& output);
 Status prepareHome(HomeContext& output, int method);
 ''')
         self.assertEqual({"readDescriptor": 1, "prepareHome": 2}, dict(declarations))
+
+    def test_free_function_scanner_excludes_members_independently_of_indentation(self):
+        declarations = checker.public_functions('''
+struct Value {
+Status member();
+struct Nested { bool nested() { return helper(); } };
+};
+class Other {
+public:
+    Status another() { return helper(); }
+};
+namespace API {
+  Status prepareHome();
+  inline Status checked() { return helper(); }
+}
+''')
+        self.assertEqual({"prepareHome": 1, "checked": 1}, dict(declarations))
 
 
 if __name__ == "__main__":

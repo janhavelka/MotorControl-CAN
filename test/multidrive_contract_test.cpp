@@ -578,6 +578,46 @@ void rampDimensionsAndCapabilityGuards() {
     CHECK(!M::requireCapability(variantB, M::Capability::TORQUE));
 }
 
+void nativeEvidenceWithoutTransmissionConfirmation() {
+    // A qualified native reply need not wait for a controller TX confirmation callback.
+    M::ServiceEvidence evidence;
+    evidence.admitted = true;
+    evidence.transmissionPossible = true;
+    evidence.acknowledgement = M::AcknowledgementSupport::RESPONSE;
+    evidence.acknowledged = true;
+    M::ServiceOutcome outcome;
+    CHECK(M::checkServiceEvidence(evidence, outcome));
+    CHECK(outcome.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(outcome.completion == M::ActionCompletion::NOT_OBSERVED);
+    CHECK(!evidence.transmissionConfirmed);
+    evidence.completionObserved = true;
+    CHECK(M::checkServiceEvidence(evidence, outcome));
+    CHECK(outcome.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(outcome.completion == M::ActionCompletion::OBSERVED);
+    CHECK(!evidence.transmissionConfirmed);
+
+    // A no-ack command may also have a separately qualified completion report.
+    evidence.acknowledgement = M::AcknowledgementSupport::NONE;
+    evidence.acknowledged = false;
+    CHECK(M::checkServiceEvidence(evidence, outcome));
+    CHECK(outcome.execution == M::ActionExecution::UNKNOWN);
+    CHECK(outcome.completion == M::ActionCompletion::OBSERVED);
+    CHECK(!evidence.transmissionConfirmed);
+
+    // Native evidence still cannot coexist with a claim that TX was impossible.
+    const Saved<M::ServiceOutcome> retained(outcome);
+    M::ServiceEvidence inconsistent;
+    inconsistent.admitted = true;
+    inconsistent.acknowledgement = M::AcknowledgementSupport::RESPONSE;
+    inconsistent.acknowledged = true;
+    CHECK(!M::checkServiceEvidence(inconsistent, outcome));
+    CHECK(retained.unchanged(outcome));
+    inconsistent.acknowledged = false;
+    inconsistent.completionObserved = true;
+    CHECK(!M::checkServiceEvidence(inconsistent, outcome));
+    CHECK(retained.unchanged(outcome));
+}
+
 void absentAcknowledgementAndTrajectoryDone() {
     // C8 abstract setter. Native trajectory-done is backed by moteus register00b;
     // an explicit controller report can coexist with nonzero final velocity.
@@ -719,6 +759,7 @@ int main() {
     odriveRemoteRequest();
     moteusFdRequirement();
     rampDimensionsAndCapabilityGuards();
+    nativeEvidenceWithoutTransmissionConfirmation();
     absentAcknowledgementAndTrajectoryDone();
     profileScopedObjectsAndCapacities();
     std::puts("production multidrive contract fixtures passed");

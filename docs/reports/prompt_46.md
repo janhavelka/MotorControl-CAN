@@ -121,3 +121,8 @@ this exact final checkpoint: Windows quick, GCC/Clang full ASan/UBSan, Arduino
 3.3.11 and IDF5.5.5/component gates. The final handoff links the exact commit/run
 and reports its actual status; no older green run substitutes for this commit.
 No manual duplicate dispatch, history rewrite or release publication is used.
+
+
+A [fresh independent audit](prompt_46_audit.md) rechecked the completed stage against
+actual code, corrected consumer retirement/time boundaries and tightened evidence
+association. It records the reproductions and final affected verification.

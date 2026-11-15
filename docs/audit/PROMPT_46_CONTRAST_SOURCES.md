@@ -65,3 +65,30 @@ The Lichuan comparison was checked against original EN86 PDF pages 11 and 18
 and `LC_StepDriverCAN_V1.1.eds`: `6083/6084` are millisecond ramp times;
 `2300:00` is U16 parameter operation (1 factory restore, 2 save), and the EDS
 does not declare `1010/1011`. No save signature or NanoJ meaning transfers to it.
+
+## Independent follow-up review
+
+Rechecked on 2026-11-15 against the original N5 PDF, including freshly rendered
+pages 65 and 297. Its hash matches the N5 hash above; the rendered acceleration
+factor confirms numerator 01 over denominator 02. Reopened the official EPOS4
+URL with the web reader as edition 2026-07, rel13740, 310 pages, and independently
+read the existing disposable `.build/p46-contrasts/epos4-rel13740.pdf`. The bytes
+actually read have SHA-256
+`66fe32f15ab0bcbf9a008d0d0da8ffe395064c6716edcb3f3b28907f7160e64f`.
+This was a cache read, not a new successful local download. Checked pages
+71–72, 193, 221, 230, 234–236 and 256 and searched the full document for `2300`;
+no occurrence was found. Reopened the pinned ODrive, VESC and moteus sources
+and checked their manifest hashes, and reopened Lichuan EN86 pages 11/18 and
+the applicable EDS entries. No source correction to the contrast values resulted.
+
+The focused evidence fixtures now also check that qualified native acknowledgement
+and completion remain usable without a controller TX confirmation callback when
+transmission is possible. Separate contradictory-fact cases reject native reports
+when transmission is declared impossible and preserve the prior output. These
+are common projection tests; they introduce no native report decoder or hardware
+qualification.
+
+The lead also reopened EN86/ZH86 original PDF p15 and OP86 p13 for the
+controlword-clear scope correction: bit7 assertion and manual return to0 are
+explicit. The installed whole-word pair and predecessor/state policy remain
+project choices; no new native sequence or physical qualification was added.
