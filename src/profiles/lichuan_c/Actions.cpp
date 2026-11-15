@@ -1339,6 +1339,10 @@ Status noteBestEffortAdmission(BestEffortStop& c, uint64_t now) noexcept {
     if (c.state != ActionState::ACTIVE || c.admitted || now < c.servicedUs || now >= c.deadlineUs)
         return error(ActionError::STATE, "no unadmitted best-effort stop");
     c.admitted = true;
+    // The owner can hand this frame over before the next context update. Only its terminal
+    // can prove it stayed local; no late SDO acknowledgement can qualify this stop.
+    c.execution = ActionExecution::UNKNOWN;
+    c.effectsPossible = true;
     c.servicedUs = now;
     return Ok();
 }

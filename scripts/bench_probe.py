@@ -240,18 +240,27 @@ class Console:
         self._last_clock = now
         return now
 
-    def _fail(self, reason, kind="framing_loss"):
+    def _poison(self, kind="framing_loss"):
+        """Fence the stream without replacing an exception already in flight."""
         self.synchronized = False
         for handle in self.pending.values():
             handle.interruption = kind
             if handle.terminal is None:
                 handle.phase = "interrupted"
+
+    def _fail(self, reason, kind="framing_loss"):
+        self._poison(kind)
         raise BenchError(reason)
 
     def _event(self, event, **fields):
         try:
             self.emit(event, host_epoch=self.host_epoch, firmware_epoch=None,
                       host_elapsed_s=self._now() - self._started_clock, **fields)
+        except KeyboardInterrupt:
+            # Received bytes may already be consumed before evidence is durable.
+            # Preserve Ctrl-C while fencing the same stream as other sink faults.
+            self._poison()
+            raise
         except Exception as error:
             self._fail("evidence callback failed; no further command permitted: " + str(error))
 
@@ -269,10 +278,7 @@ class Console:
         try:
             data = self.port.read(READ_CHUNK)
         except KeyboardInterrupt:
-            try:
-                self._fail("interrupted transport read; framing unknown")
-            except BenchError:
-                pass
+            self._poison()
             raise
         except (OSError, EOFError) as error:
             self._fail("console read disconnected: " + str(error), "disconnect")
@@ -338,17 +344,21 @@ class Console:
         duration_s = positive(duration_s, "startup duration")
         if not self.synchronized or self.next_id != self.first_id:
             raise BenchError("startup drain is only permitted before requests")
-        deadline = self._now() + duration_s
-        for _ in range(_turn_limit(duration_s)):
-            if self._now() >= deadline:
-                if self.buffer:
-                    self._fail("incomplete startup line")
-                return
-            data = self._read()
-            self._consume(data, startup=True)
-            if not data:
-                self.sleep(IDLE_SECONDS)
-        self._fail("startup turn capacity exhausted")
+        try:
+            deadline = self._now() + duration_s
+            for _ in range(_turn_limit(duration_s)):
+                if self._now() >= deadline:
+                    if self.buffer:
+                        self._fail("incomplete startup line")
+                    return
+                data = self._read()
+                self._consume(data, startup=True)
+                if not data:
+                    self.sleep(IDLE_SECONDS)
+            self._fail("startup turn capacity exhausted")
+        except KeyboardInterrupt:
+            self._poison()
+            raise
 
     def _status(self, item):
         if (type(item.get("ok")) is not bool or type(item.get("status")) is not str or
@@ -605,21 +615,27 @@ class Console:
 
     def pump(self):
         """Process one bounded read and all its complete lines; never extends a deadline."""
-        self._check()
-        for handle in self.pending.values():
-            if handle.phase == "retained":
-                continue
-            handle.turns += 1
-            if handle.turns > handle.turn_limit:
-                self._fail("command service turn capacity exhausted")
-        data = self._read()
-        self._check()
-        self._consume(data)
-        if not data and not self.buffer:
+        try:
+            self._check()
             for handle in self.pending.values():
-                if handle.terminal is not None:
-                    handle.phase = "retained"
-        return bool(data)
+                if handle.phase == "retained":
+                    continue
+                handle.turns += 1
+                if handle.turns > handle.turn_limit:
+                    self._fail("command service turn capacity exhausted")
+            data = self._read()
+            self._check()
+            self._consume(data)
+            if not data and not self.buffer:
+                for handle in self.pending.values():
+                    if handle.terminal is not None:
+                        handle.phase = "retained"
+            return bool(data)
+        except KeyboardInterrupt:
+            # read() can already have removed bytes before clock/parser work is
+            # interrupted. Only fencing the driver call would miss that loss.
+            self._poison()
+            raise
 
     def begin(self, command, *, timeout_s=3.0):
         """Validate before one serial handoff. Returns an owned handle, never native success."""
@@ -670,21 +686,20 @@ class Console:
             self._fail("command deadline expired before handoff", "deadline")
         self.next_id += 1
         self.pending[identity] = handle
-        handle.transmitted = True  # Even an exception can follow a partial host write.
         try:
+            handle.transmitted = True  # Even an exception can follow a partial host write.
             size = self.port.write(wire)
+            if type(size) is not int or size != len(wire):
+                self._fail("short/invalid serial write; command never replayed", "disconnect")
+            self._check()
+            return handle
         except KeyboardInterrupt:
-            try:
-                self._fail("interrupted transport write; handoff/framing unknown")
-            except BenchError:
-                pass
+            # The driver can return a partial count just before interruption;
+            # accounting and the final clock check belong to the same handoff.
+            self._poison()
             raise
         except (OSError, EOFError) as error:
             self._fail("serial write failed; handoff uncertain: " + str(error), "disconnect")
-        if type(size) is not int or size != len(wire):
-            self._fail("short/invalid serial write; command never replayed", "disconnect")
-        self._check()
-        return handle
 
     def wait(self, handle, *, release=False):
         """Wait for this exact request, keeping interleaved requests and native errors separate.

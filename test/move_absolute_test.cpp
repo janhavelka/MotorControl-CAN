@@ -732,47 +732,76 @@ void interruptions() {
 
 // 11. A trigger whose reply is lost: unknown, fenced, and a stop after it stays unqualified.
 void lostTrigger() {
-    scenario = "lost trigger";
-    Rig r;
-    r.drive.silentIndex = 0x6040;
-    r.drive.silentWord = 0x001f;
-    r.ready();
-    CHECK(r.request().isOk());
-    r.finishMove();
-    const L::MoveContext& c = moveOf(r);
-    CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
-    CHECK(c.execution == M::ActionExecution::UNKNOWN && c.trigger.transmissionPossible);
-    CHECK(c.uncertain && c.effectsPossible && r.a.moveFenced() && !r.a.latestControl());
-    const unsigned first = r.startFrame; // request() below moves startFrame.
-    CHECK(wordsFrom(r, first, 0x001f) == 1);
-    // New motion stays fenced, whatever is supplied.
-    const M::Status again = r.request();
-    CHECK(!again && (again.detail == int32_t(M::MoveError::TARGET) || again.detail == int32_t(M::MoveError::STATE)));
-    // Only the best-effort stop remains, and an identical late reply cannot qualify it.
-    E::StopPolicy policy;
-    policy.options.service = reads();
-    policy.options.observationIntervalUs = 1000;
-    policy.options.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
-    policy.deadlineUs = r.now + 20000;
-    policy.bestEffortDeadlineUs = r.now + 40000;
-    static L::ReadContext none;
-    const E::StopPath path = r.a.requestStop(L::StopKind::QUICK_STOP, none, policy, r.now);
-    CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
-    for (unsigned k = 0; k < 200 && r.a.stopActive(); ++k)
+    for (unsigned lateBeforeReport = 0; lateBeforeReport < 2; ++lateBeforeReport) {
+        scenario = "lost trigger";
+        Rig r;
+        r.drive.silentIndex = 0x6040;
+        r.drive.silentWord = 0x001f;
+        r.ready();
+        CHECK(r.request().isOk());
+        r.finishMove();
+        const L::MoveContext& c = moveOf(r);
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
+        CHECK(c.execution == M::ActionExecution::UNKNOWN && c.trigger.transmissionPossible);
+        CHECK(c.uncertain && c.effectsPossible && r.a.moveFenced() && !r.a.latestControl());
+        const unsigned first = r.startFrame; // request() below moves startFrame.
+        CHECK(wordsFrom(r, first, 0x001f) == 1);
+        // New motion stays fenced, whatever is supplied.
+        const M::Status again = r.request();
+        CHECK(!again && (again.detail == int32_t(M::MoveError::TARGET) || again.detail == int32_t(M::MoveError::STATE)));
+        CHECK(r.services.unresolved(0));
+        const Saved<L::MoveContext> move(c);
+        // Only the best-effort stop remains, and an identical late reply cannot qualify it.
+        E::StopPolicy policy;
+        policy.options.service = reads();
+        policy.options.observationIntervalUs = 1000;
+        policy.options.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+        policy.deadlineUs = r.now + 20000;
+        policy.bestEffortDeadlineUs = r.now + 40000;
+        static L::ReadContext none;
+        r.wire.autoReport = !lateBeforeReport;
+        const unsigned stopFrame = r.wire.sentCount;
+        const E::StopPath path = r.a.requestStop(L::StopKind::QUICK_STOP, none, policy, r.now);
+        CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+        M::Frame late = frame(0x581, 8);
+        const uint8_t reply[8] = {0x60, 0x40, 0x60, 0x00, 0, 0, 0, 0};
+        std::memcpy(late.data, reply, sizeof reply);
+        if (lateBeforeReport) {
+            r.step();
+            CHECK(wordAt(r, stopFrame, 0x000b) && r.wire.sentCount == stopFrame + 1);
+            r.later(late);
+            r.step();
+            CHECK(r.a.stopActive() && r.a.bestEffort().execution == M::ActionExecution::UNKNOWN);
+            CHECK(r.services.unresolved(0));
+            move.unchanged(c);
+            r.wire.report(stopFrame);
+        }
+        for (unsigned k = 0; k < 200 && r.a.stopActive(); ++k)
+            r.step();
+        CHECK(r.a.bestEffort().state == M::ActionState::FAILED);
+        CHECK(r.a.bestEffort().outcome == M::ActionOutcome::STOP_SENT_UNCONFIRMED);
+        CHECK(r.a.bestEffort().execution == M::ActionExecution::UNKNOWN);
+        CHECK(wordsFrom(r, stopFrame, 0x000b) == 1 && !wordsFrom(r, stopFrame, 0x010f));
+        move.unchanged(c);
+        const Saved<L::BestEffortStop> stop(r.a.bestEffort());
+        r.later(late);
+        r.steps(10);
+        move.unchanged(c);
+        stop.unchanged(r.a.bestEffort());
+        CHECK(wordsFrom(r, first, 0x001f) == 1);
+        CHECK(!r.request());
+        // Controller recovery retires adapter work, not the historical motion or its wire ambiguity.
+        O::RecoveryId recovery;
+        CHECK(r.owner.recover(r.now, r.now + 20000, recovery));
         r.step();
-    CHECK(r.a.bestEffort().state == M::ActionState::FAILED);
-    CHECK(r.a.bestEffort().outcome == M::ActionOutcome::STOP_SENT_UNCONFIRMED);
-    const Saved<L::MoveContext> move(c);
-    const Saved<L::BestEffortStop> stop(r.a.bestEffort());
-    M::Frame late = frame(0x581, 8);
-    const uint8_t reply[8] = {0x60, 0x40, 0x60, 0x00, 0, 0, 0, 0};
-    std::memcpy(late.data, reply, sizeof reply);
-    r.later(late);
-    r.steps(10);
-    move.unchanged(c);
-    stop.unchanged(r.a.bestEffort());
-    CHECK(wordsFrom(r, first, 0x001f) == 1);
-    CHECK(!r.request());
+        CHECK(r.owner.recoveryResult(recovery) &&
+              r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
+        move.unchanged(c);
+        stop.unchanged(r.a.bestEffort());
+        CHECK(r.services.unresolved(0) && r.a.moveFenced());
+        CHECK(!r.request());
+        quiet(r);
+    }
 }
 
 // 12. Acknowledged trigger, missing completion: the route stays resolved and new motion is fenced.
@@ -1110,6 +1139,71 @@ void finishAll(Rig& r) {
     CHECK(!r.a.busy());
 }
 
+// Retained ordinary results can prevent every move admission. Repeated session service must
+// remain bounded, a local cancel/deadline must end the move without traffic, and the dedicated
+// urgent slot must still carry a stop. Releasing pressure afterward cannot revive old intent.
+void retainedResultsPreventProgress() {
+    for (unsigned cut = 0; cut < 3; ++cut) {
+        scenario = "move blocked by retained results";
+        Rig r;
+        r.ready();
+        const uint64_t deadline = r.now + LEAD;
+        const uint32_t operation = r.a.beginOperation(deadline, r.now);
+        CHECK(operation);
+        O::RequestId ids[O::CanBusOwner::REQUESTS];
+        O::Completion copies[O::CanBusOwner::REQUESTS];
+        for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
+            O::BusRequest request;
+            request.sequence = r.a.sequence();
+            request.transfer.channel = r.current().channel;
+            request.transfer.operation = request.transfer.request = operation;
+            request.transfer.step = i + 1;
+            request.transfer.index = 0x2100;
+            request.transfer.direction = C::SdoDirection::UPLOAD;
+            request.transfer.size = 2;
+            request.transfer.deadlineUs = deadline;
+            request.transfer.queueTimeoutUs = QUEUE;
+            request.transfer.responseTimeoutUs = RESPONSE;
+            CHECK(r.owner.admit(request, r.now, ids[i]) == O::BusAdmission::ACCEPTED);
+            CHECK(r.owner.cancel(ids[i], r.now) == O::Cancel::CANCELLED);
+            CHECK(r.owner.result(ids[i]));
+            copies[i] = *r.owner.result(ids[i]);
+        }
+        CHECK(r.owner.resources().retained == O::CanBusOwner::REQUESTS);
+        CHECK(r.request().isOk());
+        r.steps(4);
+        const L::MoveContext& c = moveOf(r);
+        CHECK(r.a.moveActive() && !c.transmissionNoted && !c.effectsPossible && !c.setupEvidenceMask);
+        CHECK(r.wire.sentCount == r.startFrame);
+        if (cut == 0) {
+            CHECK(r.a.cancelMove(r.now));
+            r.turn(c.deadlineUs);
+            CHECK(c.outcome == M::ActionOutcome::CANCELLED);
+        } else if (cut == 1) {
+            r.turn(c.deadlineUs);
+            CHECK(c.outcome == M::ActionOutcome::DEADLINE);
+        } else {
+            CHECK(r.a.requestStop(L::StopKind::HALT, r.state, stopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+            finishAll(r);
+            CHECK(c.interruption == M::MoveInterruption::STOP);
+            CHECK(wordsFrom(r, r.startFrame, 0x010f) == 1);
+        }
+        CHECK(c.state == M::ActionState::FAILED && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+        CHECK(!c.effectsPossible && !c.uncertain && !r.a.moveFenced());
+        CHECK(!downloadsFrom(r, r.startFrame, 0x607a) && !wordsFrom(r, r.startFrame, 0x001f));
+        const Saved<L::MoveContext> ended(c);
+        for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
+            const O::Completion* retained = r.owner.result(ids[i]);
+            CHECK(retained && retained->service.outcome == copies[i].service.outcome &&
+                  retained->service.transfer.operation == operation &&
+                  retained->service.transfer.step == i + 1 && !retained->service.transmissionPossible);
+            CHECK(r.owner.release(ids[i]) && !r.owner.result(ids[i]));
+        }
+        quiet(r);
+        ended.unchanged(c);
+    }
+}
+
 // 17. Packet 21 review W2: a 607A the owner closed before handing it over changed nothing on the
 // drive, so the acknowledged 000F before it is the latest word again, and a stop takes the sequenced
 // path from it: through cancelMove, and within the stop request that withdraws the move.
@@ -1284,6 +1378,7 @@ void runAll() {
     counterZeroInvalidates();
     unsentKeepsControl();
     recheckAtHandover();
+    retainedResultsPreventProgress();
 }
 } // namespace
 

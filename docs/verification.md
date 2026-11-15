@@ -1,5 +1,10 @@
 # Verification
 
+The [prompt45 integration report](reports/prompt_45.md) records deterministic
+late-event, stop, traffic-pressure, provenance and Python interruption cases.
+Retained baseline failures accompany the existing registered regression suites;
+the report distinguishes static target resources from unmeasured runtime/WCET.
+
 The registered `probe_app_local`, `probe_console` and `console_protocol` contracts
 exercise direct pure APIs, damaged-line/pressure/correlation cases, actual JSONL
 and the real native entry. The isolated package consumer compiles the console

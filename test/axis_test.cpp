@@ -632,6 +632,13 @@ M::VelocityRequest rate(const M::AxisConfig& c, int64_t n, uint64_t d = 1,
     r.value = M::Rational(n, d);
     r.unit = M::VelocityUnit(unit, time);
     r.frame = frame;
+    // Shared RS/CAN comparisons name every request field. In particular, RS
+    // defaults to turns/minute while CAN defaults to steps/second; neither
+    // library's defaults are evidence for the other's intent or error policy.
+    r.rounding = M::Rounding::EXACT;
+    r.maximumQuantizationError = M::Rational(0);
+    r.approximate = false;
+    r.maximumApproximationError = 0;
     return r;
 }
 

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "-B",
+    "test/bench_campaign_adversarial_test.py",
+    "CampaignAdversarial.test_interrupt_after_write_return_fences_unvalidated_handoff_and_cleanup"
+  ],
+  "returncode": 1,
+  "source_sha256": "e2cc45864fac2792b6c9ce0521a65a3863fab174287c0bb2a140951deca8cf0e"
+}

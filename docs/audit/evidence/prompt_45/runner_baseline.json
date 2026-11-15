@@ -1,0 +1,32 @@
+{
+  "revision": "818d36186a558e650e3b39d92dbec731a9d6d487",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "checks": [
+    {
+      "command": [
+        "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "-B",
+        "test/bench_campaign_adversarial_test.py",
+        "CampaignAdversarial.test_interrupted_received_evidence_fences_cleanup_and_preserves_unknown",
+        "CampaignAdversarial.test_interrupted_intent_evidence_fences_connection_before_handoff"
+      ],
+      "returncode": 1
+    },
+    {
+      "command": [
+        "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "-B",
+        "test/bench_campaign_plans_test.py",
+        "CampaignTests.test_malformed_fixture_corpus_is_input_failure_before_artifacts_or_serial"
+      ],
+      "returncode": 1
+    }
+  ],
+  "source_sha256": {
+    "scripts/bench_probe.py": "94a64e45c50100b5f00fca361935e5a585a4ce7ab214ce904e8f6317aec25f27",
+    "scripts/bench_session.py": "7d4ad9c1f38c2cfd278ac5bb917b2a17cf2df3463441f487751b19010d180ff8",
+    "test/bench_campaign_adversarial_test.py": "a4fb63a16c398203082f4d795a09e9f62b844e5e35b371fa201e0ae32666e94d",
+    "test/bench_campaign_plans_test.py": "f342013e004eca003ad67d79c8ebf897fc59ef097e972d5b6c7f57ff5163bcab"
+  },
+  "scope": "Host-only fake Console evidence; no serial/CAN/motor"
+}

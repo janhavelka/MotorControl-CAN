@@ -1,5 +1,12 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt45's [integration audit](reports/prompt_45.md) connects concrete native and
+Python regressions to every assigned failure scenario. It covers unresolved
+move/stop evidence, cross-node pressure, queued and remote old-map samples, retained
+results and interrupted host evidence. Supported settings and TPDO1 operations
+run through the real fake owner; broader remapping and firmware gates stay with
+their original prompts. No new physical capability is qualified.
+
 Prompt42 connects finite position/angle, velocity, homing and explicit actions to
 one shared console and the existing axis session. Independent retained stop results,
 explicit host motion intent and bounded stop admission preserve uncertainty under

@@ -315,14 +315,19 @@ void segmentedAndAbort() {
 
 void requests() {
     const uint8_t commands[] = {0x2F, 0x2B, 0x27, 0x23};
+    const uint8_t badUploadCommands[] = {0x4f, 0x4b, 0x43};
     for (uint8_t width = 1; width <= 4; ++width) {
         C::SdoExpectation expectation = expected(width);
         M::Frame frame = envelope(0x40, expectation, true);
         const uint8_t literal[] = {0x40, 0x41, 0x60, 0, 0, 0, 0, 0};
         CHECK(std::memcmp(frame.data, literal, sizeof literal) == 0);
         CHECK(C::checkRequest(frame, expectation));
-        frame.data[0] = 0x4B; // Public example incorrectly copied a server reply command.
-        CHECK(!C::checkRequest(frame, expectation));
+        // All three initiation bytes in the pinned SRT example are server responses,
+        // never upload requests, regardless of the expected object width.
+        for (uint8_t responseCommand : badUploadCommands) {
+            frame.data[0] = responseCommand;
+            CHECK(!C::checkRequest(frame, expectation));
+        }
         frame.data[0] = 0x40;
         frame.data[7] = 1;
         statusIs(C::checkRequest(frame, expectation), M::Err::FRAME_ERROR, C::SdoError::RESERVED);

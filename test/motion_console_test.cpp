@@ -34,8 +34,10 @@ void contains(const std::string& value, const char* expected) {
 struct Bytes {
     std::string output;
     bool blocked = false;
+    unsigned writes = 0;
     static bool write(void* context, uint8_t byte) {
         Bytes& self = *static_cast<Bytes*>(context);
+        ++self.writes;
         if (self.blocked)
             return false;
         self.output += static_cast<char>(byte);
@@ -57,9 +59,10 @@ struct ConsoleRig : Rig {
     L::ReadTarget live;
     E::ProbeMotion motion;
     E::ProbeConsole console;
+    bool pressure = false; // Saturated observer bursts and deliberately smaller service work.
 
-    ConsoleRig()
-        : platform(bytes.callbacks()), app(owner, platform), live(current()),
+    explicit ConsoleRig(bool twoNodes = false)
+        : Rig(twoNodes), platform(bytes.callbacks()), app(owner, platform), live(current()),
           motion(app, owner, a, live, one.coordinates, one.witness), console(app, owner, platform) {
         serviceSession = serviceTwo = false;
         CHECK(environment == Environment::HOST_FAKE);
@@ -83,6 +86,7 @@ struct ConsoleRig : Rig {
     }
     void tick() {
         now += TICK;
+        const bool drained = wire.rxRead == wire.rxWrite;
         if (wire.rxRead == wire.rxWrite)
             wire.rxRead = wire.rxWrite = 0;
         for (; served < wire.sentCount; ++served) {
@@ -99,9 +103,31 @@ struct ConsoleRig : Rig {
             heartbeat.data[0] = 5;
             wire.push(heartbeat, now, owner.controllerEpoch());
         }
-        CHECK(app.service(now));
+        // A finite burst goes behind the ordinary response. The next turn drains its tail;
+        // this exercises observer dispatch at a small CPU work budget without an unbounded queue.
+        if (pressure && drained) {
+            M::Frame heartbeat = frame(nodes == 2 ? 0x702 : 0x701, 1);
+            heartbeat.data[0] = 5;
+            M::Frame emcy = frame(0x82, 8);
+            emcy.data[0] = 0x23;
+            emcy.data[1] = 0x81;
+            for (unsigned i = 0; i < 2; ++i) {
+                wire.push(heartbeat, now, owner.controllerEpoch());
+                // Node 2's fault traffic must not become node 1's move fault. A one-channel
+                // capacity fixture retains the same pressure using heartbeat alone.
+                wire.push(nodes == 2 ? emcy : heartbeat, now, owner.controllerEpoch());
+            }
+        }
+        const unsigned received = wire.rxRead, reports = wire.reportRead;
+        const unsigned sent = wire.sentCount, observed = wire.observed, writes = bytes.writes;
+        CHECK(pressure ? app.service(now, budget(4, 1, 1, 1, 1)) : app.service(now));
         CHECK(motion.service(now));
         console.service(now);
+        if (pressure) {
+            CHECK(wire.rxRead - received <= 4 && wire.observed - observed <= 4);
+            CHECK(wire.reportRead - reports <= 1 && wire.sentCount - sent <= 1);
+            CHECK(bytes.writes - writes <= E::ProbePlatform::OUTPUT_BUDGET);
+        }
     }
     void drain(unsigned turns = 1000) {
         for (unsigned i = 0; i < turns; ++i)
@@ -413,6 +439,88 @@ void congestedEscalationKeepsIndependentResults() {
     const bool fenced = r.a.moveFenced();
     CHECK(r.motion.releaseNormal());
     CHECK(r.a.moveFenced() == fenced);
+}
+
+// Prompt 45: combine phase interruption with blocked console output, observer traffic and
+// constrained owner service. These are deterministic work counts, not a physical WCET claim.
+void urgentStopAtEveryPhaseUnderPressure() {
+    const L::MovePhase phases[] = {L::MovePhase::PARAMETERS, L::MovePhase::TRIGGER,
+                                   L::MovePhase::OBSERVING, L::MovePhase::WAITING,
+                                   L::MovePhase::REARM};
+    for (L::MovePhase phase : phases) {
+        char name[96];
+        std::snprintf(name, sizeof name, "urgent console stop at move phase %u under bounded pressure",
+                      unsigned(phase));
+        scenario = name;
+        ConsoleRig r(C::SdoClient::CHANNELS >= 2);
+        contains(r.command("@1 accel 100 ms"), "\"ok\":true");
+        contains(r.command("@2 decel 200 ms"), "\"ok\":true");
+        r.prepare();
+        L::MoveOptions policy = options();
+        policy.observationIntervalUs = 4000; // Leave a service turn between complete cycles.
+        CHECK(r.motion.setMovePrerequisites(r.state, r.identity, evidence(), profile(), nullptr, policy));
+        const unsigned first = r.wire.sentCount;
+        r.line("@31 move absolute 16000 steps native 120 configured");
+        CHECK(r.motion.retained() && r.motion.normalResult().state == M::ActionState::ACTIVE);
+        const uint32_t moveId = r.motion.normalResult().id;
+        r.bytes.blocked = r.pressure = true;
+        uint8_t padding[E::ProbePlatform::OUTPUT_CAPACITY];
+        std::memset(padding, ' ', sizeof padding);
+        CHECK(r.platform.writeOutput(padding, sizeof padding - r.platform.stats().outputUsed));
+        bool reached = false;
+        for (unsigned turn = 0; turn < 200 && r.a.moveActive(); ++turn) {
+            r.tick();
+            const L::MoveContext& c = r.a.moveAction();
+            reached = c.phase == phase &&
+                      (phase == L::MovePhase::WAITING ? c.observations == 1
+                       : phase == L::MovePhase::OBSERVING ? c.observations == 0
+                                                         : c.transmissionNoted);
+            if (reached)
+                break;
+        }
+        CHECK(reached && r.a.moveActive());
+        r.line("@32 stats");
+        r.line("@33 version");
+        const uint32_t dropped = r.console.stats().outputDropped;
+        r.line("@34 version");
+        CHECK(r.console.stats().outputDropped > dropped);
+        const L::ReadContext& state = r.a.moveObservation().state == M::ReadState::SUCCEEDED
+                                          ? r.a.moveObservation() : r.state;
+        CHECK(r.motion.setStopPrerequisites(state, stopPolicy(r)));
+        const unsigned stopFrom = r.wire.sentCount;
+        r.line("@35 stop fast");
+        CHECK(r.motion.stopRetained(L::StopKind::QUICK_STOP));
+        for (unsigned turn = 0; turn < 300 && r.a.busy(); ++turn)
+            r.tick();
+        CHECK(!r.a.busy() && !r.a.moveActive());
+        const E::MotionStopResult* stopped = r.motion.stopResult(L::StopKind::QUICK_STOP);
+        CHECK(stopped && stopped->result.id != moveId &&
+              (stopped->result.state == M::ActionState::SUCCEEDED ||
+               stopped->result.state == M::ActionState::FAILED));
+        CHECK(r.motion.normalResult().id == moveId && r.motion.normalResult().state == M::ActionState::FAILED);
+        CHECK(r.motion.normalResult().outcome == M::ActionOutcome::CANCELLED);
+        CHECK(r.a.moveAction().interruption == M::MoveInterruption::STOP);
+        CHECK(wordsFrom(r, stopFrom, 0x000b) == 1 && !wordsFrom(r, stopFrom, 0x010f));
+        CHECK(!wordsFrom(r, stopFrom, 0x000f) && !wordsFrom(r, stopFrom, 0x001f));
+        CHECK(wordsFrom(r, first, 0x001f) <= 1);
+        for (unsigned i = stopFrom; i < r.wire.sentCount; ++i)
+            CHECK(r.wire.sent[i].data[0] == 0x40 || wordAt(r, i, 0x000b));
+        CHECK(r.wire.observed > 0 && r.services.node(0)->emcyCount == 0);
+        if (r.nodes == 2) {
+            CHECK(r.services.node(1)->heartbeat.present && r.services.node(1)->emcyCount > 0);
+            CHECK(!r.services.node(0)->heartbeat.present && !r.a.faultBlocked());
+        } else {
+            CHECK(r.services.node(0)->heartbeat.present);
+        }
+        const Saved<E::MotionResult> original(r.motion.normalResult());
+        const Saved<E::MotionStopResult> stop(*stopped);
+        const unsigned sent = r.wire.sentCount;
+        r.bytes.blocked = false;
+        r.drain(100);
+        original.unchanged(r.motion.normalResult());
+        stop.unchanged(*r.motion.stopResult(L::StopKind::QUICK_STOP));
+        CHECK(r.wire.sentCount == sent);
+    }
 }
 
 void cancelSettlesTheAcceptedDownload() {
@@ -757,6 +865,7 @@ int main(int argc, char** argv) {
     rpmDestinationIsCheckedBeforeAdmission();
     stopNeverReplacesUnknownMotion();
     congestedEscalationKeepsIndependentResults();
+    urgentStopAtEveryPhaseUnderPressure();
     cancelSettlesTheAcceptedDownload();
     deviceZeroNeverSavesOrSetsAHostOrigin();
     explicitEnableAndAlarmClear();

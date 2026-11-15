@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+The [Prompt45 integration audit](docs/reports/prompt_45.md) strengthens retained
+move/stop uncertainty and fences interrupted host evidence. Cross-node pressure,
+old-map PDO traffic and retained-result exhaustion have deterministic regressions.
+These checks do not qualify additional firmware or physical motion.
+
 Prompt42 connects finite position/angle, velocity, homing and explicit actions to
 one shared console and the existing axis session. Independent retained stop results,
 explicit host motion intent and bounded stop admission preserve uncertainty under

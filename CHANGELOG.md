@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Adversarial ownership and motion integration (prompt 45, 2026-11-15)
+
+- Mark an admitted best-effort stop UNKNOWN with possible effects until the owner
+  proves it unsent. Late acknowledgements never qualify this path or rewrite the
+  original uncertain move.
+- Fence interrupted Python service, startup, write handoff and evidence while preserving
+  the original exception and retained outcomes. Damaged framing cannot authorize
+  scenario cleanup. Report excessive fixture nesting as a pre-I/O input error.
+- Add cross-node event pressure, old-map PDO provenance, same-object late ACK,
+  result exhaustion and interrupted session evidence regressions. Explicit common
+  velocity vectors avoid sibling-default assumptions. Retain counterexamples and
+  resource measurements in the prompt45 report; physical gates remain separate.
+
 ### Python client and campaign audit (prompts 43-44, 2026-11-15)
 
 - Preserve pending-result admission and explicit release failures without erasing

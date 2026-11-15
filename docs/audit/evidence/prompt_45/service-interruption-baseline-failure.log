@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_interrupt_after_transport_read_fences_unparsed_bytes_and_cleanup (__main__.CampaignAdversarial.test_interrupt_after_transport_read_fences_unparsed_bytes_and_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 516, in test_interrupt_after_transport_read_fences_unparsed_bytes_and_cleanup
+    self.assert_no_cleanup_replay(console, port, report)
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 144, in assert_no_cleanup_replay
+    self.assertFalse(any(command.startswith("stop ") for command in self.commands(port)))
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_interrupted_partial_startup_remains_fenced_without_a_request (__main__.CampaignAdversarial.test_interrupted_partial_startup_remains_fenced_without_a_request)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 537, in test_interrupted_partial_startup_remains_fenced_without_a_request
+    self.assertFalse(console.synchronized)
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.002s
+
+FAILED (failures=2)

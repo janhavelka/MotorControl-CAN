@@ -1,0 +1,15 @@
+Test project C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/p45-motion/native
+    Start 57: move_absolute
+1/1 Test #57: move_absolute ....................Exit code 0xc0000409
+***Exception:   0.08 sec
+C:/Users/Honza/Documents/Projects/MotorControl-CAN/test/move_absolute_test.cpp:774: r.a.stopActive() && r.a.bestEffort().execution == M::ActionExecution::UNKNOWN [lost trigger, async 0]
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   0.08 sec
+
+The following tests FAILED:
+	 57 - move_absolute (Exit code 0xc0000409
+)
+Errors while running CTest

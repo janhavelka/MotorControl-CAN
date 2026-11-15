@@ -1,5 +1,9 @@
 # Live source and responsibility map
 
+The [prompt45 source audit](audit/PROMPT_45_SOURCES.md) refreshes common motion,
+owner/health/parser and FieldCore result seams; its [integration report](reports/prompt_45.md)
+maps failure scenarios to actual native/Python tests and retained counterexamples.
+
 The [2026-11-15 runner audit](reports/prompts_43_44_audit.md) verifies client
 correlation, bounded waits and failure-retaining evidence/session ownership.
 

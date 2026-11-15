@@ -43,13 +43,16 @@ def add_session_arguments(parser):
 
 
 def load_fixture(path):
-    """Read at most16KiB of strict JSON before opening a port; reject duplicate keys."""
+    """Read at most16KiB of strict JSON; malformed/deep input fails before port access."""
     with Path(path).open("rb") as stream:
         data = stream.read(MAX_FIXTURE_BYTES + 1)
     if len(data) > MAX_FIXTURE_BYTES:
         raise ValueError("fixture exceeds16KiB")
-    value = parse_record(data.decode("utf-8"))
-    probe._bounded_json(value)
+    try:
+        value = parse_record(data.decode("utf-8"))
+        probe._bounded_json(value)
+    except (RecursionError, probe.BenchError) as error:
+        raise ValueError("fixture JSON exceeds nesting limit") from error
     probe.validate_fixture(value)
     return value
 

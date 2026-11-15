@@ -590,6 +590,171 @@ void passiveDispatchDuringTransferAndBudgets() {
     CHECK(!r.owner.service(r.now - 1, budget()));
 }
 
+// Prompt 45: synthetic traffic through the sole receiver; these bytes are not a
+// physical stop/remap qualification. Keep node 1's SDO pending while node 2's
+// event storm fills diagnostic history and its urgent request still gets TX.
+void otherNodeStormAndUrgentAdmission() {
+    Rig r;
+    C::PdoMap map;
+    CHECK(L::pdoTemplate(C::PdoDirection::TPDO, 2, map));
+    C::PdoMapEvidence actual;
+    actual.route.binding = route(2).binding;
+    actual.route.generation = 1;
+    actual.route.cobId = 0x282;
+    CHECK(C::validatePdoMap(map, L::pdoProfile(41), actual.route.layout));
+    actual.nodeGeneration = 11;
+    actual.source = C::PdoMapSource::REVIEWED_CONFIGURATION;
+    actual.evidenceId = 501;
+    actual.communicationKnown = true;
+    actual.cobIdParameter = 0x282;
+    actual.transmissionType = 255;
+    CHECK(r.services.configurePdo(0, 1, actual, L::pdoProfile(41), C::PdoObserver(), 0));
+    C::PdoQualification proof;
+    proof.route = actual.route;
+    proof.nodeGeneration = 11;
+    proof.basis = C::PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED;
+    proof.evidenceId = 502;
+    CHECK(r.services.qualifyPdo(0, proof, 0));
+    const auto first = r.sequence();
+    const auto second = r.sequence(2, 2);
+    const auto active = r.admit(r.request(first));
+    r.turn(0);
+    // Fill ordinary capacity with node 1's later work. Urgent admission must
+    // remain possible even when all ordinary request/result slots are held.
+    for (unsigned step = 2; step <= O::CanBusOwner::REQUESTS; ++step)
+        r.admit(r.request(first, step));
+    auto stop = r.request(second, 1, 0x6040, true);
+    stop.transfer.data[0] = 0x0b;
+    stop.transfer.data[1] = 0;
+    O::RequestId urgent;
+    CHECK(r.owner.admitUrgent(stop, 0, urgent) == O::BusAdmission::ACCEPTED);
+    M::Frame heartbeat = frame(0x702, 1);
+    heartbeat.data[0] = 5;
+    M::Frame emcy = frame(0x82);
+    emcy.data[0] = 0x10;
+    emcy.data[1] = 0x23;
+    M::Frame pdo = frame(0x282);
+    pdo.data[0] = 42;
+    for (unsigned i = 0; i < 12; ++i) {
+        r.fake.push(heartbeat, 1);
+        r.fake.push(emcy, 1);
+        r.fake.push(pdo, 1);
+    }
+    // Observer reentry is rejected and never creates another receiver. The
+    // deliberately undrained trace/history lose copies, not ordinary dispatch.
+    r.fake.reenter = true;
+    for (uint64_t now = 1; now <= 5; ++now) {
+        const unsigned receives = r.fake.receives, reports = r.fake.reportCalls;
+        const unsigned transmits = r.fake.transmits;
+        r.turn(now, budget(255, 255, 255, 255));
+        CHECK(r.fake.receives - receives <= O::CanBusOwner::RX_LIMIT);
+        CHECK(r.fake.reportCalls - reports <= O::CanBusOwner::EVENT_LIMIT);
+        CHECK(r.fake.transmits - transmits <= O::CanBusOwner::TX_LIMIT);
+        CHECK(!r.owner.result(active) && !r.owner.result(urgent));
+    }
+    r.fake.reenter = false;
+    CHECK(r.fake.sentCount == 2 && r.fake.sent[1].id == 0x602);
+    CHECK(r.fake.sent[1].data[0] == 0x2b && r.fake.sent[1].data[4] == 0x0b &&
+          r.fake.sent[1].data[5] == 0);
+    CHECK(r.fake.observations == 36 && r.fake.rxRead == 36);
+    CHECK(r.services.node(1)->emcyCount == 12 && r.services.node(1)->heartbeat.present);
+    CHECK(!r.services.node(0)->heartbeat.present && r.services.node(0)->emcyCount == 0);
+    CHECK(r.services.pdo(0)->observation.sample.values[0].native == 42);
+    CHECK(r.owner.stats().traceOverwritten > 0 && r.services.droppedNetworkObservations() > 0);
+    r.respond(urgent, 2, 0x6040, 0, true);
+    const Saved<O::Completion> retained(r.done(urgent));
+    r.respond(active, 1, 0x6041, 0x1234);
+    retained.unchanged(r.done(urgent));
+    CHECK(r.fake.sentCount == 2); // Neither pressure nor observation retried a write.
+}
+
+void queuedOldMapFramesNeedProvenanceBoundary() {
+    Rig r;
+    C::PdoMap map;
+    CHECK(L::pdoTemplate(C::PdoDirection::TPDO, 2, map));
+    C::PdoMapEvidence actual;
+    actual.route.binding = route().binding;
+    actual.route.generation = 1;
+    actual.route.cobId = 0x281;
+    CHECK(C::validatePdoMap(map, L::pdoProfile(41), actual.route.layout));
+    actual.nodeGeneration = 11;
+    actual.source = C::PdoMapSource::REVIEWED_CONFIGURATION;
+    actual.evidenceId = 601;
+    actual.communicationKnown = true;
+    actual.cobIdParameter = 0x281;
+    actual.transmissionType = 255;
+    CHECK(r.services.configurePdo(0, 0, actual, L::pdoProfile(41), C::PdoObserver(), 0));
+    C::PdoQualification proof;
+    proof.route = actual.route;
+    proof.nodeGeneration = 11;
+    proof.basis = C::PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED;
+    proof.evidenceId = 602;
+    CHECK(r.services.qualifyPdo(0, proof, 0));
+    M::Frame bytes = frame(0x281);
+    bytes.data[0] = 1;
+    bytes.data[4] = 2;
+    r.fake.push(bytes, 1);
+    r.turn(1, budget(1, 0, 0, 0));
+    const Saved<C::PdoObservation> previous(r.services.pdo(0)->observation);
+    r.fake.push(bytes, 2); // Old bytes already in the controller's local RX queue.
+    r.turn(2, O::ServiceBudget());
+    map.words[0] = 0x606c0020;
+    map.words[1] = 0x60640020;
+    CHECK(C::validatePdoMap(map, L::pdoProfile(41), actual.route.layout));
+    actual.route.generation = 2;
+    actual.startedUs = actual.observedUs = 3;
+    CHECK(r.services.configurePdo(0, 0, actual, L::pdoProfile(41), C::PdoObserver(), 3));
+    r.fake.push(bytes, 4); // Delayed remote old-map bytes, same ID and DLC.
+    r.turn(4, budget(8, 0, 0, 0));
+    previous.unchanged(r.services.pdo(0)->observation);
+    CHECK(!r.services.pdo(0)->qualified);
+    r.fake.push(bytes, 5); // Another local old capture crosses qualification below.
+    proof.route = actual.route;
+    proof.evidenceId = 603;
+    proof.establishedUs = 6;
+    // Caller-asserted synthetic boundary, not proof of real map/producer retirement.
+    CHECK(r.services.qualifyPdo(0, proof, 6));
+    r.turn(7, budget(1, 0, 0, 0));
+    previous.unchanged(r.services.pdo(0)->observation);
+    r.fake.push(bytes, 8);
+    r.turn(8, budget(1, 0, 0, 0));
+    CHECK(r.services.pdo(0)->observation.evidenceId == 603);
+    CHECK(r.services.pdo(0)->observation.sample.route.generation == 2);
+    CHECK(r.services.pdo(0)->observation.sample.values[0].object.index == 0x606c);
+    CHECK(r.services.pdo(0)->observation.sample.values[0].native == 1);
+    CHECK(r.fake.sentCount == 0 && r.fake.observations == 5);
+}
+
+void lostWriteCannotConfirmDifferentValue() {
+    Rig r;
+    const auto sequence = r.sequence();
+    auto work = r.request(sequence, 1, 0x6040, true);
+    work.transfer.data[0] = 0x0f;
+    work.transfer.data[1] = 0;
+    const auto original = r.admit(work);
+    r.turn(0);
+    r.turn(100); // Lost reply: the exact response cutoff closes this write.
+    CHECK(r.done(original).service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(r.done(original).service.effectUncertain && r.services.unresolved(0));
+    const Saved<O::Completion> retained(r.done(original));
+    work.transfer.step = 2;
+    work.transfer.data[0] = 0x1f; // Same object, different new intent.
+    O::RequestId refused;
+    refused.generation = 123;
+    CHECK(r.owner.admit(work, r.now, refused) == O::BusAdmission::INVALID);
+    CHECK(refused.generation == 123);
+    r.fake.push(response(1, 0x6040, 2, 0, true), 101); // ACK echoes no written value.
+    r.turn(101);
+    CHECK(r.fake.sentCount == 1 && r.services.unresolved(0));
+    retained.unchanged(r.done(original));
+    CHECK(r.owner.release(original));
+    CHECK(r.owner.admit(work, r.now, refused) == O::BusAdmission::INVALID);
+    CHECK(!r.owner.result(original) && refused.generation == 123);
+    r.fake.push(response(1, 0x6040, 2, 0, true), 102);
+    r.turn(102);
+    CHECK(r.fake.sentCount == 1 && r.services.unresolved(0));
+}
+
 void invalidAdmissionSequenceAndIdExhaustion() {
     Rig r;
     const auto s = r.sequence();
@@ -1326,6 +1491,10 @@ int main() {
     if (PAIRED_CHANNELS)
         fairProducersAndBusyChannel();
     passiveDispatchDuringTransferAndBudgets();
+    if (PAIRED_CHANNELS)
+        otherNodeStormAndUrgentAdmission();
+    queuedOldMapFramesNeedProvenanceBoundary();
+    lostWriteCannotConfirmDifferentValue();
     invalidAdmissionSequenceAndIdExhaustion();
     queueAgeAndServiceEvidence();
     checkedAbortTxReportsAndGuard();

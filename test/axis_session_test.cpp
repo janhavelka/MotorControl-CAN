@@ -2082,7 +2082,8 @@ void coreBestEffortUnits() {
         CHECK(!L::noteBestEffortAdmission(stop, 20));
         before.unchanged(stop);
         CHECK(L::noteBestEffortAdmission(stop, 11));
-        CHECK(stop.admitted && stop.servicedUs == 11 && stop.state == M::ActionState::ACTIVE);
+        CHECK(stop.admitted && stop.servicedUs == 11 && stop.state == M::ActionState::ACTIVE &&
+              stop.execution == M::ActionExecution::UNKNOWN && stop.effectsPossible);
         CHECK(!L::noteBestEffortAdmission(stop, 12));
         CHECK(L::nextBestEffortStop(stop, t, 12, work) && !work.ready); // Admitted work is never yielded again.
         // Withdrawal is refused once admitted, for every reason.

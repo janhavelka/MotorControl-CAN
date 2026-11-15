@@ -1,0 +1,13 @@
+Test project C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/p45-motion/native
+    Start 53: stop_action
+1/4 Test #53: stop_action ......................   Passed    0.05 sec
+    Start 54: axis_session
+2/4 Test #54: axis_session .....................   Passed    0.02 sec
+    Start 57: move_absolute
+3/4 Test #57: move_absolute ....................   Passed    0.05 sec
+    Start 61: move_common
+4/4 Test #61: move_common ......................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.14 sec

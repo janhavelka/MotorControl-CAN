@@ -118,6 +118,13 @@ consuming another operation's evidence. Duplicate/stale records, malformed JSON,
 wrong identity, reboot diagnostics, disconnect or framing loss poison the
 session permanently. There is no reconnect, retry or automatic result polling.
 
+Ctrl-C during startup, service, write handoff or evidence publication also fences
+the stream, including consumed-but-unparsed bytes and returned-but-unvalidated
+write counts.
+The original interrupt and any checked terminal survive; scenario cleanup cannot
+transmit on that damaged stream. Fixture JSON exceeding parser or contract nesting
+limits is an input error (exit2), before artifacts or a serial port are opened.
+
 Schema 1 supplies no firmware boot/session ID or firmware source commit.
 `firmware_epoch` is therefore null. Each Console has a separate local
 `host_epoch`, which rejects foreign handles but proves no firmware reset or

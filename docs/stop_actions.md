@@ -288,6 +288,12 @@ released the drive (trial 503, through this path), and on an already released no
 sent by an application-local route, changed nothing (trial 307). Neither is a guarantee for another
 state ([packet 16](reports/handoff_19_33/packet_16.md)).
 
+Owner admission immediately makes the active context conservatively `UNKNOWN`
+with `effectsPossible=true`: the owner may hand the frame over before the next
+context update. This does not claim physical transmission. Only a retained owner
+terminal proving that nothing could have left can refine it to `NOT_TRANSMITTED`
+and clear possible effects. A late SDO reply cannot supply that proof.
+
 | Owner terminal | `outcome` | `execution` |
 | --- | --- | --- |
 | Controller reported the TX | `STOP_SENT_UNCONFIRMED` | `UNKNOWN` |

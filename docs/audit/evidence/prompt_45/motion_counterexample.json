@@ -1,0 +1,16 @@
+{
+  "revision_before_fix": "818d36186a558e650e3b39d92dbec731a9d6d487",
+  "origin": "prompt45 host integration audit, synthetic one-owner MoveRig",
+  "scenario": "requestMove -> silent 6040=001F reply -> unresolved route -> requestStop QUICK_STOP -> owner accepted 6040=000B -> withheld TX report -> identical late 6040 acknowledgement",
+  "observation": "BestEffortStop ACTIVE nevertheless exposed NOT_TRANSMITTED and effectsPossible false until owner terminal",
+  "cause": "noteBestEffortAdmission changed admitted and servicedUs only, omitting conservative execution/effect state while owner can transmit",
+  "fix": "owner admission sets execution UNKNOWN and effectsPossible true; terminal proving no transmission refines both back",
+  "baseline_failure_log": "best_effort_false_unsent_baseline.log",
+  "passing_log": "focused_after_fix.log",
+  "compiler": "GCC 15.1.0 Release C++11 -Wall -Wextra -Wpedantic -Werror",
+  "physical_measurement": false,
+  "other_new_regressions": "Late ACK before/after stop TX report, retained original move and stop unchanged through explicit controller recovery, all ordinary result slots full across move cancel/deadline/urgent stop and subsequent result release",
+  "rs_revision": "13cf955eeee278db9c01fd7acff1bedb0e516fb5",
+  "rs_clean": true,
+  "rs_common_vectors": "12 cases and 9 RS source blobs match retained revision cd27b12389f568198b72cecb6606123ea4c089bc"
+}

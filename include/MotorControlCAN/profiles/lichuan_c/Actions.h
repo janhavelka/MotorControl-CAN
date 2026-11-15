@@ -430,7 +430,7 @@ struct BestEffortStop {
     ReadOptions service;                    ///< Nonzero queue/response budgets.
     ActionState state = ActionState::EMPTY; ///< ACTIVE until terminal; never SUCCEEDED.
     ActionExecution execution =
-        ActionExecution::NOT_TRANSMITTED; ///< UNKNOWN once a frame may have left; never ACKNOWLEDGED.
+        ActionExecution::NOT_TRANSMITTED; ///< UNKNOWN from owner admission until terminal proof of no TX; never ACKNOWLEDGED.
     ActionOutcome outcome = ActionOutcome::NONE; ///< Immutable first terminal cause.
     Status status;                 ///< Local status, separate from health.
     uint32_t operation = 0;        ///< Nonzero live operation identity.
@@ -760,6 +760,8 @@ Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, u
 Status nextBestEffortStop(const BestEffortStop& context, const ReadTarget& current, uint64_t nowUs,
                           PreparedAction& output) noexcept;
 /** Record that the owner accepted the stop; from here only its terminal can settle it.
+ * Admission conservatively sets execution UNKNOWN and effectsPossible even while the frame
+ * remains queued locally. A terminal proving it unsent refines those to NOT_TRANSMITTED and false.
  * @param[in,out] context Active stop not yet admitted. @param[in] nowUs Nondecreasing time.
  * @return Local status; rejection leaves context unchanged.
  */

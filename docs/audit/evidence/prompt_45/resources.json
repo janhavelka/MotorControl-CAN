@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "repository": {
+    "revision": "818d36186a558e650e3b39d92dbec731a9d6d487",
+    "dirty": true
+  },
+  "compilers": {
+    "esp32s2": {
+      "path": "C:\\pio\\packages\\toolchain-xtensa-esp-elf\\bin\\xtensa-esp32s2-elf-g++.EXE",
+      "version": "xtensa-esp-elf-g++.EXE (crosstool-NG esp-14.2.0_20260121) 14.2.0",
+      "sha256": "ac8d55c45dbcaefe082299357245d7f12786c61a4e3c06a8e21f31d6890fb29e",
+      "cc1plus_sha256": "41469ff6b40c0fe12cea60d7b6af8d63389dc7930ce79132482b679c20e90739",
+      "cc1_sha256": "d547360448ad5be3c86be3a4bb875419f439ae668c01d2ed2bf8df7d6999f88d"
+    },
+    "esp32s3": {
+      "path": "C:\\pio\\packages\\toolchain-xtensa-esp-elf\\bin\\xtensa-esp32s3-elf-g++.EXE",
+      "version": "xtensa-esp-elf-g++.EXE (crosstool-NG esp-14.2.0_20260121) 14.2.0",
+      "sha256": "ac8d55c45dbcaefe082299357245d7f12786c61a4e3c06a8e21f31d6890fb29e",
+      "cc1plus_sha256": "41469ff6b40c0fe12cea60d7b6af8d63389dc7930ce79132482b679c20e90739",
+      "cc1_sha256": "d547360448ad5be3c86be3a4bb875419f439ae668c01d2ed2bf8df7d6999f88d"
+    }
+  },
+  "limits": {
+    "frame_bytes": 2048,
+    "chain_bytes": 6144
+  },
+  "context_sizes": {
+    "esp32s2": {
+      "PersistenceContext": 5496,
+      "ConfigurationRestoreContext": 4768,
+      "ActionContext": 5152,
+      "ReadContext": 1944,
+      "BestEffortStop": 336,
+      "MoveContext": 3008,
+      "HomeContext": 3320,
+      "VelocityContext": 3208,
+      "SdoCompletion": 216,
+      "AxisSession": 35752,
+      "ProbeApp": 2360,
+      "ProbeConsole": 6744,
+      "ProbeMotion": 3528,
+      "SimpleMoveIntent": 88,
+      "ProbeDevice": 6664,
+      "ProbeSettings": 2928,
+      "ProbeCommissioning": 7432
+    },
+    "esp32s3": {
+      "PersistenceContext": 5496,
+      "ConfigurationRestoreContext": 4768,
+      "ActionContext": 5152,
+      "ReadContext": 1944,
+      "BestEffortStop": 336,
+      "MoveContext": 3008,
+      "HomeContext": 3320,
+      "VelocityContext": 3208,
+      "SdoCompletion": 216,
+      "AxisSession": 35752,
+      "ProbeApp": 2360,
+      "ProbeConsole": 6744,
+      "ProbeMotion": 3528,
+      "SimpleMoveIntent": 88,
+      "ProbeDevice": 6664,
+      "ProbeSettings": 2928,
+      "ProbeCommissioning": 7432
+    }
+  },
+  "not_measured_sources": {
+    "adapters/twai/IdfTwaiDriver.cpp": "includes ESP-IDF TWAI driver headers",
+    "examples/common/EspProbeMain.cpp": "includes FreeRTOS and esp_attr headers",
+    "examples/common/EspProbePlatform.cpp": "includes FreeRTOS, esp_timer and console driver headers",
+    "examples/common/EspTransceiverPin.cpp": "includes ESP-IDF GPIO driver headers",
+    "examples/s2_bench/main/main.cpp": "includes FreeRTOS and console driver headers",
+    "examples/probe_idf/main/main.cpp": "includes FreeRTOS headers through EspProbeMain.h"
+  },
+  "unmeasured_remainder": "Task stack 12288 bytes minus the 6144 byte chain limit leaves 6144 bytes. That remainder is not measured here. It must cover unknown and indirect calls, libc, SDK and FreeRTOS frames, the task entry path, and interrupt frames saved on the task stack. Only the firmware high-water diagnostic measures real use.",
+  "full_report_sha256": "3ff604a9ab77011b5143d3eaf75b72317442e3a01e4d6aa662600cc6e1fb42e4",
+  "maximum_bytes": {
+    "esp32s2": {
+      "-Os": {
+        "frame": 2000,
+        "chain": 5952,
+        "chain_bound": "lower_bound"
+      },
+      "-Og": {
+        "frame": 2016,
+        "chain": 6064,
+        "chain_bound": "lower_bound"
+      }
+    },
+    "esp32s3": {
+      "-Os": {
+        "frame": 2000,
+        "chain": 5968,
+        "chain_bound": "lower_bound"
+      },
+      "-Og": {
+        "frame": 2016,
+        "chain": 6064,
+        "chain_bound": "lower_bound"
+      }
+    }
+  }
+}

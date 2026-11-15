@@ -215,6 +215,23 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(report["cleanup_stop_attempts"][0]["outcome"], "OBSERVED")
             self.assertEqual(port.commands().count(scenario.commands[-1]), 1)
             self.assertEqual(port.commands().count("stop fast"), 1)
+            primary = report["primary_failure"]
+            cleanup = report["cleanup_stop_attempts"][0]
+            self.assertNotEqual(primary["request_id"], cleanup["request_id"])
+            self.assertNotEqual(primary["operation_id"], cleanup["operation_id"])
+            events = [json.loads(line) for line in prefix.with_suffix(".jsonl").read_text().splitlines()]
+            records = [json.loads(bytes.fromhex(event["raw_hex"]))
+                       for event in events if event["event"] == "line"]
+            for operation in (primary, cleanup):
+                terminal = next(row for row in records if row["type"] == "terminal"
+                                and row["operation_id"] == operation["operation_id"])
+                self.assertEqual(terminal["id"], operation["request_id"])
+                self.assertEqual(terminal, operation["records"][-1])
+            self.assertNotIn(f"release {primary['operation_id']}", port.commands())
+            self.assertEqual(port.commands().count(f"release {cleanup['operation_id']}"), 1)
+            with zipfile.ZipFile(prefix.with_suffix(".zip")) as archive:
+                self.assertEqual(json.loads(archive.read("summary.json"))["primary_failure"], primary)
+                self.assertEqual(archive.read("transcript.jsonl"), prefix.with_suffix(".jsonl").read_bytes())
 
     def test_failed_cleanup_preserves_move_terminal_and_failed_session(self):
         port = SessionPort()

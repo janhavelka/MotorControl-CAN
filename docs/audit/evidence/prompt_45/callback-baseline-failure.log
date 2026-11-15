@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_interrupted_received_evidence_fences_cleanup_and_preserves_unknown (__main__.CampaignAdversarial.test_interrupted_received_evidence_fences_cleanup_and_preserves_unknown) (interrupted_line=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 471, in test_interrupted_received_evidence_fences_cleanup_and_preserves_unknown
+    self.assert_no_cleanup_replay(console, port, report)
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 144, in assert_no_cleanup_replay
+    self.assertFalse(any(command.startswith("stop ") for command in self.commands(port)))
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_interrupted_intent_evidence_fences_connection_before_handoff (__main__.CampaignAdversarial.test_interrupted_intent_evidence_fences_connection_before_handoff)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Honza\Documents\Projects\MotorControl-CAN\test\bench_campaign_adversarial_test.py", line 489, in test_interrupted_intent_evidence_fences_connection_before_handoff
+    self.assertFalse(console.synchronized)
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+FAILED (failures=2)

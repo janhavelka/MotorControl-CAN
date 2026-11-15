@@ -1,5 +1,9 @@
 # MotorControl-CAN documentation
 
+[Prompt45 integration audit](reports/prompt_45.md): reproducible failures, fixes,
+adversarial coverage and measured host/target resource bounds. These are software
+checks, separate from drive and fixture qualification.
+
 [Communication commissioning](commissioning.md#explicit-communication-commissioning)
 separates stored/native reads, host selection, the conditional heartbeat write,
 route reconciliation and still-unknown activation/persistence.

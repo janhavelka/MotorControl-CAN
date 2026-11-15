@@ -1,0 +1,50 @@
+{
+  "description": "Original host output bytes; neighboring text files are LF display copies with final blank lines removed. Source hashes inside metadata still describe their original inputs.",
+  "files": [
+    {
+      "path": "best_effort_false_unsent_baseline.log",
+      "sha256": "70c3ae29a0a9b51d50be9c76172c92f2caa77606ac1f8507dcb753a1062e432b"
+    },
+    {
+      "path": "callback-baseline-failure.log",
+      "sha256": "f30501efadb90645b6ae23b9ae2aa590f5a28aa291670c1cbee63cd130e392bf"
+    },
+    {
+      "path": "callback-baseline-trace.json",
+      "sha256": "45c8a938b44c598b4d3b17fb8ba50a390efb1bf38a3d9464554e4f0f4f458f12"
+    },
+    {
+      "path": "fixture-baseline-failure.log",
+      "sha256": "3cfc96ea0a194d511b0fb3139bf53ee3182793f5508499f50a1b8537c8a674a0"
+    },
+    {
+      "path": "focused_after_fix.log",
+      "sha256": "903aea618dfc51dfc6d13b9d34673a1188b6f691521c19b845d7e7a81647260f"
+    },
+    {
+      "path": "motion_counterexample.json",
+      "sha256": "42655c6165821fd53bae41cb5baa2c63fe6d85f54016cdb3dc525f7027098ab7"
+    },
+    {
+      "path": "runner_baseline.json",
+      "sha256": "761a68126ebd438489df2259dbd5ab13630a8e9acdb3b324f02a00e99efa4077"
+    },
+    {
+      "path": "service-interruption-baseline-failure.log",
+      "sha256": "58114390ac2eda696978057ca1d113508c15d90912b61089d9cc1a3a3ce5a925"
+    },
+    {
+      "path": "service-interruption-baseline.json",
+      "sha256": "e02479cf2ec9302abfa182a831604bf79c4c80bcf9a43d5fa455ccc53c973c88"
+    },
+    {
+      "path": "write-accounting-baseline-failure.log",
+      "sha256": "35742d74e3e94956e22c171c427842e4ff5ff6a3fddfeacccd935314c268b5f7"
+    },
+    {
+      "path": "write-accounting-baseline.json",
+      "sha256": "a2dbb91ddbd9887678ff67eb5ee8daeb89568200d9b57955c3b4062c03ccf91d"
+    }
+  ],
+  "archive_sha256": "474652b2bcad8ceba0f16f19bf6cead1a35dae807fe8505f6f8d72d3d8306c62"
+}

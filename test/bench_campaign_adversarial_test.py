@@ -443,6 +443,134 @@ class CampaignAdversarial(unittest.TestCase):
         self.assertTrue(console.summary(handle)["transmitted"])
         self.assert_no_cleanup_replay(console, port, report)
 
+    def test_interrupted_received_evidence_fences_cleanup_and_preserves_unknown(self):
+        for line_number, classification in ((1, "unknown_after_handoff"),
+                                            (2, "unknown_after_admission")):
+            with self.subTest(interrupted_line=line_number):
+                console, port, _ = self.client()
+                port.handler = lambda identity, _: admitted(identity) + motion_value(identity)
+                lines = 0
+                interruption = KeyboardInterrupt("received evidence interrupted")
+
+                def interrupt_once(event, **_fields):
+                    nonlocal lines
+                    if event == "line":
+                        lines += 1
+                        if lines == line_number:
+                            raise interruption
+
+                console.emit = interrupt_once
+                report = {}
+                with self.assertRaises(KeyboardInterrupt) as caught:
+                    self.run_move(console, report)
+                self.assertIs(caught.exception, interruption)
+                self.assertEqual(report["primary_failure"]["classification"], classification)
+                self.assertTrue(report["primary_failure"]["transmitted"])
+                self.assertFalse(report["primary_failure"]["terminal_known"])
+                self.assertEqual(report["primary_error"], str(interruption))
+                self.assert_no_cleanup_replay(console, port, report)
+
+    def test_interrupted_intent_evidence_fences_connection_before_handoff(self):
+        console, port, _ = self.client()
+        writes = list(port.writes)
+        interruption = KeyboardInterrupt("intent evidence interrupted")
+
+        def interrupt_once(event, **_fields):
+            if event == "intent":
+                console.emit = lambda *_args, **_kwargs: None
+                raise interruption
+
+        console.emit = interrupt_once
+        with self.assertRaises(KeyboardInterrupt) as caught:
+            console.begin(MOVE, timeout_s=0.025)
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(port.writes, writes)
+        self.assertEqual(console.pending, {})
+        self.assertFalse(console.synchronized)
+        with self.assertRaises(bench.BenchError):
+            console.begin(MOVE, timeout_s=0.025)
+        self.assertEqual(port.writes, writes)
+
+    def test_interrupt_after_transport_read_fences_unparsed_bytes_and_cleanup(self):
+        console, port, clock = self.client()
+        port.handler = lambda identity, command: admitted(identity) if command == MOVE else b""
+        received = console.received
+        interruption = KeyboardInterrupt("interrupted after transport read")
+        interrupted = False
+
+        def interrupt_after_read():
+            nonlocal interrupted
+            if console.received > received and not interrupted:
+                interrupted = True
+                raise interruption
+            return clock()
+
+        console.clock = interrupt_after_read
+        report = {}
+        with self.assertRaises(KeyboardInterrupt) as caught:
+            self.run_move(console, report)
+        self.assertIs(caught.exception, interruption)
+        self.assertTrue(interrupted)
+        self.assertEqual(report["primary_failure"]["classification"], "unknown_after_handoff")
+        self.assertFalse(report["primary_failure"]["admission"])
+        self.assert_no_cleanup_replay(console, port, report)
+
+    def test_interrupt_after_write_return_fences_unvalidated_handoff_and_cleanup(self):
+        for short_write in (True, False):
+            with self.subTest(short_write=short_write):
+                console, port, _ = self.client()
+                port.short_write = short_write
+                port.handler = lambda *_args: b""
+                interruption = KeyboardInterrupt("interrupted before write count validation")
+                interrupted = False
+
+                def interrupt_after_write(frame, event, _argument):
+                    nonlocal interrupted
+                    if (event == "line" and frame.f_code is bench.Console.begin.__code__
+                            and "size" in frame.f_locals and not interrupted):
+                        interrupted = True
+                        raise interruption
+                    return interrupt_after_write
+
+                previous_trace = sys.gettrace()
+                report = {}
+                try:
+                    sys.settrace(interrupt_after_write)
+                    with self.assertRaises(KeyboardInterrupt) as caught:
+                        self.run_move(console, report)
+                finally:
+                    sys.settrace(previous_trace)
+                self.assertIs(caught.exception, interruption)
+                self.assertTrue(interrupted)
+                self.assertEqual(report["primary_failure"]["classification"], "unknown_after_handoff")
+                self.assertFalse(report["primary_failure"]["admission"])
+                self.assertTrue(report["primary_failure"]["transmitted"])
+                self.assert_no_cleanup_replay(console, port, report)
+
+    def test_interrupted_partial_startup_remains_fenced_without_a_request(self):
+        clock, port = Clock(), CampaignPort()
+        console = bench.Console(port, clock=clock, sleeper=clock.sleep, first_id=1)
+        port.buffer.extend(b"ESP-ROM:")
+        interruption = KeyboardInterrupt("startup interrupted")
+        interrupted = False
+
+        def interrupt_after_read():
+            nonlocal interrupted
+            if console.received and not interrupted:
+                interrupted = True
+                raise interruption
+            return clock()
+
+        console.clock = interrupt_after_read
+        with self.assertRaises(KeyboardInterrupt) as caught:
+            console.drain_startup(0.02)
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(bytes(console.buffer), b"ESP-ROM:")
+        self.assertFalse(console.synchronized)
+        with self.assertRaises(bench.BenchError):
+            console.begin("version", timeout_s=0.02)
+        self.assertEqual(port.writes, [])
+
 
 class EvidenceSinkAdversarial(unittest.TestCase):
     """Retained evidence must survive the sink's write and flush contracts."""

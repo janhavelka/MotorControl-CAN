@@ -1,0 +1,11 @@
+{
+  "command": [
+    "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "-B",
+    "test/bench_campaign_adversarial_test.py",
+    "CampaignAdversarial.test_interrupt_after_transport_read_fences_unparsed_bytes_and_cleanup",
+    "CampaignAdversarial.test_interrupted_partial_startup_remains_fenced_without_a_request"
+  ],
+  "returncode": 1,
+  "note": "Prior callback fix already present; pump/startup interval not yet fenced"
+}

@@ -204,6 +204,35 @@ class CampaignTests(unittest.TestCase):
                     execute.assert_not_called()
             self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_malformed_fixture_corpus_is_input_failure_before_artifacts_or_serial(self):
+        corpus = {
+            "deep_array": b"[" * 2000 + b"0" + b"]" * 2000,
+            "deep_object": b'{"a":' * 1500 + b"0" + b"}" * 1500,
+            "over_contract_depth": b"[" * 18 + b"0" + b"]" * 18,
+            "duplicate": b'{"protocol":"canopen","protocol":"other"}',
+            "nonfinite": b'{"value":1e999}',
+            "non_ascii_encoding": b"\xff",
+            "partial": b'{"protocol":',
+            "oversize": b" " * (session.MAX_FIXTURE_BYTES + 1),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "fixture.json"
+            destination = Path(directory) / "unused"
+            for name, data in corpus.items():
+                with self.subTest(fixture=name):
+                    source.write_bytes(data)
+                    stderr = io.StringIO()
+                    with patch.object(session, "run_recorded") as execute, \
+                            patch.object(probe, "open_port") as open_port, \
+                            redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+                        self.assertEqual(session.main(["--plan-only", "--fixture", str(source),
+                                                       "--out", str(destination)]), 2)
+                    execute.assert_not_called()
+                    open_port.assert_not_called()
+                    self.assertTrue(stderr.getvalue().strip())
+                    self.assertEqual(source.read_bytes(), data)
+                    self.assertEqual(list(Path(directory).iterdir()), [source])
+
 
 if __name__ == "__main__":
     unittest.main()

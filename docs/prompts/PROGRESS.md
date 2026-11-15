@@ -1,16 +1,23 @@
 # Prompt execution progress
 
+Prompt45 completes the [adversarial integration audit](../reports/prompt_45.md):
+admitted best-effort stops retain possible effects, interrupted Python evidence
+fences further traffic, and cross-node/old-map/result-pressure regressions exercise
+the real owner. Existing settings and TPDO1 software paths are included; wider
+firmware/remapping and physical qualification remain with their owning prompts.
+No hardware was used. The next assigned implementation work is46.
+
 The 2026-11-15 [fresh audit of prompts 43-44](../reports/prompts_43_44_audit.md)
 corrects client deadlines, release and interrupted evidence, failed log fencing
 and session archive finalization. Independent reviews and actual fake/native
 producer regressions preserve primary uncertainty and prevent replay.
-This adds no physical qualification; next implementation work remains 45.
+This adds no physical qualification; prompt45's subsequent audit is recorded above.
 
 The 2026-11-15 [fresh audit of prompts41-42](../reports/prompts_41_42_audit.md)
 corrects capture graph ownership, discovery selection and retained failure evidence,
 with independent source/route/motion reviews and new console regressions.
-This audit adds no device permissions or hardware qualification; next planned software
-work remains45.
+This audit adds no device permissions or hardware qualification; prompt45's
+subsequent integration audit is recorded above.
 
 Prompt44 implements the finite [campaign/session family](../bench_scenarios.md)
 over the existing Console: six named classes, bounded position comparisons and
@@ -23,7 +30,7 @@ evidence summaries, offline plan/self-test and one explicit typed probe/read.
 It uses the existing schema/routes and never retries or reconnects after uncertain
 handoff. Firmware boot identity remains unknown. This stage used host fakes and
 the real native console producer, with no hardware. See [report43](../reports/prompt_43.md).
-Prompt44 now supplies finite campaigns and sessions; next software work is45.
+Prompt44 now supplies finite campaigns and sessions; prompt45 audits their integration.
 
 The 2026-11-11 [unattended night soak](../reports/2026-11-12_night_soak.md) ran the prompt 40-42 console on
 hardware: shared-image local routes, burst and soak, the smoke identity reads, typed device routes and console
@@ -119,7 +126,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | Complete | Exact native firmware/scale/reference/input qualification; D-17 release, stored-only setup and qualification-install routes remain caps-only gates. Arduino S2 SDK console conflict remains; no hardware qualification claimed | [Report](../reports/prompt_42.md) |
 | 43 | [Python Console and evidence primitives](43_python_console.md) | Complete | Existing P41 read qualifications/Q20; no firmware boot identity in schema1; no live qualification | [Report](../reports/prompt_43.md) |
 | 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Complete | Existing42 native qualification and Q20 gates; hardware campaigns remain47-48 | [Report](../reports/prompt_44.md) |
-| 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Pending | Motion APIs for the remaining traces | - |
+| 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Complete software audit | Existing firmware/remapping/physical gates remain with their owners | [Report](../reports/prompt_45.md) |
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Pending | X-01 | - |
 | 47 | [Finite hardware qualification](47_hardware_finite.md) | Pending | W9, fixture facts, applicable bench authorization | - |
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Pending | 47 | - |
