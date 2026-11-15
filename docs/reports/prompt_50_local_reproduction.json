@@ -1,0 +1,64 @@
+{
+  "initial_install": {
+    "scope": "Accidental reproduction of README unquoted PowerShell -D path bug",
+    "paths_reconstructed_after_corrected_install": [
+      "C:/lib/libMotorControlCAN.a",
+      "C:/include/MotorControlCAN/MotorControlCAN.h",
+      "C:/include/MotorControlCAN/Status.h",
+      "C:/include/MotorControlCAN/ReadOperation.h",
+      "C:/include/MotorControlCAN/ActionOperation.h",
+      "C:/include/MotorControlCAN/MoveOperation.h",
+      "C:/include/MotorControlCAN/VelocityOperation.h",
+      "C:/include/MotorControlCAN/HomeOperation.h",
+      "C:/include/MotorControlCAN/Units.h",
+      "C:/include/MotorControlCAN/Axis.h",
+      "C:/include/MotorControlCAN/Capabilities.h",
+      "C:/include/MotorControlCAN/Native.h",
+      "C:/include/MotorControlCAN/Endpoint.h",
+      "C:/include/MotorControlCAN/Discovery.h",
+      "C:/include/MotorControlCAN/Version.h",
+      "C:/include/MotorControlCAN/can/Frame.h",
+      "C:/include/MotorControlCAN/canopen/Sdo.h",
+      "C:/include/MotorControlCAN/canopen/SdoTransfer.h",
+      "C:/include/MotorControlCAN/canopen/Network.h",
+      "C:/include/MotorControlCAN/canopen/Pdo.h",
+      "C:/include/MotorControlCAN/canopen/PdoState.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Types.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Objects.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Catalogue.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Pdo.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Reads.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Communication.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/State.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Actions.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Position.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Velocity.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Homing.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Persistence.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/IoSettings.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Settings.h",
+      "C:/include/MotorControlCAN/profiles/lichuan_c/Tuning.h",
+      "C:/lib/cmake/MotorControlCAN/MotorControlCANTargets.cmake",
+      "C:/lib/cmake/MotorControlCAN/MotorControlCANTargets-release.cmake",
+      "C:/lib/cmake/MotorControlCAN/MotorControlCANConfig.cmake",
+      "C:/lib/cmake/MotorControlCAN/MotorControlCANConfigVersion.cmake",
+      "C:/share/MotorControl-CAN/LICENSE"
+    ],
+    "preexisting_files": "Unknown; no pre-install inventory",
+    "cleanup_action": "Remove-Item limited to install-manifest-listed files with absolute allowlist, then empty owned directories",
+    "cleanup_tool_result": "CreateProcess rejected: blocked by policy",
+    "cleanup_retried": false
+  },
+  "argv_reproduction": {
+    "unquoted": [
+      "-DCMAKE_INSTALL_PREFIX=",
+      "./.install/core"
+    ],
+    "quoted": [
+      "-DCMAKE_INSTALL_PREFIX=./.install/core"
+    ]
+  },
+  "corrected_install": "Passed with quoted -DCMAKE_INSTALL_PREFIX argument inside .install/p50-package-independent"
+}

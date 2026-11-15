@@ -33,7 +33,7 @@ These are obligations for the future implementation, not current feature claims.
 | R27 | Common motion independent of CANopen | 5-6, 9-18, 23-25, 45-46 | Logical axis/subaxis identity; native network/state/ack semantics optional; no universal node-ID range |
 | R28 | Multiple CAN protocol/frame requirements | 5-6, 11-12, 15, 17, 23-28, 45-46 | 11/29-bit/RTR framing, FD capability rejection, protocol-specific routes and mixed-bus conflict policy |
 | R29 | Servo/native units, effort and completion semantics | 2-4, 9-10, 21-22, 30-36, 45-46 | No fixed RPM width/full-step requirement; integer/float quantization, command/feedback and current/torque distinction |
-| R30 | Verifiable new-drive extension path and support scope | 5-6, 29, 45-50 | Test-only documented contrasts; profile-subset builds; ADD_DRIVE procedure; research is not implemented support |
+| R30 | Verifiable new-drive extension path and support scope | 5-6, 29, 45-50 | Test-only documented contrasts; independent core consumers with Lichuan always built in one library; ADD_DRIVE procedure; research is not implemented support |
 | R31 | Concrete source-fitted conventions | All; 1-2, 9-10, 23-25, 40-42 | CONVENTIONS and fresh audit distinguish observed versus proposed names; exact Status/outcomes/owner/Health/Stats and counter/reset tests |
 | R32 | Authorized subagents and model selection by complexity | All | Runtime-supported model/effort choices, bounded tasks, disjoint ownership, independent difficult-contract review and integrated verification |
 | R33 | Continuous general docs and in-source Doxygen | All; tooling 7-8, final 49-50 | README/CHANGELOG/CONTRIBUTING/SECURITY/AGENTS and affected guides; units/lifetime/timing/failure comments; strict nonempty API docs and compiled examples |

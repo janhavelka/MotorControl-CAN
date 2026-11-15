@@ -7,9 +7,10 @@ dated implementation and bench history stays in those reports.
 ## Software candidate
 
 [Prompt49](reports/prompt_49.md) delivers user/package corrections and A-17
-descriptor cleanup with passing full local native/package/documentation checks. Prompt50 is the next
-independent hard-contract and exact-commit review. It can assess a scoped software
-candidate while inherited firmware and physical gates remain visible.
+descriptor cleanup. [Prompt50](reports/prompt_50.md) records the independent
+contract review, literal README-shell correction, evidence reconciliation and
+final verification. It assesses a scoped software candidate while inherited
+software omissions, firmware and physical gates remain visible.
 
 The installed C++11 core, conditional Lichuan operations, optional CANopen
 owner/adapters, shared CLI and bounded Python runners are implemented to the

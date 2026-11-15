@@ -72,6 +72,7 @@ def check_package(args, work, summary):
     if os.name == "nt":
         tool_dirs.append(str(Path(os.environ["SystemRoot"]) / "System32"))
     env["PATH"] = os.pathsep.join(dict.fromkeys(tool_dirs))
+    env["CXX"] = compiler
     if os.name == "nt":
         require(shutil.which("python", path=env["PATH"]) is None, "Python leaked into consumer PATH")
 
@@ -174,17 +175,48 @@ def check_package(args, work, summary):
     consumer(work / "installed consumer", *options)
     # Compile the actual shipped README instructions, not a separately maintained copy.
     readme = (source / "README.md").read_text(encoding="utf-8")
-    quickstart = work / "README source"
+    quickstart = source / "consumer"
     quickstart.mkdir()
     for language, filename in (("cpp", "main.cpp"), ("cmake", "CMakeLists.txt")):
         blocks = re.findall(r"```" + language + r"[ \t]*\n(.*?)\n```", readme, flags=re.DOTALL)
         require(len(blocks) == 1, "README must contain one {} quickstart block".format(language))
         (quickstart / filename).write_text(blocks[0] + "\n", encoding="utf-8")
-    quickstart_build = work / "README build"
-    run(*base, "-S", str(quickstart), "-B", str(quickstart_build),
-        "-DCMAKE_PREFIX_PATH=" + str(relocated), "-DCMAKE_CXX_FLAGS=" + strict)
-    run(cmake, "--build", str(quickstart_build))
-    run(str(quickstart_build / ("quickstart.exe" if os.name == "nt" else "quickstart")))
+    # Execute the published shell commands too: constructed argv above cannot
+    # detect PowerShell splitting an unquoted -DNAME=./path after the equals sign.
+    env["CXXFLAGS"] = strict
+    shell = (str(Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe")
+             if os.name == "nt" else "/bin/sh")
+
+    def readme_command(command):
+        if os.name == "nt":
+            if command == ".build/consumer/quickstart":
+                command += ".exe"
+            return run(shell, "-NoProfile", "-NonInteractive", "-Command",
+                       command + "; exit $LASTEXITCODE", cwd=source)
+        return run(shell, "-c", command, cwd=source)
+
+    command_blocks = re.findall(r"```text[ \t]*\n(.*?)\n```", readme, flags=re.DOTALL)
+    require(len(command_blocks) >= 2, "README install and consumer commands are missing")
+    install_commands = command_blocks[0].splitlines()
+    consumer_commands = command_blocks[1].splitlines()
+    require(len(install_commands) == 3 and len(consumer_commands) == 3,
+            "README must provide three install and three consumer commands")
+    readme_command(install_commands[0])
+    # Check before installation: a broken command must never install outside
+    # this test's isolated exported tree, even on an unrestricted developer host.
+    cache = (source / ".build/core/CMakeCache.txt").read_text(encoding="utf-8")
+    prefix = re.search(r"^CMAKE_INSTALL_PREFIX:PATH=(.*)$", cache, flags=re.MULTILINE)
+    require(prefix and Path(prefix.group(1)).resolve() == (source / ".install/core").resolve(),
+            "README install prefix escaped the isolated tree: " + (prefix.group(1) if prefix else "missing"))
+    for command in install_commands[1:]:
+        readme_command(command)
+    readme_command(consumer_commands[0])
+    cache = (source / ".build/consumer/CMakeCache.txt").read_text(encoding="utf-8")
+    package_dir = re.search(r"^MotorControlCAN_DIR:PATH=(.*)$", cache, flags=re.MULTILINE)
+    require(package_dir and (source / ".install/core").resolve() in Path(package_dir.group(1)).resolve().parents,
+            "README consumer found a package outside its installation")
+    for command in consumer_commands[1:]:
+        readme_command(command)
     # A separate application copied alone: no test headers, proof, stack or SDK files.
     module = work / "fieldcore source"
     shutil.copytree(ROOT / "examples/fieldcore_consumer", module)

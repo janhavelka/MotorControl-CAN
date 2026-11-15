@@ -1,0 +1,451 @@
+{
+  "range": "1-49",
+  "count": 49,
+  "current_state_counts": {
+    "Complete software/owned scope": 31,
+    "Partial": 18
+  },
+  "reports": [
+    {
+      "prompt": 1,
+      "report": "docs/reports/prompt_1.md",
+      "bytes": 20545,
+      "sha256": "475b6929feedc8b277ebf65289fbabdbf2d6ba3fd60e6d622af99e28febbe504",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 1 source audit",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 2,
+      "report": "docs/reports/prompt_2.md",
+      "bytes": 11648,
+      "sha256": "a779baf0fd61c1428e2fbe1ce239cfa32a67ef1a2115a1ff53006b9e4b6b42e0",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 2 source inventory and ledger intake",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 3,
+      "report": "docs/reports/prompt_3.md",
+      "bytes": 13501,
+      "sha256": "5f00d85a3eeed0c7a41c76d6f07b17b378d9ba13bdc9b67679d1cf5bcd3e1617",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 3 reviewed Lichuan semantics and family gates",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 4,
+      "report": "docs/reports/prompt_4.md",
+      "bytes": 11249,
+      "sha256": "5615a369c81777d8d94570c466cc97341490a70af4d3dc830de6b78394b4acba",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 4 stepper and servo contrast ledger",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 5,
+      "report": "docs/reports/prompt_5.md",
+      "bytes": 10606,
+      "sha256": "519b0a77cc90085b45f132716ab474d6ba1f3139201620afd8325ba293ed4d30",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 5 execution report",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 6,
+      "report": "docs/reports/prompt_6.md",
+      "bytes": 13398,
+      "sha256": "ff36ceed5bad10f7dec141c9d07c657f9bc9740328786d8f096614d98c896217",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 6 common API and ownership proof",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 7,
+      "report": "docs/reports/prompt_7.md",
+      "bytes": 10037,
+      "sha256": "9e94be70fe602c15c120f59f2bda819f6be5fe20c69dd3e025b559ff502bd57b",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 7 native build and package foundation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 8,
+      "report": "docs/reports/prompt_8.md",
+      "bytes": 11259,
+      "sha256": "f4fcdca3b7407c969931ed639fa08c68d101a3db75a8b25e700d30276d464107",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 8 verification, CI and documentation gates",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 9,
+      "report": "docs/reports/prompt_9.md",
+      "bytes": 10374,
+      "sha256": "4a7fd4e9f252bba39c9108542ab0a5d141e2d6e8cc6ff5058929513a5956556a",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 9 status and exact units",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 10,
+      "report": "docs/reports/prompt_10.md",
+      "bytes": 16170,
+      "sha256": "9eeb21e364b286395ae52b6b3cd7a5aee448ab3be5b81579a4d44846efc4a90d",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 10 - Axis coordinates and references",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 11,
+      "report": "docs/reports/prompt_11.md",
+      "bytes": 14256,
+      "sha256": "a4b3b4856780827e92b0cc036b72f5ff29a70ba1c6f93868b63f1beb0ccc0a7f",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 11 - Classical CAN and SDO codecs",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 12,
+      "report": "docs/reports/prompt_12.md",
+      "bytes": 13204,
+      "sha256": "82414dcb98ba4e343652d9fc33fa55eae22fb5a8f0e605b1b2db4b3e3a167aa0",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 12 - Reviewed object generation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 13,
+      "report": "docs/reports/prompt_13.md",
+      "bytes": 16333,
+      "sha256": "22b03e1ef7cd4871541679b66a275972b3f985d836f2b35c832b80c2fbc5ba05",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 13 - Bounded SDO transfer lifecycle",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 14,
+      "report": "docs/reports/prompt_14.md",
+      "bytes": 9796,
+      "sha256": "80a0e53fe1d467de0f4eb9a2488cc5c488b7d169917e878b2b3c179d4111473b",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 14 SDO ambiguity and reconciliation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 15,
+      "report": "docs/reports/prompt_15.md",
+      "bytes": 11336,
+      "sha256": "606cb682f90a5c5afeee4d59a350923b88207dc52946ac4b33ac177e6cf3d1ee",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 15 Passive network events and invalidation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 16,
+      "report": "docs/reports/prompt_16.md",
+      "bytes": 10369,
+      "sha256": "faf46475c4a2d962c7972be714dac4d2c04d60c07b7571baa64c4eac551c358c",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 16: explicit NMT and service eligibility",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 17,
+      "report": "docs/reports/prompt_17.md",
+      "bytes": 11877,
+      "sha256": "4bba38012106fff6e79bba05dd0b2966deb8365cc0b4943db6af9a174654771b",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 17: observed PDO maps and decoding",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 18,
+      "report": "docs/reports/prompt_18.md",
+      "bytes": 23514,
+      "sha256": "4b9fae1c1a8fd64eeca1b1d34cc708a7fe7e568a0abcbc4236f9f1b1035a255f",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 18: PDO configuration evidence gate",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 19,
+      "report": "docs/reports/prompt_19.md",
+      "bytes": 11287,
+      "sha256": "89f5edf52f171290989efd1ea33d3a7873319f2d11e5049565ffe8eff7e56118",
+      "current_progress_state": "Partial",
+      "title": "**Packet 4 update.** W4 closes the probe gate for the DEC-1 accepted list only, as a project decision: `prepareProbe` on `1000:00` and accepted typed reads now run, with effects still unknown. See [packet 4](handoff_19_33/packet_4.md). Packet 1 also moved 12 read rows out of prompt 38, so the 101 below is historical; 38 now holds 89.",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 20,
+      "report": "docs/reports/prompt_20.md",
+      "bytes": 11151,
+      "sha256": "b353f88071929481674032e30b5a6e809abf3d27fbd99dd44a6508d9b3cc23bc",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 20: native driver groups",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 21,
+      "report": "docs/reports/prompt_21.md",
+      "bytes": 11670,
+      "sha256": "a4955cb55a76b7cc66c94c4d8dcb8a1bba9b5ab895d68f1f6c01c413f7dbab4c",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 21: digital I/O",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 22,
+      "report": "docs/reports/prompt_22.md",
+      "bytes": 10424,
+      "sha256": "c4205a1253defbc9290095b15c9681ae79ca0ba4c17c26ee1668b2112b51bf22",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 22 \u2014 control and tuning groups",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 23,
+      "report": "docs/reports/prompt_23.md",
+      "bytes": 10642,
+      "sha256": "3c2699b78d4acc2169d20d6f8cbd79495d37958b7cc3fd9f4f13a51f43bf1dba",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 23 \u2014 ordinary CAN owner dispatch and retained results",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 24,
+      "report": "docs/reports/prompt_24.md",
+      "bytes": 13115,
+      "sha256": "4e9bc3bfadb5dd709a7115d8c4e5a486e5481efdb6d9133ce70a3d6b0a04d0e3",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 24 - urgent owner capacity and transport recovery",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 25,
+      "report": "docs/reports/prompt_25.md",
+      "bytes": 11812,
+      "sha256": "975fb115d671f9bbe5a81158467b94739ffce444fe43ceb0372aba8c1f147280",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 25 - passive health, statistics and diagnostics",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 26,
+      "report": "docs/reports/prompt_26.md",
+      "bytes": 13014,
+      "sha256": "42c9bb18b4d519cba04130a01261eb7bf78806c7a2dbb637fcc53db7fdc74165",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 26 - native examples and shared application",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 27,
+      "report": "docs/reports/prompt_27.md",
+      "bytes": 12379,
+      "sha256": "367beab8622d2ba485c3cd62aafc4ab523ca379964f90dbd7b40a3c47f9bf3b5",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 27: TWAI adapter and SDK evidence",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 28,
+      "report": "docs/reports/prompt_28.md",
+      "bytes": 15699,
+      "sha256": "c4bc27bd908ff5b6e3cea66669378254415e36e69c1c895e8af1983d45961fcd",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 28: Arduino and ESP-IDF integration",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 29,
+      "report": "docs/reports/prompt_29.md",
+      "bytes": 15795,
+      "sha256": "0840a0480cd2c030620eebc295960ecd35b7de34d2fa2d7497e37b949f7d28c7",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 29: device evidence readiness and conflict gate",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 30,
+      "report": "docs/reports/prompt_30.md",
+      "bytes": 12303,
+      "sha256": "70e86a77a8bd739cccb5ccce9745f3ca3d05f2f33102d027fead30feb6f4e893",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 30: drive-state interpretation and enable/release evidence",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 31,
+      "report": "docs/reports/prompt_31.md",
+      "bytes": 11593,
+      "sha256": "f761744800fcc1977a712decc7dd7150aeeeda80d85fa3dfb161a5e68427585d",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 31: conditional stop operations and owner integration",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 32,
+      "report": "docs/reports/prompt_32.md",
+      "bytes": 12400,
+      "sha256": "6d23b1995564b018549f9fd3bd53b044faf7cb4bd13b07e46824239d1ad1f298",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 32: explicit fault clear and device-position zero",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 33,
+      "report": "docs/reports/prompt_33.md",
+      "bytes": 14821,
+      "sha256": "8acdfa64de93014002170ed6c4850560941d90fb8682cd06bec72408407a7977",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 33: native position parameters and finite-motion gates",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 34,
+      "report": "docs/reports/prompt_34.md",
+      "bytes": 13662,
+      "sha256": "ff0a40056d56e4d4d245f749701ae589eb16f446816857b06377b142e7adf1b0",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 34: wrapped-angle motion integration",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 35,
+      "report": "docs/reports/prompt_35.md",
+      "bytes": 11256,
+      "sha256": "ae632a3d1504588ca7e46bc475e5798c4bb1427bc48b21af8a4a82bdf3ed9056",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 35: finite velocity operations",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 36,
+      "report": "docs/reports/prompt_36.md",
+      "bytes": 12967,
+      "sha256": "17f98b8f1a75069be1e7605ecff134b117ff393922b7423af527352d2cf11f74",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 36: homing and native coverage reconciliation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 37,
+      "report": "docs/reports/prompt_37.md",
+      "bytes": 15762,
+      "sha256": "96bb2216ebae677cc4009bf4d45f4e81994c51ee7427d10935d0249721fd630e",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 37: explicit discovery and host binding",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 38,
+      "report": "docs/reports/prompt_38.md",
+      "bytes": 17774,
+      "sha256": "8d4c5023b6b824eb9990ad83f847ebed366ec87cba8399b4ba0378e57fa22734",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 38: explicit communication commissioning",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 39,
+      "report": "docs/reports/prompt_39.md",
+      "bytes": 8988,
+      "sha256": "686f199634b6cb7c53888f0e33eade32064cac412bb436e6a34fc85ff14117a9",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 39: persistence and explicit reconciliation",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 40,
+      "report": "docs/reports/prompt_40.md",
+      "bytes": 14720,
+      "sha256": "952ad990371fc2139d115a09e52bc733fd5422bfc1632393364d61d7394f76cb",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 40: shared CLI parser and local routes",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 41,
+      "report": "docs/reports/prompt_41.md",
+      "bytes": 10658,
+      "sha256": "0023ec4d2a1c782418f6bfbf0df26226f307e848fd39412e619cd154795c2701",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 41 typed device and network console",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 42,
+      "report": "docs/reports/prompt_42.md",
+      "bytes": 9983,
+      "sha256": "13b7c11c4d56ccdb0e9737529f921143a08b1867e5484b8c2292c30dae9f07c7",
+      "current_progress_state": "Complete",
+      "title": "# Prompt42 motion console and platform parity",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 43,
+      "report": "docs/reports/prompt_43.md",
+      "bytes": 7102,
+      "sha256": "6137e8cf4667f28c48fef440117c8bcc73aaf94391adc9c916f1d82e8baba863",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 43: Python console and evidence primitives",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 44,
+      "report": "docs/reports/prompt_44.md",
+      "bytes": 7957,
+      "sha256": "98bf8ebd0b6ff91b079e6bc0bb7b441e72aad922a565af21be4ea5c955a0d27d",
+      "current_progress_state": "Complete",
+      "title": "# Prompt 44: finite Python campaigns and sessions",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 45,
+      "report": "docs/reports/prompt_45.md",
+      "bytes": 15105,
+      "sha256": "1a67805ec30c4b40f050a140a12ca7ab8a4970b8ad363d40e04842fd6846d16e",
+      "current_progress_state": "Complete software audit",
+      "title": "# Prompt 45: adversarial ownership and motion integration",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 46,
+      "report": "docs/reports/prompt_46.md",
+      "bytes": 7701,
+      "sha256": "a20b4ae56002fe8ecda76bb574b8ab3d73e3e9ae5facff2d569a74bed91f6993",
+      "current_progress_state": "Complete software scope",
+      "title": "# Prompt46 independent consumers and drive contrasts",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 47,
+      "report": "docs/reports/prompt_47.md",
+      "bytes": 17146,
+      "sha256": "f7eec4133c087513d70e1f9cb852cfb7dbde5730dbc12e260e7a31e346539aa6",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 47 finite hardware qualification",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 48,
+      "report": "docs/reports/prompt_48.md",
+      "bytes": 13745,
+      "sha256": "eae7fc307d57cc660f9390edfc29e8f2b5aa067befa5169ba6be2e4a5ecb683e",
+      "current_progress_state": "Partial",
+      "title": "# Prompt 48 failure and load qualification",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    },
+    {
+      "prompt": 49,
+      "report": "docs/reports/prompt_49.md",
+      "bytes": 8264,
+      "sha256": "2e0846bc3c31a57309fd56eb94f47a43a059b51f9286344a076a71827e41f4ff",
+      "current_progress_state": "Complete",
+      "title": "# Prompt49: user documentation and package audit",
+      "reviewed": "Read each report owned-scope/verdict introduction. Original historical checkpoints stay distinct from maintained current progress and later re-audits."
+    }
+  ]
+}

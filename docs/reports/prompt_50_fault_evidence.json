@@ -1,0 +1,1052 @@
+{
+  "review_scope": "Read-only in-memory tar inspection. Original interval series54..122. Initial5323 precedes nine subsequent explicit OBJECT and eleven CONTROLWORD attempts. No physical qualification.",
+  "evidence": [
+    {
+      "series": 54,
+      "trial": 5323,
+      "node": 1,
+      "route": "clear-alarm",
+      "original_returncode": 3,
+      "archive": "docs/bench/20261113-ladder/packed/S0054-n1-L60.tar.xz",
+      "archive_sha256": "3fe9c0242ee037385e011eef280c48c864a9ad7ecaa46de066b53774196f64ee",
+      "member": "S0054-n1-L60/20261113T125620Z-clear-alarm-n1-5323/rx.bin",
+      "rx_sha256": "4e10298f8c64d7285ce8448a6cf5bcdcb0ed30b36dce549a039f6bdac9234977",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5323 node=1 route=clear-alarm failure=10 why=clear lost=0 terminals=17 traffic=52 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=3 outcome=8 exec=1 completion=0 uncertain=1 effects=1 one=0 coords=0 final=0 observations=1 op=14 blocked=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 72,
+          "text": "TRAFFIC k=0 p=15472976 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=15470272 hi=15472136 epoch=1"
+        },
+        {
+          "line": 81,
+          "text": "TRAFFIC k=0 p=15493976 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=15491272 hi=15493135 epoch=1"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5324,
+        "member": "S0054-n1-L60/20261113T125624Z-p1-n1-5324/rx.bin",
+        "sha256": "ae93bb232ecd8286dd3c6d18ffae4f0d5b0890fa6e7cb35a9185ce9776dcb237",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=19185974 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=19183265 hi=19185271 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=19192974 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=19190266 hi=19192227 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=19213974 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=19211266 hi=19213114 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 62,
+      "trial": 5352,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0062-n1-L4500.tar.xz",
+      "archive_sha256": "0fa77da1bd6190068920ac31d2a7bf86f38554db37cb3404a6652d2bc8af7d5d",
+      "member": "S0062-n1-L4500/20261113T141815Z-clear-alarm-controlword-n1-5352/rx.bin",
+      "rx_sha256": "210edc9e1a66ca9d23b6467effe6bd947f40d4131d46a92e256603a90134ca36",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5352 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 74,
+          "text": "TRAFFIC k=0 p=38315945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=38313235 hi=38315106 epoch=1"
+        },
+        {
+          "line": 83,
+          "text": "TRAFFIC k=0 p=38336945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=38334233 hi=38336114 epoch=1"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5353,
+        "member": "S0062-n1-L4500/20261113T141819Z-p1-n1-5353/rx.bin",
+        "sha256": "6719947cdab1374db8ea7e8f5cb7526cd8cd7d10092882c486de893c0a145b86",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=42229945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=42227222 hi=42229224 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=42236945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=42234227 hi=42236195 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=42257945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=42255224 hi=42257107 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 63,
+      "trial": 5360,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0063-n1-L4500.tar.xz",
+      "archive_sha256": "f491a6794454fbacd50bc51a0a4b483bc43142f45ec7a70a57129f197671b987",
+      "member": "S0063-n1-L4500/20261113T141902Z-clear-alarm-2301-n1-5360/rx.bin",
+      "rx_sha256": "afd6abc1e9c7998d4f5cedf9f0a4732f36961cac01d0ec45d592b8fa0e01dc88",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5360 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5361,
+        "member": "S0063-n1-L4500/20261113T141905Z-p1-n1-5361/rx.bin",
+        "sha256": "cff5454e1542b1bdda5a4134d95dace882eec37f885216c348b27337ac3f7443",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41938945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41936225 hi=41938215 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41945945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41943226 hi=41945161 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41966945 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41964226 hi=41966060 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 64,
+      "trial": 5370,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0064-n1-L4250.tar.xz",
+      "archive_sha256": "695bac0146613b0770ea760d60990e2ffc6f6942fb92afe8d94c8cb5f8fd28f4",
+      "member": "S0064-n1-L4250/20261113T141958Z-clear-alarm-controlword-n1-5370/rx.bin",
+      "rx_sha256": "08f1c7700e5a0ec67bb9d88772d7403d602077fc467256cfd5811159a179115d",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5370 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5371,
+        "member": "S0064-n1-L4250/20261113T142002Z-p1-n1-5371/rx.bin",
+        "sha256": "d2facfde7688b0b072681b5202134d208d38c1bf38b96ddd2ecd600feffb7c50",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41995945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41993222 hi=41995236 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=42002945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=42000227 hi=42002215 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=42023945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=42021225 hi=42023071 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 68,
+      "trial": 5394,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0068-n1-L4000.tar.xz",
+      "archive_sha256": "13a56df7f2df1d1420fbb26f20b9e63d24ce17341fbeb3ca75e15c04eca8634e",
+      "member": "S0068-n1-L4000/20261113T142313Z-clear-alarm-2301-n1-5394/rx.bin",
+      "rx_sha256": "c4e7d81e887ea29c686ad555399cc1fa5e3a6ec8b5abe8f4cdb59b9501948fd0",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5394 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5395,
+        "member": "S0068-n1-L4000/20261113T142317Z-p1-n1-5395/rx.bin",
+        "sha256": "f4e1fb2e1f751b99fa9abc0e28b4ab2bf97c4c55ab9d85621fffb1198d2eb544",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=39658945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=39656225 hi=39658233 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=39665945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=39663227 hi=39665158 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=39686945 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=39684227 hi=39686076 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 71,
+      "trial": 5412,
+      "node": 2,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0071-n2-L4000.tar.xz",
+      "archive_sha256": "a88dfde53a0636a07a00486d892145320e1b76a9514e37c8504275ae5e32ee10",
+      "member": "S0071-n2-L4000/20261113T142538Z-clear-alarm-controlword-n2-5412/rx.bin",
+      "rx_sha256": "e4059406c9475a61023e5366c19ffe7706c1d1e29e4997672c842d7dc41d11d3",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5412 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5413,
+        "member": "S0071-n2-L4000/20261113T142542Z-p1-n2-5413/rx.bin",
+        "sha256": "f6ef1d523dec9ab1caf8412124ab63cdb03da66e1856cdc0020826be815af4ba",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=39687945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=39685222 hi=39687235 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=39694945 id=582 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=39692227 hi=39694214 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=39715945 id=582 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=39713225 hi=39715116 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 78,
+      "trial": 5442,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0078-n1-L4500.tar.xz",
+      "archive_sha256": "2999e36dc658edb1c3de58014fc127c7ea7da2885b57e4dc28ba79f98e8f68fd",
+      "member": "S0078-n1-L4500/20261113T143025Z-clear-alarm-controlword-n1-5442/rx.bin",
+      "rx_sha256": "f8cea0775ac0d833e1d230de8350f3edac76299ddc49a59aeb0a06a08a396050",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5442 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5443,
+        "member": "S0078-n1-L4500/20261113T143029Z-p1-n1-5443/rx.bin",
+        "sha256": "2429ee1543fd39e20d4e867d7e11d4b4de5443b6a901fac91565f9aba546a38c",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41737945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41735222 hi=41737234 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41744945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=41742227 hi=41744191 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41765945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=41763224 hi=41765066 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 79,
+      "trial": 5450,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0079-n1-L4500.tar.xz",
+      "archive_sha256": "cea061e9148ebf4139c17f8cfc32a1993d02b55a342193feb9c5ae59bfea9abb",
+      "member": "S0079-n1-L4500/20261113T143110Z-clear-alarm-2301-n1-5450/rx.bin",
+      "rx_sha256": "0fdd7008d93a5775592da791188b822dcc354171c08b2bcadf22dcabb6acf22d",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5450 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5451,
+        "member": "S0079-n1-L4500/20261113T143114Z-p1-n1-5451/rx.bin",
+        "sha256": "7e113a882ece6dc88528da1e57eb0d56e20b176fd90a410b5be359d2f1f9cfb6",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41879945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41877225 hi=41879220 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41886945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41884227 hi=41886197 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41907945 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41905227 hi=41907065 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 81,
+      "trial": 5466,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0081-n1-L4375.tar.xz",
+      "archive_sha256": "3f94b03f32efa1f73dcb3007f51763bc43ef6279f1e89500a5a5d730b354a56c",
+      "member": "S0081-n1-L4375/20261113T143259Z-clear-alarm-controlword-n1-5466/rx.bin",
+      "rx_sha256": "bef90a5785c1e016b6e6efdb53f96b4e327c38236399b31539eb71f72127518d",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5466 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5467,
+        "member": "S0081-n1-L4375/20261113T143303Z-p1-n1-5467/rx.bin",
+        "sha256": "2e55c1b34edccc926ca9e135073a7b7d0da4bf66d4f4803269a5c2ae243a3790",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=42080945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=42078222 hi=42080267 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=42087945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=42085227 hi=42087218 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=42108945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=42106224 hi=42108076 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 89,
+      "trial": 5498,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0089-n1-L4500.tar.xz",
+      "archive_sha256": "c09c010c2c1561d1b79676b54208fae2071370a35b98d11c8f235a80407297ae",
+      "member": "S0089-n1-L4500/20261113T143824Z-clear-alarm-2301-n1-5498/rx.bin",
+      "rx_sha256": "25a9b51bde32fa4c7d630d0ff2c01b845239c7584140d4f664144694b04c08ab",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5498 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5499,
+        "member": "S0089-n1-L4500/20261113T143828Z-p1-n1-5499/rx.bin",
+        "sha256": "58b0da78fa9d83367dc3066745f9a96846034530e1cbded997cae0c6cf309f3b",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41723945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41721225 hi=41723242 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41730945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41728227 hi=41730190 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41751945 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41749227 hi=41751050 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 90,
+      "trial": 5508,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0090-n1-L4500.tar.xz",
+      "archive_sha256": "2e375a8a177fa1dd92cb4e5eb3d9b9c7f405ca92476c7f70093244cba9fa9f8b",
+      "member": "S0090-n1-L4500/20261113T143920Z-clear-alarm-controlword-n1-5508/rx.bin",
+      "rx_sha256": "f0fcf0aa68379d3fc241f7604013e1eb17f0eccbacd4a33fa6b21dfc58fe6d99",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5508 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5509,
+        "member": "S0090-n1-L4500/20261113T143924Z-p1-n1-5509/rx.bin",
+        "sha256": "a5e7a2b5058ec44df5ef29f85f0b28a7f893fae5eeba2e398a757d23fa9e4290",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41884945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41882222 hi=41884278 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41891945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=41889227 hi=41891228 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41912945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=41910224 hi=41912088 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 92,
+      "trial": 5522,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0092-n1-L4375.tar.xz",
+      "archive_sha256": "9f15f6a4d14c7a5f1df857bf50e1f1cbed77da5965318c443b18a5b986960c42",
+      "member": "S0092-n1-L4375/20261113T144059Z-clear-alarm-2301-n1-5522/rx.bin",
+      "rx_sha256": "7e34ca7aa581341c3bd650097f06c18141ccf1c70b9c0afdc764c638800943f9",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5522 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5523,
+        "member": "S0092-n1-L4375/20261113T144103Z-p1-n1-5523/rx.bin",
+        "sha256": "fb7c0ad828e1599b0ef0f2b953f99ac85b07dfcd30d4009de10ed44356a24b12",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=42106945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=42104225 hi=42106229 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=42113945 id=581 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=42111227 hi=42113155 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=42134945 id=581 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=42132227 hi=42134072 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 104,
+      "trial": 5571,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0104-n1-S.tar.xz",
+      "archive_sha256": "5d1ce704e0d04fce4f23556f3b35de9f09042768ff48964c0a7158bca9fa3703",
+      "member": "S0104-n1-S/20261113T144911Z-clear-alarm-controlword-n1-5571/rx.bin",
+      "rx_sha256": "708cd2e3723cdd44af3839785a908b250365ab81f39ca2c958f9b6f9f448cb86",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5571 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=14 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5572,
+        "member": "S0104-n1-S/20261113T144915Z-p1-n1-5572/rx.bin",
+        "sha256": "641d5dd0f6ceb74eba4263740a5ab97b2d29673d48bb48e88296bb5d4ffc25e0",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=19338945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=19336222 hi=19338246 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=19345945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=19343227 hi=19345205 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=19366945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=19364224 hi=19366112 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 115,
+      "trial": 5616,
+      "node": 1,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0115-n1-L3516.tar.xz",
+      "archive_sha256": "2277f4f7f6d22e879e69f196b9ec06caad9494d7136294a976423786316fcf1a",
+      "member": "S0115-n1-L3516/20261113T145733Z-clear-alarm-2301-n1-5616/rx.bin",
+      "rx_sha256": "8713098e42909f169db78db1abb80fd482055ad092a6a5f8319601de84ec020d",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5616 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5617,
+        "member": "S0115-n1-L3516/20261113T145737Z-p1-n1-5617/rx.bin",
+        "sha256": "cf41aefca6e90cd29cd63a225f77c7b7916ad36e380994fc49f95c9eb89d4799",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41614945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600005ff0000 ok=1 exact=0 t=0 bounds=1 lo=41612225 hi=41614214 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41621945 id=581 ext=0 rtr=0 dlc=8 data=4b00210019000000 ok=1 exact=0 t=0 bounds=1 lo=41619227 hi=41621153 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41642945 id=581 ext=0 rtr=0 dlc=8 data=4b41600018800000 ok=1 exact=0 t=0 bounds=1 lo=41640227 hi=41642055 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 116,
+      "trial": 5621,
+      "node": 1,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0116-n1-S.tar.xz",
+      "archive_sha256": "769a5fda909fcb8f2c613433018a259257d2ff1786b2176c33cf9ce88d96cfad",
+      "member": "S0116-n1-S/20261113T145801Z-clear-alarm-controlword-n1-5621/rx.bin",
+      "rx_sha256": "c590252f4434b568eb76e70d40adee95410f5ae34afa7de41cbcac4e587dc240",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5621 node=1 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=14 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5622,
+        "member": "S0116-n1-S/20261113T145805Z-p1-n1-5622/rx.bin",
+        "sha256": "82ae8fa6c02ef57942df6e39c24945ad68e5208b07b86f5eac4415d6903f8036",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=19296945 id=581 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=19294222 hi=19296257 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=19303945 id=581 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=19301227 hi=19303210 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=19324945 id=581 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=19322224 hi=19324095 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 117,
+      "trial": 5630,
+      "node": 2,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0117-n2-L5000.tar.xz",
+      "archive_sha256": "c13510612e0728c0afdd9a47be024dc0009d560b06859ce0962687850bcceea8",
+      "member": "S0117-n2-L5000/20261113T145850Z-clear-alarm-2301-n2-5630/rx.bin",
+      "rx_sha256": "ff56cded905d97f983aa24fb7cf2aceb368974df6f17cefc2252a7e8cf8ef27f",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5630 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5631,
+        "member": "S0117-n2-L5000/20261113T145854Z-p1-n2-5631/rx.bin",
+        "sha256": "162b54f7e227173aea69e069258283f653c69f439d34d8e94fda15fb944cba95",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41806945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41804225 hi=41806245 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41813945 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41811227 hi=41813194 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41834945 id=582 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41832227 hi=41834036 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 118,
+      "trial": 5640,
+      "node": 2,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0118-n2-L5000.tar.xz",
+      "archive_sha256": "10666ab0a9bd1e86921c93f1fdcf77d952583d88bcecf705b1fb1bedb3e4926c",
+      "member": "S0118-n2-L5000/20261113T145946Z-clear-alarm-controlword-n2-5640/rx.bin",
+      "rx_sha256": "60922ab01aa518968bae4ec6c9e9d831f2773d2ba6b471d938d567e72b636c92",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5640 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5641,
+        "member": "S0118-n2-L5000/20261113T145950Z-p1-n2-5641/rx.bin",
+        "sha256": "617adcb5e29a4af84bfbd5ee547d6bdec215506dcc3beb60534f7075a176a527",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41523945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41521222 hi=41523274 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41530945 id=582 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=41528227 hi=41530204 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41551945 id=582 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=41549225 hi=41551109 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 119,
+      "trial": 5648,
+      "node": 2,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0119-n2-L4750.tar.xz",
+      "archive_sha256": "96cd6e3e460dc6c1e4ddea6d81b7637e2f5b3c94adbf5c8689706f3c422b3f79",
+      "member": "S0119-n2-L4750/20261113T150031Z-clear-alarm-2301-n2-5648/rx.bin",
+      "rx_sha256": "0e85b144cf70b19b51742cb2115d298e83da043964ee5afc5257c73f7f70b501",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5648 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5649,
+        "member": "S0119-n2-L4750/20261113T150035Z-p1-n2-5649/rx.bin",
+        "sha256": "4686f18ba44e07b522554d133293ceb7a2c5ab1d18851f8f613ef1bc71b00e18",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41602945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41600225 hi=41602237 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41609945 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41607227 hi=41609183 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41630945 id=582 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41628227 hi=41630075 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 120,
+      "trial": 5658,
+      "node": 2,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0120-n2-L4625.tar.xz",
+      "archive_sha256": "c57943bf44a0bea2a02102c8ae0985a53be1ea8d4a43d7fca154879882b4141c",
+      "member": "S0120-n2-L4625/20261113T150128Z-clear-alarm-controlword-n2-5658/rx.bin",
+      "rx_sha256": "5939c4d52962c734479b87dcfdf5837531f86c42785b16ae446489c3b270f238",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5658 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5659,
+        "member": "S0120-n2-L4625/20261113T150132Z-p1-n2-5659/rx.bin",
+        "sha256": "25fad256bf4abfb5bb959ea531a89d9df27f08bb3f1e074e5110b5f28f0c44ca",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=42058945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=42056223 hi=42058246 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=42065945 id=582 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=42063227 hi=42065226 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=42086945 id=582 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=42084225 hi=42086076 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 121,
+      "trial": 5666,
+      "node": 2,
+      "route": "clear-alarm-2301",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0121-n2-L5500.tar.xz",
+      "archive_sha256": "5bca799679661edcdbc225bc451a4a5f6545956a2cece68f09d0f1e8451556f3",
+      "member": "S0121-n2-L5500/20261113T150214Z-clear-alarm-2301-n2-5666/rx.bin",
+      "rx_sha256": "3336af003d2060590c466ed954db2fce44e3f221276781d312dff1be76e76e47",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5666 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=0"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=2301:00 value=0001 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=2301:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5667,
+        "member": "S0121-n2-L5500/20261113T150217Z-p1-n2-5667/rx.bin",
+        "sha256": "c2276380bd60e18226e2af066d64c3d4818ba5b7117479ad11276b01c889979d",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41572945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41570225 hi=41572237 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41579945 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=41577227 hi=41579191 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41600945 id=582 ext=0 rtr=0 dlc=8 data=4b41600010800000 ok=1 exact=0 t=0 bounds=1 lo=41598227 hi=41600082 epoch=1"
+          }
+        ]
+      }
+    },
+    {
+      "series": 122,
+      "trial": 5676,
+      "node": 2,
+      "route": "clear-alarm-controlword",
+      "original_returncode": 0,
+      "archive": "docs/bench/20261113-ladder/packed/S0122-n2-L6000.tar.xz",
+      "archive_sha256": "103a765efc109b9df00cee4f57707a26fd4f28cde259d442ffa03eb831ff7e48",
+      "member": "S0122-n2-L6000/20261113T150310Z-clear-alarm-controlword-n2-5676/rx.bin",
+      "rx_sha256": "1bccf5ef24ff40b56768ea8494d457451277e1b25421be2e0049c9883826aa37",
+      "hashes_match_manifest": true,
+      "lines": [
+        {
+          "line": 3,
+          "text": "TRIAL id=5676 node=2 route=clear-alarm failure=0 why=none lost=0 terminals=19 traffic=58 tail=0 tailLost=0 summaries=12 step=2 cycles=0 motion=4 case=1 unsettled=0 gap=5003 lossCancel=0"
+        },
+        {
+          "line": 9,
+          "text": "TRIAL_CLEAR own=1 kind=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 one=0 coords=0 final=1 observations=1 op=31 blocked=0 method=1"
+        },
+        {
+          "line": 10,
+          "text": "TRIAL_CLEAR_STEP slot=0 present=1 object=6040:00 value=0080 outcome=0 ack=1 possible=1 uncertain=0"
+        },
+        {
+          "line": 11,
+          "text": "TRIAL_CLEAR_STEP slot=1 present=1 object=6040:00 value=0000 outcome=0 ack=1 possible=1 uncertain=0"
+        }
+      ],
+      "first_followup_p1": {
+        "trial": 5677,
+        "member": "S0122-n2-L6000/20261113T150314Z-p1-n2-5677/rx.bin",
+        "sha256": "0804a58f4165f6b8e8873256dea48eab17f4075c0f4b52d4f2a3d815cf8903fc",
+        "lines": [
+          {
+            "line": 34,
+            "text": "TRAFFIC k=0 p=41360945 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=41358223 hi=41360221 epoch=1"
+          },
+          {
+            "line": 37,
+            "text": "TRAFFIC k=0 p=41367945 id=582 ext=0 rtr=0 dlc=8 data=4b00210011000000 ok=1 exact=0 t=0 bounds=1 lo=41365228 hi=41367202 epoch=1"
+          },
+          {
+            "line": 46,
+            "text": "TRAFFIC k=0 p=41388945 id=582 ext=0 rtr=0 dlc=8 data=4b41600050800000 ok=1 exact=0 t=0 bounds=1 lo=41386225 hi=41388106 epoch=1"
+          }
+        ]
+      }
+    }
+  ],
+  "review_date": "2026-11-16",
+  "interpretation": "Initial trial5323 failed its lifecycle despite both acknowledged writes. Nine later explicit OBJECT trials and eleven CONTROLWORD trials are separate sets. Followup p1 observations are later requests, not immediate completion or independent physical qualification."
+}

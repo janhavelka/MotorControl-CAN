@@ -28,7 +28,7 @@ exported core source root, these commands need no Python, SDK, CANopenNode,
 sibling checkout or connected board. They work in PowerShell and POSIX shells.
 
 ```text
-cmake -S . -B .build/core -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=./.install/core
+cmake -S . -B .build/core -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF "-DCMAKE_INSTALL_PREFIX=./.install/core"
 cmake --build .build/core
 cmake --install .build/core
 ```
@@ -85,7 +85,7 @@ set_target_properties(quickstart PROPERTIES
 From the same source root, build and run it (append `.exe` on Windows):
 
 ```text
-cmake -S consumer -B .build/consumer -G Ninja -DCMAKE_PREFIX_PATH=../.install/core
+cmake -S consumer -B .build/consumer -G Ninja "-DCMAKE_PREFIX_PATH=../.install/core"
 cmake --build .build/consumer
 .build/consumer/quickstart
 ```
@@ -99,7 +99,7 @@ directory layout, pass the absolute installation prefix. The
 From a **full checkout**, after the install above:
 
 ```text
-cmake -S examples/position_preview -B .build/position -G Ninja -DCMAKE_PREFIX_PATH=../../.install/core
+cmake -S examples/position_preview -B .build/position -G Ninja "-DCMAKE_PREFIX_PATH=../../.install/core"
 cmake --build .build/position
 .build/position/position_preview
 ```

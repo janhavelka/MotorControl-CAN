@@ -52,6 +52,8 @@ validity, units, ownership and limits.
 For source consumption use `add_subdirectory("path/to/MotorControl-CAN" core)`
 and link the same target; the library does not enable repository tests or change
 the parent's `BUILD_TESTING`. Private warnings are not exported to consumers.
+Quote the complete `-DNAME=value` argument when a path starts with `./` or `../`.
+PowerShell otherwise splits it after `=`, leaving CMake an empty value.
 
 ## Build and install
 

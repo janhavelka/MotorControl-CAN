@@ -117,10 +117,17 @@ can be enabled again: check with a short slow run, and keep `rpm × 2201 / 60` b
 
 **Measured on 2026-11-13** ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md), FF05 raised by
 velocity runs at the speed or acceleration limit, two specimens, one firmware): `CONTROLWORD_BIT7` cleared the alarm
-and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times. `OBJECT_2301` cleared it 8 of 9 times but left
+and separate later `p1` acquisitions reported the drive released (`6041=8050`, `2100=0011`) 11 of 11 times.
+The immediate action observations read `2100=0001`, then `6041=8050`; the later pair is not an instantaneous completion observation.
+After the initial failed trial 5323, nine subsequent explicit `OBJECT_2301` attempts cleared it 8 of 9 times but left
 `6041=8010`, `2100=0001`, which only a following `6040` = 0x0080 word released (8 of 8; 0x0000, 0x000B and 0x0006 did
 nothing, and an NMT Reset Node changed nothing); once, at `2201=51200`, the FF05 came back right after the `2301`
 clear.
+
+The [raw-evidence review](reports/prompt_50_fault_evidence.json) identifies all
+21 captures and their manifest-checked hashes. Initial trial 5323 acknowledged
+both `2301` writes but failed the lifecycle's then-current completion rule;
+it is separate from the nine later trials and remains failed evidence.
 
 **Default (project decision, 2026-11-13).** On the user's decision "Alarm clear - pick the best method" and this
 evidence, `CONTROLWORD_BIT7` is the default of `prepareClearAlarm` and `AxisSession::requestClearAlarm`, and so of
@@ -140,8 +147,8 @@ no write repeats, and no other object or value is written.
 
 | Method | Writes (exact frames to node `n`) | Sources | Measured |
 | --- | --- | --- | --- |
-| `OBJECT_2301` | `2B 01 23 00 01 00 00 00`, then `2B 01 23 00 00 00 00 00` | EN86 p18 "Alarm reset, 0: Noneffective; 1: Effective", U16 RW; EDS `Obj.ClearAlm` U16 RW, PDO, default 0. ZH86 p18 and OP86 omit `2301`. The `0` is policy (D-27) | 9 attempts on 2026-11-13, mode 3, `FF05`, first node 1 trial 5323 ([below](fault_reference_actions.md#completion-measured-2026-11-13)): 8 cleared the alarm and left `6041=8010`, `2100=0001`; once (`2201=51200`) the alarm came back right after |
-| `CONTROLWORD_BIT7` (default) | `2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00` | EN86 and ZH86 p15, OP86 p13, "3.5.2 Alarm reset": "Set Bit7 of Control Word 6040h-00 to 1 to reset the drive alarm. It should be set to 0 manually." ZH86 p12 and OP86 p10 list `15->128`, "alarm reset", in the position-mode word table; EN86 p12 lacks the row | 11 of 11 on 2026-11-13, both specimens, mode 3, `FF05`: alarm cleared, drive released (`6041=8050`, `2100=0011`) |
+| `OBJECT_2301` | `2B 01 23 00 01 00 00 00`, then `2B 01 23 00 00 00 00 00` | EN86 p18 "Alarm reset, 0: Noneffective; 1: Effective", U16 RW; EDS `Obj.ClearAlm` U16 RW, PDO, default 0. ZH86 p18 and OP86 omit `2301`. The `0` is policy (D-27) | Nine explicit attempts after initial failed trial 5323 on 2026-11-13, mode 3, `FF05`: eight later acquisitions reported `6041=8010`, `2100=0001`; after trial 5616 (`2201=51200`) the alarm recurred |
+| `CONTROLWORD_BIT7` (default) | `2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00` | EN86 and ZH86 p15, OP86 p13, "3.5.2 Alarm reset": "Set Bit7 of Control Word 6040h-00 to 1 to reset the drive alarm. It should be set to 0 manually." ZH86 p12 and OP86 p10 list `15->128`, "alarm reset", in the position-mode word table; EN86 p12 lacks the row | Eleven attempts on 2026-11-13, both specimens, mode 3, `FF05`: action reported alarm-clear; each separate later acquisition reported released (`6041=8050`, `2100=0011`) |
 
 Pages checked on the original PDFs on 2026-11-13 (text layer; the p12 tables also
 in the [re-audit](reports/2026-11-13_fault_recovery_and_motor_limits.md)). The

@@ -1,5 +1,11 @@
 # Executable backlog
 
+[Prompt50](reports/prompt_50.md) independently reviews the scoped software
+candidate, fixes PowerShell README consumption and corrects current evidence
+provenance. Its full verifier and exact-commit CI close the review only; the four
+standalone read omissions, other Partial features and physical obligations below
+remain assigned. Prompts51–72 are later work, not silently completed here.
+
 [Prompt48](reports/prompt_48.md) adds bounded two-node read/output load and fixes
 false-complete soak evidence. Its 20 ms read-load capture also retains a 64-byte
 serial diagnostic deficit; the cause within UART/bridge/USB/host remains unproved.

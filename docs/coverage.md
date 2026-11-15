@@ -1,5 +1,10 @@
 # Requirement and implementation coverage
 
+[Prompt50](reports/prompt_50.md) reviews the whole candidate scope and corrects
+README shell consumption and evidence summaries. Accounting remains unchanged;
+four missing standalone reads and all feature/physical gates stay with their
+original owners. No inherited Partial row becomes Complete through this review.
+
 [Prompt49](reports/prompt_49.md) audits user documentation, public descriptor
 layout and package boundaries. Metadata ownership remains in the ledger;
 `ownerPrompt` is removed from installed types. Typed operation coverage and all
@@ -118,9 +123,15 @@ Packets 17 and 18 add `AlarmIncident::codeLink`, always `UNRESOLVED`, and
 `CounterBaseline` (Q14). Both have an application caller,
 `AxisSession::requestClearAlarm` and `requestCounterZero` (backlog S12). The
 counter zero ran on node 2 (trial 323). On 2026-11-13 `AlarmClearMethod` added the
-controlword reset (`6040` `0x0080`, then `0x0000`) beside `2301`, host-tested only; the `2301`
-clear ran once, on node 1's `FF05` in mode 3 (trial 5323), and set the measured mode 3
-completion rule.
+controlword reset (`6040` `0x0080`, then `0x0000`) beside `2301`. The
+[later campaign that day](reports/2026-11-13_velocity_limits_and_fault_recovery.md)
+records 11 controlword attempts on both specimens reporting alarm-clear, with
+released reports in separate later acquisitions. Nine later explicit `2301`
+attempts followed initial failed trial 5323: eight later acquisitions reported
+alarm-clear without release, while one alarm recurred. The
+[raw review](reports/prompt_50_fault_evidence.json) preserves that failed trial
+and observation ordering. These mode-3/FF05 observations do not identify every
+fault or qualify other modes, firmware, internal rearm or physical behavior.
 
 [Prompt 31](reports/prompt_31.md) adds conditional native halt/quick-stop coverage
 to R06/R12/R13/R20: exact single writes, fresh typed not-running observations and
@@ -241,7 +252,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R18 | 40-44 | Shared CLI and Python client/campaign family are implemented and host-tested. [Runner contract](runners.md) and [scenarios](bench_scenarios.md): exact values, admission/terminal identity, finite deadlines/counts, independent cleanup, deterministic exclusive evidence, no replay and unknown firmware epoch. No physical campaign qualification. |
 | R19 | 29, 43-44, 47-48 | Prompt29 delivers bounded acquisition through the ordinary application; [host checks and limits](reports/prompt_29.md). Prompt44 adds finite host-tested campaign/session orchestration and retained failure packages. Existing S2 raw reads, `1017`, NMT and TPDO1 observations remain scoped to named specimens; physical runner campaign qualification remains47-48. |
 | R20 | 7-46, 49-50 | The explicitly registered CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs registered non-full tests; full adds documentation and a separately retained package contract. Prompt 28 adds firmware/platform and build-checker regressions; prompt 29 adds exact-byte acquisition and firmware evidence tests, a fake-only example and an isolated harness consumer; current counts are in [its report](reports/prompt_29.md). Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |
-| R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
+| R21 | 1-2, 5-6, 23-25, 45-46 | Common identity/configuration generations and exact-intent fixtures; prompt46 delivers an independent installed module consumer. Real FieldCore CAN integration remains prospective; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current user/package audit, roadmap, backlog, bench and candidate limits documented; independent final review remains50. |
 | R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Adapter channel/PDO/discovery storage follows the [application capacity set](can_owner.md#capacity-set), with defaults of two channels and eight PDO routes; the installed core has no channel-count limit. The earlier 10528-byte Windows x86-64 observation describes its recorded default layout, not every capacity set. Target sizing, timing and controller qualification remain separate. |
@@ -254,7 +265,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Prompt 25 implements application health/statistics/diagnostic copies; conditional position/angle, finite velocity and homing operations are host-tested; conditional shared CLI routes are implemented under40-42; pure units and axis targets are installed. |
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
-| R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
+| R34 | All | The selected upstream engine serves integrated production operations through one bounded owner, reviewed in45–46; no second engine or runtime selector. Remaining feature and physical gates stay explicit. |
 | R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md), the authoritative stage-state table. Prompts47-48 retain Partial physical qualification; their finite evidence does not close missing observations or related-model fixtures. Prompt 34 closes angle software integration, retaining inherited physical/firmware gates. Prompt 35 supplies conditional finite velocity software while its own device-evidence gates remain open. The [29/30 audit](reports/prompts_29_30_audit.md) preserves readiness/decoder versus dependent firmware actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping

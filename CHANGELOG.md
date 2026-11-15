@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Independent software-candidate review
+
+- Quote relative CMake `-D` path arguments so the README works in PowerShell.
+  Package checks now run the actual documented shell commands and verify the
+  isolated install and consumer paths before accepting them.
+- Correct fault-clear evidence citations, counts and observation ordering:
+  retain the initial failed trial separately from later attempts and distinguish
+  action evidence from later released-state reads. No runtime behavior or
+  firmware qualification changed.
+- Reconcile current coverage, single-library build guidance and inherited gaps
+  in the final software-candidate handoff. Hardware qualification remains partial.
+
 ### Soak capture validation and finite waits
 
 - Reject a soak capture whose recorded request bytes, duration, read interval,

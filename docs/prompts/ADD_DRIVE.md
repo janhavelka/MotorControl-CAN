@@ -26,7 +26,7 @@ For a CAN FD requirement, implement and test a concrete bounded FD frame/adapter
 - Implement documented native settings/functions through typed APIs. Torque/current/impedance/cyclic capabilities require explicit units, reference/scaling, duration/deadline/service requirements and stop/watchdog semantics. Current limits do not count as effort motion.
 - Extend common CLI/JSONL capability output and API mappings; native groups live under the selected profile with one command inventory. Extend Python finite scenarios and evidence parsing rather than creating a second motion path.
 - Test valid and malformed native frames, bounds/endianness/quantization, state transitions, asynchronous routing, timeouts/late response ambiguity, owner fairness/stop, partial side effects, reboot/recovery, retained results and no automatic replay.
-- Test profile-only and mixed-profile builds, CMake source/install/PlatformIO, optional adapters and native consumer contracts. Common headers must remain framework-independent. No public SDK/stack/FieldCore types.
+- Test consumers of each installed profile and consumers using several profiles in the one library, plus CMake source/install/PlatformIO and optional adapters. The current library always builds Lichuan; do not invent profile-selection build options for this check. Common headers must remain framework-independent. No public SDK/stack/FieldCore types.
 - Default to isolated protocol domains per physical bus. If coexistence is requested, verify identifiers/format/bitrate/broadcasts/filtering/bus load and response matching before enabling it; node-number differences alone do not prove safety.
 
 ## Acceptance and handoff

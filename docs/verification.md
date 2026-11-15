@@ -110,7 +110,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | Shared S2 OPTAK image with the smoke hook | `python scripts/check_firmware.py --target idf-s2-optak` | Explicit SDK gate and IDF CI job; every board and smoke value of `sdkconfig.optak_s2*`, `FirmwareSmoke.cpp` compiled, no bench source. A linked image is not a smoke result |
 | Special S2 bench image | `python scripts/check_firmware.py --target s2` | Explicit SDK gate and IDF CI job; esp32s2 target, compiler and resolved `sdkconfig`, bench entry and raw collector, exact checkout inputs outside `examples/s2_bench` |
 | Isolated portable IDF component | `python scripts/check_firmware.py --target component` | Separate explicit SDK/CI gate; exactly the staged core and consumer outside the checkout, no checkout file, esp32s3 target and compiler, C++ exceptions/RTTI off, real link, no owner/stack/reference dependencies |
-| Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
+| Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Retained specimen observations in prompts47/48; both campaigns remain Partial, with physical qualification incomplete |
 
 ## Documentation gate
 

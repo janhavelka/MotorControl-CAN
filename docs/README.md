@@ -4,6 +4,8 @@ Start with the [README](../README.md) for a self-contained native install,
 include/link example and a compiled read/move/stop simulation. The
 [0.1.0 candidate notes](releases/0.1.0.md) distinguish software scope, firmware
 builds and physical evidence, and explain the descriptor migration.
+The [final software-candidate handoff](reports/prompt_50.md) records the independent
+review, corrections, verification and inherited work without requiring this chat.
 
 ## User contracts
 
