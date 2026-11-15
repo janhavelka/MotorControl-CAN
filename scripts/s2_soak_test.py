@@ -66,8 +66,33 @@ def begin(trial, duration):
             "queue=250000 resp=250000 stack=9000 heap=90000 heapMin=89000 base=%s" % (trial, duration, "a" * 40))
 
 
-def end(trial, number, reason="duration"):
-    return "SOAK_END n=%d t=9000 trial=%d reason=%s up=8950 lines=%d settled=1" % (number, trial, reason, number)
+def final_summary(trial, start, up):
+    """The eleven records Soak::finishPhases requests after its final read."""
+    fields = [
+        ("SOAK_SUM", "trial=%d up=%d rx=16 tx=16 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 "
+         "resFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0" % (trial, up)),
+        ("SOAK_GAP", "gapMax=1000 gapWin=1000 ownerGap=1000 qHw=1 actHw=1 retHw=1 trHw=4 "
+         "trOver=0 netDrop=0 stack=9000 heap=90000 heapMin=89000"),
+        ("SOAK_CON", "lines=%d blocked=0 conRej=0 conHw=100 evFull=0 evLimit=0 evHw=2 anomalies=0 "
+         "dumps=0 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=0 defDump=0 defBusy=0 defTx=0 defInh=0 slips=0 "
+         "sdkDefer=0" % (start + 2)),
+    ]
+    for node in (1, 2):
+        fields.extend([
+            ("SOAK_NODE", "node=%d ops=2 opsOk=2 opsFail=0 refused=0 steps=8 stepsOk=8 min=2000 mean=2500 "
+             "max=3000 retireMax=1000 earlyReply=0 hb=0 hbGapMax=0 stopped=0" % node),
+            ("SOAK_HIST", "node=%d b=0,8,0,0,0,0,0,0" % node),
+            ("SOAK_OUT", "node=%d sdo=8,0,0,0,0,0,0,0,0,0,0,0 reason=8,0,0,0,0,0,0,0 "
+             "read=0,2,0,0,0,0,0,0,0" % node),
+            ("SOAK_ABORT", "node=%d a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0" % node),
+        ])
+    return ["%s n=%d t=%d %s" % (kind, start + i, up + 50, values)
+            for i, (kind, values) in enumerate(fields)]
+
+
+def end(trial, number, reason="duration", up=60_000_000):
+    return "SOAK_END n=%d t=%d trial=%d reason=%s up=%d lines=%d settled=1" % (
+        number, up + 50, trial, reason, up, number)
 
 
 class Board:
@@ -86,6 +111,7 @@ class Board:
         self.finish = True        # Say SOAK_END at the requested duration.
         self.end_at = None
         self.trial = None
+        self.began_at = 0.0
         self.refuse = None
         self.block_write = None
         self.can_refuse = False
@@ -119,8 +145,7 @@ class Board:
             self.text("SOAK_STOPPING; a started read settles first")
             if self.soaking:
                 self.soaking = False
-                number = 1 + len(self.body(self.trial))
-                self.text(end(self.trial, number, "stopped"))
+                self.emit_end("stopped")
         elif data.startswith(b"S"):
             if self.refuse:
                 self.text("SOAK_REFUSED reason=%s; no work" % self.refuse)
@@ -130,6 +155,7 @@ class Board:
             self.trials.append(trial)
             self.soaking = True
             self.end_at = self.clock.seconds + duration
+            self.began_at = self.clock.seconds
             self.text(begin(trial, duration))
             for line in self.body(trial):
                 self.text(line)
@@ -143,7 +169,17 @@ class Board:
     def tick(self):
         if self.soaking and self.finish and self.clock.seconds >= self.end_at:
             self.soaking = False
-            self.text(end(self.trial, 1 + len(self.body(self.trial))))
+            self.emit_end("duration")
+
+    def emit_end(self, reason):
+        # A capture mutation may remove or duplicate a line; that does not change
+        # the firmware's numbering of the following final summary.
+        number = 1 + max((int(re.search(r"\bn=(\d+)", row).group(1))
+                          for row in self.body(self.trial)), default=0)
+        up = round((self.clock.seconds - self.began_at) * 1_000_000)
+        for line in final_summary(self.trial, number, up):
+            self.text(line)
+        self.text(end(self.trial, number + 11, reason, up))
 
 
 class FakePort:
@@ -465,10 +501,13 @@ class Output(Base):
     def test_garbage_is_kept_and_counted(self):
         board = self.board
         original = board.text
+        damaged = False
 
         def text(line):
-            if line.startswith("SOAK_SUM"):
+            nonlocal damaged
+            if line.startswith("SOAK_SUM") and not damaged:
                 board.serve(b"\xff\xfe\x01garbage\nNOT_A_RECORD field=1\n")
+                damaged = True
             original(line)
 
         board.text = text
@@ -494,6 +533,7 @@ class Output(Base):
         self.board.body = lossy
         self.board.finish = False
         self.assertEqual(self.run_soak(duration="5"), 1)
+        self.assertEqual(self.run_json()["trials"][0]["verdict"], "incomplete")
         logged = (self.out / "transitions.txt").read_text(encoding="utf-8")
         self.assertIn("CHECK soak_line_gap", logged)
 

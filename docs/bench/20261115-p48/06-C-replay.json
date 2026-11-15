@@ -1,0 +1,99 @@
+{
+  "captures": [
+    {
+      "path": "docs\\bench\\20261115-p48\\06-C-readload\\trial-01",
+      "command": "soak",
+      "started_utc": "2026-11-15T13:25:05.060582+00:00",
+      "serial": "94A990398B40",
+      "bytes": 186459,
+      "sha256": "6b177f0f28a98b43079ad5179c50be1481c13399504312d6618c41fae931b6b2",
+      "rx_txt": "absent",
+      "manifest": "absent",
+      "verdict": "incomplete",
+      "kinds": {
+        "PONG": 1,
+        "SOAK_BEGIN": 1,
+        "SOAK_TR": 71,
+        "SOAK_SUM": 119,
+        "SOAK_GAP": 119,
+        "SOAK_CON": 118,
+        "SOAK_NODE": 238,
+        "SOAK_HIST": 238,
+        "SOAK_OUT": 238,
+        "SOAK_ABORT": 238,
+        "SOAK_END": 1
+      },
+      "unknown": [],
+      "unknown_fields": [],
+      "malformed": [
+        {
+          "line": 757,
+          "raw": "SOAK_GAP n=755 t=832297686 gapMax=4887 gapWin=4854 ownerGap=5323 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop=0 stack01566 lines=756 blocked=3539 conRej=0 conHw=496 evFull=0 evLimit=0 evHw=45 anomalies=0 dumps=0 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=0 defDump=0 defBusy=11102 defTx=0 defInh=0 slips=974 sdkDefer=0 uartBytes=380411 queued=331",
+          "reason": "missing stack,heap,heapMin"
+        }
+      ],
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 757,
+          "detail": "missing stack,heap,heapMin"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 758,
+          "detail": "expected 755 found 757"
+        }
+      ],
+      "warnings": [],
+      "family": "SOAK",
+      "operation": 1794749105,
+      "node": null,
+      "failure": 0,
+      "failure_name": "",
+      "terminals": 0,
+      "traffic": 0,
+      "tail": 0,
+      "started": true,
+      "ended": true,
+      "gap_us": null,
+      "raw_uploads_successful": 0,
+      "typed_successes": 0,
+      "failed": [],
+      "uncertain": [],
+      "widths": [],
+      "width_discrepancies": [],
+      "typed_width_failures": [],
+      "epochs": "not_emitted",
+      "trace_lost": false,
+      "tail_lost": false,
+      "inventory_checked": false,
+      "node_epochs": "not_emitted",
+      "soak": {
+        "trial": 1794749105,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 71,
+          "SOAK_SUM": 119,
+          "SOAK_GAP": 118,
+          "SOAK_CON": 118,
+          "SOAK_NODE": 238,
+          "SOAK_HIST": 238,
+          "SOAK_OUT": 238,
+          "SOAK_ABORT": 238,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 2,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 1
+        }
+      }
+    }
+  ],
+  "session": [],
+  "transitions": 80,
+  "time_basis": "firmware processing microseconds; receive bounds are separate, no wall clock"
+}

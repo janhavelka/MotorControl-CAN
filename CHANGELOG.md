@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Failure and load evidence (prompt48, 2026-11-15)
+
+- Require settled soak endings and complete final measurements in the offline
+  checker. Reject an early duration end and an old periodic summary after an
+  observed stop; retain missing measurements and failed outcomes distinctly.
+- Add regression cases from retained firmware records and realistic final
+  summaries to the fake serial runner. Existing captures remain immutable.
+- Correct the UART accounting interleaving hint for unnumbered soak command
+  replies. Preserve every measured byte difference and failure exit status.
+- Record finite two-node read and console-pressure campaigns on the current S2
+  image, including one unresolved 64-byte serial capture loss and its clean
+  deliberate repetition. Physical fault/restart and OL86-C/CL57-C/OL57-C qualification remain
+  pending; no drive capability or timing guarantee is inferred from these runs.
+
 ### Finite bench evidence (prompt47, 2026-11-15)
 
 - Add explicit raw tracing to finite Python campaigns and retain bounded trailing

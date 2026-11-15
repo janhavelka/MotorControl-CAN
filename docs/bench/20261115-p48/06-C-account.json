@@ -1,0 +1,32 @@
+{
+ "baud": 115200,
+ "soak_con": 118,
+ "without_counters": 0,
+ "windows": 117,
+ "compared": 117,
+ "balanced": 116,
+ "short": 1,
+ "long": 0,
+ "not_compared": {
+  "boot": 0,
+  "implausible": 0
+ },
+ "s2_bytes": 179092,
+ "host_bytes": 179028,
+ "missing_bytes": 64,
+ "extra_bytes": 0,
+ "reported": [
+  {
+   "from_n": 745,
+   "to_n": 767,
+   "from_t_us": 831299688,
+   "to_t_us": 833303565,
+   "host_offset": 98101,
+   "host_bytes": 2966,
+   "s2_bytes": 3030,
+   "difference": -64,
+   "interleaving_possible": false
+  }
+ ],
+ "report_truncated": false
+}

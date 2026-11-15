@@ -1,0 +1,53 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-15T13:27:04.638595+00:00",
+  "trials": [
+    {
+      "trial": 1794749105,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 757,
+          "detail": "missing stack,heap,heapMin"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 758,
+          "detail": "expected 755 found 757"
+        }
+      ],
+      "error_count": 2,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1794749105,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 71,
+          "SOAK_SUM": 119,
+          "SOAK_GAP": 118,
+          "SOAK_CON": 118,
+          "SOAK_NODE": 238,
+          "SOAK_HIST": 238,
+          "SOAK_OUT": 238,
+          "SOAK_ABORT": 238,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 2,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 1
+        }
+      },
+      "unknown": 0,
+      "malformed": 1,
+      "bytes": 186459,
+      "sha256": "6b177f0f28a98b43079ad5179c50be1481c13399504312d6618c41fae931b6b2"
+    }
+  ]
+}

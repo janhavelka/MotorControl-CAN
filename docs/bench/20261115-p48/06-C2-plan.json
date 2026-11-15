@@ -1,0 +1,17 @@
+{
+  "purpose": "Deliberate one-trial reproduction of C diagnostic byte loss",
+  "prior": "06-C-readload",
+  "observed": "One64-byte host deficit after console byte-accounting boundary; malformed merged GAP/CON and2 lost record numbers. CAN errors0; final settled.",
+  "cause": "Unresolved UART/bridge/USB/host path. Concurrent pure host tests were present near event; timing correlation is not causation.",
+  "duration_s": 120,
+  "wire_duration_expected_s": 119,
+  "interval_ms": 20,
+  "summary_s": 1,
+  "reads": "full",
+  "max_trials": 1,
+  "reenumerate_s": 0,
+  "retry": false,
+  "drive_writes": 0,
+  "change": "No intentional host tests or builds during this capture; firmware and CAN plan unchanged",
+  "acceptance": "Retain both outcomes; passing repetition is not a fix. Independently instrument GPIO43/bridge/USB to localize persistent byte loss."
+}

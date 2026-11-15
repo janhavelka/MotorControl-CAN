@@ -1,5 +1,8 @@
 # MotorControl-CAN documentation
 
+[Failure and load campaign](reports/prompt_48.md): bounded read/output pressure,
+settled final evidence, retained limits and unperformed physical campaigns.
+
 [Finite bench campaign](reports/prompt_47.md): current S2 image, both CL86-C
 specimens, retained trace/allocation failures and corrections, and remaining
 physical qualification measurements.

@@ -1,0 +1,20 @@
+{
+  "campaign": "D",
+  "prerequisites": "Review settled A/B/C first; same active image and no existing work",
+  "purpose": "Host read pause and explicit read scheduling withdrawal, not CAN cut or motor stop",
+  "duration_s": 30,
+  "interval_ms": 200,
+  "summary_s": 1,
+  "reads": "full",
+  "host_pause_at_s": 5,
+  "host_pause_s": 3,
+  "explicit_X_at_s": 20,
+  "host_deadline_s": 55,
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "retry": false,
+  "reconnect": false,
+  "drive_writes": 0,
+  "helper_sha256": "f5596f9c94417778b3e4efe8fba394fd6987fbf6f97380b62ebbac28327c4be8",
+  "tests": "10 fake-backend tests pass normally and with python -O; independent review"
+}

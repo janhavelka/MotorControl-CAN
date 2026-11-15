@@ -1,0 +1,7 @@
+{
+  "stage": "host preflight before port open",
+  "error": "check_identity requires the trial argument",
+  "sent": [],
+  "reset_performed": false,
+  "correction": "Use existing helper signature with trial=False; next separate artifact03"
+}

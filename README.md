@@ -1,5 +1,9 @@
 # MotorControl-CAN
 
+[Prompt48](docs/reports/prompt_48.md) records bounded two-node read/output load
+and stricter evidence checks. Physical fault/restart and related-model
+qualification remain pending.
+
 [Prompt47's bench campaign](docs/reports/prompt_47.md) records the current S2/two-node
 checks and fixes to diagnostic capture. Physical qualification remains Partial;
 controller-reported results do not establish observed shaft or stop behavior.

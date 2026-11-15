@@ -1250,6 +1250,138 @@ class Image(unittest.TestCase):
         self.assertTrue(evidence.check_image(replay(pong + pong, "ping"), self.build))
 
 
+class SoakFinalEvidence(unittest.TestCase):
+    """Mutate an actual firmware final summary, preserving continuous line numbers."""
+
+    def setUp(self):
+        self.capture = BENCH / "20261106-p5-c-regression-2/trial-01"
+        raw = (self.capture / "rx.bin").read_bytes().decode("utf-8").splitlines()
+        begin = next(line for line in raw if line.startswith("SOAK_BEGIN "))
+        final = max(i for i, line in enumerate(raw) if line.startswith("SOAK_SUM "))
+        self.rows = [begin] + raw[final:]
+
+    def replay_rows(self, rows=None):
+        numbered = []
+        n = 0
+        for line in self.rows if rows is None else rows:
+            if re.search(r"\bn=\d+", line):
+                line = re.sub(r"\bn=\d+", "n=%d" % n, line)
+                line = re.sub(r"\blines=\d+", "lines=%d" % n, line)
+                n += 1
+            numbered.append(line)
+        return replay(join(numbered), "soak")
+
+    def test_actual_final_summary_is_complete(self):
+        self.assertEqual(self.replay_rows().verdict, "complete")
+
+    def test_begin_and_end_without_final_measurements_are_incomplete(self):
+        report = self.replay_rows([self.rows[0], self.rows[-1]])
+        self.assertEqual(report.verdict, "incomplete")
+        self.assertIn("soak_final_summary_missing", codes(report))
+
+    def test_each_missing_final_record_is_incomplete_even_without_a_numbering_gap(self):
+        for missing in range(1, len(self.rows) - 1):
+            with self.subTest(record=self.rows[missing].split()[0], position=missing):
+                report = self.replay_rows(self.rows[:missing] + self.rows[missing + 1:])
+                self.assertEqual(report.verdict, "incomplete")
+                self.assertIn("soak_final_summary_missing", codes(report))
+                self.assertNotIn("soak_line_gap", codes(report))
+
+    def test_an_earlier_complete_summary_cannot_supply_a_missing_final_node(self):
+        rows = self.rows[:1] + self.rows[1:-1] + [line for line in self.rows[1:]
+                                                if not line.startswith("SOAK_NODE ") or "node=2 " not in line]
+        report = self.replay_rows(rows)
+        self.assertEqual(report.verdict, "incomplete")
+        self.assertIn("soak_final_summary_missing", codes(report))
+
+    def test_a_periodic_summary_before_duration_cannot_be_the_final_summary(self):
+        self.rows[1] = re.sub(r"\bup=\d+", "up=1", self.rows[1])
+        report = self.replay_rows()
+        self.assertEqual(report.verdict, "incomplete")
+        self.assertIn("soak_final_summary_missing", codes(report))
+        self.assertNotIn("soak_line_gap", codes(report))
+
+    def test_a_duration_end_before_its_bound_is_inconsistent(self):
+        self.rows[-1] = re.sub(r"\bup=\d+", "up=1", self.rows[-1])
+        report = self.replay_rows()
+        self.assertEqual(report.verdict, "inconsistent")
+        self.assertIn("soak_duration_short", codes(report))
+
+    def test_unsettled_end_is_retained_failure_not_success_or_contradiction(self):
+        self.rows[-1] = self.rows[-1].replace("settled=1", "settled=0")
+        report = self.replay_rows()
+        self.assertEqual(report.verdict, "failed-evidence")
+        self.assertEqual(report.errors, [])
+        self.assertIn("soak_not_settled", {item.get("reason") for item in report.failed})
+
+    def test_internal_end_is_retained_failure_even_if_its_anomaly_was_not_emitted(self):
+        self.rows[-1] = self.rows[-1].replace("reason=duration", "reason=internal")
+        report = self.replay_rows()
+        self.assertEqual(report.verdict, "failed-evidence")
+        self.assertEqual(report.errors, [])
+
+    def test_final_node_failure_survives_absent_transition_records(self):
+        for old, new in (("opsFail=0", "opsFail=1"), ("refused=0", "refused=1"), ("stopped=0", "stopped=1")):
+            with self.subTest(field=old):
+                rows = [line.replace(old, new) if line.startswith("SOAK_NODE ") else line for line in self.rows]
+                report = self.replay_rows(rows)
+                self.assertEqual(report.verdict, "failed-evidence")
+                self.assertEqual(report.errors, [])
+
+    def test_explicit_stop_can_end_before_the_planned_duration(self):
+        self.rows[0] = re.sub(r"\bdur=\d+", "dur=172800", self.rows[0])
+        self.rows[-1] = self.rows[-1].replace("reason=duration", "reason=stopped")
+        self.assertEqual(self.replay_rows().verdict, "complete")
+
+    def test_duration_shorter_than_first_tick_may_legitimately_have_no_reads(self):
+        # Capture completeness does not establish that a campaign exercised work.
+        self.rows[0] = re.sub(r"\bdur=\d+", "dur=1", self.rows[0])
+        self.rows[0] = re.sub(r"\binterval=\d+", "interval=60000", self.rows[0])
+        for i, line in enumerate(self.rows):
+            if line.startswith("SOAK_NODE "):
+                for field in ("ops", "opsOk", "steps", "stepsOk", "min", "mean", "max", "retireMax"):
+                    line = re.sub(r"\b%s=\d+" % field, field + "=0", line)
+            elif line.startswith("SOAK_HIST "):
+                line = re.sub(r"\bb=[\d,]+", "b=0,0,0,0,0,0,0,0", line)
+            elif line.startswith("SOAK_OUT "):
+                for field in ("sdo", "reason", "read"):
+                    line = re.sub(r"\b" + field + r"=([\d,]+)",
+                                  lambda match: field + "=" + ",".join("0" for _ in match.group(1).split(",")), line)
+            self.rows[i] = line
+        self.assertEqual(self.replay_rows().verdict, "complete")
+
+    def test_summary_before_an_observed_stop_cannot_supply_its_final_measurements(self):
+        self.rows[-1] = self.rows[-1].replace("reason=duration", "reason=stopped")
+        self.rows.insert(-1, "SOAK_STOPPING; a started read settles first")
+        report = self.replay_rows()
+        self.assertEqual(report.verdict, "incomplete")
+        self.assertIn("soak_final_summary_missing", codes(report))
+
+    def test_final_summary_after_the_observed_stop_is_accepted(self):
+        self.rows[-1] = self.rows[-1].replace("reason=duration", "reason=stopped")
+        self.rows.insert(1, "SOAK_STOPPING; a started read settles first")
+        self.assertEqual(self.replay_rows().verdict, "complete")
+
+    def test_begin_line_format_time_is_not_the_trial_start_time(self):
+        end = evidence.parse_line(1, self.rows[-1]).values
+        self.rows[0] = re.sub(r"\bt=\d+", "t=%d" % (end["t"] - 1), self.rows[0])
+        self.assertEqual(self.replay_rows().verdict, "complete")
+
+    def test_final_summary_trial_must_match_end(self):
+        self.rows[1] = re.sub(r"\btrial=\d+", "trial=1", self.rows[1])
+        self.assertIn("soak_wrong_trial", codes(self.replay_rows()))
+
+    def test_retained_clean_anomalous_and_lost_byte_captures_keep_their_verdicts(self):
+        for name, expected in (("20261106-p5-c-regression-2", "complete"),
+                               ("20261106-p5-c-regression-1", "failed-evidence"),
+                               ("20261106-p5-a-reads200ms", "failed-evidence"),
+                               ("20261106-p5-b-reads20ms", "incomplete")):
+            with self.subTest(capture=name):
+                report = evidence.replay_capture(BENCH / name / "trial-01")
+                self.assertEqual(report.verdict, expected, report.errors)
+                self.assertNotIn("raw_hash_mismatch", codes(report))
+
+
 class CommandLine(unittest.TestCase):
     def test_retained_nodes_pass_with_exact_counts(self):
         with mock.patch("builtins.print"):

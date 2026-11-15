@@ -1,7 +1,8 @@
 # Prompt execution progress
 
-Execution has reached prompt47. The current finite bench campaign, diagnostic
-fixes and remaining physical observations are recorded in [report47](../reports/prompt_47.md).
+Execution has reached prompt48. The current bounded read/load campaigns and
+evidence-checker corrections are recorded in [report48](../reports/prompt_48.md).
+The earlier finite motion and physical observation limits remain in [report47](../reports/prompt_47.md).
 Partial rows below retain their distinct software/source/physical obligations.
 No current hardware qualification is inferred from a host test or an old bench run.
 
@@ -67,7 +68,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Complete software audit | Existing firmware/remapping/physical gates remain with their owners | [Report](../reports/prompt_45.md) |
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Complete software scope | Surveyed profiles remain fixtures; physical/source gates stay with their owners | [Report](../reports/prompt_46.md); [fresh audit](../reports/prompt_46_audit.md) |
 | 47 | [Finite hardware qualification](47_hardware_finite.md) | Partial | Authorized unattended S2/two-node acquisition; physical shaft/stop/direction, electrical and method-specific homing evidence remain unavailable | [Campaign, fixes and exact remaining measurements](../reports/prompt_47.md) |
-| 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Pending | 47 | - |
+| 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Partial | Physical fault/link/restart observation and OL86-C/CL57-C/OL57-C fixtures unavailable; no save/restore campaign executed | [Finite read/load work and exact pending campaigns](../reports/prompt_48.md) |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Pending | G-09; lists all inherited gates as a scoped software candidate | - |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Pending | 49; lists all inherited gates as a scoped software candidate | - |
 | 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Pending | 17, 24, 38, 42; Lichuan SYNC undocumented (M10, M13); RPDO trial after the M09 map review | - |

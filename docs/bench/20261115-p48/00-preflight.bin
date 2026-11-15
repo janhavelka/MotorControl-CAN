@@ -1,0 +1,3 @@
+PONG target=esp32s2 base=bf8a0d9518c6b42ff06d4f29516bf82ee66abf79 elf=9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399 sdk=v5.5.5-dirty running=1 active=1 silent=0 pinsReady=1 soak=0 t=1874816962 routes=13 trial=0 motion=4 pdo=5 watch=0 capture=0
+HEAP free=2880 largest=1024 minimum=2880 regions=3 r0=3ff9e000:8168:1112:1112 r1=3fffc000:14864:720:720 r2=3ffd2950:169648:984:556 reserved=1f arena=0 arenaBytes=23688
+STATS running=1 inhibited=0 rx=246 tx=246 dropped=0 errors=0 flags=00000000 stackFree=5636 t=1874976958 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=7000 conRej=18599

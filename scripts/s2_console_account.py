@@ -18,7 +18,8 @@ the window's S2 time plus the FIFO and queue sizes (a corrupted value or a resta
 position is exact only if no other writer admitted output between this line's formatting and
 its enqueue. A soak line that waits for room can let such output in first; the host then holds
 those bytes before the line, which lengthens the window the line ends and shortens the one it
-starts. Windows next to a line preceded by a non-soak line are marked for that reason.
+starts. Windows next to a line preceded by output outside the numbered soak stream are
+marked for that reason, including command replies such as SOAK_STOPPING.
 
 This tool opens no port and only reads its input, streaming it in bounded chunks: memory does
 not grow with the capture except for the windows it reports, which --max-report bounds.
@@ -30,6 +31,7 @@ import argparse
 import json
 import lzma
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -41,6 +43,7 @@ FIFO_BYTES = 128      # ESP32-S2 UART0 TX FIFO: acceptance can lead the wire by 
 QUEUE_BYTES = 512     # ProbePlatform::OUTPUT_CAPACITY.
 LINE_LIMIT = 4096     # A longer run without LF is no console line; it is skipped, not held.
 BOOT_HEADS = (b"S2_BENCH ready", b"rst:0x")
+NUMBERED_SOAK = re.compile(rb"SOAK_[A-Z_]+ n=[0-9]+(?: |$)")
 
 
 def open_capture(path):
@@ -93,7 +96,7 @@ def account(stream, baud=115200, max_report=1000):
                "reported": [], "report_truncated": False}
     previous = None      # (n, t, position, offset) of the last SOAK_CON with counters.
     boot = False         # A boot line since `previous`.
-    before_soak = True   # The line before the current one was a soak line (or none).
+    before_soak = True   # The preceding line belonged to the numbered soak stream (or none).
     for offset, line in lines(stream):
         if line is None:
             break
@@ -143,7 +146,9 @@ def account(stream, baud=115200, max_report=1000):
                             summary["report_truncated"] = True
                 previous = (n, t, position, offset, not before_soak)
                 boot = False
-        before_soak = line.startswith(b"SOAK_") or not line.strip(b"\r")
+        # Bench command replies share SOAK_ but are independent writers without n=.
+        # A reply can enter the output queue before an already formatted SOAK_CON.
+        before_soak = bool(NUMBERED_SOAK.match(line)) or not line.strip(b"\r")
     return summary
 
 

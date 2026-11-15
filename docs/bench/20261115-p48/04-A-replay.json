@@ -1,0 +1,92 @@
+{
+  "captures": [
+    {
+      "path": "docs\\bench\\20261115-p48\\04-A-baseline\\trial-01",
+      "command": "soak",
+      "started_utc": "2026-11-15T13:12:41.509804+00:00",
+      "serial": "94A990398B40",
+      "bytes": 94764,
+      "sha256": "f36fe87af7390edfe0190ac0a3872a47fe9d4f50f97a5209c37fd009b0cb6040",
+      "rx_txt": "absent",
+      "manifest": "absent",
+      "verdict": "incomplete",
+      "kinds": {
+        "PONG": 1,
+        "CAN_READY": 1,
+        "SOAK_BEGIN": 1,
+        "SOAK_TR": 75,
+        "SOAK_SUM": 59,
+        "SOAK_GAP": 59,
+        "SOAK_CON": 59,
+        "SOAK_NODE": 118,
+        "SOAK_HIST": 118,
+        "SOAK_OUT": 118,
+        "SOAK_ABORT": 118
+      },
+      "unknown": [],
+      "unknown_fields": [],
+      "malformed": [],
+      "errors": [
+        {
+          "code": "capture_failed",
+          "line": null,
+          "detail": "running"
+        },
+        {
+          "code": "soak_no_end",
+          "line": null,
+          "detail": "trial did not reach SOAK_END"
+        }
+      ],
+      "warnings": [],
+      "family": "SOAK",
+      "operation": 1794748361,
+      "node": null,
+      "failure": 0,
+      "failure_name": "",
+      "terminals": 0,
+      "traffic": 0,
+      "tail": 0,
+      "started": true,
+      "ended": false,
+      "gap_us": null,
+      "raw_uploads_successful": 0,
+      "typed_successes": 0,
+      "failed": [],
+      "uncertain": [],
+      "widths": [],
+      "width_discrepancies": [],
+      "typed_width_failures": [],
+      "epochs": "not_emitted",
+      "trace_lost": false,
+      "tail_lost": false,
+      "inventory_checked": false,
+      "node_epochs": "not_emitted",
+      "soak": {
+        "trial": 1794748361,
+        "end": null,
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 75,
+          "SOAK_SUM": 59,
+          "SOAK_GAP": 59,
+          "SOAK_CON": 59,
+          "SOAK_NODE": 118,
+          "SOAK_HIST": 118,
+          "SOAK_OUT": 118,
+          "SOAK_ABORT": 118
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 0,
+        "signals": 71,
+        "note_counts": {
+          "soak_no_end": 1
+        }
+      }
+    }
+  ],
+  "session": [],
+  "transitions": 85,
+  "time_basis": "firmware processing microseconds; receive bounds are separate, no wall clock"
+}

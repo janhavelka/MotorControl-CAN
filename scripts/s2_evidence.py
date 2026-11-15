@@ -871,7 +871,7 @@ READ_OUTCOMES = ("NONE", "SUCCESS", "REPLY_ERROR", "PROTOCOL_REJECTED", "TRANSPO
 INCOMPLETE = {"capture_failed", "empty_capture", "malformed_line", "truncated_line",
               "format_error", "missing_header", "missing_end", "count_short", "missing_start",
               "missing_response", "reboot_in_capture", "soak_no_begin", "soak_no_end", "soak_line_gap",
-              "soak_dump_missing"}
+              "soak_dump_missing", "soak_final_summary_missing"}
 POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", "stale_reply",
               "success_without_request", "success_without_reply", "unmatched_request",
               "unmatched_tx_report", "tx_report_not_copied", "reply_form_mismatch",
@@ -1693,6 +1693,12 @@ class SoakChecker:
     """
 
     NOTES_PER_CODE = 50
+    # Soak::finishPhases restarts this summary after the last read settles (or its
+    # finish deadline). Output pressure can leave it incomplete; an older periodic
+    # summary must not stand in for the missing final measurements.
+    SUMMARY_KEYS = (("SOAK_SUM", None), ("SOAK_GAP", None), ("SOAK_CON", None)) + tuple(
+        (kind, node) for node in (1, 2)
+        for kind in ("SOAK_NODE", "SOAK_HIST", "SOAK_OUT", "SOAK_ABORT"))
 
     def __init__(self, trial=None):
         self.trial = trial
@@ -1710,6 +1716,9 @@ class SoakChecker:
         self.failed = []
         self.stopped = {}
         self.latest = {}
+        self.final_summary = {}
+        self.end_record = None
+        self.stop_line = None
         self.lost_lines = 0
         self.code_counts = Counter()
 
@@ -1739,6 +1748,8 @@ class SoakChecker:
 
     def feed(self, record):
         """Take one parsed record of any kind. Other kinds are ignored here."""
+        if record.status == "parsed" and record.kind == "SOAK_STOPPING" and self.began and not self.ended:
+            self.stop_line = record.number
         if record.status != "parsed" or record.role != "soak":
             return
         values = record.values
@@ -1780,10 +1791,16 @@ class SoakChecker:
             self.stopped[values["node"]] = values["reason"]
         elif kind == "SOAK_END":
             self.ended = values
+            self.end_record = record
             if values["lines"] != values["n"]:
                 self._error("soak_end_differs", record.number, "lines %d n %d" % (values["lines"], values["n"]))
         else:
             self.latest[(kind, values.get("node"))] = values
+            if kind == "SOAK_SUM":
+                self.final_summary = {}
+            key = (kind, values.get("node"))
+            if key in self.SUMMARY_KEYS:
+                self.final_summary[key] = record
 
     def _transition(self, record):
         values = record.values
@@ -1813,6 +1830,47 @@ class SoakChecker:
         if self.ended is not None:
             for identity, line in self.promised.items():
                 self._error("soak_dump_missing", line, "anomaly %d" % identity)
+            self._finish_summary()
+
+    def _finish_summary(self):
+        """Judge the final evidence, without inventing a minimum number of reads.
+
+        A stop before the first tick and a duration shorter than the interval are
+        valid. Workload coverage belongs to the campaign. Likewise, settled=0 and
+        reason=internal are honest firmware failures, not contradictory output.
+        """
+        end, record = self.ended, self.end_record
+        if end["reason"] not in ("duration", "stopped", "internal"):
+            self._error("soak_end_reason", record.number, end["reason"])
+        if not end["settled"] or end["reason"] == "internal":
+            self.failed.append({"line": record.number, "reason": "soak_not_settled" if not end["settled"]
+                                else "soak_internal", "raw": record.raw})
+        # BEGIN.t is the time its line was formatted, which may follow begin().
+        # END.up measures from begin() itself and therefore owns this comparison.
+        duration = self.began["dur"] * 1_000_000 if self.began else None
+        if duration is not None and end["reason"] == "duration" and end["up"] < duration:
+            self._error("soak_duration_short", record.number,
+                        "duration %d us, end reports %d us" % (duration, end["up"]))
+        missing = ["%s:%s" % key for key in self.SUMMARY_KEYS if key not in self.final_summary]
+        if missing:
+            self._error("soak_final_summary_missing", record.number, ", ".join(missing))
+        summary = self.final_summary.get(("SOAK_SUM", None))
+        if summary is not None:
+            if summary.values["trial"] != end["trial"]:
+                self._error("soak_wrong_trial", summary.number, "final summary names %d" % summary.values["trial"])
+            if duration is not None and end["reason"] == "duration" and summary.values["up"] < duration:
+                self._error("soak_final_summary_missing", summary.number,
+                            "latest summary precedes the declared duration")
+            # The bench emits this response for X. Native callers can requestStop
+            # without it, so only use the boundary when the capture establishes it.
+            if end["reason"] == "stopped" and self.stop_line is not None and summary.number < self.stop_line:
+                self._error("soak_final_summary_missing", summary.number,
+                            "latest summary precedes the observed stop request")
+        for node in (1, 2):
+            state = self.final_summary.get(("SOAK_NODE", node))
+            if state is not None and any(state.values[key] for key in ("opsFail", "refused", "stopped")):
+                self.failed.append({"line": state.number, "node": node, "reason": "soak_node_failed",
+                                    "raw": state.raw})
 
 
 def check_soak(report, records, trial=None):

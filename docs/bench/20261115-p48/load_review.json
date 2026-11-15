@@ -1,0 +1,102 @@
+{
+  "review": "Prompt 48 finite read-load plan and capture checker",
+  "scope": "Read-only source and evidence review plus authorized host checker/test correction. No hardware or Git mutations by reviewer.",
+  "base_revision": "5f33272325ba773253d5e9cc17e54974df19c211",
+  "source_sha256": {
+    "scripts/s2_soak.py": "070aaf82402010cd6172d3959862e1c5ed7e9bccf2e1bdecbb76f1a3d1b13ecb",
+    "scripts/s2_evidence.py": "62257eddaa2483e73f442ffbc241781b7c4b56dfdc2d9762fc16ce5e1e32af64",
+    "scripts/s2_evidence_test.py": "2ae371aa3ea1124418478e14a1c7648e2b8b29de620c272b3397648b9cd4ac1b",
+    "scripts/s2_soak_test.py": "46c74074ff63ab25ff19a95993371db36a831af697986292bb4a3d42a5c35591",
+    "scripts/s2_console_account.py": "d294c5b21c0eccba11f688a2e16651b7ec458795c11c112356e15b123b557fd5",
+    "scripts/s2_uart_compare.py": "483be4c4def3b0c5a3d35e92533ca40345607b6d4c74d99f62e85214ac8f443d",
+    "scripts/s2_bench_console.py": "1720f9ea15cc64e2d0dc64d4be0e1ee6554d3ccef70b6a62e88db59240a32263",
+    "examples/s2_bench/Soak.cpp": "ebe018100026aefe705bc5502e61d2e3ff768dd1551004dbfbdc15671e5d5691",
+    "examples/s2_bench/Soak.h": "ab1aa94fc9637d302e67414dec27b79529164153d93854386056770247898bb4",
+    "examples/s2_bench/main/main.cpp": "7f087eee891b85e10411c3cb40c1dc72f43da550b197a1c7008172deced0276f",
+    "test/soak_test.cpp": "356f419d378390baeb36bdd05df41053facc2b985e31023419e2b463cb6e2902",
+    "test/bench_heap_test.cpp": "323bcbbd2b1e724cb65d9266346ce33ad9719246eb59d99f4cbbdc120d622335",
+    "docs/reports/bench_closure_18_33/packet_5.md": "5d667c9bab2a341a4bb5f9f02895d3f4a5b255f8b90e2d5be601b86e798344f0",
+    "docs/reports/prompt_47.md": "f7eec4133c087513d70e1f9cb852cfb7dbde5730dbc12e260e7a31e346539aa6"
+  },
+  "campaign_plan": "plan.json is the lead-owned authorization/configuration record; this review does not mark campaigns executed.",
+  "campaigns_reviewed": [
+    {
+      "id": "A",
+      "requested_wall_duration_s": 600,
+      "interval_ms": 200,
+      "summary_s": 10,
+      "purpose": "Two-node finite communication baseline"
+    },
+    {
+      "id": "B",
+      "requested_wall_duration_s": 120,
+      "interval_ms": 200,
+      "summary_s": 1,
+      "purpose": "Compare diagnostic output overhead at the same read cadence"
+    },
+    {
+      "id": "C",
+      "requested_wall_duration_s": 120,
+      "interval_ms": 20,
+      "summary_s": 1,
+      "purpose": "Compare higher offered read load at the same summary cadence"
+    }
+  ],
+  "bounds": [
+    "Use --reads full --max-trials 1 --reenumerate-s 0 --keepalive-s 0 and new output directories. Default max-trials 3 permits new trials after lost port/reset and is unsuitable here.",
+    "s2_soak.py floors remaining wall seconds before emitting S. Compare the recorded request and SOAK_BEGIN dur, which can be 599/119 seconds for the 600/120 second host requests.",
+    "At duration D seconds and interval I milliseconds, no more than ceil(1000*D/I)-1 schedule ticks occur, because the first is one interval after begin and no tick starts at or after duration. Busy/dump conditions can reduce admission; there is no catch-up burst.",
+    "One operation runs at a time, alternating nodes. full requests nine identity uploads once per node, then alternating four-upload status/feedback and three-upload monitors. Each admitted operation has a 2-second deadline and 250-ms queue/response host policies.",
+    "X requests a scheduling stop, allowing the current read to settle. It sends no motor stop. A soak releases ordinary read context internally; it has no r release command.",
+    "Firmware finishing allows 10 seconds for an active read/release and then bounded final-output handling. The host waits beyond its wall deadline by max(30,summary_s) before one X, then at most 30 seconds more. Capture bounds are not vendor response or stop guarantees.",
+    "The 11008-byte lazy Soak allocation is persistent. A boot with P47 shared console and both motion contexts retained had only 2880 free bytes/largest1024; the lead must establish the fresh boot and allocate Soak before those consumers."
+  ],
+  "acceptance": [
+    "Match USB identity, exact running base/ELF/SDK, sent S fields, trial identifier and observed duration. Do not infer the flashed image from repository HEAD.",
+    "Require SOAK_END reason=duration for A/B/C and settled=1; require complete final SOAK_SUM/GAP/CON and NODE/HIST/OUT/ABORT for both nodes. Inspect errors, malformed bytes and numbering gaps independently.",
+    "Require each node to execute reads, ops==opsOk, opsFail==0, refused==0, steps==stepsOk, stopped==0, and consistent outcome/histogram totals. The checker intentionally permits valid zero-read short or explicitly stopped captures, so complete alone is not campaign coverage.",
+    "Compare owner/TWAI error and loss counter deltas with baseline, including txRej/rxDrop/rxLost/unmatched/qRej/resFull/timeouts/cancelled/busOff/recov/twaiErr/twaiFlags/twaiDrop/trOver/netDrop/tec/rec. Preserve existing lifetime counts rather than treating every nonzero value as a new event.",
+    "Review evFull/evLimit/dumpAb/trLost and raw anomaly budgets; complete numbered output does not establish that no event was suppressed before formatting.",
+    "Record both node latency histograms/min/mean/max, retireMax, earlyReply, resource high-water marks and service gaps. Report the measured load and observation window; no universal bound follows.",
+    "Run s2_console_account.py on every complete raw capture. Inspect marked interleaving windows and missing tails rather than treating a byte balance as content or electrical proof. Any new anomaly is reviewed before a separately chosen next trial."
+  ],
+  "counter_meanings": {
+    "SOAK_NODE_min_mean_max": "Owner admission to terminal, only terminals with possible transmission; includes scheduling/queue/transport/device/processing time, not isolated device or wire latency.",
+    "SOAK_HIST": "Upper endpoints 2,5,10,20,50,100,250 ms; eighth bucket above250ms.",
+    "SOAK_GAP_gapMax_gapWin": "Soak service gap in the trial and since prior summary; ownerGap is owner lifetime maximum. Stack is task lifetime least-free; heap is current and heapMin lifetime minimum.",
+    "SOAK_CON_blocked": "Turns a whole formatted line waited for UART-queue space, not a lost CAN frame.",
+    "SOAK_CON_conRej": "Output queue submission refusals since boot from all writers; soak checks space before submitting. Prior route retries can leave a nonzero baseline.",
+    "SOAK_CON_defBusy_slips": "Due read waits and skipped schedule ticks; expected when offered interval is shorter than an operation. Neither is by itself a failure.",
+    "SOAK_CON_evFull_evLimit": "Dropped application event records due to capacity or value rate limit.",
+    "SOAK_CON_dumpAb_trLost_dumpUs_defDump": "Abandoned dump count, missing dump entries, time/ticks reads were held for diagnostic dumps; these describe diagnostic impact.",
+    "SOAK_CON_uartBytes_queued": "UART FIFO-accepted bytes modulo2^32 and bytes still queued at formatting. Sum gives stream position unless another writer interleaves before admission.",
+    "submitOverwritten": "Tap single-submission record replacements since boot; earlier non-soak requests can cause a fixed baseline. A delta during soak needs investigation."
+  },
+  "raw_evidence_limits": [
+    "Soak retains an overwriting128-entry software trace, at most96 entries per anomaly dump, two dumps per kind and16 per trial. It is not continuous full CAN traffic capture. Separate ordinary pre/post traced public reads provide exact samples only for those operations.",
+    "UART byte-account shortfall in an unmarked valid window localizes loss after uart_tx_chars FIFO acceptance. It cannot choose among S2 UART output, wire, bridge, USB and host driver.",
+    "A GPIO43 receive-only independent115200/8N1 capture with receiver errors and clock bounds is required for s2_uart_compare.py to localize further. No such capture is established here.",
+    "The 20261106 high-load capture lost1312 bytes after FIFO acceptance despite successful CAN read totals. A new short clean run does not resolve or refute that retained failure.",
+    "P47 heartbeat producer1017=0 and event timers0 supplied no periodic heartbeat/PDO load. Read load cannot establish host-loss stop, TPDO congestion or electrical behavior."
+  ],
+  "host_interruption": [
+    "SIGINT in s2_soak.py sets interrupted and sends X while continuing capture; it tests graceful host-requested scheduling stop, not disappearance.",
+    "A planned gap in host reading on one retained connection tests capture buffering only; no flow control means it need not stall firmware UART. Retain exact pause duration and received bytes; do not call it CAN link loss.",
+    "An actual host-close experiment must be separately named, finite and read-only, with automatic reconnection disabled. Preserve its incomplete capture and firmware duration. Any later inspection is a new explicit observation, never replay or recovery of the original request.",
+    "s2_bench_console.py admits only its listed bench bytes and @/T lines; it does not admit S or X. Use an already reviewed single-owner capture path rather than inventing supported helper commands."
+  ],
+  "checker_correction": {
+    "original_reproduction": "SOAK_BEGIN dur60 and SOAK_END up8950 settled0 with no summary returned complete.",
+    "replacement": "Missing/latest incomplete final summary is incomplete; final summary predating duration or an observed stop is incomplete; duration end earlier than declared bound is inconsistent; unsettled/internal/final-node failure is retained failed-evidence.",
+    "native_limit": "Native requestStop may emit no SOAK_STOPPING. In that case the format alone cannot distinguish an earlier complete periodic group from the final group of a stopped trial; no timing proof is fabricated.",
+    "not_a_workload_verdict": "A complete short duration or explicit stop may have zero reads. Campaign acceptance remains separate.",
+    "tests": "118 evidence tests,41 soak runner tests,23 console-account tests,46 UART-compare tests passed; native soak,soak_transcript,s2_soak_transcript passed3/3 using unchanged existing native Soak binary.",
+    "historical_verdicts": {
+      "20261106-p5-a-reads200ms": "failed-evidence",
+      "20261106-p5-b-reads20ms": "incomplete",
+      "20261106-p5-c-regression-1": "failed-evidence",
+      "20261106-p5-c-regression-2": "complete"
+    },
+    "independent_review": "p48_source_audit independently reviewed firmware end ordering, current diff, 118/41 tests and historical verdicts; no remaining finding."
+  }
+}

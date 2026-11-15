@@ -1,5 +1,13 @@
 # Executable backlog
 
+[Prompt48](reports/prompt_48.md) adds bounded two-node read/output load and fixes
+false-complete soak evidence. Its 20 ms read-load capture also retains a 64-byte
+serial diagnostic deficit; the cause within UART/bridge/USB/host remains unproved.
+Next localization needs simultaneous GPIO43/bridge or USB capture, not a longer
+SDO timeout or an inferred CAN failure. Physical link/fault/restart campaigns, selected
+persistence effects and OL86-C/CL57-C/OL57-C fixtures remain required. Host-only
+pause and explicit read withdrawal do not qualify a motor stop or host-loss policy.
+
 Prompt47's [finite campaign](reports/prompt_47.md) exercises the current S2 image
 and both CL86-C nodes. It repairs diagnostic burst/tail retention and records
 fixture limitations separately. Remaining qualification needs observed shaft

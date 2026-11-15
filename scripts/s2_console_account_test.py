@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline contract tests for s2_console_account.py: synthetic S2 streams with known damage,
 the real line parser, and retained captures from images that predate the counters."""
+import hashlib
 import io
 import json
 import lzma
@@ -81,6 +82,7 @@ class AccountTest(unittest.TestCase):
         self.assertEqual((summary["compared"], summary["short"], summary["missing_bytes"]), (5, 1, 64))
         [window] = summary["reported"]
         self.assertEqual((window["from_n"], window["difference"]), (stream_n(stream, 1), -64))
+        self.assertFalse(window["interleaving_possible"])
 
     def test_a_partial_line_deletion_counts_its_exact_bytes(self):
         stream = burst()
@@ -178,6 +180,36 @@ class AccountTest(unittest.TestCase):
         self.assertTrue(all(window["interleaving_possible"] for window in summary["reported"]))
         self.assertEqual(sorted(window["difference"] for window in summary["reported"]), [-10, 10])
 
+    def test_soak_command_replies_mark_both_windows_without_suppressing_differences(self):
+        replies = (b"SOAK_STOPPING; a started read settles first\n",
+                   b"SOAK_STOP refused; none running\n",
+                   b"SOAK_REFUSED reason=active; no work\n")
+        for reply in replies:
+            with self.subTest(reply=reply):
+                stream = Stream()
+                for second in range(1, 6):
+                    stream.summary(second, foreign=reply if second == 3 else b"")
+                summary = run(stream.data)
+                self.assertEqual((summary["compared"], summary["balanced"], summary["long"], summary["short"]),
+                                 (4, 2, 1, 1))
+                self.assertEqual((summary["extra_bytes"], summary["missing_bytes"]), (len(reply), len(reply)))
+                self.assertEqual([window["difference"] for window in summary["reported"]], [len(reply), -len(reply)])
+                self.assertTrue(all(window["interleaving_possible"] for window in summary["reported"]))
+
+    def test_numbered_multiword_kind_does_not_mark_a_real_deletion_as_interleaving(self):
+        stream = Stream()
+        stream.summary(1)
+        stream.add("SOAK_TR n=%d t=1500000 node=1 sig=6041 from=0 to=1 first=0 ne=1 ce=1\n" % stream.line)
+        stream.add("SOAK_NODE_STOP n=%d t=1500000 node=1 reason=unresolved lastOp=1\n" % stream.line)
+        stream.summary(2, filler=0)
+        # Damage an earlier transition while the final numbered record stays whole.
+        offset = stream.data.index(b"from=0") + len(b"from=")
+        summary = run(stream.data[:offset] + stream.data[offset + 1:])
+        self.assertEqual((summary["short"], summary["missing_bytes"]), (1, 1))
+        [window] = summary["reported"]
+        self.assertEqual(window["difference"], -1)
+        self.assertFalse(window["interleaving_possible"])
+
     def test_a_line_longer_than_the_limit_keeps_offsets_exact(self):
         stream = Stream()
         stream.summary(1)
@@ -238,7 +270,7 @@ class CommandTest(unittest.TestCase):
 
 
 class RetainedTest(unittest.TestCase):
-    """Retained captures predate the counters: the tool must say so, not invent a balance."""
+    """Retained old captures and a measured interleaved command reply."""
 
     def head(self, relative, size=1 << 21):
         path = ROOT / relative
@@ -259,6 +291,19 @@ class RetainedTest(unittest.TestCase):
         summary = run(data)
         self.assertGreater(summary["soak_con"], 0)
         self.assertEqual((summary["compared"], summary["short"], summary["long"]), (0, 0, 0))
+
+    def test_retained_stop_reply_marks_the_measured_44_byte_offsets_only(self):
+        directory = ROOT / "docs/bench/20261115-p48"
+        raw = (directory / "07-D-host-pause/rx.bin").read_bytes()
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),
+                         "aaa7410eb3eca026e8176d1895c601e346d7e75403c7eb2cfa8c7a85da13a53b")
+        expected = json.loads((directory / "07-D-account.json").read_text(encoding="utf-8"))
+        self.assertEqual([row["difference"] for row in expected["reported"]], [44, -44])
+        for row in expected["reported"]:
+            self.assertFalse(row["interleaving_possible"])
+            row["interleaving_possible"] = True
+        # Only attribution changes: counts, offsets and the two differences survive.
+        self.assertEqual(run(raw), expected)
 
 
 class FirmwareContractTest(unittest.TestCase):

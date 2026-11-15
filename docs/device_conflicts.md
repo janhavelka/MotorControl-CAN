@@ -135,7 +135,9 @@ addressed NMT command 128 and fixed TPDO1. Later specimen-scoped motion
 experiments are recorded in the [velocity contract](velocity.md) and bench
 reports; they do not establish all qualification prerequisites or other models.
 The [prompt47 campaign](reports/prompt_47.md) separates current communication
-evidence from unavailable physical observations. When new evidence arrives,
+evidence from unavailable physical observations. [Prompt48](reports/prompt_48.md)
+adds finite read/output load only: no Q15 persistence, host-loss stop, power-up
+torque or cross-model conflict is resolved by it. When new evidence arrives,
 record its fixture/firmware scope and limitations, review the canonical ledger
 first, then update affected profile gates, generated declarations, meaningful
 tests, Doxygen and guides together. A measured result for one specimen never

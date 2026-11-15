@@ -1,0 +1,37 @@
+{
+  "prompt": 48,
+  "started_revision": "5f33272325ba773253d5e9cc17e54974df19c211",
+  "branch": "main",
+  "fixture": "OPTAK ESP32-S2/TJA1051 RX16 TX17 S18; ESP-Prog2 94A990398B40 COM15; CL86-C nodes1/2 at1Mbit/s; user-reported LC60H2127 motors",
+  "authorization": "Existing promptset bench authorization and latest explicit unattended-test instruction; no physical observations supplied",
+  "expected_image": {"base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79", "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399", "sdk": "v5.5.5-dirty"},
+  "preflight": [
+    "Unique USB/port identity and exact running image; cached resources and owner state",
+    "Fresh ordinary status/monitor/feedback reads on both nodes with raw diagnostic copies; zero reported velocity before local restart",
+    "If insufficient heap for the existing11008-byte lazy Soak allocation, one explicit MCU EN-only reboot after all checked reads are released; preserve boot bytes and confirm same image",
+    "MCU reboot is not a drive power cycle, remote SDO drain or persistent reload; do not use it to clear unresolved device work",
+    "After MCU reboot keep shared console/motion contexts unallocated, explicitly start CAN and use the existing single-owner soak path"
+  ],
+  "read_policy": "DEC-1 accepted_not_qualified: identity once per node and alternating6041/6061/6064/606C and2100/2101/2102. No603F/1001/1003 polling or downloads.",
+  "campaigns": [
+    {"id": "A", "duration_s": 600, "interval_ms": 200, "summary_s": 10, "purpose": "two-node finite sustained read baseline"},
+    {"id": "B", "duration_s": 120, "interval_ms": 200, "summary_s": 1, "purpose": "increase diagnostic output while retaining A read cadence"},
+    {"id": "C", "duration_s": 120, "interval_ms": 20, "summary_s": 1, "purpose": "increase read load at B output cadence, within existing firmware parser limits"}
+  ],
+  "per_campaign": {"reads": "full", "max_trials": 1, "reenumerate_s": 0, "keepalive_s": 0, "retry": false, "reset": false},
+  "limits": {
+    "motion_requests": 0, "save_parameters_count": 0, "restore_factory_settings_count": 0,
+    "recorded_configuration_reapplications": 0, "nmt_requests": 0,
+    "automatic_reconnects": 0, "automatic_motion_replays": 0,
+    "independent_physical_cutoff_operator": null, "physical_observation": null
+  },
+  "evidence": "Retain every host byte, software timing/resource histograms and bounded anomaly raw TX/RX copies. Soak ring128, at most96 entries per dump,2 per kind/16 total. This is not continuous full wire capture; pre/post ordinary raw reads provide separate exact samples.",
+  "acceptance": "Check exact image/plan, finite elapsed time, settled final end, final summaries for both nodes, operation/step success totals and all loss/pressure/error counters. Parser completeness alone is insufficient. Review every anomaly before a separately planned reproduction or next campaign.",
+  "failure_handling": "Current read settles on explicit X or duration expiry. X stops read scheduling, not a motor. Preserve partial/unknown evidence; no automatic recovery or retry. Investigate UART/owner/controller/device causes separately; a passing later run does not erase failure.",
+  "pending": [
+    "Physical fault/link-loss/moving-stop tests: no independently observed control or fault-injection fixture",
+    "Save/restart/re-apply campaigns: no user power-cycle observation, complete selected persistence semantics or before/after scope; cap0",
+    "OL86-C,CL57-C,OL57-C: no such fixtures available",
+    "Electrical timing,physical motion/standstill and host-loss stop: no independent observer/instrumentation"
+  ]
+}

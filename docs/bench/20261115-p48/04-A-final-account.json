@@ -1,0 +1,20 @@
+{
+ "baud": 115200,
+ "soak_con": 60,
+ "without_counters": 0,
+ "windows": 59,
+ "compared": 59,
+ "balanced": 59,
+ "short": 0,
+ "long": 0,
+ "not_compared": {
+  "boot": 0,
+  "implausible": 0
+ },
+ "s2_bytes": 88694,
+ "host_bytes": 88694,
+ "missing_bytes": 0,
+ "extra_bytes": 0,
+ "reported": [],
+ "report_truncated": false
+}

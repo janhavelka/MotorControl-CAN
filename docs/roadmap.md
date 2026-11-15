@@ -2,7 +2,7 @@
 
 The [current independent-audit disposition](audit/2026-11-15_auditor_disposition.md)
 maps all 125 historical findings to current code and remaining owners. Next software
-work after the finite prompt47 campaign is the independent prompt49 documentation
+work after the finite prompts47-48 campaigns is the independent prompt49 documentation
 and package audit; public descriptor cleanup remains 49, concurrent application
 axes 53 and reviewed recovery/retry policies 55. These obligations are not duplicated
 in new prompts or marked implemented by correcting their instructions.
@@ -22,8 +22,10 @@ this stage. Prompt44 now adds [finite campaigns and sessions](bench_scenarios.md
 with host tests and no live qualification. Prompt45's [integration audit](reports/prompt_45.md)
 closes the assigned software failure checks; prompt46 consumers are complete.
 The [prompt47 campaign](reports/prompt_47.md) retains actual S2/two-node evidence
-and fixes, with physical qualification still Partial. Prompt48 requires its own
-failure/load fixture and prerequisites; no qualification is inherited from a read.
+and fixes, with physical qualification still Partial. [Prompt48](reports/prompt_48.md)
+adds bounded two-node read/output load and stricter evidence validation. Physical
+fault/link/persistence and related-model campaigns remain pending; no motion or
+electrical qualification is inherited from a read.
 
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).

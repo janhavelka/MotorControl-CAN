@@ -1,0 +1,2 @@
+CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+HEAP free=7200 largest=4352 minimum=7200 regions=3 r0=3ff9e000:8168:1112:1112 r1=3fffc000:14864:720:720 r2=3ffd2950:169648:5312:4436 reserved=1f arena=0 arenaBytes=23688

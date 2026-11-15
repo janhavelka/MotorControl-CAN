@@ -1,0 +1,880 @@
+{
+  "schema": 1,
+  "prompt": 48,
+  "captured_utc": "2026-11-15T13:35:07.862581+00:00",
+  "scope": "Independent raw/source review. No hardware or Git mutations. Owns only this JSON.",
+  "campaigns": [
+    {
+      "id": "A",
+      "path": "04-A-baseline/trial-01",
+      "raw_bytes": 96372,
+      "sha256": "9b5cf88889188b331d38e0003c497a88dd7e381d7f0a77dba8e768bc26f8f697",
+      "verdict": "complete",
+      "errors": [],
+      "duration_s": 599,
+      "elapsed_us": 599130202,
+      "end_reason": "duration",
+      "settled": true,
+      "contiguous": true,
+      "parsed_soak_records": 737,
+      "nodes": [
+        {
+          "node": 1,
+          "operations": 1497,
+          "steps": 5245,
+          "latency_us": {
+            "min": 4788,
+            "mean": 5328,
+            "max": 6775
+          },
+          "histogram": [
+            0,
+            2195,
+            3050,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": 2,
+          "operations": 1497,
+          "steps": 5245,
+          "latency_us": {
+            "min": 4776,
+            "mean": 5325,
+            "max": 6794
+          },
+          "histogram": [
+            0,
+            2233,
+            3012,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "owner_rx_tx_delta": 10490,
+      "soak_gap_us": 4119,
+      "owner_lifetime_gap_us": 4998,
+      "console_wait_turns": 3305,
+      "busy_deferrals": 0,
+      "slips": 0,
+      "account": {
+        "windows": 59,
+        "compared": 59,
+        "balanced": 59,
+        "missing_bytes": 0,
+        "extra_bytes": 0,
+        "host_bytes": 88694,
+        "s2_bytes": 88694
+      }
+    },
+    {
+      "id": "B",
+      "path": "05-B-console/trial-01",
+      "raw_bytes": 184040,
+      "sha256": "b327cf4f2d052a4c101102745f546035b765dd993ff1c4a70896c947d3aa0f3b",
+      "verdict": "complete",
+      "errors": [],
+      "duration_s": 119,
+      "elapsed_us": 119130080,
+      "end_reason": "duration",
+      "settled": true,
+      "contiguous": true,
+      "parsed_soak_records": 1382,
+      "nodes": [
+        {
+          "node": 1,
+          "operations": 297,
+          "steps": 1045,
+          "latency_us": {
+            "min": 4769,
+            "mean": 5379,
+            "max": 6788
+          },
+          "histogram": [
+            0,
+            402,
+            643,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": 2,
+          "operations": 297,
+          "steps": 1045,
+          "latency_us": {
+            "min": 4769,
+            "mean": 5378,
+            "max": 6798
+          },
+          "histogram": [
+            0,
+            402,
+            643,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "owner_rx_tx_delta": 2090,
+      "soak_gap_us": 4119,
+      "owner_lifetime_gap_us": 4998,
+      "console_wait_turns": 6355,
+      "busy_deferrals": 0,
+      "slips": 0,
+      "account": {
+        "windows": 118,
+        "compared": 118,
+        "balanced": 118,
+        "missing_bytes": 0,
+        "extra_bytes": 0,
+        "host_bytes": 177053,
+        "s2_bytes": 177053
+      }
+    },
+    {
+      "id": "C",
+      "path": "06-C-readload/trial-01",
+      "raw_bytes": 186459,
+      "sha256": "6b177f0f28a98b43079ad5179c50be1481c13399504312d6618c41fae931b6b2",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 757,
+          "detail": "missing stack,heap,heapMin"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 758,
+          "detail": "expected 755 found 757"
+        }
+      ],
+      "duration_s": 119,
+      "elapsed_us": 119139084,
+      "end_reason": "duration",
+      "settled": true,
+      "contiguous": false,
+      "parsed_soak_records": 1380,
+      "nodes": [
+        {
+          "node": 1,
+          "operations": 1840,
+          "steps": 6446,
+          "latency_us": {
+            "min": 4771,
+            "mean": 5428,
+            "max": 6807
+          },
+          "histogram": [
+            0,
+            2232,
+            4214,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": 2,
+          "operations": 1839,
+          "steps": 6442,
+          "latency_us": {
+            "min": 4769,
+            "mean": 5429,
+            "max": 6807
+          },
+          "histogram": [
+            0,
+            2258,
+            4184,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "owner_rx_tx_delta": 12888,
+      "soak_gap_us": 4887,
+      "owner_lifetime_gap_us": 5323,
+      "console_wait_turns": 6561,
+      "busy_deferrals": 20971,
+      "slips": 1839,
+      "account": {
+        "windows": 117,
+        "compared": 117,
+        "balanced": 116,
+        "missing_bytes": 64,
+        "extra_bytes": 0,
+        "host_bytes": 179028,
+        "s2_bytes": 179092
+      }
+    },
+    {
+      "id": "C2",
+      "path": "06-C2-reproduction/trial-01",
+      "raw_bytes": 186799,
+      "sha256": "5ef1ba9117d952e756bb9fd4df01eb6b15e99dc0b678e5e2ad7316c79c518565",
+      "verdict": "complete",
+      "errors": [],
+      "duration_s": 119,
+      "elapsed_us": 119166079,
+      "end_reason": "duration",
+      "settled": true,
+      "contiguous": true,
+      "parsed_soak_records": 1382,
+      "nodes": [
+        {
+          "node": 1,
+          "operations": 1840,
+          "steps": 6446,
+          "latency_us": {
+            "min": 4771,
+            "mean": 5429,
+            "max": 6807
+          },
+          "histogram": [
+            0,
+            2236,
+            4210,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": 2,
+          "operations": 1840,
+          "steps": 6446,
+          "latency_us": {
+            "min": 4769,
+            "mean": 5427,
+            "max": 6807
+          },
+          "histogram": [
+            0,
+            2258,
+            4188,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "owner_rx_tx_delta": 12892,
+      "soak_gap_us": 4887,
+      "owner_lifetime_gap_us": 5323,
+      "console_wait_turns": 6585,
+      "busy_deferrals": 20977,
+      "slips": 1840,
+      "account": {
+        "windows": 118,
+        "compared": 118,
+        "balanced": 118,
+        "missing_bytes": 0,
+        "extra_bytes": 0,
+        "host_bytes": 179358,
+        "s2_bytes": 179358
+      }
+    },
+    {
+      "id": "D",
+      "path": "07-D-host-pause",
+      "raw_bytes": 36427,
+      "sha256": "aaa7410eb3eca026e8176d1895c601e346d7e75403c7eb2cfa8c7a85da13a53b",
+      "verdict": "complete",
+      "errors": [],
+      "duration_s": 30,
+      "elapsed_us": 20238080,
+      "end_reason": "stopped",
+      "settled": true,
+      "contiguous": true,
+      "parsed_soak_records": 296,
+      "nodes": [
+        {
+          "node": 1,
+          "operations": 50,
+          "steps": 181,
+          "latency_us": {
+            "min": 4788,
+            "mean": 5486,
+            "max": 6788
+          },
+          "histogram": [
+            0,
+            60,
+            121,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": 2,
+          "operations": 50,
+          "steps": 181,
+          "latency_us": {
+            "min": 4788,
+            "mean": 5491,
+            "max": 6798
+          },
+          "histogram": [
+            0,
+            60,
+            121,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "owner_rx_tx_delta": 362,
+      "soak_gap_us": 4012,
+      "owner_lifetime_gap_us": 5323,
+      "console_wait_turns": 1215,
+      "busy_deferrals": 0,
+      "slips": 0,
+      "account": {
+        "windows": 20,
+        "compared": 20,
+        "balanced": 18,
+        "missing_bytes": 44,
+        "extra_bytes": 44,
+        "host_bytes": 29392,
+        "s2_bytes": 29392
+      }
+    }
+  ],
+  "state_regression": [
+    {
+      "summary": "01-node1-feedback.jsonl.summary.json",
+      "summary_sha256": "dd6ad88e366b80c9a006b4f83e1d44464f3f1eb36df993a5b5b7476619ee3f9f",
+      "raw": "01-node1-feedback.jsonl",
+      "raw_sha256": "7f479bc77868e5b3c131b8098bce2e146325c928613d1eceb5b94908a7820b3e",
+      "node": 1,
+      "values": [
+        {
+          "index": 24676,
+          "subindex": 0,
+          "width": 4,
+          "raw": "16846"
+        },
+        {
+          "index": 24684,
+          "subindex": 0,
+          "width": 4,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "01-node1-monitors.jsonl.summary.json",
+      "summary_sha256": "a018be3ff69b2e99855badbf98ac4b9968f5b78973e2dc988f06c12a67f47556",
+      "raw": "01-node1-monitors.jsonl",
+      "raw_sha256": "36111e93fc4b63ea7a9cd995c98f8618a3461e7628b2cac25eed0e8510b67f4b",
+      "node": 1,
+      "values": [
+        {
+          "index": 8448,
+          "subindex": 0,
+          "width": 2,
+          "raw": "21"
+        },
+        {
+          "index": 8449,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        },
+        {
+          "index": 8450,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 3,
+      "trace_records": 12,
+      "coverage_complete": false
+    },
+    {
+      "summary": "01-node1-status.jsonl.summary.json",
+      "summary_sha256": "f0ebb37ea91caf071d7c416d74bfa8cc09f75ac3d0621eb2792f9d6fd0fca21b",
+      "raw": "01-node1-status.jsonl",
+      "raw_sha256": "94d8e65d3fc5850f1aa1b0ab1585f1a817edbbf44318f8a09097e74c37d74446",
+      "node": 1,
+      "values": [
+        {
+          "index": 24641,
+          "subindex": 0,
+          "width": 2,
+          "raw": "49232"
+        },
+        {
+          "index": 24673,
+          "subindex": 0,
+          "width": 1,
+          "raw": "3"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "01-node2-feedback.jsonl.summary.json",
+      "summary_sha256": "f4688dc9d0881dfd0b3acf3bd44a5807b99253926576ea2db7cdb0c43917cfdc",
+      "raw": "01-node2-feedback.jsonl",
+      "raw_sha256": "7c2f7f32d66032183d1668e2e41938aef4e27543d13b3e9391c0068d7dbd18cc",
+      "node": 2,
+      "values": [
+        {
+          "index": 24676,
+          "subindex": 0,
+          "width": 4,
+          "raw": "16845"
+        },
+        {
+          "index": 24684,
+          "subindex": 0,
+          "width": 4,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "01-node2-monitors.jsonl.summary.json",
+      "summary_sha256": "2ce38836279f1488e09e997a3844b7ed697ea4bed6f53b6fb2711eed5a1af626",
+      "raw": "01-node2-monitors.jsonl",
+      "raw_sha256": "4ea7fa039d1da80af2440b5912bc905980c0f2479172b2df6c3540997c918e59",
+      "node": 2,
+      "values": [
+        {
+          "index": 8448,
+          "subindex": 0,
+          "width": 2,
+          "raw": "21"
+        },
+        {
+          "index": 8449,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        },
+        {
+          "index": 8450,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 3,
+      "trace_records": 12,
+      "coverage_complete": false
+    },
+    {
+      "summary": "01-node2-status.jsonl.summary.json",
+      "summary_sha256": "bd519e37eac2b4826b633375c45338d70eb12fbd78441d71e16946fe0ea3cf5d",
+      "raw": "01-node2-status.jsonl",
+      "raw_sha256": "34ff3c24e7863fe31bb5e0fa810918965ab5c4274f931d4a2a32ee642df4095f",
+      "node": 2,
+      "values": [
+        {
+          "index": 24641,
+          "subindex": 0,
+          "width": 2,
+          "raw": "49232"
+        },
+        {
+          "index": 24673,
+          "subindex": 0,
+          "width": 1,
+          "raw": "3"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node1-feedback.jsonl.summary.json",
+      "summary_sha256": "572bc9858e8c5b1ccbeaf3e15a297d5a9c7b61621a28394ff36a791a5babfbcf",
+      "raw": "10-node1-feedback.jsonl",
+      "raw_sha256": "9e64a4c3263442052308c9ad4a12f0b346e7bc054132687136ad1a00b7b657b4",
+      "node": 1,
+      "values": [
+        {
+          "index": 24676,
+          "subindex": 0,
+          "width": 4,
+          "raw": "16846"
+        },
+        {
+          "index": 24684,
+          "subindex": 0,
+          "width": 4,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node1-monitors.jsonl.summary.json",
+      "summary_sha256": "8c331e73a6d81455d058beee4bf07667bc8c359d3c193b5adc65a5a5515037e2",
+      "raw": "10-node1-monitors.jsonl",
+      "raw_sha256": "d25d8122ca5841ea8c8fbd825e390e003a1339545f16b8570ae406a89be29480",
+      "node": 1,
+      "values": [
+        {
+          "index": 8448,
+          "subindex": 0,
+          "width": 2,
+          "raw": "21"
+        },
+        {
+          "index": 8449,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        },
+        {
+          "index": 8450,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 3,
+      "trace_records": 12,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node1-status.jsonl.summary.json",
+      "summary_sha256": "7997c3be6b526298bc2096714f3b8ee51f1c3b6ed336b3dd0070bad309f8db4d",
+      "raw": "10-node1-status.jsonl",
+      "raw_sha256": "08b1c7a502d2600316e2f8a0d4294db606055b738c9cfc53fe38f0b8b890e1f8",
+      "node": 1,
+      "values": [
+        {
+          "index": 24641,
+          "subindex": 0,
+          "width": 2,
+          "raw": "49232"
+        },
+        {
+          "index": 24673,
+          "subindex": 0,
+          "width": 1,
+          "raw": "3"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node2-feedback.jsonl.summary.json",
+      "summary_sha256": "fdfd644ed6fb1c6f7b5f82021fe5047120e5cc4e291dafca83acd46b719ebe87",
+      "raw": "10-node2-feedback.jsonl",
+      "raw_sha256": "e1466d0b304a344f89fa582d046a3476f5f92968c4dd7a9850665aa01bc34831",
+      "node": 2,
+      "values": [
+        {
+          "index": 24676,
+          "subindex": 0,
+          "width": 4,
+          "raw": "16845"
+        },
+        {
+          "index": 24684,
+          "subindex": 0,
+          "width": 4,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node2-monitors.jsonl.summary.json",
+      "summary_sha256": "7ae42ff049387be870ff850a555ae769fb31326954b5365d3c1bda01b4c84036",
+      "raw": "10-node2-monitors.jsonl",
+      "raw_sha256": "e83c27ff5ab831ab04214ff1f12d2119ec74774b92141dfa11baff1be7712fe7",
+      "node": 2,
+      "values": [
+        {
+          "index": 8448,
+          "subindex": 0,
+          "width": 2,
+          "raw": "21"
+        },
+        {
+          "index": 8449,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        },
+        {
+          "index": 8450,
+          "subindex": 0,
+          "width": 2,
+          "raw": "0"
+        }
+      ],
+      "raw_requests_replies_matched": 3,
+      "trace_records": 12,
+      "coverage_complete": false
+    },
+    {
+      "summary": "10-node2-status.jsonl.summary.json",
+      "summary_sha256": "1136b9a35868bd49cf8e9f90e4bb4e62b8cdd8d8ce19ed33793d79e93a6a1970",
+      "raw": "10-node2-status.jsonl",
+      "raw_sha256": "7a29365188faeee10cb07fbc730afb85a34c8009c7abc7050972578b0a474e52",
+      "node": 2,
+      "values": [
+        {
+          "index": 24641,
+          "subindex": 0,
+          "width": 2,
+          "raw": "49232"
+        },
+        {
+          "index": 24673,
+          "subindex": 0,
+          "width": 1,
+          "raw": "3"
+        }
+      ],
+      "raw_requests_replies_matched": 2,
+      "trace_records": 8,
+      "coverage_complete": false
+    }
+  ],
+  "host_pause": {
+    "duration_s": 3.0,
+    "waiting_bytes": 4495,
+    "completed_commands": [
+      "p",
+      "S1794749378,30,200,1,3\n",
+      "X"
+    ]
+  },
+  "source_files": [
+    {
+      "path": "scripts/s2_evidence.py",
+      "sha256": "62257eddaa2483e73f442ffbc241781b7c4b56dfdc2d9762fc16ce5e1e32af64"
+    },
+    {
+      "path": "scripts/s2_console_account.py",
+      "sha256": "d15e26de7634ead54e6d2ddf8844be9cad416f49c50589ee4866b28663841938"
+    },
+    {
+      "path": "examples/s2_bench/Soak.cpp",
+      "sha256": "ebe018100026aefe705bc5502e61d2e3ff768dd1551004dbfbdc15671e5d5691"
+    },
+    {
+      "path": "examples/s2_bench/main/main.cpp",
+      "sha256": "7f087eee891b85e10411c3cb40c1dc72f43da550b197a1c7008172deced0276f"
+    },
+    {
+      "path": "examples/common/ProbePlatform.cpp",
+      "sha256": "c13d9ab41b44cb0bd7a9061637a6632317156abdf5534afc76f0c8fae400e9e1"
+    },
+    {
+      "path": "examples/common/ProbeConsole.cpp",
+      "sha256": "765f14736ca4d714239d045d0df2a9c14caecc7c7981c96480011d7a533afc5e"
+    },
+    {
+      "path": "docs/bench/20261115-p48/host_pause.py",
+      "sha256": "f5596f9c94417778b3e4efe8fba394fd6987fbf6f97380b62ebbac28327c4be8"
+    }
+  ],
+  "derived_inputs": [
+    {
+      "path": "campaign_results.json",
+      "sha256": "13bdc3161e3df0327335f0c8e6e229b502fbc22b7ef68b82340496ddcd735413"
+    },
+    {
+      "path": "state_regression.json",
+      "sha256": "43f396640ccc9e0c6a4681a327c3dbc6574e018b7fe4f0523086273e109a4f57"
+    }
+  ],
+  "checks": [
+    "Every campaign_results final field compared to raw source, exact image/request and immutable raw hash.",
+    "Final node histograms, outcomes, typed reads and expected upload counts reconcile for all five campaigns.",
+    "All captures replayed; console accounting independently recomputed. C remains incomplete.",
+    "Decoded all 28 pre/post raw request/reply pairs: node, object, width and value agree; all 12 terminal results are OK/SUCCESS with no uncertainty and identical pre/post values.",
+    "Checker 118 and soak 41 tests passed; host-pause 10 fake tests passed normally and under python -O. These are software checks only."
+  ],
+  "measurement_semantics": {
+    "latency": "Soak::recordStep measures service.completedUs - owner completion.admittedUs for transmissionPossible terminals. Mean is integer-truncated. Histogram upper boundaries are 2000,5000,10000,20000,50000,100000,250000 us plus overflow; this is not electrical or device-only latency.",
+    "counts": "Soak/node state restarts at begin. Owner SOAK_SUM counters and ownerGap remain cumulative. Sequential owner deltas match each campaign step total. Periodic rows are non-atomic while work runs; only final settled groups were sum-checked.",
+    "pressure": "blocked counts output-capacity wait turns; defBusy/slips count bounded read scheduling pressure. These are not CAN errors or lost frames.",
+    "accounting": "Adjacent SOAK_CON windows cover only their stream spans, not capture prefix/tail or all electrical traffic. Balance is not universal byte integrity or wire completeness."
+  },
+  "findings": [
+    {
+      "id": "C_SERIAL_LOSS",
+      "disposition": "unresolved",
+      "observation": "C contains one malformed merged n755/n756 row and an independently accounted 64-byte deficit between n745/n767, firmware t831299688..833303565 us. Final counters remain successful and final group settled; the capture remains incomplete.",
+      "comparison": "C2 at the same 119s/20ms/1s settings without intentional concurrent host tests has 118/118 balanced windows. It is a comparison, not a fix or proof of cause.",
+      "next_evidence": "Independent GPIO43 UART capture including framing errors, compared with host bytes; USB-level observation if needed to distinguish bridge/USB/host. Concurrent test activity is only a hypothesis."
+    },
+    {
+      "id": "D_INTERLEAVING",
+      "disposition": "source-supported explanation; original account retained",
+      "observation": "One 44-byte SOAK_STOPPING response at raw offset34552 precedes n283 SOAK_CON at34596. Adjacent accounting windows report +44 then -44.",
+      "source": "Soak::formatSummary cursor2 snapshots uartBytes+queued before put. pump retains an unqueued line when it cannot fit. main::line can enqueue the smaller one-shot response before that retained line is queued.",
+      "arithmetic": {
+        "n272_position": 687500,
+        "n283_snapshot_position": 689000,
+        "inserted_response_bytes": 44,
+        "n286_position": 689648,
+        "window272_283_host": 1544,
+        "window283_286_host": 604,
+        "adjusted_window272_283": 1544,
+        "adjusted_window283_286": 604
+      },
+      "limit": "Observed exact response bytes and source ordering explain both differences individually. Net zero alone is not no-loss evidence. Original numerical accounting remains nonzero; heuristic flags are not independent observations."
+    },
+    {
+      "id": "A_PREMATURE_REPLAY",
+      "disposition": "retained partial observation",
+      "observation": "Initial 04-A replay/account inspect still-running partial bytes. Final 04-A-final artifacts reference the completed 96372-byte raw capture. Neither history is overwritten."
+    },
+    {
+      "id": "POST_CONSOLE_BACKPRESSURE",
+      "disposition": "source-confirmed counter meaning",
+      "observation": "Final conRej8252 counts ProbePlatform::writeOutput insufficient-capacity refusals. ProbeConsole::flush retains its front record until writeOutput succeeds. Final owner RX/TX38736, drops/errors/rejects0 and traceOver0 agree with the 14 additional post-soak uploads. Selected raw trace exchanges independently reconcile.",
+      "limit": "This is not 8252 lost CAN frames. General raw_trace.coverage_complete remains false; selected request/reply verification is narrower. Final heap7200/largest4352/stackFree5544 describe console allocation state, not the earlier Soak-only heap25100/stack8536 or a worst-case bound."
+    }
+  ],
+  "remaining_limits": [
+    "No independent physical shaft, torque, direction or standstill observation; telemetry stays specimen/image-scoped.",
+    "No real drive power cycle or persistence trial. Save, factory restore and re-application counts stay zero; Q15 saved-set/rearm/durability/restart obligations remain.",
+    "No physical CAN interruption/fault injection, independently established host-loss stop/watchdog or electrical CAN instrument.",
+    "OL86-C, CL57-C and OL57-C fixtures are unavailable; no related-family qualification.",
+    "C serial evidence loss remains unresolved despite C2; independent instrument localization is required.",
+    "PC read pause leaves MCU/CAN owner running and can be absorbed by USB/OS buffering. X withdraws scheduled reads, not motor motion.",
+    "No vendor timing limit, dictionary conflict resolution or qualification flag follows from these runs."
+  ],
+  "conclusion": "Finite read campaigns and selected pre/post reads are accounted. C remains incomplete and C2 does not repair it. D settles explicit read withdrawal; observed response insertion plus source ordering explains its 44-byte accounting split. Prompt48 remains partial with physical, persistence, electrical, related-model and serial-localization obligations visible.",
+  "final_sibling_refresh": [
+    {
+      "repository": "MotorControl-RS",
+      "head": "1c1a95e05d3a481ea90f4c6b703caccedbf1d4dd",
+      "status_porcelain": " M examples/probe_cli/GroupApp.h\n M examples/probe_cli/MotionProfileApp.h\n M examples/probe_cli/MotionReadinessApp.h\n M examples/probe_cli/PositionStage.h\n M examples/probe_cli/PositionStageApp.h\n M examples/probe_cli/ProbeApp.cpp\n M examples/probe_cli/ProbeApp.h\n M examples/probe_cli/ProbeConsole.h\n M scripts/bench_probe.py\n M test/motion_profile_app_test.cpp\n?? examples/probe_cli/ProfileCandidate.h\n?? examples/probe_cli/ProfileCandidateApp.h",
+      "same_head_as_source_review": false,
+      "same_dirty_paths_as_source_review": false,
+      "source_files": [
+        {
+          "path": "scripts/bench_session.py",
+          "sha256": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350",
+          "same_working_bytes_as_source_review": true
+        },
+        {
+          "path": "scripts/bench_motion.py",
+          "sha256": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0",
+          "same_working_bytes_as_source_review": true
+        },
+        {
+          "path": "scripts/bench_probe.py",
+          "sha256": "62f9f9c4dc2c47e1577c6a7985d1fa1a2db2de2be54d7a4e8bc64a8954b1b95a",
+          "same_working_bytes_as_source_review": false
+        },
+        {
+          "path": "scripts/_bench_evidence.py",
+          "sha256": "13d353fb0896c2553324966b0a1f0b2b442634af807e2162e2560c79ec9c52de",
+          "same_working_bytes_as_source_review": true
+        },
+        {
+          "path": "scripts/bench_repeat.py",
+          "sha256": "fc7bb8bcac3972b1175da7af876f6611bc19c3da8853f1760b9eb230e5d9085b",
+          "same_working_bytes_as_source_review": true
+        }
+      ]
+    },
+    {
+      "repository": "ADS1115",
+      "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+      "status_porcelain": "",
+      "same_head_as_source_review": true,
+      "same_dirty_paths_as_source_review": true
+    },
+    {
+      "repository": "MCP45HVX1",
+      "head": "abfd749fbc641b9fe29e1eb2d6f6428ec4e9a4e2",
+      "status_porcelain": "",
+      "same_head_as_source_review": true,
+      "same_dirty_paths_as_source_review": true
+    },
+    {
+      "repository": "FieldCore-node",
+      "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+      "status_porcelain": "",
+      "same_head_as_source_review": true,
+      "same_dirty_paths_as_source_review": true
+    }
+  ],
+  "working_tree_provenance": "Source decisions name observed working bytes, not HEAD alone. No sibling fetched or changed.",
+  "final_host_sources_manifest": {
+    "path": "final_host_sources.json",
+    "sha256": "d4ee8c85c792eee7c782f03b8a576c951a1470ef75bf618e5bf1626101f1a83b"
+  },
+  "rs_concurrent_delta": {
+    "reference_commit": "28e5352e34dd02d9c7d8a815f7934d1e2b30f1ad",
+    "reference_blob_matches_initial_working_hash": false,
+    "path": "scripts/bench_probe.py",
+    "unchanged_named_function_asts": {
+      "drive_reported_stopped": true,
+      "observe_stopped": true,
+      "cleanup_stop_attempts": true,
+      "move_campaign": true,
+      "_check_persistence": true,
+      "_check_communication": true
+    },
+    "changed_scope": "bench_probe adds explicit motion-profile archive/candidate staging parsing and validation; existing profile-snapshot validation admits additional word-order/target-range failure labels. These RS feature additions are outside CAN prompt48 and are not imported. All named failure/settlement/cleanup and persistence/communication evidence seams retain their ASTs.",
+    "adopted": "Retain original primary failure and bounded independent cleanup/observation evidence.",
+    "rejected": "Do not import RS profile candidate/archive workflows, settings restoration, raw words, addresses or timing as CAN facts.",
+    "comparison_limit": "Exact commit blob uses LF; converting that blob to checkout CRLF reproduces the initially recorded working-byte hash. AST comparison ignores line-ending representation, not semantic changes. Current dirty working bytes were inspected without importing/executing sibling code.",
+    "reference_blob_lf_sha256": "88ef7c8c6d5ed162db97facb3a1ae21b9f71af4635677c85c0db6eb2d5eed07d",
+    "reference_blob_crlf_sha256": "2b41ba0c7939cc9d26e19295bdfba5483495ce9a6fc5f189b5522af0e2856594",
+    "reference_checkout_crlf_matches_initial_working_hash": true
+  },
+  "final_host_source_hashes_match": false
+}

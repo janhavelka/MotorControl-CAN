@@ -1,5 +1,11 @@
 # CAN bench facts and evidence gaps
 
+The [prompt48 campaign](reports/prompt_48.md) retains current-image bounded
+read/console load on both CL86-C specimens. The high-load capture has one
+64-byte diagnostic deficit after the console accounting boundary; the precise
+UART/bridge/USB/host cause remains unresolved. This is independent of the
+reported CAN/SDO outcomes and needs simultaneous external observation.
+
 Current review, 2026-11-15: the shared IDF S2 console uses UART0/core 0; its
 ordinary configured image remains CAN-inactive. The separate S2 bench image
 includes the shared console over its existing owner and explicitly gated bench
@@ -771,10 +777,17 @@ continued under a new name. A refused start ends the run. Exit status: 0 complet
 not finished, 3 consistent with anomalies retained, 2 refused before anything was created.
 
 Each trial directory replays through `s2_evidence.py`, which adds verdicts as in the table above:
-`complete` needs no anomaly, no gap and a `SOAK_END`. Add a retained run to
+`complete` requires no anomaly or gap, a settled successful `SOAK_END`, and the
+final interface/resource/console and both-node summary records. A duration end
+and its final summary must reach the declared duration. An observed explicit-stop
+marker requires a later final summary. Missing final measurements stay incomplete;
+unsettled/internal ends and node failures stay failed evidence. A complete capture
+can contain no reads (for example, a stop before the first tick); the campaign must
+check its actual workload. Add a retained run to
 `docs/bench/SHA256SUMS.json`, as with any other evidence.
 
-**Limits.** A soak does not qualify anything electrical, sustained-load or motion-related, and it
+**Limits.** A soak measures the stated finite read/console workload; it does not
+establish electrical limits, arbitrary sustained-load reliability or motion behavior, and it
 carries no TPDO load unless a drive was started by other means. `twaiErrors` and `twaiFlags` are
 the SDK's error-callback count and flag union; `SOAK_GAP` adds the controller's TX and RX error
 counters (`tec`, `rec`), sampled once per summary. Bench time is MCU uptime; UTC comes only from

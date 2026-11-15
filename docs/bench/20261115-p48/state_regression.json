@@ -1,0 +1,1122 @@
+[
+  {
+    "path": "01-node1-feedback.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24676,
+        "subindex": 0,
+        "width": 4,
+        "raw": "16846",
+        "current": true
+      },
+      {
+        "index": 24684,
+        "subindex": 0,
+        "width": 4,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 1873201105,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.875,
+        "observation_only": true,
+        "turns": 117,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 1873201108,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.110000000044238,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.110000000044238,
+        "observation_only": true,
+        "turns": 122,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "01-node1-monitors.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 8448,
+        "subindex": 0,
+        "width": 2,
+        "raw": "21",
+        "current": true
+      },
+      {
+        "index": 8449,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      },
+      {
+        "index": 8450,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4186907849,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.047000000020489,
+        "observation_only": true,
+        "turns": 121,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4186907852,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.2820000000065193,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 12,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.2820000000065193,
+        "observation_only": true,
+        "turns": 122,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "01-node1-status.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24641,
+        "subindex": 0,
+        "width": 2,
+        "raw": "49232",
+        "current": true
+      },
+      {
+        "index": 24673,
+        "subindex": 0,
+        "width": 1,
+        "raw": "3",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 3861711635,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.875,
+        "observation_only": true,
+        "turns": 121,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 3861711638,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.1089999999967404,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.1089999999967404,
+        "observation_only": true,
+        "turns": 121,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "01-node2-feedback.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24676,
+        "subindex": 0,
+        "width": 4,
+        "raw": "16845",
+        "current": true
+      },
+      {
+        "index": 24684,
+        "subindex": 0,
+        "width": 4,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 3283132324,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.875,
+        "observation_only": true,
+        "turns": 117,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 3283132327,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.10999999998603,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.10999999998603,
+        "observation_only": true,
+        "turns": 121,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "01-node2-monitors.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 8448,
+        "subindex": 0,
+        "width": 2,
+        "raw": "21",
+        "current": true
+      },
+      {
+        "index": 8449,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      },
+      {
+        "index": 8450,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4216103060,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.125,
+        "observation_only": true,
+        "turns": 127,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4216103063,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.3589999999967404,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 12,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.3589999999967404,
+        "observation_only": true,
+        "turns": 111,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "01-node2-status.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24641,
+        "subindex": 0,
+        "width": 2,
+        "raw": "49232",
+        "current": true
+      },
+      {
+        "index": 24673,
+        "subindex": 0,
+        "width": 1,
+        "raw": "3",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 1969137122,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.952999999979511,
+        "observation_only": true,
+        "turns": 120,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 1969137125,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 3.187999999965541,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 3.187999999965541,
+        "observation_only": true,
+        "turns": 121,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node1-feedback.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24676,
+        "subindex": 0,
+        "width": 4,
+        "raw": "16846",
+        "current": true
+      },
+      {
+        "index": 24684,
+        "subindex": 0,
+        "width": 4,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2087524374,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.2189999999827705,
+        "observation_only": true,
+        "turns": 128,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2087524377,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.452999999979511,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.452999999979511,
+        "observation_only": true,
+        "turns": 129,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node1-monitors.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 8448,
+        "subindex": 0,
+        "width": 2,
+        "raw": "21",
+        "current": true
+      },
+      {
+        "index": 8449,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      },
+      {
+        "index": 8450,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 41717825,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.3589999999967404,
+        "observation_only": true,
+        "turns": 124,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 41717828,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.5780000000377186,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 12,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.5780000000377186,
+        "observation_only": true,
+        "turns": 119,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node1-status.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24641,
+        "subindex": 0,
+        "width": 2,
+        "raw": "49232",
+        "current": true
+      },
+      {
+        "index": 24673,
+        "subindex": 0,
+        "width": 1,
+        "raw": "3",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2599898105,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.202999999979511,
+        "observation_only": true,
+        "turns": 122,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2599898108,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.4380000000237487,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.4380000000237487,
+        "observation_only": true,
+        "turns": 123,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node2-feedback.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24676,
+        "subindex": 0,
+        "width": 4,
+        "raw": "16845",
+        "current": true
+      },
+      {
+        "index": 24684,
+        "subindex": 0,
+        "width": 4,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4124577995,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.202999999979511,
+        "observation_only": true,
+        "turns": 123,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 4124577998,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.4380000000237487,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.4380000000237487,
+        "observation_only": true,
+        "turns": 127,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node2-monitors.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 8448,
+        "subindex": 0,
+        "width": 2,
+        "raw": "21",
+        "current": true
+      },
+      {
+        "index": 8449,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      },
+      {
+        "index": 8450,
+        "subindex": 0,
+        "width": 2,
+        "raw": "0",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 445225924,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.35999999998603,
+        "observation_only": true,
+        "turns": 123,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 445225927,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.5939999999827705,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 12,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.5939999999827705,
+        "observation_only": true,
+        "turns": 128,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  },
+  {
+    "path": "10-node2-status.jsonl.summary.json",
+    "status": "OK",
+    "outcome": "SUCCESS",
+    "uncertain": false,
+    "stream_integrity": "intact",
+    "values": [
+      {
+        "index": 24641,
+        "subindex": 0,
+        "width": 2,
+        "raw": "49232",
+        "current": true
+      },
+      {
+        "index": 24673,
+        "subindex": 0,
+        "width": 1,
+        "raw": "3",
+        "current": true
+      }
+    ],
+    "trace": {
+      "requested": true,
+      "enabled": true,
+      "disabled": true,
+      "coverage_complete": false,
+      "loss_observed": false,
+      "enable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2201341278,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 1,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "before_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.202999999979511,
+        "observation_only": true,
+        "turns": 125,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "disable_reply": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 2201341281,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "declared_pending_tail": {
+        "duration_s": 5.0,
+        "started_host_elapsed_s": 2.4369999999762513,
+        "observation_only": true,
+        "turns": 1,
+        "window_elapsed": false,
+        "target_traces": 8,
+        "target_reached": true,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      },
+      "after_disable_tail": {
+        "duration_s": 0.2,
+        "started_host_elapsed_s": 2.4369999999762513,
+        "observation_only": true,
+        "turns": 127,
+        "window_elapsed": true,
+        "target_traces": null,
+        "target_reached": false,
+        "received_bytes": 0,
+        "partial_line_hex": ""
+      }
+    }
+  }
+]

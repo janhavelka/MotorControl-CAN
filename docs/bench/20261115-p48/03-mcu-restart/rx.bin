@@ -1,0 +1,13 @@
+ESP-ROM:esp32s2-rc4-20191025
+Build:Oct 25 2019
+rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3ffe5110,len:0x4f8
+load:0x4004a000,len:0x8a4
+load:0x4004e000,len:0x2b08
+entry 0x4004a11c
+S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw v/b=motion-reads S=soak X=soak-stop T=trial A=trial-abort
+PONG target=esp32s2 base=bf8a0d9518c6b42ff06d4f29516bf82ee66abf79 elf=9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399 sdk=v5.5.5-dirty running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=13 trial=0 motion=0 pdo=5 watch=0 capture=0
+HEAP free=36676 largest=20480 minimum=32236 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3840:3840 r2=3ffd2950:169648:25008:20496 reserved=1f arena=0 arenaBytes=23688
+STATS running=0 inhibited=1 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9576 t=0 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=0 conRej=0

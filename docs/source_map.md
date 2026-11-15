@@ -1,5 +1,18 @@
 # Live source and responsibility map
 
+## Failure and load evidence (prompt 48)
+
+- [Campaign report](reports/prompt_48.md), [source decisions](bench/20261115-p48/source_review.json)
+  and [plan](bench/20261115-p48/plan.json): exact image, sibling seams,
+  finite workload and physical limits.
+- `examples/s2_bench/Soak.cpp::finishPhases` emits final measurements;
+  `scripts/s2_evidence.py::SoakChecker` validates duration, explicit-stop boundary,
+  both-node final summaries and settlement; `scripts/s2_evidence_test.py`
+  mutates retained firmware records. `s2_soak_test.py` exercises the live runner
+  against a fake backend. These changes own no new installed API.
+- [Experiment-local host-pause helper](bench/20261115-p48/host_pause.py) and its
+  fake-backend tests retain a single explicit read workload with no reconnect.
+
 ## Finite hardware evidence (prompt 47)
 
 - [Campaign record](bench/20261115-p47/README.md) and

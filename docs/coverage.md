@@ -1,5 +1,10 @@
 # Requirement coverage after pure CAN/SDO checks
 
+[Prompt48](reports/prompt_48.md) records finite two-node read/console load and
+strict final-summary validation. These measurements extend specimen-scoped
+communication evidence only; physical fault/persistence/restart and related-model
+qualification remain pending. No native coverage or firmware gate is promoted.
+
 [Prompt47](reports/prompt_47.md) adds current-image S2 and two-node acquisition
 evidence, two finite experimental velocity/quick-stop runs, explicit
 diagnostic-loss regressions and retained failed captures.

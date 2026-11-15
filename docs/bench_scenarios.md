@@ -1,5 +1,11 @@
 # Finite bench scenarios
 
+The [prompt48 campaign](reports/prompt_48.md) uses the existing S2 read-only
+`Soak` path with finite duration and one trial per admission. Its retained
+[plan and commands](bench/20261115-p48/README.md) distinguish CAN read load,
+console output, a host consumer pause and explicit read withdrawal. None is a
+physical CAN cut, motor stop or persistence test.
+
 The Python campaigns orchestrate the ordinary shared console described in the
 [CLI contract](cli_contract.md). They use the same `Console` and checked evidence
 helpers as [the runner guide](runners.md). Plans, host fake results, live console

@@ -1,0 +1,311 @@
+{
+  "schema": 1,
+  "prompt": 48,
+  "scope": "Read-only source/requirements review; no hardware, sibling fetch/modification, Git mutation or implementation. Owns only this JSON.",
+  "comparison_source": "docs/bench/20261115-p47/source-delta.json",
+  "sibling_decisions": [
+    {
+      "repository": "MotorControl-RS",
+      "comparison": "HEAD and dirty state changed. Four recorded failure/session files are byte-identical to prompt47 working files; repeat unchanged versus recorded prompt47 commit and newly inspected for prompt48.",
+      "adopted": [
+        "scripts/bench_session.py::run_recorded/snapshot/cached_failure: exclusive artifacts before port access, bounded evidence, primary and cleanup outcomes separate; framing failure forbids subsequent I/O.",
+        "scripts/bench_probe.py::observe_stopped/move_campaign: bounded fresh drive reports are not shaft evidence; retain original failure independently of stop outcome.",
+        "scripts/bench_repeat.py::campaign/main: finite count, explicit trial terminal and min/median/max software latency provenance.",
+        "scripts/_bench_evidence.py::write_execution/check_stop_recovery: checked raw-wire evidence and retained uncertainty independent of recovery."
+      ],
+      "rejected": [
+        "scripts/bench_probe.py::cleanup_stop_attempts: RS recovery and stop resubmission are not CAN policy.",
+        "scripts/bench_motion.py::profile_snapshot: automatic profile restoration is not CAN cleanup.",
+        "scripts/bench_repeat.py::campaign: reject configured RS movement plan, default port/address, restoration, ESS units and timing as CAN assumptions.",
+        "scripts/_bench_evidence.py::write_execution: RS deadline convention, wire registers and exception meanings are not copied into CAN."
+      ]
+    },
+    {
+      "repository": "ADS1115",
+      "comparison": "unchanged since prompt47; same HEAD, clean state and seam; not reread",
+      "path_symbols": "tools/run_i2c_hil.py::run_soak/run_soak_epilogue",
+      "adopted": "Finite soak bounds and contract/evidence distinction.",
+      "rejected": "Sensor recovery policy does not apply to motor commands."
+    },
+    {
+      "repository": "MCP45HVX1",
+      "comparison": "unchanged since prompt47; same HEAD, clean state and seam; not reread",
+      "path_symbols": "tools/run_hil_mcp45hvx1.py::capture_baseline/output_change_sequence/restore_baseline/verdict",
+      "adopted": "Failed baseline blocks writes; SKIPPED_UNSAFE is not PASS.",
+      "rejected": "Automatic restoration does not define motor cleanup."
+    },
+    {
+      "repository": "FieldCore-node",
+      "comparison": "unchanged since prompt47; same HEAD, clean state and seam; not reread",
+      "path_symbols": [
+        "contracts/MotorControl.h::MotorCommand/MotorResult",
+        "device/Rs485MotorModule.cpp::startMotor/nextStep/acceptObservation",
+        "rs485/Rs485Task.cpp::submitMotorCommand/completeMotor/serviceMotorControl",
+        "measurement/rodtester/RodCyclePorts.h::submitMotor/takeMotor"
+      ],
+      "adopted": "Copied requests, one owner, exact result take and retained uncertainty.",
+      "rejected": "No current CAN integration or FieldCore product dependency inferred."
+    }
+  ],
+  "claims": [
+    {
+      "topic": "Persistence action",
+      "classification": "source-confirmed action; durable effects unknown",
+      "sources": [
+        "EN86 PDF15,18",
+        "ZH86 PDF15,18",
+        "OP86 PDF13",
+        "EDS [2300]"
+      ],
+      "claim": "2300:00 is U16 RW. Manual value2 saves current parameters, value1 restores factory settings, value0 is ineffective. EDS PDOMapping1/default0 are metadata, not a harmless-read or completion guarantee.",
+      "limits": "Homing speed, ramps and homing mode are non-exhaustive examples. Complete saved set,1017/2203/PDO survival, save duration/endurance, flash ordering, restart requirement and rearm remain unknown. The separate2302 manual zeroing instruction does not justify2300=0 after save.",
+      "next_evidence": "Q15 exact-specimen baseline, independent power control, established recovery route and finite counted save trial. Post-cycle reads must precede re-application, with independent evidence excluding intervening configuration writes from every producer."
+    },
+    {
+      "topic": "Restart and power-up",
+      "classification": "documented with model-scope uncertainty",
+      "sources": [
+        "OP86 PDF5 note4 and PDF9",
+        "OP57 PDF5 note4",
+        "EN86/ZH86 PDF20",
+        "OP86 PDF14"
+      ],
+      "claim": "Operating manuals state shaft lock after power-up. OP86 body carries57C headings and OP57 duplicates this statement. Enable6/7/15 does not contradict initial holding torque. Alarm restart wording defines no vendor restart service.",
+      "limits": "No universal CL86 firmware inference, readiness delay, target retention, NMT reload or automatic re-enable guarantee. Q11 attended holding torque remains inherited specimen-specific evidence.",
+      "next_evidence": "Operator or independent torque/shaft observation during an actual drive power cycle; fresh2100/6041 and identity before commands. MCU reset is not drive restart."
+    },
+    {
+      "topic": "Stop and host-loss watchdog",
+      "classification": "source-confirmed action examples; host-loss response unknown",
+      "sources": [
+        "EN86 PDF12",
+        "OP86 PDF10",
+        "EDS [1017],[605D]; absent [1016],[605A],[6085]"
+      ],
+      "claim": "Manual examples name15->11 emergency stop; OP86 additionally15->271 stop. Neither authorizes enabling first. Producer heartbeat1017 is U16 RW/PDOMapping0/default0;605D is I16 RW/default1 without an established Lichuan behavior for that value.",
+      "limits": "No documented host-loss motor stop, braking distance, stop latency or hardware safety guarantee. Host heartbeat supervision is not a drive watchdog. PC/UART inactivity leaves the S2 CAN owner running.",
+      "next_evidence": "Independently measured interruption on the actual CAN-controller/drive path, established independent stop/control provision and shaft/torque observation. Preserve original uncertain operation separately from cleanup."
+    },
+    {
+      "topic": "I/O",
+      "classification": "source-confirmed table; existing conflicts retained",
+      "sources": [
+        "EN86 PDF7,8,18",
+        "ZH86 PDF18,19",
+        "OP86 PDF5"
+      ],
+      "claim": "DI functions5 stop and6 emergency stop appear in the manual.24V DI polarity depends on DICOM; DOCOM connects0V. An unwired terminal is not a disabled function.",
+      "limits": "No supplied home/stop fixture. DO numbering/function conflicts remain; no I/O reassignment or physical-stop qualification follows from readback.",
+      "next_evidence": "Actual wiring, levels/polarity and independently observed function-specific behavior before I/O trials."
+    },
+    {
+      "topic": "Resources and load",
+      "classification": "documented device capability; test bounds application-selected",
+      "sources": [
+        "EN86 PDF3,9,10",
+        "docs/reports/prompt_47.md"
+      ],
+      "claim": "EN86 states maximum32 axes and bitrate/cable recommendations; these are not host queue capacities or all-load guarantees. No reopened manual passage supplies SDO-response maximum, bus-off recovery bound or save/stop timing guarantee.",
+      "limits": "Retain actual two-node fixture, UART/CAN rates, owner gaps, resource/capacity observations, raw diagnostics and loss counters. Software time does not measure electrical CAN timing; zero sampled loss is not a worst-case guarantee.",
+      "next_evidence": "Finite count/wall-duration plan with before/after resources and software timing distributions; an independent CAN instrument for wire utilization/arbitration/error timing."
+    },
+    {
+      "topic": "Related models",
+      "classification": "unavailable physical evidence",
+      "sources": [
+        "docs/prompts/48_hardware_stress.md",
+        "docs/multidrive_decision.md"
+      ],
+      "claim": "OL86-C,CL57-C,OL57-C each require their own interface/firmware/motor/feedback baseline and finite prerequisites.",
+      "limits": "Shared manual body and CL86 specimens do not qualify related models. N5/EPOS4 remain design contrasts.",
+      "next_evidence": "Each actual related fixture, model-applicable originals and baseline/stop qualification before fault/load trial."
+    }
+  ],
+  "campaign_assessment": {
+    "bounded_read_load": "Feasible through ordinary public identity/state reads on existing bindings with explicit count/wall-time/command/trace bounds. Confirm current image/baseline; retain raw correlation, resource/service-gap observations and loss. End the campaign on first unexplained failure. This supplies software throughput and finite capture evidence, no physical motion qualification.",
+    "host_console_interruption": "Feasible as a planned bounded PC/UART receive/service pause with retained evidence and explicit inspection afterward. Check EN/BOOT effects of the selected method. It measures console pressure/retention and observed continued owner service; it is not CAN host disappearance or drive power-cycle evidence.",
+    "save_attempt_cap": 0,
+    "unavailable": [
+      "Independent physical moving-stop/link-loss/fault observation and control provision",
+      "Actual power cycle and Q15 persistence/durability trial",
+      "Independent electrical CAN timing and congestion instrumentation",
+      "Homing/stop I/O fixture",
+      "OL86-C,CL57-C,OL57-C fixtures"
+    ],
+    "qualification": "Prompt48 cannot become Complete from telemetry-only campaigns. Preserve each dependent physical obligation as pending."
+  },
+  "checks": [
+    "Reopened original PDF pages and EDS; visually inspected OP86 PDF5 and EN86 PDF18.",
+    "Original hashes checked against SOURCES.json; no original modified.",
+    "Five RS Python files parsed via ast.parse only; no sibling code imported or executed.",
+    "Four recorded RS files match prompt47 working-byte hashes; repeat unchanged versus recorded commit.",
+    "Actual verify.yml and check_promptset.py inspected. Lead owns combined-tree verification.",
+    "python scripts/check_promptset.py passed: planning-package integrity only, no library/HIL validation.",
+    "JSON parse and source hash equality checks passed; scoped git diff --check passed (new artifact additionally serialized with LF)."
+  ],
+  "captured_utc": "2026-11-15T13:12:02.218074+00:00",
+  "can_revision": "5f33272325ba773253d5e9cc17e54974df19c211",
+  "branch": "main",
+  "sibling_state": [
+    {
+      "repository": "MotorControl-RS",
+      "head": "28e5352e34dd02d9c7d8a815f7934d1e2b30f1ad",
+      "status_porcelain": " M docs/cli_contract.md\n M docs/console.md\n M examples/probe_cli/CommunicationApp.h\n M examples/probe_cli/GroupApp.h\n M examples/probe_cli/PositionStageApp.h\n M examples/probe_cli/ProbeApp.cpp\n M examples/probe_cli/ProbeApp.h\n M test/group_app_test.cpp\n M test/probe_app_test.cpp\n M test/simple_motion_app_test.cpp"
+    },
+    {
+      "repository": "ADS1115",
+      "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+      "status_porcelain": ""
+    },
+    {
+      "repository": "MCP45HVX1",
+      "head": "abfd749fbc641b9fe29e1eb2d6f6428ec4e9a4e2",
+      "status_porcelain": ""
+    },
+    {
+      "repository": "FieldCore-node",
+      "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+      "status_porcelain": ""
+    }
+  ],
+  "rs_source_files": [
+    {
+      "path": "scripts/bench_session.py",
+      "sha256": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350",
+      "same_bytes_as_prompt47": true
+    },
+    {
+      "path": "scripts/bench_motion.py",
+      "sha256": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0",
+      "same_bytes_as_prompt47": true
+    },
+    {
+      "path": "scripts/bench_probe.py",
+      "sha256": "2b41ba0c7939cc9d26e19295bdfba5483495ce9a6fc5f189b5522af0e2856594",
+      "same_bytes_as_prompt47": true
+    },
+    {
+      "path": "scripts/_bench_evidence.py",
+      "sha256": "13d353fb0896c2553324966b0a1f0b2b442634af807e2162e2560c79ec9c52de",
+      "same_bytes_as_prompt47": true
+    },
+    {
+      "path": "scripts/bench_repeat.py",
+      "sha256": "fc7bb8bcac3972b1175da7af876f6611bc19c3da8853f1760b9eb230e5d9085b",
+      "same_as_prompt47_recorded_commit": true
+    }
+  ],
+  "original_sources": [
+    {
+      "id": "EN86",
+      "path": "docs/reference/vendor/86C_CANopen_user_manual_en.pdf",
+      "sha256": "401df6c49c54fe56fed7c606ca45718f352235746e2faaeb65be778eef6c4b9f",
+      "manifest_match": true,
+      "firmware_match": "not established by the document",
+      "pdf_pages_reopened": [
+        3,
+        7,
+        8,
+        9,
+        10,
+        12,
+        15,
+        18,
+        20
+      ],
+      "page_text_sha256": {
+        "3": "3b3b412ab2fb011b4342c0d4e860026470343ee4e51f6c49d337b67382eb9634",
+        "7": "981ced18cbf26fbf04219cbc3862d2481ca226fa7731b37f4e4a22dc537f46c8",
+        "8": "c995796bac2f6c1c23857961b2e37e402e3a94de5719ea05ff568e9593125371",
+        "9": "b273820f891ffa671f8e9907f0c9416c738291f10b8d7f566ce1c83e92cab62a",
+        "10": "6e513e6e301b77df008530e8403602fd067bcbe20c64bdefa4c4d83e7c5db026",
+        "12": "5225ab23ff203c2dd1596d8ad7bd079301fcf0480b12f44d57db3ed3c7a79a5b",
+        "15": "dfdf59ab7307a170d5074e744a330d57541c280ac19b6e3c76e49799f2c07604",
+        "18": "447ef57c846ad9f43d62572a0d8278eed8c48a67ca49c750ac094c20fb035d3b",
+        "20": "bcc70e2798c92bf827ed18490f246a2a351c90d3a28803c3a6bebae506f3806a"
+      },
+      "visual_inspection_pages": [
+        18
+      ]
+    },
+    {
+      "id": "ZH86",
+      "path": "docs/reference/vendor/86C_CANopen_user_manual_zh.pdf",
+      "sha256": "3969c914aa291662e8c77941bcfbb0559769a96b75306266370890d03e824d13",
+      "manifest_match": true,
+      "firmware_match": "not established by the document",
+      "pdf_pages_reopened": [
+        15,
+        18,
+        19,
+        20
+      ],
+      "page_text_sha256": {
+        "15": "932831fe39253dcb23fd4b93967e96fd55b454f896b147ccaecd211898e9b4c6",
+        "18": "9006eb5e165d62cd735f79211ea94231655dad0fd60a0a511f2a6014b6e49312",
+        "19": "5008da761c85da1ee8236169162a11d577399a43674539e5c1b6f8f1049e94d6",
+        "20": "33d2b49991f2b86accfc84c30d9c9a4729523f8c5a5cc8c42a0e31ce04c7bd24"
+      },
+      "visual_inspection_pages": []
+    },
+    {
+      "id": "OP86",
+      "path": "docs/reference/vendor/CL86C_OL86C_operating_manual_zh.pdf",
+      "sha256": "4c87679d210c99f4ac4f6ce29e7f2c82b13221fdf81c47ee59a989f708f504b5",
+      "manifest_match": true,
+      "firmware_match": "not established by the document",
+      "pdf_pages_reopened": [
+        5,
+        9,
+        10,
+        13,
+        14
+      ],
+      "page_text_sha256": {
+        "5": "c82082477b92d2b010551e5edefbf4ac4c580f8194794ee9f352eb145d7c7b2d",
+        "9": "85bee44d1a64be7cee8cc5685ee2cfaaa59f6c8107b477a7e39610efb65eb2f9",
+        "10": "98f481ecea6698fd0c7dcb202dd66b4ba79b1e9c2c581b14b4fb876ad8e6322f",
+        "13": "5655aa9b1190205f66d111884485c6daf8e8eb7beb4ca71950322797638dbfad",
+        "14": "89eebce9fd3a75c57733144f1b56d80111e2694ca2b03e71cc0413b4ef5f3fbe"
+      },
+      "visual_inspection_pages": [
+        5
+      ]
+    },
+    {
+      "id": "OP57",
+      "path": "docs/reference/vendor/CL57C_OL57C_operating_manual_zh.pdf",
+      "sha256": "ce61bb1c1fde3cf689a2e8078b0823eb2734382b7713c0448006017a60396343",
+      "manifest_match": true,
+      "firmware_match": "not established by the document",
+      "pdf_pages_reopened": [
+        5
+      ],
+      "page_text_sha256": {
+        "5": "c82082477b92d2b010551e5edefbf4ac4c580f8194794ee9f352eb145d7c7b2d"
+      },
+      "visual_inspection_pages": []
+    },
+    {
+      "id": "EDS",
+      "path": "docs/reference/vendor/LC_StepDriverCAN_V1.1.eds",
+      "sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+      "manifest_match": true,
+      "firmware_match": "not established by the document",
+      "sections_reopened": [
+        "1017",
+        "2203",
+        "2300",
+        "2301",
+        "2302",
+        "6041",
+        "605D"
+      ],
+      "absent_sections_checked": [
+        "1016",
+        "605A",
+        "6085"
+      ]
+    }
+  ]
+}

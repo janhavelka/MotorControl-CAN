@@ -1,0 +1,21 @@
+{
+  "purpose": "Explicit EN-only MCU restart for lazy Soak allocation after completed/released status reads; not drive restart/recovery",
+  "started_utc": "2026-11-15T13:12:15.401795+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "reset_drive": false,
+  "retry": false,
+  "pulse_source_sha256": "7d7471ed034bad2b3e90ca661d1f7df86882317dd900ace6fa792fd454e7240e",
+  "status": "same-image-restarted-inactive",
+  "prefix_bytes": 0,
+  "en_pulse": {
+    "via": "RTS, DTR deasserted",
+    "low_s": 0.1,
+    "released_s": 0.10999999998603016
+  },
+  "ended_utc": "2026-11-15T13:12:22.496930+00:00"
+}
