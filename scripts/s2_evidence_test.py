@@ -1211,6 +1211,39 @@ class Image(unittest.TestCase):
         self.assertIn("target", evidence.check_image(self.report, dict(self.build, target="esp32s3"))[0])
         self.assertIn("sdk", evidence.check_image(self.report, dict(self.build, sdk_version="5.4"))[0])
 
+    def sdk_report(self, label):
+        pong = next(r for r in self.report.records if r.kind == "PONG")
+        return replay((pong.raw.replace("sdk=" + pong.values["sdk"], "sdk=" + label) + "\n").encode(), "ping")
+
+    def test_sdk_prefix_is_symmetric_and_preserves_the_complete_label(self):
+        for reported, expected in (("5.5.5", "5.5.5"), ("v5.5.5", "5.5.5"),
+                                   ("5.5.5", "v5.5.5"), ("v5.5.5", "v5.5.5"),
+                                   ("v5.5.5-dirty", "v5.5.5-dirty"),
+                                   ("v5.5.5-dirty", "5.5.5-dirty"),
+                                   ("5.5.5-dirty", "v5.5.5-dirty"),
+                                   ("v5.5.5-1-g123abc-dirty", "5.5.5-1-g123abc-dirty")):
+            with self.subTest(reported=reported, expected=expected):
+                self.assertEqual(evidence.check_image(self.sdk_report(reported),
+                                                     dict(self.build, sdk_version=expected)), [])
+
+    def test_sdk_dirty_revision_and_extra_prefix_mismatches_are_rejected(self):
+        for reported, expected in (("v5.5.5-dirty", "5.5.5"),
+                                   ("v5.5.5", "5.5.5-dirty"),
+                                   ("v5.5.5-1-g123abc", "v5.5.5-1-g456def"),
+                                   ("v5.5.5-1-g123abc-dirty", "v5.5.5-1-g123abc"),
+                                   ("vv5.5.5", "5.5.5")):
+            with self.subTest(reported=reported, expected=expected):
+                problems = evidence.check_image(self.sdk_report(reported),
+                                                 dict(self.build, sdk_version=expected))
+                self.assertEqual(len(problems), 1)
+                self.assertTrue(problems[0].startswith("sdk:"))
+
+    def test_sdk_prefix_normalization_does_not_apply_to_other_identity_fields(self):
+        for name, value in (("base_commit", self.build["base_commit"]), ("target", "esp32s2")):
+            with self.subTest(name=name):
+                self.assertTrue(evidence.check_image(self.report,
+                                                    dict(self.build, **{name: "v" + value})))
+
     def test_missing_or_repeated_pong_is_not_a_match(self):
         self.assertTrue(evidence.check_image(replay(b"", "ping"), self.build))
         pong = (BENCH / "20261102-final-ping/rx.bin").read_bytes()

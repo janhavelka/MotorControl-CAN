@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Finite bench evidence (prompt47, 2026-11-15)
+
+- Add explicit raw tracing to finite Python campaigns and retain bounded trailing
+  records after `debug off`. Observed trace loss fails the requested capture while
+  preserving the workload result and any earlier failure.
+- Copy burst diagnostics into a fixed 128-record application buffer independently
+  of console output pressure. Keep one ordinary reply slot available, report
+  local drops separately from owner overwrites, and drain copied records after off.
+- Compare one optional SDK version prefix symmetrically during flashed-image
+  checks; revision/dirty suffixes and all other identity fields remain exact.
+- Increase the full verifier's aggregate hang guard to cover the measured suite;
+  individual test limits and checks are unchanged.
+
+
 ### Independent prompt46 audit (2026-11-15)
 
 - Retire withdrawn example transfers against their original admitted identity

@@ -212,7 +212,9 @@ def main(argv=None):
         test_env = os.environ.copy()
         test_env["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1"
         test_env["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"
-        check_test_output(runner.run("contracts", command, timeout=300, env=test_env))
+        # Aggregate hang guard, not an individual test budget. The full Windows
+        # suite took 314 s on 2026-11-15; each test met its unchanged CTest limit.
+        check_test_output(runner.run("contracts", command, timeout=600, env=test_env))
         check_test_output((build / "Testing/Temporary/LastTest.log").read_text(encoding="utf-8", errors="replace"))
         if args.mode == "full":
             runner.run("package", [sys.executable, ROOT / "test/package_test.py", "--cmake", cmake,

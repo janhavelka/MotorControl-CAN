@@ -69,6 +69,7 @@ Unknown model/firmware matches and `hardware_qualified:false` remain explicit.
 | `--timeout` | Immutable host deadline in seconds, finite `(0,60]`, default 5; handshake shares one overall deadline. A host deadline is not confirmed motor stop. |
 | `--startup` | Bounded initial banner collection in seconds, finite `(0,60]`, default 0.2. |
 | `--release` | Send a separate correlated release after a checked admitted terminal. Omitted by default, so firmware retains the result. |
+| `--trace-raw` | Explicitly enable public `debug raw` copies after handshake/selection and before the read; retain traces through one `debug off` on a usable stream. |
 
 A requested release refusal makes the invocation fail; it does not erase or
 reinterpret the primary read terminal. Ctrl-C retains the known terminal or
@@ -82,7 +83,8 @@ The client does not reopen or retry the failed summary medium.
 
 Connection, inspection and failure cleanup never imply enable, motion,
 reconfiguration, fault clearing or replay. Closing the port sends no cleanup
-command. Hardware qualification and previously retained operations remain
+command. Requested raw tracing is disabled before closure while the stream remains usable.
+Hardware qualification and previously retained operations remain
 application/fixture concerns.
 
 ## Reusing Console
@@ -248,6 +250,7 @@ settings to make admission succeed.
 | `--timeout` | Per-command immutable host deadline, finite `(0,60]` seconds, default 15; velocity requires more than its duration plus the application's 10-second cutoff |
 | `--startup` | Bounded initial banner collection, finite `(0,60]` seconds, default 0.2 |
 | `--request-timeout-ms` | Explicit probe/identity application budget, 1..60000 ms, default 1000 |
+| `--trace-raw` | Enable owner diagnostic copies after cached setup and before the first DEC-1 probe; disable after scenario cleanup and final snapshots on a usable stream |
 
 `--timeout` is a command deadline, not an overall campaign duration. A campaign
 has a finite command count and each command keeps its own cutoff. These are
@@ -255,6 +258,39 @@ host policies and existing application budgets, never invented device timing.
 There is no campaign `--release` flag: successful admitted terminals are copied
 into evidence and explicitly released before proceeding. Failed or uncertain
 results remain retained; release is local result ownership, not a motor action.
+
+`--trace-raw` uses the same Console, owner and bounded transcript. It sends only
+the public local diagnostic commands `debug raw` and `debug off`; no second CAN
+receiver is introduced. The transcript preserves `trace` records, exact payload
+hex, identifiers/format, `processed_us` decimal strings and host receive times.
+Before debug off, a fixed 0.2-second observation window keeps raw diagnostics
+enabled. Current firmware copies at most 24 owner diagnostics per service turn
+into a separate 128-entry application buffer (3072 bytes of compact records),
+independent of UART pressure, and serializes one record per turn. All diagnostic
+kinds remain represented. Debug off captures the remaining bounded owner queue,
+stops capture and reports `trace_pending`: buffered records that follow its FIFO
+reply. The runner waits for that declared count under the existing command timeout,
+then observes another fixed 0.2-second window. Older firmware lacking this field
+gets only the fixed observation window. Empty reads do not end these waits.
+Each uses the supplied monotonic clock, at most 65536 received bytes and a finite
+turn allowance even when the clock freezes. Missing declared records or partial
+lines at cutoff fail with retained diagnostics. Metadata appears under `raw_trace`
+as `before_disable_tail`, `declared_pending_tail` and `after_disable_tail`.
+The debug replies retain owner `trace_overwritten` and application `trace_dropped`.
+An increase, regression or saturated counter sets `loss_observed:true` and fails
+requested tracing while preserving `workload_verified` and native results. No retry
+is added. `coverage_complete` remains false: review each trial's required TX/RX
+pairs and drop evidence. These software timestamps and counts establish neither
+empty remote queues nor exact wire timing. Controller/drop counters remain in the
+cached snapshots. Existing record, byte, time and evidence limits apply, so
+trace pressure can fail a campaign instead of silently losing required evidence.
+The summary's `raw_trace` records enable/disable replies, refusal or skipped cleanup.
+If the stream is poisoned, disconnected or its evidence sink failed, no debug-off
+command is sent; the unresolved local trace setting remains explicit. A healthy
+disable refusal fails the session while preserving any primary failure or uncertain
+motion result. Trace disable never stops a motor. A separate trace-enable invocation
+before starting a runner can leave queued structured output at startup and is not
+the supported procedure.
 
 ## Supplied fixture records
 

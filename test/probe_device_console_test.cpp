@@ -892,6 +892,84 @@ void decodedDebugReportsOnlyCheckedEvents() {
     CHECK(r.attempts() == 0); // Diagnostics neither transmit nor steal authoritative receive.
 }
 
+unsigned jsonUnsigned(const std::string& record, const char* key) {
+    const std::string marker = std::string("\"") + key + "\":";
+    const size_t at = record.find(marker);
+    CHECK(at != std::string::npos);
+    return unsigned(std::strtoul(record.c_str() + at + marker.size(), nullptr, 10));
+}
+
+void rawDebugCapturesIdentityBurstUnderOutputPressure() {
+    Rig r;
+    r.select();
+    r.command("@2 debug raw");
+    r.command("@3 probe 1000");
+    r.command("@4 release 1");
+    r.bytes.blocked = true;
+    r.line("@5 read identity 1000");
+    r.drain(500);
+    // Upload work finishes while UART is blocked; diagnosis never throttles the owner.
+    CHECK(r.app.readContext().state == M::ReadState::SUCCEEDED);
+    CHECK(r.attempts() == 10);
+    CHECK(r.owner.stats().traceOverwritten == 0);
+    r.bytes.blocked = false;
+    for (unsigned n = 0; n < 3000 && r.console.stats().queued >= 2; ++n)
+        r.turn();
+    CHECK(r.console.stats().queued < 2);
+    r.line("@6 debug off");
+    r.drain(10000);
+    const std::string off = recordWith(r.bytes.output, "\"id\":6,\"command\":\"debug\"");
+    const unsigned pending = jsonUnsigned(off, "trace_pending");
+    CHECK(pending > 0 && pending <= E::ProbeConsole::TRACE_CAPACITY);
+    CHECK(jsonUnsigned(off, "trace_dropped") == 0);
+    CHECK(jsonUnsigned(off, "trace_overwritten") == 0);
+    const size_t offEnd = r.bytes.output.find(off) + off.size();
+    CHECK(occurrences(r.bytes.output.substr(offEnd), "\"type\":\"trace\"") == pending);
+    // Forty transaction diagnostics plus the fake's thirty passive network RX copies.
+    CHECK(occurrences(r.bytes.output, "\"type\":\"trace\"") == 70);
+    CHECK(occurrences(r.bytes.output, "\"kind\":0,") == 40);
+    CHECK(occurrences(r.bytes.output, "\"kind\":1,") == 10);
+    CHECK(occurrences(r.bytes.output, "\"kind\":2,") == 10);
+    CHECK(occurrences(r.bytes.output, "\"kind\":3,") == 10);
+    contains(r.bytes.output, "400A100000000000"); // The identity request lost on the original bench run.
+}
+
+void rawDebugOverflowIsExplicitWithoutBlockingOwnerOrControl() {
+    Rig r;
+    r.select();
+    r.command("@2 debug raw");
+    r.bytes.blocked = true;
+    M::Frame frame;
+    frame.id = 0x705;
+    frame.dlc = frame.payloadLength = 1;
+    frame.data[0] = 0x7f;
+    for (unsigned n = 0; n < E::ProbeConsole::TRACE_CAPACITY + 12; ++n) {
+        r.wire.stateReply = frame;
+        r.wire.stateReplyPending = true;
+        r.turn();
+    }
+    CHECK(r.owner.stats().traceOverwritten == 0);
+    // Local control keeps its reserved reply even with ordinary trace output full.
+    r.line("@3 cancel");
+    // A trace never takes the last ordinary slot needed to acknowledge debug off.
+    r.line("@4 debug off");
+    CHECK(!r.console.drained());
+    r.bytes.blocked = false;
+    bool copiedTailWithoutReply = false;
+    for (unsigned n = 0; n < 20000; ++n) {
+        r.turn();
+        if (!r.console.stats().queued && r.console.tracing()) {
+            copiedTailWithoutReply = true;
+            CHECK(!r.console.drained());
+        }
+    }
+    CHECK(copiedTailWithoutReply);
+    contains(r.bytes.output, "\"id\":3,\"command\":\"cancel\"");
+    const std::string off = recordWith(r.bytes.output, "\"id\":4,\"command\":\"debug\"");
+    CHECK(jsonUnsigned(off, "trace_dropped") > 0);
+    CHECK(jsonUnsigned(off, "trace_overwritten") == 0);
+}
+
 void explicitNmtScope() {
     Rig addressed;
     addressed.select();
@@ -993,6 +1071,8 @@ int main() {
     discoveryInterfaceChangePreventsHandoff();
     discoveryTerminationReasonsSurviveResultLookup();
     decodedDebugReportsOnlyCheckedEvents();
+    rawDebugCapturesIdentityBurstUnderOutputPressure();
+    rawDebugOverflowIsExplicitWithoutBlockingOwnerOrControl();
     explicitNmtScope();
     inactiveFirmwareRecoveryCannotStartController();
     std::printf("probe device console: %u checks\n", checks);

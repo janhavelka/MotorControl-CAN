@@ -12,6 +12,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 import zipfile
@@ -64,6 +65,8 @@ class SessionPort(CampaignPort):
         self.noop_settings = False
         self.failed_move = False
         self.failed_stop = False
+        self.tracing = False
+        self.trace_off_failed = False
 
     def respond(self, identity, command):
         family = command.split()[0]
@@ -73,7 +76,14 @@ class SessionPort(CampaignPort):
                               for name in ("accel", "decel"))
             extra += record(identity, "capability", "driver", implemented=True, owner=41,
                             effect="device_setting", completion="asynchronous", reason="host fixture")
+            extra += record(identity, "capability", "debug", implemented=True, owner=41,
+                            effect="cache", completion="reply", reason="diagnostic copies")
             return extra + CampaignPort.handshake(identity, command)
+        if command in ("debug raw", "debug off"):
+            self.tracing = command == "debug raw"
+            if not self.tracing and self.trace_off_failed:
+                return record(identity, "reply", "debug", ok=False, status="INVALID_CONFIG", error="off refused")
+            return reply(identity, "debug", mode=int(self.tracing), trace_overwritten=0)
         if command == "config":
             return reply(identity, "config", interface=0, bitrate_bits_per_second=500000,
                          selected_node=self.selected, bus_traffic=False)
@@ -134,7 +144,7 @@ class SessionTests(unittest.TestCase):
     def build(self, name="quick", options=()):
         return scenarios.build_scenario(scenarios.arguments(["--plan-only", "--scenario", name] + list(options)))
 
-    def harness(self, prefix, scenario, *, port=None, supplied_fixture=True):
+    def harness(self, prefix, scenario, *, port=None, supplied_fixture=True, trace_raw=False):
         clock, port = Clock(), port or SessionPort()
         closed = []
 
@@ -155,8 +165,309 @@ class SessionTests(unittest.TestCase):
                 scenario=scenario.name, inputs=scenario.inputs, run=scenario.run,
                 profile="lichuan_c", node=7, can_bitrate=500000, expected_version="0.1.0",
                 fixture=fixture() if supplied_fixture else None, timeout_s=15, startup_s=.002,
-                port_opener=opener, console_factory=factory, clock=clock, evidence_kind="host-tested")
+                port_opener=opener, console_factory=factory, clock=clock, evidence_kind="host-tested",
+                trace_raw=trace_raw)
         return execute, port, closed
+
+    def test_requested_raw_trace_retains_late_frames_through_disable_and_packaging(self):
+        port = SessionPort()
+        original = port.respond
+        wire_trace = record(0, "trace", "debug", kind=0, can_id=0x581, dlc=8, accepted=True,
+                            processed_us="9007199254740997", extended=False, rtr=False,
+                            payload="4B41600037800000", decoded=False)
+
+        def respond(identity, command):
+            data = original(identity, command)
+            # The final RX diagnostic may appear after the operation's terminal,
+            # or only while the subsequent local debug-off reply is serviced.
+            if command.startswith("probe ") or command == "debug off":
+                data += wire_trace
+            return data
+
+        port.handler = respond
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "traced"
+            execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+            report = execute()
+            self.assertTrue(report["ok"])
+            self.assertTrue(report["raw_trace"]["disabled"])
+            commands = port.commands()
+            self.assertLess(commands.index("debug raw"), commands.index("probe 1000"))
+            self.assertGreater(commands.index("debug off"), commands.index("read identity 1000"))
+            self.assertEqual(commands.count("debug raw"), 1)
+            self.assertEqual(commands.count("debug off"), 1)
+            events = [json.loads(line) for line in prefix.with_suffix(".jsonl").read_text().splitlines()]
+            self.assertEqual(sum(event.get("raw_hex") == wire_trace.hex()
+                                 for event in events if event["event"] == "line"), 2)
+            traces = [event["record"] for event in events if event["event"] == "trace"]
+            self.assertEqual(len(traces), 2)
+            self.assertTrue(all(trace["processed_us"] == "9007199254740997" for trace in traces))
+            self.assertTrue(all(trace["payload"] == "4B41600037800000" for trace in traces))
+            with zipfile.ZipFile(prefix.with_suffix(".zip")) as archive:
+                self.assertEqual(archive.read("transcript.jsonl"), prefix.with_suffix(".jsonl").read_bytes())
+
+    def test_raw_trace_disable_failure_fails_successful_work(self):
+        port = SessionPort()
+        port.trace_off_failed = True
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "off-refused"
+            execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+            with self.assertRaises(probe.BenchError):
+                execute()
+            report = json.loads(prefix.with_suffix(".json").read_text())
+            self.assertFalse(report["ok"])
+            self.assertTrue(report["workload_verified"])
+            self.assertIn("off refused", report["trace_cleanup_error"])
+            self.assertEqual(port.commands().count("debug off"), 1)
+
+    def test_trace_tail_keeps_late_records_after_empty_read_and_retains_partial_failure(self):
+        for partial in (False, True):
+            with self.subTest(partial=partial), tempfile.TemporaryDirectory() as directory:
+                port = SessionPort()
+                respond, read = port.respond, port.read
+                late = record(0, "trace", "debug", kind=0, can_id=0x581, dlc=8, accepted=True,
+                              processed_us="9007199254740997", extended=False, rtr=False,
+                              payload="4300100092010400", decoded=False)
+                tail = late[:37] if partial else late
+                state = dict(armed=False, empty=0)
+
+                def handler(identity, command):
+                    if command == "debug off":
+                        state["armed"] = True
+                    return respond(identity, command)
+
+                def delayed_read(count):
+                    if state["armed"] and not port.buffer:
+                        state["empty"] += 1
+                        # Console.wait sees its normal empty input boundary first.
+                        # The next read is empty too; only the fixed tail waits on.
+                        if state["empty"] == 3:
+                            port.buffer.extend(tail)
+                    return read(count)
+
+                port.handler, port.read = handler, delayed_read
+                prefix = Path(directory) / "delayed"
+                execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+                if partial:
+                    with self.assertRaises(probe.BenchError):
+                        execute()
+                else:
+                    self.assertTrue(execute()["ok"])
+                report = json.loads(prefix.with_suffix(".json").read_text())
+                observed = report["raw_trace"]["after_disable_tail"]
+                self.assertEqual(observed["received_bytes"], len(tail))
+                self.assertTrue(observed["observation_only"])
+                self.assertEqual(observed["window_elapsed"], not partial)
+                if partial:
+                    self.assertFalse(report["ok"])
+                    self.assertEqual(report["client"]["partial_line_hex"], tail.hex())
+                    self.assertEqual(observed["partial_line_hex"], tail.hex())
+                else:
+                    events = [json.loads(line) for line in prefix.with_suffix(".jsonl").read_text().splitlines()]
+                    self.assertTrue(any(event.get("raw_hex") == late.hex() for event in events))
+
+    def test_trace_tail_frozen_clock_and_continuous_input_remain_bounded(self):
+        for flood in (False, True):
+            with self.subTest(flood=flood):
+                port, clock = SessionPort(), Clock()
+                console = probe.Console(port, clock=clock, sleeper=lambda _: None, first_id=1)
+                if flood:
+                    trace = record(0, "trace", "debug", decoded=False)
+                    port.read = lambda _count: trace
+                state = {}
+                with self.assertRaises(probe.BenchError):
+                    probe.drain_trace_tail(console, state)
+                self.assertLessEqual(state["turns"], 65536)
+                self.assertFalse(state["window_elapsed"])
+                self.assertFalse(console.synchronized)
+
+    def test_declared_trace_arriving_after_immutable_cutoff_is_retained_but_fails(self):
+        port, clock = SessionPort(), Clock()
+        trace = record(0, "trace", "debug", decoded=False)
+
+        def late_read(_count):
+            clock.now = .3
+            return trace
+
+        port.read = late_read
+        console = probe.Console(port, clock=clock, sleeper=clock.sleep, first_id=1)
+        state = {}
+        with self.assertRaisesRegex(probe.BenchError, "fixed cutoff"):
+            probe.drain_trace_tail(console, state, duration_s=.2, until_traces=1)
+        self.assertEqual(console.traces_received, 1)
+        self.assertFalse(state["target_reached"])
+        self.assertFalse(console.synchronized)
+
+    def test_declared_pending_trace_tail_waits_past_fixed_window_and_fails_missing_records(self):
+        for missing in (False, True):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as directory:
+                port = SessionPort()
+                respond, read = port.respond, port.read
+                clock_ref = {}
+                late = record(0, "trace", "debug", kind=0, can_id=0x581, dlc=8, accepted=True,
+                              processed_us="9007199254740997", extended=False, rtr=False,
+                              payload="4300100092010400", decoded=False)
+                pending = {"due": None, "sent": False}
+
+                def handler(identity, command):
+                    if command == "debug off":
+                        pending["due"] = clock_ref["clock"]() + .4
+                        return reply(identity, "debug", mode=0, trace_overwritten=0,
+                                     trace_pending=2, trace_dropped=0)
+                    return respond(identity, command)
+
+                def delayed_read(count):
+                    if pending["due"] is not None and not pending["sent"] and clock_ref["clock"]() >= pending["due"]:
+                        pending["sent"] = True
+                        port.buffer.extend(late if missing else late + late)
+                    return read(count)
+
+                port.handler, port.read = handler, delayed_read
+                real_console = probe.Console
+
+                def observe_clock(stream, **kwargs):
+                    clock_ref["clock"] = kwargs["clock"]
+                    return real_console(stream, **kwargs)
+
+                prefix = Path(directory) / "pending"
+                execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+                with patch.object(probe, "Console", observe_clock):
+                    if missing:
+                        with self.assertRaises(probe.BenchError):
+                            execute()
+                    else:
+                        self.assertTrue(execute()["ok"])
+                report = json.loads(prefix.with_suffix(".json").read_text())
+                tail = report["raw_trace"]["declared_pending_tail"]
+                self.assertEqual(tail["target_reached"], not missing)
+                self.assertTrue(report["workload_verified"])
+                self.assertFalse(report["raw_trace"]["coverage_complete"])
+                self.assertEqual(report["client"]["traces_received"], 1 if missing else 2)
+
+    def test_observed_owner_or_local_trace_loss_fails_campaign_without_erasing_read_success(self):
+        for counter in ("trace_overwritten", "trace_dropped"):
+            with self.subTest(counter=counter), tempfile.TemporaryDirectory() as directory:
+                port = SessionPort()
+                original = port.respond
+
+                def handler(identity, command):
+                    if command in ("debug raw", "debug off"):
+                        fields = dict(mode=int(command == "debug raw"), trace_overwritten=0,
+                                      trace_pending=0, trace_dropped=0)
+                        if command == "debug off":
+                            fields[counter] = 5
+                        return reply(identity, "debug", **fields)
+                    return original(identity, command)
+
+                port.handler = handler
+                prefix = Path(directory) / counter
+                execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+                with self.assertRaisesRegex(probe.BenchError, "raw diagnostic loss"):
+                    execute()
+                report = json.loads(prefix.with_suffix(".json").read_text())
+                self.assertFalse(report["ok"])
+                self.assertTrue(report["workload_verified"])
+                self.assertTrue(report["raw_trace"]["loss_observed"])
+                self.assertFalse(report["raw_trace"]["coverage_complete"])
+                self.assertTrue(report["raw_trace"]["disabled"])
+                self.assertEqual(port.commands().count("probe 1000"), 1)
+
+    def test_raw_trace_rejects_mismatched_native_debug_mode_before_probe(self):
+        port = SessionPort()
+        original = port.respond
+        port.handler = lambda identity, command: (reply(identity, "debug", mode=2, trace_overwritten=0)
+            if command == "debug raw" else original(identity, command))
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "wrong-mode"
+            execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+            with self.assertRaises(probe.BenchError):
+                execute()
+            report = json.loads(prefix.with_suffix(".json").read_text())
+            self.assertFalse(report["ok"])
+            self.assertIn("disable_skipped", report["raw_trace"])
+            self.assertNotIn("probe 1000", port.commands())
+            self.assertNotIn("debug off", port.commands())
+
+    def test_single_read_wrapper_keeps_requested_read_separate_from_trace_commands(self):
+        for mode_error in (False, True):
+            with self.subTest(mode_error=mode_error), tempfile.TemporaryDirectory() as directory:
+                port, clock = SessionPort(), Clock()
+                original = port.respond
+                if mode_error:
+                    port.handler = lambda identity, command: (reply(identity, "debug", mode=2, trace_overwritten=0)
+                        if command == "debug raw" else original(identity, command))
+                port.open = lambda: None
+                port.close = lambda: setattr(port, "is_open", False)
+                serial = types.SimpleNamespace(VERSION="3.5", Serial=lambda **_: port)
+                real_console = probe.Console
+
+                def factory(stream, **kwargs):
+                    return real_console(stream, clock=clock, sleeper=clock.sleep, first_id=1, **kwargs)
+
+                path = Path(directory) / "read.jsonl"
+                args = probe.parser().parse_args(["--port", "host-fixture", "--baud", "115200",
+                    "--profile", "lichuan_c", "--node", "7", "--can-bitrate", "500000",
+                    "--expected-library-version", "0.1.0", "--log", str(path), "--trace-raw", "--release"])
+                with patch.dict(sys.modules, {"serial": serial}), patch.object(probe, "Console", factory):
+                    code = probe.run_live(args)
+                report = json.loads(path.with_name(path.name + ".summary.json").read_text())
+                if mode_error:
+                    self.assertEqual(code, 1)
+                    self.assertIsNone(report["operation"])
+                    self.assertNotIn("probe 1000", port.commands())
+                else:
+                    self.assertEqual(code, 0)
+                    self.assertEqual(report["operation"]["intent"], "probe 1000")
+                    self.assertTrue(report["raw_trace"]["disabled"])
+                self.assertFalse(port.is_open)
+
+    def test_raw_trace_cleanup_preserves_primary_uncertainty(self):
+        port = SessionPort()
+        port.failed_move = port.trace_off_failed = True
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / "primary-and-off"
+            execute, _, _ = self.harness(prefix, self.build("position", POSITION), port=port, trace_raw=True)
+            with self.assertRaises(probe.BenchError) as caught:
+                execute()
+            self.assertIn("DEADLINE", str(caught.exception))
+            report = json.loads(prefix.with_suffix(".json").read_text())
+            self.assertTrue(report["primary_failure"]["uncertain"])
+            self.assertIn("off refused", report["trace_cleanup_error"])
+            self.assertEqual(port.commands().count("stop fast"), 1)
+
+    def test_raw_trace_cleanup_sends_nothing_after_stream_or_evidence_damage(self):
+        for reason in ("reboot", "disconnect", "evidence"):
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as directory:
+                port = SessionPort()
+                original = port.respond
+
+                def respond(identity, command):
+                    if command.startswith("probe "):
+                        if reason == "reboot":
+                            return b"MotorControl-CAN: boot\n"
+                        if reason == "disconnect":
+                            port.is_open = False
+                            return b""
+                    return original(identity, command)
+
+                port.handler = respond
+                prefix = Path(directory) / reason
+                execute, _, _ = self.harness(prefix, self.build(), port=port, trace_raw=True)
+                original_log = probe.EvidenceLog.__call__
+
+                def log(sink, event, **fields):
+                    if reason == "evidence" and event == "line":
+                        raw = bytes.fromhex(fields["raw_hex"])
+                        if b'"command":"probe"' in raw and b'"result":"accepted"' in raw:
+                            raise OSError("trace evidence failed")
+                    return original_log(sink, event, **fields)
+
+                with patch.object(probe.EvidenceLog, "__call__", log):
+                    with self.assertRaises(probe.BenchError):
+                        execute()
+                report = json.loads(prefix.with_suffix(".json").read_text())
+                self.assertIn("disable_skipped", report["raw_trace"])
+                self.assertNotIn("debug off", port.commands())
 
     def assert_public_traffic(self, port):
         commands = port.commands()

@@ -229,6 +229,18 @@ drain, so debug cannot steal its copies. Unsolicited debug is always JSONL with
 Only checked heartbeat/EMCY fields are decoded; an unknown frame is
 `decoded:false`. These observations never qualify a drive watchdog or motion.
 
+The application copies at most 24 owner diagnostics per console turn into 128
+compact records (24 bytes each), independently of UART pressure. Serialization
+emits at most one per turn and keeps one ordinary reply slot free. `debug off`
+captures the bounded remaining owner tail, stops intake, and continues emitting
+copied records. Its ordinary FIFO reply reports `trace_pending` (0..128 copied
+records following that reply), cumulative `trace_dropped` for the application
+buffer, and the existing owner `trace_overwritten` counter. Already enqueued
+trace lines precede the reply. `drained()` includes the copied tail. Counters
+expose loss; they do not establish electrical completeness or physical timing.
+Previously buffered owner diagnostics can appear after tracing is enabled.
+The [runner contract](runners.md) explains bounded tail collection and failures.
+
 Settings terminals include `confirmed_mask`, `changed_mask` and `effects_possible`
 independently of `uncertain`, native abort and the original operation outcome.
 Settings and communication/persistence/PDO terminals also retain `native_outcome_code`

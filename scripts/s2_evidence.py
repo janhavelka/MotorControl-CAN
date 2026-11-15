@@ -2030,7 +2030,13 @@ def check_image(report, build):
         # not a match, so report it only where the record had to carry it.
         if wanted is None and not required:
             continue
-        if values[name] != str(wanted).lstrip("v"):
+        reported, expected = values[name], str(wanted)
+        if name == "sdk":
+            # IDF's Git label may include a leading v. Keep dirty/revision suffixes:
+            # this compares the recorded image identity, not SDK source eligibility.
+            reported = reported.removeprefix("v")
+            expected = expected.removeprefix("v")
+        if reported != expected:
             problems.append("%s: image reports %s, build record has %s" % (name, values[name], wanted))
     if not values["pinsReady"]:
         problems.append("pinsReady=0: the silent output could not be established")

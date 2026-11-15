@@ -84,6 +84,13 @@ For live execution remove `--plan-only` and supply the explicit shared `--port`,
 `--out` and, for device campaigns, `--fixture`. No serial port, CAN endpoint,
 bitrate, speed, scale or calibration default is guessed. The node range belongs
 to this selected CANopen profile; it is not a universal axis identity rule.
+Add `--trace-raw` when the scenario needs raw owner CAN diagnostics in its ordinary
+session artifact. Its explicit local enable happens before the session's first
+probe; disable follows the scenario and its planned cleanup on a usable stream.
+Late diagnostics remain in the bounded transcript through the fixed observation
+windows before and after disable; completeness needs the trial's TX/RX pair audit. The
+[runner guide](runners.md) describes timestamps, overwrite evidence and failure
+cleanup; these copies establish neither exact wire timing nor physical observation.
 
 Repeat accepts `--count 1..20` write/verify pairs (default one), at most 40 moves.
 Each move uses the same explicit relative displacement and speed. Its plan

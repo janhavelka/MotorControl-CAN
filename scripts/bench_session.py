@@ -40,6 +40,7 @@ def add_session_arguments(parser):
     parser.add_argument("--timeout", type=probe._seconds, default=15.0, help="immutable per-command host seconds (0,60]")
     parser.add_argument("--startup", type=probe._seconds, default=0.2)
     parser.add_argument("--request-timeout-ms", type=probe._integer(1, 60000), default=1000)
+    parser.add_argument("--trace-raw", action="store_true", help="explicitly copy owner CAN diagnostics around the workload")
 
 
 def load_fixture(path):
@@ -190,7 +191,8 @@ def _arguments(*, port, baud, profile, node, can_bitrate, expected_version,
 def run_recorded(*, port, baud, out, scenario, inputs, run, profile, node, can_bitrate,
                  expected_version, fixture=None, timeout_s=15.0, startup_s=0.2,
                  firmware=None, request_timeout_ms=1000, port_opener=probe.open_port,
-                 console_factory=probe.Console, clock=time.monotonic, evidence_kind="live-observed"):
+                 console_factory=probe.Console, clock=time.monotonic, evidence_kind="live-observed",
+                 trace_raw=False):
     """Reserve all three artifacts before port ownership; persist and re-raise failures.
 
     One explicit DEC-1 probe is the first active upload. Other snapshots are cached;
@@ -205,6 +207,8 @@ def run_recorded(*, port, baud, out, scenario, inputs, run, profile, node, can_b
         raise ValueError("finite named scenario and callback required")
     if type(request_timeout_ms) is not int or not 1 <= request_timeout_ms <= 60000:
         raise ValueError("read budget must be1..60000ms")
+    if type(trace_raw) is not bool:
+        raise ValueError("trace_raw must be boolean")
     if fixture is not None:
         probe.validate_fixture(fixture)
         _json(fixture)
@@ -250,13 +254,14 @@ def run_recorded(*, port, baud, out, scenario, inputs, run, profile, node, can_b
                     if fixture is not None and console.capabilities.get("axis", {}).get("implemented") is True:
                         probe.checked(console, "axis config", record=record, timeout_s=timeout_s, role="cached")
                         record["cached_axis"] = record["operations"][-1]["records"]
-                    probe.checked(console, f"probe {request_timeout_ms}", record=record, timeout_s=timeout_s, role="preflight")
-                    if fixture is not None and scenario != "quick":
-                        probe.checked(console, f"read identity {request_timeout_ms}", record=record, timeout_s=timeout_s, role="preflight")
-                    run(console, record)
-                    if record.get("workload_verified") is not True or record.get("primary_error") or record.get("cleanup_error"):
-                        raise probe.BenchError("requested finite workload did not complete; cleanup is not a pass")
-                    record["after"] = {name: probe.checked(console, name, record=record, timeout_s=timeout_s, role="cached") for name in CACHED}
+                    with probe.raw_trace(console, record, enabled=trace_raw, timeout_s=timeout_s):
+                        probe.checked(console, f"probe {request_timeout_ms}", record=record, timeout_s=timeout_s, role="preflight")
+                        if fixture is not None and scenario != "quick":
+                            probe.checked(console, f"read identity {request_timeout_ms}", record=record, timeout_s=timeout_s, role="preflight")
+                        run(console, record)
+                        if record.get("workload_verified") is not True or record.get("primary_error") or record.get("cleanup_error"):
+                            raise probe.BenchError("requested finite workload did not complete; cleanup is not a pass")
+                        record["after"] = {name: probe.checked(console, name, record=record, timeout_s=timeout_s, role="cached") for name in CACHED}
                     record["ok"], record["verdict"] = True, evidence_kind
                 except BaseException as error:
                     failure = error
@@ -320,7 +325,9 @@ def run_cli(args, scenario):
                 probe.validate_fixture(fixture, capability)
         if args.plan_only:
             plan = dict(scenario.plan, session_commands=["version", "profile list", "caps", "config", "useaddr NODE", *CACHED,
-                         f"probe {args.request_timeout_ms}"] + ([f"read identity {args.request_timeout_ms}"] if fixture and scenario.name != "quick" else []),
+                         *(["debug raw"] if args.trace_raw else []), f"probe {args.request_timeout_ms}"] +
+                         ([f"read identity {args.request_timeout_ms}"] if fixture and scenario.name != "quick" else []),
+                        trace_cleanup="debug off" if args.trace_raw else None,
                         fixture=fixture, fixture_observed=False, firmware_epoch=None)
             print(json.dumps(plan, allow_nan=False, ensure_ascii=True, indent=2))
             return 0
@@ -335,7 +342,7 @@ def run_cli(args, scenario):
             inputs=scenario.inputs, run=scenario.run, profile=args.profile, node=args.node,
             can_bitrate=args.can_bitrate, expected_version=args.expected_library_version, fixture=fixture,
             timeout_s=args.timeout, startup_s=args.startup, firmware=args.firmware,
-            request_timeout_ms=args.request_timeout_ms)
+            request_timeout_ms=args.request_timeout_ms, trace_raw=args.trace_raw)
         print(f"{record['verdict']}: {args.out.with_suffix('.json')} (not hardware qualification)")
         return 0
     except (ValueError, OSError, AssertionError) as error:

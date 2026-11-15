@@ -117,6 +117,14 @@ class RunnerCLI(unittest.TestCase):
                 value = self.plan("--scenario", "state", "--state-block", block)
                 self.assertTrue(any(item.startswith("read state " + block) for item in strings(value)))
 
+    def test_raw_trace_plan_is_explicit_and_brackets_read_without_serial(self):
+        plan = self.plan("--trace-raw", "--release")
+        self.assertTrue(plan["trace_raw"])
+        commands = plan["commands"]
+        self.assertLess(commands.index("debug raw"), commands.index("probe 1000"))
+        self.assertEqual(commands[-1], "debug off")
+        self.assertNotIn("debug raw", self.plan()["commands"])
+
     def test_self_test_reports_host_evidence_with_bounded_fake_stream(self):
         result = self.invoke(["--self-test"])
         value = json.loads(result.stdout)

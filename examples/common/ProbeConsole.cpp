@@ -562,7 +562,7 @@ ConsoleStats ProbeConsole::stats() const noexcept {
     return result;
 }
 bool ProbeConsole::drained() const noexcept {
-    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ ||
+    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ || traceCount_ ||
         stopReplyUsed_[0] || stopReplyUsed_[1])
         return false;
     for (const Operation& op : operations_)
@@ -1830,30 +1830,66 @@ bool ProbeConsole::readValues(Operation& op, uint64_t now) noexcept {
         ++op.valueCursor;
     return false; // Terminal follows all value records, in order.
 }
-void ProbeConsole::diagnostic(uint64_t) noexcept {
-    if (!debug_ || !device_ || ordinaryCount_ == ORDINARY_REPLIES)
+void ProbeConsole::captureDiagnostics() noexcept {
+    static_assert(sizeof(TraceRecord) == 24, "compact application trace RAM budget changed");
+    if (!debug_ || !device_)
         return;
     O::Diagnostic copy;
-    if (!device_->diagnostic(copy))
+    // Capture is independent of UART pressure and never progresses the CAN owner.
+    for (unsigned n = 0; n < O::CanBusOwner::TRACE_CAPACITY && device_->diagnostic(copy); ++n) {
+        if (traceCount_ == TRACE_CAPACITY) {
+            increment(traceDropped_);
+            continue;
+        }
+        TraceRecord& saved = trace_[(unsigned(traceHead_) + traceCount_) % TRACE_CAPACITY];
+        saved.processedUs = copy.processedUs;
+        saved.id = copy.frame.id;
+        std::memcpy(saved.data, copy.frame.data, sizeof saved.data);
+        saved.kind = uint8_t(copy.kind);
+        saved.dlc = copy.frame.dlc;
+        saved.payloadLength = copy.frame.payloadLength;
+        saved.flags = uint8_t(unsigned(copy.accepted) | unsigned(copy.frame.extended) << 1 |
+                              unsigned(copy.frame.rtr) << 2 | unsigned(copy.frame.fd) << 3 |
+                              unsigned(copy.frame.brs) << 4 | unsigned(copy.frame.esi) << 5 |
+                              unsigned(debug_ == 2) << 6);
+        ++traceCount_;
+    }
+}
+void ProbeConsole::diagnostic(uint64_t) noexcept {
+    captureDiagnostics();
+    // Explicit off stops capture, but already copied records still follow its FIFO reply.
+    // Traces keep one ordinary slot free for a real command reply (especially off).
+    if (!traceCount_ || ordinaryCount_ >= ORDINARY_REPLIES - 1)
         return;
+    const TraceRecord& copy = trace_[traceHead_];
+    M::Frame frame;
+    frame.id = copy.id;
+    frame.dlc = copy.dlc;
+    frame.payloadLength = copy.payloadLength;
+    frame.extended = (copy.flags & 2) != 0;
+    frame.rtr = (copy.flags & 4) != 0;
+    frame.fd = (copy.flags & 8) != 0;
+    frame.brs = (copy.flags & 16) != 0;
+    frame.esi = (copy.flags & 32) != 0;
+    std::memcpy(frame.data, copy.data, sizeof frame.data);
     Text text;
     // Debug is unsolicited and independent of any command's frozen output mode.
     text.start(true, 0, "trace", "debug");
     text.add(",\"kind\":%u,\"can_id\":%lu,\"dlc\":%u,\"accepted\":%s,\"processed_us\":\"%llu\","
              "\"extended\":%s,\"rtr\":%s,\"payload\":\"",
-             unsigned(copy.kind), static_cast<unsigned long>(copy.frame.id),
-             unsigned(copy.frame.dlc), boolean(copy.accepted),
-             static_cast<unsigned long long>(copy.processedUs), boolean(copy.frame.extended),
-             boolean(copy.frame.rtr));
-    if (!copy.frame.rtr)
-        for (unsigned n = 0; n < copy.frame.payloadLength && n < 8; ++n)
-            text.add("%02X", unsigned(copy.frame.data[n]));
+             unsigned(copy.kind), static_cast<unsigned long>(frame.id),
+             unsigned(frame.dlc), boolean((copy.flags & 1) != 0),
+             static_cast<unsigned long long>(copy.processedUs), boolean(frame.extended),
+             boolean(frame.rtr));
+    if (!frame.rtr)
+        for (unsigned n = 0; n < frame.payloadLength && n < 8; ++n)
+            text.add("%02X", unsigned(frame.data[n]));
     // Wire format is retained independently of decoding and controller evidence.
     N::NetworkEvent event;
     const auto* selected = device_->node();
     const bool decoded =
-        debug_ == 2 && selected && copy.kind == O::DiagnosticKind::RX &&
-        bool(N::checkNetworkEvent(copy.frame, selected->route, selected->route.binding,
+        (copy.flags & 64) && selected && copy.kind == unsigned(O::DiagnosticKind::RX) &&
+        bool(N::checkNetworkEvent(frame, selected->route, selected->route.binding,
                                   selected->route.generation, event));
     text.add("\",\"decoded\":%s", boolean(decoded));
     if (decoded) {
@@ -1865,8 +1901,10 @@ void ProbeConsole::diagnostic(uint64_t) noexcept {
             text.add(",\"raw_nmt\":%u", unsigned(event.state));
     }
     text.end(true);
-    if (text.valid)
-        enqueue(text.bytes);
+    if (text.valid && enqueue(text.bytes)) {
+        traceHead_ = uint8_t((unsigned(traceHead_) + 1) % TRACE_CAPACITY);
+        --traceCount_;
+    }
 }
 void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcept {
     const char* name = line.token(0);
@@ -2394,9 +2432,10 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             return;
         }
         if (count == 2) {
-            if (equal(line.token(1), "off"))
+            if (equal(line.token(1), "off")) {
+                captureDiagnostics();
                 debug_ = 0;
-            else if (equal(line.token(1), "raw"))
+            } else if (equal(line.token(1), "raw"))
                 debug_ = 1;
             else if (equal(line.token(1), "decoded"))
                 debug_ = 2;
@@ -2406,8 +2445,10 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             }
         }
         ok();
-        text.add(json ? ",\"mode\":%u,\"trace_overwritten\":%lu" : "mode=%u overwritten=%lu",
-                 unsigned(debug_), static_cast<unsigned long>(owner_.stats().traceOverwritten));
+        text.add(json ? ",\"mode\":%u,\"trace_overwritten\":%lu,\"trace_pending\":%u,\"trace_dropped\":%lu"
+                      : "mode=%u overwritten=%lu pending=%u dropped=%lu",
+                 unsigned(debug_), static_cast<unsigned long>(owner_.stats().traceOverwritten),
+                 unsigned(traceCount_), static_cast<unsigned long>(traceDropped_));
     } else if (equal(name, "load")) {
         if (count != 1) {
             reject("invalid_arguments");

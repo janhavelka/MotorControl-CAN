@@ -89,6 +89,7 @@ class ProbeConsole {
         ORDINARY_REPLIES = 2,   ///< Complete ordinary records; no partial overwrite.
         CONTROL_REPLIES = 2,    ///< Additional records reserved for local cancel/recover replies.
         INPUT_BUDGET = 32,      ///< Maximum buffered input bytes consumed per service turn.
+        TRACE_CAPACITY = 128,   ///< Application diagnostic copies; independent of UART pressure.
         OPERATION_CAPACITY = 2, ///< Ordinary retained correlations; no unread eviction.
         TOTAL_OPERATION_CAPACITY = 5 ///< Two ordinary, normal stop, fast stop, host recovery.
     };
@@ -167,9 +168,9 @@ class ProbeConsole {
      * active or terminal, delivered or not. An application that shares the owner with other
      * request producers keeps them off meanwhile. No clock, I/O or mutation. */
     bool retainsOperation() const noexcept;
-    /** @return True while `debug raw|decoded` makes this console a drain of the owner's
-     * diagnostic copies, which any other trace consumer then misses. No I/O or mutation. */
-    bool tracing() const noexcept { return debug_ != 0; }
+    /** @return True while capturing or retaining copied diagnostics for output.
+     * Other diagnostic consumers must wait; no I/O or mutation. */
+    bool tracing() const noexcept { return debug_ != 0 || traceCount_ != 0; }
 
   private:
     struct Record {
@@ -198,6 +199,16 @@ class ProbeConsole {
     ProbeMotion* motion_ = nullptr;
     SimpleMoveIntent intent_;
     uint8_t debug_ = 0;
+    // Only the fields the console publishes. Keeping Completion out saves scarce S2 RAM.
+    struct TraceRecord {
+        uint64_t processedUs = 0;
+        uint32_t id = 0;
+        uint8_t data[8] = {};
+        uint8_t kind = 0, dlc = 0, payloadLength = 0, flags = 0;
+    } trace_[TRACE_CAPACITY];
+    uint8_t traceHead_ = 0;
+    uint16_t traceCount_ = 0;
+    uint32_t traceDropped_ = 0;
     ProbeApp& app_;
     CanBusOwner& owner_;
     ProbePlatform& platform_;
@@ -236,6 +247,7 @@ class ProbeConsole {
     bool enqueueStop(const char* text, uint8_t stop, uint32_t request,
                      uint32_t terminal = 0) noexcept;
     void diagnostic(uint64_t now) noexcept;
+    void captureDiagnostics() noexcept;
     bool readValues(Operation& operation, uint64_t now) noexcept;
     void listNext() noexcept;
     Operation* operation(uint32_t id) noexcept;

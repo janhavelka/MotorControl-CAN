@@ -112,7 +112,8 @@ def supported_command(command):
     """Only forms whose record shapes this client implements; reject others before I/O."""
     if campaign_form(command) is not None:
         return True
-    if command in ("version", "profile list", "caps", "help", "config", "status", "health", "stats", "drv", "memory"):
+    if command in ("version", "profile list", "caps", "help", "config", "status", "health", "stats", "drv", "memory",
+                   "debug raw", "debug off"):
         return True
     tokens = command.split()
     if tokens[0] in ("useaddr", "release", "result"):
@@ -227,6 +228,8 @@ class Console:
         self.buffer = bytearray()
         self.raw_lines, self.parse_failures = deque(maxlen=64), deque(maxlen=16)
         self.raw_dropped = self.received = 0
+        self.traces_received = 0
+        self.trace_tail_target = None
         self._identifying = False
         self._last_clock = self.clock()
         if type(self._last_clock) not in (float, int) or not math.isfinite(self._last_clock):
@@ -377,6 +380,7 @@ class Console:
         if item["type"] == "trace" and item["id"] == 0:
             if item["command"] != "debug":
                 self._fail("unsolicited trace has unexpected command")
+            self.traces_received += 1
             self._event("trace", record=item)
             return
         handle = self.pending.get(item["id"])
@@ -461,6 +465,18 @@ class Console:
                 if handle.command == "axis config" and item["ok"]:
                     if {row.get("part") for row in handle.records if row["type"] == "axis"} != {"geometry", "feedback", "limits", "provenance"}:
                         self._fail("axis listing is incomplete")
+                if family == "debug" and item["ok"]:
+                    expected_mode = 1 if handle.command == "debug raw" else 0
+                    if (type(item.get("mode")) is not int or item["mode"] != expected_mode or
+                            not is_uint32(item.get("trace_overwritten"))):
+                        self._fail("debug reply lacks confirmed mode/overwrite evidence")
+                    if "trace_pending" in item or "trace_dropped" in item:
+                        if (not _uint(item.get("trace_pending"), 128) or
+                                not is_uint32(item.get("trace_dropped"))):
+                            self._fail("debug reply has invalid pending/drop accounting")
+                    if handle.command == "debug off":
+                        self.trace_tail_target = (self.traces_received + item["trace_pending"]
+                                                  if "trace_pending" in item else None)
                 handle.terminal, handle.phase = item, "completed"
         elif kind == "terminal":
             self._status(item)
@@ -828,6 +844,7 @@ class Console:
         """Bounded cached host framing facts; no I/O or firmware-epoch inference."""
         return dict(host_epoch=self.host_epoch, firmware_epoch=None, synchronized=self.synchronized,
                     received_bytes=self.received, raw_dropped=self.raw_dropped,
+                    traces_received=self.traces_received, trace_tail_target=self.trace_tail_target,
                     partial_line_hex=bytes(self.buffer).hex(), parse_failures=list(self.parse_failures))
 
 
@@ -939,6 +956,107 @@ def checked(console, command, *, record, timeout_s=5.0, role="primary", release=
                     raise
 
 
+def drain_trace_tail(console, state, *, duration_s=0.2, until_traces=None):
+    """Observe a fixed best-effort tail despite empty reads; no queue/wire barrier.
+
+    The supplied Console clock/sleeper owns time. Each window has an immutable
+    cutoff, 65536-byte capacity and finite turn allowance even on a frozen clock.
+    An incomplete line at cutoff fences later commands and remains in diagnostics.
+    """
+    duration_s = positive(duration_s, "trace tail")
+    if until_traces is not None and (type(until_traces) is not int or until_traces < 0):
+        raise ValueError("trace target must be a nonnegative count")
+    start = console._now()
+    cutoff, first_byte = start + duration_s, console.received
+    state.update(duration_s=duration_s, started_host_elapsed_s=start - console._started_clock,
+                 observation_only=True, turns=0, window_elapsed=False, target_traces=until_traces,
+                 target_reached=False)
+    try:
+        for turn in range(_turn_limit(duration_s)):
+            state["turns"] = turn + 1
+            if console._now() >= cutoff:
+                if console.buffer:
+                    console._fail("incomplete trace tail at fixed cutoff")
+                if until_traces is not None:
+                    console._fail("declared trace tail incomplete at fixed cutoff")
+                state["window_elapsed"] = True
+                return
+            if until_traces is not None and console.traces_received >= until_traces and not console.buffer:
+                state["target_reached"] = True
+                return
+            available = console.pump()
+            if console.received - first_byte > MAX_COMMAND_INPUT:
+                console._fail("trace tail byte capacity exhausted")
+            if not available:
+                remaining = cutoff - console._now()
+                if remaining > 0:
+                    console.sleep(min(IDLE_SECONDS, remaining))
+        console._fail("trace tail turn capacity exhausted")
+    except BaseException as error:
+        if isinstance(error, KeyboardInterrupt):
+            console._poison()
+        state["error"] = str(error) or type(error).__name__
+        raise
+    finally:
+        state["received_bytes"] = console.received - first_byte
+        state["partial_line_hex"] = bytes(console.buffer).hex()
+
+
+@contextmanager
+def raw_trace(console, record, *, enabled=False, timeout_s=5.0):
+    """Explicit local diagnostic copies around one workload, never a CAN receiver.
+
+    Enable only after identification. Disable once while the same stream and
+    evidence remain usable; damaged/disconnected sessions send nothing further.
+    Cleanup failure remains separate and cannot replace an earlier failure.
+    Device processed_us and host receive times are not exact wire timestamps.
+    """
+    if type(enabled) is not bool:
+        raise ValueError("trace request must be boolean")
+    state = record["raw_trace"] = dict(requested=enabled, enabled=False, disabled=False,
+                                      coverage_complete=False, loss_observed=None)
+    if not enabled:
+        yield
+        return
+    failed = False
+    try:
+        state["enable_reply"] = checked(console, "debug raw", record=record,
+                                         timeout_s=timeout_s, role="trace")
+        state["enabled"] = True
+        yield
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        if not console.synchronized or getattr(console.port, "is_open", True) is False:
+            state["disable_skipped"] = "unsynchronized/disconnected; no cleanup traffic"
+        else:
+            try:
+                drain_trace_tail(console, state.setdefault("before_disable_tail", {}))
+                state["disable_reply"] = checked(console, "debug off", record=record,
+                                                  timeout_s=timeout_s, role="trace")
+                state["disabled"] = True
+                if console.trace_tail_target is not None:
+                    drain_trace_tail(console, state.setdefault("declared_pending_tail", {}),
+                                     duration_s=timeout_s, until_traces=console.trace_tail_target)
+                drain_trace_tail(console, state.setdefault("after_disable_tail", {}))
+            except BaseException as error:
+                state["disable_error"] = str(error) or type(error).__name__
+                if not state["disabled"] and not console.synchronized:
+                    state["disable_skipped"] = "unsynchronized during trace cleanup; no further traffic"
+                record["trace_cleanup_error"] = state["disable_error"]
+                if not failed:
+                    raise
+            else:
+                before, after = state.get("enable_reply", {}), state["disable_reply"]
+                keys = [key for key in ("trace_overwritten", "trace_dropped") if key in before and key in after]
+                state["loss_observed"] = any(after[key] != before[key] or after[key] == ID_MAX for key in keys)
+                if state["loss_observed"]:
+                    record["trace_loss_error"] = "raw diagnostic loss observed; requested evidence incomplete"
+                    if not failed:
+                        raise BenchError(record["trace_loss_error"])
+
+
 def cleanup_stop_attempts(console, record, *, stop="normal", timeout_s=5.0):
     """At most one preplanned public stop, distinct from all primary evidence.
 
@@ -1042,6 +1160,7 @@ def parser():
     result.add_argument("--request-timeout-ms", type=_integer(1, 60000), default=1000,
                         help="explicit application read budget, ms; not a vendor timing guarantee")
     result.add_argument("--release", action="store_true", help="explicitly release a checked terminal; default retains it")
+    result.add_argument("--trace-raw", action="store_true", help="explicitly copy owner CAN diagnostics during the read")
     return result
 
 
@@ -1056,8 +1175,11 @@ def invocation(args):
                 expected_library_version=args.expected_library_version,
                 timeout_s=args.timeout, firmware_epoch=None,
                 read_effect="unknown; DEC-1 accepted list/Q20 qualification applies",
+                trace_raw=args.trace_raw,
                 commands=["version", "profile list", "caps", "config", "useaddr NODE",
-                          "config", command] + (["release OPERATION_ID"] if args.release else []),
+                          "config"] + (["debug raw"] if args.trace_raw else []) + [command] +
+                         (["release OPERATION_ID"] if args.release else []) +
+                         (["debug off"] if args.trace_raw else []),
                 model_match=None, firmware_match=None, hardware_qualified=False)
 
 
@@ -1132,13 +1254,14 @@ def _self_test():
 def run_live(args):
     """One validated invocation; optional pyserial3.5 is loaded only here.
 
-    No close/recovery path sends cleanup traffic. Failure preserves the attempted
+    Only requested tracing has local diagnostic cleanup. Failure preserves the attempted
     command, native terminal and stream damage separately. Existing files are
     never overwritten. Execution/finalization failure returns 1; reservation
     errors propagate as setup failures. Completion prints only after summary closure.
     """
     log = EvidenceLog(args.log)
     port = console = handle = output = None
+    trace_record = {}
     summary_path = args.log.with_name(args.log.name + ".summary.json")
     try:
         output = summary_path.open("x", encoding="ascii", newline="\n")
@@ -1162,17 +1285,19 @@ def run_live(args):
                 raise BenchError("existing host binding selection refused; no probe sent")
             console.check_config(console.command("config", timeout_s=args.timeout),
                                  node=args.node, can_bitrate=args.can_bitrate)
-            handle = console.begin(invocation(args)["intent"], timeout_s=args.timeout)
-            terminal = console.wait(handle)
-            if args.release and handle.accepted:
-                if not console.release(handle, timeout_s=args.timeout)["ok"]:
-                    raise BenchError("explicit result release refused")
+            with raw_trace(console, trace_record, enabled=args.trace_raw, timeout_s=args.timeout):
+                handle = console.begin(invocation(args)["intent"], timeout_s=args.timeout)
+                terminal = console.wait(handle)
+                if args.release and handle.accepted:
+                    if not console.release(handle, timeout_s=args.timeout)["ok"]:
+                        raise BenchError("explicit result release refused")
             summary = dict(evidence_kind="live-observed", operation=console.summary(handle, evidence_kind="live-observed"),
                            hardware_qualified=False, firmware_epoch=None)
             success = terminal["ok"] and terminal.get("uncertain") is not True
         except (BenchError, OSError, ImportError, ValueError, KeyboardInterrupt) as error:
             if console is not None and handle is None and console.pending:
-                handle = list(console.pending.values())[-1]
+                handle = next((candidate for candidate in reversed(list(console.pending.values()))
+                               if candidate.command == invocation(args)["intent"]), None)
             if handle is not None and handle.terminal is None and handle.interruption is None:
                 handle.interruption = "interrupted"
             operation = console.summary(handle, evidence_kind="live-observed") if handle else None
@@ -1194,6 +1319,11 @@ def run_live(args):
             summary["close_errors"] = close_errors
             summary.setdefault("error", next(iter(close_errors.values())))
         summary["plan"] = invocation(args)
+        summary["raw_trace"] = trace_record.get("raw_trace")
+        if trace_record.get("trace_cleanup_error"):
+            summary["trace_cleanup_error"] = trace_record["trace_cleanup_error"]
+        if trace_record.get("trace_loss_error"):
+            summary["trace_loss_error"] = trace_record["trace_loss_error"]
         summary["client"] = console.diagnostics() if console else None
         summary["identity"] = console.handshake if console else None
         try:
