@@ -133,7 +133,8 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
  * @return OK prepares only; unsupported capability/conversion is rejected before
  * work exists. Proprietary bindings reject before any SDO work is created.
  * Coordinate rejection preserves AxisError (including UNIT_ERROR_BASE + UnitError).
- * Synthetic profile permission, wire-range and sequencing failures use MoveError.
+ * Capability refusal preserves production CapabilityError. Synthetic wire-range
+ * and sequencing failures use ProofProfile::MoveError.
  * No enabling, trigger, motor I/O, allocation or retry occurs. */
 Status prepareMoveAbsolute(const PositionRequest& request, const ProofAxisConfig& configuration,
                            OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,
