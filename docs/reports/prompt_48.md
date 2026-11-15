@@ -1,5 +1,10 @@
 # Prompt 48 failure and load qualification
 
+The subsequent [fresh prompts 47–49 audit](audit_47_49.md) fixes request/record
+correlation, measurement validation and finite host timing. It preserves the
+original captures and their qualification limits; checks below describe the
+original execution.
+
 ## Scope
 
 Started on 15 November 2026 from clean, synchronized `main` at

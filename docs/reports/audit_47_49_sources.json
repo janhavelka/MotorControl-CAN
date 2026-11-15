@@ -1,0 +1,300 @@
+{
+  "date_utc": "2026-11-15T14:48:56.317615+00:00",
+  "target_head": "90db5609fe5e077380920e20f084ca1aaa452f7b",
+  "scope": "Read-only refresh of prompts47-49 source seams; original source policy retained. No sibling fetch, edits, tests or hardware. Working-byte hashes remain distinct from HEAD provenance.",
+  "repositories": [
+    {
+      "repository": "MotorControl-RS",
+      "head": "1d5814994d06be72d46dea111716f0da28f39a68",
+      "status": [
+        " M examples/probe_cli/DriveGroup.h",
+        " M examples/probe_cli/ProbeApp.h"
+      ],
+      "baseline": "prompt_49_sources.json",
+      "files": [
+        {
+          "path": "CMakeLists.txt",
+          "sha256": "8c05095f0e55b5c54d9c23d3676978ad46d880237c8386221e0baf8975ff3662",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "library.json",
+          "sha256": "63554dfcd4f13cd57a9d0b1ce288b94a0ffbc6ae5e46d619e4a8e8b749bf0d47",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "include/MotorControlRS/Status.h",
+          "sha256": "8c2bbf9d7e656230e84be64e57fa9d239314c3cf558669ef295c6a7db75d485e",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "include/MotorControlRS/MotorControlRS.h",
+          "sha256": "7841111df1992e9205ca4d3447ad132b46d411bce9aaf001ee54b6b2ae2e8011",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "src/Units.cpp",
+          "sha256": "208b780da2615ab637a78fa7ac7de7a64525ac834237541dda9efa0e3e22c202",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "sha256": "4cf905974f14613997904a54a401490e95065d53ce9e1d13750f370b100041e2",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "scripts/check_repository.py",
+          "sha256": "760797d756a40e846e81acde75cd95e104c180aaf7221bbc84cbb14dfcda3711",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "scripts/verify.py",
+          "sha256": "20cd6d521a24adeb09cd9e2182ea839fead8e71691720ba07bccb43a3c75fcef",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "test/installed_consumer/CMakeLists.txt",
+          "sha256": "3cbfe392e28ccd0ae28dffa853316de41061be633b2b64e471e0df63f9f233fc",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "test/installed_consumer/main.cpp",
+          "sha256": "921ec2492894353f2c99c569993120ec99b9c342c1e792401a8847c91f786174",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "docs/Doxyfile",
+          "sha256": "adfc602099d237518cf98ff5043f89fa02119f2909b5d261ef2d8fd8bb24adc3",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "docs/verification.md",
+          "sha256": "b87e3185896bbfd4eb713bbe7372527ddfa964e2c2ac5d1bb1e624c4483d6c48",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "docs/fieldcore_handoff.md",
+          "sha256": "1c9d3c1669bf087d74ba97ceaf92ebb003f38ad1cf47f22d85996faf3716d97b",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "README.md",
+          "sha256": "ebdf212e00437bbaf1367c7245ca3b4919c8ebfaa652d60aba3d3a95bd68854b",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": ".github/workflows/verify.yml",
+          "sha256": "39b0d8116dcaee9f897d9bfc9b9735e31cd98f579e05f58b7bfa866bed6c5dbb",
+          "same_working_bytes_as_prompt49": true
+        }
+      ],
+      "bench_files": [
+        {
+          "path": "scripts/bench_session.py",
+          "sha256": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350",
+          "same_working_bytes_as_prompt48_intake": true
+        },
+        {
+          "path": "scripts/bench_motion.py",
+          "sha256": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0",
+          "same_working_bytes_as_prompt48_intake": true
+        },
+        {
+          "path": "scripts/bench_probe.py",
+          "sha256": "acb317a91f79f7fe7b54ccdae1f23f26ac21441dfcce458c8bd37340cf38e496",
+          "same_working_bytes_as_prompt48_intake": false
+        },
+        {
+          "path": "scripts/_bench_evidence.py",
+          "sha256": "13d353fb0896c2553324966b0a1f0b2b442634af807e2162e2560c79ec9c52de",
+          "same_working_bytes_as_prompt48_intake": true
+        },
+        {
+          "path": "scripts/bench_repeat.py",
+          "sha256": "fc7bb8bcac3972b1175da7af876f6611bc19c3da8853f1760b9eb230e5d9085b",
+          "same_working_bytes_as_prompt48_intake": true
+        }
+      ],
+      "after": {
+        "head": "1d5814994d06be72d46dea111716f0da28f39a68",
+        "status": [
+          " M docs/cli_contract.md",
+          " M docs/console.md",
+          " M docs/reference/ess_rs_operations.json",
+          " M examples/probe_cli/DriveGroup.h",
+          " M examples/probe_cli/GroupApp.h",
+          " M examples/probe_cli/ProbeApp.cpp",
+          " M examples/probe_cli/ProbeApp.h",
+          " M examples/probe_cli/ProbeConsole.cpp",
+          " M examples/probe_cli/ProbeConsole.h",
+          " M scripts/bench_probe.py",
+          " M scripts/check_ess_operations.py",
+          " M test/bench_probe_test.py",
+          " M test/group_app_test.cpp",
+          " M test/operations_inventory_test.py",
+          "?? examples/probe_cli/GroupCoordinatesApp.h"
+        ]
+      }
+    },
+    {
+      "repository": "ADS1115",
+      "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+      "status": [],
+      "baseline": "prompt_49_sources.json",
+      "files": [
+        {
+          "path": "Doxyfile",
+          "sha256": "55495772d5952c8769a1689b7ee0b8481396f24a4c49ce415d2fd2f5c638c254",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "tools/check_core_timing_guard.py",
+          "sha256": "0a62ac0424f7127ac481f17f13b8fe1b08da102462af309b430ffde8755b2296",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "sha256": "bc5dfab7c6fa2b6f982a46824a657cbff1117f11b180fbfa11c0a71b005e241e",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "e51bf05980231ce018d73ca8cc641600af7ff144985cad68467b21c8dc2ed8a4",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "sha256": "999ae7decacbf7eb863910378f21e7a95e36c7a736bd5604f6855861c0e3b0a9",
+          "same_working_bytes_as_prompt49": true
+        }
+      ],
+      "after": {
+        "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+        "status": []
+      }
+    },
+    {
+      "repository": "INA228",
+      "head": "4de84f2564eb6382835ca9a72d8688377657dcb4",
+      "status": [],
+      "baseline": "prompt_49_sources.json",
+      "files": [
+        {
+          "path": "Doxyfile",
+          "sha256": "9518d98ab2925129f50ebc520d7a3394e28736edacc54be8b747f42fec676e0b",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "tools/check_core_timing_guard.py",
+          "sha256": "2ecefce47dea6bc3cc87a100cb3cb82c2516407b352248c353069a8a6707f451",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "sha256": "05b296e4f246d743be6e9aae5e84f2b19ca693f5588635de9c72d1e47d2e4d25",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "e065348f9f32b3db156faf977d49d0b4b343a195210037acbefba9791f40ea32",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "docs/validation/release-checklist.md",
+          "sha256": "4586c77b30078e1ca8769fd14f0b06b8808e36e3998cbcfc8cff3a8204ed7a3b",
+          "same_working_bytes_as_prompt49": true
+        }
+      ],
+      "after": {
+        "head": "4de84f2564eb6382835ca9a72d8688377657dcb4",
+        "status": []
+      }
+    },
+    {
+      "repository": "FieldCore-node",
+      "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+      "status": [],
+      "baseline": "prompt_49_sources.json",
+      "files": [
+        {
+          "path": "include/TunnelMonitor/contracts/Health.h",
+          "sha256": "d91c8a9cd03c55f5429af8067e92cffdaaf64289ad062de9c33a1ed57237c628",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "src/system/SystemHealthProjection.h",
+          "sha256": "cc1568bcdf9388696b9e77da90f7a86c1b7f97db52e8cae47cda3b539c9602aa",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "src/devices/rs485_motor/Rs485MotorModule.cpp",
+          "sha256": "e14483d8653667a1c6a280cc3926e1014f35bc2ef401b30eb37cac6e602cea20",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "include/TunnelMonitor/settings/DeviceSettings.h",
+          "sha256": "6966857f6107964e09793386cdb73f644526ac04c5e18de4eca7617b48477518",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "include/TunnelMonitor/product/rodtester/RodTesterSettings.h",
+          "sha256": "096016e10dee0f5036a3a0006b1613bfc2617ac59ad6f5238f8da2a258b522e8",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "include/TunnelMonitor/product/SelectedBuildProfile.h",
+          "sha256": "e122cd1cd43859055f0e4dcdfa9ff0f9944fe42fdb5940319aa632f3c6913e98",
+          "same_working_bytes_as_prompt49": true
+        },
+        {
+          "path": "config/build_profiles.json",
+          "sha256": "d4f23b8f5abe29ed7c476337fe5ad3602257985497caab96ae1c5d42cc2fcd90",
+          "same_working_bytes_as_prompt49": true
+        }
+      ],
+      "after": {
+        "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+        "status": []
+      }
+    },
+    {
+      "repository": "MCP45HVX1",
+      "head": "abfd749fbc641b9fe29e1eb2d6f6428ec4e9a4e2",
+      "status": [],
+      "baseline": "../bench/20261115-p48/source_review.json",
+      "seam": "tools/run_hil_mcp45hvx1.py::capture_baseline/output_change_sequence/restore_baseline/verdict",
+      "disposition": "unchanged since prompt48; baseline refusal and explicit unsafe skip retained, motor restoration policy rejected",
+      "after": {
+        "head": "abfd749fbc641b9fe29e1eb2d6f6428ec4e9a4e2",
+        "status": []
+      }
+    }
+  ],
+  "originals": [
+    {
+      "id": "EN86",
+      "path": "vendor/86C_CANopen_user_manual_en.pdf",
+      "sha256": "401df6c49c54fe56fed7c606ca45718f352235746e2faaeb65be778eef6c4b9f",
+      "matches_manifest": true
+    },
+    {
+      "id": "EDS",
+      "path": "vendor/LC_StepDriverCAN_V1.1.eds",
+      "sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+      "matches_manifest": true
+    }
+  ],
+  "reopened": "EN86 original PDF pages11,12,15,18 and EDS1017/6040/6041/60FF/2300. No new firmware claims or corrected device constants.",
+  "final_refresh_utc": "2026-11-15T14:58:56.058769+00:00",
+  "rs_concurrent_delta": {
+    "path": "scripts/bench_probe.py",
+    "working_sha256": "af0b728865cfb18ff966e38bfe4a35dede8bcdade944a5018bbfc6157bf20bfb",
+    "head_sha256": "13893ae24b51d886fa222906fc7526628518b88706bd1ae90355ceb2cae812f1",
+    "unchanged_named_function_asts": {
+      "observe_stopped": true,
+      "cleanup_stop_attempts": true,
+      "move_campaign": true
+    },
+    "disposition": "Concurrent group-coordinate parser work does not change the inspected finite motion/failure functions; no sibling edit imported."
+  }
+}

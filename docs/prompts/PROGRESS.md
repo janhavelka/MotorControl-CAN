@@ -7,6 +7,11 @@ The earlier finite motion and physical observation limits remain in [report47](.
 Partial rows below retain their distinct software/source/physical obligations.
 No current hardware qualification is inferred from a host test or an old bench run.
 
+The [fresh prompts47–49 audit](../reports/audit_47_49.md) rechecks the actual
+implementation, raw captures and package. It corrects soak request/record
+correlation; prompt47/48 physical obligations and prompt49's software scope
+remain unchanged.
+
 The [independent auditor disposition](../audit/2026-11-15_auditor_disposition.md)
 checks every numbered finding in the November 2 audit against current code.
 It links resolved defects, corrections and concrete owners for remaining work.

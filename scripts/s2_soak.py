@@ -16,6 +16,7 @@ import argparse
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -145,6 +146,9 @@ class Run:
         self.clock = clock
         self.directory = directory
         self.end_wall = end_wall
+        # Select the wall-clock target once. Later clock corrections must not
+        # extend the admitted campaign or its port-enumeration budget.
+        self.deadline = clock.monotonic() + max(0.0, (end_wall - clock.wall()).total_seconds())
         self.interrupted = False
         directory.mkdir(parents=True, exist_ok=False)
         self.events = (directory / "events.jsonl").open("x", encoding="utf-8", newline="\n")
@@ -167,7 +171,7 @@ class Run:
         stream.flush()
 
     def remaining_s(self):
-        return (self.end_wall - self.clock.wall()).total_seconds()
+        return self.deadline - self.clock.monotonic()
 
     def close(self):
         for stream in (self.events, self.transitions, self.summary):
@@ -347,7 +351,7 @@ class Trial:
         self.run.event("trial_end", trial=self.identity, reason=reason, bytes=self.offset)
 
 
-def start_soak(trial, args, remaining):
+def start_soak(trial, args):
     """Establish the running image's state, then ask once. Returns None or the reason it did not start."""
     run = trial.run
     clock = run.clock
@@ -376,7 +380,9 @@ def start_soak(trial, args, remaining):
             return "can_start_refused"
     elif not pong.values["running"]:
         return "firmware_not_running"
-    duration = min(int(remaining), MAX_DURATION_S)
+    # Enumeration and the ping/controller prerequisites consume the same finite
+    # campaign window. Never admit a stale duration after those waits.
+    duration = min(int(run.remaining_s()), MAX_DURATION_S)
     if duration < 1:
         return "no_time_left"
     request = soak_line(trial.identity, duration, args.interval_ms, args.summary_s, READS[args.reads])
@@ -428,7 +434,7 @@ def capture(trial, args):
 
 def wait_for_port(run, args):
     clock = run.clock
-    deadline = clock.monotonic() + args.reenumerate_s
+    deadline = clock.monotonic() + min(args.reenumerate_s, max(0.0, run.remaining_s()))
     while True:
         try:
             return check_identity(args.port, args.serial, run.backend.comports())
@@ -436,7 +442,7 @@ def wait_for_port(run, args):
             if clock.monotonic() >= deadline:
                 run.event("port_not_back", error=str(error))
                 return None
-        clock.sleep(1.0)
+        clock.sleep(min(1.0, max(0.0, deadline - clock.monotonic())))
 
 
 def run_trials(run, args):
@@ -452,13 +458,17 @@ def run_trials(run, args):
         identity = wait_for_port(run, args)
         if identity is None:
             return "failed", "port_not_back"
+        remaining = run.remaining_s()
+        if remaining < 1:
+            run.event("time_is_up", trials=number - 1)
+            return "failed", "no_time_left"
         run.event("trial_start", number=number, trial=base + number - 1, remaining_s=int(remaining),
                   usb=identity)
         trial = Trial(run, number, base + number - 1)
         run.trials.append(trial)
         try:
             trial.port = run.backend.open(args.port)
-            refusal = start_soak(trial, args, remaining)
+            refusal = start_soak(trial, args)
             if refusal:
                 outcome = ("failed", refusal)
                 run.event("soak_not_started", trial=trial.identity, reason=refusal)
@@ -589,6 +599,10 @@ def arguments(argv):
         parser.error("--summary-s must be 1..3600")
     if not 1 <= args.max_trials <= 100:
         parser.error("--max-trials must be 1..100")
+    for name in ("reenumerate_s", "keepalive_s"):
+        value = getattr(args, name)
+        if not math.isfinite(value) or value < 0:
+            parser.error("--%s must be finite and nonnegative" % name.replace("_", "-"))
     return args
 
 

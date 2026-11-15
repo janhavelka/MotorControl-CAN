@@ -1324,6 +1324,13 @@ class SoakFinalEvidence(unittest.TestCase):
         for old, new in (("opsFail=0", "opsFail=1"), ("refused=0", "refused=1"), ("stopped=0", "stopped=1")):
             with self.subTest(field=old):
                 rows = [line.replace(old, new) if line.startswith("SOAK_NODE ") else line for line in self.rows]
+                if old == "opsFail=0":
+                    # A failed operation replaces a successful one; adding a failure
+                    # on top of the full success count would contradict the totals.
+                    rows = [re.sub(r"\bopsOk=(\d+)", lambda m: "opsOk=%d" % (int(m[1]) - 1), line)
+                            if line.startswith("SOAK_NODE ") else line for line in rows]
+                    rows = [re.sub(r"\bread=0,(\d+),0,", lambda m: "read=0,%d,1," % (int(m[1]) - 1), line)
+                            if line.startswith("SOAK_OUT ") else line for line in rows]
                 report = self.replay_rows(rows)
                 self.assertEqual(report.verdict, "failed-evidence")
                 self.assertEqual(report.errors, [])
@@ -1371,6 +1378,105 @@ class SoakFinalEvidence(unittest.TestCase):
         self.rows[1] = re.sub(r"\btrial=\d+", "trial=1", self.rows[1])
         self.assertIn("soak_wrong_trial", codes(self.replay_rows()))
 
+    def test_final_vectors_require_the_actual_uint32_shape(self):
+        for kind, name in (("SOAK_HIST", "b"), ("SOAK_OUT", "sdo"),
+                           ("SOAK_OUT", "reason"), ("SOAK_OUT", "read")):
+            for value in ("oops", "-1", "0,1", "4294967296", "9" * 5000):
+                with self.subTest(kind=kind, field=name, value=value[:20]):
+                    rows = [re.sub(r"\b" + name + r"=\S+", name + "=" + value, line)
+                            if line.startswith(kind + " ") else line for line in self.rows]
+                    report = self.replay_rows(rows)
+                    self.assertIn("soak_summary_counters", codes(report))
+
+    def test_malformed_periodic_vectors_cannot_be_hidden_by_a_clean_final_summary(self):
+        for kind, name, value in (("SOAK_HIST", "b", "oops"), ("SOAK_OUT", "sdo", "0,1"),
+                                  ("SOAK_OUT", "reason", "-1"), ("SOAK_OUT", "read", "oops"),
+                                  ("SOAK_ABORT", "a0", "oops"), ("SOAK_ABORT", "a1", "0:1"),
+                                  ("SOAK_ABORT", "a2", "00000000:-1"),
+                                  ("SOAK_ABORT", "a3", "00000000:4294967296"),
+                                  ("SOAK_ABORT", "other", "4294967296")):
+            with self.subTest(kind=kind, field=name):
+                periodic = self.rows[1:-1]
+                index = next(i for i, line in enumerate(periodic) if line.startswith(kind + " "))
+                token = name + "=" + value
+                periodic[index] = re.sub(r"\b" + name + r"=\S+", token, periodic[index])
+                report = self.replay_rows(self.rows[:1] + periodic + self.rows[1:])
+                self.assertEqual(report.verdict, "inconsistent")
+                self.assertIn("soak_summary_counters", codes(report))
+                self.assertTrue(any(token in record.raw for record in report.records))
+
+    def test_periodic_rows_validate_shape_without_cross_row_arithmetic(self):
+        periodic = [re.sub(r"\bb=\S+", "b=0,0,0,0,0,0,0,0", line)
+                    if line.startswith("SOAK_HIST ") else line for line in self.rows[1:-1]]
+        report = self.replay_rows(self.rows[:1] + periodic + self.rows[1:])
+        self.assertEqual(report.verdict, "complete", report.errors)
+
+    def test_final_shape_error_is_not_duplicated_by_terminal_validation(self):
+        rows = self.rows[:]
+        index = next(i for i, line in enumerate(rows) if line.startswith("SOAK_HIST "))
+        rows[index] = re.sub(r"\bb=\S+", "b=oops", rows[index])
+        report = self.replay_rows(rows)
+        errors = [item for item in report.errors if item["code"] == "soak_summary_counters"]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(report.soak["note_counts"]["soak_summary_counters"], 1)
+
+    def test_final_step_and_histogram_totals_must_agree(self):
+        for old, new in ((r"stepsOk=\d+", "stepsOk=999999"), (r"steps=\d+", "steps=999999"),
+                         (r"min=\d+", "min=999999")):
+            rows = [re.sub(r"\b" + old, new, line) if line.startswith("SOAK_NODE ") else line
+                    for line in self.rows]
+            self.assertIn("soak_summary_counters", codes(self.replay_rows(rows)))
+
+    def test_final_console_totals_keep_unprinted_loss_and_anomalies_failed(self):
+        for name in ("anomalies", "evFull", "evLimit", "trLost", "dumpAb"):
+            with self.subTest(field=name):
+                rows = [line.replace(name + "=0", name + "=1") if line.startswith("SOAK_CON ") else line
+                        for line in self.rows]
+                report = self.replay_rows(rows)
+                self.assertEqual(report.verdict, "failed-evidence", report.errors)
+                self.assertIn("soak_diagnostic_loss_or_anomaly", {item.get("reason") for item in report.failed})
+
+    def test_final_abort_counters_require_the_printed_shape_and_bounds(self):
+        for name in ("a0", "a1", "a2", "a3"):
+            for value in ("oops", "00000000:-1", "00000000:4294967296", "100000000:1", "0:1"):
+                with self.subTest(field=name, value=value):
+                    rows = [re.sub(r"\b" + name + r"=\S+", name + "=" + value, line)
+                            if line.startswith("SOAK_ABORT ") else line for line in self.rows]
+                    self.assertIn("soak_summary_counters", codes(self.replay_rows(rows)))
+        rows = [line.replace("other=0", "other=4294967296") if line.startswith("SOAK_ABORT ") else line
+                for line in self.rows]
+        self.assertIn("soak_summary_counters", codes(self.replay_rows(rows)))
+
+    def test_reported_aborts_are_failed_evidence_even_without_an_anomaly_line(self):
+        rows = [line.replace("a0=00000000:0", "a0=00000000:1") if line.startswith("SOAK_ABORT ") else line
+                for line in self.rows]
+        self.assertEqual(self.replay_rows(rows).verdict, "failed-evidence")
+        rows = [line.replace("a0=00000000:1", "a0=00000000:999999") for line in rows]
+        self.assertIn("soak_summary_counters", codes(self.replay_rows(rows)))
+
+    def test_late_settlement_during_final_output_is_failure_without_false_contradiction(self):
+        rows = [re.sub(r"\bopsOk=(\d+)", lambda m: "opsOk=%d" % (int(m[1]) - 1), line)
+                if line.startswith("SOAK_NODE ") else line for line in self.rows]
+        report = self.replay_rows(rows)
+        self.assertEqual(report.verdict, "failed-evidence", report.errors)
+        self.assertNotIn("soak_summary_counters", codes(report))
+
+    def test_saturated_final_counters_remain_consistent(self):
+        rows = []
+        for line in self.rows:
+            if line.startswith("SOAK_NODE "):
+                for name in ("ops", "opsOk", "steps", "stepsOk"):
+                    line = re.sub(r"\b" + name + r"=\d+", name + "=4294967295", line)
+            elif line.startswith("SOAK_HIST "):
+                line = re.sub(r"\bb=\S+", "b=4294967295,4294967295,0,0,0,0,0,0", line)
+            elif line.startswith("SOAK_OUT "):
+                for name, count, slot in (("sdo", 12, 0), ("reason", 8, 0), ("read", 9, 1)):
+                    vector = ["0"] * count
+                    vector[slot] = "4294967295"
+                    line = re.sub(r"\b" + name + r"=\S+", name + "=" + ",".join(vector), line)
+            rows.append(line)
+        self.assertEqual(self.replay_rows(rows).verdict, "complete")
+
     def test_retained_clean_anomalous_and_lost_byte_captures_keep_their_verdicts(self):
         for name, expected in (("20261106-p5-c-regression-2", "complete"),
                                ("20261106-p5-c-regression-1", "failed-evidence"),
@@ -1380,6 +1486,75 @@ class SoakFinalEvidence(unittest.TestCase):
                 report = evidence.replay_capture(BENCH / name / "trial-01")
                 self.assertEqual(report.verdict, expected, report.errors)
                 self.assertNotIn("raw_hash_mismatch", codes(report))
+
+
+class SoakRequestEvidence(unittest.TestCase):
+    """A complete record must still describe the request actually captured."""
+
+    def setUp(self):
+        capture = BENCH / "20261115-p48/04-A-baseline/trial-01"
+        self.data = (capture / "rx.bin").read_bytes()
+        self.meta = json.loads((capture / "request.json").read_text(encoding="utf-8"))
+
+    def test_retained_request_matches_admitted_plan(self):
+        report = evidence.replay_bytes(self.data, self.meta)
+        self.assertEqual(report.verdict, "complete", report.errors)
+
+    def test_each_supplied_plan_field_must_match_the_admitted_plan(self):
+        for name, value in (("duration_s", 172800), ("interval_ms", 20), ("summary_s", 1),
+                            ("reads", "state"), ("reads", "identity"), ("reads", "monitors")):
+            with self.subTest(field=name, value=value):
+                meta = dict(self.meta, **{name: value})
+                report = evidence.replay_bytes(self.data, meta)
+                self.assertEqual(report.verdict, "inconsistent")
+                self.assertIn("request_byte_mismatch", codes(report))
+
+    def test_wire_request_must_match_even_without_descriptive_plan_metadata(self):
+        meta = {"command": "soak", "tx_hex": self.meta["tx_hex"]}
+        self.assertEqual(evidence.replay_bytes(self.data, meta).verdict, "complete")
+        fields = bytes.fromhex(meta["tx_hex"])[1:].strip().split(b",")
+        for index, value in enumerate((b"1", b"1", b"20", b"1", b"0")):
+            with self.subTest(field=index):
+                changed = fields[:]
+                changed[index] = value
+                meta["tx_hex"] = (b"S" + b",".join(changed) + b"\n").hex()
+                self.assertIn("request_byte_mismatch", codes(evidence.replay_bytes(self.data, meta)))
+
+    def test_malformed_supplied_requests_are_inconsistent(self):
+        huge_number = (b"S" + b"9" * 5000 + b",599,200,10,3\n").hex()
+        for value in (None, "not hex", "00", "53", "53312c312c32302c312c340a", huge_number):
+            with self.subTest(tx_hex=value):
+                report = evidence.replay_bytes(self.data, dict(self.meta, tx_hex=value))
+                self.assertEqual(report.verdict, "inconsistent")
+                self.assertIn("request_byte_mismatch", codes(report))
+        report = evidence.replay_bytes(self.data, dict(self.meta, reads="unknown"))
+        self.assertIn("request_byte_mismatch", codes(report))
+
+    def test_numeric_plan_metadata_requires_exact_integer_types(self):
+        for name in ("trial", "duration_s", "interval_ms", "summary_s"):
+            for value in (float(self.meta[name]), True, str(self.meta[name]), None):
+                with self.subTest(field=name, value=value):
+                    meta = dict(self.meta, **{name: value})
+                    report = evidence.replay_bytes(self.data, meta)
+                    self.assertIn("request_byte_mismatch", codes(report))
+
+    def test_recorded_image_base_must_match_begin(self):
+        meta = dict(self.meta, image=dict(self.meta["image"], base="another image"))
+        self.assertIn("request_byte_mismatch", codes(evidence.replay_bytes(self.data, meta)))
+
+    def test_older_capture_without_optional_request_facts_remains_usable(self):
+        report = evidence.replay_bytes(self.data, {"command": "soak"})
+        self.assertEqual(report.verdict, "complete", report.errors)
+
+    def test_all_prompt48_campaigns_keep_their_original_verdicts(self):
+        for name, expected in (("04-A-baseline/trial-01", "complete"),
+                               ("05-B-console/trial-01", "complete"),
+                               ("06-C-readload/trial-01", "incomplete"),
+                               ("06-C2-reproduction/trial-01", "complete"),
+                               ("07-D-host-pause", "complete")):
+            with self.subTest(capture=name):
+                report = evidence.replay_capture(BENCH / "20261115-p48" / name)
+                self.assertEqual(report.verdict, expected, report.errors)
 
 
 class CommandLine(unittest.TestCase):

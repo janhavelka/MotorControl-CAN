@@ -61,9 +61,10 @@ def soak_lines(trial, start=1):
     return out
 
 
-def begin(trial, duration):
-    return ("SOAK_BEGIN n=0 t=50 trial=%d dur=%d interval=200 summary=60 monitors=1 identity=1 opDeadline=2000000 "
-            "queue=250000 resp=250000 stack=9000 heap=90000 heapMin=89000 base=%s" % (trial, duration, "a" * 40))
+def begin(trial, duration, interval=200, summary=60, reads=3):
+    return ("SOAK_BEGIN n=0 t=50 trial=%d dur=%d interval=%d summary=%d monitors=%d identity=%d opDeadline=2000000 "
+            "queue=250000 resp=250000 stack=9000 heap=90000 heapMin=89000 base=%s" %
+            (trial, duration, interval, summary, bool(reads & 1), bool(reads & 2), "a" * 40))
 
 
 def final_summary(trial, start, up):
@@ -150,13 +151,13 @@ class Board:
             if self.refuse:
                 self.text("SOAK_REFUSED reason=%s; no work" % self.refuse)
                 return
-            trial, duration = [int(x) for x in data[1:].split(b",")[:2]]
+            trial, duration, interval, summary, reads = [int(x) for x in data[1:].strip().split(b",")]
             self.trial = trial
             self.trials.append(trial)
             self.soaking = True
             self.end_at = self.clock.seconds + duration
             self.began_at = self.clock.seconds
-            self.text(begin(trial, duration))
+            self.text(begin(trial, duration, interval, summary, reads))
             for line in self.body(trial):
                 self.text(line)
             extra = self.reset_after.get(len(self.trials))
@@ -310,7 +311,8 @@ class NormalRun(Base):
         self.assertNotIn("603F:00", request["objects"]["state"])
 
     def test_duration_comes_from_the_wall_clock_end(self):
-        self.run_soak("--interval-ms", "250", "--summary-s", "30", "--reads", "monitors", duration="1800")
+        self.assertEqual(self.run_soak("--interval-ms", "250", "--summary-s", "30", "--reads", "monitors",
+                                      duration="1800"), 0)
         trial, duration, interval, summary, reads = [
             int(x) for x in self.board.writes[2][1:].strip().split(b",")]
         self.assertEqual((interval, summary, reads), (250, 30, 1))
@@ -340,6 +342,14 @@ class NormalRun(Base):
 
 
 class DryRun(Base):
+    def test_host_timing_options_require_finite_nonnegative_values_before_port_access(self):
+        for option in ("--reenumerate-s", "--keepalive-s"):
+            for value in ("nan", "inf", "-inf", "-1"):
+                with self.subTest(option=option, value=value):
+                    with self.assertRaises(SystemExit):
+                        soak.main(["--duration-s", "1", option + "=" + value, "--dry-run"],
+                                  Forbidden(), self.clock)
+
     def test_touches_no_port_and_creates_nothing(self):
         code = soak.main(["--until", "09:00", "--dry-run", "--output", str(self.out)], Forbidden(), self.clock)
         self.assertEqual(code, 0)
@@ -382,6 +392,62 @@ class Identity(Base):
 
 
 class Interruptions(Base):
+    def test_port_wait_cannot_exceed_remaining_campaign_time(self):
+        original = self.backend.comports
+        calls = []
+
+        def disappear():
+            calls.append(1)
+            return original() if len(calls) == 1 else []
+
+        self.backend.comports = disappear
+        self.assertEqual(self.run_soak("--reenumerate-s", "120", duration="1"), 1)
+        self.assertEqual(self.clock.seconds, 1)
+        self.assertEqual(self.backend.opened, [])
+        self.assertEqual(self.board.writes, [])
+
+    def test_late_port_does_not_admit_an_expired_trial(self):
+        original = self.backend.comports
+        calls = []
+
+        def late():
+            calls.append(1)
+            return [] if len(calls) == 2 else original()
+
+        self.backend.comports = late
+        self.assertEqual(self.run_soak(duration="1"), 1)
+        self.assertEqual(self.clock.seconds, 1)
+        self.assertEqual(self.backend.opened, [])
+        self.assertIn("time_is_up", self.names())
+
+    def test_ping_wait_consumes_the_same_campaign_budget(self):
+        original = self.board.command
+
+        def slow_ping(data):
+            if data == b"p":
+                self.clock.seconds += 1
+            original(data)
+
+        self.board.command = slow_ping
+        self.assertEqual(self.run_soak(duration="1"), 1)
+        self.assertFalse(any(data.startswith(b"S") for data in self.board.writes))
+        self.assertEqual(self.run_json()["reason"], "no_time_left")
+
+    def test_backward_wall_clock_correction_does_not_extend_the_campaign(self):
+        original = self.board.command
+
+        def corrected(data):
+            if data.startswith(b"S"):
+                self.clock.start -= timedelta(days=1)
+            original(data)
+
+        self.board.command = corrected
+        self.board.finish = False
+        self.assertEqual(self.run_soak("--summary-s", "5", duration="10"), 0)
+        self.assertLess(self.clock.seconds, 42)
+        self.assertEqual(self.board.writes.count(b"X"), 1)
+        self.assertEqual(len(self.board.trials), 1)
+
     def test_reset_mid_run_keeps_evidence_and_starts_a_new_trial(self):
         self.board.reset_after = {1: b"ESP-ROM:esp32s2-rc4-20191025\nrst:0x3 (RTC_SW_SYS_RST)\nS2_BENCH ready; x\n"}
         code = self.run_soak()
@@ -498,6 +564,21 @@ class Interruptions(Base):
 
 
 class Output(Base):
+    def test_wrong_admitted_plan_fails_without_replaying_the_request(self):
+        original = self.board.text
+
+        def changed(line):
+            if line.startswith("SOAK_BEGIN "):
+                line = line.replace("interval=200", "interval=20")
+            original(line)
+
+        self.board.text = changed
+        self.assertEqual(self.run_soak(), 1)
+        row = self.run_json()["trials"][0]
+        self.assertEqual(row["verdict"], "inconsistent")
+        self.assertIn("request_byte_mismatch", {item["code"] for item in row["errors"]})
+        self.assertEqual(sum(data.startswith(b"S") for data in self.board.writes), 1)
+
     def test_garbage_is_kept_and_counted(self):
         board = self.board
         original = board.text

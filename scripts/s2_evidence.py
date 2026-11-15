@@ -19,6 +19,7 @@ from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 from typing import NamedTuple
 
@@ -1669,7 +1670,10 @@ def _check_controlword(report, summary, records):
 def _check_request(report, meta):
     """Pin the capture to the byte actually requested."""
     command = meta.get("command")
-    if command is None or command == "soak":  # Its request is a line, checked against SOAK_BEGIN.
+    if command == "soak":
+        _check_soak_request(report, meta)
+        return Expect()
+    if command is None:
         return Expect()
     if command in COMMANDS and meta.get("tx_hex", COMMANDS[command].hex()) != COMMANDS[command].hex():
         report.error("request_byte_mismatch", None, "%s sent %s" % (command, meta.get("tx_hex")))
@@ -1682,6 +1686,52 @@ def _check_request(report, meta):
             report.error("request_byte_mismatch", None, "%s sent %r" % (command, line))
         return EXPECTED[command]._replace(node=int(meta.get("node") or 0))
     return EXPECTED[command]
+
+
+def _check_soak_request(report, meta):
+    """Compare supplied request facts with the admitted plan; older captures may omit them."""
+    plans = []
+    fields = {"duration_s": "dur", "interval_ms": "interval", "summary_s": "summary"}
+    plan = {wire: meta[name] for name, wire in fields.items() if name in meta}
+    for name in ("trial",) + tuple(fields):
+        if name in meta and type(meta[name]) is not int:
+            report.error("request_byte_mismatch", None, "soak %s must be an integer" % name)
+    reads = {"state": 0, "monitors": 1, "identity": 2, "full": 3}
+    if "reads" in meta:
+        value = reads.get(meta["reads"]) if isinstance(meta["reads"], str) else None
+        if value is None:
+            report.error("request_byte_mismatch", None, "unknown soak read set %r" % meta["reads"])
+        else:
+            plan.update(monitors=bool(value & 1), identity=bool(value & 2))
+    if plan:
+        plans.append(plan)
+    if "tx_hex" in meta:
+        try:
+            request = bytes.fromhex(meta["tx_hex"])
+        except (TypeError, ValueError):
+            request = b""
+        match = re.fullmatch(rb"S([0-9]+),([0-9]+),([0-9]+),([0-9]+),([0-3])\n", request)
+        if match is None:
+            report.error("request_byte_mismatch", None, "malformed soak request")
+        else:
+            try:
+                trial, duration, interval, summary, value = map(int, match.groups())
+            except ValueError:
+                report.error("request_byte_mismatch", None, "malformed soak request numbers")
+            else:
+                plans.append(dict(trial=trial, dur=duration, interval=interval, summary=summary,
+                                  monitors=bool(value & 1), identity=bool(value & 2)))
+    image = meta.get("image")
+    if isinstance(image, dict) and "base" in image:
+        plans.append({"base": image["base"]})
+    for record in report.records:
+        if record.kind != "SOAK_BEGIN" or record.status != "parsed":
+            continue
+        for expected in plans:
+            for name, wanted in expected.items():
+                if record.values[name] != wanted:
+                    report.error("request_byte_mismatch", record.number,
+                                 "soak %s requested %r, admitted %r" % (name, wanted, record.values[name]))
 
 
 class SoakChecker:
@@ -1729,8 +1779,11 @@ class SoakChecker:
         return self.code_counts[code] <= self.NOTES_PER_CODE
 
     def _error(self, code, line, detail=""):
+        item = {"code": code, "line": line, "detail": detail}
+        if item in self.errors:
+            return  # Final checks may revisit a shape error already found while streaming.
         if self._keep(code):
-            self.errors.append({"code": code, "line": line, "detail": detail})
+            self.errors.append(item)
 
     def _warn(self, code, line, detail=""):
         if self._keep(code):
@@ -1795,6 +1848,13 @@ class SoakChecker:
             if values["lines"] != values["n"]:
                 self._error("soak_end_differs", record.number, "lines %d n %d" % (values["lines"], values["n"]))
         else:
+            if kind == "SOAK_HIST":
+                self._counter_vector(record, "b", 8)
+            elif kind == "SOAK_OUT":
+                for name, size in (("sdo", 12), ("reason", 8), ("read", 9)):
+                    self._counter_vector(record, name, size)
+            elif kind == "SOAK_ABORT":
+                self._abort_counts(record)
             self.latest[(kind, values.get("node"))] = values
             if kind == "SOAK_SUM":
                 self.final_summary = {}
@@ -1871,6 +1931,97 @@ class SoakChecker:
             if state is not None and any(state.values[key] for key in ("opsFail", "refused", "stopped")):
                 self.failed.append({"line": state.number, "node": node, "reason": "soak_node_failed",
                                     "raw": state.raw})
+            self._finish_node_summary(node)
+        console = self.final_summary.get(("SOAK_CON", None))
+        if console is not None and any(console.values[key] for key in
+                                       ("anomalies", "evFull", "evLimit", "trLost", "dumpAb")):
+            # These per-trial totals survive a dropped anomaly/event line. Waiting
+            # turns and bounded dump selection are separate pressure/coverage facts.
+            self.failed.append({"line": console.number, "reason": "soak_diagnostic_loss_or_anomaly",
+                                "raw": console.raw})
+
+    def _counter_vector(self, record, name, size):
+        text = record.values[name]
+        if re.fullmatch(r"[0-9]+(?:,[0-9]+){%d}" % (size - 1), text):
+            try:
+                values = [int(value) for value in text.split(",")]
+            except ValueError:
+                values = []
+            if values and all(value <= 0xffffffff for value in values):
+                return values
+        self._error("soak_summary_counters", record.number, "invalid %s vector" % name)
+        return None
+
+    def _abort_counts(self, record):
+        counts = []
+        for name in ("a0", "a1", "a2", "a3"):
+            match = re.fullmatch(r"[0-9a-fA-F]{8}:([0-9]+)", record.values[name])
+            try:
+                count = int(match[1]) if match else -1
+            except ValueError:
+                count = -1
+            if not 0 <= count <= 0xffffffff:
+                self._error("soak_summary_counters", record.number, "invalid %s abort counter" % name)
+                return None
+            counts.append(count)
+        if not 0 <= record.values["other"] <= 0xffffffff:
+            self._error("soak_summary_counters", record.number, "invalid other abort counter")
+            return None
+        return counts + [record.values["other"]]
+
+    def _finish_node_summary(self, node):
+        """Check final counting units, comparing rows only after their node settled."""
+        state = self.final_summary.get(("SOAK_NODE", node))
+        hist = self.final_summary.get(("SOAK_HIST", node))
+        out = self.final_summary.get(("SOAK_OUT", node))
+        abort = self.final_summary.get(("SOAK_ABORT", node))
+        buckets = self._counter_vector(hist, "b", 8) if hist else None
+        outcomes = self._counter_vector(out, "sdo", 12) if out else None
+        reasons = self._counter_vector(out, "reason", 8) if out else None
+        reads = self._counter_vector(out, "read", 9) if out else None
+        aborts = self._abort_counts(abort) if abort else None
+        if aborts is not None and any(aborts):
+            self.failed.append({"line": abort.number, "node": node, "reason": "soak_abort_reported",
+                                "raw": abort.raw})
+        if state is None:
+            return
+        values = state.values
+        # The firmware can begin its final summary after a settlement timeout.
+        # Even a settled END may follow a read that completed during the summary.
+        complete = min(values["opsOk"] + values["opsFail"], 0xffffffff) == values["ops"]
+        frozen = complete and self.ended["settled"] and self.ended["reason"] != "internal"
+        if not complete:
+            self.failed.append({"line": state.number, "node": node, "reason": "soak_summary_unsettled",
+                                "raw": state.raw})
+        # Each scalar and histogram cell saturates independently in Soak::add.
+        total = lambda vector: min(sum(vector), 0xffffffff)
+        bad = values["stepsOk"] > values["steps"] or values["opsOk"] > values["ops"]
+        bad |= values["opsFail"] > values["ops"]
+        if aborts is not None and frozen:
+            bad |= total(aborts) > values["steps"]
+        if outcomes is not None:
+            if frozen:
+                bad |= total(outcomes) != values["steps"] or outcomes[0] != values["stepsOk"]
+            if any(outcomes[1:]):
+                self.failed.append({"line": out.number, "node": node, "reason": "soak_service_failed",
+                                    "raw": out.raw})
+        if reasons is not None and frozen:
+            bad |= total(reasons) != values["steps"]
+        if buckets is not None and frozen:
+            # Only terminals with a possible transmission have latency samples.
+            bad |= total(buckets) > values["steps"]
+            if 0 < sum(buckets) < 0xffffffff:
+                bad |= not values["min"] <= values["mean"] <= values["max"]
+            elif not any(buckets):
+                bad |= any(values[key] for key in ("min", "mean", "max"))
+        if reads is not None:
+            if frozen:
+                bad |= total(reads) != values["ops"]
+            if any(reads[2:]):
+                self.failed.append({"line": out.number, "node": node, "reason": "soak_read_failed",
+                                    "raw": out.raw})
+        if bad:
+            self._error("soak_summary_counters", state.number, "node %d totals disagree" % node)
 
 
 def check_soak(report, records, trial=None):

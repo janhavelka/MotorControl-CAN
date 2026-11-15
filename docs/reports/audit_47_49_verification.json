@@ -1,0 +1,646 @@
+{
+  "date_utc": "2026-11-15T15:01:17.404281+00:00",
+  "scope": "Offline replay of original retained bytes; no physical test",
+  "based_on": "90db5609fe5e077380920e20f084ca1aaa452f7b plus audited working changes",
+  "source_hashes": {
+    "scripts/s2_evidence.py": "87858ecf700661ac26ff61b89905d318be38d273f9f2169d3802fabef74a87b0",
+    "scripts/s2_evidence_test.py": "f6d0fedf2c50b5ac51b56409e7e504fbedcd4b9207a0e3000577711da33baad7",
+    "scripts/s2_soak.py": "818f9e2d94b809a25439626ca013e6a1f222c503b72cbf72657212848f5b05af",
+    "scripts/s2_soak_test.py": "9e4235055c12008fcaf5afb10bb9db2c900986d97d67b74499ed325054bfc2cb"
+  },
+  "soak_verdicts": {
+    "incomplete": 19,
+    "complete": 9,
+    "failed-evidence": 3
+  },
+  "soak_captures": [
+    {
+      "capture": "docs/bench/20261103-soak-ab-keepalive/trial-01",
+      "raw_sha256": "d6982d42ee23fee6b4027eb0c7715d175badb6ef658ee3803ec6e068d068a67a",
+      "request_sha256": "6a29ed121361be32efa705930f69d6ebcc0d430a1f0373b000973007256dbdb1",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-ab-keepalive2/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "22e66a84cf3ce7eaa8dce01c8d04aef35294b7697a3b010edaf26878ae5cd7a3",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-ab-plain/trial-01",
+      "raw_sha256": "a3465aa6a5514f1a679349359363f776f2141e5613ed4afb669589f3fb248645",
+      "request_sha256": "6d4f5cca3c053495bace5ad7b6f18f0271f79db59ff345213491a9e30dacfb17",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-ab-plain2/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "e59b3f0ad877182fbdb64db244cc520c5f30a68455483d303963b4b851f4e1b8",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-burst1s/trial-01",
+      "raw_sha256": "368ea8fca83e1286b37af9065f34663c3a4f6745ebc4c1aee702dd19f671981f",
+      "request_sha256": "c97f72a288f4194465015e42babd03ecc2e5f2bd46c4cd8748dbef9cfec67dc8",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261103-soak-final/trial-01",
+      "raw_sha256": "57c541de49d186360f9535537afa032952bfcf787ceadc7f9b3c0dac4aa860cd",
+      "request_sha256": "e9b2bd50450438f506949a2bb6cce9de236986cd6ebd1345b0fa5cee22398d44",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261103-soak-idle10s/trial-01",
+      "raw_sha256": "8a879f92d80632c73846a4132b77f4338967f71966037c91aeb2bae5d1125550",
+      "request_sha256": "5e773c2b07250cc72b575942399d4e500b56c9312bbaa31b663bebbd9948d8ba",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261103-soak-night1/trial-01",
+      "raw_sha256": "3fd92afc47c57ce30efed846d30ce9dcf20ea333fc2c8c0bd5285e77882dd97f",
+      "request_sha256": "85181f1086fc677b50d762274bfdd954df33b2046fd9051fcd4310d19c1c15c2",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "soak_no_end"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-night2/trial-01",
+      "raw_sha256": "ee3948f0028e74cb244213f789726c1f003b5c8ff388508a78410859f4148fec",
+      "request_sha256": "cd4465769cabfc7deee443896166f080ccb88c39273fd4c9652faba5118fe87d",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "soak_no_end"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261103-soak-noack/trial-01",
+      "raw_sha256": "80457fec85c6b1dd674615e61b0ac68a6e302964970fa48beca1c4c593ebfe40",
+      "request_sha256": "64a5c97d0c4cc132cb5e9181fd557d5648bbdfa2e61efd564c7900b4f509e169",
+      "verdict": "failed-evidence",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261103-soak-pilot1/trial-01",
+      "raw_sha256": "31661f24350a21af2eef90f10d1ed93c464e4bde883b3f1730052c6d891bad88",
+      "request_sha256": "75869c0d9a91cc2aa56de5315d2d5d3edfe40d64d572eb7cd7621d2210c52e19",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261103-soak-stress1/trial-01",
+      "raw_sha256": "ed24a2b495a00d1573c1f13526443cd55f350f73264507e89df54a76a4f95075",
+      "request_sha256": "2665e40a7c75c217a22dadc6be5dd5e82c8c9e7e5354ad622fdc78cdb2b47d7f",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261104-soak-ab-keepalive3/trial-01",
+      "raw_sha256": "6f513dfbe5ee4cd3108997c14e81a40efeac1aaf0aa77b5a69677cfe54a82f2a",
+      "request_sha256": "32782d870ab2cc785f48ace13f34fc67b8620aee38cf5c4386d074a9a06a36e3",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261104-soak-ab-plain/trial-01",
+      "raw_sha256": "4af0bfb281e9a9acd706feeca47fb925b87240e2fb6425c789e850ac0bd89851",
+      "request_sha256": "6d0cc4437b0abdd05d7fd76a906b18fe7f2b3bc4f33c62849bbe421dfe103fef",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "malformed_line",
+        "soak_line_gap",
+        "soak_no_end"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261104-soak-ab-plain3/trial-01",
+      "raw_sha256": "7ad12a9d721652a08737e971343e0fb354a5d007a0d4b6c4f0d0498abe38dfd3",
+      "request_sha256": "0052ee752dfbfaa9d547d4a8fa06995a78cc71ab13b027218f85034797b4ec9a",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261105-stress-r1-summary1s/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "cb3eb6e29d0c6c8a44a7c98de6707eea5b4d796bc6e9eeae46d50df9701aaf2d",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261105-stress-r2-summary1s-repeat/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "1f0d653cff6135b6005991c8d0fdf93116514672163a5421b0db2e4449bd7331",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261105-stress-r3-reads200ms/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "05f3d762fe3fbb98f5c832bee2a322bd95eb859b23f244eef79067afc857c4f4",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261106-p5-a-reads200ms/trial-01",
+      "raw_sha256": "ebebd54efc3671584ac861432bffe1b3117af7aae64bba042c8d71a2bc96104c",
+      "request_sha256": "b8b25fe091b1fb9be158e6fa00544dd7b6d8ca54fd22993b880e40783ff14c0d",
+      "verdict": "failed-evidence",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261106-p5-b-reads20ms/trial-01",
+      "raw_sha256": "a2875618eda779111fccd6690209b4634ae6cb8a0df9fc95d3b1cfba31eb94ad",
+      "request_sha256": "b2c0cdea9bbffb7e57d4bd2397f03ff90248a92030063ad103dab22f77941474",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261106-p5-c-regression-1/trial-01",
+      "raw_sha256": "db45ed9d554ddd0e2e4e57834399e6989ac1b455e32ddf827ec98d28897d0781",
+      "request_sha256": "33fa32d2ad9fed83aa75e8379a89c546d96dbdc9af324266d8e91247ac56cb16",
+      "verdict": "failed-evidence",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261106-p5-c-regression-2/trial-01",
+      "raw_sha256": "50b4348adac4add18d7c25a2bb1dc3373996df9b3e5d4e4bee9552bea9c7183b",
+      "request_sha256": "54df79948a26d8df7f60df801c196bcbe4d6c3a8a3fa1586e100e167aa0f2bc6",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261106-stress-r4-reads50ms/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "8edf6a0deb3a41a959dea4e4fc83eec0820e849500879f351a88ee83304e3971",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261106-stress-r5-reads100ms/trial-01",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "request_sha256": "df8e9eea116aab09683cef0eb9a233ce91e45d8d770c25f7865d977df1518907",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "empty_capture",
+        "soak_no_begin"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261106-stress-r6-endurance/trial-01",
+      "raw_sha256": "6c87fe114c26b0dd8ed387aa405d2562eacbb9be6cb6055aeafa2794dd9e24f4",
+      "request_sha256": "dff41277bb6e6f603680f2d4ee13c01c9b656c41f70b3f5d5fa00a7711a47973",
+      "verdict": "incomplete",
+      "error_codes": [
+        "capture_failed",
+        "soak_no_end"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261106-stress-r7-after-outage/trial-01",
+      "raw_sha256": "42639d62194423efe6b19b3435a91d97bb445702b92c09d1243d5f4fe575c3a4",
+      "request_sha256": "f9dbd5c79e7d7f0a34cc41fbb9a4fdb3a8082ba1b7564768b24b1dbcbbbe432a",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261115-p48/04-A-baseline/trial-01",
+      "raw_sha256": "9b5cf88889188b331d38e0003c497a88dd7e381d7f0a77dba8e768bc26f8f697",
+      "request_sha256": "a3dce041126714ca23beff2fe2f727560b39556edf4f3085085ad06db492db4e",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261115-p48/05-B-console/trial-01",
+      "raw_sha256": "b327cf4f2d052a4c101102745f546035b765dd993ff1c4a70896c947d3aa0f3b",
+      "request_sha256": "1d17ab793db7bbde30c6d2630840ebe8772a4300bac3d9a2c97210455d3ef94c",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261115-p48/06-C-readload/trial-01",
+      "raw_sha256": "6b177f0f28a98b43079ad5179c50be1481c13399504312d6618c41fae931b6b2",
+      "request_sha256": "2f0c881d506aeb1aeeaacd9db9cd6d8d4feb05431bce66475ffdf0dfe4d3dc88",
+      "verdict": "incomplete",
+      "error_codes": [
+        "malformed_line",
+        "soak_line_gap"
+      ]
+    },
+    {
+      "capture": "docs/bench/20261115-p48/06-C2-reproduction/trial-01",
+      "raw_sha256": "5ef1ba9117d952e756bb9fd4df01eb6b15e99dc0b678e5e2ad7316c79c518565",
+      "request_sha256": "c3f5a07edc09f29d08b95ce002966071dc8b11f6e435066068188983bdff4f7a",
+      "verdict": "complete",
+      "error_codes": []
+    },
+    {
+      "capture": "docs/bench/20261115-p48/07-D-host-pause",
+      "raw_sha256": "aaa7410eb3eca026e8176d1895c601e346d7e75403c7eb2cfa8c7a85da13a53b",
+      "request_sha256": "92666d9fbba329434af2506ae5f51dbb686b11cfb567902689893e6916454013",
+      "verdict": "complete",
+      "error_codes": []
+    }
+  ],
+  "finite_captures": [
+    {
+      "capture": "docs/bench/20261115-p47/38-velocity-node1",
+      "verdict": "complete",
+      "raw_sha256": "0adc70085ce2a3ff0d08a932196bd8fe8a26ddd43fde0877256a9b1e057cc369",
+      "terminals": 88,
+      "traffic": 264,
+      "errors": []
+    },
+    {
+      "capture": "docs/bench/20261115-p47/40-velocity-node2",
+      "verdict": "complete",
+      "raw_sha256": "9623ed41c550db569156b4232c0c0baff26bab9353f7122bcc1f391894d2dfcf",
+      "terminals": 88,
+      "traffic": 264,
+      "errors": []
+    }
+  ],
+  "full_verifier": {
+    "status": "passed",
+    "mode": "full",
+    "omitted_gates": [],
+    "revision": "90db5609fe5e077380920e20f084ca1aaa452f7b",
+    "working_tree": [
+      " M CHANGELOG.md",
+      " M docs/bench_scenarios.md",
+      " M docs/prompts/PROGRESS.md",
+      " M scripts/s2_evidence.py",
+      " M scripts/s2_evidence_test.py",
+      " M scripts/s2_soak.py",
+      " M scripts/s2_soak_test.py",
+      "?? docs/reports/audit_47_49.md",
+      "?? docs/reports/audit_47_49_sources.json"
+    ],
+    "tools": {
+      "cmake": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+        "version": "cmake version 4.0.1"
+      },
+      "ctest": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+        "version": "ctest version 4.0.1"
+      },
+      "ninja": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+        "version": "1.12.1"
+      },
+      "cc": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+        "version": "gcc.EXE (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 15.1.0"
+      },
+      "cxx": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+        "version": "g++.EXE (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 15.1.0"
+      },
+      "python": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "version": "3.12.10"
+      },
+      "doxygen": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+        "version": "1.13.2"
+      }
+    },
+    "steps": [
+      {
+        "name": "revision",
+        "command": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\00_revision.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.031
+      },
+      {
+        "name": "working_tree",
+        "command": [
+          "git",
+          "status",
+          "--porcelain"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\01_working_tree.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.094
+      },
+      {
+        "name": "cmake_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\02_cmake_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.031
+      },
+      {
+        "name": "ctest_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\03_ctest_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.031
+      },
+      {
+        "name": "ninja_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\04_ninja_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.016
+      },
+      {
+        "name": "cc_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\05_cc_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.016
+      },
+      {
+        "name": "cxx_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\06_cxx_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.016
+      },
+      {
+        "name": "repository",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_repository.py"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\07_repository.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.125
+      },
+      {
+        "name": "version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\generate_version.py",
+          "check"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\08_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.125
+      },
+      {
+        "name": "objects",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\generate_lichuan_objects.py",
+          "--check"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\09_objects.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.219
+      },
+      {
+        "name": "operations",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_lichuan_operations.py"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\10_operations.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 1.578
+      },
+      {
+        "name": "doxygen_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\11_doxygen_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.031
+      },
+      {
+        "name": "configure",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\native",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DBUILD_TESTING=ON",
+          "-DCMAKE_C_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DPython3_EXECUTABLE=C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "-DCMAKE_C_FLAGS=",
+          "-DCMAKE_CXX_FLAGS=-Werror"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\12_configure.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 3.984
+      },
+      {
+        "name": "build",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\native",
+          "--parallel",
+          "2"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\13_build.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 252.75
+      },
+      {
+        "name": "test_inventory",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\native",
+          "--show-only=json-v1"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\14_test_inventory.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.266
+      },
+      {
+        "name": "registration",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_repository.py",
+          "--ctest-json",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\ctest_inventory.json",
+          "--build-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\native"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\15_registration.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.703
+      },
+      {
+        "name": "contracts",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\native",
+          "--output-on-failure",
+          "-E",
+          "^package_contract$"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\16_contracts.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 287.5
+      },
+      {
+        "name": "package",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\test\\package_test.py",
+          "--cmake",
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--compiler",
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "--work-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\package"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\17_package.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 36.437
+      },
+      {
+        "name": "documentation",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\Doxyfile"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644\\18_documentation.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 7.672
+      }
+    ],
+    "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\audit47-49-final\\20261115T145620709249Z-61740-vdp1n644"
+  },
+  "focused": {
+    "parser_tests": 136,
+    "runner_tests": 47,
+    "accounting_tests": 26,
+    "session_tests": 23,
+    "bench_plan_tests": 59,
+    "status": "passed"
+  },
+  "package_independent": {
+    "path": ".build/audit49-fresh-package/summary.json",
+    "status": "PASS",
+    "commands": 29
+  }
+}

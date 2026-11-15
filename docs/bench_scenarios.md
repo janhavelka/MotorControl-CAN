@@ -6,6 +6,19 @@ The [prompt48 campaign](reports/prompt_48.md) uses the existing S2 read-only
 console output, a host consumer pause and explicit read withdrawal. None is a
 physical CAN cut, motor stop or persistence test.
 
+The soak replay checker compares supplied `request.json` settings and encoded
+request bytes with `SOAK_BEGIN`, including the recorded image revision. A
+different duration, cadence or read set is inconsistent evidence even when its
+trial number matches. Older captures that omit these optional fields retain
+their narrower evidence scope; parser completeness alone never qualifies the
+requested workload or physical behavior.
+Every periodic/final measurement vector must have its actual firmware shape.
+Settled final node/histogram/outcome measurements must also agree; reported
+capture loss is failed evidence. Reconnect/keepalive intervals must be finite
+and nonnegative, and waiting for a missing port consumes the existing campaign
+budget. The selected wall-clock end becomes one monotonic deadline; later clock
+corrections do not extend it. Existing finite capture/settlement grace remains.
+
 The Python campaigns orchestrate the ordinary shared console described in the
 [CLI contract](cli_contract.md). They use the same `Console` and checked evidence
 helpers as [the runner guide](runners.md). Plans, host fake results, live console

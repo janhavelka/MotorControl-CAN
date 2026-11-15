@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Soak capture validation and finite waits
+
+- Reject a soak capture whose recorded request bytes, duration, read interval,
+  summary interval, read set or image revision disagree with its admitted plan.
+  A matching trial number alone no longer makes a different workload pass.
+- Preserve captures without optional historical request metadata and retain
+  incomplete/failed evidence separately. This changes host validation only;
+  firmware behavior and physical qualification are unchanged.
+- Check periodic/final measurement vector shapes and settled final counter
+  consistency. Retained diagnostic loss cannot become successful complete evidence.
+- Reject invalid reconnect/keepalive timing before opening a port, and keep port
+  enumeration and later admission within the finite campaign budget.
+
 ### Public descriptor and package documentation
 
 - Remove `LICHUAN_C::ObjectDescriptor.ownerPrompt`. Development ownership remains
