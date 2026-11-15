@@ -1,5 +1,11 @@
 # Audit and repair instructions: prompts 34-50 and the code they build on, 2 November 2026
 
+> **Current disposition, 2026-11-15:** all 125 numbered findings were rechecked
+> against the later implementation in [the independent disposition](../audit/2026-11-15_auditor_disposition.md).
+> Use its per-finding status and current contracts for execution. This audit's
+> findings, baseline measurements and decisions below remain historical evidence;
+> its short DEC-3 marker description is not the complete current reuse contract.
+
 > **Closed for W1 to W8, 2026-11-03.** Handoff packets 1 to 10 delivered W1 to W8 for host scope, and [packet 10](../reports/handoff_19_33/packet_10.md)'s closure audit lists what stays open. The hold below was lifted on green CI at `5306eaf`, in `19d48e7`. This file stays the source of its decisions and findings, but its baseline line numbers and its description of the current code are historical. A-15, A-16, A-18 and A-19 had no W1 to W8 owner and are tracked in the [backlog](../backlog.md). For the current state read [PROGRESS.md](PROGRESS.md) and the [execution table](../reports/handoff_19_33/README.md). Nothing here is drive evidence: no specimen has run a stop, enable or move.
 
 Instructions for the AI coder who will repair and execute these prompts. This file

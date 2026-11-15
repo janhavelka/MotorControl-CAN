@@ -1,15 +1,16 @@
 # Common API and ownership boundary
 
-Prompt 6 freezes the minimum semantic contract in the
-[native ownership proof](../experiments/api_ownership/README.md). The concrete
-declarations are buildable C++11. Prompt 7 moved stable status, endpoint/binding
-and Classical frame validation into the [native package](getting_started.md).
-Prompt 9 supplies production [exact units and quantization](units_status.md).
-Synthetic operations remain test support; pure axis/reference policy is installed,
-and prompt 23 now supplies the ordinary application owner, now in adapters/owner.
-No installed driver, hardware support or complete motion implementation
-is claimed. The [architecture plan](architecture_plan.md) remains
-the target repository layout; this document governs the narrower proven boundary.
+The installed C++11 package contains common units, axis/reference policy,
+protocol values and concrete Lichuan read, settings, action, motion, discovery
+and persistence APIs. Their implemented scope and firmware gates are recorded
+in [coverage](coverage.md); conditional host tests do not qualify every drive.
+The application owner lives in `adapters/owner`, with shared console/firmware
+and Python runners above it. See [getting started](getting_started.md) and
+[progress](prompts/PROGRESS.md) for usable paths and pending work.
+The [native ownership proof](../experiments/api_ownership/README.md) remains
+test-only. Some capability/ramp contrasts still use its prototype types;
+prompt 46 owns their production proof. The [architecture plan](architecture_plan.md)
+describes intended layout, not an inventory of delivered files.
 
 | Layer | Owns | Dependencies allowed |
 | --- | --- | --- |
@@ -17,7 +18,7 @@ the target repository layout; this document governs the narrower proven boundary
 | Concrete profile operations | Typed native reads, checked conversion, explicit prepare/next/advance sequences and context terminal evidence | Common values and protocol work/evidence values |
 | Protocol service adapter | Wire correlation, selected client lifecycle, raw protocol errors | Common descriptors and optional CANopenNode, outside the installed pure core |
 | Application CAN owner | One RX dispatcher, time, reservations, queues, controller handoff, retained results and raw observations | Core plus selected protocol/controller adapters |
-| Shared probe application | Explicit selection and typed read stepping; bounded platform I/O. CLI, persistence and board startup remain later work. | Public operations and the existing application owner |
+| Shared probe application | Explicit selection, typed operations, CLI and bounded platform I/O; firmware startup and host runners use the same owner path | Public operations and the existing application owner |
 
 The application passes values between these layers; the core never calls upward
 into an owner, framework or SDK. There are no virtual profile bases, callbacks

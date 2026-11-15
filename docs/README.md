@@ -73,6 +73,7 @@ exact JSONL schema, bounded output and visible P41/P42 route gates.
 | [Other CAN protocol survey](audit/OTHER_CAN_PROTOCOLS.md) | ODrive, moteus and VESC differences that constrain the common boundary |
 | [Fresh multi-drive source audit](audit/MULTIDRIVE_SOURCE_REAUDIT.md) | Actual RS/I2C/FieldCore type and ownership assumptions to preserve or remove |
 | [Audit summary](audit/SUMMARY.md) | Main findings and consequences |
+| [Independent auditor disposition, November 15](audit/2026-11-15_auditor_disposition.md) | Every November 2 finding checked against current code/sources; applied corrections and exact remaining prompt owners |
 | [MotorControl-RS audit](audit/MOTORCONTROL_RS_AUDIT.md) | Actual architecture, API, CLI, ownership, tests and package behavior |
 | [I2C/FieldCore audit](audit/ECOSYSTEM_CONVENTIONS.md) | Current conventions, intentional differences and real consumer boundary |
 | [Protocol research](audit/DEVICE_PROTOCOL_RESEARCH.md) | Manufacturer objects, family scope and contradictory behavior |

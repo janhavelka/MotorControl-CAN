@@ -1,8 +1,9 @@
 # Stepper, servo and protocol contrasts
 
 This is design evidence for prompts 5–6, 9–12, 17, 23–24 and 45–46, not an
-installed profile list. Only the Lichuan C dictionary has been reviewed for the
-first implementation; even it has no driver or matched physical firmware yet.
+installed profile list. Lichuan C has concrete implemented APIs and specimen-scoped
+bench observations; its wider firmware and capability gates remain explicit.
+N5, EPOS4 and the other protocols remain design contrasts, not installed drivers.
 The [Lichuan ledger](lichuan_review.md) owns its detailed permissions and open
 qualification gates. Values below describe their cited document scope, not an
 arbitrary connected drive. No operation here authorizes a write.
@@ -49,7 +50,7 @@ in installed support, discovery or CLI profile lists.
 | Case and owner | Input / source class | Expected invariant |
 | --- | --- | --- |
 | C1 — 6,9,10,46 | Vendor-backed N5 p64: configured `60A8=0xFF410000` (tenths of a degree), 1:1 gear, relative `607A=3600` denotes one mechanical turn. Repeat for the p38 example values for the `3202h` bitfield: `0x08` (current reduction, BLDC bit clear) and `0x40` (BLDC bit set). These are documentary vectors, not a motor code, and must not be stored as `Endpoint.profile`. Abstract EP servo variant has the same exact one-turn intent and a selected command scale, but no full-step field. | Both N5 motor kinds and the servo represent common exact position intent without mandatory full steps; require selected unit/scale and identity before translation. The N5 values are documentary vectors, not writes to a drive. |
-| C1b — 9,10,46 | Abstract `1/2` load turn, command scale 4096 increments/motor turn, feedback 2048 counts/motor turn and 3/2 motor turns per load turn. N5 pp62–65 and EP pp221,234 establish that representations can differ; these numbers are illustrative, not vendor defaults. | The exact target is 3/4 motor turn = 3072 command increments; matching feedback would be 1536 counts. Retain independent scale provenance and reject a missing scale before admission. |
+| C1b — 9,10,46 | Abstract `1/2` load turn, command scale 4096 increments/motor turn, feedback 2048 counts/motor turn and 3/2 motor turns per load turn. N5 pp62-65, 360-361 and 370 establish separately configured command and encoder representations; these numbers are illustrative, not vendor defaults. EP pp221/234 permit increments only and do not substantiate this contrast. | The exact target is 3/4 motor turn = 3072 command increments; matching feedback would be 1536 counts. Retain independent scale provenance and reject a missing scale before admission. |
 | C2 — 9,10,46 | Vendor-backed N5/EP/Lichuan `60FF` I32 (N5 p412, EP p256), N5 `6042h` I16 (p349) as the checked width-rejection target, and abstract signed common velocity ±70000 in a declared unit; RS ESS `VelocityPrerequisites` and FieldCore `speedRpm` use narrower native RPM fields. | Common request retains sign/width; profile narrowing checks range and unit, with no wrap or implicit RPM. This is a width test on an I16 target, not a rate capability; no production width helper exists yet. Native current limit and torque stay separately typed. |
 | C3 — 9,10,46 | Protocol-backed IEEE binary32 little-endian position encoding for exact `1/10` revolution: `cd cc cc 3d`; moteus [CAN format](other_can/moteus_can.md) specifies float32. | Round-trip is `0.10000000149011612` rev, absolute error `1/671088640` rev; report/check quantization against caller allowance. Encoding alone says nothing about drive acceptance. Reject ordinary NaN; any native sentinel needs a separate named operation. |
 | C4 — 6,11,23,46 | Abstract endpoint `(protocol, bus, profile, address, subaxis=2)` and a distinct logical axis ID; address may exceed 127 where its protocol permits. | Generic axis/endpoint accepts subaxis independently of a CANopen node; CANopen addressed-service validation alone imposes node 1..127. One physical receiver routes each frame once. |

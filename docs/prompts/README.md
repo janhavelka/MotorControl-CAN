@@ -1,6 +1,6 @@
-# MotorControl-CAN implementation prompts 1-71
+# MotorControl-CAN implementation prompts 1-72
 
-Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `71_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. A new implementation starts at [prompt 1](1_source_audit.md); this checkout resumes from [PROGRESS.md](PROGRESS.md), currently at prompt 46. Names use `1_...md` through `72_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -8,7 +8,7 @@ The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes
 precedence over the historical execution-branch instructions for that period.
 
-Create one new branch at the start of a new execution and retain it across all 71 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
+For a new execution, follow root [AGENTS.md](../../AGENTS.md)'s branch policy. This execution continues on `main` until version0 is finished; create no new branch. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start another execution.
 
 Prompts 51-54 were added on 2026-11-12 at the user's request (SYNC master, changes during motion,
 multi-axis with configurable capacity and group stop, and their hardware qualification). By the

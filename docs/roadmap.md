@@ -1,5 +1,11 @@
 # Implementation roadmap
 
+The [current independent-audit disposition](audit/2026-11-15_auditor_disposition.md)
+maps all 125 historical findings to current code and remaining owners. Next software
+work is prompt 46; public descriptor cleanup remains 49, concurrent application
+axes 53 and reviewed recovery/retry policies 55. These obligations are not duplicated
+in new prompts or marked implemented by correcting their instructions.
+
 Wanted features (2026-11-12): changes of velocity, ramps and targets during motion, several drives at once
 (including an undocumented SYNC trial) and S2 memory savings are listed with their gates in the
 [backlog](backlog.md) items F01-F16, M01-M13 and B01-B06; none is delivered yet.
@@ -19,8 +25,9 @@ closes the assigned software failure checks; the next assignment is46.
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
 It remains Partial for the exact mode-6, switch, direction, offset and reference
 evidence listed in [homing](homing.md). Next work is an individually reviewed
-finite acquisition once those physical prerequisites exist, or independent
-prompt 37/38 software. Do not run an input-free search to bypass missing wiring.
+finite acquisition once those physical prerequisites exist. Prompt 37 software
+has completed and 38 retains its explicit Partial scope. Do not run an input-free
+search to bypass missing wiring.
 
 Execution identity: version 2, started 2026-10-28 on
 `promptset/motorcontrol-can`, base `7878f7c`. After prompt42 the user explicitly requests integration into `main` and no new

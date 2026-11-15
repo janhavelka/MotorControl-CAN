@@ -1,5 +1,12 @@
 # Executable backlog
 
+The [November 15 auditor disposition](audit/2026-11-15_auditor_disposition.md)
+checks all 125 findings against current code. The original A-16 omissions were
+fixed earlier; its newer `Discovery.h` umbrella omission is fixed in this review.
+A-17 stays with prompt 49, production contrasts with 46, concurrent axes with 53
+and reviewed communication repair with 55. Corrected instructions do not close
+their remaining implementation or hardware gates.
+
 Prompt42 connects finite position/angle, velocity, homing and explicit actions to
 one shared console and the existing axis session. Independent retained stop results,
 explicit host motion intent and bounded stop admission preserve uncertainty under

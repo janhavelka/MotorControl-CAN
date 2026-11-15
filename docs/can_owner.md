@@ -27,10 +27,10 @@ multiple producers, passive events, public typed reads and an actual confirmed
 loop-setting sequence. The [recovery suite](../test/can_bus_recovery_test.cpp)
 adds external pending queues, missing adapter hooks, cancellation timelines and
 two abstract vendor-profile bindings through that same backend. Host fixtures
-do not qualify a drive. Prompt 23's owned
-software is delivered; its status remains Partial while Q20 read-effect evidence
-remains unresolved as a device fact (the DEC-1 accepted list is a project risk
-acceptance only).
+do not qualify a drive. Prompt 23's owned software is complete. Q20 remains an
+inherited device-evidence gate; the DEC-1 accepted read list is a project risk
+acceptance, not proof of non-consuming reads. It does not reopen completed owner
+software scope under the usable-prerequisite rule.
 
 ## One storage table
 

@@ -72,7 +72,7 @@ one-based PDF pages. The independent page review is recorded in
 | EN86/ZH86 p4; OP86 p3; manufacturer page | Panel artwork and product page say 30-110 VDC / 20-80 VAC | Conflicts with both rows below; not a merged allowable range |
 | EN86/ZH86 p3 | Specification tables say 36-110 VDC / 18-80 VAC | Use the actual nameplate and applicable manufacturer confirmation |
 | EN86/ZH86 pp6-7; OP86 p5 | Power terminal/wiring says 24-50 VDC | Does not resolve the higher-voltage panel/specification claims |
-| OP86 p5, p9 | CL57-C/OL57-C body says locked at power-up; the position procedure later says 6/7/15 enables the motor | CL86-C applicability unconfirmed; independently observe every boot/restart and capture `2100`/`6041` before commands |
+| OP86 p5, p9 | CL57-C/OL57-C body says locked at power-up; the position procedure later says 6/7/15 enables the motor | Family-wide CL86-C applicability unconfirmed; holding torque and operation enable are distinct. Q11 records holding torque on both bench specimens. Independently observe every boot/restart and capture `2100`/`6041` before commands |
 
 The three-way supply disagreement inside each manual is an unresolved Q19
 fixture prerequisite. No voltage is selected from those conflicting ranges.

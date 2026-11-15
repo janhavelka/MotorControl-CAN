@@ -11,6 +11,7 @@
 #include <MotorControlCAN/Units.h>
 #include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/Endpoint.h>
+#include <MotorControlCAN/Discovery.h>
 #include <MotorControlCAN/ReadOperation.h>
 #include <MotorControlCAN/ActionOperation.h>
 #include <MotorControlCAN/MoveOperation.h>

@@ -1,6 +1,6 @@
 # Copyable execution assignments
 
-Use the [numbered index](README.md). Filenames use ordinary integers **1-71**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
+Use the [numbered index](README.md). Filenames use ordinary integers **1-72**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Resume the existing checkout from [PROGRESS.md](PROGRESS.md), not from prompt 1. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
 
 The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8. Read its decisions if an assignment touches prompt 33's finite lifecycle or prompts 34-50. COMMON item 5 applies to both assignments below.
 
@@ -16,8 +16,8 @@ focused tests, affected documentation/Doxygen and its report. Use subagents
 and available model/effort choices where useful, with disjoint ownership and
 lead integration. Do not execute later prompts in this assignment.
 
-If this begins a new promptset execution, create and record one new dedicated
-branch from the inspected agreed base. Otherwise reuse the recorded branch.
+Follow the current branch override in AGENTS.md: this execution stays on main
+until version0 is finished. Create no branch for a resumed prompt or audit.
 Commit and sync meaningful completed chunks and all completed work before
 handoff; verify upstream synchronization. Do not mark the prompt complete with
 unfinished owned work or failed required checks. Report any external blocker
@@ -27,8 +27,9 @@ precisely and preserve the remaining obligation instead of inventing evidence.
 ## Execute the whole sequence or a range
 
 ```text
-Implement MotorControl-CAN by executing prompts 1 through 50 from
- docs/prompts/README.md in numerical order, applying COMMON and root AGENTS.
+Execute the remaining assigned prompts from docs/prompts/SEQUENCE.json in
+numerical order, applying COMMON and root AGENTS. Read PROGRESS.md first;
+do not restart completed prompts. The current complete sequence is 1 through 72.
 For a requested range, execute only that range after checking its prerequisites.
 Finish, test, document, commit and sync each ready prompt before proceeding.
 A prerequisite is usable when the specific artifact consumed exists and its
@@ -37,8 +38,8 @@ blocked, retain Partial/Blocked and the exact remaining work, commit and sync
 completed chunks, then continue the next independent ready work within the
 assignment under COMMON. Return to earlier work when its evidence arrives.
 Record predecessor gates as inherited gates. Never mark unfinished work Complete.
-Keep one newly created execution branch throughout all prompts and resumed
-sessions. Continue already-authorized independent work without routine
+Follow the current AGENTS branch override: remain on main until version0 is
+finished, without creating a new branch. Continue authorized work without routine
 confirmation; retain blocked work and qualification gaps explicitly.
 ```
 

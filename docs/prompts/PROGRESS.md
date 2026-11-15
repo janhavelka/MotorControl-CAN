@@ -1,76 +1,14 @@
 # Prompt execution progress
 
-Prompt45 completes the [adversarial integration audit](../reports/prompt_45.md):
-admitted best-effort stops retain possible effects, interrupted Python evidence
-fences further traffic, and cross-node/old-map/result-pressure regressions exercise
-the real owner. Existing settings and TPDO1 software paths are included; wider
-firmware/remapping and physical qualification remain with their owning prompts.
-No hardware was used. The next assigned implementation work is46.
+Execution has reached prompt 45, with Partial rows below retaining unfinished
+device or software scope. Prompt 45
+[completed the integration audit](../reports/prompt_45.md); prompt 46 is next.
+No current hardware qualification is inferred from a host test or an old bench run.
 
-The 2026-11-15 [fresh audit of prompts 43-44](../reports/prompts_43_44_audit.md)
-corrects client deadlines, release and interrupted evidence, failed log fencing
-and session archive finalization. Independent reviews and actual fake/native
-producer regressions preserve primary uncertainty and prevent replay.
-This adds no physical qualification; prompt45's subsequent audit is recorded above.
-
-The 2026-11-15 [fresh audit of prompts41-42](../reports/prompts_41_42_audit.md)
-corrects capture graph ownership, discovery selection and retained failure evidence,
-with independent source/route/motion reviews and new console regressions.
-This audit adds no device permissions or hardware qualification; prompt45's
-subsequent integration audit is recorded above.
-
-Prompt44 implements the finite [campaign/session family](../bench_scenarios.md)
-over the existing Console: six named classes, bounded position comparisons and
-exclusive deterministic evidence packages. Host tests preserve primary failures
-through cleanup and stream/artifact errors. Started2026-11-14 at23:00 Prague;
-no hardware was used. See [report44](../reports/prompt_44.md).
-
-Prompt43 delivers the [bounded Python console client](../runners.md), pure exact
-evidence summaries, offline plan/self-test and one explicit typed probe/read.
-It uses the existing schema/routes and never retries or reconnects after uncertain
-handoff. Firmware boot identity remains unknown. This stage used host fakes and
-the real native console producer, with no hardware. See [report43](../reports/prompt_43.md).
-Prompt44 now supplies finite campaigns and sessions; prompt45 audits their integration.
-
-The 2026-11-11 [unattended night soak](../reports/2026-11-12_night_soak.md) ran the prompt 40-42 console on
-hardware: shared-image local routes, burst and soak, the smoke identity reads, typed device routes and console
-moves/velocity on the bench image, plus 151 motion series. Bench fixes `cf6ec7c` (velocity `cancel` refused) and
-`e693f16`. Node 2 is left enabled and halted (backlog S20); this is drive-report evidence, not qualification.
-
-Prompt42 adds finite motion/actions to the shared console through actual typed
-preparations and one per-axis `ProbeMotion` / `AxisSession`. Stop intent, native
-components, uncertain motion and normal/fast terminal retention remain separate.
-Explicit host speed/ramp/scale/origin replaces boot defaults; native rate checks
-reject the267 wrong-dimension case before admission. See [the contract](../cli_contract.md#finite-motion-and-actions-prompt-42)
-and [report42](../reports/prompt_42.md). Prompt43 now supplies the independent Python client.
-No hardware was used for this integration.
-
-Prompt39 delivers the [conditional persistence software](../reports/prompt_39.md):
-distinct one-attempt save/factory restore, reviewed raw `2300` acquisition,
-independent reconciliation and three-field recorded configuration re-application.
-The original terminal outcome and possible effects survive later readback. Q15
-effects/rearm/restart/full saved scope and physical qualification remain pending;
-no live save or factory restore was performed by this prompt.
-
-Prompt38 delivers [typed communication acquisition and a guarded heartbeat workflow](../reports/prompt_38.md): 89 new read rows, explicit per-upload review, exact raw 0 to 1000 heartbeat intent/ACK/confirmation, and C-09 firmware handoff closure. General node/route mutation remains Partial for its named firmware evidence; no software bitrate or persistence support is inferred.
-
-Prompt 37 completes [explicit discovery and binding software](../reports/prompt_37.md):
-one installed profile inventory, checked minimal probe, finite application scans,
-passive network-only observations and exact host route selection. It uses the
-existing app/owner/slots, retains uncertainty and distinguishes generic identity
-from caller-supplied expectations. No arbitrary-node slot recycling, automatic
-model selection, NMT, settings or physical qualification is implied.
-
-Prompt 36 adds the conditional [homing lifecycle and six typed reads](../reports/prompt_36.md),
-with explicit mode-6 enable/interrupt integration and checked reference publication.
-It remains Partial while method, input, direction, offset and completion facts
-are unqualified. No homing was run on the bench. The [coverage reconciliation](../reports/prompt_36_coverage.md)
-keeps earlier owned software omissions and device gates visible.
-The independent prompt-36 audit corrected contradictory stationary evidence and
-retention of a later stop failure after controller loss; its checks are recorded
-in the same report. Those fixes do not open physical capability gates.
-Prompt 35 remains Partial for its documented velocity gates; prompt 34's wrapped-angle
-software remains Complete. The [34/35 audit](../reports/prompts_34_35_audit.md) records their latest checks.
+The [independent auditor disposition](../audit/2026-11-15_auditor_disposition.md)
+checks every numbered finding in the November 2 audit against current code.
+It links resolved defects, corrections and concrete owners for remaining work.
+Current state belongs in this table; detailed chronology belongs in the linked reports.
 
 **Execution identity.** Promptset version 2 on branch `promptset/motorcontrol-can`, base `7878f7c` from `origin/main`, upstream `origin/promptset/motorcontrol-can`. The user authorized merging prompt42 into `main` and continuing on `main` until version0 is finished; create no new branches during that period. The original execution identity and base remain historical provenance. The [source map](../source_map.md) and [prompt 1 inputs](../reports/prompt_1_inputs.json) record the starting point. Earlier narrative is in the [progress history](../reports/progress_history.md).
 
@@ -112,11 +50,11 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 28 | [Arduino and ESP-IDF integration](28_firmware_examples.md) | Partial | Q20 through 19 (accepted list done by packet 4; other rows stay gated). G-04 reopened it for the S2 board; see W9 | [Owned S3 firmware delivered; reopened by G-04/W9 for the S2 board](../reports/prompt_28.md); bench continuation [packet 3](../reports/bench_closure_18_33/packet_3.md): shared S2 IDF builds, target pin policy, silent control, configured images boot `INACTIVE`; Arduino S2 blocked by the pinned console |
 | 29 | [Device evidence readiness and conflict gate](29_device_evidence.md) | Partial | Q20 through 19 (accepted list done by packet 4; other rows stay gated). Packet 11 ran the live baseline and the read-only soak; state-changing acquisition stays conditional. Packet 19's bench `position` route ran on node 1 in the attended session | [Owned software readiness complete; inherited Q20 and conditional acquisition pending](../reports/prompt_29.md); packets [11](../reports/handoff_19_33/packet_11.md) and [19](../reports/handoff_19_33/packet_19.md) |
 | 30 | [Drive state enable and release](30_drive_actions.md) | Partial | Q02, Q03 and release evidence. Packet 15 added a gated enable, closed by default; it succeeded on both specimens in the attended session after the bit 10 fix. Release stays absent | [Checked documentary decoder; enable provenance and release command remain gated](../reports/prompt_30.md); [packet 15](../reports/handoff_19_33/packet_15.md) |
-| 31 | [Stop operations and owner integration](31_stop_actions.md) | Partial | Q02, Q12; packet 16 for every DEC-8 row and `000B`; Q18 before a real route reopens. Packet 16 prepared the bench `stop` route. All results are drive reports on one firmware. A HALT from `001F` ran three times on node 1 (trials 113 at 2 rpm, 406 at 6 rpm, 709 at 300 rpm). A stationary `000B` from `000F` (node 2) and from `010F` (node 1) ran unattended and the drives reported release; a quick stop now completes on that report, retested on 2026-11-04 (208). That session also ran a stationary `010F` (207), `000B` during a move (213, 413; it latches `2100` running, so a moving quick stop now completes on standstill, retested in 413) and `000B` with no known predecessor (307, 503). On 2026-11-05 a `000B` at about 100 rpm while accelerating completed on standstill (713). Stops from `005F`/`003F`/`007F`, velocity and homing stops and a moving `010F` to `000B` escalation have not run. Bench continuation packet 2 (2026-11-06) added host tests of an urgent stop on one node beside the other node's queued, adapter-held and handed-off move work; packet 8 (2026-11-09) ran a HALT from a moving `005F` with the other node observed (832) and a quick stop from a stationary `005F` (833); a quick stop interrupting a moving `005F` followed in round 4 and released the drive (1109). `move_relative` tests 32 and 33 replay 828, 829, 832 and 1109 value for value | [Conditional native stop lifecycle, owner integration and remaining gates](../reports/prompt_31.md); [packet 16](../reports/handoff_19_33/packet_16.md); [unattended session](../reports/2026-11-03_unattended_bench.md); [2026-11-04 session](../reports/2026-11-04_bench.md) |
+| 31 | [Stop operations and owner integration](31_stop_actions.md) | Partial | Conditional normal/quick-stop, occupied-channel best effort and retained outcomes are implemented. Q02/Q12 firmware, option/queue/reference effects and unmeasured predecessors remain. Bench evidence includes moving stops from 001F and 005F on two specimens; it is not a universal stop guarantee. | [Report](../reports/prompt_31.md); [stop contract](../stop_actions.md); [bench record](../hardware_bench.md) |
 | 32 | [Fault clear and device-reference actions](32_fault_reference_actions.md) | Partial | Q13, Q14. Packet 17 made the alarm's fault identity explicitly unresolved (D-26, D-27) and removed the "documented resettable FF05" text; packet 18 added the counter baseline. The counter zero ran once on node 2 on 2026-11-04. On 2026-11-13 the `2301` clear ran once on node 1's `FF05` in mode 3 (trial 5323) and set the measured mode 3 completion; the controlword method (`AlarmClearMethod::CONTROLWORD_BIT7`) is host-tested only | [Conditional clear/zero operations, retained evidence and coordinate withdrawal](../reports/prompt_32.md); packets [17](../reports/handoff_19_33/packet_17.md) and [18](../reports/handoff_19_33/packet_18.md) |
-| 33 | [Finite position operations](33_position_moves.md) | Partial | Q02, Q04, Q05, Q10, Q11, Q12. Packet 20 added a gated absolute lifecycle, closed by default; packet 19 measured node 1's acceptance and completion signals, and with them the absolute lifecycle has run on both nodes: 121 (unattended, the first) and 213 on node 2, 413, 705 and 706 on node 1, with 213 and 413 ended by planned quick stops. Packet 21 added the relative lifecycle on the same path, refused unless the caller's evidence names a measured base; on 2026-11-04 node 1's base measured `ACTUAL`, and relative moves succeeded with it (411, 708). Bench continuation packet 2 (2026-11-06) shared the admission recheck as `validateMoveAdmission`, made `preflight` refuse a queued download in an unhandled EMCY's own turn, added the `faultBlocked` fence and the missing two-node, fault-cycle and COMMANDED tests, and retained the RS vectors with their source. Packet 8 (2026-11-09, attended, image `18d6c2a`) measured node 2's relative base `ACTUAL` (830), ran a negative relative move on node 1 (825) and stopped from `005F` (832 HALT while moving, 833 quick stop while stationary). A quick stop interrupting a moving `005F` (1109) and node 2's first production relative move with its own record (1110) followed in round 4 the same day. `move_relative` tests 31 to 33 replay 825, 828 to 830, 832, 1109 and 1110 value for value. One firmware, judged from drive reports, not qualified | [Pure native parameters implemented; finite lifecycle and firmware gates remain](../reports/prompt_33.md); packets [19](../reports/handoff_19_33/packet_19.md), [20](../reports/handoff_19_33/packet_20.md) and [21](../reports/handoff_19_33/packet_21.md) |
+| 33 | [Finite position operations](33_position_moves.md) | Partial | Absolute/relative lifecycles and exact target preparation are implemented. Q02/Q04/Q05/Q10/Q11/Q12 acceptance, scale, relative-base, completion and stop facts remain scoped to the selected firmware/evidence. Bench success is distinct from independent physical qualification. | [Report](../reports/prompt_33.md); [position contract](../position_parameters.md); [bench record](../hardware_bench.md) |
 | 34 | [Wrapped-angle motion integration](34_angle_moves.md) | Complete | 33; Q04, Q14 and applicable motion evidence; no physical angle qualification | [Exact conversion, existing lifecycle, offline example and checks](../reports/prompt_34.md) |
-| 35 | [Finite velocity operations](35_velocity.md) | Partial | Q03/Q11 startup, reverse and mode changes; Q12 mode3 stop and Q20 general 60FF read effects. Conditional lifecycle and owner path implemented; no specimen velocity qualification. `28bea3d` adds an attended experiment scope (`VelocityGate::ATTENDED_EXPERIMENT`: no qualification flags, at most 60 rpm and 20 s, attended only); not yet run. The first attended run, on 2026-11-09 at 14:46Z, left node 1 running with no stop sent until the user opened the cutoff: the start was unconfirmed one cycle after word 15 and the requested stop never left (backlog S16, [round 5](../reports/2026-11-09_bench_r5.md)); S16 was fixed the same day (`f8c4b31`, `faffa22`) and checked on node 1 in [round 6](../reports/2026-11-09_bench_r6.md): the start again ended unconfirmed and the run's own HALT left at once, the drive staying at standstill. With the S17 final-enable report window (`a3c5fa4`), the first complete velocity runs followed on 2026-11-10 ([round 7](../reports/2026-11-10_bench_r7.md)): both nodes reported the enable 0.378 to 0.728 s after word 15, ran at about 6 rpm counter-clockwise (attendant) and stopped with their HALT; node 2's record `SUCCEEDED`. Rounds 8 and 9 added 30 and 60 rpm on both nodes, HALT and quick stop in mode 3 ([report](../reports/2026-11-10_bench_r8.md)); both HALT runs `SUCCEEDED`, the quick stops released the drives and end `OBSERVATION_SCOPE` (S18). A [chain](../reports/2026-11-10_bench_r9.md) then ran four velocity runs in a row without power cycles (S18). Mode 1 position work returned on powered drives the same day ([round 10](../reports/2026-11-10_bench_r10.md)): negative relative and absolute moves, HALT and quick stop while moving negative, on node 1. Round 11 ([report](../reports/2026-11-10_bench_r11.md)) repeated them on node 2 and showed that a re-enable after a quick stop does not resume the interrupted move. Round 12 ([report](../reports/2026-11-10_bench_r12.md)) measured repeatability: 23 exact arrivals on both nodes at 6 to 60 rpm. Still attended-experiment scope, not qualified. On node 2 a `6060=3` download while released read back `6061=3` (917, one measurement, [2026-11-09 round 2](../reports/2026-11-09_bench_r2.md)) | [Software and precise remaining gates](../reports/prompt_35.md) |
+| 35 | [Finite velocity operations](35_velocity.md) | Partial | Conditional finite lifecycle, preparation-time duration and explicit stop settlement are implemented. Q03/Q11 startup, sign/mode changes, Q12 stops and Q20 general read effects remain. Attended specimen runs and later timeout/stop fixes are retained; wider rates/reverse and final-image qualification remain assigned to 59/66. | [Report](../reports/prompt_35.md); [34/35 audit](../reports/prompts_34_35_audit.md); [bench record](../hardware_bench.md) |
 | 36 | [Homing and native coverage reconciliation](36_homing.md) | Partial | Q02/Q04/Q10/Q11/Q14/Q20/Q21: exact firmware, inputs, direction, offset, enable/completion and reference qualification. Admission ran on both nodes on 2026-11-09 with zero downloads: refused `code=1 detail=3` without enable history (913, 915, [2026-11-09 round 2](../reports/2026-11-09_bench_r2.md)), and at the CLOSED gate `code=3 detail=7` after an enable (1107, 1108, [round 4](../reports/2026-11-09_bench_r4.md)). Both specimens read DI0..2 functions 1/2/3, polarity 0 | [Conditional software and remaining evidence](../reports/prompt_36.md); [native reconciliation](../reports/prompt_36_coverage.md) |
 | 37 | [Explicit discovery and binding](37_discovery.md) | Complete | Q01/Q20 identity/effect meaning; Q18 before real route reopening. Explicit scans are bounded to the existing two configured slots; arbitrary-node slot recycling is unavailable. Passive, probe, identity and host-selection scans ran on both nodes on 2026-11-09; both identities match the retained record ([2026-11-09 round 2](../reports/2026-11-09_bench_r2.md)) | [Inventory, slot design, finite scans, host selection and checks](../reports/prompt_37.md) |
 | 38 | [Explicit communication commissioning](38_communication_commissioning.md) | Partial | Q16 activation/reply route and unknown restart/persistence; Q17 broader PDO timers/maps, Q18 reopening, Q20 effects stay scoped. On 2026-11-09 the 95 reads ran on both nodes, and heartbeat commissioning `1017` 0 to 1000 succeeded on both after the S14 fix (`627bb42`): migration, readback and publication ([round 4](../reports/2026-11-09_bench_r4.md)). Persistence across a power cycle and the drives' host-loss reaction are unestablished | [89 reads, conditional heartbeat, firmware guard and checks](../reports/prompt_38.md) |
@@ -157,6 +95,15 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 
 ## Next ready
 
-1. Every handoff packet has run its host scope. A first attended campaign ran packet 15 P1 to P3 on both nodes and packet 19's move, rearm and a moving HALT on node 1 ([report](../reports/2026-11-03_attended_bench.md)). A second, unattended on the user's written waiver, ran packet 20's `move` route on node 2 and a stationary `000B` on each node ([report](../reports/2026-11-03_unattended_bench.md)). A third, on 2026-11-04, retested the quick-stop fix and ran stop, I/O, tuning-read, counter-zero, relative and two-node trials ([report](../reports/2026-11-04_bench.md)). On the count-width image `2920479` it then ran packet 12 T1/T2, `2202` codes 0 and 1 written and read back on both nodes (trials 604 to 607), and run B of the console A/B soak ([`20261104-soak-ab-keepalive3`](../bench/20261104-soak-ab-keepalive3/summary.txt)). A fourth, on 2026-11-05, ran library moves at 10 to 120 rpm, a HALT at 300 rpm and a quick stop at about 100 rpm ([report](../reports/2026-11-05_motion_and_stress.md)). What remains physically is item 3, from [packet 22](../reports/handoff_19_33/packet_22.md#next-smallest-measurement): the trials that need an operator, a probe or an alarm.
-2. Prompts40-44 software now supplies the shared console, Python client and finite campaigns. Prompt45 is the next integration assignment; physical qualification remains separately gated.
-3. Still owed physically: packet 13 P4 (an output, with meters), packet 14 T1/T2 (`2500`, with a phase-current probe), packet 17 (an alarm clear, on a naturally present alarm) and a `1003` read with the fault LED observed ([backlog H03, H04](../backlog.md)). They follow their own prerequisites and the [bench conditions](../hardware_bench.md). Packet 12 T1/T2 and run B of the console A/B soak are done (item 1).
+1. Execute [46](46_consumer_contrasts.md): production-backed contrasts, isolated
+   consumers and the operation-coverage checker. The new review identifies its
+   exact open X-01/X-03/X-04/X-10 obligations; prototype-only tests do not close them.
+2. Resume earlier Partial rows only for their named unfulfilled scope. Use
+   [device conflicts](../device_conflicts.md), the [backlog](../backlog.md) and the
+   [bench record](../hardware_bench.md) to select the next required observation.
+   Old trial history is not a statement of the currently powered fixture.
+3. Prompts 47-48 own qualification of delivered features. Prompt 49 owns package
+   cleanup, including A-17's process metadata in the installed API. Prompts 51-72
+   remain explicit later assignments; 53 owns concurrent axes and 55 owns reviewed
+   communication recovery/retry policy. No larger repair was silently implemented
+   by the independent-audit maintenance pass.

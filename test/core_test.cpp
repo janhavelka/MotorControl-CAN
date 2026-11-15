@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Checks remain active with NDEBUG; production functions perform no reporting I/O.
-#include <MotorControlCAN/Status.h>
-#include <MotorControlCAN/Endpoint.h>
-#include <MotorControlCAN/can/Frame.h>
+#include <MotorControlCAN/MotorControlCAN.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +28,19 @@ void statusContracts() {
     for (unsigned i = 0; i < sizeof codes / sizeof codes[0]; ++i)
         CHECK(std::strcmp(M::errToString(codes[i]), labels[i]) == 0);
     CHECK(std::strcmp(M::errToString(static_cast<M::Err>(255)), "UNKNOWN") == 0);
+}
+
+void discoveryThroughUmbrella() {
+    // This translation unit includes only the umbrella from the library. Discovery is a core API.
+    M::DiscoveryProfile profile;
+    CHECK(M::getDiscoveryProfile(0, profile));
+    CHECK(profile.protocol == M::Protocol::CANOPEN);
+    M::DiscoveryCapabilities capabilities;
+    CHECK(M::getDiscoveryCapabilities(profile.profile, capabilities));
+    CHECK(capabilities.probe && capabilities.identity && !capabilities.nonChanging);
+    profile.profileName = "retained";
+    CHECK(!M::getDiscoveryProfile(M::discoveryProfileCount(), profile));
+    CHECK(std::strcmp(profile.profileName, "retained") == 0);
 }
 
 M::Binding binding() {
@@ -167,6 +178,7 @@ void frameContracts() {
 
 int main() {
     statusContracts();
+    discoveryThroughUmbrella();
     bindingContracts();
     frameContracts();
     std::puts("portable core contracts passed");

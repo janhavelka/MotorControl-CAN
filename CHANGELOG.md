@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Public header and promptset corrections (2026-11-15)
+
+- Expose the common discovery inventory through `MotorControlCAN.h`, with an
+  umbrella-only consumer regression.
+- Reconcile all 125 findings in the independent November 2 audit against current
+  code and original sources. Correct stale implementation and execution guidance,
+  the EPOS4 scale citation and the alleged power-up/enable contradiction.
+- Make pending production contrasts, public descriptor cleanup and recovery
+  prerequisites concrete in prompts 46, 49 and 55. No new device capability or
+  hardware qualification is claimed.
+
 ### Adversarial ownership and motion integration (prompt 45, 2026-11-15)
 
 - Mark an admitted best-effort stop UNKNOWN with possible effects until the owner
