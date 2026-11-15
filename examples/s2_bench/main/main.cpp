@@ -894,19 +894,29 @@ bool dumpCapture(E::FirmwareProbe& firmware, const E::SilentCapture& capture, un
 }
 // The shared console (BenchConsole.h). Like the watch: allocated on the first `o` or `@` line, never
 // freed, because dram0_0_seg cannot hold it. Three blocks, ProbeDevice, ProbeConsole and the rest,
-// each about a third of the whole, because the internal heap's largest free block after the boot
-// reservations can be smaller than the whole. A failure frees what it took and refuses the console;
+// largest first: the trace ring makes ProbeConsole larger than ProbeDevice, and allocating the
+// device first can consume the only block that holds the console. A failure frees what it took
+// and refuses the console;
 // nothing else depends on it, and an image that never sees either byte allocates nothing and attaches
 // no device.
 E::BenchConsole* consoleStorage(E::FirmwareProbe& firmware, C::SdoClient& services) {
     static E::BenchConsole* console = nullptr;
     if (console)
         return console;
-    const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+    E::BenchBlock blocks[3];
+    blocks[0].size = sizeof(E::ProbeDevice);
+    blocks[0].alignment = alignof(E::ProbeDevice);
+    blocks[1].size = sizeof(E::ProbeConsole);
+    blocks[1].alignment = alignof(E::ProbeConsole);
+    blocks[2].size = sizeof(E::BenchConsole);
+    blocks[2].alignment = alignof(E::BenchConsole);
+    E::BenchAllocator allocator;
+    allocator.allocate = internalAllocate;
+    E::reserveLargestFirst(allocator, blocks, 3);
     E::BenchConsoleStorage storage;
-    storage.device = heap_caps_aligned_alloc(alignof(E::ProbeDevice), sizeof(E::ProbeDevice), caps);
-    storage.console = heap_caps_aligned_alloc(alignof(E::ProbeConsole), sizeof(E::ProbeConsole), caps);
-    void* memory = heap_caps_aligned_alloc(alignof(E::BenchConsole), sizeof(E::BenchConsole), caps);
+    storage.device = blocks[0].memory;
+    storage.console = blocks[1].memory;
+    void* memory = blocks[2].memory;
     if (!storage.device || !storage.console || !memory) {
         heap_caps_free(storage.device); // Nothing was constructed in any of them yet.
         heap_caps_free(storage.console);

@@ -120,6 +120,42 @@ void s2RegionModel() {
     }
 }
 
+// The 2026-11-15 console refusal: the 6664-byte device consumed the only extent
+// large enough for the new 9824-byte console. Observed region maxima are arranged
+// in a first-fit order reproducing the refusal; this model proves no SDK priority.
+void s2ConsoleRegionModel() {
+    const size_t sizes[3] = {6664, 9824, 2552}; // Device, console, wrapper: S2 ELF sizes.
+    E::BenchAllocator allocator;
+    allocator.allocate = Regions::allocate;
+    Regions original;
+    original.count = 3;
+    original.free[0] = 12864;
+    original.free[1] = 7780;
+    original.free[2] = 3276;
+    Regions descending = original;
+    CHECK(Regions::allocate(&original, 8, sizes[0]));
+    CHECK(!Regions::allocate(&original, 8, sizes[1]));
+    CHECK(Regions::allocate(&original, 8, sizes[2]));
+    allocator.context = &descending;
+    E::BenchBlock blocks[3];
+    for (unsigned i = 0; i < 3; ++i) {
+        blocks[i].size = sizes[i];
+        blocks[i].alignment = 8;
+    }
+    CHECK(E::reserveLargestFirst(allocator, blocks, 3) == 0x7);
+    CHECK(descending.calls == 3 && descending.order[0] == sizes[1] &&
+          descending.order[1] == sizes[0] && descending.order[2] == sizes[2]);
+    // A genuinely insufficient heap still refuses the console, and preserves
+    // each smaller grant for the caller's unchanged all-or-none cleanup.
+    Regions small;
+    small.count = 2;
+    small.free[0] = 7000;
+    small.free[1] = 2700;
+    allocator.context = &small;
+    CHECK(E::reserveLargestFirst(allocator, blocks, 3) == 0x5);
+    CHECK(blocks[0].memory && !blocks[1].memory && blocks[2].memory && small.calls == 3);
+}
+
 struct Counted {
     static unsigned built, destroyed;
     unsigned value;
@@ -165,6 +201,7 @@ void arenaOccupancy() {
 int main() {
     largestFirstOrderAndRefusals();
     s2RegionModel();
+    s2ConsoleRegionModel();
     arenaOccupancy();
     std::printf("bench heap: %u checks passed\n", checks);
 }

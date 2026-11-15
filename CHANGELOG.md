@@ -12,6 +12,8 @@
   local drops separately from owner overwrites, and drain copied records after off.
 - Compare one optional SDK version prefix symmetrically during flashed-image
   checks; revision/dirty suffixes and all other identity fields remain exact.
+- Allocate the S2 bench console's largest block first after a measured fragmented
+  heap refusal. Partial allocation still frees all unconstructed blocks.
 - Increase the full verifier's aggregate hang guard to cover the measured suite;
   individual test limits and checks are unchanged.
 
