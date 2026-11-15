@@ -1,7 +1,7 @@
 # Prompt execution progress
 
-Execution has reached prompt46. Independent installed consumers, production
-contrasts and operation reconciliation are recorded in [report46](../reports/prompt_46.md).
+Execution has reached prompt47. The current finite bench campaign, diagnostic
+fixes and remaining physical observations are recorded in [report47](../reports/prompt_47.md).
 Partial rows below retain their distinct software/source/physical obligations.
 No current hardware qualification is inferred from a host test or an old bench run.
 
@@ -66,7 +66,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Complete | Existing42 native qualification and Q20 gates; hardware campaigns remain47-48 | [Report](../reports/prompt_44.md) |
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Complete software audit | Existing firmware/remapping/physical gates remain with their owners | [Report](../reports/prompt_45.md) |
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Complete software scope | Surveyed profiles remain fixtures; physical/source gates stay with their owners | [Report](../reports/prompt_46.md); [fresh audit](../reports/prompt_46_audit.md) |
-| 47 | [Finite hardware qualification](47_hardware_finite.md) | Pending | W9, fixture facts, applicable bench authorization | - |
+| 47 | [Finite hardware qualification](47_hardware_finite.md) | Partial | Authorized unattended S2/two-node acquisition; physical shaft/stop/direction, electrical and method-specific homing evidence remain unavailable | [Campaign, fixes and exact remaining measurements](../reports/prompt_47.md) |
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Pending | 47 | - |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Pending | G-09; lists all inherited gates as a scoped software candidate | - |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Pending | 49; lists all inherited gates as a scoped software candidate | - |
@@ -95,8 +95,11 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 
 ## Next ready
 
-1. Execute prompts47-48 qualification for delivered features with their documented
-   fixture/evidence prerequisites. Prompt49 owns package/release review and A-17.
+1. Prompt47 delivered the finite S2/two-node campaign and diagnostic fixes; resume
+   its remaining physical observations when the report's fixture prerequisites
+   exist. Prompt48 needs its own failure/load qualification conditions. Independent
+   prompt49 package/release review and A-17 cleanup can proceed without pretending
+   these physical gates are complete.
 2. Resume earlier Partial rows only for their named unfulfilled scope. Use
    [device conflicts](../device_conflicts.md), the [backlog](../backlog.md) and the
    [bench record](../hardware_bench.md) to select the next required observation.

@@ -1,0 +1,5 @@
+HEAP free=28500 largest=12800 minimum=28500 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffd2950:169648:17392:12864 reserved=1f arena=0 arenaBytes=23688
+CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+HEAP free=9448 largest=4352 minimum=9448 regions=3 r0=3ff9e000:8168:1112:1112 r1=3fffc000:14864:720:720 r2=3ffd2950:169648:7560:4436 reserved=1f arena=0 arenaBytes=23688
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":47040,"command":"version","ok":true,"status":"OK","product":"MotorControl-CAN","version":"0.1.0","operation_capacity":2}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":47041,"command":"config","ok":true,"status":"OK","interface":0,"bitrate_bits_per_second":1000000,"selected_node":null,"bus_traffic":false}

@@ -1,0 +1,4 @@
+{
+  "first_attempt": "--out is not a bench_probe option; rejected by argparse before port access",
+  "correction": "use existing --log option; no device retries"
+}

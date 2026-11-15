@@ -1,5 +1,10 @@
 # MotorControl-CAN documentation
 
+[Finite bench campaign](reports/prompt_47.md): current S2 image, both CL86-C
+specimens, retained trace/allocation failures and corrections, and remaining
+physical qualification measurements.
+
+
 [Independent package consumers and prospective FieldCore handoff](fieldcore_handoff.md)
 show production module ownership without FieldCore or a stack. The
 [profile contract](profile_contract.md) explains production contrast types,

@@ -1,0 +1,83 @@
+{
+  "purpose": "Finite positive-velocity public API experiment after the trace-capture correction",
+  "fixture": "OPTAK ESP32-S2, ESP-Prog2 94A990398B40 on COM15, CL86-C nodes 1 and 2, LC60H2127, 1 Mbit/s",
+  "authorization": "Standing bench authorization and explicit unattended testing instruction on 2026-11-15",
+  "physical_observer": null,
+  "hardware_qualified": false,
+  "scope": "One node at a time; positive motor RPM only. No homing, persistence, reset, fault clear or input reassignment.",
+  "image": "18-flash-allocation: base2bbd98f5d3fb73fab08b813b71b3709f06b3627a; ELF2bdca80a18fec55e559864d81fddfb9534d7fe627838ed7fd78ac2a935bb1bb8; ping19matches",
+  "prerequisites": [
+    "Current image passes native trace tests and S2 compile/storage checks",
+    "Fresh explicit identity, state and configuration reads match the specimen record",
+    "Mode 3, released-state experimental predicates, no reported alarm, zero reported velocity",
+    "Current 2200 equals 0 and DI configuration is retained without modification",
+    "TB read-only arming accepts the exact node/identity, fresh state and fixed budgets",
+    "No unresolved prior motion, SDO channel or retained operation"
+  ],
+  "evidence_basis": {
+    "documented": "60FF target RPM, 6083/6084 ramp milliseconds; ZH86 mode-3 target-before-enable candidate",
+    "conflicting": "EN86 ordering, signedness/reverse, generic status layout and stop semantics remain unresolved",
+    "specimen_observations": "Existing S18 mode-3 start/quick-stop records and today's read baseline; these do not grant family-wide qualification",
+    "experimental_gate": "Existing VelocityGate experiment with startQualified, stopQualified, modeChangeQualified and reverseQualified false",
+    "physical_claims": "None: no shaft travel, direction, torque, speed or standstill observation"
+  },
+  "negative_case": {
+    "rpm": 30,
+    "duration_ms": 1000,
+    "ramps_ms": [
+      500,
+      500
+    ],
+    "expected": "Reject preparation before downloads: conservative setup/enable budget is 11470 ms, exceeding duration",
+    "reconciliation": "Inspect raw traffic for zero downloads; release only retained local evidence after copying it"
+  },
+  "positive_case": {
+    "rpm": 30,
+    "duration_ms": 12000,
+    "ramps_ms": [
+      500,
+      500
+    ],
+    "poll_interval_ms": 4000,
+    "native_deadline_ms": 22000,
+    "host_timeout_s": 30,
+    "stop": "The velocity operation's explicitly selected QUICK_STOP (fast); no enabling preamble for stop",
+    "rate_times_requested_duration_turns": 6,
+    "expected": "Retain exact setup/enable words, new drive observations and separately evidenced stop settlement through the existing owner",
+    "terminal_meaning": "Controller evidence only; physical travel and standstill remain unobserved"
+  },
+  "failure_handling": [
+    "Do not loosen a refused freshness, native timing, state or identity check",
+    "No automatic motion replay or reconnect/re-enable",
+    "Preserve first failure and any separate cleanup-stop outcome",
+    "The existing campaign may issue its explicitly planned separate stop only while its stream and native prerequisites permit it",
+    "On uncertainty retain the interlock and report the exact next reconciliation; no second node trial until the first is settled"
+  ],
+  "execution": [
+    "Use existing scripts/s2_bench_console.py in one serial session; retain its exact command line and raw bytes",
+    "Select physical interface host 0 and useaddr N, with tracing off and no retained public operation",
+    "Send the explicit TB arming line, then debug raw and the public velocity command immediately after CONSOLE armed, within the existing freshness bound",
+    "Do not put debug raw before TB: the existing console-hold guard deliberately rejects T routes while tracing",
+    "After a successful terminal, debug off, release the bench record r, and retain a fixed six-second output tail",
+    "Copy and release the separate public operation using its actual admitted operation ID; r releases only the bench record",
+    "A refusal stops the helper's later steps; inspect it before separate trace cleanup or release"
+  ],
+  "runner_limits": "The ordinary motion campaign's handshake can consume TB freshness and its unchanged 64 KiB command-input guard cannot cover worst-case all-kind motion traces. Use the existing immediate shared-console helper for this experiment; ordinary runners are qualified separately by read campaigns. Four-second observation intervals keep the conservative two-cycle stop budget within the fixed ten-second settlement tail. Do not weaken either guard.",
+  "capture": "Raw diagnostics with explicit off/drain and loss counters, typed results, host and firmware processing times, image identity and resource counters. Audit TX/RX pairs separately. No exact physical arrival timestamps.",
+  "waiver": {
+    "statement": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "unattended": true,
+    "covers_motion": true,
+    "physical_observer": null,
+    "independent_cutoff_operator": null,
+    "legacy_attended_field": 1,
+    "meaning": "Existing application waiver exception: host gate satisfied by written motion waiver, not observed attendance",
+    "contract": "docs/hardware_bench.md unattended-waiver/waiver-covers-motion; scripts/s2_bench.py waiver checks",
+    "qualification_flags": {
+      "start": false,
+      "stop": false,
+      "mode_change": false,
+      "reverse": false
+    }
+  }
+}

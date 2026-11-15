@@ -3,9 +3,12 @@
 Default Arduino/IDF entries now service the same [local console](cli_contract.md)
 after the application/owner turn, including while CAN remains inactive.
 `ProbeConsole` and `ProbeAppLocal` are in the checked shared build inventory.
-Explicit smoke hooks bypass console input because they own their test protocol;
-the separate S2 bench parser is not a production route. Prompts41-42 add conditional typed device and finite motion routes to that shared
-console. Native qualification and handoff guard requirements remain explicit. No local command implicitly starts CAN.
+Explicit smoke hooks bypass console input because they own their test protocol.
+The separate S2 bench image also carries this shared console, alongside its fixed
+evidence parser, over the same application and receive owner. Prompts 41–42
+implement conditional typed device and finite motion routes in the shared console;
+each assembly must supply their native prerequisites and handoff guards. No local
+inspection command implicitly starts CAN.
 
 Ordinary firmware downloads require the explicit pending-work dispatcher described
 in [commissioning](commissioning.md#explicit-communication-commissioning). A null
@@ -17,7 +20,7 @@ The requested target set is ESP32-S2, S3 and P4. Current evidence differs by lay
 | Target | Portable core/component | Shared application image | Special bench image | Physical qualification |
 | --- | --- | --- | --- | --- |
 | S3 | Compiled and linked | Arduino and IDF compile fixtures link ELF/BIN; host tests pass | None | Pending |
-| S2 | IDF compile/link passed | IDF compile fixture and OPTAK board image link ELF/BIN. **Arduino S2 is blocked** by the pinned package (below) | UART/core-0/TWAI bench image builds and runs | Bench image: 20 raw uploads per node on nodes 1/2. Shared image: smoke test pending |
+| S2 | IDF compile/link passed | IDF compile fixture and OPTAK board images link ELF/BIN; ordinary configured console stays CAN-inactive. **Arduino S2 is blocked** by the pinned package (below) | UART/core-0/TWAI bench image with shared console builds; existing bench runs are recorded separately | Specimen- and image-specific bench evidence; no complete platform qualification or electrical silence proof |
 | P4 | Isolated IDF compile/link passed | Target lifecycle/USB routing, silicon selection and build registration pending | None | Pending |
 
 The [board intake](reports/2026-11-02_s2_bench_intake.md) records actual S2/P4
@@ -31,11 +34,21 @@ Every firmware build compiles the same [source inventory](../examples/common/fir
 uses USB Serial/JTAG; S2 uses exclusive UART0 on GPIO43 TX/GPIO44 RX at 115200
 8N1, with the SDK console disabled. The installed core remains SDK-free C++11.
 The shared entry points admit no startup work. The separate S2 bench image adds
-fixed evidence controls and its own `RawEvidence` collector; production console
-parity belongs to prompt 42. [Native examples](native_application.md)
+fixed evidence controls and its own `RawEvidence` collector, plus `BenchConsole`
+over the shared `ProbeConsole`. Its explicit arming routes supply measured motion
+prerequisites; the ordinary shared S2 console image attaches none and keeps CAN
+closed. See the [bench console contract](../examples/s2_bench/README.md#shared-console).
+[Native examples](native_application.md)
 remain independent of either SDK. SocketCAN is deliberately omitted: the current
 owner and fake fixtures already exercise the transport boundary without another
 adapter or Linux dependency.
+
+On 2026-11-15, `check_firmware.py --target s2` passed, most recently at source revision
+`bf8a0d9518c6b42ff06d4f29516bf82ee66abf79` with ESP-IDF 5.5.5, all 43 reviewed
+SDK source hashes, the S2 compiler/target and resolved configuration checked, and
+linked ELF/BIN outputs. The final image was flashed and its reported ELF identity
+matched. Two finite velocity/quick-stop trials and their limits are recorded
+separately in [report47](reports/prompt_47.md); a build does not qualify motion.
 
 ## Configuration and target policy
 
@@ -85,7 +98,7 @@ shared entries cannot, because their pins are checked at compile time.
 `FirmwareBoard.h` refuses any target other than S2/S3: the P4 driver guard is
 unchanged and no P4 board policy exists.
 
-The default build of each example is a **compile fixture**: CAN stays disabled
+The default shared Arduino/IDF build is a **compile fixture**: CAN stays disabled
 even if someone flashes it. Deployable configuration requires established TX/RX
 GPIOs, bitrate and copied RX capacity, and, if the board has one, the transceiver
 silent input with its level. An actual board, external CAN transceiver, electrical
@@ -93,7 +106,7 @@ wiring and termination must be supplied. No RS UART/DE pins, COM port, node or
 bitrate default applies. Define no drive binding or session evidence merely from
 controller setup.
 
-The OPTAK_FGI_2025 S2 board configuration lives only in the IDF example's
+The shared OPTAK_FGI_2025 S2 board configuration lives in the IDF example's
 application files, [`sdkconfig.optak_s2`](../examples/probe_idf/sdkconfig.optak_s2):
 TX GPIO17, RX GPIO16, silent GPIO18 with level 1, 1 Mbit/s, RX depth 16. These are
 the user-reported board facts recorded in [the bench record](hardware_bench.md);
@@ -138,7 +151,8 @@ inhibitors unknown. It never proves a silent bus, the transceiver's mode or the 
 electrical level; that needs a measurement on the board. Without a silent input,
 the closed controller is the only inhibitor. The board's own default matters
 before firmware runs: in the inspected OPTAK design R3 pulls S low (normal mode),
-so the transceiver is not silent during reset and boot, only after `prepare`.
+so reset and boot cannot be assumed silent. `prepare` requests silence after the
+owner task starts; neither that request nor the GPIO return values measure it.
 Before `start`, no firmware routes the controller to the CAN TX pin.
 
 ## Startup
@@ -151,9 +165,10 @@ queues stay internal. Construction has no I/O.
 The owner task runs `FirmwareProbe::prepare`, then the console, then the service
 loop. **Startup never starts the controller**, on any target: a configured image
 stays `INACTIVE` (silence requested where configured) until an explicit
-`FirmwareProbe::start`. Until the console arrives in prompts 40-42 the only
-caller of `start` is an optional `FirmwareTurnHook`, which runs on the owner task
-after each service turn; no production entry passes one. Nothing issues drive
+`FirmwareProbe::start`. The shared console has no controller-start command. In
+the current shared entry, only the optional `FirmwareTurnHook` calls `start`;
+it runs on the owner task after each service turn, and the ordinary console image
+passes no hook. Nothing issues drive
 selection, NMT, parameter, enable or movement requests at startup. A hook that
 started the controller and then stops admitting work does not thereby stop it: the
 smoke hook leaves the controller started with the normal level requested after its
@@ -183,7 +198,8 @@ is invalidated using its last accepted time and controller retirement is attempt
 once. Nothing automatically restarts, retries or replays. Failed retirement keeps
 storage alive and effects uncertain. Actual service gaps and stack high-water
 marks require the physical fixture. The [S2 bench example](../examples/s2_bench/README.md)
-adds only fixed, explicitly requested evidence controls. Its separate
+adds fixed, explicitly requested evidence controls and the shared console over
+its existing owner. Its separate
 [physical report](reports/2026-11-02_s2_live_connection.md) records the original
 stack-budget failure, corrected bounds and observed headroom. The later raw
 collector waits for the preceding accepted TX's final report before granting

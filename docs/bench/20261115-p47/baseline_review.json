@@ -1,0 +1,2683 @@
+{
+  "analysis": {
+    "existing_parser": "scripts/s2_evidence.py",
+    "image_check_commands": [
+      "python scripts/s2_flash.py --check-ping docs/bench/20261115-p47/05-ping --artifact docs/bench/20261115-p47/04-flash",
+      "python scripts/s2_flash.py --check-ping docs/bench/20261115-p47/15-ping-tracefix --artifact docs/bench/20261115-p47/14-flash-tracefix"
+    ],
+    "image_checks_result": "both matches:true with no problems",
+    "mode": "offline only",
+    "no_original_artifacts_changed": true,
+    "parser_sha256": "fc588b7282a1ed5eedb7e9a967d5c2e57c4b2679b0ac13eb0c89f4e802dc5b1e",
+    "physical_observation": null
+  },
+  "artifacts": [
+    {
+      "artifact": "00-uart-intake",
+      "limits": [
+        "No CAN receive capture in this step; no absence-of-CAN-traffic inference."
+      ],
+      "outcome": "passive UART observation plus cached firmware ping",
+      "passive_bytes": 0,
+      "passive_seconds": 5,
+      "pong": [
+        {
+          "active": 1,
+          "base": "0db0c1f2f0922cba2d0b552a6f5bf7c2ecf4e535",
+          "capture": 0,
+          "elf": "1f8d76db04a828a45fbb67c048770475af09d13b815f0fc6d8d390b9be0a2feb",
+          "motion": 4,
+          "pdo": 5,
+          "pinsReady": 1,
+          "routes": 13,
+          "running": 1,
+          "sdk": "5.5.5",
+          "silent": 0,
+          "soak": 0,
+          "t": 150803754977,
+          "target": "esp32s2",
+          "trial": 0,
+          "watch": 0
+        }
+      ]
+    },
+    {
+      "artifact": "01-capture-old-image",
+      "capture_controller": [
+        {
+          "adapterInhibited": 0,
+          "cap": 4701,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 150891606880,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 0
+        },
+        {
+          "adapterInhibited": 0,
+          "cap": 4701,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 150896606978,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 1
+        }
+      ],
+      "capture_end": [
+        {
+          "cap": 4701,
+          "lost": 0,
+          "overflow": 0,
+          "stored": 0
+        }
+      ],
+      "capture_image": [
+        {
+          "base": "0db0c1f2f0922cba2d0b552a6f5bf7c2ecf4e535",
+          "cap": 4701,
+          "elf": "1f8d76db04a828a45fbb67c048770475af09d13b815f0fc6d8d390b9be0a2feb"
+        }
+      ],
+      "capture_level": [
+        {
+          "at": 150896606978,
+          "begin": 1,
+          "cap": 4701,
+          "exit": 1,
+          "gpio": 18,
+          "latched": 0,
+          "reopened": 1,
+          "silentHigh": 1
+        }
+      ],
+      "capture_owner": [
+        {
+          "busOff": 0,
+          "cap": 4701,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 249,
+          "tx": 249,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 0
+        },
+        {
+          "busOff": 0,
+          "cap": 4701,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 249,
+          "tx": 249,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 1
+        }
+      ],
+      "capture_record": [
+        {
+          "cap": 4701,
+          "capacity": 64,
+          "lost": 0,
+          "overflow": 0,
+          "post": 0,
+          "pre": 0,
+          "reason": "duration",
+          "seconds": 5,
+          "stored": 0,
+          "tapDropped": 0,
+          "txRefused": 0,
+          "untimed": 0
+        }
+      ],
+      "capture_time": [
+        {
+          "begin": 150891606880,
+          "cap": 4701,
+          "clock": "esp_timer_us",
+          "end": 150896606978,
+          "gap": 2000,
+          "nominal": 150896606880
+        }
+      ],
+      "limits": [
+        "Zero stored frames in this finite observation window; no physical listen-only/ACK/TX-silence proof.",
+        "S18 level requests and software TX gate are controller evidence; normal level/gate reopened on orderly exit."
+      ],
+      "outcome": "capture completed and released",
+      "runner_reason": "completed",
+      "unterminated_tail": null
+    },
+    {
+      "artifact": "06-current-capture",
+      "capture_controller": [
+        {
+          "adapterInhibited": 0,
+          "cap": 4702,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 229895594,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 0
+        },
+        {
+          "adapterInhibited": 0,
+          "cap": 4702,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 234895937,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 1
+        }
+      ],
+      "capture_end": [
+        {
+          "cap": 4702,
+          "lost": 0,
+          "overflow": 0,
+          "stored": 0
+        }
+      ],
+      "capture_image": [
+        {
+          "base": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+          "cap": 4702,
+          "elf": "99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597"
+        }
+      ],
+      "capture_level": [
+        {
+          "at": 234895937,
+          "begin": 1,
+          "cap": 4702,
+          "exit": 1,
+          "gpio": 18,
+          "latched": 0,
+          "reopened": 1,
+          "silentHigh": 1
+        }
+      ],
+      "capture_owner": [
+        {
+          "busOff": 0,
+          "cap": 4702,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 0
+        },
+        {
+          "busOff": 0,
+          "cap": 4702,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 1
+        }
+      ],
+      "capture_record": [
+        {
+          "cap": 4702,
+          "capacity": 64,
+          "lost": 0,
+          "overflow": 0,
+          "post": 0,
+          "pre": 0,
+          "reason": "duration",
+          "seconds": 5,
+          "stored": 0,
+          "tapDropped": 0,
+          "txRefused": 0,
+          "untimed": 0
+        }
+      ],
+      "capture_time": [
+        {
+          "begin": 229895594,
+          "cap": 4702,
+          "clock": "esp_timer_us",
+          "end": 234895937,
+          "gap": 1358,
+          "nominal": 234895594
+        }
+      ],
+      "limits": [
+        "Zero stored frames in this finite observation window; no physical listen-only/ACK/TX-silence proof.",
+        "S18 level requests and software TX gate are controller evidence; normal level/gate reopened on orderly exit."
+      ],
+      "outcome": "capture completed and released",
+      "runner_reason": "completed",
+      "unterminated_tail": null
+    },
+    {
+      "artifact": "16-tracefix-capture",
+      "capture_controller": [
+        {
+          "adapterInhibited": 0,
+          "cap": 4703,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 32406596,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 0
+        },
+        {
+          "adapterInhibited": 0,
+          "cap": 4703,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 37406957,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 1
+        }
+      ],
+      "capture_end": [
+        {
+          "cap": 4703,
+          "lost": 0,
+          "overflow": 0,
+          "stored": 0
+        }
+      ],
+      "capture_image": [
+        {
+          "base": "57d7a83a9fe3ac8b2f7abdd155e604b1c4a991ba",
+          "cap": 4703,
+          "elf": "9a4f17efe7c15a26f19e1a91a19f490a508719ccad39629357cdc7f05ad92219"
+        }
+      ],
+      "capture_level": [
+        {
+          "at": 37406957,
+          "begin": 1,
+          "cap": 4703,
+          "exit": 1,
+          "gpio": 18,
+          "latched": 0,
+          "reopened": 1,
+          "silentHigh": 1
+        }
+      ],
+      "capture_owner": [
+        {
+          "busOff": 0,
+          "cap": 4703,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 0
+        },
+        {
+          "busOff": 0,
+          "cap": 4703,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 1
+        }
+      ],
+      "capture_record": [
+        {
+          "cap": 4703,
+          "capacity": 64,
+          "lost": 0,
+          "overflow": 0,
+          "post": 0,
+          "pre": 0,
+          "reason": "duration",
+          "seconds": 5,
+          "stored": 0,
+          "tapDropped": 0,
+          "txRefused": 0,
+          "untimed": 0
+        }
+      ],
+      "capture_time": [
+        {
+          "begin": 32406596,
+          "cap": 4703,
+          "clock": "esp_timer_us",
+          "end": 37406957,
+          "gap": 1375,
+          "nominal": 37406596
+        }
+      ],
+      "failure": {
+        "actual_heap": [
+          {
+            "arena": 0,
+            "arenaBytes": 23688,
+            "free": 28500,
+            "largest": 12800,
+            "minimum": 28500,
+            "r0": "3ff9e000:8168:7780:7780",
+            "r1": "3fffc000:14864:3276:3276",
+            "r2": "3ffd2950:169648:17392:12864",
+            "regions": 3,
+            "reserved": 31
+          }
+        ],
+        "cause": "The plan incorrectly required a HEAPREG terminator after the one-line HEAP reply. Capture END and CAP release are present; no capture failure is inferred.",
+        "expected_end": "HEAPREG",
+        "reported": "no_end",
+        "sent": "M",
+        "step": 5
+      },
+      "limits": [
+        "Zero stored frames in this finite observation window; no physical listen-only/ACK/TX-silence proof.",
+        "S18 level requests and software TX gate are controller evidence; normal level/gate reopened on orderly exit."
+      ],
+      "outcome": "capture completed and released; later host-plan marker failure",
+      "runner_reason": "no_end",
+      "unterminated_tail": null
+    },
+    {
+      "artifact": "02-old-baseline",
+      "limits": [
+        "Raw serial tail is incomplete where noted; typed terminals do not repair missing raw trace bytes.",
+        "Before deliberate MCU flash; not post-flash evidence."
+      ],
+      "malformed_json_lines": [
+        11
+      ],
+      "outcome": "historical DEC-1 uploads on intake image",
+      "typed_values": [
+        {
+          "earliest_us": "150938841985",
+          "id": 47005,
+          "index": 4096,
+          "latest_us": "150938845982",
+          "operation_id": 1,
+          "raw": "262546",
+          "subindex": 0,
+          "width": 4
+        }
+      ],
+      "unterminated_tail": "{\"schema\":\"motorcontrolcan.console/1\",\"protocol\":3,\"profile\":\"lichuan_c\",\"type\":\"trace\",\"id\":0,\"command\":\"debug\",\"kind\":0,\"can_id\":1409,\"dlc\":8,\"accepted\":true,\"processed_us\":\"150938845982\",\"extended\":false,\"rtr\":false,\"payload\":\"4300100092010400\",\"d"
+    },
+    {
+      "artifact": "03-old-state",
+      "limits": [
+        "Raw serial tail is incomplete where noted; typed terminals do not repair missing raw trace bytes.",
+        "Before deliberate MCU flash; not post-flash evidence."
+      ],
+      "malformed_json_lines": [],
+      "outcome": "historical DEC-1 uploads on intake image",
+      "typed_values": [
+        {
+          "earliest_us": "150993524982",
+          "id": 47007,
+          "index": 24641,
+          "latest_us": "150993528984",
+          "operation_id": 2,
+          "raw": "32848",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150993535982",
+          "id": 47007,
+          "index": 24673,
+          "latest_us": "150993539984",
+          "operation_id": 2,
+          "raw": "3",
+          "subindex": 0,
+          "width": 1
+        },
+        {
+          "earliest_us": "150994017985",
+          "id": 47009,
+          "index": 8448,
+          "latest_us": "150994021984",
+          "operation_id": 3,
+          "raw": "17",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150994028982",
+          "id": 47009,
+          "index": 8449,
+          "latest_us": "150994032982",
+          "operation_id": 3,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150994038985",
+          "id": 47009,
+          "index": 8450,
+          "latest_us": "150994041981",
+          "operation_id": 3,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150994684982",
+          "id": 47011,
+          "index": 24676,
+          "latest_us": "150994688984",
+          "operation_id": 4,
+          "raw": "11329",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "150994695982",
+          "id": 47011,
+          "index": 24684,
+          "latest_us": "150994699984",
+          "operation_id": 4,
+          "raw": "0",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "150995237985",
+          "id": 47014,
+          "index": 4096,
+          "latest_us": "150995241984",
+          "operation_id": 5,
+          "raw": "262546",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "150995548986",
+          "id": 47016,
+          "index": 24641,
+          "latest_us": "150995552984",
+          "operation_id": 6,
+          "raw": "49232",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150995559982",
+          "id": 47016,
+          "index": 24673,
+          "latest_us": "150995563982",
+          "operation_id": 6,
+          "raw": "3",
+          "subindex": 0,
+          "width": 1
+        },
+        {
+          "earliest_us": "150996012985",
+          "id": 47018,
+          "index": 8448,
+          "latest_us": "150996016984",
+          "operation_id": 7,
+          "raw": "21",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150996023982",
+          "id": 47018,
+          "index": 8449,
+          "latest_us": "150996027982",
+          "operation_id": 7,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150996033985",
+          "id": 47018,
+          "index": 8450,
+          "latest_us": "150996036985",
+          "operation_id": 7,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "150996663988",
+          "id": 47020,
+          "index": 24676,
+          "latest_us": "150996667984",
+          "operation_id": 8,
+          "raw": "11327",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "150996674982",
+          "id": 47020,
+          "index": 24684,
+          "latest_us": "150996678984",
+          "operation_id": 8,
+          "raw": "0",
+          "subindex": 0,
+          "width": 4
+        }
+      ],
+      "unterminated_tail": null
+    },
+    {
+      "artifact": "04-flash",
+      "image": {
+        "base_commit": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+        "build_artifact": "04-flash",
+        "chip": "ESP32-S2FH4 (revision v1.0)",
+        "compiled_revision": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+        "flash_status": "flashed",
+        "idf_release": "v5.5.5",
+        "image_check_matches": true,
+        "image_check_problems": [],
+        "image_sha256": {
+          "bootloader/bootloader.bin": "ad749e7ff2c3aa6a7d3b5a3ec7e9353d1ae12363a1dceeed3d9052cfaccdb851",
+          "motorcontrol_can_s2_bench.bin": "c5b8aeefcf5c983e1d4a8551478fbe886827aeb196d33773ee67159d00f39b2e",
+          "motorcontrol_can_s2_bench.elf": "99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597",
+          "partition_table/partition-table.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+          "sdkconfig": "08ae9015dfdfe149872a457b6f31166618725b4c853d8e7d73b78c16e5b6df8f"
+        },
+        "mac": "dc:b4:d9:b5:a6:ce",
+        "ping_artifact": "05-ping",
+        "pong": [
+          {
+            "active": 0,
+            "base": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+            "capture": 0,
+            "elf": "99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597",
+            "motion": 0,
+            "pdo": 5,
+            "pinsReady": 1,
+            "routes": 13,
+            "running": 0,
+            "sdk": "v5.5.5-dirty",
+            "silent": 1,
+            "soak": 0,
+            "t": 0,
+            "target": "esp32s2",
+            "trial": 0,
+            "watch": 0
+          }
+        ],
+        "sdk_version_recorded": "v5.5.5-dirty",
+        "source_snapshot_in_build_record": true,
+        "source_stable": true,
+        "verified_images": 3,
+        "verified_sdk_source_files": 43
+      },
+      "limits": [
+        "Build base commit alone does not identify all source bytes; retained build source SHA256 map is authoritative.",
+        "MCU restart is not drive restart or remote SDO retirement."
+      ],
+      "outcome": "build and three-image flash verified; MCU restarted"
+    },
+    {
+      "artifact": "05-ping",
+      "build_artifact": "04-flash",
+      "image_check_problems": [],
+      "outcome": "strict retained image identity check passed offline",
+      "pong": [
+        {
+          "active": 0,
+          "base": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+          "capture": 0,
+          "elf": "99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597",
+          "motion": 0,
+          "pdo": 5,
+          "pinsReady": 1,
+          "routes": 13,
+          "running": 0,
+          "sdk": "v5.5.5-dirty",
+          "silent": 1,
+          "soak": 0,
+          "t": 0,
+          "target": "esp32s2",
+          "trial": 0,
+          "watch": 0
+        }
+      ],
+      "sdk_comparison": "Only an optional leading v is normalized by s2_evidence.check_image. Dirty/revision suffixes remain exact; SDK source eligibility is a separate pinned-source gate."
+    },
+    {
+      "artifact": "14-flash-tracefix",
+      "image": {
+        "base_commit": "57d7a83a9fe3ac8b2f7abdd155e604b1c4a991ba",
+        "build_artifact": "14-flash-tracefix",
+        "chip": "ESP32-S2FH4 (revision v1.0)",
+        "compiled_revision": "57d7a83a9fe3ac8b2f7abdd155e604b1c4a991ba",
+        "flash_status": "flashed",
+        "idf_release": "v5.5.5",
+        "image_check_matches": true,
+        "image_check_problems": [],
+        "image_sha256": {
+          "bootloader/bootloader.bin": "ad749e7ff2c3aa6a7d3b5a3ec7e9353d1ae12363a1dceeed3d9052cfaccdb851",
+          "motorcontrol_can_s2_bench.bin": "943897cdeae5c45710ad707c79652e0cef5f12041d3466610203f82f860a30a8",
+          "motorcontrol_can_s2_bench.elf": "9a4f17efe7c15a26f19e1a91a19f490a508719ccad39629357cdc7f05ad92219",
+          "partition_table/partition-table.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+          "sdkconfig": "08ae9015dfdfe149872a457b6f31166618725b4c853d8e7d73b78c16e5b6df8f"
+        },
+        "mac": "dc:b4:d9:b5:a6:ce",
+        "ping_artifact": "15-ping-tracefix",
+        "pong": [
+          {
+            "active": 0,
+            "base": "57d7a83a9fe3ac8b2f7abdd155e604b1c4a991ba",
+            "capture": 0,
+            "elf": "9a4f17efe7c15a26f19e1a91a19f490a508719ccad39629357cdc7f05ad92219",
+            "motion": 0,
+            "pdo": 5,
+            "pinsReady": 1,
+            "routes": 13,
+            "running": 0,
+            "sdk": "v5.5.5-dirty",
+            "silent": 1,
+            "soak": 0,
+            "t": 0,
+            "target": "esp32s2",
+            "trial": 0,
+            "watch": 0
+          }
+        ],
+        "sdk_version_recorded": "v5.5.5-dirty",
+        "source_snapshot_in_build_record": true,
+        "source_stable": true,
+        "verified_images": 3,
+        "verified_sdk_source_files": 43
+      },
+      "limits": [
+        "Build base commit alone does not identify all source bytes; retained build source SHA256 map is authoritative.",
+        "MCU restart is not drive restart or remote SDO retirement."
+      ],
+      "outcome": "build and three-image flash verified; MCU restarted"
+    },
+    {
+      "artifact": "15-ping-tracefix",
+      "build_artifact": "14-flash-tracefix",
+      "image_check_problems": [],
+      "outcome": "strict retained image identity check passed offline",
+      "pong": [
+        {
+          "active": 0,
+          "base": "57d7a83a9fe3ac8b2f7abdd155e604b1c4a991ba",
+          "capture": 0,
+          "elf": "9a4f17efe7c15a26f19e1a91a19f490a508719ccad39629357cdc7f05ad92219",
+          "motion": 0,
+          "pdo": 5,
+          "pinsReady": 1,
+          "routes": 13,
+          "running": 0,
+          "sdk": "v5.5.5-dirty",
+          "silent": 1,
+          "soak": 0,
+          "t": 0,
+          "target": "esp32s2",
+          "trial": 0,
+          "watch": 0
+        }
+      ],
+      "sdk_comparison": "Only an optional leading v is normalized by s2_evidence.check_image. Dirty/revision suffixes remain exact; SDK source eligibility is a separate pinned-source gate."
+    },
+    {
+      "artifact": "07-console-open",
+      "limits": [
+        "Local routes/interface facts only; no upload, enable or qualification."
+      ],
+      "outcome": "shared console opened",
+      "raw_text": "CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected\n{\"schema\":\"motorcontrolcan.console/1\",\"protocol\":3,\"profile\":\"lichuan_c\",\"type\":\"reply\",\"id\":47101,\"command\":\"version\",\"ok\":true,\"status\":\"OK\",\"product\":\"MotorControl-CAN\",\"version\":\"0.1.0\",\"operation_capacity\":2}\n{\"schema\":\"motorcontrolcan.console/1\",\"protocol\":3,\"profile\":\"lichuan_c\",\"type\":\"reply\",\"id\":47102,\"command\":\"config\",\"ok\":true,\"status\":\"OK\",\"interface\":0,\"bitrate_bits_per_second\":1000000,\"selected_node\":null,\"bus_traffic\":false}\n"
+    },
+    {
+      "artifact": "08-quick-node1",
+      "diagnostics_by_kind": {
+        "0": 9,
+        "1": 9,
+        "2": 9,
+        "3": 8
+      },
+      "expected_rx_count": 10,
+      "expected_tx_count": 10,
+      "expected_uploads": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "limits": [
+        "One 100A:00 request/reply pair is missing on each node; five total diagnostics overwritten per run.",
+        "Original success summary is preserved; it is not raw-capture completeness or hardware qualification."
+      ],
+      "missing_rx": {
+        "100A:00": 1
+      },
+      "missing_tx": {
+        "100A:00": 1
+      },
+      "observed_rx_count": 9,
+      "observed_tx_count": 9,
+      "owner_trace_overwritten_after": 5,
+      "owner_trace_overwritten_before": 0,
+      "owner_trace_overwritten_delta": 5,
+      "physical_observations": null,
+      "reported_ok": true,
+      "reported_verdict": "live-observed",
+      "review_outcome": "typed workload observed; required raw capture incomplete"
+    },
+    {
+      "artifact": "09-quick-node2",
+      "diagnostics_by_kind": {
+        "0": 9,
+        "1": 9,
+        "2": 9,
+        "3": 8
+      },
+      "expected_rx_count": 10,
+      "expected_tx_count": 10,
+      "expected_uploads": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "limits": [
+        "One 100A:00 request/reply pair is missing on each node; five total diagnostics overwritten per run.",
+        "Original success summary is preserved; it is not raw-capture completeness or hardware qualification."
+      ],
+      "missing_rx": {
+        "100A:00": 1
+      },
+      "missing_tx": {
+        "100A:00": 1
+      },
+      "observed_rx_count": 9,
+      "observed_tx_count": 9,
+      "owner_trace_overwritten_after": 10,
+      "owner_trace_overwritten_before": 5,
+      "owner_trace_overwritten_delta": 5,
+      "physical_observations": null,
+      "reported_ok": true,
+      "reported_verdict": "live-observed",
+      "review_outcome": "typed workload observed; required raw capture incomplete"
+    },
+    {
+      "artifact": "10-state-node1-status",
+      "block": "status",
+      "expected_objects": {
+        "6041:00": 1,
+        "6061:00": 1
+      },
+      "node": 1,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "314234943",
+          "index": 24641,
+          "latest_us": "314238945",
+          "native_signed": null,
+          "raw": "32848",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "314245943",
+          "index": 24673,
+          "latest_us": "314249945",
+          "native_signed": null,
+          "raw": "3",
+          "subindex": 0,
+          "width": 1
+        }
+      ]
+    },
+    {
+      "artifact": "10-state-node1-monitors",
+      "block": "monitors",
+      "expected_objects": {
+        "2100:00": 1,
+        "2101:00": 1,
+        "2102:00": 1
+      },
+      "node": 1,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "317077943",
+          "index": 8448,
+          "latest_us": "317081945",
+          "native_signed": null,
+          "raw": "17",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "317088945",
+          "index": 8449,
+          "latest_us": "317092945",
+          "native_signed": null,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "317099943",
+          "index": 8450,
+          "latest_us": "317102943",
+          "native_signed": null,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "artifact": "10-state-node1-feedback",
+      "block": "feedback",
+      "expected_objects": {
+        "6064:00": 1,
+        "606C:00": 1
+      },
+      "node": 1,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "319990943",
+          "index": 24676,
+          "latest_us": "319994945",
+          "native_signed": "11329",
+          "raw": "11329",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "320001943",
+          "index": 24684,
+          "latest_us": "320005945",
+          "native_signed": "0",
+          "raw": "0",
+          "subindex": 0,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "artifact": "10-state-node2-status",
+      "block": "status",
+      "expected_objects": {
+        "6041:00": 1,
+        "6061:00": 1
+      },
+      "node": 2,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "322917943",
+          "index": 24641,
+          "latest_us": "322921945",
+          "native_signed": null,
+          "raw": "49232",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "322928943",
+          "index": 24673,
+          "latest_us": "322932945",
+          "native_signed": null,
+          "raw": "3",
+          "subindex": 0,
+          "width": 1
+        }
+      ]
+    },
+    {
+      "artifact": "10-state-node2-monitors",
+      "block": "monitors",
+      "expected_objects": {
+        "2100:00": 1,
+        "2101:00": 1,
+        "2102:00": 1
+      },
+      "node": 2,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "325754943",
+          "index": 8448,
+          "latest_us": "325758945",
+          "native_signed": null,
+          "raw": "21",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "325765945",
+          "index": 8449,
+          "latest_us": "325769945",
+          "native_signed": null,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        },
+        {
+          "earliest_us": "325776943",
+          "index": 8450,
+          "latest_us": "325779943",
+          "native_signed": null,
+          "raw": "0",
+          "subindex": 0,
+          "width": 2
+        }
+      ]
+    },
+    {
+      "artifact": "10-state-node2-feedback",
+      "block": "feedback",
+      "expected_objects": {
+        "6064:00": 1,
+        "606C:00": 1
+      },
+      "node": 2,
+      "outcome": "typed block and matched raw TX/RX pairs observed",
+      "physical_observations": null,
+      "rx_pairs_matched": true,
+      "tx_pairs_matched": true,
+      "typed_values": [
+        {
+          "earliest_us": "328687943",
+          "index": 24676,
+          "latest_us": "328691945",
+          "native_signed": "11327",
+          "raw": "11327",
+          "subindex": 0,
+          "width": 4
+        },
+        {
+          "earliest_us": "328698943",
+          "index": 24684,
+          "latest_us": "328702945",
+          "native_signed": "0",
+          "raw": "0",
+          "subindex": 0,
+          "width": 4
+        }
+      ]
+    },
+    {
+      "artifact": "11-resources",
+      "heap": [
+        {
+          "arena": 0,
+          "arenaBytes": 23688,
+          "free": 12528,
+          "largest": 6144,
+          "minimum": 12528,
+          "r0": "3ff9e000:8168:1032:1032",
+          "r1": "3fffc000:14864:720:720",
+          "r2": "3ffd2950:169648:10720:6176",
+          "regions": 3,
+          "reserved": 31
+        }
+      ],
+      "limits": [
+        "Resource observations at this workload only; no sustained-load or electrical qualification."
+      ],
+      "outcome": "cached resource observations on first current image",
+      "stats": [
+        {
+          "conRej": 12420,
+          "dropped": 0,
+          "errors": 0,
+          "flags": 0,
+          "inhibited": 0,
+          "ownerGap": 4251,
+          "running": 1,
+          "rx": 34,
+          "rxLost": 0,
+          "stackFree": 5636,
+          "t": 456275940,
+          "traceOver": 10,
+          "tx": 34,
+          "txRej": 0,
+          "unmatched": 0
+        }
+      ]
+    },
+    {
+      "artifact": "12-raw-baseline",
+      "limits": [
+        "Unknown read effects retained; service acknowledgement is not typed configuration installation or motion evidence."
+      ],
+      "outcome": "two complete reviewed 26-upload raw records",
+      "raw_traffic_review": [
+        {
+          "all_requests_upload_only": true,
+          "expected_uploads": 26,
+          "matched_request_reply_pairs": 26,
+          "matching_tx_report_count": 26,
+          "node": 1,
+          "raw_pair_coverage_for_this_record": true
+        },
+        {
+          "all_requests_upload_only": true,
+          "expected_uploads": 26,
+          "matched_request_reply_pairs": 26,
+          "matching_tx_report_count": 26,
+          "node": 2,
+          "raw_pair_coverage_for_this_record": true
+        }
+      ],
+      "records": [
+        {
+          "failure": 0,
+          "gap": 3000,
+          "id": 1,
+          "lost": 0,
+          "node": 1,
+          "tail": 0,
+          "tailLost": 0,
+          "terminals": 26,
+          "traffic": 78
+        },
+        {
+          "failure": 0,
+          "gap": 3000,
+          "id": 2,
+          "lost": 0,
+          "node": 2,
+          "tail": 0,
+          "tailLost": 0,
+          "terminals": 26,
+          "traffic": 78
+        }
+      ],
+      "runner_reason": "completed"
+    },
+    {
+      "artifact": "13-readiness-node1",
+      "limits": [
+        "Raw I/O values do not establish connected signal levels or protective-function applicability.",
+        "No settings, enables or other motor downloads are part of this record."
+      ],
+      "outcome": "complete reviewed 30-upload raw readiness record",
+      "raw_traffic_review": [
+        {
+          "all_requests_upload_only": true,
+          "expected_uploads": 30,
+          "matched_request_reply_pairs": 30,
+          "matching_tx_report_count": 30,
+          "node": 1,
+          "raw_pair_coverage_for_this_record": true
+        }
+      ],
+      "record": {
+        "failure": 0,
+        "gap": 3000,
+        "id": 3,
+        "lost": 0,
+        "node": 1,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 30,
+        "traffic": 90
+      }
+    },
+    {
+      "artifact": "13-readiness-node2",
+      "limits": [
+        "Raw I/O values do not establish connected signal levels or protective-function applicability.",
+        "No settings, enables or other motor downloads are part of this record."
+      ],
+      "outcome": "complete reviewed 30-upload raw readiness record",
+      "raw_traffic_review": [
+        {
+          "all_requests_upload_only": true,
+          "expected_uploads": 30,
+          "matched_request_reply_pairs": 30,
+          "matching_tx_report_count": 30,
+          "node": 2,
+          "raw_pair_coverage_for_this_record": true
+        }
+      ],
+      "record": {
+        "failure": 0,
+        "gap": 3000,
+        "id": 4,
+        "lost": 0,
+        "node": 2,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 30,
+        "traffic": 90
+      }
+    },
+    {
+      "artifact": "17-open-memory",
+      "heap_before_attempt": [
+        {
+          "arena": 0,
+          "arenaBytes": 23688,
+          "free": 28500,
+          "largest": 12800,
+          "minimum": 28500,
+          "r0": "3ff9e000:8168:7780:7780",
+          "r1": "3fffc000:14864:3276:3276",
+          "r2": "3ffd2950:169648:17392:12864",
+          "regions": 3,
+          "reserved": 31
+        }
+      ],
+      "limits": [
+        "No ordinary probe or motion admitted by this refusal.",
+        "12528-byte prior post-console free heap does not guarantee a later larger contiguous allocation. Allocation-order repair and fresh evidence remain pending outside this review."
+      ],
+      "outcome": "shared console refused before work on first trace-buffer image",
+      "raw_text": "HEAP free=28500 largest=12800 minimum=28500 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffd2950:169648:17392:12864 reserved=1f arena=0 arenaBytes=23688\nCONSOLE refused reason=memory; no work\n",
+      "refusal": "CONSOLE refused reason=memory; no work"
+    }
+  ],
+  "currentness": "All device values below are historical snapshots on the stated image. MCU flashes invalidate native host prerequisites; these data are not fresh admission evidence.",
+  "hardware_qualified": false,
+  "limitations": [
+    "No independent shaft, torque, travel, standstill, fault LED or electrical-silence observation.",
+    "Supply/nameplate, electrical margins, homing wiring and related models remain unqualified.",
+    "Equal raw identities do not uniquely identify or distinguish specimens; 1018:04 was not read.",
+    "Raw experiments preserve server-indicated widths and read effects remain unknown; neither successful uploads nor this review promote Q20 access policy."
+  ],
+  "nodes": {
+    "1": {
+      "baseline_artifact": "12-raw-baseline",
+      "baseline_header": {
+        "failure": 0,
+        "gap": 3000,
+        "id": 1,
+        "lost": 0,
+        "node": 1,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 26,
+        "traffic": 78
+      },
+      "heartbeat_1017": {
+        "acknowledged": true,
+        "admitted_us": "519954941",
+        "bytes_little_endian": "0000",
+        "completed_us": "519957941",
+        "outcome": 0,
+        "raw_decimal": "0",
+        "raw_hex": "0x0000",
+        "uncertain": false,
+        "width_bytes": 2
+      },
+      "interpretation_limits": [
+        "Mode display raw3 and zero native velocity are device reports; physical standstill and actual motion are unobserved.",
+        "Node2 monitor running bit remains latched (0x0015); it is not proof of active motion.",
+        "2200 raw0,2201 raw1000,2500 raw2,2501 raw4000 are recorded configuration; no source/shaft direction or scale qualification is promoted."
+      ],
+      "physical_observations": null,
+      "raw_identity": {
+        "1000:00": {
+          "acknowledged": true,
+          "admitted_us": "519834941",
+          "bytes_little_endian": "92010400",
+          "completed_us": "519837941",
+          "outcome": 0,
+          "raw_decimal": "262546",
+          "raw_hex": "0x00040192",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1009:00": {
+          "acknowledged": true,
+          "admitted_us": "519840941",
+          "bytes_little_endian": "0c",
+          "completed_us": "519843941",
+          "outcome": 0,
+          "raw_decimal": "12",
+          "raw_hex": "0x0C",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "100A:00": {
+          "acknowledged": true,
+          "admitted_us": "519846941",
+          "bytes_little_endian": "20",
+          "completed_us": "519849941",
+          "outcome": 0,
+          "raw_decimal": "32",
+          "raw_hex": "0x20",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1018:00": {
+          "acknowledged": true,
+          "admitted_us": "519852941",
+          "bytes_little_endian": "05",
+          "completed_us": "519855941",
+          "outcome": 0,
+          "raw_decimal": "5",
+          "raw_hex": "0x05",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1018:01": {
+          "acknowledged": true,
+          "admitted_us": "519858941",
+          "bytes_little_endian": "00100000",
+          "completed_us": "519861941",
+          "outcome": 0,
+          "raw_decimal": "4096",
+          "raw_hex": "0x00001000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1018:02": {
+          "acknowledged": true,
+          "admitted_us": "519864941",
+          "bytes_little_endian": "01000000",
+          "completed_us": "519867941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x00000001",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1018:03": {
+          "acknowledged": true,
+          "admitted_us": "519870941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "519873941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "2000:00": {
+          "acknowledged": true,
+          "admitted_us": "519876941",
+          "bytes_little_endian": "0004",
+          "completed_us": "519879941",
+          "outcome": 0,
+          "raw_decimal": "1024",
+          "raw_hex": "0x0400",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2001:00": {
+          "acknowledged": true,
+          "admitted_us": "519882941",
+          "bytes_little_endian": "0002",
+          "completed_us": "519885941",
+          "outcome": 0,
+          "raw_decimal": "512",
+          "raw_hex": "0x0200",
+          "uncertain": false,
+          "width_bytes": 2
+        }
+      },
+      "readiness_objects": {
+        "1001:00": {
+          "acknowledged": true,
+          "admitted_us": "542642941",
+          "bytes_little_endian": "00",
+          "completed_us": "542645941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "2100:00": {
+          "acknowledged": true,
+          "admitted_us": "542666941",
+          "bytes_little_endian": "1100",
+          "completed_us": "542669941",
+          "outcome": 0,
+          "raw_decimal": "17",
+          "raw_hex": "0x0011",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2101:00": {
+          "acknowledged": true,
+          "admitted_us": "542672941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542675941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2200:00": {
+          "acknowledged": true,
+          "admitted_us": "542726941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542729941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2201:00": {
+          "acknowledged": true,
+          "admitted_us": "542732941",
+          "bytes_little_endian": "e803",
+          "completed_us": "542735941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x03E8",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2202:00": {
+          "acknowledged": true,
+          "admitted_us": "542738941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542741941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:01": {
+          "acknowledged": true,
+          "admitted_us": "542768941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542771941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:02": {
+          "acknowledged": true,
+          "admitted_us": "542774941",
+          "bytes_little_endian": "0100",
+          "completed_us": "542777941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x0001",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:03": {
+          "acknowledged": true,
+          "admitted_us": "542780941",
+          "bytes_little_endian": "0200",
+          "completed_us": "542783941",
+          "outcome": 0,
+          "raw_decimal": "2",
+          "raw_hex": "0x0002",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:04": {
+          "acknowledged": true,
+          "admitted_us": "542786941",
+          "bytes_little_endian": "0300",
+          "completed_us": "542789941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x0003",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:05": {
+          "acknowledged": true,
+          "admitted_us": "542792941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542795941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:06": {
+          "acknowledged": true,
+          "admitted_us": "542798941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542801941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:07": {
+          "acknowledged": true,
+          "admitted_us": "542804941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542807941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:08": {
+          "acknowledged": true,
+          "admitted_us": "542810941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542813941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2500:00": {
+          "acknowledged": true,
+          "admitted_us": "542756941",
+          "bytes_little_endian": "0200",
+          "completed_us": "542759941",
+          "outcome": 0,
+          "raw_decimal": "2",
+          "raw_hex": "0x0002",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2501:00": {
+          "acknowledged": true,
+          "admitted_us": "542762941",
+          "bytes_little_endian": "a00f",
+          "completed_us": "542765941",
+          "outcome": 0,
+          "raw_decimal": "4000",
+          "raw_hex": "0x0FA0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "603F:00": {
+          "acknowledged": true,
+          "admitted_us": "542648941",
+          "bytes_little_endian": "0000",
+          "completed_us": "542651941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6041:00": {
+          "acknowledged": true,
+          "admitted_us": "542654941",
+          "bytes_little_endian": "5080",
+          "completed_us": "542657941",
+          "outcome": 0,
+          "raw_decimal": "32848",
+          "raw_hex": "0x8050",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "605D:00": {
+          "acknowledged": true,
+          "admitted_us": "542714941",
+          "bytes_little_endian": "0100",
+          "completed_us": "542717941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x0001",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6061:00": {
+          "acknowledged": true,
+          "admitted_us": "542660941",
+          "bytes_little_endian": "03",
+          "completed_us": "542663941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "6064:00": {
+          "acknowledged": true,
+          "admitted_us": "542678941",
+          "bytes_little_endian": "412c0000",
+          "completed_us": "542681941",
+          "outcome": 0,
+          "raw_decimal": "11329",
+          "raw_hex": "0x00002C41",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "606C:00": {
+          "acknowledged": true,
+          "admitted_us": "542684941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "542687941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607A:00": {
+          "acknowledged": true,
+          "admitted_us": "542690941",
+          "bytes_little_endian": "88130000",
+          "completed_us": "542693941",
+          "outcome": 0,
+          "raw_decimal": "5000",
+          "raw_hex": "0x00001388",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607D:01": {
+          "acknowledged": true,
+          "admitted_us": "542744941",
+          "bytes_little_endian": "00000080",
+          "completed_us": "542747941",
+          "outcome": 0,
+          "raw_decimal": "2147483648",
+          "raw_hex": "0x80000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607D:02": {
+          "acknowledged": true,
+          "admitted_us": "542750941",
+          "bytes_little_endian": "ffffff7f",
+          "completed_us": "542753941",
+          "outcome": 0,
+          "raw_decimal": "2147483647",
+          "raw_hex": "0x7FFFFFFF",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6081:00": {
+          "acknowledged": true,
+          "admitted_us": "542696941",
+          "bytes_little_endian": "3c000000",
+          "completed_us": "542699941",
+          "outcome": 0,
+          "raw_decimal": "60",
+          "raw_hex": "0x0000003C",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6083:00": {
+          "acknowledged": true,
+          "admitted_us": "542702941",
+          "bytes_little_endian": "e8030000",
+          "completed_us": "542705941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x000003E8",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6084:00": {
+          "acknowledged": true,
+          "admitted_us": "542708941",
+          "bytes_little_endian": "e8030000",
+          "completed_us": "542711941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x000003E8",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "60FD:00": {
+          "acknowledged": true,
+          "admitted_us": "542816941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "542819941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "60FF:00": {
+          "acknowledged": true,
+          "admitted_us": "542720941",
+          "bytes_little_endian": "3c000000",
+          "completed_us": "542723941",
+          "outcome": 0,
+          "raw_decimal": "60",
+          "raw_hex": "0x0000003C",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      },
+      "source_image": "04-flash / 05-ping",
+      "state": {
+        "2100:00": {
+          "acknowledged": true,
+          "admitted_us": "519960941",
+          "bytes_little_endian": "1100",
+          "completed_us": "519963941",
+          "outcome": 0,
+          "raw_decimal": "17",
+          "raw_hex": "0x0011",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "603F:00": {
+          "acknowledged": true,
+          "admitted_us": "519966941",
+          "bytes_little_endian": "0000",
+          "completed_us": "519969941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6041:00": {
+          "acknowledged": true,
+          "admitted_us": "519942941",
+          "bytes_little_endian": "5080",
+          "completed_us": "519945941",
+          "outcome": 0,
+          "raw_decimal": "32848",
+          "raw_hex": "0x8050",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6061:00": {
+          "acknowledged": true,
+          "admitted_us": "519948941",
+          "bytes_little_endian": "03",
+          "completed_us": "519951941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "6064:00": {
+          "acknowledged": true,
+          "admitted_us": "519972941",
+          "bytes_little_endian": "412c0000",
+          "completed_us": "519975941",
+          "outcome": 0,
+          "raw_decimal": "11329",
+          "raw_hex": "0x00002C41",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "606C:00": {
+          "acknowledged": true,
+          "admitted_us": "519984941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "519987941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      },
+      "tpdo1_communication_and_mapping": {
+        "1800:01": {
+          "acknowledged": true,
+          "admitted_us": "519888941",
+          "bytes_little_endian": "81010000",
+          "completed_us": "519891941",
+          "outcome": 0,
+          "raw_decimal": "385",
+          "raw_hex": "0x00000181",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1800:02": {
+          "acknowledged": true,
+          "admitted_us": "519894941",
+          "bytes_little_endian": "ff",
+          "completed_us": "519897941",
+          "outcome": 0,
+          "raw_decimal": "255",
+          "raw_hex": "0xFF",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1800:03": {
+          "acknowledged": true,
+          "admitted_us": "519900941",
+          "bytes_little_endian": "6400",
+          "completed_us": "519903941",
+          "outcome": 0,
+          "raw_decimal": "100",
+          "raw_hex": "0x0064",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "1800:05": {
+          "acknowledged": true,
+          "admitted_us": "519906941",
+          "bytes_little_endian": "0000",
+          "completed_us": "519909941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "1A00:00": {
+          "acknowledged": true,
+          "admitted_us": "519912941",
+          "bytes_little_endian": "03",
+          "completed_us": "519915941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1A00:01": {
+          "acknowledged": true,
+          "admitted_us": "519918941",
+          "bytes_little_endian": "10004160",
+          "completed_us": "519921941",
+          "outcome": 0,
+          "raw_decimal": "1614872592",
+          "raw_hex": "0x60410010",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:02": {
+          "acknowledged": true,
+          "admitted_us": "519924941",
+          "bytes_little_endian": "08006160",
+          "completed_us": "519927941",
+          "outcome": 0,
+          "raw_decimal": "1616969736",
+          "raw_hex": "0x60610008",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:03": {
+          "acknowledged": true,
+          "admitted_us": "519930941",
+          "bytes_little_endian": "20006460",
+          "completed_us": "519933941",
+          "outcome": 0,
+          "raw_decimal": "1617166368",
+          "raw_hex": "0x60640020",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:04": {
+          "acknowledged": true,
+          "admitted_us": "519936941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "519939941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      }
+    },
+    "2": {
+      "baseline_artifact": "12-raw-baseline",
+      "baseline_header": {
+        "failure": 0,
+        "gap": 3000,
+        "id": 2,
+        "lost": 0,
+        "node": 2,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 26,
+        "traffic": 78
+      },
+      "heartbeat_1017": {
+        "acknowledged": true,
+        "admitted_us": "522067941",
+        "bytes_little_endian": "0000",
+        "completed_us": "522070941",
+        "outcome": 0,
+        "raw_decimal": "0",
+        "raw_hex": "0x0000",
+        "uncertain": false,
+        "width_bytes": 2
+      },
+      "interpretation_limits": [
+        "Mode display raw3 and zero native velocity are device reports; physical standstill and actual motion are unobserved.",
+        "Node2 monitor running bit remains latched (0x0015); it is not proof of active motion.",
+        "2200 raw0,2201 raw1000,2500 raw2,2501 raw4000 are recorded configuration; no source/shaft direction or scale qualification is promoted."
+      ],
+      "physical_observations": null,
+      "raw_identity": {
+        "1000:00": {
+          "acknowledged": true,
+          "admitted_us": "521947941",
+          "bytes_little_endian": "92010400",
+          "completed_us": "521950941",
+          "outcome": 0,
+          "raw_decimal": "262546",
+          "raw_hex": "0x00040192",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1009:00": {
+          "acknowledged": true,
+          "admitted_us": "521953941",
+          "bytes_little_endian": "0c",
+          "completed_us": "521956941",
+          "outcome": 0,
+          "raw_decimal": "12",
+          "raw_hex": "0x0C",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "100A:00": {
+          "acknowledged": true,
+          "admitted_us": "521959941",
+          "bytes_little_endian": "20",
+          "completed_us": "521962941",
+          "outcome": 0,
+          "raw_decimal": "32",
+          "raw_hex": "0x20",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1018:00": {
+          "acknowledged": true,
+          "admitted_us": "521965941",
+          "bytes_little_endian": "05",
+          "completed_us": "521968941",
+          "outcome": 0,
+          "raw_decimal": "5",
+          "raw_hex": "0x05",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1018:01": {
+          "acknowledged": true,
+          "admitted_us": "521971941",
+          "bytes_little_endian": "00100000",
+          "completed_us": "521974941",
+          "outcome": 0,
+          "raw_decimal": "4096",
+          "raw_hex": "0x00001000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1018:02": {
+          "acknowledged": true,
+          "admitted_us": "521977941",
+          "bytes_little_endian": "01000000",
+          "completed_us": "521980941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x00000001",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1018:03": {
+          "acknowledged": true,
+          "admitted_us": "521983941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "521986941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "2000:00": {
+          "acknowledged": true,
+          "admitted_us": "521989941",
+          "bytes_little_endian": "0004",
+          "completed_us": "521992941",
+          "outcome": 0,
+          "raw_decimal": "1024",
+          "raw_hex": "0x0400",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2001:00": {
+          "acknowledged": true,
+          "admitted_us": "521995941",
+          "bytes_little_endian": "0002",
+          "completed_us": "521998941",
+          "outcome": 0,
+          "raw_decimal": "512",
+          "raw_hex": "0x0200",
+          "uncertain": false,
+          "width_bytes": 2
+        }
+      },
+      "readiness_objects": {
+        "1001:00": {
+          "acknowledged": true,
+          "admitted_us": "553254941",
+          "bytes_little_endian": "00",
+          "completed_us": "553257941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "2100:00": {
+          "acknowledged": true,
+          "admitted_us": "553278941",
+          "bytes_little_endian": "1500",
+          "completed_us": "553281941",
+          "outcome": 0,
+          "raw_decimal": "21",
+          "raw_hex": "0x0015",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2101:00": {
+          "acknowledged": true,
+          "admitted_us": "553284941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553287941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2200:00": {
+          "acknowledged": true,
+          "admitted_us": "553338941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553341941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2201:00": {
+          "acknowledged": true,
+          "admitted_us": "553344941",
+          "bytes_little_endian": "e803",
+          "completed_us": "553347941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x03E8",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2202:00": {
+          "acknowledged": true,
+          "admitted_us": "553350941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553353941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:01": {
+          "acknowledged": true,
+          "admitted_us": "553380941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553383941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:02": {
+          "acknowledged": true,
+          "admitted_us": "553386941",
+          "bytes_little_endian": "0100",
+          "completed_us": "553389941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x0001",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:03": {
+          "acknowledged": true,
+          "admitted_us": "553392941",
+          "bytes_little_endian": "0200",
+          "completed_us": "553395941",
+          "outcome": 0,
+          "raw_decimal": "2",
+          "raw_hex": "0x0002",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:04": {
+          "acknowledged": true,
+          "admitted_us": "553398941",
+          "bytes_little_endian": "0300",
+          "completed_us": "553401941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x0003",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:05": {
+          "acknowledged": true,
+          "admitted_us": "553404941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553407941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:06": {
+          "acknowledged": true,
+          "admitted_us": "553410941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553413941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:07": {
+          "acknowledged": true,
+          "admitted_us": "553416941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553419941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2400:08": {
+          "acknowledged": true,
+          "admitted_us": "553422941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553425941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2500:00": {
+          "acknowledged": true,
+          "admitted_us": "553368941",
+          "bytes_little_endian": "0200",
+          "completed_us": "553371941",
+          "outcome": 0,
+          "raw_decimal": "2",
+          "raw_hex": "0x0002",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "2501:00": {
+          "acknowledged": true,
+          "admitted_us": "553374941",
+          "bytes_little_endian": "a00f",
+          "completed_us": "553377941",
+          "outcome": 0,
+          "raw_decimal": "4000",
+          "raw_hex": "0x0FA0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "603F:00": {
+          "acknowledged": true,
+          "admitted_us": "553260941",
+          "bytes_little_endian": "0000",
+          "completed_us": "553263941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6041:00": {
+          "acknowledged": true,
+          "admitted_us": "553266941",
+          "bytes_little_endian": "50c0",
+          "completed_us": "553269941",
+          "outcome": 0,
+          "raw_decimal": "49232",
+          "raw_hex": "0xC050",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "605D:00": {
+          "acknowledged": true,
+          "admitted_us": "553326941",
+          "bytes_little_endian": "0100",
+          "completed_us": "553329941",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "raw_hex": "0x0001",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6061:00": {
+          "acknowledged": true,
+          "admitted_us": "553272941",
+          "bytes_little_endian": "03",
+          "completed_us": "553275941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "6064:00": {
+          "acknowledged": true,
+          "admitted_us": "553290941",
+          "bytes_little_endian": "3f2c0000",
+          "completed_us": "553293941",
+          "outcome": 0,
+          "raw_decimal": "11327",
+          "raw_hex": "0x00002C3F",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "606C:00": {
+          "acknowledged": true,
+          "admitted_us": "553296941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "553299941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607A:00": {
+          "acknowledged": true,
+          "admitted_us": "553302941",
+          "bytes_little_endian": "88130000",
+          "completed_us": "553305941",
+          "outcome": 0,
+          "raw_decimal": "5000",
+          "raw_hex": "0x00001388",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607D:01": {
+          "acknowledged": true,
+          "admitted_us": "553356941",
+          "bytes_little_endian": "00000080",
+          "completed_us": "553359941",
+          "outcome": 0,
+          "raw_decimal": "2147483648",
+          "raw_hex": "0x80000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "607D:02": {
+          "acknowledged": true,
+          "admitted_us": "553362941",
+          "bytes_little_endian": "ffffff7f",
+          "completed_us": "553365941",
+          "outcome": 0,
+          "raw_decimal": "2147483647",
+          "raw_hex": "0x7FFFFFFF",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6081:00": {
+          "acknowledged": true,
+          "admitted_us": "553308941",
+          "bytes_little_endian": "3c000000",
+          "completed_us": "553311941",
+          "outcome": 0,
+          "raw_decimal": "60",
+          "raw_hex": "0x0000003C",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6083:00": {
+          "acknowledged": true,
+          "admitted_us": "553314941",
+          "bytes_little_endian": "e8030000",
+          "completed_us": "553317941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x000003E8",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "6084:00": {
+          "acknowledged": true,
+          "admitted_us": "553320941",
+          "bytes_little_endian": "e8030000",
+          "completed_us": "553323941",
+          "outcome": 0,
+          "raw_decimal": "1000",
+          "raw_hex": "0x000003E8",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "60FD:00": {
+          "acknowledged": true,
+          "admitted_us": "553428941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "553431941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "60FF:00": {
+          "acknowledged": true,
+          "admitted_us": "553332941",
+          "bytes_little_endian": "3c000000",
+          "completed_us": "553335941",
+          "outcome": 0,
+          "raw_decimal": "60",
+          "raw_hex": "0x0000003C",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      },
+      "source_image": "04-flash / 05-ping",
+      "state": {
+        "2100:00": {
+          "acknowledged": true,
+          "admitted_us": "522073941",
+          "bytes_little_endian": "1500",
+          "completed_us": "522076941",
+          "outcome": 0,
+          "raw_decimal": "21",
+          "raw_hex": "0x0015",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "603F:00": {
+          "acknowledged": true,
+          "admitted_us": "522079941",
+          "bytes_little_endian": "0000",
+          "completed_us": "522082941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6041:00": {
+          "acknowledged": true,
+          "admitted_us": "522055941",
+          "bytes_little_endian": "50c0",
+          "completed_us": "522058941",
+          "outcome": 0,
+          "raw_decimal": "49232",
+          "raw_hex": "0xC050",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "6061:00": {
+          "acknowledged": true,
+          "admitted_us": "522061941",
+          "bytes_little_endian": "03",
+          "completed_us": "522064941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "6064:00": {
+          "acknowledged": true,
+          "admitted_us": "522085941",
+          "bytes_little_endian": "3f2c0000",
+          "completed_us": "522088941",
+          "outcome": 0,
+          "raw_decimal": "11327",
+          "raw_hex": "0x00002C3F",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "606C:00": {
+          "acknowledged": true,
+          "admitted_us": "522097941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "522100941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      },
+      "tpdo1_communication_and_mapping": {
+        "1800:01": {
+          "acknowledged": true,
+          "admitted_us": "522001941",
+          "bytes_little_endian": "82010000",
+          "completed_us": "522004941",
+          "outcome": 0,
+          "raw_decimal": "386",
+          "raw_hex": "0x00000182",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1800:02": {
+          "acknowledged": true,
+          "admitted_us": "522007941",
+          "bytes_little_endian": "ff",
+          "completed_us": "522010941",
+          "outcome": 0,
+          "raw_decimal": "255",
+          "raw_hex": "0xFF",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1800:03": {
+          "acknowledged": true,
+          "admitted_us": "522013941",
+          "bytes_little_endian": "6400",
+          "completed_us": "522016941",
+          "outcome": 0,
+          "raw_decimal": "100",
+          "raw_hex": "0x0064",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "1800:05": {
+          "acknowledged": true,
+          "admitted_us": "522019941",
+          "bytes_little_endian": "0000",
+          "completed_us": "522022941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x0000",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        "1A00:00": {
+          "acknowledged": true,
+          "admitted_us": "522025941",
+          "bytes_little_endian": "03",
+          "completed_us": "522028941",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "raw_hex": "0x03",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        "1A00:01": {
+          "acknowledged": true,
+          "admitted_us": "522031941",
+          "bytes_little_endian": "10004160",
+          "completed_us": "522034941",
+          "outcome": 0,
+          "raw_decimal": "1614872592",
+          "raw_hex": "0x60410010",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:02": {
+          "acknowledged": true,
+          "admitted_us": "522037941",
+          "bytes_little_endian": "08006160",
+          "completed_us": "522040941",
+          "outcome": 0,
+          "raw_decimal": "1616969736",
+          "raw_hex": "0x60610008",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:03": {
+          "acknowledged": true,
+          "admitted_us": "522043941",
+          "bytes_little_endian": "20006460",
+          "completed_us": "522046941",
+          "outcome": 0,
+          "raw_decimal": "1617166368",
+          "raw_hex": "0x60640020",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        "1A00:04": {
+          "acknowledged": true,
+          "admitted_us": "522049941",
+          "bytes_little_endian": "00000000",
+          "completed_us": "522052941",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "raw_hex": "0x00000000",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      }
+    }
+  },
+  "physical_observations": null,
+  "schema": "motorcontrolcan.p47-baseline-review/1",
+  "scope": "Offline review of retained artifacts 00 through 17 only; no hardware access, original writes or qualification promotion",
+  "source_files": {
+    "00-uart-intake/result.json": {
+      "bytes": 858,
+      "sha256": "a1bd1f730ca13c3831ce00e5266a3294f8b9145d7302866e10c7ac4fe05d2a16"
+    },
+    "00-uart-intake/rx.bin": {
+      "bytes": 258,
+      "sha256": "a52bca3f82cfe434179fb4fb0f69c4ea7394eb04832d156157f9e53d204f79fa"
+    },
+    "01-capture-old-image/rx.bin": {
+      "bytes": 1788,
+      "sha256": "47b9a760b1e818f647810a63f97c1e45eb6573654ea0f92d2d4fd0a964c589d4"
+    },
+    "01-capture-old-image/session.json": {
+      "bytes": 3024,
+      "sha256": "d0939ce2e02a52747dc14ab934c85a79e6f6162aa18eb013d4a9f30298c127d0"
+    },
+    "02-old-baseline-rx.bin": {
+      "bytes": 2412,
+      "sha256": "6433e27fbb5c9865548f132a1890e9e0b6cd5b2613ab8d8ec9a47a765c81fb09"
+    },
+    "03-old-state-rx.bin": {
+      "bytes": 25071,
+      "sha256": "259dad9c9c2ae130e973f7194c0e60429c957020f3eeaffd61680d7a1e521e8b"
+    },
+    "04-flash/build.json": {
+      "bytes": 36803,
+      "sha256": "b46c28a874d9b0c5a86e9f147177a53836a0b3872a8f5adf3c39539ffe579b69"
+    },
+    "05-ping/rx.bin": {
+      "bytes": 254,
+      "sha256": "135bf3a547cd8894d43128bae9f06a6442a0985b5005f1f40c3d8829e113d6ba"
+    },
+    "06-current-capture/rx.bin": {
+      "bytes": 1628,
+      "sha256": "339f4b14469c2e8dce8fc2ee87380f794fac82ab098091b121cc261738508116"
+    },
+    "06-current-capture/session.json": {
+      "bytes": 2959,
+      "sha256": "2ccac5282daac389806abff9d1d324bebacfcdb6e55dc52903fea3d799e047c2"
+    },
+    "07-console-open-rx.bin": {
+      "bytes": 544,
+      "sha256": "477f0735224ec1d767518d589ea1b613ed047f63fe9127b458b0a87462f91555"
+    },
+    "08-quick-node1.json": {
+      "bytes": 36073,
+      "sha256": "125ebdc9818792d804a8cd1d93cdb32424a6e4e0a39a2aaf3bd38eaaf18481a4"
+    },
+    "08-quick-node1.jsonl": {
+      "bytes": 104236,
+      "sha256": "f1a5a800dd4f35cecd71da7e04e899d9cd402d3562f59e135df88aaa8c6043d7"
+    },
+    "09-quick-node2.json": {
+      "bytes": 36144,
+      "sha256": "71a5e9707f466966dd781a4155f5e845cd27b1b757d8bc080a85b45c140a6f60"
+    },
+    "09-quick-node2.jsonl": {
+      "bytes": 104479,
+      "sha256": "5dcee319ea9beb9ac0c22ecf9f337344a771c987f2877d938cda0a8205837672"
+    },
+    "10-state-node1-feedback.jsonl": {
+      "bytes": 58204,
+      "sha256": "41466792600486b42ef3f0453d379b7b7bba924c3252e878495a1f375be44701"
+    },
+    "10-state-node1-feedback.jsonl.summary.json": {
+      "bytes": 6745,
+      "sha256": "56e97e5c6c7d75b4337b3cfefe5d409ab7682fdb87289371b0624951de53ec6e"
+    },
+    "10-state-node1-monitors.jsonl": {
+      "bytes": 62921,
+      "sha256": "fdcf1bdba9f6cfc5d587691066947cda0df9b034ea67155db99e2f50b0018d1a"
+    },
+    "10-state-node1-monitors.jsonl.summary.json": {
+      "bytes": 7189,
+      "sha256": "3478ec44ac4332675ec15ea83bff4c4350cb7cf3f8321a0e2529f2fa94479b86"
+    },
+    "10-state-node1-status.jsonl": {
+      "bytes": 58198,
+      "sha256": "6bc119127e5a50a65b8e9fd05819035e47f72a37e6a0945da0df927d3bfd9bab"
+    },
+    "10-state-node1-status.jsonl.summary.json": {
+      "bytes": 6694,
+      "sha256": "b43a74981e4777d85fbaf908772b97b4423863fd6efbc563b6a12a7ac6915b54"
+    },
+    "10-state-node2-feedback.jsonl": {
+      "bytes": 58217,
+      "sha256": "dfa6a8e9be4b746dec0d95d112431bf0cdba4eb0716876f92836bd10a78a605f"
+    },
+    "10-state-node2-feedback.jsonl.summary.json": {
+      "bytes": 6739,
+      "sha256": "08c6777f4eb83d86c62cd7d3af41d009e789d6e3834f37d92491f8b595442d16"
+    },
+    "10-state-node2-monitors.jsonl": {
+      "bytes": 62927,
+      "sha256": "5efa86c9ebdde4bd4800f4ff3318a02960e3decf6cd13d9fa7924e23a50dd17d"
+    },
+    "10-state-node2-monitors.jsonl.summary.json": {
+      "bytes": 7188,
+      "sha256": "81d763f6e56a26f7126bda7f881a349f16506b77884df86967d39c60d1e971f4"
+    },
+    "10-state-node2-status.jsonl": {
+      "bytes": 58053,
+      "sha256": "b03a507af564ece9e88e1130535090590d75235c0e63453d1578327ed91404dd"
+    },
+    "10-state-node2-status.jsonl.summary.json": {
+      "bytes": 6693,
+      "sha256": "c0a9c0e7dea15203a80869c3ea4df86885a135692437876d2b7ba57b937f4573"
+    },
+    "11-resources-rx.bin": {
+      "bytes": 594,
+      "sha256": "5c2081148abb78c445714a5db24c6e67411e09588e467ea38efd8c4859abd558"
+    },
+    "12-raw-baseline/rx.bin": {
+      "bytes": 31952,
+      "sha256": "cbec877097985d7fe1280759912c502cfef6d06b8af87e20f7aacab68a25c308"
+    },
+    "12-raw-baseline/session.json": {
+      "bytes": 3236,
+      "sha256": "1d1812fcd506e023ab33f2e446dad8a0726ca1468fb134cdcc26ecf077ff7fc2"
+    },
+    "13-readiness-node1/rx.bin": {
+      "bytes": 18155,
+      "sha256": "066899ff2ebc86d6dcb74121ab6e0f4451561134933b55a8b1eac3245e7932ba"
+    },
+    "13-readiness-node2/rx.bin": {
+      "bytes": 18155,
+      "sha256": "cfa4fbc80271fb132015c573bb1214d533d9d48806ce9b4f8991b87e4a5f470f"
+    },
+    "14-flash-tracefix/build.json": {
+      "bytes": 49340,
+      "sha256": "a653b87edc28edcefae257cef6a033fd5b1ac33fa7a6c8b8c45c9cb3ee2f72cf"
+    },
+    "15-ping-tracefix/rx.bin": {
+      "bytes": 254,
+      "sha256": "c5965cc2a9d589fbffc284541644804118eb3efd0cd8e9dcacd2ba02c573d217"
+    },
+    "16-tracefix-capture-plan.json": {
+      "bytes": 1000,
+      "sha256": "6794044dc0b66c1a90c3d9415d8e1f94b3c88358f62a5f7aae055784370de8a1"
+    },
+    "16-tracefix-capture/rx.bin": {
+      "bytes": 1798,
+      "sha256": "379cedbdd55cd9e5f4183b5320bc33dbc31262b7aade28cf0342bc87e0c7f171"
+    },
+    "16-tracefix-capture/session.json": {
+      "bytes": 3381,
+      "sha256": "c2aedbd1166fe2ead45d4b1f65fdd5998d1dd1516779ade56a3efe4324cd4444"
+    },
+    "17-open-memory-rx.bin": {
+      "bytes": 216,
+      "sha256": "aa4b84222d9592650c26a5cb806821e3d462159b349d1ab89682ac2c8517ff3f"
+    }
+  },
+  "time_basis": "Firmware processing/receive bounds and host receipt times; no exact wire timing."
+}

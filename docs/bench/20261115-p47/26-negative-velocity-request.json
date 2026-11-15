@@ -1,0 +1,32 @@
+{
+  "plan": "velocity-plan.json",
+  "node": 1,
+  "expected": "duration refusal before downloads; later steps unsent",
+  "steps": [
+    "@47100 host 0",
+    "@47101 useaddr 1",
+    "@47102 debug off",
+    "TB1,47001,1,30,500,500,4000,2026111501,2,2,262546,12,32,4096,1,0,1024,512,10000,15000,500",
+    "@47103 debug raw",
+    "@47104 velocity 30 rpm motor 1000 configured fast"
+  ],
+  "helper": "scripts/s2_bench_console.py",
+  "timeout_s": 10,
+  "terminal_timeout_s": 30,
+  "waiver": {
+    "statement": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "unattended": true,
+    "covers_motion": true,
+    "physical_observer": null,
+    "independent_cutoff_operator": null,
+    "legacy_attended_field": 1,
+    "meaning": "Existing application waiver exception: host gate satisfied by written motion waiver, not observed attendance",
+    "contract": "docs/hardware_bench.md unattended-waiver/waiver-covers-motion; scripts/s2_bench.py waiver checks",
+    "qualification_flags": {
+      "start": false,
+      "stop": false,
+      "mode_change": false,
+      "reverse": false
+    }
+  }
+}

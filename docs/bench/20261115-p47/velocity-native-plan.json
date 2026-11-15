@@ -1,0 +1,83 @@
+{
+  "purpose": "Finite native public velocity/owner experiment, with complete bounded bench record rather than streamed JSON diagnostics",
+  "prerequisite_image": "28-flash-final and matching29-ping-final; new joint reservation and80-record console buffer",
+  "fixture": "OPTAK ESP32-S2, ESP-Prog2 94A990398B40 on COM15, CL86-C nodes 1 and 2, LC60H2127, 1 Mbit/s",
+  "waiver": {
+    "statement": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "unattended": true,
+    "covers_motion": true,
+    "physical_observer": null,
+    "independent_cutoff_operator": null,
+    "legacy_attended_field": 1,
+    "meaning": "Existing application waiver exception: host gate satisfied by written motion waiver, not observed attendance",
+    "contract": "docs/hardware_bench.md unattended-waiver/waiver-covers-motion; scripts/s2_bench.py waiver checks",
+    "qualification_flags": {
+      "start": false,
+      "stop": false,
+      "mode_change": false,
+      "reverse": false
+    }
+  },
+  "physical_observation": null,
+  "hardware_qualified": false,
+  "nodes": [
+    1,
+    2
+  ],
+  "sequential": true,
+  "intent": {
+    "rpm": 30,
+    "direction": "positive native motor RPM only",
+    "ramps_ms": [
+      500,
+      500
+    ],
+    "duration_ms": 12000,
+    "poll_interval_ms": 5000,
+    "native_deadline_ms": 23000,
+    "stop_kind": "quick",
+    "runtime_max_polls": 3,
+    "reserved_terminals": 125,
+    "terminal_capacity": 128,
+    "rate_times_requested_duration_turns": 6
+  },
+  "source_scope": {
+    "documented": "60FF target RPM, 6083/6084 ramp milliseconds; ZH86 mode-3 target-before-enable candidate",
+    "conflicting": "EN86 ordering, signedness/reverse, generic status layout and stop semantics remain unresolved",
+    "specimen_observations": "Existing S18 mode-3 start/quick-stop records and today's read baseline; these do not grant family-wide qualification",
+    "experimental_gate": "Existing VelocityGate experiment with startQualified, stopQualified, modeChangeQualified and reverseQualified false",
+    "physical_claims": "None: no shaft travel, direction, torque, speed or standstill observation"
+  },
+  "qualification_flags": {
+    "start": false,
+    "stop": false,
+    "mode_change": false,
+    "reverse": false
+  },
+  "preconditions": [
+    "Fresh exact identity and full state acquired by existing TV route before writes",
+    "Mode3; clean released/latched-release stationary experimental predicate",
+    "Current2200/DI baseline retained, no direction or input change",
+    "First node must settle with needsStop false before another node runs"
+  ],
+  "wire_intent": [
+    "60FF=30 I32,6083=500 U32,6084=500 U32",
+    "6040=6,7,15 U16 only under reviewed experiment with required new state cycles",
+    "Own explicit QUICK_STOP6040=000B from this run latest acknowledged000F; fresh stop observations",
+    "No mode write, release, save, reset, clear, input change or motion replay"
+  ],
+  "failure_handling": [
+    "Keep original outcome and unknown effects; no automatic motion replay or reconnect",
+    "Existing S16 may request one separate QUICK_STOP only when needsStop is true, own stop execution is NOT_TRANSMITTED, and interruption is not DRIVE_FAULT",
+    "S16 stop has11s from its separate request, clipped to existing60s route cutoff; it can use its existing best-effort/held-replacement path",
+    "23s is the velocity deadline, not a universal route bound. Record all fallback identities/evidence",
+    "After any failure inspect retained results before any separately admitted reconciliation; do not start node2 while node1 is unresolved"
+  ],
+  "capture": {
+    "helper": "scripts/s2_bench.py --command velocity",
+    "seconds": 60,
+    "raw_traffic": "existing BenchRoute record, no second receiver",
+    "timestamps": "processing/receive bounds, not exact physical arrival",
+    "output_kind": "finite conditional experiment; successful terminal is controller evidence only"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "purpose": "Current-image local console inspection and one DEC1 upload1000:00 on node1; no downloads, NMT or motion",
+  "fixture": "COM15 ESP-Prog2 94A990398B40; running0db0c1f2 ELF1f8d76db; existing1Mbit/s owner",
+  "prerequisite": "Captured silent-request interval C4701; no active trial; physical no-TX unproved",
+  "authorization": "Standing and2026-11-15 unattended authorization",
+  "steps": [
+    "o",
+    "@47001 version",
+    "@47002 config",
+    "@47003 host 0",
+    "@47004 debug raw",
+    "@47005 probe 1000"
+  ],
+  "bounds": "One upload,1000ms service deadline; runner stops on error; retain terminal and raw diagnostic copies",
+  "cleanup": "No automaticretry/recovery; inspect result before release; trace disabled separately after evidence",
+  "physical_observation": "None"
+}

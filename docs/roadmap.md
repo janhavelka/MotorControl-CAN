@@ -2,7 +2,8 @@
 
 The [current independent-audit disposition](audit/2026-11-15_auditor_disposition.md)
 maps all 125 historical findings to current code and remaining owners. Next software
-work is prompt 46; public descriptor cleanup remains 49, concurrent application
+work after the finite prompt47 campaign is the independent prompt49 documentation
+and package audit; public descriptor cleanup remains 49, concurrent application
 axes 53 and reviewed recovery/retry policies 55. These obligations are not duplicated
 in new prompts or marked implemented by correcting their instructions.
 
@@ -19,7 +20,10 @@ Prompt43 adds the [tested Python console client](runners.md), pure evidence and
 one explicit typed probe/read with offline plan/self-test. No hardware ran in
 this stage. Prompt44 now adds [finite campaigns and sessions](bench_scenarios.md)
 with host tests and no live qualification. Prompt45's [integration audit](reports/prompt_45.md)
-closes the assigned software failure checks; the next assignment is46.
+closes the assigned software failure checks; prompt46 consumers are complete.
+The [prompt47 campaign](reports/prompt_47.md) retains actual S2/two-node evidence
+and fixes, with physical qualification still Partial. Prompt48 requires its own
+failure/load fixture and prerequisites; no qualification is inherited from a read.
 
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
@@ -130,7 +134,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 43-44 | Python session/parser and finite campaigns | Client and finite campaigns/session evidence implemented and host-tested. Physical campaign qualification remains47-48; explicit connection, finite bounds and no uncertain-write replay |
 | 45 | Integrated ownership/motion faults | Complete software audit and fixes; real fake-owner settings/TPDO1 tests, retained failure evidence and bounded pressure traces. Existing firmware/remapping gates remain Partial in their original prompts. |
 | 46 | FieldCore-like/alternate-drive consumers | Independent installed consumer, production contrasts and operation reconciliation; physical support remains Lichuan-only and gated. [Report](reports/prompt_46.md) |
-| 47-48 | Finite physical tests and sustained-load qualification | Pending; bounded two-node S2 connectivity exists, while motor/load and sustained qualification retain their separate fixture/evidence requirements |
+| 47-48 | Finite physical tests and sustained-load qualification | 47 Partial: current two-node acquisition and finite experimental velocity/stop records retained. Independent physical motion/electrical evidence remains missing. 48 Pending; sustained/load and related-model qualification have their own prerequisites |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
 The assigned [prompt 19](prompts/19_typed_reads.md) retains its Q20 probe

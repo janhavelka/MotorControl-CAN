@@ -1,5 +1,13 @@
 # Requirement coverage after pure CAN/SDO checks
 
+[Prompt47](reports/prompt_47.md) adds current-image S2 and two-node acquisition
+evidence, two finite experimental velocity/quick-stop runs, explicit
+diagnostic-loss regressions and retained failed captures.
+Its per-feature campaign outcomes distinguish communication, host contracts and
+physical qualification. No dictionary conflict, general model capability or
+physical motion qualification is closed by these unattended observations.
+
+
 Prompt46 adds [independent installed consumers](fieldcore_handoff.md), production
 C1-C11 contrasts and mechanical native/API/CLI/Python reconciliation.
 `python scripts/check_lichuan_operations.py --json` reports all202 EDS scalar

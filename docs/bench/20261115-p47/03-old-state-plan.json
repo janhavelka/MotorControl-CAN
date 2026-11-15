@@ -1,0 +1,27 @@
+{
+  "purpose": "DEC1 state/monitor/feedback baseline of both nodes before deliberate firmware replacement",
+  "steps": [
+    "@47006 release 1",
+    "@47007 read state status 1000",
+    "@47008 release 2",
+    "@47009 read state monitors 1000",
+    "@47010 release 3",
+    "@47011 read state feedback 1000",
+    "@47012 release 4",
+    "@47013 host 1",
+    "@47014 probe 1000",
+    "@47015 release 5",
+    "@47016 read state status 1000",
+    "@47017 release 6",
+    "@47018 read state monitors 1000",
+    "@47019 release 7",
+    "@47020 read state feedback 1000",
+    "@47021 release 8",
+    "@47022 debug off",
+    "@47023 drv"
+  ],
+  "bounds": "1000ms per read, stop at first failure, no retry",
+  "authorization": "Standing and2026-11-15 unattended authorization",
+  "changes": "No CAN writes/NMT; releases retain historical capture; disable diagnostic trace only",
+  "physical_observation": "Absent; software stationary is not physical standstill"
+}

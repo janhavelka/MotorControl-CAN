@@ -1,0 +1,327 @@
+{
+  "schema": 1,
+  "prompt": 47,
+  "captured_utc": "2026-11-15T12:34:35.614725+00:00",
+  "scope": "Read-only finite bench/evidence/failure-retention refresh; no sibling execution, edits, fetch, Git mutation or hardware.",
+  "repository": "MotorControl-RS",
+  "initial_audit": {
+    "head": "f0741d459c7cfa16c762cac64f4a7a2708c0c76b",
+    "dirty_count": 35,
+    "provenance": "Lead initial prompt47 audit remains in docs/reports/prompt_47.md; initial dirty-path bytes were not supplied to this follow-up."
+  },
+  "current": {
+    "head": "4a5d09d011edac91ec1aa78a747493aac61dc82b",
+    "dirty_count": 30,
+    "dirty_paths": [
+      {
+        "status": " M",
+        "path": "CHANGELOG.md"
+      },
+      {
+        "status": " M",
+        "path": "CMakeLists.txt"
+      },
+      {
+        "status": " M",
+        "path": "docs/README.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/backlog.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/cli_contract.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/ess_actions.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/ess_velocity.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/prompts/standalone/README.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/reports/2026-11-15_standalone_audit_revalidation.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/reports/README.md"
+      },
+      {
+        "status": " M",
+        "path": "examples/probe_cli/GroupApp.h"
+      },
+      {
+        "status": " M",
+        "path": "examples/probe_cli/ProbeApp.cpp"
+      },
+      {
+        "status": " M",
+        "path": "examples/probe_cli/ProbeApp.h"
+      },
+      {
+        "status": " M",
+        "path": "examples/probe_cli/ProbeConsole.cpp"
+      },
+      {
+        "status": " M",
+        "path": "examples/probe_cli/ProbeConsole.h"
+      },
+      {
+        "status": " M",
+        "path": "scripts/_bench_evidence.py"
+      },
+      {
+        "status": " M",
+        "path": "scripts/bench_probe.py"
+      },
+      {
+        "status": " M",
+        "path": "scripts/verify.py"
+      },
+      {
+        "status": " M",
+        "path": "src/profiles/ess_rs/Communication.cpp"
+      },
+      {
+        "status": " M",
+        "path": "src/profiles/ess_rs/DriverSettings.cpp"
+      },
+      {
+        "status": " M",
+        "path": "src/profiles/ess_rs/Homing.cpp"
+      },
+      {
+        "status": " M",
+        "path": "src/profiles/ess_rs/Velocity.cpp"
+      },
+      {
+        "status": " M",
+        "path": "test/bench_probe_test.py"
+      },
+      {
+        "status": " M",
+        "path": "test/communication_harness_test.py"
+      },
+      {
+        "status": " M",
+        "path": "test/group_app_test.cpp"
+      },
+      {
+        "status": " M",
+        "path": "test/persistence_harness_test.py"
+      },
+      {
+        "status": " M",
+        "path": "test/stop_path_app_test.cpp"
+      },
+      {
+        "status": " M",
+        "path": "test/velocity_app_test.cpp"
+      },
+      {
+        "status": " M",
+        "path": "test/velocity_test.cpp"
+      },
+      {
+        "status": "??",
+        "path": "docs/reports/2026-11-15_standalone_15_16_audit.md"
+      }
+    ],
+    "status_porcelain": " M CHANGELOG.md\n M CMakeLists.txt\n M docs/README.md\n M docs/backlog.md\n M docs/cli_contract.md\n M docs/ess_actions.md\n M docs/ess_velocity.md\n M docs/prompts/standalone/README.md\n M docs/reports/2026-11-15_standalone_audit_revalidation.md\n M docs/reports/README.md\n M examples/probe_cli/GroupApp.h\n M examples/probe_cli/ProbeApp.cpp\n M examples/probe_cli/ProbeApp.h\n M examples/probe_cli/ProbeConsole.cpp\n M examples/probe_cli/ProbeConsole.h\n M scripts/_bench_evidence.py\n M scripts/bench_probe.py\n M scripts/verify.py\n M src/profiles/ess_rs/Communication.cpp\n M src/profiles/ess_rs/DriverSettings.cpp\n M src/profiles/ess_rs/Homing.cpp\n M src/profiles/ess_rs/Velocity.cpp\n M test/bench_probe_test.py\n M test/communication_harness_test.py\n M test/group_app_test.cpp\n M test/persistence_harness_test.py\n M test/stop_path_app_test.cpp\n M test/velocity_app_test.cpp\n M test/velocity_test.cpp\n?? docs/reports/2026-11-15_standalone_15_16_audit.md\n",
+    "stable_across_capture_checks": true
+  },
+  "concurrency_note": "Dirty count advanced from the lead refresh20 through25 to30 during this review; this record names the actual final stable capture, not a claim about later sibling state.",
+  "comparison_limit": "Unchanged AST comparisons concern initial/current commits, not a reconstructed initial dirty worktree. The live named functions and evidence callers were reread.",
+  "files": [
+    {
+      "path": "scripts/bench_session.py",
+      "sha256": {
+        "initial_head": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350",
+        "current_head": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350",
+        "working_tree": "34f101fdd70131a60d1b1f5e3ee28d67ce690aff57f49d112a42388e82822350"
+      },
+      "symbols": [
+        {
+          "symbol": "run_recorded",
+          "line": 73,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "snapshot",
+          "line": 23,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "cached_failure",
+          "line": 33,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        }
+      ]
+    },
+    {
+      "path": "scripts/bench_motion.py",
+      "sha256": {
+        "initial_head": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0",
+        "current_head": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0",
+        "working_tree": "aa628d6a59f105556bcfa11e1f1aacf45a78e7167d3c25fc6e8b653c6f8220e0"
+      },
+      "symbols": [
+        {
+          "symbol": "phase_plan",
+          "line": 60,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "profile_snapshot",
+          "line": 21,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "_run_phase",
+          "line": 161,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        }
+      ]
+    },
+    {
+      "path": "scripts/bench_probe.py",
+      "sha256": {
+        "initial_head": "b7e4b32812d5b29909026c2cfce997a73fa56861c03262683804b7ccf5f87708",
+        "current_head": "69651a0e33823a785cd2e1e893f3c3b91f2a6346e762a8bfe1cadf84684654dd",
+        "working_tree": "2b41ba0c7939cc9d26e19295bdfba5483495ce9a6fc5f189b5522af0e2856594"
+      },
+      "symbols": [
+        {
+          "symbol": "observe_stopped",
+          "line": 3536,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "cleanup_stop_attempts",
+          "line": 3561,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        },
+        {
+          "symbol": "move_campaign",
+          "line": 3577,
+          "unchanged_vs_initial_head_ast": true,
+          "unchanged_vs_current_head_ast": true
+        }
+      ]
+    },
+    {
+      "path": "scripts/_bench_evidence.py",
+      "sha256": {
+        "initial_head": "d4de59f6be86559b430c941cae197b0742949d9ea7cadd5fbdf30a50743c2286",
+        "current_head": "4b9d250889d0b7aa62e4dc9f7ba0b51a98e2b418d47cd5a7af0a7753f0495abd",
+        "working_tree": "13d353fb0896c2553324966b0a1f0b2b442634af807e2162e2560c79ec9c52de"
+      },
+      "symbols": []
+    }
+  ],
+  "committed_seam_delta": "M\tscripts/_bench_evidence.py\nM\tscripts/bench_probe.py\n",
+  "working_seam_delta_vs_initial_head": " scripts/_bench_evidence.py | 175 +++++++++++++++++++++++++++++++++++++--------\n scripts/bench_probe.py     |  84 +++++++++++++++++-----\n 2 files changed, 211 insertions(+), 48 deletions(-)\n",
+  "decisions": [
+    {
+      "path": "scripts/bench_session.py",
+      "symbols": [
+        "run_recorded",
+        "snapshot",
+        "cached_failure"
+      ],
+      "disposition": "adopt evidence; unchanged",
+      "behavior": "Exclusive evidence files precede port ownership; bounded snapshots and evidence; primary/cleanup failures remain failures; cached-only failure diagnostics stop on broken framing or first failure. Reject implicit CAN configuration reads from RS refresh defaults."
+    },
+    {
+      "path": "scripts/bench_motion.py",
+      "symbols": [
+        "phase_plan",
+        "profile_snapshot",
+        "_run_phase"
+      ],
+      "disposition": "adopt finite plan and retention; unchanged",
+      "behavior": "One explicit profile snapshot/restore attempt, bounded passive settlement, restore only after checked stop and fresh reported zero speed; no replay; original failure retained. Reject ESS action words, fixture units, terminal declarations and automatic profile restoration as CAN policy."
+    },
+    {
+      "path": "scripts/bench_probe.py",
+      "symbols": [
+        "drive_reported_stopped",
+        "observe_stopped",
+        "cleanup_stop_attempts",
+        "move_campaign"
+      ],
+      "disposition": "adopt separate bounded observations/cleanup; reject recovery; unchanged",
+      "behavior": "At most ten read-only stopped observations within one host bound; original motion outcome and cleanup attempts stay separate; status is not shaft evidence. cleanup_stop_attempts recovers after a refused stop then submits one fresh stop; CAN does not import this RS recovery/resubmission or replay uncertain work."
+    },
+    {
+      "path": "scripts/_bench_evidence.py",
+      "symbols": [
+        "write_execution",
+        "check_action",
+        "check_move",
+        "check_velocity",
+        "check_home"
+      ],
+      "disposition": "changed validator evidence; no CAN policy change",
+      "behavior": "Write execution requires qualified confirmed response, no execution_unknown and the original applicable wire deadline; reported codec status must agree with retained raw frames. An observed home completion may coexist with an unconfirmed-trigger failure and retained uncertainty. CAN keeps these distinctions; ESS frames/registers/exception meanings and timing are not copied."
+    },
+    {
+      "path": "scripts/_bench_evidence.py",
+      "symbols": [
+        "check_stop_recovery"
+      ],
+      "disposition": "new separate evidence; reject mechanism adoption",
+      "behavior": "Recovery has its own operation/result/deadline without replacing motor outcome. Copied before-attempt must name the exact stop and prove zero TX, no TX completion, no execution uncertainty and no qualification. This does not authorize CAN retry/recovery/replay or SDO channel reopening."
+    },
+    {
+      "path": "scripts/bench_probe.py",
+      "symbols": [
+        "Console._check_position_clear_qualification",
+        "Console._check_qualification"
+      ],
+      "disposition": "new inspection distinction; no CAN capability adoption",
+      "behavior": "Inspection validates supplied identity/configuration facts and forbids operation/TX/RX fields; inspection grants no qualification or traffic. RS position-clear applicability is not CL86-C zeroing evidence."
+    }
+  ],
+  "other_source_rows": [
+    {
+      "repository": "ADS1115",
+      "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+      "state": "clean; unchanged per lead refresh",
+      "seam": "run_soak contract/evidence split; unchanged since prompt44; not reread"
+    },
+    {
+      "repository": "MCP45HVX1",
+      "head": "abfd749fbc641b9fe29e1eb2d6f6428ec4e9a4e2",
+      "state": "clean; unchanged per lead refresh",
+      "seam": "capture_baseline/output_change_sequence/restore_baseline/verdict; unchanged since initial prompt47 audit; not reread"
+    },
+    {
+      "repository": "FieldCore-node",
+      "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+      "state": "clean; unchanged per lead refresh",
+      "seam": "ownership/result evidence; unchanged since prompt46; not reread"
+    }
+  ],
+  "checks": [
+    "All four reviewed files parsed via ast.parse; no sibling code imported or executed.",
+    "Nine named functions have unchanged ASTs versus both initial/current commits.",
+    "HEAD, exact dirty paths and all four source byte hashes remained stable across capture checks."
+  ],
+  "result": "The live RS delta strengthens evidence validation. Prompt47 adopted/rejected policy remains unchanged; no CAN code or hardware change follows from this audit."
+}

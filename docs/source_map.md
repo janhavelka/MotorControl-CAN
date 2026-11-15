@@ -1,5 +1,21 @@
 # Live source and responsibility map
 
+## Finite hardware evidence (prompt 47)
+
+- [Campaign record](bench/20261115-p47/README.md) and
+  [stage report](reports/prompt_47.md): image, fixture, source audit, failed
+  captures, repeat checks and physical qualification limits.
+- [ProbeConsole](../examples/common/ProbeConsole.cpp): bounded diagnostic copies
+  and FIFO tail counts; [native tests](../test/probe_device_console_test.cpp)
+  exercise blocked output, overflow, reply capacity and complete copied tails.
+- [Python Console](../scripts/bench_probe.py) and
+  [session owner](../scripts/bench_session.py): explicit trace requests, retained
+  loss counters and finite tail capture; [tests](../test/bench_session_test.py)
+  cover delayed bytes, deadlines and primary/cleanup failure retention.
+- [S2 evidence](../scripts/s2_evidence.py): exact running-image comparison,
+  with only the optional SDK `v` prefix normalized on both sides.
+
+
 ## Independent consumers and contrasts (prompt 46)
 
 - [FieldCore-like module](../examples/fieldcore_consumer/README.md): installed

@@ -1,0 +1,25 @@
+{
+  "scenario": "UART passive capture then firmware ping only",
+  "revision": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+  "started_utc": "2026-11-15T11:35:05.360549+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "uart_baud": 115200,
+  "bounds": {
+    "passive_seconds": 5,
+    "ping_capture_seconds": 2,
+    "max_bytes": 131072
+  },
+  "intent": "Read UART without reset; one p byte queries bench firmware only; no CAN command",
+  "observation": "No physical shaft observer; user authorizes unattended tests; no physical qualification inferred",
+  "cleanup": "Close UART without resetting either device; no replay",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "passive_bytes": 0,
+  "ping_sent_utc": "2026-11-15T11:35:10.457882+00:00",
+  "ping_bytes_written": 1
+}

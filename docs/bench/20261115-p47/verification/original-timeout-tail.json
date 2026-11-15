@@ -1,0 +1,29 @@
+{
+  "mode": "remaining-contracts",
+  "omitted_gates": [],
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "root": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p47-full-tail\\20261115T120024642248Z-32496-gynqaifo",
+  "status": "passed",
+  "tools": {},
+  "steps": [
+    {
+      "name": "remaining_contracts",
+      "command": [
+        "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+        "--test-dir",
+        ".build\\p47-full\\20261115T114255856427Z-52988-_dcsjc7v\\native",
+        "--output-on-failure",
+        "-R",
+        "^(lichuan_operations_contract|combined_contract|canopen_service_fit)$"
+      ],
+      "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+      "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p47-full-tail\\20261115T120024642248Z-32496-gynqaifo\\00_remaining_contracts.log",
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 52.969
+    }
+  ],
+  "original_full_summary": ".build\\p47-full\\20261115T114255856427Z-52988-_dcsjc7v\\summary.json"
+}

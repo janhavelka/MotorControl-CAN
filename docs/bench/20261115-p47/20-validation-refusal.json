@@ -1,0 +1,5 @@
+{
+  "result": "refused before port access",
+  "reason": "s2_pdo does not accept single-byte o; use s2_bench_console for console opening",
+  "superseding_plan": "21-allocation-capture-plan.json"
+}

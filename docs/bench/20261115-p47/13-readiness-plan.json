@@ -1,0 +1,163 @@
+{
+  "purpose": "Exact thirty-row motion-readiness upload inventory once/node, including2200/2201 and assignedI/O. Q20 experiment, never a harmless-read qualification",
+  "fields": [
+    {
+      "index": "0x1001",
+      "subindex": 0,
+      "documented_width": 1
+    },
+    {
+      "index": "0x603f",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x6041",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x6061",
+      "subindex": 0,
+      "documented_width": 1
+    },
+    {
+      "index": "0x2100",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2101",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x6064",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x606c",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x607a",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x6081",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x6083",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x6084",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x605d",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x60ff",
+      "subindex": 0,
+      "documented_width": 4
+    },
+    {
+      "index": "0x2200",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2201",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2202",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x607d",
+      "subindex": 1,
+      "documented_width": 4
+    },
+    {
+      "index": "0x607d",
+      "subindex": 2,
+      "documented_width": 4
+    },
+    {
+      "index": "0x2500",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2501",
+      "subindex": 0,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 1,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 2,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 3,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 4,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 5,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 6,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 7,
+      "documented_width": 2
+    },
+    {
+      "index": "0x2400",
+      "subindex": 8,
+      "documented_width": 2
+    },
+    {
+      "index": "0x60fd",
+      "subindex": 0,
+      "documented_width": 4
+    }
+  ],
+  "nodes": [
+    1,
+    2
+  ],
+  "authorization": "2026-11-15 explicit unattended authorization",
+  "physical_observation": "FaultLED, shafts and external terminals unobserved",
+  "bounds": "Five-second firmware budget/ten-second UARTcapture pernode; stop on firstfailure, no retries",
+  "cleanup": "Release only retained record after successful capture; no clear/save/reset/setting"
+}

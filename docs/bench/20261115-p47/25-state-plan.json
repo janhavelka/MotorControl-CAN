@@ -1,0 +1,15 @@
+{
+  "purpose": "Post-fix read regression before any motion candidate; DEC-1 status, monitor and feedback only",
+  "image": "18-flash-allocation /19-ping-allocation",
+  "nodes": [
+    1,
+    2
+  ],
+  "blocks": [
+    "status",
+    "monitors",
+    "feedback"
+  ],
+  "writes": false,
+  "physical_observation": null
+}

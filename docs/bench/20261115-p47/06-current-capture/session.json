@@ -1,0 +1,99 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-15T11:45:43.395036+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261115-p47/06-current-capture-plan.json",
+    "--output",
+    "docs/bench/20261115-p47/06-current-capture"
+  ],
+  "plan_file": "docs/bench/20261115-p47/06-current-capture-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "272d63a8b5b369f90743b4fdc230004464f2126e5d1a5b413881586b24f9b459",
+    "s2_evidence.py": "fc588b7282a1ed5eedb7e9a967d5c2e57c4b2679b0ac13eb0c89f4e802dc5b1e"
+  },
+  "host_revision": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "60bcefe5f2bd29429b8019361374e1776a2b5972",
+    "elf": "99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597",
+    "sdk": "v5.5.5-dirty",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "13",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "5",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Explicit local controller startup; no upload or download",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-15T11:45:43.840270+00:00",
+      "monotonic": 303179.609,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "C4702,5,64",
+      "tx_hex": "43343730322c352c36340a",
+      "utc": "2026-11-15T11:45:43.851294+00:00",
+      "monotonic": 303179.625,
+      "reply": "CAP admitted cap=4702 seconds=5 frames=64 gpio=18 silentHigh=1; TX gate closed, silent level requested, nothing sent",
+      "reply_line": 3,
+      "end": "END capture cap=4702 stored=0 overflow=0 lost=0; r=release",
+      "end_line": 12,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-15T11:45:48.963316+00:00",
+      "monotonic": 303184.734,
+      "reply": "CAP record released; level, gate and SDO state unchanged",
+      "reply_line": 13,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-15T11:45:48.971323+00:00",
+      "monotonic": 303184.734,
+      "reply": "STATS running=1 inhibited=0 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9176 t=235013937 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=2015 conRej=22",
+      "reply_line": 14,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-15T11:45:50.162488+00:00",
+  "bytes": 1628
+}

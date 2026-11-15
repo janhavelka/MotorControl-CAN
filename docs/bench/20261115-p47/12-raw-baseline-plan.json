@@ -1,0 +1,32 @@
+{
+  "purpose": "Reviewed Q20 raw baseline: exact existing identity/network inventory once per specimen; no claim of non-consuming reads",
+  "authorization": "Standing authorization and2026-11-15 unattended waiver; faultLED and shafts unobserved",
+  "sources": "Original EDS and EN86pp11,16-19 rechecked; RawEvidence.cpp fields[]; 603F occurs once per specimen in this explicit experiment",
+  "gates": "No Q20 resolution, source correction, PDO qualification or session reopening",
+  "steps": [
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "purpose": "Read-only existing-feature regression after the two separately completed finite velocity trials",
+  "fixture": "COM15 ESP-Prog2 94A990398B40; same bf8a0d95 S2 image; nodes 1 and 2 at 1000000 bit/s",
+  "precondition": "Trials 47301/47302 each ended with own stop complete, needsStop=0, fenced=0 and no record loss; local records released separately",
+  "sequence": "For node 1 then node 2, ordinary bench_probe state blocks status, monitors and feedback with explicit raw tracing and checked terminal release",
+  "read_objects": ["6041", "6061", "2100", "2101", "2102", "6064", "606C"],
+  "bounds": "Six finite invocations, existing per-command deadlines, stop on the first failed invocation; no retry",
+  "writes": "None: trace control and record release are local only",
+  "expected_evidence": "Exact request/reply pairs and state values with loss counters; zero reported velocity after each stop",
+  "physical_observation": null,
+  "qualification": "Drive-reported state only; no physical standstill or electrical qualification",
+  "cleanup": "Retain all evidence. No stop, reset, recovery or reconnect is implied by a read failure. Final local resource inspection only."
+}

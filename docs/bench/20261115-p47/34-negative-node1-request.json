@@ -1,0 +1,16 @@
+{
+  "plan": "velocity-plan.json",
+  "image": "28-flash-final/29-ping-final",
+  "node": 1,
+  "expected": "setup-budget refusal before downloads; verifies both axis allocations without starting motion",
+  "steps": [
+    "@472010 host 0",
+    "@472011 useaddr 1",
+    "@472012 debug off",
+    "TB1,47201,1,30,500,500,4000,2026111501,2,2,262546,12,32,4096,1,0,1024,512,10000,15000,500",
+    "@472013 debug raw",
+    "@472014 velocity 30 rpm motor 1000 configured fast"
+  ],
+  "timeout_s": 10,
+  "terminal_timeout_s": 30
+}

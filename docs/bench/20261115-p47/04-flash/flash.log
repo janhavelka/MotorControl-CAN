@@ -1,0 +1,54 @@
+esptool.py --chip esp32s2 --port COM15 --baud 115200 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 bootloader/bootloader.bin 0x10000 motorcontrol_can_s2_bench.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.12.0
+Serial port COM15
+Connecting....
+Chip is ESP32-S2FH4 (revision v1.0)
+Features: WiFi, Embedded Flash 4MB, No Embedded PSRAM, ADC and temperature sensor calibration in BLK2 of efuse V2
+Crystal is 40MHz
+MAC: dc:b4:d9:b5:a6:ce
+Uploading stub...
+Running stub...
+Stub running...
+Configuring flash size...
+Flash will be erased from 0x00001000 to 0x00004fff...
+Flash will be erased from 0x00010000 to 0x000bffff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 14592 bytes to 9991...
+Writing at 0x00001000... (100 %)
+Wrote 14592 bytes (9991 compressed) at 0x00001000 in 1.1 seconds (effective 111.1 kbit/s)...
+Hash of data verified.
+Compressed 720672 bytes to 382545...
+Writing at 0x00010000... (4 %)
+Writing at 0x0001baf4... (8 %)
+Writing at 0x00029f34... (12 %)
+Writing at 0x000343fc... (16 %)
+Writing at 0x0003a13f... (20 %)
+Writing at 0x0003ff3e... (25 %)
+Writing at 0x00045bdb... (29 %)
+Writing at 0x0004b851... (33 %)
+Writing at 0x00050ed8... (37 %)
+Writing at 0x00056c3d... (41 %)
+Writing at 0x0005d316... (45 %)
+Writing at 0x000632be... (50 %)
+Writing at 0x000693c4... (54 %)
+Writing at 0x0006f28b... (58 %)
+Writing at 0x00075838... (62 %)
+Writing at 0x0007b7fb... (66 %)
+Writing at 0x00081b8f... (70 %)
+Writing at 0x00087e5a... (75 %)
+Writing at 0x0008ea8e... (79 %)
+Writing at 0x00094f9b... (83 %)
+Writing at 0x0009dd00... (87 %)
+Writing at 0x000a48e1... (91 %)
+Writing at 0x000b733a... (95 %)
+Writing at 0x000bd93c... (100 %)
+Wrote 720672 bytes (382545 compressed) at 0x00010000 in 35.0 seconds (effective 164.7 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.1 seconds (effective 207.1 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

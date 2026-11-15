@@ -1,0 +1,18 @@
+{
+  "purpose": "Fresh current-image DEC1 status/monitor/feedback baseline on both nodes",
+  "blocks": [
+    "status",
+    "monitors",
+    "feedback"
+  ],
+  "nodes": [
+    1,
+    2
+  ],
+  "service_deadline_ms": 1000,
+  "host_deadline_s": 5,
+  "writes": false,
+  "first_active_upload": "1000 already completed by08-quick-node1",
+  "trace": "Explicit bounded owner copies; inspect per-request TX/RX pairs",
+  "cleanup": "Release each completed result; stop at first failed invocation; no retries"
+}

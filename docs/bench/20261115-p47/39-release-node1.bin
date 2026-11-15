@@ -1,0 +1,3 @@
+TRIAL record released; sessions and uncertainty retained
+HEAP free=2880 largest=1024 minimum=2880 regions=3 r0=3ff9e000:8168:1112:1112 r1=3fffc000:14864:720:720 r2=3ffd2950:169648:984:556 reserved=1f arena=0 arenaBytes=23688
+STATS running=1 inhibited=0 rx=144 tx=144 dropped=0 errors=0 flags=00000000 stackFree=5636 t=407888962 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=7000 conRej=8370

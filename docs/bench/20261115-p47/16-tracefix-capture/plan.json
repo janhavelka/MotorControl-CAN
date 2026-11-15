@@ -1,0 +1,33 @@
+{
+  "purpose": "Prompt47 trace-fix image: explicit startup, receive capture and pre-console heap before first active upload.",
+  "authorization": "Standing bench authorization plus 2026-11-15 explicit unattended authorization. Shaft, torque and electrical silence unobserved.",
+  "fixture": "OPTAK ESP32-S2; TJA1051 RX16 TX17 S18; nodes1/2 at1Mbit/s last measured; COM15 ESP-Prog2 94A990398B40",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "Explicit local controller startup; no upload or download"
+    },
+    {
+      "send": "C4703,5,64",
+      "expect": "CAP admitted",
+      "end": "END capture",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "CAP record released"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    },
+    {
+      "send": "M",
+      "expect": "HEAP",
+      "end": "HEAPREG",
+      "end_timeout_s": 5
+    }
+  ],
+  "image": "14-flash-tracefix, verified by15-ping-tracefix"
+}

@@ -19,6 +19,9 @@
   Runtime timing, stop deadlines and the 128-terminal cap are unchanged.
 - Increase the full verifier's aggregate hang guard to cover the measured suite;
   individual test limits and checks are unchanged.
+- Retain current-image two-node acquisition and one finite +30 rpm/quick-stop
+  experiment per node, including exact traffic and unchanged qualification gates.
+  Prompt47 remains Partial for physical motion, electrical and homing evidence.
 
 
 ### Independent prompt46 audit (2026-11-15)

@@ -1,0 +1,37 @@
+{
+  "source_revision": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+  "scope": "Final local documentation checks after the bench evidence review; implementation checks retained separately",
+  "checks": [
+    {
+      "command": "doxygen Doxyfile",
+      "result": "passed",
+      "exit_code": 0,
+      "seconds": 7.559864
+    },
+    {
+      "command": "python scripts/check_promptset.py",
+      "result": "passed"
+    },
+    {
+      "command": "python scripts/check_repository.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "implementation_ci": {
+    "run": 43714816653,
+    "result": "success",
+    "jobs": 5
+  },
+  "hardware_scope": "See final_review.json: unattended controller observations, no physical qualification",
+  "staged_checks": {
+    "source_documentation_whitespace": "passed with original evidence directory excluded",
+    "original_evidence_whitespace": "CRLF and trailing compiler-log blank lines retained; unfiltered check reports these original bytes",
+    "evidence_blobs_equal_original_files": 249,
+    "independent_review_source_hashes_matched": 92,
+    "promptset_INDEX": "passed: 140 reference artifacts matched"
+  }
+}

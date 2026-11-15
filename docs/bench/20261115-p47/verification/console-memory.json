@@ -1,0 +1,24 @@
+{
+  "elf": ".build\\p47-firmware-trace\\20261115T120336344330Z-27408-v7vohnq2\\s2\\motorcontrol_can_s2_bench.elf",
+  "elf_sha256": "d2fb42400cfa0083c4bcee1bf5157c5c41074c0dce97df9633675b44de70cb53",
+  "types": {
+    "ProbeDevice": 6664,
+    "ProbeConsole": 9824,
+    "TraceRecord": 24,
+    "BenchAxis": 3856,
+    "BenchConsole": 2552
+  },
+  "baseline_types": {
+    "ProbeDevice": 6664,
+    "ProbeConsole": 6744,
+    "BenchAxis": 3856,
+    "BenchConsole": 2552
+  },
+  "ProbeConsole_increase": 3080,
+  "three_console_blocks": 19040,
+  "map_symbols": {
+    "_heap_start": "0x3ffd2950",
+    "_iram_end": "0x400316bc"
+  },
+  "scope": "S2 source build/DWARF review only; no hardware allocation or timing qualification"
+}

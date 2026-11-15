@@ -1,5 +1,13 @@
 # Executable backlog
 
+Prompt47's [finite campaign](reports/prompt_47.md) exercises the current S2 image
+and both CL86-C nodes. It repairs diagnostic burst/tail retention and records
+fixture limitations separately. Remaining qualification needs observed shaft
+direction/travel/standstill, actual supply/nameplate and electrical silence/
+retirement evidence, plus wired and reviewed homing signals. Unattended consent
+does not supply those measurements. See the report for failed and repeated tests.
+
+
 The [November 15 auditor disposition](audit/2026-11-15_auditor_disposition.md)
 checks all 125 findings against current code. The original A-16 omissions were
 fixed earlier; its newer `Discovery.h` umbrella omission is fixed in this review.

@@ -1,0 +1,14 @@
+PONG target=esp32s2 base=60bcefe5f2bd29429b8019361374e1776a2b5972 elf=99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597 sdk=v5.5.5-dirty running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=13 trial=0 motion=0 pdo=5 watch=0 capture=0
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+CAP admitted cap=4702 seconds=5 frames=64 gpio=18 silentHigh=1; TX gate closed, silent level requested, nothing sent
+CAP_REC cap=4702 reason=duration seconds=5 capacity=64 stored=0 overflow=0 tapDropped=0 pre=0 post=0 untimed=0 txRefused=0 lost=0
+CAP_TIME cap=4702 begin=229895594 end=234895937 nominal=234895594 gap=1358 clock=esp_timer_us
+CAP_LEVEL cap=4702 gpio=18 silentHigh=1 begin=1 exit=1 reopened=1 at=234895937 latched=0
+CAP_CTRL cap=4702 which=0 t=229895594 epoch=1 counters=1 tec=0 rec=0 inhibited=0 adapterInhibited=0 twaiDropped=0 twaiErrors=0 twaiFlags=00000000
+CAP_CTRL cap=4702 which=1 t=234895937 epoch=1 counters=1 tec=0 rec=0 inhibited=0 adapterInhibited=0 twaiDropped=0 twaiErrors=0 twaiFlags=00000000
+CAP_OWNER cap=4702 which=0 rx=0 dropped=0 lost=0 unmatched=0 tx=0 txRej=0 busOff=0 refused=0
+CAP_OWNER cap=4702 which=1 rx=0 dropped=0 lost=0 unmatched=0 tx=0 txRej=0 busOff=0 refused=0
+CAP_IMAGE cap=4702 base=60bcefe5f2bd29429b8019361374e1776a2b5972 elf=99dfe91569607c7cf8cd273648667d927d2369034cdb513150aceadf4e004597
+END capture cap=4702 stored=0 overflow=0 lost=0; r=release
+CAP record released; level, gate and SDO state unchanged
+STATS running=1 inhibited=0 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9176 t=235013937 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=2015 conRej=22

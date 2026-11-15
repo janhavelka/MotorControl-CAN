@@ -1,0 +1,4 @@
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":47105,"command":"debug","ok":true,"status":"OK","mode":0,"trace_overwritten":0,"trace_pending":0,"trace_dropped":0}
+TRIAL record released; sessions and uncertainty retained
+HEAP free=5588 largest=2944 minimum=5588 regions=3 r0=3ff9e000:8168:1112:1112 r1=3fffc000:14864:720:720 r2=3ffd2950:169648:3696:3016 reserved=1f arena=0 arenaBytes=23688
+STATS running=1 inhibited=0 rx=52 tx=52 dropped=0 errors=0 flags=00000000 stackFree=5624 t=264128971 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=5017 conRej=13165

@@ -130,7 +130,12 @@ Before implementation/admission of an experiment, record all of the following:
    controller outcomes, timestamps/service gaps, overflow/resource evidence and
    independent observations. A successful repeat never erases a prior failure.
 
-Finite non-motion experiments have run: one-use explicit uploads, the `1017` write, addressed NMT command 128 and fixed TPDO1. No motion sequence satisfies these prerequisites. When evidence arrives,
+Finite experiments have run: one-use explicit uploads, the `1017` write,
+addressed NMT command 128 and fixed TPDO1. Later specimen-scoped motion
+experiments are recorded in the [velocity contract](velocity.md) and bench
+reports; they do not establish all qualification prerequisites or other models.
+The [prompt47 campaign](reports/prompt_47.md) separates current communication
+evidence from unavailable physical observations. When new evidence arrives,
 record its fixture/firmware scope and limitations, review the canonical ledger
 first, then update affected profile gates, generated declarations, meaningful
 tests, Doxygen and guides together. A measured result for one specimen never

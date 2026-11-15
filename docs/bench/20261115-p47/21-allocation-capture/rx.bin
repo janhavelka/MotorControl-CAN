@@ -1,0 +1,15 @@
+PONG target=esp32s2 base=2bbd98f5d3fb73fab08b813b71b3709f06b3627a elf=2bdca80a18fec55e559864d81fddfb9534d7fe627838ed7fd78ac2a935bb1bb8 sdk=v5.5.5-dirty running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=13 trial=0 motion=0 pdo=5 watch=0 capture=0
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+CAP admitted cap=4704 seconds=5 frames=64 gpio=18 silentHigh=1; TX gate closed, silent level requested, nothing sent
+CAP_REC cap=4704 reason=duration seconds=5 capacity=64 stored=0 overflow=0 tapDropped=0 pre=0 post=0 untimed=0 txRefused=0 lost=0
+CAP_TIME cap=4704 begin=43231620 end=48231968 nominal=48231620 gap=1363 clock=esp_timer_us
+CAP_LEVEL cap=4704 gpio=18 silentHigh=1 begin=1 exit=1 reopened=1 at=48231968 latched=0
+CAP_CTRL cap=4704 which=0 t=43231620 epoch=1 counters=1 tec=0 rec=0 inhibited=0 adapterInhibited=0 twaiDropped=0 twaiErrors=0 twaiFlags=00000000
+CAP_CTRL cap=4704 which=1 t=48231968 epoch=1 counters=1 tec=0 rec=0 inhibited=0 adapterInhibited=0 twaiDropped=0 twaiErrors=0 twaiFlags=00000000
+CAP_OWNER cap=4704 which=0 rx=0 dropped=0 lost=0 unmatched=0 tx=0 txRej=0 busOff=0 refused=0
+CAP_OWNER cap=4704 which=1 rx=0 dropped=0 lost=0 unmatched=0 tx=0 txRej=0 busOff=0 refused=0
+CAP_IMAGE cap=4704 base=2bbd98f5d3fb73fab08b813b71b3709f06b3627a elf=2bdca80a18fec55e559864d81fddfb9534d7fe627838ed7fd78ac2a935bb1bb8
+END capture cap=4704 stored=0 overflow=0 lost=0; r=release
+CAP record released; level, gate and SDO state unchanged
+STATS running=1 inhibited=0 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9320 t=48338966 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=2017 conRej=22
+HEAP free=28500 largest=12800 minimum=28500 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffd2950:169648:17392:12864 reserved=1f arena=0 arenaBytes=23688

@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+[Prompt47's bench campaign](docs/reports/prompt_47.md) records the current S2/two-node
+checks and fixes to diagnostic capture. Physical qualification remains Partial;
+controller-reported results do not establish observed shaft or stop behavior.
+
+
 Prompt46 adds an independent installed-package module example and production
 N5/EPOS4/protocol contract tests. No alternate drive is installed or advertised
 as supported. [The handoff](docs/fieldcore_handoff.md) records prospective

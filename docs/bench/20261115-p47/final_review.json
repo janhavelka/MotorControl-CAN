@@ -1,0 +1,6649 @@
+{
+  "analysis": {
+    "correlation_method": "Independently parse retained bytes; correlate ordered TX/TX-report/RX triples with terminal object,width,data,request token and processing/receive bounds; verify native counts and exact permitted downloads; validate ordinary typed values against every expected raw pair; verify campaign previous-line SHA256 chain excluding LF.",
+    "excluded_live_artifacts": [],
+    "mode": "offline only",
+    "originals_changed": false,
+    "parser": "scripts/s2_evidence.py",
+    "parser_sha256": "fc588b7282a1ed5eedb7e9a967d5c2e57c4b2679b0ac13eb0c89f4e802dc5b1e"
+  },
+  "artifacts": [
+    {
+      "artifact": "28-flash-final",
+      "flash": {
+        "chip": "ESP32-S2FH4 (revision v1.0)",
+        "esptool": "4.12.0",
+        "flash_size": null,
+        "mac": "dc:b4:d9:b5:a6:ce",
+        "returncode": 0,
+        "verified_images": 3
+      },
+      "limitations": [
+        "MCU restart does not prove drive restart or remote SDO retirement."
+      ],
+      "outcome": "build and three-image flash verified",
+      "status": "flashed"
+    },
+    {
+      "artifact": "29-ping-final",
+      "image_check_problems": [],
+      "outcome": "strict retained image identity check passed",
+      "pong": {
+        "active": 0,
+        "base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+        "capture": 0,
+        "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+        "motion": 0,
+        "pdo": 5,
+        "pinsReady": 1,
+        "routes": 13,
+        "running": 0,
+        "sdk": "v5.5.5-dirty",
+        "silent": 1,
+        "soak": 0,
+        "t": 0,
+        "target": "esp32s2",
+        "trial": 0,
+        "watch": 0
+      },
+      "sdk_comparison": "Only optional leading v normalized; suffixes remain exact. SDK source eligibility is separate."
+    },
+    {
+      "artifact": "30-capture-final",
+      "capture_controller": [
+        {
+          "adapterInhibited": 0,
+          "cap": 4705,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 18672567,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 0
+        },
+        {
+          "adapterInhibited": 0,
+          "cap": 4705,
+          "counters": 1,
+          "epoch": 1,
+          "inhibited": 0,
+          "rec": 0,
+          "t": 23672949,
+          "tec": 0,
+          "twaiDropped": 0,
+          "twaiErrors": 0,
+          "twaiFlags": 0,
+          "which": 1
+        }
+      ],
+      "capture_end": [
+        {
+          "cap": 4705,
+          "lost": 0,
+          "overflow": 0,
+          "stored": 0
+        }
+      ],
+      "capture_level": [
+        {
+          "at": 23672949,
+          "begin": 1,
+          "cap": 4705,
+          "exit": 1,
+          "gpio": 18,
+          "latched": 0,
+          "reopened": 1,
+          "silentHigh": 1
+        }
+      ],
+      "capture_owner": [
+        {
+          "busOff": 0,
+          "cap": 4705,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 0
+        },
+        {
+          "busOff": 0,
+          "cap": 4705,
+          "dropped": 0,
+          "lost": 0,
+          "refused": 0,
+          "rx": 0,
+          "tx": 0,
+          "txRej": 0,
+          "unmatched": 0,
+          "which": 1
+        }
+      ],
+      "capture_record": [
+        {
+          "cap": 4705,
+          "capacity": 64,
+          "lost": 0,
+          "overflow": 0,
+          "post": 0,
+          "pre": 0,
+          "reason": "duration",
+          "seconds": 5,
+          "stored": 0,
+          "tapDropped": 0,
+          "txRefused": 0,
+          "untimed": 0
+        }
+      ],
+      "capture_time": [
+        {
+          "begin": 18672567,
+          "cap": 4705,
+          "clock": "esp_timer_us",
+          "end": 23672949,
+          "gap": 1401,
+          "nominal": 23672567
+        }
+      ],
+      "limitations": [
+        "Five-second software observation with zero stored frames, without physical listen-only or absence-of-ACK/TX-silence proof."
+      ],
+      "outcome": "finite application-gated receive capture completed and released",
+      "runner_reason": "completed",
+      "unterminated_tail": null
+    },
+    {
+      "artifact": "31-open-memory-final",
+      "cached_replies": [
+        {
+          "command": "version",
+          "id": 47200,
+          "ok": true,
+          "operation_capacity": 2,
+          "product": "MotorControl-CAN",
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "type": "reply",
+          "version": "0.1.0"
+        },
+        {
+          "bitrate_bits_per_second": 1000000,
+          "bus_traffic": false,
+          "command": "config",
+          "id": 47201,
+          "interface": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "selected_node": null,
+          "status": "OK",
+          "type": "reply"
+        }
+      ],
+      "heaps": [
+        {
+          "arena": 0,
+          "arenaBytes": 23688,
+          "free": 28500,
+          "largest": 12800,
+          "minimum": 28500,
+          "r0": "3ff9e000:8168:7780:7780",
+          "r1": "3fffc000:14864:3276:3276",
+          "r2": "3ffd2950:169648:17392:12864",
+          "regions": 3,
+          "reserved": 31
+        },
+        {
+          "arena": 0,
+          "arenaBytes": 23688,
+          "free": 10600,
+          "largest": 4352,
+          "minimum": 10600,
+          "r0": "3ff9e000:8168:1112:1112",
+          "r1": "3fffc000:14864:720:720",
+          "r2": "3ffd2950:169648:8712:4436",
+          "regions": 3,
+          "reserved": 31
+        }
+      ],
+      "outcome": "shared console allocated and opened"
+    },
+    {
+      "archive_manifest_and_loose_artifacts_match": true,
+      "artifact": "32-quick-node1-final",
+      "declared_tail_target_reached": true,
+      "diagnostic_counts": {
+        "0": 10,
+        "1": 10,
+        "2": 10,
+        "3": 10
+      },
+      "diagnostics_total": 40,
+      "expected_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "local_trace_drop_delta": 0,
+      "matched_tx_rx_pairs": 10,
+      "node": 1,
+      "observed_rx_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "observed_tx_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "outcome": "typed quick workload and all ten required upload pairs observed",
+      "owner_trace_overwrite_delta": 0,
+      "pending_at_disable_reply": 0,
+      "physical_observations": null,
+      "raw_pair_coverage_for_this_record": true,
+      "reported_ok": true,
+      "runner_coverage_complete_flag": false,
+      "typed_identity_values": [
+        {
+          "command": "probe",
+          "current": true,
+          "earliest_us": "51319960",
+          "id": 3255052918,
+          "index": 4096,
+          "interpretation": null,
+          "latest_us": "51323958",
+          "native_signed": null,
+          "operation_id": 1,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "262546",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51596962",
+          "id": 3255052920,
+          "index": 4096,
+          "interpretation": null,
+          "latest_us": "51600958",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "262546",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51607958",
+          "id": 3255052920,
+          "index": 4105,
+          "interpretation": null,
+          "latest_us": "51611958",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "12",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51617968",
+          "id": 3255052920,
+          "index": 4106,
+          "interpretation": null,
+          "latest_us": "51620958",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "32",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51625958",
+          "id": 3255052920,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "51628965",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "5",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51633976",
+          "id": 3255052920,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "51637958",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "4096",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 1,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51642958",
+          "id": 3255052920,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "51645965",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "1",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 2,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51650958",
+          "id": 3255052920,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "51653965",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "0",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 3,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51658958",
+          "id": 3255052920,
+          "index": 8192,
+          "interpretation": null,
+          "latest_us": "51661965",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "1024",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 2
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "51666958",
+          "id": 3255052920,
+          "index": 8193,
+          "interpretation": null,
+          "latest_us": "51669965",
+          "native_signed": null,
+          "operation_id": 2,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "512",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 2
+        }
+      ],
+      "workload_verified": true
+    },
+    {
+      "archive_manifest_and_loose_artifacts_match": true,
+      "artifact": "33-quick-node2-final",
+      "declared_tail_target_reached": true,
+      "diagnostic_counts": {
+        "0": 10,
+        "1": 10,
+        "2": 10,
+        "3": 10
+      },
+      "diagnostics_total": 40,
+      "expected_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "local_trace_drop_delta": 0,
+      "matched_tx_rx_pairs": 10,
+      "node": 2,
+      "observed_rx_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "observed_tx_objects": {
+        "1000:00": 2,
+        "1009:00": 1,
+        "100A:00": 1,
+        "1018:00": 1,
+        "1018:01": 1,
+        "1018:02": 1,
+        "1018:03": 1,
+        "2000:00": 1,
+        "2001:00": 1
+      },
+      "outcome": "typed quick workload and all ten required upload pairs observed",
+      "owner_trace_overwrite_delta": 0,
+      "pending_at_disable_reply": 0,
+      "physical_observations": null,
+      "raw_pair_coverage_for_this_record": true,
+      "reported_ok": true,
+      "runner_coverage_complete_flag": false,
+      "typed_identity_values": [
+        {
+          "command": "probe",
+          "current": true,
+          "earliest_us": "56729960",
+          "id": 3858043109,
+          "index": 4096,
+          "interpretation": null,
+          "latest_us": "56733958",
+          "native_signed": null,
+          "operation_id": 3,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "262546",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57006965",
+          "id": 3858043111,
+          "index": 4096,
+          "interpretation": null,
+          "latest_us": "57010958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "262546",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57017958",
+          "id": 3858043111,
+          "index": 4105,
+          "interpretation": null,
+          "latest_us": "57021958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "12",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57027971",
+          "id": 3858043111,
+          "index": 4106,
+          "interpretation": null,
+          "latest_us": "57030958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "32",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57035958",
+          "id": 3858043111,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "57038966",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "5",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 1
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57043958",
+          "id": 3858043111,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "57047960",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "4096",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 1,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57052958",
+          "id": 3858043111,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "57055958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "1",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 2,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57060958",
+          "id": 3858043111,
+          "index": 4120,
+          "interpretation": null,
+          "latest_us": "57063958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "0",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 3,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 4
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57068958",
+          "id": 3858043111,
+          "index": 8192,
+          "interpretation": null,
+          "latest_us": "57071958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "1024",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 2
+        },
+        {
+          "command": "read",
+          "current": true,
+          "earliest_us": "57076958",
+          "id": 3858043111,
+          "index": 8193,
+          "interpretation": null,
+          "latest_us": "57079958",
+          "native_signed": null,
+          "operation_id": 4,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "raw": "512",
+          "schema": "motorcontrolcan.console/1",
+          "subindex": 0,
+          "type": "value",
+          "unit": "raw-code",
+          "width": 2
+        }
+      ],
+      "workload_verified": true
+    },
+    {
+      "arming_plan": [
+        {
+          "attended": 1,
+          "be": 15000,
+          "down": 500,
+          "interval": 4000,
+          "kind": 2,
+          "node": 1,
+          "route": "arm-velocity",
+          "rpm": 30,
+          "sd": 10000,
+          "si": 500,
+          "trial": 47201,
+          "up": 500
+        }
+      ],
+      "arming_raw_objects": [
+        {
+          "bytes_little_endian": "92010400",
+          "object": "1000:00",
+          "outcome": 0,
+          "raw_decimal": "262546",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "0c",
+          "object": "1009:00",
+          "outcome": 0,
+          "raw_decimal": "12",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "20",
+          "object": "100A:00",
+          "outcome": 0,
+          "raw_decimal": "32",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "05",
+          "object": "1018:00",
+          "outcome": 0,
+          "raw_decimal": "5",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "00100000",
+          "object": "1018:01",
+          "outcome": 0,
+          "raw_decimal": "4096",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "01000000",
+          "object": "1018:02",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "00000000",
+          "object": "1018:03",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "0004",
+          "object": "2000:00",
+          "outcome": 0,
+          "raw_decimal": "1024",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0002",
+          "object": "2001:00",
+          "outcome": 0,
+          "raw_decimal": "512",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "00",
+          "object": "1001:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "603F:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "1100",
+          "object": "2100:00",
+          "outcome": 0,
+          "raw_decimal": "17",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "2101:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "2102:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "5080",
+          "object": "6041:00",
+          "outcome": 0,
+          "raw_decimal": "32848",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "03",
+          "object": "6061:00",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "412c0000",
+          "object": "6064:00",
+          "outcome": 0,
+          "raw_decimal": "11329",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "00000000",
+          "object": "606C:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      ],
+      "arming_raw_tx_rx_pairs": 18,
+      "arming_tx_report_count": 18,
+      "arming_upload_count": 18,
+      "artifact": "34-negative-node1",
+      "limitations": [
+        "Read-only arming did send CAN uploads. Pre-TX here means no velocity/motor download, not no CAN traffic."
+      ],
+      "motion_download_count": 0,
+      "native_refusal": {
+        "command": "velocity",
+        "detail": 4,
+        "error": "duration cannot cover target/setup and enable observation budgets",
+        "id": 472014,
+        "ok": false,
+        "profile": "lichuan_c",
+        "protocol": 3,
+        "schema": "motorcontrolcan.console/1",
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "node": 1,
+      "outcome": "1000ms public velocity refused at preparation before motion admission/downloads",
+      "read_only_arming_trial": {
+        "case": 0,
+        "cycles": 0,
+        "failure": 0,
+        "gap": 5000,
+        "id": 47201,
+        "lossCancel": 0,
+        "lost": 0,
+        "motion": 0,
+        "node": 1,
+        "route": "arm-velocity",
+        "step": 3,
+        "summaries": 4,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 18,
+        "traffic": 54,
+        "unsettled": 0,
+        "why": "none"
+      },
+      "requested_public_command": "@472014 velocity 30 rpm motor 1000 configured fast",
+      "runner_returncode": 2,
+      "unterminated_tail": null,
+      "velocity_admitted": false
+    },
+    {
+      "artifact": "35-negative-cleanup-node1",
+      "debug_off_reply": {
+        "command": "debug",
+        "id": 472015,
+        "mode": 0,
+        "ok": true,
+        "profile": "lichuan_c",
+        "protocol": 3,
+        "schema": "motorcontrolcan.console/1",
+        "status": "OK",
+        "trace_dropped": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "type": "reply"
+      },
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 6740,
+        "largest": 4352,
+        "minimum": 6740,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:4848:4436",
+        "regions": 3,
+        "reserved": 31
+      },
+      "limitations": [
+        "Release changes retained host evidence ownership only; it sends no motor stop or reset."
+      ],
+      "node": 1,
+      "outcome": "trace disabled and arming record released with cached resources retained",
+      "record_release_observed": true,
+      "stats": [
+        {
+          "conRej": 4594,
+          "dropped": 0,
+          "errors": 0,
+          "flags": 0,
+          "inhibited": 0,
+          "ownerGap": 5012,
+          "running": 1,
+          "rx": 38,
+          "rxLost": 0,
+          "stackFree": 5636,
+          "t": 93302958,
+          "traceOver": 0,
+          "tx": 38,
+          "txRej": 0,
+          "unmatched": 0
+        }
+      ]
+    },
+    {
+      "arming_plan": [
+        {
+          "attended": 1,
+          "be": 15000,
+          "down": 500,
+          "interval": 4000,
+          "kind": 2,
+          "node": 2,
+          "route": "arm-velocity",
+          "rpm": 30,
+          "sd": 10000,
+          "si": 500,
+          "trial": 47202,
+          "up": 500
+        }
+      ],
+      "arming_raw_objects": [
+        {
+          "bytes_little_endian": "92010400",
+          "object": "1000:00",
+          "outcome": 0,
+          "raw_decimal": "262546",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "0c",
+          "object": "1009:00",
+          "outcome": 0,
+          "raw_decimal": "12",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "20",
+          "object": "100A:00",
+          "outcome": 0,
+          "raw_decimal": "32",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "05",
+          "object": "1018:00",
+          "outcome": 0,
+          "raw_decimal": "5",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "00100000",
+          "object": "1018:01",
+          "outcome": 0,
+          "raw_decimal": "4096",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "01000000",
+          "object": "1018:02",
+          "outcome": 0,
+          "raw_decimal": "1",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "00000000",
+          "object": "1018:03",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "0004",
+          "object": "2000:00",
+          "outcome": 0,
+          "raw_decimal": "1024",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0002",
+          "object": "2001:00",
+          "outcome": 0,
+          "raw_decimal": "512",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "00",
+          "object": "1001:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "603F:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "1500",
+          "object": "2100:00",
+          "outcome": 0,
+          "raw_decimal": "21",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "2101:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "0000",
+          "object": "2102:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "50c0",
+          "object": "6041:00",
+          "outcome": 0,
+          "raw_decimal": "49232",
+          "uncertain": false,
+          "width_bytes": 2
+        },
+        {
+          "bytes_little_endian": "03",
+          "object": "6061:00",
+          "outcome": 0,
+          "raw_decimal": "3",
+          "uncertain": false,
+          "width_bytes": 1
+        },
+        {
+          "bytes_little_endian": "3f2c0000",
+          "object": "6064:00",
+          "outcome": 0,
+          "raw_decimal": "11327",
+          "uncertain": false,
+          "width_bytes": 4
+        },
+        {
+          "bytes_little_endian": "00000000",
+          "object": "606C:00",
+          "outcome": 0,
+          "raw_decimal": "0",
+          "uncertain": false,
+          "width_bytes": 4
+        }
+      ],
+      "arming_raw_tx_rx_pairs": 18,
+      "arming_tx_report_count": 18,
+      "arming_upload_count": 18,
+      "artifact": "36-negative-node2",
+      "limitations": [
+        "Read-only arming did send CAN uploads. Pre-TX here means no velocity/motor download, not no CAN traffic."
+      ],
+      "motion_download_count": 0,
+      "native_refusal": {
+        "command": "velocity",
+        "detail": 4,
+        "error": "duration cannot cover target/setup and enable observation budgets",
+        "id": 472024,
+        "ok": false,
+        "profile": "lichuan_c",
+        "protocol": 3,
+        "schema": "motorcontrolcan.console/1",
+        "status": "INVALID_CONFIG",
+        "type": "reply"
+      },
+      "node": 2,
+      "outcome": "1000ms public velocity refused at preparation before motion admission/downloads",
+      "read_only_arming_trial": {
+        "case": 0,
+        "cycles": 0,
+        "failure": 0,
+        "gap": 5000,
+        "id": 47202,
+        "lossCancel": 0,
+        "lost": 0,
+        "motion": 0,
+        "node": 2,
+        "route": "arm-velocity",
+        "step": 3,
+        "summaries": 4,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 18,
+        "traffic": 54,
+        "unsettled": 0,
+        "why": "none"
+      },
+      "requested_public_command": "@472024 velocity 30 rpm motor 1000 configured fast",
+      "runner_returncode": 2,
+      "unterminated_tail": null,
+      "velocity_admitted": false
+    },
+    {
+      "artifact": "37-negative-cleanup-node2",
+      "debug_off_reply": {
+        "command": "debug",
+        "id": 472025,
+        "mode": 0,
+        "ok": true,
+        "profile": "lichuan_c",
+        "protocol": 3,
+        "schema": "motorcontrolcan.console/1",
+        "status": "OK",
+        "trace_dropped": 0,
+        "trace_overwritten": 0,
+        "trace_pending": 0,
+        "type": "reply"
+      },
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 2880,
+        "largest": 1024,
+        "minimum": 2880,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:984:556",
+        "regions": 3,
+        "reserved": 31
+      },
+      "limitations": [
+        "Release changes retained host evidence ownership only; it sends no motor stop or reset."
+      ],
+      "node": 2,
+      "outcome": "trace disabled and arming record released with cached resources retained",
+      "record_release_observed": true,
+      "stats": [
+        {
+          "conRej": 5237,
+          "dropped": 0,
+          "errors": 0,
+          "flags": 0,
+          "inhibited": 0,
+          "ownerGap": 5012,
+          "running": 1,
+          "rx": 56,
+          "rxLost": 0,
+          "stackFree": 5636,
+          "t": 96144958,
+          "traceOver": 0,
+          "tx": 56,
+          "txRej": 0,
+          "unmatched": 0
+        }
+      ]
+    },
+    {
+      "artifact": "38-velocity-node1",
+      "controller_position_change": 5517,
+      "correlated_transactions": [
+        {
+          "admitted_us": 134485956,
+          "completed_us": 134488956,
+          "direction": "upload",
+          "object": "1000:00",
+          "operation": 3,
+          "ordinal": 1,
+          "owner_request": 63,
+          "rx": "4300100092010400",
+          "rx_receive_bounds_us": [
+            134486259,
+            134488255
+          ],
+          "step": 1,
+          "tx": "4000100000000000",
+          "tx_request": 29,
+          "width": 4
+        },
+        {
+          "admitted_us": 134492956,
+          "completed_us": 134495956,
+          "direction": "upload",
+          "object": "1009:00",
+          "operation": 3,
+          "ordinal": 2,
+          "owner_request": 64,
+          "rx": "4f0910000c000000",
+          "rx_receive_bounds_us": [
+            134493259,
+            134495263
+          ],
+          "step": 2,
+          "tx": "4009100000000000",
+          "tx_request": 30,
+          "width": 1
+        },
+        {
+          "admitted_us": 134499956,
+          "completed_us": 134502956,
+          "direction": "upload",
+          "object": "100A:00",
+          "operation": 3,
+          "ordinal": 3,
+          "owner_request": 65,
+          "rx": "4f0a100020000000",
+          "rx_receive_bounds_us": [
+            134500259,
+            134502268
+          ],
+          "step": 3,
+          "tx": "400a100000000000",
+          "tx_request": 31,
+          "width": 1
+        },
+        {
+          "admitted_us": 134506956,
+          "completed_us": 134509956,
+          "direction": "upload",
+          "object": "1018:00",
+          "operation": 3,
+          "ordinal": 4,
+          "owner_request": 66,
+          "rx": "4f18100005000000",
+          "rx_receive_bounds_us": [
+            134507257,
+            134509159
+          ],
+          "step": 4,
+          "tx": "4018100000000000",
+          "tx_request": 32,
+          "width": 1
+        },
+        {
+          "admitted_us": 134513956,
+          "completed_us": 134516956,
+          "direction": "upload",
+          "object": "1018:01",
+          "operation": 3,
+          "ordinal": 5,
+          "owner_request": 67,
+          "rx": "4318100100100000",
+          "rx_receive_bounds_us": [
+            134514257,
+            134516166
+          ],
+          "step": 5,
+          "tx": "4018100100000000",
+          "tx_request": 33,
+          "width": 4
+        },
+        {
+          "admitted_us": 134520956,
+          "completed_us": 134523956,
+          "direction": "upload",
+          "object": "1018:02",
+          "operation": 3,
+          "ordinal": 6,
+          "owner_request": 68,
+          "rx": "4318100201000000",
+          "rx_receive_bounds_us": [
+            134521257,
+            134523125
+          ],
+          "step": 6,
+          "tx": "4018100200000000",
+          "tx_request": 34,
+          "width": 4
+        },
+        {
+          "admitted_us": 134527956,
+          "completed_us": 134530956,
+          "direction": "upload",
+          "object": "1018:03",
+          "operation": 3,
+          "ordinal": 7,
+          "owner_request": 69,
+          "rx": "4318100300000000",
+          "rx_receive_bounds_us": [
+            134528257,
+            134530157
+          ],
+          "step": 7,
+          "tx": "4018100300000000",
+          "tx_request": 35,
+          "width": 4
+        },
+        {
+          "admitted_us": 134534956,
+          "completed_us": 134537956,
+          "direction": "upload",
+          "object": "2000:00",
+          "operation": 3,
+          "ordinal": 8,
+          "owner_request": 70,
+          "rx": "4b00200000040000",
+          "rx_receive_bounds_us": [
+            134535257,
+            134537164
+          ],
+          "step": 8,
+          "tx": "4000200000000000",
+          "tx_request": 36,
+          "width": 2
+        },
+        {
+          "admitted_us": 134541956,
+          "completed_us": 134544956,
+          "direction": "upload",
+          "object": "2001:00",
+          "operation": 3,
+          "ordinal": 9,
+          "owner_request": 71,
+          "rx": "4b01200000020000",
+          "rx_receive_bounds_us": [
+            134542257,
+            134544125
+          ],
+          "step": 9,
+          "tx": "4001200000000000",
+          "tx_request": 37,
+          "width": 2
+        },
+        {
+          "admitted_us": 134549956,
+          "completed_us": 134552956,
+          "direction": "upload",
+          "object": "1001:00",
+          "operation": 4,
+          "ordinal": 10,
+          "owner_request": 72,
+          "rx": "4f01100000000000",
+          "rx_receive_bounds_us": [
+            134550259,
+            134552153
+          ],
+          "step": 1,
+          "tx": "4001100000000000",
+          "tx_request": 38,
+          "width": 1
+        },
+        {
+          "admitted_us": 134556956,
+          "completed_us": 134559956,
+          "direction": "upload",
+          "object": "603F:00",
+          "operation": 4,
+          "ordinal": 11,
+          "owner_request": 73,
+          "rx": "4b3f600000000000",
+          "rx_receive_bounds_us": [
+            134557255,
+            134559159
+          ],
+          "step": 2,
+          "tx": "403f600000000000",
+          "tx_request": 39,
+          "width": 2
+        },
+        {
+          "admitted_us": 134563956,
+          "completed_us": 134566956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 4,
+          "ordinal": 12,
+          "owner_request": 74,
+          "rx": "4b00210011000000",
+          "rx_receive_bounds_us": [
+            134564257,
+            134566140
+          ],
+          "step": 3,
+          "tx": "4000210000000000",
+          "tx_request": 40,
+          "width": 2
+        },
+        {
+          "admitted_us": 134570956,
+          "completed_us": 134573956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 4,
+          "ordinal": 13,
+          "owner_request": 75,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            134571257,
+            134573149
+          ],
+          "step": 4,
+          "tx": "4001210000000000",
+          "tx_request": 41,
+          "width": 2
+        },
+        {
+          "admitted_us": 134577956,
+          "completed_us": 134580956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 4,
+          "ordinal": 14,
+          "owner_request": 76,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            134578257,
+            134580158
+          ],
+          "step": 5,
+          "tx": "4002210000000000",
+          "tx_request": 42,
+          "width": 2
+        },
+        {
+          "admitted_us": 134584956,
+          "completed_us": 134587956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 4,
+          "ordinal": 15,
+          "owner_request": 77,
+          "rx": "4b41600050800000",
+          "rx_receive_bounds_us": [
+            134585257,
+            134587135
+          ],
+          "step": 6,
+          "tx": "4041600000000000",
+          "tx_request": 43,
+          "width": 2
+        },
+        {
+          "admitted_us": 134591956,
+          "completed_us": 134594956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 4,
+          "ordinal": 16,
+          "owner_request": 78,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            134592257,
+            134594145
+          ],
+          "step": 7,
+          "tx": "4061600000000000",
+          "tx_request": 44,
+          "width": 1
+        },
+        {
+          "admitted_us": 134598956,
+          "completed_us": 134601956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 4,
+          "ordinal": 17,
+          "owner_request": 79,
+          "rx": "43646000412c0000",
+          "rx_receive_bounds_us": [
+            134599257,
+            134601150
+          ],
+          "step": 8,
+          "tx": "4064600000000000",
+          "tx_request": 45,
+          "width": 4
+        },
+        {
+          "admitted_us": 134605956,
+          "completed_us": 134608956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 4,
+          "ordinal": 18,
+          "owner_request": 80,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            134606257,
+            134608135
+          ],
+          "step": 9,
+          "tx": "406c600000000000",
+          "tx_request": 46,
+          "width": 4
+        },
+        {
+          "admitted_us": 134620956,
+          "completed_us": 134624956,
+          "direction": "download",
+          "object": "60FF:00",
+          "operation": 5,
+          "ordinal": 19,
+          "owner_request": 81,
+          "rx": "60ff600000000000",
+          "rx_receive_bounds_us": [
+            134621271,
+            134623649
+          ],
+          "step": 1,
+          "tx": "23ff60001e000000",
+          "tx_request": 47,
+          "width": 4
+        },
+        {
+          "admitted_us": 134628956,
+          "completed_us": 134632956,
+          "direction": "download",
+          "object": "6083:00",
+          "operation": 5,
+          "ordinal": 20,
+          "owner_request": 82,
+          "rx": "6083600000000000",
+          "rx_receive_bounds_us": [
+            134629267,
+            134631629
+          ],
+          "step": 2,
+          "tx": "23836000f4010000",
+          "tx_request": 48,
+          "width": 4
+        },
+        {
+          "admitted_us": 134636956,
+          "completed_us": 134640956,
+          "direction": "download",
+          "object": "6084:00",
+          "operation": 5,
+          "ordinal": 21,
+          "owner_request": 83,
+          "rx": "6084600000000000",
+          "rx_receive_bounds_us": [
+            134637267,
+            134639637
+          ],
+          "step": 3,
+          "tx": "23846000f4010000",
+          "tx_request": 49,
+          "width": 4
+        },
+        {
+          "admitted_us": 134644956,
+          "completed_us": 134648956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 22,
+          "owner_request": 84,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134645269,
+            134647644
+          ],
+          "step": 4,
+          "tx": "2b40600006000000",
+          "tx_request": 50,
+          "width": 2
+        },
+        {
+          "admitted_us": 134653956,
+          "completed_us": 134656956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 23,
+          "owner_request": 85,
+          "rx": "4b00210011000000",
+          "rx_receive_bounds_us": [
+            134654271,
+            134656223
+          ],
+          "step": 5,
+          "tx": "4000210000000000",
+          "tx_request": 51,
+          "width": 2
+        },
+        {
+          "admitted_us": 134661956,
+          "completed_us": 134664956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 24,
+          "owner_request": 86,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            134662269,
+            134664233
+          ],
+          "step": 6,
+          "tx": "4001210000000000",
+          "tx_request": 52,
+          "width": 2
+        },
+        {
+          "admitted_us": 134669956,
+          "completed_us": 134672956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 25,
+          "owner_request": 87,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            134670269,
+            134672198
+          ],
+          "step": 7,
+          "tx": "4002210000000000",
+          "tx_request": 53,
+          "width": 2
+        },
+        {
+          "admitted_us": 134677956,
+          "completed_us": 134680956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 26,
+          "owner_request": 88,
+          "rx": "4b41600031800000",
+          "rx_receive_bounds_us": [
+            134678269,
+            134680227
+          ],
+          "step": 8,
+          "tx": "4041600000000000",
+          "tx_request": 54,
+          "width": 2
+        },
+        {
+          "admitted_us": 134685956,
+          "completed_us": 134688956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 27,
+          "owner_request": 89,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            134686269,
+            134688237
+          ],
+          "step": 9,
+          "tx": "4061600000000000",
+          "tx_request": 55,
+          "width": 1
+        },
+        {
+          "admitted_us": 134693956,
+          "completed_us": 134696956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 28,
+          "owner_request": 90,
+          "rx": "43646000412c0000",
+          "rx_receive_bounds_us": [
+            134694269,
+            134696219
+          ],
+          "step": 10,
+          "tx": "4064600000000000",
+          "tx_request": 56,
+          "width": 4
+        },
+        {
+          "admitted_us": 134701956,
+          "completed_us": 134704956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 29,
+          "owner_request": 91,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            134702269,
+            134704234
+          ],
+          "step": 11,
+          "tx": "406c600000000000",
+          "tx_request": 57,
+          "width": 4
+        },
+        {
+          "admitted_us": 134709956,
+          "completed_us": 134713956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 30,
+          "owner_request": 92,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134710267,
+            134712725
+          ],
+          "step": 12,
+          "tx": "2b40600007000000",
+          "tx_request": 58,
+          "width": 2
+        },
+        {
+          "admitted_us": 134718956,
+          "completed_us": 134721956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 31,
+          "owner_request": 93,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            134719271,
+            134721235
+          ],
+          "step": 13,
+          "tx": "4000210000000000",
+          "tx_request": 59,
+          "width": 2
+        },
+        {
+          "admitted_us": 134726956,
+          "completed_us": 134729956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 32,
+          "owner_request": 94,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            134727269,
+            134729261
+          ],
+          "step": 14,
+          "tx": "4001210000000000",
+          "tx_request": 60,
+          "width": 2
+        },
+        {
+          "admitted_us": 134734956,
+          "completed_us": 134737956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 33,
+          "owner_request": 95,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            134735269,
+            134737224
+          ],
+          "step": 15,
+          "tx": "4002210000000000",
+          "tx_request": 61,
+          "width": 2
+        },
+        {
+          "admitted_us": 134742956,
+          "completed_us": 134745956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 34,
+          "owner_request": 96,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            134743269,
+            134745230
+          ],
+          "step": 16,
+          "tx": "4041600000000000",
+          "tx_request": 62,
+          "width": 2
+        },
+        {
+          "admitted_us": 134750956,
+          "completed_us": 134753956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 35,
+          "owner_request": 97,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            134751269,
+            134753257
+          ],
+          "step": 17,
+          "tx": "4061600000000000",
+          "tx_request": 63,
+          "width": 1
+        },
+        {
+          "admitted_us": 134758956,
+          "completed_us": 134761956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 36,
+          "owner_request": 98,
+          "rx": "43646000412c0000",
+          "rx_receive_bounds_us": [
+            134759269,
+            134761214
+          ],
+          "step": 18,
+          "tx": "4064600000000000",
+          "tx_request": 64,
+          "width": 4
+        },
+        {
+          "admitted_us": 134766956,
+          "completed_us": 134769956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 37,
+          "owner_request": 99,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            134767269,
+            134769225
+          ],
+          "step": 19,
+          "tx": "406c600000000000",
+          "tx_request": 65,
+          "width": 4
+        },
+        {
+          "admitted_us": 134774956,
+          "completed_us": 134778956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 38,
+          "owner_request": 100,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134775267,
+            134777751
+          ],
+          "step": 20,
+          "tx": "2b4060000f000000",
+          "tx_request": 66,
+          "width": 2
+        },
+        {
+          "admitted_us": 134783956,
+          "completed_us": 134786956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 39,
+          "owner_request": 101,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            134784271,
+            134786265
+          ],
+          "step": 21,
+          "tx": "4000210000000000",
+          "tx_request": 67,
+          "width": 2
+        },
+        {
+          "admitted_us": 134791956,
+          "completed_us": 134794956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 40,
+          "owner_request": 102,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            134792269,
+            134794222
+          ],
+          "step": 22,
+          "tx": "4001210000000000",
+          "tx_request": 68,
+          "width": 2
+        },
+        {
+          "admitted_us": 134799956,
+          "completed_us": 134802956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 41,
+          "owner_request": 103,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            134800269,
+            134802250
+          ],
+          "step": 23,
+          "tx": "4002210000000000",
+          "tx_request": 69,
+          "width": 2
+        },
+        {
+          "admitted_us": 134807956,
+          "completed_us": 134810956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 42,
+          "owner_request": 104,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            134808269,
+            134810254
+          ],
+          "step": 24,
+          "tx": "4041600000000000",
+          "tx_request": 70,
+          "width": 2
+        },
+        {
+          "admitted_us": 134815956,
+          "completed_us": 134818956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 43,
+          "owner_request": 105,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            134816269,
+            134818261
+          ],
+          "step": 25,
+          "tx": "4061600000000000",
+          "tx_request": 71,
+          "width": 1
+        },
+        {
+          "admitted_us": 134823956,
+          "completed_us": 134826956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 44,
+          "owner_request": 106,
+          "rx": "43646000412c0000",
+          "rx_receive_bounds_us": [
+            134824269,
+            134826241
+          ],
+          "step": 26,
+          "tx": "4064600000000000",
+          "tx_request": 72,
+          "width": 4
+        },
+        {
+          "admitted_us": 134831956,
+          "completed_us": 134834956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 45,
+          "owner_request": 107,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            134832269,
+            134834251
+          ],
+          "step": 27,
+          "tx": "406c600000000000",
+          "tx_request": 73,
+          "width": 4
+        },
+        {
+          "admitted_us": 135138956,
+          "completed_us": 135141956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 46,
+          "owner_request": 108,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            135139271,
+            135141235
+          ],
+          "step": 28,
+          "tx": "4000210000000000",
+          "tx_request": 74,
+          "width": 2
+        },
+        {
+          "admitted_us": 135146956,
+          "completed_us": 135149956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 47,
+          "owner_request": 109,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            135147269,
+            135149222
+          ],
+          "step": 29,
+          "tx": "4001210000000000",
+          "tx_request": 75,
+          "width": 2
+        },
+        {
+          "admitted_us": 135154956,
+          "completed_us": 135157956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 48,
+          "owner_request": 110,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            135155269,
+            135157240
+          ],
+          "step": 30,
+          "tx": "4002210000000000",
+          "tx_request": 76,
+          "width": 2
+        },
+        {
+          "admitted_us": 135162956,
+          "completed_us": 135165956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 49,
+          "owner_request": 111,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            135163269,
+            135165227
+          ],
+          "step": 31,
+          "tx": "4041600000000000",
+          "tx_request": 77,
+          "width": 2
+        },
+        {
+          "admitted_us": 135170956,
+          "completed_us": 135173956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 50,
+          "owner_request": 112,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            135171269,
+            135173215
+          ],
+          "step": 32,
+          "tx": "4061600000000000",
+          "tx_request": 78,
+          "width": 1
+        },
+        {
+          "admitted_us": 135178956,
+          "completed_us": 135181956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 51,
+          "owner_request": 113,
+          "rx": "43646000412c0000",
+          "rx_receive_bounds_us": [
+            135179269,
+            135181230
+          ],
+          "step": 33,
+          "tx": "4064600000000000",
+          "tx_request": 79,
+          "width": 4
+        },
+        {
+          "admitted_us": 135186956,
+          "completed_us": 135189956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 52,
+          "owner_request": 114,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            135187269,
+            135189223
+          ],
+          "step": 34,
+          "tx": "406c600000000000",
+          "tx_request": 80,
+          "width": 4
+        },
+        {
+          "admitted_us": 135493956,
+          "completed_us": 135496956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 53,
+          "owner_request": 115,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            135494271,
+            135496275
+          ],
+          "step": 35,
+          "tx": "4000210000000000",
+          "tx_request": 81,
+          "width": 2
+        },
+        {
+          "admitted_us": 135501956,
+          "completed_us": 135504956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 54,
+          "owner_request": 116,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            135502269,
+            135504220
+          ],
+          "step": 36,
+          "tx": "4001210000000000",
+          "tx_request": 82,
+          "width": 2
+        },
+        {
+          "admitted_us": 135509956,
+          "completed_us": 135512956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 55,
+          "owner_request": 117,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            135510269,
+            135512252
+          ],
+          "step": 37,
+          "tx": "4002210000000000",
+          "tx_request": 83,
+          "width": 2
+        },
+        {
+          "admitted_us": 135517956,
+          "completed_us": 135520956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 56,
+          "owner_request": 118,
+          "rx": "4b41600037c00000",
+          "rx_receive_bounds_us": [
+            135518269,
+            135520255
+          ],
+          "step": 38,
+          "tx": "4041600000000000",
+          "tx_request": 84,
+          "width": 2
+        },
+        {
+          "admitted_us": 135525956,
+          "completed_us": 135528956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 57,
+          "owner_request": 119,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            135526269,
+            135528251
+          ],
+          "step": 39,
+          "tx": "4061600000000000",
+          "tx_request": 85,
+          "width": 1
+        },
+        {
+          "admitted_us": 135533956,
+          "completed_us": 135536956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 58,
+          "owner_request": 120,
+          "rx": "43646000652c0000",
+          "rx_receive_bounds_us": [
+            135534269,
+            135536253
+          ],
+          "step": 40,
+          "tx": "4064600000000000",
+          "tx_request": 86,
+          "width": 4
+        },
+        {
+          "admitted_us": 135541956,
+          "completed_us": 135544956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 59,
+          "owner_request": 121,
+          "rx": "436c600010000000",
+          "rx_receive_bounds_us": [
+            135542269,
+            135544261
+          ],
+          "step": 41,
+          "tx": "406c600000000000",
+          "tx_request": 87,
+          "width": 4
+        },
+        {
+          "admitted_us": 140548956,
+          "completed_us": 140551956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 60,
+          "owner_request": 122,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            140549271,
+            140551264
+          ],
+          "step": 42,
+          "tx": "4000210000000000",
+          "tx_request": 88,
+          "width": 2
+        },
+        {
+          "admitted_us": 140556956,
+          "completed_us": 140559956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 61,
+          "owner_request": 123,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            140557269,
+            140559256
+          ],
+          "step": 43,
+          "tx": "4001210000000000",
+          "tx_request": 89,
+          "width": 2
+        },
+        {
+          "admitted_us": 140564956,
+          "completed_us": 140567956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 62,
+          "owner_request": 124,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            140565269,
+            140567222
+          ],
+          "step": 44,
+          "tx": "4002210000000000",
+          "tx_request": 90,
+          "width": 2
+        },
+        {
+          "admitted_us": 140572956,
+          "completed_us": 140575956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 63,
+          "owner_request": 125,
+          "rx": "4b41600037c40000",
+          "rx_receive_bounds_us": [
+            140573269,
+            140575266
+          ],
+          "step": 45,
+          "tx": "4041600000000000",
+          "tx_request": 91,
+          "width": 2
+        },
+        {
+          "admitted_us": 140580956,
+          "completed_us": 140583956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 64,
+          "owner_request": 126,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            140581269,
+            140583259
+          ],
+          "step": 46,
+          "tx": "4061600000000000",
+          "tx_request": 92,
+          "width": 1
+        },
+        {
+          "admitted_us": 140588956,
+          "completed_us": 140591956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 65,
+          "owner_request": 127,
+          "rx": "436460001d360000",
+          "rx_receive_bounds_us": [
+            140589269,
+            140591249
+          ],
+          "step": 47,
+          "tx": "4064600000000000",
+          "tx_request": 93,
+          "width": 4
+        },
+        {
+          "admitted_us": 140596956,
+          "completed_us": 140599956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 66,
+          "owner_request": 128,
+          "rx": "436c60001e000000",
+          "rx_receive_bounds_us": [
+            140597269,
+            140599220
+          ],
+          "step": 48,
+          "tx": "406c600000000000",
+          "tx_request": 94,
+          "width": 4
+        },
+        {
+          "admitted_us": 145603956,
+          "completed_us": 145606956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 67,
+          "owner_request": 129,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            145604271,
+            145606228
+          ],
+          "step": 49,
+          "tx": "4000210000000000",
+          "tx_request": 95,
+          "width": 2
+        },
+        {
+          "admitted_us": 145611956,
+          "completed_us": 145614956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 68,
+          "owner_request": 130,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            145612269,
+            145614221
+          ],
+          "step": 50,
+          "tx": "4001210000000000",
+          "tx_request": 96,
+          "width": 2
+        },
+        {
+          "admitted_us": 145619956,
+          "completed_us": 145622956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 69,
+          "owner_request": 131,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            145620269,
+            145622216
+          ],
+          "step": 51,
+          "tx": "4002210000000000",
+          "tx_request": 97,
+          "width": 2
+        },
+        {
+          "admitted_us": 145627956,
+          "completed_us": 145630956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 70,
+          "owner_request": 132,
+          "rx": "4b41600037c40000",
+          "rx_receive_bounds_us": [
+            145628269,
+            145630231
+          ],
+          "step": 52,
+          "tx": "4041600000000000",
+          "tx_request": 98,
+          "width": 2
+        },
+        {
+          "admitted_us": 145635956,
+          "completed_us": 145638956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 71,
+          "owner_request": 133,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            145636269,
+            145638224
+          ],
+          "step": 53,
+          "tx": "4061600000000000",
+          "tx_request": 99,
+          "width": 1
+        },
+        {
+          "admitted_us": 145643956,
+          "completed_us": 145646956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 72,
+          "owner_request": 134,
+          "rx": "43646000e83f0000",
+          "rx_receive_bounds_us": [
+            145644269,
+            145646215
+          ],
+          "step": 54,
+          "tx": "4064600000000000",
+          "tx_request": 100,
+          "width": 4
+        },
+        {
+          "admitted_us": 145651956,
+          "completed_us": 145654956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 73,
+          "owner_request": 135,
+          "rx": "436c60001e000000",
+          "rx_receive_bounds_us": [
+            145652269,
+            145654265
+          ],
+          "step": 55,
+          "tx": "406c600000000000",
+          "tx_request": 101,
+          "width": 4
+        },
+        {
+          "admitted_us": 146618956,
+          "completed_us": 146621956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 6,
+          "ordinal": 74,
+          "owner_request": 136,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            146619268,
+            146621468
+          ],
+          "step": 1,
+          "tx": "2b4060000b000000",
+          "tx_request": 102,
+          "width": 2
+        },
+        {
+          "admitted_us": 146625956,
+          "completed_us": 146628956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 6,
+          "ordinal": 75,
+          "owner_request": 137,
+          "rx": "4b00210014000000",
+          "rx_receive_bounds_us": [
+            146626268,
+            146628212
+          ],
+          "step": 2,
+          "tx": "4000210000000000",
+          "tx_request": 103,
+          "width": 2
+        },
+        {
+          "admitted_us": 146633956,
+          "completed_us": 146636956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 6,
+          "ordinal": 76,
+          "owner_request": 138,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            146634268,
+            146636207
+          ],
+          "step": 3,
+          "tx": "4001210000000000",
+          "tx_request": 104,
+          "width": 2
+        },
+        {
+          "admitted_us": 146641956,
+          "completed_us": 146644956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 6,
+          "ordinal": 77,
+          "owner_request": 139,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            146642268,
+            146644201
+          ],
+          "step": 4,
+          "tx": "4002210000000000",
+          "tx_request": 105,
+          "width": 2
+        },
+        {
+          "admitted_us": 146649956,
+          "completed_us": 146652956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 6,
+          "ordinal": 78,
+          "owner_request": 140,
+          "rx": "4b41600050c00000",
+          "rx_receive_bounds_us": [
+            146650268,
+            146652213
+          ],
+          "step": 5,
+          "tx": "4041600000000000",
+          "tx_request": 106,
+          "width": 2
+        },
+        {
+          "admitted_us": 146657956,
+          "completed_us": 146660956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 6,
+          "ordinal": 79,
+          "owner_request": 141,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            146658268,
+            146660249
+          ],
+          "step": 6,
+          "tx": "4061600000000000",
+          "tx_request": 107,
+          "width": 1
+        },
+        {
+          "admitted_us": 146665956,
+          "completed_us": 146668956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 6,
+          "ordinal": 80,
+          "owner_request": 142,
+          "rx": "43646000ce410000",
+          "rx_receive_bounds_us": [
+            146666268,
+            146668197
+          ],
+          "step": 7,
+          "tx": "4064600000000000",
+          "tx_request": 108,
+          "width": 4
+        },
+        {
+          "admitted_us": 146673956,
+          "completed_us": 146676956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 6,
+          "ordinal": 81,
+          "owner_request": 143,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            146674268,
+            146676245
+          ],
+          "step": 8,
+          "tx": "406c600000000000",
+          "tx_request": 109,
+          "width": 4
+        },
+        {
+          "admitted_us": 151679956,
+          "completed_us": 151682956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 6,
+          "ordinal": 82,
+          "owner_request": 144,
+          "rx": "4b00210015000000",
+          "rx_receive_bounds_us": [
+            151680268,
+            151682232
+          ],
+          "step": 9,
+          "tx": "4000210000000000",
+          "tx_request": 110,
+          "width": 2
+        },
+        {
+          "admitted_us": 151687956,
+          "completed_us": 151690956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 6,
+          "ordinal": 83,
+          "owner_request": 145,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            151688268,
+            151690208
+          ],
+          "step": 10,
+          "tx": "4001210000000000",
+          "tx_request": 111,
+          "width": 2
+        },
+        {
+          "admitted_us": 151695956,
+          "completed_us": 151698956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 6,
+          "ordinal": 84,
+          "owner_request": 146,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            151696268,
+            151698210
+          ],
+          "step": 11,
+          "tx": "4002210000000000",
+          "tx_request": 112,
+          "width": 2
+        },
+        {
+          "admitted_us": 151703956,
+          "completed_us": 151706956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 6,
+          "ordinal": 85,
+          "owner_request": 147,
+          "rx": "4b41600050c00000",
+          "rx_receive_bounds_us": [
+            151704268,
+            151706211
+          ],
+          "step": 12,
+          "tx": "4041600000000000",
+          "tx_request": 113,
+          "width": 2
+        },
+        {
+          "admitted_us": 151711956,
+          "completed_us": 151714956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 6,
+          "ordinal": 86,
+          "owner_request": 148,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            151712268,
+            151714212
+          ],
+          "step": 13,
+          "tx": "4061600000000000",
+          "tx_request": 114,
+          "width": 1
+        },
+        {
+          "admitted_us": 151719956,
+          "completed_us": 151722956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 6,
+          "ordinal": 87,
+          "owner_request": 149,
+          "rx": "43646000ce410000",
+          "rx_receive_bounds_us": [
+            151720268,
+            151722215
+          ],
+          "step": 14,
+          "tx": "4064600000000000",
+          "tx_request": 115,
+          "width": 4
+        },
+        {
+          "admitted_us": 151727956,
+          "completed_us": 151730956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 6,
+          "ordinal": 88,
+          "owner_request": 150,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            151728268,
+            151730220
+          ],
+          "step": 15,
+          "tx": "406c600000000000",
+          "tx_request": 116,
+          "width": 4
+        }
+      ],
+      "end": {
+        "lost": 0,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 88,
+        "traffic": 264
+      },
+      "fallback_used": false,
+      "hardware_qualified": false,
+      "header": {
+        "case": 1,
+        "cycles": 7,
+        "failure": 0,
+        "gap": 6000,
+        "id": 47301,
+        "lossCancel": 0,
+        "lost": 0,
+        "motion": 2,
+        "node": 1,
+        "route": "velocity",
+        "step": 3,
+        "summaries": 16,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 88,
+        "traffic": 264,
+        "unsettled": 0,
+        "why": "none"
+      },
+      "identity_before_downloads": [
+        {
+          "object": "1000:00",
+          "value": 262546,
+          "width": 4
+        },
+        {
+          "object": "1009:00",
+          "value": 12,
+          "width": 1
+        },
+        {
+          "object": "100A:00",
+          "value": 32,
+          "width": 1
+        },
+        {
+          "object": "1018:00",
+          "value": 5,
+          "width": 1
+        },
+        {
+          "object": "1018:01",
+          "value": 4096,
+          "width": 4
+        },
+        {
+          "object": "1018:02",
+          "value": 1,
+          "width": 4
+        },
+        {
+          "object": "1018:03",
+          "value": 0,
+          "width": 4
+        },
+        {
+          "object": "2000:00",
+          "value": 1024,
+          "width": 2
+        },
+        {
+          "object": "2001:00",
+          "value": 512,
+          "width": 2
+        }
+      ],
+      "initial_state": {
+        "1001": 0,
+        "2100": 17,
+        "2101": 0,
+        "2102": 0,
+        "603F": 0,
+        "6041": 32848,
+        "6061": 3,
+        "6064": 11329,
+        "606C": 0
+      },
+      "last_stop_cycle": {
+        "2100": 21,
+        "2101": 0,
+        "2102": 0,
+        "6041": 49232,
+        "6061": 3,
+        "6064": 16846,
+        "606C": 0
+      },
+      "limitations": [
+        "Exactly seven downloads per run; any previous eight-download description was an arithmetic error.",
+        "All start,stop,mode-change,reverse qualification flags remain false; legacy attended=1 reflects the explicit unattended motion waiver.",
+        "606C=30 then0 and changed6064 are controller feedback only; no shaft direction,travel,speed,torque or physical standstill observation.",
+        "Stop uses existing experimental measured predicate (documented=0,basis=3), without manufacturer-wide qualification.",
+        "Node isolation applies to this retained record; processing times/receive bounds are not exact wire arrival times.",
+        "No fallback,retry,mode write or download outside the reviewed seven-write sequence."
+      ],
+      "node": 1,
+      "operator": {
+        "attended": {
+          "accepted": true,
+          "covers_motion": true,
+          "unattended": true,
+          "waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility"
+        },
+        "shaft_after": {
+          "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+          "typed": "unattended: not observed"
+        }
+      },
+      "outcome": "finite conditional velocity experiment completed with acknowledged own quick stop",
+      "parser_errors": [],
+      "parser_failure": "NONE",
+      "parser_verdict": "complete",
+      "parser_warnings": [],
+      "permitted_downloads": [
+        {
+          "admitted_us": 134620956,
+          "completed_us": 134624956,
+          "direction": "download",
+          "object": "60FF:00",
+          "operation": 5,
+          "ordinal": 19,
+          "owner_request": 81,
+          "rx": "60ff600000000000",
+          "rx_receive_bounds_us": [
+            134621271,
+            134623649
+          ],
+          "step": 1,
+          "tx": "23ff60001e000000",
+          "tx_request": 47,
+          "width": 4
+        },
+        {
+          "admitted_us": 134628956,
+          "completed_us": 134632956,
+          "direction": "download",
+          "object": "6083:00",
+          "operation": 5,
+          "ordinal": 20,
+          "owner_request": 82,
+          "rx": "6083600000000000",
+          "rx_receive_bounds_us": [
+            134629267,
+            134631629
+          ],
+          "step": 2,
+          "tx": "23836000f4010000",
+          "tx_request": 48,
+          "width": 4
+        },
+        {
+          "admitted_us": 134636956,
+          "completed_us": 134640956,
+          "direction": "download",
+          "object": "6084:00",
+          "operation": 5,
+          "ordinal": 21,
+          "owner_request": 83,
+          "rx": "6084600000000000",
+          "rx_receive_bounds_us": [
+            134637267,
+            134639637
+          ],
+          "step": 3,
+          "tx": "23846000f4010000",
+          "tx_request": 49,
+          "width": 4
+        },
+        {
+          "admitted_us": 134644956,
+          "completed_us": 134648956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 22,
+          "owner_request": 84,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134645269,
+            134647644
+          ],
+          "step": 4,
+          "tx": "2b40600006000000",
+          "tx_request": 50,
+          "width": 2
+        },
+        {
+          "admitted_us": 134709956,
+          "completed_us": 134713956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 30,
+          "owner_request": 92,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134710267,
+            134712725
+          ],
+          "step": 12,
+          "tx": "2b40600007000000",
+          "tx_request": 58,
+          "width": 2
+        },
+        {
+          "admitted_us": 134774956,
+          "completed_us": 134778956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 38,
+          "owner_request": 100,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            134775267,
+            134777751
+          ],
+          "step": 20,
+          "tx": "2b4060000f000000",
+          "tx_request": 66,
+          "width": 2
+        },
+        {
+          "admitted_us": 146618956,
+          "completed_us": 146621956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 6,
+          "ordinal": 74,
+          "owner_request": 136,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            146619268,
+            146621468
+          ],
+          "step": 1,
+          "tx": "2b4060000b000000",
+          "tx_request": 102,
+          "width": 2
+        }
+      ],
+      "physical_observations": null,
+      "plan": {
+        "attended": 1,
+        "deadline": 23000,
+        "down": 500,
+        "dur": 12000,
+        "interval": 5000,
+        "kind": 2,
+        "node": 1,
+        "probe": 0,
+        "reverse": 0,
+        "route": "velocity",
+        "rpm": 30,
+        "trial": 47301,
+        "up": 500
+      },
+      "raw_counts": {
+        "all_pairs_correlated": true,
+        "downloads": 7,
+        "lost": 0,
+        "other_node_frames_in_this_record": 0,
+        "rx": 88,
+        "tail_lost": 0,
+        "terminals": 88,
+        "tx": 88,
+        "tx_reports": 88,
+        "unexpected_downloads": [],
+        "unmatched_terminals": [],
+        "uploads": 81
+      },
+      "resource": {
+        "admission": 0,
+        "completed": 151730956,
+        "dropped": 0,
+        "gap": 6000,
+        "heap0": 2880,
+        "heap1": 2880,
+        "heapMin": 2880,
+        "largest": 1024,
+        "rec0": 0,
+        "rec1": 0,
+        "stack0": 5636,
+        "stack1": 5636,
+        "started": 134481049,
+        "tec0": 0,
+        "tec1": 0
+      },
+      "samples": [
+        {
+          "cycle": 0,
+          "hi": 134608956,
+          "lo": 134563956,
+          "mode": 3,
+          "monitor": 17,
+          "position": 11329,
+          "present": 1,
+          "status": 32848,
+          "velocity": 0,
+          "which": 0
+        },
+        {
+          "cycle": 7,
+          "hi": 145654956,
+          "lo": 145603956,
+          "mode": 3,
+          "monitor": 4,
+          "position": 16360,
+          "present": 1,
+          "status": 50231,
+          "velocity": 30,
+          "which": 1
+        },
+        {
+          "cycle": 3,
+          "hi": 134834956,
+          "lo": 134783956,
+          "mode": 3,
+          "monitor": 1,
+          "position": 11329,
+          "present": 1,
+          "status": 32819,
+          "velocity": 0,
+          "which": 2
+        },
+        {
+          "cycle": 4,
+          "hi": 135189956,
+          "lo": 135138956,
+          "mode": 3,
+          "monitor": 1,
+          "position": 11329,
+          "present": 1,
+          "status": 32819,
+          "velocity": 0,
+          "which": 3
+        },
+        {
+          "cycle": 5,
+          "hi": 135544956,
+          "lo": 135493956,
+          "mode": 3,
+          "monitor": 4,
+          "position": 11365,
+          "present": 1,
+          "status": 49207,
+          "velocity": 16,
+          "which": 4
+        }
+      ],
+      "stop": {
+        "basis": 3,
+        "completion": 1,
+        "documented": 0,
+        "effects": 1,
+        "exec": 1,
+        "final": 4,
+        "kind": 2,
+        "observations": 2,
+        "op": 6,
+        "own": 1,
+        "pred": 15,
+        "state": 2,
+        "stopOutcome": 1,
+        "stopPath": 0,
+        "uncertain": 0
+      },
+      "timing_us": {
+        "cmask": 7,
+        "deadline": 157613956,
+        "deadline_remaining_at_completion": 5883000,
+        "due": 146613956,
+        "first_stop_tx_after_stop_request": 5000,
+        "first_target_tx_after_start": 7000,
+        "serviced": 151730956,
+        "smask": 7,
+        "started": 134613956,
+        "stopAt": 146613956,
+        "stop_ack_after_stop_request": 8000,
+        "stop_completion_after_request": 5117000,
+        "velocity_completion_after_start": 17117000
+      },
+      "trial": 47301,
+      "velocity": {
+        "code": 0,
+        "cycles": 7,
+        "detail": 0,
+        "effects": 1,
+        "exec": 1,
+        "first": 0,
+        "int": 0,
+        "needs": 0,
+        "op": 5,
+        "own": 1,
+        "phase": 5,
+        "polls": 2,
+        "rpm": 30,
+        "running": 1,
+        "setup": 1,
+        "sexec": 1,
+        "sop": 6,
+        "state": 2,
+        "stop": 1,
+        "velocityCompletion": 1,
+        "velocityFenced": 0,
+        "velocityOutcome": 1,
+        "velocityUncertain": 0
+      },
+      "velocity_evidence": {
+        "dt": 262546,
+        "fc": 512,
+        "gate": 2,
+        "hw": 12,
+        "kind": 2,
+        "layout": 2,
+        "max": 30,
+        "mc": 1024,
+        "modeChange": 0,
+        "pc": 1,
+        "probe": 0,
+        "record": 47301,
+        "rev": 0,
+        "reverse": 0,
+        "reverseProbe": 0,
+        "start": 0,
+        "stop": 0,
+        "sw": 32,
+        "vid": 4096
+      }
+    },
+    {
+      "artifact": "40-velocity-node2",
+      "controller_position_change": 5518,
+      "correlated_transactions": [
+        {
+          "admitted_us": 421154956,
+          "completed_us": 421157956,
+          "direction": "upload",
+          "object": "1000:00",
+          "operation": 3,
+          "ordinal": 1,
+          "owner_request": 151,
+          "rx": "4300100092010400",
+          "rx_receive_bounds_us": [
+            421155258,
+            421157328
+          ],
+          "step": 1,
+          "tx": "4000100000000000",
+          "tx_request": 29,
+          "width": 4
+        },
+        {
+          "admitted_us": 421161956,
+          "completed_us": 421164956,
+          "direction": "upload",
+          "object": "1009:00",
+          "operation": 3,
+          "ordinal": 2,
+          "owner_request": 152,
+          "rx": "4f0910000c000000",
+          "rx_receive_bounds_us": [
+            421162258,
+            421164321
+          ],
+          "step": 2,
+          "tx": "4009100000000000",
+          "tx_request": 30,
+          "width": 1
+        },
+        {
+          "admitted_us": 421168956,
+          "completed_us": 421171956,
+          "direction": "upload",
+          "object": "100A:00",
+          "operation": 3,
+          "ordinal": 3,
+          "owner_request": 153,
+          "rx": "4f0a100020000000",
+          "rx_receive_bounds_us": [
+            421169258,
+            421171316
+          ],
+          "step": 3,
+          "tx": "400a100000000000",
+          "tx_request": 31,
+          "width": 1
+        },
+        {
+          "admitted_us": 421175956,
+          "completed_us": 421178956,
+          "direction": "upload",
+          "object": "1018:00",
+          "operation": 3,
+          "ordinal": 4,
+          "owner_request": 154,
+          "rx": "4f18100005000000",
+          "rx_receive_bounds_us": [
+            421176257,
+            421178220
+          ],
+          "step": 4,
+          "tx": "4018100000000000",
+          "tx_request": 32,
+          "width": 1
+        },
+        {
+          "admitted_us": 421182956,
+          "completed_us": 421185956,
+          "direction": "upload",
+          "object": "1018:01",
+          "operation": 3,
+          "ordinal": 5,
+          "owner_request": 155,
+          "rx": "4318100100100000",
+          "rx_receive_bounds_us": [
+            421183257,
+            421185192
+          ],
+          "step": 5,
+          "tx": "4018100100000000",
+          "tx_request": 33,
+          "width": 4
+        },
+        {
+          "admitted_us": 421189956,
+          "completed_us": 421192956,
+          "direction": "upload",
+          "object": "1018:02",
+          "operation": 3,
+          "ordinal": 6,
+          "owner_request": 156,
+          "rx": "4318100201000000",
+          "rx_receive_bounds_us": [
+            421190257,
+            421192186
+          ],
+          "step": 6,
+          "tx": "4018100200000000",
+          "tx_request": 34,
+          "width": 4
+        },
+        {
+          "admitted_us": 421196956,
+          "completed_us": 421199956,
+          "direction": "upload",
+          "object": "1018:03",
+          "operation": 3,
+          "ordinal": 7,
+          "owner_request": 157,
+          "rx": "4318100300000000",
+          "rx_receive_bounds_us": [
+            421197257,
+            421199183
+          ],
+          "step": 7,
+          "tx": "4018100300000000",
+          "tx_request": 35,
+          "width": 4
+        },
+        {
+          "admitted_us": 421203956,
+          "completed_us": 421206956,
+          "direction": "upload",
+          "object": "2000:00",
+          "operation": 3,
+          "ordinal": 8,
+          "owner_request": 158,
+          "rx": "4b00200000040000",
+          "rx_receive_bounds_us": [
+            421204257,
+            421206177
+          ],
+          "step": 8,
+          "tx": "4000200000000000",
+          "tx_request": 36,
+          "width": 2
+        },
+        {
+          "admitted_us": 421210956,
+          "completed_us": 421213956,
+          "direction": "upload",
+          "object": "2001:00",
+          "operation": 3,
+          "ordinal": 9,
+          "owner_request": 159,
+          "rx": "4b01200000020000",
+          "rx_receive_bounds_us": [
+            421211257,
+            421213216
+          ],
+          "step": 9,
+          "tx": "4001200000000000",
+          "tx_request": 37,
+          "width": 2
+        },
+        {
+          "admitted_us": 421218956,
+          "completed_us": 421221956,
+          "direction": "upload",
+          "object": "1001:00",
+          "operation": 4,
+          "ordinal": 10,
+          "owner_request": 160,
+          "rx": "4f01100000000000",
+          "rx_receive_bounds_us": [
+            421219258,
+            421221208
+          ],
+          "step": 1,
+          "tx": "4001100000000000",
+          "tx_request": 38,
+          "width": 1
+        },
+        {
+          "admitted_us": 421225956,
+          "completed_us": 421228956,
+          "direction": "upload",
+          "object": "603F:00",
+          "operation": 4,
+          "ordinal": 11,
+          "owner_request": 161,
+          "rx": "4b3f600000000000",
+          "rx_receive_bounds_us": [
+            421226255,
+            421228185
+          ],
+          "step": 2,
+          "tx": "403f600000000000",
+          "tx_request": 39,
+          "width": 2
+        },
+        {
+          "admitted_us": 421232956,
+          "completed_us": 421235956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 4,
+          "ordinal": 12,
+          "owner_request": 162,
+          "rx": "4b00210015000000",
+          "rx_receive_bounds_us": [
+            421233257,
+            421235177
+          ],
+          "step": 3,
+          "tx": "4000210000000000",
+          "tx_request": 40,
+          "width": 2
+        },
+        {
+          "admitted_us": 421239956,
+          "completed_us": 421242956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 4,
+          "ordinal": 13,
+          "owner_request": 163,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            421240257,
+            421242219
+          ],
+          "step": 4,
+          "tx": "4001210000000000",
+          "tx_request": 41,
+          "width": 2
+        },
+        {
+          "admitted_us": 421246956,
+          "completed_us": 421249956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 4,
+          "ordinal": 14,
+          "owner_request": 164,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            421247257,
+            421249211
+          ],
+          "step": 5,
+          "tx": "4002210000000000",
+          "tx_request": 42,
+          "width": 2
+        },
+        {
+          "admitted_us": 421253956,
+          "completed_us": 421256956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 4,
+          "ordinal": 15,
+          "owner_request": 165,
+          "rx": "4b41600050c00000",
+          "rx_receive_bounds_us": [
+            421254257,
+            421256203
+          ],
+          "step": 6,
+          "tx": "4041600000000000",
+          "tx_request": 43,
+          "width": 2
+        },
+        {
+          "admitted_us": 421260956,
+          "completed_us": 421263956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 4,
+          "ordinal": 16,
+          "owner_request": 166,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            421261257,
+            421263199
+          ],
+          "step": 7,
+          "tx": "4061600000000000",
+          "tx_request": 44,
+          "width": 1
+        },
+        {
+          "admitted_us": 421267956,
+          "completed_us": 421270956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 4,
+          "ordinal": 17,
+          "owner_request": 167,
+          "rx": "436460003f2c0000",
+          "rx_receive_bounds_us": [
+            421268257,
+            421270193
+          ],
+          "step": 8,
+          "tx": "4064600000000000",
+          "tx_request": 45,
+          "width": 4
+        },
+        {
+          "admitted_us": 421274956,
+          "completed_us": 421277956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 4,
+          "ordinal": 18,
+          "owner_request": 168,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            421275257,
+            421277219
+          ],
+          "step": 9,
+          "tx": "406c600000000000",
+          "tx_request": 46,
+          "width": 4
+        },
+        {
+          "admitted_us": 421289956,
+          "completed_us": 421293956,
+          "direction": "download",
+          "object": "60FF:00",
+          "operation": 5,
+          "ordinal": 19,
+          "owner_request": 169,
+          "rx": "60ff600000000000",
+          "rx_receive_bounds_us": [
+            421290269,
+            421292699
+          ],
+          "step": 1,
+          "tx": "23ff60001e000000",
+          "tx_request": 47,
+          "width": 4
+        },
+        {
+          "admitted_us": 421297956,
+          "completed_us": 421301956,
+          "direction": "download",
+          "object": "6083:00",
+          "operation": 5,
+          "ordinal": 20,
+          "owner_request": 170,
+          "rx": "6083600000000000",
+          "rx_receive_bounds_us": [
+            421298267,
+            421300691
+          ],
+          "step": 2,
+          "tx": "23836000f4010000",
+          "tx_request": 48,
+          "width": 4
+        },
+        {
+          "admitted_us": 421305956,
+          "completed_us": 421309956,
+          "direction": "download",
+          "object": "6084:00",
+          "operation": 5,
+          "ordinal": 21,
+          "owner_request": 171,
+          "rx": "6084600000000000",
+          "rx_receive_bounds_us": [
+            421306267,
+            421308664
+          ],
+          "step": 3,
+          "tx": "23846000f4010000",
+          "tx_request": 49,
+          "width": 4
+        },
+        {
+          "admitted_us": 421313956,
+          "completed_us": 421317956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 22,
+          "owner_request": 172,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421314267,
+            421316704
+          ],
+          "step": 4,
+          "tx": "2b40600006000000",
+          "tx_request": 50,
+          "width": 2
+        },
+        {
+          "admitted_us": 421322956,
+          "completed_us": 421325956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 23,
+          "owner_request": 173,
+          "rx": "4b00210015000000",
+          "rx_receive_bounds_us": [
+            421323273,
+            421325248
+          ],
+          "step": 5,
+          "tx": "4000210000000000",
+          "tx_request": 51,
+          "width": 2
+        },
+        {
+          "admitted_us": 421330956,
+          "completed_us": 421333956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 24,
+          "owner_request": 174,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            421331271,
+            421333242
+          ],
+          "step": 6,
+          "tx": "4001210000000000",
+          "tx_request": 52,
+          "width": 2
+        },
+        {
+          "admitted_us": 421338956,
+          "completed_us": 421341956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 25,
+          "owner_request": 175,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            421339271,
+            421341236
+          ],
+          "step": 7,
+          "tx": "4002210000000000",
+          "tx_request": 53,
+          "width": 2
+        },
+        {
+          "admitted_us": 421346956,
+          "completed_us": 421349956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 26,
+          "owner_request": 176,
+          "rx": "4b41600031c00000",
+          "rx_receive_bounds_us": [
+            421347271,
+            421349259
+          ],
+          "step": 8,
+          "tx": "4041600000000000",
+          "tx_request": 54,
+          "width": 2
+        },
+        {
+          "admitted_us": 421354956,
+          "completed_us": 421357956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 27,
+          "owner_request": 177,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            421355271,
+            421357254
+          ],
+          "step": 9,
+          "tx": "4061600000000000",
+          "tx_request": 55,
+          "width": 1
+        },
+        {
+          "admitted_us": 421362956,
+          "completed_us": 421365956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 28,
+          "owner_request": 178,
+          "rx": "436460003f2c0000",
+          "rx_receive_bounds_us": [
+            421363271,
+            421365247
+          ],
+          "step": 10,
+          "tx": "4064600000000000",
+          "tx_request": 56,
+          "width": 4
+        },
+        {
+          "admitted_us": 421370956,
+          "completed_us": 421373956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 29,
+          "owner_request": 179,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            421371271,
+            421373246
+          ],
+          "step": 11,
+          "tx": "406c600000000000",
+          "tx_request": 57,
+          "width": 4
+        },
+        {
+          "admitted_us": 421378956,
+          "completed_us": 421382956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 30,
+          "owner_request": 180,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421379267,
+            421381691
+          ],
+          "step": 12,
+          "tx": "2b40600007000000",
+          "tx_request": 58,
+          "width": 2
+        },
+        {
+          "admitted_us": 421387956,
+          "completed_us": 421390956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 31,
+          "owner_request": 181,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            421388273,
+            421390242
+          ],
+          "step": 13,
+          "tx": "4000210000000000",
+          "tx_request": 59,
+          "width": 2
+        },
+        {
+          "admitted_us": 421395956,
+          "completed_us": 421398956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 32,
+          "owner_request": 182,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            421396271,
+            421398240
+          ],
+          "step": 14,
+          "tx": "4001210000000000",
+          "tx_request": 60,
+          "width": 2
+        },
+        {
+          "admitted_us": 421403956,
+          "completed_us": 421406956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 33,
+          "owner_request": 183,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            421404271,
+            421406240
+          ],
+          "step": 15,
+          "tx": "4002210000000000",
+          "tx_request": 61,
+          "width": 2
+        },
+        {
+          "admitted_us": 421411956,
+          "completed_us": 421414956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 34,
+          "owner_request": 184,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            421412271,
+            421414238
+          ],
+          "step": 16,
+          "tx": "4041600000000000",
+          "tx_request": 62,
+          "width": 2
+        },
+        {
+          "admitted_us": 421419956,
+          "completed_us": 421422956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 35,
+          "owner_request": 185,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            421420271,
+            421422238
+          ],
+          "step": 17,
+          "tx": "4061600000000000",
+          "tx_request": 63,
+          "width": 1
+        },
+        {
+          "admitted_us": 421427956,
+          "completed_us": 421430956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 36,
+          "owner_request": 186,
+          "rx": "436460003f2c0000",
+          "rx_receive_bounds_us": [
+            421428271,
+            421430236
+          ],
+          "step": 18,
+          "tx": "4064600000000000",
+          "tx_request": 64,
+          "width": 4
+        },
+        {
+          "admitted_us": 421435956,
+          "completed_us": 421438956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 37,
+          "owner_request": 187,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            421436271,
+            421438238
+          ],
+          "step": 19,
+          "tx": "406c600000000000",
+          "tx_request": 65,
+          "width": 4
+        },
+        {
+          "admitted_us": 421443956,
+          "completed_us": 421447956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 38,
+          "owner_request": 188,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421444267,
+            421446722
+          ],
+          "step": 20,
+          "tx": "2b4060000f000000",
+          "tx_request": 66,
+          "width": 2
+        },
+        {
+          "admitted_us": 421452956,
+          "completed_us": 421455956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 39,
+          "owner_request": 189,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            421453273,
+            421455236
+          ],
+          "step": 21,
+          "tx": "4000210000000000",
+          "tx_request": 67,
+          "width": 2
+        },
+        {
+          "admitted_us": 421460956,
+          "completed_us": 421463956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 40,
+          "owner_request": 190,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            421461271,
+            421463235
+          ],
+          "step": 22,
+          "tx": "4001210000000000",
+          "tx_request": 68,
+          "width": 2
+        },
+        {
+          "admitted_us": 421468956,
+          "completed_us": 421471956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 41,
+          "owner_request": 191,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            421469271,
+            421471233
+          ],
+          "step": 23,
+          "tx": "4002210000000000",
+          "tx_request": 69,
+          "width": 2
+        },
+        {
+          "admitted_us": 421476956,
+          "completed_us": 421479956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 42,
+          "owner_request": 192,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            421477271,
+            421479231
+          ],
+          "step": 24,
+          "tx": "4041600000000000",
+          "tx_request": 70,
+          "width": 2
+        },
+        {
+          "admitted_us": 421484956,
+          "completed_us": 421487956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 43,
+          "owner_request": 193,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            421485271,
+            421487228
+          ],
+          "step": 25,
+          "tx": "4061600000000000",
+          "tx_request": 71,
+          "width": 1
+        },
+        {
+          "admitted_us": 421492956,
+          "completed_us": 421495956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 44,
+          "owner_request": 194,
+          "rx": "436460003f2c0000",
+          "rx_receive_bounds_us": [
+            421493271,
+            421495248
+          ],
+          "step": 26,
+          "tx": "4064600000000000",
+          "tx_request": 72,
+          "width": 4
+        },
+        {
+          "admitted_us": 421500956,
+          "completed_us": 421503956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 45,
+          "owner_request": 195,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            421501271,
+            421503251
+          ],
+          "step": 27,
+          "tx": "406c600000000000",
+          "tx_request": 73,
+          "width": 4
+        },
+        {
+          "admitted_us": 421807956,
+          "completed_us": 421810956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 46,
+          "owner_request": 196,
+          "rx": "4b00210001000000",
+          "rx_receive_bounds_us": [
+            421808273,
+            421810247
+          ],
+          "step": 28,
+          "tx": "4000210000000000",
+          "tx_request": 74,
+          "width": 2
+        },
+        {
+          "admitted_us": 421815956,
+          "completed_us": 421818956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 47,
+          "owner_request": 197,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            421816271,
+            421818255
+          ],
+          "step": 29,
+          "tx": "4001210000000000",
+          "tx_request": 75,
+          "width": 2
+        },
+        {
+          "admitted_us": 421823956,
+          "completed_us": 421826956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 48,
+          "owner_request": 198,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            421824271,
+            421826235
+          ],
+          "step": 30,
+          "tx": "4002210000000000",
+          "tx_request": 76,
+          "width": 2
+        },
+        {
+          "admitted_us": 421831956,
+          "completed_us": 421834956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 49,
+          "owner_request": 199,
+          "rx": "4b41600033800000",
+          "rx_receive_bounds_us": [
+            421832271,
+            421834242
+          ],
+          "step": 31,
+          "tx": "4041600000000000",
+          "tx_request": 77,
+          "width": 2
+        },
+        {
+          "admitted_us": 421839956,
+          "completed_us": 421842956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 50,
+          "owner_request": 200,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            421840271,
+            421842251
+          ],
+          "step": 32,
+          "tx": "4061600000000000",
+          "tx_request": 78,
+          "width": 1
+        },
+        {
+          "admitted_us": 421847956,
+          "completed_us": 421850956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 51,
+          "owner_request": 201,
+          "rx": "436460003f2c0000",
+          "rx_receive_bounds_us": [
+            421848271,
+            421850233
+          ],
+          "step": 33,
+          "tx": "4064600000000000",
+          "tx_request": 79,
+          "width": 4
+        },
+        {
+          "admitted_us": 421855956,
+          "completed_us": 421858956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 52,
+          "owner_request": 202,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            421856271,
+            421858245
+          ],
+          "step": 34,
+          "tx": "406c600000000000",
+          "tx_request": 80,
+          "width": 4
+        },
+        {
+          "admitted_us": 422162956,
+          "completed_us": 422165956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 53,
+          "owner_request": 203,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            422163273,
+            422165288
+          ],
+          "step": 35,
+          "tx": "4000210000000000",
+          "tx_request": 81,
+          "width": 2
+        },
+        {
+          "admitted_us": 422170956,
+          "completed_us": 422173956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 54,
+          "owner_request": 204,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            422171271,
+            422173237
+          ],
+          "step": 36,
+          "tx": "4001210000000000",
+          "tx_request": 82,
+          "width": 2
+        },
+        {
+          "admitted_us": 422178956,
+          "completed_us": 422181956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 55,
+          "owner_request": 205,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            422179271,
+            422181268
+          ],
+          "step": 37,
+          "tx": "4002210000000000",
+          "tx_request": 83,
+          "width": 2
+        },
+        {
+          "admitted_us": 422186956,
+          "completed_us": 422189956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 56,
+          "owner_request": 206,
+          "rx": "4b41600037c00000",
+          "rx_receive_bounds_us": [
+            422187271,
+            422189269
+          ],
+          "step": 38,
+          "tx": "4041600000000000",
+          "tx_request": 84,
+          "width": 2
+        },
+        {
+          "admitted_us": 422194956,
+          "completed_us": 422197956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 57,
+          "owner_request": 207,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            422195271,
+            422197269
+          ],
+          "step": 39,
+          "tx": "4061600000000000",
+          "tx_request": 85,
+          "width": 1
+        },
+        {
+          "admitted_us": 422202956,
+          "completed_us": 422205956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 58,
+          "owner_request": 208,
+          "rx": "43646000652c0000",
+          "rx_receive_bounds_us": [
+            422203271,
+            422205267
+          ],
+          "step": 40,
+          "tx": "4064600000000000",
+          "tx_request": 86,
+          "width": 4
+        },
+        {
+          "admitted_us": 422210956,
+          "completed_us": 422213956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 59,
+          "owner_request": 209,
+          "rx": "436c600010000000",
+          "rx_receive_bounds_us": [
+            422211271,
+            422213275
+          ],
+          "step": 41,
+          "tx": "406c600000000000",
+          "tx_request": 87,
+          "width": 4
+        },
+        {
+          "admitted_us": 427217956,
+          "completed_us": 427220956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 60,
+          "owner_request": 210,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            427218273,
+            427220236
+          ],
+          "step": 42,
+          "tx": "4000210000000000",
+          "tx_request": 88,
+          "width": 2
+        },
+        {
+          "admitted_us": 427225956,
+          "completed_us": 427228956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 61,
+          "owner_request": 211,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            427226271,
+            427228277
+          ],
+          "step": 43,
+          "tx": "4001210000000000",
+          "tx_request": 89,
+          "width": 2
+        },
+        {
+          "admitted_us": 427233956,
+          "completed_us": 427236956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 62,
+          "owner_request": 212,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            427234271,
+            427236245
+          ],
+          "step": 44,
+          "tx": "4002210000000000",
+          "tx_request": 90,
+          "width": 2
+        },
+        {
+          "admitted_us": 427241956,
+          "completed_us": 427244956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 63,
+          "owner_request": 213,
+          "rx": "4b41600037c40000",
+          "rx_receive_bounds_us": [
+            427242271,
+            427244235
+          ],
+          "step": 45,
+          "tx": "4041600000000000",
+          "tx_request": 91,
+          "width": 2
+        },
+        {
+          "admitted_us": 427249956,
+          "completed_us": 427252956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 64,
+          "owner_request": 214,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            427250271,
+            427252281
+          ],
+          "step": 46,
+          "tx": "4061600000000000",
+          "tx_request": 92,
+          "width": 1
+        },
+        {
+          "admitted_us": 427257956,
+          "completed_us": 427260956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 65,
+          "owner_request": 215,
+          "rx": "436460001c360000",
+          "rx_receive_bounds_us": [
+            427258271,
+            427260272
+          ],
+          "step": 47,
+          "tx": "4064600000000000",
+          "tx_request": 93,
+          "width": 4
+        },
+        {
+          "admitted_us": 427265956,
+          "completed_us": 427268956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 66,
+          "owner_request": 216,
+          "rx": "436c60001e000000",
+          "rx_receive_bounds_us": [
+            427266271,
+            427268265
+          ],
+          "step": 48,
+          "tx": "406c600000000000",
+          "tx_request": 94,
+          "width": 4
+        },
+        {
+          "admitted_us": 432272956,
+          "completed_us": 432275956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 5,
+          "ordinal": 67,
+          "owner_request": 217,
+          "rx": "4b00210004000000",
+          "rx_receive_bounds_us": [
+            432273273,
+            432275246
+          ],
+          "step": 49,
+          "tx": "4000210000000000",
+          "tx_request": 95,
+          "width": 2
+        },
+        {
+          "admitted_us": 432280956,
+          "completed_us": 432283956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 5,
+          "ordinal": 68,
+          "owner_request": 218,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            432281271,
+            432283237
+          ],
+          "step": 50,
+          "tx": "4001210000000000",
+          "tx_request": 96,
+          "width": 2
+        },
+        {
+          "admitted_us": 432288956,
+          "completed_us": 432291956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 5,
+          "ordinal": 69,
+          "owner_request": 219,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            432289271,
+            432291284
+          ],
+          "step": 51,
+          "tx": "4002210000000000",
+          "tx_request": 97,
+          "width": 2
+        },
+        {
+          "admitted_us": 432296956,
+          "completed_us": 432299956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 5,
+          "ordinal": 70,
+          "owner_request": 220,
+          "rx": "4b41600037c40000",
+          "rx_receive_bounds_us": [
+            432297271,
+            432299250
+          ],
+          "step": 52,
+          "tx": "4041600000000000",
+          "tx_request": 98,
+          "width": 2
+        },
+        {
+          "admitted_us": 432304956,
+          "completed_us": 432307956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 5,
+          "ordinal": 71,
+          "owner_request": 221,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            432305271,
+            432307239
+          ],
+          "step": 53,
+          "tx": "4061600000000000",
+          "tx_request": 99,
+          "width": 1
+        },
+        {
+          "admitted_us": 432312956,
+          "completed_us": 432315956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 5,
+          "ordinal": 72,
+          "owner_request": 222,
+          "rx": "43646000e83f0000",
+          "rx_receive_bounds_us": [
+            432313271,
+            432315233
+          ],
+          "step": 54,
+          "tx": "4064600000000000",
+          "tx_request": 100,
+          "width": 4
+        },
+        {
+          "admitted_us": 432320956,
+          "completed_us": 432323956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 5,
+          "ordinal": 73,
+          "owner_request": 223,
+          "rx": "436c60001e000000",
+          "rx_receive_bounds_us": [
+            432321271,
+            432323283
+          ],
+          "step": 55,
+          "tx": "406c600000000000",
+          "tx_request": 101,
+          "width": 4
+        },
+        {
+          "admitted_us": 433287956,
+          "completed_us": 433290956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 6,
+          "ordinal": 74,
+          "owner_request": 224,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            433288268,
+            433290533
+          ],
+          "step": 1,
+          "tx": "2b4060000b000000",
+          "tx_request": 102,
+          "width": 2
+        },
+        {
+          "admitted_us": 433294956,
+          "completed_us": 433297956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 6,
+          "ordinal": 75,
+          "owner_request": 225,
+          "rx": "4b00210014000000",
+          "rx_receive_bounds_us": [
+            433295268,
+            433297222
+          ],
+          "step": 2,
+          "tx": "4000210000000000",
+          "tx_request": 103,
+          "width": 2
+        },
+        {
+          "admitted_us": 433302956,
+          "completed_us": 433305956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 6,
+          "ordinal": 76,
+          "owner_request": 226,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            433303266,
+            433305225
+          ],
+          "step": 3,
+          "tx": "4001210000000000",
+          "tx_request": 104,
+          "width": 2
+        },
+        {
+          "admitted_us": 433310956,
+          "completed_us": 433313956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 6,
+          "ordinal": 77,
+          "owner_request": 227,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            433311266,
+            433313230
+          ],
+          "step": 4,
+          "tx": "4002210000000000",
+          "tx_request": 105,
+          "width": 2
+        },
+        {
+          "admitted_us": 433318956,
+          "completed_us": 433321956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 6,
+          "ordinal": 78,
+          "owner_request": 228,
+          "rx": "4b41600050c00000",
+          "rx_receive_bounds_us": [
+            433319266,
+            433321224
+          ],
+          "step": 5,
+          "tx": "4041600000000000",
+          "tx_request": 106,
+          "width": 2
+        },
+        {
+          "admitted_us": 433326956,
+          "completed_us": 433329956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 6,
+          "ordinal": 79,
+          "owner_request": 229,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            433327266,
+            433329212
+          ],
+          "step": 6,
+          "tx": "4061600000000000",
+          "tx_request": 107,
+          "width": 1
+        },
+        {
+          "admitted_us": 433334956,
+          "completed_us": 433337956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 6,
+          "ordinal": 80,
+          "owner_request": 230,
+          "rx": "43646000cd410000",
+          "rx_receive_bounds_us": [
+            433335266,
+            433337226
+          ],
+          "step": 7,
+          "tx": "4064600000000000",
+          "tx_request": 108,
+          "width": 4
+        },
+        {
+          "admitted_us": 433342956,
+          "completed_us": 433345956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 6,
+          "ordinal": 81,
+          "owner_request": 231,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            433343266,
+            433345224
+          ],
+          "step": 8,
+          "tx": "406c600000000000",
+          "tx_request": 109,
+          "width": 4
+        },
+        {
+          "admitted_us": 438348956,
+          "completed_us": 438351956,
+          "direction": "upload",
+          "object": "2100:00",
+          "operation": 6,
+          "ordinal": 82,
+          "owner_request": 232,
+          "rx": "4b00210015000000",
+          "rx_receive_bounds_us": [
+            438349268,
+            438351236
+          ],
+          "step": 9,
+          "tx": "4000210000000000",
+          "tx_request": 110,
+          "width": 2
+        },
+        {
+          "admitted_us": 438356956,
+          "completed_us": 438359956,
+          "direction": "upload",
+          "object": "2101:00",
+          "operation": 6,
+          "ordinal": 83,
+          "owner_request": 233,
+          "rx": "4b01210000000000",
+          "rx_receive_bounds_us": [
+            438357266,
+            438359207
+          ],
+          "step": 10,
+          "tx": "4001210000000000",
+          "tx_request": 111,
+          "width": 2
+        },
+        {
+          "admitted_us": 438364956,
+          "completed_us": 438367956,
+          "direction": "upload",
+          "object": "2102:00",
+          "operation": 6,
+          "ordinal": 84,
+          "owner_request": 234,
+          "rx": "4b02210000000000",
+          "rx_receive_bounds_us": [
+            438365266,
+            438367247
+          ],
+          "step": 11,
+          "tx": "4002210000000000",
+          "tx_request": 112,
+          "width": 2
+        },
+        {
+          "admitted_us": 438372956,
+          "completed_us": 438375956,
+          "direction": "upload",
+          "object": "6041:00",
+          "operation": 6,
+          "ordinal": 85,
+          "owner_request": 235,
+          "rx": "4b41600050c00000",
+          "rx_receive_bounds_us": [
+            438373266,
+            438375239
+          ],
+          "step": 12,
+          "tx": "4041600000000000",
+          "tx_request": 113,
+          "width": 2
+        },
+        {
+          "admitted_us": 438380956,
+          "completed_us": 438383956,
+          "direction": "upload",
+          "object": "6061:00",
+          "operation": 6,
+          "ordinal": 86,
+          "owner_request": 236,
+          "rx": "4f61600003000000",
+          "rx_receive_bounds_us": [
+            438381266,
+            438383232
+          ],
+          "step": 13,
+          "tx": "4061600000000000",
+          "tx_request": 114,
+          "width": 1
+        },
+        {
+          "admitted_us": 438388956,
+          "completed_us": 438391956,
+          "direction": "upload",
+          "object": "6064:00",
+          "operation": 6,
+          "ordinal": 87,
+          "owner_request": 237,
+          "rx": "43646000cd410000",
+          "rx_receive_bounds_us": [
+            438389266,
+            438391225
+          ],
+          "step": 14,
+          "tx": "4064600000000000",
+          "tx_request": 115,
+          "width": 4
+        },
+        {
+          "admitted_us": 438396956,
+          "completed_us": 438399956,
+          "direction": "upload",
+          "object": "606C:00",
+          "operation": 6,
+          "ordinal": 88,
+          "owner_request": 238,
+          "rx": "436c600000000000",
+          "rx_receive_bounds_us": [
+            438397266,
+            438399222
+          ],
+          "step": 15,
+          "tx": "406c600000000000",
+          "tx_request": 116,
+          "width": 4
+        }
+      ],
+      "end": {
+        "lost": 0,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 88,
+        "traffic": 264
+      },
+      "fallback_used": false,
+      "hardware_qualified": false,
+      "header": {
+        "case": 1,
+        "cycles": 7,
+        "failure": 0,
+        "gap": 6000,
+        "id": 47302,
+        "lossCancel": 0,
+        "lost": 0,
+        "motion": 4,
+        "node": 2,
+        "route": "velocity",
+        "step": 3,
+        "summaries": 16,
+        "tail": 0,
+        "tailLost": 0,
+        "terminals": 88,
+        "traffic": 264,
+        "unsettled": 0,
+        "why": "none"
+      },
+      "identity_before_downloads": [
+        {
+          "object": "1000:00",
+          "value": 262546,
+          "width": 4
+        },
+        {
+          "object": "1009:00",
+          "value": 12,
+          "width": 1
+        },
+        {
+          "object": "100A:00",
+          "value": 32,
+          "width": 1
+        },
+        {
+          "object": "1018:00",
+          "value": 5,
+          "width": 1
+        },
+        {
+          "object": "1018:01",
+          "value": 4096,
+          "width": 4
+        },
+        {
+          "object": "1018:02",
+          "value": 1,
+          "width": 4
+        },
+        {
+          "object": "1018:03",
+          "value": 0,
+          "width": 4
+        },
+        {
+          "object": "2000:00",
+          "value": 1024,
+          "width": 2
+        },
+        {
+          "object": "2001:00",
+          "value": 512,
+          "width": 2
+        }
+      ],
+      "initial_state": {
+        "1001": 0,
+        "2100": 21,
+        "2101": 0,
+        "2102": 0,
+        "603F": 0,
+        "6041": 49232,
+        "6061": 3,
+        "6064": 11327,
+        "606C": 0
+      },
+      "last_stop_cycle": {
+        "2100": 21,
+        "2101": 0,
+        "2102": 0,
+        "6041": 49232,
+        "6061": 3,
+        "6064": 16845,
+        "606C": 0
+      },
+      "limitations": [
+        "Exactly seven downloads per run; any previous eight-download description was an arithmetic error.",
+        "All start,stop,mode-change,reverse qualification flags remain false; legacy attended=1 reflects the explicit unattended motion waiver.",
+        "606C=30 then0 and changed6064 are controller feedback only; no shaft direction,travel,speed,torque or physical standstill observation.",
+        "Stop uses existing experimental measured predicate (documented=0,basis=3), without manufacturer-wide qualification.",
+        "Node isolation applies to this retained record; processing times/receive bounds are not exact wire arrival times.",
+        "No fallback,retry,mode write or download outside the reviewed seven-write sequence."
+      ],
+      "node": 2,
+      "operator": {
+        "attended": {
+          "accepted": true,
+          "covers_motion": true,
+          "unattended": true,
+          "waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility"
+        },
+        "shaft_after": {
+          "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+          "typed": "unattended: not observed"
+        }
+      },
+      "outcome": "finite conditional velocity experiment completed with acknowledged own quick stop",
+      "parser_errors": [],
+      "parser_failure": "NONE",
+      "parser_verdict": "complete",
+      "parser_warnings": [],
+      "permitted_downloads": [
+        {
+          "admitted_us": 421289956,
+          "completed_us": 421293956,
+          "direction": "download",
+          "object": "60FF:00",
+          "operation": 5,
+          "ordinal": 19,
+          "owner_request": 169,
+          "rx": "60ff600000000000",
+          "rx_receive_bounds_us": [
+            421290269,
+            421292699
+          ],
+          "step": 1,
+          "tx": "23ff60001e000000",
+          "tx_request": 47,
+          "width": 4
+        },
+        {
+          "admitted_us": 421297956,
+          "completed_us": 421301956,
+          "direction": "download",
+          "object": "6083:00",
+          "operation": 5,
+          "ordinal": 20,
+          "owner_request": 170,
+          "rx": "6083600000000000",
+          "rx_receive_bounds_us": [
+            421298267,
+            421300691
+          ],
+          "step": 2,
+          "tx": "23836000f4010000",
+          "tx_request": 48,
+          "width": 4
+        },
+        {
+          "admitted_us": 421305956,
+          "completed_us": 421309956,
+          "direction": "download",
+          "object": "6084:00",
+          "operation": 5,
+          "ordinal": 21,
+          "owner_request": 171,
+          "rx": "6084600000000000",
+          "rx_receive_bounds_us": [
+            421306267,
+            421308664
+          ],
+          "step": 3,
+          "tx": "23846000f4010000",
+          "tx_request": 49,
+          "width": 4
+        },
+        {
+          "admitted_us": 421313956,
+          "completed_us": 421317956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 22,
+          "owner_request": 172,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421314267,
+            421316704
+          ],
+          "step": 4,
+          "tx": "2b40600006000000",
+          "tx_request": 50,
+          "width": 2
+        },
+        {
+          "admitted_us": 421378956,
+          "completed_us": 421382956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 30,
+          "owner_request": 180,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421379267,
+            421381691
+          ],
+          "step": 12,
+          "tx": "2b40600007000000",
+          "tx_request": 58,
+          "width": 2
+        },
+        {
+          "admitted_us": 421443956,
+          "completed_us": 421447956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 5,
+          "ordinal": 38,
+          "owner_request": 188,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            421444267,
+            421446722
+          ],
+          "step": 20,
+          "tx": "2b4060000f000000",
+          "tx_request": 66,
+          "width": 2
+        },
+        {
+          "admitted_us": 433287956,
+          "completed_us": 433290956,
+          "direction": "download",
+          "object": "6040:00",
+          "operation": 6,
+          "ordinal": 74,
+          "owner_request": 224,
+          "rx": "6040600000000000",
+          "rx_receive_bounds_us": [
+            433288268,
+            433290533
+          ],
+          "step": 1,
+          "tx": "2b4060000b000000",
+          "tx_request": 102,
+          "width": 2
+        }
+      ],
+      "physical_observations": null,
+      "plan": {
+        "attended": 1,
+        "deadline": 23000,
+        "down": 500,
+        "dur": 12000,
+        "interval": 5000,
+        "kind": 2,
+        "node": 2,
+        "probe": 0,
+        "reverse": 0,
+        "route": "velocity",
+        "rpm": 30,
+        "trial": 47302,
+        "up": 500
+      },
+      "raw_counts": {
+        "all_pairs_correlated": true,
+        "downloads": 7,
+        "lost": 0,
+        "other_node_frames_in_this_record": 0,
+        "rx": 88,
+        "tail_lost": 0,
+        "terminals": 88,
+        "tx": 88,
+        "tx_reports": 88,
+        "unexpected_downloads": [],
+        "unmatched_terminals": [],
+        "uploads": 81
+      },
+      "resource": {
+        "admission": 0,
+        "completed": 438399956,
+        "dropped": 0,
+        "gap": 6000,
+        "heap0": 2880,
+        "heap1": 2880,
+        "heapMin": 2880,
+        "largest": 1024,
+        "rec0": 0,
+        "rec1": 0,
+        "stack0": 5636,
+        "stack1": 5636,
+        "started": 421150108,
+        "tec0": 0,
+        "tec1": 0
+      },
+      "samples": [
+        {
+          "cycle": 0,
+          "hi": 421277956,
+          "lo": 421232956,
+          "mode": 3,
+          "monitor": 21,
+          "position": 11327,
+          "present": 1,
+          "status": 49232,
+          "velocity": 0,
+          "which": 0
+        },
+        {
+          "cycle": 7,
+          "hi": 432323956,
+          "lo": 432272956,
+          "mode": 3,
+          "monitor": 4,
+          "position": 16360,
+          "present": 1,
+          "status": 50231,
+          "velocity": 30,
+          "which": 1
+        },
+        {
+          "cycle": 3,
+          "hi": 421503956,
+          "lo": 421452956,
+          "mode": 3,
+          "monitor": 1,
+          "position": 11327,
+          "present": 1,
+          "status": 32819,
+          "velocity": 0,
+          "which": 2
+        },
+        {
+          "cycle": 4,
+          "hi": 421858956,
+          "lo": 421807956,
+          "mode": 3,
+          "monitor": 1,
+          "position": 11327,
+          "present": 1,
+          "status": 32819,
+          "velocity": 0,
+          "which": 3
+        },
+        {
+          "cycle": 5,
+          "hi": 422213956,
+          "lo": 422162956,
+          "mode": 3,
+          "monitor": 4,
+          "position": 11365,
+          "present": 1,
+          "status": 49207,
+          "velocity": 16,
+          "which": 4
+        }
+      ],
+      "stop": {
+        "basis": 3,
+        "completion": 1,
+        "documented": 0,
+        "effects": 1,
+        "exec": 1,
+        "final": 4,
+        "kind": 2,
+        "observations": 2,
+        "op": 6,
+        "own": 1,
+        "pred": 15,
+        "state": 2,
+        "stopOutcome": 1,
+        "stopPath": 0,
+        "uncertain": 0
+      },
+      "timing_us": {
+        "cmask": 7,
+        "deadline": 444282956,
+        "deadline_remaining_at_completion": 5883000,
+        "due": 433282956,
+        "first_stop_tx_after_stop_request": 5000,
+        "first_target_tx_after_start": 7000,
+        "serviced": 438399956,
+        "smask": 7,
+        "started": 421282956,
+        "stopAt": 433282956,
+        "stop_ack_after_stop_request": 8000,
+        "stop_completion_after_request": 5117000,
+        "velocity_completion_after_start": 17117000
+      },
+      "trial": 47302,
+      "velocity": {
+        "code": 0,
+        "cycles": 7,
+        "detail": 0,
+        "effects": 1,
+        "exec": 1,
+        "first": 0,
+        "int": 0,
+        "needs": 0,
+        "op": 5,
+        "own": 1,
+        "phase": 5,
+        "polls": 2,
+        "rpm": 30,
+        "running": 1,
+        "setup": 1,
+        "sexec": 1,
+        "sop": 6,
+        "state": 2,
+        "stop": 1,
+        "velocityCompletion": 1,
+        "velocityFenced": 0,
+        "velocityOutcome": 1,
+        "velocityUncertain": 0
+      },
+      "velocity_evidence": {
+        "dt": 262546,
+        "fc": 512,
+        "gate": 2,
+        "hw": 12,
+        "kind": 2,
+        "layout": 2,
+        "max": 30,
+        "mc": 1024,
+        "modeChange": 0,
+        "pc": 1,
+        "probe": 0,
+        "record": 47302,
+        "rev": 0,
+        "reverse": 0,
+        "reverseProbe": 0,
+        "start": 0,
+        "stop": 0,
+        "sw": 32,
+        "vid": 4096
+      }
+    },
+    {
+      "artifact": "39-release-node1",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 2880,
+        "largest": 1024,
+        "minimum": 2880,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:984:556",
+        "regions": 3,
+        "reserved": 31
+      },
+      "limitations": [
+        "Record release cleans storage; it is not a motor stop, uncertainty reconciliation or physical observation."
+      ],
+      "outcome": "retained record released; sessions and uncertainty retained",
+      "stats": {
+        "conRej": 8370,
+        "dropped": 0,
+        "errors": 0,
+        "flags": 0,
+        "inhibited": 0,
+        "ownerGap": 7000,
+        "running": 1,
+        "rx": 144,
+        "rxLost": 0,
+        "stackFree": 5636,
+        "t": 407888962,
+        "traceOver": 0,
+        "tx": 144,
+        "txRej": 0,
+        "unmatched": 0
+      }
+    },
+    {
+      "artifact": "41-release-node2",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 2880,
+        "largest": 1024,
+        "minimum": 2880,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:984:556",
+        "regions": 3,
+        "reserved": 31
+      },
+      "limitations": [
+        "Record release cleans storage; it is not a motor stop, uncertainty reconciliation or physical observation."
+      ],
+      "outcome": "retained record released; sessions and uncertainty retained",
+      "stats": {
+        "conRej": 11506,
+        "dropped": 0,
+        "errors": 0,
+        "flags": 0,
+        "inhibited": 0,
+        "ownerGap": 7000,
+        "running": 1,
+        "rx": 232,
+        "rxLost": 0,
+        "stackFree": 5636,
+        "t": 460269958,
+        "traceOver": 0,
+        "tx": 232,
+        "txRej": 0,
+        "unmatched": 0
+      }
+    },
+    {
+      "artifact": "42-node1-status",
+      "block": "status",
+      "correlated_transactions": [
+        {
+          "object": "6041:00",
+          "raw": 49232,
+          "rx": "4B41600050C00000",
+          "rx_processed_us": 483158958,
+          "tx": "4041600000000000",
+          "tx_processed_us": 483154960,
+          "width": 2
+        },
+        {
+          "object": "6061:00",
+          "raw": 3,
+          "rx": "4F61600003000000",
+          "rx_processed_us": 483169958,
+          "tx": "4061600000000000",
+          "tx_processed_us": 483165958,
+          "width": 1
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 1,
+      "operation": {
+        "operation_id": 5,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 8,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 2,
+        "terminals": 2,
+        "tx": 2,
+        "tx_reports": 2,
+        "uploads": 2
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.187000000034459,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 122,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 2.9530000000377186,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 123,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.187000000034459,
+          "target_reached": true,
+          "target_traces": 8,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 2342315843,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 2342315840,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "42-node1-monitors",
+      "block": "monitors",
+      "correlated_transactions": [
+        {
+          "object": "2100:00",
+          "raw": 21,
+          "rx": "4B00210015000000",
+          "rx_processed_us": 486697958,
+          "tx": "4000210000000000",
+          "tx_processed_us": 486693960,
+          "width": 2
+        },
+        {
+          "object": "2101:00",
+          "raw": 0,
+          "rx": "4B01210000000000",
+          "rx_processed_us": 486708960,
+          "tx": "4001210000000000",
+          "tx_processed_us": 486704958,
+          "width": 2
+        },
+        {
+          "object": "2102:00",
+          "raw": 0,
+          "rx": "4B02210000000000",
+          "rx_processed_us": 486718966,
+          "tx": "4002210000000000",
+          "tx_processed_us": 486715958,
+          "width": 2
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 1,
+      "operation": {
+        "operation_id": 6,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 12,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 3,
+        "terminals": 3,
+        "tx": 3,
+        "tx_reports": 3,
+        "uploads": 3
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.26500000001397,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 122,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.0310000000172295,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 123,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.26500000001397,
+          "target_reached": true,
+          "target_traces": 12,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 2865504960,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 2865504957,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "42-node1-feedback",
+      "block": "feedback",
+      "correlated_transactions": [
+        {
+          "object": "6064:00",
+          "raw": 16846,
+          "rx": "43646000CE410000",
+          "rx_processed_us": 490416958,
+          "tx": "4064600000000000",
+          "tx_processed_us": 490412960,
+          "width": 4
+        },
+        {
+          "object": "606C:00",
+          "raw": 0,
+          "rx": "436C600000000000",
+          "rx_processed_us": 490427958,
+          "tx": "406C600000000000",
+          "tx_processed_us": 490423958,
+          "width": 4
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 1,
+      "operation": {
+        "operation_id": 7,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 8,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 2,
+        "terminals": 2,
+        "tx": 2,
+        "tx_reports": 2,
+        "uploads": 2
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.110000000044238,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 121,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 2.875,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 129,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.110000000044238,
+          "target_reached": true,
+          "target_traces": 8,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 3201006456,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 3201006453,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "42-node2-status",
+      "block": "status",
+      "correlated_transactions": [
+        {
+          "object": "6041:00",
+          "raw": 49232,
+          "rx": "4B41600050C00000",
+          "rx_processed_us": 493962958,
+          "tx": "4041600000000000",
+          "tx_processed_us": 493958960,
+          "width": 2
+        },
+        {
+          "object": "6061:00",
+          "raw": 3,
+          "rx": "4F61600003000000",
+          "rx_processed_us": 493973958,
+          "tx": "4061600000000000",
+          "tx_processed_us": 493969958,
+          "width": 1
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 2,
+      "operation": {
+        "operation_id": 8,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 8,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 2,
+        "terminals": 2,
+        "tx": 2,
+        "tx_reports": 2,
+        "uploads": 2
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.0939999999827705,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 121,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 2.85999999998603,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 121,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.0939999999827705,
+          "target_reached": true,
+          "target_traces": 8,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 3130887427,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 3130887424,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "42-node2-monitors",
+      "block": "monitors",
+      "correlated_transactions": [
+        {
+          "object": "2100:00",
+          "raw": 21,
+          "rx": "4B00210015000000",
+          "rx_processed_us": 497447958,
+          "tx": "4000210000000000",
+          "tx_processed_us": 497443960,
+          "width": 2
+        },
+        {
+          "object": "2101:00",
+          "raw": 0,
+          "rx": "4B01210000000000",
+          "rx_processed_us": 497458958,
+          "tx": "4001210000000000",
+          "tx_processed_us": 497454958,
+          "width": 2
+        },
+        {
+          "object": "2102:00",
+          "raw": 0,
+          "rx": "4B02210000000000",
+          "rx_processed_us": 497468966,
+          "tx": "4002210000000000",
+          "tx_processed_us": 497465958,
+          "width": 2
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 2,
+      "operation": {
+        "operation_id": 9,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 12,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 3,
+        "terminals": 3,
+        "tx": 3,
+        "tx_reports": 3,
+        "uploads": 3
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.26500000001397,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 123,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.0310000000172295,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 123,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.26500000001397,
+          "target_reached": true,
+          "target_traces": 12,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 1112763662,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 1112763659,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "42-node2-feedback",
+      "block": "feedback",
+      "correlated_transactions": [
+        {
+          "object": "6064:00",
+          "raw": 16845,
+          "rx": "43646000CD410000",
+          "rx_processed_us": 501172958,
+          "tx": "4064600000000000",
+          "tx_processed_us": 501168960,
+          "width": 4
+        },
+        {
+          "object": "606C:00",
+          "raw": 0,
+          "rx": "436C600000000000",
+          "rx_processed_us": 501183960,
+          "tx": "406C600000000000",
+          "tx_processed_us": 501179958,
+          "width": 4
+        }
+      ],
+      "hardware_qualified": false,
+      "node": 2,
+      "operation": {
+        "operation_id": 10,
+        "outcome": "SUCCESS",
+        "status": "OK",
+        "uncertain": false
+      },
+      "outcome": "ordinary typed read succeeded; every expected raw upload/reply retained",
+      "physical_observations": null,
+      "raw_counts": {
+        "all_expected_pairs_matched": true,
+        "diagnostics": 8,
+        "downloads": 0,
+        "loss_observed": false,
+        "rx": 2,
+        "terminals": 2,
+        "tx": 2,
+        "tx_reports": 2,
+        "uploads": 2
+      },
+      "raw_trace": {
+        "after_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.110000000044238,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 123,
+          "window_elapsed": true
+        },
+        "before_disable_tail": {
+          "duration_s": 0.2,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 2.875,
+          "target_reached": false,
+          "target_traces": null,
+          "turns": 121,
+          "window_elapsed": true
+        },
+        "coverage_complete": false,
+        "declared_pending_tail": {
+          "duration_s": 5.0,
+          "observation_only": true,
+          "partial_line_hex": "",
+          "received_bytes": 0,
+          "started_host_elapsed_s": 3.110000000044238,
+          "target_reached": true,
+          "target_traces": 8,
+          "turns": 1,
+          "window_elapsed": false
+        },
+        "disable_reply": {
+          "command": "debug",
+          "id": 3205624260,
+          "mode": 0,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "disabled": true,
+        "enable_reply": {
+          "command": "debug",
+          "id": 3205624257,
+          "mode": 1,
+          "ok": true,
+          "profile": "lichuan_c",
+          "protocol": 3,
+          "schema": "motorcontrolcan.console/1",
+          "status": "OK",
+          "trace_dropped": 0,
+          "trace_overwritten": 0,
+          "trace_pending": 0,
+          "type": "reply"
+        },
+        "enabled": true,
+        "loss_observed": false,
+        "requested": true
+      }
+    },
+    {
+      "artifact": "43-final-inspection",
+      "conRej_meaning": {
+        "meaning": "Cumulative whole output submissions refused for insufficient UART/platform output capacity, incremented once per refused submission; not a byte count or CAN request rejection.",
+        "scope": "application output-pressure accounting; raw pair completeness independently checked per trial",
+        "source": "examples/s2_bench/main/main.cpp:1963 -> examples/common/ProbePlatform.h:30 and ProbePlatform.cpp:60",
+        "value": 18599
+      },
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 2880,
+        "largest": 1024,
+        "minimum": 2880,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:984:556",
+        "regions": 3,
+        "reserved": 31
+      },
+      "limitations": [
+        "Memory headroom is limited: free2880 and largest1024. These samples do not establish sustained-load or unrestricted future-allocation qualification.",
+        "UART output-pressure counter is nonzero; CAN tx rejection,drop,error,loss and unmatched counters are zero in retained final sample."
+      ],
+      "outcome": "unchanged image, no held trial, retained final resource and controller counters",
+      "pong": {
+        "active": 1,
+        "base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+        "capture": 0,
+        "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+        "motion": 4,
+        "pdo": 5,
+        "pinsReady": 1,
+        "routes": 13,
+        "running": 1,
+        "sdk": "v5.5.5-dirty",
+        "silent": 0,
+        "soak": 0,
+        "t": 570398962,
+        "target": "esp32s2",
+        "trial": 0,
+        "watch": 0
+      },
+      "stats": {
+        "conRej": 18599,
+        "dropped": 0,
+        "errors": 0,
+        "flags": 0,
+        "inhibited": 0,
+        "ownerGap": 7000,
+        "running": 1,
+        "rx": 246,
+        "rxLost": 0,
+        "stackFree": 5636,
+        "t": 570336958,
+        "traceOver": 0,
+        "tx": 246,
+        "txRej": 0,
+        "unmatched": 0
+      }
+    }
+  ],
+  "campaign": {
+    "artifact": "velocity-native-campaign.jsonl",
+    "events": [
+      {
+        "command": "velocity",
+        "event": "send",
+        "image": {
+          "base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+          "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+          "sdk": "v5.5.5-dirty",
+          "target": "esp32s2"
+        },
+        "line": "TV1,47301,1,30,500,500,12000,5000,23000,2,47301,2,262546,12,32,4096,1,0,1024,512,0,0,K8961793a",
+        "motion": 2,
+        "node": 1,
+        "output": "docs\\bench\\20261115-p47\\38-velocity-node1",
+        "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+        "range_probe": false,
+        "reverse_probe": false,
+        "route": "V",
+        "scope": "ATTENDED_EXPERIMENT",
+        "seq": 1,
+        "stop": 1,
+        "trial": 47301,
+        "unattended_waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+        "utc": "2026-11-15T12:41:33.764098+00:00",
+        "waiver_covers_motion": true
+      },
+      {
+        "aborted": false,
+        "event": "result",
+        "node": 1,
+        "output": "docs\\bench\\20261115-p47\\38-velocity-node1",
+        "prev": "01dcbc4ea0fa74815fb703a66ef1f0fa9b83c8f1833fc07f02b6cce926180f02",
+        "reason": "ended",
+        "seq": 2,
+        "status": "captured",
+        "trial": 47301,
+        "utc": "2026-11-15T12:41:58.128308+00:00"
+      },
+      {
+        "command": "velocity",
+        "event": "send",
+        "image": {
+          "base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+          "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+          "sdk": "v5.5.5-dirty",
+          "target": "esp32s2"
+        },
+        "line": "TV2,47302,1,30,500,500,12000,5000,23000,2,47302,2,262546,12,32,4096,1,0,1024,512,0,0,K0dec89d0",
+        "motion": 2,
+        "node": 2,
+        "output": "docs\\bench\\20261115-p47\\40-velocity-node2",
+        "prev": "ad217ac83084b741d21ee1da6f41ea946aa23867286cf48b6eafc82507513d00",
+        "range_probe": false,
+        "reverse_probe": false,
+        "route": "V",
+        "scope": "ATTENDED_EXPERIMENT",
+        "seq": 3,
+        "stop": 1,
+        "trial": 47302,
+        "unattended_waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+        "utc": "2026-11-15T12:46:20.435196+00:00",
+        "waiver_covers_motion": true
+      },
+      {
+        "aborted": false,
+        "event": "result",
+        "node": 2,
+        "output": "docs\\bench\\20261115-p47\\40-velocity-node2",
+        "prev": "bcd716dd12947cfc95b0afbd8ef7f6ebb30004cc01acee2f29469929fc5f7547",
+        "reason": "ended",
+        "seq": 4,
+        "status": "captured",
+        "trial": 47302,
+        "utc": "2026-11-15T12:46:44.803785+00:00"
+      }
+    ],
+    "final_line_sha256": "22d8f71e860b17af2e2d3431f28c1e13b8be73bbd6719751cf6f2851e2ced30e",
+    "hash_input": "Previous serialized JSON line bytes excluding LF, matching scripts/s2_bench.py Campaign.load",
+    "qualification_promotion": false,
+    "replay_or_retry_observed": false,
+    "result_count": 2,
+    "send_count": 2,
+    "sha256_chain_verified": true,
+    "unpaired_sends": []
+  },
+  "hardware_qualified": false,
+  "image": {
+    "application_bin_sha256": "203471706cef20dfdf7401bc5f10ef6227fb0e45ada2a4877f34d38332651e30",
+    "base_commit": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+    "compiled_revision": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+    "elf_sha256": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+    "idf_release": "v5.5.5",
+    "image_check_matches": true,
+    "image_check_problems": [],
+    "pong": {
+      "active": 0,
+      "base": "bf8a0d9518c6b42ff06d4f29516bf82ee66abf79",
+      "capture": 0,
+      "elf": "9ca7701bb4f20efe9c383fd8fe4929e0314980bd2f2f1899652abcaa687b0399",
+      "motion": 0,
+      "pdo": 5,
+      "pinsReady": 1,
+      "routes": 13,
+      "running": 0,
+      "sdk": "v5.5.5-dirty",
+      "silent": 1,
+      "soak": 0,
+      "t": 0,
+      "target": "esp32s2",
+      "trial": 0,
+      "watch": 0
+    },
+    "sdk_sources_verified": 43,
+    "sdk_version_recorded": "v5.5.5-dirty",
+    "source_snapshot": "28-flash-final/build.json source_sha256 map",
+    "source_stable": true
+  },
+  "limitations": [
+    "Protocol/controller observations only; shaft travel, direction, torque, speed, physical standstill, LEDs and electrical silence are unobserved.",
+    "Matched raw pairs apply only to these finite records, without universal lossless-tracing or family-wide qualification.",
+    "Negative preparation refusal establishes no positive motion or stop behavior.",
+    "Resource samples establish the measured allocations, without a sustained-load or unrestricted future-allocation claim.",
+    "Positive velocity records are two finite specimen/controller experiments; source conflicts and start/stop/reverse/mode-change and physical qualifications remain unresolved.",
+    "Ordinary positive velocity was not exercised; finite TV route delegates the existing installed AxisSession velocity engine on the same single owner."
+  ],
+  "native_velocity_plan": {
+    "capture": {
+      "helper": "scripts/s2_bench.py --command velocity",
+      "output_kind": "finite conditional experiment; successful terminal is controller evidence only",
+      "raw_traffic": "existing BenchRoute record, no second receiver",
+      "seconds": 60,
+      "timestamps": "processing/receive bounds, not exact physical arrival"
+    },
+    "failure_handling": [
+      "Keep original outcome and unknown effects; no automatic motion replay or reconnect",
+      "Existing S16 may request one separate QUICK_STOP only when needsStop is true, own stop execution is NOT_TRANSMITTED, and interruption is not DRIVE_FAULT",
+      "S16 stop has11s from its separate request, clipped to existing60s route cutoff; it can use its existing best-effort/held-replacement path",
+      "23s is the velocity deadline, not a universal route bound. Record all fallback identities/evidence",
+      "After any failure inspect retained results before any separately admitted reconciliation; do not start node2 while node1 is unresolved"
+    ],
+    "fixture": "OPTAK ESP32-S2, ESP-Prog2 94A990398B40 on COM15, CL86-C nodes 1 and 2, LC60H2127, 1 Mbit/s",
+    "hardware_qualified": false,
+    "intent": {
+      "direction": "positive native motor RPM only",
+      "duration_ms": 12000,
+      "native_deadline_ms": 23000,
+      "poll_interval_ms": 5000,
+      "ramps_ms": [
+        500,
+        500
+      ],
+      "rate_times_requested_duration_turns": 6,
+      "reserved_terminals": 125,
+      "rpm": 30,
+      "runtime_max_polls": 3,
+      "stop_kind": "quick",
+      "terminal_capacity": 128
+    },
+    "nodes": [
+      1,
+      2
+    ],
+    "physical_observation": null,
+    "preconditions": [
+      "Fresh exact identity and full state acquired by existing TV route before writes",
+      "Mode3; clean released/latched-release stationary experimental predicate",
+      "Current2200/DI baseline retained, no direction or input change",
+      "First node must settle with needsStop false before another node runs"
+    ],
+    "prerequisite_image": "28-flash-final and matching29-ping-final; new joint reservation and80-record console buffer",
+    "purpose": "Finite native public velocity/owner experiment, with complete bounded bench record rather than streamed JSON diagnostics",
+    "qualification_flags": {
+      "mode_change": false,
+      "reverse": false,
+      "start": false,
+      "stop": false
+    },
+    "sequential": true,
+    "source_scope": {
+      "conflicting": "EN86 ordering, signedness/reverse, generic status layout and stop semantics remain unresolved",
+      "documented": "60FF target RPM, 6083/6084 ramp milliseconds; ZH86 mode-3 target-before-enable candidate",
+      "experimental_gate": "Existing VelocityGate experiment with startQualified, stopQualified, modeChangeQualified and reverseQualified false",
+      "physical_claims": "None: no shaft travel, direction, torque, speed or standstill observation",
+      "specimen_observations": "Existing S18 mode-3 start/quick-stop records and today's read baseline; these do not grant family-wide qualification"
+    },
+    "waiver": {
+      "contract": "docs/hardware_bench.md unattended-waiver/waiver-covers-motion; scripts/s2_bench.py waiver checks",
+      "covers_motion": true,
+      "independent_cutoff_operator": null,
+      "legacy_attended_field": 1,
+      "meaning": "Existing application waiver exception: host gate satisfied by written motion waiver, not observed attendance",
+      "physical_observer": null,
+      "qualification_flags": {
+        "mode_change": false,
+        "reverse": false,
+        "start": false,
+        "stop": false
+      },
+      "statement": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+      "unattended": true
+    },
+    "wire_intent": [
+      "60FF=30 I32,6083=500 U32,6084=500 U32",
+      "6040=6,7,15 U16 only under reviewed experiment with required new state cycles",
+      "Own explicit QUICK_STOP6040=000B from this run latest acknowledged000F; fresh stop observations",
+      "No mode write, release, save, reset, clear, input change or motion replay"
+    ]
+  },
+  "physical_observations": null,
+  "post_state_plan": {
+    "bounds": "Six finite invocations, existing per-command deadlines, stop on the first failed invocation; no retry",
+    "cleanup": "Retain all evidence. No stop, reset, recovery or reconnect is implied by a read failure. Final local resource inspection only.",
+    "expected_evidence": "Exact request/reply pairs and state values with loss counters; zero reported velocity after each stop",
+    "fixture": "COM15 ESP-Prog2 94A990398B40; same bf8a0d95 S2 image; nodes 1 and 2 at 1000000 bit/s",
+    "physical_observation": null,
+    "precondition": "Trials 47301/47302 each ended with own stop complete, needsStop=0, fenced=0 and no record loss; local records released separately",
+    "purpose": "Read-only existing-feature regression after the two separately completed finite velocity trials",
+    "qualification": "Drive-reported state only; no physical standstill or electrical qualification",
+    "read_objects": [
+      "6041",
+      "6061",
+      "2100",
+      "2101",
+      "2102",
+      "6064",
+      "606C"
+    ],
+    "sequence": "For node 1 then node 2, ordinary bench_probe state blocks status, monitors and feedback with explicit raw tracing and checked terminal release",
+    "writes": "None: trace control and record release are local only"
+  },
+  "resource_stages": [
+    {
+      "artifact": "31-open-memory-final.bin",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 28500,
+        "largest": 12800,
+        "minimum": 28500,
+        "r0": "3ff9e000:8168:7780:7780",
+        "r1": "3fffc000:14864:3276:3276",
+        "r2": "3ffd2950:169648:17392:12864",
+        "regions": 3,
+        "reserved": 31
+      },
+      "stage": "before console"
+    },
+    {
+      "artifact": "31-open-memory-final.bin",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 10600,
+        "largest": 4352,
+        "minimum": 10600,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:8712:4436",
+        "regions": 3,
+        "reserved": 31
+      },
+      "stage": "after console"
+    },
+    {
+      "artifact": "35-negative-cleanup-node1.bin",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 6740,
+        "largest": 4352,
+        "minimum": 6740,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:4848:4436",
+        "regions": 3,
+        "reserved": 31
+      },
+      "stage": "after BenchAxis node1 allocation"
+    },
+    {
+      "artifact": "37-negative-cleanup-node2.bin",
+      "heap": {
+        "arena": 0,
+        "arenaBytes": 23688,
+        "free": 2880,
+        "largest": 1024,
+        "minimum": 2880,
+        "r0": "3ff9e000:8168:1112:1112",
+        "r1": "3fffc000:14864:720:720",
+        "r2": "3ffd2950:169648:984:556",
+        "regions": 3,
+        "reserved": 31
+      },
+      "stage": "after BenchAxis node2 allocation"
+    }
+  ],
+  "schema": "motorcontrolcan.p47-final-image-review/1",
+  "scope": "Offline final-image audit: artifacts28 through43, plus finite native velocity campaign and post-state plan; baseline_review and originals unchanged.",
+  "source_files": {
+    "28-flash-final/build.json": {
+      "bytes": 68151,
+      "sha256": "fd62eccf53e520c6d1f3c32135d5c919c5095c3e0c07d6efdcbe0d6dc0711e90"
+    },
+    "29-ping-final/rx.bin": {
+      "bytes": 254,
+      "sha256": "71dbbbac173a4a4e6dfac3a2f4a6a862824185845e6047dc10b1a596bd798b3b"
+    },
+    "30-capture-final/rx.bin": {
+      "bytes": 1798,
+      "sha256": "9de84f58173cc4df995c2421e76b4233c6b3711b95fed69385f3039da1cfe3ee"
+    },
+    "30-capture-final/session.json": {
+      "bytes": 3379,
+      "sha256": "c33bdeecf316647786ba3f547500966c70a43bfd187320e2de7894e86dcf9971"
+    },
+    "31-open-memory-final.bin": {
+      "bytes": 893,
+      "sha256": "a81f1cedd5effb6f267cf3d152a749d69ed7c63363d2857fce26003591b61b19"
+    },
+    "32-quick-node1-final.json": {
+      "bytes": 37229,
+      "sha256": "6f8383fc1b5f067eafc631c7ef676f19176cbd0c5bb251ef15ee72a83c01e2c9"
+    },
+    "32-quick-node1-final.jsonl": {
+      "bytes": 109559,
+      "sha256": "62fde37bfdc269e20d51e0d1d531f7829a3090537bb2f0c97fd84e4d9eda9137"
+    },
+    "32-quick-node1-final.zip": {
+      "bytes": 147380,
+      "sha256": "2eacd87d59f519e31490527c1f2909be127244fb43ebc63a83f9b0c2a2188e6d"
+    },
+    "33-quick-node2-final.json": {
+      "bytes": 37233,
+      "sha256": "a10b1a8afec1dc227a94c39dc48002523684486d597ce76874e40cecf793369c"
+    },
+    "33-quick-node2-final.jsonl": {
+      "bytes": 109558,
+      "sha256": "1ca43c8d1b2c2993ab707d3f16b8a301e8c040f09eee666a5a84a7f988afc5f5"
+    },
+    "33-quick-node2-final.zip": {
+      "bytes": 147383,
+      "sha256": "896d435da67ccc395647a9f35ab1c4bba46777a45ecc0252a902a00a19732919"
+    },
+    "34-negative-node1-request.json": {
+      "bytes": 534,
+      "sha256": "984cc813ef33a2fbf9ed296952c1307d4282e0b268bd7a67081a1268eabe925a"
+    },
+    "34-negative-node1-result.json": {
+      "bytes": 66,
+      "sha256": "74353d764ede5e04b781cc9fa0338b9b9a7003e337218af8179005174004db79"
+    },
+    "34-negative-node1-rx.bin": {
+      "bytes": 12918,
+      "sha256": "faa0271be9de7c10320c535b2833caf490d24516d53fb1c123fcea40c920f68b"
+    },
+    "35-negative-cleanup-node1.bin": {
+      "bytes": 604,
+      "sha256": "6ea5ff4aa337c01f0a313a92934728422a3f416d6b243ca13ca0f79c25db9cdc"
+    },
+    "36-negative-node2-request.json": {
+      "bytes": 534,
+      "sha256": "1af3adc12bacb4d4336631c3e8a91b47c847dac537c75645175ca82d5c6ab11c"
+    },
+    "36-negative-node2-result.json": {
+      "bytes": 66,
+      "sha256": "74353d764ede5e04b781cc9fa0338b9b9a7003e337218af8179005174004db79"
+    },
+    "36-negative-node2-rx.bin": {
+      "bytes": 12918,
+      "sha256": "89be41e2cb3fe877e6655c8c740c2c75fce048418375cf35d5765899f6738f94"
+    },
+    "37-negative-cleanup-node2.bin": {
+      "bytes": 602,
+      "sha256": "9cc98fed1a4562200adfe6fe12cd49d977d154703937e08a98fea941fee036f0"
+    },
+    "38-velocity-node1-run.txt": {
+      "bytes": 114746,
+      "sha256": "cd44cbe529fc2e9d7301d0730341c03ce24064544e40b74c698894fd2ce973f0"
+    },
+    "38-velocity-node1/request.json": {
+      "bytes": 3682,
+      "sha256": "9a90efbdc221179363a7158f1b06a2bc7370998d5d86e65d5bc8566b23593298"
+    },
+    "38-velocity-node1/rx.bin": {
+      "bytes": 56898,
+      "sha256": "0adc70085ce2a3ff0d08a932196bd8fe8a26ddd43fde0877256a9b1e057cc369"
+    },
+    "38-velocity-node1/rx.txt": {
+      "bytes": 56898,
+      "sha256": "0adc70085ce2a3ff0d08a932196bd8fe8a26ddd43fde0877256a9b1e057cc369"
+    },
+    "39-release-node1-run.txt": {
+      "bytes": 912,
+      "sha256": "05a7df70ac9cf538d808bbb21d7f19c73c4cf1bc69829d15d82c9a5dc909c3d8"
+    },
+    "39-release-node1.bin": {
+      "bytes": 395,
+      "sha256": "39a659ff3bdee602a96e80f18bcc0d014539b9e9f5bdf14b2fbe226748fd0665"
+    },
+    "40-velocity-node2-run.txt": {
+      "bytes": 114820,
+      "sha256": "23b5383612e288e7e271a549cfed8770c61ac3ec85f0750d6ad0b01142ca8dba"
+    },
+    "40-velocity-node2/request.json": {
+      "bytes": 3696,
+      "sha256": "a37d0dce50eae461171eaf809401192bf67042e7d3b2c247da6905304b35799b"
+    },
+    "40-velocity-node2/rx.bin": {
+      "bytes": 56935,
+      "sha256": "9623ed41c550db569156b4232c0c0baff26bab9353f7122bcc1f391894d2dfcf"
+    },
+    "40-velocity-node2/rx.txt": {
+      "bytes": 56935,
+      "sha256": "9623ed41c550db569156b4232c0c0baff26bab9353f7122bcc1f391894d2dfcf"
+    },
+    "41-release-node2-run.txt": {
+      "bytes": 1478,
+      "sha256": "a57a952bee2d8a2280f006939c20f1f6bd371bff76e532682f67393202a1c9df"
+    },
+    "41-release-node2.bin": {
+      "bytes": 658,
+      "sha256": "2e708944a8e826fe72b04e25d100ac7e591bde21de25de158199bc6513d926d4"
+    },
+    "42-node1-feedback-run.txt": {
+      "bytes": 300,
+      "sha256": "47e5641365eeeb5720eb77e7693389c1609850e3403f29b089a720bcdd039fb4"
+    },
+    "42-node1-feedback.jsonl": {
+      "bytes": 58359,
+      "sha256": "629d427ba950db0896fa7d5324323c9a3f3624356b72d6a8cb28dfee5311c1d8"
+    },
+    "42-node1-feedback.jsonl.summary.json": {
+      "bytes": 7376,
+      "sha256": "665f3de112da54a91d57c3b240b6f4790a62d1c6ceb2cd97208167380c69e643"
+    },
+    "42-node1-monitors-run.txt": {
+      "bytes": 300,
+      "sha256": "28295e85ddebbdcee695096017ce4c95347b3fd4b6ff33dfd03b00b801abb238"
+    },
+    "42-node1-monitors.jsonl": {
+      "bytes": 63117,
+      "sha256": "025ab6f4d6482a019f6db0e4295ef13085b8f6321b9ba51e5441ef2ceaf304fe"
+    },
+    "42-node1-monitors.jsonl.summary.json": {
+      "bytes": 7833,
+      "sha256": "aa23a103903d2ff66dfe0060b5c28f2ee90e401a3087d2b37954b37d6046d08f"
+    },
+    "42-node1-status-run.txt": {
+      "bytes": 292,
+      "sha256": "af2d464fcd68d05c58887ea20615feff7e7fa9cc34a3eb886a3dc10091b2ab75"
+    },
+    "42-node1-status.jsonl": {
+      "bytes": 58258,
+      "sha256": "59ccbf68356c2c1ce0cc2d578cf765fa26bfebd6fdc4c846f7064f9496e7d07b"
+    },
+    "42-node1-status.jsonl.summary.json": {
+      "bytes": 7336,
+      "sha256": "f8c1b9fdf5720a65ea8b27e72f5d6e9f131f00658dea73719a546d4c6638c7a3"
+    },
+    "42-node2-feedback-run.txt": {
+      "bytes": 300,
+      "sha256": "72633015915358d153bb43f872a4c8d7f755a93e5b2fd1021d7901e3b1d5b2ba"
+    },
+    "42-node2-feedback.jsonl": {
+      "bytes": 58342,
+      "sha256": "d71e830764b90761841923c1758fe2b77e66458a8c5441f23fe5f81e2b296d15"
+    },
+    "42-node2-feedback.jsonl.summary.json": {
+      "bytes": 7381,
+      "sha256": "71d8029253b640f52fbae5158f517e4005e39eb5a1561c298cfe779a95ba56a6"
+    },
+    "42-node2-monitors-run.txt": {
+      "bytes": 300,
+      "sha256": "f46c2489583b5ade8e76dbfb95b8ea749382b18098a24db0704a639f6f1fc708"
+    },
+    "42-node2-monitors.jsonl": {
+      "bytes": 63090,
+      "sha256": "6ebba02f5c40f4fd0477f53f9046ee9ba5b16b9f3ba2dfc0bb28683f587cc7da"
+    },
+    "42-node2-monitors.jsonl.summary.json": {
+      "bytes": 7833,
+      "sha256": "443fb49ec98cba71f96e2d388569a3fe283ac42555c2956c8a46c825b56fde97"
+    },
+    "42-node2-status-run.txt": {
+      "bytes": 292,
+      "sha256": "748404046d3ee5cb15111a5cecc0f5d3f86a6aaff11ed4c3f7dd0c0fb9a8f88a"
+    },
+    "42-node2-status.jsonl": {
+      "bytes": 58226,
+      "sha256": "15fdd89f73fbad89e4acf42908cd82f8dc5faa81fc52513fb3481c5a5769ccb0"
+    },
+    "42-node2-status.jsonl.summary.json": {
+      "bytes": 7336,
+      "sha256": "4a691de213caad6aad3b7942a4f8c878bcaef382c4f5e31fc6439df537d0199b"
+    },
+    "42-post-state-plan.json": {
+      "bytes": 1192,
+      "sha256": "416e0b24a0574a7602b0ddb3abd922d561411cd6953ea3f08bc6c591faf16fa2"
+    },
+    "43-final-inspection-run.txt": {
+      "bytes": 1324,
+      "sha256": "1d2c10587354b3257d8e55dec4e1ea763a2cad8eb2a1262125f25c66f36cb152"
+    },
+    "43-final-inspection.bin": {
+      "bytes": 601,
+      "sha256": "10d19bcd93c37dea98505593b93a03efdcba13e0094c1ff4c8a9b600ddaae0f2"
+    },
+    "velocity-native-campaign.jsonl": {
+      "bytes": 2242,
+      "sha256": "0f711a372f556a4453f309efc75fcc84ca73cd9c94c5b1ded9e25e38086cb674"
+    },
+    "velocity-native-plan.json": {
+      "bytes": 4071,
+      "sha256": "08e2ab0e7e392bc9c9e3b73d34d3706318927d58c5be39d763b4343925748d51"
+    }
+  }
+}

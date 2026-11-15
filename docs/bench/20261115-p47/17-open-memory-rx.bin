@@ -1,0 +1,2 @@
+HEAP free=28500 largest=12800 minimum=28500 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffd2950:169648:17392:12864 reserved=1f arena=0 arenaBytes=23688
+CONSOLE refused reason=memory; no work
