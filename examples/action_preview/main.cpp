@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // The gated enable sequence through the ordinary public calls, with no console, board or drive.
 // A small fake answers on the real owner and SDO engine. Its replies are this file's, so the output
-// shows the exact service order and nothing about what a drive does. No specimen has run this.
+// shows the exact service order and nothing about what a drive does. This executable opens no hardware.
 #include "AxisSession.h"
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cstdio>

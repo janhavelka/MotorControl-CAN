@@ -1,5 +1,18 @@
 # Live source and responsibility map
 
+## User/package entry points (prompt 49)
+
+| Responsibility | Declaration / implementation | Caller / check |
+| --- | --- | --- |
+| Offline install and exact preparation | Root README `main.cpp` / `Axis.cpp::preparePosition` | `test/package_test.py` compiles the actual exported README blocks against a relocated install |
+| Read, move and stop example | `Reads.h`, `Position.h`, `Actions.h` | `examples/position_preview/main.cpp`, native CTest and independent installed build; supplied fake events only |
+| Numeric object metadata | Generated `Types.h` / `Objects.h`; `scripts/generate_lichuan_objects.py` | `test/objects_test.cpp`, read contracts and freshness; development ownership stays in the ledger |
+| Core package boundary | `library.json`, root CMake / `scripts/export_package.py` | Actual ZIP/PlatformIO contents, local-link checks, independent consumers; no adapter, vendor material or tools exported |
+| Candidate support and migration | [Candidate notes](releases/0.1.0.md) | [Report49](reports/prompt_49.md) and [source audit](reports/prompt_49_sources.json); no release publication |
+
+The [documentation index](README.md) gives the current user reading order.
+Entries below retain earlier implementation and evidence ownership.
+
 ## Failure and load evidence (prompt 48)
 
 - [Campaign report](reports/prompt_48.md), [source decisions](bench/20261115-p48/source_review.json)

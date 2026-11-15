@@ -44,7 +44,7 @@ The shared console now uses these inventory APIs and the bounded scan. Read
 This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The stage notes identify implemented APIs; remaining inventory entries are planned contracts.
 
 The [S2 bench controls](../examples/s2_bench/README.md) are explicit experimental
-acquisition commands, not the future production CLI. `RawEvidence` uses the same
+acquisition commands alongside the shared production CLI. `RawEvidence` uses the same
 owner and an exact one-use upload grant; `SERVER_INDICATED` retains actual wire
 length without replacing typed getters or EDS metadata. Owner
 `localTxRetired(slot)` inspects local queue/report retirement only; it does not

@@ -708,8 +708,9 @@ collector's ownership. See [the application flow](native_application.md#finite-a
 for admission and release; the owner remains the only physical receive path.
 
 One service turn still uses the RX/TX/event/start/recovery budgets above.
-Diagnostic publication adds fixed copied records and fixed scans over two
-channel-associated health records and up to eight PDO routes. Slow consumers
+Diagnostic publication adds fixed copied records and bounded scans over
+`SdoClient::CHANNELS` channel-associated health records and
+`SdoClient::PDO_ROUTES` PDO routes (defaults 2 and 8). Slow consumers
 lose copied history instead of blocking dispatch. Drain only a chosen number of
 copies per application output turn and schedule ordinary owner service and urgent
 admission independently. The synchronous legacy `Transport.observe` callback

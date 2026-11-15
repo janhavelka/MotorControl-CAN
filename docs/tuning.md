@@ -11,11 +11,11 @@ write here**; all write evidence is host and fake-owner evidence.
 ## Assignment and source evidence
 
 All 33 scalar entries `2500..2520:00` are U16 RW/PDO-mappable in the original
-[EDS](reference/vendor/LC_StepDriverCAN_V1.1.eds), sections 2500..2520,
+[EDS](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/vendor/LC_StepDriverCAN_V1.1.eds), sections 2500..2520,
 lines 1559..1822. No EDS default, lower limit or upper limit is supplied.
-The original [EN86 manual](reference/vendor/86C_CANopen_user_manual_en.pdf),
+The original [EN86 manual](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/vendor/86C_CANopen_user_manual_en.pdf),
 PDF p19 covers 2500..2516 and p20 covers 2517..2519; the original
-[ZH86 manual](reference/vendor/86C_CANopen_user_manual_zh.pdf), PDF p19 covers
+[ZH86 manual](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/vendor/86C_CANopen_user_manual_zh.pdf), PDF p19 covers
 2500..2505, with the 2505 name running onto p20, and p20 covers 2506..2519.
 Printed pages are 17 and 18. Both pages were rendered again for packet 14.
 251A..2520 appear in no retained manual (EN86, ZH86, OP86, ZH57, OP57).
@@ -28,7 +28,7 @@ documented, implemented and host tested; hardware qualification is false. Both
 specimens read 2502..2520 once, on 2026-11-04, through the bench
 `readiness-tuning` route, with identical values ([below](tuning.md#specimen-readings-2026-11-04)).
 Unknown words remain valid raw observations. The canonical
-[ledger and generated coverage](reference/lichuan_objects.md) preserve source
+[ledger and generated coverage](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/lichuan_objects.md) preserve source
 claims, and each row's `review.next_evidence` names what would close its gate;
 the ledger checker refuses a Prompt 22 row without one.
 
@@ -41,7 +41,7 @@ admissible domain, so the U16 width is not one.
 | --- | --- | --- | --- |
 | 2500 | EN86/ZH86 p19: 0 noneffective (无效), 1 open loop, 2 closed loop. EN86/ZH86 p3: OL86-C has no encoder | **Typed write**, `prepareControlSettings`, below. The library admits 0..2 for CL86-C and 0..1 for OL86-C; no specimen has accepted a write. An ACK is register acceptance only | The attended trial T1: an explicit write from 2 to 1 and back on one CL86-C at its installed firmware, with readback; a manufacturer statement of when a change applies and what 0 does |
 | 2501 | EN86/ZH86 p19 "Encoder resolution", no unit or range. EN86/ZH86 p3: CL86-C 1000-line encoder. Both specimens read 4000, which matches 4 × 1000 lines only by inference | **Gate**, read back unchanged on every loop write | Manufacturer unit (lines or counts), range and whether a fixed encoder makes it read-only; without a write, the 6064 change over one independently measured revolution |
-| 2502 | EN86/ZH86 p19 "Max. peak current", mA, no range. EN86/ZH86 p3: 8 A maximum output current, no peak label. The [product page](reference/vendor/CL86-C_manufacturer_product.html) says "Maximum peak current: 8A" under Features, but "Maximum Output Current 8A" in its spec table, and its supply ranges (DC30..110 V, AC20..80 V) differ from p3, so it describes another revision | **Gate.** 8 A is a drive ceiling, not a setting or the LC60H2127's rating | Manufacturer range and peak/RMS convention for this firmware; the installed LC60H2127 variant's rated phase current from its nameplate or datasheet |
+| 2502 | EN86/ZH86 p19 "Max. peak current", mA, no range. EN86/ZH86 p3: 8 A maximum output current, no peak label. The [product page](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/vendor/CL86-C_manufacturer_product.html) says "Maximum peak current: 8A" under Features, but "Maximum Output Current 8A" in its spec table, and its supply ranges (DC30..110 V, AC20..80 V) differ from p3, so it describes another revision | **Gate.** 8 A is a drive ceiling, not a setting or the LC60H2127's rating | Manufacturer range and peak/RMS convention for this firmware; the installed LC60H2127 variant's rated phase current from its nameplate or datasheet |
 | 2503..2505 | EN86 p19, ZH86 p19..20: closed-loop maximum, closed-loop base and open-loop maximum ratios, unit %. No base, range or ordering | **Gate.** A % label does not establish 0..100; no base ≤ maximum rule is invented | Manufacturer formula for the percent base, the range and any ordering; then an intermediate-current check over the write order, as RS `validateIntermediateCurrentTuple` does |
 | 2506, 2507 | EN86 p19 "Current ratio for locking" (%) and "Locking current time" (ms); ZH86 p20 锁机电流比例/时间. "Holding" is this library's name | **Gate.** No range, no zero meaning, no start condition; delay or duration unknown for 2507 | Manufacturer meaning, range and zero behavior; then a timed current-probe measurement at standstill |
 | 2508 | EN86 p19, ZH86 p20 "Low-pass filtering enabling", factory default, "adjustment not required generally" | **Gate.** No code set, so not a Boolean | Manufacturer code set and effect; both specimens read 0 |
@@ -64,8 +64,8 @@ documentary gaps, not proven unsupported capabilities.
 ### Specimen readings, 2026-11-04
 
 Raw words, decimal, identical on both CL86-C specimens on one firmware (trials
-309 and 310, [report](reports/2026-11-04_bench.md),
-[packet 14](reports/handoff_19_33/packet_14.md)): `2502=8400`, `2503=100`,
+309 and 310, [report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md),
+[packet 14](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/handoff_19_33/packet_14.md)): `2502=8400`, `2503=100`,
 `2504=40`, `2505=100`, `2506=40`, `2507=200`, `2508=0`, `2509=5`, `250A=4000`,
 `250B=20`, `250C=10`, `250D=512`, `250E=6144`, `250F=1228`, `2510=40`,
 `2511=20`, `2512=2560`, `2513=114`, `2514=25`, `2515=2560`, `2516=1024`,
@@ -187,7 +187,7 @@ has exact ownership regression tests.
 
 Implementation: `src/profiles/lichuan_c/Tuning.cpp` and `Settings.cpp`.
 
-- [`test/settings_owner_test.cpp`](../test/settings_owner_test.cpp) runs the
+- [`test/settings_owner_test.cpp`](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/settings_owner_test.cpp) runs the
   loop write through the real `CanBusOwner` and `SdoClient` against a scripted
   dictionary holding the specimens' 2500=2 and 2501=4000: literal frames for
   every transition, no-op silence, whole-candidate and state refusals, the
@@ -196,11 +196,11 @@ Implementation: `src/profiles/lichuan_c/Tuning.cpp` and `Settings.cpp`.
   cancellation before and after handoff, preflight and controller refusal,
   deadlines, boot-up, bus-off, EMCY, notice-before-TX, retirement before epoch
   migration, and that no other word or object is written.
-- [`test/tuning_test.cpp`](../test/tuning_test.cpp) drives all 33 literal reads
+- [`test/tuning_test.cpp`](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/tuning_test.cpp) drives all 33 literal reads
   and the model/enum and policy matrix through the direct service adapter.
-- [`test/settings_write_test.cpp`](../test/settings_write_test.cpp) checks that
+- [`test/settings_write_test.cpp`](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/settings_write_test.cpp) checks that
   refused calls leave a retained control transaction unchanged.
-- [`test/can_bus_owner_test.cpp`](../test/can_bus_owner_test.cpp) keeps the
+- [`test/can_bus_owner_test.cpp`](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/can_bus_owner_test.cpp) keeps the
   owner's retained partial-effect scenarios for the loop write.
 
 21 hand mutants of the control-settings logic were each killed in a scratch
@@ -282,4 +282,4 @@ Prompt 22 owns these rows. Before a row or group gets a write, it needs:
    readback and retained uncertainty, with no save.
 
 The page checks, the evidence labels and the proposed trials are in the
-[configuration evidence report](reports/2026-11-12_configuration_evidence.md).
+[configuration evidence report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-12_configuration_evidence.md).

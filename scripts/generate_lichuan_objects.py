@@ -193,7 +193,7 @@ enum class ReadRepresentation : uint8_t {
 };
 
 /** @brief Bounded read shape, independent of live binding, interpretation and effects.
- * Returned by readDescriptor for the reviewed Prompt 19/20/21/22/35/36/38/39 assignments only.
+ * Returned by readDescriptor only for explicitly reviewed native read shapes.
  * Does not establish a non-changing probe or grant polling qualification.
  */
 struct ReadDescriptor {
@@ -220,7 +220,6 @@ struct ObjectDescriptor {
     ReadEffect readEffect;   ///< Upload effects remain unqualified even for read-only entries.
     WritePolicy writePolicy; ///< Forbidden or qualification-required; never write-enabled.
     PdoPolicy pdoPolicy;      ///< Separate mapping disposition; not an RPDO/TPDO template.
-    uint8_t ownerPrompt;     ///< Numbered prompt owning the semantic implementation.
     uint32_t gateMask;       ///< Open evidence gates: Q01 is bit zero through Q21 at bit twenty.
     SourceScope scope;       ///< Unbound source scope; no live model/firmware applicability.
 };
@@ -259,15 +258,14 @@ def objects_header(rows):
         native = row["type"]
         lines += ["/** @brief {} {} {} declaration; {}.\n".format(
                     row["key"], native["name"], row["role"], source_text(row["source_refs"])),
-                  " * No operation is implemented or authorized; gates {} remain open. */\n".format(
+                  " * This declaration neither implements nor authorizes an operation; gates {} remain open. */\n".format(
                     ", ".join(gates)),
                   "constexpr ObjectDescriptor {} = {{\n".format(symbol(row)),
                   "    0x{:04X}, 0x{:02X}, ScalarType::{}, {}, {}, SdoAccess::{},\n".format(
                     row["index"], row["subindex"], native["name"], native["width_bytes"],
                     "true" if native["signed"] else "false", access[row["access_reviewed"]]),
                   "    ReadEffect::{}, WritePolicy::{}, PdoPolicy::{},\n".format(read_effect(row), write, pdo),
-                  "    {}, 0x{:08X}u, SourceScope::EDS_FAMILY_UNBOUND\n}};\n\n".format(
-                    row["owner_prompt"], mask)]
+                  "    0x{:08X}u, SourceScope::EDS_FAMILY_UNBOUND\n}};\n\n".format(mask)]
     lines.append(read_descriptor_function(rows))
     return "".join(lines) + CLOSE_NAMESPACE
 

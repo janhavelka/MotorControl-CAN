@@ -2,7 +2,7 @@
 
 The installed `MotorControlCAN::LICHUAN_C` API in
 `MotorControlCAN/profiles/lichuan_c/IoSettings.h` provides four finite typed
-read groups and checked `getIo`. [Prompt 21](reports/prompt_21.md) is **Partial**:
+read groups and checked `getIo`. [Prompt 21](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_21.md) is **Partial**:
 explicit 86C DI function/polarity settings are implemented and proved through the
 real owner; DO assignment, filter writes and output actions keep the per-field
 decisions below. No
@@ -13,7 +13,7 @@ output-command write exists.
 
 ## Frozen rows and classification
 
-The canonical [ledger](reference/lichuan_objects.md) owns source/model scope,
+The canonical [ledger](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/lichuan_objects.md) owns source/model scope,
 software policy and separate read versus whole-object/write coverage. These
 23 raw read rows are implemented and host tested; hardware qualification is
 false. Upload effects remain `UNQUALIFIED`. These reads require an already
@@ -34,8 +34,8 @@ grant software write permission. All mutation obligations remain assigned to 21.
 ### Specimen readings, 2026-11-04
 
 Both CL86-C specimens, one firmware, through the bench `readiness-io` and
-`io-di3` routes ([report](reports/2026-11-04_bench.md),
-[packet 13](reports/handoff_19_33/packet_13.md)). These are register values and
+`io-di3` routes ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md),
+[packet 13](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/handoff_19_33/packet_13.md)). These are register values and
 logical monitor bits; no terminal was wired or measured.
 
 - **Read, both nodes, identical:** `2400:00=0x10`, `:01=0`, `:02/:03/:04=1/2/3`,
@@ -44,7 +44,7 @@ logical monitor bits; no terminal was wired or measured.
   identifies no function. Only `2401` equals the manuals' 2, and no filter word
   equals its EDS default.
 - **`60FE:00` answered in two bytes** against its EDS U8, so the strict typed read
-  aborted it and `60FE:01/:02` were not read then ([backlog D16](backlog.md)).
+  aborted it and `60FE:01/:02` were not read then ([backlog D16](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/backlog.md)).
   Under `CountWidths::MEASURED_U16` the group completed on both nodes later that
   day: `60FE:00`, `:01` and `:02` read 0, 0 and 0 (trials 608, 609).
 - **DI writes accepted, node 1:** `2400:05` (DI3) 0 → 7 (USER0), then 7 → 0, each
@@ -108,9 +108,9 @@ per-field provenance and `window` expose acquisition intervals and skew;
 multiple uploads are not an atomic device snapshot. Unrelated traffic cannot
 renew these observations. Inspect `context.read` for retained failure history.
 
-The [offline example](../examples/io_settings_preview/README.md) calls these
+The [offline example](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/io_settings_preview/README.md) calls these
 public functions with synthetic matching terminals and no controller. The
-registered [I/O suite](../test/io_settings_test.cpp) sends all 23 literal rows
+registered [I/O suite](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/io_settings_test.cpp) sends all 23 literal rows
 through the actual fake SDO owner, tests failures and checks that only uploads
 are emitted. Isolated installed/exported consumers exercise output-register
 readback without catalogue strings, vendor files, Python or the optional stack.
@@ -136,7 +136,7 @@ EN86/ZH86 p8 explicitly permit CANopen configuration and p18/p19 give RW types,
 DI codes and polarity bits. They do not specify special DI drive/NMT-state
 restrictions, activation delay or write order. Those absent rules limit physical
 claims; they do not prohibit an explicit register-setting operation. The
-[fresh audit](reports/prompts_20_21_audit.md) corrects the former blanket gate.
+[fresh audit](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompts_20_21_audit.md) corrects the former blanket gate.
 
 The finite sequence writes **only changed** `2400:01..08` fields in ascending
 subindex order, with individual matching acknowledgements and full exact group
@@ -156,12 +156,12 @@ is distinct from electrical observation or protective effectiveness. No-op
 candidates use fresh prior evidence without TX/epoch change. Per-field confirmed
 writes, raw terminal/abort, uncertainty and mismatches stay inspectable on failure.
 
-The [real-owner suite](../test/settings_owner_test.cpp) runs DI through `CanBusOwner`
+The [real-owner suite](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/settings_owner_test.cpp) runs DI through `CanBusOwner`
 and `SdoClient` against a scripted dictionary, with literal bytes: every code on every
 input, every polarity bit from words holding high bits, each failure position of abort,
 lost reply, mismatch and failed readback, cancellation, preflight refusal, deadlines,
 reboot, bus-off, a drive fault event, queued-work exclusion, generations and old-target
-admission. The [native settings caller](../test/settings_write_test.cpp) covers every
+admission. The [native settings caller](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/settings_write_test.cpp) covers every
 changed subset of the eight words. A partial write stays written: a later explicit
 operation on a fresh read sends only what still differs. No test asserts a device fact,
 and a fake signal in a method fixture does not qualify hardware.

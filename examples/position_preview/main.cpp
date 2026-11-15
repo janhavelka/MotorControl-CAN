@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Native use of the installed core only: no CLI, SDK, CAN controller, owner or stack.
+#include <MotorControlCAN/profiles/lichuan_c/Actions.h>
 #include <MotorControlCAN/profiles/lichuan_c/Position.h>
 #include <cstdio>
 
@@ -167,7 +168,7 @@ int main() {
     const M::Status gated = L::prepareMoveAbsolute(
         context, reservation, target, state, control, identity, L::MoveEvidence(), move, profile,
         nullptr, axis, nullptr, 4, now, now + 400000, options);
-    std::printf("Closed gate: %s (UNSUPPORTED is expected; no specimen has qualified a move)\n",
+    std::printf("Closed gate: %s (UNSUPPORTED is expected; this example has no measured move record)\n",
                 gated.msg);
     if (gated.code != M::Err::UNSUPPORTED)
         return 4;
@@ -192,8 +193,8 @@ int main() {
     simulated.rule = L::CompletionRule::AFTER_ABSENCE;
 
     // A relative move needs one more measurement: what the drive adds the displacement to on the 005F
-    // edge. No specimen has measured it, so even with the gate open the request is refused before any
-    // write, and this example runs no relative simulation. The witness is an illustrative host input.
+    // edge. This example has no measured record for it, so even with the gate open the request is
+    // refused before any write and runs no relative simulation. The witness is an illustrative host input.
     M::AxisConfig relativeAxis = axis;
     relativeAxis.supportedRelativeBases = 1; // Host arithmetic may use an ACTUAL witness.
     M::AxisReference witness;
@@ -210,7 +211,7 @@ int main() {
     const M::Status unmeasured = L::prepareMoveRelative(
         context, reservation, target, state, control, identity, simulated, relative, profile,
         nullptr, relativeAxis, witness, 4, now, now + 400000, options);
-    std::printf("Relative move: %s (UNSUPPORTED is expected; no relative base is measured)\n",
+    std::printf("Relative move: %s (UNSUPPORTED is expected; this example has no measured relative base)\n",
                 unmeasured.msg);
     if (unmeasured.code != M::Err::UNSUPPORTED ||
         unmeasured.detail != int32_t(M::MoveError::RELATIVE_BASIS))
@@ -219,6 +220,7 @@ int main() {
     if (!L::prepareMoveAbsolute(context, reservation, target, state, control, identity, simulated,
                                 move, profile, nullptr, axis, nullptr, 4, now, now + 400000, options))
         return 5;
+    C::SdoCompletion latestControl = control;
     while (context.state == M::ActionState::ACTIVE) {
         L::PreparedMove work;
         if (!L::nextMove(context, observation, reservation, target, now, work))
@@ -241,13 +243,70 @@ int main() {
                         unsigned(work.transfer.data[3]));
         const uint64_t admitted = now;
         now += 500;
-        if (!L::advanceMove(context, observation, reservation, target,
-                            answer(work.transfer, drive, admitted, now, target.nodeGeneration), now))
+        const C::SdoCompletion completed =
+            answer(work.transfer, drive, admitted, now, target.nodeGeneration);
+        if (!L::advanceMove(context, observation, reservation, target, completed, now))
             return 9;
+        if (work.transfer.direction == C::SdoDirection::DOWNLOAD && work.transfer.index == 0x6040)
+            latestControl = completed;
     }
     std::printf("SIMULATED move: %s after %lu cycles; completion is a controller report, never a "
                 "measured position or standstill\n",
                 context.state == M::ActionState::SUCCEEDED ? "completed" : "failed",
                 static_cast<unsigned long>(context.observations));
-    return context.state == M::ActionState::SUCCEEDED ? 0 : 10;
+    if (context.state != M::ActionState::SUCCEEDED)
+        return 10;
+
+    // Stop admission uses the simulation's last acknowledged controlword and a later typed state
+    // read under the same reservation. Nothing enables the drive merely to prepare this stop.
+    if (!L::prepareState(state, target, 5, now, now + 100000, service, blocks) ||
+        !run(state, drive, now, target.nodeGeneration))
+        return 12;
+    L::ActionOptions stopOptions;
+    stopOptions.service = service;
+    stopOptions.observationIntervalUs = 1000;
+    stopOptions.maximumAgeUs = 40000;
+    static L::ActionContext stop;
+    const M::Status missingHistory = L::prepareStop(
+        stop, reservation, state, C::SdoCompletion(), L::StopKind::HALT, 6, now,
+        now + 100000, stopOptions);
+    std::printf("Stop prerequisite: %s (INVALID_CONFIG is expected without acknowledged history)\n",
+                missingHistory.msg);
+    if (missingHistory.code != M::Err::INVALID_CONFIG ||
+        missingHistory.detail != int32_t(M::ActionError::STATE) || stop.state != M::ActionState::EMPTY)
+        return 13;
+    if (!L::prepareStop(stop, reservation, state, latestControl, L::StopKind::HALT, 6, now,
+                        now + 100000, stopOptions))
+        return 14;
+    unsigned stopDownloads = 0;
+    while (stop.state == M::ActionState::ACTIVE) {
+        L::PreparedAction work;
+        if (!L::nextAction(stop, reservation, target, now, work))
+            return 15;
+        if (!work.ready) {
+            now = work.eligibleUs > now ? work.eligibleUs : now + 1;
+            continue;
+        }
+        if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+            if (++stopDownloads != 1 || work.transfer.index != 0x6040 ||
+                work.transfer.size != 2 || work.transfer.data[0] != 0x0f ||
+                work.transfer.data[1] != 0x01 ||
+                !L::noteActionTransmission(stop, reservation, target, now))
+                return 16;
+            std::printf("SIMULATED HALT download 6040: 0F 01\n");
+        }
+        const uint64_t admitted = now;
+        now += 500;
+        if (!L::advanceAction(stop, reservation, target,
+                              answer(work.transfer, drive, admitted, now, target.nodeGeneration), now))
+            return 17;
+    }
+    if (stopDownloads != 1 || stop.state != M::ActionState::SUCCEEDED ||
+        stop.outcome != M::ActionOutcome::OBSERVED ||
+        stop.execution != M::ActionExecution::ACKNOWLEDGED ||
+        stop.completion != M::ActionCompletion::OBSERVED)
+        return 18;
+    std::printf("SIMULATED HALT: acknowledged with controller-not-running observation; "
+                "no physical standstill was measured\n");
+    return 0;
 }

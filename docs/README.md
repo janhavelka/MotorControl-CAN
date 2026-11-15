@@ -1,112 +1,65 @@
 # MotorControl-CAN documentation
 
-[Failure and load campaign](reports/prompt_48.md): bounded read/output pressure,
-settled final evidence, retained limits and unperformed physical campaigns.
+Start with the [README](../README.md) for a self-contained native install,
+include/link example and a compiled read/move/stop simulation. The
+[0.1.0 candidate notes](releases/0.1.0.md) distinguish software scope, firmware
+builds and physical evidence, and explain the descriptor migration.
 
-[Finite bench campaign](reports/prompt_47.md): current S2 image, both CL86-C
-specimens, retained trace/allocation failures and corrections, and remaining
-physical qualification measurements.
+## User contracts
 
-
-[Independent package consumers and prospective FieldCore handoff](fieldcore_handoff.md)
-show production module ownership without FieldCore or a stack. The
-[profile contract](profile_contract.md) explains production contrast types,
-source-backed test fixtures and remaining extension limits.
-
-
-[Prompt45 integration audit](reports/prompt_45.md): reproducible failures, fixes,
-adversarial coverage and measured host/target resource bounds. These are software
-checks, separate from drive and fixture qualification.
-
-[Communication commissioning](commissioning.md#explicit-communication-commissioning)
-separates stored/native reads, host selection, the conditional heartbeat write,
-route reconciliation and still-unknown activation/persistence.
-
-[Discovery and host binding](commissioning.md) documents implemented-profile
-inventory, explicit finite scans, passive observations and permanent-slot limits.
-
-[Conditional homing and reference contract](homing.md), [prompt 36 report](reports/prompt_36.md),
-and [manual native coverage reconciliation](reports/prompt_36_coverage.md).
-
-[Native position parameters](position_parameters.md) document checked numeric candidates, finite absolute/relative/wrapped-angle integration and remaining motion gates. Native callers include the [position example](../examples/position_preview/README.md) and [offline angle preview](../examples/angle_preview/README.md).
-
-The [TPDO1 configuration preview](../examples/pdo_configuration_preview/README.md) runs the supported `1800:05` event-timer change through its typed lifecycle with retained bench replies; the [service guide](canopen_services.md#lichuan-tpdo1-configuration-subset) gives the contract.
-
-The [fault/reference action guide](fault_reference_actions.md) separates alarm
-clear, native counter zero, host origin and home, including retained failures
-and coordinate-generation handoff.
-
-The [conditional stop guide](stop_actions.md) specifies exact native commands,
-controller-report completion, owner handoff and remaining firmware gates.
-
-For the connected OPTAK_FGI_2025 board, see the
-[ESP-Prog2/S2 intake](reports/2026-11-02_s2_bench_intake.md) and current
-[bench facts](hardware_bench.md). These distinguish inspected USB/design data,
-S2/P4 portable-core builds and the remaining physical/firmware checks.
-
-For native callers, start with the [shared application](native_application.md),
-[offline units preview](../examples/units_preview/README.md) and
-[fake native probe](../examples/native_probe/README.md). The
-[finite evidence example](../examples/device_evidence/README.md) adds retained
-acquisition records and an explicit unknown-effect read experiment using fakes.
-These exercise current
-public APIs without a framework, command parser or physical controller.
-
-Execution has completed prompts 1-17, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. The [minimal native package](getting_started.md) provides status, exact units/quantization, pure axis/reference targets, endpoint, Classical frame validation and pure checked CANopen SDO/network envelopes. Reviewed Lichuan descriptors are available as metadata; no operational drive profile exists yet. The [verification guide](verification.md) documents working local/CI gates; gate results are recorded in the [prompt 8 report](reports/prompt_8.md), with production API results in the [prompt 9 report](reports/prompt_9.md), [axis report](reports/prompt_10.md) and [CAN/SDO report](reports/prompt_11.md). Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
-
-The [shared CLI contract](cli_contract.md) describes the working local console,
-exact JSONL schema, bounded output and visible P41/P42 route gates.
-
-| Material | Purpose |
+| Topic | Maintained guide |
 | --- | --- |
-| [Python console client](runners.md) | Bounded correlation, exact evidence, offline plans/self-test and one explicit typed probe/read; no automatic retry or campaign |
-| [Finite campaign catalogue](bench_scenarios.md) | Named plans, explicit prerequisites, one planned cleanup, bounded position comparison and deterministic session evidence; no physical qualification |
-| [Drive-state interpretation and action gates](drive_actions.md) | Checked documentary decoder, raw evidence and disagreements; the gated enable sequence and its transition table, which ran on both specimens (attended, one firmware); release's exact gap |
-| [Device evidence conflicts](device_conflicts.md) and [offline evidence procedure](../examples/device_evidence/README.md) | Prompt 29 source questions, capability gates and the bounded typed-read collector; no live qualification |
-| [Firmware examples](firmware_examples.md) | Shared Arduino/IDF startup, explicit configuration, bounded USB/time and three real compile gates |
-| [TWAI adapter](../adapters/twai/README.md) and [SDK evidence](adapters/twai_sdk.md) | Pinned S3 controller boundary, capacities, completion/retirement evidence and compile-only checks |
-| [Application CAN owner](can_owner.md) | Ordinary/urgent scheduling, one receiver, retained results, explicit local recovery, cached health/statistics and bounded diagnostic copies |
-| [Control and tuning](tuning.md) | Five finite groups, all 33 raw read rows, explicit loop selection and precise remaining write gates |
-| [Digital I/O](io_settings.md) | Four typed I/O reads, explicit DI settings, pin/function/level distinctions and remaining DO/filter/action gates |
-| [Native driver groups](driver_settings.md) | Typed native reads and confirmed parameter writes; concrete prerequisites, partial effects/readback and remaining source gates |
-| [Typed reads](reads.md) | Finite raw identity/state/configuration reads, checked getters, SDO/PDO provenance, time/skew and the unresolved non-consuming probe gate |
-| [Status and exact units](units_status.md) | Implemented rational parsing, dimensional conversion, rounding, explicit radians/float quantization and unchanged failure outputs |
-| [Speed, ramp and position units](speed_units.md) | The Lichuan's native units, the whole-rpm and ramp-time limits with worked examples, and what the host unit layer does about them |
-| [When the host MCU fails](host_loss.md) | What the drives do when the MCU hangs, resets or loses power, the usual stop-line and watchdog protection, and the library's part |
-| [Axis coordinates and references](axis_contract.md) | Production pure configuration, origins, generation/freshness, position/velocity targets and offline preview |
-| [CANopen services](canopen_services.md) | Installed pure SDO checks, channel/width correlation, signed words, abort/segmented evidence and worked vectors; bounded production lifecycle, timestamped observations and ambiguity settlement, passive node events and synchronous cache invalidation in the optional application owner |
-| [Reviewed object generation](reference/lichuan_objects.md) and [generated coverage](reference/lichuan_generated.md) | Compact profile-scoped declarations, optional strings, withholding/exclusions, semantic coverage and reproducible freshness command |
-| [Live source map](source_map.md) | Actual declarations, implementations, callers, tests and deliberate CAN differences |
-| [Verification](verification.md), [contributing](../CONTRIBUTING.md), [security](../SECURITY.md) | Working commands, required tools, retained evidence, current versus planned checks and development reporting limits |
-| [Executable backlog](backlog.md) and [roadmap](roadmap.md) | Separate documentary gates, software, integration and physical qualification with current owners |
-| [Requirement coverage](coverage.md) | All 35 requirements tracked without turning audit evidence into implemented support |
-| [CAN bench facts](hardware_bench.md) | User-reported fixture intake, documentary wiring facts and remaining acquisition/authorization requirements |
-| [Execution report](reports/prompt_1.md) and [source/tool inputs](reports/prompt_1_inputs.json) | Fresh revisions, scope, deltas, verification and handoff |
-| [Stepper and servo scope decision](multidrive_decision.md) | One multi-vendor library; CANopen first and protocol-specific extensions |
-| [CANopen drive survey](audit/CANOPEN_DRIVE_SURVEY.md) | Concrete stepper/servo candidates, manuals and recommended order |
-| [Other CAN protocol survey](audit/OTHER_CAN_PROTOCOLS.md) | ODrive, moteus and VESC differences that constrain the common boundary |
-| [Fresh multi-drive source audit](audit/MULTIDRIVE_SOURCE_REAUDIT.md) | Actual RS/I2C/FieldCore type and ownership assumptions to preserve or remove |
-| [Audit summary](audit/SUMMARY.md) | Main findings and consequences |
-| [Independent auditor disposition, November 15](audit/2026-11-15_auditor_disposition.md) | Every November 2 finding checked against current code/sources; applied corrections and exact remaining prompt owners |
-| [MotorControl-RS audit](audit/MOTORCONTROL_RS_AUDIT.md) | Actual architecture, API, CLI, ownership, tests and package behavior |
-| [I2C/FieldCore audit](audit/ECOSYSTEM_CONVENTIONS.md) | Current conventions, intentional differences and real consumer boundary |
-| [Protocol research](audit/DEVICE_PROTOCOL_RESEARCH.md) | Manufacturer objects, family scope and contradictory behavior |
-| [Original reference pack](reference/README.md) | Five manuals, EDS, source pages and hashed extracts |
-| [Lichuan dictionary schema](reference/lichuan_objects.md) and [reviewed decisions](reference/lichuan_review.md) | Complete documentary policy, original claims, four model scopes, qualification checklist and local validation |
-| [Drive contrasts and test cases](reference/drive_contrasts.md) | Source-backed N5 stepper/BLDC, EPOS4 servo and proprietary-frame boundaries for later production-code proofs; no installed support |
-| [Source baseline](baseline/README.md) | 44 selected unmodified source/reference files with MIT notice and hashes |
-| [Architecture plan](architecture_plan.md) | Proposed file layout, responsibilities and CAN service boundary |
-| [Architecture](architecture.md), [axis](axis_contract.md), [profile](profile_contract.md), [services](canopen_services.md) and [owner](can_owner.md) | Concrete prompt-6 semantic contracts, fixed ownership table and prototype migration limits |
-| [Native ownership proof](../experiments/api_ownership/README.md) | Build all three native tests; portable contracts, actual selected client and test-only drive contrasts |
-| [CANopen stack decision](decisions/canopen_stack.md) and [prompt 5 report](reports/prompt_5.md) | Selected CANopenNode application adapter, actual native proof, ownership/resource/retirement evidence and remaining production contracts |
-| [Native fit experiment](../experiments/canopen_service_fit/README.md) | Offline C99/C++11 build and executable checks; no SDK, installed driver or hardware support claim |
-| [API/CLI mapping](api_cli_mapping.md) | Literal RS names to preserve and CAN-specific differences |
-| [Requirements matrix](requirements_matrix.md) | User requirements mapped to implementation and acceptance stages |
-| [Implementation progress](prompts/PROGRESS.md) | Current execution branch/base and each prompt's actual status |
-| [Concrete conventions](prompts/CONVENTIONS.md) and [fresh source audit](audit/CONVENTIONS_REAUDIT.md) | Exact selected API/status/owner/health/counter names with observed versus proposed distinctions |
-| [Documentation](prompts/DOCUMENTATION.md) and [maintainability](prompts/MAINTAINABILITY.md) | Stage-owned general docs, Doxygen, readable direct code and strict checks |
-| [Delegation and model selection](prompts/DELEGATION.md) | Authorized bounded subagents, available-model selection by complexity and integrated review |
-| [Multi-drive stage criteria](prompts/MULTIDRIVE.md) and [new-drive playbook](prompts/ADD_DRIVE.md) | Concrete extensibility gates and future implementation workflow |
-| [RS verification evidence](audit/evidence/motorcontrol_rs_quick/README.md) | Retained passing quick-verifier summary and 15 logs |
+| Native use and example application | [Package use](getting_started.md), [shared application](native_application.md) |
+| Exact intent and references | [Units/status](units_status.md), [axis contract](axis_contract.md), [speed and ramp units](speed_units.md) |
+| Typed native observations | [Reads](reads.md), [driver settings](driver_settings.md), [I/O](io_settings.md), [tuning](tuning.md) |
+| Explicit actions | [Drive state/enable](drive_actions.md), [stop](stop_actions.md), [fault/counter clear](fault_reference_actions.md) |
+| Conditional finite motion | [Position and angle](position_parameters.md), [velocity](velocity.md), [homing](homing.md) |
+| Discovery, changes and persistence | [Commissioning](commissioning.md) |
+| CANopen services and application ownership | [Services](canopen_services.md), [owner/capacity/health](can_owner.md), [TWAI adapter](../adapters/twai/README.md) |
+| Firmware | [Arduino and ESP-IDF](firmware_examples.md), [S2 bench image](../examples/s2_bench/README.md) |
+| Console and host clients | [CLI/JSONL](cli_contract.md), [API/CLI map](api_cli_mapping.md), [Python runners](runners.md), [finite scenarios](bench_scenarios.md) |
+| Physical evidence and open questions | [Bench facts](hardware_bench.md), [device conflicts](device_conflicts.md), [host-loss limits](host_loss.md) |
 
-Planning integrity check: `python scripts/check_promptset.py`. Add `--check-live-baseline` to compare selected copies against the current sibling checkout; differences after future source evolution are expected audit inputs. The default check is offline and does not run firmware or hardware tests.
+Examples use the same public operations as callers. The
+[units](../examples/units_preview/README.md),
+[read/move/stop](../examples/position_preview/README.md),
+[angle](../examples/angle_preview/README.md),
+[velocity](../examples/velocity_preview/README.md),
+[discovery](../examples/discovery_preview/README.md) and
+[TPDO1 subset](../examples/pdo_configuration_preview/README.md) previews are offline.
+Their fake events and explicit evidence records qualify no hardware.
+
+## Integration and maintenance
+
+- [Architecture](architecture.md), [profile contract](profile_contract.md),
+  [multi-drive decision](multidrive_decision.md) and [new-drive playbook](prompts/ADD_DRIVE.md):
+  current dependency boundaries and the work a real additional profile needs.
+- [Prospective FieldCore handoff](fieldcore_handoff.md): independent installed
+  consumer and product integration responsibilities; no FieldCore CAN integration.
+- [Source map](source_map.md): declarations, implementations, callers and tests.
+- [Verification](verification.md), [contributing](../CONTRIBUTING.md),
+  [security](../SECURITY.md), [license](../LICENSE) and [changelog](../CHANGELOG.md).
+- [Coverage](coverage.md), [operation map](reference/lichuan_operations.json),
+  [generated coverage](reference/lichuan_generated.md) and
+  [reviewed ledger](reference/lichuan_objects.md): separate metadata, typed
+  implementation, CLI, tests and physical qualification.
+- [Progress](prompts/PROGRESS.md), [backlog](backlog.md), [roadmap](roadmap.md)
+  and [promptset](prompts/README.md): current work and precise inherited gates.
+
+## Historical and source evidence
+
+Dated reports preserve what was checked at that revision. Maintained contracts
+above own current behavior; historical claims are not silently rewritten.
+
+- [Documentation/package audit](reports/prompt_49.md), [finite campaign](reports/prompt_47.md)
+  and [failure/load campaign](reports/prompt_48.md).
+- [Independent auditor disposition](audit/2026-11-15_auditor_disposition.md),
+  [RS audit](audit/MOTORCONTROL_RS_AUDIT.md), [ecosystem audit](audit/ECOSYSTEM_CONVENTIONS.md)
+  and [audit summary](audit/SUMMARY.md).
+- [Original references](reference/README.md), [reviewed device decisions](reference/lichuan_review.md),
+  [drive contrasts](reference/drive_contrasts.md) and [copied baseline](baseline/README.md).
+- [Architecture plan](architecture_plan.md) and [retained ownership proof](../experiments/api_ownership/README.md):
+  planning/prototype material, not an installed feature list.
+
+Prompt18/Q17 remapping, feature-specific firmware facts and physical qualification
+remain open. Closing a documentation audit does not close those obligations.

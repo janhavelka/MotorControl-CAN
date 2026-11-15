@@ -1,10 +1,11 @@
 # Contributing
 
 Read [AGENTS.md](AGENTS.md), the [current handoff](docs/prompts/PROGRESS.md) and
-the assigned numbered prompt before editing. The working package currently
-contains status, exact units/axis targets, endpoint identity, Classical CAN/SDO
-checks and reviewed Lichuan object metadata. Synthetic
-motion/profile tests do not establish implemented drive support.
+the assigned numbered prompt before editing. The installed core contains exact
+units/axis targets and conditional typed Lichuan operations; optional owner,
+controller and console code lives outside it. See [candidate scope](docs/releases/0.1.0.md)
+for implemented behavior and inherited gates. Synthetic tests do not establish
+physical qualification or support for another drive.
 
 ## Build and check a change
 
@@ -94,8 +95,9 @@ documentation inventory. Avoid copied examples that drift from compiled usage.
 ## Changes, evidence and handoff
 
 Keep related implementation, tests, generated output and documentation together.
-Preserve unrelated files/hunks. The promptset uses one execution branch across
-numbered prompts; the lead owns Git integration. Follow the root instructions
+Preserve unrelated files/hunks. The current explicit instruction is to continue
+on main until version0 is finished; do not create a branch per prompt. The lead
+owns Git integration. Follow the root instructions
 for explicit staging, checked commits, normal pushes and final upstream checks.
 
 `.build/`, `.install/`, `build/` and `dist/` are disposable development output.

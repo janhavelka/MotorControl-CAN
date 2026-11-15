@@ -1,7 +1,7 @@
 # Status and exact units
 
 The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
-explained in [Speed, ramp and position units](speed_units.md).
+explained in [Speed, ramp and position units](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/speed_units.md).
 
 The installed [Units.h](../include/MotorControlCAN/Units.h) and
 [implementation](../src/Units.cpp) provide pure C++11 arithmetic. They perform no
@@ -130,7 +130,7 @@ origin/reference and frame policy remain outside this module. CAN also corrects
 RS's rare extra-ULP underestimate in `rationalToDouble`: bounded comparisons
 check both neighboring directions to establish the closest directed value.
 
-The [retained proof](../experiments/api_ownership/README.md) uses production
+The [retained proof](https://github.com/janhavelka/MotorControl-CAN/blob/main/experiments/api_ownership/README.md) uses production
 types/conversion/quantization. Its old million-unit input and `10^18` product
 limits are removed. The proof now consumes production `preparePosition`; its synthetic I32 wire
 bounds and capability facts remain test-only. Production coordinate errors use
@@ -140,10 +140,10 @@ The old proof spellings `NATIVE_INCREMENTS`, `commandIncrementsPerMotorTurn` and
 `commandStepsPerMotorTurn` and selected `encoder.countsPerUnit` respectively.
 No competing aliases are retained.
 
-Independent vectors in [units_test.cpp](../test/units_test.cpp) cover signs,
+Independent vectors in [units_test.cpp](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/units_test.cpp) cover signs,
 extremes, cancellation, malformed text, failure sentinels, scale dependencies,
 all rounding policies and floating midpoint/tolerance cases. The compiled
-[isolated consumer](../test/installed_consumer/main.cpp) uses the same public
+[isolated consumer](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/installed_consumer/main.cpp) uses the same public
 path under C++11 and C++17/no RTTI. Run the registered `units` test or the
-[normal verification modes](verification.md); full mode also proves package
+[normal verification modes](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/verification.md); full mode also proves package
 inclusion, standalone headers and strict Doxygen.

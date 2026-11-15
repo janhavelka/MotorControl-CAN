@@ -60,7 +60,7 @@ enum class ReadRepresentation : uint8_t {
 };
 
 /** @brief Bounded read shape, independent of live binding, interpretation and effects.
- * Returned by readDescriptor for the reviewed Prompt 19/20/21/22/35/36/38/39 assignments only.
+ * Returned by readDescriptor only for explicitly reviewed native read shapes.
  * Does not establish a non-changing probe or grant polling qualification.
  */
 struct ReadDescriptor {
@@ -87,7 +87,6 @@ struct ObjectDescriptor {
     ReadEffect readEffect;   ///< Upload effects remain unqualified even for read-only entries.
     WritePolicy writePolicy; ///< Forbidden or qualification-required; never write-enabled.
     PdoPolicy pdoPolicy;      ///< Separate mapping disposition; not an RPDO/TPDO template.
-    uint8_t ownerPrompt;     ///< Numbered prompt owning the semantic implementation.
     uint32_t gateMask;       ///< Open evidence gates: Q01 is bit zero through Q21 at bit twenty.
     SourceScope scope;       ///< Unbound source scope; no live model/firmware applicability.
 };

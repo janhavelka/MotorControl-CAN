@@ -26,8 +26,8 @@ identified board's port, S2 target and 115200 baud. The actual board's faster
 No eFuse, full-flash erase or drive reset is part of the upload command.
 
 On startup S18 is set high and CAN stays disabled. A console request is one
-fixed byte; this is an evidence procedure, not the future production CLI or a
-raw CAN sender. `p` returns image identity, `c` initializes the local controller
+fixed byte for these evidence controls, alongside the shared CLI described below.
+They are not a raw CAN sender. `p` returns image identity, `c` initializes the local controller
 once and lowers S18, and `s` returns cached counters and stack headroom. Normal
 CAN mode acknowledges received frames after `c`. It sends no device request
 until an explicit acquisition command. There is no retry or automatic recovery.

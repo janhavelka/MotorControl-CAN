@@ -2,8 +2,9 @@
 
 This standalone firmware builds the same `ProbeApp`, owner, console platform and
 TWAI adapter for ESP32-S3 (USB Serial/JTAG console) and ESP32-S2 (exclusive UART0
-console on GPIO43/44). It has no CLI parser, automatic target selection or startup
-request, and startup never starts the controller. See the
+console on GPIO43/44). Its owner task services the shared `ProbeConsole`, except
+when the explicit smoke hook owns the input. Startup selects no target, issues no
+drive request and never starts the controller. See the
 [shared contract](../../docs/firmware_examples.md) for target policy, the
 transceiver silent input, capacities, failures and physical prerequisites. The
 special [S2 bench image](../s2_bench/README.md) is a different program.

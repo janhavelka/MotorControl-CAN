@@ -1,7 +1,7 @@
 # Native package use
 
 The installed [typed read API](reads.md) needs only the core target. The
-[reads preview](../examples/reads_preview/README.md) compiles a finite identity
+[reads preview](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/reads_preview/README.md) compiles a finite identity
 read with synthetic evidence, without a controller. The [discovery inventory and
 checked probe](commissioning.md) are implemented. DEC-1 explicitly accepts the
 probe/identity uploads while their read effects and model applicability remain
@@ -13,7 +13,7 @@ binding identity, Classical CAN frame validation and pure checked CANopen SDO en
 directory, CMake package and target are
 `MotorControlCAN`, with imported target `MotorControlCAN::MotorControlCAN`.
 The installed Lichuan C profile exposes implemented raw reads and conditional
-settings/motion, with [scope and gates](prompts/PROGRESS.md). Controller ownership
+settings/motion, with [scope and gates](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/prompts/PROGRESS.md). Controller ownership
 and scans are optional application code; hardware qualification is not implied.
 Version `0.1.0` describes this development source and
 does not identify a published release or tag.
@@ -97,7 +97,7 @@ cmake --build .build/preview
 ```
 
 On Windows the executable has the `.exe` suffix. Its
-[README](../examples/units_preview/README.md) also documents an installed-package build.
+[README](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/units_preview/README.md) also documents an installed-package build.
 Repository tests run the same example and a small native axis consumer.
 
 ## Repository tests and source export
@@ -106,7 +106,7 @@ Developer tests need Python 3.10+, Ninja and C/C++ compilers. They register the
 retained synthetic operations/owner and N5/EPOS4 fixtures under `test/`; these
 tests additionally build the pinned local CANopenNode experiment. Running the
 complete CTest inventory also requires Doxygen 1.13.2; the quick verifier omits
-documentation and package checks as described in the [verification guide](verification.md).
+documentation and package checks as described in the [verification guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/verification.md).
 The installed library does not link that experiment. Checks stay active in Release builds.
 
 ```text
@@ -130,10 +130,14 @@ Export a source archive using the explicit `library.json` export allowlist:
 python scripts/export_package.py dist/MotorControl-CAN.zip
 ```
 
-Extract it with a ZIP tool, then use the native build/install commands above.
+Extract it with a ZIP tool, then use the self-contained install and consumer
+example in the archive's [README](../README.md). The repository-only
+`test/installed_consumer` and preview examples are deliberately absent.
 The exported build needs neither Python nor network access. The archive contains
 only `include/`, `src/`, `cmake/`, root CMake/metadata/license/readme/changelog
-and the package, units/status, axis and CANopen service guides. Vendor material, audits, test/experiment
+and eleven selected package, units, axis, service and profile guides from that
+allowlist. Links to excluded repository material use explicit repository URLs.
+Vendor material, audits, test/experiment
 sources and dependencies, examples and sibling snapshots are excluded. PlatformIO 6.1.19's equivalent
 developer packaging command is `pio pkg pack --output dist/MotorControl-CAN.tar.gz`;
 its platforms/frameworks are wildcard because the core has no SDK dependency.
@@ -152,7 +156,7 @@ validates/decodes supplied native layouts; the optional owner separately require
 actual-map and sample-provenance evidence. No catalogue or stack is needed by
 these core headers, and no PDO configuration is written by including them.
 Developer freshness uses `python scripts/generate_lichuan_objects.py --check`;
-installed consumers need no Python, ledger or original vendor material. The [verification guide](verification.md)
+installed consumers need no Python, ledger or original vendor material. The [verification guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/verification.md)
 documents the working quick/full verifier, CI and strict Doxygen gate. These
 developer tools are outside the core distribution.
 
@@ -164,7 +168,7 @@ real controller I/O and physical qualification remain application work.
 
 ## Optional CANopenNode application adapter
 
-The separate [CANopenNode application adapter](../adapters/canopennode/README.md)
+The separate [CANopenNode application adapter](https://github.com/janhavelka/MotorControl-CAN/blob/main/adapters/canopennode/README.md)
 can be built explicitly in a full checkout. Its selected stack/port is omitted
 from the exported/installed core. `<MotorControlCAN/canopen/SdoTransfer.h>`
 contains portable service values without either dependency. Native fake-node
@@ -175,18 +179,20 @@ tests do not establish an SDK/controller port or firmware build.
 When ESP-IDF supplies `idf_component_register`, root CMake registers the same
 portable sources and public include directory with a C++11 floor. The application
 owns the SDK, controller, bus configuration and all I/O. Native builds never
-load ESP-IDF. The [isolated IDF consumer](../test/idf_consumer/README.md)
+load ESP-IDF. The [isolated IDF consumer](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/idf_consumer/README.md)
 now builds and links this portable component with the pinned real SDK. It copies
 only the required core files outside the checkout. This gate is separate from
-[standalone firmware](firmware_examples.md), which also builds the owner,
+[standalone firmware](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/firmware_examples.md), which also builds the owner,
 selected stack, TWAI and USB platform.
 
 ## Optional TWAI transport
 
-The [ESP32-S3 TWAI adapter](../adapters/twai/README.md) uses the same owner with
+The [ESP32-S3 TWAI adapter](https://github.com/janhavelka/MotorControl-CAN/blob/main/adapters/twai/README.md) uses the same owner with
 explicit configuration and pinned IDF 5.5.5. Host callback fakes and its separate
 SDK static-archive compile do not require CAN hardware. It is excluded from the
-installed core. [Shared Arduino and native-IDF examples](firmware_examples.md)
+installed core. [Shared Arduino and native-IDF examples](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/firmware_examples.md)
 provide pinned compile-only builds and require explicit board/controller facts.
 Default fixtures keep CAN disabled; startup makes no drive selection/request.
-No firmware was flashed and no physical controller or motor was tested.
+The compile gates flash no firmware and test no physical motor. Separate
+S2 specimen campaigns are retained in the [bench record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/hardware_bench.md);
+they do not qualify another platform or firmware.

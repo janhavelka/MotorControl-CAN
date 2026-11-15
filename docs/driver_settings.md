@@ -5,16 +5,16 @@ The installed `MotorControlCAN::LICHUAN_C` API in
 typed driver **read** groups. The same `DriverContext` and lifecycle also serve
 four [I/O groups](io_settings.md) through checked `getIo` and five
 [control/tuning groups](tuning.md) through `getControl/getTuning`.
-[Prompt 20](reports/prompt_20.md) remains Partial. Explicit position parameters
+[Prompt 20](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_20.md) remains Partial. Explicit position parameters
 and the 2202 selector have typed writes. `2200`, subdivision, `607D` and mode
 selection keep the gates listed under Setting decisions.
-See [the fresh audit](reports/prompts_20_21_audit.md) for the correction to the
+See [the fresh audit](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompts_20_21_audit.md) for the correction to the
 earlier blanket write blocker. No generic integer-write substitute is provided.
 
 ## Frozen row ownership and read coverage
 
 Every row below is documented, implemented and host tested as a raw read, with
-hardware qualification **false**. The canonical [ledger](reference/lichuan_objects.md)
+hardware qualification **false**. The canonical [ledger](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/lichuan_objects.md)
 retains exact EDS lines, PDF pages, model scope and separate whole-object/write
 coverage. All read effects remain `UNQUALIFIED`; these are ordinary reads on an
 already usable channel, not a non-consuming bootstrap probe.
@@ -70,7 +70,7 @@ three reviewed subentries, regardless of the returned count. A native limit
 cannot be assigned motor/load coordinates without independent scale evidence.
 Generic velocity and acceleration types retain their separate dimensions.
 
-The [compiled offline caller](../examples/driver_settings_preview/README.md)
+The [compiled offline caller](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/driver_settings_preview/README.md)
 shows this lifecycle without CLI, controller or SDK. The registered
 `test/driver_settings_test.cpp` exercises all seventeen driver rows through a fake actual
 service owner and checks negative/partial failure paths. Isolated installed and
@@ -148,7 +148,7 @@ snapshot conservatively, and either mode's shared ramp writes retire the other
 mode's retained parameters. This does not advance the configuration generation
 or prove that the write happened. `607A` alone changes no field in this group.
 Homing rows are accepted conservatively at their declared widths. Prompt 36
-adds the [conditional home lifecycle](homing.md) and raw `DriverGroup::HOMING`
+adds the [conditional home lifecycle](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/homing.md) and raw `DriverGroup::HOMING`
 readback; `607C` write order, units, sign and final-coordinate effect remain
 exact-firmware evidence gates. These operation writes retire retained motion
 parameters, without routing through a general driver-settings setter.
@@ -235,7 +235,7 @@ physically established. Pages are PDF pages. No value below is hardware-qualifie
 | --- | --- | --- | --- |
 | `2200` | **Gate kept, no write.** A domain is not enough: effect is needed too | EN86/ZH86 p18 say only `0 Pulse Sign`, `1 Pulse /Sign`, and neither says what the codes do under CAN; EDS `[2200]` U16 RW default 0; both specimens 0 | The same native target at each code, a finite move, independent shaft observation and raw `6064`, plus a power cycle for activation. Motion, so packet 19 or later. A flip with no motion shows only that the code is accepted, so it closes nothing |
 | `2201` | **Settled, 400..51200** (prompt 59, 2026-11-13), only while released, volatile, no save. Measured volatile: node 2 written to 51200 without a save read 1000 after a power cycle (2026-11-13, trial 6048) | p11 0..65535 versus p18 400..51200; EDS default 0; both specimens 1000 | Activation and scale: at the baseline and one other in-range value, raw `6064`, `607A`, `607D` after the write, and measured displacement for one fixed native target. The ratio gives the scale; a power cycle between them gives activation. Prompt 59's five-point grid, not a sweep |
-| `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` (project policy) and no homing report | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0. On 2026-11-04 both specimens accepted codes 1 and 0, each written and read back (trials 604 to 607, [report](reports/2026-11-04_bench.md)) | Enforcement, which that readback does not show. See the note below: no test closes this until `607D` has a domain |
+| `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` (project policy) and no homing report | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0. On 2026-11-04 both specimens accepted codes 1 and 0, each written and read back (trials 604 to 607, [report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)) | Enforcement, which that readback does not show. See the note below: no test closes this until `607D` has a domain |
 | `607D:01/:02` | **Gate kept, no write.** No admissible domain | EDS and EN86 p16/p17, ZH86 p17 give I32 and a name only; both specimens signed extremes. `607A` and `607C` ranges are not its range | **A manufacturer range or coordinate basis.** See the note below. `2100` bits need homing first, so no no-motion test can show the frame |
 | `6060` | **Gate kept, no write here.** Codes 1, 3, 6 share U8 and I8 encoding; 0 is undefined | p11, p13; EDS `[6060]` WO U8 versus manual RW I8; both specimens display 0 with `6041` low bits 7, the documentary pattern for `6040=15` | Packet 15's isolated `6060:00=1` with fresh mode, status, monitor, error and feedback evidence and independent shaft observation. Enabling in mode 3 or 6 and changing mode while enabled are separate gates (Q03, Q11, Q21). ZH86 p13 says the motor starts at the end of `6,7,15` in mode 3, with `60FF` reading 120 on both specimens, so code 3 is not a no-motion test |
 

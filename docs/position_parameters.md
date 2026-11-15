@@ -1,12 +1,12 @@
 # Lichuan native position parameters and finite moves
 
 The native speed, ramp and position units, their whole-rpm and ramp-time limits and the measured delivered rate are
-explained in [Speed, ramp and position units](speed_units.md).
+explained in [Speed, ramp and position units](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/speed_units.md).
 
 `LICHUAN_C::preparePositionParameters` prepares an owned numeric candidate for
 the documented CL86-C/OL86-C position objects. It performs no I/O and yields no
 service work; the gated absolute and relative moves below build on it. The
-[native example](../examples/position_preview/README.md) uses the installed
+[native example](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/position_preview/README.md) uses the installed
 C++11 core without a CLI, SDK, CAN controller or stack.
 
 ## Numeric contract
@@ -46,7 +46,7 @@ native target without a witness says nothing about displacement or standstill;
 a zero relative displacement is also only arithmetic. Numeric zero speed and
 ramp times follow the source table but do not qualify their trajectory effects.
 
-## Snapshots and future admission
+## Snapshots and operation admission
 
 This snapshot is requested intent, not a verified settings cache. A later move
 must recheck its current route, binding/configuration/reference generations,
@@ -75,7 +75,7 @@ therefore carries the caller's reviewed measurement, and its default
 `MoveGate::CLOSED` returns `UNSUPPORTED` before anything else is checked.
 
 **One specimen run, 2026-11-03.** With node 1's measured evidence from
-[packet 19](reports/handoff_19_33/packet_19.md) (acceptance `6041` mask and value
+[packet 19](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/handoff_19_33/packet_19.md) (acceptance `6041` mask and value
 `0x1000`, completion `2100` mask and value `0x0001`, `AFTER_ABSENCE`), the bench
 `move` route ran this lifecycle once through `AxisSession::requestMove` on node 2,
 unattended: 0 to 250 pulses at 2 rpm, `SUCCEEDED` with completion observed and its
@@ -83,10 +83,10 @@ own `000F` rearm acknowledged, the same bits as node 1. Completion was reported 
 `6064=251`, and the next read gave 250; whether the drive overshot and returned or
 the counter dithers inside the in-place window is not established. No shaft was
 observed, and node 2's scale is not measured. That is one specimen and one firmware,
-not a qualification ([unattended report](reports/2026-11-03_unattended_bench.md)).
+not a qualification ([unattended report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md)).
 
 **Later runs, 2026-11-04,** judged from drive reports with no shaft observed
-([report](reports/2026-11-04_bench.md)). The same 0 to 250 at 2 rpm on node 2,
+([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)). The same 0 to 250 at 2 rpm on node 2,
 through the application-local `position` route rather than this lifecycle,
 completed at exactly 250 and held it for 8 s, so the 251 did not recur; a one-pulse
 overshoot is still possible. This lifecycle then ran with a planned quick stop
@@ -97,7 +97,7 @@ budgets. The relative move below succeeded (trial 411). `606C` reads rpm on this
 configuration.
 
 **Later runs, 2026-11-05,** node 1, drive reports only
-([report](reports/2026-11-05_motion_and_stress.md)). This lifecycle succeeded
+([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-05_motion_and_stress.md)). This lifecycle succeeded
 at 10 rpm from 0 to 1000 with 200 ms ramps, completing at exactly 1000 (705), and
 at 60 rpm from 1000 to -1000 with 1000 ms ramps, where completion was reported at
 -999 and a read 40 s later gave -1000 (706, 707). The relative lifecycle succeeded
@@ -290,7 +290,7 @@ retire retained `MOTION_PARAMETERS` observations through
 `retireMotionParameters`, without advancing the configuration epoch and making
 their own target stale. They never run through `prepareDriverSettings`.
 
-See [angle_preview](../examples/angle_preview/README.md) for an offline caller
+See [angle_preview](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/angle_preview/README.md) for an offline caller
 that displays effective target and exact error before admission. N5 3600/turn
 at 1:1 and abstract independent-scale servo vectors exercise common production
 arithmetic in C1; they add no installed driver. Physical angle qualification and
@@ -331,8 +331,8 @@ after a halted move left it at 104 with target 600, `005F` with +200 ended at
 -100 `SUCCEEDED` at -100 (trial 825). **Node 2 measured `ACTUAL` on 2026-11-09**
 (trials 828 to 830, record 830), and +200 under that record `SUCCEEDED` at 200
 (trial 1110); see the evidence below. Two specimens, one firmware, judged from
-drive reports with no shaft angle measured ([report](reports/2026-11-04_bench.md),
-[packet 21](reports/handoff_19_33/packet_21.md), [packet 8](reports/bench_closure_18_33/packet_8.md)). The axis's
+drive reports with no shaft angle measured ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md),
+[packet 21](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/handoff_19_33/packet_21.md), [packet 8](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_8.md)). The axis's
 `supportedRelativeBases` is a separate host-arithmetic policy and is still checked.
 
 Two bases stay apart in the context. `parameters.target.retainedReference` is

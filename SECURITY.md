@@ -2,13 +2,16 @@
 
 MotorControl-CAN is a development package with no published supported release
 series. Version metadata identifies source; it does not promise a maintenance
-window, certification or a response deadline. The current installed core
-validates local endpoint identity and Classical CAN frame shape. It performs
-no network I/O, drive commands or authentication.
+window, certification or a response deadline. The installed core validates
+exact requests, frames and supplied protocol evidence and yields explicit typed
+operation work. It performs no network I/O or authentication; the application
+controls whether yielded work is transmitted.
 
 ## Reporting
 
-Report a suspected vulnerability privately by email to `info@thymos.cz`. Do
+The maintainer contact recorded in `library.json` and LICENSE is
+`info@thymos.cz`. Use it to request coordinated handling of a sensitive report;
+mailbox delivery and a dedicated security response service have not been verified. Do
 not post credentials, private network details or an exploit requiring
 coordinated disclosure in a public issue. For a non-sensitive defect, use the
 [repository issue tracker](https://github.com/janhavelka/MotorControl-CAN/issues)
@@ -27,7 +30,8 @@ identity, drive acceptance, motion completion or safe physical behavior.
 
 Applications own CAN controllers, receive dispatch, binding/configuration
 freshness, scheduling, transport security, retries and machine controls.
-Future CANopen/drive services require their own protocol and device evidence.
+Implemented CANopen/profile services retain their protocol and device evidence
+gates; another profile needs its own review and qualification.
 CAN traffic and a host library alone do not provide a safety system. Retain the
 precise firmware, fixture, traffic and timing needed for a hardware finding;
 do not replay an uncertain motor write merely to reproduce a software report.

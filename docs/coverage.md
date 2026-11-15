@@ -1,4 +1,10 @@
-# Requirement coverage after pure CAN/SDO checks
+# Requirement and implementation coverage
+
+[Prompt49](reports/prompt_49.md) audits user documentation, public descriptor
+layout and package boundaries. Metadata ownership remains in the ledger;
+`ownerPrompt` is removed from installed types. Typed operation coverage and all
+source/physical gates are unchanged. The [candidate notes](releases/0.1.0.md)
+record migration and distinct host, firmware and physical scope.
 
 [Prompt48](reports/prompt_48.md) records finite two-node read/console load and
 strict final-summary validation. These measurements extend specimen-scoped
@@ -53,8 +59,12 @@ Prompt38 adds all 89 assigned PDO/2203 read rows (191 total read shapes) and one
 Prompt37 adds implemented-profile inventory, checked minimal probe projection,
 explicit host selection and bounded passive/active discovery through the same
 app/owner. Native and isolated package consumers exercise it; [commissioning](commissioning.md)
-states the permanent two-slot limit, unknown read effects, identity ambiguity and
-retained quarantine. No physical discovery, unique model map or firmware qualification is added.
+states the configured discovery-plan bound, unknown read effects, identity ambiguity
+and retained quarantine. `DiscoveryPlan::CAPACITY` follows
+`AdapterCapacity::DISCOVERY_TARGETS`: default min(channels, 2), configurable from
+1 through the channel count and at most 28 targets per plan. Larger scans use
+separate plans. See the [capacity contract](can_owner.md#capacity-set).
+No physical discovery, unique model map or firmware qualification is added.
 
 Prompt 36 adds conditional method-specific homing, separate mode-6 enable and
 interrupt, and checked reference publication. The six assigned read rows are
@@ -233,9 +243,9 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R20 | 7-46, 49-50 | The explicitly registered CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs registered non-full tests; full adds documentation and a separately retained package contract. Prompt 28 adds firmware/platform and build-checker regressions; prompt 29 adds exact-byte acquisition and firmware evidence tests, a fake-only example and an isolated harness consumer; current counts are in [its report](reports/prompt_29.md). Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
-| R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
-| R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Host owner with two node/SDO slots, one NMT result and eight PDO routes sizeof 10528 bytes on Windows x86-64, including transient initial service/SDO times; embedded sizing, timing and controller qualification pending. |
-| R25 | 7-8, 49-50 | Prompt 7 delivers C++11 core, installed/exported consumers, independent headers, C++17/no-RTTI checks, exact distribution lists and MIT attribution. Prompt 8 adds working verifier/CI/strict docs; final delivery status remains in its report. |
+| R23 | All; final 49-50 | Current user/package audit, roadmap, backlog, bench and candidate limits documented; independent final review remains50. |
+| R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Adapter channel/PDO/discovery storage follows the [application capacity set](can_owner.md#capacity-set), with defaults of two channels and eight PDO routes; the installed core has no channel-count limit. The earlier 10528-byte Windows x86-64 observation describes its recorded default layout, not every capacity set. Target sizing, timing and controller qualification remain separate. |
+| R25 | 7-8, 49-50 | Prompt 7 delivers C++11 core, installed/exported consumers, independent headers, C++17/no-RTTI checks, exact distribution lists and MIT attribution. Prompt 8 adds verifier/CI/strict docs; prompt49 adds actual exported README compilation and archive links, retaining final candidate evidence in its report. |
 | R26 | 1-10, 45-46, 49-50 | Core-only N5 stepper/BLDC and EPOS4 fixtures pass with optional full-step geometry, independent scales and C11 capability/calibration gates. No additional installed driver or vendor sequence. |
 | R27 | 5-6, 9-18, 23-25, 45-46 | Generic proprietary address 500/subaxis 2 and servo-without-CANopen-state review attempts pass. Synthetic CANopen profile/owner reject unsupported protocol before admission. Separate real protocol implementation pending. |
 | R28 | 5-6, 11-12, 15, 17, 23-28, 45-46 | Classical eight-byte values preserve extended/RTR shape; FD and Classical BRS/ESI combinations explicitly fail. Installed SDO checks narrow service frames while common source-backed VESC/ODrive shapes remain valid. Prompt 27 adds a pinned Classical S3 adapter, host callback/retirement tests and SDK compilation; FD and physical qualification remain pending. |

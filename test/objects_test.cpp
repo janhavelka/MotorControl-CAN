@@ -19,8 +19,11 @@ static_assert(L::OBJECT_6040_00.sdoAccess == L::SdoAccess::WRITE_ONLY &&
     L::OBJECT_6040_00.pdoPolicy == L::PdoPolicy::UNQUALIFIED,
     "RPDO source membership does not add SDO reads or approve mapping");
 static_assert(L::OBJECT_2300_00.index == 0x2300 &&
+    L::OBJECT_2300_00.subindex == 0 &&
+    L::OBJECT_2300_00.type == L::ScalarType::U16 &&
+    L::OBJECT_2300_00.widthBytes == 2 && !L::OBJECT_2300_00.signedValue &&
+    L::OBJECT_2300_00.sdoAccess == L::SdoAccess::READ_WRITE &&
     L::OBJECT_2300_00.writePolicy == L::WritePolicy::QUALIFICATION_REQUIRED &&
-    L::OBJECT_2300_00.ownerPrompt == 39 &&
     (L::OBJECT_2300_00.gateMask & (1u << 14)),
     "Lichuan save/reset is profile scoped and retains Q15, not NanoJ control");
 // DEC-1, checked by hand against the audit list. Acceptance is risk acceptance and grants no writes.

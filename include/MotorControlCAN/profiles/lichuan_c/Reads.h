@@ -283,8 +283,8 @@ Status prepareState(ReadContext& output, const ReadTarget& target, uint32_t oper
  * @param[in] nowUs Supplied monotonic preparation microseconds.
  * @param[in] deadlineUs Immutable future cutoff; `now >= deadlineUs` expires.
  * @param[in] options Nonzero caller queue/response budgets.
- * @return OK prepares finite raw reads. PDO communication/maps are explicitly
- * read-owned by prompt 38; settings reads remain with prompts 20-22.
+ * @return OK prepares finite raw configuration reads. PDO communication/maps use
+ * prepareCommunicationRead; native settings groups use their typed read APIs.
  */
 Status prepareConfig(ReadContext& output, const ReadTarget& target, uint32_t operation,
                      uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options) noexcept;

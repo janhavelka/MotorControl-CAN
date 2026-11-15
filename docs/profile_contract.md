@@ -21,7 +21,11 @@ The portable core performs no I/O or scheduling; [the owner](can_owner.md) does.
 | Request/result provenance | ReadOperation.h and concrete contexts | Concrete lifecycles validate binding, generations, supplied time and effects; a generic projection cannot qualify raw traffic. |
 
 These bounded C++11 values introduce no runtime registry or generic service
-engine. Unknown future protocols may need additional contracts.
+engine. The current application owner/service implementation is CANopen-specific.
+A proprietary protocol needs its own codec, service evidence and checked dispatch
+integration; a common arithmetic fixture does not implement that backend. Follow
+[the new-drive playbook](prompts/ADD_DRIVE.md) for a concrete additional profile.
+Unknown future protocols may need additional contracts.
 
 ## Contrasts, not supported products
 

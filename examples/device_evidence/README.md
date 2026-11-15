@@ -47,7 +47,8 @@ bound is 1000 us and the caller has at most 1100 turns. These are host fixture
 policies, not vendor timings. This exercise grants no permission to run a physical
 experiment and establishes no disputed firmware behavior.
 
-Output is bounded human-readable evidence, without a future console/JSON schema.
+This example prints bounded human-readable evidence; it does not use the shared
+console's JSONL schema.
 It prints acquisition metadata, every retained native terminal and its raw reply,
 plus every copied RX/TX/TX-report/controller/recovery record. Initial/final owner
 statistics and resource snapshots retain their distinct meanings; observed owner

@@ -5,8 +5,9 @@ Runs the gated `prepareEnable` sequence and a following stop through `AxisSessio
 `main.cpp` answers every request, so the output shows the service order and the evidence the
 caller must supply, and nothing about what a drive does.
 
-**No specimen has run this sequence.** The [transition table](../../docs/drive_actions.md) holds
-the contract, and the gate stays closed by default.
+This executable supplies only synthetic evidence. The
+[transition table](../../docs/drive_actions.md) holds the current contract and
+separately links specimen observations; the gate stays closed by default.
 
 For failure paths, the [prompt45 integration report](../../docs/reports/prompt_45.md)
 links the real-owner lost-trigger/late-ACK tests. A separately admitted best-effort

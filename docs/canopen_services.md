@@ -1,11 +1,11 @@
 # CANopen service contract
 
 Passive heartbeat/boot-up/EMCY handling uses the checked boundary and shared
-owner projection described below. The [prompt-15 decision correction](decisions/canopen_stack.md#prompt-15-passive-boundary-correction)
+owner projection described below. The [prompt-15 decision correction](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/decisions/canopen_stack.md#prompt-15-passive-boundary-correction)
 records why native HB/EM consumers do not run alongside that projection.
 
 The authoritative service engine is **CANopenNode**, selected in
-[the pinned fit decision](decisions/canopen_stack.md), revision
+[the pinned fit decision](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/decisions/canopen_stack.md), revision
 `9b8beed8367241e96ac03f916cd5a500bcb2cf23`. The installed portable package now
 provides a checked scalar SDO boundary in
 [`canopen/Sdo.h`](../include/MotorControlCAN/canopen/Sdo.h). It checks selected-stack
@@ -13,13 +13,13 @@ requests and decodes initiation replies; CANopenNode owns encoding and transfer
 progression. The portable header has no stack dependency, session, transport,
 clock, allocation or retry. Portable owned request/result contracts live in
 [`SdoTransfer.h`](../include/MotorControlCAN/canopen/SdoTransfer.h). The optional
-[`SdoClient`](../adapters/canopennode/SdoClient.h) application adapter implements
+[`SdoClient`](https://github.com/janhavelka/MotorControl-CAN/blob/main/adapters/canopennode/SdoClient.h) application adapter implements
 the bounded lifecycle around that same selected engine. It performs no
 controller I/O and is not an installed-core dependency. CANopenNode retains its
 Apache-2.0 notices. No SDK adapter, drive profile or physical support is implied.
 
-The [owner contract](can_owner.md) owns storage and scheduling. The
-[profile contract](profile_contract.md) owns operation interpretation. A selected
+The [owner contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md) owns storage and scheduling. The
+[profile contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/profile_contract.md) owns operation interpretation. A selected
 service can confirm a native exchange, but cannot declare a motor stopped or an
 axis healthy. Generic axis state does not acquire mandatory CANopen fields.
 
@@ -82,7 +82,7 @@ command validity from meaningless byte values. The primary
 88-022351-01A, October 2003, Initiate SDO Upload and SDO Examples (pp. 108-111)
 documents these protocol fields and unused-byte examples. This protocol evidence
 establishes no PIO-337 or Lichuan support. The
-[pinned CANopenNode source](reference/public_code/canopennode/301/CO_SDOclient.c)
+[pinned CANopenNode source](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/public_code/canopennode/301/CO_SDOclient.c)
 corroborates canonical zeroed TX, opaque receive padding and unsized/segmented
 forms. The checked boundary rejects malformed command combinations that the
 pinned client's broad upload command mask alone can accept.
@@ -114,13 +114,13 @@ The original EDS identifies `6041:00` as U16 and `609A:00` as U32. EN86/ZH86
 physical page 13 (printed 11) likewise specify the latter as millisecond ramp
 time; neither width nor access spelling establishes permission to issue a
 transfer. Firmware applicability remains unresolved. The pinned
-[public example](audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) wrongly uses response
+[public example](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) wrongly uses response
 commands for reads and two-byte homing writes. Tests reject its `4B` upload
 request and `2B` download when the reviewed `609A` width is four.
 
-[Frame tests](../test/frame_test.cpp),
-[scalar codec tests](../test/sdo_codec_test.cpp) and
-[selected-stack adapter tests](../test/sdo_adapter_test.cpp) exercise independent
+[Frame tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/frame_test.cpp),
+[scalar codec tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/sdo_codec_test.cpp) and
+[selected-stack adapter tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/sdo_adapter_test.cpp) exercise independent
 literal vectors, widths/signs, malformed commands, sizes, identities, capacities,
 overlap and unchanged outputs. These remain host evidence. The lifecycle below
 uses these checks; the passive network events section below covers the event
@@ -129,7 +129,8 @@ codecs.
 ## Bounded production SDO lifecycle
 
 The optional adapter promotes the existing prompt-6 channel storage and
-CANopenNode engine. Its fixed table has two physical channels on one interface,
+CANopenNode engine. Its fixed table has `SdoClient::CHANNELS` physical channels
+on one interface (default two; see the [application capacity set](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md#capacity-set)),
 one active or retained request per channel, one 32-byte native FIFO per client,
 one owned upload buffer and one retirable software TX slot per channel. The
 retained proof is now a compatibility facade over this implementation. There is
@@ -247,12 +248,12 @@ The policy establishes no native object type, unit or firmware applicability.
 
 Production typed read completion matching and PDO-map readback require `EXACT`;
 they reject raw-capacity evidence even when its returned count happens to equal
-the reviewed width. The bench-only [raw collector](../examples/s2_bench/RawEvidence.h)
+the reviewed width. The bench-only [raw collector](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/s2_bench/RawEvidence.h)
 retains such bytes as observations through this same owner. It neither repairs
 the EDS nor changes the production object ledger. The
-[service vectors](../test/sdo_transfer_test.cpp),
-[owner grant tests](../test/can_bus_owner_test.cpp) and
-[collector tests](../test/raw_evidence_test.cpp) exercise this distinction.
+[service vectors](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/sdo_transfer_test.cpp),
+[owner grant tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/can_bus_owner_test.cpp) and
+[collector tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/raw_evidence_test.cpp) exercise this distinction.
 
 ### Transfer forms and dispatch bounds
 
@@ -325,7 +326,7 @@ wrap must be expanded outside this adapter; raw counter wrap is rejected as
 backward time. Equal capture/handoff timestamps cannot establish finer ordering.
 The session premise still applies; timestamps and host tokens are not wire tags.
 This is deliberately more conservative than RS's captured-history settlement
-path; [the source refresh](reports/prompt_14_sources.md) records that difference.
+path; [the source refresh](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_14_sources.md) records that difference.
 
 Every frame offered with a configured response identifier has one copied
 `SdoRxObservation`: route, raw bytes/flags, optional capture time, processing time
@@ -418,12 +419,12 @@ A marker settles the channel only. Earlier effects stay uncertain, and nothing r
 
 ### Best-effort stop on an unresolved route (DEC-2)
 
-`SdoClient::checkBestEffortStop` and `admitBestEffortStop` pass one exact request, `6040:00` U16 `000B`, on a route that ordinary work may not use. The frame is submitted at most once. A controller TX report ends it `SdoOutcome::UNCONFIRMED_SENT`, with execution unknown. A frame received meanwhile, even a matching `60 40 60 00`, is retained: it retires nothing and qualifies nothing, because it may answer the write before. The route stays unresolved and the marker above is still required. The [owner contract](can_owner.md) gives the admission table. This is not a reopening path and not a stop result.
+`SdoClient::checkBestEffortStop` and `admitBestEffortStop` pass one exact request, `6040:00` U16 `000B`, on a route that ordinary work may not use. The frame is submitted at most once. A controller TX report ends it `SdoOutcome::UNCONFIRMED_SENT`, with execution unknown. A frame received meanwhile, even a matching `60 40 60 00`, is retained: it retires nothing and qualifies nothing, because it may answer the write before. The route stays unresolved and the marker above is still required. The [owner contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md) gives the admission table. This is not a reopening path and not a stop result.
 
 ### Other proposed reopening paths
 
 Negative tests keep admission blocked for every path below, rather than supplying a success stub.
-The [source report](reports/prompt_14_sources.md) identifies the actual pinned
+The [source report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_14_sources.md) identifies the actual pinned
 stack, Lichuan documents and installed controller API inspected.
 
 | Proposed path | Why insufficient / evidence needed before implementation |
@@ -443,9 +444,9 @@ save, stop, retry or discovery write is added to obtain evidence.
 ### Build and host evidence
 
 The full-checkout build automatically registers the selected adapter and
-[independent fake-controller/node tests](../test/sdo_transfer_test.cpp) and
-[adversarial settlement tests](../test/sdo_reconciliation_test.cpp). The
-[adapter guide](../adapters/canopennode/README.md) gives optional-target commands.
+[independent fake-controller/node tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/sdo_transfer_test.cpp) and
+[adversarial settlement tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/sdo_reconciliation_test.cpp). The
+[adapter guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/adapters/canopennode/README.md) gives optional-target commands.
 Installed/exported core consumers need no adapter, upstream source, SDK, ledger,
 Python or reference material; portable service value types compile independently.
 No CAN traffic, live drive acknowledgement, motion or hardware qualification is
@@ -516,7 +517,7 @@ oldest possible receive time to prove freshness and the newest possible time to
 prove expiry; a policy-straddling interval is unqualified. Lifecycle and NMT
 qualification require the whole interval strictly after the relevant boundary.
 Contradictory overlapping NMT observations withdraw state qualification until a
-provably later observation arrives. See the [TWAI receive-time proof](adapters/twai_receive_time.md).
+provably later observation arrives. See the [TWAI receive-time proof](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/adapters/twai_receive_time.md).
 SDO deadlines and correlation remain independent; a wholly pre-handoff interval
 quarantines stale traffic. A checked reply records SDO service evidence from its
 interval under the exact-capture rule, with the lower bound as its receive time:
@@ -524,7 +525,7 @@ it must start strictly after the request's handoff and after the node boundary
 (strictly after an invalidation), it orders and ages by that bound, and it is
 current only when that bound follows a possible NMT transition. An interval
 reaching back to its handoff or straddling a boundary still settles the request
-but records nothing ([the rule and its evidence](adapters/twai_receive_time.md#sdo-service-qualification)).
+but records nothing ([the rule and its evidence](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/adapters/twai_receive_time.md#sdo-service-qualification)).
 Bounds never promote SDO/PDO observations to exact capture or qualify reused PDO
 routes.
 
@@ -645,7 +646,7 @@ The application `CanBusOwner` now connects this service through tagged
 request/result and one external handoff slot, distinct from SDO request/frame
 tokens. Exact report identity and controller epoch are required; stale reports,
 cancelled work and controller recovery cannot cause replay. See the
-[owner contract](can_owner.md#copied-tx-and-receive-time-responsibility).
+[owner contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md#copied-tx-and-receive-time-responsibility).
 
 Queue cutoff and overall deadline are immutable, exclusive caller microsecond
 budgets, including equality and `UINT64_MAX` arithmetic. Stalled staging,
@@ -892,13 +893,13 @@ other PDO edit, through one lifecycle: `prepareTpdo1Configuration`,
 `advancePdoConfiguration` and `getTpdo1Configuration`. A
 `Tpdo1ConfigurationRequest` names the transition; its default names none and
 refuses. `configurePdo` installs host evidence; it does not configure a drive.
-The [offline caller](../examples/pdo_configuration_preview/README.md) runs the
+The [offline caller](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/pdo_configuration_preview/README.md) runs the
 event-timer change with retained bench replies and shows two refusals.
 
 | Transition | Writes, in order | Baseline it requires | Evidence and scope |
 | --- | --- | --- | --- |
 | `MAP3_TO_MAP2` | `1800:01` valid bit set, `1A00:00=0`, `1A00:01=60410010`, `1A00:02=60640020`, `1A00:00=2`, `1800:01` restored | Enabled standard COB-ID, type 255, inhibit raw 100, event raw 0, count 3, `60410010 60610008 60640020 0` | CiA's variable-mapping order and one node-1 run (2026-11-02); `m` keeps it an isolated experiment |
-| `EVENT_TIMER` | `1800:05` only, two bytes: raw 100 to raw 0 or raw 0 to raw 100 | CL86-C only; COB-ID exactly `0x180+node`, the EDS `$NODEID+0x180` rule (valid, standard, bit 30 clear), type 255, inhibit raw 100, count 3, `60410010 60610008 60640020 0`, event the other literal | Exact read, one acknowledged write and exact readback in Pre-operational on both CL86-C specimens ([packet 6](reports/bench_closure_18_33/packet_6.md#transition-record-for-packet-7)); the supported production subset, host-tested and replayed once through the S2 `E` line on node 2 in both directions on 2026-11-06 ([packet 7](reports/bench_closure_18_33/packet_7.md#bench-replay-2026-11-06)) |
+| `EVENT_TIMER` | `1800:05` only, two bytes: raw 100 to raw 0 or raw 0 to raw 100 | CL86-C only; COB-ID exactly `0x180+node`, the EDS `$NODEID+0x180` rule (valid, standard, bit 30 clear), type 255, inhibit raw 100, count 3, `60410010 60610008 60640020 0`, event the other literal | Exact read, one acknowledged write and exact readback in Pre-operational on both CL86-C specimens ([packet 6](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_6.md#transition-record-for-packet-7)); the supported production subset, host-tested and replayed once through the S2 `E` line on node 2 in both directions on 2026-11-06 ([packet 7](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_7.md#bench-replay-2026-11-06)) |
 
 Both run in qualified Pre-operational under a continuous owner reservation and
 take nine exact baseline uploads (`1800:01/02/03/05`, `1A00:00..04`) after the
@@ -960,7 +961,7 @@ window ended), so the write could not migrate; after a 6 s wait it did
 ([measured](commissioning.md#measured-on-the-bench-2026-11-09)). The migration preserves node generation,
 liveness/NMT/service times and historical diagnostics without renewing them. Cache observers run and PDO samples
 are revoked before publishing the new binding. See the
-[owner contract](can_owner.md#native-settings-exclusion-and-configuration-epochs).
+[owner contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md#native-settings-exclusion-and-configuration-epochs).
 Explicit new-epoch map evidence requires withdrawal/reinstallation; delayed
 same-ID samples still need an independent qualification boundary. This is a
 local bookkeeping seam for confirmed settings, not PDO reconfiguration or a

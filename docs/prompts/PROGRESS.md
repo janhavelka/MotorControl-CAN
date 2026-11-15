@@ -1,7 +1,8 @@
 # Prompt execution progress
 
-Execution has reached prompt48. The current bounded read/load campaigns and
-evidence-checker corrections are recorded in [report48](../reports/prompt_48.md).
+Execution has reached prompt49. The [documentation/package audit](../reports/prompt_49.md)
+closes stale user guidance and the public descriptor cleanup; full local native,
+package and documentation verification passed. Bounded read/load campaigns remain in [report48](../reports/prompt_48.md).
 The earlier finite motion and physical observation limits remain in [report47](../reports/prompt_47.md).
 Partial rows below retain their distinct software/source/physical obligations.
 No current hardware qualification is inferred from a host test or an old bench run.
@@ -69,7 +70,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | Complete software scope | Surveyed profiles remain fixtures; physical/source gates stay with their owners | [Report](../reports/prompt_46.md); [fresh audit](../reports/prompt_46_audit.md) |
 | 47 | [Finite hardware qualification](47_hardware_finite.md) | Partial | Authorized unattended S2/two-node acquisition; physical shaft/stop/direction, electrical and method-specific homing evidence remain unavailable | [Campaign, fixes and exact remaining measurements](../reports/prompt_47.md) |
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Partial | Physical fault/link/restart observation and OL86-C/CL57-C/OL57-C fixtures unavailable; no save/restore campaign executed | [Finite read/load work and exact pending campaigns](../reports/prompt_48.md) |
-| 49 | [User documentation and package audit](49_documentation_package_audit.md) | Pending | G-09; lists all inherited gates as a scoped software candidate | - |
+| 49 | [User documentation and package audit](49_documentation_package_audit.md) | Complete | Prompt18/Q17 and all retained feature/physical gates; no release publication | [Report](../reports/prompt_49.md) |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Pending | 49; lists all inherited gates as a scoped software candidate | - |
 | 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Pending | 17, 24, 38, 42; Lichuan SYNC undocumented (M10, M13); RPDO trial after the M09 map review | - |
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Pending | 29, 33, 35, 42; gates Q22-Q26 (F01); measurements F02-F14 first | - |
@@ -96,17 +97,14 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 
 ## Next ready
 
-1. Prompt47 delivered the finite S2/two-node campaign and diagnostic fixes; resume
-   its remaining physical observations when the report's fixture prerequisites
-   exist. Prompt48 needs its own failure/load qualification conditions. Independent
-   prompt49 package/release review and A-17 cleanup can proceed without pretending
-   these physical gates are complete.
+1. Prompt50 can independently review the scoped software candidate after the
+   prompt49 handoff confirms exact-commit CI and synchronization. Package cleanup includes
+   A-17; it does not mark prompt18/Q17 or physical qualification complete.
 2. Resume earlier Partial rows only for their named unfulfilled scope. Use
    [device conflicts](../device_conflicts.md), the [backlog](../backlog.md) and the
    [bench record](../hardware_bench.md) to select the next required observation.
    Old trial history is not a statement of the currently powered fixture.
-3. Prompts 47-48 own qualification of delivered features. Prompt 49 owns package
-   cleanup, including A-17's process metadata in the installed API. Prompts 51-72
-   remain explicit later assignments; 53 owns concurrent axes and 55 owns reviewed
-   communication recovery/retry policy. No larger repair was silently implemented
-   by the independent-audit maintenance pass.
+3. Prompts47-48 retain physical qualification and prompt48's serial-loss cause.
+   Prompts51-72 remain explicit later assignments; 53 owns concurrent application
+   axes and 55 owns reviewed communication recovery/retry policy. A corrected
+   document does not implement their remaining work.

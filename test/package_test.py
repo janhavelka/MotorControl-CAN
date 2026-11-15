@@ -10,11 +10,14 @@ import contextlib
 import json
 import os
 from pathlib import Path
+import posixpath
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +38,23 @@ HEADERS = {"MotorControlCAN/Capabilities.h", "MotorControlCAN/Native.h", "MotorC
 def require(condition, evidence):
     if not condition:
         raise AssertionError(evidence)
+
+
+def check_archive_links(package):
+    """Require shipped Markdown's relative links to resolve in the source ZIP."""
+    members = set(package.namelist())
+    for name in sorted(members):
+        if not name.endswith(".md"):
+            continue
+        prose = re.sub(r"```.*?```", "", package.read(name).decode("utf-8"), flags=re.DOTALL)
+        for target in re.findall(r"\[[^\]\n]*\]\(([^)\n]+)\)", prose):
+            target = target.strip().split()[0].strip("<>")
+            parsed = urlsplit(target)
+            if parsed.scheme or parsed.netloc or not parsed.path:
+                continue
+            resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), unquote(parsed.path)))
+            require(resolved in members,
+                    "Exported Markdown link has no packaged target: {} -> {}".format(name, target))
 
 
 def check_package(args, work, summary):
@@ -107,6 +127,7 @@ def check_package(args, work, summary):
                 package.namelist())
         for name in expected:
             require(package.read(name) == (ROOT / name).read_bytes(), name)
+        check_archive_links(package)
         package.extractall(source)
     fixture = work / "consumer source"
     shutil.copytree(ROOT / "test/installed_consumer", fixture)
@@ -151,6 +172,19 @@ def check_package(args, work, summary):
                "-DMOTORCONTROLCAN_EXPECTED_VERSION=" + version,
                "-DMOTORCONTROLCAN_HEADERS_DIR=" + str(relocated / "sdk/include"))
     consumer(work / "installed consumer", *options)
+    # Compile the actual shipped README instructions, not a separately maintained copy.
+    readme = (source / "README.md").read_text(encoding="utf-8")
+    quickstart = work / "README source"
+    quickstart.mkdir()
+    for language, filename in (("cpp", "main.cpp"), ("cmake", "CMakeLists.txt")):
+        blocks = re.findall(r"```" + language + r"[ \t]*\n(.*?)\n```", readme, flags=re.DOTALL)
+        require(len(blocks) == 1, "README must contain one {} quickstart block".format(language))
+        (quickstart / filename).write_text(blocks[0] + "\n", encoding="utf-8")
+    quickstart_build = work / "README build"
+    run(*base, "-S", str(quickstart), "-B", str(quickstart_build),
+        "-DCMAKE_PREFIX_PATH=" + str(relocated), "-DCMAKE_CXX_FLAGS=" + strict)
+    run(cmake, "--build", str(quickstart_build))
+    run(str(quickstart_build / ("quickstart.exe" if os.name == "nt" else "quickstart")))
     # A separate application copied alone: no test headers, proof, stack or SDK files.
     module = work / "fieldcore source"
     shutil.copytree(ROOT / "examples/fieldcore_consumer", module)
@@ -293,7 +327,8 @@ set_tests_properties(native_probe device_evidence discovery_preview units_previe
         'add_subdirectory("' + source.as_posix() + '" core)\n', encoding="utf-8")
     run(*base, "-S", str(component), "-B", str(work / "idf build"))
     run(cmake, "--build", str(work / "idf build"))
-    print("PASS: exported source, independent headers, C++11/C++17/no-RTTI, relocated install, "
+    print("PASS: exported source/Markdown links, README workflow, independent headers, "
+          "C++11/C++17/no-RTTI, relocated install, "
           "isolated native applications, missing dependency, IDF CMake boundary")
 
 

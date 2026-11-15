@@ -1,0 +1,445 @@
+{
+  "schema_version": 1,
+  "prompt": 49,
+  "audit_date": "2026-11-15",
+  "captured_at_utc": "2026-11-15T14:08:10.035344+00:00",
+  "scope": "Read-only sibling source/install/package/version/documentation audit; no sibling fetch, edit, tests, hardware or release action.",
+  "hash_semantics": "Working SHA-256 hashes describe raw filesystem bytes. HEAD blob SHA-256 and Git object IDs describe committed blob bytes at the recorded after.head. Clean Git status can coexist with different raw bytes due to checkout line-ending conversion; neither hash is substituted for the other.",
+  "baselines": [
+    {
+      "repository": "MotorControl-RS",
+      "source": "docs/reports/prompt_46_audit.md; docs/fieldcore_handoff.md",
+      "head": "2f41e27f2378c644b1358ed9a6af63c35f817058",
+      "delta": "Current HEAD changed since prompt46. Reopened all requested seams. Targeted diff changes CMake test registration, verifier registration, Doxygen application input and README; source/install/export/version contracts retained. RS started clean and acquired an unrelated report modification during this audit; see before/after states."
+    },
+    {
+      "repository": "ADS1115",
+      "source": "docs/prompts/DOCUMENTATION.md source table; docs/reports/prompt_47.md",
+      "delta": "Prompt47 records same current clean HEAD but its verdict seam is different. Reopened checker/Doxygen/release seams rather than claiming unchanged since47."
+    },
+    {
+      "repository": "INA228",
+      "source": "docs/prompts/DOCUMENTATION.md source table; docs/audit/2026-11-15_auditor_disposition_device.md",
+      "delta": "Current clean HEAD matches device audit but that runner seam is different. Reopened checker/Doxygen/release seams."
+    },
+    {
+      "repository": "FieldCore-node",
+      "source": "docs/reports/prompt_46_audit.md; docs/fieldcore_handoff.md",
+      "delta": "Ownership/result seam unchanged since prompt46 at the same clean HEAD: copied submission, prepare/next/advance and retained uncertainty; rejected RTU framing/timing as CAN semantics. Did not reread that full lifecycle. Inspected prospective CAN/health/settings boundaries only."
+    }
+  ],
+  "decisions": [
+    {
+      "repository": "MotorControl-RS",
+      "paths_symbols": [
+        "include/MotorControlRS/Status.h::Status/Ok/errToString",
+        "include/MotorControlRS/MotorControlRS.h",
+        "src/Units.cpp::validateScale/convert"
+      ],
+      "adopted": "Package spelling distinct from namespace/include/CMake identity; static-message call Status and explicit profile includes; pure validation precedes output publication.",
+      "rejected": "CRC_ERROR, Modbus EXCEPTION and ESS wire/native semantics are not CAN contracts."
+    },
+    {
+      "repository": "MotorControl-RS",
+      "paths_symbols": [
+        "CMakeLists.txt::MOTORCONTROLRS_SOURCES/MotorControlRS::MotorControlRS/install",
+        "library.json::export.include",
+        "scripts/verify.py::export_core/unpack_core"
+      ],
+      "adopted": "One explicit portable C++11 source set and exported target, install include path, core-only allowlist and actual byte-checked archive built independently. Applications, SDKs, vendor references, tests and tools stay outside installed core.",
+      "rejected": "RS package contains a different selected profile and no CAN adapter; its release identity/version is not adopted."
+    },
+    {
+      "repository": "MotorControl-RS",
+      "paths_symbols": [
+        "scripts/generate_version.py::main",
+        "library.json::version",
+        "include/MotorControlRS/Version.h",
+        "CMakeLists.txt::project"
+      ],
+      "adopted": "library.json is the sole semantic-version source; deterministic generated constants and CMake version; check mode fails stale output.",
+      "rejected": "No inferred release/tag state or copied version number. No wall-clock/dirty strings added to CAN reproducible metadata."
+    },
+    {
+      "repository": "MotorControl-RS",
+      "paths_symbols": [
+        "test/installed_consumer/CMakeLists.txt::strict_consumer/public_headers",
+        "test/installed_consumer/main.cpp",
+        "scripts/verify.py::main/check_inventory",
+        "scripts/check_repository.py::check_docs/check_metadata"
+      ],
+      "adopted": "Public headers compile individually in C++11/C++17, C++17 without RTTI; source and exact installed consumers execute typed paths; maintained local link/export boundary checks and exact test registration.",
+      "rejected": "No sibling green-run claim: this audit read code and ran no RS verifier or consumers."
+    },
+    {
+      "repository": "MotorControl-RS",
+      "paths_symbols": [
+        "docs/Doxyfile::EXTRACT_ALL/WARN_IF_UNDOCUMENTED/INPUT",
+        "docs/verification.md::API documentation",
+        ".github/workflows/verify.yml"
+      ],
+      "adopted": "Honest distinction between documentation rendering, header compilation, host tests and hardware evidence.",
+      "rejected": "RS EXTRACT_ALL=YES, WARN_IF_UNDOCUMENTED=NO and Doxygen outside CI do not meet CAN strict public documentation requirements. Keep CAN strict gate and pinned tool."
+    },
+    {
+      "repository": "ADS1115",
+      "paths_symbols": [
+        "Doxyfile::INPUT/EXCLUDE_PATTERNS/WARN_AS_ERROR",
+        "tools/check_core_timing_guard.py::collect_sources/main",
+        "scripts/generate_version.py::_check_version_metadata",
+        ".github/workflows/ci.yml::docs/Validate library package",
+        "CONTRIBUTING.md::Verification"
+      ],
+      "adopted": "Explicit Doxygen public inputs and scoped reference exclusions; parameter/undocumented warnings fail; checked version alignment and standalone compile of actual unpacked C++11 package; guards scan actual src/include.",
+      "rejected": "Unpinned ubuntu-latest Doxygen install, excluded version macros, sibling branching rules and sensor runtime/recovery are not CAN policy."
+    },
+    {
+      "repository": "INA228",
+      "paths_symbols": [
+        "Doxyfile::WARN_AS_ERROR/INPUT",
+        "tools/check_core_timing_guard.py::validate_lexer/main",
+        "scripts/generate_version.py::_expected_outputs",
+        ".github/workflows/ci.yml::Run static contract checks/Verify packaged public library",
+        "docs/validation/release-checklist.md"
+      ],
+      "adopted": "Preserve failing command status with pipefail and logs; check package inclusion/exclusion and README link targets in extracted package; version synchronization includes Doxygen/IDF; keep host/build/hardware and partial evidence distinct.",
+      "rejected": "C++17 package floor, broad */test/* Doxygen exclusion, unpinned docs tool and sensor exhaustive HIL/tag rules are not CAN contracts. Release steps in sibling documentation authorize no action here."
+    },
+    {
+      "repository": "FieldCore-node",
+      "paths_symbols": [
+        "include/TunnelMonitor/contracts/Health.h::BusId",
+        "src/system/SystemHealthProjection.h::appendSelectedProfileDeviceHealth/deviceHealthFromModule",
+        "src/devices/rs485_motor/Rs485MotorModule.cpp::snapshot/copyStatus",
+        "include/TunnelMonitor/product/rodtester/RodTesterSettings.h::RodTesterProductSettings/kRodSettingDescriptors",
+        "config/build_profiles.json::motorcontrol_rs/rs485_motor"
+      ],
+      "adopted": "CAN integration remains prospective: actual BusId has no CAN entry and inspected board/configuration paths declare no TWAI/MotorControl-CAN route. Existing product code already contains RS motor control and generic passive device-health projection. Keep future CAN module, owner, settings and health separately authorized.",
+      "rejected": "Existing RS queues/results, generic health projection or RodTester motor ratio settings do not establish a CAN owner, CAN drive settings or physical qualification."
+    }
+  ],
+  "findings": [
+    {
+      "id": "S49-1",
+      "path": "docs/fieldcore_handoff.md::Current source review",
+      "finding": "RS source snapshot is historical: page cites clean 2f41e27 while current HEAD is 0e3b559 (clean at first refresh; unrelated report dirty at final refresh). Refresh the current review or label its historical seam explicitly.",
+      "disposition": "Corrected in docs/fieldcore_handoff.md during prompt49: current package/docs source review distinguished from earlier motion review, exact implementation paths, CAN-specific health/settings boundary."
+    },
+    {
+      "id": "S49-2",
+      "path": "docs/fieldcore_handoff.md::Current source review",
+      "finding": "FieldCore row abbreviates motor implementation as device/Rs485MotorModule.cpp; actual implementation path is src/devices/rs485_motor/Rs485MotorModule.cpp.",
+      "disposition": "Corrected in docs/fieldcore_handoff.md during prompt49: current package/docs source review distinguished from earlier motion review, exact implementation paths, CAN-specific health/settings boundary."
+    },
+    {
+      "id": "S49-3",
+      "path": "docs/fieldcore_handoff.md::prospective claims",
+      "finding": "Use CAN-specific negative wording for health/settings. Existing generic device health projection and RS motor snapshot/copyStatus plus RodTester motor-ratio settings make an unqualified absence of all motor health/settings ambiguous. No CAN health/drive-settings integration was found in the bounded seams.",
+      "disposition": "Corrected in docs/fieldcore_handoff.md during prompt49: current package/docs source review distinguished from earlier motion review, exact implementation paths, CAN-specific health/settings boundary."
+    },
+    {
+      "id": "S49-4",
+      "path": "../MotorControl-RS/docs/reports/2026-11-15_standalone_02_profile_staging.md",
+      "finding": "A concurrent modification appeared after the initial clean refresh, with HEAD unchanged. This report is outside the audited seam and was not read or adopted as committed source.",
+      "disposition": "No sibling edits by this worker; report final dirty state explicitly."
+    }
+  ],
+  "verification": {
+    "performed": [
+      "Read applicable parent/root guidance and named prompt contracts.",
+      "Refreshed four named sibling HEAD/status before and after read-only audit.",
+      "Read exact source/package/docs seams and compared RS requested seam with prompt46 baseline.",
+      "Recorded raw working-byte hashes separately from committed HEAD blobs."
+    ],
+    "not_performed": [
+      "Sibling fetch or synchronization verification.",
+      "Sibling tests, builds, Doxygen or CI.",
+      "CAN hardware, device protocol/primary-vendor re-audit or online research."
+    ],
+    "local_report_check": "UTF-8 JSON parsed after writing. git diff --check scoped to the owned path completed; the report is newly untracked and will require the lead staged diff check."
+  },
+  "repositories": [
+    {
+      "repository": "MotorControl-RS",
+      "before": {
+        "head": "0e3b559e5bf6d7affb71ca16974747e76f550250",
+        "status_porcelain_v1": []
+      },
+      "after": {
+        "head": "0e3b559e5bf6d7affb71ca16974747e76f550250",
+        "status_porcelain_v1": [
+          " M docs/reports/2026-11-15_standalone_02_profile_staging.md"
+        ]
+      },
+      "head_and_status_unchanged_during_audit": false,
+      "files": [
+        {
+          "path": "CMakeLists.txt",
+          "working_sha256": "8c05095f0e55b5c54d9c23d3676978ad46d880237c8386221e0baf8975ff3662",
+          "head_blob_sha256": "886d5fc8b549f355038d6f2c8ca64e11ebfe52f1f18035725999c70ab4a53f45",
+          "head_blob_oid": "95e6d1f8058b8a161f3931285a1d332676d545e2",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "library.json",
+          "working_sha256": "63554dfcd4f13cd57a9d0b1ce288b94a0ffbc6ae5e46d619e4a8e8b749bf0d47",
+          "head_blob_sha256": "64c151810ab7a1321f6b3983e64f0ccfc8ae474947be878f35e250f04b5f711c",
+          "head_blob_oid": "e8038d7df452324e879b7406b34e03f87b65b51f",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "include/MotorControlRS/Status.h",
+          "working_sha256": "8c2bbf9d7e656230e84be64e57fa9d239314c3cf558669ef295c6a7db75d485e",
+          "head_blob_sha256": "8c2bbf9d7e656230e84be64e57fa9d239314c3cf558669ef295c6a7db75d485e",
+          "head_blob_oid": "37d1c54edd4d4cad73fba81e2f242857f0e2c09d",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "include/MotorControlRS/MotorControlRS.h",
+          "working_sha256": "7841111df1992e9205ca4d3447ad132b46d411bce9aaf001ee54b6b2ae2e8011",
+          "head_blob_sha256": "3d73169276d066ec138c867e8eb0e5f992f6960ca33e7e089bc47da52084303d",
+          "head_blob_oid": "6d56017e31c495b334d3a6c54eb77c80cd8faa54",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "src/Units.cpp",
+          "working_sha256": "208b780da2615ab637a78fa7ac7de7a64525ac834237541dda9efa0e3e22c202",
+          "head_blob_sha256": "432d39895fded186697d62331d3c32a23c78a9fcb598b5256b526bf5e9d784d8",
+          "head_blob_oid": "724ca0a884eee85b2ebf76d906960415c627fb38",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "working_sha256": "4cf905974f14613997904a54a401490e95065d53ce9e1d13750f370b100041e2",
+          "head_blob_sha256": "4cf905974f14613997904a54a401490e95065d53ce9e1d13750f370b100041e2",
+          "head_blob_oid": "90d166fb03347617cc3aad778d7eae35add89256",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "scripts/check_repository.py",
+          "working_sha256": "760797d756a40e846e81acde75cd95e104c180aaf7221bbc84cbb14dfcda3711",
+          "head_blob_sha256": "760797d756a40e846e81acde75cd95e104c180aaf7221bbc84cbb14dfcda3711",
+          "head_blob_oid": "2d1445254ea895eec8cce7f8e2c45eb7dff7f30a",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "scripts/verify.py",
+          "working_sha256": "20cd6d521a24adeb09cd9e2182ea839fead8e71691720ba07bccb43a3c75fcef",
+          "head_blob_sha256": "7eea544c01c2d8241f40e70088922cf2cf331720f376af24cd0c0e8cba0bcaa7",
+          "head_blob_oid": "4f647d64b8cc82576ea2b80bb7a62be891170229",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "test/installed_consumer/CMakeLists.txt",
+          "working_sha256": "3cbfe392e28ccd0ae28dffa853316de41061be633b2b64e471e0df63f9f233fc",
+          "head_blob_sha256": "3cbfe392e28ccd0ae28dffa853316de41061be633b2b64e471e0df63f9f233fc",
+          "head_blob_oid": "b86b7eaa50f754fc2323d89c9fb36957bcd2ec13",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "test/installed_consumer/main.cpp",
+          "working_sha256": "921ec2492894353f2c99c569993120ec99b9c342c1e792401a8847c91f786174",
+          "head_blob_sha256": "921ec2492894353f2c99c569993120ec99b9c342c1e792401a8847c91f786174",
+          "head_blob_oid": "37f729bb06513681d11224d48c926199ead3c7db",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "docs/Doxyfile",
+          "working_sha256": "adfc602099d237518cf98ff5043f89fa02119f2909b5d261ef2d8fd8bb24adc3",
+          "head_blob_sha256": "adfc602099d237518cf98ff5043f89fa02119f2909b5d261ef2d8fd8bb24adc3",
+          "head_blob_oid": "b70dc3c6ec949144e3ec2ba40253308f656c6320",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "docs/verification.md",
+          "working_sha256": "b87e3185896bbfd4eb713bbe7372527ddfa964e2c2ac5d1bb1e624c4483d6c48",
+          "head_blob_sha256": "b87e3185896bbfd4eb713bbe7372527ddfa964e2c2ac5d1bb1e624c4483d6c48",
+          "head_blob_oid": "2f564400dcfed85d208cd5eeff7d2939ce8af980",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "docs/fieldcore_handoff.md",
+          "working_sha256": "1c9d3c1669bf087d74ba97ceaf92ebb003f38ad1cf47f22d85996faf3716d97b",
+          "head_blob_sha256": "6d4faf700367a8a32ee7c6e56d8c301a8e527fdc7e4b93fd52ea3323cb226d14",
+          "head_blob_oid": "3337acce606dd6586374684d14d10dbbc152a908",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "README.md",
+          "working_sha256": "ebdf212e00437bbaf1367c7245ca3b4919c8ebfaa652d60aba3d3a95bd68854b",
+          "head_blob_sha256": "00abcf7004cfd1d2fa6615f58cc8006575bfefc52267ea7f1d6a64bfb20e2817",
+          "head_blob_oid": "2b8fca3e9192a583533167fd6f0d5e145ee0f47c",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": ".github/workflows/verify.yml",
+          "working_sha256": "39b0d8116dcaee9f897d9bfc9b9735e31cd98f579e05f58b7bfa866bed6c5dbb",
+          "head_blob_sha256": "39b0d8116dcaee9f897d9bfc9b9735e31cd98f579e05f58b7bfa866bed6c5dbb",
+          "head_blob_oid": "9ac1938d70e17b2cc0d6f42c7a46719c44624a42",
+          "working_bytes_equal_head_blob": true
+        }
+      ]
+    },
+    {
+      "repository": "ADS1115",
+      "before": {
+        "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+        "status_porcelain_v1": []
+      },
+      "after": {
+        "head": "e07622a99fe9f13c5d6a5a2497a8112a14185b9d",
+        "status_porcelain_v1": []
+      },
+      "head_and_status_unchanged_during_audit": true,
+      "files": [
+        {
+          "path": "Doxyfile",
+          "working_sha256": "55495772d5952c8769a1689b7ee0b8481396f24a4c49ce415d2fd2f5c638c254",
+          "head_blob_sha256": "55495772d5952c8769a1689b7ee0b8481396f24a4c49ce415d2fd2f5c638c254",
+          "head_blob_oid": "5b9596d63cc1f0e42877ee0dd14556aeabe6c8cc",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "tools/check_core_timing_guard.py",
+          "working_sha256": "0a62ac0424f7127ac481f17f13b8fe1b08da102462af309b430ffde8755b2296",
+          "head_blob_sha256": "705d203ae8d78cdf3efb8a76a7a61a301b086db5636cfb6b532e1fd6a8348f3e",
+          "head_blob_oid": "6abe1e333c59aa88f5f5cbbadc3532e8e55ea9ce",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "working_sha256": "bc5dfab7c6fa2b6f982a46824a657cbff1117f11b180fbfa11c0a71b005e241e",
+          "head_blob_sha256": "f333fe86ee6b625681da396771ad04ecba24866750f6f13071e6dbfd40066b54",
+          "head_blob_oid": "8eb845a241ac877ee290947ebcab41a69469a972",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "working_sha256": "e51bf05980231ce018d73ca8cc641600af7ff144985cad68467b21c8dc2ed8a4",
+          "head_blob_sha256": "99f84c9327278246e57f30987a4b6fdd6f13e728c92756d528d8765e0bbc7f8b",
+          "head_blob_oid": "c21d5dd49e399dc85a6abb4c5b5060c5b070a591",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "working_sha256": "999ae7decacbf7eb863910378f21e7a95e36c7a736bd5604f6855861c0e3b0a9",
+          "head_blob_sha256": "4aa2cd587b802f5352be1d8879f009c90cf9d1c9a8850b4b426130b2ea624fa7",
+          "head_blob_oid": "a5128a84c97f415015fd163e2dbd6724de36396d",
+          "working_bytes_equal_head_blob": false
+        }
+      ]
+    },
+    {
+      "repository": "INA228",
+      "before": {
+        "head": "4de84f2564eb6382835ca9a72d8688377657dcb4",
+        "status_porcelain_v1": []
+      },
+      "after": {
+        "head": "4de84f2564eb6382835ca9a72d8688377657dcb4",
+        "status_porcelain_v1": []
+      },
+      "head_and_status_unchanged_during_audit": true,
+      "files": [
+        {
+          "path": "Doxyfile",
+          "working_sha256": "9518d98ab2925129f50ebc520d7a3394e28736edacc54be8b747f42fec676e0b",
+          "head_blob_sha256": "9518d98ab2925129f50ebc520d7a3394e28736edacc54be8b747f42fec676e0b",
+          "head_blob_oid": "62fb5a220893bed2a016f3d991fd511976d26cfc",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "tools/check_core_timing_guard.py",
+          "working_sha256": "2ecefce47dea6bc3cc87a100cb3cb82c2516407b352248c353069a8a6707f451",
+          "head_blob_sha256": "2ecefce47dea6bc3cc87a100cb3cb82c2516407b352248c353069a8a6707f451",
+          "head_blob_oid": "4ca4aa93501653fd21ec258a80ed629567afbfd6",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "scripts/generate_version.py",
+          "working_sha256": "05b296e4f246d743be6e9aae5e84f2b19ca693f5588635de9c72d1e47d2e4d25",
+          "head_blob_sha256": "05b296e4f246d743be6e9aae5e84f2b19ca693f5588635de9c72d1e47d2e4d25",
+          "head_blob_oid": "75f940ff6647ba4478caff9116a43eef64f12cea",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "working_sha256": "e065348f9f32b3db156faf977d49d0b4b343a195210037acbefba9791f40ea32",
+          "head_blob_sha256": "e065348f9f32b3db156faf977d49d0b4b343a195210037acbefba9791f40ea32",
+          "head_blob_oid": "e4745a6494c914c33f99e40b2dbc5d9ffd732e07",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "docs/validation/release-checklist.md",
+          "working_sha256": "4586c77b30078e1ca8769fd14f0b06b8808e36e3998cbcfc8cff3a8204ed7a3b",
+          "head_blob_sha256": "4586c77b30078e1ca8769fd14f0b06b8808e36e3998cbcfc8cff3a8204ed7a3b",
+          "head_blob_oid": "5cbd38dca572bc63c3bbdae49bc8b51c188a7b9c",
+          "working_bytes_equal_head_blob": true
+        }
+      ]
+    },
+    {
+      "repository": "FieldCore-node",
+      "before": {
+        "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+        "status_porcelain_v1": []
+      },
+      "after": {
+        "head": "c40ea8341edf8d665460b902cafefbe857a7f73f",
+        "status_porcelain_v1": []
+      },
+      "head_and_status_unchanged_during_audit": true,
+      "files": [
+        {
+          "path": "include/TunnelMonitor/contracts/Health.h",
+          "working_sha256": "d91c8a9cd03c55f5429af8067e92cffdaaf64289ad062de9c33a1ed57237c628",
+          "head_blob_sha256": "1ecadb0e853b4cff03f6be03d8b7e17f7887e2a71fcbfeffe43bb75df5fcc7da",
+          "head_blob_oid": "e222ebab80d3b0ff577efbd7e63d2a7a8b7aa6ba",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "src/system/SystemHealthProjection.h",
+          "working_sha256": "cc1568bcdf9388696b9e77da90f7a86c1b7f97db52e8cae47cda3b539c9602aa",
+          "head_blob_sha256": "77230951c00437790a353302d4ae3f7196189ab68e7b99cce36d627ea681f1ff",
+          "head_blob_oid": "b4a2ea18f602778a54b845c42a15741a8b54d1cd",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "src/devices/rs485_motor/Rs485MotorModule.cpp",
+          "working_sha256": "e14483d8653667a1c6a280cc3926e1014f35bc2ef401b30eb37cac6e602cea20",
+          "head_blob_sha256": "e14483d8653667a1c6a280cc3926e1014f35bc2ef401b30eb37cac6e602cea20",
+          "head_blob_oid": "a2403db8b4109bf1d5c45431274a47b795ebab30",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "include/TunnelMonitor/settings/DeviceSettings.h",
+          "working_sha256": "6966857f6107964e09793386cdb73f644526ac04c5e18de4eca7617b48477518",
+          "head_blob_sha256": "709dc4bfba9b405ce68da81d99a7fd956e561d7075379120a4191e1e383bbda2",
+          "head_blob_oid": "3387d634bc3b87bf0668047f3f7e68ee8ffa2110",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "include/TunnelMonitor/product/rodtester/RodTesterSettings.h",
+          "working_sha256": "096016e10dee0f5036a3a0006b1613bfc2617ac59ad6f5238f8da2a258b522e8",
+          "head_blob_sha256": "096016e10dee0f5036a3a0006b1613bfc2617ac59ad6f5238f8da2a258b522e8",
+          "head_blob_oid": "57f43b1eb6ed4fa959885fde996a6ebdde399b4a",
+          "working_bytes_equal_head_blob": true
+        },
+        {
+          "path": "include/TunnelMonitor/product/SelectedBuildProfile.h",
+          "working_sha256": "e122cd1cd43859055f0e4dcdfa9ff0f9944fe42fdb5940319aa632f3c6913e98",
+          "head_blob_sha256": "466302186b9f49c6b923156b76353e7232542f3e22b4fceb94891af3dec63906",
+          "head_blob_oid": "b20c3d180c13aba0f2ecd2e17a5349064ae0839a",
+          "working_bytes_equal_head_blob": false
+        },
+        {
+          "path": "config/build_profiles.json",
+          "working_sha256": "d4f23b8f5abe29ed7c476337fe5ad3602257985497caab96ae1c5d42cc2fcd90",
+          "head_blob_sha256": "39605260421b8b6deb12f72ee363e071810bff40ecd1340e49a465041e2616a7",
+          "head_blob_oid": "641517ff6192448056946a118b9cba7d637b02b2",
+          "working_bytes_equal_head_blob": false
+        }
+      ]
+    }
+  ]
+}

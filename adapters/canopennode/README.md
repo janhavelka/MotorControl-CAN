@@ -4,7 +4,7 @@ Prompt 17 adds `configurePdo`, `qualifyPdo`, `invalidatePdo` and `pdo` in this
 same owner, without another receiver. Install complete actual-map evidence
 from bounded SDO readback or explicitly reviewed current configuration, then
 establish independent sample provenance. EDS templates and host generations
-cannot qualify old same-ID/same-DLC bytes. Eight fixed wire routes retain
+cannot qualify old same-ID/same-DLC bytes. The configured PDO wire routes (default eight) retain
 complete atomic samples and call-only copy callbacks; the existing diagnostic
 history remains a copy consumer. Read the [PDO contract](../../docs/canopen_services.md#observed-pdo-maps-and-passive-samples)
 before supplying external retirement evidence. No remapping or SYNC is implicit.
@@ -41,7 +41,8 @@ hardware-qualified here.
 The installed/exported core includes only portable service values and codecs.
 This optional adapter and CANopenNode are excluded from that core distribution.
 The current port supports explicitly checked little-endian Windows/Linux native
-targets; SDK/ISR/multithreaded ports remain separate work. A controller must not
+targets. The pinned ESP32-S2/S3 cooperative port is built by the firmware
+gates; arbitrary SDK/ISR/multithreaded entry remains unsupported. A controller must not
 call its native callbacks independently of the application receive owner.
 
 ## Build in a full checkout

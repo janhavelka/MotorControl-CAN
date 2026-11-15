@@ -3,7 +3,7 @@
 Include `MotorControlCAN/profiles/lichuan_c/Reads.h` and use namespace
 `MotorControlCAN::LICHUAN_C`. This installed C++11 layer prepares finite reads
 and consumes copied evidence. It owns no controller, clock, scheduler or SDK.
-The [compiled offline example](../examples/reads_preview/README.md) exercises
+The [compiled offline example](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/reads_preview/README.md) exercises
 identity and state reads with synthetic replies; it establishes no device capability.
 The separate [state interpretation getter](drive_actions.md) uses checked STATUS
 and MONITORS blocks to compare documentary layouts. Raw reads themselves still
@@ -34,7 +34,7 @@ bootstrap service reconciliation.
 `prepareProbe` checks the single `1000:00` U32 candidate. It succeeds with
 `ACCEPTED_UNQUALIFIED`, produces one upload intent and has no NMT or settings
 effect. A first accepted upload can confirm an unconfirmed channel; it cannot
-establish freshness. Q20 in the [review decision](reference/lichuan_review.md)
+establish freshness. Q20 in the [review decision](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/lichuan_review.md)
 is closed for the accepted list only as a project decision, not as a device
 fact. An access flag or a successful upload cannot close it.
 
@@ -104,7 +104,7 @@ The `HOMING` driver group adds `607C:00`, `6098:00`, `6099:00..02`, and
 `609A:00`, in that fixed order. Checked `getDriver` exposes six raw fields;
 unknown method bytes, counts and out-of-admission-range values remain readable.
 No read proves offset effect, safe motion parameters or non-consuming access.
-These rows need the explicit reviewed Q20 acquisition described in [homing](homing.md).
+These rows need the explicit reviewed Q20 acquisition described in [homing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/homing.md).
 
 The velocity target uses `DriverSettings.h`: call `prepareDriverRead` with
 `DriverGroup::VELOCITY_TARGET`, then `nextDriver`, `advanceDriver` and `getDriver`.
@@ -129,7 +129,7 @@ client abort leaves the route unresolved. `MEASURED_U16` is selected explicitly,
 only for those two groups; any other kind refuses it, and a one-byte reply then
 fails. `softLimitEntriesWidth`/`outputEntriesWidth` report the reply bytes, and
 the count stays raw: it is not evidence of an empty array and bounds nothing.
-See [device conflicts](device_conflicts.md#conflict-and-observation-table).
+See [device conflicts](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/device_conflicts.md#conflict-and-observation-table).
 
 There is no `1018:04` serial field in this EDS and no established actual
 following-error read. Driver, I/O configuration and tuning reads retain owners
@@ -137,7 +137,7 @@ following-error read. Driver, I/O configuration and tuning reads retain owners
 [typed driver group API](driver_settings.md). Prompt 21 adds 23 finite
 [I/O read rows](io_settings.md), checked `getIo` and separate documentary DI
 labels without granting reassignment or output actions. Other communication/PDO record reads have explicit owner 38 in the
-[ledger](reference/lichuan_objects.md); their writable counterparts do not
+[ledger](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/lichuan_objects.md); their writable counterparts do not
 remove the read obligation. PDO mutation remains with 18.
 
 ## Time and PDO evidence

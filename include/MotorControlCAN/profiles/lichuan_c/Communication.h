@@ -3,7 +3,7 @@
  * No I/O, clock, allocation or NMT. PDO templates/readbacks do not qualify live maps.
  * Only the explicit reviewed heartbeat workflow yields a download; reads never do.
  * All new PDO/2203 rows retain UNQUALIFIED/Q20 effects and need one-use reviewed acquisition
- * through the existing owner. NETWORK preserves prompt 19's read semantics.
+ * through the existing owner. NETWORK preserves the typed network-read semantics.
  * SPDX-License-Identifier: MIT
  */
 #pragma once

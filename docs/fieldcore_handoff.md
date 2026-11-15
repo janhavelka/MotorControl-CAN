@@ -6,25 +6,37 @@ a stack or a controller. Its synthetic reports and prerequisite grants provide
 no physical qualification. No sibling repository was changed.
 
 FieldCore-node currently has no CAN owner, board route or request for one, and
-no motor health row or drive-settings group. A CAN BusId, routing, settings and
+no CAN motor health row or CAN drive-settings group. A CAN BusId, routing, settings and
 health projection would be new work, separately authorized.
 
 ## Current source review
 
-On 2026-11-15, MotorControl-RS was clean at
-`2f41e27f2378c644b1358ed9a6af63c35f817058`. Read its `docs/fieldcore_handoff.md`,
-`MoveOperation.h`, `Axis.h` and `PositionStageApp.h::beginPositionStage` /
-`servicePositionStage`. Adopt exact copied intent, caller-owned contexts,
-yielded work and settling admitted work before interruption. Reject RTU framing,
-echo policy and device timing as CAN assumptions.
+On 2026-11-15, the source/package/documentation review observed MotorControl-RS
+at `0e3b559e5bf6d7affb71ca16974747e76f550250`. The checkout was initially
+clean; an unrelated stage-report modification appeared during the audit.
+The inspected package, public-header, version and documentation seams and their
+working-byte/committed-blob hashes are recorded in the
+[source audit](reports/prompt_49_sources.json). That unrelated report supplied
+no source behavior. The earlier motion review in [prompt 46](reports/prompt_46_audit.md)
+read `MoveOperation.h`, `Axis.h` and
+`PositionStageApp.h::beginPositionStage/servicePositionStage`. Its adopted
+copied intent, caller-owned contexts, yielded work and settlement before
+interruption remain the handoff contract. RTU framing, echo policy and device
+timing remain separate from CAN assumptions.
 
 FieldCore-node was clean at `c40ea8341edf8d665460b902cafefbe857a7f73f`.
-Read-only review covered `contracts/MotorControl.h::MotorCommand/MotorResult`,
-`device/Rs485MotorModule.cpp::startMotor/nextStep/acceptObservation`,
-`rs485/Rs485Task.cpp::submitMotorCommand/completeMotor/serviceMotorControl` and
-`measurement/rodtester/RodCyclePorts.h::submitMotor/takeMotor`. Adopt copied
+The ownership/result seam is unchanged since prompt 46: its review covered
+`include/TunnelMonitor/contracts/MotorControl.h::MotorCommand/MotorResult`,
+`src/devices/rs485_motor/Rs485MotorModule.cpp::startMotor/nextStep/acceptObservation`,
+`src/rs485/Rs485Task.cpp::submitMotorCommand/completeMotor/serviceMotorControl` and
+`include/TunnelMonitor/measurement/rodtester/RodCyclePorts.h::submitMotor/takeMotor`. Adopt copied
 submission, prepare/next/advance, exact result take and retained uncertainty.
-Existing RS ordinary/stop lanes imply no current CAN integration.
+Existing RS ordinary/stop lanes imply no current CAN integration. The current
+bounded review confirms that `contracts/Health.h::BusId` has no CAN entry.
+`SystemHealthProjection.h::appendSelectedProfileDeviceHealth` already projects
+generic passive device health, and the RS motor module exposes `snapshot` and
+`copyStatus`. RodTester also has product motor-ratio settings. These existing
+surfaces do not supply a CAN owner, CAN drive settings or CAN health projection.
 
 ## Responsibility mapping
 
@@ -37,7 +49,7 @@ Existing RS ordinary/stop lanes imply no current CAN integration.
 | Execution / completion | Production contexts retain setup, trigger acceptance and native completion independently. Native completion is not independent shaft measurement. |
 | Result lifetime | takeResult requires the exact operation ID, preserves output on mismatch, then releases the module slot. Service terminals remain until consumed and explicitly released. |
 | Interruption | Pending work settles before terminal publication. Local cancellation is not motor stop; an independent stop lane remains prospective integration work. |
-| Settings | Existing typed groups would use the same owner and retain confirmed/unknown partial effects and readback. No existing FieldCore settings group is claimed. |
+| Settings | Existing typed groups would use the same owner and retain confirmed/unknown partial effects and readback. No existing CAN drive-settings group is claimed. |
 | Binding / reference | Configuration changes invalidate dependent work under production generations. Rebinding cannot qualify reused PDO bytes or physical position. |
 | Health | A prospective cached row would keep liveness, drive faults, operation uncertainty and application state distinct. |
 

@@ -8,8 +8,9 @@ The application owner lives in `adapters/owner`, with shared console/firmware
 and Python runners above it. See [getting started](getting_started.md) and
 [progress](prompts/PROGRESS.md) for usable paths and pending work.
 The [native ownership proof](../experiments/api_ownership/README.md) remains
-test-only. Some capability/ramp contrasts still use its prototype types;
-prompt 46 owns their production proof. The [architecture plan](architecture_plan.md)
+test-only. The registered production contrasts use the installed capability,
+ramp and outcome contracts; [the profile contract](profile_contract.md) separates
+those checks from the retained prototype fixtures. The [architecture plan](architecture_plan.md)
 describes intended layout, not an inventory of delivered files.
 
 | Layer | Owns | Dependencies allowed |
@@ -55,8 +56,8 @@ the default; mixed-domain traffic requires an explicit compatibility design.
 
 ## Migration and acceptance
 
-Prompt 7 registers these retained proofs in the real build and splits the stable
-status/endpoint/frame declarations into public headers. Synthetic
+The retained proofs are registered in the real build. Stable status, endpoint
+and frame declarations now come from installed public headers. Synthetic
 `ProofProfile`, fake controller, fixtures and optional stack dependencies stay out of
 installed public includes. Preserve these tests during later migration; do not install
 fake N5/EPOS4 profiles or freeze struct byte layout as a binary ABI.

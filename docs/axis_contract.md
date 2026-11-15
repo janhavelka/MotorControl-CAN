@@ -4,8 +4,8 @@
 coordinate conversion and target preparation. These functions acquire no time,
 perform no device I/O, and establish neither motion permission nor completion.
 The caller owns configuration, qualified evidence, time and serialization.
-[Units](units_status.md) owns reusable arithmetic; [architecture](architecture.md)
-and the [owner contract](can_owner.md) own integration boundaries.
+[Units](units_status.md) owns reusable arithmetic; [architecture](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/architecture.md)
+and the [owner contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md) own integration boundaries.
 
 Wrapped intent can enter the [finite angle API](position_parameters.md#wrapped-angle-moves)
 through `prepareMoveAngle`. Pure `preparePosition` remains the single owner of
@@ -104,8 +104,9 @@ select physical direction before command polarity. Equal orientation stays
 still. Exact half-turn ties reject unless explicitly directed positive or
 negative. Approximation must resolve the direction; a boundary-crossing interval
 rejects. Selected paths fail at limits instead of choosing another turn, and
-quantization cannot reverse the selected direction. These are target primitives;
-angle motion sequences remain later work.
+quantization cannot reverse the selected direction. These are pure target
+primitives; the [finite angle lifecycle](position_parameters.md#wrapped-angle-moves)
+adds the Lichuan profile's preparation, execution and evidence gates.
 
 ## Reference lifetime and configuration changes
 
@@ -181,7 +182,7 @@ millisecond ramp parameters remain separate quantities.
 
 ## An offline example
 
-The [compiled offline preview](../examples/units_preview/README.md) supplies
+The [compiled offline preview](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/units_preview/README.md) supplies
 4096 command increments/motor turn, gearing `3/2`, 20 mm/load turn, independent
 2048 encoder counts/motor turn, and host origin zero, all explicitly assumed:
 
@@ -191,7 +192,7 @@ The corresponding illustrative feedback displacement is 768 counts. The example
 also shows native binary32 `1/10` with a declared error tolerance and signed
 velocity `-70000`, without opening any controller. These values are abstract
 common invariants, not installed N5/EPOS4/proprietary profile support. The
-[contrast ledger](reference/drive_contrasts.md) retains vendor applicability.
+[contrast ledger](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reference/drive_contrasts.md) retains vendor applicability.
 
 ## Device evidence and the retained proof
 
@@ -202,15 +203,15 @@ quadrature multiplier or qualified live counts/turn. EDS defaults are metadata,
 not live scale. `0x2302` is a triggered device counter-clear action, separately
 documented as a `0 -> 1` edge with manual return to zero; it cannot implement
 arbitrary host origin setting or prove homing. See the source/page details in
-[motion evidence](audit/LICHUAN_MOTION_FACTS.md).
+[motion evidence](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/LICHUAN_MOTION_FACTS.md).
 
-The retained [ownership proof](../experiments/api_ownership/Contracts.h) uses
+The retained [ownership proof](https://github.com/janhavelka/MotorControl-CAN/blob/main/experiments/api_ownership/Contracts.h) uses
 production `AxisConfig`, requests and `preparePosition`. Its `ProofAxisConfig`
 adds synthetic capability facts and I32 profile limits. Synthetic
 `prepareMoveAbsolute` continues to prove admission/ownership below that boundary;
 it is not installed drive support or a production finite motion implementation.
 Public motion sequence vocabulary and ownership remain in the
-[profile contract](profile_contract.md).
+[profile contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/profile_contract.md).
 
 ## Intentional differences from MotorControl-RS
 

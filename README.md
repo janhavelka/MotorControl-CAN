@@ -1,102 +1,160 @@
 # MotorControl-CAN
 
-[Prompt48](docs/reports/prompt_48.md) records bounded two-node read/output load
-and stricter evidence checks. Physical fault/restart and related-model
-qualification remain pending.
+A C++11 library for exact motion intent and conditional Lichuan C drive operations
+over Classical CANopen. The installed core uses caller-owned contexts and supplied
+events. It performs no I/O, allocation, clock reads, sleeps or automatic retries.
+Applications own the controller, time, scheduling and retained results.
 
-[Prompt47's bench campaign](docs/reports/prompt_47.md) records the current S2/two-node
-checks and fixes to diagnostic capture. Physical qualification remains Partial;
-controller-reported results do not establish observed shaft or stop behavior.
+This is a **development software candidate**, version **0.1.0**, not a published
+or physically qualified release. Lichuan C is the only implemented profile.
+CL86-C specimen observations do not establish support for every firmware or the
+related OL86-C/CL57-C/OL57-C drives. N5 and EPOS4 are test-only design contrasts;
+proprietary CAN and CAN FD need additional implementations.
 
+| Layer | Available scope | Limit |
+| --- | --- | --- |
+| Installed core | Exact units, axis/reference conversion, CAN/SDO/PDO values, typed reads/settings, conditional actions, position/angle, finite velocity, homing, discovery and persistence | Per-operation prerequisites and firmware gates apply |
+| Optional application layer | One CANopen owner, CANopenNode adapter, ESP TWAI adapter, shared CLI and bounded Python runners | Full repository required; not installed with the core |
+| Firmware | S3 Arduino/IDF and S2 IDF build paths | Arduino S2 is blocked by the pinned package; P4 has isolated core/component evidence only |
+| Hardware | Retained S2/two-CL86-C communication and conditional motion trials | Physical motion/stop, failure/load and related-model qualification remain incomplete |
 
-Prompt46 adds an independent installed-package module example and production
-N5/EPOS4/protocol contract tests. No alternate drive is installed or advertised
-as supported. [The handoff](docs/fieldcore_handoff.md) records prospective
-FieldCore integration; [the profile contract](docs/profile_contract.md) explains
-type ownership and extension limits. The operation checker reconciles public
-code/tests/CLI/Python while keeping source and hardware gates separate.
+See the [candidate scope and migration notes](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/releases/0.1.0.md)
+and [current feature gates](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/device_conflicts.md).
 
+## Install and use the native core
 
-The [Prompt45 integration audit](docs/reports/prompt_45.md) strengthens retained
-move/stop uncertainty and fences interrupted host evidence. Cross-node pressure,
-old-map PDO traffic and retained-result exhaustion have deterministic regressions.
-These checks do not qualify additional firmware or physical motion.
+Requirements: CMake 3.19+, Ninja and a C++11 compiler. From the repository or
+exported core source root, these commands need no Python, SDK, CANopenNode,
+sibling checkout or connected board. They work in PowerShell and POSIX shells.
 
-Prompt42 connects finite position/angle, velocity, homing and explicit actions to
-one shared console and the existing axis session. Independent retained stop results,
-explicit host motion intent and bounded stop admission preserve uncertainty under
-console pressure. The [CLI contract](docs/cli_contract.md#finite-motion-and-actions-prompt-42)
-records working grammar and native qualification gates. No hardware ran in this stage.
+```text
+cmake -S . -B .build/core -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=./.install/core
+cmake --build .build/core
+cmake --install .build/core
+```
 
-The conditional [persistence workflow](docs/commissioning.md) now separates
-one-shot save, factory restore and host re-application of three recorded motion
-settings. Native acknowledgements, uncertain effects and per-field observations
-surviving an independently recorded power cycle remain separate. No factory
-defaults, restart command, flash timing or complete saved-field set is inferred.
+Create `consumer/main.cpp` with this complete offline example. Its scales are
+illustrative host data, not measured CL86-C mechanics. It emits no CAN requests.
 
-[Communication commissioning](docs/commissioning.md#explicit-communication-commissioning)
-provides 89 additional reviewed-acquisition read rows and one conditional
-`1017` raw `0 → 1000` heartbeat workflow. Node/route/bitrate mutation and general
-persistence remain gated; stored readback does not prove active routing or timing.
+```cpp
+#include <MotorControlCAN/Axis.h>
+#include <cstdio>
 
-The [discovery APIs](docs/commissioning.md) provide implemented-profile inventory,
-explicit finite probe/identity scans, passive presence observations and local
-binding selection. They preserve channel quarantine and generic identity uncertainty;
-see the [native fake preview](examples/discovery_preview/README.md).
+int main() {
+    namespace M = MotorControlCAN;
+    M::AxisConfig axis;
+    axis.binding.logicalAxisId = 9;
+    axis.binding.endpoint.protocol = M::Protocol::CANOPEN;
+    axis.binding.endpoint.profile = 1;
+    axis.binding.endpoint.address = 1;
+    axis.binding.bindingGeneration = axis.binding.configurationGeneration = 1;
+    axis.units.commandStepsPerMotorTurn = M::UnitScale(4096, 1, M::ScaleSource::ASSUMED);
+    axis.units.motorTurnsPerLoadTurn = M::UnitScale(3, 2, M::ScaleSource::ASSUMED);
+    axis.units.millimetresPerLoadTurn = M::UnitScale(20, 1, M::ScaleSource::ASSUMED);
+    axis.originKnown = true;
+    axis.originSource = M::ScaleSource::ASSUMED;
+    M::PositionRequest request;
+    request.value = M::Rational(5);
+    request.unit = M::PositionUnit::MILLIMETRES;
+    request.frame = M::CoordinateFrame::LOAD;
+    request.configurationGeneration = 1;
+    M::PreparedTarget target;
+    const M::Status status = M::preparePosition(request, axis, nullptr, target);
+    if (!status) {
+        std::fprintf(stderr, "%s: %s\n", M::errToString(status.code), status.msg);
+        return 1;
+    }
+    std::printf("5 load mm -> %lld command increments\n",
+                static_cast<long long>(target.effectiveNative));
+    return target.effectiveNative == 1536 ? 0 : 2;
+}
+```
 
-The conditional [homing API](docs/homing.md) adds four Lichuan methods, explicit mode-6
-enable/interrupt and checked reference publication. Its firmware and physical-input
-gates remain closed; no homing trial has been run. See [prompt 36](docs/reports/prompt_36.md).
+Create `consumer/CMakeLists.txt`:
 
-The [finite velocity API](docs/velocity.md) and owner path are implemented behind
-explicit firmware gates. Retained specimen mode3 trials are recorded in the
-[bench record](docs/hardware_bench.md); wider rate, reverse and physical
-qualification remain separate. The default evidence gate remains closed. See the
-[offline example](examples/velocity_preview/README.md) and [stage report](docs/reports/prompt_35.md).
+```cmake
+cmake_minimum_required(VERSION 3.19)
+project(Quickstart LANGUAGES CXX)
+find_package(MotorControlCAN CONFIG REQUIRED)
+add_executable(quickstart main.cpp)
+target_link_libraries(quickstart PRIVATE MotorControlCAN::MotorControlCAN)
+set_target_properties(quickstart PROPERTIES
+    CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+```
 
+From the same source root, build and run it (append `.exe` on Windows):
 
-A framework-independent C++11 library for **CAN-controlled stepper and servo drives from multiple manufacturers**. Common motion is motor- and protocol-neutral. CANopen/CiA402 is the first protocol backend and the Lichuan CL86-C the first target; CL/OL 86C and 57C models keep separate applicability and firmware evidence. Nanotec N5 and maxon EPOS4 are design contrasts and future profile candidates, not supported drives. Read [the stepper and servo scope decision](docs/multidrive_decision.md).
+```text
+cmake -S consumer -B .build/consumer -G Ninja -DCMAKE_PREFIX_PATH=../.install/core
+cmake --build .build/consumer
+.build/consumer/quickstart
+```
 
-The design follows `../MotorControl-RS`: the same motion vocabulary, exact units, caller-owned operation contexts, application-owned transport, a shared example CLI and native/Python verification. FieldCore-node is a reference consumer, not a dependency.
+The prefix above is relative to the consumer source directory. For another
+directory layout, pass the absolute installation prefix. The
+[native package guide](docs/getting_started.md) covers custom/relocated installs.
 
-## Current status
+## Read, move and stop with supplied evidence
 
-[PROGRESS.md](docs/prompts/PROGRESS.md) is the authoritative per-prompt state; this summary links its evidence. **Finite motion is not qualified: the library's gated absolute and relative move lifecycles have run on two specimens of one firmware, judged from the drives' own reports, and no prompt-level hardware qualification exists.**
+From a **full checkout**, after the install above:
 
-- **Implemented and host tested.** Status and [exact units](docs/units_status.md); [axis targets and references](docs/axis_contract.md); [CAN frames and SDO/network codecs](docs/canopen_services.md); [generated object metadata](docs/reference/lichuan_objects.md); the bounded SDO, NMT and PDO adapter over [CANopenNode](adapters/canopennode/README.md); [typed reads](docs/reads.md); [driver](docs/driver_settings.md), [I/O](docs/io_settings.md) and [tuning](docs/tuning.md) settings subsets; the [application CAN owner](docs/can_owner.md); the [TWAI adapter](adapters/twai/README.md); [shared native and firmware examples](docs/firmware_examples.md); [state interpretation and a gated enable](docs/drive_actions.md); conditional [stop](docs/stop_actions.md), [alarm-clear and counter-zero](docs/fault_reference_actions.md) actions; and pure [position parameter preparation](docs/position_parameters.md) with gated absolute, relative and wrapped-angle move lifecycles (`prepareMoveAbsolute`, `prepareMoveRelative`, `prepareMoveAngle` and the matching `AxisSession` requests). The [offline angle preview](examples/angle_preview/README.md) displays a resolved target/error before admission; physical angle qualification remains open. The conditional [finite velocity lifecycle](docs/velocity.md) and owner stop path are also implemented and host-tested. Of these, the enable, the moves, the stops, the counter zero and the `2202` and DI writes have run on specimens (below); the alarm clear has not.
-- **Observed on one bench, no qualification.** Through the [S2 bench](examples/s2_bench/README.md), two user-labelled CL86-C specimens answered explicit uploads on nodes 1 and 2 at 1 Mbit/s ([connection](docs/reports/2026-11-02_s2_live_connection.md), [NMT and TPDO checkpoint](docs/reports/2026-11-02_nmt_pdo_checkpoint.md)). Node 1 accepted a fixed TPDO1 map change, which a later power cycle reverted in that one cycle. Both report mode 0 with `607A=5000` and `60FF=120`, values equal to the EDS defaults. Handoff packet 11 then read typed identity and the 30-field readiness image live on both, and ran a read-only communication soak ([packet 11](docs/reports/handoff_19_33/packet_11.md)). An [attended session](docs/reports/2026-11-03_attended_bench.md) then enabled both through `AxisSession::requestEnable`, after a fix found there. On node 1 it ran one application-local absolute move (+250 pulses, about a quarter turn counter-clockwise), its rearm, and a HALT during a 2 rpm move, after which the drive reported a stop and `6064` stayed 316 for 26 s (the attendant was not sure about the shaft). An [unattended session](docs/reports/2026-11-03_unattended_bench.md), run on the user's written waiver with nobody at the bench, then ran the library's own move lifecycle for the first time through `AxisSession::requestMove` on node 2 (trial 121: 0 to 250 pulses, `SUCCEEDED` with its rearm), and a stationary `000B` on each node, after which each drive reported low bits `000` and released (`2100` bit 4). The library ended both stops outside its observation scope; it now completes a quick stop on that report, retested on hardware (trial 208). No start, reset, save or restore was sent in either session. Sessions on [2026-11-04](docs/reports/2026-11-04_bench.md) and [2026-11-05](docs/reports/2026-11-05_motion_and_stress.md), judged from the drives' reports, then ran library absolute moves (213 on node 2; 413, 705 and 706 on node 1) and relative moves (411, 708, node 1), halts (207, 406, 709), quick stops (208, 213, 413, 503, 713), the counter zero (323), `2202` codes 1 and 0 with readback on both nodes (604 to 607) and DI3 writes on node 1 (319 to 321). These observations do not establish harmless reads, a safe enable, fresh PDO samples or any other firmware.
-- **Repair audit closed.** The [repair audit](docs/prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md)'s W1 to W8 are done on the host; the drive evidence for stops and moves comes from the 2026-11-03, -04 and -05 bench sessions above. All 22 [handoff packets](docs/prompts/archive/handoff_19_33/README.md) have run and are archived; [their table](docs/reports/handoff_19_33/README.md) records what each delivered, and the [backlog](docs/backlog.md) tracks the physical trials still owed.
-- **Python runners.** [The bounded console client](docs/runners.md) provides offline plans/self-test, exact correlated evidence and explicit typed probe/read. [Finite campaigns](docs/bench_scenarios.md) add six named scenarios, bounded position comparison and exclusive session evidence. Offline use needs no serial dependency; physical qualification remains separate.
-  The [independent runner audit](docs/reports/prompts_43_44_audit.md) corrects
-  deadline, release and evidence-failure boundaries without automatic device traffic.
-- **Still pending.** Motor release, broader communication changes, qualified persistence effects and physical campaign qualification. The conditional shared CLI is implemented. Discovery and the conditional commissioning/persistence subsets above are implemented. Open device gates are in the [conflict table](docs/device_conflicts.md).
+```text
+cmake -S examples/position_preview -B .build/position -G Ninja -DCMAKE_PREFIX_PATH=../../.install/core
+cmake --build .build/position
+.build/position/position_preview
+```
 
-## Start here
+This maintained example uses only the installed core: exact preparation,
+`prepareIdentity`/`nextRead`/`advanceRead`,
+`prepareMoveAbsolute`/`nextMove`/`advanceMove`, and
+`prepareStop`/`nextAction`/`advanceAction`. It checks missing-evidence rejection,
+then runs a simulated move and stop using supplied service results. Its
+[complete source](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/position_preview/main.cpp)
+labels the invented observations and evidence records. They authorize no device
+traffic. Real work goes through one application owner. Retain the original
+operation result even when a later stop succeeds; an acknowledgement is distinct
+from physical movement or standstill. Local cancellation is not a motor stop.
 
-- Use the library: the [native package guide](docs/getting_started.md), [application boundary](docs/native_application.md) and [offline examples](examples/owner_preview/README.md). Examples and firmware bring their own CAN controller and time; the installed core performs no I/O.
-- Check it: [quick and full verification](docs/verification.md), [contributor guidance](CONTRIBUTING.md) and the [security policy](SECURITY.md).
-- Work on it: [the 50 numbered prompts](docs/prompts/README.md), [START_HERE.md](docs/prompts/START_HERE.md), [source map](docs/source_map.md), [backlog](docs/backlog.md), [roadmap](docs/roadmap.md) and [bench facts](docs/hardware_bench.md). Decisions are recorded in the [frozen semantic boundary](docs/architecture.md) and the [CANopen stack decision](docs/decisions/canopen_stack.md).
+The [read guide](docs/reads.md), [axis contract](docs/axis_contract.md),
+[position parameters](docs/position_parameters.md) and
+[stop contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md)
+define units, gates, lifetimes and failures. Repository examples are excluded
+from the core archive; the README consumer above is self-contained.
 
-## Audits and references
+## Firmware and Python
 
-- [MotorControl-RS audit](docs/audit/MOTORCONTROL_RS_AUDIT.md)
-- [Prompt correctness and simplicity review, 24 October](docs/audit/PROMPTSET_REVIEW_2026-10-24.md)
-- [Source and execution corrections, 28 October](docs/audit/PROMPTSET_REVIEW_2026-10-28.md): evidence dependency, stop/reset interpretation, output labels and PDO provenance.
-- [Prompt length and workload review](docs/audit/PROMPT_SIZING_2026-10-24.md) and [complete scope migration](docs/prompts/SPLIT_MAP.md)
-- [Fresh multi-drive source audit](docs/audit/MULTIDRIVE_SOURCE_REAUDIT.md)
-- [CANopen drive survey](docs/audit/CANOPEN_DRIVE_SURVEY.md) and [other CAN protocols](docs/audit/OTHER_CAN_PROTOCOLS.md)
-- [I2C and FieldCore conventions](docs/audit/ECOSYSTEM_CONVENTIONS.md)
-- [Device and protocol research](docs/audit/DEVICE_PROTOCOL_RESEARCH.md)
-- [Concrete Lichuan evidence for each prompt](docs/prompts/DEVICE_EVIDENCE.md): complete EDS inventory, motion/settings/timing tables and audited public code, with unresolved manufacturer contradictions kept explicit.
-- [Evidence enrichment review, 24 October](docs/audit/LICHUAN_ENRICHMENT_2026-10-24.md): findings, prompt-size measurements and validation scope.
-- [Downloaded references and provenance](docs/reference/README.md)
-- [Proposed structure and ownership](docs/architecture_plan.md)
-- [API and CLI naming map](docs/api_cli_mapping.md)
-- [Requirements and acceptance gates](docs/requirements_matrix.md)
-- [Copied source baseline](docs/baseline/README.md)
+The full checkout supplies a shared application/CLI with thin Arduino and IDF
+entry points. Default compile fixtures leave CAN inactive. Follow the
+[firmware guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/firmware_examples.md)
+for pinned Arduino 3.3.11 / ESP-IDF 5.5.5 builds, actual board pins and explicit
+controller start. Building does not flash or qualify hardware. The separate S2
+bench image has its own evidence controls and is not the default console.
 
-Initial audit date: **23 October 2026**; latest prompt/source correction review: **28 October 2026**. Audits identify the exact sibling revisions inspected. Every implementation stage must refresh the relevant source audit; the snapshots are reproducible reference material, not a replacement for current code.
+Python 3.10+ offline commands, from the full checkout:
 
-Validate this package locally with `python scripts/check_promptset.py`. Add `--check-git-ref HEAD` to verify committed artifact bytes or `--check-git-ref INDEX` to check staged artifact bytes before committing. This includes the experiment's pinned source inventory, but does not compile it. Use the [ownership proof CMake/CTest commands](experiments/api_ownership/README.md) to run all three native tests, including the service fit experiment; neither check qualifies hardware.
+```text
+python scripts/bench_probe.py --plan-only --scenario identity
+python scripts/bench_probe.py --self-test
+python scripts/bench_scenarios.py --list
+```
 
-Original vendor documents retain their owners' rights. Copied MotorControl-RS files retain their MIT notice. The isolated CANopenNode build subset retains its Apache-2.0 license and notices. No existing motor bench authorization, COM port, pin assignment or motor limits are transferred to this new CAN setup.
+Offline use opens no port and needs no serial package. Live use also needs
+pyserial 3.5, a configured console, established node/bitrate/profile and explicit
+finite intent. The [runner guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/runners.md)
+gives the full invocation, immutable deadlines and retained failure logs.
+Startup and recovery never implicitly enable, save or move a drive.
+
+## Documentation, checks and license
+
+- [Documentation index](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/README.md): user contracts, examples and source map.
+- [Progress and inherited gates](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/prompts/PROGRESS.md): implemented, Partial and future work. Prompt18/Q17 remapping and physical qualification remain open.
+- [Verification](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/verification.md): `python scripts/verify.py --mode full` runs native contracts, exported/installed consumers, generated checks and strict Doxygen 1.13.2.
+- [Contributing](https://github.com/janhavelka/MotorControl-CAN/blob/main/CONTRIBUTING.md) and [security reporting](https://github.com/janhavelka/MotorControl-CAN/blob/main/SECURITY.md).
+- [CHANGELOG](CHANGELOG.md): public changes and descriptor migration. `library.json` is the version authority.
+
+The core is [MIT licensed](LICENSE); adapted RS code retains its attribution.
+Optional CANopenNode is Apache-2.0 with retained notices; SDKs have separate
+licenses. Vendor manuals/EDS/full extracts, copied reference code, tests/tools
+and bench evidence are excluded from the portable core distribution.
+Repository links describe current main and may be newer than an exported
+archive; select the archive's commit when comparing historical behavior.

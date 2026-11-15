@@ -34,7 +34,7 @@ constexpr uint32_t VELOCITY_EXPERIMENT_MAXIMUM_RPM = 60;
  * Project policy, as above; the setup budget must still fit inside it. */
 constexpr uint64_t VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US = 20000000;
 /** Highest positive rate an ATTENDED_EXPERIMENT with rangeProbe can state, in motor rpm: twice the
- * documented 3000 rpm (EN86 p13), as project policy for the prompt 59 range probe. It says nothing about
+ * documented 3000 rpm (EN86 p13), as project policy for the attended range probe. It says nothing about
  * what the drive or motor can reach. */
 constexpr uint32_t VELOCITY_RANGE_PROBE_MAXIMUM_RPM = 6000;
 /** Shortest 6083 and 6084 ramp a range probe admits, in ms. Project policy, so a probe step never
@@ -83,12 +83,12 @@ struct VelocityEvidence {
         0; ///< Exact qualified released source mode (0, 1 or 6), never a wildcard.
     /** Negative 60FF behavior independently established; MEASURED only, never by an experiment. */
     bool reverseQualified = false;
-    /** ATTENDED_EXPERIMENT only: the prompt 59 range probe. It raises the experiment's rate cap from
+    /** ATTENDED_EXPERIMENT only: the range probe. It raises the experiment's rate cap from
      * VELOCITY_EXPERIMENT_MAXIMUM_RPM to VELOCITY_RANGE_PROBE_MAXIMUM_RPM and requires ramps of at
      * least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS. A probe run qualifies nothing, as every experiment;
      * any other gate refuses it. */
     bool rangeProbe = false;
-    /** ATTENDED_EXPERIMENT only: the prompt 59 reverse probe, the run that measures what a negative 60FF
+    /** ATTENDED_EXPERIMENT only: the reverse probe, the run that measures what a negative 60FF
      * does. No source states a direction rule: the EDS and the p17 dictionaries declare 60FF I32, while
      * the EN86/ZH86 p13 mode tables give it as UNSIGNED32 0~3000 (ledger conflict Q03, open). With it a
      * negative rate is admitted down to -maximumReverseRpm, written as its two's complement I32, with the
@@ -98,7 +98,10 @@ struct VelocityEvidence {
      * qualifies nothing, so reverseQualified stays false: only a reviewed record, under MEASURED, sets that.
      * Any other gate refuses it. */
     bool reverseProbe = false;
-    uint32_t maximumForwardRpm = 0; ///< Qualified positive range, 1..3000 rpm.
+    /** Positive range in motor rpm: 1..3000 under MEASURED; an ATTENDED_EXPERIMENT
+     * uses its experiment cap, raised to VELOCITY_RANGE_PROBE_MAXIMUM_RPM only
+     * with rangeProbe. An experimental range is not qualified device support. */
+    uint32_t maximumForwardRpm = 0;
     /** Negative rate magnitude, in motor rpm: with reverseQualified the qualified range, 1..3000; with
      * reverseProbe the experiment's stated range, 1 to its cap; otherwise 0. */
     uint32_t maximumReverseRpm = 0;

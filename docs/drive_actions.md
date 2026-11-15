@@ -10,8 +10,8 @@ qualified TPDO sample, decodes it with `interpretStatusword`, and tests object
 prove no route, freshness or firmware: a decoded word is not admission or
 completion evidence by itself, and each caller must prove those facts itself. A gated enable, run
 attended on both specimens on one firmware, is described below, and release has no API. The separate
-[conditional stop lifecycle](stop_actions.md) uses common `ActionOperation.h`
-evidence and concrete `Actions.h` contexts; it establishes neither of those. [Fault clear and counter zero](fault_reference_actions.md)
+[conditional stop lifecycle](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) uses common `ActionOperation.h`
+evidence and concrete `Actions.h` contexts; it establishes neither of those. [Fault clear and counter zero](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md)
 also use this lifecycle with their own documented writes and report criteria;
 they do not supply release, home or factory-reset semantics.
 
@@ -61,12 +61,12 @@ CL57-C/OL57-C header; retain that applicability uncertainty.
 ordinary `nextAction` and `advanceAction` lifecycle, and `AxisSession::requestEnable` runs it
 through the sole owner. **It succeeded on both bench specimens on 2026-11-03**, after a fix that
 session found (bit 10, below), on one firmware, and again on 2026-11-04 with the same reports, twice
-on node 1 and once on node 2 ([report](reports/2026-11-04_bench.md)), and on 2026-11-05 once on each
-node (trials 704 and 712, [report](reports/2026-11-05_motion_and_stress.md)), seven times in all. The
+on node 1 and once on node 2 ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)), and on 2026-11-05 once on each
+node (trials 704 and 712, [report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-05_motion_and_stress.md)), seven times in all. The
 power-up shaft entries of 704 and 712 were the lead's reading of the drive's start report, not an
 observation (see the NOTE.txt in each trial directory). That is not a qualification: the
 measured paragraphs after the transition table and the
-[attended report](reports/2026-11-03_attended_bench.md) say what was and was not observed.
+[attended report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_attended_bench.md) say what was and was not observed.
 `EnableEvidence::gate` defaults to `CLOSED`, which returns `UNSUPPORTED`. Opening it to
 `ATTENDED_EXPERIMENT` states an attended trial with an independent drive-power cutoff. It is not a
 readiness claim, and it does not qualify the capability. The evidence is also bound to one trial:
@@ -232,16 +232,16 @@ action. `6040` is a whole-word write, never a read-modify-write.
 | Admit | Complete SDO read of ERRORS, MONITORS, STATUS, FEEDBACK under this reservation and within `maximumAgeUs`: `2100` in place, with running, alarm, soft limits and unknown bits clear; `6041` equal to the reviewed word; `1001`, `603F`, `606C` zero. Gate open, start recorded, session clean | Reported mode 1 in that read. Modes 0, 3, 6 and any other byte refuse | None | None | The read above | Must leave more than two intervals | Refused atomically. No output changes, no traffic | No claim |
 | Targets | As admitted | Reads, in order, each once. Their effect stays unknown: neither object is on the DEC-1 accepted list | `40 7A 60 00`, then `40 FF 60 00` | Each I32 upload must succeed | Both values equal the reviewed values | Overall | Mismatch: `OBSERVATION_SCOPE`. Abort: `PROTOCOL_REJECTED`. Lost reply: `SERVICE_TIMEOUT`, uncertain. **No `6040` word was sent** | None. Targets stay as they were |
 | Word 6 | Targets matched | Unchanged | `2B 40 60 00 06 00 00 00` | Acknowledged; abort is `REJECTED` and a lost reply `UNKNOWN`, never replayed | New MONITORS, STATUS, FEEDBACK starting after the acknowledgement: low bits 001 by the p12 table, mode 1, every bit but released and `6041` bit 10 unchanged, `6064` unchanged, `606C` zero. Poll at `observationIntervalUs` | Overall; next word no earlier than the acknowledgement plus the interval | Out of scope: `OBSERVATION_SCOPE`, word retained, no later word. Low bits never arriving: `DEADLINE` | **Possible torque loss.** From the specimens' enabled-looking start this may be 15 to 6, dropping holding torque. Low bits 1 is a table example, not a torque state |
-| Word 7 | Word 6 observed | Unchanged | `2B 40 60 00 07 00 00 00` | As above | As above with low bits 3 | As above | As above, prefix retained | Measured, one firmware: `2100` released clears. In mode 1, `6064` returned toward the last commanded position after a displacement (below; whether the shaft moved is not shown), which this row's `6064` rule then ends as out of scope. In mode 3 the same step is a counter switch with `606C` 0 ([enable-fault report](reports/2026-11-13_enable_fault_state.md#the-two-counters-m-with-i-where-marked)) |
+| Word 7 | Word 6 observed | Unchanged | `2B 40 60 00 07 00 00 00` | As above | As above with low bits 3 | As above | As above, prefix retained | Measured, one firmware: `2100` released clears. In mode 1, `6064` returned toward the last commanded position after a displacement (below; whether the shaft moved is not shown), which this row's `6064` rule then ends as out of scope. In mode 3 the same step is a counter switch with `606C` 0 ([enable-fault report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-13_enable_fault_state.md#the-two-counters-m-with-i-where-marked)) |
 | Word 15 | Word 7 observed | Unchanged | `2B 40 60 00 0F 00 00 00` | As above. On acknowledgement it becomes the latest controlword | As above with low bits 7 and `2100` released clear | Overall | As above. `SUCCEEDED` needs all of it | **A drive report, not torque.** Mode-1 motion is documented only from a later bit 4 edge, and whether an earlier curve resumes is unmeasured. Reference validity is not claimed either way |
 | After success | Word 15 observed | Target unchanged by this action | None | None | A later move or stop needs its own fresh state. The action's last read qualifies a stop | None | A second request refuses: no re-enable on any evidence | Unknown |
 | Enable in mode 3 | Any | Mode 3, with whatever `60FF` reads | None | None | The mode byte | None | Refused at admission | ZH86 p13 and OP86 p11: the motor starts. EN86 p13 disagrees |
 | Enable in mode 0 | Any | Undefined mode | None | None | The mode byte | None | Refused | None |
-| Enable in mode 6 | Non-enabled released, stationary and exact reviewed evidence | `modeRaw=6`, `homingEnableQualified`, ordinary explicit trial evidence | 6/7/15 with spacing | Fresh mode6 state after each ACK | No automatic home trigger | Retained action outcome | Conditional; see [homing](homing.md) | No reference published |
+| Enable in mode 6 | Non-enabled released, stationary and exact reviewed evidence | `modeRaw=6`, `homingEnableQualified`, ordinary explicit trial evidence | 6/7/15 with spacing | Fresh mode6 state after each ACK | No automatic home trigger | Retained action outcome | Conditional; see [homing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/homing.md) | No reference published |
 | Enable from `000F` or after a stop | Latest word `000F`, `000B` or `010F` in this session | Any | None | None | None | None | Refused, and never writing 6 merely to "reset" | A word from 15 back to 6 has no documented meaning here |
 | Enable from a release a recorded stop left | Session clean; the application's record shows the settled stop and nothing after it but an acknowledged `6060=1`; fresh released standstill in mode 1, in place either way, the running latch of a moving quick stop admitted (`0014`/`4050`, trial 2109) | Mode 1, reviewed targets; an interrupted move's `607A` retained | 6, 7, 15 as above; word 15 only after two still cycles of word 7's report | As above | As above, except `6041` bits 5 and 6; the latch (`2100` running, `6041` bit 14) may stay only in word 6's cycles; `6064` repeats the start in word 6's cycles, is free in word 7's, and must repeat word 7's accepted value from word 15 on | As above | As above. A change after word 15 ends it with a message to stop the drive: the caller requests a `QUICK_STOP` at once | Attended experiment only. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed. Whether word 15 resumes a retained target is unmeasured |
-| Stop during the sequence | Acknowledged 6 or 7 | Unchanged | A fresh idle report: no word, since DEC-8 has no arrow from them. A fresh running report, or none: best-effort `000B`, as for the same word still in flight | `000B` path: [stop guide](stop_actions.md) | The stop's own | The stop's own | The enable ends either way. Use the independent cutoff | Unknown |
-| Stop after `000F` | Acknowledged 15 | Unchanged | `010F` or `000B` with a fresh cycle after the acknowledgement, otherwise best-effort `000B` | [Stop guide](stop_actions.md) | [Stop guide](stop_actions.md) | Stop's own | The enable ends, and any word in flight settles into it | Unknown |
+| Stop during the sequence | Acknowledged 6 or 7 | Unchanged | A fresh idle report: no word, since DEC-8 has no arrow from them. A fresh running report, or none: best-effort `000B`, as for the same word still in flight | `000B` path: [stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | The stop's own | The stop's own | The enable ends either way. Use the independent cutoff | Unknown |
+| Stop after `000F` | Acknowledged 15 | Unchanged | `010F` or `000B` with a fresh cycle after the acknowledgement, otherwise best-effort `000B` | [Stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | [Stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | Stop's own | The enable ends, and any word in flight settles into it | Unknown |
 
 **Measured on node 1, 2026-11-03.** The shaft held torque at power-up, before any word from this
 library, with `6041=8037` in mode 0 and `8437` after `6060=1`. Word 6 was acknowledged and the fresh
@@ -264,7 +264,7 @@ shown. It would also explain trial 105 of 2026-11-03, `6064` from −545 to 0 at
 check, a pull-back of about half a turn.
 **Never move a released shaft by hand before an enable, and expect motion at word 7 whenever the
 shaft was displaced.** One specimen, a 7-pulse displacement, judged from drive reports; the shaft
-was not observed ([report](reports/2026-11-04_bench.md)). The enable's position rule, `6064` unchanged
+was not observed ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)). The enable's position rule, `6064` unchanged
 through the sequence, ends such an enable at word 7, as in trial 105, but only after the motion.
 
 Cancellation, a deadline, a reboot, bus-off, a changed epoch or an independently routed
@@ -277,7 +277,7 @@ enable word queued in the EMCY's own turn is refused unsent. A withdrawn enable'
 refused at handover. Either way `faultBlocked()` is set: later enables, moves and counter zeros
 are refused for the session object's life, while a stop and an alarm clear stay admissible.
 
-The [stop guide](stop_actions.md) explains why a stop needs the session's own latest word. The
+The [stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) explains why a stop needs the session's own latest word. The
 session records each enable word through its one admission path, so an acknowledged `000F` becomes
 that word, and the first of those admissions withdraws any older one. Settings and a later move keep
 their own predicates on an acknowledged `000F`. Each still needs its own fresh report, and an
@@ -292,9 +292,9 @@ gives that:
 - `6040=0` appears only as the example paired with low bits 000. No source says that word releases
   the motor, or from which state it may be written.
 - Low bits 0 are a report. Both specimens reported them, with `2100` released, after a stationary
-  `000B` from `000F` and from `010F` ([unattended report](reports/2026-11-03_unattended_bench.md)),
+  `000B` from `000F` and from `010F` ([unattended report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md)),
   and on 2026-11-04 after `000B` during a move and from the never-enabled power-up state
-  ([report](reports/2026-11-04_bench.md)). That is a quick stop's measured effect, not a release
+  ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)). That is a quick stop's measured effect, not a release
   command: no word was tried as a release, and the reference consequence is not stated.
 - `2100` bit 4 reports released. It is an observation, not a command.
 - Input function 4 is labeled motor enabling or MF, with no behavior text, and is not a CAN command
@@ -310,10 +310,10 @@ gap stays open too.
 ## Bounded physical plan
 
 For the lead, on an attended bench. P1 to P3 ran on both specimens in the
-[attended session](reports/2026-11-03_attended_bench.md). P4's `000B` ran on node 2 in the
-[unattended session](reports/2026-11-03_unattended_bench.md), from a library move's rearm `000F`
+[attended session](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_attended_bench.md). P4's `000B` ran on node 2 in the
+[unattended session](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md), from a library move's rearm `000F`
 rather than the enable's own, and released the motor. On 2026-11-04 P4's `010F` from the enable's own
-`000F` ran on node 1 and left the drive enabled and in place ([report](reports/2026-11-04_bench.md)). Default to node 1 alone, and add node 2 only
+`000F` ran on node 1 and left the drive enabled and in place ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)). Default to node 1 alone, and add node 2 only
 after node 1 passes. Before each state-changing trial, record the operator, cutoff and clear shafts,
 and stop on any abort below. Never retry within a trial.
 
@@ -354,5 +354,5 @@ unknown origin, fresh and copied history, fault at each step, delayed responses,
 cancellation and deadline precedence, reboot, stale generations, atomic rejection and a stop after each
 step. All of it runs against a fake and qualifies nothing. Release has no tests because it has no
 behavior. Decoder checks do not close these obligations. The
-[prompt 30 report](reports/prompt_30.md) records actual software checks separately
+[prompt 30 report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_30.md) records actual software checks separately
 from source agreement and hardware qualification.

@@ -12,7 +12,7 @@
    reference connection, bus topology and end termination. Use the drive
    nameplate and applicable manufacturer confirmation for supply selection.
    The conflicting documentary ranges and the actual fixture are recorded in
-   [the bench guide](hardware_bench.md#documentary-wiring-facts-not-fixture-settings).
+   [the bench guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/hardware_bench.md#documentary-wiring-facts-not-fixture-settings).
    RS bench wiring and product listing titles supply none of these facts.
 3. Treat every drive power-up or restart as a possible torque-state change.
    Record independent shaft/torque observation and fresh `2100:00` and
@@ -39,11 +39,11 @@ The OP86 file's PDF p5 says the motor locks on power-up, but that page's body
 identifies CL57-C/OL57-C; applicability to CL86-C is unconfirmed. Its p9 describes
 enabling after controlwords 6, 7 and 15. Neither statement proves the current
 boot's physical state. Actual fixture observations remain scoped to their
-specimens and sessions in [the bench guide](hardware_bench.md#actual-fixture-record).
+specimens and sessions in [the bench guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/hardware_bench.md#actual-fixture-record).
 
 ## Discovery and host binding
 
-## Slot and timeout design (prompt 37, before implementation)
+## Slot and timeout design
 
 The installed core supplies the implemented-profile inventory and pure probe
 preparation/checking. One application scan uses the existing `ProbeApp`,
@@ -51,15 +51,17 @@ preparation/checking. One application scan uses the existing `ProbeApp`,
 registry. Passive findings are bounded observations, never a second authoritative
 node or drive-state cache.
 
-The current adapter has two permanent shared node/channel slots. Before active scanning, the
+The adapter has fixed-capacity permanent shared node/channel storage, selected
+by `AdapterCapacity::SDO_CHANNELS` (default two). Before active scanning, the
 application explicitly configures each candidate route in an unused slot with
 the existing fresh-session/exclusive-server premises. It supplies actual COB-IDs
-and event routing; discovery guesses none. A scan accepts at most two already
-configured target routes. Passive-only `configureNetwork` slots also work, with
+and event routing; discovery guesses none. A scan accepts up to
+`DiscoveryPlan::CAPACITY` already configured routes; `DISCOVERY_TARGETS` defaults
+to min(channels, 2) and cannot exceed the configured channels or 28. Passive-only `configureNetwork` slots also work, with
 no SDO COB-IDs or fresh-service premise. The scan reports occupied/free slots and every target's slot,
 and refuses an unconfigured target or an oversized list before work. Even a
-successful read does not release or rebind a channel. Two absent targets can
-consume both slots; another target needs unavailable safe slot-release work,
+successful read does not release or rebind a channel. Absent targets can
+consume all configured slots; another target needs unavailable safe slot-release work,
 not a fresh adapter or host generation. This deliberate capacity limit prevents
 an apparently successful 1..127 sweep that discards uncertainty.
 
@@ -174,7 +176,7 @@ Q18, and ambiguous identities remain under Q01/Q20.
 
 ## Native demonstration and verification
 
-The [offline discovery preview](../examples/discovery_preview/README.md) uses
+The [offline discovery preview](https://github.com/janhavelka/MotorControl-CAN/blob/main/examples/discovery_preview/README.md) uses
 the same scan/owner path with fake replies and no SDK or hardware. From the root:
 
 ```sh
@@ -207,7 +209,7 @@ Every row above has **unknown restart and persistence requirements**. Standard
 interpretations are labelled **CiA 301: general vendor claim, service unconfirmed**,
 apart from the individually retained measurements. The vendor EDS gives no
 heartbeat unit. CiA 301 and the pinned stacks use milliseconds; the retained
-[node-1 experiment](reports/2026-11-02_nmt_pdo_checkpoint.md) observed about
+[node-1 experiment](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-02_nmt_pdo_checkpoint.md) observed about
 1.0008 seconds after raw 1000 and raw zero after one power cycle; both specimens
 repeated both observations on 2026-11-09 (see "Measured on the bench, 2026-11-09" below).
 That is neither a general timing range nor a save/reset or host-loss stop guarantee.
@@ -223,7 +225,7 @@ leave output unchanged. These 89 new rows remain outside DEC-1: each yielded
 upload sets `requireUploadReview`, so admission requires its exact one-use
 `authorizeUploadExperiment` grant **even on an already confirmed channel**.
 Review acceptance does not establish harmless read effects. The
-[native owner tests](../test/communication_test.cpp) are executable callers.
+[native owner tests](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/communication_test.cpp) are executable callers.
 
 For the heartbeat transition, acquire continuous owner exclusion before a fresh
 exact U16 `1017:00` upload of zero. Supply the actual CL86-C reservation, explicit
@@ -250,7 +252,7 @@ allows explicit `prepareCommunicationConfirmation` at the actual next-epoch
 target; its single U16 readback also requires a reviewed upload grant. The
 original deadline cannot be renewed. Matching raw 1000 proves stored readback,
 not active timing, persistence or sample provenance. The
-[heartbeat owner caller](../test/heartbeat_communication_test.cpp) tests this order.
+[heartbeat owner caller](https://github.com/janhavelka/MotorControl-CAN/blob/main/test/heartbeat_communication_test.cpp) tests this order.
 
 An old-route timeout preserves uncertainty and channel quarantine. A failed
 intent cannot resume or be rewritten by a later successful read. Never retry at
@@ -285,7 +287,7 @@ tuple on one fixture; they qualify none of these typed APIs.
 
 S2 fixture, both CL86-C specimens (nodes 1 and 2), the S2 bench lines `N`, `D`, `K`,
 `H`, `P` and `n`, images `757f1cd` and `627bb42`
-([round 2](reports/2026-11-09_bench_r2.md), [round 4](reports/2026-11-09_bench_r4.md)).
+([round 2](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-09_bench_r2.md), [round 4](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-09_bench_r4.md)).
 Documented: EDS `[1017]` U16, RW, default 0, no unit; the millisecond unit is CiA's.
 Measured: the items below. Qualified: nothing; restart, persistence, other values,
 the reverse transition and any host-loss reaction remain unknown.
@@ -335,8 +337,8 @@ identity on both, and selection sent nothing.
 
 These are three separate intents. The original EN86/ZH86 PDF p15 and p18,
 EDS `[2300]` and their applicability limits are recorded in
-[the object facts](audit/LICHUAN_OBJECT_FACTS.md#node-setup-electrical-facts-and-persistence-prompts-37-39-47).
-The [public example](audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) saves after zeroing;
+[the object facts](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/LICHUAN_OBJECT_FACTS.md#node-setup-electrical-facts-and-persistence-prompts-37-39-47).
+The [public example](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) saves after zeroing;
 this library keeps reference/fault actions separate from persistence.
 
 | Intent | Public path and wire effect | What success establishes |
@@ -457,7 +459,7 @@ backup/route-back facts remain separately required for a live procedure.
 
 ## Shared console requests (prompt41)
 
-[Exact command grammar and prerequisites](cli_contract.md#explicit-reviewed-commissioning)
+[Exact command grammar and prerequisites](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/cli_contract.md#explicit-reviewed-commissioning)
 now connect the existing native communication, persistence and narrow TPDO1
 contexts through `ProbeCommissioning` and the sole owner. The console does not
 construct review records, grant unqualified reads or choose another route after

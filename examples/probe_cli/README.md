@@ -2,8 +2,9 @@
 
 This ESP32-S3 example builds the same application, CAN owner, TWAI adapter and
 USB platform as the [native ESP-IDF example](../probe_idf/README.md).
-It has no command parser yet; command/schema parity belongs to prompt 42.
-The thin Arduino entry creates the shared static owner task and idles.
+The thin Arduino entry creates the shared static owner task and idles. That task
+services the shared `ProbeConsole`, including while CAN is inactive. Local
+commands are available; no startup route selects a drive or admits motion.
 
 **ESP32-S2 under Arduino is blocked** with the pinned package: its prebuilt
 `esp32s2` SDK libraries enable the UART0 console, which conflicts with the shared

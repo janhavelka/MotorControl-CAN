@@ -1,15 +1,15 @@
 # Speed, ramp and position units
 
-This guide is for application developers who command a Lichuan CL86-C (or a related 86C/57C CANopen drive) through
-this library. It explains what the drive's native units are, why whole rpm and millisecond ramps limit what you can
-ask for, what the drive was measured to deliver, and how the library's host unit layer handles it today.
+This guide describes the Lichuan C profile's documented native units, host conversion and retained CL86-C
+observations. Related 86C/57C models need their own applicability and qualification evidence. It explains whole-rpm
+and millisecond-ramp limits without treating drive-reported counts as independently measured shaft motion.
 
 Every statement carries its evidence:
 
 - **documented** with the manual page (EN86, ZH86, ZH57 are the 86C English, 86C Chinese and 57C Chinese manuals in
   [reference/vendor](reference/vendor/); pages are PDF pages) or the EDS;
-- **measured** with a report link: drive reports from two CL86-C specimens on one firmware, subdivision `2201=1000`,
-  nothing qualified;
+- **measured** with a report link: drive reports from two CL86-C specimens on one firmware, with the subdivision
+  stated for each campaign; physical observations are identified separately, and nothing is qualified;
 - **inferred**: arithmetic or reasoning, not a drive fact.
 
 The page-by-page audit behind this guide is the [units re-audit](reports/2026-11-13_units_reaudit.md).
@@ -18,14 +18,14 @@ The page-by-page audit behind this guide is the [units re-audit](reports/2026-11
 
 | Question | Answer |
 | --- | --- |
-| Speed unit | Whole motor rpm, 0..3000, for position, velocity and homing speeds (documented, EN86 p11, p13) |
-| Finer speed | None. No object takes 0.1 rpm, rps or pulses/s (documented: no such object or unit on any page or in the EDS) |
+| Speed unit | Whole rpm, 0..3000, for position, velocity and homing speeds (documented, EN86 p11, p13); the motor-shaft basis is the profile's inferred interpretation, not an explicit scale formula in those pages |
+| Finer speed | No finer-speed object or unit is documented in the retained manuals/EDS; the implemented profile uses whole rpm |
 | Ramp unit | A time in milliseconds, 0..2000, not an acceleration (documented, EN86 p11, p13) |
 | Ramp meaning | Time from rest to the commanded speed (documented as a figure only, EN86 p11; measured fits on four runs) |
-| Position unit | Command pulses, ±1,000,000; 1000 pulses per motor turn at `2201=1000` (documented range EN86 p11; scale measured) |
-| Unit conversion in the drive | None. The EDS has no CiA402 factor group (`6091`, `6092`, `608F`, `6096`, `6097`, `60A8`, `60A9`) (documented, EDS) |
-| Delivered speed | 0.992 × the command, after truncation to whole pulses per second (measured fit, cause unknown) |
-| Negative velocity | Refused without `reverseQualified`, which no record states; prompt 59's attended reverse probe sends one to measure it |
+| Position unit | Command pulses, ±1,000,000 (documented, EN86 p11); a visual quarter-turn for 250 pulses on one specimen at `2201=1000` supports an approximate scale, not a qualified precise counts/turn relation |
+| Unit conversion in the drive | No CiA402 factor objects at `6091`, `6092`, `608F`, `6096`, `6097`, `60A8` or `60A9` appear in the EDS; no configurable native conversion is established |
+| Reported position rate | `6064` rate fits 0.992 × the nominal whole-pulse rate at `2201=1000`; physical shaft speed and cause remain unmeasured |
+| Negative velocity | Ordinary admission needs `reverseQualified`, which no retained record states; the separate attended reverse probe has recorded negative feedback without qualifying physical direction |
 
 ## Native units
 
@@ -33,27 +33,27 @@ The page-by-page audit behind this guide is the [units re-audit](reports/2026-11
 | --- | --- | --- | --- | --- |
 | `607A` | Position target | Command pulses | I32, -1,000,000..+1,000,000 | documented, EN86 p11 (the figure labels the target "number of pulses") |
 | `607C` | Home offset | Not stated; pulses inferred from the shared range | I32, -1,000,000..+1,000,000 | documented range, EN86 p13 |
-| `6064` | Actual position | Command pulses: moves end exactly at their `607A` target | I32, read only | measured, [2026-11-05](reports/2026-11-05_motion_and_stress.md) |
+| `6064` | Actual position | Native observed counts; matching `607A` endpoints support a command-coordinate relation on the measured fixture | I32, read only | measured, [2026-11-05](reports/2026-11-05_motion_and_stress.md); physical scale remains separate |
 | `6081` | Position-mode speed | Whole rpm | U32, 0..3000 | documented, EN86 p11 |
 | `60FF` | Velocity-mode target | Whole rpm | U32 0..3000 in the mode table, I32 in the dictionary and EDS | documented, EN86 p13, p17; conflict Q03 |
 | `6099:01`, `6099:02` | Homing search and creep speeds | Whole rpm | U32, 0..3000 | documented, EN86 p13 (which calls `:02` "creep time (rpm)") |
 | `606C` | Actual speed | Signed rpm, read in 2 rpm steps at cruise | I32, read only | measured, [re-audit](reports/2026-11-13_units_reaudit.md) section 3 |
 | `6083`, `6084` | Acceleration and deceleration time | Milliseconds | U32, 0..2000 | documented, EN86 p11, p13 |
 | `609A` | Homing acceleration and deceleration time (one value) | Milliseconds | U32, 0..2000 | documented, EN86 p13 |
-| `2201` | Subdivision: command pulses per motor turn | Pulses per turn (inferred; 1000 measured) | U16, 0..65535 (p11) against 400..51200 (p18) | documented, EN86 p11, p18; conflict Q04 |
+| `2201` | Subdivision | Pulses per turn (inferred; approximate visual scale at 1000) | U16, 0..65535 (p11) against 400..51200 (p18) | documented range, EN86 p11, p18; conflict Q04 |
 | `2501` | Encoder resolution | Not stated; the specimens read 4000 with a 1000-line encoder | U16 | documented, EN86 p19 and p3 |
 
-The drive has no maximum-speed, polarity or quick-stop deceleration object (`6080`, `607F`, `607E`, `6085` are absent
-from the EDS). All conversion from millimetres, degrees, load turns or accelerations happens on the host.
+The EDS has no maximum-speed, polarity or quick-stop deceleration object at `6080`, `607F`, `607E` or `6085`.
+This absence establishes no undocumented firmware capability. Implemented unit conversions happen on the host;
+acceleration-to-ramp conversion remains gated below.
 
 ## The rpm problem
 
 ### Whole rpm only
 
-The drive takes speed as an integer number of motor revolutions per minute. One rpm is the smallest step, and it is a
-large relative step at low speed: at 10 rpm one step is 10 %, at 100 rpm 1 %. No other object offers a finer speed
-(documented). Speed is commanded per motor turn, whatever the mechanics behind the motor; the drive knows nothing about
-gears or screws.
+The profile interprets the integer rpm objects as motor revolutions per minute. One rpm is its smallest command step,
+which is a large relative step at low speed: at 10 rpm one step is 10 %, at 100 rpm 1 %. No finer speed or gearing/feed
+conversion is documented in the reviewed objects. Applications supply the motor/load relation explicitly.
 
 ### Worked example: 5 mm lead screw, direct drive
 
@@ -82,11 +82,11 @@ of the same 5 mm screw, 1 motor rpm = 0.00833 mm/s, so 0.1 mm/s is exactly 12 mo
 The price is top speed: 3000 motor rpm is then 25 mm/s. A finer lead works the same way (a 2 mm lead gives
 0.0333 mm/s per rpm). In general the load speed step is lead / (60 × gear ratio) mm/s (inferred arithmetic).
 
-Alternating 2 and 3 rpm to fake 2.5 rpm is not offered and not industry practice. Changing the subdivision `2201`
-does not refine the speed either: the speed objects are rpm, not pulses (documented), and whether rpm stays motor rpm
-at another subdivision is not measured.
+Alternating 2 and 3 rpm to approximate 2.5 rpm is not offered. Changing `2201` does not add fractional bits to the
+integer rpm objects. The November 13 grid below measured how reported count rates changed with subdivision;
+it did not independently measure shaft rpm at each setting.
 
-### What the drive actually delivers: the 0.992 observation
+### Reported count rate: the 0.992 observation
 
 On the bench the actual position `6064` rose more slowly than the command (measured,
 [re-audit](reports/2026-11-13_units_reaudit.md) section 3, night soak of 2026-11-11: 1,026 cruise intervals at
@@ -94,13 +94,16 @@ On the bench the actual position `6064` rose more slowly than the command (measu
 
 **`6064` rate = floor(rpm × 1000 / 60) × 0.992 counts/s** (at `2201=1000`)
 
-So two things happen, both measured and neither explained:
+The empirical fit has two parts; neither identifies an internal firmware mechanism:
 
-1. The pulse rate is truncated to whole pulses per second. At `2201=1000` that only matters when the rpm is not a
-   multiple of 3 (10 rpm is 166.67 pulses/s, delivered as 166).
-2. Everything is then 0.8 % slow.
+1. Rounding the nominal pulse rate down to whole pulses per second fits the observations. At `2201=1000`,
+   10 rpm gives 166.67 nominal pulses/s and a fitted integer factor of 166.
+2. Multiplying that factor by 0.992 fits the observed `6064` rate on these specimens.
 
-| Command (5 mm lead) | Nominal | Delivered (model) | Difference |
+The mechanical rates below are inferred from the illustrative 5 mm lead and assumed count/shaft relation;
+they are not independent travel measurements.
+
+| Command (5 mm lead) | Nominal | Inferred from count-rate model | Difference |
 | --- | --- | --- | --- |
 | 12 rpm (1 mm/s) | 200 pulses/s | 198.4 counts/s = 0.992 mm/s | -0.8 % |
 | 10 rpm (0.833 mm/s) | 166.67 pulses/s | 164.7 counts/s = 0.823 mm/s | -1.2 % |
@@ -108,16 +111,18 @@ So two things happen, both measured and neither explained:
 
 What this means for an application:
 
-- Positions are not affected: moves end exactly at their target count (measured). A move's cruise phase takes about
-  0.8 % longer than computed; a 10 s cruise lasts about 10.08 s (inferred). Do not size deadlines without margin.
-- A velocity run covers about 0.8 % less distance than rpm × time predicts (inferred).
+- The retained moves' final reported counts matched their targets. This does not prove physical positioning
+  accuracy. The count-rate model predicts about 0.8 % more cruise time for the same count displacement;
+  a nominal 10 s cruise becomes about 10.08 s (inferred). It is not a deadline guarantee.
+- A velocity run accumulates about 0.8 % fewer reported counts than nominal rpm × scale × time predicts
+  at whole nominal pulse rates. Physical distance additionally requires an independently established scale.
 - At `2201=1000`, choose rpm that are multiples of 3 when the extra truncation matters (inferred from the measured
   model).
 - The drive's clock is not the cause as far as can be seen: its heartbeat and PDO timers run within 0.04 % of the host
   clock (measured). A separate motion time base, or a difference between `2201` and the pulses the drive really uses
   per shaft turn, are not excluded. Counting shaft turns over a +100,000 pulse move would separate the two.
 - `606C` is too coarse to see this: at cruise it reads in 2 rpm steps (296, 298 or 300 at 300 rpm; 5 or 7 at 6 rpm).
-  Judge speed from the `6064` slope (measured).
+  The `6064` slope resolves reported count rate more finely; it still does not independently measure shaft speed.
 
 The library reports the speed it sent, not a corrected one, and never compensates silently: the cause is unknown and
 may differ on another firmware.
@@ -133,17 +138,18 @@ measures. The only documented speed-related failure is the position out-of-toler
 causes include "Too fast" (documented, EN86 p20).
 
 **Measured on 2026-11-13** ([bench report](reports/2026-11-13_velocity_limits_and_fault_recovery.md), two specimens,
-one firmware, velocity mode): a `2201` write takes effect at the next enable without a power cycle, and `6081`/`60FF`
-stay motor rpm at every subdivision while `6064` counts in the new pulses. Runs were clean at command pulse rates up
-to 2 MHz (2344 rpm at `2201=51200`), so there is no 200 kHz or 500 kHz limit on this drive. The limit is the motor's
-speed: FF05 from 4250 rpm on node 1 and from 4625 rpm on node 2 at `2201=1000` with 2000 ms ramps; 4000 rpm with a
+one firmware, velocity mode): after a `2201` write and the next enable, the reported `6064` rates scaled with
+the selected subdivision without a power cycle. This supports the profile's rpm interpretation but does not
+measure physical shaft speed. Runs met the report's clean-feedback criteria at nominal command pulse rates above
+2 MHz (2344 rpm at `2201=51200`); these are calculated rates, not measured internal pulses. FF05 occurred from
+4250 rpm on node 1 and from 4625 rpm on node 2 at `2201=1000` with 2000 ms ramps; 4000 rpm with a
 200 ms ramp faults on both. Only at `2201=51200` did it fall: node 2 was clean to 3000 rpm (2.56 MHz) and faulted
-at 3200 rpm (2.73 MHz), node 1 between 2344 and 3516 rpm, so about 2.6 to 2.7 MHz of command pulses on both (a
-pulse-rate ceiling or the deviation threshold `250A`, which in pulses is about 28° there; not established). After an
+at 3200 rpm (2.73 MHz); node 1's wider interval was between 2344 and 3516 rpm. A pulse-rate ceiling and an effect of
+the deviation threshold remain competing hypotheses, not established causes. After an
 FF05 at 51200 both drives faulted at every later enable until a power cycle
-([enable-fault report](reports/2026-11-13_enable_fault_state.md)); keep `rpm × 2201 / 60` below about 2.5 MHz. A
-`2201` written without a save does not survive a power cycle: node 2, written to 51200 at 16:23Z, read 1000 after the
-power cycle at 17:38Z.
+([enable-fault report](reports/2026-11-13_enable_fault_state.md)). These trials establish no safe pulse-rate ceiling
+or causal motor-speed limit. In one unsaved-setting observation, node 2, written to 51200 at 16:23Z, read 1000 after
+the power cycle at 17:38Z; that single observation is not a general persistence guarantee.
 
 ## The ramp-time problem
 
@@ -202,12 +208,13 @@ stop distances).
 
 ## Positions
 
-`607A` is in command pulses (documented). At `2201=1000`, 1000 pulses are one motor turn (measured on node 1 as a
-quarter turn for 250 pulses), so the ±1,000,000 range is ±1000 motor turns; at `2201=51200` it would be about
-±19.5 turns (inferred). With the 5 mm screw one pulse is 0.005 mm at `2201=1000`. The library converts steps, full
+`607A` is in command pulses (documented). At `2201=1000`, node 1's visually observed quarter turn for 250 pulses
+supports approximately 1000 pulses/turn; it cannot resolve the 0.8 % scale question. Under that assumed relation,
+the ±1,000,000 range is ±1000 motor turns; at `2201=51200` it would be about ±19.5 turns (inferred).
+With the illustrative 5 mm screw one pulse would be 0.005 mm at `2201=1000`. The library converts steps, full
 steps, encoder counts, turns, degrees, radians and millimetres to pulses exactly, with a stated rounding
-([units and status](units_status.md), [axis contract](axis_contract.md)). Positions do not suffer the speed
-truncation: a move ends exactly at its pulse target (measured).
+([units and status](units_status.md), [axis contract](axis_contract.md)). The retained moves ended at their reported
+pulse targets; physical positioning accuracy remains independently unqualified.
 
 ## Sign of velocity
 
@@ -216,9 +223,10 @@ EN86 p13 and p17; conflict Q03). No page mentions a negative speed. `606C` alrea
 turns backwards (measured, -60 during a -60 rpm position move), and a positive `60FF` turns the shaft
 counter-clockwise seen from the shaft end with `2200=0` (measured, [round 7](reports/2026-11-10_bench_r7.md)). Today
 the library refuses a negative velocity unless a record states `reverseQualified`, which no record does
-([velocity](velocity.md)). Position moves take a positive speed; the direction comes from the target. Prompt 59
-measures a negative `60FF` and, if it runs in reverse at the commanded magnitude, opens signed velocity. Its
-instrument is the attended experiment's reverse probe (`VelocityEvidence::reverseProbe`, bench `--reverse`): the
+([velocity](velocity.md)). Position moves take a positive speed; the direction comes from the target. The
+[November 13 reverse trials](reports/2026-11-13_velocity_limits_and_fault_recovery.md) recorded negative `606C`
+feedback, but shaft direction was not observed and `reverseQualified` remains false. The attended experiment's
+reverse probe (`VelocityEvidence::reverseProbe`, bench `--reverse`) supplies the separate experimental path: the
 rate goes out as the two's complement I32 (-6 is `FA FF FF FF`), and a `606C` against the command by more than
 2 rpm ends the run with its stop; the probe qualifies nothing ([velocity](velocity.md)).
 
@@ -236,9 +244,11 @@ Speeds go through the common host layer, then the profile checks the native obje
    `maximumQuantizationError` in the destination unit, here rpm.
 3. `prepareVelocityTarget` converts exactly and quantizes once. `PreparedVelocityTarget::effectiveNative` is the
    integer rpm that will be sent and `quantization` the exact error (effective minus requested).
-4. The Lichuan move, velocity and homing operations refuse anything that is not integer motor rpm in 1..3000
+4. Ordinary Lichuan move, velocity and homing operations require integer motor-rpm magnitudes in 1..3000
    (`checkSpeed` in `src/profiles/lichuan_c/Position.cpp`, the velocity and homing equivalents in `Velocity.cpp` and
-   `Homing.cpp`), and velocity adds the sign and record gates.
+   `Homing.cpp`), and velocity adds the sign and record gates. The separate attended velocity range probe can
+   raise its experimental cap to 6000 rpm; the reverse probe permits explicitly reviewed negative experiments.
+   Neither expands qualified support or changes ordinary admission.
 
 ```cpp
 using namespace MotorControlCAN;

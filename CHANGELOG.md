@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Public descriptor and package documentation
+
+- Remove `LICHUAN_C::ObjectDescriptor.ownerPrompt`. Development ownership remains
+  in the reviewed ledger. Remove field access and its positional argument from
+  handwritten aggregates, and rebuild the library and consumers together; public
+  structure layout/source compatibility changes even if padding masks a size change.
+- Keep object values/access/gates unchanged. Generated public comments describe
+  operation semantics rather than prompt numbers.
+- Add a self-contained README consumer checked against the exported/relocated
+  package, and complete the native read/move example with an explicit simulated
+  stop. Exported guides now link excluded repository material through repository
+  URLs; archive links and README snippets are verified during package checks.
+- Correct stale capacity, platform, profile and speed/physical-evidence claims.
+  Candidate documentation keeps firmware and physical qualification gates explicit.
+
 ### Failure and load evidence (prompt48, 2026-11-15)
 
 - Require settled soak endings and complete final measurements in the offline
@@ -125,7 +140,7 @@
   deterministic report ZIP. Scenario-owned cleanup is a separate planned
   operation; failed or uncertain primary work remains failed even after cleanup.
   There is no reconnect, command replay or automatic save/restore. See
-  [the runner guide](docs/runners.md) and [scenario catalogue](docs/bench_scenarios.md).
+  [the runner guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/runners.md) and [scenario catalogue](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench_scenarios.md).
   Campaign hardware qualification remains pending.
 
 ### Disable voltage from a switched-on drive (backlog S21, 2026-11-13)
@@ -168,7 +183,7 @@
 - **Behavior change.** `prepareClearAlarm` and `AxisSession::requestClearAlarm` now default to
   `AlarmClearMethod::CONTROLWORD_BIT7` (`2B 40 60 00 80 00 00 00`, then `2B 40 60 00 00 00 00 00`)
   instead of `OBJECT_2301`, on the user's decision "Alarm clear - pick the best method" and the bench
-  evidence of the same day ([report](docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md)):
+  evidence of the same day ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-13_velocity_limits_and_fault_recovery.md)):
   on two CL86-C specimens of one firmware, `FF05` in mode 3 only, the controlword reset cleared the alarm
   and left the drive released (`6041=8050`, `2100=0011`) 11 of 11 times, while `2301` cleared it 8 of 9
   times but left `6041=8010`, `2100=0001`, which only a following `6040` = `0x0080` released, and once
@@ -177,7 +192,7 @@
   no options, and `ProbeMotion::requestAlarmClear` follow the new default; the S2 `clear-alarm` route
   still names its method. Under the default the acknowledged reset words become the session's latest
   controlword, ending at `0x0000`, which is no stop predecessor. Mode 1 clears, other alarms, firmwares
-  and models stay unmeasured for either method ([fault clearing](docs/fault_reference_actions.md#two-reset-methods)).
+  and models stay unmeasured for either method ([fault clearing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md#two-reset-methods)).
 
 ### S2 controlword experiment route, protocol 11 (2026-11-13)
 
@@ -192,7 +207,7 @@
   `scripts/s2_bench.py --command controlword --word ...` prints an ALERT to use the cutoff and exits 4.
   Motion class, as every 6040 write. `TRIAL_CONTROLWORD` and `TRIAL_CONTROLWORD_CYCLE` are new record lines
   that `scripts/s2_evidence.py` parses and checks against the record. Nothing has been measured with it yet
-  ([fault clearing](docs/fault_reference_actions.md#completion-measured-2026-11-13)).
+  ([fault clearing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md#completion-measured-2026-11-13)).
 
 ### Two alarm reset methods, the measured mode 3 completion and NMT reset experiments (2026-11-13)
 
@@ -211,7 +226,7 @@
   bits, running with the alarm clear or a mode change end it, and an alarm still reported keeps it
   polling. Running beside a cleared alarm, which the earlier rule accepted after a latched
   admission, now ends it. Mode 1 is unchanged. What `8010` beside `0001` means for torque is not
-  established. See [fault clearing](docs/fault_reference_actions.md#completion-measured-2026-11-13).
+  established. See [fault clearing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md#completion-measured-2026-11-13).
 - S2 bench route protocol 10: the `clear-alarm` line ends in its method (`1` `2301`, `2`
   controlword); `scripts/s2_bench.py --method 2301|controlword` is required for it, and
   request.json and the send entry hold `clear_method`. `TRIAL_PLAN` gains `method=`, `TRIAL_CLEAR`
@@ -232,7 +247,7 @@
   (`incident.modeRaw`); mode 3 cycles must keep the release. Writes are unchanged (`2301` 1,
   then 0), with no enable, controlword or mode write. Mode 1 is unchanged.
 - The S2 `clear-alarm` route's read adds FEEDBACK, two more terminals; the line and protocol 9
-  are unchanged. See [fault clearing](docs/fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13).
+  are unchanged. See [fault clearing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md#mode-3-admission-project-policy-2026-11-13).
 
 ### Velocity range probe and subdivision setting (prompt 59 preparation, 2026-11-13)
 
@@ -355,11 +370,11 @@
 
 ### Bench round 12 on `e935f67`: repeatability on powered drives (2026-11-10)
 
-- Four series, both nodes, 6, 30 and 60 rpm: three cycles each of an absolute move to +A and a relative move by -2A, between re-enables from the previous quick stop's release. All 23 completed arrivals landed exactly on target in counts, absolute and relative alike, with no drift; re-energize pulls 0 to -4 counts. `606C` read 5 to 7 while moving at a commanded 6 rpm. Persistence (prompt 39) was not tested: save and factory restore are outside this campaign's authorization. [Report](docs/reports/2026-11-10_bench_r12.md).
+- Four series, both nodes, 6, 30 and 60 rpm: three cycles each of an absolute move to +A and a relative move by -2A, between re-enables from the previous quick stop's release. All 23 completed arrivals landed exactly on target in counts, absolute and relative alike, with no drift; re-energize pulls 0 to -4 counts. `606C` read 5 to 7 while moving at a commanded 6 rpm. Persistence (prompt 39) was not tested: save and factory restore are outside this campaign's authorization. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r12.md).
 
 ### Bench round 11 on `e935f67`: no resume after a re-enable, negative moves on both nodes (2026-11-10)
 
-- Measured, drives powered, no power cycle: a re-enable from the latched release a moving quick stop left did **not** resume the interrupted move (node 1, 2201 to 2203: still at -2020 10 s later); the latch cleared at word 7 on both nodes with a -3 count pull. Negative relative (-3000, -4000 at 60 rpm) and absolute (-6000 at 45, -1000 at 60 rpm over 30,740 counts) moves completed exactly; HALT and quick stop while moving negative completed on both nodes with nearly identical counts; a rearm after a HALT did not resume (node 2, 2228). [Report](docs/reports/2026-11-10_bench_r11.md).
+- Measured, drives powered, no power cycle: a re-enable from the latched release a moving quick stop left did **not** resume the interrupted move (node 1, 2201 to 2203: still at -2020 10 s later); the latch cleared at word 7 on both nodes with a -3 count pull. Negative relative (-3000, -4000 at 60 rpm) and absolute (-6000 at 45, -1000 at 60 rpm over 30,740 counts) moves completed exactly; HALT and quick stop while moving negative completed on both nodes with nearly identical counts; a rearm after a HALT did not resume (node 2, 2228). [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r11.md).
 
 ### Recorded-stop enable from the latched release; the route's own stop after word 15 (2026-11-10)
 
@@ -381,7 +396,7 @@
 
 ### Bench round 10 on `b3994b9`: negative position moves on powered drives (2026-11-10)
 
-- Node 1, no power cycle: the released 3-to-1 mode change and the recorded-stop enable worked (re-energize pull +1 count); relative -2000 at 30 rpm `SUCCEEDED`, absolute -1000 at 60 rpm exact, HALT and quick stop while moving negative completed, and a rearm after the HALT did not resume the target (as on node 2). `606C` read -30 and -60 while moving negative (signed); the rate factor is 0.992 in both directions. Negative velocity stays excluded. [Report](docs/reports/2026-11-10_bench_r10.md).
+- Node 1, no power cycle: the released 3-to-1 mode change and the recorded-stop enable worked (re-energize pull +1 count); relative -2000 at 30 rpm `SUCCEEDED`, absolute -1000 at 60 rpm exact, HALT and quick stop while moving negative completed, and a rearm after the HALT did not resume the target (as on node 2). `606C` read -30 and -60 while moving negative (signed); the rate factor is 0.992 in both directions. Negative velocity stays excluded. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r10.md).
 
 ### Mode 1 again on powered drives: released 3-to-1 change and a recorded-stop enable start (2026-11-10)
 
@@ -395,7 +410,7 @@
 
 ### Bench chain on `cb7941c` and `17df4a4` (2026-11-10)
 
-- Velocity runs without power cycles on powered drives, one MCU boot per cycle: after the S18 changes, four runs in a row ending with a quick stop `SUCCEEDED` from the latched release on both nodes at 6, 15, 30 and 60 rpm. Measured: word 7 clears the latched running bit in mode 3 and re-energizing pulls the rotor to the drive's internal command (+12 to −6 counts, 0 after a power-up); a best-effort `000B` from the halted state released the drive; the rate is 0.992 times the command at every rate from 6 to 60 rpm. [Report](docs/reports/2026-11-10_bench_r9.md).
+- Velocity runs without power cycles on powered drives, one MCU boot per cycle: after the S18 changes, four runs in a row ending with a quick stop `SUCCEEDED` from the latched release on both nodes at 6, 15, 30 and 60 rpm. Measured: word 7 clears the latched running bit in mode 3 and re-energizing pulls the rotor to the drive's internal command (+12 to −6 counts, 0 after a power-up); a best-effort `000B` from the halted state released the drive; the rate is 0.992 times the command at every rate from 6 to 60 rpm. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r9.md).
 
 ### Quick stop in mode 3, latched-release start, halted-state experiment stop (backlog S18, 2026-11-10)
 
@@ -409,11 +424,11 @@
 
 ### Bench rounds 8 and 9 on `a3c5fa4` (2026-11-10)
 
-- Velocity at 30 and 60 rpm on both nodes, each ended by HALT on one node and by quick stop on the other. The enable report came in the same window cycle at every rate (+0.728 s); `6064` rose 0.992 times the commanded rate at 6, 30 and 60 rpm alike. HALT in mode 3: halted in place 4.04 s later, still enabled, 60 and 121 counts of travel; both HALT runs `SUCCEEDED`. Quick stop in mode 3, first measured: released with running latched 28 ms later, under about 10 ms of travel; the runs end `OBSERVATION_SCOPE` by the library's design (backlog S18). The enables' shaft basis was read from the drive's power-up report at the user's request, not felt. [Report](docs/reports/2026-11-10_bench_r8.md).
+- Velocity at 30 and 60 rpm on both nodes, each ended by HALT on one node and by quick stop on the other. The enable report came in the same window cycle at every rate (+0.728 s); `6064` rose 0.992 times the commanded rate at 6, 30 and 60 rpm alike. HALT in mode 3: halted in place 4.04 s later, still enabled, 60 and 121 counts of travel; both HALT runs `SUCCEEDED`. Quick stop in mode 3, first measured: released with running latched 28 ms later, under about 10 ms of travel; the runs end `OBSERVATION_SCOPE` by the library's design (backlog S18). The enables' shaft basis was read from the drive's power-up report at the user's request, not felt. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r8.md).
 
 ### Bench round 7 on `a3c5fa4` (2026-11-10)
 
-- S17 measured and the first complete velocity runs: on both nodes the mode 3 enable report came between 0.378 s and 0.728 s after word 15's acknowledgement; both ran at about 99 counts/s (5.95 rpm at 1000 counts per turn; `606C` read 5), counter-clockwise viewed facing the shaft end as the attendant watched, and both stopped with their own HALT at 1131 counts, reported halted (`9437`/`0001`). Node 2's run `SUCCEEDED` with no uncertainty; node 1's ended `DEADLINE` because its plan's 5000 ms interval left its stop one observation (procedure corrected to 4000/17000). The attendant described node 2 as "faster and quite sketchy" (not interpreted). [Report](docs/reports/2026-11-10_bench_r7.md).
+- S17 measured and the first complete velocity runs: on both nodes the mode 3 enable report came between 0.378 s and 0.728 s after word 15's acknowledgement; both ran at about 99 counts/s (5.95 rpm at 1000 counts per turn; `606C` read 5), counter-clockwise viewed facing the shaft end as the attendant watched, and both stopped with their own HALT at 1131 counts, reported halted (`9437`/`0001`). Node 2's run `SUCCEEDED` with no uncertainty; node 1's ended `DEADLINE` because its plan's 5000 ms interval left its stop one observation (procedure corrected to 4000/17000). The attendant described node 2 as "faster and quite sketchy" (not interpreted). [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-10_bench_r7.md).
 
 ### Final-enable report window for the attended velocity experiment (backlog S17, 2026-11-09)
 
@@ -423,7 +438,7 @@
 
 ### Bench round 6 on `faffa22` (2026-11-09)
 
-- S15 and S16 checked on hardware in one boot. S15: `K1` refused `reserved` after two history routes, `close-sessions` sent nothing (`tx` unchanged), then `K1` admitted with all 95 grants, and homing after `K` read all 29 objects before its intended `code=1 detail=3`. S16: node 1's velocity start again ended unconfirmed one cycle after word 15 (`8033`), and the run's own HALT left 58 ms after word 15; later reads found the drive enabled, halted and stationary. `1003:00=0` on both nodes with both fault LEDs reported off. The shaft was not watched during the velocity check. [Report](docs/reports/2026-11-09_bench_r6.md).
+- S15 and S16 checked on hardware in one boot. S15: `K1` refused `reserved` after two history routes, `close-sessions` sent nothing (`tx` unchanged), then `K1` admitted with all 95 grants, and homing after `K` read all 29 objects before its intended `code=1 detail=3`. S16: node 1's velocity start again ended unconfirmed one cycle after word 15 (`8033`), and the run's own HALT left 58 ms after word 15; later reads found the drive enabled, halted and stationary. `1003:00=0` on both nodes with both fault LEDs reported off. The shaft was not watched during the velocity check. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-09_bench_r6.md).
 
 ### Velocity stop after an unconfirmed final enable (backlog S16, 2026-11-09)
 
@@ -457,7 +472,7 @@
 
 ### Attended bench round on `627bb42` (2026-11-09)
 
-- After a drive power cycle: heartbeat commissioning `1017` 0 to 1000 succeeded on both nodes with migration, readback and publication (S14 fixed on hardware); homing refused at its CLOSED gate after an enable on both nodes, zero downloads; a quick stop interrupted node 1's moving relative move from `005F` and released it at 259 with node 2 observed stationary; node 2's first production relative move with its own record 830 ended at exactly +200. Packet 8 complete. [Report](docs/reports/2026-11-09_bench_r4.md).
+- After a drive power cycle: heartbeat commissioning `1017` 0 to 1000 succeeded on both nodes with migration, readback and publication (S14 fixed on hardware); homing refused at its CLOSED gate after an enable on both nodes, zero downloads; a quick stop interrupted node 1's moving relative move from `005F` and released it at 259 with node 2 observed stationary; node 2's first production relative move with its own record 830 ended at exactly +200. Packet 8 complete. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-09_bench_r4.md).
 
 ### Heartbeat commissioning migration fix (backlog S14, 2026-11-09)
 
@@ -468,7 +483,7 @@
 ### Bench round on `757f1cd`, unattended (2026-11-09)
 
 - On hardware: the heap fix reserved all five blocks at boot and admitted both nodes' routes; discovery (passive, probe, identity, selection) and the 95 typed communication reads ran on both nodes; the homing admission reads ran and the library refused before any write; `6060=3` was accepted on released node 2.
-- Found: the heartbeat commissioning's write is acknowledged and takes effect, but the owner refuses the epoch migration, so the record ends uncertain (backlog S14); route sessions and grant draws impose an ordering within one MCU boot (S15). The drives had not been power-cycled, so nothing was enabled or moved. [Report](docs/reports/2026-11-09_bench_r2.md).
+- Found: the heartbeat commissioning's write is acknowledged and takes effect, but the owner refuses the epoch migration, so the record ends uncertain (backlog S14); route sessions and grant draws impose an ordering within one MCU boot (S15). The drives had not been power-cycled, so nothing was enabled or moved. [Report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-09_bench_r2.md).
 
 ### S2 bench integration of prompts 35-38, and the heap fix (2026-11-09)
 
@@ -476,7 +491,7 @@
 - Line commands (PONG `pdo=4`): `D<o|p|i>,<seconds>,<select>,<expect>` runs the prompt 37 `DiscoveryScan` over both configured nodes through the firmware's own app and owner, then the requested host selection, which sends nothing; `K<node>` reads all eighteen prompt 38 typed communication groups (95 uploads, one reviewed grant each, no write); `H<node>,1000` runs the guarded `1017:00` raw 0 to raw 1000 commissioning with exact baseline, epoch migration and readback, refused before anything is sent unless the node has ordinary service evidence (the owner's configuration migration needs it; an undocumented precondition recorded for the library).
 - Routes (PONG `routes=6`): `mode3` (`TN`), one `6060=3` only on a drive reporting itself released and stationary in mode 0 or 1 on two fresh reads; `velocity` (`TV`), the library's finite velocity run from released mode 3 through `AxisSession::requestVelocity`, whose evidence comes only from the host line as an experiment scope; `home` (`TO`), the reads `requestHome` consumes and its refusal before any write with a CLOSED gate.
 - `s2_pdo.py` gates `D`/`K`/`H` on `pdo=4`, holds and releases their records and checks their terminals; `s2_bench.py` speaks `routes=6`, checks the library's velocity minima before sending, and accepts `--relayed-power-up-shaft FREE|HOLDING` with `--relayed-shaft-source TEXT` for an enable under `--unattended-waiver`: an observation the user made and reported, stored as relayed, never inferred from the drive.
-- Tests: `discovery_bench`, `communication_bench`, `bench_heap`, extended `bench_route` (mode3, velocity, home), runner and grammar tests; 31 mutants killed across both parts. Procedures: [velocity and homing](docs/reports/bench_closure_18_33/velocity_homing_procedure.md); plans for D/K/H in `docs/hardware_bench.md`.
+- Tests: `discovery_bench`, `communication_bench`, `bench_heap`, extended `bench_route` (mode3, velocity, home), runner and grammar tests; 31 mutants killed across both parts. Procedures: [velocity and homing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/velocity_homing_procedure.md); plans for D/K/H in `docs/hardware_bench.md`.
 
 ### Packet 8 bench campaign (2026-11-09)
 
@@ -533,7 +548,7 @@
 
 - `scripts/s2_bench.py` refuses a `move` line whose `--deadline-ms` is 4550 or less before anything is sent or counted, and `--dry-run` prints it. The library refuses such a deadline (13 services at the routes' 100 + 250 ms budgets) only after the firmware has counted the line and its planned stop.
 - New host regressions, no library change: a relative trigger whose reply is lost, then a stop; HALT and quick stop from an acknowledged `005F` beside a node that is only read; a counter zero after a completed relative move (`move_relative_test`); packet 8's planned boot replayed through the real routes (`bench_route_test` `testPacket8Plan`). The move rig's fake now zeroes `6064` on `2302` `0`, `1`, as trial 323 reported once.
-- Runnable, dry-run-checked procedure for the attended motion cases: [packet 8 procedure](docs/reports/bench_closure_18_33/packet_8_procedure.md). Nothing was run on the bench.
+- Runnable, dry-run-checked procedure for the attended motion cases: [packet 8 procedure](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_8_procedure.md). Nothing was run on the bench.
 
 ### Packet 3 smoke check passed (2026-11-07)
 
@@ -572,7 +587,7 @@
 - Bench firmware: `C<capture>,<seconds>,<frames>` starts one bounded receive capture (`SilentCapture`, 1..600 s, 1..128 stored frames); `C0` ends it early. Entry is refused unless the controller runs, nothing ordinary, urgent or NMT is queued or active, and every configured slot, the NMT handoff and the tap prove local TX retirement; unknown retirement refuses. The tap's new transmit gate (`SoakTwaiTap::closeTransmit`) then refuses every submission before the SDK as proved unsent, and only then is GPIO18 requested high. At the end the copies stop, S18 is requested low, and the gate opens only once the owner is idle and retired again; a controller fault or a refused GPIO request keeps it closed for the boot. Records `CAP_REC`, `CAP_TIME`, `CAP_LEVEL`, `CAP_CTRL`, `CAP_OWNER`, `CAP_IMAGE`, `CAP_F`, `END capture`, released with `r`. PONG reports `pdo=3` and `capture`; response buffers are 320 bytes; every GPIO18 request goes through `espSilentPin`.
 - The controller stays in normal mode: the pinned SDK fixes listen-only at node creation, and the S2 bench build lacks its listen-only errata workaround (SDK evidence; two Kconfig sources added to `twai_sources.json`). A capture shows what the software refused and received, not that the S2 sent no ACK or error flag; physical silence needs an independent observer.
 - `s2_pdo.py` runs `C` lines only on `pdo=3` images, holds the capture record until its own release line, checks its terminal, sends only `C0` when a plan stops while capturing, refuses `capture=1` images and lists captures per identifier in `analyze`; `s2_evidence.py` has a grammar row for every capture line.
-- Tests: `silent_capture` (32 scenarios, including a systematic refused-send-path group), the `pdo_command` capture lines, runner and firmware-text fit tests; 16 mutants killed. Smoke on image `1805a77`: a 10 s capture stored 20 heartbeats with nothing submitted, TEC/REC 0, the gate reopened and a following identity read succeeded. [Packet 4 record](docs/reports/bench_closure_18_33/packet_4.md).
+- Tests: `silent_capture` (32 scenarios, including a systematic refused-send-path group), the `pdo_command` capture lines, runner and firmware-text fit tests; 16 mutants killed. Smoke on image `1805a77`: a 10 s capture stored 20 heartbeats with nothing submitted, TEC/REC 0, the gate reopened and a following identity read succeeded. [Packet 4 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_4.md).
 
 ### Fix: firmware checker with an SDK inside the checkout (2026-11-06)
 
@@ -592,7 +607,7 @@
 - `examples/pdo_configuration_preview`: an offline native caller of `EVENT_TIMER` (raw 0 to 100 on node 2) using retained bench replies, with two refusals before any write. Built and run in the test tree and the relocated-install consumer.
 - Bench firmware: `E<node>,<0|100>`, a `PDO_CONFIG admitted node= raw=` line, new PDO record fields (`node`, `transition`, `raw`, `lastStep`, `effectStep`, `failedStep`), PONG `pdo=2`. `PdoExperiment::beginWithServiceAge` restores the node's age policy when `m` or `E` is refused. Not yet flashed.
 - Fix: after the configuration epoch advances, the harness withdraws the node's own TPDO1 route again (at its installed or an earlier epoch) and reads back strictly later, so a confirmed readback can be installed with `configurePdo`. Before, it never could, for the map experiment too.
-- `s2_pdo.py` checks `E` terminals and refuses `E` on `pdo=1` images. [Packet 7 record](docs/reports/bench_closure_18_33/packet_7.md).
+- `s2_pdo.py` checks `E` terminals and refuses `E` on `pdo=1` images. [Packet 7 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_7.md).
 
 ### Bench continuation packet 3: shared S2 firmware build and startup (2026-11-06)
 
@@ -603,14 +618,14 @@
 - Builds: `check_firmware.py --target idf-s2` (shared S2 compile fixture, 4 MB DIO) and `idf-s2-optak` (`sdkconfig.optak_s2`: TX17, RX16, silent GPIO18 at level 1, 1 Mbit/s, plus the test-only smoke hook) join `all` and the IDF CI job. `--target arduino-s2` (PlatformIO `probe_cli_s2_compile`; `probe_cli_s2` for a board) reports `blocked`: the pinned Arduino esp32s2 libraries enable the UART0 console, which the S2 platform's exclusive-UART0 guard refuses; it is not part of `all`. Every gate now refuses any checkout source it did not expect and checks its target, cross compiler and reviewed resolved `sdkconfig` values, where a disabled option must appear as `is not set`; the `s2` and `component` gates gained these checks and `idf` asserts 8 MB flash.
 - Test-only `FirmwareSmoke` (`CONFIG_MOTORCONTROLCAN_SMOKE_HOOK`): once per boot it prints `SMOKE ready <identity>` while passive; one `G` then starts the controller and runs one typed identity read on each of two nodes, and nothing more. The controller stays started at the normal level after `SMOKE done` until reset.
 - Tools: `s2_flash.py --app probe-idf-optak-smoke` builds and checks the shared OPTAK smoke image before any write (the default bench image is unchanged); `scripts/s2_smoke.py` checks the passive boot and the ready line's identity against the upload record before sending its one `G` (`s2_smoke_contract`).
-- Tests: `firmware_probe` (target pin policy, silent-input order and failures, owner invalidation on every closing path, unretired starts, smoke failures and console pressure), `esp_s2_probe_platform` (`espSilentPin`), `firmware_build_contract`. Host fakes and compile/link only; nothing in this entry ran on hardware. [Packet 3 record](docs/reports/bench_closure_18_33/packet_3.md).
+- Tests: `firmware_probe` (target pin policy, silent-input order and failures, owner invalidation on every closing path, unretired starts, smoke failures and console pressure), `esp_s2_probe_platform` (`espSilentPin`), `firmware_build_contract`. Host fakes and compile/link only; nothing in this entry ran on hardware. [Packet 3 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_3.md).
 
 ### Bench continuation packet 5, part 2: comparison tool, reproduction and soak fix (2026-11-06)
 
 - `scripts/s2_uart_compare.py`: offline comparison of an independent capture of the S2's UART TX (GPIO43) with the host's `rx.bin`, in one documented raw format with optional times CSV. It reports the first defensible divergence, deletions, insertions, replacements, reorders, missing tails and corrupt lines, and returns ambiguity or `unalignable` rather than a fabricated location. Input size, line count and time rows are bounded. Registered as `s2_uart_compare_contract`.
 - Reproduction on image `e8b449d`, 20 min each, nothing changed but the read interval: at 200 ms no line was lost and every window balanced; at 20 ms 31 lines were lost and 23 windows came up 16 to 64 bytes short (1312 bytes), none long. Every missing byte had been accepted by the UART FIFO, so the loss is after `uart_tx_chars`: line, bridge, USB or host driver, not yet separated. Every CAN read succeeded in both runs.
 - Bench soak fix: observation copies queued before `Soak::begin` (heartbeats, boot-ups, EMCYs from between soaks) are drained and counted as `SOAK_BEGIN stale=` (optional in the grammar), never measured as a heartbeat gap or reported as an event of the new soak. Found when a soak begun 40 s after the last one reported 38 to 39 s first heartbeat gaps. Not yet flashed.
-- [Packet 5 record](docs/reports/bench_closure_18_33/packet_5.md); backlog H04 and a correction table in the 2026-11-05 stress report.
+- [Packet 5 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_5.md); backlog H04 and a correction table in the 2026-11-05 stress report.
 
 ### Bench continuation packet 2: position admission and regression gaps (2026-11-06)
 
@@ -619,7 +634,7 @@
 - `AxisSession::faultBlocked()`: once a move or an enable is withdrawn for a drive fault, `requestMove`, `requestMoveRelative`, `requestEnable` and `requestCounterZero` are refused for that session object's life; a stop and `requestClearAlarm` stay admissible, and a clear's success does not lift it.
 - S2 bench: `BenchRoute`'s transmit hook passes the route's EMCY policy (a nonzero code is a fault) per node.
 - Tests: two-node urgent stops beside queued, adapter-held and handed-off work; faults through real observation cycles and copied EMCYs at rearm; COMMANDED-basis contract tests (`move_commanded`); trial 706 replayed. The RS common-intent vectors are retained with their source revision and blob IDs, and an optional producer (`scripts/rs_move_vectors.py`) checks them. The test fake's `000B` from idle gives the captured `8050`/`0050`.
-- [Packet 2 record](docs/reports/bench_closure_18_33/packet_2.md).
+- [Packet 2 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_2.md).
 
 ### Bench continuation packet 5, part 1: console byte accounting (2026-11-06)
 
@@ -631,14 +646,14 @@
 
 - `scripts/s2_pdo.py`: the terminal check now follows the command letter, and every checked command (`N`, `R`, `W`, `h`, `j`, `3`, `4`) must name its exact admission and end lines, so a plan's expect text cannot loosen it. `q`, `w` and `m` are no longer offered in plans. A step may carry `require`, fail-closed predicates on the latest parsed record (for example a `NETWORK` state or a `RESULT` value), checked before it is sent. Sessions record the SHA-256 of the runner and parser and a tracked-files-only dirty state.
 - Bench firmware: the NMT result line prints its admission time (`admitted=`, optional in the grammar), and `s2_pdo.py analyze` counts frames received between admission and TX completion as ambiguous. Not yet flashed.
-- The [PDO stream report](docs/reports/2026-11-06_pdo_stream.md), device conflicts Q17/Q18 and backlog D15 are narrowed to the measured bounds after an independent review; the ledger's Q17 records the 2026-11-06 observations, regenerated; the [packet 6 record](docs/reports/bench_closure_18_33/packet_6.md) lists the deviations and holds the transition record for packet 7.
+- The [PDO stream report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-06_pdo_stream.md), device conflicts Q17/Q18 and backlog D15 are narrowed to the measured bounds after an independent review; the ledger's Q17 records the 2026-11-06 observations, regenerated; the [packet 6 record](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_6.md) lists the deviations and holds the transition record for packet 7.
 
 ### Bench continuation packet 1: measured contracts reconciled (2026-11-06)
 
 - **Behavior fix, `QUICK_STOP` standstill rule:** the rule completed on one cycle with `606C` zero after any cycle with `6064` unchanged, whatever that earlier cycle's `606C` was, although `Actions.h`, the stop guide and the 2026-11-04 entry below say two cycles in a row with `606C` zero. Both cycles must now read zero. Test `capturedQuickStopsDuringMoves` replays trials 713 (node 2, `2920479`) and 413 (node 1, `e7f28ac`) from their captures, which complete at their third cycle either way, and a `606C` pair {5, 0} at an unchanged `6064`, which completed early without the fix.
 - **Bench runner:** the enable's power-up shaft question now offers `UNOBSERVED`, which refuses the enable before anything is sent. On 2026-11-05 (trials 704, 712) `HOLDING` was typed into that field from the drives' start reports with nobody at the shaft, and on 2026-11-03 (trial 108) it was relayed with no observation of that power-up; each passed the library guard that exists for that observation, and a `NOTE.txt` beside each trial records it. Retained records are unchanged.
 - Correction to the 2026-11-03 entry below: "after this quick stop the drive holds no torque" rests on drive reports (`2100` released, `6041` low bits `000`); torque was not observed in those unattended trials.
-- Maintained summaries, guides and Doxygen comments now match the retained records of 2026-11-03 to 2026-11-05: the `2202` writes, the `60FE` readback, the enables and moves that ran, and stop claims narrowed to the tested modes, predecessors, rates and specimens. Historical reports carry dated corrections ([packet 1](docs/reports/bench_closure_18_33/packet_1.md)).
+- Maintained summaries, guides and Doxygen comments now match the retained records of 2026-11-03 to 2026-11-05: the `2202` writes, the `60FE` readback, the enables and moves that ran, and stop claims narrowed to the tested modes, predecessors, rates and specimens. Historical reports carry dated corrections ([packet 1](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/bench_closure_18_33/packet_1.md)).
 
 ### Bench continuation prompts for remaining 18-33 scope (2026-11-06)
 
@@ -650,13 +665,13 @@
 - The S2 bench firmware takes four console lines (`examples/s2_bench/PdoCommand.h`): `N<node>,<o|p|s>` sends one addressed NMT Start, Enter Pre-operational or Stop through `CanBusOwner::admitNmt`; `P<seconds>` watches received frames for up to 600 s and `P0` ends the watch; `R<node>,<t|r>,<set>` reads one PDO set's communication and mapping records; `W<node>,<set>,<sub>,<baseline>,<value>` changes one TPDO communication entry after an exact read equal to the baseline, then reads it back. `q` and `w` share the NMT path, unchanged. `PONG` gains `pdo=1 watch=`; the route protocol stays 5.
 - `SoakTwaiTap` can copy every received frame into a borrowed 32-frame ring without taking it from the owner (`copyReceives`, `takeReceived`); it is off by default, so the soak is unchanged. `PdoWatch` (heap-placed by the firmware, 5,160 bytes on the host build) keeps per-ID counts, gap statistics and data changes and prints numbered `PDOW_*` lines. `RawEvidence` gains the `PDO_RECORD` (nine uploads) and `PDO_COMM_WRITE` (exact read, write, readback) inventories; a PDO write leaves the adapter's producer facts alone, and a download's correlation now compares every byte.
 - `scripts/s2_pdo.py` runs a JSON plan of these lines in one capture and analyzes it offline; `s2_evidence.py` parses every new line. Tests: `pdo_command_test`, `pdo_watch_test`, `raw_evidence_test`, `s2_pdo_test.py`, which also parses every retained session.
-- Run on both specimens on 2026-11-06 ([report](docs/reports/2026-11-06_pdo_stream.md)). Two defects found there are fixed: the watch now holds its lines while a record dump, a network listing or an NMT result waits (`56e12ae`; a 10 ms stream had starved a write record's dump for 15 s), and the runner ends a plan on any failed firmware terminal, parsed for the step's node and command, not only on a refusal (`05fd03e`). Plans may also run the `3`/`4` identity reads.
+- Run on both specimens on 2026-11-06 ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-06_pdo_stream.md)). Two defects found there are fixed: the watch now holds its lines while a record dump, a network listing or an NMT result waits (`56e12ae`; a 10 ms stream had starved a write record's dump for 15 s), and the runner ends a plan on any failed firmware terminal, parsed for the step's node and command, not only on a refusal (`05fd03e`). Plans may also run the `3`/`4` identity reads.
 
 ### Measured two-byte array counts `607D:00` and `60FE:00` (2026-11-04 bench)
 
 - Add `ReadOptions::countWidths` (`CountWidths::DECLARED_U8` by default, `MEASURED_U16`). The EDS declares both counts RO U8; on 2026-11-04 both CL86-C specimens, one firmware identity, answered each with an expedited two-byte 0 (`4B 7D 60 00 00 00 00 00`, `4B FE 60 00 00 00 00 00`; trials 303, 304, 313, 315). The default typed read then ended in client abort `06070010`, which left the route unresolved and blocked packet 12 T1/T2 and the packet 13 P1 I/O command group. `MEASURED_U16` is an explicit caller choice for `DRIVER_SOFT_LIMITS` and `IO_OUTPUT_COMMAND` reads only; a one-byte reply then fails. Nothing detects the width, no other object's width changes, and the default stays byte-for-byte as before. Every other read kind, the observing actions (`stopOptionsValid`, `prepareStop`, `prepareEscalation`, `prepareEnable`, `prepareClearAlarm`, `prepareSetDevicePosition`) and the moves refuse `MEASURED_U16` at admission, as for `identityWidths`; `AxisSession::requestStop` ignores it, and `prepareBestEffortStop`, which reads nothing, takes only its budgets. `prepareSoftLimitSettings` uses the caller's options for its readback.
 - **API change:** `DriverObservation::softLimitEntries` and `IoObservation::outputEntries` are now `uint16_t`, so a two-byte count is kept as read, and the new `softLimitEntriesWidth`/`outputEntriesWidth` report the reply bytes. The count stays raw: 0 is not evidence of an empty array and bounds nothing; its meaning is unresolved.
-- The bench firmware's `settings-2202` route (its `SOFT_LIMITS` read and the transaction's readback) and the `readiness-io` route's `IO_OUTPUT_COMMAND` read select `MEASURED_U16`; no record line changes, so the route protocol stays 5. The ledger records the measurement in each entry's value policy and in `semantic_review.count_width_binding`; the EDS is unchanged ([device conflicts](docs/device_conflicts.md)). Host tests use the literal replies; not yet run on hardware.
+- The bench firmware's `settings-2202` route (its `SOFT_LIMITS` read and the transaction's readback) and the `readiness-io` route's `IO_OUTPUT_COMMAND` read select `MEASURED_U16`; no record line changes, so the route protocol stays 5. The ledger records the measurement in each entry's value policy and in `semantic_review.count_width_binding`; the EDS is unchanged ([device conflicts](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/device_conflicts.md)). Host tests use the literal replies; not yet run on hardware.
 
 ### Settings, I/O, counter, alarm and two-node bench routes (route protocol 5)
 
@@ -684,21 +699,21 @@
 ### No observation read at an action's deadline; quick stop completes on standstill (2026-11-04 bench)
 
 - **Contract change, actions and moves:** `nextAction` and `nextMove` no longer yield a new observation read once one exchange's queue and response budgets no longer fit before the deadline. On 2026-11-04 (trial 213) a quick stop's last read began 6 ms before the stop's 2 s deadline and was cut there with its request possibly sent. That left node 2's SDO route unresolved until an MCU restart (Q18). The action or move now ends at its deadline with nothing in flight, and the route takes new work. Commands, downloads, plain reads and settings keep their own cutoff. Tests `lateObservationIsHeldBack` (stop, real owner) and `lateReadIsHeldBack` (move) fail without the fix. `runningPollingAndDeadline` and `nearMaximumTimeAndBackwardCalls` now give their cycles room for the 200 us exchange budget. In `evidence_timeline_test`, the action-observation budget-against-cutoff timeline, which can no longer arise, is replaced by `actionObservationHeldBack`.
-- **Contract change, `QUICK_STOP`:** after `000B` during a 30 rpm move (trial 213) the drive released the motor at once and it stopped within about 10 pulses, but `2100` kept running set (`0x0014`) with `6041=4050`, minutes later too, so the stop could never see "not running". When a quick-stop cycle reads released, low bits `000` and running, and `maximumAgeUs` covers seven fields, the new `ActionContext::standstillObserving` is set. Every later cycle then also reads `6064` and `606C`, and two cycles in a row with `606C` zero and `6064` unchanged complete the stop as `OBSERVED`. With a five-field age the rule is not offered. A `HALT` with a release is still outside its scope. Test `latchedRunningQuickStopCompletesOnStandstill` fails without the rule. See the [stop guide](docs/stop_actions.md).
+- **Contract change, `QUICK_STOP`:** after `000B` during a 30 rpm move (trial 213) the drive released the motor at once and it stopped within about 10 pulses, but `2100` kept running set (`0x0014`) with `6041=4050`, minutes later too, so the stop could never see "not running". When a quick-stop cycle reads released, low bits `000` and running, and `maximumAgeUs` covers seven fields, the new `ActionContext::standstillObserving` is set. Every later cycle then also reads `6064` and `606C`, and two cycles in a row with `606C` zero and `6064` unchanged complete the stop as `OBSERVED`. With a five-field age the rule is not offered. A `HALT` with a release is still outside its scope. Test `latchedRunningQuickStopCompletesOnStandstill` fails without the rule. See the [stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md).
 
 ### Soak records survive a lasting bus fault (2026-11-03 A/B soak)
 
 - In the first A/B soak run, both drives stopped acknowledging at 18:13:49 UTC. From then on, `twaiErrors` changed on every pass, and each change raised its own `SOAK_ANOM`: 511,995 lines in run A and 997,649 in run B. With the event queue never empty, no summary printed for 1.5 h in A and 3 h in B. The first bus anomaly's trace dump was never closed, and run B's 86 MB capture was too large to replay. A value or counter signal now raises at most one anomaly per summary window, at its first change in the window. Its other changes stay in its rate-limited `SOAK_TR` chain and in the summary's cumulative counters. Test `testLastingBusFaultKeepsSummaries` fails without the fix.
 - At the end of both runs, `SOAK_CON` was longer than the soak's 240-byte line buffer and printed as `OUTPUT_FORMAT_ERROR`. The buffer is now 416 bytes, and `ProbePlatform::OUTPUT_CAPACITY` is 512 bytes, up from 256, so every soak line fits whole with each field at its type's maximum (SOAK_CON can reach 401 bytes). A static assertion ties the two sizes together. Test `test_every_soak_line_fits_its_buffer_at_type_maxima` computes each format's widest output and fails at 240. Needs a reflash.
-- Bench evidence: the first measured no-ACK on this fixture, after both drives stopped acknowledging at 18:13:49 UTC for an unobserved reason. One SDO request retried for 4.9 h at about 7,250 `ack_err` per second, with TEC held at 128, REC at 0 and no bus-off. Every request for the other node timed out before transmission. The A/B runs' oversized files are stored losslessly as xz, with the original hashes in each run's `COMPRESSED.json`. See the [unattended report](docs/reports/2026-11-03_unattended_bench.md) and the [SDK guide](docs/adapters/twai_sdk.md#retransmission-consequences-dec-4).
+- Bench evidence: the first measured no-ACK on this fixture, after both drives stopped acknowledging at 18:13:49 UTC for an unobserved reason. One SDO request retried for 4.9 h at about 7,250 `ack_err` per second, with TEC held at 128, REC at 0 and no bus-off. Every request for the other node timed out before transmission. The A/B runs' oversized files are stored losslessly as xz, with the original hashes in each run's `COMPRESSED.json`. See the [unattended report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md) and the [SDK guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/adapters/twai_sdk.md#retransmission-consequences-dec-4).
 - `s2_evidence_test.py` lists `20261103T1642Z-s2-ping-b` with the other retained pings that the booting S2 never answered. Retaining that ping in `065b23e` had broken `s2_evidence_contract`.
 
 ### Quick stop completes on the measured release; unattended bench runs (2026-11-03)
 
-- **Contract change:** a `QUICK_STOP` cycle that reads `2100` released, not running and no alarm, with `6041` low bits `000` in mode 1, now ends `OBSERVED`, and `monitorObservation` keeps the released bit: after this quick stop the drive holds no torque. Before, every released report ended a stop `OBSERVATION_SCOPE`, so a quick stop could never complete on these drives. A released report with low bits `000` that still shows running now keeps the quick stop polling. A `HALT` still ends outside its scope on any release, as does a quick stop whose released report has a low bit set or an alarm. Test `quickStopReleaseIsTheMeasuredTerminal` replays trials 124 and 126 and five neighboring reports, and fails without the fix. **Not retested on hardware:** both drives are released, and the next enable needs a power cycle and an attendant. See the [stop guide](docs/stop_actions.md).
+- **Contract change:** a `QUICK_STOP` cycle that reads `2100` released, not running and no alarm, with `6041` low bits `000` in mode 1, now ends `OBSERVED`, and `monitorObservation` keeps the released bit: after this quick stop the drive holds no torque. Before, every released report ended a stop `OBSERVATION_SCOPE`, so a quick stop could never complete on these drives. A released report with low bits `000` that still shows running now keeps the quick stop polling. A `HALT` still ends outside its scope on any release, as does a quick stop whose released report has a low bit set or an alarm. Test `quickStopReleaseIsTheMeasuredTerminal` replays trials 124 and 126 and five neighboring reports, and fails without the fix. **Not retested on hardware:** both drives are released, and the next enable needs a power cycle and an attendant. See the [stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md).
 - `scripts/s2_bench.py --unattended-waiver TEXT` runs a trial with nobody at the bench, only on the user's own written statement. TEXT is stored verbatim in `request.json` and the ledger's send entry, no attendant question is asked, and every answer only an attendant could give is stored as `unattended: not observed`. It refuses `enable`, whose start report needs the attendant's power-up shaft observation, and `--fault-led prompt`. Test `test_unattended_waiver_replaces_the_attendant_questions_only`.
 - Bench route `readiness-history` (`TH<node>,<trial>`, packet 4 and packet 22 step 2): the full `readiness-actions` state read, then `1003` through the typed `ERROR_HISTORY` block (subindex 0, then only the entries its count names), then `1001` and `603F` again, so the record shows the error words before and after the first history read. No write; each upload takes its one-use grant, because `1003` is `UNQUALIFIED` like `1001` and `603F`. `TRIAL_HISTORY count=<n> e1=..` keeps raw hex. It requires `--fault-led`, as `readiness-actions` does. While adding it, `isMotion` now names the motion routes explicitly instead of every kind from `MODE_ONE` up, and a read route no longer indexes the per-route motion counters. Tests `testHistoryReads` and the `TrialHistory` parser cases.
-- Bench evidence, [unattended session](docs/reports/2026-11-03_unattended_bench.md), ledger `docs/bench/20261103b-campaign.jsonl`, 3 motion admissions on the attended session's boot (`e17271a`, not reflashed). Trial 121 ran the library's absolute move lifecycle through `AxisSession::requestMove` for the first time on a specimen, node 2, 0 to 250 pulses: `SUCCEEDED` with its own rearm, with packet 19's acceptance and completion bits reproduced; completion read `6064=251` and the next read 250. Trials 124 (node 2, from `000F`) and 126 (node 1, from the halted `010F`) sent a stationary `000B`: each drive left operation and released the motor, and neither moved. One specimen and one firmware each; nothing is qualified.
+- Bench evidence, [unattended session](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md), ledger `docs/bench/20261103b-campaign.jsonl`, 3 motion admissions on the attended session's boot (`e17271a`, not reflashed). Trial 121 ran the library's absolute move lifecycle through `AxisSession::requestMove` for the first time on a specimen, node 2, 0 to 250 pulses: `SUCCEEDED` with its own rearm, with packet 19's acceptance and completion bits reproduced; completion read `6064=251` and the next read 250. Trials 124 (node 2, from `000F`) and 126 (node 1, from the halted `010F`) sent a stationary `000B`: each drive left operation and released the motor, and neither moved. One specimen and one firmware each; nothing is qualified.
 
 ### Enable observation scope ignores 6041 bit 10 (attended P3, node 1)
 
@@ -736,7 +751,7 @@ An independent review of the bench routes found no unrequested motion or control
 - **Contract change:** a checked SDO reply received with bounds (`SdoClient::receive(frame, earliestUs, latestUs, nowUs)`) now records service evidence, and so `ServiceEligibility::ordinarySdo`, under the same rule as an exact capture. Its whole interval must be after every boundary: `earliestUs` strictly after the request's handoff, after the node boundary (strictly after an invalidation) and, at eligibility, strictly after a possible NMT transition. `earliestUs` orders it against retained evidence and sets its age, so an interval is never fresher than its oldest possible receive time and a late-delivered older reply cannot replace newer evidence. Before this, an interval-only reply settled its request but never qualified ordinary work, so on the S2 fixture writes, enable words and the sequenced stop were refused `INVALID` without a heartbeat.
 - An interval that reaches back to its handoff, straddles a boundary, is inverted or lies in the future records nothing. Exact capture, unknown time, SDO matching, quarantine, settlement and NMT handling are unchanged. An exact capture equal to the handoff still records, because equal timestamps cannot order.
 - **Migration:** `NodeSnapshot::sdo` and `serviceQualification` can now carry `receiveBoundsKnown`; read them through `observationTimeBounds`. A bounds reply that does not qualify no longer leaves a timeless `sdo` record.
-- Decided from the 2026-11-03 S2 soaks (`docs/bench/20261103-soak-night2`, `docs/bench/20261103-soak-stress1`). Bounds are host processing windows, not wire time; see the [TWAI receive-time note](docs/adapters/twai_receive_time.md#sdo-service-qualification). Adds `test/bounded_service_test.cpp` and regressions in `test/network_receive_time_test.cpp`.
+- Decided from the 2026-11-03 S2 soaks (`docs/bench/20261103-soak-night2`, `docs/bench/20261103-soak-stress1`). Bounds are host processing windows, not wire time; see the [TWAI receive-time note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/adapters/twai_receive_time.md#sdo-service-qualification). Adds `test/bounded_service_test.cpp` and regressions in `test/network_receive_time_test.cpp`.
 
 ### DI state rule and core audit fixes (closing audit, A-10, A-15, A-16, A-18, A-19, G-13)
 
@@ -774,7 +789,7 @@ An independent review of the bench routes found no unrequested motion or control
 - **Migration:** `prepareSetDevicePosition` needs a fresh FEEDBACK block in its state read as well as MONITORS and STATUS, and refuses with `ActionError::STATE` unless `606C` reads raw zero. This is project policy beside `2100` running clear, not an observed shaft. Add `StateBlock::FEEDBACK` to the prerequisite read. Nonzero requests still return `UNSUPPORTED` before any other check.
 - Add `CounterBaseline` and `ActionContext::baseline`: the admission `6064` and `606C` raw, kept after the cycles replace `extraObservation`, which now holds the admission FEEDBACK until the first cycle. A raw zero after an already-zero baseline shows no change at all.
 - Add `ActionContext::valueOneMayRemain`, also used by the alarm clear: set when the action fails after its value-1 write may have reached the drive and the `0` after it has no positive acknowledgement. Nothing clears it or resends a value.
-- No wire value, write order, withdrawal point or epoch rule changed. `test/counter_clear_test.cpp` fails each of `0`, `1`, `0` before admission, in the queue, in the controller, after a TX report, on an abort, after an ACK processed at the cutoff and on a reply at the cutoff, and follows each into later reads, target validity and owner admission. See the [guide](docs/fault_reference_actions.md).
+- No wire value, write order, withdrawal point or epoch rule changed. `test/counter_clear_test.cpp` fails each of `0`, `1`, `0` before admission, in the queue, in the controller, after a TX report, on an abort, after an ACK processed at the cutoff and on a reply at the cutoff, and follows each into later reads, target validity and owner admission. See the [guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md).
 
 ### Alarm clear: unresolved fault identity (packet 17)
 
@@ -829,7 +844,7 @@ An independent review of the bench routes found no unrequested motion or control
 - Bench records now separate queue admission, adapter handoff, SDK submission, TX report, receive bounds, terminal and retirement. `END network` is no longer dropped under console pressure, and `TRAFFIC`, `RESULT`, `STATS` and `PONG` carry controller state, epochs and time. Bench identity reads select `IdentityWidths::MEASURED_U8`.
 - **Fixed:** the parser read an `EVIDENCE` header's `outcome` with the SDO outcome table. The header reports `ReadOutcome`, where 1 is success, so the first live typed success was marked inconsistent and then failed. A regression on the retained live captures covers it.
 - **Migration:** `firmwareStackFreeBytes` is removed from `examples/common/EspProbeMain.h`. The S2 bench reads the owner task's high-water mark itself.
-- Add the `s2_flash_contract`, `s2_evidence_contract`, `soak`, `soak_transcript`, `s2_soak_contract` and `s2_soak_transcript` tests. None opens a port. The live baseline and soak results are in the [packet 11 report](docs/reports/handoff_19_33/packet_11.md).
+- Add the `s2_flash_contract`, `s2_evidence_contract`, `soak`, `soak_transcript`, `s2_soak_contract` and `s2_soak_transcript` tests. None opens a port. The live baseline and soak results are in the [packet 11 report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/handoff_19_33/packet_11.md).
 
 ### Service timeouts and withdrawn blocks (audit A-07, A-08, packet 10)
 
@@ -908,7 +923,7 @@ An independent review of the bench routes found no unrequested motion or control
 - `TwaiDriver::submit` returns `TwaiSubmit` instead of `bool`: SENT, DEFERRED, FAILED_UNSENT or FAILED_UNCERTAIN. A receive interrupt during promotion now defers instead of quarantining the route.
 - Replace `TwaiAdapter::service` with `pollEvents` before `owner.service` and `promote` after it.
 - The adapter holds a queued handoff, so its possible effect and response clock start at actual SDK submission. A frame proved unsent ends without quarantine: `TxReport::provedUnsent`, `SdoClient::holdHandoff`, `noteSubmitted`, `withdrawUnsent`, `withdrawNmtUnsent`.
-- Set `fail_retry_cnt=-1` (DEC-4): hardware retransmits, so a no-ACK frame stays pending until an application-started recovery. See [the consequences](docs/adapters/twai_sdk.md).
+- Set `fail_retry_cnt=-1` (DEC-4): hardware retransmits, so a no-ACK frame stays pending until an application-started recovery. See [the consequences](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/adapters/twai_sdk.md).
 - Accept a received Classical DLC of 9..15 as eight bytes. `FirmwareProbe::clockFailed()` becomes `progressionFailed()` plus `failure()`, which reports the real cause.
 
 ### Owner placement (audit W2)
@@ -940,7 +955,7 @@ An independent review of the bench routes found no unrequested motion or control
   claiming exact arrival timestamps or weakening SDO/PDO deadlines.
 - Retain node1 heartbeat1000/readback, fresh addressed Pre-operational and all
   24 fixed-map services. Final map2 is confirmed; broader firmware and sample
-  qualification remain open. See the [checkpoint](docs/reports/2026-11-02_nmt_pdo_checkpoint.md).
+  qualification remain open. See the [checkpoint](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-02_nmt_pdo_checkpoint.md).
 - Retain both boot-up frames after a user power cycle and fresh readback of
   node1 producer0/map3. This is one-cycle reversion, not a persistence guarantee.
   Add finite 30-field readiness uploads per node, preserving nonzero retained
@@ -961,7 +976,7 @@ An independent review of the bench routes found no unrequested motion or control
 - Correct the acquisition stack budget/preflight scratch and wait for the
   preceding controller TX report before granting the next raw field. Preserve
   failed attempts and the separate bounded post-terminal traffic tail.
-- Add S2 compile/input checks and CI coverage. The [connection report](docs/reports/2026-11-02_s2_live_connection.md)
+- Add S2 compile/input checks and CI coverage. The [connection report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-02_s2_live_connection.md)
   separates observations from firmware meaning and qualification; no PDO mutation
   or motor action was performed at that earlier checkpoint; Prompt18 subsequently gains the subset above.
 
@@ -1297,8 +1312,8 @@ This repository contains planning/reference material and native service/API owne
 - Removed unnecessary repeated report/audit work while keeping current source inspection and documentation mandatory.
 - Preserved original reference/baseline/evidence bytes in Git and added optional HEAD/index artifact checks; line-ending conversion previously broke 52 stored artifact hashes.
 
-The [24 October prompt audit](docs/audit/PROMPTSET_REVIEW_2026-10-24.md) records the findings, fixes, source revisions and validation limits.
+The [24 October prompt audit](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/PROMPTSET_REVIEW_2026-10-24.md) records the findings, fixes, source revisions and validation limits.
 
-The [28 October correction audit](docs/audit/PROMPTSET_REVIEW_2026-10-28.md) records the new source-backed findings, live sibling delta and current prompt measurements.
+The [28 October correction audit](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/audit/PROMPTSET_REVIEW_2026-10-28.md) records the new source-backed findings, live sibling delta and current prompt measurements.
 
 The multi-drive architecture and test contrasts are plans. Nanotec, maxon and other researched products are not implemented or qualified drivers in this checkout.

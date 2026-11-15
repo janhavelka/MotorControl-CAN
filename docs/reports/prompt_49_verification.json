@@ -1,0 +1,980 @@
+{
+  "schema_version": 1,
+  "prompt": 49,
+  "input_kind": "working tree based on recorded revision; exact final commit CI is reported at handoff",
+  "full": {
+    "mode": "full",
+    "omitted_gates": [],
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "root": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+    "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k",
+    "status": "passed",
+    "tools": {
+      "cmake": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+        "version": "cmake version 4.0.1"
+      },
+      "ctest": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+        "version": "ctest version 4.0.1"
+      },
+      "ninja": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+        "version": "1.12.1"
+      },
+      "cc": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+        "version": "gcc.EXE (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 15.1.0"
+      },
+      "cxx": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+        "version": "g++.EXE (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 15.1.0"
+      },
+      "python": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "version": "3.12.10"
+      },
+      "doxygen": {
+        "path": "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+        "version": "1.13.2"
+      }
+    },
+    "steps": [
+      {
+        "name": "revision",
+        "command": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\00_revision.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.032
+      },
+      {
+        "name": "working_tree",
+        "command": [
+          "git",
+          "status",
+          "--porcelain"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\01_working_tree.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.093
+      },
+      {
+        "name": "cmake_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\02_cmake_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.047
+      },
+      {
+        "name": "ctest_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\03_ctest_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.047
+      },
+      {
+        "name": "ninja_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\04_ninja_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.015
+      },
+      {
+        "name": "cc_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\05_cc_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.016
+      },
+      {
+        "name": "cxx_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\06_cxx_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.016
+      },
+      {
+        "name": "repository",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_repository.py"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\07_repository.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.109
+      },
+      {
+        "name": "version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\generate_version.py",
+          "check"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\08_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.11
+      },
+      {
+        "name": "objects",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\generate_lichuan_objects.py",
+          "--check"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\09_objects.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.187
+      },
+      {
+        "name": "operations",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_lichuan_operations.py"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\10_operations.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 1.484
+      },
+      {
+        "name": "doxygen_version",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\11_doxygen_version.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.015
+      },
+      {
+        "name": "configure",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\native",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DBUILD_TESTING=ON",
+          "-DCMAKE_C_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.EXE",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DPython3_EXECUTABLE=C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "-DCMAKE_C_FLAGS=",
+          "-DCMAKE_CXX_FLAGS=-Werror"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\12_configure.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 3.61
+      },
+      {
+        "name": "build",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\native",
+          "--parallel",
+          "2"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\13_build.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 248.062
+      },
+      {
+        "name": "test_inventory",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\native",
+          "--show-only=json-v1"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\14_test_inventory.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.281
+      },
+      {
+        "name": "registration",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_repository.py",
+          "--ctest-json",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\ctest_inventory.json",
+          "--build-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\native"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\15_registration.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 0.766
+      },
+      {
+        "name": "contracts",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\native",
+          "--output-on-failure",
+          "-E",
+          "^package_contract$"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\16_contracts.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 300.609
+      },
+      {
+        "name": "package",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\test\\package_test.py",
+          "--cmake",
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+          "--compiler",
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "--work-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\17_package.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 36.125
+      },
+      {
+        "name": "documentation",
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\Doxyfile"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+        "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\18_documentation.log",
+        "returncode": 0,
+        "status": "passed",
+        "seconds": 7.938
+      }
+    ],
+    "compiler": "gcc",
+    "sanitize_requested": false,
+    "capabilities": {
+      "clang": "unavailable",
+      "linux_sanitizers": "unavailable on this host"
+    },
+    "revision": "4ce6656398fcbfd4e1840a4824a5ff2c4630c59a",
+    "working_tree": [
+      " M CHANGELOG.md",
+      " M CONTRIBUTING.md",
+      " M Doxyfile",
+      " M LICENSE",
+      " M README.md",
+      " M SECURITY.md",
+      " M adapters/canopennode/README.md",
+      " M docs/README.md",
+      " M docs/architecture.md",
+      " M docs/axis_contract.md",
+      " M docs/backlog.md",
+      " M docs/can_owner.md",
+      " M docs/canopen_services.md",
+      " M docs/commissioning.md",
+      " M docs/coverage.md",
+      " M docs/drive_actions.md",
+      " M docs/driver_settings.md",
+      " M docs/fieldcore_handoff.md",
+      " M docs/getting_started.md",
+      " M docs/io_settings.md",
+      " M docs/position_parameters.md",
+      " M docs/profile_contract.md",
+      " M docs/reads.md",
+      " M docs/source_map.md",
+      " M docs/speed_units.md",
+      " M docs/tuning.md",
+      " M docs/units_status.md",
+      " M docs/verification.md",
+      " M examples/position_preview/README.md",
+      " M examples/position_preview/main.cpp",
+      " M examples/probe_cli/README.md",
+      " M examples/probe_idf/README.md",
+      " M include/MotorControlCAN/profiles/lichuan_c/Objects.h",
+      " M include/MotorControlCAN/profiles/lichuan_c/Reads.h",
+      " M include/MotorControlCAN/profiles/lichuan_c/Types.h",
+      " M include/MotorControlCAN/profiles/lichuan_c/Velocity.h",
+      " M library.json",
+      " M scripts/generate_lichuan_objects.py",
+      " M test/objects_test.cpp",
+      " M test/package_test.py",
+      "?? docs/releases/",
+      "?? docs/reports/prompt_49.md",
+      "?? docs/reports/prompt_49_sources.json"
+    ],
+    "documentation": {
+      "headers": 37,
+      "members": 3859,
+      "free_functions": 150,
+      "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\documentation"
+    }
+  },
+  "package": {
+    "status": "PASS",
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "artifact": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+    "commands": [
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\01.log",
+        "exit": 0,
+        "seconds": 0.047
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\02.log",
+        "exit": 0,
+        "seconds": 0.016
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\03.log",
+        "exit": 0,
+        "seconds": 0.015
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\export_package.py",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\core.zip"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\04.log",
+        "exit": 0,
+        "seconds": 0.219
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\consumer source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\source consumer",
+          "-DMOTORCONTROLCAN_SOURCE_DIR=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\exported source",
+          "-DMOTORCONTROLCAN_HEADERS_DIR=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\exported source\\include"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\05.log",
+        "exit": 0,
+        "seconds": 1.719
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\source consumer"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\06.log",
+        "exit": 0,
+        "seconds": 3.672
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.exe",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\source consumer",
+          "--output-on-failure",
+          "--no-tests=error"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\07.log",
+        "exit": 0,
+        "seconds": 0.328
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\exported source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\library build",
+          "-DBUILD_TESTING=OFF",
+          "-DCMAKE_CXX_FLAGS=-Werror -pedantic-errors",
+          "-DCMAKE_INSTALL_PREFIX=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\install prefix",
+          "-DCMAKE_INSTALL_INCLUDEDIR=sdk/include",
+          "-DCMAKE_INSTALL_LIBDIR=lib",
+          "-DCMAKE_INSTALL_DATADIR=share"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\08.log",
+        "exit": 0,
+        "seconds": 1.625
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\library build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\09.log",
+        "exit": 0,
+        "seconds": 2.0
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--install",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\library build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\10.log",
+        "exit": 0,
+        "seconds": 0.25
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\consumer source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\installed consumer",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix",
+          "-DMOTORCONTROLCAN_EXPECTED_VERSION=0.1.0",
+          "-DMOTORCONTROLCAN_HEADERS_DIR=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix\\sdk\\include"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\11.log",
+        "exit": 0,
+        "seconds": 1.672
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\installed consumer"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\12.log",
+        "exit": 0,
+        "seconds": 1.406
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.exe",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\installed consumer",
+          "--output-on-failure",
+          "--no-tests=error"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\13.log",
+        "exit": 0,
+        "seconds": 0.328
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\README source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\README build",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix",
+          "-DCMAKE_CXX_FLAGS=-Werror -pedantic-errors"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\14.log",
+        "exit": 0,
+        "seconds": 1.656
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\README build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\15.log",
+        "exit": 0,
+        "seconds": 0.5
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\README build\\quickstart.exe"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\16.log",
+        "exit": 0,
+        "seconds": 0.063
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\fieldcore source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\fieldcore build",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix",
+          "-DCMAKE_CXX_FLAGS=-Werror -pedantic-errors"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\17.log",
+        "exit": 0,
+        "seconds": 1.578
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\fieldcore build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\18.log",
+        "exit": 0,
+        "seconds": 0.688
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\fieldcore build\\fieldcore_consumer.exe"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\19.log",
+        "exit": 0,
+        "seconds": 0.062
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\native probe consumer",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\native probe build",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\20.log",
+        "exit": 0,
+        "seconds": 3.016
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\native probe build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\21.log",
+        "exit": 0,
+        "seconds": 3.953
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.exe",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\native probe build",
+          "--output-on-failure",
+          "--no-tests=error"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\22.log",
+        "exit": 0,
+        "seconds": 0.875
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\consumer source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\no catalogue consumer",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix",
+          "-DMOTORCONTROLCAN_EXPECTED_VERSION=0.1.0",
+          "-DMOTORCONTROLCAN_HEADERS_DIR=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix\\sdk\\include"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\23.log",
+        "exit": 0,
+        "seconds": 1.75
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\no catalogue consumer"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\24.log",
+        "exit": 0,
+        "seconds": 1.859
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.exe",
+          "--test-dir",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\no catalogue consumer",
+          "--output-on-failure",
+          "--no-tests=error"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\25.log",
+        "exit": 0,
+        "seconds": 0.313
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\consumer source",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\missing header consumer",
+          "-DCMAKE_PREFIX_PATH=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix",
+          "-DMOTORCONTROLCAN_EXPECTED_VERSION=0.1.0",
+          "-DMOTORCONTROLCAN_HEADERS_DIR=C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\relocated prefix\\sdk\\include"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\26.log",
+        "exit": 0,
+        "seconds": 1.656
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\missing header consumer"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": false,
+        "status": "PASS",
+        "log": "logs\\27.log",
+        "exit": 1,
+        "seconds": 0.453
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--no-warn-unused-cli",
+          "-G",
+          "Ninja",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_COMPILER=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+          "-DCMAKE_MAKE_PROGRAM=C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ninja.EXE",
+          "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+          "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+          "-S",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\idf boundary",
+          "-B",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\idf build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\28.log",
+        "exit": 0,
+        "seconds": 1.593
+      },
+      {
+        "command": [
+          "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.exe",
+          "--build",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package\\idf build"
+        ],
+        "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-final\\20261115T141920133943Z-60276-0_x9ew3k\\package",
+        "expected_success": true,
+        "status": "PASS",
+        "log": "logs\\29.log",
+        "exit": 0,
+        "seconds": 2.36
+      }
+    ],
+    "tools": {
+      "cmake": "cmake version 4.0.1",
+      "compiler": "g++.EXE (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 15.1.0",
+      "ninja": "1.12.1"
+    }
+  },
+  "firmware": {
+    "firmware-arduino": {
+      "status": "passed",
+      "revision": "4ce6656398fcbfd4e1840a4824a5ff2c4630c59a",
+      "commands": [
+        [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        [
+          "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_promptset.py"
+        ],
+        [
+          "C:/p55s/penv/Scripts/pio.exe",
+          "--version"
+        ],
+        [
+          "C:/p55s/penv/Scripts/pio.exe",
+          "run",
+          "-e",
+          "probe_cli_compile"
+        ],
+        [
+          "C:/p55s/penv/Scripts/pio.exe",
+          "run",
+          "-e",
+          "probe_cli_compile",
+          "-t",
+          "compiledb"
+        ]
+      ],
+      "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-package-review\\firmware-arduino\\20261115T141130191224Z-12552-n0ojpxnu",
+      "firmware_artifacts": {
+        "arduino": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-package-review\\firmware-arduino\\20261115T141130191224Z-12552-n0ojpxnu\\arduino\\probe_cli_compile\\firmware.elf"
+      }
+    },
+    "firmware-component": {
+      "status": "passed",
+      "revision": "4ce6656398fcbfd4e1840a4824a5ff2c4630c59a",
+      "commands": [
+        [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        [
+          "C:\\esp\\v5.5.5\\tools\\python_env\\idf5.5_py3.12_env\\Scripts\\python.exe",
+          "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\scripts\\check_promptset.py"
+        ],
+        [
+          "C:\\esp\\v5.5.5\\tools\\python_env\\idf5.5_py3.12_env\\Scripts\\python.exe",
+          "C:\\esp\\v5.5.5\\esp-idf\\tools\\idf.py",
+          "--version"
+        ],
+        [
+          "C:\\esp\\v5.5.5\\tools\\python_env\\idf5.5_py3.12_env\\Scripts\\python.exe",
+          "--version"
+        ],
+        [
+          "C:\\esp\\v5.5.5\\tools\\tools\\xtensa-esp-elf\\esp-14.2.0_20260121\\xtensa-esp-elf\\bin\\xtensa-esp32s3-elf-g++.EXE",
+          "--version"
+        ],
+        [
+          "C:\\esp\\v5.5.5\\tools\\python_env\\idf5.5_py3.12_env\\Scripts\\python.exe",
+          "C:\\esp\\v5.5.5\\esp-idf\\tools\\idf.py",
+          "-C",
+          "C:\\esp\\build\\mccan-core-inncveq8\\consumer",
+          "-B",
+          "C:\\esp\\build\\mccan-core-inncveq8\\build",
+          "-DSDKCONFIG=C:/esp/build/mccan-core-inncveq8/build/sdkconfig",
+          "-DIDF_TARGET=esp32s3",
+          "-DMOTORCONTROLCAN_COMPONENT_PATH=C:/esp/build/mccan-core-inncveq8/MotorControlCAN",
+          "build"
+        ]
+      ],
+      "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-package-review\\firmware-component\\20261115T141136782987Z-36892-y6mfaom_",
+      "firmware_artifacts": {
+        "component": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p49-package-review\\firmware-component\\20261115T141136782987Z-36892-y6mfaom_\\component\\MotorControlCANConsumer.elf"
+      }
+    }
+  },
+  "platformio_and_exporter": {
+    "status": "passed",
+    "files": 83,
+    "tar_sha256": "3c5b74712438cbf03126490c91fbd41d0a619fe02cd2d7fa6a07b37cb089301e",
+    "zip_sha256": "f7c050f2f90f98483721fd9282546e5304ce4b78f5092eae75fc8979002fb6ba",
+    "all_paths_and_bytes_equal": true
+  },
+  "hardware_performed": false,
+  "publication_performed": false
+}
