@@ -122,12 +122,13 @@ struct Rig {
         value.nodeGeneration = services.node(uint8_t(node - 1))->route.generation;
         return value;
     }
-    // main.cpp's activity for the bench state this rig can hold: a route record, except a terminal settled
-    // arming record, which holds only its dump.
+    // main.cpp's activity, through its own policy (BenchConsole.h), for the bench state this rig can hold: a
+    // route record, and the dump and retained response that Image models.
+    E::BenchHolds bench;
     void derive() {
-        const E::RouteRecord* r = route.record();
-        const bool arming = r && r->terminal && !r->unsettled && E::isArming(r->plan.kind);
-        activity.wire = r && !arming;
+        bench.trial = route.record();
+        bench.controller = true;
+        activity = E::benchActivity(bench);
     }
     // main.cpp's turn: firmware, route, then the console and its notice.
     std::string notices;
@@ -340,9 +341,10 @@ void testInputAndOutput() {
     const std::string bad = r->command("@0 version");
     CHECK(has(bad, "rejected (invalid_line)") || has(bad, "invalid_line"));
     // Held output: a console reply waits behind a bench record dump, then appears whole after it.
-    r->activity.holdOutput = true;
+    r->bench.dumping = true;
     const size_t mark = r->uart.output.size();
     r->send("@10 caps");
+    CHECK(r->activity.holdOutput);
     for (unsigned i = 0; i < 50; ++i) {
         r->uart.now += 1000;
         r->firmware.service();
@@ -353,7 +355,9 @@ void testInputAndOutput() {
         }
     }
     CHECK(r->uart.output.find("{\"schema\"", mark) == std::string::npos);
-    r->activity.holdOutput = false;
+    r->bench.dumping = false;
+    r->derive();
+    CHECK(!r->activity.holdOutput);
     for (unsigned i = 0; i < 2000; ++i) {
         r->uart.now += 1000;
         r->firmware.service();
@@ -1217,6 +1221,459 @@ void testTwoArmedAxes() {
     CHECK(!r->one.moveActive() && r->route.motionAdmissions() == admissions + 4);
     wholeLines(r->uart.output);
 }
+// main.cpp's loop around the rig, in main.cpp's order and through the image's own policy (benchActivity,
+// trialLineRefusal, dumpRefusal in BenchConsole.h): its T lines, record report and dump (dumpTrial), its
+// retained one-shot response (line, flushResponse) and the console's turn, over a UART that takes
+// Console::rate bytes per 1 ms turn. The pair summary is a short stand-in for main.cpp's TRIAL_PAIR text.
+struct Image {
+    Rig& r;
+    bool dumping = false, reported = true, pairUndumped = false;
+    unsigned cursor = 0, lastTurns = 0;
+    std::string retained;
+    explicit Image(Rig& rig) : r(rig) {}
+    E::BenchHolds holds() const {
+        E::BenchHolds h;
+        h.trial = r.route.record();
+        h.dumping = dumping;
+        h.retained = !retained.empty();
+        h.console = r.console.holds();
+        h.controller = true;
+        return h;
+    }
+    bool written(const std::string& text) {
+        return r.firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(text.data()), text.size());
+    }
+    // main.cpp's line(): written, else retained when nothing is, else dropped.
+    void line(const std::string& text) {
+        if (retained.empty() && written(text))
+            return;
+        if (retained.empty() && text.size() < 320)
+            retained = text;
+    }
+    bool dumpTrial() {
+        char out[256];
+        bool last = false;
+        if (!r.route.formatLine(cursor, out, sizeof out, &last))
+            return false;
+        if (written(out)) {
+            ++cursor;
+            return !last;
+        }
+        return true;
+    }
+    void turn() {
+        r.uart.now += 1000;
+        r.uart.room = r.uart.rate;
+        r.driver.deliver();
+        r.firmware.service();
+        r.route.service(r.firmware.owner().lastTimeUs());
+        const E::RouteRecord* t = r.route.record();
+        const bool pair = t && E::isArmingPair(t->plan.kind);
+        if (t && t->terminal && !reported && !(pair && !retained.empty())) {
+            reported = true;
+            r.services.clearUploadExperiment(0);
+            r.services.clearUploadExperiment(1);
+            if (pair) {
+                pairUndumped = true;
+                line("TRIAL_PAIR id=" + std::to_string(t->plan.trial) + " route=" + E::routeName(t->plan.kind) +
+                     " failure=" + std::to_string(unsigned(t->failure)) + "\n");
+            } else {
+                dumping = true;
+                cursor = 0;
+            }
+        }
+        if (dumping)
+            dumping = dumpTrial();
+        if (!retained.empty() && written(retained))
+            retained.clear();
+        r.bench = holds();
+        r.derive();
+        r.console.service(r.uart.now, r.activity);
+        if (r.console.notice() && retained.empty()) {
+            r.notices += r.console.notice();
+            line(r.console.notice());
+            r.console.clearNotice();
+        }
+    }
+    void turns(unsigned n) {
+        for (unsigned i = 0; i < n; ++i)
+            turn();
+    }
+    // main.cpp takes no input while a response is retained.
+    void room() {
+        for (unsigned i = 0; i < 20000 && !retained.empty(); ++i)
+            turn();
+        CHECK(retained.empty());
+    }
+    // A T line without its T, as main.cpp's input path takes it. @return What the bench printed for it.
+    std::string trial(const std::string& text) {
+        room();
+        const size_t mark = r.uart.output.size();
+        const char* refusal = E::trialLineRefusal(holds());
+        if (!refusal) {
+            E::RoutePlan plan;
+            refusal = E::parseRouteCommand(text.data(), text.size(), plan) ? r.route.begin(plan, r.uart.now) : "syntax";
+        }
+        if (refusal)
+            line(std::string("TRIAL_REFUSED reason=") + refusal + "; no work\n");
+        else {
+            reported = false;
+            line(std::string("TRIAL admitted route=") + E::routeName(r.route.record()->plan.kind) +
+                 " node=" + std::to_string(r.route.record()->plan.node) + "\n");
+        }
+        turns(40);
+        return r.uart.output.substr(mark);
+    }
+    // main.cpp's `d` and `r` for a route record.
+    std::string key(char c) {
+        room();
+        const size_t mark = r.uart.output.size();
+        const E::RouteRecord* t = r.route.record();
+        if (c == 'd') {
+            const char* refusal = E::dumpRefusal(holds(), t && t->terminal);
+            if (!refusal) {
+                dumping = true;
+                cursor = 0;
+                pairUndumped = false;
+            } else
+                line(std::strcmp(refusal, "console") == 0
+                         ? "DUMP refused reason=console; release the console's results first\n"
+                         : "DUMP unavailable\n");
+        } else if (c == 'r' && t) {
+            line(pairUndumped               ? "TRIAL release refused reason=undumped; d first\n"
+                 : !dumping && r.route.release() ? "TRIAL record released; sessions and uncertainty retained\n"
+                                                 : "TRIAL release refused\n");
+        }
+        // Its first whole line, at the UART's rate: the reply, or a dump's first line.
+        for (unsigned i = 0; i < 400 && r.uart.output.find('\n', mark) == std::string::npos; ++i)
+            turn();
+        return r.uart.output.substr(mark);
+    }
+    // One console line, then turns until `until` is printed or `limit` turns have passed.
+    // @return What was printed since the line; lastTurns counts the turns taken.
+    std::string console(const std::string& text, const std::string& until, unsigned limit = 2000) {
+        room();
+        const size_t mark = r.uart.output.size();
+        r.bench = holds();
+        r.derive();
+        E::ConsoleInput taken = E::ConsoleInput::COLLECTING;
+        for (char c : text)
+            CHECK((taken = r.console.take(uint8_t(c), r.uart.now, r.activity)) == E::ConsoleInput::COLLECTING);
+        taken = r.console.take('\r', r.uart.now, r.activity);
+        CHECK(taken != E::ConsoleInput::COLLECTING);
+        if (taken == E::ConsoleInput::REFUSED)
+            line(r.console.reply());
+        lastTurns = 0;
+        // Until the line holding `until` has arrived whole, at the UART's rate.
+        const auto arrived = [&]() {
+            const size_t at = r.uart.output.find(until, mark);
+            return at != std::string::npos && r.uart.output.find('\n', at) != std::string::npos;
+        };
+        while (lastTurns < limit && !arrived()) {
+            turn();
+            ++lastTurns;
+        }
+        if (std::getenv("BENCH_CONSOLE_DEBUG"))
+            std::fprintf(stderr, "[%s] %u turns:\n%s\n", text.c_str(), lastTurns, r.uart.output.substr(mark).c_str());
+        return r.uart.output.substr(mark);
+    }
+};
+// The host's paired arming lines: ARM_MOVE's fields and the other node's reviewed 6064 (Ta), or the velocity
+// arming's fields for both nodes (Te).
+std::string pairMove(uint32_t& trial, const ArmSpec& spec, long otherPosition) {
+    std::string line = arm(1, trial, spec) + "," + std::to_string(otherPosition);
+    line[0] = 'a';
+    return line;
+}
+// Every operation ID the console printed, once each, for `release`.
+std::vector<unsigned long> operations(const std::string& output) {
+    std::vector<unsigned long> ids;
+    for (size_t at = output.find("\"operation_id\":"); at != std::string::npos;
+         at = output.find("\"operation_id\":", at + 1)) {
+        const unsigned long id = std::strtoul(output.c_str() + at + 15, nullptr, 10);
+        bool seen = !id;
+        for (unsigned long known : ids)
+            seen = seen || known == id;
+        if (!seen)
+            ids.push_back(id);
+    }
+    return ids;
+}
+void releaseAll(Image& m, unsigned& request) {
+    for (unsigned long id : operations(m.r.uart.output)) {
+        const std::string tag = "\"id\":" + std::to_string(++request) + ",";
+        m.console("@" + std::to_string(request) + " release " + std::to_string(id), tag, 400);
+    }
+    CHECK(!m.r.console.holds());
+}
+// The order that failed on the bench (2026-11-16 HM1, 115200 baud): one axis armed, then its dump, which every
+// console reply waits behind, then its move; the other axis's arming line then meets the image's guard,
+// because the console retains the first move. Nothing of that line is parsed or sent.
+void testSingleArmingGuard() {
+    scenario = "single-arming-guard";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    for (auto& drive : r->driver.drives) {
+        drive.statusBits = true;
+        drive.travelReads = 100000;
+    }
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    enabled(*r, trial, 2);
+    Image m(*r);
+    r->uart.rate = 11; // 115200 baud 8N1: 11.52 bytes per 1 ms turn.
+    unsigned request = 0;
+    CHECK(has(m.console("@" + std::to_string(++request) + " host 0", "\"id\":1,"), "\"ok\":true"));
+    ArmSpec spec;
+    spec.rel = 0;
+    spec.sp = r->driver.drives[0].position;
+    CHECK(has(m.trial(arm(1, trial, spec)), "TRIAL admitted route=arm-move node=1"));
+    for (unsigned i = 0; i < 5000 && !m.dumping; ++i)
+        m.turn();
+    CHECK(m.dumping && r->axis1.armedTrial == trial);
+    // The console's reply is admitted at once but printed only after the whole dump.
+    const std::string accel = m.console("@" + std::to_string(++request) + " accel 1000", "\"id\":2,", 30000);
+    CHECK(has(accel, "\"ok\":true") && !m.dumping);
+    CHECK(has(accel, "TRIAL_PLAN") && accel.rfind("TRIAL_") < accel.find("\"id\":2,") && m.lastTurns > 100);
+    CHECK(has(m.key('r'), "TRIAL record released"));
+    CHECK(has(m.console("@" + std::to_string(++request) + " decel 1000", "\"id\":3,"), "\"ok\":true"));
+    CHECK(has(m.console("@" + std::to_string(++request) + " move absolute 800 steps native 30 configured", "\"id\":4,"),
+              "\"result\":\"accepted\""));
+    CHECK(r->one.moveActive() && r->console.holds());
+    const size_t requests = r->driver.requests.size();
+    spec.sp = r->driver.drives[1].position;
+    CHECK(has(m.trial(arm(2, trial, spec)), "TRIAL_REFUSED reason=console; no work"));
+    CHECK(!r->route.record() && r->axis2.armedTrial == 0);
+    for (size_t i = requests; i < r->driver.requests.size(); ++i)
+        CHECK(r->driver.requests[i].id != 0x602);
+    CHECK(has(m.console("@" + std::to_string(++request) + " stop 1 normal", "\"id\":5,"), "\"result\":\"accepted\""));
+    m.turns(3000);
+    CHECK(!r->one.moveActive());
+    releaseAll(m, request);
+    wholeLines(r->uart.output);
+}
+// The correction: Ta prepares both axes in one record and prints one summary line instead of its dump, so
+// both axes are armed, and both moves admitted and acknowledged, with no dump or arming line between them, at
+// 115200 baud and within each arming's age cap. The stops are per axis and then the group, through the
+// console as before. The record is dumped whole once the console's results are released.
+void testPairedArming() {
+    scenario = "pair-arming";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    for (auto& drive : r->driver.drives) {
+        drive.statusBits = true;
+        drive.travelReads = 100000; // This fake's drive keeps reporting travel until a stop word.
+    }
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    enabled(*r, trial, 2);
+    Image m(*r);
+    r->uart.rate = 11;
+    unsigned request = 0;
+    CHECK(has(m.console("@" + std::to_string(++request) + " host 0", "\"id\":1,"), "\"ok\":true"));
+    ArmSpec spec;
+    spec.rel = 0;
+    spec.sp = r->driver.drives[0].position;
+    const size_t requests = r->driver.requests.size();
+    const uint8_t admissions = r->route.motionAdmissions();
+    CHECK(has(m.trial(pairMove(trial, spec, r->driver.drives[1].position)), "TRIAL admitted route=arm-move-pair node=1"));
+    for (unsigned i = 0; i < 5000 && !has(r->notices, "CONSOLE "); ++i)
+        m.turn();
+    CHECK(has(r->notices, ("CONSOLE armed pair nodes=1,2 trial=" + std::to_string(trial) + " route=arm-move-pair; ").c_str()));
+    // Printed after the summary, which went first: both whole within a few dozen milliseconds at 115200 baud.
+    unsigned printed = 0;
+    while (printed < 100 && !has(r->uart.output, "nothing sent\n")) {
+        m.turn();
+        ++printed;
+    }
+    CHECK(printed < 100 && r->uart.output.find("TRIAL_PAIR id=") < r->uart.output.find("CONSOLE armed pair"));
+    CHECK(r->downloadsFrom(requests) == 0 && r->route.motionAdmissions() == admissions); // Reads only.
+    CHECK(has(r->uart.output, ("TRIAL_PAIR id=" + std::to_string(trial)).c_str()) && !has(r->uart.output, "TRIAL_PLAN"));
+    CHECK(!m.dumping && m.pairUndumped && r->axis1.armedTrial == trial && r->axis2.armedTrial == trial);
+    // Each axis's record of its own reads: node 1's were taken first, node 2's after them.
+    CHECK(r->axis1.armedState.servicedUs && r->axis2.armedState.servicedUs > r->axis1.armedState.servicedUs);
+    const uint64_t armedUs = r->uart.now;
+    const char* lines[] = {"useaddr 1", "accel 1000", "decel 1000", "move absolute 800 steps native 30 configured",
+                           "useaddr 2", "accel 1000", "decel 1000", "move absolute 1600 steps native 30 configured"};
+    for (const char* text : lines) {
+        const std::string tag = "\"id\":" + std::to_string(++request) + ",";
+        const std::string out = m.console("@" + std::to_string(request) + " " + text, tag, 400);
+        CHECK(has(out, "\"ok\":true") && m.lastTurns < 100 && !has(out, "TRIAL_"));
+    }
+    CHECK(r->one.moveActive() && r->two.moveActive() && r->route.motionAdmissions() == admissions + 2);
+    CHECK(r->uart.now - armedUs < 9 * (uint64_t(E::ROUTE_QUEUE_US) + E::ROUTE_RESPONSE_US));
+    // The full record waits for the console's results; `r` waits for `d`.
+    CHECK(has(m.key('d'), "DUMP refused reason=console"));
+    CHECK(has(m.key('r'), "TRIAL release refused reason=undumped; d first") && r->route.record());
+    // One axis stopped by address while the UART takes nothing: the stop is admitted and sent at once, the
+    // other axis keeps moving, and the reply follows when output resumes.
+    size_t first = r->driver.requests.size();
+    std::string tag = "\"id\":" + std::to_string(++request) + ",";
+    r->uart.blocked = true;
+    CHECK(!has(m.console("@" + std::to_string(request) + " stop 2 normal", tag, 200), "\"id\""));
+    bool halted = false;
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        halted = halted || (r->driver.requests[i].id == 0x602 &&
+                            !std::memcmp(r->driver.requests[i].data, HALT_WORD, 8));
+    CHECK(halted && r->driver.drives[1].lastWord == 0x010f);
+    m.turns(1300);
+    CHECK(r->one.moveActive() && !r->two.moveActive());
+    r->uart.blocked = false;
+    m.turns(400);
+    CHECK(has(r->uart.output, (tag + "\"command\":\"stop\",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\"").c_str()));
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        CHECK(!(r->driver.requests[i].id == 0x601 && r->driver.requests[i].data[0] == 0x2b &&
+                r->driver.requests[i].data[1] == 0x40 && r->driver.requests[i].data[2] == 0x60));
+    // The group stop reaches the other axis.
+    first = r->driver.requests.size();
+    tag = "\"id\":" + std::to_string(++request) + ",";
+    const size_t group = r->uart.output.size();
+    CHECK(has(m.console("@" + std::to_string(request) + " stop all fast", tag, 400), "\"axis_count\":2") &&
+          m.lastTurns < 100);
+    m.turns(3000);
+    CHECK(!r->one.moveActive() && !r->two.moveActive());
+    CHECK(count(r->uart.output.substr(group), "\"type\":\"group_stop_axis\"") == 2);
+    bool quick = false;
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        quick = quick || sameFrame(r->driver.requests[i], 1, QUICK_WORD);
+    CHECK(quick);
+    releaseAll(m, request);
+    // Exported after the motion: the plan, both checks, then `r`.
+    const size_t mark = r->uart.output.size();
+    CHECK(!has(m.key('d'), "DUMP"));
+    for (unsigned i = 0; i < 60000 && m.dumping; ++i)
+        m.turn();
+    m.turns(100); // The ring's last queued lines, at the UART's rate.
+    const std::string dump = r->uart.output.substr(mark);
+    if (const char* path = std::getenv("BENCH_CONSOLE_PAIR_DUMP")) {
+        // For scripts/s2_evidence.py: the packer counts the summary lines against the header's summaries=.
+        if (FILE* file = std::fopen(path, "wb")) {
+            std::fwrite(dump.data(), 1, dump.size(), file);
+            std::fclose(file);
+        }
+    }
+    CHECK(!m.dumping && has(dump, "TRIAL_PLAN route=arm-move-pair node=1 pair=2") &&
+          has(dump, "TRIAL_PAIR_CHECK node=1 passed=1") && has(dump, "END trial "));
+    // Node 2's reads name their node; node 1's are only its pair check.
+    for (const char* tag : {"\nTRIAL_CHECK passed=1 ", "\nTRIAL_LAST passed=1 "}) {
+        const size_t at = dump.find(tag);
+        CHECK(at != std::string::npos);
+        const std::string line = dump.substr(at + 1, dump.find('\n', at + 1) - at - 1);
+        CHECK(line.size() > 7 && line.compare(line.size() - 7, 7, " node=2") == 0);
+    }
+    CHECK(!has(dump, "TRIAL_FIRST"));
+    CHECK(has(m.key('r'), "TRIAL record released") && !r->route.record());
+    wholeLines(r->uart.output);
+}
+// The pair's own refusals: grammar, the other node's readiness, and a retained operation on either axis,
+// which leaves both axes as they were. Nothing is sent for any of them.
+void testPairRefusals() {
+    scenario = "pair-refusals";
+    uint32_t trial = 0;
+    ArmSpec spec;
+    spec.rel = 0;
+    E::RoutePlan p;
+    std::string line = pairMove(trial, spec, 7);
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::ARM_MOVE_PAIR && p.node == 1 &&
+          p.pairStartPosition == 7 && p.relativeBase == 0 && E::isArming(p.kind) && E::isArmingPair(p.kind));
+    CHECK(std::strcmp(E::routeName(E::RouteKind::ARM_MOVE_PAIR), "arm-move-pair") == 0 &&
+          std::strcmp(E::routeName(E::RouteKind::ARM_VELOCITY_PAIR), "arm-velocity-pair") == 0);
+    ArmSpec relative;
+    for (const std::string& bad : {pairMove(trial, relative, 7), pairMove(trial, spec, 7) + ",1",
+                                   arm(1, trial, spec).replace(0, 1, "a")}) {
+        E::RoutePlan untouched;
+        CHECK(!E::parseRouteCommand(bad.data(), bad.size(), untouched) && untouched.kind == E::RouteKind::NONE);
+    }
+    std::string velocity = velocityArming(trial);
+    velocity[0] = 'e';
+    CHECK(E::parseRouteCommand(velocity.data(), velocity.size(), p) && p.kind == E::RouteKind::ARM_VELOCITY_PAIR);
+    CHECK(!E::parseRouteCommand((velocity + ",1").data(), velocity.size() + 2, p));
+    // Node 2 not enabled: the pair is refused before any read.
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    for (auto& drive : r->driver.drives)
+        drive.statusBits = true;
+    enabled(*r, trial, 1);
+    size_t first = r->driver.requests.size();
+    const char* refusal = r->start(pairMove(trial, spec, 0));
+    CHECK(refusal && (std::strcmp(refusal, "pair-eligibility") == 0 || std::strcmp(refusal, "pair-control") == 0));
+    CHECK(r->driver.requests.size() == first && !r->route.record());
+    // A retained console move result on node 1 refuses both: node 2 stays unarmed. main.cpp would refuse the
+    // T line itself (testSingleArmingGuard); the rig starts the route directly, as testRefusedArming does, so
+    // that the console meets the pair.
+    enabled(*r, trial, 2);
+    CHECK(has(r->command("@1 host 0", 100), "\"ok\":true"));
+    armed(*r, trial);
+    CHECK(has(r->command("@2 accel 1000", 100), "\"ok\":true") && has(r->command("@3 decel 1000", 100), "\"ok\":true"));
+    CHECK(has(r->command("@4 move relative 16 steps native 1 configured", 8000), "\"type\":\"terminal\",\"id\":4"));
+    CHECK(r->console.holds());
+    r->release();
+    const uint32_t before = r->axis1.armedTrial;
+    r->notices.clear();
+    spec.sp = r->driver.drives[0].position;
+    CHECK(r->run(pairMove(trial, spec, r->driver.drives[1].position)).failure == E::RouteFailure::NONE);
+    r->turns(2);
+    CHECK(has(r->notices, ("CONSOLE arm refused node=1 trial=" + std::to_string(trial) +
+                           " reason=console_axis_operation_retained; pair: this trial armed neither node")
+                              .c_str()));
+    CHECK(r->axis1.armedTrial == before && r->axis2.armedTrial == 0);
+    first = r->driver.requests.size();
+    CHECK(has(r->command("@6 useaddr 2", 50), "\"ok\":true"));
+    CHECK(has(r->command("@7 move absolute 16 steps native 1 configured", 100), "\"ok\":false"));
+    CHECK(r->downloadsFrom(first) == 0);
+    wholeLines(r->uart.output);
+}
+// Te: both axes' velocity armings in one record, then two finite console velocity runs, each stopping at its
+// own due time. Paired preparation claims nothing about simultaneity: each run is admitted on its own line.
+void testPairedVelocity() {
+    scenario = "pair-velocity";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    velocityRig(*r, trial);
+    Drive& other = r->driver.drives[1];
+    other.monitor = 0x0011;
+    other.status = 0x8050;
+    other.mode = 3;
+    other.releaseWords = other.spins = true;
+    CHECK(r->run("A2," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    r->heartbeat(2);
+    Image m(*r);
+    r->uart.rate = 11;
+    unsigned request = 10;
+    std::string line = velocityArming(trial);
+    line[0] = 'e';
+    const size_t requests = r->driver.requests.size();
+    CHECK(has(m.trial(line), "TRIAL admitted route=arm-velocity-pair node=1"));
+    for (unsigned i = 0; i < 5000 && !has(r->notices, "CONSOLE "); ++i)
+        m.turn();
+    CHECK(has(r->notices, "CONSOLE armed pair nodes=1,2") && r->downloadsFrom(requests) == 0);
+    CHECK(r->driver.requests.size() - requests == 36); // Identity and two full reads per node, as ARM_VELOCITY.
+    for (unsigned node = 1; node <= 2; ++node) {
+        std::string tag = "\"id\":" + std::to_string(++request) + ",";
+        CHECK(has(m.console("@" + std::to_string(request) + " useaddr " + std::to_string(node), tag, 400), "\"ok\":true"));
+        tag = "\"id\":" + std::to_string(++request) + ",";
+        CHECK(has(m.console("@" + std::to_string(request) + " velocity 6 rpm native 12000 configured normal", tag, 400),
+                  "\"result\":\"accepted\"") &&
+              m.lastTurns < 100);
+    }
+    CHECK(r->one.velocityActive() && r->two.velocityActive());
+    for (unsigned i = 0; i < 30000 && (r->one.velocityActive() || r->two.velocityActive() || r->one.stopActive() ||
+                                       r->two.stopActive());
+         ++i)
+        m.turn();
+    m.turns(200);
+    CHECK(!r->one.velocityNeedsStop() && !r->two.velocityNeedsStop());
+    CHECK(r->driver.drives[0].velocity == 0 && r->driver.drives[1].velocity == 0);
+    releaseAll(m, request);
+    CHECK(!has(m.key('d'), "DUMP"));
+    for (unsigned i = 0; i < 60000 && m.dumping; ++i)
+        m.turn();
+    m.turns(100); // The ring's last queued lines, at the UART's rate.
+    CHECK(has(r->uart.output, "TRIAL_PLAN route=arm-velocity-pair node=1 pair=2"));
+    CHECK(has(m.key('r'), "TRIAL record released"));
+    wholeLines(r->uart.output);
+}
 } // namespace
 
 int main() {
@@ -1238,6 +1695,10 @@ int main() {
     testRefusedArming();
     testBudgetsPerNode();
     testFaultHoldsBack();
+    testSingleArmingGuard();
+    testPairedArming();
+    testPairRefusals();
+    testPairedVelocity();
     std::printf("bench_console: %u checks; BenchConsole %u, ProbeDevice %u, ProbeConsole %u, BenchAxis %u bytes\n",
                 checks, unsigned(sizeof(E::BenchConsole)), unsigned(sizeof(E::ProbeDevice)),
                 unsigned(sizeof(E::ProbeConsole)), unsigned(sizeof(E::BenchAxis)));

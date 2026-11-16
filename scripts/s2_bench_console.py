@@ -7,13 +7,21 @@ Each --send is one step, sent only after the previous one was answered:
                    reply admits an operation, for that operation's terminal record (--no-terminal skips it)
   T...             a bench route line; ",K" and the CRC-32 (zlib) of every byte before it are added as
                    scripts/s2_bench.py adds them; waits for TRIAL admitted or TRIAL_REFUSED, and after an
-                   arming route (TY, TB, TX) for its CONSOLE armed or CONSOLE arm refused notice
-  c o p s M r x A n  one bench byte; waits for its own reply line. `r` is sent only after the route record
+                   arming route (TY, TB, TX, Ta, Te) for its CONSOLE armed or CONSOLE arm refused notice
+  c o p s M r x A n d  one bench byte; waits for its own reply line. `r` is sent only after the route record
                    this session saw admitted has printed its END trial line (release is refused while the
-                   record is dumped); the next T line needs that `r` first
+                   record is dumped); the next T line needs that `r` first. A paired arming (Ta, Te) prints
+                   one TRIAL_PAIR line instead of its dump: `d` dumps it, and only once the console's results
+                   are released; `r` before that `d` is sent at once and refused by the firmware
+  wait ID          waits for the terminal record of console request ID, ok or not; with --no-terminal this
+                   lets two axes' moves run while later steps (a stop) are sent
+  pause MS         reads and records for MS milliseconds, sending nothing
+  release-all      releases every operation this session saw accepted, each with `@ID release OP` under
+                   a new ID above every ID sent so far; a refused release ends the run
 
 A console motion line must follow its arming within the arming's age cap (about 3 s on the bench), so
-give both in one invocation. Opening the port drives neither EN nor BOOT, and the port must be the
+give both in one invocation. For two axes, arm both with one Ta or Te line before either moves: the
+firmware refuses every T line while the console retains an operation, the first axis's move included. Opening the port drives neither EN nor BOOT, and the port must be the
 recorded ESP-Prog2. Nothing is retried or replayed: a refusal, an ok:false record or a timeout ends the
 run with the remaining steps unsent. Every received byte goes to --output exactly as received; the
 console lines are printed with their receive time. --dry-run prints the framed bytes and opens nothing.
@@ -38,7 +46,7 @@ import zlib
 FIXTURE = {"port": "COM15", "usb_serial": "94A990398B40", "vid": 0x303A, "pid": 0x1002}
 BAUD = 115200
 SCHEMA = "motorcontrolcan.console/1"
-ARMING = frozenset("YBX")
+ARMING = frozenset("YBXae")
 # Each bench byte's reply lines: (prefix, refused).
 BYTE_REPLIES = {
     "c": (("CAN ready ", False), ("CAN start refused", True)),
@@ -49,6 +57,8 @@ BYTE_REPLIES = {
     "x": (("SESSIONS closed ", False), ("SESSIONS refused ", True)),
     "A": (("TRIAL_ABORTING", False), ("TRIAL_ABORT refused", True)),
     "n": (("NETWORK ", False),),
+    # A route record's dump starts with its header; a paired arming's waits for the console's results.
+    "d": (("TRIAL id=", False), ("DUMP unavailable", True), ("DUMP refused ", True)),
     "r": (("TRIAL record released", False), ("TRIAL release refused", True), ("RELEASED record", False),
           ("RELEASE refused", True), ("PDO record released", False), ("PDO release refused", True),
           ("NMT result released", False), ("NMT release refused", True), ("CAP record released", False),
@@ -57,6 +67,7 @@ BYTE_REPLIES = {
           ("HB release refused", True)),
 }
 CONSOLE_ID = re.compile(r"@([1-9][0-9]{0,9})(?:[ \t]|$)")
+LOCAL_STEP = re.compile(r"(wait|pause) ([1-9][0-9]{0,6})$")
 
 
 class Failure(RuntimeError):
@@ -109,7 +120,13 @@ def frame(step):
         return (signed + "\n").encode("ascii"), ("route", step[1] in ARMING)
     if len(step) == 1 and step in BYTE_REPLIES:
         return step.encode("ascii"), ("byte", step)
-    raise Failure("step %r: only @ lines, T lines and the bytes %s" % (step, " ".join(sorted(BYTE_REPLIES))), 1)
+    local = LOCAL_STEP.match(step)
+    if local:
+        return b"", (local.group(1), int(local.group(2)))
+    if step == "release-all":
+        return b"", ("release", None)
+    raise Failure("step %r: only @ lines, T lines, wait ID, pause MS, release-all and the bytes %s" %
+                  (step, " ".join(sorted(BYTE_REPLIES))), 1)
 
 
 def console_record(line):
@@ -130,6 +147,10 @@ class Session:
         self.port, self.clock, self.transcript, self.echo = port, clock, transcript, echo
         self.pending = b""
         self.record_open = False  # A route record admitted in this session has not printed its END yet.
+        self.pair_undumped = False  # A paired arming's TRIAL_PAIR line came, and no dump has started.
+        self.terminals = {}  # Console request ID -> its terminal record, as seen.
+        self.operations = []  # Operation IDs of accepted replies, in order, once each.
+        self.highest = 0  # The highest console request ID sent.
 
     def send(self, data):
         if self.port.write(data) != len(data):
@@ -147,6 +168,17 @@ class Session:
                     self.record_open = True
                 elif line.startswith("END trial "):
                     self.record_open = False
+                elif line.startswith("TRIAL_PAIR "):
+                    self.pair_undumped = True
+                elif line.startswith("TRIAL id="):
+                    self.pair_undumped = False
+                record = console_record(line)
+                if record and record.get("type") == "terminal":
+                    self.terminals[record.get("id")] = record
+                elif record and record.get("type") == "reply" and record.get("result") == "accepted" and \
+                        isinstance(record.get("operation_id"), int) and \
+                        record["operation_id"] not in self.operations:
+                    self.operations.append(record["operation_id"])
                 found = predicate(line)
                 if found is not None:
                     return found
@@ -160,7 +192,29 @@ class Session:
 
 def run_step(session, step, args):
     data, (kind, key) = frame(step)
-    if kind == "byte" and key == "r" and session.record_open:
+    if kind == "wait":
+        if key not in session.terminals:
+            session.until(lambda line: True if key in session.terminals else None, args.terminal_timeout)
+        return
+    if kind == "pause":
+        end = session.clock() + key / 1000.0
+        try:
+            session.until(lambda line: None, key / 1000.0)
+        except Failure:
+            if session.clock() < end:
+                raise
+        return
+    if kind == "release":
+        for operation in list(session.operations):
+            session.highest += 1
+            line = "@%d release %d" % (session.highest, operation)
+            session.echo("SEND %s" % line)
+            run_step(session, line, args)
+        session.operations = []
+        return
+    if kind == "console":
+        session.highest = max(session.highest, key)
+    if kind == "byte" and key == "r" and session.record_open and not session.pair_undumped:
         # The record is dumped whole after it ends, and released only then.
         session.until(lambda line: None if session.record_open else True, args.terminal_timeout)
     session.send(data)

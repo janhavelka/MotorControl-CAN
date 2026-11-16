@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Paired two-axis arming on the S2 bench
+
+- Add the attended paired armings `Ta` and `Te` (route protocol 16): one record
+  reads and checks both nodes, then arms each axis exactly as its own `TY` or
+  `TB` line would. A retained operation on either axis refuses both. No
+  simultaneous or atomic motion is claimed.
+- Print one `TRIAL_PAIR` summary instead of the paired record's dump, so neither
+  the dump nor a second arming line delays the two axes' motion and stop
+  replies. Keep the full record: `d` dumps it once the console's results are
+  released, and `r` is refused until that dump.
+- Move the image's T-line, console-activity and dump admission rules into
+  `BenchConsole.h`. The native console suite drives these functions over a
+  115200-baud and an output-blocked UART model.
+- Extend `s2_bench_console.py` with `Ta`/`Te`, `d`, `wait ID`, `pause MS` and
+  `release-all`. Two axes can then move together, with per-axis and group stops
+  sent through the existing console lines.
+
 ### Independent motion and qualification audit
 
 - Preserve the original velocity run's stop when a queued, unsent rate change

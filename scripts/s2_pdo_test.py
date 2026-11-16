@@ -1079,7 +1079,7 @@ class FirmwareTextTest(unittest.TestCase):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
         self.assertIn("pdo=7", widest)
-        self.assertIn("routes=15", widest)
+        self.assertIn("routes=16", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
         self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.
@@ -1214,7 +1214,13 @@ class FirmwareTextTest(unittest.TestCase):
         trial = main[main.index("if (trialCollecting) {"):lines_start]
         collected = main[lines_start:soak_start]
         single = main[soak_start:]
-        self.assertIn("!commissionHeld", trial)
+        # The T line's gate is BenchConsole.h's trialLineRefusal over main.cpp's holds (route protocol 16), whose
+        # records field carries the D, K and H records.
+        self.assertIn("E::trialLineRefusal(holds)", trial)
+        self.assertRegex(main, r"holds\.records = record \|\| rawRecord \|\| pdoRecord \|\| commissionHeld;")
+        console = (REPOSITORY / "examples/s2_bench/BenchConsole.cpp").read_text(encoding="utf-8")
+        gate = console[console.index("const char* trialLineRefusal("):console.index("const char* dumpRefusal(")]
+        self.assertIn("h.records", gate)
         capture = collected[collected.index("parsed.kind == E::PdoCommandKind::CAPTURE) {"):
                             collected.index("} else if (captureBlock) {")]
         self.assertIn("!commissionHeld", capture)

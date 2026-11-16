@@ -240,8 +240,9 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # the F route (gate Q03's 60FF probe), 9 the V line's field after the identity, prompt 59's range probe, and
 # the K route (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route
 # (one reviewed non-enabling 6040 word), 12 the V line's last field, prompt 59's reverse probe, 13 the l route (one
-# 2500 loop selector write), 14 the explicit m/p/v change experiments, 15 the n moving NMT experiment. Other images refuse.
-ROUTE_PROTOCOL = 15
+# 2500 loop selector write), 14 the explicit m/p/v change experiments, 15 the n moving NMT experiment, 16 the console's
+# paired armings a and e (s2_bench_console.py), whose record waits for `d`. Other images refuse.
+ROUTE_PROTOCOL = 16
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")

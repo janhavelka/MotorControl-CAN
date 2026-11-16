@@ -856,6 +856,10 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
         return "parse";
     if (!ensureRoute(services, plan.node, configured[plan.node - 1], now))
         return "route";
+    // A paired arming acquires on both nodes: the other node's route first, as an observer's.
+    const bool pair = E::isArmingPair(plan.kind);
+    if (pair && !ensureRoute(services, 3 - plan.node, configured[2 - plan.node], now))
+        return "route";
     // An observed move reads the other node on its own route and session too.
     const unsigned observer = plan.kind == E::RouteKind::MOVE ? plan.observer : 0;
     if (observer && !ensureRoute(services, observer, configured[observer - 1], now))
@@ -868,7 +872,8 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
         sessionStorage(firmware, *route, 3 - plan.node);
     if (!route || !route->bindRecordStorage(recordStorage) || !recordStorage ||
         !sessionStorage(firmware, *route, plan.node) ||
-        (observer && !sessionStorage(firmware, *route, observer)) || !workStorage(*route, plan))
+        (observer && !sessionStorage(firmware, *route, observer)) ||
+        (pair && !sessionStorage(firmware, *route, 3 - plan.node)) || !workStorage(*route, plan))
         return "memory";
     // An arming hands its reads to the shared console (BenchConsole.h): it needs the console (`o`) and
     // that node's motion attachment first, so that a successful record is never left unconsumed.
@@ -877,7 +882,8 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
         return "console";
     if (console)
         console->attachRoute(*route);
-    if (arming && !axisStorage(firmware, *console, plan.node))
+    if (arming && (!axisStorage(firmware, *console, plan.node) ||
+                   (pair && !axisStorage(firmware, *console, 3 - plan.node))))
         return "memory";
     return route->begin(plan, now);
 }
@@ -993,7 +999,8 @@ void ownerTask(void*) {
     line(firmware, "S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw "
                    "v/b=motion-reads S=soak X=soak-stop T=trial A=trial-abort\n");
     bool attempted = false, configured[E::BENCH_NODES] = {}, used[E::BENCH_NODES] = {},
-         heartbeatUsed[E::BENCH_NODES] = {}, readinessUsed[E::BENCH_NODES] = {}, dumping = false, reported = false;
+         heartbeatUsed[E::BENCH_NODES] = {}, readinessUsed[E::BENCH_NODES] = {}, dumping = false, reported = false,
+         pairUndumped = false; // A terminal paired arming record that `d` has not dumped yet.
     C::NmtRequestId nmtRequest;
     // Admission time of the retained NMT request. A frame received between it and the TX completion
     // may precede or follow the NMT frame on the wire; the result line prints both.
@@ -1026,7 +1033,7 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=15` in PONG names this line protocol: the CRC-32 field (3), the
+    // refused whole, never cut. `routes=16` in PONG names this line protocol: the CRC-32 field (3), the
     // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
     // settings routes and the move's observer node (5), then the N, V and O routes of prompts 35 and
     // 36 (6), then the V line without the host's start and stop flags, run as the library's attended
@@ -1037,7 +1044,8 @@ void ownerTask(void*) {
     // then the V line's reverse field at its end, prompt 59's reverse probe (12), then the l route (`Tl`, lowercase:
     // no capital is left), one 2500 loop selector write on a released drive (13), and explicit
     // mode-display / finite position-change / velocity-change experiments m/p/v (14), and
-    // the finite velocity NMT Stop/Pre-operational experiment n (15).
+    // the finite velocity NMT Stop/Pre-operational experiment n (15), then the paired armings a and e, whose
+    // terminal record prints one TRIAL_PAIR summary and waits for `d` (16).
     E::BenchRoute* route = nullptr;
     // The arena's current occupant, refreshed each turn and after each acquisition. D and K never
     // download, so the dispatcher below asks only for the raw, PDO and H collectors: a download of
@@ -1237,15 +1245,35 @@ void ownerTask(void*) {
                                                               std::strlen(out));
             }
         }
+        // A paired arming's summary is one line(), which drops a line while another is retained: it waits.
+        const bool pairRecord = trialRecord && E::isArmingPair(trialRecord->plan.kind);
         if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
              (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal) ||
              (captureRecord && captureRecord->terminal) || commissionTerminal) &&
-            !reported) {
+            !reported && !(pairRecord && retainedSize)) {
             reported = true;
-            dumping = true;
-            dumpCursor = 0;
             services.clearUploadExperiment(0);
             services.clearUploadExperiment(1);
+            // A paired arming (Ta, Te): one summary line now, and the record retained for `d`. Its dump would
+            // hold every console reply behind it for seconds, while both armings' age caps run (2026-11-16:
+            // a single arming's dump took about 2.7 s against a 3.15 s cap). Nothing of it is discarded:
+            // `r` is refused until `d` has dumped it.
+            if (pairRecord) {
+                pairUndumped = true;
+                // Static, off the task stack: the main loop's frame is part of the console's measured chain.
+                static char summary[256];
+                formatLine(summary, sizeof summary,
+                           "TRIAL_PAIR id=%lu nodes=%u,%u route=%s failure=%u why=%s terminals=%u traffic=%u "
+                           "lost=%u; full record retained: d dumps it, r only after that\n",
+                           static_cast<unsigned long>(trialRecord->plan.trial), unsigned(trialRecord->plan.node),
+                           unsigned(3 - trialRecord->plan.node), E::routeName(trialRecord->plan.kind),
+                           unsigned(trialRecord->failure), trialRecord->why, unsigned(trialRecord->terminalCount),
+                           unsigned(trialRecord->trafficCount), unsigned(trialRecord->evidenceLost));
+                line(firmware, summary);
+            } else {
+                dumping = true;
+                dumpCursor = 0;
+            }
         }
         if (dumping)
             dumping = trialRecord       ? dumpTrial(firmware, *route, dumpCursor)
@@ -1281,14 +1309,20 @@ void ownerTask(void*) {
         // The shared console's turn, after the firmware's and every bench record's (BenchConsole.h).
         // wire: the bench holds or may use the owner, and the console refuses all but inspection.
         // Its records wait while a bench record dump, listing, one-shot response or NMT result does.
-        E::BenchActivity activity;
         // A terminal, settled arming record holds only its dump: the console's motion it armed may run.
-        const bool armingHeld = trialRecord && trialRecord->terminal && !trialRecord->unsettled &&
-                                E::isArming(trialRecord->plan.kind);
-        activity.wire = soakActive || (trialHeld && !armingHeld) || commissionHeld || record || rawRecord ||
-                        pdoRecord || nmtRequest.owner || captureBlock;
-        activity.listing = networkDump;
-        activity.holdOutput = retainedSize != 0 || dumping || networkDump || (nmtRequest.owner && !nmtReported);
+        // The policy is BenchConsole.h's, which the native console suite drives too.
+        E::BenchHolds holds;
+        holds.trial = trialRecord;
+        holds.records = record || rawRecord || pdoRecord || commissionHeld;
+        holds.soak = soakActive;
+        holds.nmt = nmtRequest.owner != nullptr;
+        holds.nmtUnreported = !nmtReported;
+        holds.capture = captureBlock != nullptr;
+        holds.dumping = dumping;
+        holds.listing = networkDump;
+        holds.retained = retainedSize != 0;
+        holds.controller = controllerReady;
+        const E::BenchActivity activity = E::benchActivity(holds);
         if (commands && firmware.platform().nowUs(now)) {
             if (commands->expire(now))
                 line(firmware, "CONSOLE_REFUSED reason=incomplete; no work\n");
@@ -1301,6 +1335,7 @@ void ownerTask(void*) {
         }
         // The console retains an operation, traces or scans: the bench admits no owner work of its own.
         const bool consoleHeld = commands && commands->holds();
+        holds.console = consoleHeld;
         // An input loss: the platform's ring was full and dropped the newest bytes. As ProbeConsole does
         // after a loss, every buffered byte predates it and is retired unserved, the line open at the
         // boundary is dropped with its own refusal, and input is discarded through the next line end. A
@@ -1389,12 +1424,12 @@ void ownerTask(void*) {
                     trialCollecting = false;
                     const char* refusal = "length";
                     if (trialLength <= sizeof trialText) {
-                        refusal = consoleHeld ? "console" : captureBlock ? "capture" : "state";
-                        if (!consoleHeld && !captureBlock && controllerReady && !soakActive && !dumping && !networkDump &&
-                            !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
-                            !commissionHeld && firmware.platform().nowUs(now))
-                            refusal = startRoute(firmware, services, driver, route, commands, configured,
-                                                 trialText, trialLength, now, routeRecordStorage());
+                        refusal = E::trialLineRefusal(holds);
+                        if (!refusal)
+                            refusal = firmware.platform().nowUs(now)
+                                          ? startRoute(firmware, services, driver, route, commands, configured,
+                                                       trialText, trialLength, now, routeRecordStorage())
+                                          : "state";
                     }
                     if (refusal) {
                         formatLine(output, sizeof output, "TRIAL_REFUSED reason=%s; no work\n",
@@ -1893,14 +1928,18 @@ void ownerTask(void*) {
                                    ? "IDENTITY admitted; finite experimental uploads; no retry\n"
                                    : "IDENTITY refused; no work\n");
             } else if (command == 'd') {
-                if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
-                     (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal) ||
-                     (captureRecord && captureRecord->terminal) || commissionTerminal) &&
-                    !dumping) {
+                const char* refusal = E::dumpRefusal(
+                    holds, (record && record->terminal) || (rawRecord && rawRecord->terminal) ||
+                               (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal) ||
+                               (captureRecord && captureRecord->terminal) || commissionTerminal);
+                if (!refusal) {
                     dumping = true;
                     dumpCursor = 0;
+                    pairUndumped = false; // `r` needs !dumping too: it waits for this dump's end.
                 } else {
-                    line(firmware, "DUMP unavailable\n");
+                    line(firmware, std::strcmp(refusal, "console") == 0
+                                       ? "DUMP refused reason=console; release the console's results first\n"
+                                       : "DUMP unavailable\n");
                 }
             } else if (command == 'r') {
                 if (captureRecord) {
@@ -1910,7 +1949,8 @@ void ownerTask(void*) {
                     continue;
                 }
                 if (trialRecord) {
-                    line(firmware, !dumping && route->release()
+                    line(firmware, pairUndumped ? "TRIAL release refused reason=undumped; d first\n"
+                                   : !dumping && route->release()
                                        ? "TRIAL record released; sessions and uncertainty retained\n"
                                        : "TRIAL release refused\n");
                     continue;
@@ -1978,7 +2018,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=15 trial=%u motion=%u pdo=7 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=16 trial=%u motion=%u pdo=7 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

@@ -945,6 +945,31 @@ class ReverseProbeRecord(unittest.TestCase):
             self.assertEqual(evidence.parse_line(1, text).status, "malformed", text)
 
 
+class PairedArmingRecord(unittest.TestCase):
+    """Protocol 16: a paired arming's first node's check, then the other node's reads with their own node=."""
+
+    PAIR = "TRIAL_PAIR_CHECK node=1 passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=01 6064=0 606c=0"
+    CHECK = "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=01 6064=-5 606c=0 node=2"
+    LAST = "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8037 6061=01 6064=-5 606c=0 node=2"
+
+    def parsed(self, text):
+        record = evidence.parse_line(1, text)
+        self.assertEqual((record.status, record.extra), ("parsed", {}), (text, record.reason))
+        return record
+
+    def test_both_nodes_reads_parse_as_summaries_with_their_node(self):
+        records = [self.parsed(text) for text in (self.PAIR, self.CHECK, self.LAST)]
+        self.assertEqual([r.role for r in records], ["summary"] * 3)
+        self.assertEqual([r.values["node"] for r in records], [1, 2, 2])
+        self.assertEqual(records[1].values["6064"], -5)
+        # The other node's TRIAL_LAST signals file under node 2, the pair check's under node 1.
+        self.assertTrue(records[0].row.per_node and records[2].row.per_node)
+
+    def test_single_node_reads_keep_their_grammar(self):
+        self.assertNotIn("node", self.parsed(self.CHECK.replace(" node=2", "")).values)
+        self.assertEqual(evidence.parse_line(1, self.PAIR.replace("node=1 ", "")).status, "malformed")
+
+
 class LoopRecord(unittest.TestCase):
     """Protocol 13 (backlog S21): a loop record's TRIAL_CONTROL_GROUP lines hold 2500 and 2501 raw in decimal, and
     TRIAL_LOOP the 2500 download's terminal. The lines are BenchRoute's format with this test's numbers, never a

@@ -31,6 +31,17 @@
  * bench identity read selected another node. A named stop uses its own axis attachment and budget;
  * it does not need to change selection or wait for unrelated selection repair.
  *
+ * Paired arming (2026-11-16). ARM_MOVE_PAIR (`Ta`) and ARM_VELOCITY_PAIR (`Te`) acquire both nodes' reads in
+ * one record; service() then arms each axis exactly as from its own TY or TB, the first node and then
+ * the second, and reports one notice: `CONSOLE armed pair nodes=1,2 ...` or `CONSOLE arm refused node=N
+ * ...; pair: this trial armed neither node`. A retained operation on either axis refuses both before
+ * anything is named; a refusal of the second withdraws the first's motion prerequisites (armedTrial 0)
+ * and keeps its stop named. main.cpp prints a one-line summary of that record instead of dumping it, so
+ * neither the dump nor a second arming line delays the motion lines: both axes are armed before either
+ * moves, within each arming's age cap. The full record stays retained: `d` dumps it once the console
+ * retains no operation (dumpRefusal), and `r` is refused before that dump. Admissions and results stay
+ * per axis: paired arming claims no simultaneous or atomic motion.
+ *
  * Motion. The console's motion routes act on one BenchAxis per node: a ProbeMotion over the bench
  * route's own AxisSession of that node, with its live route, AxisConfig and AxisReference. Nothing
  * here acquires a prerequisite: a successful ARM_MOVE or ARM_VELOCITY route (BenchRoute.h) acquires
@@ -58,6 +69,33 @@ struct BenchActivity {
     bool listing = false;    ///< A bench network listing (`n`) drains network observations.
     bool holdOutput = false; ///< A bench record dump, listing, response or NMT result waits for room.
 };
+/** One turn's bench facts as main.cpp's own flags hold them. benchActivity, trialLineRefusal and dumpRefusal
+ * are that image's admission policy (2026-11-16); the native console suite drives the same functions. */
+struct BenchHolds {
+    const RouteRecord* trial = nullptr; ///< BenchRoute's record, active or retained.
+    bool records = false;       ///< An identity, raw, PDO or commissioning (D, K, H) record, active or retained.
+    bool soak = false;          ///< A soak runs.
+    bool nmt = false;           ///< An NMT request is retained.
+    bool nmtUnreported = false; ///< That request's result line has not been written yet.
+    bool capture = false;       ///< A capture blocks owner work (SilentCapture::blocking).
+    bool dumping = false;       ///< A bench record dump is in progress.
+    bool listing = false;       ///< A bench network listing (`n`) is in progress.
+    bool retained = false;      ///< A one-shot response waits for UART room; no input is taken meanwhile.
+    bool console = false;       ///< BenchConsole::holds(), after the console's turn.
+    bool controller = false;    ///< The CAN controller is ready.
+};
+/** @return What the console sees of the bench in this turn. A terminal settled arming record, single or
+ * paired, holds only its dump: the console's motion it armed may run. Pure. */
+BenchActivity benchActivity(const BenchHolds& holds) noexcept;
+/** @return Why a whole T line is refused before it is parsed ("console", "capture" or "state"), or null
+ * when the route may begin. Pure. "console" refuses every T line while the console retains an operation
+ * on any axis, a move of the other axis included: a paired arming (Ta, Te) prepares both axes first, so
+ * no arming has to pass that guard while an axis moves. */
+const char* trialLineRefusal(const BenchHolds& holds) noexcept;
+/** @param terminal A bench record is terminal. @return Why `d` is refused ("unavailable", or "console"
+ * for a paired arming's record while the console retains an operation), or null. That dump waits for
+ * the console's results to be released, so it never holds a motion or stop reply. Pure. */
+const char* dumpRefusal(const BenchHolds& holds, bool terminal) noexcept;
 /** How a complete console line may pass the bench. */
 enum class ConsoleGate : uint8_t {
     ALWAYS,       ///< Inspection, local host intent, or the console's own retained results.
@@ -239,6 +277,7 @@ class BenchConsole {
         uint32_t deadlineMs = 0, bestEffortMs = 0, intervalMs = 0;
     } budgets_[BENCH_NODES];
     RouteArming arming_;
+    RouteArming pairArming_; // A paired arming's second node, off the stack.
     uint32_t emcyBaseline_[BENCH_NODES] = {};
 };
 } // namespace MotorControlCANExample

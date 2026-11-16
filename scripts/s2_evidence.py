@@ -204,9 +204,13 @@ GRAMMAR = (
         "tec0:u? rec0:u? tec1:u? rec1:u?",
         "completed", (("health", "stack1"), ("health", "heapMin")), True),
     # The first of two fresh check reads (released-quick, word67, a relative move); the check judged both.
-    Row("TRIAL_FIRST", "TRIAL_FIRST ", "summary", _TRIAL_SNAPSHOT),
-    Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT),
-    Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),
+    # A paired arming (Ta, Te; route protocol 16): the first node's checked read, kept when the route moved on
+    # to the other node, whose reads are TRIAL_FIRST, TRIAL_CHECK and TRIAL_LAST, each then with node=.
+    Row("TRIAL_PAIR_CHECK", "TRIAL_PAIR_CHECK ", "summary", "node:u " + _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES,
+        per_node=True),
+    Row("TRIAL_FIRST", "TRIAL_FIRST ", "summary", _TRIAL_SNAPSHOT + " node:u?"),
+    Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT + " node:u?"),
+    Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT + " node:u?", signals=_TRIAL_VALUES, per_node=True),
     # The history route's 1003, raw: the count, then only the entries it names. Never interpreted.
     Row("TRIAL_HISTORY", "TRIAL_HISTORY ", "summary", "count:u e1:x? e2:x? e3:x? e4:x?"),
     Row("TRIAL_EMCY", "TRIAL_EMCY ", "summary", "data:h", signals=(("health", "data"),), per_node=True),

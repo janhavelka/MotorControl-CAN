@@ -374,7 +374,7 @@ the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` reports `routes=15` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` reports `routes=16` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
 with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
@@ -401,7 +401,8 @@ line, which names its reset method, protocol 11 only added `TT`, the controlword
 only the `TV` line's reverse field, and protocol 13 added `Tl`, the loop selector write.
 Protocol 14 adds disabled-mode `Tm`, finite position-change `Tp` and velocity-change `Tv`
 experiments; protocol 15 adds finite velocity/NMT `Tn` and an optional explicit
-change-experiment flag on `TY`/`TB`. Ordinary `TV` and legacy arming lines keep their grammar.
+change-experiment flag on `TY`/`TB`; protocol 16 adds the paired armings `Ta` and `Te` and `d`'s
+`DUMP refused reason=console`. Ordinary `TV` and legacy arming lines keep their grammar.
 The [diagnostics procedure](../../docs/bench/20261116-p54/diagnostics.md) describes
 the new gates, M14 cutoffs and command usage; none promotes an experiment to measured qualification.
 
@@ -452,7 +453,7 @@ result pressure; group stop retains its own member records.
 
 The console's motion routes act on one `ProbeMotion` per node, over `BenchRoute`'s own `AxisSession` of that node, with
 that node's live route, `AxisConfig` and `AxisReference`. Nothing in the console acquires or invents a prerequisite: an
-arming route acquires it exactly as the bench's own routes do, and its line carries every evidence value. Three arming
+arming route acquires it exactly as the bench's own routes do, and its line carries every evidence value. Five arming
 routes, `T` lines with the bench's `,K` integrity field, attended, reads only, no write and no motion weight:
 
 | Line | Reads and check | Hands the console |
@@ -460,11 +461,22 @@ routes, `T` lines with the bench's `,K` integrity field, attended, reads only, n
 | `TY<node>,<trial>,1,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>[,<allowChanges>]` | MOVE's: identity, full read (two for a relative base), the move check against the reviewed 6064 after the session's acknowledged `000F` | `setMovePrerequisites` with `MoveEvidence` built as MOVE builds it (gate MEASURED, the line's record, signals, rule, raw identity and base), MOVE's budgets and age cap (3.15 s), the line's interval; a relative base's witness as MOVE's (ACTUAL: the read 6064; COMMANDED: the line's base); the stop budgets |
 | `TB<node>,<trial>,1,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,...,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>[,<allowChanges>]` | VELOCITY's: identity, full read, the released mode 3 standstill check | `setVelocityPrerequisites` with `VelocityEvidence` built as VELOCITY builds it (`VelocityGate::ATTENDED_EXPERIMENT`, no start, stop, reverse or mode change claim, the line's rpm as the forward maximum, at most 60), the line's ramps, VELOCITY's budgets, enable report window and stop reserve, `maxPolls` for the experiment's 20 s maximum; the console's `normal` or `fast` must name the line's stop kind (1 HALT, 2 QUICK_STOP) |
 | `TX<node>,<trial>,1,<startPosition>` | two full reads at the reviewed 6064, both idle and enabled as MOVE's relative witness requires or both released as RELEASED_QUICK requires; no `000F` needed | a stationary ACTUAL witness for the console's `stepsperturn` and `axis origin`, which consume it; no motion prerequisite |
+| `Ta<node>,...` as `TY` with `relativeBase` 0 and `base` 0 and no `allowChanges`, then `,<otherStartPosition>` | `TY`'s reads and check on `<node>`, then the same on the other node against its own reviewed 6064; both nodes' sessions must be open, eligible and at an acknowledged `000F` before anything is read | both axes, each exactly as from its own `TY` line with the same evidence, interval and stop budgets |
+| `Te<node>,...` as `TB` without `allowChanges` | `TB`'s reads and check on `<node>`, then on the other node | both axes, each exactly as from its own `TB` line |
 
 A successful arming record registers that node's `ProbeMotion` and owns a copy of its
-arming reads and original timestamps. Both axes can remain registered; arm both
-before admitting either motion, because a retained console operation blocks a new
-bench acquisition. It prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
+arming reads and original timestamps. Both axes can remain registered. For two axes use one paired arming (`Ta`, `Te`;
+route protocol 16) before either moves: every later `T` line is refused `reason=console` while the console retains an
+operation on any axis, the first axis's move included, and two single armings with their dumps between them outlast the
+first arming's age cap at 115200 baud (2026-11-16, [HIL campaign](../../docs/reports/2026-11-16_hil_campaign.md)). A
+paired record prints one line, `TRIAL_PAIR id=T nodes=A,B route=... failure=F why=... terminals=N traffic=N lost=L; full
+record retained: d dumps it, r only after that`, then `CONSOLE armed pair nodes=A,B trial=T route=...; prerequisites
+named for both, nothing sent`. A retained operation on either axis refuses both, and a refusal of the second withdraws
+the first's motion prerequisites: `CONSOLE arm refused node=N trial=T reason=...; pair: this trial armed neither node`.
+The full record is kept: `d` dumps it once the console retains no operation (`DUMP refused reason=console` before), so
+the dump never holds a motion or stop reply, and `r` is refused `reason=undumped` until that dump. The two axes' moves
+and stops are then separate console lines with separate admissions and results: paired arming promises no simultaneous
+or atomic motion. A single arming prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
 relative=R witness=W scale=S origin=O changes=C changeRecord=E; prerequisites named, nothing sent`, or `CONSOLE arm refused node=N trial=T
 reason=...; nothing named`. An arming without `o` first is refused `TRIAL_REFUSED reason=console`. The settled arming
 record holds only its dump: console work may run before `r`, and `r` may refuse while that work's frames are in flight
@@ -480,7 +492,10 @@ and velocity changes name the original operation ID; see the
 [CLI contract](../../docs/cli_contract.md) and the explicit experiment gate below. `cancel` never withdraws a running velocity (below).
 
 - **Age.** A move's prerequisites must be younger than 3.15 s at its admission and at each write (MOVE's age cap). Send
-  the motion line right after the notice, in the same `scripts/s2_bench_console.py` invocation.
+  the motion line right after the notice, in the same `scripts/s2_bench_console.py` invocation. For two axes:
+  `--no-terminal --send "Ta..." --send "@1 useaddr 1" ... --send "@4 move ..." --send "@5 useaddr 2" ...
+  --send "@8 move ..." --send "wait 4" --send "wait 8" --send release-all --send d --send r`, with `pause MS`
+  and `@ID stop N normal|fast` or `@ID stop all fast` between them as the experiment needs.
 - **One use.** An admitted move or velocity consumes its prerequisites (ProbeMotion).
   Each axis owns its arming copy, so arming the other axis does not replace it.
   Consumed, expired, wrong-kind or changed-generation evidence is still refused;

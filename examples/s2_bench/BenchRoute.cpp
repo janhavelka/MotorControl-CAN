@@ -112,8 +112,8 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
                              "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop", "mode-probe",
-                             "position-change", "velocity-change", "velocity-nmt"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_NMT) + 1, "one name per route");
+                             "position-change", "velocity-change", "velocity-nmt", "arm-move-pair", "arm-velocity-pair"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::ARM_VELOCITY_PAIR) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -463,6 +463,35 @@ constexpr Field ARM_VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                          ROUTE_FIELD(stopDeadlineMs, ACTION_MS),
                                          ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
                                          ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
+// ARM_MOVE_PAIR: ARM_MOVE's fields for both nodes, then the other node's reviewed 6064: the same evidence,
+// interval and stop budgets name both axes, as each would from its own TY line.
+constexpr Field ARM_MOVE_PAIR_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                          ROUTE_FIELD(trial, TRIAL),
+                                          ROUTE_FIELD(attended, FLAG),
+                                          ROUTE_FIELD(startPosition, SIGNED32),
+                                          ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                          ROUTE_FIELD(record, TRIAL),
+                                          ROUTE_FIELD(acceptSource, SOURCE),
+                                          ROUTE_FIELD(acceptMask, MASK),
+                                          ROUTE_FIELD(acceptValue, U16),
+                                          ROUTE_FIELD(completeSource, SOURCE),
+                                          ROUTE_FIELD(completeMask, MASK),
+                                          ROUTE_FIELD(completeValue, U16),
+                                          ROUTE_FIELD(rule, SOURCE),
+                                          ROUTE_FIELD(firmware.deviceType, U32),
+                                          ROUTE_FIELD(firmware.hardwareVersion, U16),
+                                          ROUTE_FIELD(firmware.softwareVersion, U16),
+                                          ROUTE_FIELD(firmware.vendorId, U32),
+                                          ROUTE_FIELD(firmware.productCode, U32),
+                                          ROUTE_FIELD(firmware.revision, U32),
+                                          ROUTE_FIELD(firmware.modelCode, U16),
+                                          ROUTE_FIELD(firmware.firmwareCode, U16),
+                                          ROUTE_FIELD(relativeBase, RELATIVE_BASE),
+                                          ROUTE_FIELD(base, SIGNED32),
+                                          ROUTE_FIELD(stopDeadlineMs, ACTION_MS),
+                                          ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                          ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL),
+                                          ROUTE_FIELD(pairStartPosition, SIGNED32)};
 // ARM_WITNESS: the host's reviewed 6064 both reads must show; nothing else.
 constexpr Field ARM_WITNESS_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                         ROUTE_FIELD(startPosition, SIGNED32)};
@@ -513,8 +542,10 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'m', RouteKind::MODE_PROBE, MODE_PROBE_FIELDS, countOf(MODE_PROBE_FIELDS)},
                                 {'p', RouteKind::POSITION_CHANGE, CHANGE_FIELDS, countOf(CHANGE_FIELDS)},
                                 {'v', RouteKind::VELOCITY_CHANGE, VELOCITY_CHANGE_FIELDS, countOf(VELOCITY_CHANGE_FIELDS)},
-                                {'n', RouteKind::VELOCITY_NMT, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_NMT), "one grammar per route");
+                                {'n', RouteKind::VELOCITY_NMT, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)},
+                                {'a', RouteKind::ARM_MOVE_PAIR, ARM_MOVE_PAIR_FIELDS, countOf(ARM_MOVE_PAIR_FIELDS)},
+                                {'e', RouteKind::ARM_VELOCITY_PAIR, ARM_VELOCITY_FIELDS, countOf(ARM_VELOCITY_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::ARM_VELOCITY_PAIR), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -702,6 +733,10 @@ unsigned terminalBound(const RoutePlan& p) {
         return 9 + 9;
     case RouteKind::ARM_WITNESS:
         return 9 + 9;
+    case RouteKind::ARM_MOVE_PAIR:
+    case RouteKind::ARM_VELOCITY_PAIR:
+        // Each node's identity and full read; absolute moves only, so one full read each.
+        return 2 * (9 + 9);
     case RouteKind::CONTROLWORD:
         // The full read, the one word, seven-field cycles, the final full read.
         return 9 + 1 + 7u * p.cycles + 9;
@@ -880,8 +915,14 @@ bool routePlanValid(const RoutePlan& p) noexcept {
                p.stopIntervalMs >= 10 && (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
     }
     case RouteKind::ARM_VELOCITY:
+    case RouteKind::ARM_VELOCITY_PAIR:
         return p.layout != unsigned(L::StatusLayout::ZH57) && p.stopIntervalMs >= 10 &&
                (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
+    case RouteKind::ARM_MOVE_PAIR:
+        // ARM_MOVE's rules for an absolute move on each node: no relative base, whose witness a pair would
+        // need twice.
+        return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && !p.relativeBase &&
+               !p.base && p.stopIntervalMs >= 10 && (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
     case RouteKind::CONTROLWORD:
         // Only the reviewed set: 0..128 on the line also holds 0007, 000F, 001F and every unreviewed word.
         return controlwordReviewed(p.controlword);
@@ -1128,13 +1169,43 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if ((plan.kind == RouteKind::VELOCITY_TARGET || plan.kind == RouteKind::MODE_PROBE) &&
         (session->velocityNeedsStop() || session->homeNeedsStop() || session->moveFenced() || session->faultBlocked()))
         return "fenced";
+    // A paired arming judges the other node as the line's: its own session, route, eligibility, latest
+    // 000F for a move, and fence. Nothing of either node is changed by a refusal here.
+    AxisSession* pair = nullptr;
+    if (isArmingPair(plan.kind)) {
+        static_assert(BENCH_NODES == 2, "a pair is both nodes of the two-node fixture");
+        const uint8_t other = uint8_t(BENCH_NODES - 1 - index);
+        pair = sessions_[other];
+        const C::SdoChannel* otherChannel = services_.channel(other);
+        const C::NodeSnapshot* otherNode = services_.node(other);
+        if (!pair || !otherChannel || !otherNode || otherNode->exhausted)
+            return "pair";
+        L::ReadTarget otherTarget;
+        otherTarget.channel = *otherChannel;
+        otherTarget.nodeGeneration = otherNode->route.generation;
+        if (!pair->isOpen() && !firmware_.app().openAxis(*pair, otherTarget, L::SettingsModel::CL86_C, now))
+            return "pair";
+        if (pair->busy() || !owner.sequence(pair->sequence()))
+            return "pair";
+        C::ServiceEligibility otherEligibility;
+        if (!C::serviceEligibility(*otherNode, now, otherEligibility) || !otherEligibility.ordinarySdo)
+            return "pair-eligibility";
+        const C::SdoCompletion* otherControl = pair->latestControl();
+        if (plan.kind == RouteKind::ARM_MOVE_PAIR &&
+            (!otherControl || otherControl->transfer.data[0] != 0x0f || otherControl->transfer.data[1] != 0))
+            return "pair-control";
+        if (plan.kind == RouteKind::ARM_MOVE_PAIR && pair->moveFenced())
+            return "pair-fenced";
+    }
     // Last, so that a refusal above leaves every reservation's numbering as it was.
     if (!continueOperations(*session, index, now) ||
+        (pair && !continueOperations(*pair, uint8_t(BENCH_NODES - 1 - index), now)) ||
         (plan.kind == RouteKind::MOVE && plan.observer &&
          !continueOperations(*sessions_[plan.observer - 1], uint8_t(plan.observer - 1), now)))
         return "session";
     lastTrial_ = plan.trial;
     armed_ = false; // This route's reads replace any arming's, whatever it is.
+    activeNode_ = 0; // The plan's node; a paired arming moves on to the other one at STEP_PAIR_NEXT.
     if (motion) {
         motionTotal_ = uint8_t(motionTotal_ + 1 + stop);
         if (plan.kind == RouteKind::POSITION_CHANGE)
@@ -1165,8 +1236,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.admission = 0;
     r.terminalCount = r.tailCount = 0;
     r.trafficCount = 0;
-    r.checkPresent = r.checkPassed = r.firstPresent = false;
-    r.first = r.check = r.last = RouteSnapshot();
+    r.checkPresent = r.checkPassed = r.firstPresent = r.pairCheckPresent = false;
+    r.first = r.check = r.last = r.pairCheck = RouteSnapshot();
     r.historyPresent = false;
     r.historyCount = 0;
     std::memset(r.history, 0, sizeof r.history);
@@ -1383,6 +1454,13 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         {STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_END, 0}};
     static const Step armVelocity[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_VELOCITY, 0}, {STEP_END, 0}};
     static const Step armWitness[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_WITNESS, 0}, {STEP_END, 0}};
+    // A paired arming: the line's node, then the other node, each exactly as its single arming; no write.
+    static const Step armMovePair[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_MOVE, 0},
+                                       {STEP_PAIR_NEXT, 0}, {STEP_IDENTITY, 0}, {STEP_STATE, FULL},
+                                       {STEP_CHECK_MOVE, 0}, {STEP_END, 0}};
+    static const Step armVelocityPair[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_VELOCITY, 0},
+                                           {STEP_PAIR_NEXT, 0}, {STEP_IDENTITY, 0}, {STEP_STATE, FULL},
+                                           {STEP_CHECK_VELOCITY, 0}, {STEP_END, 0}};
     // One fresh full read and its check, the one line word, the cycles (each marked), one more full read
     // (marked too), then the end.
     static const Step controlword[] = {{STEP_STATE, FULL},           {STEP_CHECK_CONTROLWORD, 0},
@@ -1400,8 +1478,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
-                                  subdivision, controlword, loop, modeProbe, positionChange, velocity, velocity};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_NMT) + 1,
+                                  subdivision, controlword, loop, modeProbe, positionChange, velocity, velocity,
+                                  armMovePair, armVelocityPair};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::ARM_VELOCITY_PAIR) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1524,7 +1603,10 @@ void BenchRoute::capture(bool tail) noexcept {
         // A nonzero EMCY error code from this node ends the route. Zero is the no-error form.
         const bool fault = !tail && d.kind == DiagnosticKind::RX && !d.frame.extended && !d.frame.rtr &&
                            d.frame.dlc >= 2 && (d.frame.data[0] | d.frame.data[1]);
-        if (fault && !record_->emcy && d.frame.id == emcyId) {
+        // A paired arming acquires on both nodes: a nonzero EMCY from either ends it.
+        const bool pairNode = isArmingPair(record_->plan.kind) &&
+                              d.frame.id == 0x80u + (BENCH_NODES + 1u - record_->plan.node);
+        if (fault && !record_->emcy && (d.frame.id == emcyId || pairNode)) {
             record_->emcy = true;
             std::memcpy(record_->emcyData, d.frame.data, sizeof record_->emcyData);
         }
@@ -1572,6 +1654,8 @@ void BenchRoute::finish(RouteFailure failure, const char* why, uint64_t now) noe
     if (callbacks_.sample)
         callbacks_.sample(callbacks_.context, record_->after);
     services_.clearUploadExperiment(slot());
+    if (isArmingPair(record_->plan.kind))
+        services_.clearUploadExperiment(uint8_t(record_->plan.node - 1));
     noteEnd(now);
     // A successful arming leaves its checked reads in context_ and identity_ for armed().
     if (isArm(record_->plan.kind) && failure == RouteFailure::NONE) {
@@ -1825,13 +1909,32 @@ uint8_t BenchRoute::kept(unsigned node) const noexcept {
                    (modeAdmitted_[node - 1] ? KEPT_MODE_WRITE : 0));
 }
 bool BenchRoute::armed(RouteArming& output) const noexcept {
-    if (!armed_)
+    if (!armed_ || isArmingPair(armedPlan_.kind))
         return false;
     output.plan = armedPlan_;
     output.state = &context_.read;
     output.identity = &identity_;
     output.position = armedPosition_;
     output.feedbackUs = armedFeedbackUs_;
+    return true;
+}
+bool BenchRoute::armedPair(RouteArming& first, RouteArming& second) const noexcept {
+    if (!armed_ || !isArmingPair(armedPlan_.kind))
+        return false;
+    const RouteKind single = armedPlan_.kind == RouteKind::ARM_MOVE_PAIR ? RouteKind::ARM_MOVE : RouteKind::ARM_VELOCITY;
+    first.plan = second.plan = armedPlan_;
+    first.plan.kind = second.plan.kind = single;
+    first.plan.pairStartPosition = second.plan.pairStartPosition = 0;
+    second.plan.node = uint8_t(BENCH_NODES + 1 - armedPlan_.node);
+    second.plan.startPosition = armedPlan_.pairStartPosition;
+    first.state = &pairRead_;
+    first.identity = &pairIdentity_;
+    first.position = pairPosition_;
+    first.feedbackUs = pairFeedbackUs_;
+    second.state = &context_.read;
+    second.identity = &identity_;
+    second.position = armedPosition_;
+    second.feedbackUs = armedFeedbackUs_;
     return true;
 }
 // The console's motion counts as a route of the same kind: begin's caps, nothing else.
@@ -2094,6 +2197,23 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
             finish(RouteFailure::PREREQUISITE, why, now);
         else
             nextStep(now);
+        return;
+    }
+    case STEP_PAIR_NEXT: {
+        // Keep the first node's checked reads, as armed() would name them, before the other node's
+        // acquisition reuses the scratch; then act on the other node.
+        pairRead_ = context_.read;
+        pairIdentity_ = identity_;
+        pairPosition_ = record_->check.position;
+        pairFeedbackUs_ = feedbackUs_;
+        record_->pairCheck = record_->check;
+        record_->pairCheckPresent = true;
+        // From here TRIAL_FIRST, TRIAL_CHECK and TRIAL_LAST are the other node's reads only (node= on them).
+        record_->checkPresent = record_->checkPassed = record_->firstPresent = false;
+        record_->first = record_->check = record_->last = RouteSnapshot();
+        services_.clearUploadExperiment(slot());
+        activeNode_ = uint8_t(BENCH_NODES + 1 - record_->plan.node);
+        nextStep(now);
         return;
     }
     case STEP_MODE_WRITE:
@@ -2704,7 +2824,7 @@ const char* BenchRoute::checkPosition() const noexcept {
         return why;
     if (const char* why = checkIdle(record_->last))
         return why;
-    if (record_->last.position != record_->plan.startPosition)
+    if (record_->last.position != startPosition())
         return "position";
     return nullptr;
 }
@@ -4178,8 +4298,9 @@ constexpr unsigned MOVE_SAMPLES = 5;
 constexpr unsigned VELOCITY_SAMPLES = 5;
 unsigned BenchRoute::summaryCount() const noexcept {
     const RouteRecord& r = *record_;
-    unsigned count = 2 + r.firstPresent + r.checkPresent + (r.last.blocks != 0) + r.historyPresent + r.emcy +
-                     r.statusPresent;
+    // TRIAL_PAIR_CHECK: a paired arming's first node's checked read.
+    unsigned count = 2 + r.pairCheckPresent + r.firstPresent + r.checkPresent + (r.last.blocks != 0) +
+                     r.historyPresent + r.emcy + r.statusPresent;
     // TRIAL_REARM, or TRIAL_CONTROL; then TRIAL_BASE.
     if (r.plan.kind == RouteKind::REARM || r.plan.kind == RouteKind::RELEASED_QUICK || r.plan.kind == RouteKind::WORD67 ||
         r.plan.kind == RouteKind::MODE_THREE || r.plan.kind == RouteKind::VELOCITY_TARGET ||
@@ -4371,6 +4492,27 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(p.rule), unsigned(p.relativeBase), static_cast<long>(p.base),
                        static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
                        static_cast<unsigned long>(p.stopIntervalMs), unsigned(p.allowChanges));
+        case RouteKind::ARM_MOVE_PAIR:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u pair=%u trial=%lu attended=%u sp=%ld sp2=%ld interval=%lu "
+                       "record=%lu as=%u am=%04x av=%04x cs=%u cm=%04x cv=%04x rule=%u sd=%lu be=%lu si=%lu\n",
+                       routeName(p.kind), unsigned(p.node), unsigned(BENCH_NODES + 1 - p.node),
+                       static_cast<unsigned long>(p.trial), unsigned(p.attended), static_cast<long>(p.startPosition),
+                       static_cast<long>(p.pairStartPosition), static_cast<unsigned long>(p.intervalMs),
+                       static_cast<unsigned long>(p.record), unsigned(p.acceptSource), unsigned(p.acceptMask),
+                       unsigned(p.acceptValue), unsigned(p.completeSource), unsigned(p.completeMask),
+                       unsigned(p.completeValue), unsigned(p.rule), static_cast<unsigned long>(p.stopDeadlineMs),
+                       static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.stopIntervalMs));
+        case RouteKind::ARM_VELOCITY_PAIR:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u pair=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu "
+                       "interval=%lu record=%lu layout=%u kind=%u sd=%lu be=%lu si=%lu\n",
+                       routeName(p.kind), unsigned(p.node), unsigned(BENCH_NODES + 1 - p.node),
+                       static_cast<unsigned long>(p.trial), unsigned(p.attended), static_cast<unsigned long>(p.rpm),
+                       static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
+                       static_cast<unsigned long>(p.intervalMs), static_cast<unsigned long>(p.record),
+                       unsigned(p.layout), unsigned(p.stopKind), static_cast<unsigned long>(p.stopDeadlineMs),
+                       static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.stopIntervalMs));
         case RouteKind::ARM_VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu interval=%lu "
@@ -4399,11 +4541,26 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    static_cast<unsigned long>(r.before.txErrors), static_cast<unsigned long>(r.before.rxErrors),
                    static_cast<unsigned long>(r.after.txErrors), static_cast<unsigned long>(r.after.rxErrors));
     index -= 2;
+    // A paired arming's first node: its checked read, kept when the route moved on to the other node. Its
+    // check passed, or the route would have ended there.
+    if (r.pairCheckPresent && !index--) {
+        const RouteSnapshot& s = r.pairCheck;
+        return put(out, size,
+                   "TRIAL_PAIR_CHECK node=%u passed=1 blocks=%02x 1001=%02x 603f=%04x 2100=%04x 6041=%04x 6061=%02x "
+                   "6064=%ld 606c=%ld\n",
+                   unsigned(r.plan.node), unsigned(s.blocks), unsigned(s.errorRegister), unsigned(s.errorCode),
+                   unsigned(s.monitor), unsigned(s.statusword), unsigned(s.mode), static_cast<long>(s.position),
+                   static_cast<long>(s.velocity));
+    }
     // The first of two check reads, the check's own read and the latest; passed is the check's verdict
     // on the reads it judged, and always 1 for the latest.
     const RouteSnapshot* shots[] = {r.firstPresent ? &r.first : nullptr, r.checkPresent ? &r.check : nullptr,
                                     r.last.blocks ? &r.last : nullptr};
     const char* labels[] = {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_LAST"};
+    // After a paired arming's STEP_PAIR_NEXT these are the other node's reads, and say so.
+    char pairNode[8] = "";
+    if (r.pairCheckPresent)
+        put(pairNode, sizeof pairNode, " node=%u", unsigned(BENCH_NODES + 1 - r.plan.node));
     for (unsigned i = 0; i < 3; ++i) {
         if (!shots[i])
             continue;
@@ -4412,10 +4569,10 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         const RouteSnapshot& s = *shots[i];
         return put(out, size,
                    "%s passed=%u blocks=%02x 1001=%02x 603f=%04x 2100=%04x 6041=%04x 6061=%02x 6064=%ld "
-                   "606c=%ld\n",
+                   "606c=%ld%s\n",
                    labels[i], unsigned(i < 2 ? r.checkPassed : 1), unsigned(s.blocks), unsigned(s.errorRegister),
                    unsigned(s.errorCode), unsigned(s.monitor), unsigned(s.statusword), unsigned(s.mode),
-                   static_cast<long>(s.position), static_cast<long>(s.velocity));
+                   static_cast<long>(s.position), static_cast<long>(s.velocity), pairNode);
     }
     if (r.historyPresent && !index--) {
         // Raw 1003:00 and only the entries it names, never interpreted: an entry that was not read is

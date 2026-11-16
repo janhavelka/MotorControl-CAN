@@ -30,12 +30,21 @@ uint16_t indexOf(const M::Frame& f) { return uint16_t(f.data[1] | uint16_t(f.dat
 struct Console {
     uint64_t now = 1000000;
     std::string output;
+    // A slow UART: with rate nonzero it takes at most room bytes until a turn sets room = rate again; a
+    // blocked one takes none. Zero rate takes every byte offered, as before.
+    unsigned rate = 0, room = 0;
+    bool blocked = false;
     static bool clock(void* context, uint64_t& out) {
         out = static_cast<Console*>(context)->now;
         return true;
     }
     static bool write(void* context, uint8_t byte) {
-        static_cast<Console*>(context)->output.push_back(char(byte));
+        Console& c = *static_cast<Console*>(context);
+        if (c.blocked || (c.rate && !c.room))
+            return false;
+        if (c.rate)
+            --c.room;
+        c.output.push_back(char(byte));
         return true;
     }
     static bool read(void*, uint8_t&) { return false; }

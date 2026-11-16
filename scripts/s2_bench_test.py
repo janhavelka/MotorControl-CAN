@@ -1285,7 +1285,7 @@ class BenchTest(unittest.TestCase):
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
             # Older images, protocols 7 to 12 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16):
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -2073,7 +2073,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=15", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=16", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2117,7 +2117,7 @@ class BenchTest(unittest.TestCase):
         # Protocol 9 added the V line's range probe field and the K route: an image that speaks 8 would read a V
         # line one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line, 11
         # added T, 12 the V line's reverse field, 13 the l route.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 15)
+        self.assertEqual(bench.ROUTE_PROTOCOL, 16)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -2151,7 +2151,7 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
-                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=15",
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=16",
                      repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
             self.assertIn(part, out.getvalue())
         self.assertFalse(self.output.exists())
@@ -2245,7 +2245,7 @@ class BenchTest(unittest.TestCase):
                      "one download 2B 40 60 00 80 00 00 00 (0x0080, fault reset, a bit 7 edge from 0), 3 "
                      "STATUS/MONITORS/FEEDBACK cycles 500 ms apart and one more full read",
                      "no second word, no retry, no enable, no 6060, 60FF or 2301 write", "runner prints ALERT and exits 4",
-                     "routes=15", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
+                     "routes=16", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2399,7 +2399,7 @@ class BenchTest(unittest.TestCase):
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
         self.assertIn("no reverse probe: a positive rate, 60FF 3000", out.getvalue())
-        self.assertIn("routes=15", out.getvalue())
+        self.assertIn("routes=16", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2481,7 +2481,7 @@ class BenchTest(unittest.TestCase):
         for text in ("reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate -6 rpm, 60FF written "
                      "23 FF 60 00 FA FF FF FF (two's complement I32; Q03 open",
                      "a 606C against the command by more than 2 rpm ends the run with its own stop",
-                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=15",
+                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=16",
                      repr(signed("TV1,30,1,6,200,200,12000,5000,15500,1,%s,0,1" % tail).encode("ascii"))):
             self.assertIn(text, out.getvalue())
         # The record and the send entry keep it.
@@ -2576,7 +2576,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=15", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=16", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2817,7 +2817,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "route refuses unless 2100 reports released (bit 4)", "closed loop while 2501 reads 0",
                      "one download 2B 00 25 00 01 00 00 00 (2500 = 1, open loop)", "2501 never written",
-                     "no 6040, no enable, no save", "routes=15", repr(signed("Tl1,40,1,1").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=16", repr(signed("Tl1,40,1,1").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")

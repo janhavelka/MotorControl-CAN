@@ -228,6 +228,14 @@
  *   which the console supplies, and the stop budgets of the console's later stop requests. Attended,
  *   reads only, no motion weight: each console motion it enables is counted when the console admits it
  *   (consoleMotionAllowed, countConsoleMotion).
+ * - ARM_MOVE_PAIR and ARM_VELOCITY_PAIR (2026-11-16), the console's paired arming of both nodes in one record,
+ *   so that no arming line has to pass the bench while the console retains the first axis's move. begin()
+ *   checks the other node as it checks the plan's (session, eligibility, a move's acknowledged 000F and
+ *   fence) before anything is read. The steps are ARM_MOVE's or ARM_VELOCITY's on the plan's node, then
+ *   STEP_PAIR_NEXT, which keeps that node's reads and check (TRIAL_PAIR_CHECK) and moves the route to the
+ *   other node, then the same steps there against the other node's reviewed 6064 (pairStartPosition). A
+ *   move pair is absolute only. A nonzero EMCY from either node ends the route. armedPair() hands both
+ *   nodes' reads to the console, each as its single arming's; armed() refuses a pair.
  * - ARM_WITNESS, the console's host coordinate witness. Two fresh full reads that must both show the host's
  *   reviewed 6064, and either both pass MOVE's idle check (enabled, mode 1, low bits 111, running, alarm
  *   and released clear, 606C 0, 1001 and 603F 0) or both pass RELEASED_QUICK's released check, then the
@@ -366,7 +374,14 @@ enum class RouteKind : uint8_t {
     /** Prompt 52 one native mid-run positive velocity change in the original finite run; `Tv`. */
     VELOCITY_CHANGE,
     /** Prompt54 finite velocity with addressed STOP then PREOP in a natural polling gap; `Tn`. */
-    VELOCITY_NMT
+    VELOCITY_NMT,
+    /** Prompts 53/54 paired arming (2026-11-16): ARM_MOVE's identity read, full read and check on the line's
+     * node, then the same on the other node, in one record; both nodes' console axes are armed from it.
+     * No write; `Ta`. Attended. Absolute moves only. */
+    ARM_MOVE_PAIR,
+    /** The paired velocity arming: ARM_VELOCITY's identity read, full read and check on both nodes in one
+     * record, with the same evidence, rate cap, ramps and stop budgets for both; `Te`. Attended. */
+    ARM_VELOCITY_PAIR
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -386,7 +401,10 @@ struct RoutePlan {
     uint8_t changeAfterCycle = 0; ///< POSITION_CHANGE: completed running cycle after which the change begins.
     uint32_t changeValue = 0; ///< POSITION_CHANGE: positive native RPM for cases 1/5, positive ms for 2/3.
     int32_t replacementTarget = 0; ///< POSITION_CHANGE cases 6/7/8: forward absolute native endpoint.
-    uint8_t node = 0;                 ///< Node 1..BENCH_NODES, adapter slot node - 1.
+    uint8_t node = 0;                 ///< Node 1..BENCH_NODES, adapter slot node - 1; a pair's first node.
+    /** ARM_MOVE_PAIR: the exact reviewed 6064 the other node's fresh read must show, as startPosition is the
+     * first node's. */
+    int32_t pairStartPosition = 0;
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
     /** ENABLE: the host's record, 1 EnableStart::NO_MOTION_WRITE_RECORDED or 2
@@ -512,9 +530,15 @@ struct RoutePlan {
  * to the released report is the route's open question: nothing is measured yet.
  * @param word Candidate controlword. @return True only for the four reviewed words. */
 bool controlwordReviewed(uint16_t word) noexcept;
-/** @param kind Route. @return True for the shared console's armings, ARM_MOVE, ARM_VELOCITY and ARM_WITNESS. */
+/** @param kind Route. @return True for the paired armings, ARM_MOVE_PAIR and ARM_VELOCITY_PAIR. */
+inline bool isArmingPair(RouteKind kind) noexcept {
+    return kind == RouteKind::ARM_MOVE_PAIR || kind == RouteKind::ARM_VELOCITY_PAIR;
+}
+/** @param kind Route. @return True for the shared console's armings, ARM_MOVE, ARM_VELOCITY and ARM_WITNESS,
+ * and the paired ones. */
 inline bool isArming(RouteKind kind) noexcept {
-    return kind == RouteKind::ARM_MOVE || kind == RouteKind::ARM_VELOCITY || kind == RouteKind::ARM_WITNESS;
+    return kind == RouteKind::ARM_MOVE || kind == RouteKind::ARM_VELOCITY || kind == RouteKind::ARM_WITNESS ||
+           isArmingPair(kind);
 }
 /** Parse the text after the `T` command byte: a route letter, then decimal fields separated by
  * commas, with a leading minus only on signed fields and nothing else:
@@ -548,6 +572,8 @@ inline bool isArming(RouteKind kind) noexcept {
  * `B<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,<1009>,<100A>,
  * <1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
  * `X<node>,<trial>,<attended>,<startPosition>`;
+ * `a<node>,...` as `Y` with `<relativeBase>` and `<base>` 0, then `,<otherStartPosition>`;
+ * `e<node>,...` as `B`; neither takes the arming's optional change flag;
  * `T<node>,<trial>,<attended>,<word>,<cycles>,<intervalMs>`
  * (one line each, at most ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
@@ -773,6 +799,10 @@ struct RouteRecord {
     bool firstPresent = false;
     RouteSnapshot first;       ///< The first of the two fresh check reads.
     RouteSnapshot check;       ///< Values the check judged; with two reads, the second.
+    /** A paired arming: the first node's checked read, kept when the route moved on to the other node,
+     * whose check then fills `check`. */
+    bool pairCheckPresent = false;
+    RouteSnapshot pairCheck;
     /** Latest successful fresh read of the blocks RouteSnapshot holds. A read of ERROR_HISTORY
      * alone leaves it unchanged. */
     RouteSnapshot last;
@@ -1071,6 +1101,13 @@ class BenchRoute {
      * @param output Set on true. @return True after a successful arming terminal (isArming), until
      * the next admitted route or a closeSessions that closed a session. Sends nothing. */
     bool armed(RouteArming& output) const noexcept;
+    /** A paired arming's two acquisitions, while nothing has replaced their reads (as armed).
+     * @param first The line's node: the read kept when the route moved on, in this object's pair scratch.
+     * @param second The other node: the route's own read storage, as armed() names it.
+     * Each output's plan is the single arming of its node (ARM_MOVE or ARM_VELOCITY, that node, that
+     * node's reviewed start position), so the console arms each axis exactly as from TY or TB.
+     * @return True after a successful paired arming terminal; armed() is false for it. Sends nothing. */
+    bool armedPair(RouteArming& first, RouteArming& second) const noexcept;
     /** Whether the per-boot motion caps admit one console motion of this kind on this node, as begin judges
      * a route of that kind: a velocity counts its own stop against STOP as well.
      * @param node 1 or 2. @param kind MOVE, VELOCITY, ENABLE, COUNTER_ZERO or CLEAR_ALARM.
@@ -1118,7 +1155,9 @@ class BenchRoute {
         STEP_CHANGE_FALL, ///< POSITION_CHANGE: the explicitly measured 000F falling edge.
         STEP_CHANGE_WRITES, ///< POSITION_CHANGE: the selected one-shot native change.
         STEP_CHECK_MODE_PROBE, ///< MODE_PROBE: two released, non-enabled stationary reads.
-        STEP_CHECK_CONTROLWORD_AFTER ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
+        STEP_CHECK_CONTROLWORD_AFTER, ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
+        /** A paired arming: keep the first node's checked reads, then run the same steps on the other node. */
+        STEP_PAIR_NEXT
     };
     struct Step {
         uint8_t kind;
@@ -1174,6 +1213,13 @@ class BenchRoute {
     RoutePlan armedPlan_;
     int32_t armedPosition_ = 0;
     uint64_t armedFeedbackUs_ = 0;
+    // A paired arming: the node the steps act on now (the line's node, then the other one), and the first
+    // node's checked reads, kept here when the route moved on to the other node.
+    uint8_t activeNode_ = 0;
+    MotorControlCAN::LICHUAN_C::ReadContext pairRead_;
+    MotorControlCAN::LICHUAN_C::IdentityObservation pairIdentity_;
+    int32_t pairPosition_ = 0;
+    uint64_t pairFeedbackUs_ = 0;
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
@@ -1200,9 +1246,16 @@ class BenchRoute {
 
     bool continueOperations(AxisSession& session, uint8_t slot, uint64_t nowUs) noexcept;
     uint32_t nextGrant(uint8_t slot) const noexcept;
-    AxisSession& axis() noexcept { return *sessions_[record_->plan.node - 1]; }
-    const AxisSession& axis() const noexcept { return *sessions_[record_->plan.node - 1]; }
-    uint8_t slot() const noexcept { return uint8_t(record_->plan.node - 1); }
+    // The node the steps act on: the plan's, or a paired arming's other node once it moved on.
+    uint8_t node() const noexcept { return activeNode_ ? activeNode_ : record_->plan.node; }
+    AxisSession& axis() noexcept { return *sessions_[node() - 1]; }
+    const AxisSession& axis() const noexcept { return *sessions_[node() - 1]; }
+    uint8_t slot() const noexcept { return uint8_t(node() - 1); }
+    // The reviewed 6064 the active node's check judges: a paired move arming's other node has its own.
+    int32_t startPosition() const noexcept {
+        return activeNode_ && activeNode_ != record_->plan.node ? record_->plan.pairStartPosition
+                                                                 : record_->plan.startPosition;
+    }
     bool currentTarget(MotorControlCAN::LICHUAN_C::ReadTarget& output) const noexcept;
     void finish(RouteFailure failure, const char* why, uint64_t nowUs) noexcept;
     void endAfterSettling(RouteFailure failure, const char* why) noexcept;

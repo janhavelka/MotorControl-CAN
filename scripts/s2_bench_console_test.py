@@ -204,6 +204,68 @@ class Tests(unittest.TestCase):
         tool.run_step(session, "r", Args)  # Its END was seen already: sent at once.
         self.assertEqual(port.sent, [signed, b"@2 stepsperturn 1600\n", b"r", second, b"r"])
 
+    def test_paired_arming_two_moves_stops_release_then_dump(self):
+        pair = "Ta1,8,1,0,100,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,0,0,2000,3000,100,0"
+        signed = (tool.sign_line(pair) + "\n").encode("ascii")
+        self.assertEqual(tool.frame(pair)[1], ("route", True))
+        self.assertEqual(tool.frame("Te1,9")[1], ("route", True))
+        self.assertEqual(tool.frame("wait 4"), (b"", ("wait", 4)))
+        self.assertEqual(tool.frame("pause 250"), (b"", ("pause", 250)))
+        self.assertEqual(tool.frame("release-all"), (b"", ("release", None)))
+        for bad in ("wait 0", "wait x", "pause", "release all"):
+            with self.assertRaises(tool.Failure):
+                tool.frame(bad)
+        admitted = (b"TRIAL admitted route=arm-move-pair node=1 trial=8 motion=2 case=0; finite typed route, no retry\n"
+                    b"TRIAL_PAIR id=8 nodes=1,2 route=arm-move-pair failure=0 why=none terminals=36 traffic=70 lost=0; "
+                    b"full record retained: d dumps it, r only after that\n"
+                    b"CONSOLE armed pair nodes=1,2 trial=8 route=arm-move-pair; prerequisites named for both, "
+                    b"nothing sent\n")
+        ok = ',"ok":true,"status":"OK"'
+
+        def accepted(ident, command, operation):
+            return record("reply", ident, command, ok + ',"result":"accepted","operation_id":%d' % operation)
+        answers = {
+            signed: admitted,
+            b"@1 useaddr 1\n": record("reply", 1, "useaddr", ok),
+            b"@2 move absolute 800 steps native 30 configured\n": accepted(2, "move", 1),
+            b"@3 useaddr 2\n": record("reply", 3, "useaddr", ok),
+            b"@4 move absolute 1600 steps native 30 configured\n": accepted(4, "move", 2),
+            b"@5 stop 2 normal\n": accepted(5, "stop", 3) + record("terminal", 4, "move", ',"ok":false') +
+                                   record("terminal", 5, "stop", ',"ok":true'),
+            b"@6 stop all fast\n": accepted(6, "stop", 4) + record("terminal", 2, "move", ',"ok":false') +
+                                   record("terminal", 6, "stop", ',"ok":true'),
+            b"@7 release 1\n": record("reply", 7, "release", ok),
+            b"@8 release 2\n": record("reply", 8, "release", ok),
+            b"@9 release 3\n": record("reply", 9, "release", ok),
+            b"@10 release 4\n": record("reply", 10, "release", ok),
+            b"d": b"TRIAL id=8 node=1 route=arm-move-pair failure=0\nTRIAL_PLAN route=arm-move-pair node=1 pair=2\n"
+                  b"END trial terminals=36 traffic=70 tail=0 tailLost=0 lost=0; r=release\n",
+            b"r": b"TRIAL record released; sessions and uncertainty retained\n",
+        }
+        steps = [pair, "@1 useaddr 1", "@2 move absolute 800 steps native 30 configured", "@3 useaddr 2",
+                 "@4 move absolute 1600 steps native 30 configured", "pause 100", "@5 stop 2 normal",
+                 "@6 stop all fast", "wait 2", "wait 4", "release-all", "d", "r"]
+        code, port, lines, transcript = self.run_tool(steps, answers, args=["--no-terminal"])
+        self.assertEqual(code, 0, lines)
+        self.assertEqual(port.sent, [signed, b"@1 useaddr 1\n", b"@2 move absolute 800 steps native 30 configured\n",
+                                     b"@3 useaddr 2\n", b"@4 move absolute 1600 steps native 30 configured\n",
+                                     b"@5 stop 2 normal\n", b"@6 stop all fast\n", b"@7 release 1\n", b"@8 release 2\n",
+                                     b"@9 release 3\n", b"@10 release 4\n", b"d", b"r"])
+        self.assertIn(b"TRIAL_PAIR id=8", transcript)
+        # Before `d`, `r` is sent at once and the firmware's refusal ends the run; so does `d`'s own refusal.
+        early = {signed: admitted, b"r": b"TRIAL release refused reason=undumped; d first\n"}
+        code, port, _, _ = self.run_tool([pair, "r"], early)
+        self.assertEqual((code, port.sent), (2, [signed, b"r"]))
+        held = {signed: admitted, b"d": b"DUMP refused reason=console; release the console's results first\n"}
+        code, port, _, _ = self.run_tool([pair, "d"], held)
+        self.assertEqual((code, port.sent), (2, [signed, b"d"]))
+        refused = {signed: admitted.replace(b"CONSOLE armed pair nodes=1,2 trial=8 route=arm-move-pair; prerequisites "
+                                            b"named for both, nothing sent",
+                                            b"CONSOLE arm refused node=2 trial=8 reason=prerequisites; pair: this "
+                                            b"trial armed neither node")}
+        code, port, _, _ = self.run_tool([pair, "@1 useaddr 1"], refused)
+        self.assertEqual((code, port.sent), (2, [signed]))
+
     def test_other_lines_and_other_ids_do_not_answer_a_step(self):
         answers = {b"@7 version\n": b"TRAFFIC k=1 p=2 id=581\n" + record("reply", 70, "version", ',"ok":true') +
                                     b'{"schema":"other"}\n' + record("reply", 7, "version", ',"ok":true')}

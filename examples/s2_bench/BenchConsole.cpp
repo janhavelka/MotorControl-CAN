@@ -103,6 +103,32 @@ BENCH_CONSOLE_NOINLINE M::Status changePrerequisites(BenchAxis& axis, const Rout
 }
 } // namespace
 
+BenchActivity benchActivity(const BenchHolds& h) noexcept {
+    BenchActivity activity;
+    const RouteRecord* r = h.trial;
+    const bool armingHeld = r && r->terminal && !r->unsettled && isArming(r->plan.kind);
+    activity.wire = h.soak || (r && !armingHeld) || h.records || h.nmt || h.capture;
+    activity.listing = h.listing;
+    activity.holdOutput = h.retained || h.dumping || h.listing || (h.nmt && h.nmtUnreported);
+    return activity;
+}
+const char* trialLineRefusal(const BenchHolds& h) noexcept {
+    if (h.console)
+        return "console";
+    if (h.capture)
+        return "capture";
+    if (!h.controller || h.soak || h.dumping || h.listing || h.nmt || h.records || h.trial)
+        return "state";
+    return nullptr;
+}
+const char* dumpRefusal(const BenchHolds& h, bool terminal) noexcept {
+    if (!terminal || h.dumping)
+        return "unavailable";
+    if (h.trial && isArmingPair(h.trial->plan.kind) && h.console)
+        return "console";
+    return nullptr;
+}
+
 ConsoleGate benchConsoleGate(const ConsoleLine& line) noexcept {
     const char* name = line.token(0);
     const char* first = line.token(1);
@@ -558,6 +584,55 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
     return nullptr;
 }
 BENCH_CONSOLE_NOINLINE void BenchConsole::applyArming(uint64_t now) noexcept {
+    if (route_ && route_->armedPair(arming_, pairArming_)) {
+        if (arming_.plan.trial == consumedTrial_)
+            return;
+        consumedTrial_ = arming_.plan.trial; // Once per paired record, as for a single arming.
+        // Both axes, each exactly as from its own TY or TB line: nothing is sent and nothing starts. A
+        // retained operation on either axis refuses both before anything is named.
+        const unsigned first = arming_.plan.node, second = pairArming_.plan.node;
+        const uint32_t trial = arming_.plan.trial;
+        BenchAxis* a = axes_[first - 1];
+        BenchAxis* b = axes_[second - 1];
+        const auto retains = [](const BenchAxis* x) {
+            return x->motion.retained() || x->motion.stopRetained(L::StopKind::HALT) ||
+                   x->motion.stopRetained(L::StopKind::QUICK_STOP);
+        };
+        const char* refusal = nullptr;
+        unsigned refused = 0;
+        if (!a || !b) {
+            refusal = "memory";
+            refused = a ? second : first;
+        } else if (retains(a) || retains(b)) {
+            refusal = "console_axis_operation_retained";
+            refused = retains(a) ? first : second;
+        }
+        if (!refusal) {
+            refusal = arm(*a, now);
+            refused = refusal ? first : 0;
+        }
+        if (!refusal) {
+            arming_ = pairArming_; // arm() reads arming_.
+            refusal = arm(*b, now);
+            refused = refusal ? second : 0;
+            // The first axis's new motion prerequisites are withdrawn from the console (armingCurrent):
+            // no axis is left armed for motion by a refused pair. Its stop stays named, never unreachable.
+            if (refusal)
+                a->armedTrial = 0;
+        }
+        if (refusal) {
+            std::snprintf(notice_, sizeof notice_,
+                          "CONSOLE arm refused node=%u trial=%lu reason=%.80s; pair: this trial armed neither node\n",
+                          refused, static_cast<unsigned long>(trial), refusal);
+            return;
+        }
+        std::snprintf(notice_, sizeof notice_,
+                      "CONSOLE armed pair nodes=%u,%u trial=%lu route=%s; prerequisites named for both, nothing sent\n",
+                      first, second, static_cast<unsigned long>(trial),
+                      routeName(pairArming_.plan.kind == RouteKind::ARM_MOVE ? RouteKind::ARM_MOVE_PAIR
+                                                                             : RouteKind::ARM_VELOCITY_PAIR));
+        return;
+    }
     if (!route_ || !route_->armed(arming_) || arming_.plan.trial == consumedTrial_)
         return;
     consumedTrial_ = arming_.plan.trial; // Once per arming record; applied only on success (arm).
