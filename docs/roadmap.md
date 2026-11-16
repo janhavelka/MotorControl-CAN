@@ -13,7 +13,9 @@ RPDO semantics and the missing wired-stop fixture remain separate obligations.
 ## Changes during motion
 
 Prompt52 implements the finite change paths and explicit measurement harness.
-Its source/physical disposition is in [report52](reports/prompt_52.md). Prompt54
+Its source/physical disposition is in [report52](reports/prompt_52.md). Prompt52
+remains Partial: initial Q26 ramp-change meaning is unmeasured; bare ramp writes
+do not establish the effect of changing ramps with a new set-point edge. Prompt54
 owns finished-operation qualification, including sustained/multi-axis behavior;
 unknown Q22-Q26 facts remain precise gates. No RPDO change delivery is implied.
 

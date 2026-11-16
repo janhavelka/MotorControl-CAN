@@ -783,11 +783,34 @@ void settle(Rig& r) {
     CHECK(!r.one.velocityActive() && !r.one.stopActive());
 }
 void testExplicitVelocityChangeArming() {
-    for (unsigned allow = 0; allow != 2; ++allow) {
-        scenario = allow ? "velocity-change-explicit-arm" : "velocity-change-closed-arm";
+    for (unsigned variant = 0; variant != 3; ++variant) {
+        const bool allow = variant != 0, exhausted = variant == 2;
+        const bool accepted = allow && !exhausted;
+        scenario = exhausted ? "velocity-change-target-budget" :
+                   allow ? "velocity-change-explicit-arm" : "velocity-change-closed-arm";
         std::unique_ptr<Rig> r(new Rig);
         uint32_t trial = 0;
         velocityRig(*r, trial);
+        // Give the other axis a witness arming, or unused velocity capacity for the cap case.
+        r->driver.drives[1].statusBits = true;
+        CHECK(r->run("M2," + id(trial) + ",1,1,200").failure == E::RouteFailure::NONE);
+        r->release();
+        r->heartbeat(2);
+        if (exhausted) {
+            Drive& other = r->driver.drives[1];
+            other.mode = 3;
+            other.monitor = 0x0011;
+            other.status = 0x8050;
+            other.releaseWords = other.spins = true;
+            std::string otherArming = velocityArming(trial, 2, "1500,1500,500", 30);
+            otherArming[1] = '2';
+            CHECK(r->run(otherArming).failure == E::RouteFailure::NONE);
+        } else {
+            CHECK(r->run("X2," + id(trial) + ",1," + std::to_string(r->driver.drives[1].position)).failure ==
+                  E::RouteFailure::NONE);
+        }
+        r->turns(2);
+        r->release();
         std::string line = velocityArming(trial, 2, "1500,1500,500", 30);
         if (allow)
             line += ",1";
@@ -801,12 +824,21 @@ void testExplicitVelocityChangeArming() {
         const L::VelocityContext& run = r->one.velocityAction();
         CHECK(r->one.velocityActive() && run.runningPolls && run.phase == L::VelocityPhase::WAITING);
         const uint64_t due = run.stopDueUs, deadline = run.deadlineUs;
+        // The operation ID still names node 1 after selection moves to node 2.
+        CHECK(has(r->command("@25 useaddr 2", 20), "\"ok\":true"));
+        if (exhausted) {
+            // Model retained campaign pressure on this axis; the other still has capacity.
+            r->route.countConsoleMotion(1, E::RouteKind::VELOCITY);
+            r->route.countConsoleMotion(1, E::RouteKind::VELOCITY);
+            CHECK(!r->route.consoleMotionAllowed(1, E::RouteKind::VELOCITY));
+            CHECK(r->route.consoleMotionAllowed(2, E::RouteKind::VELOCITY));
+        }
         const size_t first = r->driver.requests.size();
         const std::string changed = r->command("@21 velocity change 1 12 rpm native configured", 100);
-        CHECK(has(changed, allow ? "\"result\":\"accepted\"" : "\"ok\":false"));
-        CHECK(run.change.present == bool(allow) && run.stopDueUs == due && run.deadlineUs == deadline &&
+        CHECK(has(changed, accepted ? "\"result\":\"accepted\"" : "\"ok\":false"));
+        CHECK(run.change.present == accepted && run.stopDueUs == due && run.deadlineUs == deadline &&
               run.rate.effectiveNative == 6);
-        if (allow) {
+        if (accepted) {
             CHECK(run.change.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT &&
                   run.change.evidence.record == trial && !run.change.evidence.rateChangeQualified);
             CHECK(run.change.rate.effectiveNative == 12 && run.change.serviceEvidencePresent);
@@ -815,7 +847,9 @@ void testExplicitVelocityChangeArming() {
             CHECK(r->downloadsFrom(first) == 0);
         settle(*r);
         CHECK(!r->one.velocityNeedsStop());
-        if (allow) {
+        CHECK(r->firmware.app().selected()->channel.binding.logicalAxisId == 2);
+        CHECK(has(r->command("@26 useaddr 1", 20), "\"ok\":true"));
+        if (accepted) {
             CHECK(has(r->command("@22 release 1", 100), "\"ok\":true"));
             r->release();
             CHECK(r->run(velocityArming(trial, 2, "1500,1500,500", 30)).failure == E::RouteFailure::NONE);

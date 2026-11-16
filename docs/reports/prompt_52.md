@@ -1,5 +1,11 @@
 # Prompt 52: changes during motion
 
+Current status: **Partial**. The [independent 52/54 audit](audit_52_54.md)
+corrects the earlier Complete verdict: initial Q26 ramp-change meaning remains
+unmeasured. Bare ramp writes are not an edge-applied active-ramp experiment.
+The audit also fixes a queued change refusal that could suppress the run's stop.
+The dated implementation and hardware results below remain historical evidence.
+
 Scope: bounded typed operations, console routes and the initial physical
 experiments required here. Ordinary Q22-Q26 capabilities remain closed unless
 the caller supplies an applicable reviewed record. Finished-operation

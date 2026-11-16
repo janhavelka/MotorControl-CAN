@@ -878,8 +878,18 @@ void AxisSession::serviceVelocity(uint64_t now) noexcept {
         C::SdoCompletion terminal;
         if (!takeTerminal(terminal))
             return;
+        // A change refused solely because its local time window expired never reached the drive.
+        // Keep the finite run's stop. Recheck provenance now so a later epoch/configuration change
+        // cannot inherit this exception; explicit withdrawals and faults still win below.
+        const bool changeTimeRefusal =
+            motion_.velocity.phase == L::VelocityPhase::CHANGE && !terminal.transmissionPossible &&
+            !terminal.effectPossible && !terminal.effectUncertain && usable() && velocityAxis_ &&
+            velocityRefusal_.detail == static_cast<int32_t>(M::VelocityError::TIME) &&
+            !velocityRefusal_.isOk() &&
+            L::validateVelocityAdmission(motion_.velocity, reservation_, frozen, *velocityAxis_, now)
+                    .detail == static_cast<int32_t>(M::VelocityError::TIME);
         if ((guarded || terminal.outcome == C::SdoOutcome::CANCELLED) &&
-            velocityWithdrawn_ == M::VelocityInterruption::NONE) {
+            velocityWithdrawn_ == M::VelocityInterruption::NONE && !changeTimeRefusal) {
             velocityWithdrawn_ = M::VelocityInterruption::INVALIDATED;
             L::noteVelocityWithdrawal(motion_.velocity, reservation_, frozen, velocityWithdrawn_,
                                       now);
@@ -992,7 +1002,11 @@ void AxisSession::serviceVelocity(uint64_t now) noexcept {
             velocityCommandAfterUs_ = now;
         if (!noted.isOk()) {
             velocityRefusal_ = noted;
-            withdrawVelocity(M::VelocityInterruption::INVALIDATED, now);
+            if (motion_.velocity.phase == L::VelocityPhase::CHANGE &&
+                noted.detail == static_cast<int32_t>(M::VelocityError::TIME))
+                owner_.cancel(pending_, now); // Consume its unsent terminal, then the original stop.
+            else
+                withdrawVelocity(M::VelocityInterruption::INVALIDATED, now);
         }
     }
 }

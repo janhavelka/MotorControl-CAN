@@ -386,6 +386,8 @@ Status beginVelocityObservation(VelocityContext& context, ReadContext& observati
                                 uint64_t nowUs) noexcept;
 /** Check the frozen rate/configuration and live provenance immediately before admission.
  * Recheck at controller handover too: the complete service budget must still fit before stop due.
+ * A change's expired local budget or observation reports VelocityError::TIME after provenance
+ * checks. An unsent refusal preserves the run's reserved stop; it does not imply invalidation.
  * @param[in] context Active operation. @param[in] live Reservation. @param[in] current Target.
  * @param[in] axis Current exact conversion facts. @param[in] nowUs Time. @return Local status. */
 Status validateVelocityAdmission(const VelocityContext& context, const AxisReservation& live,

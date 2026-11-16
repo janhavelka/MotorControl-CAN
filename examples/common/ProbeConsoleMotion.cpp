@@ -372,6 +372,20 @@ bool ProbeConsole::enqueueStop(const char* text, ProbeMotion* motion, uint8_t st
     return true;
 }
 
+ProbeMotion* ProbeConsole::motionForChange(const ConsoleLine& line) const noexcept {
+    if (!((eq(line.token(0), "velocity") && eq(line.token(1), "change")) ||
+          (eq(line.token(0), "move") && (eq(line.token(1), "speed") ||
+           eq(line.token(1), "ramps") || eq(line.token(1), "retarget")))))
+        return nullptr;
+    uint64_t id = 0;
+    if (!positiveInteger(line.token(2), id) || id > UINT32_MAX)
+        return nullptr;
+    for (const Operation& op : operations_)
+        if (op.used && op.id == id && op.motion && !op.stop)
+            return op.attachment;
+    return nullptr;
+}
+
 void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcept {
     ProbeMotion* motion = selectedMotion();
     const char* name = line.token(0);
@@ -388,14 +402,8 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
         motion = motionForAxis(uint32_t(explicitAxis));
         stopKind = line.count == 2 ? "fast" : line.token(2);
     }
-    const bool changing = (eq(name, "velocity") && eq(line.token(1), "change")) ||
-        (eq(name, "move") && (eq(line.token(1), "speed") || eq(line.token(1), "ramps") || eq(line.token(1), "retarget")));
-    if (changing) {
-        uint64_t id = 0;
-        Operation* original = positiveInteger(line.token(2), id) && id <= UINT32_MAX ? operation(uint32_t(id)) : nullptr;
-        if (original && original->motion)
-            motion = original->attachment;
-    }
+    if (ProbeMotion* changed = motionForChange(line))
+        motion = changed;
     const unsigned intentSlot = motionSlot(motion);
     SimpleMoveIntent& intent = intentSlot < MOTION_CAPACITY ? motions_[intentSlot].intent : intent_;
     const uint8_t stopSlot = stop && eq(stopKind, "normal") ? 1 : 2;

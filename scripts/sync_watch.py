@@ -24,6 +24,8 @@ import s2_bench_console as bench
 U32, U64 = 2**32 - 1, 2**64 - 1
 MAX_BYTES, MAX_LINE = 64 << 20, 2048
 GAP_LIMITS = (5000, 9000, 9500, 10000, 10500, 11000, 20000)
+TPDO_IDS = (0x181, 0x182)
+TPDO_DLC = 7  # Explicit fixture TPDO1 map: 6041/16, 6061/8, 6064/32 bits.
 
 
 def uint(text, limit=U64, base=10):
@@ -86,15 +88,55 @@ def attributes(line):
 
 
 class Analysis:
-    """Fixed-size per-ID metrics while raw records stream to disk separately."""
+    """Bounded raw-ID metrics and separate fixture TPDO metrics; raw bytes stream to disk.
+
+    Only standard data frames with the explicit seven-byte fixture map count
+    toward expected TPDO coverage. Raw-ID timing and accounting retain every frame.
+    """
     def __init__(self, period_us=10000):
         self.period_us = period_us
         self.begin = self.end = None
         self.next_sequence = 0
         self.frames = self.invalid_time = self.raw_payload_bytes = 0
         self.ids, self.native_ids = {}, {}
+        self.tpdos = {}
+        self.rejected_tpdos = 0
         self.last_summary = None
         self.stopping = False
+
+    def add_frame(self, stats, frame):
+        """Update one bounded metric set; return false for invalid receive timing."""
+        stats["count"] += 1
+        if stats["data"] is not None and stats["data"] != frame["data"]:
+            stats["payload_changes"] += 1
+        stats["data"] = frame["data"]
+        if not frame["timed"] or frame["reversed_bounds"]:
+            return False
+        if stats["last"] is not None:
+            previous = stats["last"]
+            gap = frame["hi"] - previous["hi"]
+            if gap < 0:
+                return False
+            lower = max(0, frame["lo"] - previous["hi"])
+            upper = frame["hi"] - previous["lo"]
+            stats["min_hi_gap"] = gap if stats["min_hi_gap"] is None else min(stats["min_hi_gap"], gap)
+            stats["max_hi_gap"] = gap if stats["max_hi_gap"] is None else max(stats["max_hi_gap"], gap)
+            stats["min_interval_lower"] = lower if stats["min_interval_lower"] is None else min(stats["min_interval_lower"], lower)
+            stats["max_interval_upper"] = upper if stats["max_interval_upper"] is None else max(stats["max_interval_upper"], upper)
+            stats["sum_hi_gap"] += gap
+            stats["gaps"] += 1
+            stats["histogram"][sum(gap > edge for edge in GAP_LIMITS)] += 1
+            stats["lower_over_period"] += lower > self.period_us
+            stats["upper_below_period"] += upper < self.period_us
+        stats["last"] = frame
+        return True
+
+    @staticmethod
+    def new_stats(frame):
+        return dict(id=frame["id"], ext=frame["ext"], count=0, last=None,
+                    min_hi_gap=None, max_hi_gap=None, sum_hi_gap=0, gaps=0, histogram=[0] * 8,
+                    lower_over_period=0, upper_below_period=0, payload_changes=0, data=None,
+                    min_interval_lower=None, max_interval_upper=None)
 
     def accept(self, line):
         if line.startswith("PC "):
@@ -104,40 +146,20 @@ class Analysis:
             self.sequence(frame["n"])
             self.frames += 1
             self.raw_payload_bytes += 0 if frame["data"] == "-" else len(frame["data"]) // 2
+            if frame["id"] in TPDO_IDS:
+                if frame["ext"] or frame["rtr"] or frame["dlc"] != TPDO_DLC:
+                    self.rejected_tpdos += 1
+                else:
+                    if frame["id"] not in self.tpdos:
+                        self.tpdos[frame["id"]] = self.new_stats(frame)
+                    self.add_frame(self.tpdos[frame["id"]], frame)
             key = str(frame["id"]) + ("x" if frame["ext"] else "s")
             if key not in self.ids:
                 if len(self.ids) == 16:
                     return
-                self.ids[key] = dict(id=frame["id"], ext=frame["ext"], count=0, last=None,
-                    min_hi_gap=None, max_hi_gap=None, sum_hi_gap=0, gaps=0, histogram=[0] * 8,
-                    lower_over_period=0, upper_below_period=0, payload_changes=0, data=None,
-                    min_interval_lower=None, max_interval_upper=None)
-            stats = self.ids[key]
-            stats["count"] += 1
-            if stats["data"] is not None and stats["data"] != frame["data"]:
-                stats["payload_changes"] += 1
-            stats["data"] = frame["data"]
-            if not frame["timed"] or frame["reversed_bounds"]:
+                self.ids[key] = self.new_stats(frame)
+            if not self.add_frame(self.ids[key], frame):
                 self.invalid_time += 1
-                return
-            if stats["last"] is not None:
-                previous = stats["last"]
-                gap = frame["hi"] - previous["hi"]
-                if gap < 0:
-                    self.invalid_time += 1
-                    return
-                lower = max(0, frame["lo"] - previous["hi"])
-                upper = frame["hi"] - previous["lo"]
-                stats["min_hi_gap"] = gap if stats["min_hi_gap"] is None else min(stats["min_hi_gap"], gap)
-                stats["max_hi_gap"] = gap if stats["max_hi_gap"] is None else max(stats["max_hi_gap"], gap)
-                stats["min_interval_lower"] = lower if stats["min_interval_lower"] is None else min(stats["min_interval_lower"], lower)
-                stats["max_interval_upper"] = upper if stats["max_interval_upper"] is None else max(stats["max_interval_upper"], upper)
-                stats["sum_hi_gap"] += gap
-                stats["gaps"] += 1
-                stats["histogram"][sum(gap > edge for edge in GAP_LIMITS)] += 1
-                stats["lower_over_period"] += lower > self.period_us
-                stats["upper_below_period"] += upper < self.period_us
-            stats["last"] = frame
             return
         # This local P0 receipt has no watch sequence or timestamp fields.
         # Only its exact spelling is accepted; summaries still require BEGIN/END.
@@ -205,14 +227,14 @@ class Analysis:
             timing_errors.append("invalid/untimed receive bounds")
         ids = {}
         for key, stats in self.ids.items():
-            copy = {name: value for name, value in stats.items() if name not in ("last", "data")}
-            copy["mean_hi_gap"] = stats["sum_hi_gap"] // stats["gaps"] if stats["gaps"] else None
-            ids[key] = copy
+            ids[key] = self.stats_summary(stats)
             native = self.native_ids.get(key)
             if self.end is not None and (native is None or uint(native["count"], U32) != stats["count"]):
                 coverage_errors.append("host/native per-ID count mismatch: " + key)
-        for identifier in (0x181, 0x182):
-            count = self.ids.get(str(identifier) + "s", {}).get("count", 0)
+        if self.rejected_tpdos:
+            coverage_errors.append("target TPDO identifiers include extended, RTR or wrong-DLC frames")
+        for identifier in TPDO_IDS:
+            count = self.tpdos.get(identifier, {}).get("count", 0)
             if expected_count is not None and count != expected_count:
                 coverage_errors.append("TPDO %03x count %d differs from expected %d; no cycle identity inferred" % (identifier, count, expected_count))
         return dict(begin=self.begin, end=self.end, raw_rx_complete=not raw_errors,
@@ -221,9 +243,17 @@ class Analysis:
                     errors=raw_errors + timing_errors + coverage_errors,
                     raw_errors=raw_errors, timing_errors=timing_errors, coverage_errors=coverage_errors,
                     received_frames=self.frames, invalid_time=self.invalid_time, ids=ids,
+                    tpdos={str(identifier): self.stats_summary(stats) for identifier, stats in self.tpdos.items()},
+                    rejected_tpdo_frames=self.rejected_tpdos, expected_tpdo_dlc=TPDO_DLC,
                     native_ids=self.native_ids, histogram_upper_limits_us=list(GAP_LIMITS),
                     rx_payload_bits=self.raw_payload_bytes * 8, tx_raw_per_cycle=False, wire_bus_load_measured=False,
                     time_scope="driver receive bounds and upper-bound gaps; not wire time or same-cycle identity")
+
+    @staticmethod
+    def stats_summary(stats):
+        result = {name: value for name, value in stats.items() if name not in ("last", "data")}
+        result["mean_hi_gap"] = stats["sum_hi_gap"] // stats["gaps"] if stats["gaps"] else None
+        return result
 
 
 class Stream:

@@ -221,8 +221,8 @@ void BenchConsole::refuse(const ConsoleLine& line, const char* reason) noexcept 
         std::memcpy(reply_, fallback, sizeof fallback);
 }
 // The applied arming's reads are still the route's, of the attached node and this kind.
-bool BenchConsole::armingCurrent(RouteKind kind) noexcept {
-    const BenchAxis* axis = attached_ ? axes_[attached_ - 1] : nullptr;
+bool BenchConsole::armingCurrent(unsigned node, RouteKind kind) noexcept {
+    const BenchAxis* axis = node ? axes_[node - 1] : nullptr;
     return axis && axis->armedTrial && axis->armedKind == kind && axis->motion.current();
 }
 unsigned BenchConsole::selectedNode() const noexcept {
@@ -235,15 +235,22 @@ unsigned BenchConsole::selectedNode() const noexcept {
 }
 BENCH_CONSOLE_NOINLINE const char* BenchConsole::motionRefusal(const ConsoleLine& line) noexcept {
     const RouteKind kind = admissionKind(line);
+    unsigned node = attached_;
+    if (const ProbeMotion* changed = console_.motionForChange(line)) {
+        node = 0;
+        for (unsigned i = 0; i < BENCH_NODES; ++i)
+            if (axes_[i] && &axes_[i]->motion == changed)
+                node = i + 1;
+    }
     // Without an attachment the console refuses the line itself and nothing is admitted.
-    if (kind == RouteKind::NONE || !attached_ || !route_)
+    if (kind == RouteKind::NONE || !node || !route_)
         return nullptr;
-    if (!route_->consoleMotionAllowed(attached_, kind))
+    if (!route_->consoleMotionAllowed(node, kind))
         return "bench_motion_budget_spent";
     // The prerequisites name the route's own read storage: once a later route replaced those reads,
     // or the sessions closed, only a new arming may name them again.
-    if ((kind == RouteKind::MOVE && !armingCurrent(RouteKind::ARM_MOVE)) ||
-        (kind == RouteKind::VELOCITY && !armingCurrent(RouteKind::ARM_VELOCITY)))
+    if ((kind == RouteKind::MOVE && !armingCurrent(node, RouteKind::ARM_MOVE)) ||
+        (kind == RouteKind::VELOCITY && !armingCurrent(node, RouteKind::ARM_VELOCITY)))
         return "arming_reads_replaced_arm_again";
     return nullptr;
 }

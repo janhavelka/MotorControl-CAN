@@ -493,6 +493,13 @@ and velocity changes name the original operation ID; see the
   It grants no command/feedback scale relation or endpoint-retarget permission.
   Changed endpoints still need the ordinary reviewed relation evidence. See the
   [complete usage and limits](../../docs/bench/20261116-p54/diagnostics.md#explicit-console-change-experiments).
+  Arming and campaign caps are checked on the retained operation's axis, even
+  when another node is selected; a change never changes that selection.
+- **NMT evidence replay.** The finite NMT/velocity experiment's summaries are
+  checked against stage/request identity, copied local TX reports, fresh
+  heartbeat bounds and the complete seven-field ordinary read cycle behind each
+  sample. A successful summary alone cannot replace missing raw evidence.
+  Declared capture loss retains the native outcome while limiting correlation.
 - **Host coordinates before the enable.** `stepsperturn` and `axis origin` advance the binding's configuration epoch,
   which drops the session's latest controlword, and the session refuses a second enable once it has enabled. So set a
   scale and an origin, each with its own `TX` witness (the scale consumes the witness), before the bench's `TE` enable

@@ -332,9 +332,16 @@ On one firmware, judged from drive reports: `000B` from `000F` (124) and from `0
 413 on node 1 at 30 rpm, 713 on node 2 at about 100 rpm); `010F` from a moving `005F` (832, node 1);
 `000B` from a moving `005F` (1109, node 1) and from a stationary acknowledged one (833, node 2); and
 `000B` with no known predecessor on two states (307, 503); in mode 3, `010F` from a running `000F`
-(1407, 1413, 1507, 1613) and `000B` from a running `000F` (1513 on node 2, 1607 on node 1). These are
-measurements, not a qualification: the `005F` and mode 3 rows stay project decisions (DEC-8) with no
-documented arrow. Stops from `003F` and `007F`, any other state, a moving `010F` to `000B` escalation,
+(1407, 1413, 1507, 1613) and `000B` from a running `000F` (1513 on node 2, 1607 on node 1).
+Prompt52 adds node 2's original timed `000B` after a positive `60FF` change from 30 to 60 rpm
+([52013](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench/20261116-p52/31-velocity-change-node2/rx.txt)) and a moving `000B` from
+`003F` after an immediate same-endpoint speed change
+([52034](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench/20261116-p52/109-long-speed-change/rx.txt)). The latter retained
+56/60/60/58/60 rpm reports before the stop and fresh zero-velocity/unchanged-position
+reports afterward. The [measurement analysis](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_52_measurements.md)
+distinguishes those moving stops from the stationary `003F` stops in trials52026/52028.
+These are measurements, not a qualification: the `005F`, `003F` and mode 3 rows stay project decisions (DEC-8) with no
+documented arrow. HALT from `003F`, stops from `007F`, any other state, a moving `010F` to `000B` escalation,
 `000B` from a halted mode 3 drive, other rates and directions in mode 3, and homing need their own
 fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,

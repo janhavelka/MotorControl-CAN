@@ -1756,6 +1756,79 @@ class CommandLine(unittest.TestCase):
 
 
 class Prompt54DiagnosticsTests(unittest.TestCase):
+    @staticmethod
+    def nmt_success_records():
+        # The actual native transcript's success record, reduced to this check's
+        # inputs. Other replay checks independently validate each SDO wire window.
+        raw = [
+            "TRIAL id=54002 node=1 route=velocity-nmt failure=0 why=none lost=0 terminals=14 traffic=6 tail=0 tailLost=0 summaries=6 step=3 cycles=5 motion=2 case=1 unsettled=0 gap=1000 lossCancel=0",
+            "TRIAL_NMT offered=1 phase=8 failure=0 start=6163000 stopEnd=7663000 preopEnd=9163000 resume=11163000 due=14094000 end=25094000",
+            "TRIAL_VELOCITY_TIME started=1094000 due=14094000 deadline=25094000 stopAt=14094000 serviced=20000000 smask=7 cmask=7",
+            "TRIAL_NMT_STEP which=0 attempted=1 terminal=1 outcome=0 possible=1 confirmed=1 request=108004 deadline=7663000 completed=6166000 observed=6166600",
+            "TRIAL_NMT_STEP which=1 attempted=1 terminal=1 outcome=0 possible=1 confirmed=1 request=108005 deadline=9163000 completed=6169000 observed=6169600",
+            "TRIAL_NMT_SAMPLE which=0 present=1 cycle=4 status=c057 monitor=0005 mode=03 position=0 velocity=6 lo=6150000 hi=6163000",
+            "TRIAL_NMT_SAMPLE which=1 present=1 cycle=5 status=c057 monitor=0005 mode=03 position=0 velocity=6 lo=11164000 hi=11177000",
+            "TRAFFIC k=1 p=6165000 id=0 ext=0 rtr=0 dlc=2 data=0201000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=1 txr=1 txf=0 txc=0",
+            "TRAFFIC k=2 p=6166000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=1 txr=1 txf=0 txc=0",
+            "TRAFFIC k=0 p=6167000 id=701 ext=0 rtr=0 dlc=1 data=0400000000000000 ok=1 exact=0 t=0 bounds=1 lo=6166600 hi=6166900 epoch=1",
+            "TRAFFIC k=1 p=6168000 id=0 ext=0 rtr=0 dlc=2 data=8001000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=1 txr=2 txf=0 txc=0",
+            "TRAFFIC k=2 p=6169000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=1 txr=2 txf=0 txc=0",
+            "TRAFFIC k=0 p=6170000 id=701 ext=0 rtr=0 dlc=1 data=7f00000000000000 ok=1 exact=0 t=0 bounds=1 lo=6169600 hi=6169900 epoch=1",
+        ]
+        fields = ((0x2100, 2, "05000000"), (0x2101, 2, "80a50000"), (0x2102, 2, "08f00000"),
+                  (0x6041, 2, "57c00000"), (0x6061, 1, "03000000"),
+                  (0x6064, 4, "00000000"), (0x606c, 4, "06000000"))
+        for origin in (6150000, 11164000):
+            for i, (index, size, data) in enumerate(fields):
+                raw.append("RESULT op=9 req=9 oreq=%d step=%d object=%04x:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=%d data=%s admitted=%d completed=%d ne=1 reason=0 st=3f node=1" %
+                           (i + 1, i + 1, index, size, data, origin + i * 2000, origin + i * 2000 + 1000))
+        records, tail = evidence.parse_bytes(join(raw))
+        assert tail is None and all(r.status == "parsed" for r in records)
+        return records
+
+    def test_nmt_success_requires_its_stages_fresh_sample_and_matching_traffic(self):
+        records = self.nmt_success_records()
+        report = evidence.Report(path="<native-NMT-success>")
+        evidence._check_nmt_velocity(report, records, {})
+        self.assertFalse(report.errors)
+        mutations = (
+            (1, "phase", 7), (3, "request", 7), (3, "observed", 999999999),
+            (3, "confirmed", False), (3, "terminal", False),
+            (6, "present", False), (6, "lo", 1), (6, "cycle", 4), (6, "velocity", 42),
+            (7, "ext", True), (7, "rtr", True), (7, "p", 7663000),
+            (7, "ok", False),
+            (8, "txk", 0), (8, "txr", 2), (8, "epoch", 2), (8, "ok", False),
+            (9, "lo", 6166599), (9, "hi", 7663000), (9, "p", 7663000),
+            (9, "epoch", 2),
+            (11, "p", 6169001), (12, "data", "0400000000000000"),
+            (13, "size", 1), (13, "ne", 2), (14, "op", 99), (14, "step", 99),
+        )
+        for index, key, value in mutations:
+            with self.subTest(line=index, field=key, value=value):
+                changed = self.nmt_success_records()
+                changed[index].values[key] = value
+                report = evidence.Report(path="<mutated-NMT-success>")
+                evidence._check_nmt_velocity(report, changed, {})
+                self.assertTrue(report.errors)
+        changed = self.nmt_success_records()
+        changed[6].values = dict.fromkeys(changed[6].values, 0)
+        changed[6].values["which"] = 1
+        report = evidence.Report(path="<absent-post-PREOP-sample>")
+        evidence._check_nmt_velocity(report, changed, {})
+        self.assertTrue(report.errors)
+        # Source loss limits correlation without inventing successful raw evidence.
+        for remove in (7, 8, 9, 10, 11, 12, 13):
+            changed = self.nmt_success_records()
+            del changed[remove]
+            report = evidence.Report(path="<missing-NMT-traffic>")
+            evidence._check_nmt_velocity(report, changed, {})
+            self.assertTrue(report.errors, remove)
+            changed[0].values["lost"] = True
+            report = evidence.Report(path="<reported-NMT-traffic-loss>")
+            evidence._check_nmt_velocity(report, changed, {})
+            self.assertFalse(report.errors, remove)
+            self.assertTrue(report.warnings, remove)
+
     def test_nmt_report_with_same_request_number_cannot_acknowledge_sdo(self):
         tx = evidence.Record(1, "SDO", values=dict(k=evidence.TX, id=0x602, data="4041600000000000", txk=0, txr=1, txf=0, txc=0, epoch=1))
         nmt = evidence.Record(2, "NMT", values=dict(k=evidence.TX_REPORT, id=0, txk=1, txr=1, txf=0, txc=0, epoch=1))
@@ -1826,7 +1899,8 @@ class Prompt54DiagnosticsTests(unittest.TestCase):
             raw.append("TRIAL_NMT_STEP which=%d attempted=1 terminal=1 outcome=0 possible=1 confirmed=1 request=%d deadline=%d completed=%d observed=%d" %
                        (i, 108000 + i, 1500100 + 1500000 * i, 200 + 1500000 * i, 1000 + 1500000 * i))
         for i in range(2):
-            raw.append("TRIAL_NMT_SAMPLE which=%d present=1 cycle=%d status=4037 monitor=0004 mode=03 position=4 velocity=10 lo=10 hi=20" % (i, i + 1))
+            raw.append("TRIAL_NMT_SAMPLE which=%d present=1 cycle=%d status=4037 monitor=0004 mode=03 position=4 velocity=10 lo=%d hi=%d" %
+                       (i, i + 1, 3500000 if i else 10, 3500010 if i else 20))
         records, _ = evidence.parse_bytes(join(raw))
         report = evidence.Report(path="<P54>")
         evidence._check_nmt_velocity(report, records, {})

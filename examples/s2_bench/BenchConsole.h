@@ -206,7 +206,7 @@ class BenchConsole {
     void applyArming(uint64_t nowUs) noexcept;
     const char* arm(BenchAxis& axis, uint64_t nowUs) noexcept;
     bool fault(unsigned node) const noexcept;
-    bool armingCurrent(RouteKind kind) noexcept;
+    bool armingCurrent(unsigned node, RouteKind kind) noexcept;
     FirmwareProbe& firmware_;
     ProbePlatform platform_; // The console's own byte queue; never the UART's.
     ProbeDevice& device_;

@@ -118,3 +118,9 @@ rate or long-duration qualification. Measured values describe owner processing
 and S2 receive bounds; wire occupancy, same-cycle sampling and physical skew
 remain unmeasured. Prompt56 owns the phase-cost and scheduling follow-up before
 the same 10 ms sustained request is repeated.
+
+The host watch retains all raw frame types in `ids`. Separate `tpdos` counts
+and interval metrics require standard data frames on `181`/`182` with the
+reviewed seven-byte layout (`6041:16,6061:8,6064:32`). RTR, extended or
+wrong-length frames on those numeric identifiers remain raw evidence but fail
+target coverage. A valid layout proves neither a fresh map nor same-cycle identity.

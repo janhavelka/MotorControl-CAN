@@ -263,6 +263,66 @@ void velocityChangePreservesOwnHalt() {
     CHECK(r.writes(0x6040, 0x010f) == 1 && r.writes(0x6040, 0x000b) == 0);
     CHECK(r.writes(0x60ff, 180) == 1 && r.writes(0x6040, 15) == 1);
 }
+void locallyExpiredVelocityChangePreservesStop() {
+    for (unsigned variant = 0; variant < 8; ++variant) {
+        scenario = "unsent-change-time-refusal-retains-run-stop";
+        VelocityRig::Rig r;
+        r.ready();
+        auto options = VelocityRig::options();
+        const bool stale = variant == 2 || variant == 3;
+        if (stale)
+            options.maximumAgeUs = 7 * (VelocityRig::QUEUE + VelocityRig::RESPONSE);
+        CHECK(r.start(VelocityRig::evidence(), VelocityRig::request(), options));
+        r.running();
+        const auto& run = r.session.velocityAction();
+        const uint64_t due = run.stopDueUs, deadline = run.deadlineUs;
+        L::VelocityChangeEvidence evidence;
+        evidence.gate = L::VelocityGate::MEASURED;
+        evidence.record = 52;
+        evidence.model = run.evidence.model;
+        evidence.firmware = run.evidence.firmware;
+        evidence.rateChangeQualified = true;
+        evidence.maximumForwardRpm = 300;
+        r.now = stale ? run.latest.earliestUs + options.maximumAgeUs - 1
+                      : due - 8 * (VelocityRig::QUEUE + VelocityRig::RESPONSE) - 1;
+        CHECK(r.session.requestVelocityChange(VelocityRig::request(180).velocity, evidence, r.now));
+        // Variant 1 expires before admission; 0 and 2–5 lose their window while queued.
+        // Variants 6–7 also exhaust the queue timeout. None changes the original route.
+        if (variant == 1)
+            r.now += VelocityRig::TICK;
+        r.session.service(r.now);
+        if (variant == 3)
+            ++r.axis.referenceGeneration; // A simultaneous provenance change must still invalidate.
+        if (variant == 4 || variant == 5) {
+            r.serviceSession = false;
+            r.step(); // Owner rejects now, but the session consumes its terminal at/after stop due.
+            r.serviceSession = true;
+            r.turn(due + (variant == 5 ? VelocityRig::TICK : 0));
+        } else if (variant >= 6) {
+            // No owner turn occurs within the queue budget, so no preflight callback runs.
+            r.turn(variant == 6 ? r.now + VelocityRig::QUEUE + 1 : due + VelocityRig::TICK);
+        }
+        r.finish();
+        CHECK(run.state == M::ActionState::FAILED && run.change.serviceEvidencePresent);
+        CHECK(run.change.execution == M::ActionExecution::NOT_TRANSMITTED &&
+              !run.change.serviceEvidence.transmissionPossible && !r.writes(0x60ff, 180));
+        CHECK(run.stopDueUs == due && run.deadlineUs == deadline);
+        CHECK(r.wire.preflightRefusals == (variant == 1 || variant >= 6 ? 0u : 1u));
+        if (variant >= 6)
+            CHECK(run.change.serviceEvidence.outcome == C::SdoOutcome::TIMEOUT &&
+                  run.firstFailure == M::ActionOutcome::SERVICE_TIMEOUT);
+        if (variant == 3) {
+            CHECK(run.interruption == M::VelocityInterruption::INVALIDATED && run.needsStop &&
+                  !run.stopRequested && !r.writes(0x6040, 0x010f));
+        } else {
+            CHECK(run.stopRequested && run.stopOperation && !run.needsStop);
+            CHECK(run.stopExecution == M::ActionExecution::ACKNOWLEDGED &&
+                  run.completion == M::ActionCompletion::OBSERVED);
+            CHECK(r.writes(0x6040, 0x010f) == 1 && !r.writes(0x6040, 0x000b));
+            CHECK(run.change.firstFailure != M::ActionOutcome::NONE);
+        }
+    }
+}
 } // namespace
 int main() {
     relationsAndStops();
@@ -272,5 +332,6 @@ int main() {
     fullOrdinaryRetainsUrgent();
     unresolvedAndDeadline();
     velocityChangePreservesOwnHalt();
+    locallyExpiredVelocityChangePreservesStop();
     std::printf("axis change: %u checks\n", checks);
 }

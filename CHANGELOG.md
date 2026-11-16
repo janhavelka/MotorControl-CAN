@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Independent motion and qualification audit
+
+- Preserve the original velocity run's stop when a queued, unsent rate change
+  loses its time budget or fresh observation; actual provenance invalidation
+  remains distinct.
+- Check experimental change arming and campaign capacity on the operation's
+  axis, independently of the current console selection.
+- Validate NMT experiment summaries against their original stage bounds, raw
+  transmissions, heartbeat evidence and complete post-transition read cycle.
+- Keep raw SYNC-watch traffic separate from valid fixture TPDO counts; RTR,
+  extended and wrong-length target frames cannot satisfy qualification coverage.
+- Correct prompt52's status to Partial for the missing initial ramp-change
+  measurement; retain all existing firmware and hardware qualification limits.
+
 ### Extension qualification diagnostics
 
 - Add a bounded compact RX watch and finite 10 ms SYNC runner with loss,

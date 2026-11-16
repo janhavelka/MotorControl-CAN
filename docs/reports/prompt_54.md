@@ -3,6 +3,8 @@
 This campaign starts at `947cc5da8cbb0c24799d8114d8b665b38341921f` on `main`.
 Hardware qualification remains **Partial**. Results below distinguish the
 implemented diagnostic tools, native tests and actual specimen observations.
+The [independent 52/54 audit](audit_52_54.md) records subsequent code, parser and
+documentation corrections without reclassifying these physical runs.
 The [campaign directory](../bench/20261116-p54/README.md) owns the fixture,
 finite plans and raw records. No host test establishes physical standstill.
 

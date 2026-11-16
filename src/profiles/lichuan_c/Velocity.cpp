@@ -841,12 +841,10 @@ Status validateVelocityAdmission(const VelocityContext& c, const AxisReservation
     if (!s)
         return s;
     if (c.state != ActionState::ACTIVE || !downloading(c) ||
-        c.withdrawal != VelocityInterruption::NONE || now < c.eligibleUs || now >= c.stopDueUs)
+        c.withdrawal != VelocityInterruption::NONE || now < c.eligibleUs)
         return error(VelocityError::STATE, "no eligible new velocity download");
-    if (!exchangeFits(c.stopDueUs, now, c.options.service.queueTimeoutUs,
-                      c.options.service.responseTimeoutUs))
-        return error(VelocityError::TIME,
-                     "velocity download budget no longer fits before stop due");
+    // Check provenance before local time policy. A refused change with an unchanged route may
+    // still execute this run's reserved stop; a changed generation must remain an invalidation.
     if (axis.exhausted || !sameBinding(axis.binding, c.rate.binding) ||
         c.rate.requested.configurationGeneration != axis.binding.configurationGeneration ||
         axis.nativeRateBasis != c.rate.rateBasis || axis.nativeVelocityTime != c.rate.rateTime ||
@@ -856,11 +854,20 @@ Status validateVelocityAdmission(const VelocityContext& c, const AxisReservation
     if (c.phase == VelocityPhase::CHANGE &&
         (!sameBinding(axis.binding, c.change.rate.binding) ||
          c.change.request.configurationGeneration != axis.binding.configurationGeneration ||
-         budget(c.options, CYCLE_FIELDS + 1) >= c.stopDueUs - now || c.stopRequested ||
-         c.firstFailure != ActionOutcome::NONE || c.readUncertain))
-        return error(VelocityError::TARGET, "velocity change provenance or remaining budget changed");
+         c.stopRequested || c.firstFailure != ActionOutcome::NONE || c.readUncertain))
+        return error(VelocityError::TARGET, "velocity change provenance changed");
+    if (now >= c.stopDueUs)
+        return error(c.phase == VelocityPhase::CHANGE ? VelocityError::TIME : VelocityError::STATE,
+                     "no velocity download at or after stop due");
+    if (!exchangeFits(c.stopDueUs, now, c.options.service.queueTimeoutUs,
+                      c.options.service.responseTimeoutUs) ||
+        (c.phase == VelocityPhase::CHANGE &&
+         budget(c.options, CYCLE_FIELDS + 1) >= c.stopDueUs - now))
+        return error(VelocityError::TIME,
+                     "velocity download budget no longer fits before stop due");
     if (now - c.latest.earliestUs > c.options.maximumAgeUs)
-        return error(VelocityError::STATE, "velocity prerequisite observation expired");
+        return error(c.phase == VelocityPhase::CHANGE ? VelocityError::TIME : VelocityError::STATE,
+                     "velocity prerequisite observation expired");
     return Ok();
 }
 Status noteVelocityTransmission(VelocityContext& c, const AxisReservation& live,

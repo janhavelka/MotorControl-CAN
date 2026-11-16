@@ -139,6 +139,11 @@ class ProbeConsole {
     /** Inspect a registered logical axis, independently of node IDs or the current selection.
      * @param axisId Nonzero logical identity. @return Borrowed registered helper or null. */
     ProbeMotion* motionForAxis(uint32_t axisId) const noexcept;
+    /** Resolve a change route's retained operation ID, independently of selection.
+     * @param line Parsed velocity-change or move speed/ramps/retarget request.
+     * @return Borrowed attachment or null for another route or unknown/non-motion ID.
+     * Performs no admission, mutation or I/O; the operation still validates its state. */
+    ProbeMotion* motionForChange(const ConsoleLine& line) const noexcept;
     /** @return Registered helper matching the exact current application selection, or null.
      * With no application selection, a sole attachment preserves the legacy one-axis route. */
     ProbeMotion* selectedMotion() const noexcept;

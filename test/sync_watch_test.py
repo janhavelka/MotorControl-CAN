@@ -173,6 +173,64 @@ class CompactTests(unittest.TestCase):
         self.assertTrue(result["counter_errors"])
         self.assertEqual(sum(b"sync period " in command for command in port.writes), 1)
 
+    def test_target_identifier_requires_standard_data_and_the_fixture_tpdo_layout(self):
+        for malformed in ("rtr", "dlc", "extended", "mixed"):
+            class MalformedPort(Port):
+                target_frames = 0
+                def add(self, line):
+                    if line.startswith("PC "):
+                        fields = line.rsplit(",", 1)[0].split(",")
+                        if fields[1] == "181":
+                            self.target_frames += 1
+                            if malformed != "mixed" or self.target_frames == 2:
+                                fields[4], fields[5] = {
+                                    "rtr": ("1c6", "-"), "mixed": ("1c6", "-"),
+                                    "dlc": ("184", "50c000000000"),
+                                    "extended": ("1c5", "50c00000000001"),
+                                }[malformed]
+                                line = compact(",".join(fields)) + "\n"
+                    super().add(line)
+            with self.subTest(malformed=malformed):
+                clock = Clock()
+                port, raw = MalformedPort(clock), io.BytesIO()
+                result = watch.run(watch.Stream(port, raw, watch.Analysis(), clock, clock.sleep),
+                                   duration_s=1, period_ms=10, expected_elf="a" * 64, poll_s=1)
+                self.assertFalse(result["ok"])
+                summary = result["watch"]
+                self.assertTrue(summary["raw_rx_complete"])
+                self.assertEqual(summary["received_frames"], 200)
+                self.assertEqual(summary["rejected_tpdo_frames"], 1 if malformed == "mixed" else 100)
+                self.assertTrue(summary["coverage_errors"])
+                self.assertEqual(summary["tpdos"][str(0x182)]["count"], 100)
+                if malformed == "mixed":
+                    self.assertEqual(summary["ids"][str(0x181) + "s"]["max_hi_gap"], 10000)
+                    self.assertEqual(summary["tpdos"][str(0x181)]["count"], 99)
+                    self.assertEqual(summary["tpdos"][str(0x181)]["max_hi_gap"], 20000)
+                else:
+                    self.assertNotIn(str(0x181), summary["tpdos"])
+                self.assertEqual(sum(b"sync period " in command for command in port.writes), 1)
+
+    def test_genuine_p54_captures_keep_their_original_coverage_classification(self):
+        root = Path(__file__).resolve().parents[1] / "docs/bench/20261116-p54"
+        for name, count, complete in (("37-sync-10ms-drain-fixed", 500, True),
+                                      ("38-sync-10ms-30min", 180000, False),
+                                      ("40-sync-100ms-60s", 600, True)):
+            with self.subTest(capture=name):
+                request = json.loads((root / name / "request.json").read_text())
+                analysis = watch.Analysis(request["period_ms"] * 1000)
+                raw = io.BytesIO()
+                stream = watch.Stream(io.BytesIO((root / name / "rx.bin").read_bytes()), raw, analysis)
+                while stream.read():
+                    stream.lines.clear()
+                summary = analysis.summary(count)
+                self.assertTrue(summary["raw_rx_complete"])
+                self.assertTrue(summary["timing_complete"])
+                self.assertEqual(summary["rejected_tpdo_frames"], 0)
+                self.assertEqual(not summary["errors"], complete)
+                for identifier in (0x181, 0x182):
+                    self.assertEqual(summary["tpdos"][str(identifier)]["count"],
+                                     summary["ids"][str(identifier) + "s"]["count"])
+
     def test_checked_native_failure_keeps_result_and_records_planned_local_cleanup(self):
         clock = Clock()
         port = Port(clock)

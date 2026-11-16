@@ -1605,28 +1605,132 @@ def _check_nmt_velocity(report, records, meta):
             problems.append("NMT transmission evidence contradicts its terminal")
         if v["terminal"] and v["which"] in (0, 1):
             end = value["stopEnd"] if v["which"] == 0 else value["preopEnd"]
-            if v["deadline"] != end:
+            if v["deadline"] != end or v["completed"] < value["start"] or v["outcome"] > 6:
                 problems.append("NMT terminal deadline differs from the fixed stage")
+            if (v["outcome"] == 0) != bool(v["confirmed"]):
+                problems.append("NMT outcome differs from confirmed transmission")
+            if v["outcome"] == 0 and v["completed"] >= end:
+                problems.append("successful NMT transmission crossed the fixed stage cutoff")
+            if v["observed"] and not v["completed"] < v["observed"] < end:
+                problems.append("NMT state observation falls outside its fixed stage")
+        elif any(v[name] for name in ("possible", "confirmed", "request", "deadline", "completed", "observed")) or v["outcome"] != 5:
+            problems.append("absent NMT terminal publishes completion evidence")
     for row in groups["TRIAL_NMT_SAMPLE"]:
         v = row.values
         if v["present"] and (v["lo"] > v["hi"] or v["status"] > 0xffff or
                              v["monitor"] > 0xffff or v["mode"] > 0xff):
             problems.append("invalid native sample")
+        if not v["present"] and any(v[key] for key in v if key not in ("which", "present")):
+            problems.append("absent native sample publishes values")
+    before, after = [r.values for r in groups["TRIAL_NMT_SAMPLE"]]
+    steps = [r.values for r in groups["TRIAL_NMT_STEP"]]
+    if prepared:
+        if before["hi"] > value["start"] or before["velocity"] <= 0 or before["mode"] != 3:
+            problems.append("before sample does not precede the running experiment")
+        if after["present"] and (not steps[1]["observed"] or after["cycle"] <= before["cycle"] or
+                                 after["lo"] <= steps[1]["observed"] or after["hi"] > value["due"]):
+            problems.append("post-PREOP sample is stale or outside the original run")
+        if value["failure"] == 0 and (value["phase"] != 8 or not after["present"] or
+                any(not v["terminal"] or v["outcome"] != 0 or not v["observed"] for v in steps)):
+            problems.append("successful NMT experiment lacks completed stages or post-PREOP sample")
     header = next((r.values for r in records if r.kind == "TRIAL" and r.status == "parsed"), None)
     if header:
+        if header["failure"] == 0 and not prepared:
+            problems.append("successful trial has no prepared NMT experiment")
+        for v in steps:
+            if v["terminal"] and v["request"] != 2 * header["id"] + v["which"]:
+                problems.append("NMT terminal request differs from experiment identity")
+        if value["failure"] and header["failure"] == 0:
+            problems.append("failed NMT experiment reported as successful trial")
         writes = [r.values for r in records if r.role == "traffic" and r.status == "parsed" and
                   r.values.get("k") == TX and r.values.get("id") == 0]
         counts = Counter()
         for frame in writes:
             data = bytes.fromhex(frame["data"])
-            if frame["dlc"] != 2 or len(data) < 2 or data[0] not in (2, 128) or data[1] != header["node"]:
+            if (frame["dlc"] != 2 or frame.get("ext") or frame.get("rtr") or
+                    len(data) < 2 or data[0] not in (2, 128) or data[1] != header["node"]):
                 problems.append("unexpected NMT request or destination")
             else:
                 counts[data[0]] += 1
         if any(count > 1 for count in counts.values()):
             problems.append("NMT request repeated")
+        _check_nmt_traffic(report, records, header, value, steps, (before, after))
     if problems:
         report.error("nmt_experiment_record", record.number, "; ".join(problems))
+
+
+def _check_nmt_traffic(report, records, header, experiment, steps, samples):
+    """Match copied owner traffic, without confusing application request and transport IDs."""
+    traffic = [r for r in records if r.role in ("traffic", "tail") and r.status == "parsed"]
+    problems = []
+    for i, step in enumerate(steps):
+        command, state = ((2, 4), (128, 127))[i]
+        writes = [r for r in traffic if r.values.get("k") == TX and r.values.get("id") == 0 and
+                  bytes.fromhex(r.values["data"])[:2] == bytes((command, header["node"]))]
+        if step["possible"] and len(writes) != 1:
+            problems.append("NMT possible transmission lacks its single copied request")
+        for sent in writes:
+            v = sent.values
+            end = experiment["stopEnd"] if i == 0 else experiment["preopEnd"]
+            if (not step["terminal"] or not step["attempted"] or v.get("txk") != 1 or
+                    not all(key in v for key in ("txr", "txf", "txc", "epoch")) or
+                    not experiment["start"] <= v["p"] < end or v["p"] > step["completed"] or
+                    step["confirmed"] and not v["ok"]):
+                problems.append("copied NMT request differs from its admitted stage")
+            reports = [r for r in traffic if r.values.get("k") == TX_REPORT and
+                       _tx_identity(r) == _tx_identity(sent)]
+            if step["confirmed"] and (len(reports) != 1 or not reports[0].values["ok"] or
+                                       reports[0].values["p"] != step["completed"]):
+                problems.append("NMT confirmation lacks its exact local TX report")
+        if step["observed"]:
+            epoch = writes[0].values.get("epoch") if len(writes) == 1 else None
+            beats = [r.values for r in traffic if r.values.get("k") == RX and
+                     r.values.get("id") == 0x700 + header["node"] and
+                     (epoch is None or r.values.get("epoch") == epoch) and
+                     not r.values.get("ext") and not r.values.get("rtr") and r.values["dlc"] == 1 and
+                     bytes.fromhex(r.values["data"])[0] == state]
+            end = experiment["stopEnd"] if i == 0 else experiment["preopEnd"]
+            if not any(v.get("bounds") and v["lo"] == step["observed"] and
+                       step["completed"] < v["lo"] <= v["hi"] <= v["p"] < end or
+                       v.get("exact") and v["t"] == step["observed"] and
+                       step["completed"] < v["t"] <= v["p"] < end for v in beats):
+                problems.append("NMT state observation lacks its fresh copied heartbeat")
+    # Samples own seven sequential ordinary SDO reads. Their bounds and values
+    # must name that complete cycle; a later valid read cannot rescue a stale summary.
+    objects = (0x2100, 0x2101, 0x2102, 0x6041, 0x6061, 0x6064, 0x606c)
+    cycle_identity = None
+    for sample in samples:
+        if not sample["present"]:
+            continue
+        cycle = [r.values for r in records if r.role == "terminal" and r.status == "parsed" and
+                 sample["lo"] <= r.values["admitted"] and r.values["completed"] <= sample["hi"]]
+        if (len(cycle) != 7 or tuple(tuple(v["object"]) for v in cycle) != tuple((o, 0) for o in objects) or
+                any(v["outcome"] != 0 or v.get("dir") != 0 or v.get("node", header["node"]) != header["node"] for v in cycle) or
+                tuple(v["size"] for v in cycle) != (2, 2, 2, 2, 1, 4, 4) or
+                any((v.get("op"), v.get("ne")) != (cycle[0].get("op"), cycle[0].get("ne")) or
+                    v["step"] != cycle[0]["step"] + i for i, v in enumerate(cycle)) or
+                cycle[0]["admitted"] != sample["lo"] or cycle[-1]["completed"] != sample["hi"]):
+            problems.append("NMT sample lacks its complete ordinary SDO cycle")
+            continue
+        identity = cycle[0].get("op"), cycle[0].get("ne")
+        nmt_epochs = {r.values.get("epoch") for r in traffic
+                      if r.values.get("k") == TX and r.values.get("txk") == 1}
+        if nmt_epochs and nmt_epochs != {identity[1]}:
+            problems.append("NMT sample node epoch differs from experiment traffic")
+        if cycle_identity is not None and identity != cycle_identity:
+            problems.append("NMT samples belong to different operations or node epochs")
+        cycle_identity = identity
+        for field, position, signed in (("monitor", 0, False), ("status", 3, False), ("mode", 4, False),
+                                        ("position", 5, True), ("velocity", 6, True)):
+            v = cycle[position]
+            raw = bytes.fromhex(v["data"])[:v["size"]]
+            if int.from_bytes(raw, "little", signed=signed) != sample[field]:
+                problems.append("NMT sample value differs from its SDO cycle")
+    if problems:
+        # Lost raw copies limit correlation; they do not invalidate the retained
+        # native record. Internal summary contradictions remain hard errors above.
+        (report.warn if header.get("lost") or header.get("tailLost") else report.error)(
+            "nmt_experiment_traffic", None, "; ".join(problems))
 
 
 def _check_change_request(report, records, meta):

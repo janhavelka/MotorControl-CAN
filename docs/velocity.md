@@ -433,7 +433,10 @@ record is closed by default (Q25); an experiment claims no qualification.
 Both initial and changed native motor rates must be positive and in the admitted scope. A reversed axis polarity can therefore use negative engineering intent while retaining the same positive wire direction.
 Zero, reversal, sign changes, stale bindings, pending stops and unresolved earlier
 writes refuse. A failed change requests the run's already selected stop within
-the original deadline; no write is retried. An acknowledged change keeps the
+the original deadline; no write is retried. This also applies when a queued,
+provably unsent change loses its remaining time budget or fresh observation.
+Actual binding/reference invalidation and explicit cancellation remain separate
+interruptions; they do not authorize a stop on an invalid route. An acknowledged change keeps the
 actual last controlword available to that stop. The raw first606C report equal
 to the requested rate establishes neither convergence nor physical speed.
 The observation envelope permits values up to the greater of initial/new rates
