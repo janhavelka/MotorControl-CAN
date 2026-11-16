@@ -36,8 +36,10 @@ struct Rig {
     C::SdoClient services;
     Console console;
     Driver driver;
+    E::AcquisitionRecord acquisitionStorage;
     E::FirmwareProbe firmware;
     E::AxisSession one, two;
+    E::RouteRecord routeStorage;
     E::BenchRoute route;
     E::RouteWork routeWork;
     const C::SdoTransfer* externalWord = nullptr; // Explicit additional test producer, scoped below.
@@ -60,8 +62,8 @@ struct Rig {
     }
     // work: attach RouteWork, as the firmware does on the first route that needs it.
     explicit Rig(bool work = true)
-        : firmware(services, driver.callbacks(), console.callbacks()), one(firmware.owner()),
-          two(firmware.owner()), route(firmware, services, hooks(this)) {
+        : firmware(services, driver.callbacks(), console.callbacks(), &acquisitionStorage), one(firmware.owner()),
+          two(firmware.owner()), route(firmware, services, hooks(this), &routeStorage) {
         E::DownloadPreflight check;
         check.context = this;
         check.check = [](void* context, O::SequenceId sequence, const C::SdoTransfer& transfer,

@@ -262,14 +262,16 @@ class ProbeApp {
      */
     bool service(uint64_t nowUs, const MotorControlCANOwner::ServiceBudget& budget) noexcept;
     /** Open one axis's session: latest controlword and stop work. An active read's
-     * reservation passes to the session, and later reads use the session's.
+     * reservation passes to the session, and later reads use the session's. Each
+     * open session has a distinct fairness producer; a read reserves an unused
+     * producer until its reservation is released or adopted by that session.
      * @param[in] session Caller-owned closed session, borrowed until closed. Sessions are
      * large, so an application that sends no commands stores none.
      * @param[in] target Current route and node epoch.
      * @param[in] model Applicable model, supplied from application evidence.
      * @param[in] nowUs Supplied nondecreasing us.
-     * @return The session, or null when two are already open, this binding has one, or
-     * the target is stale.
+     * @return The session, or null when session/producer capacity is full, this
+     * binding has one, or the target is stale. Capacity comes from Capacity.h.
      */
     AxisSession* openAxis(AxisSession& session,
                           const MotorControlCAN::LICHUAN_C::ReadTarget& target,
@@ -362,6 +364,7 @@ class ProbeApp {
     bool releaseRead() noexcept;
 
   private:
+    uint8_t producerFor(const MotorControlCAN::Binding& binding) const noexcept;
     ProbeDevice* device_ = nullptr;
     CanBusOwner& owner_;
     ProbePlatform& platform_;

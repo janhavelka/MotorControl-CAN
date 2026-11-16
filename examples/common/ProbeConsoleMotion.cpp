@@ -252,26 +252,153 @@ const char* truth(bool value) {
 }
 } // namespace
 
-bool ProbeConsole::enqueueStop(const char* text, uint8_t stop, uint32_t request,
+bool ProbeConsole::enqueueGroupStop(const char* text, uint32_t request, uint32_t terminal) noexcept {
+    const size_t size = std::strlen(text);
+    if (groupReplyUsed_ || !size || size >= RECORD_CAPACITY || text[size - 1] != '\n')
+        return false;
+    std::memcpy(groupReply_.text, text, size + 1);
+    groupReply_.length = uint16_t(size);
+    groupReply_.request = request;
+    groupReply_.terminal = terminal;
+    groupReplyUsed_ = true;
+    return true;
+}
+void ProbeConsole::dispatchGroupStop(const ConsoleLine& line, uint64_t now) noexcept {
+    const char* kind = line.count == 2 ? "fast" : line.token(2);
+    if ((line.count != 2 && line.count != 3) || (!eq(kind, "normal") && !eq(kind, "fast"))) {
+        error(line.id, line.json, "stop", "invalid_group_stop_arguments");
+        return;
+    }
+    Operation& op = operations_[GROUP_OPERATION_SLOT];
+    if (!groupStop_ || op.used || groupReplyUsed_ || nextOperation_ == UINT32_MAX) {
+        error(line.id, line.json, "stop", "group_stop_storage_unavailable");
+        return;
+    }
+    size_t count = 0;
+    for (const MotionAttachment& attachment : motions_)
+        if (attachment.motion)
+            groupMembers_[count++] = attachment.motion;
+    const M::Status status = groupStop_->request(groupMembers_, count,
+        eq(kind, "normal") ? L::StopKind::HALT : L::StopKind::QUICK_STOP, now);
+    if (!status) {
+        error(line.id, line.json, "stop", status.msg ? status.msg : M::errToString(status.code),
+              false, status.code, status.detail);
+        return;
+    }
+    op.used = op.groupStop = true;
+    op.json = line.json;
+    op.request = line.id;
+    op.id = ++nextOperation_;
+    op.nativeOperation = groupStop_->result().id;
+    std::snprintf(op.command, sizeof op.command, "stop");
+    for (bool& printed : groupMemberPrinted_)
+        printed = false;
+    motionAccepted(op);
+}
+bool ProbeConsole::groupStopTerminal(Operation& op) noexcept {
+    const bool matching = groupStop_ && groupStop_->result().id == op.nativeOperation;
+    if (!op.terminal && matching) {
+        bool pendingOutput = false;
+        for (size_t n = 0; n < groupStop_->memberCount(); ++n) {
+            const GroupStopMember& member = *groupStop_->member(n);
+            if (groupMemberPrinted_[n])
+                continue;
+            pendingOutput = true;
+            if (!member.finished)
+                continue;
+            ConsoleText text;
+            text.start(op.json, op.request, "group_stop_axis", op.command);
+            text.add(op.json ? ",\"operation_id\":%lu,\"axis_id\":%lu,\"accepted\":%s,\"status\":\"%s\","
+                               "\"detail\":%ld,\"outcome\":\"%s\",\"uncertain\":%s,\"native_operation\":%lu"
+                             : "operation=%lu axis=%lu accepted=%s status=%s detail=%ld outcome=%s uncertain=%s native-operation=%lu",
+                     static_cast<unsigned long>(op.id), static_cast<unsigned long>(member.logicalAxisId),
+                     truth(member.accepted), M::errToString(member.admission.code), static_cast<long>(member.admission.detail),
+                     member.accepted ? outcomeName(member.stop.result.outcome) : "REFUSED",
+                     truth(!member.accepted || member.stop.result.uncertain ||
+                           member.stop.result.state != M::ActionState::SUCCEEDED),
+                     static_cast<unsigned long>(member.accepted ? member.stop.result.nativeOperation : 0));
+            text.end(op.json);
+            if (text.valid && enqueueGroupStop(text.bytes, op.request))
+                groupMemberPrinted_[n] = true;
+            return false;
+        }
+        if (pendingOutput || groupStop_->result().state == M::ActionState::ACTIVE)
+            return false;
+    }
+    if (!op.terminal) {
+        const bool success = matching && groupStop_->result().state == M::ActionState::SUCCEEDED;
+        ConsoleText body;
+        body.add(",\"ok\":%s,\"status\":\"%s\",\"detail\":0,\"outcome\":\"%s\",\"uncertain\":%s,"
+                 "\"command_id\":%lu,\"operation_id\":%lu,\"completed_us\":\"%llu\",\"abort_code\":null,\"axis_count\":%lu",
+                 truth(success), success ? "OK" : "INVALID_CONFIG", success ? "OBSERVED" : matching ? "UNCONFIRMED" : "INVALIDATED",
+                 truth(!matching || groupStop_->result().uncertain), static_cast<unsigned long>(op.request),
+                 static_cast<unsigned long>(op.id), static_cast<unsigned long long>(matching ? groupStop_->result().completedUs : lastUs_),
+                 static_cast<unsigned long>(matching ? groupStop_->memberCount() : 0));
+        if (!body.valid)
+            return false;
+        std::memcpy(op.terminalRecord, body.bytes, body.used + 1);
+        op.terminal = true;
+    }
+    if (!op.queuedTerminal && !op.delivered) {
+        ConsoleText text;
+        text.start(op.json, op.request, "terminal", op.command);
+        if (op.json)
+            text.add("%s", op.terminalRecord);
+        else
+            text.add("operation %lu%s", static_cast<unsigned long>(op.id), op.terminalRecord);
+        text.end(op.json);
+        if (text.valid && enqueueGroupStop(text.bytes, op.request, op.id))
+            op.queuedTerminal = true;
+    }
+    return op.terminal;
+}
+bool ProbeConsole::enqueueStop(const char* text, ProbeMotion* motion, uint8_t stop, uint32_t request,
                                uint32_t terminal) noexcept {
-    if (stop < 1 || stop > 2 || stopReplyUsed_[stop - 1])
+    const unsigned axis = motionSlot(motion);
+    if (stop < 1 || stop > 2 || axis == MOTION_CAPACITY)
+        return false;
+    const unsigned slot = 2 * axis + stop - 1;
+    if (stopReplyUsed_[slot])
         return false;
     const size_t size = std::strlen(text);
     if (!size || size >= RECORD_CAPACITY || text[size - 1] != '\n')
         return false;
-    Record& record = stopReplies_[stop - 1];
+    Record& record = stopReplies_[slot];
     std::memcpy(record.text, text, size + 1);
     record.length = static_cast<uint16_t>(size);
     record.request = request;
     record.terminal = terminal;
-    stopReplyUsed_[stop - 1] = true;
+    stopReplyUsed_[slot] = true;
     return true;
 }
 
 void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcept {
+    ProbeMotion* motion = selectedMotion();
     const char* name = line.token(0);
     const bool stop = eq(name, "stop");
-    const uint8_t stopSlot = stop && eq(line.token(1), "normal") ? 1 : 2;
+    if (stop && eq(line.token(1), "all")) {
+        dispatchGroupStop(line, now);
+        return;
+    }
+    bool explicitStop = false;
+    const char* stopKind = line.token(1);
+    uint64_t explicitAxis = 0;
+    if (stop && positiveInteger(line.token(1), explicitAxis) && explicitAxis <= UINT32_MAX) {
+        explicitStop = true;
+        motion = motionForAxis(uint32_t(explicitAxis));
+        stopKind = line.count == 2 ? "fast" : line.token(2);
+    }
+    const bool changing = (eq(name, "velocity") && eq(line.token(1), "change")) ||
+        (eq(name, "move") && (eq(line.token(1), "speed") || eq(line.token(1), "ramps") || eq(line.token(1), "retarget")));
+    if (changing) {
+        uint64_t id = 0;
+        Operation* original = positiveInteger(line.token(2), id) && id <= UINT32_MAX ? operation(uint32_t(id)) : nullptr;
+        if (original && original->motion)
+            motion = original->attachment;
+    }
+    const unsigned intentSlot = motionSlot(motion);
+    SimpleMoveIntent& intent = intentSlot < MOTION_CAPACITY ? motions_[intentSlot].intent : intent_;
+    const uint8_t stopSlot = stop && eq(stopKind, "normal") ? 1 : 2;
     const auto reject = [&](const M::Status& status) {
         if (status.code == M::Err::ILLEGAL_VALUE && stats_.invalid != UINT32_MAX)
             ++stats_.invalid;
@@ -292,7 +419,7 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
     if (eq(name, "motion")) {
         L::MoveSetup choice;
         const M::Status status = line.count == 2 && setup(line.token(1), choice)
-                                     ? setSimpleSetup(intent_, choice)
+                                     ? setSimpleSetup(intent, choice)
                                      : syntax;
         if (!status) {
             reject(status);
@@ -305,24 +432,18 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             reject(syntax);
             return;
         }
-        const M::Status status = setSimpleRamp(intent_, up, value);
+        const M::Status status = setSimpleRamp(intent, up, value);
         if (!status) {
             reject(status);
             return;
         }
     } else {
-        if (!motion_ || !app_.selected() ||
-            !M::sameBinding(motion_->target().channel.binding, app_.selected()->channel.binding) ||
-            motion_->target().nodeGeneration != app_.selected()->nodeGeneration ||
-            motion_->target().channel.clientToServerId !=
-                app_.selected()->channel.clientToServerId ||
-            motion_->target().channel.serverToClientId !=
-                app_.selected()->channel.serverToClientId) {
+        if (!motion) {
             reject(M::Status(M::Err::UNSUPPORTED, 0,
                              "attach_actual_axis_and_explicit_native_prerequisites"));
             return;
         }
-        const M::AxisConfig& axis = motion_->axisConfig();
+        const M::AxisConfig& axis = motion->axisConfig();
         if (eq(name, "velocity") && eq(line.token(1), "change")) {
             uint64_t id = 0;
             size_t next = 7;
@@ -336,11 +457,11 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 return;
             }
             Operation* original = operation(static_cast<uint32_t>(id));
-            if (!original || !original->motion || original->stop || original->terminal) {
+            if (!original || !original->motion || original->attachment != motion || original->stop || original->terminal) {
                 reject(M::Status(M::Err::INVALID_CONFIG, 0, "velocity_change_requires_active_operation_id"));
                 return;
             }
-            const M::Status status = motion_->requestVelocityChange(original->nativeOperation, rate, now);
+            const M::Status status = motion->requestVelocityChange(original->nativeOperation, rate, now);
             if (!status) {
                 reject(status);
                 return;
@@ -356,7 +477,7 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 reject(syntax);
                 return;
             }
-            const M::Status status = setSimpleSpeed(intent_, rpm(value, axis), axis);
+            const M::Status status = setSimpleSpeed(intent, rpm(value, axis), axis);
             if (!status) {
                 reject(status);
                 return;
@@ -368,8 +489,8 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                                    ? makeCommandScale(value, scale)
                                    : syntax;
             if (status)
-                status = motion_->configureCommandScale(scale, now);
-            if (status && !app_.select(motion_->target()))
+                status = motion->configureCommandScale(scale, now);
+            if (status && !app_.select(motion->target()))
                 status = M::Status(M::Err::INVALID_CONFIG, 0, "host_selection_cannot_follow_axis");
             if (!status) {
                 reject(status);
@@ -380,9 +501,9 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             M::Status status = line.count == 3 && eq(line.token(1), "origin") &&
                                        M::parseExactNumber(line.token(2), value) &&
                                        value.denominator == 1
-                                   ? motion_->setOrigin(value.numerator, now)
+                                   ? motion->setOrigin(value.numerator, now)
                                    : syntax;
-            if (status && !app_.select(motion_->target()))
+            if (status && !app_.select(motion->target()))
                 status = M::Status(M::Err::INVALID_CONFIG, 0, "host_selection_cannot_follow_axis");
             if (!status) {
                 reject(status);
@@ -396,18 +517,19 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 uint64_t id = 0;
                 if (!positiveInteger(line.token(2), id) || id > UINT32_MAX ||
                     !(original = operation(static_cast<uint32_t>(id))) || !original->motion ||
-                    original->stop || original->terminal) {
+                    original->attachment != motion || original->stop || original->terminal) {
                     reject(M::Status(M::Err::INVALID_CONFIG, 0, "replacement_requires_active_move_id"));
                     return;
                 }
             }
-            Operation* op = stop ? &operations_[OPERATION_CAPACITY + stopSlot - 1] : nullptr;
+            const unsigned stopIndex = 2 * motionSlot(motion) + stopSlot - 1;
+            Operation* op = stop ? &operations_[OPERATION_CAPACITY + stopIndex] : nullptr;
             if (!stop)
                 for (unsigned n = 0; n < OPERATION_CAPACITY && !op; ++n)
                     if (!operations_[n].used)
                         op = &operations_[n];
             if (!op || op->used || nextOperation_ == UINT32_MAX ||
-                (stop && stopReplyUsed_[stopSlot - 1])) {
+                (stop && stopReplyUsed_[stopIndex])) {
                 reject(M::Status(M::Err::INVALID_CONFIG, 0, "retained_results_full"));
                 return;
             }
@@ -435,18 +557,18 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                     status = makeSimplePosition(position.value, position.unit, position.relative,
                         axis.binding.configurationGeneration, position);
                     if (status)
-                        status = buildSimpleMove(intent_, position, axis, !position.relative, request, profile);
+                        status = buildSimpleMove(intent, position, axis, !position.relative, request, profile);
                     if (status)
-                        status = motion_->requestMove(request, profile, now, cutoff);
+                        status = motion->requestMove(request, profile, now, cutoff);
                 }
             } else if (eq(name, "move")) {
                 if (replacement) {
-                    status = requestReplacement(line, intent_, *motion_, original->nativeOperation, now);
+                    status = requestReplacement(line, intent, *motion, original->nativeOperation, now);
                 } else {
                     M::MoveRequest request;
                     L::MoveProfile profile;
-                    if (parseMove(line, axis, intent_, request, profile))
-                        status = motion_->requestMove(request, profile, now, cutoff);
+                    if (parseMove(line, axis, intent, request, profile))
+                        status = motion->requestMove(request, profile, now, cutoff);
                 }
             } else if (eq(name, "velocity")) {
                 M::VelocityRequest rate;
@@ -464,7 +586,7 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                         status = syntax;
                     if (status) {
                         cutoff += request.durationUs;
-                        status = motion_->requestVelocity(request,
+                        status = motion->requestVelocity(request,
                                                           eq(line.token(6), "normal")
                                                               ? L::StopKind::HALT
                                                               : L::StopKind::QUICK_STOP,
@@ -485,19 +607,20 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                     request.searchSpeed = rpm(search, axis);
                     request.creepSpeed = rpm(creep, axis);
                     request.rampTimeMs = static_cast<uint32_t>(ramp);
-                    status = motion_->requestHome(request, now, cutoff);
+                    status = motion->requestHome(request, now, cutoff);
                 }
             } else if (stop) {
-                if (line.count == 2 && (eq(line.token(1), "normal") || eq(line.token(1), "fast")))
-                    status = motion_->requestStop(
+                if ((explicitStop ? line.count == 2 || line.count == 3 : line.count == 2) &&
+                    (eq(stopKind, "normal") || eq(stopKind, "fast")))
+                    status = motion->requestStop(
                         stopSlot == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP, now);
             } else if (line.count == 1) {
                 if (eq(name, "enable"))
-                    status = motion_->requestEnable(now, cutoff);
+                    status = motion->requestEnable(now, cutoff);
                 else if (eq(name, "alarm-clear"))
-                    status = motion_->requestAlarmClear(now, cutoff);
+                    status = motion->requestAlarmClear(now, cutoff);
                 else if (eq(name, "position-clear"))
-                    status = motion_->requestPositionClear(0, now, cutoff);
+                    status = motion->requestPositionClear(0, now, cutoff);
             }
             if (!status) {
                 reject(status);
@@ -505,15 +628,17 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             }
             new (static_cast<void*>(op)) Operation();
             op->used = op->motion = true;
+            op->attachment = motion;
+            op->axisId = motion->target().channel.binding.logicalAxisId;
             op->json = line.json;
             op->request = line.id;
             op->id = ++nextOperation_;
             op->stop = stop ? stopSlot : 0;
             op->nativeOperation =
-                stop ? motion_
+                stop ? motion
                            ->stopResult(stopSlot == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
                            ->result.id
-                     : motion_->normalResult().id;
+                     : motion->normalResult().id;
             if (replacement) {
                 op->originalMotion = original->id;
                 op->replacementMotion = op->id;
@@ -532,9 +657,10 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
 void ProbeConsole::velocityChangeAccepted(const ConsoleLine& line, uint32_t operation) noexcept {
     ConsoleText text;
     text.start(line.json, line.id, "reply", line.token(0));
-    text.add(line.json ? ",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\",\"operation_id\":%lu,\"change_index\":1"
-                       : "accepted operation %lu change 1",
-             static_cast<unsigned long>(operation));
+    const Operation* original = this->operation(operation);
+    text.add(line.json ? ",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\",\"operation_id\":%lu,\"change_index\":1,\"axis_id\":%lu"
+                       : "accepted operation %lu change 1 axis %lu",
+             static_cast<unsigned long>(operation), static_cast<unsigned long>(original ? original->axisId : 0));
     text.end(line.json);
     if ((!text.valid || !enqueue(text.bytes, false, line.id)) && stats_.outputDropped != UINT32_MAX)
         ++stats_.outputDropped;
@@ -545,13 +671,19 @@ void ProbeConsole::motionAccepted(Operation& op) noexcept {
     text.add(op.json ? ",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\",\"operation_id\":%lu"
                      : "accepted operation %lu",
              static_cast<unsigned long>(op.id));
+    if (op.groupStop)
+        text.add(op.json ? ",\"axis_count\":%lu" : " axes=%lu", static_cast<unsigned long>(groupStop_->memberCount()));
+    else
+        text.add(op.json ? ",\"axis_id\":%lu" : " axis=%lu", static_cast<unsigned long>(op.axisId));
     text.end(op.json);
-    if (!(op.stop ? enqueueStop(text.bytes, op.stop, op.request)
-                  : enqueue(text.bytes, false, op.request)) &&
+    if (!(op.groupStop ? enqueueGroupStop(text.bytes, op.request)
+          : op.stop ? enqueueStop(text.bytes, op.attachment, op.stop, op.request)
+                    : enqueue(text.bytes, false, op.request)) &&
         stats_.outputDropped != UINT32_MAX)
         ++stats_.outputDropped;
 }
 void ProbeConsole::motionIntentReply(const ConsoleLine& line, bool inspect) noexcept {
+    SimpleMoveIntent& intent = motionIntent();
     const char* name = line.token(0);
     const bool speed = eq(name, "speed"), up = eq(name, "accel"), down = eq(name, "decel");
     ConsoleText text;
@@ -564,13 +696,13 @@ void ProbeConsole::motionIntentReply(const ConsoleLine& line, bool inspect) noex
     } else if (inspect) {
         text.add(line.json ? ",\"value\":" : "value=");
         if (eq(name, "motion"))
-            text.string(intent_.setup == L::MoveSetup::WRITE_ALL ? "write" : "verify");
-        else if (speed && intent_.speedKnown)
-            text.add("[\"%lld\",\"%llu\"]", static_cast<long long>(intent_.speed.value.numerator),
-                     static_cast<unsigned long long>(intent_.speed.value.denominator));
-        else if ((up && intent_.rampUpKnown) || (down && intent_.rampDownKnown))
+            text.string(intent.setup == L::MoveSetup::WRITE_ALL ? "write" : "verify");
+        else if (speed && intent.speedKnown)
+            text.add("[\"%lld\",\"%llu\"]", static_cast<long long>(intent.speed.value.numerator),
+                     static_cast<unsigned long long>(intent.speed.value.denominator));
+        else if ((up && intent.rampUpKnown) || (down && intent.rampDownKnown))
             text.add("\"%lu\"",
-                     static_cast<unsigned long>(up ? intent_.rampUpMs : intent_.rampDownMs));
+                     static_cast<unsigned long>(up ? intent.rampUpMs : intent.rampDownMs));
         else
             text.add("null");
         if (speed || up || down)
@@ -583,10 +715,11 @@ void ProbeConsole::motionIntentReply(const ConsoleLine& line, bool inspect) noex
 }
 
 bool ProbeConsole::motionValues(Operation& op) noexcept {
+    ProbeMotion* motion = op.attachment;
     if (op.stop) {
         const MotionStopResult* stop =
-            motion_
-                ? motion_->stopResult(op.stop == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
+            motion
+                ? motion->stopResult(op.stop == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
                 : nullptr;
         if (!stop)
             return true;
@@ -615,13 +748,13 @@ bool ProbeConsole::motionValues(Operation& op) noexcept {
         else
             text.add("null");
         text.end(op.json);
-        if (text.valid && enqueueStop(text.bytes, op.stop, op.request))
+        if (text.valid && enqueueStop(text.bytes, op.attachment, op.stop, op.request))
             ++op.valueCursor;
         return false;
     }
-    if (!motion_ || !motion_->retained())
+    if (!motion || !motion->retained())
         return true;
-    const MotionResult* correlated = motion_->normalResult(op.nativeOperation);
+    const MotionResult* correlated = motion->normalResult(op.nativeOperation);
     if (!correlated)
         return true;
     const auto& result = *correlated;
@@ -645,7 +778,7 @@ bool ProbeConsole::motionValues(Operation& op) noexcept {
                 ++op.valueCursor;
             return false;
         }
-        const L::VelocityContext* velocity = motion_->nativeVelocity();
+        const L::VelocityContext* velocity = motion->nativeVelocity();
         if (op.valueCursor != 3 || !velocity || !velocity->change.present)
             return true;
         if (ordinaryCount_ == ORDINARY_REPLIES)
@@ -716,14 +849,15 @@ bool ProbeConsole::motionValues(Operation& op) noexcept {
     return false;
 }
 bool ProbeConsole::motionTerminal(Operation& op) noexcept {
+    ProbeMotion* motion = op.attachment;
     if (!op.terminal) {
         const MotionStopResult* stopped =
-            motion_ && op.stop
-                ? motion_->stopResult(op.stop == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
+            motion && op.stop
+                ? motion->stopResult(op.stop == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
                 : nullptr;
         const MotionResult* result = stopped ? &stopped->result
-                                     : motion_ && !op.stop
-                                         ? motion_->normalResult(op.nativeOperation)
+                                     : motion && !op.stop
+                                         ? motion->normalResult(op.nativeOperation)
                                          : nullptr;
         if (result && result->id == op.nativeOperation) {
             if (result->state == M::ActionState::ACTIVE || !motionValues(op))
@@ -749,6 +883,7 @@ bool ProbeConsole::motionTerminal(Operation& op) noexcept {
             body.add(",\"execution_code\":%u,\"completion_code\":%u,\"native_operation\":%lu",
                      unsigned(result->execution), unsigned(result->completion),
                      static_cast<unsigned long>(result->nativeOperation));
+        body.add(",\"axis_id\":%lu", static_cast<unsigned long>(op.axisId));
         if (stopped)
             body.add(",\"stop_path_code\":%u,\"superseded\":%s", unsigned(stopped->path),
                      truth(stopped->superseded));
@@ -765,7 +900,7 @@ bool ProbeConsole::motionTerminal(Operation& op) noexcept {
         else
             text.add("operation %lu%s", static_cast<unsigned long>(op.id), op.terminalRecord);
         text.end(op.json);
-        if (text.valid && (op.stop ? enqueueStop(text.bytes, op.stop, op.request, op.id)
+        if (text.valid && (op.stop ? enqueueStop(text.bytes, op.attachment, op.stop, op.request, op.id)
                                    : enqueue(text.bytes, false, op.request, op.id)))
             op.queuedTerminal = true;
     }

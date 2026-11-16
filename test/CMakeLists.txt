@@ -1,3 +1,5 @@
+find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+
 function(strict_test target)
     set_target_properties(${target} PROPERTIES
         CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
@@ -571,7 +573,6 @@ target_link_libraries(objects_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(objects_test)
 add_test(NAME objects COMMAND objects_test)
 
-find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 add_test(NAME version_generated COMMAND "${Python3_EXECUTABLE}"
     "${PROJECT_SOURCE_DIR}/scripts/generate_version.py" check)
 add_test(NAME objects_generated COMMAND "${Python3_EXECUTABLE}"
@@ -720,6 +721,31 @@ target_link_libraries(probe_motion_actions_test PRIVATE MotorControlCANProbeApp)
 strict_test(probe_motion_actions_test)
 add_test(NAME probe_motion_actions COMMAND probe_motion_actions_test)
 set_tests_properties(probe_motion_actions PROPERTIES TIMEOUT 30)
+
+# Multi-axis application ownership and startup storage placement.
+add_executable(group_stop_test group_stop_test.cpp)
+target_link_libraries(group_stop_test PRIVATE MotorControlCANProbeApp)
+strict_test(group_stop_test)
+add_test(NAME group_stop COMMAND group_stop_test)
+add_executable(storage_placement_test storage_placement_test.cpp)
+target_link_libraries(storage_placement_test PRIVATE MotorControlCANProbeApp)
+strict_test(storage_placement_test)
+add_test(NAME storage_placement COMMAND storage_placement_test)
+if(MOTORCONTROLCAN_SDO_CHANNELS GREATER_EQUAL 2)
+    add_executable(multi_axis_console_test multi_axis_console_test.cpp)
+    target_link_libraries(multi_axis_console_test PRIVATE MotorControlCANProbeApp)
+    strict_test(multi_axis_console_test)
+    add_test(NAME multi_axis_console COMMAND multi_axis_console_test)
+    set_tests_properties(multi_axis_console PROPERTIES TIMEOUT 30)
+endif()
+add_test(NAME multi_axis_client COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/multi_axis_client_test.py")
+add_test(NAME paired_motion COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/paired_motion_test.py")
+set_tests_properties(multi_axis_client paired_motion PROPERTIES TIMEOUT 60)
+add_executable(axis_storage_test axis_storage_test.cpp)
+target_link_libraries(axis_storage_test PRIVATE MotorControlCANProbeApp)
+strict_test(axis_storage_test)
+add_test(NAME axis_storage COMMAND axis_storage_test)
+set_tests_properties(group_stop storage_placement axis_storage PROPERTIES TIMEOUT 30)
 
 # Capacity sets (adapters/canopennode/Capacity.h). The ordinary libraries above carry the configured
 # set, which capacity_test checks. Each further set compiles the adapters, the owner, the TWAI adapter

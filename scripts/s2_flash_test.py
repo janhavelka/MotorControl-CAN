@@ -78,6 +78,11 @@ def resolved_sdkconfig(app):
                 name, value = line.split("=", 1)
                 values[name] = value
     values.update(CONFIG_IDF_TARGET='"esp32s2"', CONFIG_ESPTOOLPY_FLASHSIZE='"4MB"')
+    # Kconfig derives the numeric size from the selected no-PSRAM S2 cache choice.
+    if values.get("CONFIG_ESP32S2_DATA_CACHE_0KB") == "y":
+        values["CONFIG_ESP32S2_DATA_CACHE_SIZE"] = "0"
+    if values.get("CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH") == "y":
+        values.pop("CONFIG_UART_ISR_IN_IRAM", None)  # Its Kconfig dependency is false.
     # Kconfig writes the bool's default when no defaults file sets it; the options that depend
     # on the hook then get no line (the resolved sdkconfig of the idf-s2-optak-console gate).
     values.setdefault("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK", None)

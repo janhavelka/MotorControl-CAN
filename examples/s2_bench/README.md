@@ -560,3 +560,22 @@ owner, `BenchRoute`, `AxisSession` and `ProbeMotion` against the bench route sui
 the first download, scale, origin, `moveby` and `moveto` in the order above, and a velocity arming from a released
 mode 3 standstill with the console's finite run and its own stop); `scripts/s2_bench_console_test.py`
 (the helper offline). Nothing here has run on a drive: console motion on the bench is unqualified until a bench run.
+
+Prompt53 adds per-axis motion attachments and owned arming copies. Release each
+arming route record before acquiring the other axis; its original observation
+timestamp and consumed/generation checks remain unchanged. `stop ID [normal|fast]`
+addresses a logical axis independently of selection; `stop all [normal|fast]`
+retains separate member results. Both forms default to fast. Existing selected
+`stop normal`/`stop fast` remain available.
+
+The native bench test now starts both fake axes, stops one while the other runs,
+and tests a group request with a previously retained member stop. This is host
+evidence only. The [paired runner](../../docs/runners.md#two-independently-moving-axes)
+uses this ordinary console path, the same durable campaign ledger and separately
+planned per-axis stops. It does not arm or enable either axis.
+
+Acquisition and route records now share the existing internal-RAM record arena.
+Explicit release precedes detachment and replacement; collector identities,
+control/fault history and per-axis arming copies remain stationary. Soak, capture
+and watch storage remains separate. See the [storage report](../../docs/reports/prompt_53_storage.md)
+for measured layouts and runtime checks still assigned to prompt54.

@@ -161,8 +161,8 @@ neither CAN TX nor protocol acknowledgement.
 | Resource | Bound |
 | --- | --- |
 | Console wire record | 511 bytes including newline; JSON nesting at most 16 levels |
-| Client storage | Four ordinary/cached pending requests plus one reserved normal-stop and one fast-stop request; two ordinary admitted operations plus one per stop kind; 128 records per request |
-| Input/work | 65536 received bytes per command, 1 MiB per session, 1024 commands; startup, preflight and all requests have a deadline-derived allowance of at least 8192 and at most 65536 turns |
+| Client storage | Advertised `2*N` ordinary operation slots (legacy2 until version identification); pending ordinary/cached cap `max(4,2*N+2)`, plus per-axis normal/fast reserves and one group reserve;512 records per request. Advertised operation capacity must be even and at most508 |
+| Input/work | 262144 received bytes per command, 1 MiB per session,1024 commands; startup, preflight and all requests have a deadline-derived allowance of at least8192 and at most65536 turns |
 | In-memory diagnostics | Latest 64 raw lines and 16 parse failures; dropped raw-line count retained |
 | Live JSONL | 2048 events and 2 MiB including a reserved limit notice; 16384 bytes per event |
 | Pure summary | 256 records, 262144 serialized ASCII JSON bytes, 16 container levels; execution summary at most 16 operations |
@@ -272,7 +272,7 @@ stops capture and reports `trace_pending`: buffered records that follow its FIFO
 reply. The runner waits for that declared count under the existing command timeout,
 then observes another fixed 0.2-second window. Older firmware lacking this field
 gets only the fixed observation window. Empty reads do not end these waits.
-Each uses the supplied monotonic clock, at most 65536 received bytes and a finite
+Each uses the supplied monotonic clock, at most262144 received bytes and a finite
 turn allowance even when the clock freezes. Missing declared records or partial
 lines at cutoff fail with retained diagnostics. Metadata appears under `raw_trace`
 as `before_disable_tail`, `declared_pending_tail` and `after_disable_tail`.
@@ -388,3 +388,44 @@ separate invocation.
 Packaging failure truncates this attempt's archive, so it cannot retain an older
 passing summary. The loose summary is rewritten as failed where storage permits;
 an unavailable evidence medium can leave incomplete artifacts and a nonzero exit.
+
+## Two independently moving axes
+
+`scripts/paired_motion.py` uses the same Console/session artifacts and port policy.
+It requires two already armed actual axes; it does not acquire, enable, restore or
+renew prerequisites. This plan-only example opens no port:
+
+```sh
+python scripts/paired_motion.py --plan-only --axis 1 1 800 30 500 500 --axis 2 2 1200 30 500 500 --trial 53001 --stop-after-ms 2000 --stop-policy fast --timeout 10
+```
+
+Each `--axis` supplies logical ID, CANopen node, absolute native command increments,
+RPM, up-ramp milliseconds and down-ramp milliseconds. The bounded first fixture
+uses distinct nodes 1/2, targets -1000000..1000000, speed 1..60, nonzero ramps up to
+2000 ms and stop cutoff 1..20000 ms. Actual native validation and evidence can refuse
+any otherwise well-formed request. `--timeout` must exceed the cutoff and names
+the fixed whole-attempt response budget; setup consumes the movement window.
+
+A live invocation additionally supplies `--port`, `--baud`, `--profile`,
+`--can-bitrate`, `--expected-library-version`, `--fixture`, `--out` and `--campaign`.
+Use `--new-campaign` only for a new explicitly chosen campaign. The fixture JSON
+is the existing session fixture plus `axes`, exactly two objects shaped as
+`{"axis_id":1,"node":1,"fixture":{...}}`; each nested fixture satisfies the
+existing position and stop evidence schema and names the selected stop method.
+Logical admission identities are checked against the live console. Nested
+provenance remains supplied declarations; it does not attest the drive's identity
+or open native gates. The already armed native prerequisites validate each request.
+
+One locked, hash-chained, fsynced reservation debits two moves and two planned
+stops before setup. It shares the existing total 12 and per-kind/per-node 3 limits
+with single-node bench trials; refusal or failed output does not refund it.
+Trial IDs must exceed every prior movement reservation in that campaign.
+Both planned stops are handed off before waiting for either result. Each axis's
+result remains separate, including an unsuccessful original move. A poisoned
+connection sends no further commands and never reconnects or retries.
+
+The normal session `.json`, `.jsonl` and deterministic `.zip` retain raw traffic,
+failures, axis identities, the fixed host cutoff and each reached handle. An exact
+single accepted `6040=001F` handoff per axis permits a processing-time skew report;
+missing/ambiguous trace data yields no skew. This is neither wire arrival timing
+nor synchronized or physical motion evidence. Physical execution belongs to 54.

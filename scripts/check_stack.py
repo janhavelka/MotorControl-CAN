@@ -44,6 +44,10 @@ RESPONSE_FLAGS = ["-mlongcalls", "-fno-builtin-memcpy", "-fno-builtin-memset", "
 SECTION_FLAGS = ["-ffunction-sections", "-fdata-sections", "-gdwarf-4", "-ggdb"]
 TAIL_FLAGS = ["-fstrict-volatile-bitfields", "-fno-jump-tables", "-fno-tree-switch-conversion"]
 OPT_FLAGS = {"-Os": ["-Os", "-freorder-blocks"], "-Og": ["-Og", "-fno-shrink-wrap"]}
+# Reviewed firmware defaults: prompt53 B01 selects size optimization for the S2
+# bench. Both levels are still measured; comparison must use the actual image's
+# required configuration instead of silently accepting arbitrary optimization.
+FIRMWARE_OPT = {"esp32s2": "-Os", "esp32s3": "-Og"}
 MEASURE_FLAGS = ["-fstack-usage", "-fcallgraph-info=su"]
 DRIFT_SAMPLES = ("src/profiles/lichuan_c/Actions.cpp",
                  "experiments/canopen_service_fit/vendor/CANopenNode/301/CO_SDOclient.c")
@@ -903,7 +907,8 @@ def check_drift(pairs, requested):
         if not separator or target not in requested:
             raise StackCheckError("--compile-commands needs TARGET=PATH with a measured target: " + pair)
         for source in DRIFT_SAMPLES:
-            problems.extend("{} {}: {}".format(target, source, item) for item in flag_drift(path, source))
+            problems.extend("{} {}: {}".format(target, source, item)
+                            for item in flag_drift(path, source, FIRMWARE_OPT[target]))
     return problems
 
 

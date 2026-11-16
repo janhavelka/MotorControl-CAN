@@ -4,6 +4,7 @@
  */
 #pragma once
 #include "MotionIntent.h"
+#include "GroupStop.h"
 #include "ProbeApp.h"
 #include "ProbeCommissioning.h"
 #include "ProbeDevice.h"
@@ -72,13 +73,13 @@ struct ConsoleStats {
     uint32_t invalid = 0;       ///< Invalid characters, lengths, grammar or exact values.
     uint32_t outputDropped = 0; ///< Whole ordinary replies refused before any local mutation.
     uint32_t inputLost = 0;     ///< Platform overflow incidents; discard through next terminator.
-    uint16_t queued = 0;        ///< Complete records retained locally, maximum six.
+    uint16_t queued = 0;        ///< Complete records retained locally, including per-axis stop reserves.
 };
 /** One cooperative application console. No CAN receiver, clock, allocation, retry
  * or independent operation executor. Call app.service(now) first, then console.service(now).
  * Records include their newline and are copied atomically into ProbePlatform.
  * Physical byte writes can be partial; the suffix is retained without interleaving.
- * Ordinary pressure never consumes local-control or either stop's reserved reply slot.
+ * Ordinary pressure never consumes local-control, per-axis stop or group stop reply storage.
  * All borrowed resources outlive this stationary object; callbacks cannot reenter.
  */
 class ProbeConsole {
@@ -91,8 +92,11 @@ class ProbeConsole {
         CONTROL_REPLIES = 2,    ///< Additional records reserved for local cancel/recover replies.
         INPUT_BUDGET = 32,      ///< Maximum buffered input bytes consumed per service turn.
         TRACE_CAPACITY = 80,    ///< Application diagnostic copies; independent of UART pressure.
-        OPERATION_CAPACITY = 2, ///< Ordinary retained correlations; no unread eviction.
-        TOTAL_OPERATION_CAPACITY = 5 ///< Two ordinary, normal stop, fast stop, host recovery.
+        MOTION_CAPACITY = MotorControlCAN::CANOPEN::SdoClient::CHANNELS, ///< Registered actual axes.
+        OPERATION_CAPACITY = 2 * MOTION_CAPACITY, ///< Two ordinary correlations per configured axis.
+        STOP_REPLY_CAPACITY = 2 * MOTION_CAPACITY, ///< Normal and fast output reserves per axis.
+        GROUP_OPERATION_SLOT = OPERATION_CAPACITY + STOP_REPLY_CAPACITY, ///< Independently reserved group stop.
+        TOTAL_OPERATION_CAPACITY = GROUP_OPERATION_SLOT + 2 ///< Group stop plus host recovery.
     };
     /** Borrow existing application/owner/platform; construction performs no I/O.
      * @param app Existing stationary shared application, outlives the console.
@@ -128,13 +132,22 @@ class ProbeConsole {
         commissioning_ = &commissioning;
         return true;
     }
-    /** Borrow one actual axis attachment. Qualification and native prerequisites remain explicit.
+    /** Register one actual axis attachment without selecting it or creating qualification.
      * @param motion Stationary same application/owner attachment; outlives this console.
-     * @return False unchanged for a different graph or replacement attachment. No traffic. */
-    bool attachMotion(ProbeMotion& motion) noexcept {
-        if ((motion_ && motion_ != &motion) || !motion.matches(app_, owner_))
+     * @return False unchanged for duplicate logical axis ID, another graph or full storage. */
+    bool attachMotion(ProbeMotion& motion) noexcept;
+    /** Inspect a registered logical axis, independently of node IDs or the current selection.
+     * @param axisId Nonzero logical identity. @return Borrowed registered helper or null. */
+    ProbeMotion* motionForAxis(uint32_t axisId) const noexcept;
+    /** @return Registered helper matching the exact current application selection, or null.
+     * With no application selection, a sole attachment preserves the legacy one-axis route. */
+    ProbeMotion* selectedMotion() const noexcept;
+    /** Borrow caller-owned group storage and graph; no stop or result is created.
+     * @param group Stationary same-graph helper. @return False for another graph or helper. */
+    bool attachGroupStop(GroupStop& group) noexcept {
+        if ((groupStop_ && groupStop_ != &group) || !group.matches(app_, owner_))
             return false;
-        motion_ = &motion;
+        groupStop_ = &group;
         return true;
     }
     /** Borrow a finite SYNC helper; no arm, producer grant or traffic is created.
@@ -146,10 +159,13 @@ class ProbeConsole {
         sync_ = &sync;
         return true;
     }
-    /** Withdraw the motion attachment, so that an application with one attachment per axis can attach
-     * another axis's. No traffic; the attachment's own results and native contexts stay as they are.
-     * @return False unchanged while any motion operation of this console is retained. */
+    /** Withdraw the selected attachment, or the sole attachment when none is selected.
+     * No traffic; the attachment's own results and native contexts stay as they are.
+     * @return False unchanged while its console correlation is retained or selection is ambiguous. */
     bool detachMotion() noexcept;
+    /** Withdraw one logical axis without affecting others. Retained correlations prevent removal.
+     * @param axisId Actual logical identity. @return False unchanged when absent or retained. */
+    bool detachMotion(uint32_t axisId) noexcept;
     ProbeConsole(const ProbeConsole&) = delete; ///< Stationary retained identities and buffers.
     ProbeConsole& operator=(const ProbeConsole&) = delete; ///< No mutable copies.
     /** Consume one byte. Invalid/overlong lines discard through CR/LF before dispatch.
@@ -197,9 +213,11 @@ class ProbeConsole {
             0; ///< Modulo outputWritten position after the complete terminal line.
         MotorControlCANOwner::RecoveryId recoveryId;
         MotorControlCAN::CANOPEN::NmtRequestId nmtId;
-        bool automatic = false, discovery = false, capture = false, monitor = false,
+        bool groupStop = false, automatic = false, discovery = false, capture = false, monitor = false,
              settings = false, commissioning = false, motion = false, sync = false;
-        uint8_t stop = 0; ///< Zero ordinary, one HALT, two QUICK_STOP; dedicated retained slots.
+        uint32_t axisId = 0; ///< Captured logical identity, independent of address and selection.
+        ProbeMotion* attachment = nullptr; ///< Frozen actual helper; selection changes cannot redirect results.
+        uint8_t stop = 0; ///< Zero ordinary, one HALT, two QUICK_STOP; per-axis retained slots.
         uint8_t valueCursor = 0;
         char command[24] = "read";
         char terminalRecord[RECORD_CAPACITY] = {};
@@ -207,8 +225,16 @@ class ProbeConsole {
     ProbeDevice* device_ = nullptr;
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
-    ProbeMotion* motion_ = nullptr;
+    struct MotionAttachment {
+        ProbeMotion* motion = nullptr;
+        SimpleMoveIntent intent;
+    } motions_[MOTION_CAPACITY];
     ProbeSync* sync_ = nullptr;
+    GroupStop* groupStop_ = nullptr;
+    ProbeMotion* groupMembers_[MOTION_CAPACITY] = {};
+    bool groupMemberPrinted_[MOTION_CAPACITY] = {};
+    Record groupReply_;
+    bool groupReplyUsed_ = false;
     SimpleMoveIntent intent_;
     uint8_t debug_ = 0;
     // Only the fields the console publishes. Keeping Completion out saves scarce S2 RAM.
@@ -231,8 +257,9 @@ class ProbeConsole {
     uint32_t nextOperation_ = 0;
     ConsoleStats stats_;
     Record ordinary_[ORDINARY_REPLIES], control_[CONTROL_REPLIES];
-    Record stopReplies_[2];
-    bool stopReplyUsed_[2] = {false, false};
+    Record stopReplies_[STOP_REPLY_CAPACITY];
+    bool stopReplyUsed_[STOP_REPLY_CAPACITY] = {};
+    unsigned nextStopReply_ = 0;
     uint8_t ordinaryCount_ = 0, controlCount_ = 0;
     struct Listing {
         bool active = false, caps = false, json = false, axis = false;
@@ -257,7 +284,12 @@ class ProbeConsole {
     void motionAccepted(Operation& operation) noexcept;
     bool motionValues(Operation& operation) noexcept;
     bool motionTerminal(Operation& operation) noexcept;
-    bool enqueueStop(const char* text, uint8_t stop, uint32_t request,
+    void dispatchGroupStop(const ConsoleLine& line, uint64_t now) noexcept;
+    bool groupStopTerminal(Operation& operation) noexcept;
+    bool enqueueGroupStop(const char* text, uint32_t request, uint32_t terminal = 0) noexcept;
+    unsigned motionSlot(const ProbeMotion* motion) const noexcept;
+    SimpleMoveIntent& motionIntent() noexcept;
+    bool enqueueStop(const char* text, ProbeMotion* motion, uint8_t stop, uint32_t request,
                      uint32_t terminal = 0) noexcept;
     void diagnostic(uint64_t now) noexcept;
     void captureDiagnostics() noexcept;

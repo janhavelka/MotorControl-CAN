@@ -188,6 +188,7 @@ struct Rig {
     Driver driver;
     Pin pin;
     E::SoakTwaiTap tap;
+    E::AcquisitionRecord acquisitionStorage;
     E::FirmwareProbe firmware;
     E::SilentCapture capture;
     unsigned samples = 0;
@@ -228,7 +229,7 @@ struct Rig {
         return value;
     }
     Rig()
-        : tap(driver.callbacks()), firmware(services, tap.driver(), console.callbacks()),
+        : tap(driver.callbacks()), firmware(services, tap.driver(), console.callbacks(), &acquisitionStorage),
           capture(firmware, services, tap, transceiver(pin), sampling(this), REVISION, IMAGE) {
         driver.console = &console;
         pin.tap = &tap;

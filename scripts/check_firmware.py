@@ -4,7 +4,9 @@
 Targets: arduino (S3 compile fixture), idf (shared S3 compile fixture), idf-s2 (shared
 S2 compile fixture), idf-s2-optak (shared S2 image with the OPTAK board configuration
 and the test-only smoke hook), s2 (special S2 bench application), component (isolated
-core consumer) and all (every gate above). arduino-s2 builds the S2 Arduino fixture,
+core consumer), storage (S2/S3 cold-storage fixtures with/without optional PSRAM),
+and all (every gate above). Each storage variant is also individually selectable.
+arduino-s2 builds the S2 Arduino fixture,
 which the pinned package blocks; it reports status "blocked" and is not part of all.
 idf-s2-optak-console builds the shared S2 image with the OPTAK board configuration and
 no smoke hook, so its UART0 console is the shared ProbeConsole; it is an explicit bench
@@ -199,6 +201,18 @@ COMMON_SDKCONFIG = {"CONFIG_ESP_CONSOLE_NONE": "y", "CONFIG_FREERTOS_SMP": NOT_S
 FIXTURE_SDKCONFIG = {"CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE": "y"}
 S2_FLASH = {"CONFIG_IDF_TARGET": '"esp32s2"', "CONFIG_ESPTOOLPY_FLASHSIZE": '"4MB"',
             "CONFIG_ESPTOOLPY_FLASHMODE_DIO": "y", "CONFIG_SPIRAM": NOT_SET}
+S2_MEMORY_SAVINGS = {"CONFIG_ESP32S2_DATA_CACHE_0KB": "y", "CONFIG_ESP32S2_DATA_CACHE_SIZE": "0",
+                     "CONFIG_COMPILER_OPTIMIZATION_SIZE": "y",
+                     "CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH": "y",
+                     "CONFIG_HEAP_PLACE_FUNCTION_INTO_FLASH": "y",
+                     "CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH": "y",
+                     "CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH": "y",
+                     "CONFIG_LIBC_LOCKS_PLACE_IN_IRAM": NOT_SET,
+                     # UART's IRAM option depends on ring-buffer ISR functions remaining in IRAM.
+                     # With that dependency disabled Kconfig omits the UART option entirely.
+                     "CONFIG_UART_ISR_IN_IRAM": UNDECLARED,
+                     "CONFIG_ESP_TIMER_TASK_STACK_SIZE": "2048"}
+S2_FLASH.update(S2_MEMORY_SAVINGS)
 # sdkconfig.defaults.esp32s3: the N8 no-PSRAM fixture. These S3 builds select no esp_psram
 # component, so the pinned SDK writes no CONFIG_SPIRAM line at all.
 S3_FLASH = {"CONFIG_IDF_TARGET": '"esp32s3"', "CONFIG_ESPTOOLPY_FLASHSIZE": '"8MB"', "CONFIG_SPIRAM": UNDECLARED}
@@ -237,13 +251,36 @@ SHARED_IDF_BUILDS = {
 }
 # The special bench image's examples/s2_bench/sdkconfig.defaults, reviewed as for the shared S2 image.
 BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **S2_FLASH)
+STORAGE_PROJECT = "examples/storage_placement"
+STORAGE_IDF_BUILDS = {
+    "storage-s2": {"target": "esp32s2", "psram": False},
+    "storage-s2-psram": {"target": "esp32s2", "psram": True},
+    "storage-s3": {"target": "esp32s3", "psram": False},
+    "storage-s3-psram": {"target": "esp32s3", "psram": True},
+}
 ARDUINO_BUILDS = {"arduino": ("probe_cli_compile", "esp32s3"), "arduino-s2": ("probe_cli_s2_compile", "esp32s2")}
 # EspProbePlatform's guard text: the pinned Arduino S2 libraries enable the UART0 console.
 ARDUINO_S2_GUARD = "S2 UART0 platform requires the SDK console disabled for exclusive ownership"
 # all is every compile gate CI runs; the console image is an explicit bench target only.
-ALL_TARGETS = ("arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component")
+ALL_TARGETS = ("arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component") + tuple(STORAGE_IDF_BUILDS)
 TARGETS = ("arduino", "arduino-s2", "idf", "idf-s2", "idf-s2-optak", "idf-s2-optak-console", "s2", "component",
-           "all")
+           "storage", "all") + tuple(STORAGE_IDF_BUILDS)
+
+
+def storage_sdkconfig(target, psram):
+    """Independent cold-storage fixture: optional PSRAM never changes default malloc or hot BSS."""
+    required = dict(COMMON_SDKCONFIG, **{
+        "CONFIG_IDF_TARGET": '"' + target + '"', "CONFIG_COMPILER_OPTIMIZATION_SIZE": "y",
+        "CONFIG_ESPTOOLPY_FLASHSIZE": '"4MB"' if target == "esp32s2" else '"8MB"',
+        "CONFIG_SPIRAM": "y" if psram else NOT_SET})
+    if psram:
+        required.update({"CONFIG_SPIRAM_MODE_QUAD": "y", "CONFIG_SPIRAM_SPEED_40M": "y",
+                         "CONFIG_SPIRAM_USE_CAPS_ALLOC": "y", "CONFIG_SPIRAM_USE_MALLOC": NOT_SET,
+                         "CONFIG_SPIRAM_IGNORE_NOTFOUND": "y",
+                         "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY": NOT_SET,
+                         "CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY": NOT_SET,
+                         "CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM": NOT_SET})
+    return required
 
 
 def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_sources.json"),
@@ -390,6 +427,51 @@ def shared_idf_build(runner, command, env, name, temporary_root, expected):
         runner.save()
 
 
+def storage_idf_build(runner, command, env, name, temporary_root, core):
+    """Link the actual SDK allocator and fixed internal hot types in four explicit configurations."""
+    spec = STORAGE_IDF_BUILDS[name]
+    project = ROOT / STORAGE_PROJECT
+    defaults = [project / "sdkconfig.defaults"]
+    if spec["psram"]:
+        defaults.append(project / "sdkconfig.psram")
+    options = ["-DSDKCONFIG_DEFAULTS=" + ";".join(path.as_posix() for path in defaults)]
+    with tempfile.TemporaryDirectory(prefix="mccan-" + name + "-", dir=temporary_root) as temporary:
+        build = Path(temporary) / "build"
+        idf_build(runner, command, env, name, project, build, options, target=spec["target"])
+        database = build / "compile_commands.json"
+        runner.summary[name.replace("-", "_") + "_compile_entries"] = check_inputs(
+            database, core + [project / "main/main.cpp"], [ROOT / BENCH_PROJECT, ROOT / SHARED_IDF],
+            owned=ROOT, outside=[build], sdk=sdk_roots(env))
+        check_compiler(database, spec["target"])
+        required = storage_sdkconfig(spec["target"], spec["psram"])
+        check_sdkconfig(build / "sdkconfig", required)
+        runner.summary.setdefault("firmware_targets", {})[name] = check_description(build, spec["target"])
+        # SDK Python supplies pyelftools. Read actual linked type sizes without executing firmware.
+        probe = ("import json,sys; from elftools.elf.elffile import ELFFile; "
+                 "f=open(sys.argv[1],'rb'); d=ELFFile(f).get_dwarf_info(); "
+                 "names={'HotStorage','ColdHistory','StartupColdStorage','IdfTwaiDriver','ActionContext'}; "
+                 "found={}; "
+                 "[(found.setdefault(x.attributes['DW_AT_name'].value.decode(),set()).add("
+                 "x.attributes['DW_AT_byte_size'].value)) for c in d.iter_CUs() for x in c.iter_DIEs() "
+                 "if 'DW_AT_name' in x.attributes and 'DW_AT_byte_size' in x.attributes and "
+                 "x.attributes['DW_AT_name'].value.decode() in names]; "
+                 "print(json.dumps({k:sorted(v) for k,v in found.items()},sort_keys=True))")
+        sizes = json.loads(runner.run(name + "_sizes", [command[0], "-c", probe, next(build.glob("*.elf"))],
+                                      timeout=60, env=env).strip())
+        if set(sizes) != {"HotStorage", "ColdHistory", "StartupColdStorage", "IdfTwaiDriver", "ActionContext"}:
+            raise VerificationFailure(name + " omitted required linked storage type evidence")
+        if any(len(value) != 1 for value in sizes.values()) or sizes["ColdHistory"] != [32772]:
+            raise VerificationFailure(name + " has inconsistent linked storage layouts")
+        runner.summary.setdefault("storage_fixtures", {})[name] = {
+            "sdkconfig": required, "type_bytes": {key: value[0] for key, value in sizes.items()},
+            "image_size": json.loads(runner.run(name + "_map_size",
+                [command[0], "-m", "esp_idf_size", "--format", "json", next(build.glob("*.map"))],
+                timeout=60, env=env)),
+            "app_bin_bytes": next(build.glob("motorcontrol_can_storage.bin")).stat().st_size,
+            "runtime_allocation_observed": False, "hardware_placement_qualified": False}
+        runner.save()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--target", choices=TARGETS, default="all")
@@ -400,7 +482,7 @@ def main():
     parser.add_argument("--temporary-root", type=Path,
                         help="Existing short path for disposable IDF builds; products are retained")
     args = parser.parse_args()
-    selected = ALL_TARGETS if args.target == "all" else (args.target,)
+    selected = ALL_TARGETS if args.target == "all" else tuple(STORAGE_IDF_BUILDS) if args.target == "storage" else (args.target,)
     runner = Runner(args.build_dir, "firmware-" + args.target)
     try:
         data = firmware_inventory()
@@ -420,6 +502,7 @@ def main():
         sdk_targets = []
         for name in selected:
             target = (SHARED_IDF_BUILDS[name]["target"] if name in SHARED_IDF_BUILDS
+                      else STORAGE_IDF_BUILDS[name]["target"] if name in STORAGE_IDF_BUILDS
                       else "esp32s2" if name == "s2" else "esp32s3" if name == "component" else None)
             if target and target not in sdk_targets:
                 sdk_targets.append(target)
@@ -430,6 +513,8 @@ def main():
             for name in selected:
                 if name in SHARED_IDF_BUILDS:
                     shared_idf_build(runner, command, env, name, args.temporary_root, common + core)
+                elif name in STORAGE_IDF_BUILDS:
+                    storage_idf_build(runner, command, env, name, args.temporary_root, core)
             if "s2" in selected:
                 with tempfile.TemporaryDirectory(prefix="mccan-s2-", dir=args.temporary_root) as temporary:
                     build = Path(temporary) / "build"

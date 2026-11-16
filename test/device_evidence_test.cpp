@@ -180,12 +180,13 @@ struct Rig {
     E::ProbePlatform platform;
     O::CanBusOwner owner;
     E::ProbeApp app;
+    E::AcquisitionRecord acquisitionStorage;
     E::DeviceEvidence evidence;
     uint64_t now = 0;
     explicit Rig(E::EvidenceEnvironment environment = E::EvidenceEnvironment::HOST_FAKE,
                  bool qualified = true, L::ReadTarget selected = target())
         : platform(E::ProbeCallbacks()), owner(services, wire.callbacks(), 129),
-          app(owner, platform), evidence(app, owner, environment) {
+          app(owner, platform), evidence(app, owner, &acquisitionStorage, environment) {
         CHECK(services.configure(0, selected.channel, qualified, true));
         C::NetworkRoute network;
         network.binding = selected.channel.binding;
@@ -303,6 +304,34 @@ void passiveAndAdmission() {
     }
     Rig badMode(static_cast<E::EvidenceEnvironment>(0xff));
     CHECK(badMode.evidence.request(badMode.plan(), 0) == E::EvidenceAdmission::INVALID);
+}
+// Record storage can be shared only after explicit release; collector admission history survives it.
+void borrowedRecordStorage() {
+    Rig rig;
+    E::AcquisitionRecord other;
+    CHECK(rig.evidence.bindRecordStorage(nullptr));
+    CHECK(rig.evidence.request(rig.plan(), 0) == E::EvidenceAdmission::INVALID);
+    CHECK(!rig.evidence.record() && !rig.wire.transmitted && rig.evidence.service(0));
+    CHECK(!rig.evidence.bindRecordStorage(reinterpret_cast<E::AcquisitionRecord*>(&rig.evidence)));
+    CHECK(!rig.evidence.bindRecordStorage(reinterpret_cast<E::AcquisitionRecord*>(&rig.app)));
+    CHECK(!rig.evidence.bindRecordStorage(reinterpret_cast<E::AcquisitionRecord*>(&rig.owner)));
+    CHECK(rig.evidence.bindRecordStorage(&rig.acquisitionStorage));
+    CHECK(rig.evidence.request(rig.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
+    CHECK(rig.evidence.record() == &rig.acquisitionStorage);
+    CHECK(rig.evidence.bindRecordStorage(&rig.acquisitionStorage));
+    CHECK(!rig.evidence.bindRecordStorage(nullptr) && !rig.evidence.bindRecordStorage(&other));
+    rig.finish();
+    CHECK(!rig.evidence.bindRecordStorage(nullptr) && !rig.evidence.bindRecordStorage(&other));
+    CHECK(rig.evidence.release() && rig.evidence.bindRecordStorage(nullptr));
+    CHECK(!rig.evidence.record() && rig.evidence.service(rig.now));
+    CHECK(rig.evidence.bindRecordStorage(&other));
+    const unsigned sent = rig.wire.transmitted;
+    CHECK(rig.evidence.request(rig.plan(), rig.now) == E::EvidenceAdmission::INVALID);
+    CHECK(rig.wire.transmitted == sent && !rig.evidence.record());
+    CHECK(rig.evidence.request(rig.plan(L::ReadKind::IDENTITY, 2), rig.now) == E::EvidenceAdmission::ACCEPTED);
+    rig.finish();
+    CHECK(rig.evidence.record() == &other && other.plan.id == 2 && rig.acquisitionStorage.plan.id == 1);
+    CHECK(rig.evidence.release() && rig.evidence.bindRecordStorage(nullptr));
 }
 void exactSuccessAndRetention() {
     Rig rig;
@@ -1048,6 +1077,7 @@ void receiveIntervalsStayIntervals() {
 }
 } // namespace
 int main() {
+    borrowedRecordStorage();
     passiveAndAdmission();
     exactSuccessAndRetention();
     failedEvidenceAndNoReplay();

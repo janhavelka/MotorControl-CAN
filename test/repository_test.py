@@ -61,7 +61,7 @@ FILES = {
     "test/esp_probe_platform_test.cpp",
     "test/firmware_build_test.py",
     "examples/common/firmware_sources.json",
-    "examples/common/ProbeSync.h", "examples/common/ProbeSync.cpp", "test/probe_sync_console_test.cpp",
+    "examples/common/ProbeSync.h", "examples/common/ProbeSync.cpp", "examples/common/GroupStop.h", "examples/common/GroupStop.cpp", "examples/common/WiredStopOutput.h", "examples/common/WiredStopOutput.cpp", "test/probe_sync_console_test.cpp",
     "examples/common/FirmwareProbe.h",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/FirmwareBoard.h",

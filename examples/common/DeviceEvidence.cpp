@@ -56,15 +56,28 @@ M::Status prepare(const AcquisitionPlan& p, uint64_t now, L::ReadContext& candid
     return M::Status(M::Err::INVALID_CONFIG, 0, "unsupported acquisition intent");
 }
 } // namespace
-DeviceEvidence::DeviceEvidence(ProbeApp& app, CanBusOwner& owner,
+DeviceEvidence::DeviceEvidence(ProbeApp& app, CanBusOwner& owner, AcquisitionRecord* storage,
                                EvidenceEnvironment environment) noexcept
-    : app_(app), owner_(owner), environment_(environment) {}
+    : app_(app), owner_(owner), environment_(environment) { bindRecordStorage(storage); }
+bool DeviceEvidence::bindRecordStorage(AcquisitionRecord* storage) noexcept {
+    if (storage == record_)
+        return true;
+    if (occupied_ || (storage &&
+        (reinterpret_cast<uintptr_t>(storage) % alignof(AcquisitionRecord) ||
+         overlaps(storage, sizeof *storage, this, sizeof *this) ||
+         overlaps(storage, sizeof *storage, &app_, sizeof app_) ||
+         overlaps(storage, sizeof *storage, &owner_, sizeof owner_))))
+        return false;
+    record_ = storage;
+    return true;
+}
 EvidenceAdmission DeviceEvidence::request(const AcquisitionPlan& plan, uint64_t now) noexcept {
     return start(plan, nullptr, now);
 }
 EvidenceAdmission DeviceEvidence::requestExperiment(const ReadExperiment& review,
                                                     uint64_t now) noexcept {
-    if (overlaps(&review, sizeof review, this, sizeof *this) || !reviewed(review))
+    if (overlaps(&review, sizeof review, this, sizeof *this) ||
+        (record_ && overlaps(&review, sizeof review, record_, sizeof *record_)) || !reviewed(review))
         return EvidenceAdmission::INVALID;
     return start(review.plan, &review, now);
 }
@@ -72,7 +85,8 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
                                         uint64_t now) noexcept {
     if (occupied_ || app_.readContext().state != M::ReadState::EMPTY)
         return EvidenceAdmission::BUSY;
-    if (overlaps(&plan, sizeof plan, this, sizeof *this) || !plan.id || plan.id <= lastId_ ||
+    if (!record_ || overlaps(&plan, sizeof plan, this, sizeof *this) ||
+        overlaps(&plan, sizeof plan, record_, sizeof *record_) || !plan.id || plan.id <= lastId_ ||
         now < lastUs_ || now < owner_.lastTimeUs() || !text(plan.fixtureId) ||
         !revision(plan.softwareRevision) || !text(plan.firmware) || !text(plan.dialect) ||
         !text(plan.authorization) || !text(plan.observations) || !app_.selected() ||
@@ -81,7 +95,7 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
     // No record is observable while unoccupied. Reuse its owned context for
     // preflight instead of stacking it above the application's own preparation.
     // A refusal leaves the application and any retained public record unchanged.
-    L::ReadContext& candidate = record_.read;
+    L::ReadContext& candidate = record_->read;
     if (!prepare(plan, now, candidate))
         return EvidenceAdmission::INVALID;
     if (environment_ == EvidenceEnvironment::DEVICE && !review) {
@@ -103,22 +117,22 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
         return EvidenceAdmission::INVALID;
 
     // Reset only valid prefixes. Avoid a large temporary record on a firmware stack.
-    record_.plan = plan;
-    record_.environment = environment_;
-    record_.experimental = review != nullptr;
+    record_->plan = plan;
+    record_->environment = environment_;
+    record_->experimental = review != nullptr;
     if (review)
-        record_.review = *review;
-    record_.startedUs = now;
-    record_.completedUs = 0;
-    record_.terminal = record_.interrupted = record_.evidenceLost = false;
-    record_.droppedTraffic = record_.terminalCount = record_.trafficCount = 0;
-    record_.maxServiceGapUs = 0;
-    record_.initialStats = record_.finalStats = owner_.stats();
-    record_.initialResources = record_.finalResources = owner_.resources();
-    record_.read = app_.readContext();
-    record_.intendedCount = candidate.count;
+        record_->review = *review;
+    record_->startedUs = now;
+    record_->completedUs = 0;
+    record_->terminal = record_->interrupted = record_->evidenceLost = false;
+    record_->droppedTraffic = record_->terminalCount = record_->trafficCount = 0;
+    record_->maxServiceGapUs = 0;
+    record_->initialStats = record_->finalStats = owner_.stats();
+    record_->initialResources = record_->finalResources = owner_.resources();
+    record_->read = app_.readContext();
+    record_->intendedCount = candidate.count;
     for (unsigned i = 0; i < candidate.count; ++i)
-        record_.intended[i] = candidate.values[i].object;
+        record_->intended[i] = candidate.values[i].object;
     // Old diagnostic copies are not part of this acquisition. No authoritative RX
     // is consumed here; collection owns the diagnostic drain until release.
     Diagnostic old;
@@ -134,9 +148,9 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
     return EvidenceAdmission::ACCEPTED;
 }
 void DeviceEvidence::lost(uint32_t count) noexcept {
-    record_.evidenceLost = true;
-    record_.droppedTraffic =
-        UINT32_MAX - record_.droppedTraffic < count ? UINT32_MAX : record_.droppedTraffic + count;
+    record_->evidenceLost = true;
+    record_->droppedTraffic =
+        UINT32_MAX - record_->droppedTraffic < count ? UINT32_MAX : record_->droppedTraffic + count;
 }
 void DeviceEvidence::capture() noexcept {
     const uint32_t current = owner_.stats().traceOverwritten;
@@ -155,11 +169,11 @@ void DeviceEvidence::capture() noexcept {
     for (unsigned i = 0; i < CanBusOwner::TRACE_CAPACITY && owner_.takeDiagnostic(input); ++i) {
         if (input.kind == DiagnosticKind::TERMINAL)
             continue;
-        if (record_.trafficCount == EVIDENCE_TRAFFIC) {
+        if (record_->trafficCount == EVIDENCE_TRAFFIC) {
             lost(1);
             continue;
         }
-        EvidenceTraffic& out = record_.traffic[record_.trafficCount++];
+        EvidenceTraffic& out = record_->traffic[record_->trafficCount++];
         out.kind = input.kind;
         out.frame = input.frame;
         out.txId = input.txId;
@@ -178,50 +192,50 @@ void DeviceEvidence::capture() noexcept {
 bool DeviceEvidence::service(uint64_t now) noexcept {
     if (now < lastUs_ || now < owner_.lastTimeUs())
         return false;
-    if (!occupied_ || record_.terminal)
+    if (!occupied_ || record_->terminal)
         return true;
-    if (now - lastUs_ > record_.maxServiceGapUs)
-        record_.maxServiceGapUs = now - lastUs_;
+    if (now - lastUs_ > record_->maxServiceGapUs)
+        record_->maxServiceGapUs = now - lastUs_;
     capture();
     // Loss of diagnostics is no reason to abandon a frame already on its way: cancelling
     // it would quarantine the route. Let it settle, then withdraw only the remainder.
-    if (record_.evidenceLost && app_.readContext().state == M::ReadState::ACTIVE)
-        record_.interrupted = true;
+    if (record_->evidenceLost && app_.readContext().state == M::ReadState::ACTIVE)
+        record_->interrupted = true;
     const Completion* terminal = owner_.result(app_.pendingRequest());
     if (terminal) {
-        if (record_.terminalCount == L::READ_FIELDS)
+        if (record_->terminalCount == L::READ_FIELDS)
             return false; // Impossible for the admitted finite typed plan; retain owner evidence.
-        record_.terminals[record_.terminalCount] = *terminal;
+        record_->terminals[record_->terminalCount] = *terminal;
         if (!app_.advanceRead(now))
             return false;
-        ++record_.terminalCount;
+        ++record_->terminalCount;
     }
     // A pending success wins its own cancellation race, but explicit interruption
     // still withdraws the unread remainder before the next application turn.
-    if (record_.interrupted && app_.readContext().state == M::ReadState::ACTIVE &&
+    if (record_->interrupted && app_.readContext().state == M::ReadState::ACTIVE &&
         (!app_.pendingRequest().owner || !owner_.mayHaveTransmitted(app_.pendingRequest())) &&
         !app_.cancelRead(now))
         return false;
-    record_.read = app_.readContext();
-    record_.finalStats = owner_.stats();
-    record_.finalResources = owner_.resources();
+    record_->read = app_.readContext();
+    record_->finalStats = owner_.stats();
+    record_->finalResources = owner_.resources();
     lastUs_ = now;
-    if (record_.read.state != M::ReadState::ACTIVE) {
-        record_.terminal = true;
-        record_.completedUs = now;
+    if (record_->read.state != M::ReadState::ACTIVE) {
+        record_->terminal = true;
+        record_->completedUs = now;
     }
     return true;
 }
 bool DeviceEvidence::interrupt(uint64_t now) noexcept {
-    if (!occupied_ || record_.terminal || now < lastUs_ || now < owner_.lastTimeUs())
+    if (!occupied_ || record_->terminal || now < lastUs_ || now < owner_.lastTimeUs())
         return false;
     if (app_.readContext().state == M::ReadState::ACTIVE && !app_.interruptRead(now))
         return false;
-    record_.interrupted = true;
+    record_->interrupted = true;
     return service(now);
 }
 bool DeviceEvidence::release() noexcept {
-    if (!occupied_ || !record_.terminal || !app_.releaseRead())
+    if (!occupied_ || !record_->terminal || !app_.releaseRead())
         return false;
     occupied_ = false;
     return true;

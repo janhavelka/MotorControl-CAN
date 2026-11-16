@@ -25,6 +25,12 @@ covers explicit production and the conditional TPDO1 type 1/255 experiment.
 Qualified same-cycle samples, synchronous RPDO starts and sustained two-axis
 10 ms operation remain open work.
 
+[Concurrent axes and group stop](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/multi_axis.md)
+use one owner, configurable application capacity and independent per-axis results.
+Each axis can be selected, changed or stopped while another axis retains work.
+Optional PSRAM storage is for application-owned cold records; the core remains
+heap-free and live transport/stop storage stays internal.
+
 ## Install and use the native core
 
 Requirements: CMake 3.19+, Ninja and a C++11 compiler. From the repository or

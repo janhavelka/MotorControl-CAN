@@ -773,3 +773,17 @@ Passive SYNC detection does not short-circuit configured heartbeat/PDO dispatch;
 route collisions inhibit local production while ordinary reset and sample evidence
 still reach the service layer. The shared helper rejects stale owner/schedule time
 before cancellation or terminal consumption; see the linked timing contract.
+
+## Multiple application axes
+
+`ProbeApp` gives each open axis a distinct producer, including when a session
+adopts an existing read reservation. Reopening a closed session never registers
+the same context twice. Every registered session progresses after the one owner
+turn, independently of console selection and output pressure.
+
+The example `GroupStop` owns separate member results and requests each axis's
+existing stop path once. It neither changes the owner channel rules nor invents
+space on a quarantined channel. The console reserves per-axis normal/fast results
+and output plus a separate group result. See [multi-axis](multi_axis.md) for the
+full contract and synchronous/shared-RPDO evidence gates. The measured host
+N=32 cost and firmware storage figures belong in [report53](reports/prompt_53.md).

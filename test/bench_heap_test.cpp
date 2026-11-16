@@ -212,6 +212,9 @@ void arenaOccupancy() {
     alignas(16) static unsigned char memory[64];
     E::BenchArena empty;
     CHECK(!empty.acquire<Counted>(1, true, 5u) && empty.kind() == 0 && empty.capacity() == 0);
+    E::BenchArena misaligned;
+    misaligned.adopt(memory + 1, sizeof memory - 1);
+    CHECK(!misaligned.acquire<Counted>(1, true, 5u) && misaligned.kind() == 0);
     E::BenchArena arena;
     arena.adopt(memory, sizeof memory);
     arena.adopt(nullptr, 0); // Adopted once: a later call changes nothing.

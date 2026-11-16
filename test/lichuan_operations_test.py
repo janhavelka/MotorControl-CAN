@@ -159,7 +159,7 @@ class OperationsTests(unittest.TestCase):
     def test_actual_console_gate_invalidates_claimed_route(self):
         path = "examples/common/ProbeConsole.cpp"
         source = (ROOT / path).read_text()
-        start = source.index('{"stop", "stop normal|fast"')
+        start = source.index('{"stop", "stop normal|fast | stop ID|all [normal|fast]"')
         end = source.index('},', start)
         source = source[:start] + source[start:end].replace('nullptr', '"blocked"') + source[end:]
         self.assertRejected("CLI route absent or gated: stop", edits={path: source})

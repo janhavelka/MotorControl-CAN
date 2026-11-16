@@ -120,6 +120,7 @@ jobs:
           python scripts/check_firmware.py --target idf-s2-optak --build-dir .build/firmware-idf-s2-optak
           python scripts/check_firmware.py --target s2 --build-dir .build/firmware-s2
           python scripts/check_firmware.py --target component --build-dir .build/firmware-component
+          python scripts/check_firmware.py --target storage --build-dir .build/firmware-storage
       - name: Measure stack frames and call chains with the same compiler options
         shell: bash
         run: |
@@ -152,6 +153,11 @@ jobs:
             .build/firmware-component/**/*.json
             .build/firmware-component/**/*.elf
             .build/firmware-component/**/*.bin
+            .build/firmware-storage/**/*.log
+            .build/firmware-storage/**/*.json
+            .build/firmware-storage/**/*.elf
+            .build/firmware-storage/**/*.bin
+            .build/firmware-storage/**/sdkconfig
             .build/stack/report.json
             .build/stack/**/*.su
             .build/stack/**/*.ci

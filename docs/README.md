@@ -21,6 +21,7 @@ adversarial regressions and the latest bounded physical check.
 | Discovery, changes and persistence | [Commissioning](commissioning.md) |
 | CANopen services and application ownership | [Services](canopen_services.md), [owner/capacity/health](can_owner.md), [TWAI adapter](../adapters/twai/README.md) |
 | Finite host synchronization | [SYNC producer and conditional TPDO1 type](sync.md); Q27/Q28 and RPDO-map gates remain open |
+| Concurrent axes | [Independent/group stop, capacity and storage](multi_axis.md) |
 | Firmware | [Arduino and ESP-IDF](firmware_examples.md), [S2 bench image](../examples/s2_bench/README.md) |
 | Console and host clients | [CLI/JSONL](cli_contract.md), [API/CLI map](api_cli_mapping.md), [Python runners](runners.md), [finite scenarios](bench_scenarios.md) |
 | Physical evidence and open questions | [Bench facts](hardware_bench.md), [device conflicts](device_conflicts.md), [host-loss limits](host_loss.md) |

@@ -254,7 +254,8 @@ Q20 rejection returns `UNSUPPORTED` and the typed read detail, not a protocol ab
 or application-health failure. Parsing errors remain `ILLEGAL_VALUE`.
 
 Correlation/result capacity and the two ordinary/two reserved-control reply slots
-are checked before admission. At most two operations remain retained; no unread
+are checked before admission. Ordinary retained capacity is twice the configured
+axis count and is advertised in `version`; no unread
 terminal or uncertainty is evicted. While monitoring, the binding and exact sample
 operation are frozen; competing read/discovery/selection cannot take the gap
 between samples. Local cancellation lets an already transmitted ordinary read
@@ -469,8 +470,9 @@ is refused. Normal and fast terminals and the earlier motion terminal remain
 separately inspectable and releasable. No successful stop, cleanup, recovery or
 late reply rewrites an uncertain motion as successful.
 
-There are two ordinary correlations plus one normal-stop, one fast-stop and one
-host-recovery correlation. Each stop has one reserved complete output record;
+There are two ordinary correlations per configured axis, one normal-stop and one
+fast-stop correlation per registered axis, plus separate group-stop and
+host-recovery correlations. Each stop has one reserved complete output record;
 ordinary replies retain two records and local cancel/recover replies another two.
 Invalid/refused stop syntax uses ordinary output and cannot fill a stop reserve.
 Unread results are never evicted. Each512-byte record includes its NUL and at most
@@ -484,6 +486,14 @@ Recovery has reserved correlation capacity for an explicitly held never-sent sto
 it is never started automatically. Cancellation of ordinary motion withdraws future
 steps and settles the in-flight service; it sends no stop. `release ID` frees delivered
 history only and never clears a native fence, while `motor-release` remains gated.
+
+`stop AXIS_ID [normal|fast]` addresses a registered logical axis without changing
+selection; its default is fast. `stop all [normal|fast]` uses the separately
+attached `GroupStop`. Its reserved `group_stop_axis` records retain every member's
+admission/terminal result. One refused member does not stop dispatch to others.
+The group succeeds only when every member's own stopped observation qualifies;
+an acknowledged command alone does not qualify. See [multi-axis](multi_axis.md).
+`AXIS_ID` is not a retained operation ID or a required CAN node address.
 
 ## Finite SYNC commands (prompt 51)
 

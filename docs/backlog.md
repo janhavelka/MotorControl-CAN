@@ -206,8 +206,9 @@ velocity run.
 | F16 | Deliver changes by RPDO | 51,54 | Pending mapping/remote-buffer retirement evidence; change operations currently use SDO |
 
 **Several drives at once.** The core, owner and application already keep axes separate (two SDO channels, per-node
-heartbeat and EMCY, one `AxisSession` per axis; host tests run two concurrent moves with separate stops). Limits: one
-bench route at a time, one console motion attachment, compile-time capacity 2 by default (settable since 2026-11-12, M04). SYNC audit (all five vendor PDFs, every
+heartbeat and EMCY, one `AxisSession` per axis). Prompt53 adds independently registered console attachments,
+reserved per-axis/group stops and paired bench control. Acquisition routes remain exclusive; owned arming copies
+survive record reuse without renewing freshness. Capacity defaults to 2 and is configurable (M04). SYNC audit (all five vendor PDFs, every
 page, and the EDS): the manuals only claim "multi-axis high-speed bus synchronization control" (EN86, ZH86 and ZH57
 p3) and describe no SYNC object; the EDS has `1005` SYNC COB-ID (RW U32, default `0x80`) and writable PDO transmission
 types (`1400:02`..`1403:02`, `1800:02`..`1803:02`, U8, default 255, no range given), and no `1006`, `1007` or `1019`.
@@ -218,22 +219,22 @@ enough for all of my purposes", 2026-11-12); prompts 51 and 54 test exactly that
 
 | ID | Wanted work | Owner | Smallest next step |
 | --- | --- | --- | --- |
-| M01 | Paired `MOVE` route where the partner node also moves | 45, bench | Host test, then HM1 and HM2 |
-| M02 | Stop-all contract: separate per-axis stops, no NMT stop, group success only when every axis is observed stopped, no re-enable or replay | 45 | Host tests, then HM3 and HM4 |
-| M03 | Console: stop axis B while axis A's operation is retained; then per-axis attachments and stop slots | 42, 45 | Native console test |
-| M04 | Caller-sized owner and adapter storage (channels, sequences, requests, urgent slots) for more than two axes | 53 | **Software delivered 2026-11-12**: compile-time capacity set in `adapters/canopennode/Capacity.h` (default 2, host-tested at 1, 2, 8 and 32; N = 8 firmware links); owed: owner turn cost at large N and its board measurement, eight default-only tests ([prompt 53](prompts/53_multi_axis.md) item 1) |
-| M05 | `AxisSession` shared operation storage (B03) without losing its fences | example code | `sizeof` and host tests |
-| M06 | A distinct producer per session in `ProbeApp::openAxis` | example code | Host test |
-| M07 | Measure the skew of triggers sent to both drives in one owner turn | 48 | HM6 |
-| M08 | TPDO monitoring of several axes (PDO-aware soak, sample provenance) | 17, 18 | After S13, D11 and Q17 |
+| M01 | Paired finite console moves through one owner | 53, 54 | Implemented and host-tested by paired_motion and bench_console; HM1/HM2 physical trials remain prompt54 |
+| M02 | Stop-all contract with independent per-axis outcomes and reserved storage | 53, 54 | GroupStop and console host tests cover success, refusal, loss, fault and pressure; HM3/HM4 physical trials remain |
+| M03 | Independent console attachments and per-axis stop slots | 53 | Implemented stop ID / stop all; selection cannot redirect retained operations; native two-axis tests |
+| M04 | Compile-time adapter/example capacity | 53, 56 | Existing Capacity.h/link-tag contract retained; prompt53 reruns N1/2/8/32. Host N32 turn cost is recorded in report53; expiry-scan optimization and board service-gap measurement belong to56 |
+| M05 | Safe AxisSession context sharing | 53 | Home/velocity tagged storage saves3312 bytes per Xtensa axis. Broader union rejected because stop and replacement histories overlap; see report53_sessions |
+| M06 | Distinct producer per registered session | 53 | Implemented with read-reservation adoption and close/reopen tests; no duplicate session registration |
+| M07 | Trigger skew of independently admitted axes | 53, 54 | Paired runner retains exact accepted trigger enqueue processing times. TWAI emits at most one frame per turn; wire/mechanical skew and HM6 remain54, no simultaneous-start claim |
+| M08 | Several-axis TPDO monitoring and sample provenance | 17, 18, 54 | Existing per-node dispatch unchanged; qualification still needs S13/D11/Q17. Group stop does not requalify reused PDO routes |
 | M09 | Review a controlword-only RPDO map before any RPDO start or stop (today RPDO1 also writes target, mode and homing method) | 18; consumed by 51/53 | Map/procedure artifacts remain absent; review exact mapping/readback and partial effects. Q28 separately requires remote buffer withdrawal; see [SYNC](sync.md). |
 | M10 | SYNC source and specimen evidence | 51 via 29 | Typed `1005` and all eight transmission-type reads exist; fresh both-node baseline and initial type-1 observations are retained in [report51](reports/prompt_51.md). Q27 same-cycle provenance and wider firmware behavior remain unqualified. |
-| M11 | Cap and ledger rules for paired admissions in `s2_bench.py` | bench | Runner tests |
-| M12 | Example policy for a fault on one axis: stop the others explicitly, with per-axis results | 45 | Host test, then HM9 |
+| M11 | Durable paired admission caps | 53 | One fsynced paired reservation debits two moves and two planned stops before setup; same single/paired campaign caps and monotonic trial history, no refund |
+| M12 | Explicit group response to one-axis fault | 53, 54 | Host test proves fault/refusal on one member cannot cancel other stops. Application explicitly requests the group; no automatic policy or replay. HM9 remains54 |
 | M13 | Host SYNC and synchronous PDO trials | 51, then 54 | **Implemented and host-tested:** finite `0x80` producer through independent owner capacity, conflict/fault disarm, finite console commands and conditional TPDO1 type 1/255 setting. Initial specimen observations are in [report51](reports/prompt_51.md). **Pending:** Q27 qualified same-cycle sampling; no-motion RPDO buffering/timer and Q28 withdrawal trials; M09/common-start skew versus M07; ten-minute one-/two-axis 10 ms evidence after prompt56 throughput. Explicit restoration is separate; no save or automatic replay. Set-point updating needs prompt52 measurements. |
 | M14 | Measure what NMT Stop does to an enabled, moving drive (no `6007` in the EDS; only a released node has received one, D15). One node at 6 to 30 rpm, NMT Stop, then Pre-operational, read `6041`, `6064`, `606C`, then the run's own stop; reported as stopped, kept running or faulted. Never a library stop path: in Stopped, SDO and PDO are not served, so "NMT Stop first, then per-axis stops" would block the stops | 53, 54 | Bench trial after 53's host work |
-| M15 | Wired stop line: DI function 5 (stop) or 6 (emergency stop) on each drive, one signal wired in parallel (button, relay or an application-owned MCU output). `prepareIoSettings` already sets the function; an example output and the drive's reaction (ramp, final state, alarm, re-enable) are missing. Not safety-rated | 62 | The user wires a signal to one DI; then a trial during motion |
-| M16 | Shared quick-stop RPDO: one COB-ID on every drive, controlword-only map, type 255, volatile, carrying only `000B` (a shared `010F` would enable a switched-on drive). One frame stops every axis at once; each axis still settles from its own observation | 53 after M09, 54 | Map review (M09), then host tests |
+| M15 | Wired stop line using DI function5/6 | 53, 54, 62 | Explicit WiredStopOutput callback host-tested for both supplied polarities and uncertain failure; prepareIoSettings already owns volatile DI assignments. Actual wiring/level/ramp/final-state/re-enable need a fixture; not safety-rated |
+| M16 | Conditional shared quick-stop RPDO | 53 after M09, 54 | Gated: no reviewed controlword-only map/partial-effect/remote-retirement artifacts. No guessed sender added; 000B effect outside documented predecessor needs measurement; every axis would still require separate settlement |
 
 
 **Second round of requests (2026-11-12).** Each request below is owned by a numbered prompt; every feature lands as
@@ -271,18 +272,18 @@ hardware exists; the trials wait for the user's wiring. The PC USB-CAN adapter i
 Gains and currents stay read-only until their ranges are known; how to change them today is in
 [the tuning guide](tuning.md). Independent per-axis control from the console is prompt 53 item 5.
 
-**S2 memory.** The task stack (12288 bytes) is not the cause. About 210 KB of fixed worst-case storage is resident at
+**S2 memory, historical November12 baseline.** The task stack (12288 bytes) was not the cause. About210 KB of fixed worst-case storage is resident at
 once: two `AxisSession`s 71504, `BenchRoute` 42896 (route record 37592), `FirmwareProbe` 31128, record arena 23688,
 `SdoClient` 11056, `RouteWork` 8448, console 15952 after `o`; SDK, ROM and cache about 91 KB. No PSRAM, no Wi-Fi.
 
 | ID | Wanted work | Owner | Saving and next step |
 | --- | --- | --- | --- |
-| B01 | IDF configuration: DCache 0 KB, FreeRTOS, heap, ringbuf and lock code to flash (optionally `-Os`, smaller `esp_timer` stack) | firmware examples | +31128 heap measured by linking (+34864 with `-Os`); one bench boot, `M`, short regression with service gaps |
-| B02 | One shared record arena for the mutually exclusive bench records (route, acquisition, raw/PDO, soak, capture) | s2_bench, examples/common | 42120 always, 60736 with soak or capture (computed); host tests |
-| B03 | One operation slot in `AxisSession` (enable, move, velocity, home and clear are already exclusive through `busy()`) | example code | 14688 per axis (computed) |
-| B04 | Owner trace entries without an embedded 264-byte completion; drop unused PDO routes | owner, adapters | About 4200, and 856 per route |
-| B05 | Core contract review: per-field binding copies and the duplicate payload in provenance | core, review | 3840 to 4800 and 1792 per axis; a contract change |
-| B06 | Axis count after savings: bench 2 today; lean application 4, 5 with B01, 8 (7 with PDO) with B01 and B03 | M04 | The compile-time limit is now settable (M04); apply B01 and B03, then measure |
+| B01 | Reviewed S2 SDK RAM settings | 53, 54 | Applied configuration and actual builds in report53_storage; runtime boot/heap/service-gap/stop regression remains54, old memory-study estimates are historical |
+| B02 | Exclusive bench record arena | 53 | AcquisitionRecord and RouteRecord join existing raw/PDO/discovery/communication arena; collector IDs/fault/control history remain stationary. Soak/capture/watch stay separate pending lifetime review; actual size evidence in report53_storage |
+| B03 | Safe shared operation storage | 53 | Home/velocity only,3312 bytes saved per Xtensa axis. Enable read evidence, clear beside unresolved motion, original/replacement moves and both stop contexts cannot share under current lifetimes; earlier14688-byte estimate is not realized |
+| B04 | Owner trace completion copies and PDO route sizing | later adapter review | Unchanged; historical estimate about4200 bytes and856 per route is not a measured prompt53 saving |
+| B05 | Core binding/provenance copy review | later core review | Unchanged;3840..4800 and1792 per axis are historical estimates requiring contract analysis, not current savings |
+| B06 | Usable board axis count after savings | 53, 54, 67 | Compile-time counts1/2/8/32 are host tests, not board maxima. Measure actual heap/stack/service gaps with chosen features; historical lean4/5/8-axis estimates are superseded by current layout and are not qualification |
 
 ## Tool and physical gates
 

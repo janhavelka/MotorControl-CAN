@@ -38,13 +38,18 @@ void ownerTask(void*) {
     static DRAM_ATTR MotorControlCAN::CANOPEN::SdoClient services;
     static DRAM_ATTR IdfTwaiDriver driver;
     static DRAM_ATTR EspProbePlatform console;
+    static DRAM_ATTR AcquisitionRecord acquisitionStorage;
     static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks(),
-                                            espSilentPin());
+                                            &acquisitionStorage, espSilentPin());
     static DRAM_ATTR ProbeConsole commands(firmware.app(), firmware.owner(), firmware.platform());
     static DRAM_ATTR ProbeDevice device(firmware.app(), firmware.owner(), services,
                                         &firmware.evidence());
     static DRAM_ATTR ProbeSync sync(firmware.owner());
+    static DRAM_ATTR GroupStopMember groupRows[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
+    static DRAM_ATTR GroupStop groupStop(firmware.app(), firmware.owner(), groupRows,
+                                          MotorControlCAN::CANOPEN::SdoClient::CHANNELS);
     commands.attachSync(sync);
+    commands.attachGroupStop(groupStop);
     commands.attachDevice(device);
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);

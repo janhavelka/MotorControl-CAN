@@ -135,7 +135,7 @@ bool ensureFixtureRoutes(C::SdoClient& services, bool (&configured)[E::BENCH_NOD
 bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence* raw, bool rawPlan,
               unsigned node, bool& configured, uint32_t id, uint64_t now, bool heartbeat = false,
               bool motionReadiness = false, const E::PdoCommand* pdoCommand = nullptr,
-              uint32_t pdoGrant = 0) {
+              uint32_t pdoGrant = 0, E::AcquisitionRecord* typedRecord = nullptr) {
     // A raw plan needs the arena's raw collector; the typed plan runs through DeviceEvidence.
     if (!firmware.running() || firmware.evidence().record() || (rawPlan && !raw) ||
         (raw && raw->record()))
@@ -234,7 +234,8 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
         }
         return raw->begin(plan, now) == E::EvidenceAdmission::ACCEPTED;
     }
-    return firmware.evidence().requestExperiment(review, now) == E::EvidenceAdmission::ACCEPTED;
+    return firmware.evidence().bindRecordStorage(typedRecord) &&
+           firmware.evidence().requestExperiment(review, now) == E::EvidenceAdmission::ACCEPTED;
 }
 
 // Emit one complete retained record line per turn. No diagnostic queue is
@@ -669,18 +670,24 @@ bool admitNmt(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned slot,
 // with AxisSession at 35592 bytes, a second session allocated after the route and the first no longer
 // found a region that held it (2026-11-09, TRIAL_REFUSED reason=memory). So these blocks are reserved
 // once, largest first, at the start of the owner task, before the console, the controller or any
-// command allocates, and the raw, PDO, D, K and H collectors share the arena instead of living in
-// static DRAM: only one of them ever holds a record. The soak, watch and capture stay lazy.
-enum ArenaKind : unsigned { ARENA_RAW = 1, ARENA_PDO, ARENA_DISCOVERY, ARENA_COMM, ARENA_HEARTBEAT };
+// command allocates. Raw, PDO, D, K and H collectors and the typed acquisition and route records
+// share this block: a new kind is constructed only after explicit release of its predecessor.
+// Route/evidence collectors and their admission, grant and control histories stay stationary.
+// The soak, watch and capture stay lazy.
+enum ArenaKind : unsigned {
+    ARENA_RAW = 1, ARENA_PDO, ARENA_DISCOVERY, ARENA_COMM, ARENA_HEARTBEAT, ARENA_ACQUISITION, ARENA_ROUTE
+};
 template <class A, class B> constexpr size_t larger(A a, B b) { return a > b ? size_t(a) : size_t(b); }
 const size_t ARENA_BYTES =
-    larger(larger(larger(sizeof(E::RawEvidence), sizeof(E::PdoExperiment)),
-                  larger(sizeof(E::DiscoveryBench), sizeof(E::CommunicationReads))),
-           sizeof(E::HeartbeatCommission));
+    larger(larger(larger(larger(sizeof(E::RawEvidence), sizeof(E::PdoExperiment)),
+                         larger(sizeof(E::DiscoveryBench), sizeof(E::CommunicationReads))),
+                  sizeof(E::HeartbeatCommission)),
+           larger(sizeof(E::AcquisitionRecord), sizeof(E::RouteRecord)));
 const size_t ARENA_ALIGN =
-    larger(larger(larger(alignof(E::RawEvidence), alignof(E::PdoExperiment)),
-                  larger(alignof(E::DiscoveryBench), alignof(E::CommunicationReads))),
-           alignof(E::HeartbeatCommission));
+    larger(larger(larger(larger(alignof(E::RawEvidence), alignof(E::PdoExperiment)),
+                         larger(alignof(E::DiscoveryBench), alignof(E::CommunicationReads))),
+                  alignof(E::HeartbeatCommission)),
+           larger(alignof(E::AcquisitionRecord), alignof(E::RouteRecord)));
 // Bit order of BenchMemory::granted and HEAP reserved=: route, session 1, session 2, arena, work.
 enum { RESERVE_ROUTE, RESERVE_SESSION1, RESERVE_SESSION2, RESERVE_ARENA, RESERVE_WORK, RESERVE_COUNT };
 // One session block per fixture node, node n at RESERVE_SESSION1 + n - 1.
@@ -789,7 +796,7 @@ E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services, 
     E::RouteCallbacks callbacks;
     callbacks.context = &driver;
     callbacks.sample = routeSample;
-    route = new (memory) E::BenchRoute(firmware, services, callbacks);
+    route = new (memory) E::BenchRoute(firmware, services, callbacks, nullptr);
     return route;
 }
 // Each node's session as placed, for that node's console motion attachment (BenchConsole.h).
@@ -832,7 +839,7 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
 }
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
                        E::BenchRoute*& route, E::BenchConsole* console, bool (&configured)[E::BENCH_NODES], const char* text,
-                       size_t size, uint64_t now) {
+                       size_t size, uint64_t now, E::RouteRecord* recordStorage) {
     // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
     size_t body = 0;
     if (!E::checkRouteIntegrity(text, size, body))
@@ -852,7 +859,8 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
     static_assert(E::BENCH_NODES == 2, "3 - node is the other node of the two-node fixture");
     if (route && !route->attached(3 - plan.node))
         sessionStorage(firmware, *route, 3 - plan.node);
-    if (!route || !sessionStorage(firmware, *route, plan.node) ||
+    if (!route || !route->bindRecordStorage(recordStorage) || !recordStorage ||
+        !sessionStorage(firmware, *route, plan.node) ||
         (observer && !sessionStorage(firmware, *route, observer)) || !workStorage(*route, plan))
         return "memory";
     // An arming hands its reads to the shared console (BenchConsole.h): it needs the console (`o`) and
@@ -965,8 +973,8 @@ void ownerTask(void*) {
     static DRAM_ATTR E::IdfTwaiDriver driver;
     static DRAM_ATTR E::EspProbePlatform console;
     static DRAM_ATTR E::SoakTwaiTap tap(driver.driver());
-    static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks());
-    // The raw, PDO, D, K and H collectors share one reserved block (the heap plan above).
+    static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks(), nullptr);
+    // Mutually exclusive large records share one reserved block (the heap plan above).
     static E::BenchArena arena;
     reserveBenchHeap(arena);
     // TJA1051 S=1 requests silence. espSilentPin latches the level before enabling the output.
@@ -1037,6 +1045,9 @@ void ownerTask(void*) {
         discovery = arena.get<E::DiscoveryBench>(ARENA_DISCOVERY);
         comm = arena.get<E::CommunicationReads>(ARENA_COMM);
         heartbeat = arena.get<E::HeartbeatCommission>(ARENA_HEARTBEAT);
+        firmware.evidence().bindRecordStorage(arena.get<E::AcquisitionRecord>(ARENA_ACQUISITION));
+        if (route)
+            route->bindRecordStorage(arena.get<E::RouteRecord>(ARENA_ROUTE));
     };
     // The shared console (BenchConsole.h): allocated on the first `o` or `@`. A line starting with
     // `@` belongs to it whole; consoleDiscard swallows such a line when the console has no memory, so
@@ -1155,16 +1166,38 @@ void ownerTask(void*) {
         // A D, K or H record, running or held, admits nothing else but inspection and release.
         const bool commissionHeld = discoveryRecord || commRecord || heartbeatRecord;
         // The arena may change occupant only while its occupant holds no record.
-        const bool arenaIdle = !rawRecord && !pdoRecord && !commissionHeld;
+        const bool arenaIdle = !record && !trialRecord && !rawRecord && !pdoRecord && !commissionHeld;
+        auto prepareArena = [&](unsigned kind) {
+            if (arena.kind() == kind)
+                return true;
+            // End each idle borrow before acquire destroys its old typed object. Held records
+            // refuse here, before either pointer or the arena's existing contents can change.
+            return arenaIdle && firmware.evidence().bindRecordStorage(nullptr) &&
+                   (!route || route->bindRecordStorage(nullptr));
+        };
         auto rawStorage = [&]() {
             E::RawEvidence* r =
-                arena.acquire<E::RawEvidence>(ARENA_RAW, arenaIdle, firmware.owner(), services);
+                prepareArena(ARENA_RAW)
+                    ? arena.acquire<E::RawEvidence>(ARENA_RAW, arenaIdle, firmware.owner(), services) : nullptr;
             occupant();
             return r;
         };
         auto pdoStorage = [&]() {
             E::PdoExperiment* r =
-                arena.acquire<E::PdoExperiment>(ARENA_PDO, arenaIdle, firmware.owner(), services);
+                prepareArena(ARENA_PDO)
+                    ? arena.acquire<E::PdoExperiment>(ARENA_PDO, arenaIdle, firmware.owner(), services) : nullptr;
+            occupant();
+            return r;
+        };
+        auto acquisitionStorage = [&]() {
+            E::AcquisitionRecord* r = prepareArena(ARENA_ACQUISITION)
+                ? arena.acquire<E::AcquisitionRecord>(ARENA_ACQUISITION, arenaIdle) : nullptr;
+            occupant();
+            return r;
+        };
+        auto routeRecordStorage = [&]() {
+            E::RouteRecord* r = prepareArena(ARENA_ROUTE)
+                ? arena.acquire<E::RouteRecord>(ARENA_ROUTE, arenaIdle) : nullptr;
             occupant();
             return r;
         };
@@ -1342,7 +1375,7 @@ void ownerTask(void*) {
                             !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
                             !commissionHeld && firmware.platform().nowUs(now))
                             refusal = startRoute(firmware, services, driver, route, commands, configured,
-                                                 trialText, trialLength, now);
+                                                 trialText, trialLength, now, routeRecordStorage());
                     }
                     if (refusal) {
                         formatLine(output, sizeof output, "TRIAL_REFUSED reason=%s; no work\n",
@@ -1471,9 +1504,9 @@ void ownerTask(void*) {
                             firmware.platform().nowUs(now)) {
                             refusal = "route";
                             if (ensureFixtureRoutes(services, configured, now)) {
-                                discovery = arena.acquire<E::DiscoveryBench>(
+                                discovery = prepareArena(ARENA_DISCOVERY) ? arena.acquire<E::DiscoveryBench>(
                                     ARENA_DISCOVERY, arenaIdle, firmware.app(), firmware.owner(),
-                                    services);
+                                    services) : nullptr;
                                 occupant();
                                 refusal = discovery ? nullptr : "memory";
                                 if (!refusal) {
@@ -1518,7 +1551,7 @@ void ownerTask(void*) {
                             refusal = "route";
                             if (ensureRoute(services, parsed.node, configured[slot], now)) {
                                 refusal = "memory";
-                                if (reads && (comm = arena.acquire<E::CommunicationReads>(
+                                if (reads && prepareArena(ARENA_COMM) && (comm = arena.acquire<E::CommunicationReads>(
                                                   ARENA_COMM, arenaIdle, firmware.owner(), services))) {
                                     E::CommunicationBenchRequest request;
                                     request.id = acquisition + 1;
@@ -1527,7 +1560,7 @@ void ownerTask(void*) {
                                     request.deadlineUs = now + window;
                                     occupant();
                                     refusal = comm->begin(request, now);
-                                } else if (!reads &&
+                                } else if (!reads && prepareArena(ARENA_HEARTBEAT) &&
                                            (heartbeat = arena.acquire<E::HeartbeatCommission>(
                                                 ARENA_HEARTBEAT, arenaIdle, firmware.owner(), services))) {
                                     E::HeartbeatBenchRequest request;
@@ -1833,8 +1866,9 @@ void ownerTask(void*) {
                 const bool accepted = controllerReady && !consoleHeld && !pdoRecord && !dumping && !networkDump &&
                                       !commissionHeld && !nmtRequest.owner && !used[node - 1] &&
                                       acquisition != UINT32_MAX && firmware.platform().nowUs(now) &&
-                                      identity(firmware, services, rawPlan ? rawStorage() : raw, rawPlan, node,
-                                               configured[node - 1], acquisition + 1, now);
+                                      identity(firmware, services, rawPlan ? rawStorage() : nullptr, rawPlan, node,
+                                               configured[node - 1], acquisition + 1, now, false, false,
+                                               nullptr, 0, rawPlan ? nullptr : acquisitionStorage());
                 if (accepted) {
                     ++acquisition;
                     used[node - 1] = true;

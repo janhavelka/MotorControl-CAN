@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
@@ -450,7 +451,43 @@ void advanceRefusedWhileReleaseCannotRun() {
     CHECK(app.readContext().values[0].valid);
 }
 } // namespace
+void distinctSessionProducers() {
+    if (C::SdoClient::CHANNELS < 2 || O::CanBusOwner::PRODUCERS < 2)
+        return;
+    Rig rig;
+    L::ReadTarget first = E::FakeTransport::target(), second = first;
+    second.channel.binding.logicalAxisId = 77; // Logical identity is not CAN node 6.
+    second.channel.binding.endpoint.address = 6;
+    second.channel.clientToServerId = 0x606;
+    second.channel.serverToClientId = 0x586;
+    CHECK(rig.services.configure(1, second.channel, true, true));
+    C::NetworkRoute network;
+    network.binding = second.channel.binding;
+    network.generation = second.nodeGeneration;
+    network.heartbeatId = 0x706;
+    network.emcyId = 0x86;
+    CHECK(rig.services.configureNetwork(1, network, C::NetworkObserver(), 0));
+    std::unique_ptr<E::AxisSession> one(new E::AxisSession(rig.owner)), two(new E::AxisSession(rig.owner));
+    rig.select();
+    CHECK(rig.app.requestIdentity(0, 1000, options()));
+    CHECK(rig.app.openAxis(*two, second, L::SettingsModel::CL86_C, 0) == two.get());
+    CHECK(rig.owner.sequence(two->sequence())->producer == 2); // Read already owns producer 1.
+    CHECK(rig.app.openAxis(*one, first, L::SettingsModel::CL86_C, 0) == one.get());
+    CHECK(rig.owner.sequence(one->sequence())->producer == 1); // Adopts the read unchanged.
+    rig.finish();
+    CHECK(rig.app.releaseRead());
+    CHECK(rig.owner.sequence(one->sequence()) && rig.owner.sequence(two->sequence()));
+    CHECK(one->close());
+    CHECK(rig.app.openAxis(*one, first, L::SettingsModel::CL86_C, rig.now) == one.get());
+    CHECK(rig.owner.sequence(one->sequence())->producer == 1);
+    CHECK(rig.owner.sequence(two->sequence())->producer == 2);
+    CHECK(one->close() && two->close());
+    CHECK(rig.app.openAxis(*two, second, L::SettingsModel::CL86_C, rig.now) == two.get());
+    CHECK(rig.app.openAxis(*one, first, L::SettingsModel::CL86_C, rig.now) == one.get());
+    CHECK(rig.owner.sequence(one->sequence())->producer != rig.owner.sequence(two->sequence())->producer);
+}
 int main() {
+    distinctSessionProducers();
     startupAndSuccess();
     failureAndTimeout();
     pressureAndBytes();

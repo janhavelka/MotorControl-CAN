@@ -303,3 +303,17 @@ bench `Jnode,1|255` path is experiment scope. See [SYNC](sync.md).
 
 These additions consume explicit evidence; the console cannot open a gate by
 parsing a request. Q22-Q26 qualification is separate from host implementation.
+
+## Prompt53 concurrent axes
+
+| Intent | Application API | Console |
+| --- | --- | --- |
+| Register actual axis | `ProbeApp::openAxis`, `ProbeConsole::attachMotion` | Existing explicit host/node selection selects an already registered binding |
+| Stop one logical axis | That axis's `ProbeMotion::requestStop` | `stop ID [normal\|fast]`; no selection change |
+| Stop an explicit group | `GroupStop::request/service/release` with reserved member storage | `stop all [normal\|fast]`, per-axis `group_stop_axis` records, group `result/release` |
+| Explicit wired stop signal | `WiredStopOutput::setAsserted` | Application GPIO callback, no invented console pin command |
+
+These are application helpers over existing typed operations. No group API is
+claimed as an RS precedent, no NMT command substitutes for a stop, and no new
+firmware capability is inferred. [Multi-axis guidance](multi_axis.md) records
+shared-RPDO and synchronization gates.

@@ -268,6 +268,19 @@ class BaselineTests(unittest.TestCase):
 class DriftTests(unittest.TestCase):
     SOURCE = "src/a.cpp"
 
+    def test_actual_target_defaults_remain_strict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "compile_commands.json"
+            for target, opt in (("esp32s2", "-Os"), ("esp32s3", "-Og")):
+                rows = [{"file": "C:/repo/" + source,
+                         "command": "gcc " + " ".join(checker.compile_flags(source, opt, []))}
+                        for source in checker.DRIFT_SAMPLES]
+                database.write_text(json.dumps(rows), encoding="utf-8")
+                self.assertEqual(checker.check_drift([target + "=" + str(database)], (target,)), [])
+                rows[0]["command"] += " -O2"
+                database.write_text(json.dumps(rows), encoding="utf-8")
+                self.assertTrue(checker.check_drift([target + "=" + str(database)], (target,)))
+
     def database(self, directory, flags):
         path = Path(directory) / "compile_commands.json"
         path.write_text(json.dumps([{"file": "C:\\repo\\src\\a.cpp", "directory": "C:/b",

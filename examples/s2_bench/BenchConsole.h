@@ -26,10 +26,10 @@
  * a console-format reply and reaches nothing; `discover` is also refused during a bench network
  * listing, which drains the same network observations; `recover` is always refused, because this
  * image has no host recovery path. While holds() the bench refuses every command that would admit
- * owner work (main.cpp). A console line other than `host`/`useaddr` is also refused when the
- * application's selection is no longer the one the console's last line left, as after a bench
- * identity read selected another node: the console then never reads or acts on a node it did not
- * select.
+ * owner work (main.cpp). Except for inspection, `host`/`useaddr` and explicit stops, a line is also
+ * refused when the application's selection differs from the console's last line, as after a
+ * bench identity read selected another node. A named stop uses its own axis attachment and budget;
+ * it does not need to change selection or wait for unrelated selection repair.
  *
  * Motion. The console's motion routes act on one BenchAxis per node: a ProbeMotion over the bench
  * route's own AxisSession of that node, with its live route, AxisConfig and AxisReference. Nothing
@@ -37,8 +37,9 @@
  * the identity and full read(s) exactly as MOVE and VELOCITY do, and service() then names them, with
  * the arming line's evidence, through ProbeMotion's setters, attaches that node's ProbeMotion to the
  * console and reports one notice line. ARM_WITNESS's two reads only give the AxisReference the console's
- * stepsperturn and axis origin consume; it names no motion prerequisite. A motion line is refused unless that arming's reads are still
- * the route's (no route has begun since) and the per-boot motion caps admit it; each admission the
+ * stepsperturn and axis origin consume; it names no motion prerequisite. Each axis owns copies of
+ * its acquired reads and their original times; another axis may reuse the route scratch. A motion
+ * line still needs current native prerequisites and the per-boot motion caps; each admission the
  * console then makes is counted with the bench routes' (BenchRoute::countConsoleMotion). Before a
  * `stop` is fed, the stop prerequisites are named again, from the arming's stop budgets and the
  * latest complete state: the session's last move or velocity cycle, else the arming's read while it
@@ -81,6 +82,12 @@ struct BenchAxis {
     MotorControlCAN::AxisConfig axis;
     /** The relative arming's stationary witness (two fresh reads, as MOVE takes one); none otherwise. */
     MotorControlCAN::AxisReference reference;
+    /** Owned arming evidence. Another axis's acquisition may reuse the route's scratch,
+     * but never these reads or their original timestamps. */
+    MotorControlCAN::LICHUAN_C::ReadContext armedState;
+    MotorControlCAN::LICHUAN_C::IdentityObservation armedIdentity;
+    uint32_t armedTrial = 0; ///< Zero before a successful arming; never an observation refresh.
+    RouteKind armedKind = RouteKind::NONE; ///< Exact prerequisite acquisition kind.
     ProbeMotion motion; ///< Over the bench route's own session of that node.
     /** @param firmware The assembly. @param session The route's session of this node, attached to it. */
     BenchAxis(FirmwareProbe& firmware, AxisSession& session) noexcept
@@ -191,7 +198,8 @@ class BenchConsole {
     bool sameSelection() const noexcept;
     bool policy() noexcept;
     const char* motionRefusal(const ConsoleLine& line) noexcept;
-    void nameStop(uint64_t nowUs) noexcept;
+    void nameStop(unsigned node, uint64_t nowUs) noexcept;
+    unsigned selectedNode() const noexcept;
     void applyArming(uint64_t nowUs) noexcept;
     const char* arm(BenchAxis& axis, uint64_t nowUs) noexcept;
     bool fault(unsigned node) const noexcept;
@@ -201,6 +209,8 @@ class BenchConsole {
     ProbeDevice& device_;
     ProbeConsole& console_;
     ProbeSync sync_; // Same sole owner; construction is passive.
+    GroupStopMember groupRows_[BENCH_NODES]; // Reserved independently of normal console pressure.
+    GroupStop groupStop_;
     char line_[LINE_CAPACITY] = {};
     uint16_t used_ = 0;
     ConsoleLine parsed_; // The classified line; here, not on the stack under the console's dispatch.
@@ -221,8 +231,6 @@ class BenchConsole {
     BenchAxis* axes_[BENCH_NODES] = {};
     unsigned attached_ = 0;
     uint32_t consumedTrial_ = 0; // The last arming record looked at, whatever its outcome.
-    uint32_t appliedTrial_ = 0;  // The last arming applied successfully, to the attached node.
-    RouteKind appliedKind_ = RouteKind::NONE;
     struct StopBudget {
         bool named = false; // A successful move or velocity arming of this node gave them.
         uint32_t deadlineMs = 0, bestEffortMs = 0, intervalMs = 0;

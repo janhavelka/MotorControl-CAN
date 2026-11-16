@@ -252,9 +252,10 @@ struct Rig {
     Driver driver;
     Bytes bytes;
     Pin pin;
+    E::AcquisitionRecord acquisitionStorage;
     E::FirmwareProbe firmware;
     explicit Rig(bool silentPin = false, bool route = true)
-        : firmware(services, driver.callbacks(), bytes.callbacks(),
+        : firmware(services, driver.callbacks(), bytes.callbacks(), &acquisitionStorage,
                    silentPin ? pin.callbacks() : E::SilentPin()) {
         pin.driver = &driver;
         if (!route)
@@ -1000,7 +1001,7 @@ void bootStatus() {
         Bytes bytes;
         E::ProbeCallbacks callbacks = bytes.callbacks();
         callbacks.idle = [](void*) {};
-        E::FirmwareProbe firmware(services, driver.callbacks(), callbacks);
+        E::FirmwareProbe firmware(services, driver.callbacks(), callbacks, nullptr);
         CHECK(!firmware.prepare(config()) && driver.starts == 0);
         CHECK(firmware.lastCheck() == E::FirmwareConfigCheck::INVALID_PLATFORM);
         CHECK(E::firmwareStatus(firmware, true) == S::PLATFORM_FAILED);
@@ -1099,7 +1100,7 @@ void closedPathsInvalidateTheOwner() {
         Bytes bytes;
         E::ProbeCallbacks callbacks = bytes.callbacks();
         callbacks.idle = [](void*) {};
-        E::FirmwareProbe firmware(services, driver.callbacks(), callbacks);
+        E::FirmwareProbe firmware(services, driver.callbacks(), callbacks, nullptr);
         CHECK(!firmware.prepare(config()) && firmware.owner().resources().inhibited);
     }
     {

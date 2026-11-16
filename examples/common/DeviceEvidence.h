@@ -1,5 +1,5 @@
 /** @file DeviceEvidence.h
- * @brief Finite typed-read acquisition and owned evidence through the ordinary application.
+ * @brief Finite typed-read acquisition in caller-owned evidence storage through the ordinary application.
  * SPDX-License-Identifier: MIT
  * Application code only. No I/O, clock, allocation, parser, retry or device writes.
  * One cooperative caller owns the app, owner diagnostic drain and this harness.
@@ -131,10 +131,18 @@ class DeviceEvidence {
     /** Borrow stationary resources; construction performs no traffic or selection.
      * @param app Existing concrete application, outlives this harness.
      * @param owner That application's sole receive owner, outlives this harness.
+     * @param storage Caller-owned live record object, or null until bindRecordStorage. It must stay
+     * stationary and outlive every active or retained acquisition; never overlap this collector.
      * @param environment DEVICE by default; HOST_FAKE is restricted to offline fake controllers.
      */
-    DeviceEvidence(ProbeApp& app, CanBusOwner& owner,
+    DeviceEvidence(ProbeApp& app, CanBusOwner& owner, AcquisitionRecord* storage,
                    EvidenceEnvironment environment = EvidenceEnvironment::DEVICE) noexcept;
+    /** Bind or detach idle record storage without constructing or destroying it. Collector identity,
+     * time and admission history stay in this object across storage changes.
+     * @param storage Live caller-owned record, or null to detach.
+     * @return False unchanged while a record is held or for overlapping storage. The same pointer
+     * succeeds even while held. A null binding refuses future admission; service stays idle. */
+    bool bindRecordStorage(AcquisitionRecord* storage) noexcept;
     /** @param app Expected app. @param owner Expected sole owner.
      * @return Exact borrowed resource graph; no I/O or evidence qualification. */
     bool usesGraph(const ProbeApp& app, const CanBusOwner& owner) const noexcept {
@@ -168,7 +176,7 @@ class DeviceEvidence {
      */
     bool interrupt(uint64_t nowUs) noexcept;
     /** @return Borrowed historical record or null before admission/after release. No I/O. */
-    const AcquisitionRecord* record() const noexcept { return occupied_ ? &record_ : nullptr; }
+    const AcquisitionRecord* record() const noexcept { return occupied_ ? record_ : nullptr; }
     /** Explicitly release a terminal acquisition and its app reservation/history.
      * @return False while pending; true does not clear quarantine, faults or unknown effects.
      */
@@ -178,7 +186,7 @@ class DeviceEvidence {
     ProbeApp& app_;
     CanBusOwner& owner_;
     EvidenceEnvironment environment_;
-    AcquisitionRecord record_;
+    AcquisitionRecord* record_ = nullptr;
     uint64_t lastUs_ = 0;
     uint32_t lastId_ = 0, traceOverwritten_ = 0, rxLost_ = 0;
     bool occupied_ = false;

@@ -46,10 +46,11 @@ FirmwareBootStatus firmwareStatus(const FirmwareProbe& firmware, bool platformRe
                : FirmwareBootStatus::CONFIGURATION_REJECTED;
 }
 FirmwareProbe::FirmwareProbe(MotorControlCAN::CANOPEN::SdoClient& services, TwaiDriver driver,
-                             const ProbeCallbacks& callbacks, const SilentPin& silent) noexcept
+                             const ProbeCallbacks& callbacks, AcquisitionRecord* storage,
+                             const SilentPin& silent) noexcept
     : services_(services), transport_(services, driver), adapter_(transport_.transport()),
       silent_(silent), owner_(services, ownerTransport(), 28), platform_(callbacks),
-      app_(owner_, platform_), evidence_(app_, owner_),
+      app_(owner_, platform_), evidence_(app_, owner_, storage),
       callbacksValid_(callbacks.nowUs && !callbacks.idle) {}
 MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
     using MotorControlCANOwner::ReceivedFrame;

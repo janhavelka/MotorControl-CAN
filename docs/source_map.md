@@ -562,3 +562,14 @@ node table or production motion context.
 | One finite positive-native velocity change | Existing [Velocity.h](../include/MotorControlCAN/profiles/lichuan_c/Velocity.h) / Velocity.cpp | AxisSession, ProbeMotion; velocity_change_test and motion_change_console_test | Original stopDue/deadline retained; closed per-firmware gate, no sign/zero changes or replay |
 | Absolute replacement and per-field evidence | Existing [Position.h](../include/MotorControlCAN/profiles/lichuan_c/Position.h) / Position.cpp, common MoveRelation | AxisSession and shared console; move_replacement_test, axis_change_test, move_change_console_test | Original/replacement contexts remain separate; one outstanding; fresh handshake, no guessed queue |
 | Explicit initial measurements | [BenchRoute](../examples/s2_bench/BenchRoute.h), scripts/s2_bench.py | mode_probe_test, position_change_test and transcript/Python regressions | m/p/v routes share the owner; retained raw captures in report52, no production qualification from a successful experiment |
+
+## Independent axes and storage (prompt 53)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
+| --- | --- | --- | --- |
+| Per-axis producers and attachments | ProbeApp / ProbeConsole / BenchConsole | probe_app_test, multi_axis_console_test, bench_console_test | Logical IDs differ from wire nodes; arming copies do not refresh evidence |
+| Reserved group stop | [GroupStop.h](../examples/common/GroupStop.h) / GroupStop.cpp | shared console; group_stop_test | Explicit one request/result per member, no NMT or shared-wire success inference |
+| Explicit GPIO stop signal | [WiredStopOutput.h](../examples/common/WiredStopOutput.h) / WiredStopOutput.cpp | group_stop_test | Application callback and actual polarity; no core I/O or standstill claim |
+| Exclusive retained storage | AxisSession; DeviceEvidence / BenchRoute record binding | axis_storage_test, probe_motion_actions_test, device_evidence_test, bench_route_test | Home/velocity context only; record reuse requires explicit release; stop/fault histories stay stationary |
+| Optional cold PSRAM | [StartupColdStorage.h](../examples/common/StartupColdStorage.h) | storage_placement fixture and storage_placement_test | Startup only; hot RX/TX/stop/driver storage remains internal |
+| Paired finite workload | [paired_motion.py](../scripts/paired_motion.py), s2_bench Campaign | paired_motion_test, multi_axis_client_test | Shared durable caps, no retry, processing-time skew only |

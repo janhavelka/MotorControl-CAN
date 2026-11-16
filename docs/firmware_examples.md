@@ -513,3 +513,11 @@ fails the gate. Dependencies are provisioned
 explicitly, and no build command opens a serial/CAN interface. Retained log paths
 and actual measured build sizes belong in the stage report. SDK-free native
 quick/full gates remain in [the verification table](verification.md).
+
+Prompt53 adds a separate [storage placement compile fixture](../examples/storage_placement/README.md)
+for S2/S3 with and without PSRAM. Only cold archival bytes use the explicit startup
+allocator and internal fallback; controller, RX/TX, session/stop and task storage
+remain internal. [The storage report](reports/prompt_53_storage.md) records resolved
+configuration and sizes. [Concurrent axes](multi_axis.md) use the same owner and
+application on both firmware paths. Their physical timing qualification belongs
+to prompt54; compile success is not a board measurement.

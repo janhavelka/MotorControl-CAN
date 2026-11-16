@@ -48,6 +48,8 @@ struct Rig {
     C::SdoClient services;
     Console uart;
     Driver driver;
+    E::AcquisitionRecord evidenceRecord;
+    E::RouteRecord routeRecord;
     E::FirmwareProbe firmware;
     E::AxisSession one, two;
     E::BenchRoute route;
@@ -66,8 +68,8 @@ struct Rig {
         return value;
     }
     Rig()
-        : firmware(services, driver.callbacks(), uart.callbacks()), one(firmware.owner()), two(firmware.owner()),
-          route(firmware, services, E::RouteCallbacks()), console(firmware, services, storage()),
+        : firmware(services, driver.callbacks(), uart.callbacks(), &evidenceRecord), one(firmware.owner()), two(firmware.owner()),
+          route(firmware, services, E::RouteCallbacks(), &routeRecord), console(firmware, services, storage()),
           axis1(firmware, one), axis2(firmware, two) {
         driver.console = &uart;
         driver.drives[0].node = 1;
@@ -616,14 +618,14 @@ void testArmingAndMove() {
     // The admission consumed the borrowed prerequisites: a second move needs a new arming.
     CHECK(has(r->command("@7 move relative 16 steps native 1 configured", 100), "prerequisites"));
     CHECK(r->route.motionAdmissions() == routes + 1);
-    // A later route replaces the arming's reads: refused here before the console sees the line.
+    // Route scratch reuse no longer destroys the owned arming. Its already-consumed
+    // motion prerequisites still refuse through the public helper, without new work.
     r->release();
     CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
     E::RouteArming gone;
     CHECK(!r->route.armed(gone));
     r->release();
-    CHECK(r->send("@8 move relative 16 steps native 1 configured") == E::ConsoleInput::REFUSED);
-    CHECK(has(r->console.reply(), "arming_reads_replaced_arm_again"));
+    CHECK(has(r->command("@8 move relative 16 steps native 1 configured", 100), "prerequisites"));
     // Armed again: the per-case cap counts the console's moves with MOVE routes, three per node per boot.
     for (unsigned n = 0; n < 2; ++n) {
         armed(*r, trial);
@@ -945,11 +947,10 @@ void testRefusedArming() {
     r->turns(2);
     CHECK(has(r->notices, ("CONSOLE arm refused node=1 trial=" + std::to_string(trial)).c_str()));
     CHECK(has(r->command("@5 release 1", 100), "\"ok\":true") && !r->console.holds());
-    // Its reads are not current: refused here, before the console sees the line; nothing is counted or sent.
+    // The refused arming did not replenish consumed prerequisites; nothing is counted or sent.
     const size_t first = r->driver.requests.size();
     const uint8_t admissions = r->route.motionAdmissions();
-    CHECK(r->send("@6 move relative 16 steps native 1 configured") == E::ConsoleInput::REFUSED);
-    CHECK(has(r->console.reply(), "arming_reads_replaced_arm_again"));
+    CHECK(has(r->command("@6 move relative 16 steps native 1 configured", 100), "prerequisites"));
     r->turns(20);
     CHECK(r->downloadsFrom(first) == 0 && r->route.motionAdmissions() == admissions);
     wholeLines(r->uart.output);
@@ -1017,9 +1018,69 @@ void testFaultHoldsBack() {
     CHECK(has(moved, "\"result\":\"accepted\"") && has(moved, "\"type\":\"terminal\",\"id\":4,\"command\":\"move\",\"ok\":false"));
     CHECK(r->downloadsFrom(first) == 0 && r->one.faultBlocked());
 }
+void testTwoArmedAxes() {
+    scenario = "two-owned-armings-independent-stop";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    for (auto& drive : r->driver.drives) {
+        drive.statusBits = true;
+        drive.travelReads = 100000;
+    }
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    enabled(*r, trial, 2);
+    CHECK(has(r->command("@1 host 0", 20), "\"ok\":true"));
+    ArmSpec spec;
+    CHECK(r->run(arm(1, trial, spec)).failure == E::RouteFailure::NONE);
+    r->turns(2);
+    const uint64_t firstReadUs = r->axis1.armedState.servicedUs;
+    const uint32_t firstTrial = r->axis1.armedTrial;
+    r->release();
+    CHECK(r->run(arm(2, trial, spec)).failure == E::RouteFailure::NONE);
+    r->turns(2);
+    CHECK(r->axis1.armedTrial == firstTrial && r->axis1.armedState.servicedUs == firstReadUs);
+    CHECK(r->axis2.armedTrial != firstTrial);
+    CHECK(r->console.console().motionForAxis(1) == &r->axis1.motion);
+    CHECK(r->console.console().motionForAxis(2) == &r->axis2.motion);
+    CHECK(has(r->command("@2 useaddr 1", 20), "\"ok\":true"));
+    CHECK(has(r->command("@3 accel 1000", 20), "\"ok\":true"));
+    CHECK(has(r->command("@4 decel 1000", 20), "\"ok\":true"));
+    const unsigned admissions = r->route.motionAdmissions();
+    CHECK(has(r->command("@5 move relative 16 steps native 1 configured", 250), "\"result\":\"accepted\""));
+    CHECK(r->one.moveActive());
+    CHECK(has(r->command("@6 useaddr 2", 20), "\"ok\":true"));
+    CHECK(has(r->command("@7 accel 1000", 20), "\"ok\":true"));
+    CHECK(has(r->command("@8 decel 1000", 20), "\"ok\":true"));
+    CHECK(has(r->command("@9 move relative 32 steps native 1 configured", 250), "\"result\":\"accepted\""));
+    CHECK(r->one.moveActive() && r->two.moveActive());
+    CHECK(r->route.motionAdmissions() == admissions + 2);
+    // Select the first axis, then address the second stop explicitly. Selection is unchanged.
+    CHECK(has(r->command("@10 useaddr 1", 20), "\"ok\":true"));
+    const size_t start = r->driver.requests.size();
+    const std::string stopped = r->command("@11 stop 2 fast", 500);
+    CHECK(has(stopped, "\"result\":\"accepted\""));
+    CHECK(r->one.moveActive() && !r->two.moveActive());
+    bool secondStop = false;
+    for (size_t i = start; i < r->driver.requests.size(); ++i) {
+        const M::Frame& frame = r->driver.requests[i];
+        if (frame.data[0] == 0x2b && frame.data[1] == 0x40 && frame.data[2] == 0x60) {
+            CHECK(frame.id == 0x602); // No first-axis controlword caused by the second-axis stop.
+            secondStop = true;
+        }
+    }
+    CHECK(secondStop && r->route.motionAdmissions() == admissions + 3);
+    CHECK(r->firmware.app().selected()->channel.binding.logicalAxisId == 1);
+    // The second axis retains its earlier fast stop, so it refuses another. That
+    // refusal must not prevent the group from stopping the first axis.
+    const std::string group = r->command("@12 stop all fast", 1000);
+    CHECK(has(group, "\"type\":\"group_stop_axis\""));
+    CHECK(!r->one.moveActive() && r->route.motionAdmissions() == admissions + 4);
+    wholeLines(r->uart.output);
+}
 } // namespace
 
 int main() {
+    testTwoArmedAxes();
     testGate();
     testInputAndOutput();
     testInputLoss();

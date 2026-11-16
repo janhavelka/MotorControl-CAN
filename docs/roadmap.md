@@ -13,6 +13,12 @@ unknown Q22-Q26 facts remain precise gates. No RPDO change delivery is implied.
 
 ## Software candidate
 
+Prompt53 delivers concurrent application attachments, independent stops, a group
+stop helper and finite paired runner. [Report53](reports/prompt_53.md) separates
+native/build verification from prompt54's physical trials. Shared quick-stop RPDO
+and synchronous start still require M09/Q28; host processing-time skew is not wire
+or mechanical synchronization. Prompt56 owns the expiry-scan optimization.
+
 [Prompt49](reports/prompt_49.md) delivers user/package corrections and A-17
 descriptor cleanup. [Prompt50](reports/prompt_50.md) records the independent
 contract review, literal README-shell correction, evidence reconciliation and
@@ -54,10 +60,10 @@ The [promptset index](prompts/README.md) contains the executable assignments.
 Prompts51-72 remain separate from the prompt50 candidate audit. Prompt51 has
 delivered the host producer and typed TPDO1 experiment; its qualification work
 remains open. Prompt52 delivers gated changes and initial measurements; prompt54 owns their
-finished-operation qualification. Prompt53 owns concurrent
-application axes/group stop, and 55 communication recovery/retry policy.
-The existing configurable adapter capacities do not by themselves implement
-multi-axis application coordination. User-requested features and measurements
+finished-operation qualification. Prompt53 delivers concurrent
+application axes/group stop; 55 owns communication recovery/retry policy.
+Configurable adapter capacities and application coordination are separate
+contracts, both tested in prompt53. User-requested features and measurements
 remain linked from backlog F/M/B rows, with their original ownership.
 
 No new driver, reset policy, safety function or physical qualification is implied

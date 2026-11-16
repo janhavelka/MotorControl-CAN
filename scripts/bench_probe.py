@@ -26,9 +26,9 @@ from console_jsonl import ID_MAX, PROFILE, RECORD_LIMIT, SCHEMA, is_uint32, reco
 from _bench_evidence import BenchError, summarize_operation
 
 MAX_PENDING = 4
-MAX_OPERATIONS = 2  # Ordinary capacity advertised by this schema, not universal drive capacity.
-MAX_RECORDS = 128
-MAX_COMMAND_INPUT = 65536
+MAX_OPERATIONS = 508  # 2*254; adapter channel+request slots share the uint8 service budget.
+MAX_RECORDS = 512  # Admission, up to254 independent group members, terminal and bounded metadata.
+MAX_COMMAND_INPUT = 262144
 MAX_SESSION_INPUT = 1048576
 MAX_COMMANDS = 1024
 MAX_TURNS = 8192
@@ -36,7 +36,7 @@ READ_CHUNK = 256
 IDLE_SECONDS = 0.001
 STATUS = {"OK", "INVALID_CONFIG", "ILLEGAL_VALUE", "UNSUPPORTED", "FRAME_ERROR", "PROTOCOL_ERROR"}
 RECORD_KINDS = {"reply", "terminal", "capability", "help", "axis", "value", "finding",
-                "motion_value", "stop_attempt", "velocity_change", "move_relation", "trace"}
+                "motion_value", "stop_attempt", "group_stop_axis", "velocity_change", "move_relation", "trace"}
 
 
 def positive(value, name, maximum=60.0):
@@ -158,6 +158,10 @@ def campaign_form(command):
         return "reply"
     if command in ("stop normal", "stop fast"):
         return "stop"
+    if re.fullmatch(r"stop all(?: normal| fast)?", command):
+        return "group_stop"
+    if re.fullmatch(r"stop " + positive_integer + r"(?: normal| fast)?", command):
+        return "stop" if int(command.split()[1]) <= ID_MAX else None
     if re.fullmatch(r"move (?:relative|absolute) " + number + r" steps native " +
                    positive_integer + r" configured setup (?:write|verify)(?: basis actual)?", command):
         return "motion"
@@ -171,8 +175,15 @@ def campaign_form(command):
     return None
 
 
-def _slot(command):
-    return command if campaign_form(command) == "stop" else "ordinary"
+def _slot(command, axis_id=None):
+    form, tokens = campaign_form(command), command.split()
+    if form == "group_stop":
+        return "group_stop"
+    if form == "stop":
+        axis = int(tokens[1]) if tokens[1].isdigit() else axis_id
+        kind = tokens[-1] if tokens[-1] in ("normal", "fast") else "fast"
+        return ("stop", axis, kind)
+    return "ordinary"
 
 
 @dataclass
@@ -203,6 +214,8 @@ class Command:
     turns: int = 0
     turn_limit: int = MAX_TURNS
     change_admitted: bool = False
+    axis_id: int | None = None
+    axis_count: int | None = None
 
 
 class Console:
@@ -230,6 +243,7 @@ class Console:
         self.synchronized, self.identified = True, False
         self.handshake = {}
         self.pending, self.operations = {}, {}
+        self.operation_capacity = 2  # Safe legacy bound until exact advertised identification.
         self.last_operation_id = 0
         self.last_admission_request = 0
         self.seen_operations = set()  # Bounded by MAX_COMMANDS, including released history.
@@ -427,6 +441,8 @@ class Console:
                         type(item.get("change_index")) is not int or item["change_index"] != 1 or
                         original.change_admitted):
                     self._fail("velocity change lacks its active original operation")
+                if "axis_id" in item and item["axis_id"] != original.axis_id:
+                    self._fail("velocity change differs from original axis")
                 original.change_admitted = True
                 # This receipt admits one field change, not another finite run or terminal stream.
                 handle.terminal, handle.phase = item, "completed"
@@ -439,8 +455,20 @@ class Console:
                         handle.accepted or not is_uint32(item.get("operation_id"), 1)):
                     self._fail("duplicate/invalid operation admission")
                 operation = item["operation_id"]
-                slot = _slot(handle.command)
-                occupied = sum(_slot(existing.command) == slot for existing in self.operations.values())
+                form = campaign_form(handle.command)
+                if "axis_id" in item:
+                    if not is_uint32(item["axis_id"], 1):
+                        self._fail("admission has invalid logical axis")
+                    handle.axis_id = item["axis_id"]
+                tokens = handle.command.split()
+                if form == "stop" and tokens[1].isdigit() and handle.axis_id != int(tokens[1]):
+                    self._fail("stop admission differs from requested logical axis")
+                if form == "group_stop":
+                    if not _uint(item.get("axis_count"), self.operation_capacity // 2) or not item["axis_count"]:
+                        self._fail("group admission has invalid axis count")
+                    handle.axis_count = item["axis_count"]
+                slot = _slot(handle.command, handle.axis_id)
+                occupied = sum(_slot(existing.command, existing.axis_id) == slot for existing in self.operations.values())
                 # Allocation is monotonic; delivery is not: reserved stop replies
                 # precede an older ordinary receipt in ProbeConsole::service.
                 regressed = operation < self.last_operation_id and handle.id >= self.last_admission_request
@@ -448,7 +476,7 @@ class Console:
                     self._fail("reused native operation identity")
                 if regressed:
                     self._fail("native operation regressed on a newer request; firmware epoch unresolved")
-                if occupied >= (MAX_OPERATIONS if slot == "ordinary" else 1):
+                if occupied >= (self.operation_capacity if slot == "ordinary" else 1):
                     self._fail("retained native operation capacity exhausted")
                 handle.accepted, handle.operation_id, handle.phase = True, operation, "admitted"
                 self.operations[operation] = handle
@@ -522,6 +550,17 @@ class Console:
                 if any(int(row["latest_us"]) > int(item["completed_us"]) for row in values):
                     self._fail("terminal precedes its native observations")
             form = campaign_form(handle.command)
+            if handle.axis_id is not None and item.get("axis_id") != handle.axis_id:
+                self._fail("terminal differs from admitted logical axis")
+            if form == "group_stop":
+                members = [row for row in handle.records if row["type"] == "group_stop_axis"]
+                if item.get("axis_count") != handle.axis_count or len(members) != handle.axis_count:
+                    self._fail("group terminal lacks exact per-axis results")
+                observed = all(row["accepted"] and row["outcome"] == "OBSERVED" and not row["uncertain"]
+                               for row in members)
+                if (item["ok"] != observed or item["uncertain"] == observed or
+                        item["outcome"] != ("OBSERVED" if observed else "UNCONFIRMED")):
+                    self._fail("group terminal contradicts per-axis results")
             if form in ("motion", "stop", "settings"):
                 self._campaign_terminal(handle, item, form)
             handle.terminal, handle.phase = item, "completed"
@@ -538,6 +577,23 @@ class Console:
             if family in ("probe", "read") and kind != "value":
                 self._fail("typed read received an unexpected record kind")
             form = campaign_form(handle.command)
+            if form == "group_stop":
+                outcomes = {"NONE", "OBSERVED", "PROTOCOL_REJECTED", "REPLY_ERROR", "TRANSPORT_ERROR",
+                            "CANCELLED", "DEADLINE", "INVALIDATED", "OBSERVATION_SCOPE", "DRIVE_FAULT",
+                            "ITERATION_EXHAUSTED", "STOP_SENT_UNCONFIRMED", "SERVICE_TIMEOUT"}
+                if (kind != "group_stop_axis" or not is_uint32(item.get("axis_id"), 1) or
+                        type(item.get("accepted")) is not bool or item.get("status") not in STATUS or
+                        type(item.get("detail")) is not int or not -(2**31) <= item["detail"] < 2**31 or
+                        type(item.get("outcome")) is not str or type(item.get("uncertain")) is not bool or
+                        not is_uint32(item.get("native_operation")) or
+                        (item["accepted"] and (item["status"] != "OK" or not item["native_operation"] or
+                            item["outcome"] not in outcomes or
+                            (item["outcome"] != "OBSERVED" and not item["uncertain"]))) or
+                        (not item["accepted"] and (item["status"] == "OK" or item["outcome"] != "REFUSED" or
+                            not item["uncertain"] or item["native_operation"])) or
+                        any(row.get("axis_id") == item["axis_id"] for row in handle.records if row["type"] == kind) or
+                        sum(row["type"] == kind for row in handle.records) >= handle.axis_count):
+                    self._fail("invalid/duplicate group stop axis result")
             if form in ("motion", "stop", "settings"):
                 if form == "motion" and kind in ("velocity_change", "move_relation"):
                     self._motion_change(handle, item)
@@ -712,26 +768,40 @@ class Console:
             self._poison()
             raise
 
-    def begin(self, command, *, timeout_s=3.0):
-        """Validate before one serial handoff. Returns an owned handle, never native success."""
+    def begin(self, command, *, timeout_s=3.0, handoff_cutoff_s=None):
+        """One handoff and an independent immutable response deadline.
+
+        Optional absolute monotonic handoff_cutoff_s forbids a new write at or
+        after equality, including time spent draining earlier input. Its local
+        refusal leaves a healthy stream usable and never renews result time.
+        """
         timeout_s = positive(timeout_s, "command timeout")
+        if handoff_cutoff_s is not None and (type(handoff_cutoff_s) not in (int, float) or
+                not math.isfinite(handoff_cutoff_s)):
+            raise ValueError("handoff cutoff must be a finite absolute monotonic time")
+        def handoff_expired():
+            return handoff_cutoff_s is not None and self._now() >= handoff_cutoff_s
         command = command_text(command)
         if not supported_command(command):
             raise BenchError("command form is outside this finite read client contract")
         self._check()
+        if handoff_expired():
+            raise BenchError("command handoff cutoff expired; nothing sent")
         if not self.identified and not (command == "version" or self._identifying and
                                        command in ("profile list", "caps", "config")):
             raise BenchError("identify product/version/profile/capabilities before requests")
         family = command.split()[0]
         if self.identified and (family not in self.capabilities or not self.capabilities[family]["implemented"]):
             raise BenchError("route unavailable in validated command inventory")
-        asynchronous = family in ("probe", "read") or campaign_form(command) in ("motion", "stop", "settings")
+        asynchronous = family in ("probe", "read") or campaign_form(command) in ("motion", "stop", "group_stop", "settings")
         slot = _slot(command)
-        if asynchronous and sum(_slot(handle.command) == slot and (handle.accepted or handle.phase == "waiting_reply")
-                for handle in self.pending.values() if handle.family in ("probe", "read") or campaign_form(handle.command) in ("motion", "stop", "settings")) >= (MAX_OPERATIONS if slot == "ordinary" else 1):
+        if asynchronous and sum(_slot(handle.command, handle.axis_id) == slot and (handle.accepted or handle.phase == "waiting_reply")
+                for handle in self.pending.values() if handle.family in ("probe", "read") or campaign_form(handle.command) in ("motion", "stop", "group_stop", "settings")) >= (self.operation_capacity if slot == "ordinary" else 1):
             raise BenchError("retained native operation capacity exhausted before handoff")
-        if (sum(campaign_form(handle.command) != "stop" for handle in self.pending.values()) >= MAX_PENDING and
-                campaign_form(command) != "stop") or len(self.pending) >= MAX_PENDING + 2 or self.next_id > ID_MAX or self.next_id - self.first_id >= MAX_COMMANDS:
+        reserved = ("stop", "group_stop")
+        pending_limit = max(MAX_PENDING, self.operation_capacity + 2)
+        if (sum(campaign_form(handle.command) not in reserved for handle in self.pending.values()) >= pending_limit and
+                campaign_form(command) not in reserved) or len(self.pending) >= pending_limit + self.operation_capacity + 1 or self.next_id > ID_MAX or self.next_id - self.first_id >= MAX_COMMANDS:
             raise BenchError("client request capacity exhausted")
         identity = self.next_id
         wire = f"@{identity} {command}\n".encode("ascii")
@@ -743,6 +813,8 @@ class Console:
         # Bytes already waiting cannot become a reply to intent not yet sent.
         # This bounded empty read is no device/firmware retirement proof.
         for _ in range(_turn_limit(timeout_s)):
+            if handoff_expired():
+                raise BenchError("command handoff cutoff expired; nothing sent")
             if self._now() >= deadline:
                 self._fail("pre-handoff input deadline expired", "deadline")
             if not self.pump():
@@ -754,12 +826,17 @@ class Console:
                 break
         else:
             self._fail("pre-handoff input turn capacity exhausted")
+        if handoff_expired():
+            raise BenchError("command handoff cutoff expired; nothing sent")
         handle = Command(self, identity, command, family, deadline, self.host_epoch)
         handle.turn_limit = _turn_limit(timeout_s)
         self._event("intent", request_id=identity, command=command, deadline_s=deadline)
         if self._now() >= deadline:
             self._fail("command deadline expired before handoff", "deadline")
         self.next_id += 1
+        if handoff_expired():
+            self._event("handoff_refused", request_id=identity, command=command, reason="immutable cutoff")
+            raise BenchError("command handoff cutoff expired; nothing sent")
         self.pending[identity] = handle
         try:
             handle.transmitted = True  # Even an exception can follow a partial host write.
@@ -845,8 +922,11 @@ class Console:
                 responses[command] = response
                 if command == "version" and (response.get("product") != "MotorControl-CAN" or
                     response.get("version") != expected_version or
-                    type(response.get("operation_capacity")) is not int or response["operation_capacity"] != MAX_OPERATIONS):
+                    type(response.get("operation_capacity")) is not int or
+                    not 2 <= response["operation_capacity"] <= MAX_OPERATIONS or response["operation_capacity"] % 2):
                     self._fail("library version/product/capacity mismatch")
+                if command == "version":
+                    self.operation_capacity = response["operation_capacity"]
                 if command == "profile list":
                     profiles = response.get("profiles")
                     if (not isinstance(profiles, list) or len(profiles) != 1 or type(profiles[0]) is not dict or

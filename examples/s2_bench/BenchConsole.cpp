@@ -108,8 +108,9 @@ BenchConsole::BenchConsole(FirmwareProbe& firmware, MotorControlCAN::CANOPEN::Sd
     : firmware_(firmware), platform_(consoleCallbacks(this, clock, write)),
       device_(*new (storage.device) ProbeDevice(firmware.app(), firmware.owner(), services, &firmware.evidence())),
       console_(*new (storage.console) ProbeConsole(firmware.app(), firmware.owner(), platform_)),
-      sync_(firmware.owner()) {
+      sync_(firmware.owner()), groupStop_(firmware.app(), firmware.owner(), groupRows_, BENCH_NODES) {
     console_.attachSync(sync_);
+    console_.attachGroupStop(groupStop_);
     console_.attachDevice(device_);
     policy();
 }
@@ -192,8 +193,16 @@ void BenchConsole::refuse(const ConsoleLine& line, const char* reason) noexcept 
 }
 // The applied arming's reads are still the route's, of the attached node and this kind.
 bool BenchConsole::armingCurrent(RouteKind kind) noexcept {
-    return appliedTrial_ && route_ && route_->armed(arming_) && arming_.plan.trial == appliedTrial_ &&
-           arming_.plan.node == attached_ && arming_.plan.kind == kind;
+    const BenchAxis* axis = attached_ ? axes_[attached_ - 1] : nullptr;
+    return axis && axis->armedTrial && axis->armedKind == kind && axis->motion.current();
+}
+unsigned BenchConsole::selectedNode() const noexcept {
+    const L::ReadTarget* selected = firmware_.app().selected();
+    if (selected)
+        for (unsigned i = 0; i < BENCH_NODES; ++i)
+            if (axes_[i] && M::sameBinding(axes_[i]->target.channel.binding, selected->channel.binding))
+                return i + 1;
+    return attached_;
 }
 BENCH_CONSOLE_NOINLINE const char* BenchConsole::motionRefusal(const ConsoleLine& line) noexcept {
     const RouteKind kind = admissionKind(line);
@@ -213,14 +222,17 @@ BENCH_CONSOLE_NOINLINE const char* BenchConsole::motionRefusal(const ConsoleLine
 // session's last move or velocity cycle, else the arming's own read while it stands, else the session's
 // empty read, which leaves only the policy's best-effort fallback. The policy's deadlines run from this
 // request, as BenchRoute::startStop sets them.
-BENCH_CONSOLE_NOINLINE void BenchConsole::nameStop(uint64_t now) noexcept {
-    const StopBudget& budget = attached_ ? budgets_[attached_ - 1] : budgets_[0];
-    if (!attached_ || !budget.named || now > UINT64_MAX - 55000000ull * 2)
+BENCH_CONSOLE_NOINLINE void BenchConsole::nameStop(unsigned node, uint64_t now) noexcept {
+    if (!node || node > BENCH_NODES || !axes_[node - 1])
         return;
-    ProbeMotion& motion = axes_[attached_ - 1]->motion;
+    const StopBudget& budget = budgets_[node - 1];
+    if (!budget.named || now > UINT64_MAX - 55000000ull * 2)
+        return;
+    BenchAxis& axis = *axes_[node - 1];
+    ProbeMotion& motion = axis.motion;
     const L::ReadContext* state = &motion.session().moveObservation();
-    if (state->state != M::ReadState::SUCCEEDED && armingCurrent(appliedKind_))
-        state = arming_.state;
+    if (state->state != M::ReadState::SUCCEEDED && axis.armedTrial && motion.current())
+        state = &axis.armedState;
     StopPolicy policy;
     policy.options.service.queueTimeoutUs = ROUTE_QUEUE_US;
     policy.options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
@@ -260,13 +272,15 @@ ConsoleInput BenchConsole::take(uint8_t byte, uint64_t now, const BenchActivity&
     RouteKind kind = RouteKind::NONE;
     bool stop = false;
     if (parseConsoleLine(line_, used_, parsed)) {
+        attached_ = selectedNode();
+        stop = is(parsed.token(0), "stop");
         gate = benchConsoleGate(parsed);
         const char* reason = gate == ConsoleGate::NEVER ? "bench_image_has_no_host_recovery"
                              : gate != ConsoleGate::ALWAYS && bench.wire ? "bench_wire_work_active"
                              : gate == ConsoleGate::IDLE_LISTING && bench.listing
                                  ? "bench_network_listing_active"
                                  : nullptr;
-        if (!reason && gate != ConsoleGate::ALWAYS && !is(parsed.token(0), "host") &&
+        if (!reason && !stop && gate != ConsoleGate::ALWAYS && !is(parsed.token(0), "host") &&
             !is(parsed.token(0), "useaddr") && !sameSelection())
             reason = "selection_changed_outside_console_select_again";
         // The measured width is for identity reads only; nothing else, a stop least of all, waits for it.
@@ -280,22 +294,36 @@ ConsoleInput BenchConsole::take(uint8_t byte, uint64_t now, const BenchActivity&
             return ConsoleInput::REFUSED;
         }
         kind = admissionKind(parsed);
-        stop = is(parsed.token(0), "stop");
-        if (stop)
-            nameStop(now);
+        if (stop) {
+            for (unsigned node = 1; node <= BENCH_NODES; ++node) {
+                if (!axes_[node - 1])
+                    continue;
+                char axisId[11];
+                std::snprintf(axisId, sizeof axisId, "%lu",
+                              static_cast<unsigned long>(axes_[node - 1]->target.channel.binding.logicalAxisId));
+                if (is(parsed.token(1), "all") || is(parsed.token(1), axisId) ||
+                    (node == attached_ && (parsed.count == 1 || is(parsed.token(1), "normal") ||
+                                           is(parsed.token(1), "fast"))))
+                    nameStop(node, now);
+            }
+        }
     }
-    BenchAxis* const axis = attached_ ? axes_[attached_ - 1] : nullptr;
-    const Admitted before = admitted(axis);
+    Admitted before[BENCH_NODES];
+    for (unsigned node = 0; node < BENCH_NODES; ++node)
+        before[node] = admitted(axes_[node]);
     for (uint16_t n = 0; n < used_; ++n)
         console_.feed(uint8_t(line_[n]), now);
     console_.feed('\n', now);
     // Each admission counts against the bench's per-boot caps as a route of its kind; a stop is
     // counted and was never refused for them.
-    const Admitted after = admitted(axis);
-    if (route_ && kind != RouteKind::NONE && after.normal && after.normal != before.normal)
-        route_->countConsoleMotion(attached_, kind);
-    if (route_ && stop && ((after.halt && after.halt != before.halt) || (after.fast && after.fast != before.fast)))
-        route_->countConsoleMotion(attached_, RouteKind::STOP);
+    for (unsigned node = 0; node < BENCH_NODES; ++node) {
+        const Admitted after = admitted(axes_[node]);
+        if (route_ && kind != RouteKind::NONE && after.normal && after.normal != before[node].normal)
+            route_->countConsoleMotion(node + 1, kind);
+        if (route_ && stop && ((after.halt && after.halt != before[node].halt) ||
+                              (after.fast && after.fast != before[node].fast)))
+            route_->countConsoleMotion(node + 1, RouteKind::STOP);
+    }
     // host, useaddr, stepsperturn and axis origin move the selection; every other gated line passed
     // with the remembered one. An inspection line never adopts a selection the bench made.
     if (gate != ConsoleGate::ALWAYS)
@@ -340,10 +368,11 @@ bool BenchConsole::expire(uint64_t now) noexcept {
 const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
     const RoutePlan& p = arming_.plan;
     const uint8_t slot = uint8_t(p.node - 1);
-    // Another node's attachment is withdrawn only while idle, and only after this node's prerequisites
-    // were accepted (below): a refused arming leaves the attachment, its budgets and its stop as they were.
-    if (attached_ != p.node && console_.retainsOperation())
-        return "console_operation_retained";
+    // Never replace borrowed prerequisites of this axis's retained operation.
+    // Other axes have independent evidence and may remain attached.
+    if (x.motion.retained() || x.motion.stopRetained(L::StopKind::HALT) ||
+        x.motion.stopRetained(L::StopKind::QUICK_STOP))
+        return "console_axis_operation_retained";
     const C::SdoChannel* channel = firmware_.services().channel(slot);
     const C::NodeSnapshot* node = firmware_.services().node(slot);
     const AxisSession& session = x.motion.session();
@@ -402,6 +431,14 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         }
         status = x.motion.setMovePrerequisites(*arming_.state, *arming_.identity, evidence, L::MoveProfile(),
                                                nullptr, options);
+        if (status) {
+            x.armedState = *arming_.state;
+            x.armedIdentity = *arming_.identity;
+            // Validation has succeeded. Rebind the same values to this axis's owned copy;
+            // another axis may now reuse the acquisition scratch without invalidating it.
+            status = x.motion.setMovePrerequisites(x.armedState, x.armedIdentity, evidence,
+                                                   L::MoveProfile(), nullptr, options);
+        }
     } else if (p.kind == RouteKind::ARM_WITNESS) {
         // A witness only, for the console's stepsperturn and axis origin, which consume it: idle and
         // stationary rest on the route's check of two fresh full reads at the host's reviewed 6064, read
@@ -417,6 +454,7 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         w.observedUs = arming_.feedbackUs;
         w.nowUs = now;
         w.maximumAgeUs = 9 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
+        x.armedState = *arming_.state;
     } else {
         L::VelocityEvidence evidence;
         // The attended flag opens the library's experiment scope, as for VELOCITY; it claims nothing.
@@ -455,20 +493,19 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         options.enableWindowUs = uint64_t(ROUTE_VELOCITY_WINDOW_MS) * 1000;
         options.enableSpacingUs = uint64_t(ROUTE_VELOCITY_SPACING_MS) * 1000;
         status = x.motion.setVelocityPrerequisites(*arming_.state, *arming_.identity, evidence, profile, options);
+        if (status) {
+            x.armedState = *arming_.state;
+            x.armedIdentity = *arming_.identity;
+            status = x.motion.setVelocityPrerequisites(x.armedState, x.armedIdentity, evidence, profile, options);
+        }
     }
     if (!status)
         return status.msg && *status.msg ? status.msg : "prerequisites";
-    // The console's motion routes act on one attachment.
-    if (attached_ != p.node) {
-        if (attached_ && !console_.detachMotion())
-            return "console_motion_retained";
-        attached_ = 0;
-        if (!console_.attachMotion(x.motion))
-            return "attach";
-        attached_ = p.node;
-    }
-    appliedTrial_ = p.trial;
-    appliedKind_ = p.kind;
+    if (!console_.attachMotion(x.motion))
+        return "attach";
+    attached_ = p.node;
+    x.armedTrial = p.trial;
+    x.armedKind = p.kind;
     if (p.kind != RouteKind::ARM_WITNESS) {
         // This node's own stop budgets; another node's are never used for it. A witness names none.
         StopBudget& budget = budgets_[slot];
@@ -478,7 +515,7 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
         budget.intervalMs = p.stopIntervalMs;
         emcyBaseline_[slot] = node->emcyCount; // An EMCY before the arming is not this console's.
     }
-    nameStop(now);
+    nameStop(p.node, now);
     return nullptr;
 }
 BENCH_CONSOLE_NOINLINE void BenchConsole::applyArming(uint64_t now) noexcept {

@@ -232,6 +232,7 @@ struct Rig {
     Console console;
     Driver driver;
     E::SoakTwaiTap tap;
+    E::AcquisitionRecord acquisitionStorage;
     E::FirmwareProbe firmware;
     E::Soak soak;
     unsigned samples = 0;
@@ -248,7 +249,7 @@ struct Rig {
         return value;
     }
     Rig()
-        : tap(driver.callbacks()), firmware(services, tap.driver(), console.callbacks()),
+        : tap(driver.callbacks()), firmware(services, tap.driver(), console.callbacks(), &acquisitionStorage),
           soak(firmware, services, tap, soakCallbacks(), "0123456789012345678901234567890123456789") {
         driver.console = &console;
         E::FirmwareConfig config;

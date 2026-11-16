@@ -162,9 +162,9 @@ const ConsoleCommand commands[] = {
     {"enable", "enable", "ProbeMotion::requestEnable", "explicit per-firmware enable evidence",
      E::DEVICE_ACTION, C::ASYNCHRONOUS,
      "Request reviewed enable; never implied by motion or startup.", nullptr, 42},
-    {"stop", "stop normal|fast", "ProbeMotion::requestStop/AxisSession",
+    {"stop", "stop normal|fast | stop ID|all [normal|fast]", "ProbeMotion::requestStop/GroupStop",
      "explicit bounded stop policy", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Request HALT or QUICK_STOP; independent retained result, never local cancel.", nullptr, 42},
+     "Request HALT or QUICK_STOP per axis; ID/all default fast, each result stays independent.", nullptr, 53},
     {"motor-release", "motor-release", "no reviewed bus-release command",
      "missing native release semantics", E::DEVICE_ACTION, C::ASYNCHRONOUS,
      "Release drive power only with reviewed semantics.",
@@ -577,14 +577,17 @@ ProbeConsole::ProbeConsole(ProbeApp& app, CanBusOwner& owner, ProbePlatform& pla
     : app_(app), owner_(owner), platform_(platform) {}
 ConsoleStats ProbeConsole::stats() const noexcept {
     ConsoleStats result = stats_;
-    result.queued =
-        ordinaryCount_ + controlCount_ + unsigned(stopReplyUsed_[0]) + unsigned(stopReplyUsed_[1]);
+    result.queued = ordinaryCount_ + controlCount_ + unsigned(groupReplyUsed_);
+    for (bool used : stopReplyUsed_)
+        result.queued += unsigned(used);
     return result;
 }
 bool ProbeConsole::drained() const noexcept {
-    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ || traceCount_ ||
-        stopReplyUsed_[0] || stopReplyUsed_[1])
+    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ || traceCount_ || groupReplyUsed_)
         return false;
+    for (bool used : stopReplyUsed_)
+        if (used)
+            return false;
     for (const Operation& op : operations_)
         if (op.used && (!op.terminal || !op.delivered))
             return false;
@@ -596,13 +599,82 @@ bool ProbeConsole::retainsOperation() const noexcept {
             return true;
     return false;
 }
-bool ProbeConsole::detachMotion() noexcept {
-    // A retained motion operation names its attachment's results by identity; it keeps that attachment.
-    for (const Operation& op : operations_)
-        if (op.used && op.motion)
+unsigned ProbeConsole::motionSlot(const ProbeMotion* motion) const noexcept {
+    for (unsigned slot = 0; slot < MOTION_CAPACITY; ++slot)
+        if (motions_[slot].motion == motion && motion)
+            return slot;
+    return MOTION_CAPACITY;
+}
+ProbeMotion* ProbeConsole::motionForAxis(uint32_t id) const noexcept {
+    for (const MotionAttachment& attachment : motions_)
+        if (attachment.motion && attachment.motion->target().channel.binding.logicalAxisId == id)
+            return attachment.motion;
+    return nullptr;
+}
+ProbeMotion* ProbeConsole::selectedMotion() const noexcept {
+    const auto* selected = app_.selected();
+    ProbeMotion* motion = selected ? motionForAxis(selected->channel.binding.logicalAxisId) : nullptr;
+    if (!selected) {
+        for (const MotionAttachment& attachment : motions_)
+            if (attachment.motion) {
+                if (motion)
+                    return nullptr;
+                motion = attachment.motion;
+            }
+        return motion;
+    }
+    if (!motion)
+        return nullptr;
+    const auto& actual = motion->target();
+    return M::sameBinding(actual.channel.binding, selected->channel.binding) &&
+                   actual.nodeGeneration == selected->nodeGeneration &&
+                   actual.channel.clientToServerId == selected->channel.clientToServerId &&
+                   actual.channel.serverToClientId == selected->channel.serverToClientId ? motion : nullptr;
+}
+bool ProbeConsole::attachMotion(ProbeMotion& motion) noexcept {
+    if (!motion.matches(app_, owner_) || !motion.target().channel.binding.logicalAxisId)
+        return false;
+    ProbeMotion* existing = motionForAxis(motion.target().channel.binding.logicalAxisId);
+    if (existing)
+        return existing == &motion;
+    for (MotionAttachment& attachment : motions_)
+        if (!attachment.motion) {
+            attachment.motion = &motion;
+            attachment.intent = intent_;
+            return true;
+        }
+    return false;
+}
+SimpleMoveIntent& ProbeConsole::motionIntent() noexcept {
+    const unsigned slot = motionSlot(selectedMotion());
+    return slot < MOTION_CAPACITY ? motions_[slot].intent : intent_;
+}
+bool ProbeConsole::detachMotion(uint32_t axisId) noexcept {
+    ProbeMotion* motion = motionForAxis(axisId);
+    if (!motion)
+        return false;
+    for (const Operation& op : operations_) {
+        if (op.used && op.attachment == motion)
             return false;
-    motion_ = nullptr;
+        if (op.used && op.groupStop && groupStop_)
+            for (size_t n = 0; n < groupStop_->memberCount(); ++n)
+                if (groupStop_->member(n)->motion == motion)
+                    return false;
+    }
+    motions_[motionSlot(motion)] = MotionAttachment();
     return true;
+}
+bool ProbeConsole::detachMotion() noexcept {
+    ProbeMotion* motion = selectedMotion();
+    if (!motion) {
+        for (const MotionAttachment& attachment : motions_)
+            if (attachment.motion) {
+                if (motion)
+                    return false;
+                motion = attachment.motion;
+            }
+    }
+    return !motion || detachMotion(motion->target().channel.binding.logicalAxisId);
 }
 bool ProbeConsole::enqueue(const char* text, bool control, uint32_t request,
                            uint32_t terminal) noexcept {
@@ -645,9 +717,11 @@ bool ProbeConsole::requestInUse(uint32_t id) const noexcept {
     for (unsigned n = 0; n < controlCount_; ++n)
         if (control_[n].request == id)
             return true;
-    for (unsigned n = 0; n < 2; ++n)
+    for (unsigned n = 0; n < STOP_REPLY_CAPACITY; ++n)
         if (stopReplyUsed_[n] && stopReplies_[n].request == id)
             return true;
+    if (groupReplyUsed_ && groupReply_.request == id)
+        return true;
     return listing_.active && listing_.json && listing_.id == id;
 }
 ProbeConsole::Operation* ProbeConsole::operation(uint32_t id) noexcept {
@@ -863,6 +937,10 @@ void ProbeConsole::poll(uint64_t now) noexcept {
             uint32_t(platform_.stats().outputWritten - op.deliveryEnd) < UINT32_C(0x80000000)) {
             op.delivered = true;
             op.deliveryPending = false;
+        }
+        if (op.groupStop) {
+            groupStopTerminal(op);
+            continue;
         }
         if (op.motion) {
             motionTerminal(op);
@@ -1168,18 +1246,30 @@ void ProbeConsole::service(uint64_t now) noexcept {
     }
     if (device_)
         device_->advance(now);
-    if (motion_)
-        motion_->service(now);
+    for (MotionAttachment& attachment : motions_)
+        if (attachment.motion)
+            attachment.motion->service(now);
     if (sync_)
         sync_->service(now);
+    if (groupStop_)
+        groupStop_->service(now);
     poll(now);
     diagnostic(now);
-    const int stopSlot = stopReplyUsed_[1] ? 1 : stopReplyUsed_[0] ? 0 : -1;
-    Record* records = stopSlot >= 0   ? &stopReplies_[stopSlot]
-                      : controlCount_ ? control_
-                                      : ordinary_;
+    int stopSlot = -1;
+    for (unsigned kind = 0; kind < 2 && stopSlot < 0; ++kind)
+        for (unsigned n = 0; n < MOTION_CAPACITY; ++n) {
+            const unsigned axis = (nextStopReply_ + n) % MOTION_CAPACITY;
+            const unsigned slot = 2 * axis + (kind == 0 ? 1 : 0);
+            if (stopReplyUsed_[slot]) {
+                stopSlot = int(slot);
+                break;
+            }
+        }
+    const bool groupOutput = stopSlot < 0 && groupReplyUsed_;
+    Record* records = stopSlot >= 0 ? &stopReplies_[stopSlot]
+                      : groupOutput ? &groupReply_ : controlCount_ ? control_ : ordinary_;
     uint8_t one = 1;
-    uint8_t& count = stopSlot >= 0 ? one : controlCount_ ? controlCount_ : ordinaryCount_;
+    uint8_t& count = stopSlot >= 0 || groupOutput ? one : controlCount_ ? controlCount_ : ordinaryCount_;
     if (count && platform_.writeOutput(reinterpret_cast<const uint8_t*>(records[0].text),
                                        records[0].length)) {
         if (records[0].terminal) {
@@ -1193,8 +1283,12 @@ void ProbeConsole::service(uint64_t now) noexcept {
         for (unsigned n = 1; n < count; ++n)
             records[n - 1] = records[n];
         --count;
-        if (stopSlot >= 0)
+        if (groupOutput)
+            groupReplyUsed_ = false;
+        if (stopSlot >= 0) {
             stopReplyUsed_[stopSlot] = false;
+            nextStopReply_ = (unsigned(stopSlot) / 2 + 1) % MOTION_CAPACITY;
+        }
     }
     listNext();
     for (unsigned n = 0; n < INPUT_BUDGET; ++n) {
@@ -1240,7 +1334,7 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
         equal(name, "decel") || equal(name, "stepsperturn") || equal(name, "velocity") ||
         equal(name, "home") || equal(name, "enable") || equal(name, "alarm-clear") ||
         equal(name, "position-clear") || stop ||
-        (equal(name, "axis") && equal(line.token(1), "origin") && motion_)) {
+        (equal(name, "axis") && equal(line.token(1), "origin") && selectedMotion())) {
         dispatchMotion(line, now);
         return;
     }
@@ -1706,12 +1800,13 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             }
         } else if (command == RELEASE) {
             const MotionStopResult* oldStop =
-                motion_ && op->stop ? motion_->stopResult(op->stop == 1 ? L::StopKind::HALT
+                op->attachment && op->stop ? op->attachment->stopResult(op->stop == 1 ? L::StopKind::HALT
                                                                         : L::StopKind::QUICK_STOP)
                                     : nullptr;
             const bool originalMotion =
-                motion_ && (op->stop ? oldStop && oldStop->result.id == op->nativeOperation
-                                     : motion_->normalResult(op->nativeOperation) != nullptr);
+                op->attachment && (op->stop ? oldStop && oldStop->result.id == op->nativeOperation
+                                     : op->attachment->normalResult(op->nativeOperation) != nullptr);
+            const bool originalGroup = groupStop_ && groupStop_->result().id == op->nativeOperation;
             const bool originalReadStillPresent = app_.readContext().state != M::ReadState::EMPTY &&
                                                   app_.readContext().operation == op->readOperation;
             const bool originalSettings = settings_ && settings_->retained() &&
@@ -1732,10 +1827,11 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 device_->evidence()->record()->plan.id == op->nativeOperation;
             if (!op->terminal || !op->delivered ||
                 (op->motion ? originalMotion &&
-                                  (op->stop ? !motion_->releaseStop(op->stop == 1
+                                  (op->stop ? !op->attachment->releaseStop(op->stop == 1
                                                                         ? L::StopKind::HALT
                                                                         : L::StopKind::QUICK_STOP)
-                                            : !motion_->releaseNormal(op->nativeOperation))
+                                            : !op->attachment->releaseNormal(op->nativeOperation))
+                 : op->groupStop     ? originalGroup && !groupStop_->release()
                  : op->recovery      ? !owner_.releaseRecovery(op->recoveryId)
                  : op->sync          ? originalSync && !sync_->release()
                  : op->commissioning ? originalCommissioning && !commissioning_->release()
@@ -1751,13 +1847,15 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             ok();
         } else {
             const MotionStopResult* oldStop =
-                motion_ && op->stop ? motion_->stopResult(op->stop == 1 ? L::StopKind::HALT
+                op->attachment && op->stop ? op->attachment->stopResult(op->stop == 1 ? L::StopKind::HALT
                                                                         : L::StopKind::QUICK_STOP)
                                     : nullptr;
             const bool replacedMotion =
                 op->motion &&
-                (!motion_ || (op->stop ? !oldStop || oldStop->result.id != op->nativeOperation
-                                       : !motion_->normalResult(op->nativeOperation)));
+                (!op->attachment || (op->stop ? !oldStop || oldStop->result.id != op->nativeOperation
+                                       : !op->attachment->normalResult(op->nativeOperation)));
+            const bool replacedGroup = op->groupStop &&
+                (!groupStop_ || groupStop_->result().id != op->nativeOperation);
             const bool replacedSettings =
                 op->settings && (!settings_ || !settings_->retained() ||
                                  settings_->context().operation != op->nativeOperation);
@@ -1777,15 +1875,15 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 op->capture &&
                 (!device_ || !device_->evidence() || !device_->evidence()->record() ||
                  device_->evidence()->record()->plan.id != op->nativeOperation);
-            if (replacedMotion || replacedSync || replacedSettings || replacedCommissioning || replacedDiscovery ||
+            if (replacedMotion || replacedGroup || replacedSync || replacedSettings || replacedCommissioning || replacedDiscovery ||
                 replacedCapture) {
                 reject("operation_context_replaced");
                 return;
             }
             const bool cancelled =
-                !op->recovery && !op->terminal &&
-                (op->motion          ? !op->stop && motion_ &&
-                                       motion_->normalResult().id == op->nativeOperation && motion_->cancelNormal(now)
+                !op->recovery && !op->groupStop && !op->terminal &&
+                (op->motion          ? !op->stop && op->attachment &&
+                                       op->attachment->normalResult().id == op->nativeOperation && op->attachment->cancelNormal(now)
                  : op->sync          ? sync_ && sync_->cancel(now)
                  : op->commissioning ? commissioning_ && commissioning_->cancel(now)
                  : op->settings      ? settings_ && settings_->cancel(now)

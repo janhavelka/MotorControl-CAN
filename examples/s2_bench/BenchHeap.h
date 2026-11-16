@@ -79,11 +79,12 @@ class BenchArena {
      * @param kind Nonzero type tag of T. @param previousIdle The caller's statement that the
      * current occupant holds no record; false refuses any replacement.
      * @param args Constructor arguments of T, forwarded only when T is constructed.
-     * @return The occupant, or null without memory, with too small a capacity, for kind zero or
+     * @return The occupant, or null without aligned memory, with too small a capacity, for kind zero or
      * while a held occupant of another kind would have to be replaced.
      */
     template <class T, class... Args> T* acquire(unsigned kind, bool previousIdle, Args&&... args) noexcept {
-        if (!memory_ || !kind || sizeof(T) > capacity_)
+        if (!memory_ || !kind || sizeof(T) > capacity_ ||
+            reinterpret_cast<uintptr_t>(memory_) % alignof(T))
             return nullptr;
         if (kind_ == kind)
             return static_cast<T*>(memory_);

@@ -111,7 +111,9 @@ class AxisSession {
      */
     AxisSession(MotorControlCANOwner::CanBusOwner& owner) noexcept : owner_(owner) {}
     /** @param owner Expected sole owner. @return Exact stationary graph, independent of open state. */
-    bool usesOwner(const MotorControlCANOwner::CanBusOwner& owner) const noexcept { return &owner == &owner_; }
+    bool usesOwner(const MotorControlCANOwner::CanBusOwner& owner) const noexcept {
+        return &owner == &owner_;
+    }
     AxisSession(const AxisSession&) = delete;            ///< Live handles are not copyable.
     AxisSession& operator=(const AxisSession&) = delete; ///< Stationary application storage.
     /** Open on the axis's usable reservation, or take a new one for producer. With none
@@ -170,15 +172,23 @@ class AxisSession {
         return enable_.state == MotorControlCAN::ActionState::ACTIVE;
     }
     /** @return True while a move is neither finished nor failed. */
-    bool moveActive() const noexcept { return activeMove().state == MotorControlCAN::ActionState::ACTIVE; }
+    bool moveActive() const noexcept {
+        return activeMove().state == MotorControlCAN::ActionState::ACTIVE;
+    }
     /** @return True while the finite velocity run or its requested stop is unsettled. */
     bool velocityActive() const noexcept {
-        return velocity_.state == MotorControlCAN::ActionState::ACTIVE;
+        return motionKind_ == MotionStorageKind::VELOCITY &&
+               motion_.velocity.state == MotorControlCAN::ActionState::ACTIVE;
     }
     /** @return True while a home has admitted or eligible work. */
-    bool homeActive() const noexcept { return home_.state == MotorControlCAN::ActionState::ACTIVE; }
+    bool homeActive() const noexcept {
+        return motionKind_ == MotionStorageKind::HOME &&
+               motion_.home.state == MotorControlCAN::ActionState::ACTIVE;
+    }
     /** @return True while an alarm clear or counter clear is neither finished nor failed. */
-    bool clearActive() const noexcept { return clear_.state == MotorControlCAN::ActionState::ACTIVE; }
+    bool clearActive() const noexcept {
+        return clear_.state == MotorControlCAN::ActionState::ACTIVE;
+    }
     /** @return True with a stop, enable, move or clear in progress or a request unsettled, which excludes
      * new operations and reads: starting one would orphan that terminal's history. */
     bool busy() const noexcept {
@@ -198,8 +208,8 @@ class AxisSession {
      * @param[in] nowUs Nondecreasing supplied microseconds.
      * @return Owner admission. INVALID while another command is unread or a stop is active.
      */
-    MotorControlCANOwner::BusAdmission admitPrepared(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
-                                                     uint64_t nowUs) noexcept;
+    MotorControlCANOwner::BusAdmission
+    admitPrepared(const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs) noexcept;
     /** Admit one explicitly recorded bare position-parameter experiment while the last acknowledged
      * controlword is 001F. Only four-byte 607A/6081/6083/6084 subindex-zero downloads are accepted.
      * Like admitPrepared, this withdraws the controlword until settlement. Its exact successful ACK
@@ -208,8 +218,9 @@ class AxisSession {
      * moving-state, native-value, direction and finite-stop checks and the exact experiment grant.
      * @param transfer Exact current-operation work. @param experiment Nonzero retained experiment record.
      * @param nowUs Nondecreasing processing microseconds. @return Owner admission; refusal sends nothing. */
-    MotorControlCANOwner::BusAdmission admitPositionChangeParameter(
-        const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint32_t experiment, uint64_t nowUs) noexcept;
+    MotorControlCANOwner::BusAdmission
+    admitPositionChangeParameter(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                                 uint32_t experiment, uint64_t nowUs) noexcept;
     /** Consume the terminal of the admitted command and release its slot.
      * A 6040 acknowledgement of the current operation becomes the latest controlword.
      * @param[out] output Owned copy, published only when true.
@@ -287,10 +298,11 @@ class AxisSession {
      * which includes clearBlocked() and faultBlocked(). On any refusal nothing changes, and on
      * success no word has yet been admitted.
      */
-    MotorControlCAN::Status requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                          const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
-                                          const MotorControlCAN::LICHUAN_C::ActionOptions& options,
-                                          uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                  const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
+                  const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
+                  uint64_t nowUs) noexcept;
     /** Withdraw an active enable locally: no further word or read is admitted. It sends no stop and
      * undoes nothing. A request in flight settles into the context on a later service, as evidence
      * only: it cannot complete the enable, which ends with this reason. The owner
@@ -300,8 +312,8 @@ class AxisSession {
      * also sets faultBlocked().
      * @return False when no enable is active, the reason is another value or time moved backward.
      */
-    bool cancelEnable(uint64_t nowUs,
-                      MotorControlCAN::ActionOutcome reason = MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
+    bool cancelEnable(uint64_t nowUs, MotorControlCAN::ActionOutcome reason =
+                                          MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
     /** Request the gated finite absolute move on this axis. Both specimens have run it on one
      * firmware, reported by the drives only, with no shaft observed. Starts a new owner operation,
      * then prepares in place. Yields no traffic here: service() does.
@@ -327,16 +339,17 @@ class AxisSession {
      * TIME, which includes moveFenced(), clearBlocked() and faultBlocked(). On any refusal nothing
      * changes, and on success nothing has been admitted.
      */
-    MotorControlCAN::Status requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                        const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
-                                        const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
-                                        const MotorControlCAN::MoveRequest& request,
-                                        const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
-                                        const MotorControlCAN::LICHUAN_C::DriverContext* stored,
-                                        const MotorControlCAN::AxisConfig& axis,
-                                        const MotorControlCAN::AxisReference* reference,
-                                        const MotorControlCAN::LICHUAN_C::MoveOptions& options,
-                                        uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                const MotorControlCAN::MoveRequest& request,
+                const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                const MotorControlCAN::AxisConfig& axis,
+                const MotorControlCAN::AxisReference* reference,
+                const MotorControlCAN::LICHUAN_C::MoveOptions& options, uint64_t deadlineUs,
+                uint64_t nowUs) noexcept;
     /** Request the gated finite relative move on this axis, through the same path as requestMove.
      * It refuses with UNSUPPORTED unless the caller's evidence names the drive's measured base;
      * only node 1 has one, ACTUAL, on one firmware, from drive reports only. Each call is one new
@@ -357,16 +370,17 @@ class AxisSession {
      * @param[in] nowUs As requestMove.
      * @return prepareMoveRelative's status, or a local refusal as requestMove's.
      */
-    MotorControlCAN::Status requestMoveRelative(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                                const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
-                                                const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
-                                                const MotorControlCAN::MoveRequest& request,
-                                                const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
-                                                const MotorControlCAN::LICHUAN_C::DriverContext* stored,
-                                                const MotorControlCAN::AxisConfig& axis,
-                                                const MotorControlCAN::AxisReference& reference,
-                                                const MotorControlCAN::LICHUAN_C::MoveOptions& options,
-                                                uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestMoveRelative(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                        const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                        const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                        const MotorControlCAN::MoveRequest& request,
+                        const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                        const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                        const MotorControlCAN::AxisConfig& axis,
+                        const MotorControlCAN::AxisReference& reference,
+                        const MotorControlCAN::LICHUAN_C::MoveOptions& options, uint64_t deadlineUs,
+                        uint64_t nowUs) noexcept;
     /** Request a wrapped angle through prepareMoveAngle and the ordinary finite move/owner path.
      * Conversion and validation precede owner admission; a refusal preserves queued work and the
      * retained move. The axis and reference are borrowed until terminal, as for requestMoveRelative.
@@ -423,34 +437,38 @@ class AxisSession {
      * @param[in] nowUs Nondecreasing preparation time in microseconds.
      * @return Preparation status; refusal publishes nothing and admits no work.
      */
-    MotorControlCAN::Status requestVelocity(
-        const MotorControlCAN::LICHUAN_C::ReadContext& state,
-        const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
-        const MotorControlCAN::LICHUAN_C::VelocityEvidence& evidence,
-        const MotorControlCAN::FiniteVelocityRequest& request,
-        const MotorControlCAN::LICHUAN_C::VelocityProfile& profile,
-        const MotorControlCAN::AxisConfig& axis,
-        const MotorControlCAN::LICHUAN_C::VelocityOptions& options,
-        uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestVelocity(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                    const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                    const MotorControlCAN::LICHUAN_C::VelocityEvidence& evidence,
+                    const MotorControlCAN::FiniteVelocityRequest& request,
+                    const MotorControlCAN::LICHUAN_C::VelocityProfile& profile,
+                    const MotorControlCAN::AxisConfig& axis,
+                    const MotorControlCAN::LICHUAN_C::VelocityOptions& options, uint64_t deadlineUs,
+                    uint64_t nowUs) noexcept;
     /** Admit one positive rate change between complete observation cycles. No new owner operation,
      * stop budget or deadline is created. Refusal changes nothing and sends nothing.
      * @param request Exact signed engineering rate. @param evidence Explicit change scope, closed by default.
      * @param nowUs Nondecreasing processing microseconds. @return Native validation or busy refusal. */
-    MotorControlCAN::Status requestVelocityChange(
-        const MotorControlCAN::VelocityRequest& request,
-        const MotorControlCAN::LICHUAN_C::VelocityChangeEvidence& evidence, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestVelocityChange(const MotorControlCAN::VelocityRequest& request,
+                          const MotorControlCAN::LICHUAN_C::VelocityChangeEvidence& evidence,
+                          uint64_t nowUs) noexcept;
     /** Replace the active absolute move at a clean observation boundary, retaining both contexts.
      * Only one replacement is retained; a stop request always prevents this handoff. The original
      * and replacement contexts stay until the next successful ordinary move admission or reopen.
      * @param request Exact changed fields and edge policy. @param evidence Explicit per-field scope.
      * @param feedback Independent command/feedback relation, required for a changed endpoint.
      * @param nowUs Nondecreasing processing microseconds. @return Atomic validation/admission status. */
-    MotorControlCAN::Status requestMoveReplacement(
-        const MotorControlCAN::LICHUAN_C::MoveReplacementRequest& request,
-        const MotorControlCAN::LICHUAN_C::MoveReplacementEvidence& evidence,
-        const MotorControlCAN::LICHUAN_C::MoveFeedbackRelation* feedback, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestMoveReplacement(const MotorControlCAN::LICHUAN_C::MoveReplacementRequest& request,
+                           const MotorControlCAN::LICHUAN_C::MoveReplacementEvidence& evidence,
+                           const MotorControlCAN::LICHUAN_C::MoveFeedbackRelation* feedback,
+                           uint64_t nowUs) noexcept;
     /** @return Original retained move, including its independent outcome after replacement. */
-    const MotorControlCAN::LICHUAN_C::MoveContext& originalMoveAction() const noexcept { return move_; }
+    const MotorControlCAN::LICHUAN_C::MoveContext& originalMoveAction() const noexcept {
+        return move_;
+    }
     /** Withdraw finite velocity locally, without a stop or replay. Queued unsent work is cancelled;
      * an accepted transfer retains its own terminal evidence. A checked fault fences later motion.
      * @param[in] nowUs Nondecreasing processing time in microseconds.
@@ -460,8 +478,11 @@ class AxisSession {
     bool cancelVelocity(uint64_t nowUs,
                         MotorControlCAN::VelocityInterruption reason =
                             MotorControlCAN::VelocityInterruption::CANCELLED) noexcept;
-    /** @return Concrete retained velocity context; a later separately requested stop never rewrites it. */
-    const MotorControlCAN::LICHUAN_C::VelocityContext& velocityAction() const noexcept { return velocity_; }
+    /** @return Concrete retained velocity context, or immutable EMPTY when none is stored.
+     * Velocity and home share one slot. A successful home admission ends this reference's
+     * lifetime; refusal and separate stops preserve it. Copy needed history before that admission.
+     * Reopening clears velocity context as before; its unresolved-stop fence survives. */
+    const MotorControlCAN::LICHUAN_C::VelocityContext& velocityAction() const noexcept;
     /** @return Last complete velocity observation, never the read in progress. The two read buffers
      * are shared with moves; starting either operation invalidates this view's former contents. */
     const MotorControlCAN::LICHUAN_C::ReadContext& velocityObservation() const noexcept {
@@ -513,8 +534,11 @@ class AxisSession {
      */
     bool cancelHome(uint64_t nowUs, MotorControlCAN::HomeInterruption reason =
                                         MotorControlCAN::HomeInterruption::CANCELLED) noexcept;
-    /** @return Retained concrete home; a separate stop retains its own terminal. */
-    const MotorControlCAN::LICHUAN_C::HomeContext& homeAction() const noexcept { return home_; }
+    /** @return Retained concrete home, or immutable EMPTY when none is stored.
+     * A successful velocity admission retires this native context and ends borrowed references
+     * to it; failed admission, separate stops and reopen preserve it. Published caller-owned
+     * AxisReference and persistent fences are independent of this shared storage. */
+    const MotorControlCAN::LICHUAN_C::HomeContext& homeAction() const noexcept;
     /** @return Last complete home cycle; shares the two motion observation buffers. */
     const MotorControlCAN::LICHUAN_C::ReadContext& homeObservation() const noexcept {
         return moveReads_[moveComplete_];
@@ -556,11 +580,12 @@ class AxisSession {
      * nothing sent and STATE is returned. The owner keeps only the latest EMCY: an application that
      * needs the incident's EMCY copies it before this call, and routes a later one to cancelClear.
      */
-    MotorControlCAN::Status requestClearAlarm(
-        const MotorControlCAN::LICHUAN_C::ReadContext& state,
-        const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs, uint64_t nowUs,
-        MotorControlCAN::LICHUAN_C::AlarmClearMethod method =
-            MotorControlCAN::LICHUAN_C::AlarmClearMethod::CONTROLWORD_BIT7) noexcept;
+    MotorControlCAN::Status
+    requestClearAlarm(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                      const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
+                      uint64_t nowUs,
+                      MotorControlCAN::LICHUAN_C::AlarmClearMethod method =
+                          MotorControlCAN::LICHUAN_C::AlarmClearMethod::CONTROLWORD_BIT7) noexcept;
     /** Request one explicit zero-only device counter clear on this axis through
      * prepareSetDevicePosition: 2302 U16 0, 1, 0, each after the previous acknowledgement, all on the
      * original binding. No specimen has run it. Starts a new owner operation, then prepares
@@ -594,11 +619,11 @@ class AxisSession {
      * @return prepareSetDevicePosition's status, or a local refusal as requestClearAlarm's, which
      * here includes faultBlocked().
      */
-    MotorControlCAN::Status requestCounterZero(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                               int64_t nativePosition, MotorControlCAN::AxisConfig& axis,
-                                               MotorControlCAN::AxisReference& reference,
-                                               const MotorControlCAN::LICHUAN_C::ActionOptions& options,
-                                               uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status
+    requestCounterZero(const MotorControlCAN::LICHUAN_C::ReadContext& state, int64_t nativePosition,
+                       MotorControlCAN::AxisConfig& axis, MotorControlCAN::AxisReference& reference,
+                       const MotorControlCAN::LICHUAN_C::ActionOptions& options,
+                       uint64_t deadlineUs, uint64_t nowUs) noexcept;
     /** Withdraw an active alarm clear or counter clear locally: no further write or read is admitted, and
      * a write the owner has not yet handed to the controller is cancelled. It sends no stop and undoes
      * nothing: a coordinate withdrawal stays, and a 1 that may have landed without an acknowledged 0
@@ -611,8 +636,8 @@ class AxisSession {
      * @return False, with nothing changed, when no clear is active, the reason is another value or the
      * time is behind this session's or the owner's last time.
      */
-    bool cancelClear(uint64_t nowUs,
-                     MotorControlCAN::ActionOutcome reason = MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
+    bool cancelClear(uint64_t nowUs, MotorControlCAN::ActionOutcome reason =
+                                         MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
     /** The pre-transmit recheck of this session's move downloads. Call it from the application's
      * Transport::beforeTransmit, for the session that holds the sequence, and return its result. It
      * runs inside the owner's service turn, performs no owner call and keeps only a refusal reason.
@@ -661,9 +686,12 @@ class AxisSession {
      * @param[in] count Entries in contexts.
      * @return False, with nothing changed, while busy or for an invalid list.
      */
-    bool retainSettings(MotorControlCAN::LICHUAN_C::DriverContext* const* contexts, uint8_t count) noexcept;
+    bool retainSettings(MotorControlCAN::LICHUAN_C::DriverContext* const* contexts,
+                        uint8_t count) noexcept;
     /** @return Retained context of the latest move; EMPTY if never prepared. */
-    const MotorControlCAN::LICHUAN_C::MoveContext& moveAction() const noexcept { return activeMove(); }
+    const MotorControlCAN::LICHUAN_C::MoveContext& moveAction() const noexcept {
+        return activeMove();
+    }
     /** @return The move's last complete observation cycle, or an EMPTY read before the first one. A
      * valid requestStop state once fresh; never the cycle in progress. */
     const MotorControlCAN::LICHUAN_C::ReadContext& moveObservation() const noexcept {
@@ -705,16 +733,21 @@ class AxisSession {
     /** @param[in] kind Selection to inspect.
      * @return Retained context of that sequenced stop; EMPTY if never prepared.
      */
-    const MotorControlCAN::LICHUAN_C::ActionContext& stopAction(MotorControlCAN::LICHUAN_C::StopKind kind) const noexcept {
+    const MotorControlCAN::LICHUAN_C::ActionContext&
+    stopAction(MotorControlCAN::LICHUAN_C::StopKind kind) const noexcept {
         return stops_[static_cast<unsigned>(kind)];
     }
     /** @return Retained context of the latest enable; EMPTY if never prepared. Its read is a
      * valid state argument for requestStop once a cycle after the acknowledged 000F has finished. */
-    const MotorControlCAN::LICHUAN_C::ActionContext& enableAction() const noexcept { return enable_; }
+    const MotorControlCAN::LICHUAN_C::ActionContext& enableAction() const noexcept {
+        return enable_;
+    }
     /** @return True once this object has admitted a write that refuses a later enable. */
     bool motionHistoryWritten() const noexcept { return motionWritten_; }
     /** @return Retained context of the best-effort branch; EMPTY if never taken. */
-    const MotorControlCAN::LICHUAN_C::BestEffortStop& bestEffort() const noexcept { return bestEffort_; }
+    const MotorControlCAN::LICHUAN_C::BestEffortStop& bestEffort() const noexcept {
+        return bestEffort_;
+    }
     /** @return Earlier best-effort attempt a controller fault ended unsent; EMPTY if none. */
     const MotorControlCAN::LICHUAN_C::BestEffortStop& firstBestEffort() const noexcept {
         return firstBestEffort_;
@@ -731,7 +764,8 @@ class AxisSession {
     MotorControlCAN::LICHUAN_C::AxisReservation reservation_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCANOwner::RequestId pending_, urgent_, superseded_;
-    MotorControlCANOwner::RequestId positionParameter_; ///< Exact explicitly admitted bare experiment ticket.
+    MotorControlCANOwner::RequestId
+        positionParameter_; ///< Exact explicitly admitted bare experiment ticket.
     MotorControlCAN::CANOPEN::SdoTransfer pendingWork_, urgentWork_;
     // The admitted download that withdrew a present control_; if it closes provably unsent, control_
     // is the latest again. Cleared by any other change of the latest word.
@@ -759,8 +793,17 @@ class AxisSession {
     const MotorControlCAN::LICHUAN_C::MoveContext& activeMove() const noexcept {
         return replacementActive_ ? replacement_ : move_;
     }
-    MotorControlCAN::LICHUAN_C::VelocityContext velocity_;
-    MotorControlCAN::LICHUAN_C::HomeContext home_;
+    // Both admissions reject every unresolved motion fence. Clear cannot share this storage:
+    // an alarm clear is permitted while an older velocity/home still needs a stop. Enable stays
+    // separate because callers borrow enableAction().read into later motion/stop admission.
+    enum class MotionStorageKind : uint8_t { EMPTY, VELOCITY, HOME };
+    union MotionStorage {
+        MotorControlCAN::LICHUAN_C::VelocityContext velocity;
+        MotorControlCAN::LICHUAN_C::HomeContext home;
+        MotionStorage() noexcept {}
+        ~MotionStorage() noexcept {}
+    } motion_;
+    MotionStorageKind motionKind_ = MotionStorageKind::EMPTY;
     MotorControlCAN::LICHUAN_C::AxisReservation homeReservation_;
     MotorControlCAN::LICHUAN_C::ReadTarget homeTarget_;
     MotorControlCAN::AxisConfig* homeAxis_ = nullptr;
@@ -771,7 +814,8 @@ class AxisSession {
     uint64_t homeCommandAfterUs_ = 0;
     uint32_t homeStopOperation_ = 0;
     const MotorControlCAN::AxisConfig* velocityAxis_ = nullptr;
-    MotorControlCAN::VelocityInterruption velocityWithdrawn_ = MotorControlCAN::VelocityInterruption::NONE;
+    MotorControlCAN::VelocityInterruption velocityWithdrawn_ =
+        MotorControlCAN::VelocityInterruption::NONE;
     MotorControlCAN::Status velocityRefusal_;
     bool velocityNeedsStop_ = false, scheduledVelocityStop_ = false;
     // requestingVelocityStop_: the run's own requested stop is being composed. unqualifiedStop_: the
@@ -806,11 +850,12 @@ class AxisSession {
     bool faultBlocked_ = false;
 
     bool usable() const noexcept;
+    bool motionStorageReusable() const noexcept;
     uint64_t latestUs() const noexcept;
     void dropControl() noexcept;
     void keepUnsentControl(const MotorControlCAN::CANOPEN::SdoCompletion& terminal) noexcept;
-    MotorControlCANOwner::BusAdmission admitWork(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
-                                                 uint64_t nowUs) noexcept;
+    MotorControlCANOwner::BusAdmission
+    admitWork(const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs) noexcept;
     bool takeTerminal(MotorControlCAN::CANOPEN::SdoCompletion& output) noexcept;
     void withdrawEnable(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void serviceEnable(uint64_t nowUs) noexcept;
@@ -843,19 +888,18 @@ class AxisSession {
     void afterHome() noexcept;
     bool syncHome(uint64_t nowUs) noexcept;
     void settleHomeStop(uint64_t nowUs) noexcept;
-    MotorControlCAN::Status startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                       int64_t nativePosition, MotorControlCAN::AxisConfig* axis,
-                                       MotorControlCAN::AxisReference* reference,
-                                       const MotorControlCAN::LICHUAN_C::ActionOptions& options,
-                                       uint64_t deadlineUs, uint64_t nowUs,
-                                       MotorControlCAN::LICHUAN_C::AlarmClearMethod method) noexcept;
+    MotorControlCAN::Status
+    startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state, int64_t nativePosition,
+               MotorControlCAN::AxisConfig* axis, MotorControlCAN::AxisReference* reference,
+               const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
+               uint64_t nowUs, MotorControlCAN::LICHUAN_C::AlarmClearMethod method) noexcept;
     void withdrawClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void endClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void afterClear() noexcept;
     bool syncCounter(uint64_t nowUs) noexcept;
     void serviceClear(uint64_t nowUs) noexcept;
-    bool stateRefuses(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,
-                      uint64_t nowUs) const noexcept;
+    bool stateRefuses(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                      const StopPolicy& policy, uint64_t nowUs) const noexcept;
     bool freshlyIdle(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,
                      uint64_t nowUs) const noexcept;
     bool controllerMoved(MotorControlCAN::Generation before) const noexcept;

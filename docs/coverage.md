@@ -325,3 +325,12 @@ The [initial measurements](reports/prompt_52_measurements.md) distinguish
 observed effects, ignored active-curve writes and remaining uncertainty. Gates
 are per field and specimen; no new family-wide or physical qualification is
 claimed. Prompt54 owns qualification of the finished operations.
+
+## Prompt53 application concurrency
+
+Per-axis console attachments, retained changes and independent stops, reserved
+group results and configurable owner capacity compose existing public operations.
+Native tests exercise concurrent motion and refusal/fault/loss under pressure;
+they do not qualify a physical group stop. [The multi-axis guide](multi_axis.md)
+keeps M09 shared-RPDO and Q28 synchronous-start gates visible. No installed
+profile or common motion API is added merely to represent a group.

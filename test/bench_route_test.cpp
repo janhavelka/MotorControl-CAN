@@ -4,12 +4,14 @@
 // response and movement here is manufactured by this fake: nothing shows what a CL86-C does.
 #include "BenchRoute.h"
 #include "CommunicationBench.h"
+#include "BenchHeap.h"
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace M = MotorControlCAN;
@@ -37,8 +39,10 @@ struct Rig {
     C::SdoClient services;
     Console console;
     Driver driver;
+    E::AcquisitionRecord acquisitionStorage;
     E::FirmwareProbe firmware;
     E::AxisSession one, two;
+    E::RouteRecord routeStorage;
     E::BenchRoute route;
     E::RouteWork routeWork;
     // The K and H records of the same image, on the same owner and services; idle unless a test begins one.
@@ -63,8 +67,8 @@ struct Rig {
     }
     // work: attach RouteWork, as the firmware does on the first route that needs it.
     explicit Rig(bool work = true)
-        : firmware(services, driver.callbacks(), console.callbacks()), one(firmware.owner()),
-          two(firmware.owner()), route(firmware, services, hooks(this)), comm(firmware.owner(), services),
+        : firmware(services, driver.callbacks(), console.callbacks(), &acquisitionStorage), one(firmware.owner()),
+          two(firmware.owner()), route(firmware, services, hooks(this), &routeStorage), comm(firmware.owner(), services),
           commission(firmware.owner(), services) {
         E::DownloadPreflight check;
         check.context = this;
@@ -4183,6 +4187,49 @@ void testCloseRefusals() {
 }
 // What a close drops and keeps: the latest controlword goes, so HOME refuses as after an MCU restart; the
 // write history, mode record, trial identity, caps and counters stay with the session and route objects.
+void testBorrowedRecordArena() {
+    scenario = "borrowed-record-arena";
+    std::unique_ptr<Rig> r(new Rig);
+    typedef std::aligned_storage<(sizeof(E::RouteRecord) > sizeof(E::AcquisitionRecord)
+                                     ? sizeof(E::RouteRecord) : sizeof(E::AcquisitionRecord)),
+                                (alignof(E::RouteRecord) > alignof(E::AcquisitionRecord)
+                                     ? alignof(E::RouteRecord) : alignof(E::AcquisitionRecord))>::type Storage;
+    std::unique_ptr<Storage> bytes(new Storage);
+    E::BenchArena arena;
+    arena.adopt(bytes.get(), sizeof *bytes);
+    CHECK(r->route.bindRecordStorage(nullptr));
+    CHECK(refusedAs(r->start("A1,21"), "memory"));
+    CHECK(!r->route.bindRecordStorage(reinterpret_cast<E::RouteRecord*>(&r->route)));
+    CHECK(!r->route.bindRecordStorage(reinterpret_cast<E::RouteRecord*>(&r->firmware)));
+    CHECK(!r->route.bindRecordStorage(reinterpret_cast<E::RouteRecord*>(&r->services)));
+    CHECK(!r->route.bindRecordStorage(reinterpret_cast<E::RouteRecord*>(&r->one)));
+    CHECK(!r->route.bindRecordStorage(reinterpret_cast<E::RouteRecord*>(&r->routeWork)));
+    E::RouteRecord* route = arena.acquire<E::RouteRecord>(1, true);
+    CHECK(route && r->route.bindRecordStorage(route));
+    CHECK(!r->start("A1,21"));
+    CHECK(r->route.record() == route && r->route.bindRecordStorage(route));
+    CHECK(!r->route.bindRecordStorage(nullptr) && !r->route.bindRecordStorage(&r->routeStorage));
+    CHECK(!arena.acquire<E::AcquisitionRecord>(2, !r->route.record()));
+    finishRoute(*r);
+    const uint32_t terminals = route->terminalCount;
+    CHECK(terminals && !r->route.bindRecordStorage(nullptr));
+    CHECK(!arena.acquire<E::AcquisitionRecord>(2, !r->route.record()));
+    CHECK(route->terminalCount == terminals && route->plan.trial == 21 && arena.kind() == 1);
+    r->release();
+    CHECK(r->route.bindRecordStorage(nullptr));
+    E::AcquisitionRecord* acquisition = arena.acquire<E::AcquisitionRecord>(2, !r->route.record());
+    CHECK(acquisition && static_cast<void*>(acquisition) == static_cast<void*>(route));
+    CHECK(r->firmware.evidence().bindRecordStorage(acquisition));
+    CHECK(!r->firmware.evidence().record() && !r->route.record() && r->route.attached(1));
+    r->turns(10); // Detached idle route never touches the other live type in the shared block.
+    CHECK(r->firmware.evidence().bindRecordStorage(nullptr));
+    route = arena.acquire<E::RouteRecord>(1, true);
+    CHECK(route && r->route.bindRecordStorage(route));
+    CHECK(refusedAs(r->start("A1,21"), "trial"));
+    CHECK(r->run("A1,22").plan.trial == 22);
+    r->release();
+    CHECK(r->route.bindRecordStorage(nullptr));
+}
 void testCloseKeepsHistory() {
     scenario = "close-keeps-history";
     std::unique_ptr<Rig> r(new Rig);
@@ -4194,6 +4241,11 @@ void testCloseKeepsHistory() {
     const E::RouteRecord& before = r->run(homeLine(1, trial));
     CHECK(before.failure == E::RouteFailure::REFUSED && before.statusCode == 3 && before.statusDetail == 7);
     r->release();
+    // Rebinding a different caller-owned record changes no persistent control/history state.
+    std::unique_ptr<E::RouteRecord> other(new E::RouteRecord);
+    const C::SdoCompletion* latest = r->one.latestControl();
+    CHECK(latest && r->route.bindRecordStorage(nullptr) && r->route.bindRecordStorage(other.get()));
+    CHECK(r->one.latestControl() == latest && r->route.motionAdmissions() == 2);
     const size_t sent = r->driver.requests.size();
     CHECK(closeAll(*r) == 1 && !r->one.latestControl() && !reserved(*r, 1));
     CHECK(r->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && r->route.kept(2) == 0);
@@ -4260,6 +4312,9 @@ void testCloseKeepsFaultFence() {
     CHECK(m.failure == E::RouteFailure::SERVICE && std::strcmp(m.why, "uncertain") == 0);
     u->turns(400);
     u->release();
+    std::unique_ptr<E::RouteRecord> changedStorage(new E::RouteRecord);
+    CHECK(u->route.bindRecordStorage(nullptr) && u->route.bindRecordStorage(changedStorage.get()));
+    CHECK(u->services.unresolved(0) && u->one.motionHistoryWritten());
     CHECK(closeAll(*u) == 1 && u->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && !reserved(*u, 1));
     const size_t after = u->driver.requests.size();
     // The session reopens without a reservation, as AxisSession::open does on an unresolved route, and the
@@ -7684,6 +7739,7 @@ int main(int argc, char** argv) {
     testLoop();
     testLoopFailures();
     testCloseRefusals();
+    testBorrowedRecordArena();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();
     testCloseConfigurationOwed();

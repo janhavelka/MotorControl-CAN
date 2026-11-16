@@ -405,7 +405,7 @@
             "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
           ],
-          "api": "ProbeMotion::requestStop/AxisSession",
+          "api": "ProbeMotion::requestStop/GroupStop",
           "dispatch": "ProbeMotion::requestStop",
           "console_dispatch": {
             "path": "examples/common/ProbeConsoleMotion.cpp",

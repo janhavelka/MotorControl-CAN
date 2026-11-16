@@ -29,10 +29,11 @@ struct Fixture {
     O::CanBusOwner owner;
     E::ProbePlatform platform;
     E::ProbeApp app;
+    E::AcquisitionRecord acquisitionStorage;
     E::DeviceEvidence evidence;
     explicit Fixture(E::FakeTransport::Mode mode)
         : fake(mode), owner(services, fake.callbacks(), 29), platform(callbacks(fake)),
-          app(owner, platform), evidence(app, owner, E::EvidenceEnvironment::HOST_FAKE) {}
+          app(owner, platform), evidence(app, owner, &acquisitionStorage, E::EvidenceEnvironment::HOST_FAKE) {}
     bool initialize() {
         const L::ReadTarget target = E::FakeTransport::target();
         C::NetworkRoute network;
@@ -200,7 +201,8 @@ bool successAndGate() {
     Fixture f(E::FakeTransport::Mode::SUCCESS);
     if (!f.initialize())
         return false;
-    E::DeviceEvidence device(f.app, f.owner); // DEVICE is the default environment.
+    E::AcquisitionRecord deviceStorage;
+    E::DeviceEvidence device(f.app, f.owner, &deviceStorage); // DEVICE is the default environment.
     if (device.request(plan(1, L::ReadKind::CONFIG, 0), 0) !=
             E::EvidenceAdmission::READ_EFFECT_UNQUALIFIED ||
         device.record() || f.fake.transmitCalls())

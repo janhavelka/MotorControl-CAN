@@ -160,11 +160,14 @@ class FirmwareProbe {
      * @param services Sole stationary service store, outlives this assembly.
      * @param driver Copied controller callbacks and stationary borrowed context.
      * @param callbacks Copied platform callbacks; nowUs required and idle must be null.
+     * @param storage Borrowed DeviceEvidence record, or null until explicit idle binding through
+     * evidence(). Collector history remains in this assembly when storage is detached.
      * @param silent Copied application GPIO for a configured transceiver silent input;
      * default none. A configuration naming a silent pin is refused without it.
      */
     FirmwareProbe(MotorControlCAN::CANOPEN::SdoClient& services, TwaiDriver driver,
-                  const ProbeCallbacks& callbacks, const SilentPin& silent = SilentPin()) noexcept;
+                  const ProbeCallbacks& callbacks, AcquisitionRecord* storage,
+                  const SilentPin& silent = SilentPin()) noexcept;
     FirmwareProbe(const FirmwareProbe&) = delete; ///< Stationary callback/handle ownership.
     FirmwareProbe& operator=(const FirmwareProbe&) = delete; ///< Cannot move live state.
     /** Passive startup: validate board facts and request a configured transceiver silent.

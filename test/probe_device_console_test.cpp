@@ -167,13 +167,14 @@ struct Rig {
     E::ProbePlatform platform;
     O::CanBusOwner owner;
     E::ProbeApp app;
+    E::AcquisitionRecord acquisitionStorage;
     E::DeviceEvidence evidence;
     E::ProbeDevice device;
     E::ProbeConsole console;
     uint64_t now = 0;
     explicit Rig(E::FakeTransport::Mode mode = E::FakeTransport::Mode::SUCCESS)
         : wire(mode), platform(bytes.callbacks()), owner(services, wire.callbacks(), 127),
-          app(owner, platform), evidence(app, owner), device(app, owner, services, &evidence),
+          app(owner, platform), evidence(app, owner, &acquisitionStorage), device(app, owner, services, &evidence),
           console(app, owner, platform) {
         const auto target = E::FakeTransport::target();
         CHECK(services.configure(0, target.channel, true, true));
@@ -522,9 +523,10 @@ void captureRejectsForeignCollectorsBeforeAdmission() {
     Rig local, foreign;
     foreign.select();
     E::ProbeApp app(local.owner, local.platform);
-    E::DeviceEvidence wrongApp(foreign.app, local.owner);
-    E::DeviceEvidence wrongOwner(app, foreign.owner);
-    E::DeviceEvidence matching(app, local.owner);
+    E::DeviceEvidence wrongApp(foreign.app, local.owner, nullptr);
+    E::DeviceEvidence wrongOwner(app, foreign.owner, nullptr);
+    E::AcquisitionRecord matchingStorage;
+    E::DeviceEvidence matching(app, local.owner, &matchingStorage);
     E::ProbeConsole console(app, local.owner, local.platform);
     E::DeviceEvidence* rejected[] = {&foreign.evidence, &wrongApp, &wrongOwner};
     const E::AcquisitionPlan plan = capturePlan(foreign, L::ReadKind::IDENTITY);
@@ -606,9 +608,15 @@ void resultAndOutputPressureNeverOrphanReads() {
     r.select();
     contains(r.command("@10 probe"), "SUCCESS");
     // Keep the first console correlation but release its already copied app result, as another
-    // cooperative application consumer can. A passive scan then fills the second console slot.
+    // cooperative application consumer can. A passive scan holds another real correlation.
     CHECK(r.app.releaseRead());
     contains(r.command("@11 discover passive 1 0", 2000), "\"type\":\"terminal\"");
+    // Capacity scales with the configured channel count. Fill every remaining slot
+    // with a completed real probe and keep the console's copied terminal evidence.
+    for (unsigned slot = 2; slot < E::ProbeConsole::OPERATION_CAPACITY; ++slot) {
+        contains(r.command("@" + std::to_string(100 + slot) + " probe"), "SUCCESS");
+        CHECK(r.app.releaseRead());
+    }
     const unsigned before = r.attempts();
     contains(r.command("@12 probe"), "\"ok\":false");
     CHECK(r.app.readContext().state == M::ReadState::EMPTY && r.attempts() == before);
@@ -1023,7 +1031,7 @@ void inactiveFirmwareRecoveryCannotStartController() {
         C::SdoClient services;
         Driver driver;
         Bytes bytes;
-        E::FirmwareProbe firmware(services, driver.callbacks(), bytes.callbacks());
+        E::FirmwareProbe firmware(services, driver.callbacks(), bytes.callbacks(), nullptr);
         E::FirmwareConfig config;
         config.configured = true;
         config.controller.txPin = 4;

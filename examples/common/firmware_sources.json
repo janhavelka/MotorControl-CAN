@@ -9,6 +9,8 @@
     "examples/common/ProbeSync.cpp",
     "examples/common/ProbeConsoleMotion.cpp",
     "examples/common/ProbeMotion.cpp",
+    "examples/common/GroupStop.cpp",
+    "examples/common/WiredStopOutput.cpp",
     "examples/common/MotionIntent.cpp",
     "examples/common/ProbeDevice.cpp",
     "examples/common/ProbeSettings.cpp",

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Independent axes and group stop
+
+- Register multiple motion attachments and distinct owner producers; stop one
+  logical axis or an explicit group while preserving every axis's result.
+- Reserve per-axis stop and group output under ordinary console pressure. Keep
+  bench arming evidence owned by each axis when the acquisition record is reused.
+- Add a finite paired runner with shared durable effect caps, separate planned
+  stops and retained processing-time trigger skew. It makes no synchrony claim.
+- Add an explicit example wired-stop callback and optional startup cold-storage
+  allocation with internal fallback. Hot owner/stop/driver storage stays internal.
+- Reduce S2 example RAM through reviewed SDK settings, exclusive acquisition/route
+  records and a tagged home/velocity context. Preserve contexts needed by stops.
+- Keep controlword-only RPDO mapping, physical multi-axis tests and S3/PSRAM
+  runtime qualification separately gated.
+
 ### Changes during finite motion
 
 - Add explicit evidence-gated positive velocity changes without restarting the

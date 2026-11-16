@@ -149,15 +149,43 @@ AxisSession* ProbeApp::axis(const M::Binding& binding) noexcept {
             return session;
     return nullptr;
 }
+uint8_t ProbeApp::producerFor(const M::Binding& binding) const noexcept {
+    SequenceId existing;
+    const Sequence* adopted = owner_.findSequence(binding, existing) ? owner_.sequence(existing) : nullptr;
+    for (unsigned producer = 1; producer <= unsigned(CanBusOwner::PRODUCERS); ++producer) {
+        if (adopted && adopted->producer != producer)
+            continue;
+        bool used = false;
+        for (const AxisSession* session : axes_) {
+            const Sequence* held = session && session->isOpen() ? owner_.sequence(session->sequence()) : nullptr;
+            if (held && held->producer == producer && !M::sameBinding(session->binding(), binding))
+                used = true;
+        }
+        const Sequence* read = readOwnsSequence_ ? owner_.sequence(sequence_) : nullptr;
+        if (read && read->producer == producer && !same(sequence_, existing))
+            used = true;
+        if (!used)
+            return uint8_t(producer);
+    }
+    return 0;
+}
 AxisSession* ProbeApp::openAxis(AxisSession& session, const L::ReadTarget& target,
                                 L::SettingsModel model, uint64_t now) noexcept {
     if (!session.usesOwner(owner_) || axis(target.channel.binding))
         return nullptr;
+    const uint8_t producer = producerFor(target.channel.binding);
+    if (!producer)
+        return nullptr;
     for (AxisSession*& held : axes_) {
         if (held && held->isOpen())
             continue;
-        if (!session.open(target, model, 1, now))
+        if (!session.open(target, model, producer, now))
             return nullptr;
+        // A closed session may have occupied a later slot. Reopening it must not
+        // leave two pointers that service the same context twice or consume two axes.
+        for (AxisSession*& previous : axes_)
+            if (previous == &session)
+                previous = nullptr;
         held = &session;
         if (readOwnsSequence_ && driverRead_.read.state != M::ReadState::EMPTY &&
             same(session.sequence(), sequence_)) {
@@ -247,7 +275,7 @@ M::Status ProbeApp::requestAt(L::ReadKind kind, const L::ReadTarget& target, uin
             return permitted;
     }
     SequenceId sequence = held;
-    if (!session && !owner_.beginSequence(target.channel.binding, 1, now, sequence))
+    if (!session && !owner_.beginSequence(target.channel.binding, producerFor(target.channel.binding), now, sequence))
         return M::Status(M::Err::INVALID_CONFIG, 0, "owner cannot reserve the selected binding");
     const Sequence* reservation = owner_.sequence(sequence);
     if (!reservation || reservation->nodeGeneration != target.nodeGeneration ||

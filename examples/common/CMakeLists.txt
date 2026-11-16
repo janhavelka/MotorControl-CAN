@@ -3,7 +3,7 @@ if(NOT TARGET MotorControlCAN::CanBusOwner)
 endif()
 # Application/platform code is optional and never installed with the portable core.
 add_library(MotorControlCANProbeApp STATIC AxisSession.cpp ProbeApp.cpp ProbeAppLocal.cpp ProbeConsole.cpp ProbeSync.cpp ProbeConsoleMotion.cpp ProbeMotion.cpp MotionIntent.cpp ProbeDevice.cpp ProbeSettings.cpp ProbeCommissioning.cpp ProbePlatform.cpp
-            DeviceEvidence.cpp DiscoveryScan.cpp ConfigurationRestore.cpp)
+            DeviceEvidence.cpp DiscoveryScan.cpp ConfigurationRestore.cpp GroupStop.cpp WiredStopOutput.cpp)
 target_include_directories(MotorControlCANProbeApp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(MotorControlCANProbeApp PUBLIC MotorControlCAN::CanBusOwner)
 set_target_properties(MotorControlCANProbeApp PROPERTIES

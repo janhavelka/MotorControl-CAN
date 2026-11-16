@@ -386,7 +386,7 @@ void congestedEscalationKeepsIndependentResults() {
     CHECK(r.a.moveObservation().state == M::ReadState::SUCCEEDED);
     CHECK(r.motion.retained() && r.motion.normalResult().state == M::ActionState::ACTIVE);
     // Both ordinary correlations stay retained; neither may be evicted to admit stop.
-    CHECK(E::ProbeConsole::OPERATION_CAPACITY == 2);
+    CHECK(E::ProbeConsole::OPERATION_CAPACITY == 2 * C::SdoClient::CHANNELS);
     CHECK(r.motion.setStopPrerequisites(r.a.moveObservation(), stopPolicy(r)));
     r.bytes.blocked = true;
     uint8_t padding[E::ProbePlatform::OUTPUT_CAPACITY];

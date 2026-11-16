@@ -919,6 +919,32 @@ def _send_problem(entry):
     return None
 
 
+def _paired_problem(entry):
+    """Strict additive reservation schema: two moves and two stops, never a refund."""
+    if set(entry) != {"event", "seq", "prev", "trial", "axes", "stop_kind", "stop_after_ms", "motion", "stop"}:
+        return "paired reservation fields"
+    if (entry["event"] != "paired_reservation" or not _integer(entry["trial"], 1, 0xFFFFFFFF) or
+            type(entry["motion"]) is not int or entry["motion"] != 4 or
+            type(entry["stop"]) is not int or entry["stop"] != 2 or
+            entry["stop_kind"] not in ("normal", "fast") or
+            not _integer(entry["stop_after_ms"], 1, 20000)):
+        return "paired reservation identity or bounds"
+    axes = entry["axes"]
+    if type(axes) is not list or len(axes) != 2:
+        return "paired reservation requires exactly two axes"
+    for axis in axes:
+        if type(axis) is not dict or set(axis) != {"axis_id", "node", "target", "rpm", "ramp_up_ms", "ramp_down_ms"}:
+            return "paired axis fields"
+        if (not _integer(axis["axis_id"], 1, 0xFFFFFFFF) or not _integer(axis["node"], 1, 2) or
+                not _integer(axis["target"], -1000000, 1000000) or
+                not _integer(axis["rpm"], 1, 60) or not _integer(axis["ramp_up_ms"], 1, 2000) or
+                not _integer(axis["ramp_down_ms"], 1, 2000)):
+            return "paired axis bounds"
+    if axes[0]["axis_id"] == axes[1]["axis_id"] or axes[0]["node"] == axes[1]["node"]:
+        return "paired axes must be distinct logical identities and fixture nodes"
+    return None
+
+
 class CampaignLock:
     """An exclusive lock file next to the ledger for one whole invocation. Only its holder removes it;
     one left by a crash is refused until the operator checks the ledger and removes it."""
@@ -987,7 +1013,7 @@ class Campaign:
                 entry = json.loads(line.decode("utf-8"))
             except ValueError:
                 raise Refused("campaign ledger line %d is not JSON; it cannot be counted" % number)
-            if not isinstance(entry, dict) or entry.get("event") not in ("send", "result"):
+            if not isinstance(entry, dict) or entry.get("event") not in ("send", "result", "paired_reservation"):
                 raise Refused("campaign ledger line %d is not a send or result entry" % number)
             if not _integer(entry.get("seq"), number, number):
                 raise Refused("campaign ledger line %d has seq %r: a line is missing, added or reordered" %
@@ -995,7 +1021,12 @@ class Campaign:
             if entry.get("prev") != previous:
                 raise Refused("campaign ledger line %d does not chain to line %d: an earlier line changed" %
                               (number, number - 1))
-            if entry["event"] == "send":
+            if entry["event"] == "paired_reservation":
+                problem = _paired_problem(entry)
+                if problem:
+                    raise Refused("campaign ledger line %d is an inconsistent paired reservation: %s" % (number, problem))
+                last_send = None
+            elif entry["event"] == "send":
                 problem = _send_problem(entry)
                 if problem:
                     raise Refused("campaign ledger line %d is an inconsistent send entry: %s" % (number, problem))
@@ -1013,6 +1044,12 @@ class Campaign:
     def counts(self):
         total, cases = 0, Counter()
         for entry in self.entries:
+            if entry["event"] == "paired_reservation":
+                total += 4
+                for axis in entry["axes"]:
+                    cases[("M", axis["node"])] += 1
+                    cases[("S", axis["node"])] += 1
+                continue
             if entry["event"] != "send":
                 continue
             if entry.get("settings"):
@@ -1033,7 +1070,7 @@ class Campaign:
     def check(self, command, fields):
         """Refuse before anything is sent: a reused trial identity, or a motion line over a cap."""
         letter, node, trial = TRIALS[command][0], fields[0], fields[1]
-        sends = [entry for entry in self.entries if entry["event"] == "send"]
+        sends = [entry for entry in self.entries if entry["event"] in ("send", "paired_reservation")]
         highest = max((entry["trial"] for entry in sends), default=0)
         if trial <= highest:
             raise Refused("trial %d is not above every trial of this campaign (highest %d)" % (trial, highest))
@@ -1062,6 +1099,30 @@ class Campaign:
         total, cases = self.counts()
         return {"path": str(self.path), "motion_total": total,
                 "cases": {"%s%d" % key: count for key, count in sorted(cases.items()) if count}}
+
+    def reserve_pair(self, *, trial, axes, stop_kind, stop_after_ms):
+        """Append and fsync all four effects before the first paired movement handoff.
+
+        Caller holds CampaignLock through the entire attempt. Refusal, interrupted
+        output and absent motion do not refund a reservation or permit replay.
+        """
+        entry = dict(event="paired_reservation", trial=trial, axes=axes, stop_kind=stop_kind,
+                     stop_after_ms=stop_after_ms, motion=4, stop=2,
+                     seq=len(self.entries) + 1, prev=self.last_digest)
+        problem = _paired_problem(entry)
+        if problem:
+            raise Refused(problem)
+        highest = max((row["trial"] for row in self.entries if row["event"] in ("send", "paired_reservation")), default=0)
+        if trial <= highest:
+            raise Refused("paired trial is not above every prior campaign trial")
+        total, cases = self.counts()
+        if total + 4 > CAMPAIGN_MOTION_TOTAL:
+            raise Refused("paired reservation exceeds the campaign motion cap")
+        for axis in axes:
+            if any(cases[(kind, axis["node"])] + 1 > CAMPAIGN_PER_CASE for kind in ("M", "S")):
+                raise Refused("paired reservation exceeds a per-node move or stop cap")
+        self.append({key: value for key, value in entry.items() if key not in ("seq", "prev")})
+        return self.summary()
 
     def append(self, entry):
         """One synced line chained to the last; an error propagates, and then nothing is sent."""

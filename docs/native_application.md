@@ -149,3 +149,25 @@ native coordinates; helper and selection follow only that owned exact epoch, kee
 old read provenance stale. Host scale/origin similarly require the existing idle,
 stationary evidence and owner migration. Neither path reopens a session or clears
 its historical uncertainty fences.
+
+Register multiple stationary attachments to the same console for independent axes.
+The application assigns a distinct fairness producer to each open session. Changing
+selection never changes a retained operation's owner. A `GroupStop` borrows a
+separate caller-owned result array and fans out explicit per-axis requests; ordinary
+pressure cannot consume its storage. See [concurrent axes](multi_axis.md) for
+individual stop, group results, capacity and storage lifetimes.
+
+## Explicit example storage migration
+
+`DeviceEvidence` and `FirmwareProbe` now take an explicit `AcquisitionRecord*`.
+`BenchRoute` takes an explicit `RouteRecord*`. The storage must be constructed,
+aligned and stationary while bound; a null pointer refuses acquisition. Only an
+idle collector without a retained result can detach or bind another record.
+The S2 bench shares these records in its existing exclusive arena; the ordinary
+firmware example uses a separate caller-owned record. This changes optional
+example constructors, not the installed core ABI.
+
+`AxisSession` shares home/velocity storage. Successful cross-kind admission ends
+borrowed references to the earlier native context; copy history needed afterward.
+The inactive getter returns an immutable EMPTY context. Failed admission preserves
+the old context, and stop/fault fences and published references remain independent.

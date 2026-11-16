@@ -726,7 +726,10 @@ class FirmwareBuildTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(configured.get(key, "absent"), value)
         s2 = checker.sdkconfig_values(ROOT / "examples/probe_idf/sdkconfig.defaults.esp32s2")
-        self.assertEqual(s2, {"CONFIG_ESPTOOLPY_FLASHSIZE_4MB": "y", "CONFIG_ESPTOOLPY_FLASHMODE_DIO": "y"})
+        self.assertEqual(s2, dict({"CONFIG_ESPTOOLPY_FLASHSIZE_4MB": "y", "CONFIG_ESPTOOLPY_FLASHMODE_DIO": "y"},
+                                 **{key: value for key, value in checker.S2_MEMORY_SAVINGS.items()
+                                    if key not in ("CONFIG_ESP32S2_DATA_CACHE_SIZE", "CONFIG_UART_ISR_IN_IRAM")},
+                                 CONFIG_UART_ISR_IN_IRAM=None))
         # Review B-D3: the S3 flash size lives only in its target defaults; the gate checks it.
         s3 = checker.sdkconfig_values(ROOT / "examples/probe_idf/sdkconfig.defaults.esp32s3")
         self.assertEqual(s3, {"CONFIG_ESPTOOLPY_FLASHSIZE_8MB": "y"})
@@ -741,7 +744,8 @@ class FirmwareBuildTests(unittest.TestCase):
         # The bench gate checks the bench's own defaults, which state the same values.
         bench = checker.sdkconfig_values(ROOT / "examples/s2_bench/sdkconfig.defaults")
         for key, value in checker.BENCH_SDKCONFIG.items():
-            if key not in ("CONFIG_ESPTOOLPY_FLASHSIZE", "CONFIG_IDF_TARGET"):
+            if key not in ("CONFIG_ESPTOOLPY_FLASHSIZE", "CONFIG_IDF_TARGET", "CONFIG_ESP32S2_DATA_CACHE_SIZE",
+                           "CONFIG_UART_ISR_IN_IRAM"):
                 with self.subTest(bench=key):
                     self.assertEqual(bench.get(key, "absent"), value)
         self.assertEqual(bench["CONFIG_IDF_TARGET"], '"esp32s2"')
@@ -751,11 +755,37 @@ class FirmwareBuildTests(unittest.TestCase):
 
     def test_all_excludes_the_blocked_arduino_s2_and_the_explicit_console_image(self):
         self.assertEqual(set(checker.ALL_TARGETS),
-                         {"arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component"})
+                         {"arduino", "idf", "idf-s2", "idf-s2-optak", "s2", "component",
+                          "storage-s2", "storage-s2-psram", "storage-s3", "storage-s3-psram"})
         self.assertEqual(checker.ARDUINO_BUILDS["arduino-s2"], ("probe_cli_s2_compile", "esp32s2"))
         # Every gate is selectable; all is the CI set, which the bench-only console image is not part of.
         self.assertEqual(set(checker.TARGETS), set(checker.ALL_TARGETS) | {"arduino-s2", "idf-s2-optak-console",
-                                                                            "all"})
+                                                                            "storage", "all"})
+
+    def test_storage_variants_pin_optional_psram_and_keep_hot_memory_internal(self):
+        self.assertEqual(set(checker.STORAGE_IDF_BUILDS),
+                         {"storage-s2", "storage-s2-psram", "storage-s3", "storage-s3-psram"})
+        for name, spec in checker.STORAGE_IDF_BUILDS.items():
+            with self.subTest(name=name):
+                self.assertEqual(spec["target"], "esp32s2" if "-s2" in name else "esp32s3")
+                self.assertEqual(spec["psram"], name.endswith("-psram"))
+                required = checker.storage_sdkconfig(spec["target"], spec["psram"])
+                self.assertEqual(required["CONFIG_SPIRAM"], "y" if spec["psram"] else checker.NOT_SET)
+                if spec["psram"]:
+                    for disabled in ("CONFIG_SPIRAM_USE_MALLOC", "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY",
+                                     "CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY",
+                                     "CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM"):
+                        self.assertIsNone(required[disabled])
+                    self.assertEqual(required["CONFIG_SPIRAM_USE_CAPS_ALLOC"], "y")
+                    self.assertEqual(required["CONFIG_SPIRAM_IGNORE_NOTFOUND"], "y")
+                    # Every placement pin is explicit; silently restoring default malloc is rejected.
+                    path = self.base / "storage-sdkconfig"
+                    path.write_text(self.sdkconfig_text(required), encoding="utf-8")
+                    checker.check_sdkconfig(path, required)
+                    path.write_text(self.sdkconfig_text(dict(required, CONFIG_SPIRAM_USE_MALLOC="y")),
+                                    encoding="utf-8")
+                    with self.assertRaisesRegex(checker.VerificationFailure, "CONFIG_SPIRAM_USE_MALLOC"):
+                        checker.check_sdkconfig(path, required)
 
     def test_reviewed_optak_console_requirements_equal_the_application_configuration(self):
         configured = {}

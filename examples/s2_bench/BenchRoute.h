@@ -969,9 +969,16 @@ class BenchRoute {
      * @param firmware Assembly whose application and owner carry every route.
      * @param services That assembly's service store, with routes the caller configured.
      * @param callbacks Optional resource sampling.
+     * @param storage Caller-owned live record, or null until bindRecordStorage. Storage stays
+     * stationary while active or retained; collector history and sessions remain in this object.
      */
     BenchRoute(FirmwareProbe& firmware, MotorControlCAN::CANOPEN::SdoClient& services,
-               const RouteCallbacks& callbacks) noexcept;
+               const RouteCallbacks& callbacks, RouteRecord* storage) noexcept;
+    /** Bind or detach an idle caller-owned record without constructing or destroying it.
+     * @param storage Live record object, or null to detach; must not overlap this collector.
+     * @return False unchanged while any record is held or for overlap; the same pointer succeeds.
+     * Null storage refuses begin with "memory" and leaves service idle. */
+    bool bindRecordStorage(RouteRecord* storage) noexcept;
     BenchRoute(const BenchRoute&) = delete;            ///< Holds live evidence and borrowed sessions.
     BenchRoute& operator=(const BenchRoute&) = delete; ///< Holds live evidence and borrowed sessions.
     /** Attach the stationary session of one node; it is opened on that node's first route.
@@ -1041,9 +1048,9 @@ class BenchRoute {
      */
     uint8_t kept(unsigned node) const noexcept;
     /** @return Borrowed record from admission until release, or null. */
-    const RouteRecord* record() const noexcept { return occupied_ ? &record_ : nullptr; }
+    const RouteRecord* record() const noexcept { return occupied_ ? record_ : nullptr; }
     /** @return True from admission until the terminal. */
-    bool active() const noexcept { return occupied_ && !record_.terminal; }
+    bool active() const noexcept { return occupied_ && !record_->terminal; }
     /** Authorize only an exact pending download of this route or an attached session.
      * Calls the session preflight and required settings notice once at owner handoff.
      * @param sequence Reservation identity. @param transfer Complete pending work.
@@ -1134,7 +1141,7 @@ class BenchRoute {
     MotorControlCAN::MoveRequest moveRequest_;
     MotorControlCAN::LICHUAN_C::MoveProfile moveProfile_;
     MotorControlCAN::LICHUAN_C::MoveOptions moveOptions_;
-    RouteRecord record_;
+    RouteRecord* record_ = nullptr;
     uint64_t lastUs_ = 0, cutoffUs_ = 0, nextCycleUs_ = 0, cycleStartUs_ = 0, writeDeadlineUs_ = 0;
     uint32_t lastTrial_ = 0, grant_ = ROUTE_GRANT_BASE - 1, grantedOperation_ = 0, grantedStep_ = 0;
     uint32_t writeOperation_ = 0, overwritten_ = 0, rxLost_ = 0;
@@ -1186,9 +1193,9 @@ class BenchRoute {
 
     bool continueOperations(AxisSession& session, uint8_t slot, uint64_t nowUs) noexcept;
     uint32_t nextGrant(uint8_t slot) const noexcept;
-    AxisSession& axis() noexcept { return *sessions_[record_.plan.node - 1]; }
-    const AxisSession& axis() const noexcept { return *sessions_[record_.plan.node - 1]; }
-    uint8_t slot() const noexcept { return uint8_t(record_.plan.node - 1); }
+    AxisSession& axis() noexcept { return *sessions_[record_->plan.node - 1]; }
+    const AxisSession& axis() const noexcept { return *sessions_[record_->plan.node - 1]; }
+    uint8_t slot() const noexcept { return uint8_t(record_->plan.node - 1); }
     bool currentTarget(MotorControlCAN::LICHUAN_C::ReadTarget& output) const noexcept;
     void finish(RouteFailure failure, const char* why, uint64_t nowUs) noexcept;
     void endAfterSettling(RouteFailure failure, const char* why) noexcept;
@@ -1240,7 +1247,7 @@ class BenchRoute {
     bool settleSettings(uint64_t nowUs) noexcept;
     bool followConfiguration(uint64_t nowUs) noexcept;
     void publishGroup(unsigned which, const MotorControlCAN::LICHUAN_C::DriverContext* read, uint64_t nowUs) noexcept;
-    AxisSession& observerAxis() noexcept { return *sessions_[record_.plan.observer - 1]; }
+    AxisSession& observerAxis() noexcept { return *sessions_[record_->plan.observer - 1]; }
     bool startObserverRead(uint8_t mask, uint64_t nowUs) noexcept;
     void serviceObserverRead(uint64_t nowUs) noexcept;
     void observerReadDone(uint64_t nowUs) noexcept;

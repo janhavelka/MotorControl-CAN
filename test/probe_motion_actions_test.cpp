@@ -348,11 +348,79 @@ void homing() {
         CHECK(r.wire.sentCount == sent);
     }
 }
+L::HomeRequest storageHomeRequest(const ConsoleRig& r) {
+    L::HomeRequest q;
+    q.method = L::HomingMethod::NEGATIVE_ORIGIN;
+    q.searchSpeed = request(120).velocity;
+    q.creepSpeed = request(60).velocity;
+    q.searchSpeed.configurationGeneration = q.creepSpeed.configurationGeneration =
+        r.axis.binding.configurationGeneration;
+    q.rampTimeMs = 100;
+    return q;
+}
+void sharedMotionStorage() {
+    scenario = "home and velocity share storage only after successful cross-kind admission";
+    ConsoleRig r;
+    r.armHome();
+    CHECK(r.motion.requestHome(storageHomeRequest(r), r.now, r.now + DEADLINE));
+    r.finish();
+    CHECK(r.session.homeAction().state == M::ActionState::SUCCEEDED);
+    CHECK(r.session.velocityAction().state == M::ActionState::EMPTY);
+    CHECK(L::getHomeReference(r.session.homeAction(), r.live, r.axis, r.now, DEADLINE, r.reference));
+    Saved<M::AxisReference> published(r.reference);
+    CHECK(r.motion.releaseNormal());
+    CHECK(!r.session.busy() && r.served == r.wire.sentCount);
+    CHECK(r.wire.reportRead == r.wire.reportWrite && r.wire.rxRead == r.wire.rxWrite);
+    for (unsigned i = 0; i < r.wire.sentCount; ++i)
+        CHECK(!r.wire.pending[i]);
+    r.wire.sentCount = r.wire.reportRead = r.wire.reportWrite = r.served = r.stamped = 0;
+    r.home = false;
+    r.drive.mode = 3;
+    r.drive.monitor = L::MONITOR_RELEASED;
+    r.drive.status = 0;
+    r.drive.velocity = 0; // Explicit synthetic released mode-3 report, not a library release.
+    r.armVelocity();
+    M::FiniteVelocityRequest velocity = request();
+    velocity.velocity.configurationGeneration = r.axis.binding.configurationGeneration;
+    Saved<L::HomeContext> home(r.session.homeAction());
+    M::FiniteVelocityRequest invalid = velocity;
+    invalid.durationUs = 0;
+    CHECK(!r.motion.requestVelocity(invalid, L::StopKind::HALT, r.now, r.now + DEADLINE));
+    home.unchanged(r.session.homeAction());
+    CHECK(r.session.velocityAction().state == M::ActionState::EMPTY);
+    CHECK(r.motion.requestVelocity(velocity, L::StopKind::HALT, r.now, r.now + DEADLINE));
+    CHECK(r.session.homeAction().state == M::ActionState::EMPTY && !r.session.homeActive());
+    published.unchanged(r.reference);
+    r.finish();
+    CHECK(r.session.velocityAction().state == M::ActionState::SUCCEEDED);
+    CHECK(r.motion.releaseNormal());
+    CHECK(!r.session.busy() && r.served == r.wire.sentCount);
+    CHECK(r.wire.reportRead == r.wire.reportWrite && r.wire.rxRead == r.wire.rxWrite);
+    for (unsigned i = 0; i < r.wire.sentCount; ++i)
+        CHECK(!r.wire.pending[i]);
+    r.wire.sentCount = r.wire.reportRead = r.wire.reportWrite = r.served = r.stamped = 0;
+
+    r.triggered = false;
+    r.homeCycles = 0;
+    r.drive.monitor = 0;
+    r.armHome();
+    Saved<L::VelocityContext> oldVelocity(r.session.velocityAction());
+    L::HomeRequest badHome = storageHomeRequest(r);
+    badHome.method = static_cast<L::HomingMethod>(17);
+    CHECK(!r.motion.requestHome(badHome, r.now, r.now + DEADLINE));
+    oldVelocity.unchanged(r.session.velocityAction());
+    CHECK(r.session.homeAction().state == M::ActionState::EMPTY);
+    CHECK(r.motion.requestHome(storageHomeRequest(r), r.now, r.now + DEADLINE));
+    CHECK(r.session.velocityAction().state == M::ActionState::EMPTY && !r.session.velocityActive());
+    r.finish();
+    CHECK(r.session.homeAction().state == M::ActionState::SUCCEEDED);
+}
 } // namespace
 int main() {
     finiteVelocity();
     velocityRejectionAndLostReply();
     homing();
     typedReadRoutesKeepTheOrdinaryGate();
+    sharedMotionStorage();
     std::printf("probe_motion_actions_test: %u checks passed\n", checks);
 }
