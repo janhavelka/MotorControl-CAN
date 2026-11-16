@@ -1,0 +1,24 @@
+{
+  "purpose": "Read the NMT state of both nodes after the 2026-11-16 power cycle: heartbeat watch and network listing, no transmission",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation ...; standing bench authorization",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "wait_s": 4
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK"
+    }
+  ]
+}

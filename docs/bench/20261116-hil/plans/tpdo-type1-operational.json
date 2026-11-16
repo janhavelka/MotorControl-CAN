@@ -1,0 +1,78 @@
+{
+  "purpose": "TPDO1 type 1 on both nodes in Pre-operational (explicit, temporary, no save), then NMT Start. No motion, RPDO or SYNC.",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation and finish up all tests that are missing and are able to run now.. Motor power cycled; standing bench authorization 2026-11-02 (docs/prompts/COMMON.md)",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "wait_s": 3,
+      "note": "heartbeats (1017=1000 set in 12-hb-tpdo-setup)"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "both Pre-operational expected"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 type 1 in Pre-operational; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "J2,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 type 1 in Pre-operational; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "node 1 Operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "node 2 Operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

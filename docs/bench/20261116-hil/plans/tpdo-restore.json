@@ -1,0 +1,104 @@
+{
+  "purpose": "Restore TPDO1 transmission type 255 (read after the power cycle) on both nodes in Pre-operational, the power-up NMT state. 1017=1000 stays until the next power cycle (the h/j experiment has no reverse).",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation and finish up all tests that are missing and are able to run now.. Motor power cycled; standing bench authorization 2026-11-02",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "binds node 1"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "binds node 2"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "Pre-operational heartbeat"
+    },
+    {
+      "send": "J1,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 type back to 255, the value read after the power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "Pre-operational heartbeat"
+    },
+    {
+      "send": "J2,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 type back to 255, the value read after the power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

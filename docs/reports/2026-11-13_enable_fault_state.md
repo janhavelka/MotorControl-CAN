@@ -137,6 +137,7 @@ Next, each needing a power cycle (planned in [prompt 72](../prompts/72_enable_fa
 1. Whether `2500` persists: write 1 without a save, power-cycle, read.
 2. In a reproduced fault state (one 3300 rpm FF05 at 51200): a mode 1 enable, and proposal 3 timed within 100 ms
    of word 7.
-3. The discriminator: 3000 rpm with a 500 ms ramp at 51200.
+3. The discriminator: 3000 rpm with a 500 ms ramp at 51200. Done on 2026-11-16: clean on node 1
+   ([HIL report](2026-11-16_hil_campaign.md#s21-discriminator-and-2500-persistence)).
 4. Node 1's position ladder and node 2's reverse runs, still owed to prompt 59. Node 1's reverse runs were made
    at 17:08Z to 17:13Z, all clean ([afternoon report](2026-11-13_velocity_limits_and_fault_recovery.md)).

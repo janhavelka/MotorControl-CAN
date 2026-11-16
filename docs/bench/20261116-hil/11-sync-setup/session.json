@@ -1,0 +1,170 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T09:54:24.578773+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261116-hil/plans/sync-setup.json",
+    "--output",
+    "docs/bench/20261116-hil/11-sync-setup",
+    "--tail-s",
+    "2"
+  ],
+  "plan_file": "docs/bench/20261116-hil/plans/sync-setup.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "7c34a04ad4f47a4edbebfcf19cfc6ba475683c96c5859d3756c8a09d7f063309",
+    "s2_evidence.py": "0461e49b5d37783425d4f136bb5ae254358d1360625f1075278efd5f39f5d82f"
+  },
+  "host_revision": "17386514ff2bb163028394e4c895e446a134e6f0",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "17386514ff2bb163028394e4c895e446a134e6f0",
+    "elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "15",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "7",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "terminal_failed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "start the controller in this boot",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-16T09:54:24.989645+00:00",
+      "monotonic": 382902.328,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "node 1 raw identity inventory (uploads only) after the 2026-11-16 power cycle",
+      "sent": "3",
+      "tx_hex": "33",
+      "utc": "2026-11-16T09:54:24.999501+00:00",
+      "monotonic": 382902.343,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 3,
+      "end": "END raw terminals=26 traffic=78 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 109,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T09:54:27.052821+00:00",
+      "monotonic": 382904.39,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 110,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "node 2 raw identity inventory (uploads only) after the 2026-11-16 power cycle",
+      "sent": "4",
+      "tx_hex": "34",
+      "utc": "2026-11-16T09:54:27.060853+00:00",
+      "monotonic": 382904.406,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 111,
+      "end": "END raw terminals=26 traffic=78 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 217,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T09:54:29.121693+00:00",
+      "monotonic": 382906.468,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 218,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "let both heartbeats arrive",
+      "wait_s": 3,
+      "utc": "2026-11-16T09:54:29.131206+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 7,
+      "note": "NMT state before any NMT command",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T09:54:32.124928+00:00",
+      "monotonic": 382909.468,
+      "reply": "NETWORK node=1 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=0",
+      "reply_line": 219,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "node 1 Pre-operational",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-16T09:54:32.151989+00:00",
+      "monotonic": 382909.484,
+      "reply": "NMT admitted node=1 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 222,
+      "end": "NMT request=3 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=10619400 admitted=10616249; retained; network observation separate",
+      "end_line": 223,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T09:54:32.182542+00:00",
+      "monotonic": 382909.515,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 224,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "node 1 TPDO1 transmission type 1 (synchronous), typed write and readback; the record shows the prior type",
+      "sent": "J1,1",
+      "tx_hex": "4a312c310a",
+      "utc": "2026-11-16T09:54:32.190559+00:00",
+      "monotonic": 382909.531,
+      "reply": "PDO_CONFIG admitted node=1 raw=1; TPDO1 explicit raw only: nine exact reads, one write, nine exact reads; no retry",
+      "reply_line": 225,
+      "end": "END PDO; map readback and sample qualification are separate; r=release",
+      "end_line": 227,
+      "outcome": "terminal_failed",
+      "problem": "pdo_failure_7"
+    }
+  ],
+  "ended_utc": "2026-11-16T09:54:42.398294+00:00",
+  "bytes": 32057
+}

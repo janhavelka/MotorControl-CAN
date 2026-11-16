@@ -1,0 +1,1652 @@
+{
+  "ok": true,
+  "plan": {
+    "duration_s": 1800,
+    "period_ms": 20,
+    "count": 90000,
+    "watch_s": 1810,
+    "byte_cap": 67108864,
+    "raw_tx_per_cycle": false,
+    "automatic_retry": false,
+    "configuration_changed": false,
+    "firmware_effect_qualified": false,
+    "planned_cleanup": "cached sync timing/STATS, local sync disarm and P0; failed result retained",
+    "expected_elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+    "port": "COM15",
+    "fixture": {
+      "port": "COM15",
+      "usb_serial": "94A990398B40",
+      "vid": 12346,
+      "pid": 4098
+    },
+    "tool_sha256": "d637226051b91f11119867a25aa709b15cf72f1b51d7bae579b356d6c41e1c87"
+  },
+  "local_tx_complete": true,
+  "firmware_effect_qualified": false,
+  "pong": "PONG target=esp32s2 base=17386514ff2bb163028394e4c895e446a134e6f0 elf=20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=21511445 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0",
+  "receipt": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540004,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "result": "accepted",
+    "operation_id": 2
+  },
+  "terminal": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "terminal",
+    "id": 540004,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "detail": 1,
+    "outcome": "LOCAL_TX",
+    "uncertain": true,
+    "command_id": 540004,
+    "operation_id": 2,
+    "completed_us": "1821998330",
+    "abort_code": null,
+    "local_tx_count": 90000,
+    "requested_count": 90000,
+    "transmission_possible": true,
+    "drive_effect_known": false
+  },
+  "sync_timing": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540005,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "generation": 2,
+    "count": 90000,
+    "terminals": 90000,
+    "confirmed": 90000,
+    "handoffs": 90000,
+    "origin_us": "22012619",
+    "period_us": "20000",
+    "handoff_us": [
+      "22016402",
+      "1821994400",
+      "17988",
+      "23002"
+    ],
+    "delay_us": [
+      "4783",
+      "5004"
+    ],
+    "invalid": false
+  },
+  "snapshots": [
+    "STATS running=1 inhibited=0 rx=1091 tx=554 dropped=0 errors=0 flags=00000000 stackFree=7624 t=21816513 txRej=0 rxLost=0 unmatched=1005 traceOver=2011 ownerGap=3996 conRej=1728",
+    "STATS running=1 inhibited=0 rx=2125 tx=1060 dropped=0 errors=0 flags=00000000 stackFree=7592 t=32120410 txRej=0 rxLost=0 unmatched=2017 traceOver=4057 ownerGap=3996 conRej=1730",
+    "STATS running=1 inhibited=0 rx=3140 tx=1558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=42085402 txRej=0 rxLost=0 unmatched=3013 traceOver=6068 ownerGap=3998 conRej=1732",
+    "STATS running=1 inhibited=0 rx=4158 tx=2057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=52064439 txRej=0 rxLost=0 unmatched=4011 traceOver=8084 ownerGap=3998 conRej=1735",
+    "STATS running=1 inhibited=0 rx=5182 tx=2559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=62103406 txRej=0 rxLost=0 unmatched=5015 traceOver=10112 ownerGap=3998 conRej=1738",
+    "STATS running=1 inhibited=0 rx=6200 tx=3058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=72080409 txRej=0 rxLost=0 unmatched=6013 traceOver=12128 ownerGap=3998 conRej=1741",
+    "STATS running=1 inhibited=0 rx=7222 tx=3559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=82107402 txRej=0 rxLost=0 unmatched=7015 traceOver=14152 ownerGap=4001 conRej=1745",
+    "STATS running=1 inhibited=0 rx=8238 tx=4057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=92063402 txRej=0 rxLost=0 unmatched=8011 traceOver=16164 ownerGap=4001 conRej=1748",
+    "STATS running=1 inhibited=0 rx=9262 tx=4559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=102106402 txRej=0 rxLost=0 unmatched=9015 traceOver=18192 ownerGap=4001 conRej=1751",
+    "STATS running=1 inhibited=0 rx=10280 tx=5058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=112086486 txRej=0 rxLost=0 unmatched=10013 traceOver=20208 ownerGap=4001 conRej=1754",
+    "STATS running=1 inhibited=0 rx=11302 tx=5559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=122109400 txRej=0 rxLost=0 unmatched=11015 traceOver=22232 ownerGap=4001 conRej=1757",
+    "STATS running=1 inhibited=0 rx=12320 tx=6058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=132086402 txRej=0 rxLost=0 unmatched=12013 traceOver=24248 ownerGap=4001 conRej=1760",
+    "STATS running=1 inhibited=0 rx=13340 tx=6558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=142080409 txRej=0 rxLost=0 unmatched=13013 traceOver=26268 ownerGap=4001 conRej=1763",
+    "STATS running=1 inhibited=0 rx=14358 tx=7057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=152070404 txRej=0 rxLost=0 unmatched=14011 traceOver=28284 ownerGap=4001 conRej=1766",
+    "STATS running=1 inhibited=0 rx=15378 tx=7557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=162067402 txRej=0 rxLost=0 unmatched=15011 traceOver=30304 ownerGap=4001 conRej=1769",
+    "STATS running=1 inhibited=0 rx=16402 tx=8059 dropped=0 errors=0 flags=00000000 stackFree=7592 t=172099499 txRej=0 rxLost=0 unmatched=16015 traceOver=32332 ownerGap=4001 conRej=1772",
+    "STATS running=1 inhibited=0 rx=17418 tx=8557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=182059409 txRej=0 rxLost=0 unmatched=17011 traceOver=34344 ownerGap=4001 conRej=1775",
+    "STATS running=1 inhibited=0 rx=18440 tx=9058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=192088402 txRej=0 rxLost=0 unmatched=18013 traceOver=36368 ownerGap=4001 conRej=1778",
+    "STATS running=1 inhibited=0 rx=19456 tx=9556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=202055400 txRej=0 rxLost=0 unmatched=19009 traceOver=38381 ownerGap=4001 conRej=1781",
+    "STATS running=1 inhibited=0 rx=20478 tx=10057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=212067402 txRej=0 rxLost=0 unmatched=20011 traceOver=40404 ownerGap=4009 conRej=1784",
+    "STATS running=1 inhibited=0 rx=21500 tx=10558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=222090402 txRej=0 rxLost=0 unmatched=21013 traceOver=42428 ownerGap=4009 conRej=1787",
+    "STATS running=1 inhibited=0 rx=22522 tx=11059 dropped=0 errors=0 flags=00000000 stackFree=7592 t=232114292 txRej=0 rxLost=0 unmatched=22015 traceOver=44452 ownerGap=4009 conRej=1791",
+    "STATS running=1 inhibited=0 rx=23540 tx=11558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=242084406 txRej=0 rxLost=0 unmatched=23013 traceOver=46468 ownerGap=4009 conRej=1795",
+    "STATS running=1 inhibited=0 rx=24558 tx=12057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=252060409 txRej=0 rxLost=0 unmatched=24011 traceOver=48484 ownerGap=4009 conRej=1799",
+    "STATS running=1 inhibited=0 rx=25580 tx=12558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=262086404 txRej=0 rxLost=0 unmatched=25013 traceOver=50508 ownerGap=4009 conRej=1803",
+    "STATS running=1 inhibited=0 rx=26600 tx=13058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=272093292 txRej=0 rxLost=0 unmatched=26013 traceOver=52528 ownerGap=4009 conRej=1807",
+    "STATS running=1 inhibited=0 rx=27616 tx=13556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=282054392 txRej=0 rxLost=0 unmatched=27009 traceOver=54540 ownerGap=4009 conRej=1811",
+    "STATS running=1 inhibited=0 rx=28638 tx=14057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=292065406 txRej=0 rxLost=0 unmatched=28011 traceOver=56564 ownerGap=4009 conRej=1815",
+    "STATS running=1 inhibited=0 rx=29662 tx=14559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=302106406 txRej=0 rxLost=0 unmatched=29015 traceOver=58592 ownerGap=4009 conRej=1819",
+    "STATS running=1 inhibited=0 rx=30678 tx=15057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=312063400 txRej=0 rxLost=0 unmatched=30011 traceOver=60604 ownerGap=4009 conRej=1823",
+    "STATS running=1 inhibited=0 rx=31700 tx=15558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=322093292 txRej=0 rxLost=0 unmatched=31013 traceOver=62628 ownerGap=4010 conRej=1827",
+    "STATS running=1 inhibited=0 rx=32717 tx=16057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=332062407 txRej=0 rxLost=0 unmatched=32011 traceOver=64643 ownerGap=4010 conRej=1831",
+    "STATS running=1 inhibited=0 rx=33740 tx=16558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=342094293 txRej=0 rxLost=0 unmatched=33013 traceOver=66668 ownerGap=4010 conRej=1835",
+    "STATS running=1 inhibited=0 rx=34759 tx=17058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=352077400 txRej=0 rxLost=0 unmatched=34013 traceOver=68687 ownerGap=4010 conRej=1839",
+    "STATS running=1 inhibited=0 rx=35782 tx=17559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=362107398 txRej=0 rxLost=0 unmatched=35015 traceOver=70712 ownerGap=4010 conRej=1843",
+    "STATS running=1 inhibited=0 rx=36797 tx=18057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=372068400 txRej=0 rxLost=0 unmatched=36011 traceOver=72723 ownerGap=4010 conRej=1847",
+    "STATS running=1 inhibited=0 rx=37821 tx=18559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=382101409 txRej=0 rxLost=0 unmatched=37015 traceOver=74751 ownerGap=4010 conRej=1851",
+    "STATS running=1 inhibited=0 rx=38837 tx=19057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=392074293 txRej=0 rxLost=0 unmatched=38011 traceOver=76763 ownerGap=4010 conRej=1855",
+    "STATS running=1 inhibited=0 rx=39855 tx=19556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=402050402 txRej=0 rxLost=0 unmatched=39009 traceOver=78779 ownerGap=4010 conRej=1859",
+    "STATS running=1 inhibited=0 rx=40879 tx=20058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=412095398 txRej=0 rxLost=0 unmatched=40013 traceOver=80808 ownerGap=4010 conRej=1863",
+    "STATS running=1 inhibited=0 rx=41897 tx=20557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=422074400 txRej=0 rxLost=0 unmatched=41011 traceOver=82824 ownerGap=4010 conRej=1867",
+    "STATS running=1 inhibited=0 rx=42921 tx=21059 dropped=0 errors=0 flags=00000000 stackFree=7592 t=432106406 txRej=0 rxLost=0 unmatched=42015 traceOver=84851 ownerGap=4010 conRej=1871",
+    "STATS running=1 inhibited=0 rx=43939 tx=21558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=442080409 txRej=0 rxLost=0 unmatched=43013 traceOver=86867 ownerGap=4010 conRej=1875",
+    "STATS running=1 inhibited=0 rx=44957 tx=22057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=452068402 txRej=0 rxLost=0 unmatched=44011 traceOver=88883 ownerGap=4010 conRej=1879",
+    "STATS running=1 inhibited=0 rx=45981 tx=22559 dropped=0 errors=0 flags=00000000 stackFree=7592 t=462097402 txRej=0 rxLost=0 unmatched=45015 traceOver=90911 ownerGap=4010 conRej=1883",
+    "STATS running=1 inhibited=0 rx=46997 tx=23057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=472070402 txRej=0 rxLost=0 unmatched=46011 traceOver=92923 ownerGap=4010 conRej=1887",
+    "STATS running=1 inhibited=0 rx=48015 tx=23556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=482051477 txRej=0 rxLost=0 unmatched=47009 traceOver=94939 ownerGap=4010 conRej=1891",
+    "STATS running=1 inhibited=0 rx=49041 tx=24059 dropped=0 errors=0 flags=00000000 stackFree=7592 t=492096405 txRej=0 rxLost=0 unmatched=48015 traceOver=96971 ownerGap=4010 conRej=1895",
+    "STATS running=1 inhibited=0 rx=50059 tx=24558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=502086406 txRej=0 rxLost=0 unmatched=49013 traceOver=98987 ownerGap=4010 conRej=1899",
+    "STATS running=1 inhibited=0 rx=51077 tx=25057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=512068402 txRej=0 rxLost=0 unmatched=50011 traceOver=101003 ownerGap=4010 conRej=1903",
+    "STATS running=1 inhibited=0 rx=52095 tx=25556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=522047402 txRej=0 rxLost=0 unmatched=51009 traceOver=103019 ownerGap=4010 conRej=1907",
+    "STATS running=1 inhibited=0 rx=53117 tx=26057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=532067402 txRej=0 rxLost=0 unmatched=52011 traceOver=105043 ownerGap=4010 conRej=1911",
+    "STATS running=1 inhibited=0 rx=54135 tx=26556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=542048402 txRej=0 rxLost=0 unmatched=53009 traceOver=107059 ownerGap=4010 conRej=1915",
+    "STATS running=1 inhibited=0 rx=55159 tx=27058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=552084407 txRej=0 rxLost=0 unmatched=54013 traceOver=109087 ownerGap=4010 conRej=1919",
+    "STATS running=1 inhibited=0 rx=56177 tx=27557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=562062408 txRej=0 rxLost=0 unmatched=55011 traceOver=111103 ownerGap=4010 conRej=1923",
+    "STATS running=1 inhibited=0 rx=57201 tx=28059 dropped=0 errors=0 flags=00000000 stackFree=7592 t=572097400 txRej=0 rxLost=0 unmatched=56015 traceOver=113131 ownerGap=4010 conRej=1927",
+    "STATS running=1 inhibited=0 rx=58219 tx=28558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=582079410 txRej=0 rxLost=0 unmatched=57013 traceOver=115147 ownerGap=4010 conRej=1931",
+    "STATS running=1 inhibited=0 rx=59237 tx=29057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=592066400 txRej=0 rxLost=0 unmatched=58011 traceOver=117163 ownerGap=4010 conRej=1935",
+    "STATS running=1 inhibited=0 rx=60257 tx=29557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=602056402 txRej=0 rxLost=0 unmatched=59011 traceOver=119183 ownerGap=4010 conRej=1939",
+    "STATS running=1 inhibited=0 rx=61275 tx=30056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=612045408 txRej=0 rxLost=0 unmatched=60009 traceOver=121199 ownerGap=4010 conRej=1943",
+    "STATS running=1 inhibited=0 rx=62299 tx=30558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=622095400 txRej=0 rxLost=0 unmatched=61013 traceOver=123228 ownerGap=4010 conRej=1947",
+    "STATS running=1 inhibited=0 rx=63319 tx=31058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=632083406 txRej=0 rxLost=0 unmatched=62013 traceOver=125247 ownerGap=4010 conRej=1951",
+    "STATS running=1 inhibited=0 rx=64335 tx=31556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=642047402 txRej=0 rxLost=0 unmatched=63009 traceOver=127259 ownerGap=4010 conRej=1955",
+    "STATS running=1 inhibited=0 rx=65359 tx=32058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=652085406 txRej=0 rxLost=0 unmatched=64013 traceOver=129287 ownerGap=4010 conRej=1959",
+    "STATS running=1 inhibited=0 rx=66379 tx=32558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=662081404 txRej=0 rxLost=0 unmatched=65013 traceOver=131307 ownerGap=4010 conRej=1963",
+    "STATS running=1 inhibited=0 rx=67395 tx=33056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=672054295 txRej=0 rxLost=0 unmatched=66009 traceOver=133319 ownerGap=4010 conRej=1967",
+    "STATS running=1 inhibited=0 rx=68419 tx=33558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=682094293 txRej=0 rxLost=0 unmatched=67013 traceOver=135347 ownerGap=4010 conRej=1971",
+    "STATS running=1 inhibited=0 rx=69439 tx=34058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=692081431 txRej=0 rxLost=0 unmatched=68013 traceOver=137367 ownerGap=4010 conRej=1975",
+    "STATS running=1 inhibited=0 rx=70457 tx=34557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=702068402 txRej=0 rxLost=0 unmatched=69011 traceOver=139383 ownerGap=4010 conRej=1979",
+    "STATS running=1 inhibited=0 rx=71475 tx=35056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=712047402 txRej=0 rxLost=0 unmatched=70009 traceOver=141399 ownerGap=4010 conRej=1983",
+    "STATS running=1 inhibited=0 rx=72499 tx=35558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=722094292 txRej=0 rxLost=0 unmatched=71013 traceOver=143427 ownerGap=4010 conRej=1987",
+    "STATS running=1 inhibited=0 rx=73517 tx=36057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=732073295 txRej=0 rxLost=0 unmatched=72011 traceOver=145443 ownerGap=4010 conRej=1991",
+    "STATS running=1 inhibited=0 rx=74535 tx=36556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=742049402 txRej=0 rxLost=0 unmatched=73009 traceOver=147459 ownerGap=4010 conRej=1995",
+    "STATS running=1 inhibited=0 rx=75559 tx=37058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=752087402 txRej=0 rxLost=0 unmatched=74013 traceOver=149487 ownerGap=4010 conRej=1999",
+    "STATS running=1 inhibited=0 rx=76577 tx=37557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=762057402 txRej=0 rxLost=0 unmatched=75011 traceOver=151503 ownerGap=4010 conRej=2003",
+    "STATS running=1 inhibited=0 rx=77595 tx=38056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=772041433 txRej=0 rxLost=0 unmatched=76009 traceOver=153519 ownerGap=4010 conRej=2007",
+    "STATS running=1 inhibited=0 rx=78619 tx=38558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=782079407 txRej=0 rxLost=0 unmatched=77013 traceOver=155547 ownerGap=4010 conRej=2011",
+    "STATS running=1 inhibited=0 rx=79635 tx=39056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=792040409 txRej=0 rxLost=0 unmatched=78009 traceOver=157559 ownerGap=4010 conRej=2015",
+    "STATS running=1 inhibited=0 rx=80657 tx=39557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=802068422 txRej=0 rxLost=0 unmatched=79011 traceOver=159583 ownerGap=4010 conRej=2019",
+    "STATS running=1 inhibited=0 rx=81675 tx=40056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=812054388 txRej=0 rxLost=0 unmatched=80009 traceOver=161599 ownerGap=4010 conRej=2023",
+    "STATS running=1 inhibited=0 rx=82697 tx=40557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=822070402 txRej=0 rxLost=0 unmatched=81011 traceOver=163623 ownerGap=4010 conRej=2027",
+    "STATS running=1 inhibited=0 rx=83715 tx=41056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=832049402 txRej=0 rxLost=0 unmatched=82009 traceOver=165639 ownerGap=4010 conRej=2031",
+    "STATS running=1 inhibited=0 rx=84739 tx=41558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=842094292 txRej=0 rxLost=0 unmatched=83013 traceOver=167667 ownerGap=4010 conRej=2035",
+    "STATS running=1 inhibited=0 rx=85757 tx=42057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=852060407 txRej=0 rxLost=0 unmatched=84011 traceOver=169683 ownerGap=4010 conRej=2039",
+    "STATS running=1 inhibited=0 rx=86779 tx=42558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=862095400 txRej=0 rxLost=0 unmatched=85013 traceOver=171708 ownerGap=4010 conRej=2043",
+    "STATS running=1 inhibited=0 rx=87799 tx=43058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=872079409 txRej=0 rxLost=0 unmatched=86013 traceOver=173727 ownerGap=4010 conRej=2047",
+    "STATS running=1 inhibited=0 rx=88815 tx=43556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=882055400 txRej=0 rxLost=0 unmatched=87009 traceOver=175740 ownerGap=4010 conRej=2051",
+    "STATS running=1 inhibited=0 rx=89835 tx=44056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=892036402 txRej=0 rxLost=0 unmatched=88009 traceOver=177759 ownerGap=4010 conRej=2055",
+    "STATS running=1 inhibited=0 rx=90859 tx=44558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=902085400 txRej=0 rxLost=0 unmatched=89013 traceOver=179787 ownerGap=4010 conRej=2059",
+    "STATS running=1 inhibited=0 rx=91875 tx=45056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=912047404 txRej=0 rxLost=0 unmatched=90009 traceOver=181799 ownerGap=4010 conRej=2063",
+    "STATS running=1 inhibited=0 rx=92899 tx=45558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=922081431 txRej=0 rxLost=0 unmatched=91013 traceOver=183827 ownerGap=4010 conRej=2067",
+    "STATS running=1 inhibited=0 rx=93917 tx=46057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=932066406 txRej=0 rxLost=0 unmatched=92011 traceOver=185843 ownerGap=4010 conRej=2071",
+    "STATS running=1 inhibited=0 rx=94935 tx=46556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=942039409 txRej=0 rxLost=0 unmatched=93009 traceOver=187859 ownerGap=4010 conRej=2075",
+    "STATS running=1 inhibited=0 rx=95957 tx=47057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=952068402 txRej=0 rxLost=0 unmatched=94011 traceOver=189883 ownerGap=4010 conRej=2079",
+    "STATS running=1 inhibited=0 rx=96977 tx=47557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=962057407 txRej=0 rxLost=0 unmatched=95011 traceOver=191903 ownerGap=4010 conRej=2083",
+    "STATS running=1 inhibited=0 rx=97999 tx=48058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=972094292 txRej=0 rxLost=0 unmatched=96013 traceOver=193927 ownerGap=4010 conRej=2087",
+    "STATS running=1 inhibited=0 rx=99017 tx=48557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=982070404 txRej=0 rxLost=0 unmatched=97011 traceOver=195943 ownerGap=4010 conRej=2091",
+    "STATS running=1 inhibited=0 rx=100035 tx=49056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=992046400 txRej=0 rxLost=0 unmatched=98009 traceOver=197959 ownerGap=4010 conRej=2095",
+    "STATS running=1 inhibited=0 rx=101059 tx=49558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1002094400 txRej=0 rxLost=0 unmatched=99013 traceOver=199988 ownerGap=4010 conRej=2099",
+    "STATS running=1 inhibited=0 rx=102077 tx=50057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1012074388 txRej=0 rxLost=0 unmatched=100011 traceOver=202003 ownerGap=4010 conRej=2104",
+    "STATS running=1 inhibited=0 rx=103097 tx=50557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1022070402 txRej=0 rxLost=0 unmatched=101011 traceOver=204023 ownerGap=4010 conRej=2112",
+    "STATS running=1 inhibited=0 rx=104115 tx=51056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1032044406 txRej=0 rxLost=0 unmatched=102009 traceOver=206039 ownerGap=4010 conRej=2117",
+    "STATS running=1 inhibited=0 rx=105139 tx=51558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1042076407 txRej=0 rxLost=0 unmatched=103013 traceOver=208067 ownerGap=4010 conRej=2123",
+    "STATS running=1 inhibited=0 rx=106157 tx=52057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1052064406 txRej=0 rxLost=0 unmatched=104011 traceOver=210083 ownerGap=4010 conRej=2129",
+    "STATS running=1 inhibited=0 rx=107175 tx=52556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1062036402 txRej=0 rxLost=0 unmatched=105009 traceOver=212099 ownerGap=4010 conRej=2135",
+    "STATS running=1 inhibited=0 rx=108197 tx=53057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1072064406 txRej=0 rxLost=0 unmatched=106011 traceOver=214123 ownerGap=4010 conRej=2140",
+    "STATS running=1 inhibited=0 rx=109215 tx=53556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1082036402 txRej=0 rxLost=0 unmatched=107009 traceOver=216139 ownerGap=4010 conRej=2145",
+    "STATS running=1 inhibited=0 rx=110239 tx=54058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1092082431 txRej=0 rxLost=0 unmatched=108013 traceOver=218167 ownerGap=4010 conRej=2150",
+    "STATS running=1 inhibited=0 rx=111257 tx=54557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1102056402 txRej=0 rxLost=0 unmatched=109011 traceOver=220183 ownerGap=4010 conRej=2155",
+    "STATS running=1 inhibited=0 rx=112275 tx=55056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1112046406 txRej=0 rxLost=0 unmatched=110009 traceOver=222199 ownerGap=4010 conRej=2160",
+    "STATS running=1 inhibited=0 rx=113299 tx=55558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1122085406 txRej=0 rxLost=0 unmatched=111013 traceOver=224227 ownerGap=4010 conRej=2165",
+    "STATS running=1 inhibited=0 rx=114315 tx=56056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1132055398 txRej=0 rxLost=0 unmatched=112009 traceOver=226240 ownerGap=4010 conRej=2170",
+    "STATS running=1 inhibited=0 rx=115333 tx=56555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1142035400 txRej=0 rxLost=0 unmatched=113007 traceOver=228256 ownerGap=4010 conRej=2175",
+    "STATS running=1 inhibited=0 rx=116355 tx=57056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1152054400 txRej=0 rxLost=0 unmatched=114009 traceOver=230280 ownerGap=4010 conRej=2180",
+    "STATS running=1 inhibited=0 rx=117373 tx=57555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1162031402 txRej=0 rxLost=0 unmatched=115007 traceOver=232295 ownerGap=4010 conRej=2185",
+    "STATS running=1 inhibited=0 rx=118399 tx=58058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1172079410 txRej=0 rxLost=0 unmatched=116013 traceOver=234327 ownerGap=4010 conRej=2190",
+    "STATS running=1 inhibited=0 rx=119417 tx=58557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1182061422 txRej=0 rxLost=0 unmatched=117011 traceOver=236343 ownerGap=4010 conRej=2195",
+    "STATS running=1 inhibited=0 rx=120433 tx=59055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1192031402 txRej=0 rxLost=0 unmatched=118007 traceOver=238355 ownerGap=4010 conRej=2200",
+    "STATS running=1 inhibited=0 rx=121457 tx=59557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1202059409 txRej=0 rxLost=0 unmatched=119011 traceOver=240383 ownerGap=4010 conRej=2205",
+    "STATS running=1 inhibited=0 rx=122475 tx=60056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1212053292 txRej=0 rxLost=0 unmatched=120009 traceOver=242399 ownerGap=4010 conRej=2210",
+    "STATS running=1 inhibited=0 rx=123495 tx=60556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1222041409 txRej=0 rxLost=0 unmatched=121009 traceOver=244419 ownerGap=4010 conRej=2215",
+    "STATS running=1 inhibited=0 rx=124517 tx=61057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1232075400 txRej=0 rxLost=0 unmatched=122011 traceOver=246444 ownerGap=4010 conRej=2220",
+    "STATS running=1 inhibited=0 rx=125535 tx=61556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1242054404 txRej=0 rxLost=0 unmatched=123009 traceOver=248460 ownerGap=4010 conRej=2225",
+    "STATS running=1 inhibited=0 rx=126554 tx=62056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1252054390 txRej=0 rxLost=0 unmatched=124009 traceOver=250478 ownerGap=4010 conRej=2230",
+    "STATS running=1 inhibited=0 rx=127574 tx=62556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1262039407 txRej=0 rxLost=0 unmatched=125009 traceOver=252498 ownerGap=4010 conRej=2235",
+    "STATS running=1 inhibited=0 rx=128596 tx=63057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1272071402 txRej=0 rxLost=0 unmatched=126011 traceOver=254522 ownerGap=4010 conRej=2240",
+    "STATS running=1 inhibited=0 rx=129614 tx=63556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1282049402 txRej=0 rxLost=0 unmatched=127009 traceOver=256538 ownerGap=4010 conRej=2245",
+    "STATS running=1 inhibited=0 rx=130632 tx=64055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1292028402 txRej=0 rxLost=0 unmatched=128007 traceOver=258554 ownerGap=4010 conRej=2250",
+    "STATS running=1 inhibited=0 rx=131658 tx=64558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1302079409 txRej=0 rxLost=0 unmatched=129013 traceOver=260586 ownerGap=4010 conRej=2255",
+    "STATS running=1 inhibited=0 rx=132674 tx=65056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1312047402 txRej=0 rxLost=0 unmatched=130009 traceOver=262598 ownerGap=4010 conRej=2260",
+    "STATS running=1 inhibited=0 rx=133694 tx=65556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1322036406 txRej=0 rxLost=0 unmatched=131009 traceOver=264618 ownerGap=4010 conRej=2265",
+    "STATS running=1 inhibited=0 rx=134718 tx=66058 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1332081433 txRej=0 rxLost=0 unmatched=132013 traceOver=266646 ownerGap=4010 conRej=2270",
+    "STATS running=1 inhibited=0 rx=135736 tx=66557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1342070402 txRej=0 rxLost=0 unmatched=133011 traceOver=268662 ownerGap=4010 conRej=2278",
+    "STATS running=1 inhibited=0 rx=136754 tx=67056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1352048404 txRej=0 rxLost=0 unmatched=134009 traceOver=270678 ownerGap=4010 conRej=2284",
+    "STATS running=1 inhibited=0 rx=137772 tx=67555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1362025400 txRej=0 rxLost=0 unmatched=135007 traceOver=272694 ownerGap=4010 conRej=2289",
+    "STATS running=1 inhibited=0 rx=138796 tx=68057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1372064402 txRej=0 rxLost=0 unmatched=136011 traceOver=274722 ownerGap=4010 conRej=2295",
+    "STATS running=1 inhibited=0 rx=139812 tx=68555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1382033292 txRej=0 rxLost=0 unmatched=137007 traceOver=276734 ownerGap=4010 conRej=2301",
+    "STATS running=1 inhibited=0 rx=140834 tx=69056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1392054292 txRej=0 rxLost=0 unmatched=138009 traceOver=278758 ownerGap=4010 conRej=2306",
+    "STATS running=1 inhibited=0 rx=141854 tx=69556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1402054400 txRej=0 rxLost=0 unmatched=139009 traceOver=280779 ownerGap=4010 conRej=2311",
+    "STATS running=1 inhibited=0 rx=142876 tx=70057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1412060407 txRej=0 rxLost=0 unmatched=140011 traceOver=282802 ownerGap=4010 conRej=2316",
+    "STATS running=1 inhibited=0 rx=143894 tx=70556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1422044406 txRej=0 rxLost=0 unmatched=141009 traceOver=284818 ownerGap=4010 conRej=2321",
+    "STATS running=1 inhibited=0 rx=144914 tx=71056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1432041424 txRej=0 rxLost=0 unmatched=142009 traceOver=286838 ownerGap=4010 conRej=2326",
+    "STATS running=1 inhibited=0 rx=145934 tx=71556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1442039409 txRej=0 rxLost=0 unmatched=143009 traceOver=288858 ownerGap=4010 conRej=2331",
+    "STATS running=1 inhibited=0 rx=146956 tx=72057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1452069402 txRej=0 rxLost=0 unmatched=144011 traceOver=290882 ownerGap=4010 conRej=2336",
+    "STATS running=1 inhibited=0 rx=147974 tx=72556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1462039409 txRej=0 rxLost=0 unmatched=145009 traceOver=292898 ownerGap=4010 conRej=2341",
+    "STATS running=1 inhibited=0 rx=148992 tx=73055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1472023406 txRej=0 rxLost=0 unmatched=146007 traceOver=294914 ownerGap=4010 conRej=2346",
+    "STATS running=1 inhibited=0 rx=150016 tx=73557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1482060409 txRej=0 rxLost=0 unmatched=147011 traceOver=296942 ownerGap=4010 conRej=2351",
+    "STATS running=1 inhibited=0 rx=151034 tx=74056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1492041404 txRej=0 rxLost=0 unmatched=148009 traceOver=298958 ownerGap=4010 conRej=2356",
+    "STATS running=1 inhibited=0 rx=152056 tx=74557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1502074388 txRej=0 rxLost=0 unmatched=149011 traceOver=300982 ownerGap=4010 conRej=2361",
+    "STATS running=1 inhibited=0 rx=153074 tx=75056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1512049404 txRej=0 rxLost=0 unmatched=150009 traceOver=302998 ownerGap=4010 conRej=2366",
+    "STATS running=1 inhibited=0 rx=154098 tx=75558 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1522080407 txRej=0 rxLost=0 unmatched=151013 traceOver=305026 ownerGap=4010 conRej=2371",
+    "STATS running=1 inhibited=0 rx=155114 tx=76056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1532042433 txRej=0 rxLost=0 unmatched=152009 traceOver=307038 ownerGap=4010 conRej=2376",
+    "STATS running=1 inhibited=0 rx=156136 tx=76557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1542073295 txRej=0 rxLost=0 unmatched=153011 traceOver=309062 ownerGap=4010 conRej=2381",
+    "STATS running=1 inhibited=0 rx=157151 tx=77055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1552035400 txRej=0 rxLost=0 unmatched=154007 traceOver=311074 ownerGap=4010 conRej=2386",
+    "STATS running=1 inhibited=0 rx=158176 tx=77557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1562070402 txRej=0 rxLost=0 unmatched=155011 traceOver=313102 ownerGap=4010 conRej=2391",
+    "STATS running=1 inhibited=0 rx=159193 tx=78056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1572047402 txRej=0 rxLost=0 unmatched=156009 traceOver=315117 ownerGap=4010 conRej=2396",
+    "STATS running=1 inhibited=0 rx=160213 tx=78556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1582039407 txRej=0 rxLost=0 unmatched=157009 traceOver=317137 ownerGap=4010 conRej=2401",
+    "STATS running=1 inhibited=0 rx=161235 tx=79057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1592066400 txRej=0 rxLost=0 unmatched=158011 traceOver=319161 ownerGap=4010 conRej=2406",
+    "STATS running=1 inhibited=0 rx=162253 tx=79556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1602046406 txRej=0 rxLost=0 unmatched=159009 traceOver=321177 ownerGap=4010 conRej=2411",
+    "STATS running=1 inhibited=0 rx=163271 tx=80055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1612027402 txRej=0 rxLost=0 unmatched=160007 traceOver=323193 ownerGap=4010 conRej=2416",
+    "STATS running=1 inhibited=0 rx=164295 tx=80557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1622070402 txRej=0 rxLost=0 unmatched=161011 traceOver=325221 ownerGap=4010 conRej=2421",
+    "STATS running=1 inhibited=0 rx=165313 tx=81056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1632039407 txRej=0 rxLost=0 unmatched=162009 traceOver=327237 ownerGap=4010 conRej=2426",
+    "STATS running=1 inhibited=0 rx=166329 tx=81554 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1642015400 txRej=0 rxLost=0 unmatched=163005 traceOver=329250 ownerGap=4010 conRej=2431",
+    "STATS running=1 inhibited=0 rx=167355 tx=82057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1652063406 txRej=0 rxLost=0 unmatched=164011 traceOver=331281 ownerGap=4010 conRej=2436",
+    "STATS running=1 inhibited=0 rx=168371 tx=82555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1662035400 txRej=0 rxLost=0 unmatched=165007 traceOver=333294 ownerGap=4010 conRej=2441",
+    "STATS running=1 inhibited=0 rx=169395 tx=83057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1672074400 txRej=0 rxLost=0 unmatched=166011 traceOver=335322 ownerGap=4010 conRej=2446",
+    "STATS running=1 inhibited=0 rx=170415 tx=83557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1682066402 txRej=0 rxLost=0 unmatched=167011 traceOver=337341 ownerGap=4010 conRej=2451",
+    "STATS running=1 inhibited=0 rx=171433 tx=84056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1692036402 txRej=0 rxLost=0 unmatched=168009 traceOver=339357 ownerGap=4010 conRej=2456",
+    "STATS running=1 inhibited=0 rx=172455 tx=84557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1702067402 txRej=0 rxLost=0 unmatched=169011 traceOver=341381 ownerGap=4010 conRej=2461",
+    "STATS running=1 inhibited=0 rx=173473 tx=85056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1712042427 txRej=0 rxLost=0 unmatched=170009 traceOver=343397 ownerGap=4010 conRej=2466",
+    "STATS running=1 inhibited=0 rx=174495 tx=85557 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1722064406 txRej=0 rxLost=0 unmatched=171011 traceOver=345421 ownerGap=4010 conRej=2471",
+    "STATS running=1 inhibited=0 rx=175511 tx=86055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1732024406 txRej=0 rxLost=0 unmatched=172007 traceOver=347433 ownerGap=4010 conRej=2476",
+    "STATS running=1 inhibited=0 rx=176533 tx=86556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1742051404 txRej=0 rxLost=0 unmatched=173009 traceOver=349457 ownerGap=4010 conRej=2481",
+    "STATS running=1 inhibited=0 rx=177555 tx=87057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1752056492 txRej=0 rxLost=0 unmatched=174011 traceOver=351481 ownerGap=4010 conRej=2486",
+    "STATS running=1 inhibited=0 rx=178573 tx=87556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1762040407 txRej=0 rxLost=0 unmatched=175009 traceOver=353497 ownerGap=4010 conRej=2491",
+    "STATS running=1 inhibited=0 rx=179595 tx=88057 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1772073390 txRej=0 rxLost=0 unmatched=176011 traceOver=355521 ownerGap=4010 conRej=2496",
+    "STATS running=1 inhibited=0 rx=180613 tx=88556 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1782039407 txRej=0 rxLost=0 unmatched=177009 traceOver=357537 ownerGap=4010 conRej=2501",
+    "STATS running=1 inhibited=0 rx=181633 tx=89056 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1792036402 txRej=0 rxLost=0 unmatched=178009 traceOver=359557 ownerGap=4010 conRej=2506",
+    "STATS running=1 inhibited=0 rx=182651 tx=89555 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1802019409 txRej=0 rxLost=0 unmatched=179007 traceOver=361573 ownerGap=4010 conRej=2511",
+    "STATS running=1 inhibited=0 rx=183671 tx=90055 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1812035398 txRej=0 rxLost=0 unmatched=180007 traceOver=363594 ownerGap=4010 conRej=2516",
+    "STATS running=1 inhibited=0 rx=184689 tx=90554 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1822016410 txRej=0 rxLost=0 unmatched=181005 traceOver=365609 ownerGap=4010 conRej=2521",
+    "STATS running=1 inhibited=0 rx=184690 tx=90554 dropped=0 errors=0 flags=00000000 stackFree=7592 t=1822387447 txRej=0 rxLost=0 unmatched=181005 traceOver=365610 ownerGap=4010 conRej=2526"
+  ],
+  "elapsed_s": 1800.9689999999828,
+  "expected_count": 90000,
+  "watch": {
+    "begin": {
+      "n": "0",
+      "t": "21883406",
+      "seconds": "1810",
+      "ring": "32",
+      "ids": "16",
+      "compact": "1",
+      "origin": "21882417"
+    },
+    "end": {
+      "n": "186123",
+      "t": "1822287395",
+      "reason": "stop",
+      "frames": "183598",
+      "printed": "183598",
+      "unprinted": "0",
+      "tapDropped": "0",
+      "untimed": "0",
+      "sdo": "0",
+      "idOverflow": "0"
+    },
+    "raw_rx_complete": true,
+    "observed_bounds_valid": true,
+    "timing_complete": true,
+    "errors": [],
+    "raw_errors": [],
+    "timing_errors": [],
+    "coverage_errors": [],
+    "received_frames": 183598,
+    "invalid_time": 0,
+    "ids": {
+      "386s": {
+        "id": 386,
+        "ext": false,
+        "count": 90000,
+        "min_hi_gap": 17618,
+        "max_hi_gap": 23367,
+        "sum_hi_gap": 1799977869,
+        "gaps": 89999,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          45273,
+          44726
+        ],
+        "lower_over_period": 39274,
+        "upper_below_period": 39190,
+        "payload_changes": 0,
+        "min_interval_lower": 16709,
+        "max_interval_upper": 24290,
+        "mean_hi_gap": 19999
+      },
+      "385s": {
+        "id": 385,
+        "ext": false,
+        "count": 90000,
+        "min_hi_gap": 17630,
+        "max_hi_gap": 23362,
+        "sum_hi_gap": 1799977871,
+        "gaps": 89999,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          45328,
+          44671
+        ],
+        "lower_over_period": 38829,
+        "upper_below_period": 38693,
+        "payload_changes": 0,
+        "min_interval_lower": 16708,
+        "max_interval_upper": 24292,
+        "mean_hi_gap": 19999
+      },
+      "1794s": {
+        "id": 1794,
+        "ext": false,
+        "count": 1799,
+        "min_hi_gap": 1000598,
+        "max_hi_gap": 1001036,
+        "sum_hi_gap": 1799427920,
+        "gaps": 1798,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1798
+        ],
+        "lower_over_period": 1798,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998275,
+        "max_interval_upper": 1003304,
+        "mean_hi_gap": 1000794
+      },
+      "1793s": {
+        "id": 1793,
+        "ext": false,
+        "count": 1799,
+        "min_hi_gap": 1000585,
+        "max_hi_gap": 1001019,
+        "sum_hi_gap": 1799426757,
+        "gaps": 1798,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1798
+        ],
+        "lower_over_period": 1798,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998269,
+        "max_interval_upper": 1003328,
+        "mean_hi_gap": 1000793
+      }
+    },
+    "tpdos": {
+      "386": {
+        "id": 386,
+        "ext": false,
+        "count": 90000,
+        "min_hi_gap": 17618,
+        "max_hi_gap": 23367,
+        "sum_hi_gap": 1799977869,
+        "gaps": 89999,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          45273,
+          44726
+        ],
+        "lower_over_period": 39274,
+        "upper_below_period": 39190,
+        "payload_changes": 0,
+        "min_interval_lower": 16709,
+        "max_interval_upper": 24290,
+        "mean_hi_gap": 19999
+      },
+      "385": {
+        "id": 385,
+        "ext": false,
+        "count": 90000,
+        "min_hi_gap": 17630,
+        "max_hi_gap": 23362,
+        "sum_hi_gap": 1799977871,
+        "gaps": 89999,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          45328,
+          44671
+        ],
+        "lower_over_period": 38829,
+        "upper_below_period": 38693,
+        "payload_changes": 0,
+        "min_interval_lower": 16708,
+        "max_interval_upper": 24292,
+        "mean_hi_gap": 19999
+      }
+    },
+    "rejected_tpdo_frames": 0,
+    "expected_tpdo_dlc": 7,
+    "native_ids": {
+      "386s": {
+        "n": "186119",
+        "t": "1822269402",
+        "id": "182",
+        "ext": "0",
+        "count": "90000",
+        "first": "22017690",
+        "last": "1821995559",
+        "minGap": "17618",
+        "maxGap": "23367",
+        "meanGap": "19999",
+        "sdGap": "997",
+        "changes": "0",
+        "dlc": "7",
+        "data": "50800122eb0100"
+      },
+      "385s": {
+        "n": "186120",
+        "t": "1822271390",
+        "id": "181",
+        "ext": "0",
+        "count": "90000",
+        "first": "22017757",
+        "last": "1821995628",
+        "minGap": "17630",
+        "maxGap": "23362",
+        "meanGap": "19999",
+        "sdGap": "997",
+        "changes": "0",
+        "dlc": "7",
+        "data": "5040019ffd0100"
+      },
+      "1794s": {
+        "n": "186121",
+        "t": "1822273395",
+        "id": "702",
+        "ext": "0",
+        "count": "1799",
+        "first": "22081660",
+        "last": "1821509580",
+        "minGap": "1000598",
+        "maxGap": "1001036",
+        "meanGap": "1000794",
+        "sdGap": "31",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      },
+      "1793s": {
+        "n": "186122",
+        "t": "1822275395",
+        "id": "701",
+        "ext": "0",
+        "count": "1799",
+        "first": "22830824",
+        "last": "1822257581",
+        "minGap": "1000585",
+        "maxGap": "1001019",
+        "meanGap": "1000793",
+        "sdGap": "32",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      }
+    },
+    "histogram_upper_limits_us": [
+      5000,
+      9000,
+      9500,
+      10000,
+      10500,
+      11000,
+      20000
+    ],
+    "rx_payload_bits": 10108784,
+    "tx_raw_per_cycle": false,
+    "wire_bus_load_measured": false,
+    "time_scope": "driver receive bounds and upper-bound gaps; not wire time or same-cycle identity"
+  },
+  "counter_errors": [],
+  "handoffs": [
+    {
+      "host_s": 385449.984,
+      "wire_hex": "70",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385450.031,
+      "wire_hex": "6f",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385450.093,
+      "wire_hex": "4035343030303020686f737420300a",
+      "accepted_bytes": 15
+    },
+    {
+      "host_s": 385450.156,
+      "wire_hex": "40353430303031206465627567206f66660a",
+      "accepted_bytes": 18
+    },
+    {
+      "host_s": 385450.218,
+      "wire_hex": "403534303030322073796e6320696e73706563740a",
+      "accepted_bytes": 21
+    },
+    {
+      "host_s": 385450.281,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385450.343,
+      "wire_hex": "50313831302c630a",
+      "accepted_bytes": 8
+    },
+    {
+      "host_s": 385450.406,
+      "wire_hex": "403534303030332073796e632061726d0a",
+      "accepted_bytes": 17
+    },
+    {
+      "host_s": 385450.468,
+      "wire_hex": "403534303030342073796e6320706572696f642032302039303030300a",
+      "accepted_bytes": 29
+    },
+    {
+      "host_s": 385460.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385470.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385480.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385490.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385500.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385510.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385520.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385530.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385540.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385550.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385560.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385570.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385580.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385590.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385600.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385610.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385620.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385630.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385640.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385650.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385660.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385670.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385680.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385690.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385700.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385710.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385720.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385730.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385740.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385750.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385760.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385770.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385780.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385790.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385800.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385810.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385820.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385830.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385840.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385850.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385860.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385870.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385880.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385890.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385900.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385910.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385920.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385930.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385940.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385950.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385960.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385970.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385980.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 385990.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386000.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386010.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386020.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386030.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386040.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386050.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386060.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386070.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386080.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386090.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386100.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386110.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386120.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386130.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386140.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386150.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386160.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386170.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386180.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386190.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386200.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386210.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386220.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386230.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386240.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386250.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386260.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386270.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386280.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386290.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386300.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386310.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386320.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386330.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386340.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386350.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386360.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386370.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386380.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386390.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386400.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386410.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386420.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386430.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386440.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386450.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386460.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386470.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386480.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386490.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386500.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386510.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386520.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386530.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386540.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386550.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386560.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386570.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386580.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386590.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386600.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386610.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386620.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386630.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386640.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386650.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386660.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386670.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386680.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386690.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386700.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386710.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386720.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386730.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386740.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386750.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386760.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386770.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386780.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386790.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386800.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386810.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386820.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386830.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386840.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386850.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386860.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386870.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386880.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386890.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386900.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386910.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386920.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386930.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386940.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386950.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386960.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386970.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386980.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 386990.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387000.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387010.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387020.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387030.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387040.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387050.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387060.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387070.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387080.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387090.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387100.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387110.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387120.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387130.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387140.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387150.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387160.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387170.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387180.562,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387190.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387200.578,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387210.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387220.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387230.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387240.546,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387250.531,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 387250.593,
+      "wire_hex": "403534303030352073796e632074696d696e670a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 387250.656,
+      "wire_hex": "403534303030362072656c6561736520320a",
+      "accepted_bytes": 18
+    },
+    {
+      "host_s": 387250.718,
+      "wire_hex": "403534303030372073796e632064697361726d0a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 387250.781,
+      "wire_hex": "50300a",
+      "accepted_bytes": 3
+    },
+    {
+      "host_s": 387250.906,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    }
+  ],
+  "console_records": [
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540000,
+      "command": "host",
+      "ok": true,
+      "status": "OK",
+      "wire_work": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540001,
+      "command": "debug",
+      "ok": true,
+      "status": "OK",
+      "mode": 0,
+      "trace_overwritten": 2011,
+      "trace_pending": 0,
+      "trace_dropped": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540002,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "armed": false,
+      "producer_conflict": false,
+      "retained": false,
+      "active": false,
+      "foreign_observed": false,
+      "foreign_serial": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540003,
+      "command": "sync",
+      "ok": true,
+      "status": "OK"
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540004,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "result": "accepted",
+      "operation_id": 2
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "terminal",
+      "id": 540004,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "detail": 1,
+      "outcome": "LOCAL_TX",
+      "uncertain": true,
+      "command_id": 540004,
+      "operation_id": 2,
+      "completed_us": "1821998330",
+      "abort_code": null,
+      "local_tx_count": 90000,
+      "requested_count": 90000,
+      "transmission_possible": true,
+      "drive_effect_known": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540005,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "generation": 2,
+      "count": 90000,
+      "terminals": 90000,
+      "confirmed": 90000,
+      "handoffs": 90000,
+      "origin_us": "22012619",
+      "period_us": "20000",
+      "handoff_us": [
+        "22016402",
+        "1821994400",
+        "17988",
+        "23002"
+      ],
+      "delay_us": [
+        "4783",
+        "5004"
+      ],
+      "invalid": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540006,
+      "command": "release",
+      "ok": true,
+      "status": "OK"
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540007,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "motor_stop": false
+    }
+  ],
+  "raw_bytes": 9402380,
+  "partial_line_hex": "",
+  "stream_healthy": true
+}

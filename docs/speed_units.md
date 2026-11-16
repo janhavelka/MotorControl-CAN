@@ -145,7 +145,9 @@ measure physical shaft speed. Runs met the report's clean-feedback criteria at n
 4250 rpm on node 1 and from 4625 rpm on node 2 at `2201=1000` with 2000 ms ramps; 4000 rpm with a
 200 ms ramp faults on both. Only at `2201=51200` did it fall: node 2 was clean to 3000 rpm (2.56 MHz) and faulted
 at 3200 rpm (2.73 MHz); node 1's wider interval was between 2344 and 3516 rpm. A pulse-rate ceiling and an effect of
-the deviation threshold remain competing hypotheses, not established causes. After an
+the deviation threshold remain competing hypotheses, not established causes. On 2026-11-16, 3000 rpm with 500 ms
+ramps (four times the acceleration of the clean 2000 ms run) was also clean on node 1 at 51200
+([HIL report](reports/2026-11-16_hil_campaign.md#s21-discriminator-and-2500-persistence)), which favours the pulse-rate ceiling; one run. After an
 FF05 at 51200 both drives faulted at every later enable until a power cycle
 ([enable-fault report](reports/2026-11-13_enable_fault_state.md)). These trials establish no safe pulse-rate ceiling
 or causal motor-speed limit. In one unsaved-setting observation, node 2, written to 51200 at 16:23Z, read 1000 after

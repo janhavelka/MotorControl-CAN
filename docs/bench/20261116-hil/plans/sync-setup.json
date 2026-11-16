@@ -1,0 +1,116 @@
+{
+  "purpose": "SYNC phase setup after the user's power cycle: fresh identity on both nodes, then explicit temporary TPDO1 transmission type 1 on each (no save, no motion, no RPDO). Restored later with J<n>,255 or the type the records show as prior. Lists the NMT state before and after (the M14 helper needs fresh exact Operational evidence).",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation and finish up all tests that are missing and are able to run now.. Motor power cycled; standing bench authorization 2026-11-02 (docs/prompts/COMMON.md)",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller in this boot"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 1 raw identity inventory (uploads only) after the 2026-11-16 power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 2 raw identity inventory (uploads only) after the 2026-11-16 power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3,
+      "note": "let both heartbeats arrive"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "note": "NMT state before any NMT command"
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "note": "node 1 Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 transmission type 1 (synchronous), typed write and readback; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "note": "node 1 Operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "note": "node 2 Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J2,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 transmission type 1 (synchronous), typed write and readback; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "note": "node 2 Operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "note": "NMT state after the setup"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

@@ -29,7 +29,7 @@ drive fact), **practice** (general engineering practice, not Lichuan evidence).
 | Quick-stop, shutdown, disable and fault reaction options `605A`, `605B`, `605C`, `605E` | Absent; only the halt option `605D` exists | EDS (documented) |
 | Producer heartbeat `1017` (the drive sends its own heartbeat) | Present, default 0 (off) | EDS (documented); [backlog D10](backlog.md) |
 | RPDO event timer `1400:05` | Present and set to 1000 on the bench drives. CiA 301 lets a receiver use it as a deadline for incoming RPDOs; whether the Lichuan reacts to a missing RPDO is unknown | [Prompt 51](prompts/51_sync_producer.md) trial a2 (open) |
-| NMT Stop sent by another node | Not a motor stop. A released node changed neither state nor position; an enabled or moving drive never received one | Measured 2026-11-06 ([backlog D15](backlog.md)); [M14](backlog.md) open |
+| NMT Stop sent by another node | Not a motor stop. A released node changed neither state nor position; a node running at 6 or 30 rpm in velocity mode kept its speed through NMT Stopped and Pre-operational until an SDO quick stop (4 of 4) | Measured 2026-11-06 ([backlog D15](backlog.md)) and 2026-11-16 ([M14](reports/2026-11-16_hil_campaign.md#m14-nmt-stop-during-a-slow-velocity-run-route-velocity-nmt)) |
 | DI stop (function 5) and emergency stop (function 6) | Documented input functions; the reaction (ramp, final state, alarm, what re-enabling needs) is not documented | EN86/ZH86 p8 (documented); [I/O guide](io_settings.md); [backlog M15](backlog.md) |
 | Safe torque off (STO) input | None documented | Manuals and product page (documented by absence) |
 
@@ -141,6 +141,5 @@ Not verified: ESP32-S2/S3 boot time and each pin's reset-default pull; the SP706
 - What each drive does on DI function 5 and on function 6: ramp, final state, alarm, what is needed to run again
   (prompt 62 trials, wiring by the user).
 - Whether the RPDO event timer `1400:05` stops or faults a drive when RPDOs stop arriving (prompt 51 trial a2).
-- What NMT Stop does to an enabled, moving drive (backlog M14, prompt 54).
 - What a running drive does when the host disappears: unplug the MCU's CAN connector during a slow velocity run and
   read the drive afterwards (prompt 69 trial, attended).

@@ -1,0 +1,21 @@
+{
+  "duration_s": 5,
+  "period_ms": 10,
+  "count": 500,
+  "watch_s": 15,
+  "byte_cap": 67108864,
+  "raw_tx_per_cycle": false,
+  "automatic_retry": false,
+  "configuration_changed": false,
+  "firmware_effect_qualified": false,
+  "planned_cleanup": "cached sync timing/STATS, local sync disarm and P0; failed result retained",
+  "expected_elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+  "port": "COM15",
+  "fixture": {
+    "port": "COM15",
+    "usb_serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "tool_sha256": "d637226051b91f11119867a25aa709b15cf72f1b51d7bae579b356d6c41e1c87"
+}

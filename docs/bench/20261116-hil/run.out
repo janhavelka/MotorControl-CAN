@@ -1,0 +1,26 @@
+09:19:28Z ##### series 1 node 1 state (S0001-n1-state)
+09:19:31Z === start
+09:19:35Z   exit 0 (4.2 s)
+09:19:35Z === 56001 read node 1
+09:19:38Z   TRIAL id=56001 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+09:19:38Z   TRIAL_PLAN route=actions node=1 trial=56001 attended=0
+09:19:38Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+09:19:38Z   exit 0 (2.4 s)
+09:19:38Z === release 56001
+09:19:39Z   exit 0 (1.6 s)
+09:19:39Z   state n1 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:19:39Z   INVEST state: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8037', '6061': '00', '6064': 0, '606c': 0, '607a': 5000, '60ff': 120}
+09:19:39Z stuck.py ended
+09:19:40Z ##### series 2 node 2 state (S0002-n2-state)
+09:19:43Z === start
+09:19:47Z   exit 0 (4.2 s)
+09:19:47Z === 56002 read node 2
+09:19:49Z   TRIAL id=56002 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5001 lossCancel=0
+09:19:49Z   TRIAL_PLAN route=actions node=2 trial=56002 attended=0
+09:19:49Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+09:19:49Z   exit 0 (2.4 s)
+09:19:49Z === release 56002
+09:19:51Z   exit 0 (1.7 s)
+09:19:51Z   state n2 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:19:51Z   INVEST state: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8037', '6061': '00', '6064': 0, '606c': 0, '607a': 5000, '60ff': 120}
+09:19:51Z stuck.py ended

@@ -78,6 +78,8 @@ Bench, under the applicable authorization, each step needing a user power cycle 
 2. In a reproduced fault state (one 3300 rpm run at 51200): a mode 1 enable, and the word 7 guard's `0x0000` within
    100 ms of word 7, recording whether the FF05 and the pull still occur.
 3. The discriminator: 3000 rpm with a 500 ms ramp at 51200 (pulse limit versus the `250A` deviation threshold).
+   Done on 2026-11-16, node 1: clean, which favours the pulse limit ([report](../reports/2026-11-16_hil_campaign.md)); repeat on node 2 if the
+   guard's limit needs a second specimen.
 4. A short regression on both nodes.
 
 ## Documentation and delegation

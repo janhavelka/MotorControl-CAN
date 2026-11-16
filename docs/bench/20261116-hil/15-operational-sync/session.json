@@ -1,0 +1,202 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T10:36:34.061248+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261116-hil/plans/operational.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261116-hil/15-operational-sync",
+    "--tail-s",
+    "1"
+  ],
+  "plan_file": "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261116-hil/plans/operational.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "7c34a04ad4f47a4edbebfcf19cfc6ba475683c96c5859d3756c8a09d7f063309",
+    "s2_evidence.py": "0461e49b5d37783425d4f136bb5ae254358d1360625f1075278efd5f39f5d82f"
+  },
+  "host_revision": "17386514ff2bb163028394e4c895e446a134e6f0",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "17386514ff2bb163028394e4c895e446a134e6f0",
+    "elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "15",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "7",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-16T10:36:34.506442+00:00",
+      "monotonic": 385431.89,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "binds node 1 in this boot (uploads only)",
+      "sent": "3",
+      "tx_hex": "33",
+      "utc": "2026-11-16T10:36:34.516849+00:00",
+      "monotonic": 385431.906,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 3,
+      "end": "END raw terminals=26 traffic=78 tail=4 tailLost=0 lost=0; r=release",
+      "end_line": 113,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T10:36:36.630378+00:00",
+      "monotonic": 385434.015,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 114,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "binds node 2 in this boot (uploads only)",
+      "sent": "4",
+      "tx_hex": "34",
+      "utc": "2026-11-16T10:36:36.639378+00:00",
+      "monotonic": 385434.031,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 115,
+      "end": "END raw terminals=26 traffic=78 tail=4 tailLost=0 lost=0; r=release",
+      "end_line": 225,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T10:36:38.755343+00:00",
+      "monotonic": 385436.14,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 226,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "wait_s": 3,
+      "utc": "2026-11-16T10:36:38.763978+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T10:36:41.814326+00:00",
+      "monotonic": 385439.203,
+      "reply": "NETWORK node=1 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=9819548 hi=9820512 p=9821394 dropped=10",
+      "reply_line": 227,
+      "end": "END network; boot-up requires an actual observed00 frame; no inferred reset",
+      "end_line": 233,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "N1,o",
+      "tx_hex": "4e312c6f0a",
+      "utc": "2026-11-16T10:36:41.908346+00:00",
+      "monotonic": 385439.296,
+      "reply": "NMT admitted node=1 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 234,
+      "end": "NMT request=3 target=1 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=10841399 admitted=10838271; retained; network observation separate",
+      "end_line": 235,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T10:36:41.935952+00:00",
+      "monotonic": 385439.328,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 236,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "",
+      "sent": "N2,o",
+      "tx_hex": "4e322c6f0a",
+      "utc": "2026-11-16T10:36:41.944281+00:00",
+      "monotonic": 385439.343,
+      "reply": "NMT admitted node=2 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 237,
+      "end": "NMT request=4 target=2 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=10877399 admitted=10874287; retained; network observation separate",
+      "end_line": 238,
+      "outcome": "answered"
+    },
+    {
+      "step": 11,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T10:36:41.972309+00:00",
+      "monotonic": 385439.359,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 239,
+      "outcome": "answered"
+    },
+    {
+      "step": 12,
+      "note": "",
+      "wait_s": 3,
+      "utc": "2026-11-16T10:36:41.979835+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 13,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T10:36:45.020875+00:00",
+      "monotonic": 385442.406,
+      "reply": "NETWORK node=1 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=13823548 hi=13823665 p=13824392 dropped=16",
+      "reply_line": 240,
+      "end": "END network; boot-up requires an actual observed00 frame; no inferred reset",
+      "end_line": 246,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T10:36:46.303567+00:00",
+  "bytes": 34352
+}

@@ -1,0 +1,765 @@
+=== plan s1:60
+09:20:25Z ##### series 3 node 1 L60 (S0003-n1-L60)
+09:20:28Z === start
+09:20:32Z   exit 0 (4.1 s)
+09:20:32Z === 56003 read node 1
+09:20:35Z   TRIAL id=56003 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+09:20:35Z   TRIAL_PLAN route=actions node=1 trial=56003 attended=0
+09:20:35Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+09:20:35Z   exit 0 (2.4 s)
+09:20:35Z === release 56003
+09:20:36Z   exit 0 (1.7 s)
+09:20:36Z   state n1 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:20:36Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+09:20:36Z === 56004 mode1 n1
+09:20:43Z   TRIAL id=56004 node=1 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5006 lossCancel=0
+09:20:43Z   TRIAL_PLAN route=mode1 node=1 trial=56004 attended=1 cycles=5 interval=500
+09:20:43Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:20:43Z   exit 0 (6.8 s)
+09:20:43Z === release 56004
+09:20:45Z   exit 0 (1.7 s)
+09:20:45Z === release alert
+09:20:46Z   RELEASE refused
+09:20:46Z   exit 0 (1.6 s)
+09:20:46Z === 56005 emergency stop n1
+09:20:47Z   TRIAL id=56005 node=1 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=4000 lossCancel=0
+09:20:47Z   TRIAL_PLAN route=stop node=1 trial=56005 attended=1 kind=2 deadline=2000 be=2000 interval=250
+09:20:47Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:20:47Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+09:20:47Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+09:20:47Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:20:47Z   exit 3 (1.2 s)
+09:20:47Z === release emergency-56005
+09:20:49Z   exit 0 (1.7 s)
+09:20:49Z ##### series 4 node 1 L60b (S0004-n1-L60b)
+09:20:52Z === start
+09:20:56Z   exit 0 (4.1 s)
+09:20:56Z === 56006 read node 1
+09:20:59Z   TRIAL id=56006 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+09:20:59Z   TRIAL_PLAN route=actions node=1 trial=56006 attended=0
+09:20:59Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+09:20:59Z   exit 0 (2.4 s)
+09:20:59Z === release 56006
+09:21:01Z   exit 0 (1.7 s)
+09:21:01Z   state n1 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:21:01Z === 56007 mode3 n1
+09:21:05Z   TRIAL id=56007 node=1 route=mode3 failure=0 why=none lost=0 terminals=35 traffic=105 tail=0 tailLost=0 summaries=6 step=4 cycles=2 motion=1 case=1 unsettled=0 gap=5005 lossCancel=0
+09:21:05Z   TRIAL_PLAN route=mode3 node=1 trial=56007 attended=1 cycles=2 interval=500
+09:21:05Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:21:05Z   exit 0 (4.0 s)
+09:21:05Z === release 56007
+09:21:06Z   exit 0 (1.6 s)
+09:21:06Z === 56008 read node 1
+09:21:09Z   TRIAL id=56008 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5007 lossCancel=0
+09:21:09Z   TRIAL_PLAN route=actions node=1 trial=56008 attended=0
+09:21:09Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:21:09Z   exit 0 (2.4 s)
+09:21:09Z === release 56008
+09:21:10Z   exit 0 (1.7 s)
+09:21:10Z   state n1 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:21:10Z === 56009 read node 1
+09:21:13Z   TRIAL id=56009 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5005 lossCancel=0
+09:21:13Z   TRIAL_PLAN route=actions node=1 trial=56009 attended=0
+09:21:13Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:21:13Z   exit 0 (2.4 s)
+09:21:13Z === release 56009
+09:21:14Z   exit 0 (1.7 s)
+09:21:14Z   state n1 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:21:14Z === 56010 velocity-halt-60 n1
+09:21:38Z   TRIAL id=56010 node=1 route=velocity failure=0 why=none lost=0 terminals=84 traffic=252 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=3 case=1 unsettled=0 gap=4005 lossCancel=0
+09:21:38Z   TRIAL_PLAN route=velocity node=1 trial=56010 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=1 probe=0 reverse=0
+09:21:38Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:21:38Z   TRIAL_VELOCITY own=1 state=2 phase=6 outcome=1 first=0 int=0 setup=1 exec=1 completion=1 stop=1 sexec=1 uncertain=0 effects=1 needs=0 fenced=0 running=1 cycles=7 polls=2 op=26 sop=27 rpm=60 code=0 detail=0
+09:21:38Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=25629398
+09:21:38Z   TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=0 basis=3 observations=2 op=27
+09:21:38Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:21:38Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:21:38Z   exit 0 (23.5 s)
+09:21:38Z === release 56010
+09:21:40Z   exit 0 (1.6 s)
+09:21:40Z   RESULT n1 60 rpm s=1000 -> failure=0 why=none measured=59.5 ratio=0.9921 606c=[60, 60]
+09:21:40Z === 56011 read node 1
+09:21:42Z   TRIAL id=56011 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=3 case=0 unsettled=0 gap=5002 lossCancel=0
+09:21:42Z   TRIAL_PLAN route=actions node=1 trial=56011 attended=0
+09:21:42Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=11331 606c=0
+09:21:42Z   exit 0 (2.5 s)
+09:21:42Z === release 56011
+09:21:44Z   exit 0 (1.7 s)
+09:21:44Z   state n1 2100=0001 6041=9437 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:21:44Z === 56012 stop-quick-halted n1
+09:21:46Z   TRIAL id=56012 node=1 route=stop failure=0 why=none lost=0 terminals=20 traffic=60 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=4 case=2 unsettled=0 gap=6000 lossCancel=0
+09:21:46Z   TRIAL_PLAN route=stop node=1 trial=56012 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:21:46Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=0 606c=0
+09:21:46Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=010f documented=0 basis=3 observations=2 op=35
+09:21:46Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:21:46Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:21:46Z   exit 0 (2.6 s)
+09:21:46Z === release 56012
+09:21:48Z   exit 0 (1.7 s)
+09:21:48Z === 56013 read node 1
+09:21:50Z   TRIAL id=56013 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=4 case=0 unsettled=0 gap=5001 lossCancel=0
+09:21:50Z   TRIAL_PLAN route=actions node=1 trial=56013 attended=0
+09:21:50Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=11331 606c=0
+09:21:50Z   exit 0 (2.5 s)
+09:21:50Z === release 56013
+09:21:52Z   exit 0 (1.6 s)
+09:21:52Z   state n1 2100=0011 6041=8050 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:21:52Z highest clean step on node 1: 60
+09:21:52Z ladder s1:60 ended
+=== plan s2:60
+09:21:52Z ##### series 5 node 2 L60 (S0005-n2-L60)
+09:21:55Z === start
+09:21:59Z   exit 0 (4.2 s)
+09:21:59Z === 56014 read node 2
+09:22:02Z   TRIAL id=56014 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:22:02Z   TRIAL_PLAN route=actions node=2 trial=56014 attended=0
+09:22:02Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+09:22:02Z   exit 0 (2.4 s)
+09:22:02Z === release 56014
+09:22:04Z   exit 0 (1.6 s)
+09:22:04Z   state n2 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:22:04Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+09:22:04Z === 56015 mode1 n2
+09:22:10Z   TRIAL id=56015 node=2 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5000 lossCancel=0
+09:22:10Z   TRIAL_PLAN route=mode1 node=2 trial=56015 attended=1 cycles=5 interval=500
+09:22:10Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:22:10Z   exit 0 (6.8 s)
+09:22:10Z === release 56015
+09:22:12Z   exit 0 (1.6 s)
+09:22:12Z === release alert
+09:22:14Z   RELEASE refused
+09:22:14Z   exit 0 (1.6 s)
+09:22:14Z === 56016 emergency stop n2
+09:22:15Z   TRIAL id=56016 node=2 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=4001 lossCancel=0
+09:22:15Z   TRIAL_PLAN route=stop node=2 trial=56016 attended=1 kind=2 deadline=2000 be=2000 interval=250
+09:22:15Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:22:15Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+09:22:15Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+09:22:15Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:22:15Z   exit 3 (1.2 s)
+09:22:15Z === release emergency-56016
+09:22:16Z   exit 0 (1.6 s)
+09:22:16Z ##### series 6 node 2 L60b (S0006-n2-L60b)
+09:22:20Z === start
+09:22:24Z   exit 0 (4.2 s)
+09:22:24Z === 56017 read node 2
+09:22:26Z   TRIAL id=56017 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:22:26Z   TRIAL_PLAN route=actions node=2 trial=56017 attended=0
+09:22:26Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+09:22:26Z   exit 0 (2.3 s)
+09:22:26Z === release 56017
+09:22:28Z   exit 0 (1.7 s)
+09:22:28Z   state n2 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:22:28Z === 56018 mode3 n2
+09:22:32Z   TRIAL id=56018 node=2 route=mode3 failure=0 why=none lost=0 terminals=35 traffic=105 tail=0 tailLost=0 summaries=6 step=4 cycles=2 motion=1 case=1 unsettled=0 gap=5000 lossCancel=0
+09:22:32Z   TRIAL_PLAN route=mode3 node=2 trial=56018 attended=1 cycles=2 interval=500
+09:22:32Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:22:32Z   exit 0 (4.0 s)
+09:22:32Z === release 56018
+09:22:33Z   exit 0 (1.7 s)
+09:22:33Z === 56019 read node 2
+09:22:36Z   TRIAL id=56019 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5001 lossCancel=0
+09:22:36Z   TRIAL_PLAN route=actions node=2 trial=56019 attended=0
+09:22:36Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:22:36Z   exit 0 (2.4 s)
+09:22:36Z === release 56019
+09:22:38Z   exit 0 (1.7 s)
+09:22:38Z   state n2 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:22:38Z === 56020 read node 2
+09:22:40Z   TRIAL id=56020 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5001 lossCancel=0
+09:22:40Z   TRIAL_PLAN route=actions node=2 trial=56020 attended=0
+09:22:40Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:22:40Z   exit 0 (2.5 s)
+09:22:40Z === release 56020
+09:22:42Z   exit 0 (1.7 s)
+09:22:42Z   state n2 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+09:22:42Z === 56021 velocity-halt-60 n2
+09:23:05Z   TRIAL id=56021 node=2 route=velocity failure=0 why=none lost=0 terminals=84 traffic=252 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=3 case=1 unsettled=0 gap=4005 lossCancel=0
+09:23:05Z   TRIAL_PLAN route=velocity node=2 trial=56021 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=1 probe=0 reverse=0
+09:23:05Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+09:23:05Z   TRIAL_VELOCITY own=1 state=2 phase=6 outcome=1 first=0 int=0 setup=1 exec=1 completion=1 stop=1 sexec=1 uncertain=0 effects=1 needs=0 fenced=0 running=1 cycles=7 polls=2 op=26 sop=27 rpm=60 code=0 detail=0
+09:23:05Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=25669398
+09:23:05Z   TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=0 basis=3 observations=2 op=27
+09:23:05Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:05Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:05Z   exit 0 (23.5 s)
+09:23:05Z === release 56021
+09:23:07Z   exit 0 (1.6 s)
+09:23:07Z   RESULT n2 60 rpm s=1000 -> failure=0 why=none measured=59.5 ratio=0.9921 606c=[60, 60]
+09:23:07Z === 56022 read node 2
+09:23:09Z   TRIAL id=56022 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=3 case=0 unsettled=0 gap=5001 lossCancel=0
+09:23:09Z   TRIAL_PLAN route=actions node=2 trial=56022 attended=0
+09:23:09Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=11332 606c=0
+09:23:09Z   exit 0 (2.5 s)
+09:23:09Z === release 56022
+09:23:11Z   exit 0 (1.7 s)
+09:23:11Z   state n2 2100=0001 6041=9437 6061=03 6064=11332 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:23:11Z === 56023 stop-quick-halted n2
+09:23:14Z   TRIAL id=56023 node=2 route=stop failure=0 why=none lost=0 terminals=20 traffic=60 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=4 case=2 unsettled=0 gap=6001 lossCancel=0
+09:23:14Z   TRIAL_PLAN route=stop node=2 trial=56023 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:23:14Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=0 606c=0
+09:23:14Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=010f documented=0 basis=3 observations=2 op=35
+09:23:14Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:14Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:14Z   exit 0 (2.6 s)
+09:23:14Z === release 56023
+09:23:15Z   exit 0 (1.6 s)
+09:23:15Z === 56024 read node 2
+09:23:18Z   TRIAL id=56024 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=4 case=0 unsettled=0 gap=5002 lossCancel=0
+09:23:18Z   TRIAL_PLAN route=actions node=2 trial=56024 attended=0
+09:23:18Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=11331 606c=0
+09:23:18Z   exit 0 (2.5 s)
+09:23:18Z === release 56024
+09:23:19Z   exit 0 (1.7 s)
+09:23:19Z   state n2 2100=0015 6041=c050 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:23:19Z highest clean step on node 2: 60
+09:23:19Z ladder s2:60 ended
+=== plan pos1:300,600,1200,1800,2400,3000
+09:23:19Z ##### series 7 node 1 P300 (S0007-n1-P300)
+09:23:23Z === start
+09:23:27Z   exit 0 (4.1 s)
+09:23:27Z === 56025 read node 1
+09:23:29Z   TRIAL id=56025 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+09:23:29Z   TRIAL_PLAN route=actions node=1 trial=56025 attended=0
+09:23:29Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=11331 606c=0
+09:23:29Z   exit 0 (2.4 s)
+09:23:29Z === release 56025
+09:23:31Z   exit 0 (1.6 s)
+09:23:31Z   state n1 2100=0011 6041=8050 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:23:31Z === 56026 velocity-halt-60 n1
+09:23:54Z   TRIAL id=56026 node=1 route=velocity failure=0 why=none lost=0 terminals=84 traffic=252 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4005 lossCancel=0
+09:23:54Z   TRIAL_PLAN route=velocity node=1 trial=56026 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=1 probe=0 reverse=0
+09:23:54Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=11331 606c=0
+09:23:54Z   TRIAL_VELOCITY own=1 state=2 phase=6 outcome=1 first=0 int=0 setup=1 exec=1 completion=1 stop=1 sexec=1 uncertain=0 effects=1 needs=0 fenced=0 running=1 cycles=7 polls=2 op=9 sop=10 rpm=60 code=0 detail=0
+09:23:54Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=11802396
+09:23:54Z   TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=0 basis=3 observations=2 op=10
+09:23:54Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:54Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:23:54Z   exit 0 (23.5 s)
+09:23:54Z === release 56026
+09:23:56Z   exit 0 (1.6 s)
+09:23:56Z   RESULT n1 60 rpm s=1000 -> failure=0 why=none measured=59.5 ratio=0.9919 606c=[58, 60]
+09:23:56Z === 56027 read node 1
+09:23:58Z   TRIAL id=56027 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:23:58Z   TRIAL_PLAN route=actions node=1 trial=56027 attended=0
+09:23:58Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=22671 606c=0
+09:23:58Z   exit 0 (2.5 s)
+09:23:58Z === release 56027
+09:24:00Z   exit 0 (1.7 s)
+09:24:00Z   state n1 2100=0001 6041=9437 6061=03 6064=22671 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:24:00Z === 56028 stop-quick-halted n1
+09:24:03Z   TRIAL id=56028 node=1 route=stop failure=0 why=none lost=0 terminals=20 traffic=60 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=3 case=2 unsettled=0 gap=6000 lossCancel=0
+09:24:03Z   TRIAL_PLAN route=stop node=1 trial=56028 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:24:03Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=0 606c=0
+09:24:03Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=010f documented=0 basis=3 observations=2 op=18
+09:24:03Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:24:03Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:24:03Z   exit 0 (2.6 s)
+09:24:03Z === release 56028
+09:24:04Z   exit 0 (1.7 s)
+09:24:04Z ##### series 8 node 1 P300r (S0008-n1-P300r)
+09:24:08Z === start
+09:24:12Z   exit 0 (4.1 s)
+09:24:12Z === 56029 read node 1
+09:24:14Z   TRIAL id=56029 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5007 lossCancel=0
+09:24:14Z   TRIAL_PLAN route=actions node=1 trial=56029 attended=0
+09:24:14Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=22670 606c=0
+09:24:14Z   exit 0 (2.4 s)
+09:24:14Z === release 56029
+09:24:16Z   exit 0 (1.7 s)
+09:24:16Z   state n1 2100=0015 6041=c050 6061=03 6064=22670 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:24:16Z === 56030 mode1 n1
+09:24:19Z   TRIAL id=56030 node=1 route=mode1 failure=0 why=none lost=0 terminals=34 traffic=102 tail=0 tailLost=0 summaries=5 step=8 cycles=1 motion=1 case=1 unsettled=0 gap=5005 lossCancel=0
+09:24:19Z   TRIAL_PLAN route=mode1 node=1 trial=56030 attended=1 cycles=3 interval=500
+09:24:19Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=01 6064=22670 606c=0
+09:24:19Z   exit 0 (3.5 s)
+09:24:19Z === release 56030
+09:24:21Z   exit 0 (1.7 s)
+09:24:21Z === 56031 read node 1
+09:24:23Z   TRIAL id=56031 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5005 lossCancel=0
+09:24:23Z   TRIAL_PLAN route=actions node=1 trial=56031 attended=0
+09:24:23Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=01 6064=22670 606c=0
+09:24:23Z   exit 0 (2.4 s)
+09:24:23Z === release 56031
+09:24:25Z   exit 0 (1.7 s)
+09:24:25Z   state n1 2100=0015 6041=c050 6061=01 6064=22670 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:24:25Z === 56032 enable n1
+09:24:32Z   TRIAL id=56032 node=1 route=enable failure=0 why=none lost=0 terminals=49 traffic=147 tail=0 tailLost=0 summaries=7 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=6005 lossCancel=0
+09:24:32Z   TRIAL_PLAN route=enable node=1 trial=56032 attended=1 start=2 shaft=1 status=c050 pt=5000 vt=60 deadline=10000 interval=1250
+09:24:32Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=01 6064=22670 606c=0
+09:24:32Z   TRIAL_ENABLE own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 mask=07 cursor=2 observations=5 op=22 pt=5000 vt=60 s0=c050 m0=0015 p0=22670
+09:24:32Z   TRIAL_ENABLE_STEP word=15 present=1 status=8437 monitor=0001 position=22680 velocity=0 history=1 outcome=0 ack=1 possible=1 uncertain=0
+09:24:32Z   exit 0 (7.3 s)
+09:24:32Z === release 56032
+09:24:34Z   exit 0 (1.7 s)
+09:24:34Z === 56033 read node 1
+09:24:36Z   TRIAL id=56033 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:24:36Z   TRIAL_PLAN route=actions node=1 trial=56033 attended=0
+09:24:36Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=22680 606c=0
+09:24:36Z   exit 0 (2.4 s)
+09:24:36Z === release 56033
+09:24:38Z   exit 0 (1.7 s)
+09:24:38Z   state n1 2100=0001 6041=8437 6061=01 6064=22680 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:24:38Z === 56034 move-run n1
+09:24:48Z   TRIAL id=56034 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=3 case=1 unsettled=0 gap=5001 lossCancel=0
+09:24:48Z   TRIAL_PLAN route=move node=1 trial=56034 attended=1 sp=22680 target=-11820 rpm=300 up=1000 down=1000 deadline=8887 interval=1000 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=22680 obs=0
+09:24:48Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=22680 606c=0
+09:24:48Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=32 target=-11820 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:24:48Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=10860 velocity=0 lo=38235392 hi=38280395
+09:24:48Z   exit 0 (10.5 s)
+09:24:48Z === release 56034
+09:24:50Z   exit 0 (1.7 s)
+09:24:50Z   POSITION n1 300 rpm -> final 10860 peak slope 298 rpm, max |606C| 298
+09:24:50Z === 56035 read node 1
+09:24:53Z   TRIAL id=56035 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=3 case=0 unsettled=0 gap=5002 lossCancel=0
+09:24:53Z   TRIAL_PLAN route=actions node=1 trial=56035 attended=0
+09:24:53Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=10860 606c=0
+09:24:53Z   exit 0 (2.4 s)
+09:24:53Z === release 56035
+09:24:54Z   exit 0 (1.7 s)
+09:24:54Z   state n1 2100=0001 6041=8437 6061=01 6064=10860 606c=0 1001=00 603f=0000 607a=-11820 60ff=60
+09:24:54Z === 56036 move-run n1
+09:25:05Z   TRIAL id=56036 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=4 case=2 unsettled=0 gap=5001 lossCancel=0
+09:25:05Z   TRIAL_PLAN route=move node=1 trial=56036 attended=1 sp=10860 target=-22080 rpm=600 up=1000 down=1000 deadline=8730 interval=1000 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=10860 obs=0
+09:25:05Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=10860 606c=0
+09:25:05Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=42 target=-22080 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:25:05Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=-11219 velocity=0 lo=54523392 hi=54568395
+09:25:05Z   exit 0 (10.5 s)
+09:25:05Z === release 56036
+09:25:06Z   exit 0 (1.7 s)
+09:25:06Z   POSITION n1 600 rpm -> final -11219 peak slope 595 rpm, max |606C| 594
+09:25:06Z === 56037 read node 1
+09:25:09Z   TRIAL id=56037 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=4 case=0 unsettled=0 gap=5002 lossCancel=0
+09:25:09Z   TRIAL_PLAN route=actions node=1 trial=56037 attended=0
+09:25:09Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-11219 606c=0
+09:25:09Z   exit 0 (2.4 s)
+09:25:09Z === release 56037
+09:25:11Z   exit 0 (1.7 s)
+09:25:11Z   state n1 2100=0001 6041=8437 6061=01 6064=-11219 606c=0 1001=00 603f=0000 607a=-22080 60ff=60
+09:25:11Z === 56038 move-run n1
+09:25:23Z   TRIAL id=56038 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=5 case=3 unsettled=0 gap=5001 lossCancel=0
+09:25:23Z   TRIAL_PLAN route=move node=1 trial=56038 attended=1 sp=-11219 target=67500 rpm=1200 up=2000 down=2000 deadline=11909 interval=1500 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=-11219 obs=0
+09:25:23Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-11219 606c=0
+09:25:23Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=52 target=67500 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:25:23Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=56280 velocity=0 lo=72814392 hi=72859394
+09:25:23Z   exit 0 (12.5 s)
+09:25:23Z === release 56038
+09:25:25Z   exit 0 (1.6 s)
+09:25:25Z   POSITION n1 1200 rpm -> final 56280 peak slope 1154 rpm, max |606C| 1188
+09:25:25Z === 56039 stop-quick n1
+09:25:26Z   TRIAL id=56039 node=1 route=stop failure=0 why=none lost=0 terminals=11 traffic=33 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=6 case=1 unsettled=0 gap=5000 lossCancel=0
+09:25:26Z   TRIAL_PLAN route=stop node=1 trial=56039 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:25:26Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:25:26Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=1 basis=1 observations=1 op=54
+09:25:26Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:25:26Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:25:26Z   exit 0 (1.6 s)
+09:25:26Z === release 56039
+09:25:28Z   exit 0 (1.7 s)
+09:25:28Z ##### series 9 node 1 P1800 (S0009-n1-P1800)
+09:25:31Z === start
+09:25:35Z   exit 0 (4.1 s)
+09:25:35Z === 56040 read node 1
+09:25:38Z   TRIAL id=56040 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5006 lossCancel=0
+09:25:38Z   TRIAL_PLAN route=actions node=1 trial=56040 attended=0
+09:25:38Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=56280 606c=0
+09:25:38Z   exit 0 (2.4 s)
+09:25:38Z === release 56040
+09:25:39Z   exit 0 (1.6 s)
+09:25:39Z   state n1 2100=0011 6041=8050 6061=01 6064=56280 606c=0 1001=00 603f=0000 607a=67500 60ff=60
+09:25:39Z === 56041 enable n1
+09:25:47Z   TRIAL id=56041 node=1 route=enable failure=0 why=none lost=0 terminals=49 traffic=147 tail=0 tailLost=0 summaries=7 step=1 cycles=0 motion=1 case=1 unsettled=0 gap=6005 lossCancel=0
+09:25:47Z   TRIAL_PLAN route=enable node=1 trial=56041 attended=1 start=2 shaft=1 status=8050 pt=67500 vt=60 deadline=10000 interval=1250
+09:25:47Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=56280 606c=0
+09:25:47Z   TRIAL_ENABLE own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 mask=07 cursor=2 observations=5 op=8 pt=67500 vt=60 s0=8050 m0=0011 p0=56280
+09:25:47Z   TRIAL_ENABLE_STEP word=15 present=1 status=8437 monitor=0001 position=56280 velocity=0 history=1 outcome=0 ack=1 possible=1 uncertain=0
+09:25:47Z   exit 0 (7.3 s)
+09:25:47Z === release 56041
+09:25:48Z   exit 0 (1.6 s)
+09:25:48Z === 56042 read node 1
+09:25:51Z   TRIAL id=56042 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5001 lossCancel=0
+09:25:51Z   TRIAL_PLAN route=actions node=1 trial=56042 attended=0
+09:25:51Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=56280 606c=0
+09:25:51Z   exit 0 (2.4 s)
+09:25:51Z === release 56042
+09:25:52Z   exit 0 (1.7 s)
+09:25:52Z   state n1 2100=0001 6041=8437 6061=01 6064=56280 606c=0 1001=00 603f=0000 607a=67500 60ff=60
+09:25:52Z === 56043 move-run n1
+09:26:05Z   TRIAL id=56043 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=2 case=1 unsettled=0 gap=5001 lossCancel=0
+09:26:05Z   TRIAL_PLAN route=move node=1 trial=56043 attended=1 sp=56280 target=-101060 rpm=1800 up=2000 down=2000 deadline=11902 interval=1500 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=56280 obs=0
+09:26:05Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=56280 606c=0
+09:26:05Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=18 target=-101060 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:26:05Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=-44779 velocity=0 lo=31039392 hi=31084394
+09:26:05Z   exit 0 (12.5 s)
+09:26:05Z === release 56043
+09:26:07Z   exit 0 (1.6 s)
+09:26:07Z   POSITION n1 1800 rpm -> final -44779 peak slope 1731 rpm, max |606C| 1785
+09:26:07Z === 56044 read node 1
+09:26:09Z   TRIAL id=56044 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:26:09Z   TRIAL_PLAN route=actions node=1 trial=56044 attended=0
+09:26:09Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-44779 606c=0
+09:26:09Z   exit 0 (2.4 s)
+09:26:09Z === release 56044
+09:26:11Z   exit 0 (1.7 s)
+09:26:11Z   state n1 2100=0001 6041=8437 6061=01 6064=-44779 606c=0 1001=00 603f=0000 607a=-101060 60ff=60
+09:26:11Z === 56045 move-run n1
+09:26:23Z   TRIAL id=56045 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=3 case=2 unsettled=0 gap=5001 lossCancel=0
+09:26:23Z   TRIAL_PLAN route=move node=1 trial=56045 attended=1 sp=-44779 target=-130520 rpm=2400 up=2000 down=2000 deadline=11795 interval=1500 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=-44779 obs=0
+09:26:23Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-44779 606c=0
+09:26:23Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=28 target=-130520 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:26:23Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=-175299 velocity=0 lo=49328392 hi=49373395
+09:26:23Z   exit 0 (12.5 s)
+09:26:23Z === release 56045
+09:26:25Z   exit 0 (1.7 s)
+09:26:25Z   POSITION n1 2400 rpm -> final -175299 peak slope 2308 rpm, max |606C| 2381
+09:26:25Z === 56046 read node 1
+09:26:27Z   TRIAL id=56046 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=3 case=0 unsettled=0 gap=5001 lossCancel=0
+09:26:27Z   TRIAL_PLAN route=actions node=1 trial=56046 attended=0
+09:26:27Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-175299 606c=0
+09:26:27Z   exit 0 (2.4 s)
+09:26:27Z === release 56046
+09:26:29Z   exit 0 (1.7 s)
+09:26:29Z   state n1 2100=0001 6041=8437 6061=01 6064=-175299 606c=0 1001=00 603f=0000 607a=-130520 60ff=60
+09:26:29Z === 56047 move-run n1
+09:26:42Z   TRIAL id=56047 node=1 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=4 case=3 unsettled=0 gap=5001 lossCancel=0
+09:26:42Z   TRIAL_PLAN route=move node=1 trial=56047 attended=1 sp=-175299 target=169410 rpm=3000 up=2000 down=2000 deadline=11922 interval=1500 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=-175299 obs=0
+09:26:42Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=-175299 606c=0
+09:26:42Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=38 target=169410 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:26:42Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=-5890 velocity=0 lo=67619392 hi=67664395
+09:26:42Z   exit 0 (12.5 s)
+09:26:42Z === release 56047
+09:26:43Z   exit 0 (1.7 s)
+09:26:43Z   POSITION n1 3000 rpm -> final -5890 peak slope 2885 rpm, max |606C| 2975
+09:26:43Z === 56048 stop-quick n1
+09:26:45Z   TRIAL id=56048 node=1 route=stop failure=0 why=none lost=0 terminals=11 traffic=33 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=5 case=1 unsettled=0 gap=5000 lossCancel=0
+09:26:45Z   TRIAL_PLAN route=stop node=1 trial=56048 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:26:45Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:26:45Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=1 basis=1 observations=1 op=40
+09:26:45Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:26:45Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:26:45Z   exit 0 (1.6 s)
+09:26:45Z === release 56048
+09:26:46Z   exit 0 (1.7 s)
+09:26:46Z ladder pos1:300,600,1200,1800,2400,3000 ended
+=== plan rev2:60,300,1000,2000,3000
+09:26:47Z ##### series 10 node 2 L60 (S0010-n2-L60)
+09:26:50Z === start
+09:26:54Z   exit 0 (4.2 s)
+09:26:54Z === 56049 read node 2
+09:26:56Z   TRIAL id=56049 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:26:56Z   TRIAL_PLAN route=actions node=2 trial=56049 attended=0
+09:26:56Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=11331 606c=0
+09:26:56Z   exit 0 (2.4 s)
+09:26:56Z === release 56049
+09:26:58Z   exit 0 (1.7 s)
+09:26:58Z   state n2 2100=0015 6041=c050 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:26:58Z === 56050 read node 2
+09:27:00Z   TRIAL id=56050 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:27:00Z   TRIAL_PLAN route=actions node=2 trial=56050 attended=0
+09:27:00Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=11331 606c=0
+09:27:00Z   exit 0 (2.4 s)
+09:27:00Z === release 56050
+09:27:02Z   exit 0 (1.7 s)
+09:27:02Z   state n2 2100=0015 6041=c050 6061=03 6064=11331 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:27:02Z === 56051 velocity-quick-60 n2
+09:27:27Z   TRIAL id=56051 node=2 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4999 lossCancel=0
+09:27:27Z   TRIAL_PLAN route=velocity node=2 trial=56051 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=2 probe=0 reverse=1
+09:27:27Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=11331 606c=0
+09:27:27Z   TRIAL_VELOCITY own=1 state=3 phase=6 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=15 sop=16 rpm=-60 code=1 detail=4
+09:27:27Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=15910398
+09:27:27Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=16
+09:27:27Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:27:27Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:27:27Z   exit 3 (24.7 s)
+09:27:27Z === release 56051
+09:27:28Z   exit 0 (1.6 s)
+09:27:28Z   RESULT n2 60 rpm s=1000 -> failure=10 why=velocity measured=-59.2 ratio=0.9868 606c=[-60, -60]
+09:27:28Z === 56052 read node 2
+09:27:31Z   TRIAL id=56052 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:27:31Z   TRIAL_PLAN route=actions node=2 trial=56052 attended=0
+09:27:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=518 606c=0
+09:27:31Z   exit 0 (2.5 s)
+09:27:31Z === release 56052
+09:27:33Z   exit 0 (1.7 s)
+09:27:33Z   state n2 2100=0015 6041=c050 6061=03 6064=518 606c=0 1001=00 603f=0000 607a=5000 60ff=-60
+09:27:33Z ##### series 11 node 2 L300 (S0011-n2-L300)
+09:27:36Z === start
+09:27:40Z   exit 0 (4.1 s)
+09:27:40Z === 56053 read node 2
+09:27:42Z   TRIAL id=56053 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5001 lossCancel=0
+09:27:42Z   TRIAL_PLAN route=actions node=2 trial=56053 attended=0
+09:27:42Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=518 606c=0
+09:27:42Z   exit 0 (2.4 s)
+09:27:42Z === release 56053
+09:27:44Z   exit 0 (1.7 s)
+09:27:44Z   state n2 2100=0015 6041=c050 6061=03 6064=518 606c=0 1001=00 603f=0000 607a=5000 60ff=-60
+09:27:44Z === 56054 read node 2
+09:27:46Z   TRIAL id=56054 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:27:46Z   TRIAL_PLAN route=actions node=2 trial=56054 attended=0
+09:27:46Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=518 606c=0
+09:27:46Z   exit 0 (2.4 s)
+09:27:46Z === release 56054
+09:27:48Z   exit 0 (1.7 s)
+09:27:48Z   state n2 2100=0015 6041=c050 6061=03 6064=518 606c=0 1001=00 603f=0000 607a=5000 60ff=-60
+09:27:48Z === 56055 velocity-quick-300 n2
+09:28:13Z   TRIAL id=56055 node=2 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4999 lossCancel=0
+09:28:13Z   TRIAL_PLAN route=velocity node=2 trial=56055 attended=1 rpm=300 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=2 probe=1 reverse=1
+09:28:13Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=518 606c=0
+09:28:13Z   TRIAL_VELOCITY own=1 state=3 phase=6 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=15 sop=16 rpm=-300 code=1 detail=4
+09:28:13Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=15866398
+09:28:13Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=16
+09:28:13Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:28:13Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:28:13Z   exit 3 (24.7 s)
+09:28:13Z === release 56055
+09:28:14Z   exit 0 (1.6 s)
+09:28:14Z   RESULT n2 300 rpm s=1000 -> failure=10 why=velocity measured=-296.6 ratio=0.9888 606c=[-298, -298]
+09:28:14Z === 56056 read node 2
+09:28:17Z   TRIAL id=56056 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:28:17Z   TRIAL_PLAN route=actions node=2 trial=56056 attended=0
+09:28:17Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-53654 606c=0
+09:28:17Z   exit 0 (2.4 s)
+09:28:17Z === release 56056
+09:28:18Z   exit 0 (1.7 s)
+09:28:18Z   state n2 2100=0015 6041=c050 6061=03 6064=-53654 606c=0 1001=00 603f=0000 607a=5000 60ff=-300
+09:28:18Z ##### series 12 node 2 L1000 (S0012-n2-L1000)
+09:28:22Z === start
+09:28:26Z   exit 0 (4.1 s)
+09:28:26Z === 56057 read node 2
+09:28:28Z   TRIAL id=56057 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:28:28Z   TRIAL_PLAN route=actions node=2 trial=56057 attended=0
+09:28:28Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-53654 606c=0
+09:28:28Z   exit 0 (2.4 s)
+09:28:28Z === release 56057
+09:28:30Z   exit 0 (1.7 s)
+09:28:30Z   state n2 2100=0015 6041=c050 6061=03 6064=-53654 606c=0 1001=00 603f=0000 607a=5000 60ff=-300
+09:28:30Z === 56058 read node 2
+09:28:32Z   TRIAL id=56058 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:28:32Z   TRIAL_PLAN route=actions node=2 trial=56058 attended=0
+09:28:32Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-53654 606c=0
+09:28:32Z   exit 0 (2.4 s)
+09:28:32Z === release 56058
+09:28:34Z   exit 0 (1.7 s)
+09:28:34Z   state n2 2100=0015 6041=c050 6061=03 6064=-53654 606c=0 1001=00 603f=0000 607a=5000 60ff=-300
+09:28:34Z === 56059 velocity-quick-1000 n2
+09:28:59Z   TRIAL id=56059 node=2 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4998 lossCancel=0
+09:28:59Z   TRIAL_PLAN route=velocity node=2 trial=56059 attended=1 rpm=1000 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=2 probe=1 reverse=1
+09:28:59Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-53654 606c=0
+09:28:59Z   TRIAL_VELOCITY own=1 state=3 phase=6 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=15 sop=16 rpm=-1000 code=1 detail=4
+09:28:59Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=15888396
+09:28:59Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=16
+09:28:59Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:28:59Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:28:59Z   exit 3 (24.7 s)
+09:28:59Z === release 56059
+09:29:00Z   exit 0 (1.7 s)
+09:29:00Z   RESULT n2 1000 rpm s=1000 -> failure=10 why=velocity measured=-989.5 ratio=0.9895 606c=[-988, -988]
+09:29:00Z === 56060 read node 2
+09:29:03Z   TRIAL id=56060 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5000 lossCancel=0
+09:29:03Z   TRIAL_PLAN route=actions node=2 trial=56060 attended=0
+09:29:03Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-234409 606c=0
+09:29:03Z   exit 0 (2.4 s)
+09:29:03Z === release 56060
+09:29:04Z   exit 0 (1.7 s)
+09:29:04Z   state n2 2100=0015 6041=c050 6061=03 6064=-234409 606c=0 1001=00 603f=0000 607a=5000 60ff=-1000
+09:29:04Z ##### series 13 node 2 L2000 (S0013-n2-L2000)
+09:29:08Z === start
+09:29:12Z   exit 0 (4.2 s)
+09:29:12Z === 56061 read node 2
+09:29:14Z   TRIAL id=56061 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+09:29:14Z   TRIAL_PLAN route=actions node=2 trial=56061 attended=0
+09:29:14Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-234409 606c=0
+09:29:14Z   exit 0 (2.4 s)
+09:29:14Z === release 56061
+09:29:16Z   exit 0 (1.7 s)
+09:29:16Z   state n2 2100=0015 6041=c050 6061=03 6064=-234409 606c=0 1001=00 603f=0000 607a=5000 60ff=-1000
+09:29:16Z === 56062 read node 2
+09:29:18Z   TRIAL id=56062 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:29:18Z   TRIAL_PLAN route=actions node=2 trial=56062 attended=0
+09:29:18Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-234409 606c=0
+09:29:18Z   exit 0 (2.4 s)
+09:29:18Z === release 56062
+09:29:20Z   exit 0 (1.7 s)
+09:29:20Z   state n2 2100=0015 6041=c050 6061=03 6064=-234409 606c=0 1001=00 603f=0000 607a=5000 60ff=-1000
+09:29:20Z === 56063 velocity-quick-2000 n2
+09:29:45Z   TRIAL id=56063 node=2 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4999 lossCancel=0
+09:29:45Z   TRIAL_PLAN route=velocity node=2 trial=56063 attended=1 rpm=2000 up=2000 down=2000 dur=12000 interval=4000 deadline=17000 kind=2 probe=1 reverse=1
+09:29:45Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-234409 606c=0
+09:29:45Z   TRIAL_VELOCITY own=1 state=3 phase=6 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=15 sop=16 rpm=-2000 code=1 detail=4
+09:29:45Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=15903398
+09:29:45Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=16
+09:29:45Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:29:45Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:29:45Z   exit 3 (24.7 s)
+09:29:45Z === release 56063
+09:29:46Z   exit 0 (1.7 s)
+09:29:46Z   RESULT n2 2000 rpm s=1000 -> failure=10 why=velocity measured=-1980.1 ratio=0.99 606c=[-1983, -1983]
+09:29:46Z === 56064 read node 2
+09:29:49Z   TRIAL id=56064 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5002 lossCancel=0
+09:29:49Z   TRIAL_PLAN route=actions node=2 trial=56064 attended=0
+09:29:49Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-579587 606c=0
+09:29:49Z   exit 0 (2.4 s)
+09:29:49Z === release 56064
+09:29:50Z   exit 0 (1.7 s)
+09:29:50Z   state n2 2100=0015 6041=c050 6061=03 6064=-579587 606c=0 1001=00 603f=0000 607a=5000 60ff=-2000
+09:29:50Z ##### series 14 node 2 L3000 (S0014-n2-L3000)
+09:29:54Z === start
+09:29:58Z   exit 0 (4.2 s)
+09:29:58Z === 56065 read node 2
+09:30:00Z   TRIAL id=56065 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:30:00Z   TRIAL_PLAN route=actions node=2 trial=56065 attended=0
+09:30:00Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-579587 606c=0
+09:30:00Z   exit 0 (2.4 s)
+09:30:00Z === release 56065
+09:30:02Z   exit 0 (1.6 s)
+09:30:02Z   state n2 2100=0015 6041=c050 6061=03 6064=-579587 606c=0 1001=00 603f=0000 607a=5000 60ff=-2000
+09:30:02Z === 56066 read node 2
+09:30:04Z   TRIAL id=56066 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:30:04Z   TRIAL_PLAN route=actions node=2 trial=56066 attended=0
+09:30:04Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-579587 606c=0
+09:30:04Z   exit 0 (2.4 s)
+09:30:04Z === release 56066
+09:30:06Z   exit 0 (1.7 s)
+09:30:06Z   state n2 2100=0015 6041=c050 6061=03 6064=-579587 606c=0 1001=00 603f=0000 607a=5000 60ff=-2000
+09:30:06Z === 56067 velocity-quick-3000 n2
+09:30:31Z   TRIAL id=56067 node=2 route=velocity failure=10 why=velocity lost=0 terminals=88 traffic=264 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4999 lossCancel=0
+09:30:31Z   TRIAL_PLAN route=velocity node=2 trial=56067 attended=1 rpm=3000 up=2000 down=2000 dur=12000 interval=4000 deadline=17000 kind=2 probe=1 reverse=1
+09:30:31Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-579587 606c=0
+09:30:31Z   TRIAL_VELOCITY own=1 state=3 phase=6 outcome=6 first=6 int=0 setup=1 exec=1 completion=0 stop=6 sexec=1 uncertain=1 effects=1 needs=1 fenced=1 running=1 cycles=7 polls=2 op=15 sop=16 rpm=-3000 code=1 detail=4
+09:30:31Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=15803398
+09:30:31Z   TRIAL_STOP kind=2 path=0 final=4 own=1 state=3 outcome=6 exec=1 completion=0 uncertain=1 effects=1 pred=000f documented=0 basis=3 observations=2 op=16
+09:30:31Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:30:31Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:30:31Z   exit 3 (24.7 s)
+09:30:31Z === release 56067
+09:30:32Z   exit 0 (1.6 s)
+09:30:32Z   RESULT n2 3000 rpm s=1000 -> failure=10 why=velocity measured=-2972.3 ratio=0.9908 606c=[-2975, -2975]
+09:30:32Z === 56068 read node 2
+09:30:35Z   TRIAL id=56068 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:30:35Z   TRIAL_PLAN route=actions node=2 trial=56068 attended=0
+09:30:35Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1098045 606c=0
+09:30:35Z   exit 0 (2.5 s)
+09:30:35Z === release 56068
+09:30:36Z   exit 0 (1.7 s)
+09:30:36Z   state n2 2100=0015 6041=c050 6061=03 6064=-1098045 606c=0 1001=00 603f=0000 607a=5000 60ff=-3000
+09:30:36Z highest clean reverse step on node 2: 3000
+09:30:36Z ladder rev2:60,300,1000,2000,3000 ended
+=== plan pos2:300
+09:30:36Z ##### series 15 node 2 P300 (S0015-n2-P300)
+09:30:40Z === start
+09:30:44Z   exit 0 (4.2 s)
+09:30:44Z === 56069 read node 2
+09:30:46Z   TRIAL id=56069 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5001 lossCancel=0
+09:30:46Z   TRIAL_PLAN route=actions node=2 trial=56069 attended=0
+09:30:46Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1098045 606c=0
+09:30:46Z   exit 0 (2.4 s)
+09:30:46Z === release 56069
+09:30:48Z   exit 0 (1.6 s)
+09:30:48Z   state n2 2100=0015 6041=c050 6061=03 6064=-1098045 606c=0 1001=00 603f=0000 607a=5000 60ff=-3000
+09:30:48Z === 56070 velocity-halt-60 n2
+09:31:11Z   TRIAL id=56070 node=2 route=velocity failure=0 why=none lost=0 terminals=84 traffic=252 tail=0 tailLost=0 summaries=16 step=3 cycles=7 motion=2 case=1 unsettled=0 gap=4005 lossCancel=0
+09:31:11Z   TRIAL_PLAN route=velocity node=2 trial=56070 attended=1 rpm=60 up=1000 down=1000 dur=12000 interval=4000 deadline=17000 kind=1 probe=0 reverse=0
+09:31:11Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=03 6064=-1098045 606c=0
+09:31:11Z   TRIAL_VELOCITY own=1 state=2 phase=6 outcome=1 first=0 int=0 setup=1 exec=1 completion=1 stop=1 sexec=1 uncertain=0 effects=1 needs=0 fenced=0 running=1 cycles=7 polls=2 op=9 sop=10 rpm=60 code=0 detail=0
+09:31:11Z   TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=2 ack=11848398
+09:31:11Z   TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=0 basis=3 observations=2 op=10
+09:31:11Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:31:11Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:31:11Z   exit 0 (23.5 s)
+09:31:11Z === release 56070
+09:31:13Z   exit 0 (1.6 s)
+09:31:13Z   RESULT n2 60 rpm s=1000 -> failure=0 why=none measured=59.5 ratio=0.9919 606c=[60, 60]
+09:31:13Z === 56071 read node 2
+09:31:15Z   TRIAL id=56071 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=2 case=0 unsettled=0 gap=5001 lossCancel=0
+09:31:15Z   TRIAL_PLAN route=actions node=2 trial=56071 attended=0
+09:31:15Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=-1086709 606c=0
+09:31:15Z   exit 0 (2.5 s)
+09:31:15Z === release 56071
+09:31:17Z   exit 0 (1.7 s)
+09:31:17Z   state n2 2100=0001 6041=9437 6061=03 6064=-1086709 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:31:17Z === 56072 stop-quick-halted n2
+09:31:20Z   TRIAL id=56072 node=2 route=stop failure=0 why=none lost=0 terminals=20 traffic=60 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=3 case=2 unsettled=0 gap=6001 lossCancel=0
+09:31:20Z   TRIAL_PLAN route=stop node=2 trial=56072 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:31:20Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=9437 6061=03 6064=0 606c=0
+09:31:20Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=010f documented=0 basis=3 observations=2 op=18
+09:31:20Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:31:20Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:31:20Z   exit 0 (2.6 s)
+09:31:20Z === release 56072
+09:31:21Z   exit 0 (1.7 s)
+09:31:21Z ##### series 16 node 2 P300r (S0016-n2-P300r)
+09:31:25Z === start
+09:31:29Z   exit 0 (4.2 s)
+09:31:29Z === 56073 read node 2
+09:31:31Z   TRIAL id=56073 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+09:31:31Z   TRIAL_PLAN route=actions node=2 trial=56073 attended=0
+09:31:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=-1086710 606c=0
+09:31:31Z   exit 0 (2.3 s)
+09:31:31Z === release 56073
+09:31:33Z   exit 0 (1.6 s)
+09:31:33Z   state n2 2100=0011 6041=8050 6061=03 6064=-1086710 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:31:33Z === 56074 mode1 n2
+09:31:36Z   TRIAL id=56074 node=2 route=mode1 failure=0 why=none lost=0 terminals=34 traffic=102 tail=0 tailLost=0 summaries=5 step=8 cycles=1 motion=1 case=1 unsettled=0 gap=5001 lossCancel=0
+09:31:36Z   TRIAL_PLAN route=mode1 node=2 trial=56074 attended=1 cycles=3 interval=500
+09:31:36Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=-1086710 606c=0
+09:31:36Z   exit 0 (3.5 s)
+09:31:36Z === release 56074
+09:31:38Z   exit 0 (1.7 s)
+09:31:38Z === 56075 counter-zero n2
+09:31:40Z   TRIAL id=56075 node=2 route=counter-zero failure=0 why=none lost=0 terminals=17 traffic=51 tail=0 tailLost=0 summaries=10 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=5000 lossCancel=0
+09:31:40Z   TRIAL_PLAN route=counter-zero node=2 trial=56075 attended=1 deadline=3000 interval=500
+09:31:40Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=-1086710 606c=0
+09:31:40Z   exit 0 (2.1 s)
+09:31:40Z === release 56075
+09:31:42Z   exit 0 (1.7 s)
+09:31:42Z ##### series 17 node 2 P300z (S0017-n2-P300z)
+09:31:45Z === start
+09:31:49Z   exit 0 (4.1 s)
+09:31:49Z === 56076 read node 2
+09:31:51Z   TRIAL id=56076 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5007 lossCancel=0
+09:31:51Z   TRIAL_PLAN route=actions node=2 trial=56076 attended=0
+09:31:51Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+09:31:51Z   exit 0 (2.4 s)
+09:31:51Z === release 56076
+09:31:53Z   exit 0 (1.7 s)
+09:31:53Z   state n2 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:31:53Z   after counter zero: 6064=0
+09:31:53Z === 56077 enable n2
+09:32:00Z   TRIAL id=56077 node=2 route=enable failure=0 why=none lost=0 terminals=49 traffic=147 tail=0 tailLost=0 summaries=7 step=1 cycles=0 motion=1 case=1 unsettled=0 gap=6002 lossCancel=0
+09:32:00Z   TRIAL_PLAN route=enable node=2 trial=56077 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=60 deadline=10000 interval=1250
+09:32:00Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+09:32:00Z   TRIAL_ENABLE own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 mask=07 cursor=2 observations=5 op=8 pt=5000 vt=60 s0=8050 m0=0011 p0=0
+09:32:00Z   TRIAL_ENABLE_STEP word=15 present=1 status=8437 monitor=0001 position=10 velocity=0 history=1 outcome=0 ack=1 possible=1 uncertain=0
+09:32:00Z   exit 0 (7.3 s)
+09:32:00Z === release 56077
+09:32:02Z   exit 0 (1.7 s)
+09:32:02Z === 56078 read node 2
+09:32:04Z   TRIAL id=56078 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5001 lossCancel=0
+09:32:04Z   TRIAL_PLAN route=actions node=2 trial=56078 attended=0
+09:32:04Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=10 606c=0
+09:32:04Z   exit 0 (2.4 s)
+09:32:04Z === release 56078
+09:32:06Z   exit 0 (1.7 s)
+09:32:06Z   state n2 2100=0001 6041=8437 6061=01 6064=10 606c=0 1001=00 603f=0000 607a=5000 60ff=60
+09:32:06Z === 56079 move-run n2
+09:32:16Z   TRIAL id=56079 node=2 route=move failure=0 why=none lost=0 terminals=68 traffic=204 tail=0 tailLost=0 summaries=13 step=4 cycles=5 motion=2 case=1 unsettled=0 gap=5002 lossCancel=0
+09:32:16Z   TRIAL_PLAN route=move node=2 trial=56079 attended=1 sp=10 target=-11290 rpm=300 up=1000 down=1000 deadline=8780 interval=1000 kind=0 after=0 sd=0 be=0 si=0 rel=1 base=10 obs=0
+09:32:16Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=10 606c=0
+09:32:16Z   TRIAL_MOVE own=1 state=2 phase=4 phases=1f outcome=1 int=0 setup=1 exec=1 completion=1 rearm=1 uncertain=0 readUnc=0 effects=1 cycles=5 op=18 target=-11290 mask=f ev=f trigger=1 rearmed=1 fenced=0 code=0 detail=0
+09:32:16Z   TRIAL_MOVE_SAMPLE which=1 present=1 cycle=5 status=9437 monitor=0001 mode=01 feedback=1 position=-11280 velocity=0 lo=28985392 hi=29030394
+09:32:16Z   exit 0 (10.5 s)
+09:32:16Z === release 56079
+09:32:18Z   exit 0 (1.6 s)
+09:32:18Z   POSITION n2 300 rpm -> final -11280 peak slope 298 rpm, max |606C| 298
+09:32:18Z === 56080 stop-quick n2
+09:32:20Z   TRIAL id=56080 node=2 route=stop failure=0 why=none lost=0 terminals=11 traffic=33 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=3 case=1 unsettled=0 gap=5002 lossCancel=0
+09:32:20Z   TRIAL_PLAN route=stop node=2 trial=56080 attended=1 kind=2 deadline=2000 be=0 interval=250
+09:32:20Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+09:32:20Z   TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 pred=000f documented=1 basis=1 observations=1 op=20
+09:32:20Z   TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:32:20Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+09:32:20Z   exit 0 (1.6 s)
+09:32:20Z === release 56080
+09:32:21Z   exit 0 (1.7 s)
+09:32:21Z ladder pos2:300 ended
+=== phase 1 done

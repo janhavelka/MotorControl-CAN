@@ -209,6 +209,17 @@ and stop/start skew remain unavailable. Optional owner-trace overwrites and
 output enqueue refusals remain counted separately from the loss-free compact
 receive stream; they are not silently classified as CAN loss.
 
+## Follow-up after the power cycle (2026-11-16)
+
+The user's drive power cycle retired both motion restrictions above (both drives read the power-up report). The
+campaign that followed, on image `17386514` with the audit corrections, is recorded in the
+[HIL campaign report](2026-11-16_hil_campaign.md): 20 ms SYNC passed 30 minutes with complete capture; M14 measured
+(4 of 4, the drive kept its speed through NMT Stopped and Pre-operational); prompt 52's change forms ran on both
+nodes through the bench routes and the typed console path; the two-axis trials (HM1 to HM9) are not executable on
+the S2 image, because the bench refuses an arming line while the console holds an operation and one arming expires
+before a second can be printed. Prompt 54 stays Partial for 10 ms sustained SYNC, Q27/M09/Q28, the two-axis trials,
+skew and the wired DI stop.
+
 ## Verification, handoff and remaining work
 
 The first exact-commit CI run (`f974e4b1`) caught a late documentation mistake:

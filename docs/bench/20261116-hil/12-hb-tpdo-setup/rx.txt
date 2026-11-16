@@ -1,0 +1,42 @@
+PONG target=esp32s2 base=17386514ff2bb163028394e4c895e446a134e6f0 elf=20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54 sdk=5.5.5 running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry
+RAW id=1 node=1 failure=0 lost=0 terminals=3 traffic=9 tail=0 tailLost=0 gap=3005
+RESULT op=1 req=1 oreq=2 step=1 object=1017:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=3435396 completed=3438396 ne=1 reason=0 st=3f
+RESULT op=1 req=2 oreq=3 step=2 object=1017:00 dir=1 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=3441394 completed=3444390 ne=1 reason=0 st=3f
+RESULT op=1 req=3 oreq=4 step=3 object=1017:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=3447395 completed=3450396 ne=1 reason=0 st=3f
+TRAFFIC k=1 p=3435396 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=1 txf=1
+TRAFFIC k=2 p=3438396 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=1 txf=1
+TRAFFIC k=0 p=3438396 id=581 ext=0 rtr=0 dlc=8 data=4b17100000000000 ok=1 exact=0 t=0 bounds=1 lo=3435656 hi=3437453 epoch=1
+TRAFFIC k=1 p=3441394 id=601 ext=0 rtr=0 dlc=8 data=2b171000e8030000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=2 txf=1
+TRAFFIC k=2 p=3444390 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=2 txf=1
+TRAFFIC k=0 p=3444390 id=581 ext=0 rtr=0 dlc=8 data=6017100000000000 ok=1 exact=0 t=0 bounds=1 lo=3441656 hi=3443606 epoch=1
+TRAFFIC k=1 p=3447395 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1
+TRAFFIC k=2 p=3450396 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1
+TRAFFIC k=0 p=3450396 id=581 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 bounds=1 lo=3447657 hi=3449360 epoch=1
+END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release
+RELEASED record; channel uncertainty unchanged
+HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry
+RAW id=2 node=2 failure=0 lost=0 terminals=3 traffic=9 tail=0 tailLost=0 gap=3005
+RESULT op=2 req=1 oreq=6 step=1 object=1017:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=3685396 completed=3688392 ne=1 reason=0 st=3f
+RESULT op=2 req=2 oreq=7 step=2 object=1017:00 dir=1 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=3691394 completed=3694390 ne=1 reason=0 st=3f
+RESULT op=2 req=3 oreq=8 step=3 object=1017:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=3697395 completed=3700396 ne=1 reason=0 st=3f
+TRAFFIC k=1 p=3685396 id=602 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=1 txf=1
+TRAFFIC k=2 p=3688392 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=1 txf=1
+TRAFFIC k=0 p=3688392 id=582 ext=0 rtr=0 dlc=8 data=4b17100000000000 ok=1 exact=0 t=0 bounds=1 lo=3685662 hi=3687520 epoch=1
+TRAFFIC k=1 p=3691394 id=602 ext=0 rtr=0 dlc=8 data=2b171000e8030000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=2 txf=1
+TRAFFIC k=2 p=3694390 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=2 txf=1
+TRAFFIC k=0 p=3694390 id=582 ext=0 rtr=0 dlc=8 data=6017100000000000 ok=1 exact=0 t=0 bounds=1 lo=3691658 hi=3693600 epoch=1
+TRAFFIC k=1 p=3697395 id=602 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1
+TRAFFIC k=2 p=3700396 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1
+TRAFFIC k=0 p=3700396 id=582 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 bounds=1 lo=3697659 hi=3699402 epoch=1
+END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release
+RELEASED record; channel uncertainty unchanged
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=6444544 hi=6445060 p=6445396 dropped=2
+NETWORK node=2 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=6694544 hi=6695316 p=6695400 dropped=2
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=4443525 exact=0 bounds=1 lo=4442556 hi=4443466
+EVENT id=702 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=4694392 exact=0 bounds=1 lo=4693548 hi=4693725
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=5444400 exact=0 bounds=1 lo=5443544 hi=5444305
+NMT refused; no work
+EVENT id=702 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=5695390 exact=0 bounds=1 lo=5693544 hi=5694514
+END network; boot-up requires an actual observed00 frame; no inferred reset

@@ -1,0 +1,143 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T09:55:54.464808+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261116-hil/plans/sync-setup2.json",
+    "--output",
+    "docs/bench/20261116-hil/12-hb-tpdo-setup",
+    "--tail-s",
+    "2"
+  ],
+  "plan_file": "docs/bench/20261116-hil/plans/sync-setup2.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "7c34a04ad4f47a4edbebfcf19cfc6ba475683c96c5859d3756c8a09d7f063309",
+    "s2_evidence.py": "0461e49b5d37783425d4f136bb5ae254358d1360625f1075278efd5f39f5d82f"
+  },
+  "host_revision": "17386514ff2bb163028394e4c895e446a134e6f0",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "17386514ff2bb163028394e4c895e446a134e6f0",
+    "elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "15",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "7",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "refused",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-16T09:55:54.918988+00:00",
+      "monotonic": 382992.265,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "node 1: 1017 exact 0 -> 1000 -> readback (no save)",
+      "sent": "h",
+      "tx_hex": "68",
+      "utc": "2026-11-16T09:55:54.929316+00:00",
+      "monotonic": 382992.265,
+      "reply": "HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry",
+      "reply_line": 3,
+      "end": "END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 17,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T09:55:55.170308+00:00",
+      "monotonic": 382992.515,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 18,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "node 2: 1017 exact 0 -> 1000 -> readback (no save)",
+      "sent": "j",
+      "tx_hex": "6a",
+      "utc": "2026-11-16T09:55:55.179329+00:00",
+      "monotonic": 382992.515,
+      "reply": "HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry",
+      "reply_line": 19,
+      "end": "END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 33,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T09:55:55.419846+00:00",
+      "monotonic": 382992.765,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 34,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "let both heartbeats arrive",
+      "wait_s": 3,
+      "utc": "2026-11-16T09:55:55.429208+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 7,
+      "note": "NMT state from the first heartbeats after the power cycle",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T09:55:58.420176+00:00",
+      "monotonic": 382995.765,
+      "reply": "NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=6444544 hi=6445060 p=6445396 dropped=2",
+      "reply_line": 35,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-16T09:55:58.454914+00:00",
+      "monotonic": 382995.796,
+      "reply": "NMT refused; no work",
+      "reply_line": 40,
+      "outcome": "refused"
+    }
+  ],
+  "ended_utc": "2026-11-16T09:56:00.642118+00:00",
+  "bytes": 5210
+}

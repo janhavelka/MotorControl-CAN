@@ -1,0 +1,10 @@
+PONG target=esp32s2 base=17386514ff2bb163028394e4c895e446a134e6f0 elf=20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54 sdk=5.5.5 running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+NETWORK node=1 unconfigured
+NETWORK node=2 unconfigured
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=4 decoded=0 kind=0 p=3931396 exact=0 bounds=1 lo=3930534 hi=3930705
+EVENT id=702 dlc=1 data=7f00000000000000 disposition=4 decoded=0 kind=0 p=4181400 exact=0 bounds=1 lo=4180534 hi=4181279
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=4 decoded=0 kind=0 p=4932390 exact=0 bounds=1 lo=4931422 hi=4931516
+EVENT id=702 dlc=1 data=7f00000000000000 disposition=4 decoded=0 kind=0 p=5182398 exact=0 bounds=1 lo=5181542 hi=5182055
+END network; boot-up requires an actual observed00 frame; no inferred reset
+NMT refused; no work

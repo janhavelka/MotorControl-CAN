@@ -1,0 +1,10 @@
+session C:\Users\Honza\Documents\Projects\MotorControl-CAN\docs\bench\20261116-hil\15-operational-sync: completed, 34352 bytes
+NETWORK node=1 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=9819548 hi=9820512 p=9821394 dropped=10
+NETWORK node=2 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=10071548 hi=10072114 p=10072396 dropped=10
+NETWORK node=1 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=13823548 hi=13823665 p=13824392 dropped=16
+NETWORK node=2 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=13074416 hi=13074512 p=13075392 dropped=16
+{"ok": true, "output": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\16-sync-10ms-short"}
+=== short exit 0
+{"ok": true, "output": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\17-sync-20ms-30min"}
+=== 20ms exit 0
+=== phase 5 done

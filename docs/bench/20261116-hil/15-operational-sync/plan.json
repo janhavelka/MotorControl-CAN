@@ -1,0 +1,70 @@
+{
+  "purpose": "Bind both nodes with identity uploads, then NMT Start to both (each M14 trial leaves its node Pre-operational).",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation ...; standing bench authorization 2026-11-02",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "binds node 1 in this boot (uploads only)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "binds node 2 in this boot (uploads only)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    }
+  ]
+}

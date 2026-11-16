@@ -1,0 +1,70 @@
+{
+  "purpose": "Restore both nodes' TPDO1 transmission type after the SYNC phase (explicit, checked; no save).",
+  "authorization": "user 2026-11-16: do all HIL testing regarding new implementation and finish up all tests that are missing and are able to run now.. Motor power cycled; standing bench authorization 2026-11-02 (docs/prompts/COMMON.md)",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J1,TYPE",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J2,TYPE",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

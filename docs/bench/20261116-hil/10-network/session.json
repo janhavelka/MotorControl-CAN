@@ -1,0 +1,102 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T09:53:57.778256+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261116-hil/plans/network.json",
+    "--output",
+    "docs/bench/20261116-hil/10-network",
+    "--tail-s",
+    "1"
+  ],
+  "plan_file": "docs/bench/20261116-hil/plans/network.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "7c34a04ad4f47a4edbebfcf19cfc6ba475683c96c5859d3756c8a09d7f063309",
+    "s2_evidence.py": "0461e49b5d37783425d4f136bb5ae254358d1360625f1075278efd5f39f5d82f"
+  },
+  "host_revision": "17386514ff2bb163028394e4c895e446a134e6f0",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "17386514ff2bb163028394e4c895e446a134e6f0",
+    "elf": "20cc8ea2527993d8aa2acaa31be3508cd8b15bde598cb8e736ed7779439f0d54",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "15",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "7",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-16T09:53:58.199990+00:00",
+      "monotonic": 382875.546,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "wait_s": 4,
+      "utc": "2026-11-16T09:53:58.208500+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T09:54:02.261951+00:00",
+      "monotonic": 382879.593,
+      "reply": "NETWORK node=1 unconfigured",
+      "reply_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "wait_s": 1,
+      "utc": "2026-11-16T09:54:02.276459+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T09:54:03.275553+00:00",
+      "monotonic": 382880.609,
+      "reply": "NETWORK node=1 unconfigured",
+      "reply_line": 6,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T09:54:04.415313+00:00",
+  "bytes": 563
+}
