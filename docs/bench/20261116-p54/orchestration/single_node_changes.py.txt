@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Offline P54 node2 review plan. Prints JSON; opens no port and sends nothing.
+
+This is intentionally not a live executor: current Campaign has no single-axis
+console reservation schema. Do not manufacture T sends or paired reservations.
+One phase must be selected and reviewed before any physical handoff.
+"""
+import argparse
+import json
+
+
+def plan(kind):
+    position = kind != "velocity"
+    result = {
+        "evidence_kind": "planned", "live_executor_available": False,
+        "node": 2, "logical_axis_id": 2,
+        "scope": "one ATTENDED_EXPERIMENT; no family or firmware-wide qualification",
+        "allow_changes": True, "replay": False,
+        "required_inputs_not_supplied": [
+            "fresh exact image ELF/library version and fixture identity record",
+            "new arming trial/record IDs and complete TY2 or TB2 body",
+            "existing campaign path and locked pre-handoff reservation",
+            "fresh current mode/release/position/error evidence",
+            "reviewed raw trace/event capacity and independent cutoff observation",
+        ],
+        "arming": {
+            "helper": "scripts/s2_bench_console.py --allow-changes",
+            "line": "TY2,<complete reviewed move arming fields>" if position else
+                    "TB2,<complete reviewed velocity arming fields>",
+            "wire": "helper appends ,1 before CRC; ordinary arming closes both change gates",
+            "finish": "retain notice with changes=1/changeRecord=trial; drain full END and release route",
+            "ownership": "same sole serial owner; no second reader or receiver",
+            "poll_interval_ms": 500,
+            "age": "motion must use original fresh arming age; no timestamp refresh",
+        },
+        "reserved_effects_before_first_handoff": {
+            "move": 2 if position else 0,
+            "velocity": 0 if position else 1,
+            "native_velocity_stop": 0 if position else 1,
+            "separate_planned_stop": 1,
+            "total_motion_weights": 3,
+            "enable_or_mode_preparation": "separate previously reserved records, never implicit",
+            "refunded_on_refusal": False,
+        },
+        "persistent_accounting_gap":
+            "Campaign accepts T sends and exactly-two-axis pairs only; no honest single-axis console reservation yet",
+        "setup": ["useaddr 2", "accel 500 ms", "decel 500 ms", "motion write"],
+        "start": "move absolute 38240 steps native 6 configured setup write" if position else
+                 "velocity 6 rpm motor 12000 configured fast",
+        "change": {
+            "command": {"move-speed": "move speed <returned original operation_id> 12 immediate",
+                        "move-ramps": "move ramps <returned original operation_id> 200 800 immediate",
+                        "velocity": "velocity change <returned original operation_id> 12 rpm motor configured"}[kind],
+            "offers": 1,
+            "not_before_host_ms": 1000 if position else 5000,
+            "rule": "one offer only if original admission known and not terminal; native current/fresh phase checks decide admission",
+            "refusal": "retain refusal as failed experiment; never try later in same run",
+        },
+        "bounds_from_host_preparation": {
+            "planned_stop_due_ms": 3000 if position else 8000,
+            "final_host_deadline_ms": 9000 if position else 22000,
+            "native_motion_deadline": "original move admission +10000000us" if position else
+                                      "original velocity preparation +12000000us stop due; +10000000us final tail",
+            "change_must_not_extend_native_bounds": True,
+        },
+        "planned_stop": "stop 2 fast",
+        "stop_policy_in_arming_ms": {"deadline": 2000, "best_effort": 3000, "interval": 100},
+        "result_order": ["planned stop first", "original motion", "replacement if admitted"],
+        "retention": ["exact UART bytes", "all JSONL records and request/operation/axis IDs",
+                      "raw owner traffic and counters before/after", "original/replacement relation",
+                      "native change evidence/uncertainty", "fixed host handoff/due/final times",
+                      "first primary failure and independent stop outcome"],
+        "qualification": "only exact admitted and observed results with retained raw evidence; no timing or physical interruption inference",
+    }
+    if position:
+        result["entry_state"] = {
+            "last_reported_only": {"statusword": "4050", "mode": 1, "position": 35981},
+            "required_before_TY": "separate evidenced TE enable/owned acknowledged 000F; released 4050 cannot arm a move",
+            "signals": "exact reviewed move acceptance/completion sources, masks, values and rule required; not guessed",
+            "endpoint": "same endpoint 38240 only; no command/feedback relation installed for retarget",
+            "one_replacement": "speed OR ramps in separate trials; keep original and replacement results retained",
+        }
+    else:
+        result["entry_state"] = {
+            "required_before_TB": "separate explicit released mode 3 preparation, no mode switch/enable by this plan",
+            "arming_maximum_rpm": 12,
+            "arming_stop_kind": "QUICK_STOP (2)",
+            "native_duration_ms": 12000,
+            "own_stop": "keeps original native due/final; explicit stop supersedes it and must retain its own result",
+        }
+    return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("phase", choices=("move-speed", "move-ramps", "velocity"))
+    args = parser.parse_args()
+    print(json.dumps(plan(args.phase), indent=2))

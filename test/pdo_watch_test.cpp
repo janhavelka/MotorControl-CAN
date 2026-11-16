@@ -344,7 +344,7 @@ void testTapCopies() {
 void testAdmission() {
     Rig rig;
     CHECK(rig.watch.begin(0, rig.now) == E::PdoWatchAdmission::INVALID);
-    CHECK(rig.watch.begin(601, rig.now) == E::PdoWatchAdmission::INVALID);
+    CHECK(rig.watch.begin(3601, rig.now) == E::PdoWatchAdmission::INVALID);
     CHECK(rig.watch.begin(1, UINT64_MAX - 11000000u + 1) == E::PdoWatchAdmission::INVALID);
     CHECK(!rig.watch.active());
     // A refused begin copies nothing and writes nothing.
@@ -983,9 +983,171 @@ void testHeartbeatPeriod20261109() {
         CHECK(number(rig.last("PDOW_END"), "frames") == w.count);
     }
 }
+std::string compactFixture() {
+    Rig rig;
+    CHECK(rig.watch.begin(1800, rig.now, true) == E::PdoWatchAdmission::ACCEPTED);
+    rig.turn(); // BEGIN uses the actual origin, independently of the output turn.
+    rig.add(bounded(frame(0x181, 7, 1), 1000400, 1000500));
+    rig.turn();
+    rig.add(exact(frame(0x701, 1, 5), 999999));
+    rig.turn();
+    rig.add(bounded(frame(0x181, 2, 2), 1000900, 1000800));
+    rig.turn();
+    CHECK(rig.console.output.find("compact=1 origin=1000000\n") != std::string::npos);
+    CHECK(rig.console.output.find("PC 1,181,1f4,64,1c4,01020304050607,24e8\n") != std::string::npos);
+    CHECK(rig.console.output.find("PC 2,701,1,0,5c,05,6809\n") != std::string::npos);
+    CHECK(rig.console.output.find("PC 3,181,320,64,a4,0203,2285\n") != std::string::npos);
+    CHECK(rig.watch.requestStop());
+    rig.finish();
+    CHECK(number(rig.last("PDOW_END"), "printed") == 3);
+    CHECK(!number(rig.last("PDOW_END"), "unprinted"));
+    CHECK(rig.inner.others == 0);
+    return rig.console.output;
+}
+void testCompactTailAndCutoff() {
+    for (bool stall : {false, true}) {
+        Rig rig;
+        CHECK(rig.watch.begin(1800, rig.now, true) == E::PdoWatchAdmission::ACCEPTED);
+        rig.turn();
+        const uint64_t origin = 1000000;
+        rig.now = origin + UINT64_C(1800000000) - 2;
+        rig.console.blocked = true;
+        rig.add(exact(frame(0x181, 7, 1), rig.now));
+        rig.add(exact(frame(0x182, 7, 2), rig.now + 1));
+        rig.turn(false, 1);
+        CHECK(rig.watch.active());
+        rig.turn(false, 1); // Fixed duration, no new receives admitted after this turn.
+        if (stall)
+            rig.turn(false, 5000000);
+        rig.console.blocked = false;
+        rig.finish();
+        CHECK(number(rig.last("PDOW_END"), "frames") == 2);
+        CHECK(number(rig.last("PDOW_END"), "printed") == (stall ? 0 : 2));
+        CHECK(number(rig.last("PDOW_END"), "unprinted") == (stall ? 2 : 0));
+        CHECK(rig.inner.others == 0);
+    }
+    Rig edge;
+    CHECK(edge.watch.begin(1, edge.now, true) == E::PdoWatchAdmission::ACCEPTED);
+    edge.turn();
+    edge.console.blocked = true;
+    edge.add(exact(frame(0x181, 7), UINT64_MAX - 2));
+    edge.now = UINT64_MAX - 2;
+    edge.turn(false, 1); // Finishing near clock exhaustion must not wrap the tail deadline.
+    edge.console.blocked = false;
+    for (unsigned i = 0; i < 20 && edge.watch.active(); ++i)
+        edge.watch.service(edge.now);
+    CHECK(!edge.watch.active());
+    CHECK(number(edge.last("PDOW_END"), "printed") == 1);
+    CHECK(!number(edge.last("PDOW_END"), "unprinted"));
+}
+// Model the actual atomic platform queue, a 2 ms application turn, and at most
+// 23 UART bytes per turn (11500 B/s, below the 115200 8N1 ceiling). Output-only
+// drains cannot call input/idle or consume CAN. This is a scheduling regression,
+// not a model of ISR latency or a hardware throughput qualification.
+struct PollBudgetSink {
+    unsigned remaining = 0, calls = 0, reads = 0, idles = 0;
+    std::string output;
+    E::ProbePlatform platform;
+    PollBudgetSink() : platform(callbacks()) {}
+    E::ProbeCallbacks callbacks() {
+        E::ProbeCallbacks result;
+        result.context = this;
+        result.readByte = [](void* context, uint8_t&) {
+            ++static_cast<PollBudgetSink*>(context)->reads;
+            return false;
+        };
+        result.idle = [](void* context) { ++static_cast<PollBudgetSink*>(context)->idles; };
+        result.writeByte = [](void* context, uint8_t byte) {
+            PollBudgetSink& self = *static_cast<PollBudgetSink*>(context);
+            ++self.calls;
+            if (!self.remaining)
+                return false;
+            --self.remaining;
+            self.output.push_back(char(byte));
+            return true;
+        };
+        return result;
+    }
+    E::PdoWatchOutput sink() {
+        E::PdoWatchOutput result;
+        result.context = this;
+        result.write = [](void* context, const char* text, size_t size) {
+            return static_cast<PollBudgetSink*>(context)->platform.writeOutput(
+                reinterpret_cast<const uint8_t*>(text), size);
+        };
+        return result;
+    }
+};
+void testActualPlatformCompactDrainBudget() {
+    for (unsigned drainTurns : {1u, 4u})
+        for (bool blocked : {false, true}) {
+            Inner inner;
+            E::SoakTwaiTap tap(inner.callbacks());
+            PollBudgetSink output;
+            E::PdoWatch watch(tap, output.sink());
+            uint64_t now = 1000000;
+            CHECK(watch.begin(5, now, true) == E::PdoWatchAdmission::ACCEPTED);
+            CHECK(watch.compactActive());
+            watch.service(now);
+            const auto turn = [&](bool generating, bool allow) {
+                now += 2000;
+                output.remaining = allow ? 23u : 0u;
+                const unsigned calls = output.calls, reads = output.reads, idles = output.idles;
+                output.platform.service(); // Ordinary turn keeps its 16-byte budget.
+                if (generating) {
+                    const uint64_t elapsed = now - 1000000;
+                    if (elapsed % 10000 == 0) {
+                        inner.script.push_back(bounded(frame(0x181, 7), now - 100, now));
+                        inner.script.push_back(bounded(frame(0x182, 7), now - 100, now + 1));
+                    }
+                    if (elapsed % 1000000 == 0) {
+                        inner.script.push_back(exact(frame(0x701, 1, 5), now));
+                        inner.script.push_back(exact(frame(0x702, 1, 5), now + 1));
+                    }
+                }
+                const E::TwaiDriver driver = tap.driver();
+                O::ReceivedFrame received;
+                for (unsigned n = 0; n < E::ReceiveRing::CAPACITY &&
+                                     driver.receive(driver.context, received, now); ++n) {
+                }
+                watch.service(now);
+                if (watch.compactActive())
+                    for (unsigned extra = 1; extra < drainTurns && output.platform.stats().outputUsed; ++extra)
+                        if (!output.platform.drainOutput())
+                            break;
+                CHECK(output.calls - calls <= drainTurns * E::ProbePlatform::OUTPUT_BUDGET);
+                CHECK(output.reads == reads + 1 && output.idles == idles + 1);
+            };
+            for (unsigned n = 0; n < 2500; ++n)
+                turn(true, !blocked);
+            if (blocked)
+                for (unsigned n = 0; n < 2501; ++n)
+                    turn(false, false); // Exceed fixed final drain cutoff, without progress.
+            for (unsigned n = 0; n < 4000 && (watch.active() || output.platform.stats().outputUsed); ++n)
+                turn(false, true);
+            CHECK(!watch.active() && !output.platform.stats().outputUsed);
+            CHECK(inner.next == 1010 && inner.others == 0);
+            const auto lines = split(output.output);
+            CHECK(tag(lines.back()) == "PDOW_END");
+            const auto printed = number(lines.back(), "printed");
+            const auto lost = number(lines.back(), "unprinted");
+            CHECK(number(lines.back(), "frames") == 1010 && printed + lost == 1010);
+            CHECK(!number(lines.back(), "tapDropped"));
+            if (blocked || drainTurns == 1)
+                CHECK(lost > 0 && output.platform.stats().outputRejected > 0);
+            else
+                CHECK(!lost && printed == 1010);
+            std::printf("compact platform budget=%u blocked=%u printed=%llu unprinted=%llu\n",
+                        drainTurns * unsigned(E::ProbePlatform::OUTPUT_BUDGET), unsigned(blocked), printed, lost);
+        }
+}
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 2 && !std::strcmp(argv[1], "--compact-transcript")) {
+        std::fputs(compactFixture().c_str(), stdout);
+        return 0;
+    }
     testTapCopies();
     testAdmission();
     testExactLines();
@@ -1004,6 +1166,9 @@ int main() {
     testTapDropsReported();
     testLongestLines();
     testHeartbeatPeriod20261109();
+    compactFixture();
+    testCompactTailAndCutoff();
+    testActualPlatformCompactDrainBudget();
     std::printf("pdo_watch: %u checks, sizeof(PdoWatch)=%lu sizeof(ReceiveRing)=%lu\n", checks,
                 static_cast<unsigned long>(sizeof(E::PdoWatch)),
                 static_cast<unsigned long>(sizeof(E::ReceiveRing)));

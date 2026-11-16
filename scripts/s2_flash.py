@@ -91,7 +91,10 @@ BAUD = 115200
 # fixture needs a reviewed new record here, not a command-line override.
 FIXTURE = {"port": "COM15", "usb_serial": "94A990398B40", "vid": 0x303A, "pid": 0x1002,
            "chip_prefix": "ESP32-S2", "mac": "dc:b4:d9:b5:a6:ce", "flash_size": "4MB"}
-PINS = {"idf": "v5.5.5", "esptool": "4.12.0"}  # Exact installed versions; never upgraded here.
+PINS = {"idf": "v5.5.5"}
+# Retained fixture uploads used 4.12.0. The side-by-side SDK5.5.5 install uses 4.13.0;
+# both satisfy that SDK's esptool~=4.12 constraint. Nothing installs or upgrades either tool.
+ESPTOOL_VERSIONS = ("4.12.0", "4.13.0")
 
 def flash_layout(app=DEFAULT_APP):
     """The reviewed offsets; flash_args and flasher_args.json must both state exactly these."""
@@ -323,14 +326,24 @@ def check_usb(port, serial_number, ports):
             "vid_pid": "%04X:%04X" % (item.vid, item.pid), "description": getattr(item, "description", "")}
 
 
+def parse_esptool_version(header):
+    """Accept one exact reviewed esptool header, never a version substring or prefix."""
+    match = re.fullmatch(r"esptool\.py v([0-9]+\.[0-9]+\.[0-9]+)", header.strip())
+    if not match or match.group(1) not in ESPTOOL_VERSIONS:
+        raise FlashError("esptool header %r is outside the reviewed versions %s" %
+                         (header, ", ".join(ESPTOOL_VERSIONS)), "unavailable")
+    return match.group(1)
+
+
 def parse_target(output):
     """Target facts printed by esptool; absent facts stay absent."""
     chip = re.search(r"^Chip is (.+)$", output, re.M)
     mac = re.search(r"^MAC: ([0-9a-fA-F:]{17})\s*$", output, re.M)
     size = re.search(r"^Detected flash size: (\S+)", output, re.M)
-    version = re.search(r"^esptool\.py v(\S+)", output, re.M)
+    version = re.search(r"^esptool\.py v[^\r\n]*", output, re.M)
     return {"chip": chip.group(1).strip() if chip else None, "mac": mac.group(1).lower() if mac else None,
-            "flash_size": size.group(1) if size else None, "esptool": version.group(1) if version else None}
+            "flash_size": size.group(1) if size else None,
+            "esptool": parse_esptool_version(version.group(0)) if version else None}
 
 
 def check_target(facts):
@@ -765,10 +778,10 @@ def _record_tools(artifact, args, tools):
     wanted = recommended_compiler(tools["paths"]["idf"])
     if wanted not in versions["compiler"]:
         raise FlashError("compiler %s is not the SDK's %s" % (versions["compiler"], wanted), "unavailable")
-    if PINS["esptool"] not in versions["esptool"]:
-        raise FlashError("esptool %s is not the pinned %s" % (versions["esptool"], PINS["esptool"]), "unavailable")
+    esptool_version = parse_esptool_version(versions["esptool"])
     artifact.record.update(tools={k: str(v) for k, v in tools["paths"].items()}, tool_versions=versions,
-                           idf_version=PINS["idf"], sdk_sources_verified=runner.summary.get("source_hashes_verified"))
+                           idf_version=PINS["idf"], esptool_version=esptool_version,
+                           sdk_sources_verified=runner.summary.get("source_hashes_verified"))
     artifact.phase("tools")
     return env
 
@@ -809,21 +822,35 @@ def _flash(artifact, tools, env, build, port, serial_number, app=DEFAULT_APP):
     read_mac = esptool_command(tools, port, "read_mac")
     artifact.record["read_mac_command"] = read_mac
     code, output = execute(read_mac, build, artifact.directory / "read_mac.log", env, 120)
-    facts = parse_target(output)
+    try:
+        facts = parse_target(output)
+    except FlashError as error:
+        raise FlashError("target identity output has no reviewed tool version; nothing was written",
+                         "identity_failed") from error
     artifact.record["target_identity"] = facts
     if code != 0:
         raise FlashError("target identity read failed (%s); nothing was written" % code, "identity_failed")
     check_target(facts)
+    if facts["esptool"] != artifact.record["esptool_version"]:
+        raise FlashError("target identity tool version differs from the checked tool; nothing was written",
+                         "identity_failed")
     artifact.phase("target_identity", **facts)
     write = esptool_command(tools, port, "write_flash", "@flash_args")
     artifact.record["flash_command"] = write
     code, output = execute(write, build, artifact.directory / "flash.log", env, 300)
-    result = parse_target(output)
+    try:
+        result = parse_target(output)
+    except FlashError as error:
+        raise FlashError("write tool version is unreviewed; image unknown; no retry",
+                         "flash_failed" if code != 0 else "flash_unverified") from error
     verified = output.count("Hash of data verified.")
     artifact.record["flash"] = dict(result, returncode=code, verified_images=verified)
     if code != 0:
         raise FlashError("esptool write failed (%s); the image on the target is unknown; no retry" % code,
                          "flash_failed")
+    if result["esptool"] != artifact.record["esptool_version"]:
+        raise FlashError("write tool version differs from the checked tool; image unverified; no retry",
+                         "flash_unverified")
     images = len(flash_layout(app))
     if verified != images or "Hard resetting" not in output:
         raise FlashError("esptool exited 0 without %d verified images and a reset" % images, "flash_unverified")

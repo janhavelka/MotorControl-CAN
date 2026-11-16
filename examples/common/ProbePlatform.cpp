@@ -30,15 +30,21 @@ void ProbePlatform::service() noexcept {
             ++stats_.inputUsed;
         }
     }
+    drainOutput();
+    if (callbacks_.idle)
+        callbacks_.idle(callbacks_.context);
+}
+unsigned ProbePlatform::drainOutput() noexcept {
+    unsigned written = 0;
     for (unsigned i = 0; callbacks_.writeByte && stats_.outputUsed && i < OUTPUT_BUDGET; ++i) {
         if (!callbacks_.writeByte(callbacks_.context, output_[outputHead_]))
             break;
         outputHead_ = (outputHead_ + 1) % OUTPUT_CAPACITY;
         --stats_.outputUsed;
         ++stats_.outputWritten; // Wraps by design: unsigned arithmetic, compared as differences.
+        ++written;
     }
-    if (callbacks_.idle)
-        callbacks_.idle(callbacks_.context);
+    return written;
 }
 bool ProbePlatform::takeInput(uint8_t& output) noexcept {
     if (!stats_.inputUsed)

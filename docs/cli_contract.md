@@ -512,6 +512,16 @@ progress continues under output pressure. `sync inspect` is cached only;
 and is not a motor stop. `sync resolve EVIDENCE_ID` explicitly records external
 exclusive-producer evidence after conflict and retirement, but does not rearm.
 
+`sync timing` is another cached query. It reports the latest schedule's
+`generation`, `count`, `terminals`, `confirmed` and `handoffs`; `origin_us` and
+`period_us` are decimal strings. `handoff_us` contains first time, last time,
+minimum interval and maximum interval, in that order. `delay_us` contains the
+maximum handoff lateness relative to its fixed due time and maximum terminal
+processing delay after handoff. All array elements are decimal microseconds.
+First/last require a nonzero handoff count; intervals require at least two.
+`invalid=true` withdraws timing interpretation. These are host measurements,
+not exact CAN wire times. A successful new request resets them; release does not.
+
 An owner deadline/cancel terminal is immutable. TX counts in the operation result
 cover confirmation delivered to that result; a later matching hardware report
 is separately retained as an owner diagnostic, never rewritten into success.

@@ -1,0 +1,4 @@
+PONG target=esp32s2 base=947cc5da8cbb0c24799d8114d8b665b38341921f elf=96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469 sdk=v5.5.5-dirty running=1 active=1 silent=0 pinsReady=1 soak=0 t=715856420 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0
+STATS running=1 inhibited=0 rx=89578 tx=44088 dropped=0 errors=0 flags=00000000 stackFree=7624 t=715952426 txRej=0 rxLost=0 unmatched=88177 traceOver=177730 ownerGap=4002 conRej=947
+HEAP free=74456 largest=57344 minimum=74456 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffc6bb0:218192:63336:58760 reserved=1f arena=0 arenaBytes=38592
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540300,"command":"sync","ok":true,"status":"OK","armed":false,"producer_conflict":false,"retained":false,"active":false,"foreign_observed":false,"foreign_serial":0}

@@ -72,13 +72,42 @@ Admitted admitted(const BenchAxis* axis) {
     ids.fast = m.stopRetained(L::StopKind::QUICK_STOP) ? m.stopResult(L::StopKind::QUICK_STOP)->result.id : 0;
     return ids;
 }
+// A fresh arming names only an attended experiment. No successful change promotes these gates,
+// and rearming without the explicit flag withdraws both kinds' old permission.
+BENCH_CONSOLE_NOINLINE M::Status changePrerequisites(BenchAxis& axis, const RoutePlan& plan) {
+    L::MoveReplacementEvidence move;
+    L::VelocityChangeEvidence velocity;
+    if (plan.allowChanges && plan.kind == RouteKind::ARM_MOVE) {
+        move.gate = L::MoveChangeGate::ATTENDED_EXPERIMENT;
+        move.record = plan.trial;
+        move.model = L::SettingsModel::CL86_C;
+        move.firmware = plan.firmware;
+    } else if (plan.allowChanges && plan.kind == RouteKind::ARM_VELOCITY) {
+        velocity.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
+        velocity.record = plan.trial;
+        velocity.model = L::SettingsModel::CL86_C;
+        velocity.firmware.deviceType = plan.firmware.deviceType;
+        velocity.firmware.hardwareVersion = plan.firmware.hardwareVersion;
+        velocity.firmware.softwareVersion = plan.firmware.softwareVersion;
+        velocity.firmware.vendorId = plan.firmware.vendorId;
+        velocity.firmware.productCode = plan.firmware.productCode;
+        velocity.firmware.revision = plan.firmware.revision;
+        velocity.firmware.modelCode = plan.firmware.modelCode;
+        velocity.firmware.firmwareCode = plan.firmware.firmwareCode;
+        velocity.maximumForwardRpm = plan.rpm;
+    }
+    // No independently measured command/feedback relation is installed. Same-endpoint changes need
+    // none; a changed endpoint remains refused by the ordinary profile's relation check.
+    const M::Status status = axis.motion.setMoveReplacementPrerequisites(move, nullptr);
+    return status ? axis.motion.setVelocityChangePrerequisites(velocity) : status;
+}
 } // namespace
 
 ConsoleGate benchConsoleGate(const ConsoleLine& line) noexcept {
     const char* name = line.token(0);
     const char* first = line.token(1);
     if (is(name, "sync"))
-        return is(first, "inspect") || is(first, "disarm") ? ConsoleGate::ALWAYS
+        return is(first, "inspect") || is(first, "timing") || is(first, "disarm") ? ConsoleGate::ALWAYS
                                                            : ConsoleGate::IDLE_BENCH;
     if (is(name, "recover"))
         return ConsoleGate::NEVER;
@@ -501,6 +530,9 @@ const char* BenchConsole::arm(BenchAxis& x, uint64_t now) noexcept {
     }
     if (!status)
         return status.msg && *status.msg ? status.msg : "prerequisites";
+    status = changePrerequisites(x, p);
+    if (!status)
+        return status.msg && *status.msg ? status.msg : "change-prerequisites";
     if (!console_.attachMotion(x.motion))
         return "attach";
     attached_ = p.node;
@@ -533,12 +565,14 @@ BENCH_CONSOLE_NOINLINE void BenchConsole::applyArming(uint64_t now) noexcept {
         return;
     }
     std::snprintf(notice_, sizeof notice_,
-                  "CONSOLE armed node=%u trial=%lu route=%s relative=%u witness=%u scale=%u origin=%u; "
+                  "CONSOLE armed node=%u trial=%lu route=%s relative=%u witness=%u scale=%u origin=%u "
+                  "changes=%u changeRecord=%lu; "
                   "prerequisites named, nothing sent\n",
                   node, static_cast<unsigned long>(arming_.plan.trial), routeName(arming_.plan.kind),
                   unsigned(arming_.plan.relativeBase), unsigned(axis->reference.nativeKnown),
                   unsigned(axis->axis.units.commandStepsPerMotorTurn.source != M::ScaleSource::UNKNOWN),
-                  unsigned(axis->axis.originKnown));
+                  unsigned(axis->axis.originKnown), unsigned(arming_.plan.allowChanges),
+                  static_cast<unsigned long>(arming_.plan.allowChanges ? arming_.plan.trial : 0));
 }
 void BenchConsole::service(uint64_t now, const BenchActivity& bench) noexcept {
     hold_ = bench.holdOutput;

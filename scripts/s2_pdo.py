@@ -66,7 +66,7 @@ LINE_COMMANDS = ("N", "P", "R", "W", "E", "J", "C", "D", "K", "H", "S")
 # pdo=4 adds D, K and H; on a pdo=3 image "K1" would be UNKNOWN then a node-1 identity read.
 PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC"),
                  "4": frozenset("NPRWECDKH"), "5": frozenset("NPRWECDKH"),
-                 "6": frozenset("NPRWEJCDKH")}
+                 "6": frozenset("NPRWEJCDKH"), "7": frozenset("NPRWEJCDKH")}
 PDO_LETTERS = "NPRWEJCDKH"
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
@@ -786,6 +786,9 @@ def preflight(capture, steps=()):
         return values, "image_without_pdo_lines"
     if not letters <= PDO_PROTOCOLS[values["pdo"]]:
         return values, "image_without_pdo_config"
+    if int(values["pdo"]) < 7 and any(step.get("send", "").startswith("P") and
+                                     "," in step["send"] for step in steps):
+        return values, "image_without_compact_watch"
     resets = [step for step in steps if step.get("send", "")[:1] == "N" and nmt_plan(step["send"]) and
               nmt_plan(step["send"])[1] in RESET_COMMANDS]
     if resets and int(values["pdo"]) < RESET_PROTOCOL:

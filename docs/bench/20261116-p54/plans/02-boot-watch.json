@@ -1,0 +1,8 @@
+{
+  "purpose": "P54 passive boot capture for an externally performed drive power cycle; no CAN request, reset or motion",
+  "authorization": "Standing bench authorization; operator supplies the external drive-session boundary",
+  "steps": [
+    {"send": "P600", "expect": "PDOW admitted"},
+    {"wait_s": 601}
+  ]
+}

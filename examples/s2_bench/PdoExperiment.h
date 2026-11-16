@@ -20,6 +20,18 @@ namespace MotorControlCANExample {
  */
 void refreshExperimentIds(const MotorControlCAN::CANOPEN::SdoClient& services, unsigned node,
                           uint32_t& operation, uint32_t& authorization) noexcept;
+/** Select one raw operation and a contiguous grant range above all channel producers.
+ * Grants nothing and sends nothing. Unused selected identities may be skipped.
+ * @param services Authoritative retained channel history, borrowed during this call.
+ * @param node Existing bench node 1 or 2.
+ * @param operation On input the caller's last operation; on success the new operation.
+ * @param firstAuthorization On input a nonzero inclusive floor; on success the first grant.
+ * @param count Nonzero number of consecutive grants required by the fixed raw inventory.
+ * @return False with both outputs unchanged for an absent channel, aliased outputs or exhaustion.
+ */
+bool reserveRawExperimentIds(const MotorControlCAN::CANOPEN::SdoClient& services, unsigned node,
+                             uint32_t& operation, uint32_t& firstAuthorization,
+                             uint32_t count) noexcept;
 using MotorControlCANOwner::Stats;
 using MotorControlCANOwner::RequestId;
 using MotorControlCANOwner::SequenceId;

@@ -1,0 +1,762 @@
+{
+  "ok": false,
+  "plan": {
+    "duration_s": 1800,
+    "period_ms": 10,
+    "count": 180000,
+    "watch_s": 1810,
+    "byte_cap": 67108864,
+    "raw_tx_per_cycle": false,
+    "automatic_retry": false,
+    "configuration_changed": false,
+    "firmware_effect_qualified": false,
+    "planned_cleanup": "cached sync timing/STATS, local sync disarm and P0; failed result retained",
+    "expected_elf": "96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469",
+    "port": "COM15",
+    "fixture": {
+      "port": "COM15",
+      "usb_serial": "94A990398B40",
+      "vid": 12346,
+      "pid": 4098
+    },
+    "tool_sha256": "b8030bd5934fc2513174f0f6c3f6c4eb03983a9af95162e5174f7e5a27711323"
+  },
+  "local_tx_complete": false,
+  "firmware_effect_qualified": false,
+  "pong": "PONG target=esp32s2 base=947cc5da8cbb0c24799d8114d8b665b38341921f elf=96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469 sdk=v5.5.5-dirty running=1 active=1 silent=0 pinsReady=1 soak=0 t=29743420 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0",
+  "receipt": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540004,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "result": "accepted",
+    "operation_id": 2
+  },
+  "terminal": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "terminal",
+    "id": 540004,
+    "command": "sync",
+    "ok": false,
+    "status": "INVALID_CONFIG",
+    "detail": 5,
+    "outcome": "MISSED_DEADLINE",
+    "uncertain": true,
+    "command_id": 540004,
+    "operation_id": 2,
+    "completed_us": "460195400",
+    "abort_code": null,
+    "local_tx_count": 42988,
+    "requested_count": 180000,
+    "transmission_possible": true,
+    "drive_effect_known": false
+  },
+  "sync_timing": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540005,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "generation": 2,
+    "count": 180000,
+    "terminals": 42988,
+    "confirmed": 42988,
+    "handoffs": 42988,
+    "origin_us": "30314676",
+    "period_us": "10000",
+    "handoff_us": [
+      "30318430",
+      "460187431",
+      "6998",
+      "12005"
+    ],
+    "delay_us": [
+      "3759",
+      "5999"
+    ],
+    "invalid": false
+  },
+  "snapshots": [
+    "STATS running=1 inhibited=0 rx=1032 tx=500 dropped=0 errors=0 flags=00000000 stackFree=7624 t=30115473 txRej=0 rxLost=0 unmatched=1001 traceOver=2008 ownerGap=3993 conRej=3",
+    "STATS running=1 inhibited=0 rx=3072 tx=1510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=40412427 txRej=0 rxLost=0 unmatched=3021 traceOver=6068 ownerGap=3993 conRej=13",
+    "STATS running=1 inhibited=0 rx=5088 tx=2508 dropped=0 errors=0 flags=00000000 stackFree=7624 t=50389453 txRej=0 rxLost=0 unmatched=5017 traceOver=10080 ownerGap=3993 conRej=25",
+    "STATS running=1 inhibited=0 rx=7106 tx=3507 dropped=0 errors=0 flags=00000000 stackFree=7624 t=60379545 txRej=0 rxLost=0 unmatched=7015 traceOver=14096 ownerGap=3993 conRej=39",
+    "STATS running=1 inhibited=0 rx=9132 tx=4510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=70417466 txRej=0 rxLost=0 unmatched=9021 traceOver=18129 ownerGap=3993 conRej=53",
+    "STATS running=1 inhibited=0 rx=11146 tx=5507 dropped=0 errors=0 flags=00000000 stackFree=7624 t=80381429 txRej=0 rxLost=0 unmatched=11015 traceOver=22136 ownerGap=3993 conRej=69",
+    "STATS running=1 inhibited=0 rx=13174 tx=6511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=90423429 txRej=0 rxLost=0 unmatched=13023 traceOver=26172 ownerGap=3993 conRej=84",
+    "STATS running=1 inhibited=0 rx=15190 tx=7509 dropped=0 errors=0 flags=00000000 stackFree=7624 t=100403498 txRej=0 rxLost=0 unmatched=15019 traceOver=30184 ownerGap=3993 conRej=100",
+    "STATS running=1 inhibited=0 rx=17208 tx=8508 dropped=0 errors=0 flags=00000000 stackFree=7624 t=110396431 txRej=0 rxLost=0 unmatched=17017 traceOver=34201 ownerGap=3993 conRej=116",
+    "STATS running=1 inhibited=0 rx=19226 tx=9507 dropped=0 errors=0 flags=00000000 stackFree=7624 t=120378445 txRej=0 rxLost=0 unmatched=19015 traceOver=38216 ownerGap=3999 conRej=132",
+    "STATS running=1 inhibited=0 rx=21250 tx=10509 dropped=0 errors=0 flags=00000000 stackFree=7624 t=130407434 txRej=0 rxLost=0 unmatched=21019 traceOver=42245 ownerGap=3999 conRej=148",
+    "STATS running=1 inhibited=0 rx=23264 tx=11506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=140372432 txRej=0 rxLost=0 unmatched=23013 traceOver=46252 ownerGap=3999 conRej=164",
+    "STATS running=1 inhibited=0 rx=25288 tx=12508 dropped=0 errors=0 flags=00000000 stackFree=7624 t=150396433 txRej=0 rxLost=0 unmatched=25017 traceOver=50281 ownerGap=3999 conRej=182",
+    "STATS running=1 inhibited=0 rx=27314 tx=13511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=160421431 txRej=0 rxLost=0 unmatched=27023 traceOver=54312 ownerGap=3999 conRej=198",
+    "STATS running=1 inhibited=0 rx=29334 tx=14511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=170421427 txRej=0 rxLost=0 unmatched=29023 traceOver=58332 ownerGap=3999 conRej=214",
+    "STATS running=1 inhibited=0 rx=31354 tx=15511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=180423431 txRej=0 rxLost=0 unmatched=31023 traceOver=62352 ownerGap=3999 conRej=230",
+    "STATS running=1 inhibited=0 rx=33374 tx=16511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=190423431 txRej=0 rxLost=0 unmatched=33023 traceOver=66372 ownerGap=3999 conRej=246",
+    "STATS running=1 inhibited=0 rx=35394 tx=17511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=200421437 txRej=0 rxLost=0 unmatched=35023 traceOver=70392 ownerGap=3999 conRej=262",
+    "STATS running=1 inhibited=0 rx=37404 tx=18506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=210372437 txRej=0 rxLost=0 unmatched=37013 traceOver=74392 ownerGap=3999 conRej=278",
+    "STATS running=1 inhibited=0 rx=39424 tx=19506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=220375604 txRej=0 rxLost=0 unmatched=39013 traceOver=78412 ownerGap=3999 conRej=294",
+    "STATS running=1 inhibited=0 rx=41442 tx=20505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=230367431 txRej=0 rxLost=0 unmatched=41011 traceOver=82429 ownerGap=3999 conRej=311",
+    "STATS running=1 inhibited=0 rx=43462 tx=21505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=240361427 txRej=0 rxLost=0 unmatched=43011 traceOver=86448 ownerGap=3999 conRej=328",
+    "STATS running=1 inhibited=0 rx=45492 tx=22510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=250415514 txRej=0 rxLost=0 unmatched=45021 traceOver=90488 ownerGap=4002 conRej=348",
+    "STATS running=1 inhibited=0 rx=47508 tx=23508 dropped=0 errors=0 flags=00000000 stackFree=7624 t=260389453 txRej=0 rxLost=0 unmatched=47017 traceOver=94500 ownerGap=4002 conRej=364",
+    "STATS running=1 inhibited=0 rx=49532 tx=24510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=270416446 txRej=0 rxLost=0 unmatched=49021 traceOver=98529 ownerGap=4002 conRej=380",
+    "STATS running=1 inhibited=0 rx=51550 tx=25509 dropped=0 errors=0 flags=00000000 stackFree=7624 t=280398538 txRej=0 rxLost=0 unmatched=51019 traceOver=102544 ownerGap=4002 conRej=396",
+    "STATS running=1 inhibited=0 rx=53562 tx=26505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=290366541 txRej=0 rxLost=0 unmatched=53011 traceOver=106548 ownerGap=4002 conRej=412",
+    "STATS running=1 inhibited=0 rx=55592 tx=27510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=300408457 txRej=0 rxLost=0 unmatched=55021 traceOver=110588 ownerGap=4002 conRej=432",
+    "STATS running=1 inhibited=0 rx=57604 tx=28506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=310368468 txRej=0 rxLost=0 unmatched=57013 traceOver=114592 ownerGap=4002 conRej=450",
+    "STATS running=1 inhibited=0 rx=59630 tx=29509 dropped=0 errors=0 flags=00000000 stackFree=7624 t=320398460 txRej=0 rxLost=0 unmatched=59019 traceOver=118624 ownerGap=4002 conRej=477",
+    "STATS running=1 inhibited=0 rx=61644 tx=30506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=330376539 txRej=0 rxLost=0 unmatched=61013 traceOver=122632 ownerGap=4002 conRej=498",
+    "STATS running=1 inhibited=0 rx=63662 tx=31505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=340366640 txRej=0 rxLost=0 unmatched=63011 traceOver=126648 ownerGap=4002 conRej=524",
+    "STATS running=1 inhibited=0 rx=65690 tx=32509 dropped=0 errors=0 flags=00000000 stackFree=7624 t=350406431 txRej=0 rxLost=0 unmatched=65019 traceOver=130685 ownerGap=4002 conRej=550",
+    "STATS running=1 inhibited=0 rx=67706 tx=33507 dropped=0 errors=0 flags=00000000 stackFree=7624 t=360382427 txRej=0 rxLost=0 unmatched=67015 traceOver=134696 ownerGap=4002 conRej=572",
+    "STATS running=1 inhibited=0 rx=69734 tx=34511 dropped=0 errors=0 flags=00000000 stackFree=7624 t=370419458 txRej=0 rxLost=0 unmatched=69023 traceOver=138732 ownerGap=4002 conRej=606",
+    "STATS running=1 inhibited=0 rx=71742 tx=35505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=380362437 txRej=0 rxLost=0 unmatched=71011 traceOver=142728 ownerGap=4002 conRej=631",
+    "STATS running=1 inhibited=0 rx=73768 tx=36508 dropped=0 errors=0 flags=00000000 stackFree=7624 t=390391437 txRej=0 rxLost=0 unmatched=73017 traceOver=146760 ownerGap=4002 conRej=669",
+    "STATS running=1 inhibited=0 rx=75784 tx=37506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=400371429 txRej=0 rxLost=0 unmatched=75013 traceOver=150772 ownerGap=4002 conRej=701",
+    "STATS running=1 inhibited=0 rx=77806 tx=38507 dropped=0 errors=0 flags=00000000 stackFree=7624 t=410385611 txRej=0 rxLost=0 unmatched=77015 traceOver=154796 ownerGap=4002 conRej=737",
+    "STATS running=1 inhibited=0 rx=79822 tx=39505 dropped=0 errors=0 flags=00000000 stackFree=7624 t=420362437 txRej=0 rxLost=0 unmatched=79011 traceOver=158808 ownerGap=4002 conRej=770",
+    "STATS running=1 inhibited=0 rx=81852 tx=40510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=430411437 txRej=0 rxLost=0 unmatched=81021 traceOver=162848 ownerGap=4002 conRej=809",
+    "STATS running=1 inhibited=0 rx=83864 tx=41506 dropped=0 errors=0 flags=00000000 stackFree=7624 t=440371429 txRej=0 rxLost=0 unmatched=83013 traceOver=166852 ownerGap=4002 conRej=841",
+    "STATS running=1 inhibited=0 rx=85892 tx=42510 dropped=0 errors=0 flags=00000000 stackFree=7624 t=450413431 txRej=0 rxLost=0 unmatched=85021 traceOver=170888 ownerGap=4002 conRej=884",
+    "STATS running=1 inhibited=0 rx=87868 tx=43488 dropped=0 errors=0 flags=00000000 stackFree=7624 t=460576558 txRej=0 rxLost=0 unmatched=86977 traceOver=174820 ownerGap=4002 conRej=929"
+  ],
+  "elapsed_s": 430.9070000000065,
+  "expected_count": 180000,
+  "watch": {
+    "begin": {
+      "n": "0",
+      "t": "30182434",
+      "seconds": "1810",
+      "ring": "32",
+      "ids": "16",
+      "compact": "1",
+      "origin": "30181422"
+    },
+    "end": {
+      "n": "87443",
+      "t": "460473427",
+      "reason": "stop",
+      "frames": "86836",
+      "printed": "86836",
+      "unprinted": "0",
+      "tapDropped": "0",
+      "untimed": "0",
+      "sdo": "0",
+      "idOverflow": "0"
+    },
+    "raw_rx_complete": true,
+    "observed_bounds_valid": true,
+    "timing_complete": true,
+    "errors": [
+      "TPDO 181 count 42988 differs from expected 180000; no cycle identity inferred",
+      "TPDO 182 count 42988 differs from expected 180000; no cycle identity inferred"
+    ],
+    "raw_errors": [],
+    "timing_errors": [],
+    "coverage_errors": [
+      "TPDO 181 count 42988 differs from expected 180000; no cycle identity inferred",
+      "TPDO 182 count 42988 differs from expected 180000; no cycle identity inferred"
+    ],
+    "received_frames": 86836,
+    "invalid_time": 0,
+    "ids": {
+      "385s": {
+        "id": 385,
+        "ext": false,
+        "count": 42988,
+        "min_hi_gap": 6896,
+        "max_hi_gap": 13441,
+        "sum_hi_gap": 429872286,
+        "gaps": 42987,
+        "histogram": [
+          0,
+          10179,
+          10449,
+          681,
+          754,
+          14799,
+          6125,
+          0
+        ],
+        "lower_over_period": 19691,
+        "upper_below_period": 19712,
+        "payload_changes": 0,
+        "min_interval_lower": 5879,
+        "max_interval_upper": 14326,
+        "mean_hi_gap": 10000
+      },
+      "386s": {
+        "id": 386,
+        "ext": false,
+        "count": 42988,
+        "min_hi_gap": 6917,
+        "max_hi_gap": 13434,
+        "sum_hi_gap": 429872288,
+        "gaps": 42987,
+        "histogram": [
+          0,
+          10285,
+          10342,
+          668,
+          767,
+          14657,
+          6268,
+          0
+        ],
+        "lower_over_period": 19665,
+        "upper_below_period": 19700,
+        "payload_changes": 0,
+        "min_interval_lower": 5881,
+        "max_interval_upper": 14387,
+        "mean_hi_gap": 10000
+      },
+      "1793s": {
+        "id": 1793,
+        "ext": false,
+        "count": 430,
+        "min_hi_gap": 1000600,
+        "max_hi_gap": 1000989,
+        "sum_hi_gap": 429340223,
+        "gaps": 429,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          429
+        ],
+        "lower_over_period": 429,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998253,
+        "max_interval_upper": 1003334,
+        "mean_hi_gap": 1000793
+      },
+      "1794s": {
+        "id": 1794,
+        "ext": false,
+        "count": 430,
+        "min_hi_gap": 1000591,
+        "max_hi_gap": 1000982,
+        "sum_hi_gap": 429340587,
+        "gaps": 429,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          429
+        ],
+        "lower_over_period": 429,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998261,
+        "max_interval_upper": 1003364,
+        "mean_hi_gap": 1000793
+      }
+    },
+    "native_ids": {
+      "385s": {
+        "n": "87439",
+        "t": "460457424",
+        "id": "181",
+        "ext": "0",
+        "count": "42988",
+        "first": "30319698",
+        "last": "460191984",
+        "minGap": "6896",
+        "maxGap": "13441",
+        "meanGap": "10000",
+        "sdGap": "1013",
+        "changes": "0",
+        "dlc": "7",
+        "data": "508003e7570000"
+      },
+      "386s": {
+        "n": "87440",
+        "t": "460459451",
+        "id": "182",
+        "ext": "0",
+        "count": "42988",
+        "first": "30319757",
+        "last": "460192045",
+        "minGap": "6917",
+        "maxGap": "13434",
+        "meanGap": "10000",
+        "sdGap": "1014",
+        "changes": "0",
+        "dlc": "7",
+        "data": "504003428d0000"
+      },
+      "1793s": {
+        "n": "87441",
+        "t": "460461477",
+        "id": "701",
+        "ext": "0",
+        "count": "430",
+        "first": "30517003",
+        "last": "459857226",
+        "minGap": "1000600",
+        "maxGap": "1000989",
+        "meanGap": "1000793",
+        "sdGap": "37",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      },
+      "1794s": {
+        "n": "87442",
+        "t": "460463479",
+        "id": "702",
+        "ext": "0",
+        "count": "430",
+        "first": "30847076",
+        "last": "460187663",
+        "minGap": "1000591",
+        "maxGap": "1000982",
+        "meanGap": "1000793",
+        "sdGap": "31",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      }
+    },
+    "histogram_upper_limits_us": [
+      5000,
+      9000,
+      9500,
+      10000,
+      10500,
+      11000,
+      20000
+    ],
+    "rx_payload_bits": 4821536,
+    "tx_raw_per_cycle": false,
+    "wire_bus_load_measured": false,
+    "time_scope": "driver receive bounds and upper-bound gaps; not wire time or same-cycle identity"
+  },
+  "counter_errors": [],
+  "error": "finite SYNC native terminal failed/incomplete; result retained",
+  "handoffs": [
+    {
+      "host_s": 367864.296,
+      "wire_hex": "70",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367864.406,
+      "wire_hex": "6f",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367864.468,
+      "wire_hex": "4035343030303020686f737420300a",
+      "accepted_bytes": 15
+    },
+    {
+      "host_s": 367864.531,
+      "wire_hex": "40353430303031206465627567206f66660a",
+      "accepted_bytes": 18
+    },
+    {
+      "host_s": 367864.593,
+      "wire_hex": "403534303030322073796e6320696e73706563740a",
+      "accepted_bytes": 21
+    },
+    {
+      "host_s": 367864.656,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367864.734,
+      "wire_hex": "50313831302c630a",
+      "accepted_bytes": 8
+    },
+    {
+      "host_s": 367864.796,
+      "wire_hex": "403534303030332073796e632061726d0a",
+      "accepted_bytes": 17
+    },
+    {
+      "host_s": 367864.859,
+      "wire_hex": "403534303030342073796e6320706572696f64203130203138303030300a",
+      "accepted_bytes": 30
+    },
+    {
+      "host_s": 367874.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367884.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367894.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367904.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367914.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367924.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367934.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367944.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367954.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367964.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367974.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367984.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 367994.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368004.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368014.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368024.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368034.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368044.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368054.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368064.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368074.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368084.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368094.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368104.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368114.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368124.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368134.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368144.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368154.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368164.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368174.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368184.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368194.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368204.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368214.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368224.953,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368234.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368244.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368254.921,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368264.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368274.937,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368284.968,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368294.89,
+      "wire_hex": "403534303030352073796e632074696d696e670a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 368294.953,
+      "wire_hex": "403534303030362073796e632064697361726d0a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 368295.015,
+      "wire_hex": "50300a",
+      "accepted_bytes": 3
+    },
+    {
+      "host_s": 368295.14,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    }
+  ],
+  "console_records": [
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540000,
+      "command": "host",
+      "ok": true,
+      "status": "OK",
+      "wire_work": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540001,
+      "command": "debug",
+      "ok": true,
+      "status": "OK",
+      "mode": 0,
+      "trace_overwritten": 2008,
+      "trace_pending": 0,
+      "trace_dropped": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540002,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "armed": false,
+      "producer_conflict": false,
+      "retained": false,
+      "active": false,
+      "foreign_observed": false,
+      "foreign_serial": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540003,
+      "command": "sync",
+      "ok": true,
+      "status": "OK"
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540004,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "result": "accepted",
+      "operation_id": 2
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "terminal",
+      "id": 540004,
+      "command": "sync",
+      "ok": false,
+      "status": "INVALID_CONFIG",
+      "detail": 5,
+      "outcome": "MISSED_DEADLINE",
+      "uncertain": true,
+      "command_id": 540004,
+      "operation_id": 2,
+      "completed_us": "460195400",
+      "abort_code": null,
+      "local_tx_count": 42988,
+      "requested_count": 180000,
+      "transmission_possible": true,
+      "drive_effect_known": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540005,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "generation": 2,
+      "count": 180000,
+      "terminals": 42988,
+      "confirmed": 42988,
+      "handoffs": 42988,
+      "origin_us": "30314676",
+      "period_us": "10000",
+      "handoff_us": [
+        "30318430",
+        "460187431",
+        "6998",
+        "12005"
+      ],
+      "delay_us": [
+        "3759",
+        "5999"
+      ],
+      "invalid": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540006,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "motor_stop": false
+    }
+  ],
+  "raw_bytes": 4292230,
+  "partial_line_hex": "",
+  "stream_healthy": true
+}

@@ -19,8 +19,40 @@ M::Status ProbeSync::request(uint64_t periodUs, uint32_t count, uint64_t nowUs) 
     if (!status)
         return status;
     retained_ = true;
+    timing_ = ProbeSyncTiming();
     armGeneration_ = owner_.syncArmGeneration();
     return M::Ok();
+}
+
+void ProbeSync::recordTiming(const O::SyncTerminal& terminal) noexcept {
+    ++timing_.terminals; // One terminal per uint32-bounded schedule slot.
+    if (terminal.service.transmissionConfirmed)
+        ++timing_.confirmed;
+    if (!terminal.service.transmissionPossible)
+        return;
+    const uint64_t handoff = terminal.handoffUs;
+    if (handoff < terminal.work.dueUs || terminal.completedUs < handoff ||
+        (timing_.handoffs && handoff < timing_.lastHandoffUs)) {
+        timing_.invalid = true;
+        return;
+    }
+    if (!timing_.handoffs)
+        timing_.firstHandoffUs = handoff;
+    else {
+        const uint64_t gap = handoff - timing_.lastHandoffUs;
+        if (timing_.handoffs == 1 || gap < timing_.minHandoffGapUs)
+            timing_.minHandoffGapUs = gap;
+        if (gap > timing_.maxHandoffGapUs)
+            timing_.maxHandoffGapUs = gap;
+    }
+    ++timing_.handoffs;
+    timing_.lastHandoffUs = handoff;
+    const uint64_t late = handoff - terminal.work.dueUs;
+    const uint64_t delay = terminal.completedUs - handoff;
+    if (late > timing_.maxLatenessUs)
+        timing_.maxLatenessUs = late;
+    if (delay > timing_.maxReportDelayUs)
+        timing_.maxReportDelayUs = delay;
 }
 
 bool ProbeSync::active() const noexcept {
@@ -45,6 +77,7 @@ M::Status ProbeSync::service(uint64_t nowUs) noexcept {
             const M::Status status = C::advanceSync(context_, terminal->service, nowUs);
             if (!status)
                 return status;
+            recordTiming(*terminal);
             completionConsumed_ = true;
             if (owner_.releaseSync(pending_)) {
                 pending_ = O::SyncRequestId();

@@ -1,0 +1,15 @@
+{
+  "name": "idf_version",
+  "command": [
+    "C:\\esp\\v5.5.5\\tools\\python_env\\idf5.5_py3.12_env\\Scripts\\python.exe",
+    "C:\\esp\\v5.5.5\\esp-idf\\tools\\idf.py",
+    "--version"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-p54\\05-flash\\tools\\20261116T051052038574Z-57120-l87a0okz\\00_idf_version.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 1.578
+}
+
+ESP-IDF v5.5.5-dirty

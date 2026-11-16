@@ -53,7 +53,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `A` / `trial-abort` | Withdraw the active route locally; sends no stop |
 | `x` / `close-sessions` | Close the idle route sessions so that `K`, `H` and the raw and PDO experiments can reserve their nodes again in this boot (backlog S15); sends nothing, no stop or disable; drops only the latest controlwords, keeps every fence, trial identity and cap |
 | `N<node>,<o\|p\|s\|r\|c>` / `scripts/s2_pdo.py` | One addressed NMT Start, Enter Pre-operational or Stop through the owner; from PONG `pdo=5` also Reset Node (`r`, `81`) or Reset Communication (`c`, `82`), attended fault-recovery experiments only, which nothing else in the image sends |
-| `P<seconds>`, `P0` | Watch received frames for 1..600 s at the driver tap, or end the watch; sends nothing |
+| `P<seconds>`, `P<seconds>,c`, `P0` | Watch received frames for 1..3600 s at the driver tap; PDO protocol 7 adds compact `c` output; `P0` ends the watch; sends nothing |
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
 | `E<node>,<0\|100>` | The supported TPDO1 event-timer change on node 1 or 2: `1800:05` from raw 100 to raw 0 or from raw 0 to raw 100, through the profile's typed lifecycle (below) |
@@ -95,7 +95,7 @@ The `N`, `P`, `R`, `W`, `E` and `J` lines (`PdoCommand.h`) end with a line feed 
   RESULT ... (19 lines, the tenth the 1800:05 download), TRAFFIC ..., END PDO; map readback and sample qualification are separate; r=release
   ```
 
-  `PDO_CONFIG refused; no work` names no reason: an active record, dump, network listing or NMT result, an exhausted identity or grant, or an invalid plan. The `PDO` header carries `node`, `transition` (1 map, 2 event timer, 3 transmission type), `raw` (the requested timer/type literal) and `lastStep`, `effectStep`, `failedStep` (step 1 is the first write, 0 none). Protocol 2 introduced `E`; the current image reports `pdo=6`. The runner refuses `E` on protocol 1 and refuses `J` on protocols 1–5 before sending the line.
+  `PDO_CONFIG refused; no work` names no reason: an active record, dump, network listing or NMT result, an exhausted identity or grant, or an invalid plan. The `PDO` header carries `node`, `transition` (1 map, 2 event timer, 3 transmission type), `raw` (the requested timer/type literal) and `lastStep`, `effectStep`, `failedStep` (step 1 is the first write, 0 none). Protocol 2 introduced `E`; the current image reports `pdo=7`. The runner refuses `E` on protocol 1 and refuses `J` on protocols 1–5 before sending the line.
 
 - **TPDO1 transmission type** (`J`): `J1,1`, `J2,1` and the explicit reverse requests
   `J1,255`, `J2,255` use `Tpdo1Transition::TRANSMISSION_TYPE` with
@@ -116,7 +116,7 @@ The `N`, `P`, `R`, `W`, `E` and `J` lines (`PdoCommand.h`) end with a line feed 
 **Finite host SYNC.**
 
 The shared console exposes `sync inspect`, explicit `sync arm`, `sync once`,
-`sync period MS COUNT`, `sync disarm` and `sync resolve EVIDENCE_ID`, each through
+`sync period MS COUNT`, cached `sync timing`, `sync disarm` and `sync resolve EVIDENCE_ID`, each through
 an `@ID` line. The [SYNC guide](../../docs/sync.md) owns the fixed-origin timing,
 exclusive-producer premise, immutable terminal and local retirement contracts.
 Use the actual returned operation ID with `result ID` and `release ID`.
@@ -127,9 +127,25 @@ evidence only, and local disarm is not a motor stop or remote RPDO withdrawal.
 No synchronous RPDO start path exists: M09's controlword-only map and Q28's
 buffer-withdrawal evidence are missing. Q27 still gates qualified same-cycle
 samples. Initial specimen observations and exact captures belong in
-[report51](../../docs/reports/prompt_51.md); the sustained two-axis ten-minute
-10 ms trial awaits prompt56 throughput. No flash write may run during production
-or motion on this S2 image.
+[report51](../../docs/reports/prompt_51.md). Prompt54 adds a bounded 30-minute,
+10 ms diagnostic runner; its software support does not establish sustained hardware
+performance. No flash write may run during production or motion on this S2 image.
+
+PDO protocol 7 adds `P<seconds>,c` and raises the watch limit to 3600 seconds.
+`scripts/sync_watch.py` requests one 180000-slot schedule and a compact watch
+through the same console and owner. It streams exact received UART bytes to
+`rx.bin`, keeps bounded RX metrics and cached aggregate SYNC timing, and uses a
+fixed outer deadline without replay. It records no per-frame raw SYNC TX.
+At 115200 baud the output margin for two 100 Hz TPDO streams must be measured;
+sequence, CRC, queue and controller losses remain visible failures. A short
+10 ms capture exposed print-queue overflow despite complete local SYNC and
+native TPDO counts; the compact path now permits up to 48 extra output-only
+byte attempts per turn (64 total), with no input, idle, CAN or buffer change.
+The native pressure regression passes, while corrected hardware throughput
+still requires measurement. See the
+[diagnostics procedure](../../docs/bench/20261116-p54/diagnostics.md) for the exact
+compact format, runnable commands and timing limits, and
+[report54](../../docs/reports/prompt_54.md) for actual qualification status.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
@@ -358,7 +374,7 @@ the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=13` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` reports `routes=15` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
 with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
@@ -382,66 +398,28 @@ before the first `o` or `@` byte: until then the image is byte for byte the benc
 never sends either byte. The arming lines below came as new route letters in protocol 8, with no earlier line
 changed; protocol 9 changed only the `TV` line and added `TK`, protocol 10 only the `TC`
 line, which names its reset method, protocol 11 only added `TT`, the controlword experiment, protocol 12
-only the `TV` line's reverse field, and protocol 13 (`PONG routes=13`) only added `Tl`, the loop selector write.
+only the `TV` line's reverse field, and protocol 13 added `Tl`, the loop selector write.
+Protocol 14 adds disabled-mode `Tm`, finite position-change `Tp` and velocity-change `Tv`
+experiments; protocol 15 adds finite velocity/NMT `Tn` and an optional explicit
+change-experiment flag on `TY`/`TB`. Ordinary `TV` and legacy arming lines keep their grammar.
+The [diagnostics procedure](../../docs/bench/20261116-p54/diagnostics.md) describes
+the new gates, M14 cutoffs and command usage; none promotes an experiment to measured qualification.
 
-**Allocation.** The console is three blocks from internal heap, allocated on the first `o` or `@` and never freed, like
-the soak, watch and capture: `ProbeConsole` 6744, `ProbeDevice` 6664 and the rest 2672 bytes on the S2 (pinned
-compiler, `sizeof`). It is split because the largest free block after the boot reservations is smaller than the whole:
-21504 bytes on 2026-11-09 (`HEAP` line of `20261109T1206Z-r3-heap-boot`), and this image's `.dram0` statics end about
-12 KB later than that image's (`_heap_start` `0x3FFD5850` against `0x3FFD2800`), so that block is likely near 9 KB now.
-Each node's console motion attachment, `BenchAxis` (3856 bytes: its `ProbeMotion`, live route, `AxisConfig` and
-`AxisReference`), is allocated on that node's first arming. After them a soak, watch or capture can refuse
-`reason=memory` in the same boot, and the other way round. Check `M` first: no measurement of this image's heap exists.
-A failed allocation answers `CONSOLE refused reason=memory` (`o`), `CONSOLE_REFUSED reason=memory; no work` (an `@` line,
-swallowed whole) or `TRIAL_REFUSED reason=memory` (an arming).
-
-**Premise (`o`).** The console's `host SLOT` and `useaddr NODE` select only an existing configured slot. `o` configures
-both nodes' routes exactly as every bench command configures its node on first use (`ensureRoute`: the predefined
-connection set, an exclusive initially unused server session that is not service confirmation, network route epoch 1),
-so slot 0 is node 1 and slot 1 is node 2 (`BENCH_NODES` in [BenchNodes.h](BenchNodes.h) fixes the fixture at
-these two drives; an image built with more SDO channels leaves the others unused), the same channels `BenchRoute`
-opens its sessions on through
-`ProbeApp::openAxis`. It also gives the application the controller's interface facts (interface 0, the 1 Mbit/s `c`
-applied), which `discover` and `nmt` need. It needs `c` first and sends, selects and grants nothing:
-`CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; ...`, or `CONSOLE refused reason=state|route|memory|facts; no work`.
-The read policy is the bench's measured identity width: both specimens answer `1009` and `100A` in one byte (packet 4,
-as `1`/`2` and `sdkconfig.optak_s2_smoke` read them), so the console's identity reads use `MEASURED_U8`, scoped by
-`ProbeDevice::setReadOptions` to identity reads only; budgets are the routes' 100 ms queue and 250 ms response. Every
-other console read keeps its declared widths and the console's own DEC-1 gate, so for example `read state errors`
-(`1001`, `603F`) is refused as Q20, as on every other image.
-The device helper refuses a policy change while any read is retained, so a console allocated while a bench record
-holds the application's read takes the policy at its first identity read after that record's release; until then
-`read identity` and `discover identity` answer `read_width_policy_pending_release_bench_record`. Nothing else
-waits for it.
-
-**Input.** A line whose first byte at idle is `@` belongs to the console whole, in every bench state: it is collected up
-to its CR or LF (drained whole each turn, as a `T` line), and none of its bytes is ever taken as a bench command. A line
-of 256 bytes or more answers `CONSOLE_REFUSED reason=length; no work`, and one still open 2 s after its `@` answers
-`CONSOLE_REFUSED reason=incomplete; no work`; neither reaches the console, so a partial command is never dispatched. A
-complete line is then judged here (`benchConsoleGate`) and either fed to the console whole, which replies itself, or
-refused with a reply in the console's own form, which main.cpp prints as a one-shot response:
-
-```text
-{"schema":"motorcontrolcan.console/1",...,"type":"reply","id":5,"command":"read","ok":false,"status":"INVALID_CONFIG","detail":0,"error":"bench_wire_work_active"}
-```
-
-**Input loss.** The 64-byte input ring drops the newest bytes when it is full, as while a retained one-shot response
-waits. main.cpp then does what the console does after a loss: every buffered byte predates the loss and is retired
-unserved, the line open at that boundary is dropped with its own refusal, and input is discarded through the next CR or
-LF (or until 2 s pass without input). A console line answers in the console's form, correlated by its `@ID` when that
-prefix arrived whole (`"command":"input"`, `"error":"input_lost"`), else `CONSOLE_REFUSED reason=input-loss; no work`;
-a `T`, `S` or PDO line answers `TRIAL_REFUSED`, `SOAK_REFUSED` or `PDO_LINE refused` with `reason=input-loss`; with
-no line open, `INPUT_LOST; buffered input retired through the next line end, no work`. A whole line still in the
-buffer is retired with it, unanswered. A `T` refused by its first byte (`SOAK_REFUSED reason=active` or
-`TRIAL_REFUSED reason=active`) has the rest of its line discarded the same way, so no byte of it is served as a bench
-command. `scripts/s2_bench.py` checks `PONG` before every line, so neither changes what it sends or reads.
+**Allocation.** Console, device and per-axis attachments use bounded cold storage
+in internal RAM; they are never allocated from the task stack. Allocation can
+refuse `reason=memory`, so inspect `M` before combining console work with a soak,
+watch or capture. The earlier prompt42 block sizes predate the multi-axis
+registry and must not be used as current heap measurements. See the
+[prompt53 storage report](../../docs/reports/prompt_53_storage.md) for measured
+layouts and [report54](../../docs/reports/prompt_54.md) for this image's gates and
+physical observations.
 
 **Exclusion.** The sole owner is never shared between a running bench activity and console work:
 
 - While the bench holds owner work (a route record, active or held, other than a settled arming record; a raw, PDO, `D`,
   `K`, `H` or identity record; a retained NMT request; a soak; a capture) the console takes only inspection and its own
   retained results: `help`, `version`, `profile`, `caps`, `config`, `status`, `health`, `stats`, `drv`, `memory`, `load`,
-  `network`, `heartbeat`, `pdo SLOT`, `sync inspect|disarm`, `debug`/`debug off`, `result`, `release`, `cancel`, `monitor off`,
+  `network`, `heartbeat`, `pdo SLOT`, `sync inspect|timing|disarm`, `debug`/`debug off`, `result`, `release`, `cancel`, `monitor off`,
   `discover inspect|cancel` and the host intent commands (`wiring`, `prepare`, `axis config`, `speed`, `accel`, `decel`,
   `motion`, `home methods`). Everything else, `host` and `useaddr` included, answers `bench_wire_work_active`. So does
   `stop`: during a bench route its own planned stop, `A` (local, sends no stop) and the attendant's independent power
@@ -456,7 +434,7 @@ command. `scripts/s2_bench.py` checks `PONG` before every line, so neither chang
   lines (`PDO_LINE refused reason=console`), `1` to `4`, `v`/`b`, `h`/`j`, `m`, `q`/`w` and `x`, each with its own
   refusal line and reason `console` where it has one. `p`, `s`, `M`, `n`, `d`, `r`, `A`, `X`, `P`, `C0` and `o` are served.
   A held console read also holds the application's read context, which `BenchRoute::begin` refuses (`state`) by itself.
-- A gated console line other than `host`/`useaddr` is refused (`selection_changed_outside_console_select_again`) when
+- A gated console line other than `host`/`useaddr` or explicit `stop` is refused (`selection_changed_outside_console_select_again`) when
   the application's selection is no longer the one the console's last such line left, as after a bench `1` selected
   node 1 for its own identity read: the console never reads or acts on a node it did not select. Select again.
 
@@ -467,7 +445,8 @@ bench prints a record dump or `n` listing, or holds a one-shot response or an un
 lines stay contiguous apart from the one-shot responses the bench already prints between them (the watch's rule). The
 console counts a record delivered, which `release` requires, once its newline is in the UART queue. A bench stream that
 keeps the 512-byte queue full delays console records; they wait and are not lost, and the console then refuses ordinary
-commands for output pressure as its contract says (`consoleDropped`). `stop normal|fast` keeps its own reserved reply.
+commands for output pressure as its contract says (`consoleDropped`). Each attached axis has reserved normal and fast stop output, independent of ordinary
+result pressure; group stop retains its own member records.
 
 ### Console motion and arming
 
@@ -478,13 +457,15 @@ routes, `T` lines with the bench's `,K` integrity field, attended, reads only, n
 
 | Line | Reads and check | Hands the console |
 | --- | --- | --- |
-| `TY<node>,<trial>,1,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` | MOVE's: identity, full read (two for a relative base), the move check against the reviewed 6064 after the session's acknowledged `000F` | `setMovePrerequisites` with `MoveEvidence` built as MOVE builds it (gate MEASURED, the line's record, signals, rule, raw identity and base), MOVE's budgets and age cap (3.15 s), the line's interval; a relative base's witness as MOVE's (ACTUAL: the read 6064; COMMANDED: the line's base); the stop budgets |
-| `TB<node>,<trial>,1,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,...,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` | VELOCITY's: identity, full read, the released mode 3 standstill check | `setVelocityPrerequisites` with `VelocityEvidence` built as VELOCITY builds it (`VelocityGate::ATTENDED_EXPERIMENT`, no start, stop, reverse or mode change claim, the line's rpm as the forward maximum, at most 60), the line's ramps, VELOCITY's budgets, enable report window and stop reserve, `maxPolls` for the experiment's 20 s maximum; the console's `normal` or `fast` must name the line's stop kind (1 HALT, 2 QUICK_STOP) |
+| `TY<node>,<trial>,1,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>[,<allowChanges>]` | MOVE's: identity, full read (two for a relative base), the move check against the reviewed 6064 after the session's acknowledged `000F` | `setMovePrerequisites` with `MoveEvidence` built as MOVE builds it (gate MEASURED, the line's record, signals, rule, raw identity and base), MOVE's budgets and age cap (3.15 s), the line's interval; a relative base's witness as MOVE's (ACTUAL: the read 6064; COMMANDED: the line's base); the stop budgets |
+| `TB<node>,<trial>,1,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,...,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>[,<allowChanges>]` | VELOCITY's: identity, full read, the released mode 3 standstill check | `setVelocityPrerequisites` with `VelocityEvidence` built as VELOCITY builds it (`VelocityGate::ATTENDED_EXPERIMENT`, no start, stop, reverse or mode change claim, the line's rpm as the forward maximum, at most 60), the line's ramps, VELOCITY's budgets, enable report window and stop reserve, `maxPolls` for the experiment's 20 s maximum; the console's `normal` or `fast` must name the line's stop kind (1 HALT, 2 QUICK_STOP) |
 | `TX<node>,<trial>,1,<startPosition>` | two full reads at the reviewed 6064, both idle and enabled as MOVE's relative witness requires or both released as RELEASED_QUICK requires; no `000F` needed | a stationary ACTUAL witness for the console's `stepsperturn` and `axis origin`, which consume it; no motion prerequisite |
 
-A successful arming record attaches that node's `ProbeMotion` to the console (another node's only while the console
-retains none of its motion) and prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
-relative=R witness=W scale=S origin=O; prerequisites named, nothing sent`, or `CONSOLE arm refused node=N trial=T
+A successful arming record registers that node's `ProbeMotion` and owns a copy of its
+arming reads and original timestamps. Both axes can remain registered; arm both
+before admitting either motion, because a retained console operation blocks a new
+bench acquisition. It prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
+relative=R witness=W scale=S origin=O changes=C changeRecord=E; prerequisites named, nothing sent`, or `CONSOLE arm refused node=N trial=T
 reason=...; nothing named`. An arming without `o` first is refused `TRIAL_REFUSED reason=console`. The settled arming
 record holds only its dump: console work may run before `r`, and `r` may refuse while that work's frames are in flight
 or the record is still printed. Every later `T` line, an arming included, needs that `r` first. A refused arming applies
@@ -493,13 +474,25 @@ attachment, the earlier arming and its stop stay as they were. Stop budgets are 
 own node's, and a witness arming names none.
 Then select the node (`@ID host 0` for node 1) and send the motion lines; the console accepts `speed`, `accel`, `decel`,
 `motion write|verify`, `stepsperturn`, `axis origin`, `moveby`, `moveto`, `move ...`, `velocity ...`, `stop normal|fast`,
-`result`, `release` and `cancel` on the armed node. `cancel` never withdraws a running velocity (below).
+`stop ID [normal|fast]`, `stop all [normal|fast]`, `result`, `release` and `cancel`.
+Explicit stop IDs are logical axis IDs, separate from wire node IDs. Retained move
+and velocity changes name the original operation ID; see the
+[CLI contract](../../docs/cli_contract.md) and the explicit experiment gate below. `cancel` never withdraws a running velocity (below).
 
 - **Age.** A move's prerequisites must be younger than 3.15 s at its admission and at each write (MOVE's age cap). Send
   the motion line right after the notice, in the same `scripts/s2_bench_console.py` invocation.
-- **One use.** An admitted move or velocity consumes its prerequisites (ProbeMotion), and any later route replaces the
-  arming's reads: the console then refuses a motion line with `arming_reads_replaced_arm_again`, or the console itself
-  says the prerequisites are missing. Arm again for each motion.
+- **One use.** An admitted move or velocity consumes its prerequisites (ProbeMotion).
+  Each axis owns its arming copy, so arming the other axis does not replace it.
+  Consumed, expired, wrong-kind or changed-generation evidence is still refused;
+  arm again for each motion.
+- **Changes are explicit experiments.** Ordinary `TY`/`TB` arming closes both change
+  gates. `scripts/s2_bench_console.py --allow-changes --send "<complete TY or TB line>"`
+  appends the final `,1` before CRC framing. Without the option the omitted flag is
+  closed; an explicit flag must agree with the option. The admitted trial ID is the
+  change evidence record, with `ATTENDED_EXPERIMENT` scope, never a measured flag.
+  It grants no command/feedback scale relation or endpoint-retarget permission.
+  Changed endpoints still need the ordinary reviewed relation evidence. See the
+  [complete usage and limits](../../docs/bench/20261116-p54/diagnostics.md#explicit-console-change-experiments).
 - **Host coordinates before the enable.** `stepsperturn` and `axis origin` advance the binding's configuration epoch,
   which drops the session's latest controlword, and the session refuses a second enable once it has enabled. So set a
   scale and an origin, each with its own `TX` witness (the scale consumes the witness), before the bench's `TE` enable

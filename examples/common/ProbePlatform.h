@@ -56,6 +56,12 @@ class ProbePlatform {
     bool nowUs(uint64_t& output) const noexcept;
     /** Run bounded input/output then one optional idle callback; no CAN or parsing. */
     void service() noexcept;
+    /** Drain only queued output, with at most OUTPUT_BUDGET nonblocking byte calls.
+     * @return Bytes accepted by the platform, 0 when empty or no progress.
+     * Preserves every unaccepted byte; performs no input, idle, clock or CAN call.
+     * Caller owns any additional bounded invocations and their scheduling cost.
+     */
+    unsigned drainOutput() noexcept;
     /** @param[out] output Oldest byte on true, unchanged when empty.
      * @return True consumes one application input byte only; never a CAN frame.
      */

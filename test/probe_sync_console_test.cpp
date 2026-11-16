@@ -366,6 +366,106 @@ void helperTimeBoundaries() {
         CHECK(r.sync.release());
     }
 }
+// Run38 established timely owner completion followed by late application consumption.
+// These are synthetic phase times: the live record contains only an aggregate report-delay
+// maximum, so this test does not invent the last live owner's exact completion timestamp.
+void ownerTerminalBeforeCutoffHelperAfterCutoff() {
+    for (uint64_t offset : {uint64_t(0), uint64_t(1), uint64_t(725)}) {
+        Rig r;
+        const uint64_t origin = 1000000, period = 10000, cutoff = origin + period;
+        const uint64_t handoff = origin + 2755, reportAt = origin + 8000;
+        const uint64_t consumeAt = cutoff - 1 + offset;
+        CHECK(r.owner.armSync(0x80, origin));
+        CHECK(r.sync.request(period, 2, origin));
+        CHECK(r.sync.service(origin));
+        O::ServiceBudget send;
+        send.tx = 1;
+        CHECK(r.owner.service(handoff, send));
+        O::ServiceBudget reports;
+        reports.events = 1;
+        CHECK(r.owner.service(reportAt, reports));
+        CHECK(r.wire.transmitted == 1 && !r.wire.reportPending);
+        CHECK(r.sync.context().awaitingCompletion && r.sync.context().transmittedCount == 0);
+        // Model time spent between owner service and the later console/helper phase.
+        CHECK(r.sync.service(consumeAt));
+        const auto& c = r.sync.context();
+        CHECK(c.transmittedCount == 1 && c.nextSlot == 1 && !c.awaitingCompletion);
+        CHECK(c.lastNowUs == consumeAt && c.completionPresent);
+        CHECK(c.lastCompletion.outcome == C::SyncOutcome::LOCAL_TX &&
+              c.lastCompletion.transmissionPossible && c.lastCompletion.transmissionConfirmed);
+        CHECK(r.sync.timing().terminals == 1 && r.sync.timing().confirmed == 1 &&
+              r.sync.timing().handoffs == 1 && !r.sync.timing().invalid);
+        CHECK(r.sync.timing().lastHandoffUs == handoff &&
+              r.sync.timing().maxReportDelayUs == reportAt - handoff);
+        if (offset == 0) {
+            CHECK(c.state == C::SyncState::ACTIVE && c.outcome == C::SyncOutcome::NONE);
+            CHECK(r.sync.cancel(consumeAt));
+        } else {
+            CHECK(c.state == C::SyncState::FAILED && c.outcome == C::SyncOutcome::MISSED_DEADLINE);
+            CHECK(!r.sync.active() && r.sync.retained());
+            // A local confirmed TX remains evidence, never permission for catch-up/replay.
+            CHECK(r.sync.service(cutoff + 50000));
+            CHECK(r.owner.service(cutoff + 50000, send));
+            CHECK(c.outcome == C::SyncOutcome::MISSED_DEADLINE && c.transmittedCount == 1);
+            CHECK(r.wire.transmitted == 1 && r.sync.timing().terminals == 1);
+        }
+        CHECK(r.sync.release());
+        CHECK(r.sync.timing().confirmed == 1); // Release preserves the diagnostic history.
+    }
+}
+
+void processingTiming() {
+    Rig r;
+    contains(r.command("@1 sync timing"), "\"handoffs\":0");
+    CHECK(r.wire.transmitted == 0);
+    CHECK(r.owner.armSync(0x80, r.now));
+    const uint64_t origin = r.now;
+    CHECK(r.sync.request(10000, 2, origin));
+    CHECK(r.sync.service(origin));
+    r.turn(200); // First local handoff, deliberately after fixed due.
+    r.turn(70);  // Actual local TX report consumed by helper.
+    CHECK(r.sync.timing().terminals == 1 && r.sync.timing().confirmed == 1);
+    CHECK(r.sync.timing().firstHandoffUs == origin + 200);
+    CHECK(r.sync.timing().maxLatenessUs == 200);
+    CHECK(r.sync.timing().maxReportDelayUs == 70);
+    // A refused replacement and cached inspection cannot reset the measurements.
+    CHECK(!r.sync.request(10000, 1, r.now));
+    CHECK(r.sync.timing().terminals == 1);
+    r.turn(9730); // Second due: new request only.
+    r.turn(300);  // Second handoff.
+    r.turn(40);   // Second report.
+    const auto before = r.sync.timing();
+    CHECK(before.terminals == 2 && before.confirmed == 2 && before.handoffs == 2);
+    CHECK(before.firstHandoffUs == origin + 200 && before.lastHandoffUs == origin + 10300);
+    CHECK(before.minHandoffGapUs == 10100 && before.maxHandoffGapUs == 10100);
+    CHECK(before.maxLatenessUs == 300 && before.maxReportDelayUs == 70 && !before.invalid);
+    contains(r.command("@2 sync timing"), "\"delay_us\":[\"300\",\"70\"]");
+    CHECK(r.sync.timing().terminals == 2 && r.sync.release());
+    CHECK(r.sync.timing().terminals == 2); // Explicit release preserves diagnostic history.
+    CHECK(r.sync.request(10000, 1, r.now));
+    CHECK(r.sync.timing().terminals == 0);
+    CHECK(r.sync.service(r.now));
+    CHECK(r.sync.cancel(r.now));
+    CHECK(r.sync.service(r.now));
+    CHECK(r.sync.timing().terminals == 1 && r.sync.timing().confirmed == 0);
+    CHECK(r.sync.timing().handoffs == 0 && !r.sync.timing().invalid);
+}
+void timingFormattingBound() {
+    Rig r;
+    // Formatter bound only: these simultaneous maxima are not a valid schedule.
+    auto& timing = const_cast<E::ProbeSyncTiming&>(r.sync.timing());
+    auto& context = const_cast<C::SyncContext&>(r.sync.context());
+    context.options.generation = context.options.count = UINT32_MAX;
+    context.options.originUs = context.options.periodUs = UINT64_MAX;
+    timing.terminals = timing.confirmed = timing.handoffs = UINT32_MAX;
+    timing.firstHandoffUs = timing.lastHandoffUs = timing.minHandoffGapUs =
+        timing.maxHandoffGapUs = timing.maxLatenessUs = timing.maxReportDelayUs = UINT64_MAX;
+    const std::string reply = r.command("@4294967295 sync timing");
+    contains(reply, "\"invalid\":false}");
+    contains(reply, "\"period_us\":\"18446744073709551615\"");
+    CHECK(reply.size() < E::ProbeConsole::RECORD_CAPACITY);
+    CHECK(r.wire.transmitted == 0);
+}
 } // namespace
 int main() {
     passiveAndGrammar();
@@ -376,5 +476,8 @@ int main() {
     betweenSlotLifecycle();
     ownerTerminalBeforeCancel();
     helperTimeBoundaries();
+    ownerTerminalBeforeCutoffHelperAfterCutoff();
+    processingTiming();
+    timingFormattingBound();
     std::puts("Finite SYNC shared console passed");
 }

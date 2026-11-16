@@ -1,0 +1,548 @@
+{
+  "ok": true,
+  "plan": {
+    "duration_s": 60,
+    "period_ms": 100,
+    "count": 600,
+    "watch_s": 70,
+    "byte_cap": 67108864,
+    "raw_tx_per_cycle": false,
+    "automatic_retry": false,
+    "configuration_changed": false,
+    "firmware_effect_qualified": false,
+    "planned_cleanup": "cached sync timing/STATS, local sync disarm and P0; failed result retained",
+    "expected_elf": "96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469",
+    "port": "COM15",
+    "fixture": {
+      "port": "COM15",
+      "usb_serial": "94A990398B40",
+      "vid": 12346,
+      "pid": 4098
+    },
+    "tool_sha256": "b8030bd5934fc2513174f0f6c3f6c4eb03983a9af95162e5174f7e5a27711323"
+  },
+  "local_tx_complete": true,
+  "firmware_effect_qualified": false,
+  "pong": "PONG target=esp32s2 base=947cc5da8cbb0c24799d8114d8b665b38341921f elf=96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469 sdk=v5.5.5-dirty running=1 active=1 silent=0 pinsReady=1 soak=0 t=569138420 routes=15 trial=0 motion=0 pdo=7 watch=0 capture=0",
+  "receipt": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540004,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "result": "accepted",
+    "operation_id": 3
+  },
+  "terminal": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "terminal",
+    "id": 540004,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "detail": 1,
+    "outcome": "LOCAL_TX",
+    "uncertain": true,
+    "command_id": 540004,
+    "operation_id": 3,
+    "completed_us": "629555339",
+    "abort_code": null,
+    "local_tx_count": 600,
+    "requested_count": 600,
+    "transmission_possible": true,
+    "drive_effect_known": false
+  },
+  "sync_timing": {
+    "schema": "motorcontrolcan.console/1",
+    "protocol": 3,
+    "profile": "lichuan_c",
+    "type": "reply",
+    "id": 540005,
+    "command": "sync",
+    "ok": true,
+    "status": "OK",
+    "generation": 3,
+    "count": 600,
+    "terminals": 600,
+    "confirmed": 600,
+    "handoffs": 600,
+    "origin_us": "569648578",
+    "period_us": "100000",
+    "handoff_us": [
+      "569652430",
+      "629551433",
+      "98001",
+      "101004"
+    ],
+    "delay_us": [
+      "3852",
+      "5004"
+    ],
+    "invalid": false
+  },
+  "snapshots": [
+    "STATS running=1 inhibited=0 rx=88086 tx=43488 dropped=0 errors=0 flags=00000000 stackFree=7624 t=569451430 txRej=0 rxLost=0 unmatched=86977 traceOver=175038 ownerGap=4002 conRej=929",
+    "STATS running=1 inhibited=0 rx=88308 tx=43589 dropped=0 errors=0 flags=00000000 stackFree=7624 t=579727433 txRej=0 rxLost=0 unmatched=87179 traceOver=175462 ownerGap=4002 conRej=930",
+    "STATS running=1 inhibited=0 rx=88528 tx=43689 dropped=0 errors=0 flags=00000000 stackFree=7624 t=589696428 txRej=0 rxLost=0 unmatched=87379 traceOver=175882 ownerGap=4002 conRej=931",
+    "STATS running=1 inhibited=0 rx=88748 tx=43789 dropped=0 errors=0 flags=00000000 stackFree=7624 t=599735427 txRej=0 rxLost=0 unmatched=87579 traceOver=176302 ownerGap=4002 conRej=932",
+    "STATS running=1 inhibited=0 rx=88968 tx=43889 dropped=0 errors=0 flags=00000000 stackFree=7624 t=609738431 txRej=0 rxLost=0 unmatched=87779 traceOver=176722 ownerGap=4002 conRej=933",
+    "STATS running=1 inhibited=0 rx=89190 tx=43990 dropped=0 errors=0 flags=00000000 stackFree=7624 t=619756432 txRej=0 rxLost=0 unmatched=87981 traceOver=177146 ownerGap=4002 conRej=934",
+    "STATS running=1 inhibited=0 rx=89406 tx=44088 dropped=0 errors=0 flags=00000000 stackFree=7624 t=629959468 txRej=0 rxLost=0 unmatched=88177 traceOver=177558 ownerGap=4002 conRej=947"
+  ],
+  "elapsed_s": 60.89000000001397,
+  "expected_count": 600,
+  "watch": {
+    "begin": {
+      "n": "0",
+      "t": "569518434",
+      "seconds": "70",
+      "ring": "32",
+      "ids": "16",
+      "compact": "1",
+      "origin": "569517407"
+    },
+    "end": {
+      "n": "1409",
+      "t": "629855420",
+      "reason": "stop",
+      "frames": "1320",
+      "printed": "1320",
+      "unprinted": "0",
+      "tapDropped": "0",
+      "untimed": "0",
+      "sdo": "0",
+      "idOverflow": "0"
+    },
+    "raw_rx_complete": true,
+    "observed_bounds_valid": true,
+    "timing_complete": true,
+    "errors": [],
+    "raw_errors": [],
+    "timing_errors": [],
+    "coverage_errors": [],
+    "received_frames": 1320,
+    "invalid_time": 0,
+    "ids": {
+      "386s": {
+        "id": 386,
+        "ext": false,
+        "count": 600,
+        "min_hi_gap": 97664,
+        "max_hi_gap": 101267,
+        "sum_hi_gap": 59899023,
+        "gaps": 599,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          599
+        ],
+        "lower_over_period": 238,
+        "upper_below_period": 235,
+        "payload_changes": 0,
+        "min_interval_lower": 96768,
+        "max_interval_upper": 102232,
+        "mean_hi_gap": 99998
+      },
+      "385s": {
+        "id": 385,
+        "ext": false,
+        "count": 600,
+        "min_hi_gap": 97785,
+        "max_hi_gap": 101266,
+        "sum_hi_gap": 59899040,
+        "gaps": 599,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          599
+        ],
+        "lower_over_period": 238,
+        "upper_below_period": 235,
+        "payload_changes": 0,
+        "min_interval_lower": 96829,
+        "max_interval_upper": 102171,
+        "mean_hi_gap": 99998
+      },
+      "1793s": {
+        "id": 1793,
+        "ext": false,
+        "count": 60,
+        "min_hi_gap": 1000709,
+        "max_hi_gap": 1000878,
+        "sum_hi_gap": 59046797,
+        "gaps": 59,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          59
+        ],
+        "lower_over_period": 59,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998316,
+        "max_interval_upper": 1003250,
+        "mean_hi_gap": 1000793
+      },
+      "1794s": {
+        "id": 1794,
+        "ext": false,
+        "count": 60,
+        "min_hi_gap": 1000749,
+        "max_hi_gap": 1000832,
+        "sum_hi_gap": 59046851,
+        "gaps": 59,
+        "histogram": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          59
+        ],
+        "lower_over_period": 59,
+        "upper_below_period": 0,
+        "payload_changes": 0,
+        "min_interval_lower": 998945,
+        "max_interval_upper": 1002610,
+        "mean_hi_gap": 1000794
+      }
+    },
+    "native_ids": {
+      "386s": {
+        "n": "1405",
+        "t": "629839428",
+        "id": "182",
+        "ext": "0",
+        "count": "600",
+        "first": "569653678",
+        "last": "629552701",
+        "minGap": "97664",
+        "maxGap": "101267",
+        "meanGap": "99998",
+        "sdGap": "905",
+        "changes": "0",
+        "dlc": "7",
+        "data": "504003428d0000"
+      },
+      "385s": {
+        "n": "1406",
+        "t": "629841434",
+        "id": "181",
+        "ext": "0",
+        "count": "600",
+        "first": "569653737",
+        "last": "629552777",
+        "minGap": "97785",
+        "maxGap": "101266",
+        "meanGap": "99998",
+        "sdGap": "904",
+        "changes": "0",
+        "dlc": "7",
+        "data": "508003e7570000"
+      },
+      "1793s": {
+        "n": "1407",
+        "t": "629843420",
+        "id": "701",
+        "ext": "0",
+        "count": "60",
+        "first": "569944475",
+        "last": "628991272",
+        "minGap": "1000709",
+        "maxGap": "1000878",
+        "meanGap": "1000793",
+        "sdGap": "24",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      },
+      "1794s": {
+        "n": "1408",
+        "t": "629845422",
+        "id": "702",
+        "ext": "0",
+        "count": "60",
+        "first": "570274983",
+        "last": "629321834",
+        "minGap": "1000749",
+        "maxGap": "1000832",
+        "meanGap": "1000794",
+        "sdGap": "18",
+        "changes": "0",
+        "dlc": "1",
+        "data": "05"
+      }
+    },
+    "histogram_upper_limits_us": [
+      5000,
+      9000,
+      9500,
+      10000,
+      10500,
+      11000,
+      20000
+    ],
+    "rx_payload_bits": 68160,
+    "tx_raw_per_cycle": false,
+    "wire_bus_load_measured": false,
+    "time_scope": "driver receive bounds and upper-bound gaps; not wire time or same-cycle identity"
+  },
+  "counter_errors": [],
+  "handoffs": [
+    {
+      "host_s": 368403.703,
+      "wire_hex": "70",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368403.765,
+      "wire_hex": "6f",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368403.828,
+      "wire_hex": "4035343030303020686f737420300a",
+      "accepted_bytes": 15
+    },
+    {
+      "host_s": 368403.89,
+      "wire_hex": "40353430303031206465627567206f66660a",
+      "accepted_bytes": 18
+    },
+    {
+      "host_s": 368403.953,
+      "wire_hex": "403534303030322073796e6320696e73706563740a",
+      "accepted_bytes": 21
+    },
+    {
+      "host_s": 368404.015,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368404.078,
+      "wire_hex": "5037302c630a",
+      "accepted_bytes": 6
+    },
+    {
+      "host_s": 368404.14,
+      "wire_hex": "403534303030332073796e632061726d0a",
+      "accepted_bytes": 17
+    },
+    {
+      "host_s": 368404.203,
+      "wire_hex": "403534303030342073796e6320706572696f6420313030203630300a",
+      "accepted_bytes": 28
+    },
+    {
+      "host_s": 368414.296,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368424.265,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368434.296,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368444.296,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368454.312,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    },
+    {
+      "host_s": 368464.218,
+      "wire_hex": "403534303030352073796e632074696d696e670a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 368464.281,
+      "wire_hex": "403534303030362072656c6561736520330a",
+      "accepted_bytes": 18
+    },
+    {
+      "host_s": 368464.343,
+      "wire_hex": "403534303030372073796e632064697361726d0a",
+      "accepted_bytes": 20
+    },
+    {
+      "host_s": 368464.39,
+      "wire_hex": "50300a",
+      "accepted_bytes": 3
+    },
+    {
+      "host_s": 368464.515,
+      "wire_hex": "73",
+      "accepted_bytes": 1
+    }
+  ],
+  "console_records": [
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540000,
+      "command": "host",
+      "ok": true,
+      "status": "OK",
+      "wire_work": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540001,
+      "command": "debug",
+      "ok": true,
+      "status": "OK",
+      "mode": 0,
+      "trace_overwritten": 175038,
+      "trace_pending": 0,
+      "trace_dropped": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540002,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "armed": false,
+      "producer_conflict": false,
+      "retained": false,
+      "active": false,
+      "foreign_observed": false,
+      "foreign_serial": 0
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540003,
+      "command": "sync",
+      "ok": true,
+      "status": "OK"
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540004,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "result": "accepted",
+      "operation_id": 3
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "terminal",
+      "id": 540004,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "detail": 1,
+      "outcome": "LOCAL_TX",
+      "uncertain": true,
+      "command_id": 540004,
+      "operation_id": 3,
+      "completed_us": "629555339",
+      "abort_code": null,
+      "local_tx_count": 600,
+      "requested_count": 600,
+      "transmission_possible": true,
+      "drive_effect_known": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540005,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "generation": 3,
+      "count": 600,
+      "terminals": 600,
+      "confirmed": 600,
+      "handoffs": 600,
+      "origin_us": "569648578",
+      "period_us": "100000",
+      "handoff_us": [
+        "569652430",
+        "629551433",
+        "98001",
+        "101004"
+      ],
+      "delay_us": [
+        "3852",
+        "5004"
+      ],
+      "invalid": false
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540006,
+      "command": "release",
+      "ok": true,
+      "status": "OK"
+    },
+    {
+      "schema": "motorcontrolcan.console/1",
+      "protocol": 3,
+      "profile": "lichuan_c",
+      "type": "reply",
+      "id": 540007,
+      "command": "sync",
+      "ok": true,
+      "status": "OK",
+      "motor_stop": false
+    }
+  ],
+  "raw_bytes": 74941,
+  "partial_line_hex": "",
+  "stream_healthy": true
+}

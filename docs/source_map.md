@@ -1,5 +1,17 @@
 # Live source and responsibility map
 
+## Extension qualification diagnostics (prompt 54)
+
+| Responsibility | Implementation | Actual check / boundary |
+| --- | --- | --- |
+| Finite SYNC processing metrics | `examples/common/ProbeSync.{h,cpp}`, cached `sync timing` in `ProbeConsole.cpp` | `test/probe_sync_console_test.cpp`; owner handoff times, not wire timestamps |
+| Compact raw receive capture | `examples/s2_bench/PdoWatch.{h,cpp}`, `scripts/sync_watch.py` | Native compact producer plus `test/sync_watch_test.py`; CRC, bounds and explicit loss accounting |
+| Explicit moving NMT experiment | `examples/s2_bench/BenchRouteNmt.{h,cpp}`, existing `BenchRoute` | Actual native route transcripts and `scripts/s2_evidence.py`; one owner, original velocity/stop deadlines |
+| Raw diagnostic identity continuity | `PdoExperiment::reserveRawExperimentIds`, S2 command dispatch | Real raw/PDO native test and live campaign continuation; no reset of accepted producer history |
+
+The [prompt 54 report](reports/prompt_54.md) owns qualification results and
+unavailable measurements. These tools do not supply a second service engine.
+
 ## User/package entry points (prompt 49)
 
 | Responsibility | Declaration / implementation | Caller / check |

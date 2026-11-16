@@ -11,6 +11,9 @@ adversarial regressions and the latest bounded physical check.
 
 ## User contracts
 
+The [prompt 54 campaign](reports/prompt_54.md) records current extension
+measurements, diagnostic fixes and the exact remaining motion/fixture gates.
+
 | Topic | Maintained guide |
 | --- | --- |
 | Native use and example application | [Package use](getting_started.md), [shared application](native_application.md) |

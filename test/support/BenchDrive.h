@@ -437,6 +437,13 @@ struct Driver {
     uint32_t epoch = 0, serial = 0;
     bool live = false, active = false;
     M::Frame current;
+    // Opt-in NMT experiment transport. NMT never changes synthetic motor state.
+    bool nmtEnabled = false, nmtLostStopBeat = false, nmtLostPreopBeat = false;
+    bool nmtFailPreop = false, nmtRejectStop = false;
+    uint8_t nmtState = 5;
+    uint64_t nmtBeatDue = 0;
+    unsigned nmtHoldTurns = 0;
+
     static bool start(void* context, const E::TwaiConfig&, uint32_t epoch) {
         Driver& d = *static_cast<Driver*>(context);
         d.epoch = epoch;
@@ -452,8 +459,17 @@ struct Driver {
         CHECK(d.live && !d.active);
         if (d.count)
             return E::TwaiSubmit::DEFERRED;
-        CHECK(value.id == 0x601 || value.id == 0x602); // Only SDO requests: no NMT, PDO or other.
-        CHECK(value.dlc == 8 && !value.extended && !value.rtr);
+        if (d.nmtEnabled && value.id == 0) {
+            if (d.nmtRejectStop && value.data[0] == 2)
+                return E::TwaiSubmit::FAILED_UNSENT;
+            CHECK(value.dlc == 2 && value.data[1] == 1 &&
+                  (value.data[0] == 2 || value.data[0] == 0x80));
+        } else {
+            CHECK(value.id == 0x601 || value.id == 0x602);
+            CHECK(value.dlc == 8);
+            CHECK(!d.nmtEnabled || d.nmtState != 4); // No SDO may be handed off in Stopped.
+        }
+        CHECK(!value.extended && !value.rtr);
         d.requests.push_back(value);
         d.current = value;
         d.active = true;
@@ -496,12 +512,33 @@ struct Driver {
         next.receivedLatestUs = console->now - 100;
     }
     void deliver() {
+        if (nmtEnabled && console->now >= nmtBeatDue) {
+            if (!((nmtState == 4 && nmtLostStopBeat) || (nmtState == 0x7f && nmtLostPreopBeat))) {
+                M::Frame beat = frame(0x701, 1);
+                beat.data[0] = nmtState;
+                push(beat);
+            }
+            nmtBeatDue = console->now + 1000000;
+        }
+        if (active && current.id == 0 && nmtHoldTurns) {
+            --nmtHoldTurns;
+            return;
+        }
         if (!active)
             return;
         pending.txDone = true;
         pending.transmitted = true;
         pending.serial = serial;
         active = false;
+        if (nmtEnabled && current.id == 0) {
+            if (current.data[0] == 0x80 && nmtFailPreop) {
+                pending.transmitted = false;
+                return;
+            }
+            nmtState = current.data[0] == 2 ? 4 : 0x7f;
+            nmtBeatDue = console->now + 1000; // Strictly after local TX completion.
+            return;
+        }
         if (current.data[0] == 0x80)
             return; // A client abort is local cleanup.
         const unsigned node = unsigned(current.id - 0x600);

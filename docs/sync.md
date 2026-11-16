@@ -15,6 +15,15 @@ moves the origin. A missed slot is never sent as catch-up. The uint32 count
 supports the 60,000 slots needed for ten minutes at 10 ms without retaining an
 unbounded per-slot history.
 
+The application helper retains bounded processing-time measurements for every
+consumed owner terminal. `sync timing` inspects them without sending a frame.
+They distinguish terminal count, actual local TX confirmations and handoffs;
+the first/last handoff, minimum/maximum handoff interval, maximum lateness from
+the fixed due time and maximum terminal-processing delay are microseconds.
+These are host scheduling measurements, not wire jitter. Inspection and release
+preserve them; only a successful new schedule resets them. A refused request
+cannot erase the preceding measurement.
+
 `ProbeSync::service` and `cancel` require time at least as recent as both the
 owner's last accepted time and the schedule's last progression. Backwards time
 rejects without consuming a terminal or cancelling either side. A caller cannot
@@ -85,5 +94,27 @@ local recovery or a successful SDO stop is not that proof either.
 The next isolated no-motion trial needs the reviewed `607A`-only RPDO2 map and
 explicit target/readback plan. The common-start trial additionally needs the M09
 controlword map, a bounded motion/stop plan and independent skew evidence.
-Prompt56 remains the prerequisite for the sustained two-axis 10 ms experiment.
-No slower run or fake success qualifies that requested rate.
+Prompt56 owns the reviewed throughput changes and their timing evidence.
+No slower run or fake success qualifies the requested 10 ms rate.
+
+Prompt54's explicit request permits collecting the bounded pre-optimization
+10 ms measurements now, using the existing owner and its unchanged cutoffs.
+This does not claim prompt56 is implemented or close Q27. A missed slot ends
+the schedule and its failed measurement is retained. Complete sample provenance
+and actual wire timing remain separate evidence requirements.
+
+### Current two-node qualification
+
+[Prompt54](reports/prompt_54.md) tested the two CL86-C specimens on the S2 image
+identified in its manifest. After correcting diagnostic output throughput, the
+short 10 ms/500-slot capture passed without receive-record loss. The requested
+1800-second run stopped at 42988 of 180000 slots with `MISSED_DEADLINE`: the
+application consumed a confirmed result 724 us beyond its fixed slot cutoff.
+All 42988 TPDOs from each node were captured; this is not a 30-minute pass.
+
+A separate 100 ms/600-slot (nominal 60-second) baseline passed on the same image.
+That is the longest tested passing period and duration, not a general maximum
+rate or long-duration qualification. Measured values describe owner processing
+and S2 receive bounds; wire occupancy, same-cycle sampling and physical skew
+remain unmeasured. Prompt56 owns the phase-cost and scheduling follow-up before
+the same 10 ms sustained request is repeated.

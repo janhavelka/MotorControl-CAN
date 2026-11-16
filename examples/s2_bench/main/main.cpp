@@ -205,8 +205,8 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
                   "EDS1017 U16 RW; CANopen heartbeat ms; exact0->1000 experiment");
             plan.review = review;
         } else if (pdoCommand) {
-            // Grants share one increasing per-slot sequence with the fixed experiments above, so
-            // these start above theirs: heartbeat and TPDO1 come first in a boot, or this refuses.
+            // The supplied PDO floor shares the channel history with every fixed raw inventory;
+            // reserveRawExperimentIds raises it above grants retained from other producers.
             const bool write = pdoCommand->kind == E::PdoCommandKind::WRITE;
             plan.inventory =
                 write ? E::RawEvidenceInventory::PDO_COMM_WRITE : E::RawEvidenceInventory::PDO_RECORD;
@@ -232,6 +232,13 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
             }
             plan.review = review;
         }
+        const uint32_t count = motionReadiness ? 30
+                               : pdoCommand ? (pdoCommand->kind == E::PdoCommandKind::WRITE ? 3 : 9)
+                               : heartbeat ? 3 : 26;
+        uint32_t operation = id - 1;
+        if (!E::reserveRawExperimentIds(services, node, operation, plan.firstAuthorizationId, count))
+            return false;
+        plan.review.plan.id = operation;
         return raw->begin(plan, now) == E::EvidenceAdmission::ACCEPTED;
     }
     return firmware.evidence().bindRecordStorage(typedRecord) &&
@@ -1019,7 +1026,7 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=14` in PONG names this line protocol: the CRC-32 field (3), the
+    // refused whole, never cut. `routes=15` in PONG names this line protocol: the CRC-32 field (3), the
     // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
     // settings routes and the move's observer node (5), then the N, V and O routes of prompts 35 and
     // 36 (6), then the V line without the host's start and stop flags, run as the library's attended
@@ -1029,7 +1036,8 @@ void ownerTask(void*) {
     // reviewed non-enabling 6040 word on a drive that reports low bits 000 and its observation cycles (11),
     // then the V line's reverse field at its end, prompt 59's reverse probe (12), then the l route (`Tl`, lowercase:
     // no capital is left), one 2500 loop selector write on a released drive (13), and explicit
-    // mode-display / finite position-change / velocity-change experiments m/p/v (14).
+    // mode-display / finite position-change / velocity-change experiments m/p/v (14), and
+    // the finite velocity NMT Stop/Pre-operational experiment n (15).
     E::BenchRoute* route = nullptr;
     // The arena's current occupant, refreshed each turn and after each acquisition. D and K never
     // download, so the dispatcher below asks only for the raw, PDO and H collectors: a download of
@@ -1146,6 +1154,13 @@ void ownerTask(void*) {
             watch->service(firmware.owner().lastTimeUs(),
                            retainedSize != 0 || dumping || networkDump ||
                                (nmtRequest.owner && !nmtReported));
+        // Two 100 Hz compact TPDO streams exceed 16 bytes per ~2 ms turn.
+        // The ordinary turn already offered 16 bytes: at most 48 more here,
+        // without input, idle, waits or CAN work. UART refusal preserves suffixes.
+        if (watch && watch->compactActive())
+            for (unsigned extra = 0; extra < 3 && firmware.platform().stats().outputUsed; ++extra)
+                if (!firmware.platform().drainOutput())
+                    break;
         if (capture) {
             // After a progression failure the owner's time stops; the capture then ends at once.
             uint64_t clock = firmware.owner().lastTimeUs(), sample = 0;
@@ -1330,6 +1345,10 @@ void ownerTask(void*) {
         if (lineDiscard && firmware.platform().nowUs(now) && now - lineDiscardUs > 2000000)
             lineDiscard = false;
         if (!retainedSize && !lossReport && firmware.platform().takeInput(command)) {
+            // Typed sessions and raw collectors share each channel's retained grant history.
+            // Releasing their records never makes an earlier operation identity reusable.
+            for (unsigned node = 1; node <= E::BENCH_NODES; ++node)
+                E::refreshExperimentIds(services, node, acquisition, pdoGrant[node - 1]);
             char output[320] = {};
             if (lineDiscard) {
                 uint8_t byte = command;
@@ -1410,10 +1429,6 @@ void ownerTask(void*) {
                     E::PdoCommand parsed;
                     const bool parsedPdo = pdoLength <= sizeof pdoText &&
                                            E::parsePdoCommand(pdoText, pdoLength, parsed);
-                    // Every addressed bench producer shares the channel's retained ID space.
-                    // Closing a motion session must not reset grants or reuse operation IDs.
-                    if (parsedPdo && parsed.node >= 1 && parsed.node <= E::BENCH_NODES)
-                        E::refreshExperimentIds(services, parsed.node, acquisition, pdoGrant[parsed.node - 1]);
                     if (!parsedPdo) {
                         line(firmware, "PDO_LINE refused reason=syntax; no work\n");
                     } else if (parsed.kind == E::PdoCommandKind::CAPTURE && !parsed.capture) {
@@ -1469,7 +1484,7 @@ void ownerTask(void*) {
                                 watch = watchStorage(firmware, tap);
                             const char* refusal = "memory";
                             if (watch && firmware.platform().nowUs(now)) {
-                                switch (watch->begin(parsed.seconds, now)) {
+                                switch (watch->begin(parsed.seconds, now, parsed.compact)) {
                                 case E::PdoWatchAdmission::ACCEPTED:
                                     refusal = nullptr;
                                     break;
@@ -1963,7 +1978,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=14 trial=%u motion=%u pdo=6 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=15 trial=%u motion=%u pdo=7 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

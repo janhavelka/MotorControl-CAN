@@ -1,0 +1,66 @@
+{
+  "started_utc": "2026-11-16T05:22:33.805721+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 12.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 54002,
+  "plan": "packet 15 P1",
+  "fields": [
+    2,
+    54002
+  ],
+  "operator": {
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "2",
+    "--trial",
+    "54002",
+    "--fault-led",
+    "unobserved",
+    "--seconds",
+    "12",
+    "--output",
+    "docs/bench/20261116-p54/18-node2-readiness"
+  ],
+  "host_revision": "947cc5da8cbb0c24799d8114d8b665b38341921f",
+  "host_dirty": true,
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441322c35343030322c4b34363630366437320a"
+  ],
+  "image": {
+    "base": "947cc5da8cbb0c24799d8114d8b665b38341921f",
+    "elf": "2e0d33ea763bfe22dc9c1856660b388bfd74812f770e905ae48fb108228a4a84",
+    "sdk": "v5.5.5-dirty",
+    "target": "esp32s2"
+  },
+  "line": "TA2,54002,K46606d72",
+  "tx_hex": "5441322c35343030322c4b34363630366437320a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-16T05:22:36.257083+00:00"
+}

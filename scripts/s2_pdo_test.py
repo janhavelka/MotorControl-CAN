@@ -241,7 +241,7 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="7"), "image_without_pdo_lines"),
+                           (Board(watch=1), "watch_running"), (Board(pdo="8"), "image_without_pdo_lines"),
                            (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
@@ -1078,8 +1078,8 @@ class FirmwareTextTest(unittest.TestCase):
         for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
-        self.assertIn("pdo=6", widest)
-        self.assertIn("routes=14", widest)
+        self.assertIn("pdo=7", widest)
+        self.assertIn("routes=15", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
         self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.

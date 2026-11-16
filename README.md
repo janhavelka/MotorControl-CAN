@@ -24,6 +24,9 @@ The [finite SYNC guide](https://github.com/janhavelka/MotorControl-CAN/blob/main
 covers explicit production and the conditional TPDO1 type 1/255 experiment.
 Qualified same-cycle samples, synchronous RPDO starts and sustained two-axis
 10 ms operation remain open work.
+The [extension qualification report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_54.md)
+records the bounded diagnostic tools and specimen campaign without promoting
+software timing or raw PDO counts to physical synchronization evidence.
 
 [Concurrent axes and group stop](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/multi_axis.md)
 use one owner, configurable application capacity and independent per-axis results.

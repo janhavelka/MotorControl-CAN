@@ -188,7 +188,13 @@ GRAMMAR = (
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
         "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
-        "probe:u? reverse:b? word:x? mode:u? replacement:i? duration:u? stop:u?"),
+        "probe:u? reverse:b? word:x? mode:u? replacement:i? duration:u? stop:u? changes:b?"),
+    Row("TRIAL_NMT", "TRIAL_NMT ", "summary",
+        "offered:b phase:u failure:u start:u stopEnd:u preopEnd:u resume:u due:u end:u"),
+    Row("TRIAL_NMT_STEP", "TRIAL_NMT_STEP ", "summary",
+        "which:u attempted:b terminal:b outcome:u possible:b confirmed:b request:u deadline:u completed:u observed:u"),
+    Row("TRIAL_NMT_SAMPLE", "TRIAL_NMT_SAMPLE ", "summary",
+        "which:u present:b cycle:u status:x monitor:x mode:x position:i velocity:i lo:u hi:u"),
     Row("TRIAL_CHANGE", "TRIAL_CHANGE ", "summary",
         "possible:b started:b writes:u due:u end:u"),
     Row("TRIAL_VELOCITY_CHANGE", "TRIAL_VELOCITY_CHANGE ", "summary",
@@ -446,7 +452,7 @@ GRAMMAR = (
     Row("REFUSED", "PDOW refused", "refused", "reason:s"),
     Row("PDOW_STOPPING", "PDOW_STOPPING", "response"),
     Row("PDOW_STOP_REFUSED", "PDOW_STOP refused", "response"),
-    Row("PDOW_BEGIN", "PDOW_BEGIN ", "watch", "n:u t:u seconds:u ring:u ids:u", "t"),
+    Row("PDOW_BEGIN", "PDOW_BEGIN ", "watch", "n:u t:u seconds:u ring:u ids:u compact:b? origin:u?", "t"),
     Row("PDOW_F", "PDOW_F ", "watch",
         "n:u t:u id:x ext:b rtr:b dlc:u data:s timed:b exact:b lo:u hi:u gap:u", "t"),
     Row("PDOW_SUM", "PDOW_SUM ", "watch",
@@ -608,7 +614,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
                 "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
                 "loop": "loop", "mode-probe": "mode-probe", "position-change": "position-change",
-                "velocity-change": "velocity-change"}
+                "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -786,9 +792,20 @@ def _fit(row, text):
     return values, extra, ""
 
 
-def parse_line(number, text):
+def parse_line(number, text, compact_origin=None):
     """Classify bench text or shared-console JSONL without dropping raw text."""
     record = Record(number, text)
+    if text.startswith("PC "):
+        # A compact frame is independently reconstructible from its BEGIN origin,
+        # never from the previous frame. Keep corrupt/missing-origin rows visible.
+        from sync_watch import decode_compact
+        record.kind, record.role = "PDOW_F", "watch"
+        try:
+            record.values = decode_compact(text, compact_origin)
+            record.status = "parsed"
+        except (ValueError, UnicodeError) as exc:
+            record.status, record.reason = "malformed", str(exc)
+        return record
     if text.lstrip().startswith("{"):
         # The common envelope is validated here, not command completion or device
         # evidence. A console terminal is never a bench SDO terminal/typed success.
@@ -840,15 +857,24 @@ def parse_bytes(data):
     lines = data.split(b"\n")
     tail = lines.pop()
     records = []
+    compact_origin = None
     for number, line in enumerate(lines, 1):
         # Do not normalize away a shared-console framing violation before checking it.
         body = line if line.lstrip().startswith(b"{") else line.rstrip(b"\r")
         text = body.decode("utf-8", errors="replace")
         if text:
-            record = parse_line(number, text)
+            record = parse_line(number, text, compact_origin)
             if number == 1 and record.status == "malformed":
                 record = _boot_after_reset_noise(number, text) or record
             records.append(record)
+            if record.kind == "PDOW_BEGIN":
+                compact_origin = None
+                if record.status == "parsed" and record.values.get("compact") == 1:
+                    compact_origin = record.values.get("origin")
+                    if compact_origin is None:
+                        record.status, record.reason = "malformed", "compact watch lacks origin"
+            elif record.kind == "PDOW_END" or record.role == "boot":
+                compact_origin = None
     unterminated = None
     if tail:
         unterminated = tail.decode("utf-8", errors="replace")
@@ -967,7 +993,7 @@ class Report:
 def _tx_identity(record):
     """The local TX identity a frame or report prints (from the soak image on), or None."""
     values = record.values
-    return (values["txr"], values["txf"]) if "txr" in values and "txf" in values else None
+    return (values.get("txk", 0), values["txr"], values["txf"], values.get("txc"), values.get("epoch")) if "txr" in values and "txf" in values else None
 
 
 def _windows(report, frames, node):
@@ -989,6 +1015,10 @@ def _windows(report, frames, node):
             current = {"tx": record, "reply": [], "report": [], "cleanup": [], "cleanup_report": []}
             windows.append(current)
         elif kind == TX_REPORT:
+            if values.get("txk", 0) != 0:
+                # NMT/SYNC have independent local identity domains. Their reports
+                # remain in raw traffic but cannot acknowledge an SDO window.
+                continue
             if current is None:
                 report.error("unmatched_tx_report", record.number)
                 continue
@@ -1514,6 +1544,8 @@ def _check_trial(report, records, meta):
     if header["route"] == "clear-alarm":
         _check_clear_method(report, records, meta)
     _check_change_request(report, records, meta)
+    if header["route"] == "velocity-nmt":
+        _check_nmt_velocity(report, records, meta)
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
                  "trial": meta.get("trial")}
     for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
@@ -1524,10 +1556,83 @@ def _check_trial(report, records, meta):
                 report.error("wrong_procedure", start.number, "%s requested %s" % (name, wanted))
 
 
+def _check_nmt_velocity(report, records, meta):
+    """Cross-check the bounded NMT experiment against its original velocity timeline.
+
+    A local NMT transmission or heartbeat is never interpreted as a motor stop.
+    Failed experiments still retain all five summaries, including absent samples.
+    """
+    groups = {name: [r for r in records if r.status == "parsed" and r.kind == name]
+              for name in ("TRIAL_NMT", "TRIAL_NMT_STEP", "TRIAL_NMT_SAMPLE", "TRIAL_VELOCITY_TIME")}
+    if any(len(groups[name]) != count for name, count in
+           (("TRIAL_NMT", 1), ("TRIAL_NMT_STEP", 2), ("TRIAL_NMT_SAMPLE", 2), ("TRIAL_VELOCITY_TIME", 1))):
+        report.error("nmt_experiment_record", None, "missing or duplicate NMT/timeline summaries")
+        return
+    record = groups["TRIAL_NMT"][0]
+    value, timeline = record.values, groups["TRIAL_VELOCITY_TIME"][0].values
+    problems = []
+    if value["phase"] > 8 or value["failure"] > 9:
+        problems.append("unknown experiment state")
+    bounds = ("start", "stopEnd", "preopEnd", "resume", "due", "end")
+    prepared = any(value[name] for name in bounds)
+    if prepared:
+        if (not value["offered"] or value["phase"] == 0 or
+                not groups["TRIAL_NMT_SAMPLE"][0].values["present"] or
+                value["stopEnd"] != value["start"] + 1500000 or
+                value["preopEnd"] != value["start"] + 3000000 or
+                not value["preopEnd"] < value["resume"] < value["due"] < value["end"] or
+                (value["due"], value["end"]) != (timeline["due"], timeline["deadline"])):
+            problems.append("experiment changed or exceeded the original run bounds")
+    else:
+        # Preparation is atomic. A missing Operational prerequisite can end the offered
+        # experiment before bounds, samples or NMT requests exist; the velocity keeps its
+        # own original timeline and stop. An unoffered experiment is the other empty shape.
+        shape = (value["offered"], value["phase"], value["failure"])
+        # An absent native NmtCompletion defaults to INVALIDATED (5); it is not a terminal.
+        if shape not in ((0, 0, 0), (1, 8, 1)) or any(
+                v != (5 if kind == "TRIAL_NMT_STEP" and key == "outcome" else 0)
+                for kind in ("TRIAL_NMT_STEP", "TRIAL_NMT_SAMPLE")
+                for row in groups[kind] for key, v in row.values.items() if key != "which"):
+            problems.append("unprepared experiment publishes work or observation evidence")
+    for kind in ("TRIAL_NMT_STEP", "TRIAL_NMT_SAMPLE"):
+        if [r.values["which"] for r in groups[kind]] != [0, 1]:
+            problems.append(kind + " identities must be exactly 0,1")
+    for row in groups["TRIAL_NMT_STEP"]:
+        v = row.values
+        if (v["terminal"] and not v["attempted"] or
+                (v["possible"] or v["confirmed"]) and not v["terminal"] or
+                v["confirmed"] and not v["possible"]):
+            problems.append("NMT transmission evidence contradicts its terminal")
+        if v["terminal"] and v["which"] in (0, 1):
+            end = value["stopEnd"] if v["which"] == 0 else value["preopEnd"]
+            if v["deadline"] != end:
+                problems.append("NMT terminal deadline differs from the fixed stage")
+    for row in groups["TRIAL_NMT_SAMPLE"]:
+        v = row.values
+        if v["present"] and (v["lo"] > v["hi"] or v["status"] > 0xffff or
+                             v["monitor"] > 0xffff or v["mode"] > 0xff):
+            problems.append("invalid native sample")
+    header = next((r.values for r in records if r.kind == "TRIAL" and r.status == "parsed"), None)
+    if header:
+        writes = [r.values for r in records if r.role == "traffic" and r.status == "parsed" and
+                  r.values.get("k") == TX and r.values.get("id") == 0]
+        counts = Counter()
+        for frame in writes:
+            data = bytes.fromhex(frame["data"])
+            if frame["dlc"] != 2 or len(data) < 2 or data[0] not in (2, 128) or data[1] != header["node"]:
+                problems.append("unexpected NMT request or destination")
+            else:
+                counts[data[0]] += 1
+        if any(count > 1 for count in counts.values()):
+            problems.append("NMT request repeated")
+    if problems:
+        report.error("nmt_experiment_record", record.number, "; ".join(problems))
+
+
 def _check_change_request(report, records, meta):
-    """Protocol14 plans must match the exact CRC-protected request, not only its trial ID."""
+    """Explicit change/NMT plans match their CRC-protected request, not only the trial ID."""
     command = meta.get("command")
-    if command not in ("mode-probe", "position-change", "velocity-change"):
+    if command not in ("mode-probe", "position-change", "velocity-change", "velocity-nmt"):
         return
     line = meta.get("line")
     if line is None:
@@ -1538,11 +1643,11 @@ def _check_change_request(report, records, meta):
         body, separator, crc = line.strip().rpartition(",K")
         if not separator or len(crc) != 8 or int(crc, 16) != zlib.crc32(body.encode("ascii")):
             raise ValueError("CRC")
-        letter = {"mode-probe": "m", "position-change": "p", "velocity-change": "v"}[command]
+        letter = {"mode-probe": "m", "position-change": "p", "velocity-change": "v", "velocity-nmt": "n"}[command]
         if not body.startswith("T" + letter):
             raise ValueError("route")
         fields = [int(value) for value in body[2:].split(",")]
-        count = {"mode-probe": 6, "position-change": 19, "velocity-change": 24}[command]
+        count = {"mode-probe": 6, "position-change": 19, "velocity-change": 24, "velocity-nmt": 22}[command]
         if len(fields) != count:
             raise ValueError("field count")
     except (ValueError, TypeError, UnicodeError, AttributeError):
@@ -1566,13 +1671,14 @@ def _check_change_request(report, records, meta):
         expected.update(probe=bool(fields[20]), reverse=bool(fields[21]))
         evidence_rows = [r for r in records if r.kind == "TRIAL_VELOCITY_EVIDENCE" and r.status == "parsed"]
         wanted = dict(zip(("record", "layout", "dt", "hw", "sw", "vid", "pc", "rev", "mc", "fc"), fields[10:20]))
-        wanted.update(gate=2, start=False, stop=False, kind=fields[9], max=max(fields[3], fields[22]),
+        wanted.update(gate=2, start=False, stop=False, kind=fields[9], max=max(fields[3], fields[22]) if command == "velocity-change" else fields[3],
                       reverse=False, modeChange=False, probe=bool(fields[20]), reverseProbe=bool(fields[21]))
         if len(evidence_rows) != 1 or any(evidence_rows[0].values.get(key) != value for key, value in wanted.items()):
             report.error("change_plan_differs", None, "velocity experiment record/identity differs")
-        changes = [r for r in records if r.kind == "TRIAL_VELOCITY_CHANGE" and r.status == "parsed"]
-        if len(changes) != 1 or changes[0].values.get("rpm") != fields[22] or changes[0].values.get("after") != fields[23]:
-            report.error("change_plan_differs", None, "velocity change target/time")
+        if command == "velocity-change":
+            changes = [r for r in records if r.kind == "TRIAL_VELOCITY_CHANGE" and r.status == "parsed"]
+            if len(changes) != 1 or changes[0].values.get("rpm") != fields[22] or changes[0].values.get("after") != fields[23]:
+                report.error("change_plan_differs", None, "velocity change target/time")
     if any(plan.values.get(key) != value for key, value in expected.items()):
         report.error("change_plan_differs", plan.number, "request fields do not match the retained plan")
 

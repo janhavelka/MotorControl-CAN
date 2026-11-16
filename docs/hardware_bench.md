@@ -1,6 +1,25 @@
 # CAN bench facts and evidence gaps
 
-Latest session: [prompt52](reports/prompt_52.md), 2026-11-16. The S2 bench
+Prompt54's [campaign and raw records](bench/20261116-p54/README.md) supersede
+the live-session portion below. Final image ELF is
+`96d81d97f62471950bfa4589c2bb21cd8bb2eda0f97b150d8bef26ceb4b8c469`,
+protocol15/PDO7 on COM15. CAN is active; SYNC is disarmed with no held schedule,
+trial, watch or capture. Both TPDO1 types remain1, with no persistent save.
+The [qualification report](reports/prompt_54.md) records the failed sustained
+10 ms attempt (42988 slots, complete receive capture) and passing 100 ms/60 s
+baseline. They qualify no physical motion or same-cycle sampling.
+
+Node1's uncertain stop52012 remains unresolved: the new 600-second boot watch
+saw only Operational heartbeats, no external session boundary. Node2's explicitly
+interrupted position54004 has a successful separate checked quick stop, but its
+original trajectory fence remains; velocity54006 refused before writes.
+Node2 was last directly read in mode3, status4050, monitor0014, position36162,
+velocity0. Later TPDOs carry no velocity field. Both histories survive MCU
+flashing in this handoff; volatile counter0 is not a new motion allowance.
+The durable campaign retains six of twelve weights. No further motion is
+admitted by treating a host restart as drive reconciliation.
+
+Previous session: [prompt52](reports/prompt_52.md), 2026-11-16. The S2 bench
 image ELF is `9a96eecef07ecfe01166dee0d08995a68aede90daf2a973882398101a206187b`,
 protocol14, SDK5.5.5, COM15 / ESP-Prog2 serial94A990398B40. CAN remains active,
 host SYNC disarmed, no active operation; final typed-read record52036 is held.

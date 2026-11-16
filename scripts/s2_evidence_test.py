@@ -1755,5 +1755,86 @@ class CommandLine(unittest.TestCase):
             self.assertEqual(evidence.replay_capture(NODE1).verdict, "complete")
 
 
+class Prompt54DiagnosticsTests(unittest.TestCase):
+    def test_nmt_report_with_same_request_number_cannot_acknowledge_sdo(self):
+        tx = evidence.Record(1, "SDO", values=dict(k=evidence.TX, id=0x602, data="4041600000000000", txk=0, txr=1, txf=0, txc=0, epoch=1))
+        nmt = evidence.Record(2, "NMT", values=dict(k=evidence.TX_REPORT, id=0, txk=1, txr=1, txf=0, txc=0, epoch=1))
+        sdo = evidence.Record(3, "SDO report", values=dict(k=evidence.TX_REPORT, id=0, txk=0, txr=1, txf=0, txc=0, epoch=1))
+        report = evidence.Report(path="<P54>")
+        self.assertNotEqual(evidence._tx_identity(nmt), evidence._tx_identity(sdo))
+        windows = evidence._windows(report, [tx, nmt, sdo], 2)
+        self.assertEqual(windows[0]["report"], [sdo])
+        self.assertFalse(report.errors)
+
+    def test_compact_rx_requires_current_origin_and_preserves_raw_bytes(self):
+        import binascii
+        body = "PC 1,701,a,2,44,05"
+        frame = body + ",%04x" % binascii.crc_hqx(body.encode("ascii"), 0xffff)
+        begin = "PDOW_BEGIN n=0 t=100 seconds=1 ring=32 ids=16 compact=1 origin=100"
+        rows, tail = evidence.parse_bytes(join([begin, frame]))
+        self.assertIsNone(tail)
+        self.assertEqual(rows[1].status, "parsed")
+        self.assertEqual((rows[1].values["lo"], rows[1].values["hi"]), (108, 110))
+        self.assertEqual(rows[1].raw, frame)
+        self.assertEqual(evidence.parse_line(1, frame).status, "malformed")
+        self.assertEqual(evidence.parse_bytes(join([begin, frame[:-1] + "z"]))[0][1].status, "malformed")
+        missing = begin.replace(" origin=100", "")
+        self.assertTrue(all(r.status == "malformed" for r in evidence.parse_bytes(join([missing, frame]))[0]))
+        boot = "PDOW_END n=2 t=200 reason=deadline frames=1 printed=1 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0"
+        self.assertEqual(evidence.parse_bytes(join([begin, frame, boot, frame]))[0][-1].status, "malformed")
+
+    def test_nmt_unprepared_refusal_has_no_bounds_work_or_samples(self):
+        raw = [
+            "TRIAL_NMT offered=1 phase=8 failure=1 start=0 stopEnd=0 preopEnd=0 resume=0 due=0 end=0",
+            "TRIAL_VELOCITY_TIME started=1 due=13000001 deadline=24000001 stopAt=13000001 serviced=23000001 smask=7 cmask=7",
+        ]
+        for i in range(2):
+            raw.append("TRIAL_NMT_STEP which=%d attempted=0 terminal=0 outcome=5 possible=0 confirmed=0 request=0 deadline=0 completed=0 observed=0" % i)
+        for i in range(2):
+            raw.append("TRIAL_NMT_SAMPLE which=%d present=0 cycle=0 status=0000 monitor=0000 mode=00 position=0 velocity=0 lo=0 hi=0" % i)
+        records, _ = evidence.parse_bytes(join(raw))
+        report = evidence.Report(path="<P54-unprepared>")
+        evidence._check_nmt_velocity(report, records, {})
+        self.assertFalse(report.errors)
+        # Every nonzero invented bound or piece of work/sample evidence contradicts atomic refusal.
+        for number, row in enumerate(records):
+            if row.kind == "TRIAL_VELOCITY_TIME":
+                continue
+            fields = (("start", "stopEnd", "preopEnd", "resume", "due", "end") if number == 0
+                      else tuple(key for key in row.values if key != "which"))
+            for field in fields:
+                changed, _ = evidence.parse_bytes(join(raw))
+                changed[number].values[field] = 1
+                report = evidence.Report(path="<P54-unprepared-forged>")
+                evidence._check_nmt_velocity(report, changed, {})
+                self.assertIn("nmt_experiment_record", codes(report), (row.kind, field))
+
+        # Even a complete internally consistent timeline cannot invent successful preparation
+        # while the atomically captured before-sample is absent.
+        records[0].values.update(start=100, stopEnd=1500100, preopEnd=3000100,
+                                 resume=5000000, due=13000001, end=24000001)
+        report = evidence.Report(path="<P54-unprepared-forged-bounds>")
+        evidence._check_nmt_velocity(report, records, {})
+        self.assertIn("nmt_experiment_record", codes(report))
+
+    def test_nmt_window_cannot_extend_the_original_velocity_deadline(self):
+        raw = [
+            "TRIAL_NMT offered=1 phase=8 failure=0 start=100 stopEnd=1500100 preopEnd=3000100 resume=4000000 due=6000000 end=9000000",
+            "TRIAL_VELOCITY_TIME started=1 due=6000000 deadline=9000000 stopAt=6000000 serviced=8000000 smask=0 cmask=0",
+        ]
+        for i in range(2):
+            raw.append("TRIAL_NMT_STEP which=%d attempted=1 terminal=1 outcome=0 possible=1 confirmed=1 request=%d deadline=%d completed=%d observed=%d" %
+                       (i, 108000 + i, 1500100 + 1500000 * i, 200 + 1500000 * i, 1000 + 1500000 * i))
+        for i in range(2):
+            raw.append("TRIAL_NMT_SAMPLE which=%d present=1 cycle=%d status=4037 monitor=0004 mode=03 position=4 velocity=10 lo=10 hi=20" % (i, i + 1))
+        records, _ = evidence.parse_bytes(join(raw))
+        report = evidence.Report(path="<P54>")
+        evidence._check_nmt_velocity(report, records, {})
+        self.assertFalse(report.errors)
+        records[0].values["end"] += 1
+        evidence._check_nmt_velocity(report, records, {})
+        self.assertIn("nmt_experiment_record", codes(report))
+
+
 if __name__ == "__main__":
     unittest.main()

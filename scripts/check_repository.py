@@ -20,6 +20,8 @@ EXPORTS = {
     "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
+    "examples/s2_bench/BenchRouteNmt.h", "examples/s2_bench/BenchRouteNmt.cpp",
+    "scripts/sync_watch.py", "test/sync_watch_test.py",
     "test/combined_contract_test.cpp", "test/installed_consumer/core.cpp",
     "include/MotorControlCAN/Capabilities.h",
     "include/MotorControlCAN/Native.h",
@@ -345,6 +347,12 @@ def inventory_checks(root, listing, build, errors):
             args = matches[0]["command"][2:]
             if len(args) != 4 or args[::2] != ["--cmake", "--compiler"]:
                 errors.append("CTest inventory: package_test.py requires explicit --cmake and --compiler")
+        elif source.name == "sync_watch_test.py":
+            producer = build / "test" / ("pdo_watch_test" + suffix)
+            python_command(matches[0], source, None)
+            arguments = matches[0]["command"][2:]
+            if len(arguments) != 1 or Path(arguments[0]).resolve() != producer.resolve():
+                errors.append("CTest inventory: missing or wrong Python command for test/sync_watch_test.py")
         elif source.name == "bench_console_native_test.py":
             native_probe = next((test["command"][0] for test in tests
                                  if test["name"] == "native_probe" and test["command"]), "")

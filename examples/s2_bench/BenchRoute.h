@@ -306,6 +306,7 @@
  * the same channel is still refused, which fails closed.
  */
 #pragma once
+#include "BenchRouteNmt.h"
 #include "BenchNodes.h"
 #include "FirmwareProbe.h"
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
@@ -363,11 +364,15 @@ enum class RouteKind : uint8_t {
     /** Prompt 52 finite isolated forward absolute change experiment; `Tp`. */
     POSITION_CHANGE,
     /** Prompt 52 one native mid-run positive velocity change in the original finite run; `Tv`. */
-    VELOCITY_CHANGE
+    VELOCITY_CHANGE,
+    /** Prompt54 finite velocity with addressed STOP then PREOP in a natural polling gap; `Tn`. */
+    VELOCITY_NMT
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
 struct RoutePlan {
+    bool allowChanges = false; ///< Explicit TY/TB attended change experiment; omitted means closed.
+
     RouteKind kind = RouteKind::NONE; ///< Selected route.
     /** MODE_PROBE: explicit 6060 candidate 2, 4, 7, 8, 9 or 10; 1 and 3 permit explicit restoration.
      * An acknowledged write/display match qualifies no motion capability. No automatic restoration. */
@@ -782,6 +787,8 @@ struct RouteRecord {
     const char* statusMessage = ""; ///< Static message of that refusal.
     /** POSITION_CHANGE: immutable admission-anchored due time and stop deadline, microseconds. */
     uint64_t changeStopDueUs = 0, changeStopEndUs = 0;
+    NmtVelocityRecord velocityNmt; ///< Owned network experiment; never replaces native stop evidence.
+    bool velocityNmtOffered = false; ///< Exactly one preparation attempt.
     bool velocityChangeAttempted = false; ///< VELOCITY_CHANGE: one native request attempted, never retried.
     bool velocityChangeAccepted = false; ///< VELOCITY_CHANGE: request admitted, not drive acceptance.
     bool changeTriggerPossible = false; ///< Initial trigger admitted; stop remains required on failure.
@@ -1160,7 +1167,7 @@ class BenchRoute {
     bool commandedKnown_[BENCH_NODES] = {}, commandedRelative_[BENCH_NODES] = {};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
     // RouteKind up to VELOCITY_CHANGE, the last motion route.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::VELOCITY_CHANGE) + 1][BENCH_NODES] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::VELOCITY_NMT) + 1][BENCH_NODES] = {};
     uint8_t positionChangeCases_[8][BENCH_NODES] = {}; ///< Per experimental position case and node.
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;

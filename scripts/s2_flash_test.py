@@ -153,10 +153,12 @@ IDENTITY = {"base_commit": REVISION, "working_tree": " M src/x.cpp\n", "dirty_sh
 class Bench:
     """Fake process runner that records every command and refuses unknown ones."""
 
-    def __init__(self, build, read_mac=MAC_OUTPUT, write=(0, WRITE_OUTPUT), build_code=0, **build_options):
+    def __init__(self, build, read_mac=MAC_OUTPUT, write=(0, WRITE_OUTPUT), build_code=0,
+                 esptool_version="4.12.0", esptool_header=None, **build_options):
         self.build, self.read_mac, self.write = build, read_mac, write
         self.build_code, self.build_options = build_code, build_options
         self.commands = []
+        self.esptool_version, self.esptool_header = esptool_version, esptool_header
 
     def names(self):
         return [name for name, _ in self.commands]
@@ -165,6 +167,9 @@ class Bench:
         words = [str(part) for part in command]
         if "--version" in words or "version" in words:
             name, output = "version", "tool esp-fake 4.12.0\n"
+            if "esptool" in words:
+                output = (self.esptool_header if self.esptool_header is not None
+                          else "esptool.py v" + self.esptool_version) + "\n" + self.esptool_version + "\n"
             code = 0
         elif "idf.py" in " ".join(words):
             name, code, output = "build", self.build_code, "built\n"
@@ -288,6 +293,21 @@ class DryRun(Fixture):
 
 
 class Guards(unittest.TestCase):
+    def test_only_exact_reviewed_esptool_versions_are_accepted(self):
+        self.assertEqual(flash.ESPTOOL_VERSIONS, ("4.12.0", "4.13.0"))
+        for version in flash.ESPTOOL_VERSIONS:
+            self.assertEqual(flash.parse_esptool_version("esptool.py v" + version), version)
+            self.assertEqual(flash.parse_target(MAC_OUTPUT.replace("4.12.0", version))["esptool"], version)
+        for header in ("", "4.13.0", "tool 4.13.0", "esptool.py v4.11.0", "esptool.py v4.13.1",
+                       "esptool.py v5.0.0", "esptool.py v4.13.00", "esptool.py v4.13.0rc1",
+                       "esptool.py v4.13.0 extra", "esptool.py v4.12.0-or-4.13.0",
+                       "prefix esptool.py v4.13.0", "esptool.py v4.13.0\nother"):
+            with self.subTest(header=header), self.assertRaises(flash.FlashError):
+                flash.parse_esptool_version(header)
+        for version in ("4.13.1", "4.13.0-extra", "4.12.0-or-4.13.0"):
+            with self.subTest(target_version=version), self.assertRaises(flash.FlashError):
+                flash.parse_target(MAC_OUTPUT.replace("4.12.0", version))
+
     def test_only_mac_read_and_image_write_are_permitted(self):
         base = ["python", "-m", "esptool", "--chip", "esp32s2", "--port", PORT]
         flash.assert_safe_esptool(base + ["read_mac"])
@@ -334,7 +354,7 @@ class Usb(unittest.TestCase):
         log = (RETAINED_UPLOAD / "flash.log").read_text(encoding="utf-8")
         facts = flash.parse_target(log)
         self.assertEqual(facts["chip"], "ESP32-S2FH4 (revision v1.0)")
-        self.assertEqual(facts["esptool"], flash.PINS["esptool"])
+        self.assertEqual(facts["esptool"], "4.12.0")
         self.assertEqual(facts["mac"], flash.FIXTURE["mac"])
         flash.check_target(facts)
         self.assertEqual(log.count("Hash of data verified."), len(flash.FLASH_LAYOUT))
@@ -420,6 +440,19 @@ class Validation(Fixture):
 
 
 class BuildOnly(Fixture):
+    def test_unreviewed_or_malformed_tool_version_reaches_no_build_or_port(self):
+        for header in ("esptool.py v4.13.1", "tool 4.12.0", "esptool.py v4.13.0-dev"):
+            with self.subTest(header=header):
+                bench = Bench(self.build, esptool_header=header)
+                # Each independent invocation requires its own previously absent artifact directory.
+                self.output = self.base / ("refused-" + str(len(header)) + "-" + header[-3:])
+                code, _, usb = self.run_mode(bench, "--build-only")
+                self.assertEqual(code, 1)
+                usb.assert_not_called()
+                self.assertEqual(self.record()["status"], "unavailable")
+                self.assertNotIn("build", bench.names())
+                self.assertNotIn("write_flash", bench.names())
+
     def test_builds_without_any_port_activity(self):
         bench = Bench(self.build)
         code, output, usb = self.run_mode(bench, "--build-only")
@@ -486,6 +519,41 @@ class BuildOnly(Fixture):
 
 
 class Upload(Fixture):
+    def test_413_records_the_actual_checked_and_observed_version(self):
+        read = MAC_OUTPUT.replace("4.12.0", "4.13.0")
+        write = WRITE_OUTPUT.replace("4.12.0", "4.13.0")
+        bench = Bench(self.build, esptool_version="4.13.0", read_mac=read, write=(0, write))
+        code, output, _ = self.flash(bench)
+        self.assertEqual(code, 0, output)
+        record = self.record()
+        self.assertEqual(record["esptool_version"], "4.13.0")
+        self.assertEqual(record["tool_versions"]["esptool"], "esptool.py v4.13.0")
+        self.assertEqual(record["target_identity"]["esptool"], "4.13.0")
+        self.assertEqual(record["flash"]["esptool"], "4.13.0")
+        self.assertEqual(bench.names().count("write_flash"), 1)
+
+    def test_checked_tool_and_identity_version_mismatch_gets_no_write(self):
+        bench = Bench(self.build, esptool_version="4.13.0")  # Identity still reports the other reviewed version.
+        code, _, _ = self.flash(bench)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.record()["status"], "identity_failed")
+        self.assertNotIn("write_flash", bench.names())
+
+    def test_write_version_mismatch_is_unverified_without_retry(self):
+        bench = Bench(self.build, esptool_version="4.13.0", read_mac=MAC_OUTPUT.replace("4.12.0", "4.13.0"))
+        code, _, _ = self.flash(bench)  # Successful-looking write reports 4.12.0 instead.
+        self.assertEqual(code, 1)
+        self.assertEqual(self.record()["status"], "flash_unverified")
+        self.assertEqual(bench.names().count("write_flash"), 1)
+
+    def test_unreviewed_write_header_preserves_unknown_image_without_retry(self):
+        bench = Bench(self.build, write=(0, WRITE_OUTPUT.replace("4.12.0", "5.0.0")))
+        code, _, _ = self.flash(bench)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.record()["status"], "flash_unverified")
+        self.assertIn("unknown", self.record()["error"])
+        self.assertEqual(bench.names().count("write_flash"), 1)
+
     def test_full_sequence_and_retained_record(self):
         bench = Bench(self.build)
         code, output, _ = self.flash(bench)

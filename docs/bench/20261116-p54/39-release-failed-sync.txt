@@ -1,0 +1,1 @@
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540200,"command":"release","ok":true,"status":"OK"}

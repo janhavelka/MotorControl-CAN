@@ -1,5 +1,14 @@
 # Requirement and implementation coverage
 
+[Prompt54](reports/prompt_54.md) adds bounded qualification diagnostics and a
+specimen campaign. Compact RX evidence, cached SYNC processing metrics and the
+explicit NMT experiment have native tests; these do not promote Q27/Q28, M09,
+physical stop behavior or earlier Partial operation rows to qualified support.
+The requested sustained 10 ms trial failed after 42988 slots with complete raw RX;
+a separate 100 ms/60 s baseline passed. Motion qualification remains blocked by
+the recorded node 1 session and node 2 interrupted-trajectory histories.
+
+
 [Prompt52](reports/prompt_52.md) adds gated change APIs, retained replacement
 relations, shared console paths and bounded experiments. The operations map
 now covers their direct API and real-owner tests; no Q22-Q26 firmware

@@ -6580,6 +6580,39 @@ void writeTranscript(const char* path, bool all) {
         const std::string unreleased = loopLine(1, trial, 2);
         CHECK(l1->run(unreleased).failure == E::RouteFailure::PREREQUISITE);
         append(*l1, unreleased);
+        // Protocol 15: real route/owner producer records, including the failure whose NMT PREOP
+        // fails its local transmission report. The fake NMT service changes no physical motor state.
+        for (unsigned failed = 0; failed != 3; ++failed) {
+            std::unique_ptr<Rig> nmt(new Rig);
+            releasedModeThree(nmt->driver.drives[0]);
+            uint32_t nmtTrial = 54000 + 10 * failed;
+            qualified(*nmt, nmtTrial);
+            nmt->driver.nmtEnabled = true;
+            nmt->driver.nmtFailPreop = failed == 1;
+            nmt->driver.nmtState = failed == 2 ? 0x7f : 5;
+            nmt->turns(3);
+            VelocitySpec nmtSpec;
+            nmtSpec.kind = 2;
+            nmtSpec.duration = 13000;
+            nmtSpec.deadline = 24000;
+            std::string command = velocityLine(1, nmtTrial, nmtSpec);
+            command[0] = 'n';
+            const E::RouteRecord& record = nmt->run(command);
+            CHECK(record.failure == (failed == 2 ? E::RouteFailure::PREREQUISITE
+                                     : failed == 1 ? E::RouteFailure::OBSERVATION : E::RouteFailure::NONE));
+            CHECK(record.velocityNmt.failure == (failed == 2 ? E::NmtVelocityFailure::WINDOW
+                                               : failed == 1 ? E::NmtVelocityFailure::PREOP_TX
+                                                        : E::NmtVelocityFailure::NONE));
+            CHECK(nmt->one.velocityNeedsStop() == (failed == 1));
+            if (failed == 2) {
+                CHECK(record.velocityNmtOffered && !record.velocityNmt.before.present &&
+                      !record.velocityNmt.attempted[0] && !record.velocityNmt.attempted[1]);
+                CHECK(record.velocityNmt.startedUs == 0 && record.velocityNmt.deadlineUs == 0);
+                for (const M::Frame& frame : nmt->driver.requests)
+                    CHECK(frame.id != 0); // Prerequisite refusal sends neither NMT command.
+            }
+            append(*nmt, command);
+        }
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -7650,6 +7683,201 @@ void testPacket8Plan() {
     CHECK(x.motionTotal == 4 && s->downloadsFrom(mark) == 0); // M, E, and this move with its planned stop.
 }
 
+void testVelocityNmt() {
+    scenario = "velocity NMT";
+    for (unsigned variant = 0; variant != 6; ++variant) {
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        r->driver.nmtEnabled = true;
+        r->driver.nmtLostStopBeat = variant == 1;
+        r->driver.nmtLostPreopBeat = variant == 2;
+        r->driver.nmtFailPreop = variant == 3;
+        r->driver.nmtRejectStop = variant == 4;
+        r->driver.nmtHoldTurns = variant == 5 ? 1700 : 0;
+        r->turns(3);
+        VelocitySpec spec;
+        spec.kind = 2;
+        spec.duration = 13000;
+        spec.deadline = 24000;
+        std::string line = velocityLine(1, trial, spec);
+        line[0] = 'n';
+        const E::RouteRecord& record = r->run(line);
+        const E::NmtVelocityRecord& n = record.velocityNmt;
+        if (n.failure != E::NmtVelocityFailure::NONE && variant == 0)
+            std::fprintf(stderr, "%s", r->dump().c_str());
+        CHECK(record.velocityNmtOffered);
+        CHECK(n.phase == E::NmtVelocityPhase::DONE && !n.pending.owner);
+        CHECK(n.attempted[0] && n.terminal[0]);
+        CHECK(n.attempted[1] == (variant != 4) && n.terminal[1] == (variant != 4));
+        CHECK(n.result[0].transfer.command == C::NmtCommand::STOP);
+        CHECK(variant == 4 || n.result[1].transfer.command == C::NmtCommand::PRE_OPERATIONAL);
+        CHECK(n.stopDueUs == r->one.velocityAction().stopDueUs &&
+              n.deadlineUs == r->one.velocityAction().deadlineUs);
+        CHECK(n.stopEndUs == n.startedUs + 1500000 && n.preopEndUs == n.startedUs + 3000000);
+        unsigned stops = 0, preops = 0;
+        for (const M::Frame& f : r->driver.requests) {
+            if (f.id == 0) {
+                CHECK(f.dlc == 2 && !f.extended && !f.rtr && f.data[1] == 1);
+                stops += f.data[0] == 2;
+                preops += f.data[0] == 0x80;
+            }
+        }
+        CHECK(stops == (variant == 4 ? 0u : 1u) && preops == (variant == 4 ? 0u : 1u));
+        CHECK(record.terminalCount <= E::ROUTE_TERMINALS && record.trafficCount <= E::ROUTE_TRAFFIC);
+        CHECK(r->dump().find("TRIAL_NMT_SAMPLE which=0") != std::string::npos);
+        if (variant == 0) {
+            CHECK(n.failure == E::NmtVelocityFailure::NONE && n.stoppedUs && n.preoperationalUs);
+            CHECK(n.before.present && n.before.velocity > 0 && n.after.present && n.after.velocity > 0);
+            CHECK(n.after.earliestUs > n.preoperationalUs && n.after.cycle > n.before.cycle);
+            if (r->one.velocityNeedsStop()) std::fprintf(stderr, "%s", r->dump().c_str());
+            CHECK(r->one.velocityAction().stopRequested && !r->one.velocityNeedsStop());
+            CHECK(record.failure == E::RouteFailure::NONE);
+        } else {
+            CHECK(n.failure != E::NmtVelocityFailure::NONE && record.failure != E::RouteFailure::NONE);
+            CHECK(r->one.velocityAction().stopRequested || record.stopRequested);
+            if (variant == 3) {
+                CHECK(n.failure == E::NmtVelocityFailure::PREOP_TX && !n.after.present);
+                CHECK(r->one.velocityNeedsStop() && r->one.velocityAction().uncertain);
+                CHECK(record.completedUs < n.deadlineUs);
+            }
+            if (variant == 4)
+                CHECK(n.failure == E::NmtVelocityFailure::STOP_TX && !n.result[0].transmissionPossible);
+            if (variant == 5) {
+                CHECK(n.failure == E::NmtVelocityFailure::STOP_TX);
+                CHECK(n.result[1].completedUs > n.stopEndUs && n.after.present);
+            }
+            if (variant == 1)
+                CHECK(n.failure == E::NmtVelocityFailure::STOP_STATE && !n.stoppedUs && n.after.present);
+            if (variant == 2)
+                CHECK(n.failure == E::NmtVelocityFailure::PREOP_STATE && !n.preoperationalUs && !n.after.present);
+        }
+    }
+}
+
+void testNmtFixedCutoffs() {
+    scenario = "NMT fixed cutoffs";
+    for (unsigned atResume = 0; atResume != 2; ++atResume) {
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        r->driver.nmtEnabled = true;
+        r->turns(3);
+        VelocitySpec spec; spec.kind = 2; spec.duration = 13000; spec.deadline = 24000;
+        std::string line = velocityLine(1, trial, spec); line[0] = 'n';
+        CHECK(!r->start(line));
+        for (unsigned i = 0; i != 15000 && !r->routeStorage.velocityNmtOffered; ++i)
+            r->turn();
+        E::NmtVelocityRecord& n = r->routeStorage.velocityNmt;
+        CHECK(n.phase == E::NmtVelocityPhase::STOP_READY);
+        CHECK(r->firmware.owner().localTxRetired(0));
+        E::NmtVelocityRecord unchanged;
+        unchanged.trial = 777;
+        CHECK(!E::prepareNmtVelocity(unchanged, r->one, r->services, trial, n.resumeUs));
+        CHECK(unchanged.trial == 777 && unchanged.phase == E::NmtVelocityPhase::EMPTY);
+        const uint64_t due = n.stopDueUs, end = n.deadlineUs;
+        r->console.now = atResume ? n.resumeUs : n.stopEndUs;
+        const size_t count = r->driver.requests.size();
+        E::serviceNmtVelocity(n, r->one, r->firmware.owner(), r->services, r->console.now);
+        CHECK(n.phase == E::NmtVelocityPhase::DONE && !n.pending.owner);
+        CHECK(n.failure == (atResume ? E::NmtVelocityFailure::WINDOW : E::NmtVelocityFailure::STOP_ADMISSION));
+        CHECK(!n.terminal[0] && !n.attempted[1] && !n.terminal[1]);
+        CHECK(r->driver.requests.size() == count);
+        CHECK(r->one.velocityAction().stopDueUs == due && r->one.velocityAction().deadlineUs == end);
+        for (unsigned i = 0; i != 30000 && r->route.active(); ++i)
+            r->turn();
+        CHECK(!r->route.active() && !r->one.velocityNeedsStop());
+        CHECK(r->one.velocityAction().stopRequestedUs >= due &&
+              r->one.velocityAction().stopRequestedUs < end);
+        for (const M::Frame& f : r->driver.requests)
+            CHECK(f.id != 0);
+    }
+}
+
+void testNmtObservationCutoffs() {
+    scenario = "NMT observation cutoffs";
+    for (unsigned stage = 0; stage != 2; ++stage) {
+        for (unsigned lateSource = 0; lateSource != 2; ++lateSource) {
+            std::unique_ptr<Rig> r(new Rig);
+            releasedModeThree(r->driver.drives[0]);
+            uint32_t trial = 0;
+            qualified(*r, trial);
+            r->driver.nmtEnabled = true;
+            r->driver.nmtLostStopBeat = stage == 0;
+            r->driver.nmtLostPreopBeat = stage == 1;
+            r->turns(3);
+            VelocitySpec spec; spec.kind = 2; spec.duration = 13000; spec.deadline = 24000;
+            std::string line = velocityLine(1, trial, spec); line[0] = 'n';
+            CHECK(!r->start(line));
+            const E::NmtVelocityPhase waiting = stage ? E::NmtVelocityPhase::PREOP_STATE
+                                                       : E::NmtVelocityPhase::STOP_STATE;
+            for (unsigned i = 0; i != 15000 && r->routeStorage.velocityNmt.phase != waiting; ++i)
+                r->turn();
+            E::NmtVelocityRecord& n = r->routeStorage.velocityNmt;
+            CHECK(n.phase == waiting && n.failure == E::NmtVelocityFailure::NONE);
+            const uint64_t end = stage ? n.preopEndUs : n.stopEndUs;
+            const uint64_t received = lateSource ? end + 1 : end - 1;
+            r->console.now = lateSource ? end + 1 : end;
+            M::Frame heartbeat = frame(0x701, 1);
+            heartbeat.data[0] = stage ? 0x7f : 4;
+            CHECK(r->services.receiveNetwork(heartbeat, n.target, received, r->console.now));
+            E::serviceNmtVelocity(n, r->one, r->firmware.owner(), r->services, r->console.now);
+            CHECK(n.failure == (stage ? E::NmtVelocityFailure::PREOP_STATE : E::NmtVelocityFailure::STOP_STATE));
+            CHECK(!(stage ? n.preoperationalUs : n.stoppedUs));
+            // A failed STOP observation still permits its separately preplanned PREOP, once.
+            CHECK(stage ? n.phase == E::NmtVelocityPhase::DONE : n.attempted[1]);
+            for (unsigned i = 0; i != 30000 && r->route.active(); ++i)
+                r->turn();
+            CHECK(!r->route.active());
+            CHECK(r->one.velocityAction().stopDueUs == n.stopDueUs &&
+                  r->one.velocityAction().deadlineUs == n.deadlineUs);
+        }
+    }
+}
+
+void testNmtAndArmingGrammar() {
+    scenario = "NMT and optional arming grammar";
+    const char* lines[] = {
+        "Y1,1,1,0,100,1,1,4096,4096,1,1024,1024,1,262546,12,32,4096,1,0,1024,512,1,0,2000,3000,100",
+        "B1,1,1,6,200,200,5000,351,2,2,262546,12,32,4096,1,0,1024,512,1500,1500,500"
+    };
+    for (const char* text : lines) {
+        E::RoutePlan p;
+        CHECK(E::parseRouteCommand(text, std::strlen(text), p) && !p.allowChanges);
+        for (unsigned flag = 0; flag != 2; ++flag) {
+            const std::string line = std::string(text) + "," + std::to_string(flag);
+            CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.allowChanges == bool(flag));
+        }
+        for (const char* suffix : {",2", ",-1", ",1,0", ","}) {
+            const std::string line = std::string(text) + suffix;
+            p.trial = 0x12345678;
+            CHECK(!E::parseRouteCommand(line.data(), line.size(), p) && p.trial == 0x12345678);
+        }
+    }
+    uint32_t trial = 0;
+    VelocitySpec v;
+    v.kind = 2; v.duration = 13000; v.deadline = 24000;
+    std::string line = velocityLine(1, trial, v); line[0] = 'n';
+    E::RoutePlan p;
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p));
+    CHECK(p.kind == E::RouteKind::VELOCITY_NMT);
+    p.allowChanges = true;
+    CHECK(!E::routePlanValid(p));
+    for (unsigned bad = 0; bad != 6; ++bad) {
+        VelocitySpec other = v;
+        if (bad == 0) other.rpm = 5;
+        if (bad == 1) other.rpm = 31;
+        if (bad == 2) other.kind = 1;
+        if (bad == 3) other.interval = 3999;
+        if (bad == 4) other.probe = 1;
+        if (bad == 5) other.reverse = 1;
+        line = velocityLine(1, trial, other); line[0] = 'n';
+        CHECK(!E::parseRouteCommand(line.data(), line.size(), p));
+    }
+}
+
 int main(int argc, char** argv) {
     // --transcript-all adds the mode3, velocity and home records, which scripts/s2_evidence.py reads
     // only once its grammar names them.
@@ -7657,6 +7885,10 @@ int main(int argc, char** argv) {
         writeTranscript(argv[2], std::strcmp(argv[1], "--transcript-all") == 0);
         return 0;
     }
+    testNmtObservationCutoffs();
+    testNmtFixedCutoffs();
+    testNmtAndArmingGrammar();
+    testVelocityNmt();
     testParse();
     testPassiveAndRefusals();
     testActionsReads();

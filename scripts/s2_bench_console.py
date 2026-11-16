@@ -18,6 +18,10 @@ recorded ESP-Prog2. Nothing is retried or replayed: a refusal, an ok:false recor
 run with the remaining steps unsent. Every received byte goes to --output exactly as received; the
 console lines are printed with their receive time. --dry-run prints the framed bytes and opens nothing.
 
+--allow-changes explicitly appends the attended-change experiment flag to TY/TB arming lines.
+The fresh arming trial identifies this experiment, never measured qualification. Ordinary arming
+closes both change kinds; no command/feedback relation is supplied for a different endpoint.
+
 Exit codes: 0 every step answered and admitted, 2 a step was refused, 1 timeout, port or usage problem.
 """
 
@@ -66,6 +70,25 @@ class Failure(RuntimeError):
 def sign_line(body):
     """The T line with its integrity field: CRC-32 (zlib, IEEE) of every byte before ",K"."""
     return "%s,K%08x" % (body, zlib.crc32(body.encode("ascii")))
+
+
+def change_arming(step, allow):
+    """Make the optional TY/TB experiment flag explicit before CRC framing; never overwrite intent."""
+    if not step.startswith(("TY", "TB")):
+        return step
+    baseline = 26 if step.startswith("TY") else 21
+    fields = step.split(",")
+    if len(fields) == baseline:
+        return step + ",1" if allow else step
+    if len(fields) == baseline + 1:
+        if fields[-1] not in ("0", "1"):
+            raise Failure("arming change flag must be 0 or 1", 1)
+        if (fields[-1] == "1") != allow:
+            raise Failure("arming change flag conflicts with --allow-changes", 1)
+        return step
+    if allow:
+        raise Failure("--allow-changes requires a complete TY or TB arming line", 1)
+    return step
 
 
 def frame(step):
@@ -220,10 +243,15 @@ def main(argv=None, backend=None, clock=time.monotonic, out=print):
     parser.add_argument("--timeout", type=float, default=20.0, help="Seconds for each reply")
     parser.add_argument("--terminal-timeout", type=float, default=90.0, help="Seconds for a terminal record")
     parser.add_argument("--no-terminal", action="store_true", help="Do not wait for terminal records")
+    parser.add_argument("--allow-changes", action="store_true",
+                        help="Explicit attended-change opt-in on TY/TB arming; no measured qualification")
     parser.add_argument("--dry-run", action="store_true", help="Print the framed bytes; open nothing")
     args = parser.parse_args(argv)
     try:
-        framed = [frame(step) for step in args.send]
+        if args.allow_changes and not any(step.startswith(("TY", "TB")) for step in args.send):
+            raise Failure("--allow-changes requires a TY or TB arming step", 1)
+        steps = [change_arming(step, args.allow_changes) for step in args.send]
+        framed = [frame(step) for step in steps]
         if args.dry_run:
             for data, _ in framed:
                 out(repr(data))
@@ -234,7 +262,7 @@ def main(argv=None, backend=None, clock=time.monotonic, out=print):
         transcript = args.output.open("ab") if args.output else open(os.devnull, "wb")
         try:
             session = Session(port, clock, transcript, out)
-            for step in args.send:
+            for step in steps:
                 out("SEND %s" % step)
                 run_step(session, step, args)
         finally:

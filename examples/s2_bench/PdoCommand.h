@@ -19,7 +19,7 @@ enum class PdoCommandKind : uint8_t {
      * Node or Reset Communication. A reset is an attended experiment: it invalidates every fact about the
      * node, and the record shows a boot-up only when a watch runs beside it. */
     NMT,
-    WATCH, ///< `P<seconds>`: watch received frames 1..600 s; `P0` ends a running watch early.
+    WATCH, ///< `P<seconds>[,c]`: watch 1..3600 s; compact rows with c; `P0` ends early.
     READ,  ///< `R<node>,<t|r>,<set>`: nine uploads of one transmit or receive PDO set 0..3.
     WRITE, ///< `W<node>,<set>,<subindex>,<baseline>,<value>`: one TPDO communication entry.
     /** `E<node>,<0|100>`: the profile's TPDO1 event-timer change, 1800:05 to raw 0 or raw 100
@@ -50,7 +50,8 @@ struct PdoCommand {
     /** NMT: CiA 301 command byte, 0x01 Start, 0x02 Stop, 0x80 Pre-operational, 0x81 Reset Node, 0x82 Reset
      * Communication. */
     uint8_t nmt = 0;
-    uint32_t seconds = 0;  ///< WATCH: 0 ends a running watch, else 1..600 s. CAPTURE: 1..600 s, 0 for C0.
+    uint32_t seconds = 0;  ///< WATCH: 0 ends a running watch, else 1..3600 s. CAPTURE: 1..600 s, 0 for C0.
+    bool compact = false; ///< WATCH: explicit compact raw-frame rows (pdo=7); no CAN effect.
     bool transmit = false; ///< READ: true 0x1800/0x1A00 + set, false 0x1400/0x1600 + set.
     uint8_t set = 0;       ///< READ, WRITE: PDO set 0..3, so TPDO1..TPDO4 or RPDO1..RPDO4.
     uint8_t subindex = 0;  ///< WRITE: 0x1800 + set subindex; RawEvidence checks 1, 2, 3 or 5.
@@ -66,7 +67,7 @@ struct PdoCommand {
     uint8_t transmissionType = 0; ///< TRANSMISSION_TYPE: target raw 1800:02 literal, 1 or 255.
 };
 /** Parse one complete console line without its line end.
- * Checks syntax, node 1..2, set 0..3, watch seconds 0..600, capture seconds 1..600, the NMT
+ * Checks syntax, node 1..2, set 0..3, watch seconds 0..3600, capture seconds 1..600, the NMT
  * letter and the two event-timer literals 0 and 100 only; the experiment checks entry widths and
  * value rules itself, the profile checks the whole TPDO1 baseline before any write, and the
  * capture checks its identity order and frame capacity. A discovery line needs its mode letter,

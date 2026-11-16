@@ -100,6 +100,32 @@ class Tests(unittest.TestCase):
             with self.assertRaises(tool.Failure):
                 tool.frame(bad)
 
+    def test_change_opt_in_is_explicit_signed_and_never_overwrites_a_flag(self):
+        self.assertEqual(tool.change_arming(ARM, False), ARM)
+        self.assertEqual(tool.change_arming(ARM, True), ARM + ",1")
+        self.assertEqual(tool.change_arming(ARM + ",1", True), ARM + ",1")
+        self.assertEqual(tool.change_arming(ARM + ",0", False), ARM + ",0")
+        velocity = "TB1,9,1,30,500,500,100,7,2,2,262546,18,52,768,34309,65537,134,291,1500,1500,100"
+        self.assertEqual(tool.change_arming(velocity, True), velocity + ",1")
+        self.assertEqual(tool.change_arming("TX1,9,1,0", True), "TX1,9,1,0")
+        for step, allowed in ((ARM + ",1", False), (ARM + ",0", True), (ARM + ",2", True), ("TY1,7", True)):
+            with self.subTest(step=step), self.assertRaises(tool.Failure):
+                tool.change_arming(step, allowed)
+        body = ARM + ",1"
+        signed = (tool.sign_line(body) + "\n").encode("ascii")
+        answers = {signed: b"TRIAL admitted route=arm-move node=1 trial=7\n"
+                           b"CONSOLE armed node=1 trial=7 changes=1 changeRecord=7; experiment\n"}
+        code, port, _, transcript = self.run_tool([ARM], answers, args=["--allow-changes"])
+        self.assertEqual(code, 0)
+        self.assertEqual(port.sent, [signed])
+        self.assertIn(b"changes=1 changeRecord=7", transcript)
+        code, port, _, _ = self.run_tool([ARM + ",1"], answers)
+        self.assertEqual(code, 1)
+        self.assertEqual(port.sent, [])
+        code, port, _, _ = self.run_tool(["@1 version"], {}, args=["--allow-changes"])
+        self.assertEqual(code, 1)
+        self.assertEqual(port.sent, [])
+
     def test_dry_run_opens_nothing(self):
         lines = []
         self.assertEqual(tool.main(["--dry-run", "--send", "o", "--send", "@1 version"], None, Clock(), lines.append), 0)

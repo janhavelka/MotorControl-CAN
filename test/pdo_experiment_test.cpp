@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // The real service engine and single owner drive a bounded synthetic TPDO dictionary on two nodes.
 #include "PdoExperiment.h"
+#include "RawEvidence.h"
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <cstdio>
 #include <cstdlib>
@@ -40,6 +41,7 @@ L::ReadTarget target(unsigned node = 1) {
 // Two TPDO1 dictionaries in the measured specimens' state, answering on 0x580 + node.
 struct Wire {
     E::PdoExperiment* experiment = nullptr;
+    E::RawEvidence* raw = nullptr;
     unsigned guardCalls = 0;
     // SILENT: no effect and no reply. LOST: the write takes effect, but its reply never arrives.
     enum class Failure { NONE, ABORT, SILENT, LOST, BOOTUP, READBACK };
@@ -206,6 +208,8 @@ struct Wire {
                               const C::SdoTransfer& transfer, uint64_t now) {
             Wire& w = *static_cast<Wire*>(context);
             ++w.guardCalls;
+            if (w.raw)
+                return w.raw->preflight(sequence, transfer, now);
             CHECK(w.experiment);
             C::SdoTransfer other = transfer;
             other.data[0] ^= 1;
@@ -1151,6 +1155,81 @@ void continuationAfterHigherExperimentIds() {
     E::refreshExperimentIds(r.services, 2, operation, grant);
     CHECK(operation == UINT32_MAX && grant == UINT32_MAX);
 }
+void rawContinuationAfterAnotherProducer() {
+    Rig r;
+    r.startTransmission(2, L::Tpdo1TransmissionTypeRaw::RAW_1, 9000);
+    r.finish();
+    CHECK(r.experiment.record()->failure == E::PdoExperimentFailure::NONE);
+    CHECK(r.experiment.release());
+    uint32_t retainedGrant = 0, retainedOperation = 0;
+    CHECK(r.services.lastExperiment(1, retainedGrant, retainedOperation));
+    const unsigned transmitted = r.wire.transmitted;
+    E::RawEvidence raw(r.owner, r.services);
+    r.wire.raw = &raw;
+    E::RawEvidencePlan plan;
+    plan.review = r.timerPlan(2, L::Tpdo1EventTimerRaw::RAW_0).review;
+    plan.review.plan.id = 1;
+    plan.slot = 1;
+    plan.inventory = E::RawEvidenceInventory::PDO_RECORD;
+    plan.firstAuthorizationId = 1000;
+    // Exact retained failure: begin admits, but a stale cross-producer operation/grant sends nothing.
+    CHECK(raw.begin(plan, r.now) == E::EvidenceAdmission::ACCEPTED);
+    CHECK(raw.service(r.now));
+    CHECK(raw.record()->failure == E::RawEvidenceFailure::AUTHORIZATION);
+    CHECK(!raw.record()->terminalCount && !raw.record()->trafficCount &&
+          r.wire.transmitted == transmitted);
+    CHECK(raw.release());
+    const uint32_t floors[] = {1000, 4000};
+    for (uint32_t floor : floors) {
+        uint32_t operation = 0, first = floor;
+        CHECK(E::reserveRawExperimentIds(r.services, 2, operation, first, 9));
+        CHECK(operation == retainedOperation + 1 && first == retainedGrant + 1);
+        plan.review.plan.id = operation;
+        plan.firstAuthorizationId = first;
+        CHECK(raw.begin(plan, r.now) == E::EvidenceAdmission::ACCEPTED);
+        for (unsigned turn = 0; turn < 100 && !raw.record()->terminal; ++turn) {
+            r.turn(r.now + 1);
+            CHECK(raw.service(r.now));
+        }
+        CHECK(raw.record()->terminal && raw.record()->failure == E::RawEvidenceFailure::NONE);
+        CHECK(raw.record()->terminalCount == 9 && raw.record()->trafficCount == 27);
+        CHECK(raw.record()->terminals[0].service.transfer.operation == operation);
+        CHECK(raw.release());
+        CHECK(r.services.lastExperiment(1, retainedGrant, retainedOperation));
+        CHECK(retainedOperation == operation && retainedGrant == first + 8);
+    }
+    uint32_t operation = 20000, first = 20000;
+    CHECK(E::reserveRawExperimentIds(r.services, 2, operation, first, 26));
+    CHECK(operation == 20001 && first == 20000); // A larger existing floor remains intact.
+    for (unsigned invalid = 0; invalid < 5; ++invalid) {
+        operation = invalid == 0 ? UINT32_MAX : 7;
+        first = invalid == 1 ? 0 : invalid == 2 ? UINT32_MAX - 24 : 1000;
+        const uint32_t oldOperation = operation, oldFirst = first;
+        CHECK(!E::reserveRawExperimentIds(r.services, invalid == 3 ? 3 : 2, operation,
+                                          first, invalid == 4 ? 0 : 26));
+        CHECK(operation == oldOperation && first == oldFirst);
+    }
+    operation = 7;
+    CHECK(!E::reserveRawExperimentIds(r.services, 2, operation, operation, 1) && operation == 7);
+    // Retained authoritative exhaustion cannot be undone by releasing either collector.
+    C::SdoTransfer finalGrant;
+    finalGrant.channel = *r.services.channel(1);
+    finalGrant.operation = finalGrant.request = UINT32_MAX;
+    finalGrant.step = 1;
+    finalGrant.index = 0x1800;
+    finalGrant.subindex = 1;
+    finalGrant.size = 4;
+    finalGrant.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+    finalGrant.deadlineUs = r.now + 5000000;
+    finalGrant.queueTimeoutUs = finalGrant.responseTimeoutUs = 250000;
+    CHECK(r.services.authorizeUploadExperiment(1, finalGrant,
+          r.services.node(1)->route.generation, UINT32_MAX, r.now));
+    r.services.clearUploadExperiment(1);
+    operation = 0;
+    first = 1000;
+    CHECK(!E::reserveRawExperimentIds(r.services, 2, operation, first, 26));
+    CHECK(operation == 0 && first == 1000 && r.wire.transmitted == transmitted + 18);
+}
 void transmissionExperimentRefusalsAndUnknownEffects() {
     for (unsigned which = 0; which < 7; ++which) {
         Rig r;
@@ -1216,6 +1295,7 @@ int main() {
     serviceAgeOnlyForAdmission();
     transmissionExperimentAndRestoration();
     continuationAfterHigherExperimentIds();
+    rawContinuationAfterAnotherProducer();
     transmissionExperimentRefusalsAndUnknownEffects();
     std::printf("pdo_experiment_test: %u checks passed\n", checks);
 }

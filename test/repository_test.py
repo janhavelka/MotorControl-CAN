@@ -18,6 +18,8 @@ import check_repository as checker
 
 # Independent fixture inventory: deleting a checker rule must not weaken tests.
 FILES = {
+    "examples/s2_bench/BenchRouteNmt.h", "examples/s2_bench/BenchRouteNmt.cpp",
+    "scripts/sync_watch.py", "test/sync_watch_test.py",
     "test/combined_contract_test.cpp", "test/installed_consumer/core.cpp",
     "include/MotorControlCAN/Capabilities.h",
     "include/MotorControlCAN/Native.h",
@@ -226,6 +228,7 @@ class RepositoryTests(unittest.TestCase):
                 ("planning_integrity", "scripts/check_promptset.py", []),
                 ("version_contract", "test/version_test.py", []),
                 ("bench_console_native", "test/bench_console_native_test.py", [str(self.build / "native" / ("native_probe" + suffix))]),
+                ("sync_watch_contract", "test/sync_watch_test.py", [str(self.build / "test" / ("pdo_watch_test" + suffix))]),
                 ("bench_console_contract", "test/bench_console_test.py", []),
                 ("bench_console_adversarial", "test/bench_console_adversarial_test.py", []),
                 ("bench_probe_cli", "test/bench_probe_cli_test.py", []),
@@ -362,6 +365,13 @@ class RepositoryTests(unittest.TestCase):
         target = next(test for test in self.tests if test["name"] == "console_protocol")
         target["command"][4] = str(self.root / "wrong_motion_test")
         self.assert_failure("wrong Python command for test/console_protocol_test.py", True)
+
+    def test_compact_watch_requires_real_native_producer(self):
+        target = next(test for test in self.tests if test["name"] == "sync_watch_contract")
+        target["command"][2] = str(self.root / "copied_watch_fixture")
+        self.assert_failure("wrong Python command for test/sync_watch_test.py", True)
+        target["command"].pop()
+        self.assert_failure("wrong Python command for test/sync_watch_test.py", True)
 
     def test_python_client_requires_real_native_console_producer(self):
         target = next(test for test in self.tests if test["name"] == "bench_console_native")

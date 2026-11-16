@@ -1,0 +1,20 @@
+{
+  "name": "package",
+  "command": [
+    "C:\\Users\\Honza\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\test\\package_test.py",
+    "--cmake",
+    "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\cmake.EXE",
+    "--compiler",
+    "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\g++.EXE",
+    "--work-dir",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p54-final-drain\\20261116T054217872315Z-41696-vje0te9_\\package"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p54-final-drain\\20261116T054217872315Z-41696-vje0te9_\\17_package.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 29.36
+}
+
+PASS: exported source/Markdown links, README workflow, independent headers, C++11/C++17/no-RTTI, relocated install, isolated native applications, missing dependency, IDF CMake boundary

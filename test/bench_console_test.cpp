@@ -592,7 +592,8 @@ void testArmingAndMove() {
     armed(*r, trial);
     CHECK(r->driver.requests.size() - first == 27); // Identity and two full reads, as a relative MOVE.
     CHECK(has(r->notices, "CONSOLE armed node=1 trial=") &&
-          has(r->notices, "route=arm-move relative=1 witness=1 scale=0 origin=0; prerequisites named, nothing sent"));
+          has(r->notices, "route=arm-move relative=1 witness=1 scale=0 origin=0 changes=0 changeRecord=0; ") &&
+          has(r->notices, "prerequisites named, nothing sent"));
     CHECK(r->console.armedNode() == 1 && r->route.motionAdmissions() == routes && r->axis1.reference.nativeKnown);
     // Host intent, then the move while the settled arming record is still held for its dump.
     CHECK(has(r->command("@3 accel 1000", 100), "\"ok\":true"));
@@ -748,8 +749,9 @@ void velocityRig(Rig& r, uint32_t& trial) {
     CHECK(has(r.command("@1 host 0", 100), "\"ok\":true"));
 }
 // The velocity arming line: HALT (1) or QUICK_STOP (2) as the run's stop kind, then the stop budgets.
-std::string velocityArming(uint32_t& trial, unsigned stopKind = 1, const char* budgets = "1500,1500,500") {
-    return "B1," + id(trial) + ",1,6,200,200,5000,351,2," + std::to_string(stopKind) + "," +
+std::string velocityArming(uint32_t& trial, unsigned stopKind = 1, const char* budgets = "1500,1500,500",
+                           unsigned maximumRpm = 6) {
+    return "B1," + id(trial) + ",1," + std::to_string(maximumRpm) + ",200,200,5000,351,2," + std::to_string(stopKind) + "," +
            std::to_string(DEVICE_TYPE) + "," + std::to_string(HARDWARE) + "," + std::to_string(SOFTWARE) + "," +
            std::to_string(VENDOR) + "," + std::to_string(PRODUCT) + "," + std::to_string(REVISION) + "," +
            std::to_string(MODEL) + "," + std::to_string(FIRMWARE) + "," + budgets;
@@ -779,6 +781,110 @@ void settle(Rig& r) {
         r.turn();
     r.turns(200);
     CHECK(!r.one.velocityActive() && !r.one.stopActive());
+}
+void testExplicitVelocityChangeArming() {
+    for (unsigned allow = 0; allow != 2; ++allow) {
+        scenario = allow ? "velocity-change-explicit-arm" : "velocity-change-closed-arm";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        std::string line = velocityArming(trial, 2, "1500,1500,500", 30);
+        if (allow)
+            line += ",1";
+        CHECK(r->run(line).failure == E::RouteFailure::NONE);
+        r->turns(2);
+        CHECK(has(r->notices, allow ? "changes=1 changeRecord=" : "changes=0 changeRecord=0"));
+        CHECK(has(r->command("@20 velocity 6 rpm native 12000 configured fast", 100), "\"result\":\"accepted\""));
+        for (unsigned n = 0; n < 10000 &&
+             !(r->one.velocityAction().phase == L::VelocityPhase::WAITING && r->one.velocityAction().runningPolls); ++n)
+            r->turn();
+        const L::VelocityContext& run = r->one.velocityAction();
+        CHECK(r->one.velocityActive() && run.runningPolls && run.phase == L::VelocityPhase::WAITING);
+        const uint64_t due = run.stopDueUs, deadline = run.deadlineUs;
+        const size_t first = r->driver.requests.size();
+        const std::string changed = r->command("@21 velocity change 1 12 rpm native configured", 100);
+        CHECK(has(changed, allow ? "\"result\":\"accepted\"" : "\"ok\":false"));
+        CHECK(run.change.present == bool(allow) && run.stopDueUs == due && run.deadlineUs == deadline &&
+              run.rate.effectiveNative == 6);
+        if (allow) {
+            CHECK(run.change.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT &&
+                  run.change.evidence.record == trial && !run.change.evidence.rateChangeQualified);
+            CHECK(run.change.rate.effectiveNative == 12 && run.change.serviceEvidencePresent);
+            CHECK(r->downloadsFrom(first) == 1);
+        } else
+            CHECK(r->downloadsFrom(first) == 0);
+        settle(*r);
+        CHECK(!r->one.velocityNeedsStop());
+        if (allow) {
+            CHECK(has(r->command("@22 release 1", 100), "\"ok\":true"));
+            r->release();
+            CHECK(r->run(velocityArming(trial, 2, "1500,1500,500", 30)).failure == E::RouteFailure::NONE);
+            r->turns(2);
+            CHECK(has(r->command("@23 velocity 6 rpm native 12000 configured fast", 100), "\"result\":\"accepted\""));
+            for (unsigned n = 0; n < 10000 &&
+                 !(r->one.velocityAction().phase == L::VelocityPhase::WAITING && r->one.velocityAction().runningPolls); ++n)
+                r->turn();
+            const size_t before = r->driver.requests.size();
+            CHECK(has(r->command("@24 velocity change 2 12 rpm native configured", 100), "\"ok\":false"));
+            CHECK(!r->one.velocityAction().change.present && r->downloadsFrom(before) == 0);
+            settle(*r);
+        }
+    }
+}
+void testExplicitMoveChangeArming() {
+    for (unsigned allow = 0; allow != 2; ++allow) {
+        scenario = allow ? "move-change-explicit-arm" : "move-change-ordinary-rearm-closes";
+        std::unique_ptr<Rig> r(new Rig);
+        r->open();
+        Drive& d = r->driver.drives[0];
+        d.statusBits = true;
+        d.travelReads = 100000; // Manufactured continuing travel, no completion law.
+        uint32_t trial = 0;
+        enabled(*r, trial);
+        CHECK(has(r->command("@1 host 0", 50), "\"ok\":true"));
+        ArmSpec spec;
+        spec.rel = 0;
+        CHECK(r->run(arm(1, trial, spec) + ",1").failure == E::RouteFailure::NONE);
+        r->turns(2);
+        if (!allow) {
+            r->release();
+            CHECK(r->run(arm(1, trial, spec)).failure == E::RouteFailure::NONE);
+            r->turns(2); // A successful ordinary arming must withdraw earlier change permission.
+        }
+        CHECK(has(r->command("@2 accel 500", 50), "\"ok\":true"));
+        CHECK(has(r->command("@3 decel 500", 50), "\"ok\":true"));
+        d.velocity = 30; // Only the fake's post-trigger feedback reports this native running rate.
+        CHECK(r->send("@4 move absolute 800 steps native 30 configured") == E::ConsoleInput::FORWARDED);
+        for (unsigned n = 0; n < 2000 &&
+             !(r->one.moveAction().latest.present && r->one.moveAction().phase == L::MovePhase::WAITING); ++n)
+            r->turn();
+        CHECK(r->one.moveActive() && r->one.moveAction().latest.present);
+        const uint64_t deadline = r->one.moveAction().deadlineUs;
+        size_t first = r->driver.requests.size();
+        const std::string retarget = r->command("@5 move retarget 1 absolute 1600 steps native 30 configured", 30);
+        CHECK(has(retarget, "\"ok\":false") && r->downloadsFrom(first) == 0);
+        for (unsigned n = 0; n < 2000 && r->one.moveAction().phase != L::MovePhase::WAITING; ++n)
+            r->turn();
+        first = r->driver.requests.size();
+        const std::string changed = r->command("@6 move speed 1 60 immediate", 100);
+        CHECK(has(changed, allow ? "\"result\":\"accepted\"" : "\"ok\":false"));
+        CHECK(r->one.moveAction().deadlineUs == deadline);
+        if (allow) {
+            const L::MoveContext& native = r->one.moveAction();
+            CHECK(native.replacementEvidence.gate == L::MoveChangeGate::ATTENDED_EXPERIMENT &&
+                  native.replacementEvidence.record == trial && !native.replacementEvidence.parameterMask &&
+                  !native.replacementEvidence.immediateQualified && !native.replacementEvidence.completionQualified &&
+                  !native.replacementEvidence.stopQualified);
+            CHECK(native.parameters.targetNative == 800 && native.speed.effectiveNative == 60);
+            CHECK(r->one.originalMoveAction().interruption == M::MoveInterruption::REPLACED &&
+                  r->one.originalMoveAction().speed.effectiveNative == 30);
+            CHECK(r->axis1.motion.normalResult(1) && r->axis1.motion.normalResult().id != 1);
+            CHECK(r->downloadsFrom(first) > 0);
+            CHECK(has(r->uart.output, "\"physical_interruption_observed\":false"));
+        } else {
+            CHECK(!r->one.moveAction().relation.originalOperationId && r->downloadsFrom(first) == 0);
+        }
+    }
 }
 // The velocity arming from this fake's released mode 3 standstill, then the console's finite velocity run with
 // its own stop at the due time, counted as a VELOCITY route and its stop.
@@ -1091,6 +1197,8 @@ int main() {
     testConsoleStop();
     testScaleAndMoveby();
     testVelocityArming();
+    testExplicitVelocityChangeArming();
+    testExplicitMoveChangeArming();
     testVelocityCancelRefused();
     testVelocityExplicitStops();
     testRefusedArming();

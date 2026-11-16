@@ -1,0 +1,131 @@
+PONG target=esp32s2 base=947cc5da8cbb0c24799d8114d8b665b38341921f elf=2e0d33ea763bfe22dc9c1856660b388bfd74812f770e905ae48fb108228a4a84 sdk=v5.5.5-dirty running=1 active=1 silent=0 pinsReady=1 soak=0 t=694085418 routes=15 trial=0 motion=6 pdo=7 watch=0 capture=0
+CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540000,"command":"host","ok":true,"status":"OK","wire_work":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540001,"command":"debug","ok":true,"status":"OK","mode":0,"trace_overwritten":223,"trace_pending":0,"trace_dropped":0}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540002,"command":"sync","ok":true,"status":"OK","armed":false,"producer_conflict":false,"retained":false,"active":false,"foreign_observed":false,"foreign_serial":0}
+STATS running=1 inhibited=0 rx=1598 tx=228 dropped=0 errors=0 flags=00000000 stackFree=5960 t=694397422 txRej=0 rxLost=0 unmatched=3 traceOver=223 ownerGap=6004 conRej=8252
+PDOW admitted seconds=15; copies received frames, sends nothing
+PDOW_BEGIN n=0 t=694464426 seconds=15 ring=32 ids=16 compact=1 origin=694463744
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540003,"command":"sync","ok":true,"status":"OK"}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540004,"command":"sync","ok":true,"status":"OK","result":"accepted","operation_id":1}
+PC 1,182,2139c,4a4,1c4,504003428d0000,4d0e
+PC 2,181,213d6,4de,1c4,508003e7570000,652c
+PC 3,182,395a0,3f2,1c4,504003428d0000,e7ea
+PC 4,181,395de,430,1c4,508003e7570000,ea51
+PC 5,181,5183f,3d9,1c4,508003e7570000,e8d2
+PC 6,182,5187b,415,1c4,504003428d0000,9625
+PC 7,182,6a2de,3f0,1c4,504003428d0000,02fa
+PC 8,181,6a31b,42d,1c4,508003e7570000,f702
+PC 9,701,6ec3f,334,44,05,04e3
+PC a,181,82586,3e0,1c4,508003e7570000,caa1
+PC b,182,825c3,41d,1c4,504003428d0000,8c3f
+PC c,181,9b02e,400,1c4,508003e7570000,0cf3
+PC d,182,9b067,439,1c4,504003428d0000,7a7d
+PC e,181,b32c9,3e3,1c4,508003e7570000,9ed8
+PC f,182,b3306,420,1c4,504003428d0000,8fe6
+PC 10,702,bf3ae,57d,44,05,e0bf
+PC 11,181,cbd3f,3d1,1c4,508003e7570000,d726
+PC 12,182,cbd7b,40d,1c4,504003428d0000,2213
+PC 13,181,e400e,3e8,1c4,508003e7570000,a5f5
+PC 14,182,e404c,426,1c4,504003428d0000,3579
+PDOW_SUM n=21 t=695465416 frames=20 printed=20 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=4
+PC 16,181,fca81,3d3,1c4,508003e7570000,d1d4
+PC 17,182,fcabe,410,1c4,504003428d0000,1779
+PC 18,182,114d37,3d1,1c4,504003428d0000,c87a
+PC 19,181,114d72,40c,1c4,508003e7570000,c855
+PC 1a,181,12d7c4,3d6,1c4,508003e7570000,a65e
+PC 1b,182,12d801,413,1c4,504003428d0000,19da
+PC 1c,182,145a7d,3d7,1c4,504003428d0000,1845
+PC 1d,181,145ab9,413,1c4,508003e7570000,2cf0
+PC 1e,182,15e502,3d4,1c4,504003428d0000,3f33
+PC 1f,181,15e53e,410,1c4,508003e7570000,b801
+PC 20,701,16318c,641,44,05,d83b
+PC 21,181,1767c1,3db,1c4,508003e7570000,b8c2
+PC 22,182,1767fe,418,1c4,504003428d0000,3d41
+PC 23,181,18f262,3f4,1c4,508003e7570000,71cb
+PC 24,182,18f2a1,433,1c4,504003428d0000,dbce
+PC 25,181,1a74fe,3d8,1c4,508003e7570000,0d16
+PC 26,182,1a753a,414,1c4,504003428d0000,6a8a
+PC 27,702,1b3913,d0,44,05,ef06
+PC 28,181,1bffa1,3f3,1c4,508003e7570000,67ed
+PC 29,182,1bffe0,432,1c4,504003428d0000,e6d3
+PC 2a,181,1d8257,3f1,1c4,508003e7570000,c439
+PC 2b,182,1d8296,430,1c4,504003428d0000,868f
+PDOW_SUM n=44 t=696465416 frames=42 printed=42 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=4
+PC 2d,182,1f0cac,3be,1c4,504003428d0000,c758
+PC 2e,181,1f0ce8,3fa,1c4,508003e7570000,637c
+PC 2f,181,208f93,3ed,1c4,508003e7570000,5853
+PC 30,182,208fd1,42b,1c4,504003428d0000,de1b
+PC 31,181,221a05,3d7,1c4,508003e7570000,2c0d
+PC 32,182,221a42,414,1c4,504003428d0000,ba35
+PC 33,181,239cbb,3d5,1c4,508003e7570000,65cd
+PC 34,182,239cf7,411,1c4,504003428d0000,c821
+PC 35,182,25275c,3ee,1c4,504003428d0000,4fc2
+PC 36,181,252799,42b,1c4,508003e7570000,ab11
+PC 37,701,25770b,1b2,44,05,34d8
+PC 38,181,26a9fd,3d7,1c4,508003e7570000,d909
+PC 39,182,26aa3a,414,1c4,504003428d0000,0783
+PC 3a,181,28349e,3f0,1c4,508003e7570000,dbae
+PC 3b,182,2834dd,42f,1c4,504003428d0000,23a9
+PC 3c,181,29b73a,3d4,1c4,508003e7570000,b857
+PC 3d,182,29b777,411,1c4,504003428d0000,790d
+PC 3e,702,2a7e64,3e1,44,05,8c4a
+PC 3f,181,2b41dc,3ee,1c4,508003e7570000,da10
+PC 40,182,2b421b,42d,1c4,504003428d0000,93a2
+PC 41,181,2cc491,3eb,1c4,508003e7570000,cd84
+PC 42,182,2cc4d0,42a,1c4,504003428d0000,6ef9
+PDOW_SUM n=67 t=697465416 frames=64 printed=64 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=4
+PC 44,181,2e4f03,3d5,1c4,508003e7570000,d71b
+PC 45,182,2e4f3f,411,1c4,504003428d0000,f045
+PC 46,181,2fd1cd,3e7,1c4,508003e7570000,7451
+PC 47,182,2fd20c,426,1c4,504003428d0000,a4d3
+PC 48,181,315c3e,3d0,1c4,508003e7570000,0bee
+PC 49,182,315c7b,40d,1c4,504003428d0000,d86d
+PC 4a,181,32def6,3d0,1c4,508003e7570000,e9ef
+PC 4b,182,32df32,40c,1c4,504003428d0000,f0f8
+PC 4c,181,346997,3e9,1c4,508003e7570000,0ac9
+PC 4d,182,3469d6,428,1c4,504003428d0000,4e27
+PC 4e,701,34bc48,4af,44,05,0210
+PC 4f,181,35ec36,3d0,1c4,508003e7570000,c87b
+PC 50,182,35ec73,40d,1c4,504003428d0000,24db
+PC 51,182,3776bf,3d1,1c4,504003428d0000,e312
+PC 52,181,3776fa,40c,1c4,508003e7570000,4351
+PC 53,181,38f977,3d1,1c4,508003e7570000,7fc7
+PC 54,182,38f9b4,40e,1c4,504003428d0000,03b7
+PC 55,702,39c3ba,6f7,44,05,f3f3
+PC 56,181,3a8030,3ea,1c4,508003e7570000,ddc5
+PC 57,182,3a806e,428,1c4,504003428d0000,4437
+PC 58,181,3c0aa6,3d8,1c4,508003e7570000,f48f
+PC 59,182,3c0ae3,415,1c4,504003428d0000,c2c8
+PDOW_SUM n=90 t=698464416 frames=86 printed=86 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=4
+PC 5b,182,3d8d6a,3e4,1c4,504003428d0000,0543
+PC 5c,181,3d8da6,420,1c4,508003e7570000,85f3
+PC 5d,181,3f17e7,3d9,1c4,508003e7570000,b8aa
+PC 5e,182,3f1824,416,1c4,504003428d0000,ab60
+PC 5f,182,409a98,3d2,1c4,504003428d0000,7f6b
+PC 60,181,409ad4,40e,1c4,508003e7570000,3c24
+PC 61,181,42254a,3fc,1c4,508003e7570000,d6dd
+PC 62,182,422583,435,1c4,504003428d0000,c277
+PC 63,181,43a7e7,3e1,1c4,508003e7570000,0539
+PC 64,182,43a824,41e,1c4,504003428d0000,b4c8
+PC 65,701,440198,3d5,44,05,cba4
+PC 66,181,45325f,3d1,1c4,508003e7570000,aa91
+PC 67,182,45329b,40d,1c4,504003428d0000,1846
+PC 68,181,46b52e,3e8,1c4,508003e7570000,6feb
+PC 69,182,46b56d,427,1c4,504003428d0000,550b
+PC 6a,181,483f9e,3d0,1c4,508003e7570000,4cc0
+PC 6b,182,483fdb,40d,1c4,504003428d0000,6dab
+PC 6c,702,490910,625,44,05,432f
+PC 6d,182,49c282,3fc,1c4,504003428d0000,c115
+PC 6e,181,49c2ba,434,1c4,508003e7570000,e028
+PC 6f,182,4b4ce5,3d7,1c4,504003428d0000,ec08
+PC 70,181,4b4d20,412,1c4,508003e7570000,f99f
+PDOW_SUM n=113 t=699464416 frames=108 printed=108 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=4
+PC 72,181,4ccfb6,3f0,1c4,508003e7570000,5e7e
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":540004,"command":"sync","ok":true,"status":"OK","detail":1,"outcome":"LOCAL_TX","uncertain":true,"command_id":540004,"operation_id":1,"completed_us":"699500195","abort_code":null,"local_tx_count":50,"requested_count":50,"transmission_possible":true,"drive_effect_known":false}
+PC 73,182,4ccff5,42f,1c4,504003428d0000,3a97
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540005,"command":"sync","ok":true,"status":"OK","generation":1,"count":50,"terminals":50,"confirmed":50,"handoffs":50,"origin_us":"694594605","period_us":"100000","handoff_us":["694598426","699496424","98998","101000"],"delay_us":["3821","1997"],"invalid":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":540006,"command":"sync","ok":true,"status":"OK","motor_stop":false}
+PDOW_STOPPING; final summaries follow
+PDOW_ID n=116 t=699731432 id=182 ext=0 count=50 first=694599836 last=699497717 minGap=98820 maxGap=101099 meanGap=99956 sdGap=989 changes=0 dlc=7 data=504003428d0000
+PDOW_ID n=117 t=699733420 id=181 ext=0 count=50 first=694599894 last=699497654 minGap=98824 maxGap=101086 meanGap=99954 sdGap=997 changes=0 dlc=7 data=50800

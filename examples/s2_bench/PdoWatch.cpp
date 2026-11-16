@@ -9,6 +9,7 @@ using MotorControlCANOwner::ReceivedFrame;
 namespace {
 // Watch-time grid of the periodic lines.
 const uint64_t SUM_US = 1000000, ID_US = 10000000;
+const uint64_t FINAL_DRAIN_US = 5000000;
 const uint8_t FLAG_EXTENDED = 1, FLAG_RTR = 2, FLAG_TIMED = 4, FLAG_EXACT = 8;
 
 void add(uint32_t& value, uint32_t amount = 1) noexcept {
@@ -54,6 +55,16 @@ void hex(const uint8_t* data, unsigned length, char (&output)[17]) noexcept {
     }
     output[2 * length] = 0;
 }
+// CRC-16/CCITT-FALSE of the exact ASCII prefix/body, excluding the CRC separator and LF.
+uint16_t crc16(const char* text, size_t size) noexcept {
+    uint16_t value = 0xffff;
+    for (size_t i = 0; i < size; ++i) {
+        value ^= uint16_t(uint8_t(text[i])) << 8;
+        for (unsigned bit = 0; bit < 8; ++bit)
+            value = uint16_t((value << 1) ^ ((value & 0x8000) ? 0x1021 : 0));
+    }
+    return value;
+}
 } // namespace
 
 PdoWatch::PdoWatch(SoakTwaiTap& tap, const PdoWatchOutput& output) noexcept
@@ -71,7 +82,7 @@ PdoWatch::~PdoWatch() {
         tap_.copyReceives(nullptr);
 }
 
-PdoWatchAdmission PdoWatch::begin(uint32_t seconds, uint64_t now) noexcept {
+PdoWatchAdmission PdoWatch::begin(uint32_t seconds, uint64_t now, bool compact) noexcept {
     if (active())
         return PdoWatchAdmission::BUSY;
     // Room for the end and for the next ID tick after it, so no schedule time can wrap.
@@ -81,6 +92,7 @@ PdoWatchAdmission PdoWatch::begin(uint32_t seconds, uint64_t now) noexcept {
     std::memset(static_cast<void*>(&s_), 0, sizeof s_);
     s_.phase = PHASE_RUNNING;
     s_.seconds = seconds;
+    s_.compact = compact;
     s_.startUs = s_.lastUs = now;
     s_.endUs = now + uint64_t(seconds) * 1000000u;
     s_.nextSumUs = now + SUM_US;
@@ -190,12 +202,15 @@ void PdoWatch::schedule(uint64_t now) noexcept {
     }
 }
 
-void PdoWatch::finish() noexcept {
+void PdoWatch::finish(uint64_t now) noexcept {
     tap_.copyReceives(nullptr);
     // Queued F lines would follow PDOW_END: they are counted instead, so that at the end
     // printed + unprinted is frames.
-    add(s_.unprinted, s_.printCount);
-    s_.printCount = 0;
+    if (!s_.compact) {
+        add(s_.unprinted, s_.printCount);
+        s_.printCount = 0;
+    }
+    s_.finalDeadlineUs = now > UINT64_MAX - FINAL_DRAIN_US ? UINT64_MAX : now + FINAL_DRAIN_US;
     s_.idRound = true; // The final round restarts from the first identifier.
     s_.idCursor = 0;
     s_.endPending = true;
@@ -214,6 +229,11 @@ bool PdoWatch::select() noexcept {
     } else if (s_.idRound) {
         s_.line = LINE_ID;
         s_.idIndex = s_.idCursor++;
+    } else if (s_.compact && s_.phase == PHASE_FINAL && s_.printCount) {
+        s_.line = LINE_FRAME;
+        s_.frame = s_.prints[s_.printHead];
+        s_.printHead = uint8_t((s_.printHead + 1) % PDO_WATCH_PRINTS);
+        --s_.printCount;
     } else if (s_.endPending) {
         s_.endPending = false;
         s_.line = LINE_END;
@@ -248,7 +268,12 @@ void PdoWatch::format(uint64_t now) noexcept {
     char data[17];
     switch (s_.line) {
     case LINE_BEGIN:
-        put("PDOW_BEGIN n=%lu t=%llu seconds=%lu ring=%u ids=%u\n", n, t,
+        if (s_.compact)
+            put("PDOW_BEGIN n=%lu t=%llu seconds=%lu ring=%u ids=%u compact=1 origin=%llu\n", n, t,
+                static_cast<unsigned long>(s_.seconds), unsigned(ReceiveRing::CAPACITY),
+                unsigned(PDO_WATCH_IDS), static_cast<unsigned long long>(s_.startUs));
+        else
+            put("PDOW_BEGIN n=%lu t=%llu seconds=%lu ring=%u ids=%u\n", n, t,
             static_cast<unsigned long>(s_.seconds), unsigned(ReceiveRing::CAPACITY),
             unsigned(PDO_WATCH_IDS));
         return;
@@ -285,6 +310,26 @@ void PdoWatch::format(uint64_t now) noexcept {
     case LINE_FRAME: {
         const Print& f = s_.frame;
         hex(f.data, f.length, data);
+        if (s_.compact) {
+            const bool timed = (f.flags & FLAG_TIMED) != 0;
+            const bool before = timed && f.highUs < s_.startUs;
+            const bool reversed = timed && f.lowUs > f.highUs;
+            const uint64_t offset = !timed ? 0 : before ? s_.startUs - f.highUs : f.highUs - s_.startUs;
+            const uint64_t width = !timed ? 0 : reversed ? f.lowUs - f.highUs : f.highUs - f.lowUs;
+            const unsigned meta = unsigned(f.flags) | (before ? 16u : 0u) | (reversed ? 32u : 0u) |
+                                  (unsigned(f.dlc) << 6);
+            put("PC %lx,%lx,%llx,%llx,%x,%s", n, static_cast<unsigned long>(f.id),
+                static_cast<unsigned long long>(offset), static_cast<unsigned long long>(width), meta, data);
+            if (length_ && text_[length_ - 1] != '\n') {
+                const uint16_t checksum = crc16(text_, length_);
+                const int added = std::snprintf(text_ + length_, sizeof text_ - length_, ",%04x\n", unsigned(checksum));
+                if (added > 0 && size_t(added) < sizeof text_ - length_)
+                    length_ += size_t(added);
+                else
+                    put("OUTPUT_FORMAT_ERROR; evidence incomplete\n");
+            }
+            return;
+        }
         put("PDOW_F n=%lu t=%llu id=%lx ext=%u rtr=%u dlc=%u data=%s timed=%u exact=%u lo=%llu "
             "hi=%llu gap=%llu\n",
             n, t, static_cast<unsigned long>(f.id), unsigned((f.flags & FLAG_EXTENDED) != 0),
@@ -323,9 +368,19 @@ void PdoWatch::service(uint64_t now, bool holdOutput) noexcept {
         record(received_);
     if (s_.phase == PHASE_RUNNING) {
         if (s_.stopRequested || now >= s_.endUs)
-            finish();
+            finish(now);
         else
             schedule(now);
+    }
+    if (s_.compact && s_.phase == PHASE_FINAL && now >= s_.finalDeadlineUs) {
+        // A stalled sink cannot keep the raw tail alive indefinitely. The retained
+        // END still waits for room and reports every frame discarded at this cutoff.
+        if (s_.selected && s_.line == LINE_FRAME) {
+            add(s_.unprinted);
+            s_.selected = false;
+        }
+        add(s_.unprinted, s_.printCount);
+        s_.printCount = 0;
     }
     if (!holdOutput)
         emit(now);

@@ -112,8 +112,8 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
                              "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop", "mode-probe",
-                             "position-change", "velocity-change"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_CHANGE) + 1, "one name per route");
+                             "position-change", "velocity-change", "velocity-nmt"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_NMT) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -125,9 +125,9 @@ bool isMotion(RouteKind kind) {
     return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) ||
            (kind >= RouteKind::RELEASED_QUICK && kind <= RouteKind::RELATIVE) || kind == RouteKind::COUNTER_ZERO ||
            kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY ||
-           kind == RouteKind::CONTROLWORD || kind == RouteKind::POSITION_CHANGE || kind == RouteKind::VELOCITY_CHANGE;
+           kind == RouteKind::CONTROLWORD || kind == RouteKind::POSITION_CHANGE || kind == RouteKind::VELOCITY_CHANGE || kind == RouteKind::VELOCITY_NMT;
 }
-bool isVelocity(RouteKind kind) { return kind == RouteKind::VELOCITY || kind == RouteKind::VELOCITY_CHANGE; }
+bool isVelocity(RouteKind kind) { return kind == RouteKind::VELOCITY || kind == RouteKind::VELOCITY_CHANGE || kind == RouteKind::VELOCITY_NMT; }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 // The library's settings transactions: one candidate, its writes and its readback, with a configuration
 // epoch advance. SUBDIVISION is prompt 59's 2201 write, LOOP protocol 13's 2500 write.
@@ -512,8 +512,9 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'l', RouteKind::LOOP, LOOP_FIELDS, countOf(LOOP_FIELDS)},
                                 {'m', RouteKind::MODE_PROBE, MODE_PROBE_FIELDS, countOf(MODE_PROBE_FIELDS)},
                                 {'p', RouteKind::POSITION_CHANGE, CHANGE_FIELDS, countOf(CHANGE_FIELDS)},
-                                {'v', RouteKind::VELOCITY_CHANGE, VELOCITY_CHANGE_FIELDS, countOf(VELOCITY_CHANGE_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_CHANGE), "one grammar per route");
+                                {'v', RouteKind::VELOCITY_CHANGE, VELOCITY_CHANGE_FIELDS, countOf(VELOCITY_CHANGE_FIELDS)},
+                                {'n', RouteKind::VELOCITY_NMT, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_NMT), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -674,6 +675,7 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::MODE_PROBE:
         // Two full reads, the 6060 write, then a full first cycle and image cycles.
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
+    case RouteKind::VELOCITY_NMT:
     case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         // Identity and full read; 60FF, 6083, 6084; 6, 7, 15, each followed by one seven-field cycle; at
@@ -728,6 +730,7 @@ uint32_t durationBound(const RoutePlan& p) {
         return p.deadlineMs + (enableStopPlanned(p) ? ENABLE_STOP_MS : 0);
     case RouteKind::COUNTER_ZERO:
     case RouteKind::CLEAR_ALARM:
+    case RouteKind::VELOCITY_NMT:
     case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         return p.deadlineMs;
@@ -780,11 +783,24 @@ bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcep
     plan.kind = grammar->kind;
     const char* p = text + 1;
     const char* end = text + size;
+    const bool arm = plan.kind == RouteKind::ARM_MOVE || plan.kind == RouteKind::ARM_VELOCITY;
+    unsigned commas = 0;
+    for (const char* q = p; q != end; ++q)
+        commas += *q == ',';
+    const bool extra = arm && commas == grammar->count;
     for (unsigned i = 0; i < grammar->count; ++i) {
         int64_t value = 0;
-        if (!field(p, end, grammar->fields[i], i + 1 == grammar->count, value))
+        if (!field(p, end, grammar->fields[i], i + 1 == grammar->count && !extra, value))
             return false;
         store(plan, grammar->fields[i], value);
+    }
+    if (extra) {
+        int64_t value = 0;
+        const Field allow = {uint16_t(offsetof(RoutePlan, allowChanges)),
+                             uint8_t(sizeof(plan.allowChanges)), 0, 1};
+        if (!field(p, end, allow, true, value))
+            return false;
+        store(plan, allow, value);
     }
     if (!routePlanValid(plan))
         return false;
@@ -804,6 +820,8 @@ bool routePlanValid(const RoutePlan& p) noexcept {
         if (value < f.low || value > f.high)
             return false;
     }
+    if (p.allowChanges && p.kind != RouteKind::ARM_MOVE && p.kind != RouteKind::ARM_VELOCITY)
+        return false;
     switch (p.kind) {
     case RouteKind::POSITION_CHANGE: {
         const bool field = p.changeCase == 1 || p.changeCase == 5 ? p.changeValue >= 1 && p.changeValue <= 3000
@@ -835,13 +853,17 @@ bool routePlanValid(const RoutePlan& p) noexcept {
         return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && base &&
                (!p.relativeBase || p.target) && p.observer != p.node && stopPolicyValid(p, 16);
     }
+    case RouteKind::VELOCITY_NMT:
     case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         // The duration starts at preparation and must end before the run's deadline; ZH57 is no 86C
         // dialect, which the library refuses too. Above the documented 3000 rpm only as the prompt 59 range
         // probe, whose ramps the library requires at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS: refused
         // here as the library would refuse it, before the line is counted.
-        return (p.kind != RouteKind::VELOCITY_CHANGE ||
+        return (p.kind != RouteKind::VELOCITY_NMT ||
+                (p.rpm >= 6 && p.rpm <= 30 && !p.rangeProbe && !p.reverse && p.stopKind == 2 &&
+                 p.intervalMs >= 4000 && p.trial <= (UINT32_MAX - 1u) / 2u)) &&
+               (p.kind != RouteKind::VELOCITY_CHANGE ||
                 (p.newPositiveRpm >= 1 && p.newPositiveRpm <= L::VELOCITY_EXPERIMENT_MAXIMUM_RPM &&
                  p.rpm <= L::VELOCITY_EXPERIMENT_MAXIMUM_RPM && !p.rangeProbe && !p.reverse &&
                  p.changeAfterMs < p.durationMs)) &&
@@ -1186,6 +1208,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.settingsPrepared = r.settingsNoop = r.settingsEffects = r.settingsUncertain = false;
     r.settingsState = r.settingsOutcome = 0;
     r.settingsChanged = r.settingsConfirmed = 0;
+    r.velocityNmt = NmtVelocityRecord();
+    r.velocityNmtOffered = false;
     r.configurationBefore = r.configurationAfter = 0;
     r.configurationFollowed = false;
     r.groupPresent[0] = r.groupPresent[1] = false;
@@ -1376,8 +1400,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
-                                  subdivision, controlword, loop, modeProbe, positionChange, velocity};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_CHANGE) + 1,
+                                  subdivision, controlword, loop, modeProbe, positionChange, velocity, velocity};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_NMT) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1614,6 +1638,11 @@ uint64_t BenchRoute::withdrawalTime(uint64_t now) const noexcept {
 void BenchRoute::service(uint64_t now) noexcept {
     if (!occupied_ || now < lastUs_)
         return;
+    if (record_->plan.kind == RouteKind::VELOCITY_NMT && record_->velocityRequested) {
+        serviceNmtVelocity(record_->velocityNmt, axis(), firmware_.owner(), services_, now);
+        if (record_->velocityNmt.failure != NmtVelocityFailure::NONE)
+            endAfterSettling(RouteFailure::OBSERVATION, "velocity-nmt");
+    }
     if (record_->terminal) {
         capture(true);
         noteEmcyHandled();
@@ -1719,7 +1748,7 @@ const char* BenchRoute::abort(uint64_t now) noexcept {
     return nullptr;
 }
 bool BenchRoute::release() noexcept {
-    if (!occupied_ || !record_->terminal || pending_ || observerPending_ || !firmware_.owner().localTxRetired(slot()))
+    if (!occupied_ || !record_->terminal || record_->velocityNmt.pending.owner || pending_ || observerPending_ || !firmware_.owner().localTxRetired(slot()))
         return false;
     occupied_ = false;
     return true;
@@ -3906,11 +3935,26 @@ void BenchRoute::serviceAction(uint64_t now) noexcept {
                 endAfterSettling(RouteFailure::REFUSED, "velocity-change");
             }
         }
+        if (record_->plan.kind == RouteKind::VELOCITY_NMT && !record_->velocityNmtOffered &&
+            running.state == M::ActionState::ACTIVE && running.phase == L::VelocityPhase::WAITING &&
+            running.observation == L::VelocityObservation::RUNNING && running.runningPolls) {
+            record_->velocityNmtOffered = true;
+            if (!firmware_.owner().localTxRetired(slot()) ||
+                !prepareNmtVelocity(record_->velocityNmt, axis(), services_, record_->plan.trial, now)) {
+                record_->velocityNmt.phase = NmtVelocityPhase::DONE;
+                record_->velocityNmt.failure = NmtVelocityFailure::WINDOW;
+                endAfterSettling(RouteFailure::PREREQUISITE, "nmt-window");
+            }
+        }
         // The run, then the stop it asked for, settle in the session; a stop still in flight ends first.
         if (axis().velocityActive() || axis().stopActive())
             return;
         const L::VelocityContext& v = axis().velocityAction();
         record_->cycles = uint16_t(v.observations > UINT16_MAX ? UINT16_MAX : v.observations);
+        if (record_->plan.kind == RouteKind::VELOCITY_NMT &&
+            (!record_->velocityNmtOffered || record_->velocityNmt.phase != NmtVelocityPhase::DONE ||
+             !record_->velocityNmt.after.present))
+            endAfterSettling(RouteFailure::OBSERVATION, "nmt-observation");
         if (record_->plan.kind == RouteKind::VELOCITY_CHANGE && !record_->velocityChangeAttempted)
             endAfterSettling(RouteFailure::REFUSED, "change-window");
         // Backlog S16 (trial 1009 left node 1 turning until the attendant opened the cutoff): a run whose
@@ -4169,6 +4213,8 @@ unsigned BenchRoute::summaryCount() const noexcept {
     // five kept samples.
     if (isVelocity(r.plan.kind))
         count += 1 + (r.velocityRequested ? 3 + VELOCITY_SAMPLES : 0);
+    if (r.plan.kind == RouteKind::VELOCITY_NMT)
+        count += 5;
     if (r.plan.kind == RouteKind::POSITION_CHANGE || r.plan.kind == RouteKind::VELOCITY_CHANGE)
         ++count;
     if (r.plan.kind == RouteKind::MOVE)
@@ -4185,7 +4231,8 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     const RoutePlan& p = r.plan;
     if (index == 0) {
         switch (p.kind) {
-        case RouteKind::VELOCITY_CHANGE:
+        case RouteKind::VELOCITY_NMT:
+    case RouteKind::VELOCITY_CHANGE:
         case RouteKind::VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu dur=%lu interval=%lu "
@@ -4315,7 +4362,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         case RouteKind::ARM_MOVE:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld interval=%lu record=%lu as=%u am=%04x "
-                       "av=%04x cs=%u cm=%04x cv=%04x rule=%u rel=%u base=%ld sd=%lu be=%lu si=%lu\n",
+                       "av=%04x cs=%u cm=%04x cv=%04x rule=%u rel=%u base=%ld sd=%lu be=%lu si=%lu changes=%u\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<long>(p.startPosition),
                        static_cast<unsigned long>(p.intervalMs), static_cast<unsigned long>(p.record),
@@ -4323,17 +4370,17 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(p.completeSource), unsigned(p.completeMask), unsigned(p.completeValue),
                        unsigned(p.rule), unsigned(p.relativeBase), static_cast<long>(p.base),
                        static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
-                       static_cast<unsigned long>(p.stopIntervalMs));
+                       static_cast<unsigned long>(p.stopIntervalMs), unsigned(p.allowChanges));
         case RouteKind::ARM_VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu interval=%lu "
-                       "record=%lu layout=%u kind=%u sd=%lu be=%lu si=%lu\n",
+                       "record=%lu layout=%u kind=%u sd=%lu be=%lu si=%lu changes=%u\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
                        static_cast<unsigned long>(p.intervalMs), static_cast<unsigned long>(p.record),
                        unsigned(p.layout), unsigned(p.stopKind), static_cast<unsigned long>(p.stopDeadlineMs),
-                       static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.stopIntervalMs));
+                       static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.stopIntervalMs), unsigned(p.allowChanges));
         default:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended));
@@ -4715,6 +4762,32 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
             }
             index -= VELOCITY_SAMPLES;
         }
+    }
+    if (p.kind == RouteKind::VELOCITY_NMT) {
+        const NmtVelocityRecord& n = r.velocityNmt;
+        if (!index--)
+            return put(out, size, "TRIAL_NMT offered=%u phase=%u failure=%u start=%llu stopEnd=%llu preopEnd=%llu resume=%llu due=%llu end=%llu\n",
+                unsigned(r.velocityNmtOffered), unsigned(n.phase), unsigned(n.failure),
+                static_cast<unsigned long long>(n.startedUs), static_cast<unsigned long long>(n.stopEndUs),
+                static_cast<unsigned long long>(n.preopEndUs), static_cast<unsigned long long>(n.resumeUs),
+                static_cast<unsigned long long>(n.stopDueUs), static_cast<unsigned long long>(n.deadlineUs));
+        if (index < 2) {
+            const C::NmtCompletion& c = n.result[index];
+            return put(out, size, "TRIAL_NMT_STEP which=%u attempted=%u terminal=%u outcome=%u possible=%u confirmed=%u request=%lu deadline=%llu completed=%llu observed=%llu\n",
+                index, unsigned(n.attempted[index]), unsigned(n.terminal[index]), unsigned(c.outcome),
+                unsigned(c.transmissionPossible), unsigned(c.transmissionConfirmed),
+                static_cast<unsigned long>(c.transfer.request), static_cast<unsigned long long>(c.transfer.deadlineUs),
+                static_cast<unsigned long long>(c.completedUs), static_cast<unsigned long long>(index ? n.preoperationalUs : n.stoppedUs));
+        }
+        index -= 2;
+        if (index < 2) {
+            const L::VelocitySample& a = index ? n.after : n.before;
+            return put(out, size, "TRIAL_NMT_SAMPLE which=%u present=%u cycle=%lu status=%04x monitor=%04x mode=%02x position=%ld velocity=%ld lo=%llu hi=%llu\n",
+                index, unsigned(a.present), static_cast<unsigned long>(a.cycle), unsigned(a.statusword), unsigned(a.monitor),
+                unsigned(a.modeRaw), static_cast<long>(a.position), static_cast<long>(a.velocity),
+                static_cast<unsigned long long>(a.earliestUs), static_cast<unsigned long long>(a.latestUs));
+        }
+        index -= 2;
     }
     if (p.kind == RouteKind::VELOCITY_CHANGE && !index--) {
         const L::VelocityContext& run = axis().velocityAction();

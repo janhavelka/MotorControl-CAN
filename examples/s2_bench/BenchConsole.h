@@ -88,7 +88,10 @@ struct BenchAxis {
     MotorControlCAN::LICHUAN_C::IdentityObservation armedIdentity;
     uint32_t armedTrial = 0; ///< Zero before a successful arming; never an observation refresh.
     RouteKind armedKind = RouteKind::NONE; ///< Exact prerequisite acquisition kind.
-    ProbeMotion motion; ///< Over the bench route's own session of that node.
+    /** Over the bench route's own session. Only an explicit TY/TB allowChanges flag installs
+     * ATTENDED_EXPERIMENT change prerequisites, scoped to that fresh arming trial/firmware;
+     * every ordinary rearming closes both change kinds. No feedback relation is invented. */
+    ProbeMotion motion;
     /** @param firmware The assembly. @param session The route's session of this node, attached to it. */
     BenchAxis(FirmwareProbe& firmware, AxisSession& session) noexcept
         : motion(firmware.app(), firmware.owner(), session, target, axis, reference) {}

@@ -44,7 +44,7 @@
  * their number, which is (last-first)/(timed frames-1) for in-order times) and population standard
  * deviation, the number of data changes (dlc, RTR or payload differs from the identifier's
  * previous frame) and the last frame's dlc and data. Gap fields are 0 before an identifier has two
- * timed frames. sdGap is 4294967295 when the gaps sum to more than 2^32-1 us, which no 600 s watch
+ * timed frames. sdGap is 4294967295 when the gaps sum to more than 2^32-1 us, which no 3600 s watch
  * of in-order times reaches. END: reason duration or stop and the final totals.
  *
  * frames counts watched frames, printed their F lines written, unprinted those with no F line
@@ -54,6 +54,18 @@
  * lines but no statistics) and ids the identifiers with statistics. Counters saturate at
  * UINT32_MAX. tapDropped above zero means frames the watch never saw, so every statistic is
  * incomplete; unprinted above zero means F lines are missing while the statistics stay complete.
+ *
+ * Explicit compact mode replaces only F lines with:
+ * `PC n,id,offset,width,meta,data,crc` (lower-case hex, no 0x; data is hex or -).
+ * BEGIN adds compact=1 and origin, the actual start time. n is the same global
+ * output sequence. offset is abs(hi-origin), width abs(hi-lo), both full uint64.
+ * meta bits 0..5 mean extended, RTR, timed, exact, hi<origin and lo>hi; bits6..9
+ * hold DLC. Untimed records use zero offset/width without sign flags. The last
+ * field is four hex digits: CRC-16/CCITT-FALSE of every ASCII byte before its
+ * preceding comma. Each record reconstructs independently after a missing line.
+ * The compact raw tail drains before END for at most five seconds, then any
+ * remaining frames count as unprinted. END itself still requires output room;
+ * a host must fail its finite capture if that terminal cannot be delivered.
  */
 #pragma once
 #include "Soak.h"
@@ -77,7 +89,7 @@ enum class PdoWatchAdmission : uint8_t {
 enum {
     PDO_WATCH_IDS = 16,        ///< Distinct (identifier, extended) pairs with statistics.
     PDO_WATCH_PRINTS = 32,     ///< Frames waiting for their PDOW_F line.
-    PDO_WATCH_SECONDS = 600,   ///< Longest watch.
+    PDO_WATCH_SECONDS = 3600,  ///< Longest watch; finite, below the 32-bit in-order gap-sum range.
     PDO_WATCH_LINE_BYTES = 320 ///< Line buffer. The longest line, PDOW_ID with every field at its
                                ///< type's maximum, is 283 bytes; a longer one is never cut.
 };
@@ -103,9 +115,10 @@ class PdoWatch {
      * object and queues PDOW_BEGIN.
      * @param seconds Watch time, 1..PDO_WATCH_SECONDS.
      * @param nowUs Monotonic microseconds; the watch ends at the first call at nowUs + seconds.
+     * @param compact Explicit compact frame format, false preserves legacy verbose output.
      * @return ACCEPTED only when the watch runs.
      */
-    PdoWatchAdmission begin(uint32_t seconds, uint64_t nowUs) noexcept;
+    PdoWatchAdmission begin(uint32_t seconds, uint64_t nowUs, bool compact = false) noexcept;
     /** One call: take every copy waiting at the tap, update the statistics, end the watch when
      * due, and write at most one line. Call on the owner task after each owner service turn.
      * @param nowUs Monotonic microseconds; an earlier value than the last call's is ignored, and
@@ -122,6 +135,8 @@ class PdoWatch {
     bool requestStop() noexcept;
     /** @return True from an accepted begin until PDOW_END has been written. */
     bool active() const noexcept { return s_.phase != PHASE_IDLE; }
+    /** @return True while a compact watch is collecting or awaiting its final output. */
+    bool compactActive() const noexcept { return active() && s_.compact; }
 
   private:
     enum Phase : uint8_t { PHASE_IDLE, PHASE_RUNNING, PHASE_FINAL };
@@ -145,10 +160,10 @@ class PdoWatch {
     struct State {
         Phase phase;
         Line line; // Kind of the selected line.
-        bool selected, beginPending, sumPending, idRound, endPending, stopRequested;
+        bool selected, beginPending, sumPending, idRound, endPending, stopRequested, compact;
         uint8_t idCursor, idIndex, ids, printHead, printCount;
         uint32_t seconds, sequence, frames, printed, unprinted, untimed, sdo, idOverflow;
-        uint64_t startUs, endUs, lastUs, nextSumUs, nextIdUs;
+        uint64_t startUs, endUs, lastUs, nextSumUs, nextIdUs, finalDeadlineUs;
         Print frame; // The selected F line's frame, out of the queue.
         Print prints[PDO_WATCH_PRINTS];
         IdStats idStats[PDO_WATCH_IDS];
@@ -164,7 +179,7 @@ class PdoWatch {
     void record(const MotorControlCANOwner::ReceivedFrame& in) noexcept;
     IdStats* find(uint32_t id, bool extended) noexcept;
     void schedule(uint64_t nowUs) noexcept;
-    void finish() noexcept;
+    void finish(uint64_t nowUs) noexcept;
     bool select() noexcept;
     void format(uint64_t nowUs) noexcept;
     void emit(uint64_t nowUs) noexcept;

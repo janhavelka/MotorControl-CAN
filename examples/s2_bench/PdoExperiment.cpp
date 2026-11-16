@@ -107,6 +107,19 @@ void refreshExperimentIds(const C::SdoClient& services, unsigned node, uint32_t&
             operation = lastOperation;
     }
 }
+bool reserveRawExperimentIds(const C::SdoClient& services, unsigned node, uint32_t& operation,
+                             uint32_t& firstAuthorization, uint32_t count) noexcept {
+    if (node < 1 || node > 2 || !services.channel(uint8_t(node - 1)) ||
+        &operation == &firstAuthorization || !firstAuthorization || !count)
+        return false;
+    uint32_t nextOperation = operation, lastAuthorization = firstAuthorization - 1;
+    refreshExperimentIds(services, node, nextOperation, lastAuthorization);
+    if (nextOperation == UINT32_MAX || count > UINT32_MAX - lastAuthorization)
+        return false;
+    operation = nextOperation + 1;
+    firstAuthorization = lastAuthorization + 1;
+    return true;
+}
 PdoExperiment::PdoExperiment(CanBusOwner& owner, C::SdoClient& services) noexcept
     : owner_(owner), services_(services) {}
 bool PdoExperiment::current() const noexcept {

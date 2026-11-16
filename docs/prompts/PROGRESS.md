@@ -1,5 +1,13 @@
 # Prompt execution progress
 
+Prompt54 is Partial: [its report](../reports/prompt_54.md) distinguishes bounded
+diagnostic implementation and specimen measurements from remaining multi-axis,
+shared-RPDO, physical timing and wired-stop qualification. Node1's uncertain
+stop remains retained; independent raw SYNC traffic does not reopen its SDO path.
+The 30-minute 10 ms attempt ended after 42988 of 180000 slots with a processing
+deadline miss and no receive-record loss. The 100 ms/60 s baseline passed.
+Node 2's interrupted-position fence also remains; motion qualification is pending.
+
 Prompt53 delivers independent axis attachments, per-axis and group stop, a bounded
 paired runner, storage placement fixtures and reviewed S2 memory changes.
 [Report53](../reports/prompt_53.md) records combined checks and source decisions.
@@ -96,10 +104,10 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Partial | Physical fault/link/restart observation and OL86-C/CL57-C/OL57-C fixtures unavailable; no save/restore campaign executed | [Finite read/load work and exact pending campaigns](../reports/prompt_48.md) |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Complete | Prompt18/Q17 and all retained feature/physical gates; no release publication | [Report](../reports/prompt_49.md) |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Complete software review | Earlier Partial software/source/physical gates remain inherited; no whole-library completion or publication | [Independent review and final checks](../reports/prompt_50.md) |
-| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Partial | Consumes 17/24/38/42 artifacts; Q27 sample provenance, Q28 RPDO buffering/withdrawal and M09 map remain open; prompt56 throughput precedes the sustained two-axis 10 ms trial | [Finite producer, typed TPDO1 type experiment and remaining trials](../reports/prompt_51.md) |
+| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Partial | Consumes 17/24/38/42 artifacts; Q27 sample provenance, Q28 RPDO buffering/withdrawal and M09 map remain open; prompt54 explicitly requests the bounded pre-optimization two-axis10ms trial; prompt56 owns throughput changes | [Finite producer, typed TPDO1 type experiment and remaining trials](../reports/prompt_51.md) |
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Complete | Gated velocity/replacement lifecycle, owner/CLI and initial m/p/v measurements delivered; final checks recorded in report52; Q22-Q26 qualification remains open | [Report52](../reports/prompt_52.md) |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Complete | Independent axes/group stop, bounded paired runner and reviewed storage changes verified. Conditional shared RPDO/start remains M09/Q28 gated; physical54/67 and owner optimization56 remain separate | [Report53](../reports/prompt_53.md) |
-| 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Pending | 48, 51, 52, 53; bench authorization and fixture facts | - |
+| 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Partial | Diagnostics and captures complete; sustained10ms failed at42988 slots;100ms/60s passed. Node1 session and node2 trajectory fences, Q27/M09/Q28, skew and wired DI remain open | [Report54](../reports/prompt_54.md) |
 | 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | Pending | 24, 42, 45; DEC-3a SDO premise then Q18; one unplug action by the user | - |
 | 56 | [Host throughput: faster service passes, event wake and owner turn cost](56_host_throughput.md) | Pending | 27, 42, 53; pass timing measured before changes | - |
 | 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | Pending | 30, 42, 45; release trials from mode 1 idle and halted mode 3 | - |

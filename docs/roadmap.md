@@ -4,6 +4,12 @@ The [progress table](prompts/PROGRESS.md) owns each numbered prompt's current
 state and report. This roadmap lists the next work and its dependencies;
 dated implementation and bench history stays in those reports.
 
+[Prompt54](reports/prompt_54.md) records the current qualification campaign and
+its bounded diagnostics. Node1's uncertain stop needs an externally established
+fresh server session before further SDO or motion. Independent raw SYNC traffic
+measurement preserves that quarantine. Q27 sample provenance, M09/Q28 shared
+RPDO semantics and the missing wired-stop fixture remain separate obligations.
+
 ## Changes during motion
 
 Prompt52 implements the finite change paths and explicit measurement harness.

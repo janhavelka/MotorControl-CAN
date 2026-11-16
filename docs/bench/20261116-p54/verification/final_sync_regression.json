@@ -1,0 +1,8 @@
+{
+  "command": "cmake --build .build/p54-final-drain/20261116T054217872315Z-41696-vje0te9_/native --target probe_sync_console_test --parallel 2; ctest --test-dir same-native-directory -R ^probe_sync_console$ --output-on-failure",
+  "status": "passed",
+  "checks": "timely owner completion consumed before, at and 724us after cutoff; confirmed TX retained without catch-up",
+  "source": "test/probe_sync_console_test.cpp",
+  "source_sha256": "39867100daf1d89e922628c6dbace38c1b11610068ec79b37020b40f851e618e",
+  "scope": "host synthetic regression; no hardware action"
+}

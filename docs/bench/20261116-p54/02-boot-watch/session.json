@@ -1,0 +1,71 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T04:42:16.429150+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261116-p54/plans/02-boot-watch.json",
+    "--output",
+    "docs/bench/20261116-p54/02-boot-watch"
+  ],
+  "plan_file": "docs/bench/20261116-p54/plans/02-boot-watch.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "fac4d1a6f9b15cd8a0f0daa702d96634e72d002e6125311ae21299e01234a4f2"
+  },
+  "host_revision": "947cc5da8cbb0c24799d8114d8b665b38341921f",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+    "elf": "9a96eecef07ecfe01166dee0d08995a68aede90daf2a973882398101a206187b",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "5785256964",
+    "routes": "14",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "P600",
+      "tx_hex": "503630300a",
+      "utc": "2026-11-16T04:42:16.837908+00:00",
+      "monotonic": 364173.812,
+      "reply": "PDOW admitted seconds=600; copies received frames, sends nothing",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "wait_s": 601,
+      "utc": "2026-11-16T04:42:16.857911+00:00",
+      "outcome": "waited"
+    }
+  ],
+  "ended_utc": "2026-11-16T04:52:19.021497+00:00",
+  "bytes": 225189
+}

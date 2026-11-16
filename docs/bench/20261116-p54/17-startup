@@ -1,0 +1,6 @@
+HEAP free=105764 largest=86016 minimum=101324 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3840:3840 r2=3ffc6bb0:218192:94096:89584 reserved=1f arena=0 arenaBytes=38592
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+HEAP free=105200 largest=86016 minimum=100760 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffc6bb0:218192:94096:89584 reserved=1f arena=0 arenaBytes=38592
+STATS running=1 inhibited=0 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9368 t=9526418 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=2006 conRej=0
+CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+HEAP free=79620 largest=63488 minimum=79620 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3276:3276 r2=3ffc6bb0:218192:68504:63944 reserved=1f arena=0 arenaBytes=38592

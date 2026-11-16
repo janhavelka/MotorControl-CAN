@@ -1,0 +1,358 @@
+{
+  "name": "contracts",
+  "command": [
+    "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\ctest.EXE",
+    "--test-dir",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p54-final-drain\\20261116T054217872315Z-41696-vje0te9_\\native",
+    "--output-on-failure",
+    "-E",
+    "^package_contract$"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p54-final-drain\\20261116T054217872315Z-41696-vje0te9_\\16_contracts.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 207.313
+}
+
+Test project C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/p54-final-drain/20261116T054217872315Z-41696-vje0te9_/native
+        Start   1: core
+  1/166 Test   #1: core .............................   Passed    0.05 sec
+        Start   2: units
+  2/166 Test   #2: units ............................   Passed    0.05 sec
+        Start   3: axis
+  3/166 Test   #3: axis .............................   Passed    0.05 sec
+        Start   4: position_parameters
+  4/166 Test   #4: position_parameters ..............   Passed    0.05 sec
+        Start   5: position_preview
+  5/166 Test   #5: position_preview .................   Passed    0.06 sec
+        Start   6: angle_preview
+  6/166 Test   #6: angle_preview ....................   Passed    0.06 sec
+        Start   7: units_preview
+  7/166 Test   #7: units_preview ....................   Passed    0.05 sec
+        Start   8: reads_preview
+  8/166 Test   #8: reads_preview ....................   Passed    0.06 sec
+        Start   9: driver_settings_preview
+  9/166 Test   #9: driver_settings_preview ..........   Passed    0.05 sec
+        Start  10: io_settings_preview
+ 10/166 Test  #10: io_settings_preview ..............   Passed    0.05 sec
+        Start  11: pdo_configuration_preview
+ 11/166 Test  #11: pdo_configuration_preview ........   Passed    0.04 sec
+        Start  12: native_consumer
+ 12/166 Test  #12: native_consumer ..................   Passed    0.06 sec
+        Start  13: frame
+ 13/166 Test  #13: frame ............................   Passed    0.05 sec
+        Start  14: sdo_codec
+ 14/166 Test  #14: sdo_codec ........................   Passed    0.04 sec
+        Start  15: api_ownership
+ 15/166 Test  #15: api_ownership ....................   Passed    0.06 sec
+        Start  16: multidrive_contract
+ 16/166 Test  #16: multidrive_contract ..............   Passed    0.06 sec
+        Start  17: sdo_adapter
+ 17/166 Test  #17: sdo_adapter ......................   Passed    0.04 sec
+        Start  18: twai_adapter
+ 18/166 Test  #18: twai_adapter .....................   Passed    0.07 sec
+        Start  19: twai_driver
+ 19/166 Test  #19: twai_driver ......................   Passed    0.06 sec
+        Start  20: firmware_probe
+ 20/166 Test  #20: firmware_probe ...................   Passed    0.07 sec
+        Start  21: esp_probe_platform
+ 21/166 Test  #21: esp_probe_platform ...............   Passed    0.05 sec
+        Start  22: esp_s2_probe_platform
+ 22/166 Test  #22: esp_s2_probe_platform ............   Passed    0.06 sec
+        Start  23: native_probe
+ 23/166 Test  #23: native_probe .....................   Passed    0.08 sec
+        Start  24: device_evidence_example
+ 24/166 Test  #24: device_evidence_example ..........   Passed    0.08 sec
+        Start  25: device_evidence
+ 25/166 Test  #25: device_evidence ..................   Passed    0.07 sec
+        Start  26: motion_preview
+ 26/166 Test  #26: motion_preview ...................   Passed    0.07 sec
+        Start  27: mode_probe
+ 27/166 Test  #27: mode_probe .......................   Passed    0.09 sec
+        Start  28: position_change
+ 28/166 Test  #28: position_change ..................   Passed    0.12 sec
+        Start  29: position_change_transcript
+ 29/166 Test  #29: position_change_transcript .......   Passed    0.04 sec
+        Start  30: s2_changes_transcript
+ 30/166 Test  #30: s2_changes_transcript ............   Passed    0.17 sec
+        Start  31: pdo_experiment
+ 31/166 Test  #31: pdo_experiment ...................   Passed    0.07 sec
+        Start  32: raw_evidence
+ 32/166 Test  #32: raw_evidence .....................   Passed    0.07 sec
+        Start  33: soak
+ 33/166 Test  #33: soak .............................   Passed    0.15 sec
+        Start  34: soak_transcript
+ 34/166 Test  #34: soak_transcript ..................   Passed    0.02 sec
+        Start  35: pdo_watch
+ 35/166 Test  #35: pdo_watch ........................   Passed    0.12 sec
+        Start  36: silent_capture
+ 36/166 Test  #36: silent_capture ...................   Passed    0.09 sec
+        Start  37: pdo_command
+ 37/166 Test  #37: pdo_command ......................   Passed    0.04 sec
+        Start  38: discovery_bench
+ 38/166 Test  #38: discovery_bench ..................   Passed    0.09 sec
+        Start  39: communication_bench
+ 39/166 Test  #39: communication_bench ..............   Passed    0.12 sec
+        Start  40: bench_heap
+ 40/166 Test  #40: bench_heap .......................   Passed    0.05 sec
+        Start  41: bench_route
+ 41/166 Test  #41: bench_route ......................   Passed    0.34 sec
+        Start  42: bench_route_transcript
+ 42/166 Test  #42: bench_route_transcript ...........   Passed    0.06 sec
+        Start  43: bench_console
+ 43/166 Test  #43: bench_console ....................   Passed    0.16 sec
+        Start  44: probe_app
+ 44/166 Test  #44: probe_app ........................   Passed    0.07 sec
+        Start  45: service_experiment
+ 45/166 Test  #45: service_experiment ...............   Passed    0.05 sec
+        Start  46: network_receive_time
+ 46/166 Test  #46: network_receive_time .............   Passed    0.05 sec
+        Start  47: pdo_configuration
+ 47/166 Test  #47: pdo_configuration ................   Passed    0.05 sec
+        Start  48: nmt_owner
+ 48/166 Test  #48: nmt_owner ........................   Passed    0.06 sec
+        Start  49: can_bus_owner
+ 49/166 Test  #49: can_bus_owner ....................   Passed    0.06 sec
+        Start  50: settings_owner
+ 50/166 Test  #50: settings_owner ...................   Passed    0.11 sec
+        Start  51: can_bus_recovery
+ 51/166 Test  #51: can_bus_recovery .................   Passed    0.07 sec
+        Start  52: can_bus_health
+ 52/166 Test  #52: can_bus_health ...................   Passed    0.06 sec
+        Start  53: owner_preview
+ 53/166 Test  #53: owner_preview ....................   Passed    0.06 sec
+        Start  54: action_preview
+ 54/166 Test  #54: action_preview ...................   Passed    0.07 sec
+        Start  55: reads
+ 55/166 Test  #55: reads ............................   Passed    0.11 sec
+        Start  56: drive_state
+ 56/166 Test  #56: drive_state ......................   Passed    0.06 sec
+        Start  57: stop_action
+ 57/166 Test  #57: stop_action ......................   Passed    0.06 sec
+        Start  58: axis_session
+ 58/166 Test  #58: axis_session .....................   Passed    0.11 sec
+        Start  59: enable_action
+ 59/166 Test  #59: enable_action ....................   Passed    0.11 sec
+        Start  60: bounded_service
+ 60/166 Test  #60: bounded_service ..................   Passed    0.07 sec
+        Start  61: move_absolute
+ 61/166 Test  #61: move_absolute ....................   Passed    0.08 sec
+        Start  62: move_relative
+ 62/166 Test  #62: move_relative ....................   Passed    0.13 sec
+        Start  63: move_commanded
+ 63/166 Test  #63: move_commanded ...................   Passed    0.08 sec
+        Start  64: move_angle
+ 64/166 Test  #64: move_angle .......................   Passed    0.08 sec
+        Start  65: move_common
+ 65/166 Test  #65: move_common ......................   Passed    0.05 sec
+        Start  66: velocity_preview
+ 66/166 Test  #66: velocity_preview .................   Passed    0.05 sec
+        Start  67: velocity_change
+ 67/166 Test  #67: velocity_change ..................   Passed    0.06 sec
+        Start  68: move_replacement
+ 68/166 Test  #68: move_replacement .................   Passed    0.07 sec
+        Start  69: axis_change
+ 69/166 Test  #69: axis_change ......................   Passed    0.08 sec
+        Start  70: motion_change_console
+ 70/166 Test  #70: motion_change_console ............   Passed    0.08 sec
+        Start  71: move_change_console
+ 71/166 Test  #71: move_change_console ..............   Passed    0.09 sec
+        Start  72: velocity
+ 72/166 Test  #72: velocity .........................   Passed    0.07 sec
+        Start  73: velocity_owner
+ 73/166 Test  #73: velocity_owner ...................   Passed    0.11 sec
+        Start  74: reference_action
+ 74/166 Test  #74: reference_action .................   Passed    0.06 sec
+        Start  75: alarm_clear
+ 75/166 Test  #75: alarm_clear ......................   Passed    0.06 sec
+        Start  76: counter_clear
+ 76/166 Test  #76: counter_clear ....................   Passed    0.06 sec
+        Start  77: driver_settings
+ 77/166 Test  #77: driver_settings ..................   Passed    0.06 sec
+        Start  78: io_settings
+ 78/166 Test  #78: io_settings ......................   Passed    0.07 sec
+        Start  79: settings_write
+ 79/166 Test  #79: settings_write ...................   Passed    0.07 sec
+        Start  80: tuning
+ 80/166 Test  #80: tuning ...........................   Passed    0.06 sec
+        Start  81: sdo_evidence
+ 81/166 Test  #81: sdo_evidence .....................   Passed    0.05 sec
+        Start  82: evidence_corruption
+ 82/166 Test  #82: evidence_corruption ..............   Passed    0.08 sec
+        Start  83: evidence_timeline
+ 83/166 Test  #83: evidence_timeline ................   Passed    0.13 sec
+        Start  84: sdo_transfer
+ 84/166 Test  #84: sdo_transfer .....................   Passed    0.06 sec
+        Start  85: homing
+ 85/166 Test  #85: homing ...........................   Passed    0.06 sec
+        Start  86: homing_action
+ 86/166 Test  #86: homing_action ....................   Passed    0.06 sec
+        Start  87: homing_owner
+ 87/166 Test  #87: homing_owner .....................   Passed    0.08 sec
+        Start  88: network_codec
+ 88/166 Test  #88: network_codec ....................   Passed    0.05 sec
+        Start  89: network_events
+ 89/166 Test  #89: network_events ...................   Passed    0.05 sec
+        Start  90: nmt_codec
+ 90/166 Test  #90: nmt_codec ........................   Passed    0.04 sec
+        Start  91: nmt_services
+ 91/166 Test  #91: nmt_services .....................   Passed    0.05 sec
+        Start  92: pdo_codec
+ 92/166 Test  #92: pdo_codec ........................   Passed    0.05 sec
+        Start  93: pdo_observations
+ 93/166 Test  #93: pdo_observations .................   Passed    0.05 sec
+        Start  94: sdo_reconciliation
+ 94/166 Test  #94: sdo_reconciliation ...............   Passed    0.05 sec
+        Start  95: objects
+ 95/166 Test  #95: objects ..........................   Passed    0.04 sec
+        Start  96: version_generated
+ 96/166 Test  #96: version_generated ................   Passed    0.08 sec
+        Start  97: objects_generated
+ 97/166 Test  #97: objects_generated ................   Passed    0.16 sec
+        Start  98: objects_generator_contract
+ 98/166 Test  #98: objects_generator_contract .......   Passed    3.27 sec
+        Start  99: version_contract
+ 99/166 Test  #99: version_contract .................   Passed    2.24 sec
+        Start 100: repository_checks
+100/166 Test #100: repository_checks ................   Passed    0.10 sec
+        Start 101: repository_contract
+101/166 Test #101: repository_contract ..............   Passed   16.42 sec
+        Start 102: verification_contract
+102/166 Test #102: verification_contract ............   Passed    0.79 sec
+        Start 103: firmware_build_contract
+103/166 Test #103: firmware_build_contract ..........   Passed    2.94 sec
+        Start 104: documentation_contract
+104/166 Test #104: documentation_contract ...........   Passed    0.33 sec
+        Start 105: planning_integrity
+105/166 Test #105: planning_integrity ...............   Passed    1.26 sec
+        Start 106: planning_validator_contract
+106/166 Test #106: planning_validator_contract ......   Passed   40.08 sec
+        Start 107: ledger_validator_contract
+107/166 Test #107: ledger_validator_contract ........   Passed   15.90 sec
+        Start 108: stack_check_contract
+108/166 Test #108: stack_check_contract .............   Passed    0.92 sec
+        Start 109: rs_move_vectors_contract
+109/166 Test #109: rs_move_vectors_contract .........   Passed    0.22 sec
+        Start 110: s2_evidence_contract
+110/166 Test #110: s2_evidence_contract .............   Passed    5.64 sec
+        Start 111: s2_flash_contract
+111/166 Test #111: s2_flash_contract ................   Passed    3.91 sec
+        Start 112: s2_smoke_contract
+112/166 Test #112: s2_smoke_contract ................   Passed    1.26 sec
+        Start 113: s2_console_contract
+113/166 Test #113: s2_console_contract ..............   Passed    0.82 sec
+        Start 114: s2_soak_contract
+114/166 Test #114: s2_soak_contract .................   Passed    5.00 sec
+        Start 115: s2_pdo_contract
+115/166 Test #115: s2_pdo_contract ..................   Passed   16.10 sec
+        Start 116: sync_watch_contract
+116/166 Test #116: sync_watch_contract ..............   Passed    0.16 sec
+        Start 117: s2_uart_compare_contract
+117/166 Test #117: s2_uart_compare_contract .........   Passed    5.67 sec
+        Start 118: s2_console_account_contract
+118/166 Test #118: s2_console_account_contract ......   Passed    0.43 sec
+        Start 119: s2_soak_transcript
+119/166 Test #119: s2_soak_transcript ...............   Passed    0.16 sec
+        Start 120: s2_bench_contract
+120/166 Test #120: s2_bench_contract ................   Passed   15.70 sec
+        Start 121: s2_bench_console_contract
+121/166 Test #121: s2_bench_console_contract ........   Passed    0.17 sec
+        Start 122: s2_trial_transcript
+122/166 Test #122: s2_trial_transcript ..............   Passed    0.34 sec
+        Start 123: discovery
+123/166 Test #123: discovery ........................   Passed    0.05 sec
+        Start 124: communication
+124/166 Test #124: communication ....................   Passed    0.06 sec
+        Start 125: heartbeat_communication
+125/166 Test #125: heartbeat_communication ..........   Passed    0.06 sec
+        Start 126: persistence
+126/166 Test #126: persistence ......................   Passed    0.06 sec
+        Start 127: configuration_restore
+127/166 Test #127: configuration_restore ............   Passed    0.06 sec
+        Start 128: discovery_scan
+128/166 Test #128: discovery_scan ...................   Passed    0.08 sec
+        Start 129: discovery_preview
+129/166 Test #129: discovery_preview ................   Passed    0.08 sec
+        Start 130: probe_app_local
+130/166 Test #130: probe_app_local ..................   Passed    0.07 sec
+        Start 131: probe_console
+131/166 Test #131: probe_console ....................   Passed    0.11 sec
+        Start 132: console_protocol
+132/166 Test #132: console_protocol .................   Passed    0.26 sec
+        Start 133: bench_console_native
+133/166 Test #133: bench_console_native .............   Passed    0.26 sec
+        Start 134: bench_console_contract
+134/166 Test #134: bench_console_contract ...........   Passed    0.67 sec
+        Start 135: bench_console_adversarial
+135/166 Test #135: bench_console_adversarial ........   Passed    0.31 sec
+        Start 136: bench_probe_cli
+136/166 Test #136: bench_probe_cli ..................   Passed    9.92 sec
+        Start 137: bench_evidence
+137/166 Test #137: bench_evidence ...................   Passed    0.23 sec
+        Start 138: bench_campaign_plans
+138/166 Test #138: bench_campaign_plans .............   Passed    0.28 sec
+        Start 139: bench_campaign_adversarial
+139/166 Test #139: bench_campaign_adversarial .......   Passed    0.42 sec
+        Start 140: bench_session
+140/166 Test #140: bench_session ....................   Passed    2.55 sec
+        Start 141: probe_device_console
+141/166 Test #141: probe_device_console .............   Passed    0.11 sec
+        Start 142: probe_settings_app
+142/166 Test #142: probe_settings_app ...............   Passed    0.08 sec
+        Start 143: probe_commissioning_app
+143/166 Test #143: probe_commissioning_app ..........   Passed    0.08 sec
+        Start 144: motion_intent
+144/166 Test #144: motion_intent ....................   Passed    0.05 sec
+        Start 145: motion_console
+145/166 Test #145: motion_console ...................   Passed    0.02 sec
+        Start 146: probe_motion_actions
+146/166 Test #146: probe_motion_actions .............   Passed    0.08 sec
+        Start 147: group_stop
+147/166 Test #147: group_stop .......................   Passed    0.08 sec
+        Start 148: storage_placement
+148/166 Test #148: storage_placement ................   Passed    0.05 sec
+        Start 149: multi_axis_console
+149/166 Test #149: multi_axis_console ...............   Passed    0.08 sec
+        Start 150: multi_axis_client
+150/166 Test #150: multi_axis_client ................   Passed    0.25 sec
+        Start 151: paired_motion
+151/166 Test #151: paired_motion ....................   Passed    0.35 sec
+        Start 152: axis_storage
+152/166 Test #152: axis_storage .....................   Passed    0.06 sec
+        Start 153: capacity
+153/166 Test #153: capacity .........................   Passed    0.08 sec
+        Start 154: capacity_n1
+154/166 Test #154: capacity_n1 ......................   Passed    0.07 sec
+        Start 155: capacity_n8
+155/166 Test #155: capacity_n8 ......................   Passed    0.09 sec
+        Start 156: capacity_n32
+156/166 Test #156: capacity_n32 .....................   Passed    1.04 sec
+        Start 157: capacity_mismatch
+157/166 Test #157: capacity_mismatch ................   Passed    0.45 sec
+        Start 158: fieldcore_consumer_example
+158/166 Test #158: fieldcore_consumer_example .......   Passed    0.06 sec
+        Start 159: fieldcore_consumer
+159/166 Test #159: fieldcore_consumer ...............   Passed    0.05 sec
+        Start 160: lichuan_operations
+160/166 Test #160: lichuan_operations ...............   Passed    1.39 sec
+        Start 161: lichuan_operations_contract
+161/166 Test #161: lichuan_operations_contract ......   Passed   39.83 sec
+        Start 162: combined_contract
+162/166 Test #162: combined_contract ................   Passed    0.04 sec
+        Start 163: sync
+163/166 Test #163: sync .............................   Passed    0.04 sec
+        Start 164: sync_owner
+164/166 Test #164: sync_owner .......................   Passed    0.05 sec
+        Start 165: probe_sync_console
+165/166 Test #165: probe_sync_console ...............   Passed    0.09 sec
+        Start 166: canopen_service_fit
+166/166 Test #166: canopen_service_fit ..............   Passed    0.05 sec
+
+100% tests passed, 0 tests failed out of 166
+
+Label Time Summary:
+docs    =   0.33 sec*proc (1 test)
+full    =   0.33 sec*proc (1 test)
+
+Total Test time (real) = 207.27 sec

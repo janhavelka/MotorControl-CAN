@@ -67,8 +67,13 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
         break;
     case 'P':
         result.kind = PdoCommandKind::WATCH;
-        if (!number(text, end, result.seconds) || result.seconds > 600)
+        if (!number(text, end, result.seconds) || result.seconds > 3600)
             return false;
+        if (text != end) {
+            if (!result.seconds || !comma(text, end) || text == end || *text++ != 'c')
+                return false;
+            result.compact = true;
+        }
         break;
     case 'R':
         result.kind = PdoCommandKind::READ;

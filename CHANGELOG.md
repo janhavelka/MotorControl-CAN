@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Extension qualification diagnostics
+
+- Add a bounded compact RX watch and finite 10 ms SYNC runner with loss,
+  receive-bound and cached processing-time evidence. Wire timing and same-cycle
+  PDO identity remain separate qualification gates.
+- Drain up to 64 output bytes per S2 compact-watch turn after the ordinary
+  CAN service. Keep normal output at 16 bytes, existing queue sizes and all
+  nonblocking callbacks; report sustained output loss rather than hiding it.
+- Preserve raw experiment operation/grant identity after typed work. Add
+  hardware-failure regressions for continuation and SYNC capture accounting.
+- Add the explicit slow-velocity NMT Stop/Pre-operational experiment without
+  changing the run's deadline or treating NMT state as motor standstill.
+- Allow fresh experimental console change arming without promoting firmware
+  qualifications. Ordinary rearming closes the previous change permission.
+- Accept reviewed esptool 4.13.0 alongside 4.12.0, retaining exact tool identity
+  and rejecting mismatched flash output without replay.
+
 ### Independent axes and group stop
 
 - Register multiple motion attachments and distinct owner producers; stop one

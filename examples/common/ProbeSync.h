@@ -7,6 +7,23 @@
 #include <MotorControlCAN/canopen/Sync.h>
 
 namespace MotorControlCANExample {
+/** Bounded processing-time measurements for one finite SYNC schedule.
+ * Counts change only when the helper consumes a matching owner terminal. Times
+ * are supplied host microseconds, never CAN wire timestamps or sample identity.
+ * A new successful request clears these measurements; inspection and release do not.
+ */
+struct ProbeSyncTiming {
+    uint32_t terminals = 0; ///< Consumed local terminals, including failures.
+    uint32_t confirmed = 0; ///< Terminals with actual local transmission evidence.
+    uint32_t handoffs = 0; ///< Terminals whose evidence permits a local handoff.
+    uint64_t firstHandoffUs = 0; ///< First handoff; meaningful when handoffs is nonzero.
+    uint64_t lastHandoffUs = 0; ///< Latest handoff; meaningful when handoffs is nonzero.
+    uint64_t minHandoffGapUs = 0; ///< Minimum consecutive gap; meaningful at handoffs >= 2.
+    uint64_t maxHandoffGapUs = 0; ///< Maximum consecutive gap; meaningful at handoffs >= 2.
+    uint64_t maxLatenessUs = 0; ///< Largest handoff minus its fixed slot's due time.
+    uint64_t maxReportDelayUs = 0; ///< Largest terminal processing time minus handoff time.
+    bool invalid = false; ///< Inconsistent timestamp ordering; measurements cannot qualify timing.
+};
 /** Stationary optional application helper; construction and inspection are passive.
  * The application explicitly arms the owner's one-shot service first and services
  * this helper after the owner. No receive loop, clocks, allocation, automatic
@@ -55,6 +72,9 @@ class ProbeSync {
     bool active() const noexcept;
     /** @return Retained schedule/evidence; meaningful when retained(), borrowed until mutation. */
     const MotorControlCAN::CANOPEN::SyncContext& context() const noexcept { return context_; }
+    /** @return Cached timing of the last successfully prepared schedule, borrowed
+     * until the next service/request. No I/O, allocation or terminal consumption. */
+    const ProbeSyncTiming& timing() const noexcept { return timing_; }
 
   private:
     MotorControlCANOwner::CanBusOwner& owner_;
@@ -63,5 +83,7 @@ class ProbeSync {
     bool retained_ = false;
     bool completionConsumed_ = false;
     MotorControlCAN::Generation armGeneration_ = 0;
+    ProbeSyncTiming timing_;
+    void recordTiming(const MotorControlCANOwner::SyncTerminal& terminal) noexcept;
 };
 } // namespace MotorControlCANExample

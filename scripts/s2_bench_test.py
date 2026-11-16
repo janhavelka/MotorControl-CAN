@@ -19,15 +19,15 @@ NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
          "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home",
-         "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop"}
+         "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop", "n": "velocity-nmt"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop"}
+          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop", "n": "velocity-nmt"}
 # Protocol 6's routes, protocol 8's F, protocol 9's K, protocol 11's T and protocol 13's l. `bench_route_test --transcript` prints
 # the earlier ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names
 # them (see check_trial_transcript).
-NEW_LETTERS = frozenset("NVOFKTl")
+NEW_LETTERS = frozenset("NVOFKTln")
 
 
 def check_trial_transcript(path, every=False):
@@ -39,19 +39,23 @@ def check_trial_transcript(path, every=False):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 48 if every else 26
+    wanted_count = 51 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
         if letter not in letters and (every or letter not in NEW_LETTERS):
             problems.append("no %s record" % NAMES[letter])
+    if every and sum(part.startswith(b"n") for part in parts) != 3:
+        problems.append("expected actual NMT success, failed PREOP and preparation refusal producer records")
     for part in parts:
         head, _, body = part.partition(b"\n")
         line = head.decode("ascii")
         fields = line[1:].split(",")
         meta = {"command": NAMES[line[0]], "node": int(fields[0]), "trial": int(fields[1]), "line": "T" + line,
                 "status": "captured"}
+        if line[0] == "n":
+            meta["line"] = bench.sign_line(meta["line"])
         report = evidence.replay_bytes(body, meta)
         # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed. Home is refused before
         # any write by design, and one velocity line names 61 rpm without the range probe (the field before the
@@ -77,10 +81,40 @@ def check_trial_transcript(path, every=False):
         # its enable report ends the run, and the run's own HALT follows.
         reverse = line[0] == "V" and fields[-1] == "1"
         wrong_sign = line.startswith("V1,42,")
+        failed_preop = line.startswith("n1,54012,")
+        nmt_unprepared = line.startswith("n1,54022,")
         wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged or
-                  enable_stop or marked or wrong_sign or unreleased else "complete")
+                  enable_stop or marked or wrong_sign or unreleased or failed_preop or nmt_unprepared else "complete")
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
+        if line[0] == "n":
+            nmt = [r.values for r in report.records if r.kind == "TRIAL_NMT" and r.status == "parsed"]
+            steps = [r.values for r in report.records if r.kind == "TRIAL_NMT_STEP" and r.status == "parsed"]
+            samples = [r.values for r in report.records if r.kind == "TRIAL_NMT_SAMPLE" and r.status == "parsed"]
+            run = next((r.values for r in report.records if r.kind == "TRIAL_VELOCITY" and r.status == "parsed"), {})
+            if (len(nmt), len(steps), len(samples)) != (1, 2, 2):
+                problems.append("%s: incomplete actual NMT producer summaries" % line)
+            elif (nmt[0]["failure"] != (1 if nmt_unprepared else 6 if failed_preop else 0) or
+                  steps[0]["confirmed"] != (0 if nmt_unprepared else 1) or
+                  steps[1]["possible"] != (0 if nmt_unprepared else 1) or
+                  steps[1]["confirmed"] != (0 if failed_preop or nmt_unprepared else 1) or
+                  samples[1]["present"] != (0 if failed_preop or nmt_unprepared else 1) or
+                  run.get("needs") != (1 if failed_preop else 0) or
+                  run.get("velocityUncertain") != (1 if failed_preop else 0)):
+                problems.append("%s: lost original NMT/run failure or uncertainty" % line)
+            report_line = next((r.raw.encode("ascii") + b"\n" for r in report.records
+                                if r.kind == "TRAFFIC" and r.status == "parsed" and
+                                r.values.get("k") == evidence.TX_REPORT and r.values.get("txk") == 1), None)
+            if report_line is None and not nmt_unprepared:
+                problems.append("%s: no actual NMT local transmission report" % line)
+            elif report_line is not None:
+                duplicated = evidence.replay_bytes(body.replace(report_line, report_line + report_line, 1), meta)
+                if duplicated.verdict != "inconsistent" or "duplicate_record" not in {e["code"] for e in duplicated.errors}:
+                    problems.append("%s: exact duplicate NMT local report accepted" % line)
+            # Actual bytes from the producer must remain request-correlated and reject a changed deadline.
+            forged = dict(meta, line=bench.sign_line(meta["line"].partition(",K")[0].replace(",24000,", ",24001,")))
+            if "change_plan_differs" not in {e["code"] for e in evidence.replay_bytes(body, forged).errors}:
+                problems.append("%s: changed NMT request deadline accepted" % line)
         if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
                              body.count(b" data=2b4060000b000000 ") == 1 and
                              b"TRIAL_STOP kind=2 path=2 " in body and b"TRIAL_BEST_EFFORT which=0 own=1 " in body):
@@ -1251,7 +1285,7 @@ class BenchTest(unittest.TestCase):
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
             # Older images, protocols 7 to 12 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15):
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -2039,7 +2073,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=14", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=15", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2083,7 +2117,7 @@ class BenchTest(unittest.TestCase):
         # Protocol 9 added the V line's range probe field and the K route: an image that speaks 8 would read a V
         # line one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line, 11
         # added T, 12 the V line's reverse field, 13 the l route.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 14)
+        self.assertEqual(bench.ROUTE_PROTOCOL, 15)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -2117,7 +2151,7 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
-                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=14",
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=15",
                      repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
             self.assertIn(part, out.getvalue())
         self.assertFalse(self.output.exists())
@@ -2211,7 +2245,7 @@ class BenchTest(unittest.TestCase):
                      "one download 2B 40 60 00 80 00 00 00 (0x0080, fault reset, a bit 7 edge from 0), 3 "
                      "STATUS/MONITORS/FEEDBACK cycles 500 ms apart and one more full read",
                      "no second word, no retry, no enable, no 6060, 60FF or 2301 write", "runner prints ALERT and exits 4",
-                     "routes=14", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
+                     "routes=15", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2365,7 +2399,7 @@ class BenchTest(unittest.TestCase):
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
         self.assertIn("no reverse probe: a positive rate, 60FF 3000", out.getvalue())
-        self.assertIn("routes=14", out.getvalue())
+        self.assertIn("routes=15", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2447,7 +2481,7 @@ class BenchTest(unittest.TestCase):
         for text in ("reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate -6 rpm, 60FF written "
                      "23 FF 60 00 FA FF FF FF (two's complement I32; Q03 open",
                      "a 606C against the command by more than 2 rpm ends the run with its own stop",
-                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=14",
+                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=15",
                      repr(signed("TV1,30,1,6,200,200,12000,5000,15500,1,%s,0,1" % tail).encode("ascii"))):
             self.assertIn(text, out.getvalue())
         # The record and the send entry keep it.
@@ -2542,7 +2576,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=14", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=15", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2658,6 +2692,36 @@ class BenchTest(unittest.TestCase):
             for wrong in (body.rsplit(",", 1)[0], body.replace(",1,", ",01,", 1), body + ",0"):
                 self.assertIsNotNone(bench._send_problem(dict(good, line=bench.sign_line(wrong))))
 
+    def test_p54_velocity_nmt_exact_bounds_and_campaign(self):
+        fields = [1, 54001, 1, 6, 200, 200, 13000, 5000, 24000, 2, 54001, 2,
+                  262546, 12, 32, 4096, 1, 0, 1024, 512, 0, 0]
+        self.assertEqual(bench.plan_bounds("velocity-nmt", fields), (125, 24000))
+        bench.check_bounds("velocity-nmt", fields)
+        line = bench.sign_line("Tn" + ",".join(map(str, fields)))
+        entry = dict(route="n", node=1, trial=54001, motion=2, stop=1, line=line)
+        self.assertIsNone(bench._send_problem(entry))
+        for index, value in ((3, 5), (3, 31), (7, 3999), (9, 1), (20, 1), (21, 1), (1, 0x80000000)):
+            bad = list(fields); bad[index] = value
+            with self.assertRaises(bench.Refused):
+                bench.check_bounds("velocity-nmt", bad)
+            altered = dict(entry, trial=bad[1], line=bench.sign_line("Tn" + ",".join(map(str, bad))))
+            self.assertIsNotNone(bench._send_problem(altered))
+        self.assertIsNotNone(bench._send_problem(dict(entry, stop=0, motion=1)))
+        self.assertIsNotNone(bench._send_problem(dict(entry, line=bench.sign_line(line.partition(",K")[0] + ",0"))))
+        argv = list(VELOCITY)
+        for option, value in (("--command", "velocity-nmt"), ("--kind", "quick"),
+                              ("--duration-ms", "13000"), ("--deadline-ms", "24000")):
+            argv[argv.index(option) + 1] = value
+        args, parsed = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        self.assertEqual(args.command, "velocity-nmt")
+        self.assertEqual(parsed[6:10], [13000, 5000, 24000, 2])
+        for extra in (["--reverse"], ["--range-probe"]):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.arguments(BASE + argv + extra + LEDGER + ["--output", "x"])
+        self.assertIsNotNone(bench.velocity_alert("velocity-nmt", [1, 30],
+            velocity_record(30, RUN_NEEDS, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1).replace(
+                "route=velocity ", "route=velocity-nmt ").encode()))
+
     def test_p52_velocity_change_bound_and_time_field(self):
         fields = [1, 52003, 1, 30, 500, 500, 12000, 5000, 16000, 1, 52003, 2,
                   262546, 12, 32, 4096, 1, 0, 1024, 512, 0, 0, 60, 6000]
@@ -2753,7 +2817,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "route refuses unless 2100 reports released (bit 4)", "closed loop while 2501 reads 0",
                      "one download 2B 00 25 00 01 00 00 00 (2500 = 1, open loop)", "2501 never written",
-                     "no 6040, no enable, no save", "routes=14", repr(signed("Tl1,40,1,1").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=15", repr(signed("Tl1,40,1,1").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")

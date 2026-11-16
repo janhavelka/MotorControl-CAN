@@ -54,7 +54,12 @@ void watchLines() {
     CHECK(parse("P30", c) && c.kind == E::PdoCommandKind::WATCH && c.seconds == 30);
     CHECK(parse("P0", c) && c.seconds == 0);
     CHECK(parse("P600", c) && c.seconds == 600);
-    refused("P601");
+    CHECK(parse("P3600,c", c) && c.seconds == 3600 && c.compact);
+    CHECK(parse("P601", c) && c.seconds == 601 && !c.compact);
+    refused("P3601");
+    refused("P0,c");
+    refused("P1,x");
+    refused("P1,c,extra");
     refused("P");
     refused("P-1");
     refused("P30 ");

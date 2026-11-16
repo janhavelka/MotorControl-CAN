@@ -225,7 +225,7 @@ const ConsoleCommand commands[] = {
     {"network", "network", "SdoClient::node/serviceEligibility",
      "cached exact state and independent serviceability", E::CACHE, C::REPLY,
      "Inspect CANopen network facts; no state promotion.", nullptr, 41},
-    {"sync", "sync arm|disarm|inspect|once | sync period MS COUNT | sync resolve EVIDENCE_ID",
+    {"sync", "sync arm|disarm|inspect|timing|once | sync period MS COUNT | sync resolve EVIDENCE_ID",
      "ProbeSync/prepareSync/CanBusOwner::admitSync",
      "explicit exclusive producer arm; finite count; default 0x80 only", E::DEVICE_ACTION,
      C::ASYNCHRONOUS,
@@ -332,6 +332,39 @@ M::Status invalid() {
 const char* boolean(bool value) {
     return value ? "true" : "false";
 }
+// Keep the timing formatter's wide variadic argument area out of dispatchDevice's ordinary
+// acquisition path. This helper only inspects cached schedule/timing; it cannot admit work.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#elif defined(_MSC_VER)
+__declspec(noinline)
+#endif
+void appendSyncTiming(ConsoleText& text, bool json, const ProbeSync& sync) {
+    const auto& timing = sync.timing();
+    const auto& options = sync.context().options;
+    text.add(json ? ",\"generation\":%lu,\"count\":%lu,\"terminals\":%lu,"
+            "\"confirmed\":%lu,\"handoffs\":%lu,\"origin_us\":\"%llu\","
+            "\"period_us\":\"%llu\",\"handoff_us\":[\"%llu\",\"%llu\",\"%llu\",\"%llu\"],"
+            "\"delay_us\":[\"%llu\",\"%llu\"],\"invalid\":%s"
+          : "generation=%lu count=%lu terminals=%lu confirmed=%lu handoffs=%lu "
+            "origin_us=%llu period_us=%llu handoff_us=%llu,%llu,%llu,%llu "
+            "delay_us=%llu,%llu invalid=%s",
+             static_cast<unsigned long>(options.generation),
+             static_cast<unsigned long>(options.count),
+             static_cast<unsigned long>(timing.terminals),
+             static_cast<unsigned long>(timing.confirmed),
+             static_cast<unsigned long>(timing.handoffs),
+             static_cast<unsigned long long>(options.originUs),
+             static_cast<unsigned long long>(options.periodUs),
+             static_cast<unsigned long long>(timing.firstHandoffUs),
+             static_cast<unsigned long long>(timing.lastHandoffUs),
+             static_cast<unsigned long long>(timing.minHandoffGapUs),
+             static_cast<unsigned long long>(timing.maxHandoffGapUs),
+             static_cast<unsigned long long>(timing.maxLatenessUs),
+             static_cast<unsigned long long>(timing.maxReportDelayUs),
+             boolean(timing.invalid));
+}
+
 const char* effect(E value) {
     const char* labels[] = {"cache",         "pure",        "host_configuration", "local_cancel",
                             "host_recovery", "device_read", "device_setting",     "device_action"};
@@ -2116,6 +2149,9 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                      boolean(owner_.syncArmed()), boolean(owner_.syncConflict()),
                      boolean(sync_->retained()), boolean(sync_->active()),
                      boolean(observation.present), static_cast<unsigned long>(observation.serial));
+        } else if (count == 2 && equal(line.token(1), "timing")) {
+            ok();
+            appendSyncTiming(text, json, *sync_);
         } else if (count == 2 && equal(line.token(1), "arm")) {
             const auto* selected = app_.selected();
             const auto facts = app_.hostInterfaceFacts();

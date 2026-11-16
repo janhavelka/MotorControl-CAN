@@ -1,0 +1,55 @@
+{
+  "purpose": "P54 node2 raw identity and explicit temporary TPDO1 type1. Node1 receives no SDO/NMT/RPDO and retains uncertain-stop quarantine. No save or motion.",
+  "authorization": "Standing bench authorization; exact reviewed type255-to1 transition, bounded typed lifecycle; no retry",
+  "steps": [
+    {
+      "send": "r",
+      "expect": "TRIAL record released"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J2,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

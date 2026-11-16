@@ -8,7 +8,7 @@ foreach(section sources include_dirs)
         list(APPEND firmware_${section} "${can_root}/${relative}")
     endforeach()
 endforeach()
-idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ../Soak.cpp ../BenchRoute.cpp
+idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ../Soak.cpp ../BenchRoute.cpp ../BenchRouteNmt.cpp
     ../PdoWatch.cpp ../PdoCommand.cpp ../SilentCapture.cpp ../BenchTerminal.cpp ../DiscoveryBench.cpp
     ../CommunicationBench.cpp ../BenchConsole.cpp
     ${firmware_sources}
