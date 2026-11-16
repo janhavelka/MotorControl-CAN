@@ -2,8 +2,9 @@
 """Replay retained S2 bench captures offline; never opens a port or edits evidence.
 
 A capture is an output directory of scripts/s2_bench.py: rx.bin (authoritative
-bytes), rx.txt and request.json. GRAMMAR below is the whole record format: to
-support a new firmware record add one row, and name its signals to have it reach
+bytes), rx.txt and request.json. GRAMMAR below describes bench text records;
+interleaved shared-console JSONL uses console_jsonl's existing record rules. To
+support a new bench record add one row, and name its signals to have it reach
 the transition log. Lines matching no row are preserved and counted, never dropped.
 
 Verdicts are separate facts. "complete" means a consistent, fully terminated
@@ -24,6 +25,7 @@ import sys
 from typing import NamedTuple
 
 from s2_bench import COMMANDS
+from console_jsonl import record_problems
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -780,8 +782,17 @@ def _fit(row, text):
 
 
 def parse_line(number, text):
-    """Classify one line through GRAMMAR; nothing here can drop the raw text."""
+    """Classify bench text or shared-console JSONL without dropping raw text."""
     record = Record(number, text)
+    if text.lstrip().startswith("{"):
+        # The common envelope is validated here, not command completion or device
+        # evidence. A console terminal is never a bench SDO terminal/typed success.
+        values, problems = record_problems((text + "\n").encode("utf-8"))
+        record.kind, record.role = "CONSOLE", "console"
+        record.status = "malformed" if problems else "parsed"
+        record.reason = "; ".join(problems)
+        record.values = values or {}
+        return record
     if "�" in text or any(ord(c) < 32 and c != "\t" for c in text):
         record.status, record.reason = "malformed", "undecodable or control byte"
         record.kind = "CORRUPT"
@@ -820,12 +831,14 @@ def _boot_after_reset_noise(number, text):
 
 
 def parse_bytes(data):
-    """Split on LF, tolerating CRLF. Returns (records, unterminated final text or None)."""
+    """Split on LF; only bench text tolerates CRLF. Return records and any partial tail."""
     lines = data.split(b"\n")
     tail = lines.pop()
     records = []
     for number, line in enumerate(lines, 1):
-        text = line.rstrip(b"\r").decode("utf-8", errors="replace")
+        # Do not normalize away a shared-console framing violation before checking it.
+        body = line if line.lstrip().startswith(b"{") else line.rstrip(b"\r")
+        text = body.decode("utf-8", errors="replace")
         if text:
             record = parse_line(number, text)
             if number == 1 and record.status == "malformed":

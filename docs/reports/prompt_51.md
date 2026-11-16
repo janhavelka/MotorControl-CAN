@@ -133,6 +133,11 @@ bound with incomplete SDK/indirect-call coverage, not the full runtime stack use
   and code/document diff checks passed on the final pre-commit tree. Raw bench
   logs retain original CRLF and trailing blank lines; their staged bytes were
   compared exactly rather than normalized to satisfy whitespace formatting.
+- The first remote Clang run compiled successfully and passed 149 of 150 tests.
+  Its retained-capture contract rejected the new mixed console-JSON/watch records
+  as unknown; these captures were acquired after the original local full run.
+  The evidence grammar integration is corrected and checked without exempting
+  unknown records or rewriting retained traffic.
 - Required remote CI is checked on the final pushed commit; its result and link
   belong in the handoff. No older green run verifies this change.
 

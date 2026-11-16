@@ -93,6 +93,73 @@ def first_step_ok():
              reply(1500, "4f01100000000000", 1000)])
 
 
+class SharedConsoleRecords(unittest.TestCase):
+    @staticmethod
+    def console_line(**fields):
+        values = dict(schema="motorcontrolcan.console/1", protocol=3, profile="lichuan_c",
+                      type="terminal", id=5203, command="sync", outcome="LOCAL_TX")
+        values.update(fields)
+        return json.dumps(values, separators=(",", ":")).encode("ascii") + b"\n"
+
+    def test_mixed_console_and_passive_watch_keep_distinct_evidence(self):
+        capture = BENCH / "20261116-p51-type1-100ms"
+        data = (capture / "rx.bin").read_bytes()
+        report = evidence.replay_capture(capture)
+        console = [r for r in report.records if r.kind == "CONSOLE"]
+        self.assertGreater(len(console), 0)
+        self.assertEqual(len(console), sum(line.startswith(b"{") for line in data.splitlines()))
+        self.assertEqual({r.status for r in console}, {"parsed"})
+        self.assertTrue({"reply", "trace", "terminal"} <= {r.values["type"] for r in console})
+        self.assertTrue(any(r.kind == "PDOW_F" for r in report.records))
+        self.assertEqual((report.unknown, report.malformed, report.errors), ([], [], []))
+        self.assertEqual((report.terminals, report.typed_successes), (0, 0))
+
+    def test_console_terminal_does_not_complete_a_bench_operation(self):
+        report = evidence.replay_bytes(self.console_line())
+        self.assertEqual(report.verdict, "control")
+        self.assertEqual((report.terminals, report.typed_successes), (0, 0))
+        self.assertFalse(report.ended)
+        self.assertEqual(report.records[0].raw.encode("ascii"), self.console_line()[:-1])
+
+    def test_invalid_console_records_stay_malformed_and_visible(self):
+        valid = self.console_line()
+        invalid = [b"{broken}\n", b"{}\n", valid[:-1], valid[:-1] + b"\r\n",
+                   valid.replace(b'"id":5203', b'"id":5203,"id":5204'),
+                   valid.replace(b'"id":5203', b'"id":NaN'),
+                   valid.replace(b'"id":5203', b'"id":1e999'),
+                   valid.replace(b'LOCAL_TX', b'LOCAL\x00TX'),
+                   valid.replace(b'LOCAL_TX', b'LOCAL\xffTX'),
+                   self.console_line(schema="other"), self.console_line(protocol=True),
+                   self.console_line(profile="other"), self.console_line(id=0),
+                   self.console_line(id=True), self.console_line(id=4294967296),
+                   self.console_line(type=3), self.console_line(command=None),
+                   self.console_line(detail="x" * 512)]
+        for data in invalid:
+            with self.subTest(data=data[:100]):
+                report = evidence.replay_bytes(data)
+                self.assertEqual(len(report.records), 1)
+                self.assertEqual(report.records[0].status, "malformed")
+                self.assertTrue(report.records[0].reason)
+                self.assertEqual(report.verdict, "incomplete")
+                self.assertIn("malformed_line", codes(report))
+                self.assertEqual(report.typed_successes, 0)
+
+    def test_console_limit_includes_newline_without_normalization(self):
+        valid = self.console_line()
+        for size, status in ((511, "parsed"), (512, "malformed")):
+            with self.subTest(size=size):
+                data = valid[:-1] + b" " * (size - len(valid)) + b"\n"
+                records, tail = evidence.parse_bytes(data)
+                self.assertIsNone(tail)
+                self.assertEqual(records[0].status, status)
+                self.assertEqual(records[0].raw.encode("ascii"), data[:-1])
+
+    def test_unrecognized_text_is_not_accepted_as_console(self):
+        report = evidence.replay_bytes(b"unrecognized record\n")
+        self.assertEqual(len(report.unknown), 1)
+        self.assertEqual(report.records[0].raw, "unrecognized record")
+
+
 class RetainedCaptures(unittest.TestCase):
     def test_final_nodes_replay_exactly(self):
         for directory, node, operation in ((NODE1, 1, 1), (NODE2, 2, 2)):

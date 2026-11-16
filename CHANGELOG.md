@@ -11,6 +11,8 @@
 - Add shared finite console commands and the isolated TPDO1 type1/255 setting,
   exact readback and retained partial effects. Existing typed communication
   reads cover the requested SYNC/PDO objects.
+- Parse interleaved shared-console records in offline S2 evidence using the
+  common JSONL rules, without treating console terminals as device evidence.
 - Keep same-cycle sample provenance and buffered RPDO starts gated by Q27/Q28;
   correct the assumption that an asynchronous controlword clears a pending RPDO.
 
