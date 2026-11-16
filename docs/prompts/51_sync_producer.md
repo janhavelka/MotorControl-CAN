@@ -31,7 +31,8 @@ period with more than one axis.
 Lichuan facts from the SYNC audit (backlog M10, M13): the CANopen manuals only claim "multi-axis high-speed bus
 synchronization control" (EN86, ZH86 and ZH57 p3) and describe no SYNC object; the EDS declares `1005` SYNC COB-ID (RW
 U32, default `0x80`) and writable transmission types `1400:02`..`1403:02` and `1800:02`..`1803:02` (U8, default 255, no
-range), and no `1006`, `1007` or `1019`. A drive can therefore at most consume SYNC: never set `1005` bit 30. Every
+range), and no `1006`, `1007` or `1019`. These sources do not establish drive-side SYNC production. This milestone
+treats the drive only as an experimental consumer and never sets `1005` bit 30. Every
 synchronous behavior is undocumented for this family and stays an explicit experiment until measured.
 
 Boundaries: one SYNC producer per network; no internal timer, thread or automatic periodic production in the installed

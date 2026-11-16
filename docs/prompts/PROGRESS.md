@@ -6,6 +6,9 @@ the owner, adapter and console. [Report51](../reports/prompt_51.md) retains the
 scoped bench observations and final verification. Qualified same-cycle samples,
 RPDO buffering/withdrawal, the M09 map and sustained two-axis 10 ms operation
 remain gated; see the [SYNC guide](../sync.md).
+The [fresh prompts50–51 audit](../reports/audit_50_51.md) corrects SYNC routing
+and stale-time handling, with adversarial regressions and a source-provenance
+correction. These fixes do not close the remaining physical/firmware gates.
 The [independent candidate review](../reports/prompt_50.md) and
 [documentation/package audit](../reports/prompt_49.md) retain their earlier scope.
 Bounded read/load campaigns remain in [report48](../reports/prompt_48.md).

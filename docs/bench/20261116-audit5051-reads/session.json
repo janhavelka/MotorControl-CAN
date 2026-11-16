@@ -1,0 +1,171 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T00:52:59.012933+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    ".build/audit5051-read-plan.json",
+    "--output",
+    "docs/bench/20261116-audit5051-reads"
+  ],
+  "plan_file": ".build/audit5051-read-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "61d05b5aa8a1b240ce89a5a600e384d91e7d2d1b5554b8777659352fc6de30e9"
+  },
+  "host_revision": "b6d230a73d61195b12a2424d6ff1e844972ea4be",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "b6d230a73d61195b12a2424d6ff1e844972ea4be",
+    "elf": "c5c579929c7d16b8a58f013338ff58669113fb6ed1a5e6658769db346efdd0ff",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "13",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-16T00:52:59.482147+00:00",
+      "monotonic": 350416.187,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "3",
+      "tx_hex": "33",
+      "utc": "2026-11-16T00:52:59.492147+00:00",
+      "monotonic": 350416.187,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 3,
+      "end": "END raw terminals=26 traffic=78 tail=4 tailLost=0 lost=0; r=release",
+      "end_line": 113,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:53:01.629419+00:00",
+      "monotonic": 350418.328,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 114,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "4",
+      "tx_hex": "34",
+      "utc": "2026-11-16T00:53:01.639932+00:00",
+      "monotonic": 350418.343,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 115,
+      "end": "END raw terminals=26 traffic=78 tail=4 tailLost=0 lost=0; r=release",
+      "end_line": 225,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:53:03.779571+00:00",
+      "monotonic": 350420.484,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 226,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-16T00:53:03.788575+00:00",
+      "monotonic": 350420.484,
+      "reply": "COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 227,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 342,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:53:07.009674+00:00",
+      "monotonic": 350423.703,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 343,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "K2",
+      "tx_hex": "4b320a",
+      "utc": "2026-11-16T00:53:07.018674+00:00",
+      "monotonic": 350423.718,
+      "reply": "COMM admitted node=2 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 344,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 459,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:53:10.255924+00:00",
+      "monotonic": 350426.953,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 460,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-16T00:53:10.263928+00:00",
+      "monotonic": 350426.968,
+      "reply": "STATS running=1 inhibited=0 rx=263 tx=242 dropped=0 errors=0 flags=00000000 stackFree=8116 t=58351968 txRej=0 rxLost=0 unmatched=2 traceOver=749 ownerGap=4003 conRej=4072",
+      "reply_line": 461,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T00:53:11.410741+00:00",
+  "bytes": 75251
+}

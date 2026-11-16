@@ -8,6 +8,9 @@ operation belongs to this review.
 
 ## Verdict and scope
 
+The subsequent [fresh prompts50–51 audit](audit_50_51.md) corrects the sibling
+dirty-state description below and verifies the integrated candidate after P51.
+
 Owned software review and local verification: Complete. Exact-commit CI and
 synchronization are checked after the commit, before handoff, as described below.
 This is an unreleased **0.1.0 software candidate**, not completion of every
@@ -64,8 +67,10 @@ old same-route PDO samples. These limits remain explicit in the public contracts
 
 [Source audit](prompt_50_sources.json) records exact live revisions, dirty state,
 working/Git-byte hashes, symbols and adopted/rejected behavior. MotorControl-RS
-advanced to clean `bbacead2023d1e207b80b8439f27103184f642d2`; its explicit release,
-retained copied results and execution evidence were reopened. CAN deliberately
+advanced to `bbacead2023d1e207b80b8439f27103184f642d2` with 14 modified or
+untracked paths recorded in that audit. None was a named inspected source file;
+its explicit release, retained copied results and execution evidence were
+reopened using the recorded working-byte and Git-blob hashes. CAN deliberately
 does not import RTU drain timing or RS whole-sequence cancellation. ADS1115,
 INA228 and FieldCore seams are unchanged since prompt49, including file hashes.
 No sibling was fetched or changed.

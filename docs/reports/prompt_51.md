@@ -7,6 +7,13 @@ responded to every SYNC in two short sampling trials. Same-cycle qualification
 throughput remain distinct gates. No common motion start or sustained 10 ms
 qualification is claimed.
 
+The retained one-node, 20-frame 10 ms capture predates prompt56 and is
+exploratory evidence. It does not satisfy this prompt's gated 10 ms
+qualification criterion.
+
+The [fresh independent audit](audit_50_51.md) records subsequent routing and
+stale-time corrections, integrated verification and the unchanged feature gates.
+
 The [source review](prompt_51_sources.md) records fresh RS/FieldCore revisions,
 original EDS/manual and pinned implementation facts. RS has no SYNC counterpart;
 CONVENTIONS records the CANopen-specific names. The [SYNC guide](../sync.md) owns

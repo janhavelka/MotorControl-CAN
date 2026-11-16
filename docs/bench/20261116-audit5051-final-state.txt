@@ -1,0 +1,4 @@
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":805,"command":"sync","ok":true,"status":"OK","armed":false,"producer_conflict":false,"retained":false,"active":false,"foreign_observed":false,"foreign_serial":0}
+STATS running=1 inhibited=0 rx=512 tx=243 dropped=0 errors=0 flags=00000000 stackFree=7096 t=182684976 txRej=0 rxLost=0 unmatched=2 traceOver=872 ownerGap=4003 conRej=4858
+NETWORK node=1 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=182286163 hi=182286552 p=182286980 dropped=266
+NETWORK node=2 epoch=1 state=5 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 exp

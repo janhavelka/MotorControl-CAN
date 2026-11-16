@@ -31,6 +31,8 @@ bool ProbeSync::active() const noexcept {
 M::Status ProbeSync::service(uint64_t nowUs) noexcept {
     if (!retained_)
         return M::Ok();
+    if (nowUs < owner_.lastTimeUs() || nowUs < context_.lastNowUs)
+        return M::Status(M::Err::INVALID_CONFIG, 0, "SYNC service time precedes owner or schedule");
     if (pending_.owner) {
         if (completionConsumed_) {
             if (owner_.releaseSync(pending_)) {
@@ -91,7 +93,7 @@ M::Status ProbeSync::service(uint64_t nowUs) noexcept {
 }
 
 bool ProbeSync::cancel(uint64_t nowUs) noexcept {
-    if (!active())
+    if (!active() || nowUs < owner_.lastTimeUs() || nowUs < context_.lastNowUs)
         return false;
     if (pending_.owner && owner_.syncResult(pending_) && !service(nowUs))
         return false;

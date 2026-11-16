@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Independent prompts 50 and 51 audit
+
+- Preserve configured heartbeat/PDO dispatch during passive SYNC detection, so a
+  boot-up cannot leave old queued work eligible to transmit.
+- Reject stale helper time before SYNC cancellation or terminal consumption;
+  retain the actual owner request until a timely cancellation retires it.
+- Correct the prompt50 sibling dirty-state report and the unsupported inference
+  that missing EDS producer objects prove a drive cannot produce SYNC.
+
 ### Finite host SYNC and conditional TPDO type
 
 - Add a pure fixed-origin finite SYNC schedule, independent owner capacity,

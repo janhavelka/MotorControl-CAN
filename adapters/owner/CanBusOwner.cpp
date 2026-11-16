@@ -652,15 +652,18 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
                 (!frame.receivedTimeKnown || frame.receivedUs <= now) &&
                 (!frame.receiveBoundsKnown || (frame.receivedEarliestUs <= frame.receivedLatestUs &&
                                                frame.receivedLatestUs <= now))) {
-                if (observeSync(frame, now))
-                    accepted = true;
-                else if (frame.receivedTimeKnown)
+                // SYNC observation must not consume a configured native route.
+                // A colliding heartbeat/PDO still carries its ordinary lifecycle
+                // or sample evidence while the local producer stays inhibited.
+                const bool syncObserved = observeSync(frame, now);
+                if (frame.receivedTimeKnown)
                     accepted = services_.receive(frame.frame, frame.receivedUs, now);
                 else if (frame.receiveBoundsKnown)
                     accepted = services_.receive(frame.frame, frame.receivedEarliestUs,
                                                  frame.receivedLatestUs, now);
                 else
                     accepted = services_.receive(frame.frame, now);
+                accepted = accepted || syncObserved;
                 if (!accepted)
                     detail::add(stats_.unmatchedFrames);
             } else

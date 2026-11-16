@@ -6,6 +6,8 @@ include/link example and a compiled read/move/stop simulation. The
 builds and physical evidence, and explain the descriptor migration.
 The [final software-candidate handoff](reports/prompt_50.md) records the independent
 review, corrections, verification and inherited work without requiring this chat.
+The [fresh prompts50–51 audit](reports/audit_50_51.md) adds owner/SYNC corrections,
+adversarial regressions and the latest bounded physical check.
 
 ## User contracts
 

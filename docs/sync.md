@@ -15,6 +15,11 @@ moves the origin. A missed slot is never sent as catch-up. The uint32 count
 supports the 60,000 slots needed for ten minutes at 10 ms without retaining an
 unbounded per-slot history.
 
+`ProbeSync::service` and `cancel` require time at least as recent as both the
+owner's last accepted time and the schedule's last progression. Backwards time
+rejects without consuming a terminal or cancelling either side. A caller cannot
+report cancellation while leaving the owner request eligible to transmit.
+
 The current owner arms only standard COB-ID `0x80`. The pure codec validates
 other supported standard identifiers, but the owner rejects custom routes until
 the physical network's identifier/broadcast compatibility is reviewed. No counter
@@ -42,6 +47,11 @@ Conflict is latched through host recovery. The application must explicitly recor
 resolution evidence while disarmed and retired, then separately arm again. An
 identifier/byte match never establishes a self echo. The current TWAI adapter has
 self-reception disabled; another adapter must provide the same contract.
+
+This passive observation never consumes a configured native route. A custom
+heartbeat or PDO at `0x80` still reaches its normal decoder and lifecycle once;
+the conservative SYNC conflict stays latched and local production is refused.
+In particular, a boot-up must invalidate queued work before it can transmit.
 
 The owner retains passive SYNC observation separately from PDO observations. It
 does not attach the latest host slot to the next TPDO and call it a simultaneous

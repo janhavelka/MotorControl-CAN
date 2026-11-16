@@ -47,7 +47,7 @@
           "?? examples/probe_cli/IoQualificationConsole.h"
         ]
       },
-      "disposition": "New clean RS revision; release/ownership/result seam reopened; no sibling mutation",
+      "disposition": "New RS revision with the 14 modified or untracked paths recorded above; none is a named inspected source file. Release/ownership/result seam reopened against recorded working-byte and Git-blob hashes; no sibling mutation.",
       "files": [
         {
           "path": "include/MotorControlRS/ActionOperation.h",

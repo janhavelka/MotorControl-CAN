@@ -1,0 +1,54 @@
+{
+  "purpose": "Fresh post-audit read-only two-node regression; all PDO types must be 255 before one SYNC",
+  "authorization": "Standing bench authorization. No NMT, motion, save or configuration writes.",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 30
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 30
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "K1",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "send": "K2",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

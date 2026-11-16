@@ -1,0 +1,61 @@
+PDOW admitted seconds=8; copies received frames, sends nothing
+PDOW_BEGIN n=0 t=143770985 seconds=8 ring=32 ids=16
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5200,"command":"host","ok":true,"status":"OK","wire_work":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5201,"command":"debug","ok":true,"status":"OK","mode":1,"trace_overwritten":820,"trace_pending":0,"trace_dropped":0}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"134565982","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"135250975","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"135566974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"136250133","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"136566975","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"137251976","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"137568977","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5202,"command":"sync","ok":true,"status":"OK"}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"138251974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"138569974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"139253974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"139569088","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"140254975","extended":false,"rtr":false,"payload":"05","decoded":false}
+PDOW_F n=1 t=144257978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=144256200 hi=144256403 gap=0
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"140570974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"141254104","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"141570973","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"142255976","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"142572977","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"143255979","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"143573974","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1793,"dlc":1,"accepted":true,"processed_us":"144257978","extended":false,"rtr":false,"payload":"05","decoded":false}
+PDOW_F n=2 t=144573980 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=144572189 hi=144572980 gap=0
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":0,"can_id":1794,"dlc":1,"accepted":true,"processed_us":"144573980","extended":false,"rtr":false,"payload":"05","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5203,"command":"sync","ok":true,"status":"OK","result":"accepted","operation_id":1}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":1,"can_id":128,"dlc":0,"accepted":true,"processed_us":"144708978","extended":false,"rtr":false,"payload":"","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":5203,"command":"sync","ok":true,"status":"OK","detail":1,"outcome":"LOCAL_TX","uncertain":true,"command_id":5203,"operation_id":1,"completed_us":"144713005","abort_code":null,"local_tx_count":1,"requested_count":1,"transmission_possible":true,"drive_effect_known":false}
+PDOW_SUM n=3 t=144770981 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"trace","id":0,"command":"debug","kind":2,"can_id":0,"dlc":0,"accepted":true,"processed_us":"144711980","extended":false,"rtr":false,"payload":"","decoded":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5204,"command":"result","ok":true,"status":"OK","detail":1,"outcome":"LOCAL_TX","uncertain":true,"command_id":5203,"operation_id":1,"completed_us":"144713005","abort_code":null,"local_tx_count":1,"requested_count":1,"transmission_possible":true,"drive_effect_known":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5205,"command":"release","ok":true,"status":"OK"}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5206,"command":"sync","ok":true,"status":"OK","motor_stop":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5207,"command":"debug","ok":true,"status":"OK","mode":0,"trace_overwritten":820,"trace_pending":0,"trace_dropped":0}
+PDOW_F n=4 t=145258978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=145257010 hi=145257235 gap=1000832
+PDOW_F n=5 t=145574978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=145573186 hi=145573769 gap=1000789
+PDOW_SUM n=6 t=145769978 frames=4 printed=4 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=7 t=146258072 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=146257186 hi=146257988 gap=1000753
+PDOW_F n=8 t=146575978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=146574186 hi=146574561 gap=1000792
+PDOW_SUM n=9 t=146769978 frames=6 printed=6 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=10 t=147259978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=147258186 hi=147258798 gap=1000810
+PDOW_F n=11 t=147576978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=147575186 hi=147575352 gap=1000791
+PDOW_SUM n=12 t=147769978 frames=8 printed=8 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=13 t=148260978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=148259186 hi=148259615 gap=1000817
+PDOW_F n=14 t=148577978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=148576010 hi=148576151 gap=1000799
+PDOW_SUM n=15 t=148769978 frames=10 printed=10 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=16 t=149261978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=149260186 hi=149260365 gap=1000750
+PDOW_F n=17 t=149577982 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=149576186 hi=149576963 gap=1000812
+PDOW_SUM n=18 t=149769978 frames=12 printed=12 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=19 t=150262978 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=150261010 hi=150261202 gap=1000837
+PDOW_F n=20 t=150578978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=150577186 hi=150577748 gap=1000785
+PDOW_SUM n=21 t=150769978 frames=14 printed=14 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=22 t=151262982 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=151261186 hi=151261955 gap=1000753
+PDOW_F n=23 t=151579978 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=151578186 hi=151578573 gap=1000825
+PDOW_ID n=24 t=151769978 id=701 ext=0 count=8 first=144256403 last=151261955 minGap=1000750 maxGap=1000837 meanGap=1000793 sdGap=36 changes=0 dlc=1 data=05
+PDOW_ID n=25 t=151771978 id=702 ext=0 count=8 first=144572980 last=151578573 minGap=1000785 maxGap=1000825 meanGap=1000799 sdGap=13 changes=0 dlc=1 data=05
+PDOW_END n=26 t=151773978 reason=duration frames=16 printed=16 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5208,"command":"stats","ok":true,"status":"OK","counters":[243,454,0,0,0,2,0,0,0,0,0,0,820,0],"maxServiceGapUs":"4003"}

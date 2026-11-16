@@ -322,6 +322,50 @@ void ownerTerminalBeforeCancel() {
             contains(r.bytes.output, "not_cancellable");
     }
 }
+void helperTimeBoundaries() {
+    {
+        Rig r;
+        CHECK(r.owner.armSync(0x80, 0));
+        CHECK(r.sync.request(10000, 1, 0));
+        CHECK(r.sync.service(0)); // Queued, with no controller handoff yet.
+        O::ServiceBudget noWork;
+        CHECK(r.owner.service(1, noWork));
+        CHECK(!r.sync.cancel(0));
+        CHECK(r.sync.context().state == C::SyncState::WAITING_TX);
+        CHECK(r.sync.context().outcome == C::SyncOutcome::NONE);
+        CHECK(r.sync.context().awaitingCompletion && r.sync.context().lastNowUs == 0);
+        // A timely retry cancels the actual queued request before it can transmit.
+        CHECK(r.sync.cancel(1));
+        CHECK(r.sync.service(1));
+        O::ServiceBudget send;
+        send.tx = 1;
+        CHECK(r.owner.service(2, send));
+        CHECK(r.wire.transmitted == 0 && !r.sync.active());
+        CHECK(r.sync.context().outcome == C::SyncOutcome::CANCELLED);
+        CHECK(!r.sync.context().awaitingCompletion && r.sync.release());
+    }
+    {
+        Rig r;
+        CHECK(r.owner.armSync(0x80, 0));
+        CHECK(r.sync.request(10000, 1, 0));
+        CHECK(r.sync.service(0));
+        O::ServiceBudget send;
+        send.tx = 1;
+        CHECK(r.owner.service(1, send));
+        O::ServiceBudget report;
+        report.events = 1;
+        CHECK(r.owner.service(2, report)); // A terminal exists at a later owner time.
+        CHECK(r.wire.transmitted == 1 && r.sync.context().transmittedCount == 0);
+        CHECK(r.sync.service(1).code == M::Err::INVALID_CONFIG);
+        CHECK(r.sync.context().state == C::SyncState::WAITING_TX);
+        CHECK(r.sync.context().awaitingCompletion && r.sync.context().lastNowUs == 0);
+        CHECK(r.sync.context().transmittedCount == 0);
+        CHECK(r.sync.service(2));
+        CHECK(r.sync.context().state == C::SyncState::SUCCEEDED);
+        CHECK(r.sync.context().transmittedCount == 1 && !r.sync.active());
+        CHECK(r.sync.release());
+    }
+}
 } // namespace
 int main() {
     passiveAndGrammar();
@@ -331,5 +375,6 @@ int main() {
     lateReportAndBusOff();
     betweenSlotLifecycle();
     ownerTerminalBeforeCancel();
+    helperTimeBoundaries();
     std::puts("Finite SYNC shared console passed");
 }

@@ -31,14 +31,18 @@ class ProbeSync {
      */
     MotorControlCAN::Status request(uint64_t periodUs, uint32_t count, uint64_t nowUs) noexcept;
     /** Progress at most one owner result or one new admission, independent of output room.
-     * @param nowUs Supplied monotonic microseconds, after the owner's turn.
+     * @param nowUs Supplied monotonic microseconds, at least the owner's latest time
+     * and the schedule's last progression time.
      * @return Local progression status, separate from retained schedule outcome.
+     * Backwards time rejects before consuming a terminal or changing either owner or schedule.
      * Deadline failure cancels the exact pending owner request; neither is a motor stop.
      */
     MotorControlCAN::Status service(uint64_t nowUs) noexcept;
     /** Withdraw locally and cancel the exact owner request; never send a motor stop.
-     * @param nowUs Supplied monotonic microseconds.
-     * @return True when a retained active schedule was locally disarmed.
+     * @param nowUs Supplied monotonic microseconds, at least the owner's latest time
+     * and the schedule's last progression time.
+     * @return True when a retained active schedule was locally disarmed. Backwards
+     * time returns false without changing the schedule or its pending owner request.
      */
     bool cancel(uint64_t nowUs) noexcept;
     /** @return True releases a schedule after its owner terminal was consumed.

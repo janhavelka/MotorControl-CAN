@@ -1,5 +1,11 @@
 # CAN bench facts and evidence gaps
 
+Latest image/regression: the [fresh prompts50–51 audit](reports/audit_50_51.md#fresh-physical-regression)
+records the corrected S2 image `c5c57992`, 242 successful two-node uploads and
+one locally confirmed SYNC with all PDO types255. The producer was released and
+disarmed. No drive configuration or motion command was sent in that regression;
+earlier specimen and qualification limits below remain in effect.
+
 The [prompt48 campaign](reports/prompt_48.md) retains current-image bounded
 read/console load on both CL86-C specimens. The high-load capture has one
 64-byte diagnostic deficit after the console accounting boundary; the precise

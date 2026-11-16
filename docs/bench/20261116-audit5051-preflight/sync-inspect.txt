@@ -1,0 +1,1 @@
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":801,"command":"sync","ok":true,"status":"OK","armed":false,"producer_conflict":false,"retained":false,"active":false,"foreign_observed":false,"foreign_serial":0}

@@ -1,0 +1,23 @@
+{
+  "period_ms": 100,
+  "count": 1,
+  "steps": [
+    {
+      "send": "P8"
+    },
+    {
+      "send": "@5200 host 0",
+      "monotonic": 350462.187
+    },
+    {
+      "send": "@5201 debug raw",
+      "monotonic": 350462.25
+    },
+    {
+      "send": "@5202 sync arm",
+      "monotonic": 350462.312
+    }
+  ],
+  "fixture": "COM15 303A:1002 94A990398B40; post-audit ELF c5c579929c7d16b8a58f013338ff58669113fb6ed1a5e6658769db346efdd0ff; both nodes all types255 read back",
+  "no_automatic_retry": true
+}

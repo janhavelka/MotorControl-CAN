@@ -38,7 +38,8 @@ struct Rig {
     C::SdoClient services;
     Wire wire;
     O::CanBusOwner owner;
-    explicit Rig(uint32_t seed = 0, bool collision = false) : owner(services, wire.transport(), 51, seed) {
+    explicit Rig(uint32_t seed = 0, bool collision = false, uint32_t heartbeatId = 0x701)
+        : owner(services, wire.transport(), 51, seed) {
         wire.owner = &owner;
         auto route = OwnerRig::route();
         if (collision) route.clientToServerId = 0x80;
@@ -46,7 +47,7 @@ struct Rig {
         C::NetworkRoute network;
         network.binding = OwnerRig::route().binding;
         network.generation = 11;
-        network.heartbeatId = 0x701;
+        network.heartbeatId = heartbeatId;
         network.emcyId = 0x81;
         CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
     }
@@ -304,6 +305,86 @@ void urgentPriorityAndValidation() {
     reentrant.admit();
     reentrant.turn(0);
 }
+void passiveSyncPreservesConfiguredBootupRouting() {
+    Rig r(0, false, 0x80);
+    O::SequenceId sequence;
+    CHECK(r.owner.beginSequence(OwnerRig::route().binding, 1, 0, sequence));
+    CHECK(r.owner.beginOperation(sequence, 1, 1000, 0));
+    O::RequestId queued;
+    CHECK(r.owner.admit(r.ordinary(sequence, 1), 0, queued) == O::BusAdmission::ACCEPTED);
+    CHECK(!r.owner.armSync(0x80, 0)); // Existing custom routes preclude local production.
+    r.wire.push(OwnerRig::frame(0x80, 1), 1); // Configured boot-up before any handoff.
+    r.turn(1);
+    CHECK(r.owner.syncConflict() && r.owner.syncObservation().present);
+    CHECK(r.services.node(0)->route.generation > 11);
+    CHECK(!r.owner.sequence(sequence));
+    const auto* terminal = r.owner.result(queued);
+    CHECK(terminal && terminal->reason == O::CompletionReason::INVALIDATED);
+    CHECK(!terminal->service.transmissionPossible && r.wire.sentCount == 0);
+}
+void passiveSyncPreservesConfiguredPdoRouting() {
+    Rig r;
+    // Synthetic one-byte profile: this checks routing, not a Lichuan map claim.
+    const C::PdoObject object(0x2000, 0, 1, C::PdoSign::UNSIGNED, C::PdoRole::RAW, false, true);
+    C::PdoProfile profile;
+    profile.profile = 41;
+    profile.sets = profile.slots = 1;
+    profile.objects = &object;
+    profile.objectCount = 1;
+    C::PdoMap map;
+    map.number = map.count = 1;
+    map.words[0] = 0x20000008;
+    C::PdoMapEvidence evidence;
+    evidence.route.binding = OwnerRig::route().binding;
+    evidence.route.generation = 1;
+    evidence.route.cobId = 0x80;
+    CHECK(C::validatePdoMap(map, profile, evidence.route.layout));
+    evidence.nodeGeneration = 11;
+    evidence.source = C::PdoMapSource::REVIEWED_CONFIGURATION;
+    evidence.evidenceId = 51;
+    evidence.communicationKnown = true;
+    evidence.cobIdParameter = 0x80;
+    evidence.transmissionType = 255;
+    CHECK(r.services.configurePdo(0, 0, evidence, profile, C::PdoObserver(), 0));
+    C::PdoQualification qualification;
+    qualification.route = evidence.route;
+    qualification.nodeGeneration = 11;
+    qualification.basis = C::PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED;
+    qualification.evidenceId = 52;
+    CHECK(r.services.qualifyPdo(0, qualification, 0));
+    CHECK(!r.owner.armSync(0x80, 0));
+    auto sample = OwnerRig::frame(0x80, 1);
+    sample.data[0] = 42;
+    r.wire.push(sample, 1);
+    r.turn(1);
+    CHECK(r.owner.syncConflict() && !r.owner.syncArmed());
+    const auto* record = r.services.pdo(0);
+    CHECK(record && record->qualified && record->observation.time.present);
+    CHECK(record->observation.sample.values[0].native == 42);
+    CHECK(record->observation.time.receivedUs == 1 && record->observation.time.processedUs == 1);
+    CHECK(r.owner.stats().rxFrames == 1 && r.owner.stats().unmatchedFrames == 0);
+}
+void foreignSyncConflictPreservesOrdinaryTraffic() {
+    Rig r;
+    O::SequenceId sequence;
+    CHECK(r.owner.beginSequence(OwnerRig::route().binding, 1, 0, sequence));
+    CHECK(r.owner.beginOperation(sequence, 1, 1000, 0));
+    O::RequestId ordinary;
+    CHECK(r.owner.admit(r.ordinary(sequence, 1), 0, ordinary) == O::BusAdmission::ACCEPTED);
+    const auto sync = r.admit();
+    auto heartbeat = OwnerRig::frame(0x701, 1);
+    heartbeat.data[0] = 5;
+    r.wire.push(heartbeat, 1);
+    r.wire.push(OwnerRig::frame(0x80, 0), 1);
+    r.turn(1);
+    CHECK(r.services.node(0)->heartbeat.present && r.services.node(0)->nmt == C::NmtState::OPERATIONAL);
+    CHECK(r.owner.syncConflict() && !r.owner.syncArmed());
+    CHECK(r.owner.syncResult(sync)->service.outcome == C::SyncOutcome::PRODUCER_CONFLICT);
+    CHECK(!r.owner.syncResult(sync)->service.transmissionPossible);
+    CHECK(r.wire.sentCount == 1 && r.wire.ids[0].kind == O::TransportTxId::Kind::SDO);
+    CHECK(r.owner.sequence(sequence) && !r.owner.result(ordinary));
+    CHECK(r.owner.stats().rxFrames == 2 && r.owner.stats().unmatchedFrames == 0);
+}
 }
 int main() {
     independentCapacityAndFirstTerminal();
@@ -314,5 +395,8 @@ int main() {
     urgentPriorityAndValidation();
     admissionAndMalformedIngressStayAtomic();
     explicitArmEpochPreservesLifecycleBoundaries();
+    passiveSyncPreservesConfiguredBootupRouting();
+    passiveSyncPreservesConfiguredPdoRouting();
+    foreignSyncConflictPreservesOrdinaryTraffic();
     std::printf("sync owner: %u checks\n", checks);
 }

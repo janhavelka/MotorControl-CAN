@@ -644,7 +644,7 @@ observed maximum. There are no duplicate binding-service totals in `Stats`.
 | `txRejected` | One enqueue callback refuses a frame, or that exact frame's matching final report is negative. A refusal followed by a negative report counts once; a later positive report can independently prove actual TX. |
 | `rxDropped` | Owner rejects invalid, old-controller-epoch or future-capture ingress; also adds the nonzero reported lost-frame minimum accepted by `receiveOverflow(nowUs, droppedFrames)`. These lost frames need not have reached the receive callback. |
 | `rxLost` | Subset of `rxDropped` added only by accepted `receiveOverflow` reports. No raw frame exists for these reported losses; retained rejected/unmatched frames do not increment it. |
-| `unmatchedFrames` | Structurally valid current-epoch ingress is not accepted by normal PDO/network/SDO dispatch. This includes unrelated frames and protocol-route rejects; use retained native dispositions to distinguish them. |
+| `unmatchedFrames` | Structurally valid current-epoch ingress is accepted by neither PDO/network/SDO dispatch nor passive SYNC observation. This includes unrelated frames and protocol-route rejects; use retained native dispositions to distinguish them. |
 | `queueRejected` | Each non-reentrant rejected `admit` or `admitUrgent` call, including local invalid input, expired input, inhibition and exhausted IDs. Reentrant rejection leaves all storage unchanged. Sequence/operation/recovery refusal is not a request admission. |
 | `resultsRejected` | Subset of `queueRejected` where admission returns `RESULTS_FULL`, including occupied urgent capacity. |
 | `cancelled` | Each newly terminal request whose winning cause is local withdrawal: explicit cancel, sequence/producer invalidation, recovery interruption or preflight guard. Earlier eligible terminals win; repeat cancellation does not count again. |
@@ -769,3 +769,7 @@ explicit rearming after retirement. `resolveSyncConflict` records external
 resolution evidence; it performs no network reset and never arms automatically.
 The TWAI adapter now reserves CHANNELS+2 entries (SDO channels, NMT, SYNC), with
 one actual SDK frame active. Receive evidence remains independent of console output.
+Passive SYNC detection does not short-circuit configured heartbeat/PDO dispatch;
+route collisions inhibit local production while ordinary reset and sample evidence
+still reach the service layer. The shared helper rejects stale owner/schedule time
+before cancellation or terminal consumption; see the linked timing contract.

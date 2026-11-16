@@ -159,6 +159,44 @@ class SharedConsoleRecords(unittest.TestCase):
         self.assertEqual(len(report.unknown), 1)
         self.assertEqual(report.records[0].raw, "unrecognized record")
 
+    def test_retained_sync_arm_refusal_and_truncated_trace_remain_incomplete(self):
+        capture = BENCH / "20261116-audit5051-sync"
+        data = (capture / "rx.bin").read_bytes()
+        request_bytes = (capture / "request.json").read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(),
+                         "a2ed4bf4801b050e98dcb9fd9bd7315cdfd58cdf7078ae0c8c3a275a35513328")
+        self.assertEqual(hashlib.sha256(request_bytes).hexdigest(),
+                         "d3ea8de4b07103e395ac1d8bcdbde84080587a54f617c3c8e00200d2f6cda1c8")
+        self.assertEqual((capture / "rx.txt").read_bytes(), data)
+        request = json.loads(request_bytes)
+        self.assertEqual([step["send"] for step in request["steps"]],
+                         ["P8", "@5200 host 0", "@5201 debug raw", "@5202 sync arm"])
+        report = evidence.replay_capture(capture)
+        self.assertEqual(report.verdict, "incomplete")
+        self.assertEqual(report.errors, [
+            {"code": "malformed_line", "line": 14, "detail": "no line terminator"},
+            {"code": "truncated_line", "line": 14,
+             "detail": '{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":'}])
+        self.assertEqual([(r["line"], r["reason"]) for r in report.malformed],
+                         [(14, "no line terminator")])
+        self.assertFalse(data.endswith(b"\n"))
+        self.assertEqual(report.records[-1].raw.encode("ascii"), data.rsplit(b"\n", 1)[-1])
+        sync = [r.values for r in report.records
+                if r.kind == "CONSOLE" and r.status == "parsed" and r.values["command"] == "sync"]
+        self.assertEqual(sync, [dict(schema="motorcontrolcan.console/1", protocol=3,
+                                     profile="lichuan_c", type="reply", id=5202, command="sync",
+                                     ok=False, status="ILLEGAL_VALUE", detail=0,
+                                     error="configured_canopen_interface_and_exclusive_producer_required")])
+        # The helper exited at arm refusal: no schedule request, terminal or SYNC traffic follows.
+        self.assertFalse(any(r.kind == "PDOW_F" and r.values["id"] == 0x80 or
+                             r.kind == "CONSOLE" and r.status == "parsed" and
+                             r.values.get("type") == "trace" and r.values.get("can_id") == 0x80
+                             for r in report.records))
+        self.assertEqual((report.terminals, report.raw_uploads_successful, report.typed_successes),
+                         (0, 0, 0))
+        self.assertIsNone(report.operation)
+        self.assertFalse(report.started or report.ended)
+
 
 class RetainedCaptures(unittest.TestCase):
     def test_final_nodes_replay_exactly(self):
@@ -194,7 +232,9 @@ class RetainedCaptures(unittest.TestCase):
                        "20261105T153655Z-s2-ping-boot": 1}
         # 20261104T1407Z-p1-node2-318: one 64-byte console chunk was lost between the S2 and pyserial
         # inside its TRIAL_LAST line, the UART loss of the soaks, so that one line is malformed.
-        console_loss = {"20261104T1407Z-p1-node2-318": 1}
+        # 20261116-audit5051-sync: the helper exited on sync-arm refusal before requesting a
+        # schedule, retaining a partial debug JSON line. Its exact negative evidence is tested above.
+        console_loss = {"20261104T1407Z-p1-node2-318": 1, "20261116-audit5051-sync": 1}
         # The shared smoke image's console is not the bench image's: s2_smoke_test.py checks those
         # retained captures against the smoke runner's own line patterns.
         # Likewise the shared console image's captures (s2_console.py): s2_console_test.py and
@@ -222,7 +262,7 @@ class RetainedCaptures(unittest.TestCase):
                                    "20261104T154630Z-s2-ping-boot", "20261104T154731Z-s2-ping-boot",
                                    "20261104T184948Z-s2-ping-boot", "20261104T185132Z-s2-ping-boot",
                                    "20261105T153655Z-s2-ping-boot", "20261105T154237Z-s2-ping-boot",
-                                   "20261104T1407Z-p1-node2-318")
+                                   "20261104T1407Z-p1-node2-318", "20261116-audit5051-sync")
             if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))
