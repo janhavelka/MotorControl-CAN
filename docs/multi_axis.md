@@ -1,13 +1,17 @@
 # Concurrent axes and group stop
 
 Qualification status is tracked in [prompt54](reports/prompt_54.md). Native
-independent/group-stop tests do not close HM1-HM9 physical trials. Node1's
-unresolved SDO session blocks its new motion; SYNC-only raw reception does not
-clear that condition. Node2's explicitly interrupted position also retains its
-trajectory fence despite a checked stop. The two-node SYNC capture is traffic
+independent/group-stop tests do not close HM1-HM9 physical trials. On the S2
+bench, HM1, HM2, HM3's group HALT and HM5 passed on 2026-11-16 with one paired
+arming before either axis moved
+([HIL report](reports/2026-11-16_hil_campaign.md)); HM4 and HM6-HM9 remain. In
+prompt 54, node1's unresolved SDO session blocked its new motion (SYNC-only raw
+reception did not clear that condition), and node2's explicitly interrupted
+position kept its trajectory fence despite a checked stop; the user's drive
+power cycle of 2026-11-16 retired both. The two-node SYNC capture is traffic
 evidence only: the sustained 10 ms attempt failed its processing deadline, while
-100 ms passed for60 seconds. Shared RPDO, motion and wired-stop requirements
-below remain open.
+100 ms passed for 60 seconds and 20 ms for 30 minutes. Shared RPDO, motion and
+wired-stop requirements below remain open.
 
 One `CanBusOwner` receives and services the physical interface. Register one
 `AxisSession` through `ProbeApp::openAxis` for each logical binding and one

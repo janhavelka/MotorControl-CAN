@@ -1,19 +1,19 @@
 {
-  "trial": 56420,
-  "series": 102,
+  "trial": 56494,
+  "series": 118,
   "rng": 20261116,
   "nodes": {
     "1": {
-      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\S0096-n1-unlatch\\20261116T111106Z-stop-quick-stationary-n1-56402",
+      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\S0113-n1-hm3pp\\20261116T180129Z-stop-quick-stationary-n1-56471",
       "retired": null,
       "rot": 3,
-      "subdivision": 51200,
+      "subdivision": 1000,
       "alarms": 0,
       "anomalies": 1,
       "mode": "03"
     },
     "2": {
-      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\S0079-n2-hm12p\\20261116T102624Z-stop-quick-stationary-n2-56334",
+      "stoprec": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261116-hil\\S0114-n2-hm3pp\\20261116T180153Z-stop-quick-stationary-n2-56474",
       "retired": null,
       "rot": 6,
       "subdivision": 1000,

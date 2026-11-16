@@ -316,3 +316,171 @@
 11:14:29Z   state n2 2100=0011 6041=8050 6061=03 6064=125730 606c=0 1001=00 603f=0000 607a=125730 60ff=60
 11:14:29Z   INVEST loop 1: rc=0 head=('0', 'none') groups=[('0', '2', '4000'), ('1', '1', '4000'), ('2', '1', '4000')] TRIAL_LOOP requested=1 written=1 outcome=0 ack=1 uncertain=0 abort=00000000 state={'1001': '00', '603f': '0000', '2100': '0011', '6041': '8050', '6061': '03', '6064': 125730, '606c': 0, '607a': 125730, '60ff': 60}
 11:14:29Z stuck.py ended
+16:59:43Z ##### series 103 node 2 state (S0103-n2-state)
+16:59:46Z === start
+16:59:50Z   exit 0 (4.2 s)
+16:59:50Z === 56421 read node 2
+16:59:53Z   TRIAL id=56421 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5000 lossCancel=0
+16:59:53Z   TRIAL_PLAN route=actions node=2 trial=56421 attended=0
+16:59:53Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+16:59:53Z   exit 0 (2.4 s)
+16:59:53Z === release 56421
+16:59:54Z   exit 0 (1.6 s)
+16:59:54Z   state n2 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+16:59:54Z   INVEST state: {'1001': '00', '603f': '0000', '2100': '0001', '6041': '8037', '6061': '00', '6064': 0, '606c': 0, '607a': 5000, '60ff': 120}
+16:59:54Z ##### series 104 node 2 loop2 (S0104-n2-loop2)
+16:59:58Z === start
+17:00:02Z   exit 0 (4.1 s)
+17:00:02Z === 56422 read node 2
+17:00:04Z   TRIAL id=56422 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5006 lossCancel=0
+17:00:04Z   TRIAL_PLAN route=actions node=2 trial=56422 attended=0
+17:00:04Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+17:00:04Z   exit 0 (2.4 s)
+17:00:04Z === release 56422
+17:00:06Z   exit 0 (1.6 s)
+17:00:06Z   state n2 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:00:06Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+17:00:06Z === 56423 mode1 n2
+17:00:13Z   TRIAL id=56423 node=2 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5001 lossCancel=0
+17:00:13Z   TRIAL_PLAN route=mode1 node=2 trial=56423 attended=1 cycles=5 interval=500
+17:00:13Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+17:00:13Z   exit 0 (6.8 s)
+17:00:13Z === release 56423
+17:00:14Z   exit 0 (1.7 s)
+17:00:14Z === release alert
+17:00:16Z   RELEASE refused
+17:00:16Z   exit 0 (1.6 s)
+17:00:16Z === 56424 emergency stop n2
+17:00:17Z   TRIAL id=56424 node=2 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=4000 lossCancel=0
+17:00:17Z   TRIAL_PLAN route=stop node=2 trial=56424 attended=1 kind=2 deadline=2000 be=2000 interval=250
+17:00:17Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+17:00:17Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+17:00:17Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+17:00:17Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+17:00:17Z   exit 3 (1.2 s)
+17:00:17Z === release emergency-56424
+17:00:19Z   exit 0 (1.7 s)
+17:00:19Z ##### series 105 node 2 loop2b (S0105-n2-loop2b)
+17:00:22Z === start
+17:00:26Z   exit 0 (4.1 s)
+17:00:26Z === 56425 read node 2
+17:00:28Z   TRIAL id=56425 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5001 lossCancel=0
+17:00:28Z   TRIAL_PLAN route=actions node=2 trial=56425 attended=0
+17:00:28Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+17:00:28Z   exit 0 (2.4 s)
+17:00:28Z === release 56425
+17:00:30Z   exit 0 (1.6 s)
+17:00:30Z   state n2 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:00:30Z === 56426 mode3 n2
+17:00:34Z   TRIAL id=56426 node=2 route=mode3 failure=0 why=none lost=0 terminals=35 traffic=105 tail=0 tailLost=0 summaries=6 step=4 cycles=2 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0
+17:00:34Z   TRIAL_PLAN route=mode3 node=2 trial=56426 attended=1 cycles=2 interval=500
+17:00:34Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:00:34Z   exit 0 (4.0 s)
+17:00:34Z === release 56426
+17:00:36Z   exit 0 (1.7 s)
+17:00:36Z === 56427 read node 2
+17:00:38Z   TRIAL id=56427 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5000 lossCancel=0
+17:00:38Z   TRIAL_PLAN route=actions node=2 trial=56427 attended=0
+17:00:38Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:00:38Z   exit 0 (2.5 s)
+17:00:38Z === release 56427
+17:00:40Z   exit 0 (1.6 s)
+17:00:40Z   state n2 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:00:40Z === 56428 loop 2 n2
+17:00:41Z   TRIAL id=56428 node=2 route=loop failure=0 why=unchanged lost=0 terminals=7 traffic=21 tail=0 tailLost=0 summaries=8 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=5001 lossCancel=0
+17:00:41Z   TRIAL_PLAN route=loop node=2 trial=56428 attended=1 value=2
+17:00:41Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:00:41Z   TRIAL_SETTINGS prepared=1 noop=1 state=3 outcome=1 changed=0 confirmed=0 effects=0 uncertain=0 cfg0=1 cfg1=1 followed=0
+17:00:41Z   exit 0 (1.3 s)
+17:00:41Z === release 56428
+17:00:43Z   exit 0 (1.6 s)
+17:00:43Z === 56429 read node 2
+17:00:45Z   TRIAL id=56429 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5000 lossCancel=0
+17:00:45Z   TRIAL_PLAN route=actions node=2 trial=56429 attended=0
+17:00:45Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:00:45Z   exit 0 (2.4 s)
+17:00:45Z === release 56429
+17:00:47Z   exit 0 (1.7 s)
+17:00:47Z   state n2 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:00:47Z   INVEST loop 2: rc=0 head=('0', 'unchanged') groups=[('0', '2', '4000')] TRIAL_LOOP requested=2 written=0 outcome=255 ack=0 uncertain=0 abort=00000000 state={'1001': '00', '603f': '0000', '2100': '0011', '6041': '8050', '6061': '03', '6064': 0, '606c': 0, '607a': 5000, '60ff': 120}
+17:00:47Z stuck.py ended
+17:00:47Z ##### series 106 node 1 sub1000 (S0106-n1-sub1000)
+17:00:50Z === start
+17:00:54Z   exit 0 (4.2 s)
+17:00:54Z === 56430 read node 1
+17:00:57Z   TRIAL id=56430 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+17:00:57Z   TRIAL_PLAN route=actions node=1 trial=56430 attended=0
+17:00:57Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+17:00:57Z   exit 0 (2.4 s)
+17:00:57Z === release 56430
+17:00:58Z   exit 0 (1.6 s)
+17:00:58Z   state n1 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:00:58Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+17:00:58Z === 56431 mode1 n1
+17:01:05Z   TRIAL id=56431 node=1 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5005 lossCancel=0
+17:01:05Z   TRIAL_PLAN route=mode1 node=1 trial=56431 attended=1 cycles=5 interval=500
+17:01:05Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+17:01:05Z   exit 0 (6.8 s)
+17:01:05Z === release 56431
+17:01:07Z   exit 0 (1.6 s)
+17:01:07Z === release alert
+17:01:08Z   RELEASE refused
+17:01:08Z   exit 0 (1.6 s)
+17:01:08Z === 56432 emergency stop n1
+17:01:10Z   TRIAL id=56432 node=1 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=4001 lossCancel=0
+17:01:10Z   TRIAL_PLAN route=stop node=1 trial=56432 attended=1 kind=2 deadline=2000 be=2000 interval=250
+17:01:10Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+17:01:10Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+17:01:10Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+17:01:10Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+17:01:10Z   exit 3 (1.2 s)
+17:01:10Z === release emergency-56432
+17:01:11Z   exit 0 (1.7 s)
+17:01:11Z ##### series 107 node 1 sub1000b (S0107-n1-sub1000b)
+17:01:15Z === start
+17:01:19Z   exit 0 (4.2 s)
+17:01:19Z === 56433 read node 1
+17:01:21Z   TRIAL id=56433 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5005 lossCancel=0
+17:01:21Z   TRIAL_PLAN route=actions node=1 trial=56433 attended=0
+17:01:21Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+17:01:21Z   exit 0 (2.4 s)
+17:01:21Z === release 56433
+17:01:23Z   exit 0 (1.7 s)
+17:01:23Z   state n1 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:01:23Z === 56434 mode3 n1
+17:01:27Z   TRIAL id=56434 node=1 route=mode3 failure=0 why=none lost=0 terminals=35 traffic=105 tail=0 tailLost=0 summaries=6 step=4 cycles=2 motion=1 case=1 unsettled=0 gap=5005 lossCancel=0
+17:01:27Z   TRIAL_PLAN route=mode3 node=1 trial=56434 attended=1 cycles=2 interval=500
+17:01:27Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:01:27Z   exit 0 (4.0 s)
+17:01:27Z === release 56434
+17:01:28Z   exit 0 (1.7 s)
+17:01:28Z === 56435 read node 1
+17:01:31Z   TRIAL id=56435 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5005 lossCancel=0
+17:01:31Z   TRIAL_PLAN route=actions node=1 trial=56435 attended=0
+17:01:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:01:31Z   exit 0 (2.4 s)
+17:01:31Z === release 56435
+17:01:32Z   exit 0 (1.6 s)
+17:01:32Z   state n1 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:01:32Z === 56436 subdivision 1000 n1
+17:01:34Z   TRIAL id=56436 node=1 route=subdivision failure=0 why=unchanged lost=0 terminals=7 traffic=21 tail=0 tailLost=0 summaries=8 step=2 cycles=0 motion=1 case=1 unsettled=0 gap=4004 lossCancel=0
+17:01:34Z   TRIAL_PLAN route=subdivision node=1 trial=56436 attended=1 value=1000
+17:01:34Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:01:34Z   TRIAL_SETTINGS prepared=1 noop=1 state=3 outcome=1 changed=0 confirmed=0 effects=0 uncertain=0 cfg0=1 cfg1=1 followed=0
+17:01:34Z   TRIAL_DRIVER which=0 present=1 2200=0000 2201=1000
+17:01:34Z   TRIAL_DRIVER which=1 present=0 2200=0000 2201=0
+17:01:34Z   TRIAL_DRIVER which=2 present=0 2200=0000 2201=0
+17:01:34Z   TRIAL_SUBDIVISION requested=1000 written=0 outcome=255 ack=0 uncertain=0 abort=00000000
+17:01:34Z   exit 0 (1.2 s)
+17:01:34Z === release 56436
+17:01:35Z   exit 0 (1.7 s)
+17:01:35Z === 56437 read node 1
+17:01:38Z   TRIAL id=56437 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=1 case=0 unsettled=0 gap=5005 lossCancel=0
+17:01:38Z   TRIAL_PLAN route=actions node=1 trial=56437 attended=0
+17:01:38Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=0 606c=0
+17:01:38Z   exit 0 (2.4 s)
+17:01:38Z === release 56437
+17:01:39Z   exit 0 (1.7 s)
+17:01:39Z   state n1 2100=0011 6041=8050 6061=03 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+17:01:39Z   INVEST sub 1000: ok=False driver=[('0', '1', '0000', '1000'), ('1', '0', '0000', '0'), ('2', '0', '0000', '0')] state={'1001': '00', '603f': '0000', '2100': '0011', '6041': '8050', '6061': '03', '6064': 0, '606c': 0, '607a': 5000, '60ff': 120}
+17:01:39Z stuck.py ended

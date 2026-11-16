@@ -9,6 +9,11 @@ and are able to run now.. Motor power cycled". Bench: the S2 board on COM15 (ser
 [`docs/bench/20261116-hil/`](../bench/20261116-hil/README.md). Every value is a drive or owner report; no shaft,
 supply or independent CAN observation was made. Labels as elsewhere: **M** measured, **I** inferred.
 
+The two-axis trials ran later the same day on a second image, `b7033c12` (ELF `59a90519…5cb207`, PONG `routes=16`),
+flashed at 17:53Z after a further user power cycle ([upload](../bench/20261116T1753Z-s2-upload/),
+[ping check](../bench/20261116-hil/20-pair-ping/)). That image adds the paired arming the auditor asked for
+([two-axis trials](#two-axis-trials-hm1-to-hm9)).
+
 ## Summary
 
 | Area | Result |
@@ -19,7 +24,7 @@ supply or independent CAN observation was made. Labels as elsewhere: **M** measu
 | Prompt 52/54 changes, bench routes | 14 of 14 position changes (immediate speed, immediate retarget, buffered retarget) and 6 of 10 velocity changes completed; the 4 others were correct budget refusals |
 | Prompt 52/54 changes, console | 7 of 7 typed velocity changes executed, a stop during a change ramp included; typed move replacements admitted only at the edge of the replacement window, then `DEADLINE` by design (experiment) |
 | M14 (NMT Stop during motion) | 4 of 4: the drive kept running at the commanded speed through NMT Stopped and Pre-operational; only the run's own SDO quick stop stopped it |
-| Two-axis (HM1 to HM5) | Not executable on this image: the bench refuses an arming line while the console holds an operation, and one arming expires before two can be printed |
+| Two-axis (HM1 to HM5) | Not executable on `17386514`: the bench refuses an arming line while the console holds an operation, and one arming expires before two can be printed. On `b7033c12`, with one paired arming before either moves: HM1, HM2, HM5 passed; HM3's group HALT passed, and the group quick stop 2.3 s later had only the best-effort path (unconfirmed by definition) |
 | SYNC | 20 ms for 30 minutes passed: 90,000 SYNC frames confirmed, 90,000 TPDOs from each node captured completely; the 10 ms run is still the open target (prompt 56) |
 | S21 discriminator | 3000 rpm with 500 ms ramps at `2201=51200` was clean on node 1: a pulse-rate limit, not the deviation threshold, fits |
 
@@ -157,6 +162,45 @@ moved node 1, refused node 2's arming (`TRIAL_REFUSED reason=console`) and ended
 `scripts/paired_motion.py` runner has the same limit, as its research note predicted. Needed: a bench route that arms
 both axes in one record, or arming that does not print its record before the motion line.
 
+### Correction: paired arming (image `b7033c12`, route protocol 16)
+
+The auditor's proposed fix, implemented in `b7033c12`: one `Ta` (moves) or `Te` (velocity) line reads and checks both
+nodes in one record. The console then arms each axis exactly as its own `TY` or `TB` line would. The record prints one
+`TRIAL_PAIR` line instead of its dump. Its full dump (`d`) is allowed only after the console's results are released, so
+it never holds a motion or stop reply. The freshness cap (3.15 s) and the global guard against T lines during console
+work are unchanged; the moves and stops are separate console lines with separate admissions and results, so nothing
+here is simultaneous or atomic motion. Native regression: `test/bench_console_test.cpp` drives main.cpp's admission
+policy (now `BenchConsole.h`'s `benchActivity`, `trialLineRefusal`, `dumpRefusal`) over a 115200-baud and an
+output-blocked UART model. The trials below run on `scripts/s2_bench_console.py`'s executor
+([`pairhil.py`](../bench/20261116-hil/tools/pairhil.py), [`sched.py`](../bench/20261116-hil/tools/sched.py)), one
+MCU boot per two-axis setup. Both drives were first given new stop records and enables, because the earlier ones
+predated the power cycle (series S0108 to S0111). All values M (drive and owner reports), absolute moves at 30 rpm
+(native), 500 ms ramps, observation every 500 ms:
+
+| Trial | Arming (route time, `TRIAL_RES`) | Move or run accepted, after the arming notice (host clock, about 15 ms resolution) | Result |
+| --- | --- | --- | --- |
+| HM1: both axes 3000 counts, opposite directions, to completion (S0112) | `Ta` 56461: both checks passed, 0.265 s | Node 1 +0.31 s, node 2 +0.63 s (age cap 3.15 s) | Both `OBSERVED`, completion 1; ended exactly on target (8320, 14319); completions 0.32 s apart |
+| HM2: both 3500 counts; HALT node 1 at 3 s (S0112, same boot) | `Ta` 56464, 0.264 s | +0.31 s, +0.63 s | Node 1: `stop 1 normal` `OBSERVED` 0.8 s after the request; its move `CANCELLED`, uncertain (an interrupted move), halted at 6617 (from 8320 toward 4820). Node 2 completed to 17819, `OBSERVED`. No node 1 controlword from node 2's work, nor the reverse |
+| HM3: both 4000 counts; group HALT at 3 s, then group quick stop (S0115) | `Ta` 56480, 0.265 s | +0.30 s, +0.61 s | `stop all normal`: both axes `OBSERVED` (`group_stop_axis`), moves `CANCELLED`, uncertain; halted at 4917 and 19367. `stop all fast` 2.3 s later: both axes `STOP_SENT_UNCONFIRMED` (see below); the next boot read both released and still (`6041=0050`, `606C` 0) |
+| HM5: both velocity 30 rpm, 12 s, each with its own quick stop at the due time (S0118) | `Te` 56492: both released mode 3 standstill checks passed, 0.250 s | +0.19 s, +0.39 s | Both runs `OBSERVED` with their own stop; both ended released and still (5533 and 5518 counts travelled), `2100=0014` (the known latch after a moving quick stop) |
+
+After each trial the console's results were released, then `d` dumped the full record (36 terminals, 108 traffic
+frames, `lost=0`), and `r` released it. In every record, node 2's reads end in `node=2`. `tail=16 tailLost=1` in each
+record is the post-terminal tail filling with the motion traffic that followed, which the console's own records
+hold. The evidence packer parsed all four sessions with no malformed or unterminated line, five of five summaries
+each.
+
+HM3's group quick stop was the best-effort path. `STOP_SENT_UNCONFIRMED` means the `000B` left the controller and
+nothing can confirm it. The console names a stop's state from the session's last move cycle, not from the earlier
+stop's own observation. The HALT had cancelled both moves 2.3 s before, so that state was past the stop's 2.45 s
+age cap, and only the arming line's best-effort budget (`be=1500`) remained. The sessions then kept the
+uncertainty, and the bench's own reads in that boot were refused (`reason=session`) until the next boot, as
+designed. A second stop that is meant to be confirmed must follow the first within that cap, or its state must come
+from a fresher read (backlog M01).
+
+Not run: HM4 and HM6 to HM9 need a lost reply, a refused axis or a fault on one axis, which this bench cannot inject
+physically, and the sustained mixed soak needs its own session.
+
 ## SYNC
 
 Both TPDO1 at type 1, both nodes Operational with heartbeats, no other producer, `scripts/sync_watch.py` on the final
@@ -187,6 +231,12 @@ stop left `0014` again, so `2201` stays 51200 until the next power cycle (measur
 Node 2: `2500` written to 1 (open loop) without a save, read back 1, drive released. The next power cycle shows
 whether it persists (backlog S21, prompt 72 bench step 1).
 
+**After the user's power cycle (about 16:55Z): both are volatile.** Both drives read the power-up report
+(`2100=0001`, `6041=8037`, `6061=00`), then took mode 1 and the best-effort `000B` release as before. Node 2's `2500`
+read 2 (closed loop, `2501` 4000), so the unsaved 1 did not persist (series S0105, loop route `unchanged`). Node 1's
+`2201` read 1000, so the unsaved 51200 did not persist (series S0106/S0107, subdivision route `unchanged`); node 2's
+`2201` showed the same on 2026-11-13. One power cycle each, without a save; nothing was written to restore them.
+
 ## Tooling findings
 
 - `r` (release) can be refused just after `END trial` prints: the firmware still holds its dumping flag
@@ -198,6 +248,8 @@ whether it persists (backlog S21, prompt 72 bench step 1).
   observation cycles remain unrecorded.
 - STATS showed `conRej` up to 1524 and `traceOver` 417 in one console boot: console output refusals under load,
   another way records can be lost; recorded, not investigated.
+- On `b7033c12`, `s2_bench_console.py` gained `Ta`/`Te`, `d`, `wait ID`, `pause MS` and `release-all`. Two axes'
+  moves can now run in one invocation, with per-axis and group stops sent while they move.
 
 ## Not run, and why
 
