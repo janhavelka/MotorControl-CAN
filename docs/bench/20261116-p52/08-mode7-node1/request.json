@@ -1,0 +1,88 @@
+{
+  "started_utc": "2026-11-16T01:59:38.858143+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "mode-probe",
+  "seconds": 10.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 52003,
+  "plan": "prompt52 disabled mode-display probe",
+  "fields": [
+    1,
+    52003,
+    1,
+    7,
+    2,
+    100
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "mode-probe",
+    "--node",
+    "1",
+    "--trial",
+    "52003",
+    "--mode-raw",
+    "7",
+    "--cycles",
+    "2",
+    "--interval-ms",
+    "100",
+    "--campaign",
+    "docs\\bench\\20261116-p52\\mode-campaign.jsonl",
+    "--unattended-waiver",
+    "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "--seconds",
+    "10",
+    "--output",
+    "docs\\bench\\20261116-p52\\08-mode7-node1"
+  ],
+  "host_revision": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261116-p52\\mode-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {
+      "m21": 1,
+      "m41": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "546d312c35323030332c312c372c322c3130302c4b35323238643963660a"
+  ],
+  "image": {
+    "base": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+    "elf": "6c5f19ac67dc806831d4106b7db8ee1e6d889c27a6e929491843395235b55d60",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "Tm1,52003,1,7,2,100,K5228d9cf",
+  "tx_hex": "546d312c35323030332c312c372c322c3130302c4b35323238643963660a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-16T01:59:42.550137+00:00"
+}

@@ -13,7 +13,7 @@ proprietary CAN and CAN FD need additional implementations.
 
 | Layer | Available scope | Limit |
 | --- | --- | --- |
-| Installed core | Exact units, axis/reference conversion, CAN/SDO/PDO values, finite caller-timed SYNC, typed reads/settings, conditional actions, position/angle, finite velocity, homing, discovery and persistence | Per-operation prerequisites and firmware gates apply |
+| Installed core | Exact units, axis/reference conversion, CAN/SDO/PDO values, finite caller-timed SYNC, typed reads/settings, conditional actions, position/angle, finite velocity and gated in-motion changes, homing, discovery and persistence | Per-operation prerequisites and firmware gates apply |
 | Optional application layer | One CANopen owner with finite SYNC service, CANopenNode adapter, ESP TWAI adapter, shared CLI and bounded Python runners | Full repository required; not installed with the core |
 | Firmware | S3 Arduino/IDF and S2 IDF build paths | Arduino S2 is blocked by the pinned package; P4 has isolated core/component evidence only |
 | Hardware | Retained S2/two-CL86-C communication and conditional motion trials | Physical motion/stop, failure/load and related-model qualification remain incomplete |
@@ -162,3 +162,5 @@ licenses. Vendor manuals/EDS/full extracts, copied reference code, tests/tools
 and bench evidence are excluded from the portable core distribution.
 Repository links describe current main and may be newer than an exported
 archive; select the archive's commit when comparing historical behavior.
+
+Prompt52 adds explicit positive velocity changes and absolute position replacements, with retained original/replacement identities and unchanged finite stop budgets. Defaults remain closed; [change evidence and current bench limits](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_52.md) distinguish experiment support from qualified drive behavior.

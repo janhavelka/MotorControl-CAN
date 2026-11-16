@@ -1693,6 +1693,63 @@ class CommandLine(unittest.TestCase):
             with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
                 evidence.main([str(NODE1), "--report", str(report)])
 
+    def test_p52_change_plan_correlation_and_raw_fields(self):
+        import s2_bench
+        cases = [
+            ("mode-probe", "Tm1,52001,1,2,2,100",
+             "TRIAL_PLAN route=mode-probe node=1 trial=52001 attended=1 mode=2 cycles=2 interval=100\n"),
+            ("position-change", "Tp1,52002,1,-10,10000,30,500,500,1,2,60,0,5000,8,500,2,1500,1500,500",
+             "TRIAL_PLAN route=position-change node=1 trial=52002 attended=1 sp=-10 target=10000 rpm=30 up=500 down=500 case=1 after=2 value=60 replacement=0 duration=5000 cycles=8 interval=500 stop=2 sd=1500 be=1500 si=500\n"
+             "TRIAL_CHANGE possible=1 started=1 writes=1 due=5000000 end=6500000\n"),
+            ("velocity-change", "Tv1,52003,1,30,500,500,12000,5000,23000,2,52003,2,262546,12,32,4096,1,0,1024,512,0,0,60,6000",
+             "TRIAL_PLAN route=velocity-change node=1 trial=52003 attended=1 rpm=30 up=500 down=500 dur=12000 interval=5000 deadline=23000 kind=2 probe=0 reverse=0\n"
+             "TRIAL_VELOCITY_EVIDENCE record=52003 layout=2 gate=2 start=0 stop=0 kind=2 max=60 reverse=0 modeChange=0 dt=00040192 hw=000c sw=0020 vid=00001000 pc=00000001 rev=00000000 mc=0400 fc=0200 probe=0 reverseProbe=0\n"
+             "TRIAL_VELOCITY_CHANGE rpm=60 after=6000 attempted=1 admitted=1 present=1 terminal=1 exec=1 possible=1 uncertain=0 failure=0\n")]
+        for command, body, raw in cases:
+            records, tail = evidence.parse_bytes(raw.encode("ascii"))
+            self.assertFalse(tail)
+            self.assertTrue(all(r.status == "parsed" and not r.extra for r in records))
+            meta = {"command": command, "line": s2_bench.sign_line(body)}
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, records, meta)
+            self.assertEqual(report.errors, [])
+            # Same transaction identity with a different exact plan must not be accepted.
+            forged = dict(meta, line=s2_bench.sign_line(body.replace(",520", ",620", 1)))
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, records, forged)
+            self.assertIn("change_plan_differs", {row["code"] for row in report.errors})
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, records, dict(meta, line=meta["line"][:-1] + "x"))
+            self.assertIn("request_byte_mismatch", {row["code"] for row in report.errors})
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, records, {"command": command})
+            self.assertIn("request_byte_mismatch", {row["code"] for row in report.errors})
+            numeric = [int(value) for value in body[2:].split(",")]
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, records, dict(meta, fields=[0] + numeric[1:]))
+            self.assertIn("request_byte_mismatch", {row["code"] for row in report.errors})
+            duplicate = records + [next(r for r in records if r.kind == "TRIAL_PLAN")]
+            report = evidence.Report(path="<p52-test>")
+            evidence._check_change_request(report, duplicate, meta)
+            self.assertIn("change_plan_missing", {row["code"] for row in report.errors})
+            if command == "velocity-change":
+                # Every retained identity/evidence field and both probe flags are request-correlated.
+                for index in range(10, 22):
+                    changed = list(numeric)
+                    changed[index] = changed[index] + 1 if index < 20 else 1 - changed[index]
+                    forged_line = "Tv" + ",".join(str(value) for value in changed)
+                    report = evidence.Report(path="<p52-test>")
+                    evidence._check_change_request(report, records, dict(meta, line=s2_bench.sign_line(forged_line)))
+                    self.assertIn("change_plan_differs", {row["code"] for row in report.errors}, index)
+                duplicate = records + [next(r for r in records if r.kind == "TRIAL_VELOCITY_CHANGE")]
+                report = evidence.Report(path="<p52-test>")
+                evidence._check_change_request(report, duplicate, meta)
+                self.assertIn("change_plan_differs", {row["code"] for row in report.errors})
+                absent = [r for r in records if r.kind != "TRIAL_VELOCITY_EVIDENCE"]
+                report = evidence.Report(path="<p52-test>")
+                evidence._check_change_request(report, absent, meta)
+                self.assertIn("change_plan_differs", {row["code"] for row in report.errors})
+
     def test_replay_opens_no_serial_port(self):
         with mock.patch.dict(sys.modules, {"serial": None}):
             self.assertEqual(evidence.replay_capture(NODE1).verdict, "complete")

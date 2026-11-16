@@ -407,3 +407,36 @@ Open on both nodes: item 3; any other firmware; a start offset by a stall rather
 than a halt; and the physical displacement, whose scale and direction need an
 independent angle measurement. `move_relative_test.cpp` tests 31 and 33 replay
 825, 828 to 830 and 1110 value for value through the real owner and `AxisSession`.
+
+## Replacing an active absolute set-point
+
+Prompt52 adds `prepareStoredPositionQualification`, `validateMoveReplacement`
+and `prepareMoveReplacement`. They retain per-field acknowledged setup evidence,
+the original operation and original deadline. `MoveRelation` links the original
+and replacement and identifies which observer was superseded; it does not prove
+physical interruption. `AxisSession::requestMoveReplacement` owns the clean
+between-service handoff, retaining both contexts in fixed storage. A stop request
+wins even if that stop is subsequently refused.
+
+`MoveReplacementRequest` names changed target/speed/ramp fields and an explicit
+BARE, FALLING_EDGE, IMMEDIATE or BUFFERED mode. Gates are closed by default.
+Experimental replacement preserves raw observations without claiming qualified
+completion or automatically rearming. Immediate/buffered paths first clear bit4,
+observe fresh absence of the original acceptance bit, then issue003F/001F.
+The old latched bit12 cannot accept the new target. At most one replacement is
+outstanding; acknowledgements do not establish a set-point queue or consumption.
+
+The initial typed scope requires four acknowledged WRITE_ALL setup fields and
+an absolute original. A changed endpoint extends it in the same direction and
+requires an independently recorded command/feedback relation tied to binding
+and reference generation. Relative, wrapped, reversed and shortened targets stay
+refused. This restriction is narrower than an eventual measured ahead-target
+capability. Any replacement can leave original motion possible even if its own
+trigger never leaves; its retained uncertainty and stop obligation survive.
+
+The [initial prompt52 measurements](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_52_measurements.md) show why
+these fields need separate gates: bare parameter/target acknowledgements did
+not observably change the current curve, while a new immediate/deferred edge
+did. A fresh bit12 transition was retained after the falling edge. This remains
+one specimen's controller evidence; the production gate is not automatically
+opened by the bench trial.

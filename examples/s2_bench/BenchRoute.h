@@ -155,6 +155,35 @@
  *   with a CLOSED HomeEvidence: no homing record exists for this fixture, so no line field can open the
  *   gate. The request is refused before any write, which is the route's whole result. Attended, with
  *   the settings routes' caps and no motion weight, because nothing can be written.
+ * - POSITION_CHANGE, prompt 52. POSITION's checked forward absolute start and initial writes, then
+ *   one explicitly selected experiment after a named complete running cycle. The current raw 606C must
+ *   be positive; a running monitor latch alone is insufficient. Every change offer and TX preflight
+ *   checks the same current binding and a complete seven-field image younger than seven service
+ *   budgets. Bare speed/ramp/target writes, the 000F falling edge, same-endpoint speed with 003F,
+ *   immediate absolute retarget with 003F and buffered absolute retarget with 001F are separate cases.
+ *   The falling edge has its own observation cycle before any new set-point. At most one replacement
+ *   is outstanding, never relative or a reversal. Native command/feedback comparisons are restricted
+ *   to this explicitly reviewed fixture experiment; they establish no general scale relation.
+ *   The stop due time starts at route admission, including setup, and never moves. A failure or the
+ *   finite sample cap can request the stop earlier. Every transfer budget must fit before stop due.
+ *   All cases reserve a nonzero explicit quick-stop fallback. Bare parameter writes use the session's
+ *   explicit experiment ticket: an exact ACK preserves its prior 001F evidence, so a fresh checked
+ *   stop remains available. Unknown/aborted work preserves no controlword and takes the fallback. A
+ *   planned HALT that cannot be composed takes that same bounded QUICK_STOP fallback, preserving the
+ *   first failure and uncertainty. No stop extends its original admission-anchored end deadline.
+ * - VELOCITY_CHANGE, prompt 52. VELOCITY's native finite run with one explicit positive replacement
+ *   rate, both rates at most 60 rpm, and a change time measured from native preparation. One request
+ *   at a clean complete RUNNING-cycle boundary calls AxisSession::requestVelocityChange with explicit
+ *   ATTENDED_EXPERIMENT evidence. The original stop and final deadline are unchanged. Admission reserves
+ *   the change's one transfer and one immediate observation cycle; failed work is never replayed.
+ * - MODE_PROBE, prompt 52. Two fresh full reads must both show released, non-enabled standstill,
+ *   no fault and the same position/mode. Source mode 0, 1, 2, 3, 4, 7, 8, 9 or 10 is allowed; a running
+ *   monitor latch is admitted only beside those stationary reads. The line names exactly one candidate
+ *   2, 4, 7, 8, 9 or 10, or 1/3 for explicit restoration. One 6060 U8 write uses the ordinary session
+ *   and one-use grant, then the named observation cycles retain raw 6061/status/monitor/position/velocity.
+ *   An ignored value is evidence, not failure. Any motion, enabling or loss of release ends observations.
+ *   No controlword, retry, implicit restoration or motion capability qualification. Attended, with the
+ *   settings cap separately per candidate and node; no motion weight.
  * - VELOCITY_TARGET, ledger gate Q03: how the drive takes a 60FF value (EDS and EN86/ZH86 p17 I32
  *   against p13's U32 0..3000 rpm). Two fresh full reads that must both report the released mode 3
  *   standstill a velocity run starts from: 2100 bit 4 set, alarm clear, 6041 low bits 000, mode 3, 606C
@@ -328,12 +357,30 @@ enum class RouteKind : uint8_t {
     CONTROLWORD,
     /** Protocol 13, one volatile 2500 loop selector write and its CONTROL readback on a released drive, then a
      * fresh CONTROL read; `Tl`, lowercase because every capital is taken. Settings, not motion. */
-    LOOP
+    LOOP,
+    /** Prompt 52 disabled mode experiment, one 6060 byte and raw observations; `Tm`. Never enables. */
+    MODE_PROBE,
+    /** Prompt 52 finite isolated forward absolute change experiment; `Tp`. */
+    POSITION_CHANGE,
+    /** Prompt 52 one native mid-run positive velocity change in the original finite run; `Tv`. */
+    VELOCITY_CHANGE
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
 struct RoutePlan {
     RouteKind kind = RouteKind::NONE; ///< Selected route.
+    /** MODE_PROBE: explicit 6060 candidate 2, 4, 7, 8, 9 or 10; 1 and 3 permit explicit restoration.
+     * An acknowledged write/display match qualifies no motion capability. No automatic restoration. */
+    uint8_t modeRaw = 0;
+    uint32_t newPositiveRpm = 0; ///< VELOCITY_CHANGE: explicit positive replacement rate, 1..60 RPM.
+    uint32_t changeAfterMs = 0; ///< VELOCITY_CHANGE: earliest change admission after native preparation.
+    /** POSITION_CHANGE: 1 bare speed, 2/3 bare acceleration/deceleration, 4 falling bit 4,
+     * 5 same-endpoint speed with 003F, 6/7 new target with 003F/001F, 8 bare 607A.
+     * All cases are explicit experiments and qualify no capability. */
+    uint8_t changeCase = 0;
+    uint8_t changeAfterCycle = 0; ///< POSITION_CHANGE: completed running cycle after which the change begins.
+    uint32_t changeValue = 0; ///< POSITION_CHANGE: positive native RPM for cases 1/5, positive ms for 2/3.
+    int32_t replacementTarget = 0; ///< POSITION_CHANGE cases 6/7/8: forward absolute native endpoint.
     uint8_t node = 0;                 ///< Node 1..BENCH_NODES, adapter slot node - 1.
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
@@ -352,13 +399,13 @@ struct RoutePlan {
      * immutable deadline after its request, beyond its duration; its own stop settles before it.
      * 1..55000. */
     uint32_t deadlineMs = 0;
-    /** MODE_ONE, MODE_THREE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing; CONTROLWORD
+    /** MODE_PROBE, MODE_ONE, MODE_THREE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing; CONTROLWORD
      * 100..2000 ms. ENABLE,
      * STOP, COUNTER_ZERO and CLEAR_ALARM: the action's observation interval. MOVE: the move's
      * MoveOptions::observationIntervalUs, in milliseconds, and the observer's cycle spacing. VELOCITY:
      * VelocityOptions::pollIntervalUs in milliseconds, its stop's observation interval too. */
     uint32_t intervalMs = 0;
-    /** Fresh observation cycles: MODE_ONE and MODE_THREE 1..10, for MODE_ONE from a released mode 3 start
+    /** Fresh observation cycles: MODE_PROBE, MODE_ONE and MODE_THREE 1..10, for MODE_ONE from a released mode 3 start
      * the most it waits for 6061=1; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16; WORD67 1..16 after
      * its 0007; CONTROLWORD 1..ROUTE_CONTROLWORD_CYCLES after its word. */
     uint16_t cycles = 0;
@@ -733,6 +780,13 @@ struct RouteRecord {
     uint8_t statusCode = 0;     ///< Err of that refusal.
     int32_t statusDetail = 0;   ///< Detail of that refusal.
     const char* statusMessage = ""; ///< Static message of that refusal.
+    /** POSITION_CHANGE: immutable admission-anchored due time and stop deadline, microseconds. */
+    uint64_t changeStopDueUs = 0, changeStopEndUs = 0;
+    bool velocityChangeAttempted = false; ///< VELOCITY_CHANGE: one native request attempted, never retried.
+    bool velocityChangeAccepted = false; ///< VELOCITY_CHANGE: request admitted, not drive acceptance.
+    bool changeTriggerPossible = false; ///< Initial trigger admitted; stop remains required on failure.
+    bool changeStarted = false; ///< At least one change write admitted, not drive acceptance.
+    uint8_t changeWrites = 0; ///< Acknowledged change writes; raw terminals carry exact outcomes.
     bool enableRequested = false;   ///< requestEnable accepted.
     bool stopRequested = false;     ///< requestStop returned a path other than NONE.
     uint8_t stopRequestKind = 0;    ///< StopKind asked for.
@@ -1015,9 +1069,12 @@ class BenchRoute {
      * @param cursor Zero-based line index.
      * @param output Destination.
      * @param size Its capacity, at least 256 bytes for every line to fit.
+     * @param lastLine Optional output, true only for a successfully formatted END.
+     * Reset false on failure. Stop a dump after that whole line queues successfully;
+     * later RX can grow the tail and move the END index, so a later cursor is not a terminator.
      * @return False past the END line or before the terminal; output is then untouched.
      */
-    bool formatLine(unsigned cursor, char* output, size_t size) const noexcept;
+    bool formatLine(unsigned cursor, char* output, size_t size, bool* lastLine = nullptr) const noexcept;
 
   private:
     enum StepKind : uint8_t {
@@ -1044,6 +1101,9 @@ class BenchRoute {
         STEP_SECOND_RELEASED,
         STEP_CHECK_WITNESS, ///< ARM_WITNESS's check of both reads: stationary, idle or released, at the reviewed 6064.
         STEP_CHECK_CONTROLWORD, ///< CONTROLWORD's admission check of its fresh full read.
+        STEP_CHANGE_FALL, ///< POSITION_CHANGE: the explicitly measured 000F falling edge.
+        STEP_CHANGE_WRITES, ///< POSITION_CHANGE: the selected one-shot native change.
+        STEP_CHECK_MODE_PROBE, ///< MODE_PROBE: two released, non-enabled stationary reads.
         STEP_CHECK_CONTROLWORD_AFTER ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
     };
     struct Step {
@@ -1092,16 +1152,18 @@ class BenchRoute {
     uint32_t commandedTrial_[BENCH_NODES] = {}, commandedEpoch_[BENCH_NODES] = {};
     bool commandedKnown_[BENCH_NODES] = {}, commandedRelative_[BENCH_NODES] = {};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
-    // RouteKind up to CONTROLWORD, the last motion route.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::CONTROLWORD) + 1][BENCH_NODES] = {};
+    // RouteKind up to VELOCITY_CHANGE, the last motion route.
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::VELOCITY_CHANGE) + 1][BENCH_NODES] = {};
+    uint8_t positionChangeCases_[8][BENCH_NODES] = {}; ///< Per experimental position case and node.
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;
     RoutePlan armedPlan_;
     int32_t armedPosition_ = 0;
     uint64_t armedFeedbackUs_ = 0;
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
-    // SUBDIVISION, LOOP) and node.
-    uint8_t settingsCases_[6][BENCH_NODES] = {};
+    // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
+    // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
+    uint8_t settingsCases_[16][BENCH_NODES] = {};
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
@@ -1157,6 +1219,10 @@ class BenchRoute {
     const char* checkReleased() const noexcept;
     const char* checkWitness() const noexcept;
     const char* checkModeThree() const noexcept;
+    const char* checkPositionChange(uint64_t nowUs) noexcept;
+    void startPositionChangeStop(uint64_t nowUs) noexcept;
+    const char* checkModeProbe() const noexcept;
+    const char* checkModeProbeCycle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkVelocity() const noexcept;
     const char* checkTargetState(const RouteSnapshot& snapshot) const noexcept;
     const char* checkVelocityTarget() const noexcept;

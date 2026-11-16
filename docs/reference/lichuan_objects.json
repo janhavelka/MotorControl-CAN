@@ -23752,7 +23752,7 @@
       {
         "id": "Q22",
         "feature": "Bare position parameters and falling set-point edge",
-        "required_evidence": "EN86/ZH86 p12 and EDS [6040],[607A],[6081],[6083],[6084] establish words and widths, not live effects. Separately measure bare target/speed/ramp writes and 001F->000F during a curve; retain 6041 bits10/12,6064,606C and partial effects. No generic CiA402 falling-edge assumption.",
+        "required_evidence": "EN86/ZH86 p12 and EDS [6040],[607A],[6081],[6083],[6084] establish words and widths, not live effects. Separately measure bare target/speed/ramp writes and 001F->000F during a curve; retain 6041 bits10/12,6064,606C and partial effects. No generic CiA402 falling-edge assumption. Initial node2 CL86-C observations on2026-11-16: trials52017/52020/52022/52032 acknowledged bare6081/6083/6084/607A without observable active-curve change;52024 clearing bit4 clearedbit12 while motion continued. Exact cycles/source tuple in docs/reports/prompt_52_measurements.md. Ignore active-change capability for those bare fields; stored/next-curve effects and other firmware remain unqualified.",
         "owner_prompts": [
           52,
           54
@@ -23768,7 +23768,7 @@
       {
         "id": "Q23",
         "feature": "Immediate position set-point replacement",
-        "required_evidence": "EN86/ZH86 p12 documents bit5 and 000F->003F, not mid-curve handshake, acceptance latency or completion attribution. Measure same-endpoint speed change then absolute endpoint ahead, fresh bit12 absence/new assertion, raw trajectory and stops from003F. Keep one outstanding set-point and preserve original deadline.",
+        "required_evidence": "EN86/ZH86 p12 documents bit5 and 000F->003F, not mid-curve handshake, acceptance latency or completion attribution. Measure same-endpoint speed change then absolute endpoint ahead, fresh bit12 absence/new assertion, raw trajectory and stops from003F. Keep one outstanding set-point and preserve original deadline. Initial node2 CL86-C trials52026/52034 measured same-endpoint speed changes via000F/freshbit12clear/003F;52028 used a same-direction endpoint extension;52034 also retained a moving000B stop from003F. Exact raw evidence in docs/reports/prompt_52_measurements.md. Sequential feedback, not physical displacement, acceptance latency or final-operation qualification; scope stays explicit and closed by default.",
         "owner_prompts": [
           52,
           54
@@ -23784,7 +23784,7 @@
       {
         "id": "Q24",
         "feature": "Buffered position set-point replacement",
-        "required_evidence": "EN86/ZH86 p12 bit5=0 says update after current curve; no queue capacity or full-buffer behavior is established. Measure 000F->001F replacement ahead and distinguish buffered, immediate, ignored or refused. Acknowledgement is not consumption; one outstanding set-point until evidenced retirement.",
+        "required_evidence": "EN86/ZH86 p12 bit5=0 says update after current curve; no queue capacity or full-buffer behavior is established. Measure 000F->001F replacement ahead and distinguish buffered, immediate, ignored or refused. Acknowledgement is not consumption; one outstanding set-point until evidenced retirement. Initial node2 trial52030 showed deceleration near the first endpoint then acceleration toward the second; an explicit000B stopped the second curve before its endpoint. Compare immediate52028 in docs/reports/prompt_52_measurements.md. No exact inter-curve standstill, second completion, queue depth or full-buffer behavior was established; one outstanding remains the bound.",
         "owner_prompts": [
           52,
           54
@@ -23800,7 +23800,7 @@
       {
         "id": "Q25",
         "feature": "Velocity target change during a finite run",
-        "required_evidence": "EN86/ZH86 p13 and EDS [60FF] disagree on signedness and startup order. Measure positive-to-positive60FF changes while already running with acknowledged000F, fixed stopDue/deadline and raw606C/6064/status. No zero, reversal or sign change; no automatic retry or enabling.",
+        "required_evidence": "EN86/ZH86 p13 and EDS [60FF] disagree on signedness and startup order. Measure positive-to-positive60FF changes while already running with acknowledged000F, fixed stopDue/deadline and raw606C/6064/status. No zero, reversal or sign change; no automatic retry or enabling. Bench2026-11-16 trial52013, CL86-C node2, rawfirmware1000=00040192/1009=0C/100A=20/2000=0400/2001=0200: acknowledged60FF30 to60 during native finite run, later606C=60 and original timed000B stop observed; no frame loss during trial. docs/bench/20261116-p52/31-velocity-change-node2/rx.txt and docs/reports/prompt_52.md retain exact record. This narrows positive controller-response evidence only; no physical speed/ramp law, reverse, family-wide or final-operation qualification. Gate remains open.",
         "owner_prompts": [
           52,
           54
@@ -23816,7 +23816,7 @@
       {
         "id": "Q26",
         "feature": "Ramp and stop behavior during a change",
-        "required_evidence": "EN86/ZH86 p12-13 document6083/6084 U32 milliseconds0..2000, not a physical slope or duration formula during changes. Compare finite different-size positive rate steps and bare ramp changes; independently measure stop after changed6084. Zero remains gatedQ11. Do not infer convergence or stopping distance from a download acknowledgement.",
+        "required_evidence": "EN86/ZH86 p12-13 document6083/6084 U32 milliseconds0..2000, not a physical slope or duration formula during changes. Compare finite different-size positive rate steps and bare ramp changes; independently measure stop after changed6084. Zero remains gatedQ11. Do not infer convergence or stopping distance from a download acknowledgement. Initial node2 trials52020/52022 compare bare500/2000ms changes with reported position/velocity; no current-curve effect observed. Trial52034 adds an immediate positive speed step and moving quick stop;52013 supplies a mode3 positive step. Sparse sequential reports do not establish physical ramp/stop law, arbitrary step-size behavior or an independent stop-distance bound. See docs/reports/prompt_52_measurements.md; finished-route qualification remains54.",
         "owner_prompts": [
           52,
           54

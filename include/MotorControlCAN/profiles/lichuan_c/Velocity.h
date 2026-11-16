@@ -106,6 +106,19 @@ struct VelocityEvidence {
      * reverseProbe the experiment's stated range, 1 to its cap; otherwise 0. */
     uint32_t maximumReverseRpm = 0;
 };
+/** Separate evidence for one positive 60FF write while an already observed run continues.
+ * Q25 is independent of the run's start/stop evidence. No successful experiment promotes it. */
+struct VelocityChangeEvidence {
+    VelocityGate gate = VelocityGate::CLOSED; ///< Closed by default; explicit experiment or measured record.
+    uint32_t record = 0; ///< Nonzero retained record for this change capability or experiment.
+    SettingsModel model = SettingsModel::UNKNOWN; ///< Must match the run's selected model.
+    VelocityFirmware firmware; ///< Exact tuple retained by the run; no inferred firmware compatibility.
+    bool rateChangeQualified = false; ///< Required for MEASURED; forbidden for ATTENDED_EXPERIMENT.
+    /** Both original and replacement rates must be within 1..this bound, at most 3000 rpm.
+     * ATTENDED_EXPERIMENT is further capped at VELOCITY_EXPERIMENT_MAXIMUM_RPM. The run's
+     * original range still applies; this record cannot expand it. */
+    uint32_t maximumForwardRpm = 0;
+};
 /** Native ramps are milliseconds, not rpm/s. Zero semantics remain unsupported. */
 struct VelocityProfile {
     uint32_t rampUpTimeMs = 0;   ///< Reviewed positive 6083 time, at most 2000 ms.
@@ -152,6 +165,7 @@ enum class VelocityPhase : uint8_t {
     ENABLE,     ///< Ordered 6,7,15; each followed by fresh observation.
     WAITING,    ///< A cycle becomes eligible at eligibleUs.
     OBSERVING,  ///< Borrowed ReadContext holds the current seven-field cycle.
+    CHANGE,     ///< One explicit mid-run 60FF download, never an enable or ramp write.
     STOPPING    ///< Application composes its existing urgent stop; no new velocity work.
 };
 /** Why the current seven-field cycle is required. */
@@ -172,6 +186,29 @@ struct VelocitySample {
     uint64_t earliestUs = 0; ///< Earliest acquisition bound, not physical arrival.
     uint64_t latestUs = 0;   ///< Latest completion bound.
 };
+/** One retained change, including rejected/unknown service evidence. All inputs are owned copies.
+ * Reports are raw drive observations, not convergence, physical speed or qualification evidence. */
+struct VelocityChange {
+    bool present = false; ///< One change was admitted; never overwritten during this run.
+    VelocityChangeEvidence evidence; ///< Frozen explicit capability/experiment record.
+    VelocityRequest request; ///< Original engineering change request, with units and generation.
+    PreparedVelocityTarget rate; ///< Checked native replacement and exact quantization evidence.
+    uint64_t preparedUs = 0; ///< Caller processing time of admission, not physical application.
+    ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< Download execution only.
+    bool serviceEvidencePresent = false; ///< serviceEvidence contains an actual owner terminal.
+    CANOPEN::SdoCompletion serviceEvidence; ///< Exact 60FF terminal, including raw abort/effect flags.
+    bool effectsPossible = false; ///< Replacement may have reached the drive; ACK is not effect proof.
+    bool uncertain = false; ///< Unconfirmed change effect survives later stop success.
+    /** First possible-transmission or unresolved-read processing time; zero if absent. An actual
+     * terminal may refine uncertain to false, but preserves this historical first notice. */
+    uint64_t firstUncertainUs = 0;
+    ActionOutcome firstFailure = ActionOutcome::NONE; ///< First failure of the change or its observation.
+    VelocitySample firstPostChange; ///< First complete cycle after acknowledged change, if acquired.
+    VelocitySample latestPostChange; ///< Latest such cycle, including an out-of-scope report.
+    /** First post-ACK cycle whose raw 606C equals effectiveNative exactly. No tolerance, deadline,
+     * ramp law or physical convergence is inferred; absent also permits an ignored change. */
+    VelocitySample firstRequestedRateReport;
+};
 /** Owned request yielded for normal admission; ready is not permission after provenance changes. */
 struct PreparedVelocity {
     CANOPEN::SdoTransfer transfer; ///< Complete copied SDO when ready.
@@ -191,7 +228,8 @@ struct VelocityContext {
     VelocityProfile profile;                ///< Immutable native ramps.
     VelocityOptions options;                ///< Immutable service and scheduling bounds.
     AxisConfig axis;                        ///< Frozen conversion/configuration snapshot.
-    PreparedVelocityTarget rate;            ///< Single exact preparation and quantization evidence.
+    PreparedVelocityTarget rate;            ///< Immutable initial preparation and quantization evidence.
+    VelocityChange change;                  ///< At most one separately retained mid-run change.
     ActionState state = ActionState::EMPTY; ///< ACTIVE includes pending composed stop.
     VelocityPhase phase = VelocityPhase::PARAMETERS;             ///< Current direct phase.
     VelocityObservation observation = VelocityObservation::MODE; ///< Current/next cycle purpose.
@@ -300,6 +338,36 @@ Status validateVelocity(const VelocityContext& output, const AxisReservation& re
                         const FiniteVelocityRequest& request, const VelocityProfile& profile,
                         const AxisConfig& axis, uint32_t operation, uint64_t nowUs,
                         uint64_t deadlineUs, const VelocityOptions& options) noexcept;
+/** Validate one positive mid-run rate change without mutation or I/O. Q25 remains closed unless
+ * explicitly opened by evidence. Requires a fresh clean running cycle after acknowledged word15,
+ * WAITING between cycles, no unresolved service/read, withdrawal, requested stop or earlier change,
+ * and full write plus seven-field observation budgets before the original stopDueUs. Initial and
+ * replacement rates must be positive integer motor rpm in 1..3000 and both evidence ranges. The
+ * caller must own the context and have no admitted transaction; an owner must serialize this check
+ * with admission. No ramp or deadline is changed. Inputs overlapping context are refused.
+ * @param[in] context Active run, unchanged. @param[in] live Current reservation.
+ * @param[in] current Current wire target. @param[in] axis Current conversion facts.
+ * @param[in] request Exact engineering replacement rate. @param[in] evidence Explicit change record.
+ * @param[in] nowUs Current processing time. @return Local status; refusal publishes no change. */
+Status validateVelocityChange(const VelocityContext& context, const AxisReservation& live,
+                              const ReadTarget& current, const AxisConfig& axis,
+                              const VelocityRequest& request, const VelocityChangeEvidence& evidence,
+                              uint64_t nowUs) noexcept;
+/** Atomically admit the change validated above into the same run. Existing nextVelocity,
+ * noteVelocityTransmission, advanceVelocity and serviceVelocity execute it once through the ordinary
+ * owner. An unconfirmed/failed write preserves its evidence and requests the run's own stop; never
+ * replay it. Acknowledgement resumes raw observation without claiming convergence. Overspeed checks
+ * use max(initial,replacement) during the transition, including decreases. request, rate, profile,
+ * stopDueUs, deadlineUs, maxPolls and stop reserve of the original run remain unchanged.
+ * @param[in,out] context Unchanged on failure; owns the admitted request on success.
+ * @param[in] live Current reservation. @param[in] current Current wire target.
+ * @param[in] axis Current conversion facts. @param[in] request Exact engineering replacement.
+ * @param[in] evidence Explicit change record. @param[in] nowUs Processing time.
+ * @return Local status, not service acknowledgement or observed drive effect. */
+Status prepareVelocityChange(VelocityContext& context, const AxisReservation& live,
+                             const ReadTarget& current, const AxisConfig& axis,
+                             const VelocityRequest& request, const VelocityChangeEvidence& evidence,
+                             uint64_t nowUs) noexcept;
 /** Yield copied work atomically; never replay noted writes or yield motion at/after stopDueUs.
  * A fresh service needs its complete queue/response budget before stop due; every download
  * also carries stopDueUs as its service cutoff so queued start work cannot use the stop reserve.

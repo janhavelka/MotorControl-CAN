@@ -172,6 +172,10 @@ void ProbeMotion::forgetPrerequisites() noexcept {
     moveState_ = velocityState_ = homeState_ = enableState_ = clearState_ = nullptr;
     moveIdentity_ = velocityIdentity_ = homeIdentity_ = nullptr;
     stored_ = inputs_ = driver_ = nullptr;
+    moveReplacementEvidence_ = L::MoveReplacementEvidence();
+    moveFeedback_ = L::MoveFeedbackRelation();
+    moveFeedbackPresent_ = false;
+    velocityChangeEvidence_ = L::VelocityChangeEvidence();
 }
 M::Status ProbeMotion::configureCommandScale(const M::UnitScale& scale, uint64_t now) noexcept {
     const M::Status valid = hostChange(now);
@@ -238,6 +242,16 @@ M::Status ProbeMotion::setMovePrerequisites(const L::ReadContext& state,
     stored_ = stored;
     return M::Ok();
 }
+M::Status ProbeMotion::setMoveReplacementPrerequisites(const L::MoveReplacementEvidence& evidence,
+                                                      const L::MoveFeedbackRelation* feedback) noexcept {
+    const M::Status valid = prerequisite();
+    if (!valid)
+        return valid;
+    moveReplacementEvidence_ = evidence;
+    moveFeedbackPresent_ = feedback != nullptr;
+    moveFeedback_ = feedback ? *feedback : L::MoveFeedbackRelation();
+    return M::Ok();
+}
 M::Status ProbeMotion::setVelocityPrerequisites(const L::ReadContext& state,
                                                 const L::IdentityObservation& identity,
                                                 const L::VelocityEvidence& evidence,
@@ -251,6 +265,13 @@ M::Status ProbeMotion::setVelocityPrerequisites(const L::ReadContext& state,
     velocityEvidence_ = evidence;
     velocityProfile_ = profile;
     velocityOptions_ = options;
+    return M::Ok();
+}
+M::Status ProbeMotion::setVelocityChangePrerequisites(const L::VelocityChangeEvidence& evidence) noexcept {
+    const M::Status valid = prerequisite();
+    if (!valid)
+        return valid;
+    velocityChangeEvidence_ = evidence;
     return M::Ok();
 }
 M::Status ProbeMotion::setHomePrerequisites(const L::ReadContext& state,
@@ -344,6 +365,37 @@ M::Status ProbeMotion::requestMove(const M::MoveRequest& request, const L::MoveP
     }
     return status;
 }
+M::Status ProbeMotion::requestMoveReplacement(uint32_t id, const L::MoveReplacementRequest& request,
+                                             uint64_t now) noexcept {
+    if (!timeValid(now) || !current())
+        return refused(M::ActionError::TARGET, "replacement needs the current live motion graph and time");
+    if (!id || normal_.id != id || normal_.kind != MotionKind::MOVE ||
+        normal_.state != M::ActionState::ACTIVE || !nativeMove() || originalMove_.id ||
+        nextId_ == UINT32_MAX || session_.stopActive())
+        return refused(M::ActionError::STATE, "replacement ID is not an unused active move");
+    const M::Status status = session_.requestMoveReplacement(
+        request, moveReplacementEvidence_, moveFeedbackPresent_ ? &moveFeedback_ : nullptr, now);
+    if (!status)
+        return status;
+    originalMove_ = normal_;
+    const L::MoveContext& original = session_.originalMoveAction();
+    originalMove_.state = original.state;
+    originalMove_.outcome = original.outcome;
+    originalMove_.status = original.status;
+    originalMove_.execution = original.execution;
+    originalMove_.completion = original.completion;
+    originalMove_.uncertain = original.uncertain;
+    originalMove_.completedUs = original.servicedUs;
+    targetValue(originalMove_.target, original.parameters.target);
+    rateValue(originalMove_.rate, original.speed);
+    accept(MotionKind::MOVE, session_.moveAction().operation, now);
+    normal_.relation.originalOperationId = originalMove_.id;
+    normal_.relation.replacementOperationId = normal_.id;
+    normal_.relation.observationSuperseded = original.relation.observationSuperseded;
+    originalMove_.relation = normal_.relation;
+    snapshotNormal();
+    return M::Ok();
+}
 M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request, L::StopKind kind,
                                        uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
@@ -361,6 +413,20 @@ M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request, 
         velocityState_ = nullptr;
         velocityIdentity_ = nullptr;
         accept(MotionKind::VELOCITY, session_.velocityAction().operation, now);
+    }
+    return status;
+}
+M::Status ProbeMotion::requestVelocityChange(uint32_t id, const M::VelocityRequest& request,
+                                            uint64_t now) noexcept {
+    if (!timeValid(now) || !current())
+        return refused(M::ActionError::TARGET, "velocity change needs the current live motion graph and time");
+    if (!id || normal_.id != id || normal_.kind != MotionKind::VELOCITY ||
+        normal_.state != M::ActionState::ACTIVE || !nativeVelocity() || session_.stopActive())
+        return refused(M::ActionError::STATE, "velocity change ID is not this active velocity run");
+    const M::Status status = session_.requestVelocityChange(request, velocityChangeEvidence_, now);
+    if (status) {
+        lastUs_ = now;
+        snapshotNormal();
     }
     return status;
 }
@@ -546,6 +612,8 @@ void ProbeMotion::snapshotNormal() noexcept {
                 abortEvidence(normal_, c->setupHistory[n]);
         if (c->triggerPresent)
             abortEvidence(normal_, c->trigger);
+        if (c->clearPresent)
+            abortEvidence(normal_, c->clearEvidence);
         if (c->rearmPresent)
             abortEvidence(normal_, c->rearmEvidence);
         if (c->observationEvidencePresent)
@@ -569,6 +637,8 @@ void ProbeMotion::snapshotNormal() noexcept {
         }
         if (c->observationEvidencePresent)
             abortEvidence(normal_, c->observationEvidence);
+        if (c->change.serviceEvidencePresent)
+            abortEvidence(normal_, c->change.serviceEvidence);
         if (c->stopOperation)
             abortEvidence(normal_, c->stopEvidence);
     } else if (const L::HomeContext* c = nativeHome()) {
@@ -744,10 +814,23 @@ bool ProbeMotion::preflight(O::SequenceId sequence, const C::SdoTransfer& transf
            session_.preflight(sequence, transfer, now, driveFault);
 }
 bool ProbeMotion::releaseNormal() noexcept {
-    if (!retained() || !terminal(normal_.state))
+    if (!retained() || !terminal(normal_.state) || originalMove_.id)
         return false;
     new (&normal_) MotionResult();
     return true;
+}
+const MotionResult* ProbeMotion::normalResult(uint32_t id) const noexcept {
+    return id && normal_.id == id ? &normal_
+           : id && originalMove_.id == id ? &originalMove_ : nullptr;
+}
+bool ProbeMotion::releaseNormal(uint32_t id) noexcept {
+    if (id && originalMove_.id == id) {
+        if (!terminal(originalMove_.state))
+            return false;
+        new (&originalMove_) MotionResult();
+        return true;
+    }
+    return id && normal_.id == id && releaseNormal();
 }
 bool ProbeMotion::releaseStop(L::StopKind kind) noexcept {
     if (!stopRetained(kind))

@@ -60,6 +60,8 @@ above own current behavior; historical claims are not silently rewritten.
   and [failure/load campaign](reports/prompt_48.md).
 - [Prompt51 implementation and trials](reports/prompt_51.md): finite host SYNC,
   typed TPDO1 experiment and remaining sampling/RPDO/10 ms qualification.
+- [Prompt52 implementation](reports/prompt_52.md) and [raw motion-change analysis](reports/prompt_52_measurements.md):
+  typed finite changes, initial specimen observations and remaining qualification.
 - [Independent auditor disposition](audit/2026-11-15_auditor_disposition.md),
   [RS audit](audit/MOTORCONTROL_RS_AUDIT.md), [ecosystem audit](audit/ECOSYSTEM_CONVENTIONS.md)
   and [audit summary](audit/SUMMARY.md).

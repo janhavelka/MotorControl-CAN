@@ -292,3 +292,14 @@ as precise gated rows. No survey-only driver or raw object sender is exposed.
 correlated outcomes. These names are CANopen-specific; RS has no SYNC operation.
 The typed TPDO1 type transition uses the existing configuration lifecycle; the
 bench `Jnode,1|255` path is experiment scope. See [SYNC](sync.md).
+
+## Prompt52 change paths
+
+| Intent | Concrete public/profile path | Application ownership |
+| --- | --- | --- |
+| Finite positive rate change | `validateVelocityChange` / `prepareVelocityChange`, existing `nextVelocity` / `advanceVelocity` | `AxisSession::requestVelocityChange`; original run ID, stopDue and deadline retained |
+| Absolute set-point replacement | `prepareStoredPositionQualification` / `validateMoveReplacement` / `prepareMoveReplacement`, existing move stepping | `AxisSession::requestMoveReplacement`; fixed original/replacement contexts and `MoveRelation` |
+| Disabled mode display experiment | existing checked6060 download and typed status/feedback reads | `BenchRoute::MODE_PROBE`; explicit candidate and explicit restoration only |
+
+These additions consume explicit evidence; the console cannot open a gate by
+parsing a request. Q22-Q26 qualification is separate from host implementation.

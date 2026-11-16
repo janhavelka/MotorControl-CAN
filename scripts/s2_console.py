@@ -60,7 +60,7 @@ from pathlib import Path
 import re
 import sys
 
-from console_jsonl import RECORD_LIMIT, record_problems
+from console_jsonl import RECORD_LIMIT, record_problems, is_uint32, motion_change_problem
 from s2_bench import BAUD, FIXTURE, RealBackend, RealClock, Refused, check_identity, repository_state
 from s2_smoke import BENCH_READY, PASSIVE, pulse_en
 
@@ -82,7 +82,8 @@ PROBLEM_LIMIT = 200
 LIMITS = {"boot_seconds": (20.0, 1, 120), "line_timeout": (5.0, 0.1, 120), "gap_ms": (None, 0, 60000),
           "soak": (None, 1, 7 * 24 * 3600)}
 CONTROL = ("cancel", "recover", "stop")  # Reserved reply queues may overtake ordinary replies.
-STREAMED = ("help", "capability", "axis", "value", "finding", "motion_value", "stop_attempt")
+STREAMED = ("help", "capability", "axis", "value", "finding", "motion_value", "stop_attempt",
+            "velocity_change", "move_relation")
 # A line after the session began that only a boot, the smoke hook, the bench image or a firmware
 # failure prints. A human reply starts with its command token and ": ".
 RESTART = re.compile(r"(MotorControl-CAN: [a-z]|ESP-ROM:|rst:0x|SMOKE |S2_BENCH ready)")
@@ -241,7 +242,7 @@ def load_artifact(artifact, serial):
 # ---------------------------------------------------------------- correlation
 class Request:
     __slots__ = ("seq", "source", "id", "command", "sent", "state", "first", "operation", "final",
-                 "latency", "ordered", "account", "record")
+                 "latency", "ordered", "account", "record", "words", "change", "relation")
 
     def __init__(self, seq, source, identity, command, sent, account=False):
         self.seq, self.source, self.id, self.command, self.sent = seq, source, identity, command, sent
@@ -249,6 +250,7 @@ class Request:
         self.ordered = command not in CONTROL
         self.account = account
         self.record = None  # The whole final record, kept only for the drv accounting requests.
+        self.words, self.change, self.relation = [], None, None
 
     def outcome(self):
         return {"seq": self.seq, "source": self.source, "id": self.id, "command": self.command,
@@ -293,6 +295,7 @@ class Tracker:
         self.minute = []
         self.highest_ordered = -1
         self.last_operation = None
+        self.operations = OrderedDict()  # Known admissions, bounded like closed request history.
         self.problems = []
         self.seq = 0
 
@@ -309,6 +312,7 @@ class Tracker:
             self.counts["sent_human"] += 1
             return None
         request = Request(self.seq, source, line["id"], line["command"], sent, account)
+        request.words = line["text"].split()[1:]
         self.counts["sent_json"] += 1
         self.open.setdefault(request.id, deque()).append(request)
         if soak:
@@ -412,20 +416,73 @@ class Tracker:
             self.problem("command mismatch: id %d sent %s, record names %s" % (identity, request.command, command))
         self._first(request, record)
         if accepted:
+            if request.words[:2] == ["velocity", "change"]:
+                target = int(request.words[2]) if len(request.words) > 2 and request.words[2].isdigit() else 0
+                original = self.operations.get(target)
+                if (original is None or original.command != "velocity" or original.state != "accepted" or
+                        original.change is not None or not is_uint32(record.get("operation_id"), 1) or
+                        record["operation_id"] != target or
+                        type(record.get("change_index")) is not int or record["change_index"] != 1):
+                    self.problem("velocity change lacks its active original operation")
+                else:
+                    original.change = record
+                # The original run alone owns the later change evidence and terminal.
+                self._close(request, "final", record, now)
+                self.counts["finals"] += 1
+                return "final"
             request.state = "accepted"
             request.operation = record.get("operation_id")
             if isinstance(request.operation, int):
                 self.last_operation = request.operation
+                self.operations[request.operation] = request
+                while len(self.operations) > WINDOW:
+                    self.operations.popitem(last=False)
             self.counts["accepted"] += 1
             return "accepted"
         if kind in ("reply", "terminal"):
+            if kind == "terminal" and (request.change is not None or request.relation is not None):
+                if (record.get("operation_id") != request.operation or record.get("command_id") != request.id or
+                        type(record.get("uncertain")) is not bool or
+                        request.change is not None and request.change.get("uncertain") is True and
+                        record.get("uncertain") is not True):
+                    self.problem("terminal differs from retained motion change identity or uncertainty")
             self._close(request, "final", record, now)
             self.counts["finals"] += 1
             return "final"
         if kind not in STREAMED:
             self.problem("unknown record type %r for id %d" % (kind, identity))
+        elif kind in ("velocity_change", "move_relation"):
+            self._motion_change(request, record)
         self.counts["streamed"] += 1
         return "streamed"
+
+    def _motion_change(self, request, record):
+        problem = motion_change_problem(record)
+        if problem:
+            self.problem(problem)
+            return
+        if (request.state != "accepted" or record["operation_id"] != request.operation or
+                record["command"] != request.command):
+            self.problem("motion change has no matching admitted operation")
+            return
+        if record["type"] == "velocity_change":
+            if request.change is not None and request.change.get("type") == "velocity_change":
+                self.problem("duplicate velocity change evidence")
+            request.change = record
+            return
+        pair = (record["original"], record["replacement"])
+        original, replacement = (self.operations.get(identity) for identity in pair)
+        if (original is None or replacement is None or original.command != "move" or
+                replacement.command != "move" or len(replacement.words) < 3 or
+                replacement.words[1] not in ("speed", "ramps", "retarget") or
+                replacement.words[2] != str(pair[0])):
+            self.problem("move relation names foreign operations or differs from replacement intent")
+            return
+        if request.relation is not None:
+            self.problem("duplicate move relation evidence")
+        if any(other.relation is not None and other.relation != pair for other in (original, replacement)):
+            self.problem("move relation changed retained correlation")
+        request.relation = pair
 
     def expire(self, now, timeout):
         """Requests without a final record within timeout of their send become missing."""

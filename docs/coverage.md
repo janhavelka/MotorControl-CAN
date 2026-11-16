@@ -1,5 +1,10 @@
 # Requirement and implementation coverage
 
+[Prompt52](reports/prompt_52.md) adds gated change APIs, retained replacement
+relations, shared console paths and bounded experiments. The operations map
+now covers their direct API and real-owner tests; no Q22-Q26 firmware
+qualification is inferred from those tests. Earlier pending rows remain pending.
+
 [Prompt50](reports/prompt_50.md) reviews the whole candidate scope and corrects
 README shell consumption and evidence summaries. Accounting remains unchanged;
 four missing standalone reads and all feature/physical gates stay with their
@@ -311,3 +316,12 @@ Communication groups already cover all nine requested read rows.
 [The prompt51 report](reports/prompt_51.md) records actual checks and trials;
 Q27 same-cycle sampling, Q28 RPDO latching/withdrawal and the P56-dependent
 sustained 10 ms trial remain distinct obligations.
+
+## Prompt 52 changes during motion
+
+Velocity changes, speed/ramp changes and absolute target replacement have typed
+APIs, owner integration, shared console routes and direct/adversarial tests.
+The [initial measurements](reports/prompt_52_measurements.md) distinguish
+observed effects, ignored active-curve writes and remaining uncertainty. Gates
+are per field and specimen; no new family-wide or physical qualification is
+claimed. Prompt54 owns qualification of the finished operations.

@@ -1,10 +1,25 @@
 # CAN bench facts and evidence gaps
 
-Latest image/regression: the [fresh prompts50–51 audit](reports/audit_50_51.md#fresh-physical-regression)
-records the corrected S2 image `c5c57992`, 242 successful two-node uploads and
-one locally confirmed SYNC with all PDO types255. The producer was released and
-disarmed. No drive configuration or motion command was sent in that regression;
-earlier specimen and qualification limits below remain in effect.
+Latest session: [prompt52](reports/prompt_52.md), 2026-11-16. The S2 bench
+image ELF is `9a96eecef07ecfe01166dee0d08995a68aede90daf2a973882398101a206187b`,
+protocol14, SDK5.5.5, COM15 / ESP-Prog2 serial94A990398B40. CAN remains active,
+host SYNC disarmed, no active operation; final typed-read record52036 is held.
+Node2's checked moving quick stop completed, TPDO1 type255 was explicitly
+restored, and NMT Operational was explicitly requested. Final reports: mode1,
+`6041=4050`, `2100=0014`, `606C=0`, stable `6064=35981`, `1001=603F=0`.
+These observations do not establish independent physical standstill.
+
+**Node1 remains quarantined after unconfirmed stop52012.** Its temporary TPDO1
+type1 remains in place. No subsequent node1 SDO was sent. A requested power
+cycle has not been evidenced; a90-second watch saw normal heartbeats only.
+Do not use an MCU restart, new host binding or normal heartbeat to erase this
+obligation. Establish the external drive-session boundary, then inspect and
+restore its type explicitly. The earlier bench states below are historical.
+
+The [raw measurement report](reports/prompt_52_measurements.md) separates the
+positive velocity change, all eight position cases and the moving003F stop
+from finished-operation qualification. Bare writes without an observed active
+curve effect remain closed. Shafts were not independently watched.
 
 The [prompt48 campaign](reports/prompt_48.md) retains current-image bounded
 read/console load on both CL86-C specimens. The high-load capture has one
@@ -1372,3 +1387,36 @@ a lower bound and does not cover the full SDK/application call graph. UART trace
 backlog and bounded RX timing are retained in the report. These short experiments
 do not qualify sustained timing, simultaneous sample provenance or a common
 motion start. No enable, motion, RPDO, fault clear, save or reset was sent.
+
+## Prompt52 motion-change experiments (protocol14)
+
+The existing single-owner harness adds three explicit CRC-protected routes:
+`mode-probe` (`m`), `position-change` (`p`) and `velocity-change` (`v`).
+Use `python scripts/s2_bench.py --help` for named fields and `--dry-run` to
+review an exact plan without opening the port. Every motion plan needs its
+campaign ledger, trial identity, fixture-scoped evidence and explicit bounds.
+A failed write is never replayed. The `release` command releases a retained
+record; it does not release motor torque or reopen a quarantined channel.
+
+- `mode-probe`: one disabled-state6060 write to2/4/7/8/9/10, followed by
+  bounded6061/status/monitor/feedback reads. Restore1/3 with another explicit
+  request. Acceptance/display says nothing about mode behavior.
+- `position-change`: cases1/2/3 write6081/6083/6084 without a trigger;
+  case4 clears bit4; case5 changes speed with003F; cases6/7 set an ahead
+  target with003F/001F; case8 writes607A without a trigger. One change only,
+  positive reported motion required, at most60rpm. Required finite stop and
+  best-effort budgets retain their original deadlines. A bare parameter write
+  does not create a qualified controlword predecessor or stop result.
+- `velocity-change`: the finite velocity request plus one positive replacement
+  rate (at most60rpm) and preparation-relative change time. The harness waits
+  for a fresh completed RUNNING cycle before its single admission attempt.
+  It never extends stopDue/deadline or retries a refused change.
+
+Every cycle retains raw6041 (including bits10/12),6064 and606C with the
+service/traffic time evidence. These sequential uploads are not simultaneous
+samples, and controller feedback is not independent shaft metrology. The
+128-terminal/448-traffic record is bounded: an overflow invalidates evidence.
+The prompt52 record retains a real overflow and its unsolicitedTPDO1 traffic.
+The subsequent explicit type1 setting with SYNC disarmed is a recorded fixture
+change using the reviewed TPDO path, not a hidden trace filter or default.
+See [report52](reports/prompt_52.md) for exact images, plans, failures and gates.

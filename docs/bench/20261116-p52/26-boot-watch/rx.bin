@@ -1,0 +1,16 @@
+PONG target=esp32s2 base=6775a7ffab26bd161227258ca6e8d5d0e0165ad7 elf=92d5f9c3e18d30af1c6d96d3cdf65c0ae895d25584ecc03e9f71179245bf1fc0 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=143057041 routes=14 trial=0 motion=3 pdo=6 watch=0 capture=0
+PDOW admitted seconds=90; copies received frames, sends nothing
+PDOW_BEGIN n=0 t=143148019 seconds=90 ring=32 ids=16
+PDOW_F n=1 t=143682009 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=143680032 hi=143680209 gap=0
+PDOW_F n=2 t=144002009 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=144000032 hi=144000216 gap=0
+PDOW_SUM n=3 t=144147009 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=4 t=144681072 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=144680195 hi=144681005 gap=1000796
+PDOW_F n=5 t=145001062 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=145000195 hi=145000996 gap=1000780
+PDOW_SUM n=6 t=145147006 frames=4 printed=4 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_F n=7 t=145683006 id=701 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=145681193 hi=145681801 gap=1000796
+PDOW_F n=8 t=146003006 id=702 ext=0 rtr=0 dlc=1 data=05 timed=1 exact=0 lo=146001193 hi=146001791 gap=1000795
+PDOW_SUM n=9 t=146147006 frames=6 printed=6 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_STOPPING; final summaries follow
+PDOW_ID n=10 t=146196022 id=701 ext=0 count=3 first=143680209 last=145681801 minGap=1000796 maxGap=1000796 meanGap=1000796 sdGap=0 changes=0 dlc=1 data=05
+PDOW_ID n=11 t=146198008 id=702 ext=0 count=3 first=144000216 last=146001791 minGap=1000780 maxGap=1000795 meanGap=1000787 sdGap=7 changes=0 dlc=1 data=05
+PDOW_END n=12 t=146200010 reason=stop frames=6 printed=6 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0

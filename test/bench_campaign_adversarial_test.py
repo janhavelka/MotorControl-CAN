@@ -26,6 +26,22 @@ from bench_console_test import value, terminal
 MOVE = "move relative 1 steps native 120 configured setup write"
 
 
+def velocity_change(identity, **changes):
+    fields = dict(operation_id=1, change_index=1, native_rpm="20", record=52, gate_code=2,
+                  execution_code=3, uncertain=True, effect_possible=True, observed_cycle=0,
+                  first_report_rpm=0, abort_code=None, exact=True, error=["0", "1", False],
+                  report_present=False, qualified=False)
+    fields.update(changes)
+    if fields.get("exact") is False:
+        fields.pop("error", None)
+    return record(identity, "velocity_change", "velocity", **fields)
+
+
+def move_relation(identity, operation):
+    return record(identity, "move_relation", "move", operation_id=operation, original=1,
+                  replacement=2, observation_superseded=True, physical_interruption_observed=False)
+
+
 def admitted(identity, family="move", operation=1):
     return reply(identity, family, result="accepted", operation_id=operation)
 
@@ -86,6 +102,93 @@ class CampaignPort(Port):
 
 
 class CampaignAdversarial(unittest.TestCase):
+    def test_change_receipt_belongs_to_original_run(self):
+        console, port, _ = self.client()
+        port.handler = lambda identity, _: admitted(identity, "velocity", 1)
+        original = console.begin("velocity 10 rpm motor 12000 configured normal")
+        while port.buffer:
+            console.pump()
+        port.handler = lambda identity, _: reply(identity, "velocity", result="accepted", operation_id=1, change_index=1)
+        change = console.command("velocity change 1 20 rpm motor configured")
+        self.assertEqual(change["operation_id"], 1)
+        self.assertIsNone(original.terminal)
+        self.assertEqual(set(console.operations), {1})
+        port.buffer.extend(velocity_change(original.id) + motion_terminal(original.id, family="velocity", ok=False, uncertain=True))
+        console.wait(original)
+        self.assertEqual(original.records[-2]["type"], "velocity_change")
+
+    def test_malformed_or_foreign_change_evidence_poison_stream(self):
+        for changes in ({"operation_id": 99}, {"uncertain": "false"}, {"gate_code": True},
+                        {"qualified": True}, {"error": ["1", "0", False]},
+                        {"report_present": False, "observed_cycle": 1}, {"execution_code": 3, "uncertain": False}):
+            with self.subTest(changes=changes):
+                console, port, _ = self.client()
+                port.handler = lambda identity, _: admitted(identity, "velocity", 1) + velocity_change(identity, **changes)
+                with self.assertRaises(bench.BenchError):
+                    console.command("velocity 10 rpm motor 12000 configured normal")
+                self.assertFalse(console.synchronized)
+
+    def test_change_receipt_rejects_foreign_or_boolean_operation(self):
+        for operation in (99, True):
+            console, port, _ = self.client()
+            port.handler = lambda identity, _: admitted(identity, "velocity", 1)
+            console.begin("velocity 10 rpm motor 12000 configured normal")
+            while port.buffer:
+                console.pump()
+            port.handler = lambda identity, _: reply(identity, "velocity", result="accepted", operation_id=operation, change_index=1)
+            with self.assertRaises(bench.BenchError):
+                console.command("velocity change 1 20 rpm motor configured")
+
+    def test_run_terminal_cannot_erase_change_uncertainty(self):
+        console, port, _ = self.client()
+        port.handler = lambda identity, _: (admitted(identity, "velocity", 1) + velocity_change(identity) +
+                                           motion_terminal(identity, family="velocity", ok=False, uncertain=False))
+        with self.assertRaises(bench.BenchError):
+            console.command("velocity 10 rpm motor 12000 configured normal")
+
+    def test_velocity_change_approximation_preserves_bound(self):
+        console, port, _ = self.client()
+        port.handler = lambda identity, _: (admitted(identity, "velocity", 1) +
+            velocity_change(identity, exact=False, error_bound="0.000123") +
+            motion_terminal(identity, family="velocity", ok=False, uncertain=True))
+        handle = console.begin("velocity 10 rpm motor 12000 configured normal")
+        console.wait(handle)
+        self.assertEqual(handle.records[-2]["error_bound"], "0.000123")
+        self.assertNotIn("error", handle.records[-2])
+        for bound in ("nan", "inf", "-1", 0.01, "x"):
+            console, port, _ = self.client()
+            port.handler = lambda identity, _: (admitted(identity, "velocity", 1) +
+                velocity_change(identity, exact=False, error_bound=bound))
+            with self.assertRaises(bench.BenchError):
+                console.command("velocity 10 rpm motor 12000 configured normal")
+
+    def test_move_pair_survives_original_release(self):
+        console, port, _ = self.client()
+        port.handler = lambda identity, _: admitted(identity)
+        original = console.begin(MOVE)
+        while port.buffer:
+            console.pump()
+        port.handler = lambda identity, _: admitted(identity, operation=2)
+        replacement = console.begin("move speed 1 20 immediate")
+        while port.buffer:
+            console.pump()
+        port.buffer.extend(move_relation(original.id, 1) + motion_terminal(original.id, ok=False, uncertain=True))
+        console.wait(original)
+        port.handler = lambda identity, _: reply(identity, "release", result="released", operation_id=1)
+        self.assertTrue(console.release(original)["ok"])
+        port.buffer.extend(move_relation(replacement.id, 2) + motion_terminal(replacement.id, operation=2, ok=False, uncertain=True))
+        console.wait(replacement)
+        self.assertTrue(console.synchronized)
+        self.assertEqual(replacement.records[-2]["original"], 1)
+
+    def test_foreign_relation_and_unknown_record_are_rejected(self):
+        for kind, fields in (("move_relation", dict(original=1, replacement=99, observation_superseded=True,
+                                                  physical_interruption_observed=False)), ("future_change", {})):
+            console, port, _ = self.client()
+            port.handler = lambda identity, _: admitted(identity) + record(identity, kind, "move", operation_id=1, **fields)
+            with self.assertRaises(bench.BenchError):
+                console.command(MOVE)
+
     def test_reserved_stop_receipt_may_precede_earlier_move_receipt(self):
         console, port, _ = self.client()
         port.handler = lambda *_: b""

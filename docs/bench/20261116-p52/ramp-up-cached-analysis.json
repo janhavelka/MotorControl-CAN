@@ -1,0 +1,12 @@
+{
+  "original": "docs\\bench\\20261116-p52\\51-bare-ramp-up-node2",
+  "cached": "docs\\bench\\20261116-p52\\52-ramp-up-cached-dump",
+  "composition": "original bytes before TRIAL id header + cached bytes from same TRIAL id header",
+  "original_prefix_bytes": 357,
+  "cached_offset": 0,
+  "verdict": "complete",
+  "errors": [],
+  "original_sha256": "1faed7d4fb0a93bf65bd2b6665615c21beaebc26d0dea73a0afbf8758309dd49",
+  "cached_sha256": "1da2ec0fc45a3b64ba7a48d269c965846ddda052080a6e5d32dc63e085339463",
+  "note": "No repeated CAN request. Original incomplete capture and full cached dump are retained unchanged. Tail observations remain separate."
+}

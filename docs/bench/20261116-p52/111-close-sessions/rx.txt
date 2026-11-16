@@ -1,0 +1,1 @@
+SESSIONS closed node1=0 node2=1 kept1=00 kept2=20 motion=3; nothing sent; latest controlwords dropped; fences, trials and caps kept

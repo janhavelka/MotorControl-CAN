@@ -11,6 +11,15 @@
 #include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
 
 namespace MotorControlCANExample {
+/** Raise local bench operation/grant counters to the selected service channel's retained high-water marks.
+ * This allocates no ID and never changes the service, route or authorization.
+ * @param services Single authoritative service store, borrowed for this call.
+ * @param node Bench node 1 or 2; another value or unconfigured channel changes nothing.
+ * @param operation Local last operation ID, raised only; UINT32_MAX remains exhausted.
+ * @param authorization Local last grant ID, raised only; caller checks capacity before adding.
+ */
+void refreshExperimentIds(const MotorControlCAN::CANOPEN::SdoClient& services, unsigned node,
+                          uint32_t& operation, uint32_t& authorization) noexcept;
 using MotorControlCANOwner::Stats;
 using MotorControlCANOwner::RequestId;
 using MotorControlCANOwner::SequenceId;

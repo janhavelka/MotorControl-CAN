@@ -1,0 +1,41 @@
+{
+  "purpose": "P52 explicit node1 TPDO1 type255 to1 for bounded SDO motion-change captures; host SYNC remains disarmed; restore255 separately after trials",
+  "authorization": "Standing bench authorization; previously measured P51 exact isolated transition; no save, no automatic replay",
+  "steps": [
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

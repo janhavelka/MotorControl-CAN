@@ -119,16 +119,16 @@ M::VelocityRequest rpm(const M::Rational& value, const M::AxisConfig& axis) {
     return request;
 }
 bool parseMove(const ConsoleLine& line, const M::AxisConfig& axis, const SimpleMoveIntent& intent,
-               M::MoveRequest& request, L::MoveProfile& profile) {
+               M::MoveRequest& request, L::MoveProfile& profile, size_t offset = 0) {
     auto& p = request.position;
     p.configurationGeneration = axis.binding.configurationGeneration;
-    p.relative = eq(line.token(1), "relative");
-    p.wrapped = eq(line.token(1), "angle");
-    if ((!p.relative && !p.wrapped && !eq(line.token(1), "absolute")) ||
-        !M::parseExactNumber(line.token(2), p.value) || !spatialUnit(line.token(3), p.unit) ||
-        !frame(line.token(4), p.frame))
+    p.relative = eq(line.token(1 + offset), "relative");
+    p.wrapped = eq(line.token(1 + offset), "angle");
+    if ((!p.relative && !p.wrapped && !eq(line.token(1 + offset), "absolute")) ||
+        !M::parseExactNumber(line.token(2 + offset), p.value) || !spatialUnit(line.token(3 + offset), p.unit) ||
+        !frame(line.token(4 + offset), p.frame))
         return false;
-    size_t next = 5;
+    size_t next = 5 + offset;
     if (p.wrapped) {
         const char* path = line.token(next++);
         const char* tie = line.token(next++);
@@ -180,6 +180,72 @@ const char* outcomeName(M::ActionOutcome outcome) {
                            "SERVICE_TIMEOUT"};
     const unsigned n = static_cast<unsigned>(outcome);
     return n < sizeof names / sizeof names[0] ? names[n] : "UNKNOWN";
+}
+// Keep replacement-only parsing storage off ordinary move and home dispatch chains.
+// Inlining it into dispatchMotion exceeds the measured 6144-byte Xtensa chain budget.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#elif defined(_MSC_VER)
+__declspec(noinline)
+#endif
+M::Status requestReplacement(const ConsoleLine& line, const SimpleMoveIntent& intent, ProbeMotion& motion,
+                   uint32_t originalOperation, uint64_t now) {
+    const M::AxisConfig& axis = motion.axisConfig();
+    const L::MoveContext* native = motion.nativeMove();
+    const MotionResult* retained = motion.normalResult(originalOperation);
+    if (native && retained && retained->id == motion.normalResult().id &&
+        retained->kind == MotionKind::MOVE) {
+        L::MoveReplacementRequest request;
+        request.request.position = native->parameters.target.requested;
+        request.request.speed = native->speed.requested;
+        request.profile = native->profile;
+        request.profile.setup = L::MoveSetup::WRITE_ALL;
+        request.mode = L::MoveReplacementMode::IMMEDIATE;
+        bool parsed = false;
+        if (eq(line.token(1), "speed")) {
+            M::Rational value;
+            parsed =
+                (line.count == 4 || line.count == 5) && M::parseExactNumber(line.token(3), value);
+            request.request.speed = rpm(value, axis);
+            request.fields = 2;
+            if (line.count == 5) {
+                parsed =
+                    parsed && (eq(line.token(4), "immediate") || eq(line.token(4), "buffered"));
+                if (eq(line.token(4), "buffered"))
+                    request.mode = L::MoveReplacementMode::BUFFERED;
+            }
+        } else if (eq(line.token(1), "ramps")) {
+            uint64_t upTime = 0, downTime = 0;
+            parsed = (line.count == 5 || line.count == 6) &&
+                     positiveInteger(line.token(3), upTime) && upTime <= 2000 &&
+                     positiveInteger(line.token(4), downTime) && downTime <= 2000;
+            request.profile.rampUpTimeMs = uint32_t(upTime);
+            request.profile.rampDownTimeMs = uint32_t(downTime);
+            request.fields = 12;
+            if (line.count == 6) {
+                parsed =
+                    parsed && (eq(line.token(5), "immediate") || eq(line.token(5), "buffered"));
+                if (eq(line.token(5), "buffered"))
+                    request.mode = L::MoveReplacementMode::BUFFERED;
+            }
+        } else {
+            const bool policy = eq(line.token(3), "immediate") || eq(line.token(3), "buffered");
+            if (eq(line.token(3), "buffered"))
+                request.mode = L::MoveReplacementMode::BUFFERED;
+            SimpleMoveIntent retainedIntent = intent;
+            retainedIntent.rampUpKnown = retainedIntent.rampDownKnown = true;
+            retainedIntent.rampUpMs = native->profile.rampUpTimeMs;
+            retainedIntent.rampDownMs = native->profile.rampDownTimeMs;
+            retainedIntent.setup = L::MoveSetup::WRITE_ALL;
+            parsed = parseMove(line, axis, retainedIntent, request.request, request.profile,
+                               policy ? 3 : 2) &&
+                     !request.request.position.relative && !request.request.position.wrapped;
+            request.fields = 3;
+        }
+        if (parsed)
+            return motion.requestMoveReplacement(originalOperation, request, now);
+    }
+    return M::Status(M::Err::ILLEGAL_VALUE, 0, "invalid_arguments_or_gated_policy");
 }
 const char* truth(bool value) {
     return value ? "true" : "false";
@@ -257,6 +323,31 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             return;
         }
         const M::AxisConfig& axis = motion_->axisConfig();
+        if (eq(name, "velocity") && eq(line.token(1), "change")) {
+            uint64_t id = 0;
+            size_t next = 7;
+            M::VelocityRequest rate;
+            rate.configurationGeneration = axis.binding.configurationGeneration;
+            if (line.count < next || !positiveInteger(line.token(2), id) || id > UINT32_MAX ||
+                !M::parseExactNumber(line.token(3), rate.value) ||
+                !rateUnit(line.token(4), rate.unit) || !frame(line.token(5), rate.frame) ||
+                !eq(line.token(6), "configured") || !rounding(line, next, rate, rate.unit.position)) {
+                reject(syntax);
+                return;
+            }
+            Operation* original = operation(static_cast<uint32_t>(id));
+            if (!original || !original->motion || original->stop || original->terminal) {
+                reject(M::Status(M::Err::INVALID_CONFIG, 0, "velocity_change_requires_active_operation_id"));
+                return;
+            }
+            const M::Status status = motion_->requestVelocityChange(original->nativeOperation, rate, now);
+            if (!status) {
+                reject(status);
+                return;
+            }
+            velocityChangeAccepted(line, original->id);
+            return;
+        }
         if (speed) {
             M::Rational value;
             if ((line.count != 2 && line.count != 3) ||
@@ -298,6 +389,18 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 return;
             }
         } else {
+            const bool replacement = eq(name, "move") &&
+                (eq(line.token(1), "speed") || eq(line.token(1), "ramps") || eq(line.token(1), "retarget"));
+            Operation* original = nullptr;
+            if (replacement) {
+                uint64_t id = 0;
+                if (!positiveInteger(line.token(2), id) || id > UINT32_MAX ||
+                    !(original = operation(static_cast<uint32_t>(id))) || !original->motion ||
+                    original->stop || original->terminal) {
+                    reject(M::Status(M::Err::INVALID_CONFIG, 0, "replacement_requires_active_move_id"));
+                    return;
+                }
+            }
             Operation* op = stop ? &operations_[OPERATION_CAPACITY + stopSlot - 1] : nullptr;
             if (!stop)
                 for (unsigned n = 0; n < OPERATION_CAPACITY && !op; ++n)
@@ -337,10 +440,14 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                         status = motion_->requestMove(request, profile, now, cutoff);
                 }
             } else if (eq(name, "move")) {
-                M::MoveRequest request;
-                L::MoveProfile profile;
-                if (parseMove(line, axis, intent_, request, profile))
-                    status = motion_->requestMove(request, profile, now, cutoff);
+                if (replacement) {
+                    status = requestReplacement(line, intent_, *motion_, original->nativeOperation, now);
+                } else {
+                    M::MoveRequest request;
+                    L::MoveProfile profile;
+                    if (parseMove(line, axis, intent_, request, profile))
+                        status = motion_->requestMove(request, profile, now, cutoff);
+                }
             } else if (eq(name, "velocity")) {
                 M::VelocityRequest rate;
                 uint64_t duration = 0;
@@ -407,12 +514,30 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                            ->stopResult(stopSlot == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
                            ->result.id
                      : motion_->normalResult().id;
+            if (replacement) {
+                op->originalMotion = original->id;
+                op->replacementMotion = op->id;
+                original->originalMotion = original->id;
+                original->replacementMotion = op->id;
+            }
             std::snprintf(op->command, sizeof op->command, "%s", name);
             motionAccepted(*op);
             return;
         }
     }
     motionIntentReply(line, false);
+}
+// As for motionAccepted, format only after the request returns so its 512-byte text buffer
+// does not remain on the stack through native preparation and conversion.
+void ProbeConsole::velocityChangeAccepted(const ConsoleLine& line, uint32_t operation) noexcept {
+    ConsoleText text;
+    text.start(line.json, line.id, "reply", line.token(0));
+    text.add(line.json ? ",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\",\"operation_id\":%lu,\"change_index\":1"
+                       : "accepted operation %lu change 1",
+             static_cast<unsigned long>(operation));
+    text.end(line.json);
+    if ((!text.valid || !enqueue(text.bytes, false, line.id)) && stats_.outputDropped != UINT32_MAX)
+        ++stats_.outputDropped;
 }
 void ProbeConsole::motionAccepted(Operation& op) noexcept {
     ConsoleText text;
@@ -496,13 +621,68 @@ bool ProbeConsole::motionValues(Operation& op) noexcept {
     }
     if (!motion_ || !motion_->retained())
         return true;
-    const auto& result = motion_->normalResult();
+    const MotionResult* correlated = motion_->normalResult(op.nativeOperation);
+    if (!correlated)
+        return true;
+    const auto& result = *correlated;
     const MotionValue* values[] = {&result.target, &result.rate, &result.creepRate};
     const char* fields[] = {"target", "speed", "creep_speed"};
     while (op.valueCursor < 3 && !values[op.valueCursor]->present)
         ++op.valueCursor;
-    if (op.valueCursor == 3)
-        return true;
+    if (op.valueCursor >= 3) {
+        if (op.valueCursor == 3 && op.originalMotion && op.replacementMotion) {
+            if (ordinaryCount_ == ORDINARY_REPLIES)
+                return false;
+            ConsoleText text;
+            text.start(op.json, op.request, "move_relation", op.command);
+            text.add(op.json ? ",\"operation_id\":%lu,\"original\":%lu,\"replacement\":%lu,"
+                               "\"observation_superseded\":%s,\"physical_interruption_observed\":false"
+                             : "operation=%lu original=%lu replacement=%lu observation-superseded=%s physical-interruption-observed=false",
+                     static_cast<unsigned long>(op.id), static_cast<unsigned long>(op.originalMotion),
+                     static_cast<unsigned long>(op.replacementMotion), truth(result.relation.observationSuperseded));
+            text.end(op.json);
+            if (text.valid && enqueue(text.bytes, false, op.request))
+                ++op.valueCursor;
+            return false;
+        }
+        const L::VelocityContext* velocity = motion_->nativeVelocity();
+        if (op.valueCursor != 3 || !velocity || !velocity->change.present)
+            return true;
+        if (ordinaryCount_ == ORDINARY_REPLIES)
+            return false;
+        const L::VelocityChange& change = velocity->change;
+        ConsoleText text;
+        text.start(op.json, op.request, "velocity_change", op.command);
+        text.add(op.json ? ",\"operation_id\":%lu,\"change_index\":1,\"native_rpm\":\"%lld\",\"record\":%lu,"
+                           "\"gate_code\":%u,\"execution_code\":%u,\"uncertain\":%s,\"effect_possible\":%s,"
+                           "\"observed_cycle\":%lu,\"first_report_rpm\":%ld,\"abort_code\":"
+                         : "operation=%lu change=1 native-rpm=%lld record=%lu gate=%u execution=%u "
+                           "uncertain=%s effect-possible=%s observed-cycle=%lu first-report-rpm=%ld abort=",
+                 static_cast<unsigned long>(op.id), static_cast<long long>(change.rate.effectiveNative),
+                 static_cast<unsigned long>(change.evidence.record), unsigned(change.evidence.gate),
+                 unsigned(change.execution), truth(change.uncertain), truth(change.effectsPossible),
+                 static_cast<unsigned long>(change.firstRequestedRateReport.cycle),
+                 static_cast<long>(change.firstPostChange.velocity));
+        if (change.serviceEvidencePresent && change.serviceEvidence.outcome == M::CANOPEN::SdoOutcome::SERVER_ABORT)
+            text.add("%lu", static_cast<unsigned long>(change.serviceEvidence.abortCode));
+        else
+            text.add("null");
+        if (op.json) {
+            text.add(",\"exact\":%s", truth(change.rate.exactArithmetic));
+            if (change.rate.exactArithmetic)
+                text.add(",\"error\":[\"%llu\",\"%llu\",%s]",
+                         static_cast<unsigned long long>(change.rate.quantization.errorNumerator),
+                         static_cast<unsigned long long>(change.rate.quantization.errorDenominator),
+                         truth(change.rate.quantization.errorNegative));
+            else
+                text.add(",\"error_bound\":\"%.17g\"", change.rate.absoluteErrorBound);
+            text.add(",\"report_present\":%s,\"qualified\":false", truth(change.firstPostChange.present));
+        }
+        text.end(op.json);
+        if (text.valid && enqueue(text.bytes, false, op.request))
+            ++op.valueCursor;
+        return false;
+    }
     if (ordinaryCount_ == ORDINARY_REPLIES)
         return false;
     const MotionValue& value = *values[op.valueCursor];
@@ -542,8 +722,8 @@ bool ProbeConsole::motionTerminal(Operation& op) noexcept {
                 ? motion_->stopResult(op.stop == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP)
                 : nullptr;
         const MotionResult* result = stopped ? &stopped->result
-                                     : motion_ && !op.stop && motion_->retained()
-                                         ? &motion_->normalResult()
+                                     : motion_ && !op.stop
+                                         ? motion_->normalResult(op.nativeOperation)
                                          : nullptr;
         if (result && result->id == op.nativeOperation) {
             if (result->state == M::ActionState::ACTIVE || !motionValues(op))

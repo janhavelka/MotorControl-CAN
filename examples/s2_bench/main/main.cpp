@@ -823,7 +823,7 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
         return true;
     const bool needed = plan.kind == E::RouteKind::SETTINGS_2202 || plan.kind == E::RouteKind::IO_DI3 ||
                         plan.kind == E::RouteKind::SUBDIVISION || plan.kind == E::RouteKind::LOOP ||
-                        plan.kind == E::RouteKind::VELOCITY ||
+                        plan.kind == E::RouteKind::VELOCITY || plan.kind == E::RouteKind::VELOCITY_CHANGE ||
                         plan.kind == E::RouteKind::HOME || (plan.kind == E::RouteKind::MOVE && plan.observer);
     if (!needed && !benchMemory.blocks[RESERVE_WORK].memory)
         return true;
@@ -869,10 +869,13 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
 // One record line per turn, only when it fits the output queue whole.
 bool dumpTrial(E::FirmwareProbe& firmware, const E::BenchRoute& route, unsigned& cursor) {
     char out[256];
-    if (!route.formatLine(cursor, out, sizeof out))
+    bool lastLine = false;
+    if (!route.formatLine(cursor, out, sizeof out, &lastLine))
         return false;
-    if (firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out), std::strlen(out)))
+    if (firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out), std::strlen(out))) {
         ++cursor;
+        return !lastLine;
+    }
     return true;
 }
 // Capture counters at its begin and end only: twai_node_get_info, never per turn.
@@ -1008,7 +1011,7 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=13` in PONG names this line protocol: the CRC-32 field (3), the
+    // refused whole, never cut. `routes=14` in PONG names this line protocol: the CRC-32 field (3), the
     // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
     // settings routes and the move's observer node (5), then the N, V and O routes of prompts 35 and
     // 36 (6), then the V line without the host's start and stop flags, run as the library's attended
@@ -1017,7 +1020,8 @@ void ownerTask(void*) {
     // then the C line's reset method at its end, 2301 or 6040 bit 7 (10), then the T route (`TT`), one
     // reviewed non-enabling 6040 word on a drive that reports low bits 000 and its observation cycles (11),
     // then the V line's reverse field at its end, prompt 59's reverse probe (12), then the l route (`Tl`, lowercase:
-    // no capital is left), one 2500 loop selector write on a released drive (13).
+    // no capital is left), one 2500 loop selector write on a released drive (13), and explicit
+    // mode-display / finite position-change / velocity-change experiments m/p/v (14).
     E::BenchRoute* route = nullptr;
     // The arena's current occupant, refreshed each turn and after each acquisition. D and K never
     // download, so the dispatcher below asks only for the raw, PDO and H collectors: a download of
@@ -1371,8 +1375,13 @@ void ownerTask(void*) {
                 if (ended) {
                     pdoCollecting = false;
                     E::PdoCommand parsed;
-                    if (pdoLength > sizeof pdoText ||
-                        !E::parsePdoCommand(pdoText, pdoLength, parsed)) {
+                    const bool parsedPdo = pdoLength <= sizeof pdoText &&
+                                           E::parsePdoCommand(pdoText, pdoLength, parsed);
+                    // Every addressed bench producer shares the channel's retained ID space.
+                    // Closing a motion session must not reset grants or reuse operation IDs.
+                    if (parsedPdo && parsed.node >= 1 && parsed.node <= E::BENCH_NODES)
+                        E::refreshExperimentIds(services, parsed.node, acquisition, pdoGrant[parsed.node - 1]);
+                    if (!parsedPdo) {
                         line(firmware, "PDO_LINE refused reason=syntax; no work\n");
                     } else if (parsed.kind == E::PdoCommandKind::CAPTURE && !parsed.capture) {
                         line(firmware, capture && capture->requestStop()
@@ -1499,16 +1508,6 @@ void ownerTask(void*) {
                         const bool reads = parsed.kind == E::PdoCommandKind::COMMUNICATION;
                         const unsigned slot = parsed.node - 1;
                         const uint32_t operations = reads ? 18 : 2, fields = reads ? 95 : 3;
-                        // The channel grants only above its last grant, in authorization and in
-                        // operation identity: after a route (closed with x) both counters continue
-                        // from the channel's, which the route drew from its own higher range.
-                        uint32_t lastGrant = 0, lastOperation = 0;
-                        if (services.lastExperiment(uint8_t(slot), lastGrant, lastOperation)) {
-                            if (pdoGrant[slot] < lastGrant)
-                                pdoGrant[slot] = lastGrant;
-                            if (acquisition < lastOperation)
-                                acquisition = lastOperation;
-                        }
                         const uint64_t window = reads ? 15000000 : 5000000;
                         const char* refusal = "state";
                         if (controllerReady && !dumping && !networkDump && !nmtRequest.owner &&
@@ -1930,7 +1929,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=13 trial=%u motion=%u pdo=6 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=14 trial=%u motion=%u pdo=6 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

@@ -192,6 +192,7 @@ class ProbeConsole {
         bool used = false, json = false, terminal = false, delivered = false, recovery = false,
              queuedTerminal = false, deliveryPending = false;
         uint32_t request = 0, id = 0, readOperation = 0, nativeOperation = 0;
+        uint32_t originalMotion = 0, replacementMotion = 0; ///< Retained console relation, not wire tags.
         uint32_t deliveryEnd =
             0; ///< Modulo outputWritten position after the complete terminal line.
         MotorControlCANOwner::RecoveryId recoveryId;
@@ -251,6 +252,7 @@ class ProbeConsole {
     void poll(uint64_t now) noexcept;
     void dispatchDevice(const ConsoleLine& line, uint64_t now) noexcept;
     void dispatchMotion(const ConsoleLine& line, uint64_t now) noexcept;
+    void velocityChangeAccepted(const ConsoleLine& line, uint32_t operation) noexcept;
     void motionIntentReply(const ConsoleLine& line, bool inspect) noexcept;
     void motionAccepted(Operation& operation) noexcept;
     bool motionValues(Operation& operation) noexcept;

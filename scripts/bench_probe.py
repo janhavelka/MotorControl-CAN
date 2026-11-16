@@ -22,7 +22,7 @@ import sys
 import time
 import uuid
 
-from console_jsonl import ID_MAX, PROFILE, RECORD_LIMIT, SCHEMA, is_uint32, record_problems
+from console_jsonl import ID_MAX, PROFILE, RECORD_LIMIT, SCHEMA, is_uint32, record_problems, motion_change_problem
 from _bench_evidence import BenchError, summarize_operation
 
 MAX_PENDING = 4
@@ -36,7 +36,7 @@ READ_CHUNK = 256
 IDLE_SECONDS = 0.001
 STATUS = {"OK", "INVALID_CONFIG", "ILLEGAL_VALUE", "UNSUPPORTED", "FRAME_ERROR", "PROTOCOL_ERROR"}
 RECORD_KINDS = {"reply", "terminal", "capability", "help", "axis", "value", "finding",
-                "motion_value", "stop_attempt", "trace"}
+                "motion_value", "stop_attempt", "velocity_change", "move_relation", "trace"}
 
 
 def positive(value, name, maximum=60.0):
@@ -144,6 +144,14 @@ def campaign_form(command):
         return "axis"
     number = r"-?(?:0|[1-9][0-9]*)"
     positive_integer = r"[1-9][0-9]*"
+    if re.fullmatch(r"velocity change " + positive_integer + " " + positive_integer + r" rpm motor configured", command):
+        return "change"
+    if (re.fullmatch(r"move speed " + positive_integer + " " + positive_integer + r"(?: immediate| buffered)?", command) or
+            re.fullmatch(r"move ramps " + positive_integer + " " + positive_integer + " " + positive_integer +
+                         r"(?: immediate| buffered)?", command) or
+            re.fullmatch(r"move retarget " + positive_integer + r" (?:immediate |buffered )?absolute " + number +
+                         r" steps native " + positive_integer + r" configured setup write", command)):
+        return "motion"
     if re.fullmatch(r"(?:accel|decel) " + positive_integer + r" ms", command):
         return "reply"
     if re.fullmatch(r"speed " + positive_integer + r" rpm", command):
@@ -194,6 +202,7 @@ class Command:
     input_bytes: int = 0
     turns: int = 0
     turn_limit: int = MAX_TURNS
+    change_admitted: bool = False
 
 
 class Console:
@@ -224,6 +233,7 @@ class Console:
         self.last_operation_id = 0
         self.last_admission_request = 0
         self.seen_operations = set()  # Bounded by MAX_COMMANDS, including released history.
+        self.move_relations = {}  # Established pairs survive release of their original result.
         self.capabilities = {}
         self.buffer = bytearray()
         self.raw_lines, self.parse_failures = deque(maxlen=64), deque(maxlen=16)
@@ -409,6 +419,19 @@ class Console:
                     self._fail("invalid capability inventory")
         elif kind == "reply":
             self._status(item)
+            if campaign_form(handle.command) == "change" and item.get("result") == "accepted":
+                original = self.operations.get(int(handle.command.split()[2]))
+                if (not item["ok"] or original is None or original.family != "velocity" or
+                        original.terminal is not None or not is_uint32(item.get("operation_id"), 1) or
+                        item["operation_id"] != original.operation_id or
+                        type(item.get("change_index")) is not int or item["change_index"] != 1 or
+                        original.change_admitted):
+                    self._fail("velocity change lacks its active original operation")
+                original.change_admitted = True
+                # This receipt admits one field change, not another finite run or terminal stream.
+                handle.terminal, handle.phase = item, "completed"
+                self._append(handle, item)
+                return
             if item.get("result") == "accepted":
                 capability = self.capabilities.get(family)
                 if (not item["ok"] or not capability or campaign_form(handle.command) in ("reply", "axis") or
@@ -516,7 +539,9 @@ class Console:
                 self._fail("typed read received an unexpected record kind")
             form = campaign_form(handle.command)
             if form in ("motion", "stop", "settings"):
-                if form == "motion" and kind == "motion_value":
+                if form == "motion" and kind in ("velocity_change", "move_relation"):
+                    self._motion_change(handle, item)
+                elif form == "motion" and kind == "motion_value":
                     self._motion_value(item)
                     if any(row.get("field") == item["field"] for row in handle.records if row["type"] == kind):
                         self._fail("duplicate motion value")
@@ -535,6 +560,36 @@ class Console:
                        (item["index"], item["subindex"]) for row in handle.records):
                     self._fail("duplicate object value")
         self._append(handle, item)
+
+    def _motion_change(self, handle, item):
+        problem = motion_change_problem(item)
+        if problem:
+            self._fail(problem)
+        kind = item["type"]
+        if any(row["type"] == kind for row in handle.records):
+            self._fail("duplicate motion change evidence")
+        if kind == "velocity_change":
+            if handle.family != "velocity":
+                self._fail("velocity change attached to another motion family")
+            return
+        pair = (item["original"], item["replacement"])
+        if any(identity in self.move_relations and self.move_relations[identity] != pair for identity in pair):
+            self._fail("move relation changed retained correlation")
+        if self.move_relations.get(handle.operation_id) == pair:
+            return  # The original result may already have been explicitly released.
+        originals = [self.operations.get(identity) for identity in pair]
+        if any(other is None or other.family != "move" or other.released for other in originals):
+            self._fail("move relation names an unknown retained move")
+        replacement = originals[1].command.split()
+        if (len(replacement) < 3 or replacement[1] not in ("speed", "ramps", "retarget") or
+                replacement[2] != str(pair[0])):
+            self._fail("move relation differs from replacement intent")
+        for other in originals:
+            for row in other.records:
+                if row["type"] == "move_relation" and (row["original"], row["replacement"]) != pair:
+                    self._fail("move relation changed retained correlation")
+        for identity in pair:
+            self.move_relations[identity] = pair
 
     def _terminal_fields(self, item):
         if ("abort_code" not in item or not is_uint32(item.get("command_id"), 1) or not is_uint32(item.get("operation_id"), 1) or
@@ -603,6 +658,8 @@ class Console:
             self._fail("best-effort stop cannot establish acknowledgement/completion")
 
     def _campaign_terminal(self, handle, item, form):
+        if any(row["type"] == "velocity_change" and row["uncertain"] for row in handle.records) and not item["uncertain"]:
+            self._fail("terminal discarded retained velocity change uncertainty")
         expected = "SETTINGS_READBACK_MATCHED" if form == "settings" else "OBSERVED"
         if item["ok"] and (item["outcome"] != expected or item["uncertain"] or item["abort_code"] is not None):
             self._fail("contradictory successful campaign terminal")

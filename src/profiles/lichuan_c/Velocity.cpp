@@ -58,6 +58,12 @@ bool sameFirmware(const VelocityFirmware& f, const IdentityObservation& i) {
            f.productCode == i.productCode && f.revision == i.revision &&
            f.modelCode == i.modelCode && f.firmwareCode == i.firmwareCode;
 }
+bool sameFirmware(const VelocityFirmware& a, const VelocityFirmware& b) {
+    return a.deviceType == b.deviceType && a.hardwareVersion == b.hardwareVersion &&
+           a.softwareVersion == b.softwareVersion && a.vendorId == b.vendorId &&
+           a.productCode == b.productCode && a.revision == b.revision &&
+           a.modelCode == b.modelCode && a.firmwareCode == b.firmwareCode;
+}
 uint32_t raw(const ReadContext& c, StateBlock block, unsigned field) {
     return c.values[c.blockStart[unsigned(block)] + field].raw;
 }
@@ -253,7 +259,7 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
 }
 bool downloading(const VelocityContext& c) {
     return c.phase == VelocityPhase::MODE || c.phase == VelocityPhase::PARAMETERS ||
-           c.phase == VelocityPhase::ENABLE;
+           c.phase == VelocityPhase::ENABLE || c.phase == VelocityPhase::CHANGE;
 }
 Status shape(const VelocityContext& c, uint64_t now) {
     if (!validReservation(c.reservation) || !c.operation || !c.step || !optionsValid(c.options) ||
@@ -273,7 +279,8 @@ Status shape(const VelocityContext& c, uint64_t now) {
         c.runningPolls > c.options.maxPolls || c.runningPolls > c.observations ||
         c.observations - c.runningPolls >
             (c.admission.modeRaw == 3 ? 3u : 4u) + windowCycles(c.options) ||
-        c.enablePending > (c.options.enableWindowUs ? windowCycles(c.options) + 1 : 0))
+        c.enablePending > (c.options.enableWindowUs ? windowCycles(c.options) + 1 : 0) ||
+        (c.phase == VelocityPhase::CHANGE && (!c.change.present || c.change.serviceEvidencePresent)))
         return error(VelocityError::STATE, "invalid velocity context or processing time");
     return Ok();
 }
@@ -318,6 +325,10 @@ CANOPEN::SdoTransfer download(const VelocityContext& c) {
         value = c.setupCursor == 0   ? uint32_t(int32_t(c.rate.effectiveNative))
                 : c.setupCursor == 1 ? c.profile.rampUpTimeMs
                                      : c.profile.rampDownTimeMs;
+    } else if (c.phase == VelocityPhase::CHANGE) {
+        t.index = 0x60ff;
+        t.size = 4;
+        value = uint32_t(c.change.rate.effectiveNative);
     }
     for (unsigned i = 0; i < t.size; ++i)
         t.data[i] = uint8_t(value >> (8 * i));
@@ -371,6 +382,10 @@ void settleEffects(VelocityContext& c) {
             enablingPossible |= c.commandHistory[i].transmissionPossible;
         }
     }
+    if (c.change.present) {
+        possible |= c.change.effectsPossible;
+        uncertain |= c.change.uncertain;
+    }
     // A controller-proved non-transmission may refine the first possible-TX notice. Earlier
     // possibly sent words stay in the history; only this operation's checked stop settles them.
     c.needsStop = enablingPossible && c.completion != ActionCompletion::OBSERVED;
@@ -380,6 +395,16 @@ void settleEffects(VelocityContext& c) {
 void failure(VelocityContext& c, ActionOutcome reason, uint64_t now, const char* message,
              bool allowStop) {
     settleEffects(c);
+    if (c.change.present) {
+        if (c.change.firstFailure == ActionOutcome::NONE)
+            c.change.firstFailure = reason;
+        if (c.change.uncertain || c.readUncertain ||
+            (c.phase == VelocityPhase::CHANGE && c.transmissionNoted)) {
+            c.change.uncertain = true;
+            if (!c.change.firstUncertainUs)
+                c.change.firstUncertainUs = now;
+        }
+    }
     if (c.firstFailure == ActionOutcome::NONE) {
         c.firstFailure = reason;
         c.status = error(
@@ -422,7 +447,11 @@ bool windowAdmits(const VelocityContext& c, uint64_t now) {
            now + spacing - c.commandHistory[2].completedUs <= c.options.enableWindowUs;
 }
 void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
-    const uint64_t after = c.observation == VelocityObservation::MODE
+    const bool changed = c.change.serviceEvidencePresent &&
+                         c.change.execution == ActionExecution::ACKNOWLEDGED;
+    const uint64_t after = changed && c.observation == VelocityObservation::RUNNING
+                               ? c.change.serviceEvidence.completedUs
+                           : c.observation == VelocityObservation::MODE
                                ? c.modeEvidence.completedUs
                                : c.commandHistory[c.commandCursor].completedUs;
     VelocitySample s;
@@ -445,6 +474,11 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     // pendingFirst, which equalled it.
     const int32_t word7Position = c.enablePending ? c.pendingFirst.position : c.latest.position;
     c.latest = s;
+    if (changed && c.observation == VelocityObservation::RUNNING) {
+        if (!c.change.firstPostChange.present)
+            c.change.firstPostChange = s;
+        c.change.latestPostChange = s;
+    }
     StatusIndications interpreted;
     interpretStatusword(s.statusword, c.evidence.layout, interpreted);
     if ((s.monitor & MONITOR_ALARM) || interpreted.alarm == StateIndication::YES) {
@@ -537,7 +571,11 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     }
     // Over-speed (prompt 59, project policy): above the command by a fifth plus the margin. 606C is
     // what the drive reports, not an independent speed observation.
-    const int64_t commanded = c.rate.effectiveNative < 0 ? -c.rate.effectiveNative : c.rate.effectiveNative;
+    int64_t commanded = c.rate.effectiveNative < 0 ? -c.rate.effectiveNative : c.rate.effectiveNative;
+    // Q26 establishes no transition law. A decrease may still report the original rate; an
+    // increase may already report the replacement. Neither creates a convergence guarantee.
+    if (changed && c.change.rate.effectiveNative > commanded)
+        commanded = c.change.rate.effectiveNative;
     const int64_t reported = s.velocity < 0 ? -int64_t(s.velocity) : int64_t(s.velocity);
     if (reported > commanded + commanded / 5 + int64_t(VELOCITY_OVERSPEED_MARGIN_RPM)) {
         failure(c, ActionOutcome::OBSERVATION_SCOPE, now, "reported velocity exceeds the command",
@@ -554,6 +592,9 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
                 true);
         return;
     }
+    if (changed && moving && !c.change.firstRequestedRateReport.present &&
+        int64_t(s.velocity) == c.change.rate.effectiveNative)
+        c.change.firstRequestedRateReport = s;
     if (now >= c.stopDueUs)
         return;
     if (c.runningPolls >= c.options.maxPolls) {
@@ -562,6 +603,89 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
         return;
     }
     waitFor(c, VelocityObservation::RUNNING, now, c.options.pollIntervalUs);
+}
+Status checkChange(const VelocityContext& c, const AxisReservation& live,
+                   const ReadTarget& current, const AxisConfig& axis,
+                   const VelocityRequest& request, const VelocityChangeEvidence& e,
+                   uint64_t now, PreparedVelocityTarget& rate) {
+    const void* inputs[] = {&live, &current, &axis, &request, &e};
+    const size_t sizes[] = {sizeof live, sizeof current, sizeof axis, sizeof request, sizeof e};
+    for (unsigned i = 0; i < 5; ++i)
+        if (overlaps(&c, sizeof c, inputs[i], sizes[i]))
+            return error(VelocityError::OVERLAP, "velocity change overlaps its running context");
+    Status s = currentContext(c, live, current, now);
+    if (!s)
+        return s;
+    if (e.gate == VelocityGate::CLOSED)
+        return error(VelocityError::CAPABILITY, "velocity change requires Q25 evidence or an explicit experiment",
+                     Err::UNSUPPORTED);
+    if ((e.gate != VelocityGate::MEASURED && e.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        !e.record || !e.maximumForwardRpm || e.maximumForwardRpm > 3000 ||
+        (e.gate == VelocityGate::MEASURED ? !e.rateChangeQualified : e.rateChangeQualified) ||
+        (e.gate == VelocityGate::ATTENDED_EXPERIMENT &&
+         e.maximumForwardRpm > VELOCITY_EXPERIMENT_MAXIMUM_RPM))
+        return error(VelocityError::ARGUMENT, "invalid velocity change evidence scope");
+    if (e.model != c.reservation.model || !sameFirmware(e.firmware, c.evidence.firmware))
+        return error(VelocityError::CAPABILITY, "velocity change record differs from the run's model or firmware",
+                     Err::UNSUPPORTED);
+    if (c.state != ActionState::ACTIVE || c.phase != VelocityPhase::WAITING ||
+        c.observation != VelocityObservation::RUNNING || !c.runningObserved ||
+        c.change.present || c.stopRequested || !c.needsStop || c.transmissionNoted ||
+        c.withdrawal != VelocityInterruption::NONE || c.interruption != VelocityInterruption::NONE ||
+        c.firstFailure != ActionOutcome::NONE || c.readUncertain ||
+        c.setup != ActionExecution::ACKNOWLEDGED || c.execution != ActionExecution::ACKNOWLEDGED ||
+        c.commandEvidenceMask != 7 || !c.enableReport.present)
+        return error(VelocityError::STATE, "velocity change needs a clean running between-cycle boundary");
+    for (unsigned i = 0; i < 3; ++i)
+        if (c.setupHistory[i].effectUncertain || c.commandHistory[i].effectUncertain)
+            return error(VelocityError::STATE, "an earlier velocity write is unresolved");
+    if ((c.modeEvidencePresent && c.modeEvidence.effectUncertain) ||
+        !CANOPEN::checkDownloadTerminal(c.commandHistory[2], true) ||
+        !CANOPEN::sameSdoWork(c.control.transfer, c.commandHistory[2].transfer) ||
+        c.control.completedUs != c.commandHistory[2].completedUs ||
+        c.control.outcome != CANOPEN::SdoOutcome::SUCCESS ||
+        !runningReport(c.latest, c.evidence.layout) || c.latest.velocity <= 0 ||
+        c.latest.earliestUs < c.commandHistory[2].completedUs ||
+        c.latest.latestUs < c.latest.earliestUs || c.latest.latestUs > now ||
+        now - c.latest.earliestUs > c.options.maximumAgeUs)
+        return error(VelocityError::STATE, "velocity change requires fresh acknowledged running evidence");
+    if (now >= c.stopDueUs || budget(c.options, CYCLE_FIELDS + 1) >= c.stopDueUs - now ||
+        c.runningPolls >= c.options.maxPolls || c.observations == UINT32_MAX ||
+        c.step > UINT32_MAX - (CYCLE_FIELDS + 1))
+        return error(VelocityError::TIME, "velocity change and observation do not fit the original run budget");
+    if (axis.exhausted || !sameBinding(axis.binding, c.axis.binding) ||
+        axis.referenceGeneration != c.axis.referenceGeneration ||
+        request.configurationGeneration != axis.binding.configurationGeneration ||
+        axis.nativeRateBasis != c.rate.rateBasis || axis.nativeVelocityTime != c.rate.rateTime ||
+        axis.velocityRepresentation != c.rate.representation)
+        return error(VelocityError::TARGET, "velocity change conversion or generation is stale");
+    if (c.rate.effectiveNative <= 0 || c.rate.effectiveNative > 3000 ||
+        c.rate.effectiveNative > e.maximumForwardRpm)
+        return error(VelocityError::RANGE, "velocity changes admit only positive original rates in scope",
+                     Err::ILLEGAL_VALUE);
+    VelocityEvidence changeRange = c.evidence;
+    changeRange.maximumForwardRpm = e.maximumForwardRpm;
+    changeRange.maximumReverseRpm = 0;
+    changeRange.reverseQualified = changeRange.reverseProbe = false;
+    s = rateRange(c.rate, changeRange);
+    if (!s)
+        return s;
+    s = prepareVelocityTarget(request, axis, rate);
+    if (!s) {
+        s.detail += int32_t(VelocityError::RATE_ERROR_BASE);
+        return s;
+    }
+    s = rateRange(rate, c.evidence);
+    if (!s)
+        return s;
+    s = rateRange(rate, changeRange);
+    if (!s)
+        return s;
+    if (rate.effectiveNative <= 0 || rate.effectiveNative > 3000 ||
+        rate.effectiveNative > e.maximumForwardRpm)
+        return error(VelocityError::RANGE, "velocity changes admit only positive replacement rates in scope",
+                     Err::ILLEGAL_VALUE);
+    return Ok();
 }
 Status yield(const VelocityContext& c, const ReadContext& read, const AxisReservation& live,
              const ReadTarget& target, uint64_t now, PreparedVelocity& output, bool correlating) {
@@ -650,6 +774,30 @@ Status prepareVelocity(VelocityContext& output, const AxisReservation& r, const 
     output.deadlineUs = deadline;
     return Ok();
 }
+Status validateVelocityChange(const VelocityContext& c, const AxisReservation& live,
+                              const ReadTarget& current, const AxisConfig& axis,
+                              const VelocityRequest& request, const VelocityChangeEvidence& evidence,
+                              uint64_t now) noexcept {
+    PreparedVelocityTarget rate;
+    return checkChange(c, live, current, axis, request, evidence, now, rate);
+}
+Status prepareVelocityChange(VelocityContext& c, const AxisReservation& live,
+                             const ReadTarget& current, const AxisConfig& axis,
+                             const VelocityRequest& request, const VelocityChangeEvidence& evidence,
+                             uint64_t now) noexcept {
+    PreparedVelocityTarget rate;
+    const Status s = checkChange(c, live, current, axis, request, evidence, now, rate);
+    if (!s)
+        return s;
+    c.change.present = true;
+    c.change.evidence = evidence;
+    c.change.request = request;
+    c.change.rate = rate;
+    c.change.preparedUs = now;
+    c.phase = VelocityPhase::CHANGE;
+    c.eligibleUs = c.stepStartedUs = c.servicedUs = now;
+    return Ok();
+}
 void resetVelocity(VelocityContext& c) noexcept {
     new (static_cast<void*>(&c)) VelocityContext();
 }
@@ -705,6 +853,12 @@ Status validateVelocityAdmission(const VelocityContext& c, const AxisReservation
         axis.velocityRepresentation != c.rate.representation ||
         axis.referenceGeneration != c.axis.referenceGeneration)
         return error(VelocityError::TARGET, "velocity conversion or generation changed");
+    if (c.phase == VelocityPhase::CHANGE &&
+        (!sameBinding(axis.binding, c.change.rate.binding) ||
+         c.change.request.configurationGeneration != axis.binding.configurationGeneration ||
+         budget(c.options, CYCLE_FIELDS + 1) >= c.stopDueUs - now || c.stopRequested ||
+         c.firstFailure != ActionOutcome::NONE || c.readUncertain))
+        return error(VelocityError::TARGET, "velocity change provenance or remaining budget changed");
     if (now - c.latest.earliestUs > c.options.maximumAgeUs)
         return error(VelocityError::STATE, "velocity prerequisite observation expired");
     return Ok();
@@ -755,6 +909,12 @@ Status noteVelocityTransmission(VelocityContext& c, const AxisReservation& live,
         c.needsStop = true;
         if (c.commandCursor == 2)
             c.execution = ActionExecution::UNKNOWN;
+    } else if (c.phase == VelocityPhase::CHANGE) {
+        c.change.execution = ActionExecution::UNKNOWN;
+        c.change.effectsPossible = true;
+        c.change.uncertain = true;
+        if (!c.change.firstUncertainUs)
+            c.change.firstUncertainUs = now;
     } else
         c.setup = ActionExecution::UNKNOWN;
     c.servicedUs = now;
@@ -838,7 +998,16 @@ Status advanceVelocity(VelocityContext& c, ReadContext& read, const AxisReservat
             : input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT ? ActionExecution::REJECTED
             : input.transmissionPossible                         ? ActionExecution::UNKNOWN
                                                                  : ActionExecution::NOT_TRANSMITTED;
-        if (c.phase == VelocityPhase::MODE) {
+        const bool changing = c.phase == VelocityPhase::CHANGE;
+        if (changing) {
+            c.change.serviceEvidence = input;
+            c.change.serviceEvidencePresent = true;
+            c.change.execution = execution;
+            c.change.effectsPossible = input.effectPossible;
+            c.change.uncertain = input.effectUncertain;
+            if (c.change.uncertain && !c.change.firstUncertainUs)
+                c.change.firstUncertainUs = now;
+        } else if (c.phase == VelocityPhase::MODE) {
             c.modeEvidence = input;
             c.modeEvidencePresent = true;
             c.setup = success ? ActionExecution::UNKNOWN : execution;
@@ -868,10 +1037,19 @@ Status advanceVelocity(VelocityContext& c, ReadContext& read, const AxisReservat
                 waitFor(c, VelocityObservation::MODE, now, 0);
             else if (c.phase == VelocityPhase::ENABLE)
                 waitFor(c, VelocityObservation::ENABLE, now, 0);
+            else if (changing)
+                waitFor(c, VelocityObservation::RUNNING, now, 0);
             else if (c.setupCursor < 2)
                 ++c.setupCursor;
             else
                 c.phase = VelocityPhase::ENABLE;
+        }
+        // Even a terminal consumed after stop due must retire the change phase, so the existing
+        // duration service can request the reserved stop. No new download may be yielded.
+        if (changing && c.phase == VelocityPhase::CHANGE) {
+            c.phase = VelocityPhase::WAITING;
+            c.observation = VelocityObservation::RUNNING;
+            c.eligibleUs = c.stepStartedUs = now;
         }
     }
     if (expired) {

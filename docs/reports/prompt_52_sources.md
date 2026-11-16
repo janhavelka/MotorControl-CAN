@@ -9,23 +9,23 @@ This review establishes source claims, not hardware behavior.
 | RS relation and speed | same revision | `examples/probe_cli/MoveRelation.h`: retain original/replacement IDs and observation supersession. CAN puts this small association with common move evidence. Reject RS serial addresses, uint16 RPM and register frames; retain exact CAN rate conversion. |
 | FieldCore-node | `c40ea8341edf8d665460b902cafefbe857a7f73f`, clean | Ownership/configuration seam unchanged since prompt51: `MotorControl.h` and `Rs485MotorModule.cpp` consume explicit operation/generation evidence. No FieldCore integration or replacement API is claimed. |
 
-Manufacturer review reopened original EN86/ZH86 p12?13 and EDS, not only
+Manufacturer review reopened original EN86/ZH86 p12-13 and EDS, not only
 extracted text. The original files and hashes remain in
 [the manifest](../reference/SOURCES.json). EN86 SHA256 starts401df6c4;
 ZH86 starts3969c914; EDS startsdd3c. The complete hashes remain authoritative
 in the manifest and ledger. Independent source review also compared the original
-Nanotec N5 p68?70 handshake as a contrast, never a Lichuan implementation.
+Nanotec N5 p68-70 handshake as a contrast, never a Lichuan implementation.
 
 | Fact | Source disposition |
 | --- | --- |
-| `607A` I32, documented ?1000000 pulses | EN86/ZH86 p12; EDS `[607A]`. Acknowledgement does not establish live application. |
+| `607A` I32, documented -1000000..+1000000 pulses | EN86/ZH86 p12; EDS `[607A]`. Acknowledgement does not establish live application. |
 | `6081` U32,0..3000rpm; `6083/6084` U32,0..2000ms | EN86/ZH86 p12; corresponding EDS sections. No physical ramp formula during a change; zero ramp stays gated. |
 | `6040` bit4 rising; bit5 immediate/after-current-curve; bit6 relative | EN86/ZH86 p12. Arrows start from000F; words003F/007F do not establish falling-edge behavior, buffering depth or fresh completion. EDS marks6040 WO: no read-modify-write. |
 | `60FF` | EDS I32/default120; manual mode table U32/0..3000rpm. Positive changes use the common encoding but do not resolve reverse/sign-change semantics. EN86 and ZH86 startup orders remain separate. |
 | `6060/6061` | EDS U8 versus manual I8; selected positive probe bytes agree.6061 is read-only. A displayed candidate mode does not qualify it. |
 | N5 | Its bit9, mode-entry behavior, bit12 exceptions and buffer rule are manufacturer-specific; none transfers to CL86-C. |
 
-Q22?Q26 were added before dependent change behavior to the canonical ledger and
+Q22-Q26 were added before dependent change behavior to the canonical ledger and
 [conflict table](../device_conflicts.md). Existing November3 acceptance/rearm
 traces and November13 velocity ladders are useful baselines, but none measured
 mid-curve changes. In particular a post-completion000F does not establish the

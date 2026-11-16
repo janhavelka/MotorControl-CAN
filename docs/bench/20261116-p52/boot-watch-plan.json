@@ -1,0 +1,13 @@
+{
+  "purpose": "P52 passive boot capture for requested external drive power cycle; no CAN request",
+  "authorization": "User requested physical qualification; waiting for explicit external cycle evidence",
+  "steps": [
+    {
+      "send": "P90",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 91
+    }
+  ]
+}

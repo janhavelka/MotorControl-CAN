@@ -35,6 +35,10 @@ namespace {
 bool isControlWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex && t.size == 2;
 }
+bool isPositionParameter(const C::SdoTransfer& t) {
+    return t.direction == C::SdoDirection::DOWNLOAD && !t.subindex && t.size == 4 &&
+           (t.index == 0x607a || t.index == 0x6081 || t.index == 0x6083 || t.index == 0x6084);
+}
 uint16_t word(const C::SdoTransfer& t) {
     return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
 }
@@ -67,6 +71,7 @@ uint64_t AxisSession::latestUs() const noexcept {
 void AxisSession::dropControl() noexcept {
     controlPresent_ = false;
     suspended_ = RequestId();
+    positionParameter_ = RequestId();
 }
 bool AxisSession::followHostConfiguration(const M::Binding& next, uint64_t now) noexcept {
     if (!open_ || busy() || now < latestUs() || !usable() ||
@@ -131,6 +136,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     enableWithdrawn_ = M::ActionOutcome::NONE;
     // moveFenced_ stays: reopening cannot show that an earlier move's motion ended.
     L::resetMove(move_);
+    L::resetMove(replacement_);
+    replacementActive_ = false;
     L::resetVelocity(velocity_);
     // Retain the last terminal home and its partial effects across reopen. Only a new
     // validated home request replaces that record; opening cannot reconcile a write.
@@ -204,6 +211,21 @@ BusAdmission AxisSession::admitPrepared(const C::SdoTransfer& transfer, uint64_t
         return BusAdmission::INVALID;
     return admitWork(transfer, now);
 }
+BusAdmission AxisSession::admitPositionChangeParameter(const C::SdoTransfer& transfer,
+                                                        uint32_t experiment, uint64_t now) noexcept {
+    const Sequence* sequence = usable() ? owner_.sequence(sequence_) : nullptr;
+    if (!experiment || now < latestUs() || !open_ || busy() || !sequence ||
+        !isPositionParameter(transfer) || transfer.operation != sequence->operation ||
+        !controlPresent_ || !isControlWrite(control_.transfer) || word(control_.transfer) != 0x001f ||
+        control_.outcome != C::SdoOutcome::SUCCESS || !control_.protocolAcknowledged ||
+        !control_.transmissionPossible || control_.effectUncertain ||
+        control_.nodeGeneration != target_.nodeGeneration || owner_.controllerEpoch() != controllerEpoch_)
+        return BusAdmission::INVALID;
+    const BusAdmission admitted = admitPrepared(transfer, now);
+    if (admitted == BusAdmission::ACCEPTED)
+        positionParameter_ = pending_;
+    return admitted;
+}
 BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     BusRequest work;
     work.sequence = sequence_;
@@ -234,9 +256,29 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     if (!terminal)
         return false;
     const C::SdoCompletion copy = terminal->service;
+    // Only these owned in-motion parameter writes preserve the known last controlword. Their
+    // acknowledgement does not establish the parameter's motion effect, but no 6040 was written.
+    // Unknown/aborted writes keep the conservative ordinary-write rule and force stop fallback.
+    const bool ownedParameter =
+        (sameRequest(positionParameter_, pending_) && positionParameter_.owner && isPositionParameter(copy.transfer)) ||
+        (velocityActive() && velocity_.phase == L::VelocityPhase::CHANGE &&
+         copy.transfer.operation == velocity_.operation && copy.transfer.index == 0x60ff) ||
+        (moveActive() && activeMove().relation.originalOperationId &&
+         activeMove().phase == L::MovePhase::PARAMETERS &&
+         copy.transfer.operation == activeMove().operation);
+    const Sequence* before = owner_.sequence(sequence_);
+    const bool restoreControl = ownedParameter && suspended_.owner && sameRequest(suspended_, pending_) &&
+        sameDownload(copy.transfer, pendingWork_) && copy.outcome == C::SdoOutcome::SUCCESS &&
+        copy.protocolAcknowledged && copy.transmissionPossible && !copy.effectUncertain &&
+        copy.nodeGeneration == target_.nodeGeneration && before &&
+        before->operation == copy.transfer.operation && !stopActive() &&
+        owner_.controllerEpoch() == controllerEpoch_;
     if (!owner_.release(pending_))
         return false;
     keepUnsentControl(copy);
+    if (restoreControl)
+        controlPresent_ = true;
+    positionParameter_ = RequestId();
     pending_ = RequestId();
     if (copy.transfer.direction == C::SdoDirection::DOWNLOAD && copy.completedUs > lastWriteUs_)
         lastWriteUs_ = copy.completedUs;
@@ -472,6 +514,7 @@ M::Status AxisSession::startMove(MoveForm form, const L::ReadContext& state,
         L::prepareMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence,
                                request, profile, stored, axis, reference, next, now, deadline,
                                options);
+    replacementActive_ = false;
     L::resetRead(moveReads_[0]);
     L::resetRead(moveReads_[1]);
     moveRead_ = 0;
@@ -508,8 +551,9 @@ bool AxisSession::retainSettings(L::DriverContext* const* contexts, uint8_t coun
 // nothing in this session can show it ended: a stop reports the controller, not the shaft. A server
 // abort counts too: the frame reached the drive, and an abort does not establish that it had no effect.
 void AxisSession::afterMove() noexcept {
-    if (move_.execution != M::ActionExecution::NOT_TRANSMITTED &&
-        move_.completion != M::ActionCompletion::OBSERVED)
+    if ((activeMove().execution != M::ActionExecution::NOT_TRANSMITTED ||
+         activeMove().relation.originalOperationId) &&
+        activeMove().completion != M::ActionCompletion::OBSERVED)
         moveFenced_ = true;
     moveAxis_ = nullptr; // The borrow ends with the move.
     moveReference_ = nullptr;
@@ -519,8 +563,8 @@ void AxisSession::afterMove() noexcept {
 void AxisSession::endMove(M::MoveInterruption reason, uint64_t now) noexcept {
     const L::ReadTarget& frozen = reservation_.target;
     L::ReadContext& read = moveReads_[moveRead_];
-    if (!L::advanceMove(move_, read, reservation_, frozen, reason, now).isOk())
-        L::advanceMove(move_, read, reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
+    if (!L::advanceMove(activeMove(), read, reservation_, frozen, reason, now).isOk())
+        L::advanceMove(activeMove(), read, reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
     afterMove();
 }
 // As for an enable: the first reason wins, and a request in flight keeps the slot and settles into
@@ -542,8 +586,8 @@ void AxisSession::withdrawMove(M::MoveInterruption reason, uint64_t now) noexcep
         keepUnsentControl(closed->service);
     if (!pending_.owner)
         endMove(reason, now);
-    else if (!L::noteMoveWithdrawal(move_, reservation_, reservation_.target, reason, now).isOk())
-        L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+    else if (!L::noteMoveWithdrawal(activeMove(), reservation_, reservation_.target, reason, now).isOk())
+        L::noteMoveWithdrawal(activeMove(), reservation_, reservation_.target,
                               M::MoveInterruption::INVALIDATED, now);
 }
 void AxisSession::serviceMove(uint64_t now) noexcept {
@@ -570,39 +614,39 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
                 moveRefusal_ = M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::STATE),
                                          "the application's transmit guard withdrew the move's download");
             moveWithdrawn_ = M::MoveInterruption::INVALIDATED;
-            L::noteMoveWithdrawal(move_, reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
+            L::noteMoveWithdrawal(activeMove(), reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
         }
         L::ReadContext& read = moveReads_[moveRead_];
-        if (!L::advanceMove(move_, read, reservation_, frozen, evidence, now).isOk())
-            L::advanceMove(move_, read, reservation_, frozen,
+        if (!L::advanceMove(activeMove(), read, reservation_, frozen, evidence, now).isOk())
+            L::advanceMove(activeMove(), read, reservation_, frozen,
                            moveWithdrawn_ != M::MoveInterruption::NONE ? moveWithdrawn_
                                                                        : M::MoveInterruption::INVALIDATED,
                            now);
-        if (read.state == M::ReadState::SUCCEEDED && read.operation == move_.operation &&
-            read.startedUs == move_.observationStartedUs)
+        if (read.state == M::ReadState::SUCCEEDED && read.operation == activeMove().operation &&
+            read.startedUs == activeMove().observationStartedUs)
             moveComplete_ = moveRead_;
         if (!moveActive()) {
             afterMove();
             return;
         }
     }
-    if (moveWithdrawn_ != M::MoveInterruption::NONE || now >= move_.deadlineUs || !usable()) {
-        endMove(now >= move_.deadlineUs                     ? M::MoveInterruption::DEADLINE
+    if (moveWithdrawn_ != M::MoveInterruption::NONE || now >= activeMove().deadlineUs || !usable()) {
+        endMove(now >= activeMove().deadlineUs                     ? M::MoveInterruption::DEADLINE
                 : moveWithdrawn_ != M::MoveInterruption::NONE ? moveWithdrawn_
                                                               : M::MoveInterruption::INVALIDATED,
                 now);
         return;
     }
     L::PreparedMove work;
-    if (!L::nextMove(move_, moveReads_[moveRead_], reservation_, frozen, now, work).isOk()) {
+    if (!L::nextMove(activeMove(), moveReads_[moveRead_], reservation_, frozen, now, work).isOk()) {
         endMove(M::MoveInterruption::INVALIDATED, now);
         return;
     }
     if (work.observe) {
         // The other read keeps the last complete cycle for a stop request.
         const uint8_t slot = uint8_t(1u - moveComplete_);
-        if (!L::beginMoveObservation(move_, moveReads_[slot], reservation_, frozen, now).isOk() ||
-            !L::nextMove(move_, moveReads_[slot], reservation_, frozen, now, work).isOk()) {
+        if (!L::beginMoveObservation(activeMove(), moveReads_[slot], reservation_, frozen, now).isOk() ||
+            !L::nextMove(activeMove(), moveReads_[slot], reservation_, frozen, now, work).isOk()) {
             endMove(M::MoveInterruption::INVALIDATED, now);
             return;
         }
@@ -625,7 +669,7 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
     // change, reference invalidation or aged witness stops this write. preflight() reruns that recheck
     // at the handover when the application wires it. If the notice refuses, withdrawing the move
     // cancels the download before any turn could carry it.
-    const M::Status noted = L::noteMoveTransmission(move_, reservation_, frozen, *moveAxis_, moveReference_,
+    const M::Status noted = L::noteMoveTransmission(activeMove(), reservation_, frozen, *moveAxis_, moveReference_,
                                                     retained_, retainedCount_, now);
     if (!noted.isOk()) {
         moveRefusal_ = noted;
@@ -669,6 +713,59 @@ M::Status AxisSession::requestVelocity(const L::ReadContext& state,
     velocityWithdrawn_ = M::VelocityInterruption::NONE;
     velocityRefusal_ = M::Status();
     scheduledVelocityStop_ = false;
+    operation_ = next;
+    lastUs_ = now;
+    return M::Ok();
+}
+M::Status AxisSession::requestVelocityChange(const M::VelocityRequest& request,
+                                             const L::VelocityChangeEvidence& evidence,
+                                             uint64_t now) noexcept {
+    if (now < latestUs() || !usable() || !velocityActive() || !velocityAxis_ ||
+        pending_.owner || stopActive() || scheduledVelocityStop_ ||
+        velocityWithdrawn_ != M::VelocityInterruption::NONE || faultBlocked_ || clearBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::VelocityError::STATE),
+                         "rate change requires a clean running boundary without a stop");
+    const M::Status status = L::prepareVelocityChange(velocity_, reservation_, target_,
+                                                     *velocityAxis_, request, evidence, now);
+    if (status)
+        lastUs_ = now;
+    return status;
+}
+M::Status AxisSession::requestMoveReplacement(const L::MoveReplacementRequest& request,
+                                              const L::MoveReplacementEvidence& evidence,
+                                              const L::MoveFeedbackRelation* feedback,
+                                              uint64_t now) noexcept {
+    const int32_t error = static_cast<int32_t>(M::MoveError::STATE);
+    if (now < latestUs() || !usable() || !moveActive() || !moveAxis_ || replacementActive_ ||
+        pending_.owner || stopActive() || moveWithdrawn_ != M::MoveInterruption::NONE ||
+        faultBlocked_ || clearBlocked_ || activeMove().phase != L::MovePhase::WAITING)
+        return M::Status(M::Err::INVALID_CONFIG, error,
+                         "replacement requires an unused slot and a clean moving boundary");
+    L::StoredPositionQualification stored;
+    M::Status status = L::prepareStoredPositionQualification(stored, move_, now);
+    if (!status)
+        return status;
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, error, "operation identities exhausted");
+    status = L::validateMoveReplacement(replacement_, move_, stored, reservation_, target_,
+                                        evidence, request, *moveAxis_, feedback, next, now);
+    if (!status)
+        return status;
+    if (!owner_.beginOperation(sequence_, next, move_.deadlineUs, now))
+        return M::Status(M::Err::INVALID_CONFIG, error, "owner refused replacement handoff");
+    L::prepareMoveReplacement(replacement_, move_, stored, reservation_, target_, evidence,
+                              request, *moveAxis_, feedback, next, now);
+    // No transfer is pending and all arguments were checked before owner mutation. Retain the
+    // original terminal independently; its observer cannot emit a rearm after this handoff.
+    L::advanceMove(move_, moveReads_[moveRead_], reservation_, reservation_.target,
+                   M::MoveInterruption::REPLACED, now);
+    replacement_.relation.observationSuperseded = true;
+    move_.relation = replacement_.relation;
+    replacementActive_ = true;
+    // Keep the original's last complete read for a stop before the replacement observes anything.
+    // Replacement arithmetic consumes the explicit feedback mapping, never the stationary witness.
+    moveReference_ = nullptr;
     operation_ = next;
     lastUs_ = now;
     return M::Ok();
@@ -1281,14 +1378,14 @@ bool AxisSession::holdForFault(const C::SdoTransfer& transfer, uint64_t now) noe
         }
         return true;
     }
-    if (moveActive() && transfer.operation == move_.operation) {
+    if (moveActive() && transfer.operation == activeMove().operation) {
         faultBlocked_ = true;
         if (moveWithdrawn_ == M::MoveInterruption::NONE) {
             moveWithdrawn_ = M::MoveInterruption::DRIVE_FAULT;
-            if (!L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+            if (!L::noteMoveWithdrawal(activeMove(), reservation_, reservation_.target,
                                        M::MoveInterruption::DRIVE_FAULT, now)
                      .isOk())
-                L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+                L::noteMoveWithdrawal(activeMove(), reservation_, reservation_.target,
                                       M::MoveInterruption::INVALIDATED, now);
         }
         return true;
@@ -1352,15 +1449,15 @@ bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
         velocityRefusal_ = checked;
         return false;
     }
-    if (!moveActive() || transfer.operation != move_.operation)
+    if (!moveActive() || transfer.operation != activeMove().operation)
         return true;
     if (moveWithdrawn_ != M::MoveInterruption::NONE)
         return false; // Withdrawn while it waited, and its cancel did not win.
-    if (move_.phase == L::MovePhase::REARM)
+    if (activeMove().phase == L::MovePhase::REARM)
         return true; // As at its notice: the rearm follows an observed completion.
     // The library's own admission recheck, which noteMoveTransmission ran at admission, now at the
     // handover.
-    const M::Status checked = L::validateMoveAdmission(move_, *moveAxis_, moveReference_, at);
+    const M::Status checked = L::validateMoveAdmission(activeMove(), *moveAxis_, moveReference_, at);
     if (checked.isOk())
         return true;
     moveRefusal_ = checked;
@@ -1521,6 +1618,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
         (homeActive() || homeNeedsStop_ || home_.interruption == M::HomeInterruption::STOP))
         homeStopOperation_ = next;
     suspended_ = RequestId(); // From here the stop decides the latest word.
+    positionParameter_ = RequestId();
     motionWritten_ = true; // Whichever path this takes, a stop frame may reach the drive.
     lastWriteUs_ = now;
     recoveryUsed_ = false;

@@ -188,7 +188,11 @@ GRAMMAR = (
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
         "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
-        "probe:u? reverse:b? word:x?"),
+        "probe:u? reverse:b? word:x? mode:u? replacement:i? duration:u? stop:u?"),
+    Row("TRIAL_CHANGE", "TRIAL_CHANGE ", "summary",
+        "possible:b started:b writes:u due:u end:u"),
+    Row("TRIAL_VELOCITY_CHANGE", "TRIAL_VELOCITY_CHANGE ", "summary",
+        "rpm:u after:u attempted:b admitted:b present:b terminal:b exec:u possible:b uncertain:b failure:u"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -603,7 +607,8 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
                 "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
-                "loop": "loop"}
+                "loop": "loop", "mode-probe": "mode-probe", "position-change": "position-change",
+                "velocity-change": "velocity-change"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -1153,7 +1158,7 @@ SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm", "subdivi
 # after a failure or the route's fallback QUICK_STOP after a run that ended needing a stop with none sent
 # (BenchRoute::serviceAction). Only a 6040 download of 010F or 000B and the stop cycle's MONITORS, STATUS
 # and FEEDBACK reads may follow it; anything else after a failure stays result_after_failure.
-STOP_AFTER_FAILURE_ROUTES = frozenset(("velocity",))
+STOP_AFTER_FAILURE_ROUTES = frozenset(("velocity", "velocity-change", "position-change"))
 # The same for a released-start enable (TRIAL_PLAN start=2, 2026-11-10): the route's own QUICK_STOP after the
 # enable failed once word 15 may have reached the drive, word 15's own failed terminal included.
 STOP_AFTER_FAILURE_STARTS = {"enable": 2}
@@ -1508,6 +1513,7 @@ def _check_trial(report, records, meta):
             _check_controlword(report, summary, records)
     if header["route"] == "clear-alarm":
         _check_clear_method(report, records, meta)
+    _check_change_request(report, records, meta)
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
                  "trial": meta.get("trial")}
     for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
@@ -1516,6 +1522,59 @@ def _check_trial(report, records, meta):
         for name, wanted in requested.items():
             if wanted is not None and start.values[name] != wanted:
                 report.error("wrong_procedure", start.number, "%s requested %s" % (name, wanted))
+
+
+def _check_change_request(report, records, meta):
+    """Protocol14 plans must match the exact CRC-protected request, not only its trial ID."""
+    command = meta.get("command")
+    if command not in ("mode-probe", "position-change", "velocity-change"):
+        return
+    line = meta.get("line")
+    if line is None:
+        report.error("request_byte_mismatch", None, "protocol14 change request is missing")
+        return
+    try:
+        import zlib
+        body, separator, crc = line.strip().rpartition(",K")
+        if not separator or len(crc) != 8 or int(crc, 16) != zlib.crc32(body.encode("ascii")):
+            raise ValueError("CRC")
+        letter = {"mode-probe": "m", "position-change": "p", "velocity-change": "v"}[command]
+        if not body.startswith("T" + letter):
+            raise ValueError("route")
+        fields = [int(value) for value in body[2:].split(",")]
+        count = {"mode-probe": 6, "position-change": 19, "velocity-change": 24}[command]
+        if len(fields) != count:
+            raise ValueError("field count")
+    except (ValueError, TypeError, UnicodeError, AttributeError):
+        report.error("request_byte_mismatch", None, "invalid protocol14 change request")
+        return
+    plans = [r for r in records if r.kind == "TRIAL_PLAN" and r.status == "parsed"]
+    if len(plans) != 1:
+        report.error("change_plan_missing", None, "expected exactly one change plan")
+        return
+    plan = plans[0]
+    expected = {"route": command, "node": fields[0], "trial": fields[1], "attended": bool(fields[2])}
+    if fields[2] not in (0, 1) or ("fields" in meta and meta["fields"] != fields):
+        report.error("request_byte_mismatch", None, "change metadata differs from request bytes")
+    if command == "mode-probe":
+        expected.update(zip(("mode", "cycles", "interval"), fields[3:6]))
+    elif command == "position-change":
+        expected.update(zip(("sp", "target", "rpm", "up", "down", "case", "after", "value",
+                             "replacement", "duration", "cycles", "interval", "stop", "sd", "be", "si"), fields[3:]))
+    else:
+        expected.update(zip(("rpm", "up", "down", "dur", "interval", "deadline", "kind"), fields[3:10]))
+        expected.update(probe=bool(fields[20]), reverse=bool(fields[21]))
+        evidence_rows = [r for r in records if r.kind == "TRIAL_VELOCITY_EVIDENCE" and r.status == "parsed"]
+        wanted = dict(zip(("record", "layout", "dt", "hw", "sw", "vid", "pc", "rev", "mc", "fc"), fields[10:20]))
+        wanted.update(gate=2, start=False, stop=False, kind=fields[9], max=max(fields[3], fields[22]),
+                      reverse=False, modeChange=False, probe=bool(fields[20]), reverseProbe=bool(fields[21]))
+        if len(evidence_rows) != 1 or any(evidence_rows[0].values.get(key) != value for key, value in wanted.items()):
+            report.error("change_plan_differs", None, "velocity experiment record/identity differs")
+        changes = [r for r in records if r.kind == "TRIAL_VELOCITY_CHANGE" and r.status == "parsed"]
+        if len(changes) != 1 or changes[0].values.get("rpm") != fields[22] or changes[0].values.get("after") != fields[23]:
+            report.error("change_plan_differs", None, "velocity change target/time")
+    if any(plan.values.get(key) != value for key, value in expected.items()):
+        report.error("change_plan_differs", plan.number, "request fields do not match the retained plan")
 
 
 def _check_history(report, summary, results):

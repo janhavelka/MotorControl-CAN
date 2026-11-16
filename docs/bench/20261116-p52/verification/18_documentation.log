@@ -1,0 +1,13 @@
+{
+  "name": "documentation",
+  "command": [
+    "C:\\Users\\Honza\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\doxygen.EXE",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\Doxyfile"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\p52-complete\\20261116T030443684350Z-47312-icpr1td6\\18_documentation.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 5.578
+}
+

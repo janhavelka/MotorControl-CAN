@@ -476,7 +476,10 @@
         "validateMoveAdmission": 1,
         "noteMoveTransmission": 1,
         "noteMoveWithdrawal": 1,
-        "advanceMove": 2
+        "advanceMove": 2,
+        "prepareStoredPositionQualification": 1,
+        "validateMoveReplacement": 1,
+        "prepareMoveReplacement": 1
       },
       "implementation": [
         "src/profiles/lichuan_c/Position.cpp",
@@ -511,6 +514,22 @@
         {
           "path": "test/motion_console_test.cpp",
           "ctest": "motion_console"
+        },
+        {
+          "path": "test/move_replacement_test.cpp",
+          "ctest": "move_replacement"
+        },
+        {
+          "path": "test/axis_change_test.cpp",
+          "ctest": "axis_change"
+        },
+        {
+          "path": "test/motion_change_console_test.cpp",
+          "ctest": "motion_change_console"
+        },
+        {
+          "path": "test/move_change_console_test.cpp",
+          "ctest": "move_change_console"
         }
       ],
       "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands.",
@@ -522,8 +541,22 @@
             "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
           ],
-          "api": "ProbeMotion::requestMove/AxisSession",
+          "api": "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
           "dispatch": "ProbeMotion::requestMove",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "move",
+          "entry": "prepareMoveReplacement",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp",
+            "examples/common/AxisSession.cpp"
+          ],
+          "api": "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
+          "dispatch": "ProbeMotion::requestMoveReplacement",
           "console_dispatch": {
             "path": "examples/common/ProbeConsoleMotion.cpp",
             "function": "ProbeConsole::dispatchMotion"
@@ -553,7 +586,9 @@
         "validateHaltedVelocityReport": 1,
         "validateHaltedVelocityQuickStop": 1,
         "prepareHaltedVelocityQuickStop": 1,
-        "resetVelocity": 1
+        "resetVelocity": 1,
+        "validateVelocityChange": 1,
+        "prepareVelocityChange": 1
       },
       "implementation": [
         "src/profiles/lichuan_c/Velocity.cpp",
@@ -573,6 +608,18 @@
         {
           "path": "test/motion_console_test.cpp",
           "ctest": "motion_console"
+        },
+        {
+          "path": "test/velocity_change_test.cpp",
+          "ctest": "velocity_change"
+        },
+        {
+          "path": "test/axis_change_test.cpp",
+          "ctest": "axis_change"
+        },
+        {
+          "path": "test/motion_change_console_test.cpp",
+          "ctest": "motion_change_console"
         }
       ],
       "api_only_reason": "The owner/AxisSession supplies finite timing, stop settlement and predecessor evidence. Recovery/escalation phases cannot be safely issued as independent console commands.",
@@ -584,8 +631,22 @@
             "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
           ],
-          "api": "makeFiniteVelocity/ProbeMotion::requestVelocity",
+          "api": "makeFiniteVelocity/ProbeMotion::requestVelocity/requestVelocityChange",
           "dispatch": "ProbeMotion::requestVelocity",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "velocity",
+          "entry": "prepareVelocityChange",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp",
+            "examples/common/AxisSession.cpp"
+          ],
+          "api": "makeFiniteVelocity/ProbeMotion::requestVelocity/requestVelocityChange",
+          "dispatch": "ProbeMotion::requestVelocityChange",
           "console_dispatch": {
             "path": "examples/common/ProbeConsoleMotion.cpp",
             "function": "ProbeConsole::dispatchMotion"

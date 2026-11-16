@@ -1,0 +1,23 @@
+{
+  "purpose": "One explicit MCU EN pulse after a retained settled node2 quick stop; sends no CAN or UART command.\nNode1 remains externally quarantined by trial52012 and must not be used after this host reset.\n",
+  "prior_stop": {
+    "directory": "docs\\bench\\20261116-p52\\68-position-case4",
+    "command": "position-change",
+    "trial": 52024
+  },
+  "started_utc": "2026-11-16T02:39:43.587387+00:00",
+  "sent": [],
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "script_sha256": "8b500a4d35ad7c62adf221f1d6a1bc7d93f070b83a8103040db01d5d50de7d01",
+  "en_pulse": {
+    "via": "RTS, DTR deasserted",
+    "low_s": 0.1,
+    "released_s": 0.10999999998603016
+  },
+  "ended_utc": "2026-11-16T02:39:46.742457+00:00"
+}

@@ -1,0 +1,97 @@
+{
+  "started_utc": "2026-11-16T02:09:17.995123+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "stop",
+  "seconds": 8.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 52012,
+  "plan": "packet 15 P4 / packet 16",
+  "fields": [
+    1,
+    52012,
+    1,
+    2,
+    1500,
+    1500,
+    100
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+      "accepted": true,
+      "covers_motion": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "stop",
+    "--node",
+    "1",
+    "--trial",
+    "52012",
+    "--kind",
+    "quick",
+    "--deadline-ms",
+    "1500",
+    "--best-effort-ms",
+    "1500",
+    "--interval-ms",
+    "100",
+    "--campaign",
+    "docs/bench/20261116-p52/velocity-campaign.jsonl",
+    "--unattended-waiver",
+    "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "--waiver-covers-motion",
+    "--seconds",
+    "8",
+    "--output",
+    "docs/bench/20261116-p52/23-quick-stop"
+  ],
+  "host_revision": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261116-p52\\velocity-campaign.jsonl",
+    "motion_total": 4,
+    "cases": {
+      "S1": 2,
+      "v1": 2
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5453312c35323031322c312c322c313530302c313530302c3130302c4b31383135653338300a"
+  ],
+  "image": {
+    "base": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+    "elf": "92d5f9c3e18d30af1c6d96d3cdf65c0ae895d25584ecc03e9f71179245bf1fc0",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TS1,52012,1,2,1500,1500,100,K1815e380",
+  "tx_hex": "5453312c35323031322c312c322c313530302c313530302c3130302c4b31383135653338300a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-16T02:09:19.051541+00:00"
+}

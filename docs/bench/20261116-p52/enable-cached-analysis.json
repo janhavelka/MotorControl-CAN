@@ -1,0 +1,12 @@
+{
+  "original": "docs\\bench\\20261116-p52\\106-enable-case5",
+  "cached": "docs\\bench\\20261116-p52\\107-enable-cached-dump",
+  "composition": "original bytes before TRIAL id header + cached bytes from same TRIAL id header",
+  "original_prefix_bytes": 347,
+  "cached_offset": 0,
+  "verdict": "complete",
+  "errors": [],
+  "original_sha256": "8858ac66a4e9e588f72ba294668a97d2c8d29e035c5efb53af1353b7ecfdceb6",
+  "cached_sha256": "49c2f818b12de5c1e7c9f2c01d1a53eb732e719b932e56ad547130309df7a461",
+  "note": "Original duplicate END capture remains inconsistent. Cached same-trial record was printed with no repeated CAN request; late tail lost1 does not replace retained operation evidence."
+}

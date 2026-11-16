@@ -1,0 +1,44 @@
+"""Execute ONE explicit P52 node2 case, once, after a proved settled quick stop.
+No retries, no node1 traffic; node1 quarantine remains an external obligation.
+"""
+import sys,json,re,subprocess
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()/'scripts'))
+import s2_evidence as ev
+base=Path('docs/bench/20261116-p52')
+case,index,trial=int(sys.argv[1]),int(sys.argv[2]),int(sys.argv[3]);previous=Path(sys.argv[4]);campaign=base/sys.argv[5]
+if case not in (3,4,5,6,7,8):raise SystemExit('only the six explicitly remaining cases')
+waiver='if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility'
+def run(args):
+ with open('.build/p52-case-live.log','w',encoding='utf-8') as f:r=subprocess.run([sys.executable,*args],stdout=f,stderr=subprocess.STDOUT)
+ if r.returncode:print(Path('.build/p52-case-live.log').read_text(encoding='utf-8'));raise SystemExit(r.returncode)
+def folder(label):
+ global index
+ p=base/('%02d-%s-case%d'%(index,label,case));index+=1;return p
+def command(name,label,seconds,extra=()):
+ out=folder(label);a=['scripts/s2_bench.py','--port','COM15','--serial','94A990398B40','--command',name,'--seconds',str(seconds),'--output',str(out),*map(str,extra)]
+ run(a);return out
+reset=folder('host-reset');run(['.build/p52_reset.py',str(previous),str(reset)])
+ping=command('ping','ping',1);run(['scripts/s2_flash.py','--check-ping',str(ping),'--artifact',str(base/'32-flash')])
+command('start','start',1)
+state=command('motion-readiness2','state',3)
+if ev.replay_capture(state).verdict!='complete':raise SystemExit('fresh state capture incomplete')
+text=(state/'rx.txt').read_text(encoding='utf-8');values={}
+for line in text.splitlines():
+ if line.startswith('RESULT '):
+  d=dict(re.findall(r'(\w+)=([^ ]+)',line))
+  if d.get('dir')=='0' and d.get('outcome')=='0':values[d['object']]=int.from_bytes(bytes.fromhex(d['data']),'little',signed=d['object'] in ('6064:00','607a:00','60ff:00'))
+if values.get('6061:00')!=1 or values.get('606c:00')!=0 or not(values.get('2100:00',0)&16):raise SystemExit('not released stationary mode1')
+command('release','release',1)
+common=['--node',2,'--campaign',campaign,'--unattended-waiver',waiver,'--waiver-covers-motion']
+new=['--new-campaign'] if not campaign.exists() else []
+enable=command('enable','enable',20,[*common,*new,'--trial',trial,'--status',values['6041:00'],'--position-target',values['607a:00'],'--velocity-target',values['60ff:00'],'--deadline-ms',10000,'--interval-ms',1500,'--released-by-recorded-stop',previous])
+if ev.replay_capture(enable).verdict!='complete':raise SystemExit('enable did not complete')
+m=re.search(r'TRIAL_ENABLE_STEP word=15 .*? position=(-?\d+) velocity=0 ',(enable/'rx.txt').read_text(encoding='utf-8'))
+if not m:raise SystemExit('no fresh stationary enabled position')
+start=int(m.group(1));command('release','release',1)
+value=2000 if case==3 else 60 if case==5 else 0
+replacement=start+1400 if case in (6,7,8) else 0
+out=command('position-change','position',25,[*common,'--trial',trial+1,'--start-position',start,'--target',start+800,'--rpm',30,'--ramp-up-ms',500,'--ramp-down-ms',500,'--change-case',case,'--change-after-cycle',2,'--change-value',value,'--replacement-target',replacement,'--duration-ms',6000,'--cycles',8,'--interval-ms',500,'--stop-kind','quick','--stop-deadline-ms',1500,'--stop-best-effort-ms',1500,'--stop-interval-ms',500])
+r=ev.replay_capture(out);print('case',case,'verdict',r.verdict,'record',out,'next-index',index)
+if r.verdict!='complete':raise SystemExit('not complete; retain state, no next trial')

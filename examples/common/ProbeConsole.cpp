@@ -140,17 +140,17 @@ const ConsoleCommand commands[] = {
      E::HOST_CONFIGURATION, C::REPLY, "Inspect or choose native setup; verify writes differences.",
      nullptr, 42},
     {"move",
-     "move relative|absolute VALUE UNIT FRAME RPM configured [setup write|verify] [basis "
-     "actual|commanded|queued] [round POLICY ERROR [approx ERROR]] | move angle VALUE UNIT FRAME "
-     "PATH TIE RPM configured [setup write|verify] [round POLICY ERROR [approx ERROR]]",
-     "ProbeMotion::requestMove/AxisSession",
+     "move {absolute|relative POS RPM configured [OPTS]|angle POS PATH TIE RPM configured [OPTS]|"
+     "speed ID RPM [EDGE]|ramps ID UP_MS DOWN_MS [EDGE]|retarget ID [EDGE] absolute POS RPM configured [OPTS]}",
+     "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
      "actual axis; explicit ramps, firmware and reference evidence", E::DEVICE_ACTION,
-     C::ASYNCHRONOUS, "Prepare and request checked finite position or wrapped-angle motion.",
+     C::ASYNCHRONOUS, "POS=VALUE UNIT FRAME; EDGE=immediate|buffered; OPTS=setup write|verify, "
+                      "basis actual|commanded|queued, round POLICY ERROR [approx ERROR].",
      nullptr, 42},
     {"velocity",
      "velocity read | velocity VALUE RATE FRAME DURATION_MS configured normal|fast [round POLICY "
-     "ERROR [approx ERROR]]",
-     "makeFiniteVelocity/ProbeMotion::requestVelocity",
+     "ERROR [approx ERROR]] | velocity change ID VALUE RATE FRAME configured [round POLICY ERROR [approx ERROR]]",
+     "makeFiniteVelocity/ProbeMotion::requestVelocity/requestVelocityChange",
      "integer motor rpm; finite duration; native start/reverse/stop gates", E::DEVICE_ACTION,
      C::ASYNCHRONOUS, "Request finite velocity; native means the configured rate dimension.",
      nullptr, 42},
@@ -1711,8 +1711,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                                     : nullptr;
             const bool originalMotion =
                 motion_ && (op->stop ? oldStop && oldStop->result.id == op->nativeOperation
-                                     : motion_->retained() &&
-                                           motion_->normalResult().id == op->nativeOperation);
+                                     : motion_->normalResult(op->nativeOperation) != nullptr);
             const bool originalReadStillPresent = app_.readContext().state != M::ReadState::EMPTY &&
                                                   app_.readContext().operation == op->readOperation;
             const bool originalSettings = settings_ && settings_->retained() &&
@@ -1736,7 +1735,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                                   (op->stop ? !motion_->releaseStop(op->stop == 1
                                                                         ? L::StopKind::HALT
                                                                         : L::StopKind::QUICK_STOP)
-                                            : !motion_->releaseNormal())
+                                            : !motion_->releaseNormal(op->nativeOperation))
                  : op->recovery      ? !owner_.releaseRecovery(op->recoveryId)
                  : op->sync          ? originalSync && !sync_->release()
                  : op->commissioning ? originalCommissioning && !commissioning_->release()
@@ -1758,8 +1757,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             const bool replacedMotion =
                 op->motion &&
                 (!motion_ || (op->stop ? !oldStop || oldStop->result.id != op->nativeOperation
-                                       : !motion_->retained() ||
-                                             motion_->normalResult().id != op->nativeOperation));
+                                       : !motion_->normalResult(op->nativeOperation)));
             const bool replacedSettings =
                 op->settings && (!settings_ || !settings_->retained() ||
                                  settings_->context().operation != op->nativeOperation);
@@ -1786,7 +1784,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             }
             const bool cancelled =
                 !op->recovery && !op->terminal &&
-                (op->motion          ? !op->stop && motion_ && motion_->cancelNormal(now)
+                (op->motion          ? !op->stop && motion_ &&
+                                       motion_->normalResult().id == op->nativeOperation && motion_->cancelNormal(now)
                  : op->sync          ? sync_ && sync_->cancel(now)
                  : op->commissioning ? commissioning_ && commissioning_->cancel(now)
                  : op->settings      ? settings_ && settings_->cancel(now)

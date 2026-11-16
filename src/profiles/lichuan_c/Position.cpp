@@ -466,26 +466,46 @@ bool waitingPhase(MovePhase p) {
 }
 bool downloading(const MoveContext& c) {
     return c.phase == MovePhase::PARAMETERS || c.phase == MovePhase::TRIGGER ||
-           c.phase == MovePhase::REARM;
+           c.phase == MovePhase::REARM || c.phase == MovePhase::CLEAR_EDGE;
 }
 Status shape(const MoveContext& c, uint64_t now) {
     const MoveOptions& o = c.options;
+    const bool related = c.relation.originalOperationId || c.relation.replacementOperationId;
+    const bool replacement = related && c.operation == c.relation.replacementOperationId;
+    const bool original = related && c.operation == c.relation.originalOperationId;
+    // Both contexts retain the same pair. Only the replacement carries change capability evidence;
+    // the original remains an ordinary, locally terminated move that can still be queried.
+    if ((related && (!c.relation.originalOperationId ||
+                     c.relation.originalOperationId >= c.relation.replacementOperationId ||
+                     (!original && !replacement))) ||
+        (!related && c.relation.observationSuperseded) ||
+        (original &&
+         (c.state != ActionState::FAILED || c.interruption != MoveInterruption::REPLACED ||
+          c.outcome != ActionOutcome::CANCELLED || !c.relation.observationSuperseded)))
+        return moveError(MoveError::STATE, "invalid retained move relation");
     if (!validReservation(c.reservation) || !c.operation || !c.step ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
-        c.phase > MovePhase::REARM || c.outcome == ActionOutcome::STOP_SENT_UNCONFIRMED ||
+        c.phase > MovePhase::CLEAR_EDGE || c.outcome == ActionOutcome::STOP_SENT_UNCONFIRMED ||
         c.outcome > ActionOutcome::SERVICE_TIMEOUT || c.interruption > MoveInterruption::DEADLINE ||
         c.withdrawal > MoveInterruption::DEADLINE || c.evidence.gate != MoveGate::MEASURED ||
         c.setup > ActionExecution::UNKNOWN || c.execution > ActionExecution::UNKNOWN ||
         c.rearm > ActionExecution::UNKNOWN || c.completion > ActionCompletion::OBSERVED ||
         !o.service.queueTimeoutUs || !o.service.responseTimeoutUs || !o.observationIntervalUs ||
         !o.maximumAgeUs || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
-        now < c.servicedUs || !(c.setupMask & 1u) || (c.setupMask & ~0xfu) || c.setupCursor > 3 ||
-        !(c.setupMask & (1u << c.setupCursor)) || (c.setupEvidenceMask & ~c.setupMask) ||
+        now < c.servicedUs || (!replacement && !(c.setupMask & 1u)) || (c.setupMask & ~0xfu) ||
+        c.setupCursor > 3 || (c.setupMask && !(c.setupMask & (1u << c.setupCursor))) ||
+        (c.setupEvidenceMask & ~c.setupMask) ||
         (c.parameters.target.requested.relative &&
          (c.evidence.relativeBase == RelativeBase::UNMEASURED ||
-          c.evidence.relativeBase > RelativeBase::COMMANDED || !c.parameters.target.referenceUsed)) ||
+          c.evidence.relativeBase > RelativeBase::COMMANDED ||
+          !c.parameters.target.referenceUsed)) ||
         (c.phase == MovePhase::PARAMETERS && c.triggerPresent) ||
-        (waitingPhase(c.phase) && (!c.triggerPresent || c.execution != ActionExecution::ACKNOWLEDGED)) ||
+        (waitingPhase(c.phase) && !replacement &&
+         (!c.triggerPresent || c.execution != ActionExecution::ACKNOWLEDGED)) ||
+        (replacement && (c.relation.replacementOperationId != c.operation ||
+                         c.replacementMode > MoveReplacementMode::BUFFERED ||
+                         c.replacementEvidence.gate == MoveChangeGate::CLOSED ||
+                         c.replacementEvidence.gate > MoveChangeGate::ATTENDED_EXPERIMENT)) ||
         (c.phase == MovePhase::REARM && c.completion != ActionCompletion::OBSERVED))
         return moveError(MoveError::STATE, "invalid move context or time");
     return Ok();
@@ -510,7 +530,10 @@ CANOPEN::SdoTransfer download(const MoveContext& c) {
     t.responseTimeoutUs = c.options.service.responseTimeoutUs;
     const ObjectDescriptor* object = &OBJECT_6040_00;
     const uint16_t trigger =
-        c.parameters.target.requested.relative ? RELATIVE_TRIGGER_WORD : TRIGGER_WORD;
+        c.relation.originalOperationId && c.replacementMode == MoveReplacementMode::IMMEDIATE
+            ? uint16_t(0x003f)
+        : c.parameters.target.requested.relative ? RELATIVE_TRIGGER_WORD
+                                                 : TRIGGER_WORD;
     uint32_t value = c.phase == MovePhase::TRIGGER ? trigger : REARM_WORD;
     if (c.phase == MovePhase::PARAMETERS) {
         const DriverSettings& s = c.parameters.settings;
@@ -587,7 +610,8 @@ void settleEffects(MoveContext& c) {
             uncertain |= c.setupHistory[i].effectUncertain;
         }
     const CANOPEN::SdoCompletion* ends[] = {c.triggerPresent ? &c.trigger : nullptr,
-                                            c.rearmPresent ? &c.rearmEvidence : nullptr};
+                                            c.rearmPresent ? &c.rearmEvidence : nullptr,
+                                            c.clearPresent ? &c.clearEvidence : nullptr};
     for (const CANOPEN::SdoCompletion* e : ends)
         if (e) {
             possible |= e->effectPossible;
@@ -597,7 +621,8 @@ void settleEffects(MoveContext& c) {
         c.execution == ActionExecution::UNKNOWN || c.execution == ActionExecution::ACKNOWLEDGED;
     c.effectsPossible = possible;
     c.uncertain = uncertain || c.readUncertain ||
-                  (triggerPossible && c.completion != ActionCompletion::OBSERVED);
+                  ((triggerPossible || c.relation.originalOperationId) &&
+                   c.completion != ActionCompletion::OBSERVED);
 }
 void fail(MoveContext& c, ActionOutcome reason, uint64_t now, const char* message) {
     c.state = ActionState::FAILED;
@@ -616,7 +641,15 @@ void fail(MoveContext& c, ActionOutcome reason, uint64_t now, const char* messag
 void finishCycle(MoveContext& c, const ReadContext& read, uint64_t now, bool anotherStep) {
     const ReadTarget& target = c.reservation.target;
     const uint64_t age = c.options.maximumAgeUs;
-    const uint64_t after = c.trigger.completedUs;
+    uint64_t after = c.triggerPresent ? c.trigger.completedUs : c.startedUs;
+    if (c.relation.originalOperationId && !c.triggerPresent) {
+        if (c.clearPresent)
+            after = c.clearEvidence.completedUs;
+        else
+            for (unsigned i = 0; i < 4; ++i)
+                if ((c.setupEvidenceMask & (1u << i)) && c.setupHistory[i].completedUs > after)
+                    after = c.setupHistory[i].completedUs;
+    }
     ReadWindow monitors, status, feedback;
     if (!validateStateBlock(read, StateBlock::MONITORS, target, now, age, monitors) ||
         !validateStateBlock(read, StateBlock::STATUS, target, now, age, status) ||
@@ -646,14 +679,34 @@ void finishCycle(MoveContext& c, const ReadContext& read, uint64_t now, bool ano
     }
     const bool accepted = reported(c.evidence.acceptance, s);
     const bool complete = reported(c.evidence.completion, s);
-    if (accepted && !c.acceptance.present)
+    if (c.awaitingClearObservation) {
+        if (!accepted) {
+            if (!anotherStep) {
+                fail(c, ActionOutcome::ITERATION_EXHAUSTED, now,
+                     "no identity left for replacement edge");
+                return;
+            }
+            c.cleared = s;
+            c.awaitingClearObservation = false;
+            c.phase = MovePhase::TRIGGER;
+            c.transmissionNoted = false;
+            c.eligibleUs = c.stepStartedUs = now;
+            return;
+        }
+    }
+    // An experiment observes raw reports only. A bare field write or falling edge has no new
+    // trigger to which the original acceptance/completion rule could possibly be attributed.
+    const bool observeOnly = c.relation.originalOperationId &&
+                             (c.awaitingClearObservation || !c.triggerPresent ||
+                              c.replacementEvidence.gate == MoveChangeGate::ATTENDED_EXPERIMENT);
+    if (!observeOnly && accepted && !c.acceptance.present)
         c.acceptance = s;
-    if (!complete && !c.absence.present)
+    if (!observeOnly && !complete && !c.absence.present)
         c.absence = s;
     const bool fresh = c.evidence.rule == CompletionRule::AFTER_ABSENCE
                            ? c.absence.present && c.absence.cycle < s.cycle
                            : c.acceptance.cycle < s.cycle;
-    if (complete && c.acceptance.present && fresh) {
+    if (!observeOnly && complete && c.acceptance.present && fresh) {
         c.completion = ActionCompletion::OBSERVED;
         c.completed = s;
         if (!anotherStep) {
@@ -804,6 +857,283 @@ void resetMove(MoveContext& c) noexcept {
     new (static_cast<void*>(&c)) MoveContext();
 }
 
+namespace {
+bool sameMoveFirmware(const MoveFirmware& a, const MoveFirmware& b) {
+    return a.deviceType == b.deviceType && a.hardwareVersion == b.hardwareVersion &&
+           a.softwareVersion == b.softwareVersion && a.vendorId == b.vendorId &&
+           a.productCode == b.productCode && a.revision == b.revision &&
+           a.modelCode == b.modelCode && a.firmwareCode == b.firmwareCode;
+}
+uint32_t parameterValue(const MoveContext& c, unsigned field) {
+    return field == 0   ? uint32_t(c.parameters.targetNative)
+           : field == 1 ? c.parameters.settings.positionSpeedRpm
+           : field == 2 ? c.parameters.settings.rampUpTimeMs
+                        : c.parameters.settings.rampDownTimeMs;
+}
+uint32_t transferValue(const CANOPEN::SdoTransfer& t) {
+    uint32_t value = 0;
+    for (unsigned i = 0; i < t.size && i < 4; ++i)
+        value |= uint32_t(t.data[i]) << (8u * i);
+    return value;
+}
+bool experimentRate(const PreparedVelocityTarget& rate) {
+    const int64_t limit = MOVE_CHANGE_EXPERIMENT_MAXIMUM_RPM;
+    if (rate.effectiveNative > limit)
+        return false;
+    if (!rate.exactArithmetic)
+        return rate.absoluteErrorBound <= double(limit - rate.effectiveNative);
+    const NativeQuantity& requested = rate.requestedNative;
+    return requested.integral < limit ||
+           (requested.integral == limit && (!requested.numerator || requested.negative));
+}
+Status storedPosition(const MoveContext& c, uint64_t now, StoredPositionQualification& result) {
+    const Status valid = shape(c, now);
+    if (!valid)
+        return valid;
+    if (c.state != ActionState::ACTIVE || c.relation.originalOperationId ||
+        c.withdrawal != MoveInterruption::NONE || c.transmissionNoted ||
+        (c.phase != MovePhase::WAITING && c.phase != MovePhase::OBSERVING) ||
+        c.parameters.target.requested.relative || c.parameters.target.requested.wrapped ||
+        c.completion != ActionCompletion::NOT_OBSERVED || c.readUncertain || c.setupMask != 15 ||
+        c.setupEvidenceMask != 15 || c.setup != ActionExecution::ACKNOWLEDGED ||
+        !c.triggerPresent || c.execution != ActionExecution::ACKNOWLEDGED ||
+        c.trigger.effectUncertain || !CANOPEN::checkDownloadTerminal(c.trigger, true) ||
+        c.trigger.outcome != CANOPEN::SdoOutcome::SUCCESS ||
+        !acknowledgedControlWrite(c.trigger, c.reservation, now) ||
+        controlWord(c.trigger.transfer) != TRIGGER_WORD || c.rearmPresent || now >= c.deadlineUs)
+        return moveError(MoveError::STATE,
+                         "replacement needs an active confirmed absolute original");
+    StoredPositionQualification candidate;
+    candidate.reservation = c.reservation;
+    candidate.originalOperationId = c.operation;
+    candidate.triggerCompletedUs = c.trigger.completedUs;
+    for (unsigned i = 0; i < 4; ++i) {
+        const CANOPEN::SdoCompletion& terminal = c.setupHistory[i];
+        const CANOPEN::SdoTransfer& t = terminal.transfer;
+        if (!CANOPEN::checkDownloadTerminal(terminal, true) ||
+            terminal.outcome != CANOPEN::SdoOutcome::SUCCESS || terminal.effectUncertain ||
+            terminal.nodeGeneration != c.reservation.target.nodeGeneration ||
+            t.operation != c.operation || t.index != SETUP[i]->index || t.subindex || t.size != 4 ||
+            !sameBinding(t.channel.binding, c.reservation.target.channel.binding) ||
+            t.channel.clientToServerId != c.reservation.target.channel.clientToServerId ||
+            t.channel.serverToClientId != c.reservation.target.channel.serverToClientId ||
+            transferValue(t) != parameterValue(c, i) || terminal.completedUs > c.trigger.admittedUs)
+            return moveError(MoveError::CORRELATION,
+                             "original parameter history is not independently confirmed");
+        candidate.values[i] = parameterValue(c, i);
+        candidate.steps[i] = t.step;
+        candidate.completedUs[i] = terminal.completedUs;
+    }
+    candidate.acknowledgedMask = 15;
+    result = candidate;
+    return Ok();
+}
+Status replacementDirection(const MoveContext& c, const AxisConfig& axis, uint64_t now) {
+    if (!c.targetChanged)
+        return Ok();
+    const MoveFeedbackRelation& f = c.feedbackRelation;
+    if (!f.record || !f.sameIncrement || !sameBinding(f.binding, axis.binding) ||
+        f.nodeGeneration != c.reservation.target.nodeGeneration ||
+        f.referenceGeneration != axis.referenceGeneration ||
+        !c.latest.present || !c.latest.feedback || c.latest.earliestUs > now ||
+        now - c.latest.earliestUs > c.options.maximumAgeUs)
+        return moveError(MoveError::REFERENCE,
+                         "retarget needs a current measured feedback coordinate relation");
+    const int64_t rawPosition = c.latest.position;
+    if ((rawPosition > 0 && f.commandMinusFeedback > INT64_MAX - rawPosition) ||
+        (rawPosition < 0 && f.commandMinusFeedback < INT64_MIN - rawPosition))
+        return moveError(MoveError::REFERENCE, "feedback coordinate relation overflows");
+    const int64_t position = rawPosition + f.commandMinusFeedback;
+    const int64_t oldTarget = c.originalTargetNative, target = c.parameters.targetNative;
+    if (!((oldTarget > position && target > oldTarget) ||
+          (oldTarget < position && target < oldTarget)))
+        return moveError(
+            MoveError::CAPABILITY,
+            "retarget must extend the original endpoint ahead of the reported position",
+            Err::UNSUPPORTED);
+    return Ok();
+}
+Status checkReplacement(const MoveContext& output, const MoveContext& original,
+                        const StoredPositionQualification& stored, const AxisReservation& live,
+                        const ReadTarget& current, const MoveReplacementEvidence& e,
+                        const MoveReplacementRequest& request, const AxisConfig& axis,
+                        const MoveFeedbackRelation* feedback, uint32_t operation, uint64_t now,
+                        Checked& checked) {
+    const void* inputs[] = {&original, &stored, &live, &current, &e, &request, &axis};
+    const size_t sizes[] = {sizeof original, sizeof stored,  sizeof live, sizeof current,
+                            sizeof e,        sizeof request, sizeof axis};
+    for (unsigned i = 0; i < sizeof sizes / sizeof sizes[0]; ++i)
+        if (overlaps(&output, sizeof output, inputs[i], sizes[i]))
+            return moveError(MoveError::OVERLAP, "replacement destination overlaps input");
+    if (feedback && overlaps(&output, sizeof output, feedback, sizeof *feedback))
+        return moveError(MoveError::OVERLAP, "replacement feedback overlaps output");
+    if (e.gate == MoveChangeGate::CLOSED)
+        return moveError(MoveError::CAPABILITY, "in-motion replacement capability is closed",
+                         Err::UNSUPPORTED);
+    if (e.gate > MoveChangeGate::ATTENDED_EXPERIMENT || !e.record ||
+        request.mode > MoveReplacementMode::BUFFERED || (request.fields & ~15u) ||
+        (request.mode == MoveReplacementMode::FALLING_EDGE ? request.fields != 0
+                                                           : request.fields == 0) ||
+        request.profile.setup != MoveSetup::WRITE_ALL || request.profile.immediateUpdate ||
+        request.request.position.relative || request.request.position.wrapped ||
+        operation <= original.operation)
+        return moveError(MoveError::ARGUMENT,
+                         "invalid explicit replacement intent, fields or identity");
+    StoredPositionQualification actual;
+    Status s = storedPosition(original, now, actual);
+    if (!s)
+        return s;
+    if (!sameReservation(live, original.reservation) || !sameTarget(current, live.target) ||
+        !sameBinding(axis.binding, live.target.channel.binding) ||
+        axis.referenceGeneration != original.parameters.axis.referenceGeneration ||
+        !sameReservation(stored.reservation, actual.reservation) ||
+        stored.originalOperationId != actual.originalOperationId || stored.acknowledgedMask != 15 ||
+        stored.triggerCompletedUs != actual.triggerCompletedUs)
+        return moveError(MoveError::TARGET, "replacement stored witness or reservation differs");
+    for (unsigned i = 0; i < 4; ++i)
+        if (stored.values[i] != actual.values[i] || stored.steps[i] != actual.steps[i] ||
+            stored.completedUs[i] != actual.completedUs[i])
+            return moveError(MoveError::CORRELATION,
+                             "replacement field witness differs from original terminal");
+    if (e.model != original.evidence.model ||
+        !sameMoveFirmware(e.firmware, original.evidence.firmware))
+        return moveError(MoveError::CAPABILITY,
+                         "replacement record is for another model or firmware", Err::UNSUPPORTED);
+    if (!original.latest.present || !original.latest.feedback || !original.acceptance.present ||
+        original.latest.earliestUs < original.trigger.completedUs ||
+        original.latest.latestUs > now ||
+        now - original.latest.earliestUs > original.options.maximumAgeUs ||
+        !(original.latest.monitor & MONITOR_RUNNING) || !original.latest.velocity ||
+        original.latest.modeRaw != 1 ||
+        (original.latest.statusword & STATUS_LOW_BITS) != STATUS_LOW_BITS ||
+        (original.latest.monitor & SCOPE_MONITOR_BITS) ||
+        (original.latest.monitor & uint16_t(~MONITOR_DOCUMENTED_BITS)))
+        return moveError(MoveError::STATE,
+                         "replacement needs a fresh complete running original cycle");
+    if (original.deadlineUs - now <= serviceBudget(original.options, MOVE_SERVICE_STEPS + 8))
+        return moveError(MoveError::TIME, "replacement services do not fit the original deadline");
+    const bool measured = e.gate == MoveChangeGate::MEASURED;
+    if (measured) {
+        if ((e.parameterMask & request.fields) != request.fields || (e.parameterMask & ~15u) ||
+            !e.fallingEdgeQualified || !e.completionQualified || !e.stopQualified ||
+            (request.mode != MoveReplacementMode::IMMEDIATE &&
+             request.mode != MoveReplacementMode::BUFFERED) ||
+            (request.mode == MoveReplacementMode::IMMEDIATE ? !e.immediateQualified
+                                                            : !e.bufferedQualified))
+            return moveError(MoveError::CAPABILITY,
+                             "replacement field, edge, completion or stop gate is closed",
+                             Err::UNSUPPORTED);
+    } else if (e.parameterMask || e.fallingEdgeQualified || e.immediateQualified ||
+               e.bufferedQualified || e.completionQualified || e.stopQualified) {
+        return moveError(MoveError::ARGUMENT,
+                         "an experiment cannot declare measured qualification");
+    }
+    if (!request.profile.rampUpTimeMs || request.profile.rampUpTimeMs > MAXIMUM_RAMP_TIME_MS ||
+        !request.profile.rampDownTimeMs || request.profile.rampDownTimeMs > MAXIMUM_RAMP_TIME_MS)
+        return moveError(MoveError::RANGE, "replacement ramps must be 1..2000 ms",
+                         Err::ILLEGAL_VALUE);
+    s = prepareVelocityTarget(request.request.speed, axis, checked.speed);
+    if (!s)
+        return based(s, MoveError::RATE_ERROR_BASE);
+    s = checkSpeed(checked.speed);
+    if (!s)
+        return s;
+    DriverSettings settings;
+    settings.positionSpeedRpm = uint32_t(checked.speed.effectiveNative);
+    settings.rampUpTimeMs = request.profile.rampUpTimeMs;
+    settings.rampDownTimeMs = request.profile.rampDownTimeMs;
+    s = preparePositionParameters(checked.parameters, live.model, request.request.position, axis,
+                                  nullptr, settings, now);
+    if (!s)
+        return based(s, MoveError::PARAMETER_ERROR_BASE);
+    const uint32_t values[] = {uint32_t(checked.parameters.targetNative), settings.positionSpeedRpm,
+                               settings.rampUpTimeMs, settings.rampDownTimeMs};
+    for (unsigned i = 0; i < 4; ++i)
+        if (!(request.fields & (1u << i)) && values[i] != stored.values[i])
+            return moveError(MoveError::ARGUMENT,
+                             "an unselected replacement field differs from the original");
+    const int64_t extension =
+        int64_t(checked.parameters.targetNative) - original.parameters.targetNative;
+    if (extension) {
+        if (!feedback || !feedback->record || !feedback->sameIncrement ||
+            !sameBinding(feedback->binding, axis.binding) ||
+            feedback->nodeGeneration != current.nodeGeneration ||
+            feedback->referenceGeneration != axis.referenceGeneration)
+            return moveError(MoveError::REFERENCE,
+                             "changed target needs independently measured feedback mapping");
+        const int64_t rawPosition = original.latest.position;
+        if ((rawPosition > 0 && feedback->commandMinusFeedback > INT64_MAX - rawPosition) ||
+            (rawPosition < 0 && feedback->commandMinusFeedback < INT64_MIN - rawPosition))
+            return moveError(MoveError::REFERENCE, "feedback coordinate relation overflows");
+        const int64_t position = rawPosition + feedback->commandMinusFeedback;
+        if (!((extension > 0 && original.parameters.targetNative > position) ||
+              (extension < 0 && original.parameters.targetNative < position)))
+            return moveError(MoveError::CAPABILITY,
+                             "only an outward same-direction absolute replacement is admitted",
+                             Err::UNSUPPORTED);
+    }
+    if (!measured &&
+        (!experimentRate(checked.speed) || !experimentRate(original.speed) ||
+         extension > MOVE_CHANGE_EXPERIMENT_MAXIMUM_EXTENSION ||
+         extension < -int64_t(MOVE_CHANGE_EXPERIMENT_MAXIMUM_EXTENSION) ||
+         original.deadlineUs - original.startedUs > MOVE_CHANGE_EXPERIMENT_MAXIMUM_DURATION_US))
+        return moveError(MoveError::RANGE, "replacement exceeds the attended experiment bounds",
+                         Err::ILLEGAL_VALUE);
+    checked.mask = request.fields;
+    checked.admission = original.latest;
+    return Ok();
+}
+} // namespace
+
+Status prepareStoredPositionQualification(StoredPositionQualification& output,
+                                          const MoveContext& original, uint64_t now) noexcept {
+    if (overlaps(&output, sizeof output, &original, sizeof original))
+        return moveError(MoveError::OVERLAP, "stored position qualification overlaps original");
+    return storedPosition(original, now, output);
+}
+Status validateMoveReplacement(const MoveContext& output, const MoveContext& original,
+                               const StoredPositionQualification& stored,
+                               const AxisReservation& live, const ReadTarget& current,
+                               const MoveReplacementEvidence& evidence,
+                               const MoveReplacementRequest& request, const AxisConfig& axis,
+                               const MoveFeedbackRelation* feedback, uint32_t operation,
+                               uint64_t now) noexcept {
+    Checked checked;
+    return checkReplacement(output, original, stored, live, current, evidence, request, axis,
+                            feedback, operation, now, checked);
+}
+Status prepareMoveReplacement(MoveContext& output, const MoveContext& original,
+                              const StoredPositionQualification& stored,
+                              const AxisReservation& live, const ReadTarget& current,
+                              const MoveReplacementEvidence& evidence,
+                              const MoveReplacementRequest& request, const AxisConfig& axis,
+                              const MoveFeedbackRelation* feedback, uint32_t operation,
+                              uint64_t now) noexcept {
+    Checked checked;
+    const Status s = checkReplacement(output, original, stored, live, current, evidence, request,
+                                      axis, feedback, operation, now, checked);
+    if (!s)
+        return s;
+    publishMove(output, checked, live, original.trigger, original.evidence, request.profile,
+                operation, now, original.deadlineUs, original.options);
+    output.relation.originalOperationId = original.operation;
+    output.relation.replacementOperationId = operation;
+    output.replacementEvidence = evidence;
+    output.replacementMode = request.mode;
+    output.originalTargetNative = original.parameters.targetNative;
+    output.targetChanged = output.parameters.targetNative != original.parameters.targetNative;
+    if (output.targetChanged)
+        output.feedbackRelation = *feedback;
+    output.latest = original.latest;
+    output.uncertain = true; // The original may still be moving, including before our first TX.
+    output.setupCursor = 0;
+    while (request.fields && !(request.fields & (1u << output.setupCursor)))
+        ++output.setupCursor; // At most three increments: preparation checked the four-bit mask.
+    output.phase = request.mode == MoveReplacementMode::FALLING_EDGE ? MovePhase::CLEAR_EDGE
+                                                                     : MovePhase::PARAMETERS;
+    return Ok();
+}
+
 // The current work of an active move. A withdrawn one, or a download already noted, still has work
 // in flight: nextMove yields nothing new for it, while advanceMove needs the identity to correlate
 // its terminal.
@@ -902,8 +1232,16 @@ Status recheckAdmission(const MoveContext& c, const AxisConfig& axis,
     if (c.parameters.target.referenceUsed && (!reference->idle || !reference->stationary))
         return moveError(MoveError::REFERENCE,
                          "the move's witness is no longer idle and stationary");
-    if (now - c.admission.earliestUs > c.options.maximumAgeUs)
+    const MoveSample& admission = c.relation.originalOperationId ? c.latest : c.admission;
+    if (admission.earliestUs > now || now - admission.earliestUs > c.options.maximumAgeUs)
         return moveError(MoveError::STATE, "the admission state read is older than its age cap");
+    if (c.relation.originalOperationId) {
+        if (!exchangeFits(c.deadlineUs, now, c.options.service.queueTimeoutUs,
+                          c.options.service.responseTimeoutUs))
+            return moveError(MoveError::TIME,
+                             "replacement write no longer fits before original deadline");
+        return replacementDirection(c, axis, now);
+    }
     return Ok();
 }
 } // namespace
@@ -919,7 +1257,8 @@ Status validateMoveAdmission(const MoveContext& c, const AxisConfig& axis,
     if (now >= c.deadlineUs)
         return moveError(MoveError::TIME, "move admission reached its processing deadline");
     if (c.state != ActionState::ACTIVE ||
-        (c.phase != MovePhase::PARAMETERS && c.phase != MovePhase::TRIGGER))
+        (c.phase != MovePhase::PARAMETERS && c.phase != MovePhase::TRIGGER &&
+         c.phase != MovePhase::CLEAR_EDGE))
         return moveError(MoveError::STATE, "no parameter or trigger download to recheck");
     return recheckAdmission(c, axis, reference, now);
 }
@@ -961,9 +1300,12 @@ Status noteMoveTransmission(MoveContext& c, const AxisReservation& live, const R
         }
     }
     c.transmissionNoted = c.effectsPossible = c.uncertain = true;
-    (c.phase == MovePhase::PARAMETERS ? c.setup
-     : c.phase == MovePhase::TRIGGER  ? c.execution
-                                      : c.rearm) = ActionExecution::UNKNOWN;
+    if (c.phase == MovePhase::PARAMETERS)
+        c.setup = ActionExecution::UNKNOWN;
+    else if (c.phase == MovePhase::TRIGGER)
+        c.execution = ActionExecution::UNKNOWN;
+    else if (c.phase == MovePhase::REARM)
+        c.rearm = ActionExecution::UNKNOWN;
     c.servicedUs = now;
     return Ok();
 }
@@ -1066,6 +1408,9 @@ Status advanceMove(MoveContext& c, ReadContext& observation, const AxisReservati
             c.trigger = input;
             c.triggerPresent = true;
             c.execution = execution;
+        } else if (c.phase == MovePhase::CLEAR_EDGE) {
+            c.clearEvidence = input;
+            c.clearPresent = true;
         } else {
             c.rearmEvidence = input;
             c.rearmPresent = true;
@@ -1086,8 +1431,14 @@ Status advanceMove(MoveContext& c, ReadContext& observation, const AxisReservati
         else {
             if (c.phase == MovePhase::TRIGGER)
                 c.phase = MovePhase::WAITING; // The first cycle is due at once.
-            else if (following < 4)
+            else if (c.phase == MovePhase::CLEAR_EDGE) {
+                c.awaitingClearObservation = c.replacementMode != MoveReplacementMode::FALLING_EDGE;
+                c.phase = MovePhase::WAITING;
+            } else if (following < 4)
                 c.setupCursor = following;
+            else if (c.relation.originalOperationId)
+                c.phase = c.replacementMode == MoveReplacementMode::BARE ? MovePhase::WAITING
+                                                                         : MovePhase::CLEAR_EDGE;
             else
                 c.phase = MovePhase::TRIGGER;
             ++c.step;

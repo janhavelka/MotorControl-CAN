@@ -413,6 +413,12 @@ void inventoryAndHelp() {
         } else {
             contains(help, command.grammar);
             reply(rig.command(std::string("@23 help ") + command.name), true);
+            // Every canonical grammar and its explanation must fit one bounded help record,
+            // including the longest valid request identity. Long multi-route help once overflowed.
+            const std::string widest = rig.command(std::string("@4294967295 help ") + command.name);
+            reply(widest, true);
+            contains(widest, command.grammar);
+            CHECK(widest.size() < E::ProbeConsole::RECORD_CAPACITY);
         }
     }
     CHECK(!rig.wire.fake.transmitCalls());

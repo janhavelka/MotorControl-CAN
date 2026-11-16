@@ -322,6 +322,72 @@ class Records(unittest.TestCase):
 
 
 class Correlation(unittest.TestCase):
+    def test_velocity_change_receipt_and_original_evidence(self):
+        tracker = self.tracker()
+        original, = self.add(tracker, b"@1 velocity 10 rpm motor 12000 configured normal\n")
+        tracker.record(self.parse(reply(1, "velocity", result="accepted", operation_id=7)), 0.1)
+        change, = self.add(tracker, b"@2 velocity change 7 20 rpm motor configured\n")
+        self.assertEqual(tracker.record(self.parse(reply(2, "velocity", result="accepted", operation_id=7,
+                                                        change_index=1)), 0.2), "final")
+        self.assertEqual(original.state, "accepted")
+        self.assertEqual(change.state, "final")
+        fields = dict(operation_id=7, change_index=1, native_rpm="20", record=52, gate_code=2,
+                      execution_code=3, uncertain=True, effect_possible=True, observed_cycle=0,
+                      first_report_rpm=0, abort_code=None, exact=True, error=["0", "1", False],
+                      report_present=False, qualified=False)
+        tracker.record(self.parse(record(1, "velocity_change", "velocity", **fields)), 0.3)
+        tracker.record(self.parse(record(1, "terminal", "velocity", operation_id=7, command_id=1,
+                                        uncertain=True, ok=False)), 0.4)
+        self.assertEqual(tracker.outstanding(), 0)
+        self.assertFalse(tracker.problems)
+        for changes in ({"operation_id": 8}, {"uncertain": 1}, {"qualified": True},
+                        {"error": ["0", "0", False]}, {"report_present": False, "observed_cycle": 2}):
+            with self.subTest(changes=changes):
+                bad = self.tracker()
+                self.add(bad, b"@1 velocity 10 rpm motor 12000 configured normal\n")
+                bad.record(self.parse(reply(1, "velocity", result="accepted", operation_id=7)), 0.1)
+                bad.record(self.parse(record(1, "velocity_change", "velocity", **dict(fields, **changes))), 0.2)
+                self.assertTrue(bad.problems)
+        approximate = dict(fields, exact=False, error_bound="0.000123")
+        del approximate["error"]
+        self.assertIsNone(console_jsonl.motion_change_problem(dict(approximate, type="velocity_change", command="velocity")))
+        for change in ({"error_bound": "nan"}, {"error_bound": "-1"}, {"error": ["0", "1", False]},
+                       {"exact": True}, {"exact": 0}):
+            self.assertIsNotNone(console_jsonl.motion_change_problem(dict(approximate, type="velocity_change",
+                                                                        command="velocity", **change)))
+
+    def test_move_relation_retains_pair_and_rejects_foreign_identity(self):
+        for foreign in (False, True):
+            tracker = self.tracker()
+            self.add(tracker, b"@1 move absolute 100 steps native 10 configured setup write\n")
+            tracker.record(self.parse(reply(1, "move", result="accepted", operation_id=7)), 0.1)
+            self.add(tracker, b"@2 move speed 7 20 immediate\n")
+            tracker.record(self.parse(reply(2, "move", result="accepted", operation_id=8)), 0.2)
+            pair = dict(original=7, replacement=99 if foreign else 8, observation_superseded=True,
+                        physical_interruption_observed=False)
+            tracker.record(self.parse(record(1, "move_relation", "move", operation_id=7, **pair)), 0.3)
+            if foreign:
+                self.assertTrue(tracker.problems)
+                continue
+            tracker.record(self.parse(record(1, "terminal", "move", operation_id=7, command_id=1,
+                                            uncertain=True, ok=False)), 0.4)
+            self.add(tracker, b"@3 release 7\n")
+            tracker.record(self.parse(reply(3, "release", result="released", operation_id=7)), 0.5)
+            tracker.record(self.parse(record(2, "move_relation", "move", operation_id=8, **pair)), 0.6)
+            self.assertFalse(tracker.problems)
+            tracker.record(self.parse(record(2, "future_change", "move", operation_id=8)), 0.7)
+            self.assertTrue(tracker.problems)
+
+    def test_change_receipt_requires_matching_active_run(self):
+        for operation in (99, True):
+            tracker = self.tracker()
+            self.add(tracker, b"@1 velocity 10 rpm motor 12000 configured normal\n")
+            tracker.record(self.parse(reply(1, "velocity", result="accepted", operation_id=1)), 0.1)
+            self.add(tracker, b"@2 velocity change 1 20 rpm motor configured\n")
+            tracker.record(self.parse(reply(2, "velocity", result="accepted", operation_id=operation,
+                                             change_index=1)), 0.2)
+            self.assertTrue(tracker.problems)
+
     def tracker(self):
         return console.Tracker()
 

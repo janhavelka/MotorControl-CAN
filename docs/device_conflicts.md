@@ -168,8 +168,8 @@ Q28 remains unmeasured; no RPDO was sent.
 
 ## Prompt 52 changes during motion
 
-Q22?Q26 are recorded in the canonical ledger before dependent implementation.
-Original EN86/ZH86 p12?13 and EDS descriptors were rechecked on 2026-11-16;
+Q22-Q26 are recorded in the canonical ledger before dependent implementation.
+Original EN86/ZH86 p12-13 and EDS descriptors were rechecked on 2026-11-16;
 [the source study](reports/2026-11-12_on_the_fly_changes.md) separates their
 claims from proposed experiments. All five gates begin open. Explicit experimental
 admission is not firmware qualification and never opens the ordinary capability.
@@ -187,3 +187,22 @@ unknown effects. A local token or old latched bit12 never proves acceptance of
 the replacement. Relative mid-curve targets, reversal and zero/sign-changing
 velocity stay refused (F15). Disabled mode-display probes for2/4/7/8/9/10 are
 separate: acceptance by6061 establishes no supported motion mode.
+
+Prompt52 trial52013 on node2 acknowledged a positive60FF change30 to60rpm,
+reported60rpm in a later full cycle, and completed its original finite quick
+stop. The [raw record](bench/20261116-p52/31-velocity-change-node2/rx.txt)
+retains the exact firmware tuple and original stopDue/deadline. This establishes
+one positive controller response and stop, not a ramp law, physical speed,
+reverse response or a qualified family-wide capability. Q25 remains open for
+those limits and finished-operation qualification in54. Node1 accepted/displayed
+all six disabled-mode probe values; none was enabled or advertised as supported.
+
+Initial position measurements now cover all eight cases, plus a longer immediate
+speed change and moving stop from `003F`. Bare parameter/target writes were
+acknowledged without observable active-curve effect; falling bit4 cleared bit12
+while motion continued. Immediate and deferred target extensions differed in
+their sampled trajectory near the old endpoint. The [raw analysis](reports/prompt_52_measurements.md)
+records each disposition, exact firmware tuple and limits. These observations
+do not establish queue depth, acceptance latency, physical ramp laws or
+finished-operation qualification. Ignored active-change capabilities stay
+closed; explicit experiments remain distinct from measured production gates.

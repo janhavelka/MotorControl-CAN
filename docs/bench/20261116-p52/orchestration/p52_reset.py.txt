@@ -1,0 +1,26 @@
+"""One explicit MCU EN pulse after a retained settled node2 quick stop; sends no CAN or UART command.
+Node1 remains externally quarantined by trial52012 and must not be used after this host reset.
+"""
+import sys,json,hashlib
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()/'scripts'))
+import s2_bench as b
+from s2_smoke import pulse_en
+record,out=Path(sys.argv[1]),Path(sys.argv[2])
+proof=b.check_stop_record(record,2)
+backend=b.RealBackend();clock=b.RealClock()
+meta={'purpose':__doc__,'prior_stop':proof,'started_utc':clock.utc(),'sent':[],
+      'usb':b.check_identity('COM15','94A990398B40',backend.comports(),True),
+      'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+out.mkdir(parents=True,exist_ok=False)
+raw=bytearray();port=backend.open('COM15')
+try:
+ pulse_en(port,clock,meta)
+ until=clock.monotonic()+3
+ while clock.monotonic()<until:raw.extend(port.read(4096))
+finally:
+ port.close();meta['ended_utc']=clock.utc()
+ (out/'rx.bin').write_bytes(raw)
+ (out/'rx.txt').write_text(raw.decode('utf-8',errors='replace'),encoding='utf-8',newline='\n')
+ (out/'request.json').write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8',newline='\n')
+print('EN pulsed once; no drive command; node1 quarantine remains externally retained')

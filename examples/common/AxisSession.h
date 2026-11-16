@@ -170,7 +170,7 @@ class AxisSession {
         return enable_.state == MotorControlCAN::ActionState::ACTIVE;
     }
     /** @return True while a move is neither finished nor failed. */
-    bool moveActive() const noexcept { return move_.state == MotorControlCAN::ActionState::ACTIVE; }
+    bool moveActive() const noexcept { return activeMove().state == MotorControlCAN::ActionState::ACTIVE; }
     /** @return True while the finite velocity run or its requested stop is unsettled. */
     bool velocityActive() const noexcept {
         return velocity_.state == MotorControlCAN::ActionState::ACTIVE;
@@ -200,6 +200,16 @@ class AxisSession {
      */
     MotorControlCANOwner::BusAdmission admitPrepared(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                                                      uint64_t nowUs) noexcept;
+    /** Admit one explicitly recorded bare position-parameter experiment while the last acknowledged
+     * controlword is 001F. Only four-byte 607A/6081/6083/6084 subindex-zero downloads are accepted.
+     * Like admitPrepared, this withdraws the controlword until settlement. Its exact successful ACK
+     * restores that same last-sent 6040 evidence; no parameter effect or drive acceptance is inferred.
+     * Unknown, aborted, superseded or epoch-invalid work never restores it. The caller retains fresh
+     * moving-state, native-value, direction and finite-stop checks and the exact experiment grant.
+     * @param transfer Exact current-operation work. @param experiment Nonzero retained experiment record.
+     * @param nowUs Nondecreasing processing microseconds. @return Owner admission; refusal sends nothing. */
+    MotorControlCANOwner::BusAdmission admitPositionChangeParameter(
+        const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint32_t experiment, uint64_t nowUs) noexcept;
     /** Consume the terminal of the admitted command and release its slot.
      * A 6040 acknowledgement of the current operation becomes the latest controlword.
      * @param[out] output Owned copy, published only when true.
@@ -422,6 +432,25 @@ class AxisSession {
         const MotorControlCAN::AxisConfig& axis,
         const MotorControlCAN::LICHUAN_C::VelocityOptions& options,
         uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Admit one positive rate change between complete observation cycles. No new owner operation,
+     * stop budget or deadline is created. Refusal changes nothing and sends nothing.
+     * @param request Exact signed engineering rate. @param evidence Explicit change scope, closed by default.
+     * @param nowUs Nondecreasing processing microseconds. @return Native validation or busy refusal. */
+    MotorControlCAN::Status requestVelocityChange(
+        const MotorControlCAN::VelocityRequest& request,
+        const MotorControlCAN::LICHUAN_C::VelocityChangeEvidence& evidence, uint64_t nowUs) noexcept;
+    /** Replace the active absolute move at a clean observation boundary, retaining both contexts.
+     * Only one replacement is retained; a stop request always prevents this handoff. The original
+     * and replacement contexts stay until the next successful ordinary move admission or reopen.
+     * @param request Exact changed fields and edge policy. @param evidence Explicit per-field scope.
+     * @param feedback Independent command/feedback relation, required for a changed endpoint.
+     * @param nowUs Nondecreasing processing microseconds. @return Atomic validation/admission status. */
+    MotorControlCAN::Status requestMoveReplacement(
+        const MotorControlCAN::LICHUAN_C::MoveReplacementRequest& request,
+        const MotorControlCAN::LICHUAN_C::MoveReplacementEvidence& evidence,
+        const MotorControlCAN::LICHUAN_C::MoveFeedbackRelation* feedback, uint64_t nowUs) noexcept;
+    /** @return Original retained move, including its independent outcome after replacement. */
+    const MotorControlCAN::LICHUAN_C::MoveContext& originalMoveAction() const noexcept { return move_; }
     /** Withdraw finite velocity locally, without a stop or replay. Queued unsent work is cancelled;
      * an accepted transfer retains its own terminal evidence. A checked fault fences later motion.
      * @param[in] nowUs Nondecreasing processing time in microseconds.
@@ -634,7 +663,7 @@ class AxisSession {
      */
     bool retainSettings(MotorControlCAN::LICHUAN_C::DriverContext* const* contexts, uint8_t count) noexcept;
     /** @return Retained context of the latest move; EMPTY if never prepared. */
-    const MotorControlCAN::LICHUAN_C::MoveContext& moveAction() const noexcept { return move_; }
+    const MotorControlCAN::LICHUAN_C::MoveContext& moveAction() const noexcept { return activeMove(); }
     /** @return The move's last complete observation cycle, or an EMPTY read before the first one. A
      * valid requestStop state once fresh; never the cycle in progress. */
     const MotorControlCAN::LICHUAN_C::ReadContext& moveObservation() const noexcept {
@@ -702,6 +731,7 @@ class AxisSession {
     MotorControlCAN::LICHUAN_C::AxisReservation reservation_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCANOwner::RequestId pending_, urgent_, superseded_;
+    MotorControlCANOwner::RequestId positionParameter_; ///< Exact explicitly admitted bare experiment ticket.
     MotorControlCAN::CANOPEN::SdoTransfer pendingWork_, urgentWork_;
     // The admitted download that withdrew a present control_; if it closes provably unsent, control_
     // is the latest again. Cleared by any other change of the latest word.
@@ -721,7 +751,14 @@ class AxisSession {
     bool motionWritten_ = false;
     uint32_t lastTrial_ = 0;
     MotorControlCAN::ActionOutcome enableWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
-    MotorControlCAN::LICHUAN_C::MoveContext move_;
+    MotorControlCAN::LICHUAN_C::MoveContext move_, replacement_;
+    bool replacementActive_ = false;
+    MotorControlCAN::LICHUAN_C::MoveContext& activeMove() noexcept {
+        return replacementActive_ ? replacement_ : move_;
+    }
+    const MotorControlCAN::LICHUAN_C::MoveContext& activeMove() const noexcept {
+        return replacementActive_ ? replacement_ : move_;
+    }
     MotorControlCAN::LICHUAN_C::VelocityContext velocity_;
     MotorControlCAN::LICHUAN_C::HomeContext home_;
     MotorControlCAN::LICHUAN_C::AxisReservation homeReservation_;

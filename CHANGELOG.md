@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Changes during finite motion
+
+- Add explicit evidence-gated positive velocity changes without restarting the
+  preparation-time duration or replacing the run's own stop.
+- Add retained absolute set-point replacement, speed/ramp changes and original/
+  replacement relation through the same owner. One replacement is outstanding;
+  relative/reversed/zero/sign-changing requests remain refused.
+- Add shared console change commands and finite S2 protocol14 m/p/v experiments,
+  including disabled mode-display probes. Fake results never qualify firmware.
+- Preserve actual controlword history after exact acknowledged typed parameter
+  changes so the scheduled stop remains available. Keep original uncertainty
+  when a replacement itself never transmits.
+- Bound failed experimental changes by their original stop deadlines and retain
+  partial effects, stale-evidence refusals and exact request/record correlation.
+
+- Preserve falling-edge abort codes in terminal/cached console results. Fix
+  duplicate bench END markers under growing RX tails and stale PDO experiment
+  identities after motion, with native and physical regressions.
+
 ### Independent prompts 50 and 51 audit
 
 - Preserve configured heartbeat/PDO dispatch during passive SYNC detection, so a

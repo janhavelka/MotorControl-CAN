@@ -1,0 +1,41 @@
+{
+  "purpose": "P52 explicit node2 TPDO1 type1-to255 restoration after checked moving quick stop52034; no motion/save/RPDO. Node1 remains quarantined and untouched.",
+  "authorization": "Standing bench authorization; separately requested restoration, firstfailure stops without replay",
+  "steps": [
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J2,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

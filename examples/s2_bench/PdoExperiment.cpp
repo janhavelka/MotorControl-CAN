@@ -95,6 +95,18 @@ void copy(EvidenceTraffic& out, const Diagnostic& in) {
     out.recovery = in.recovery;
 }
 } // namespace
+void refreshExperimentIds(const C::SdoClient& services, unsigned node, uint32_t& operation,
+                          uint32_t& authorization) noexcept {
+    if (node < 1 || node > 2)
+        return;
+    uint32_t lastGrant = 0, lastOperation = 0;
+    if (services.lastExperiment(uint8_t(node - 1), lastGrant, lastOperation)) {
+        if (authorization < lastGrant)
+            authorization = lastGrant;
+        if (operation < lastOperation)
+            operation = lastOperation;
+    }
+}
 PdoExperiment::PdoExperiment(CanBusOwner& owner, C::SdoClient& services) noexcept
     : owner_(owner), services_(services) {}
 bool PdoExperiment::current() const noexcept {

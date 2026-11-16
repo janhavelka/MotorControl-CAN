@@ -507,3 +507,38 @@ cover confirmation delivered to that result; a later matching hardware report
 is separately retained as an owner diagnostic, never rewritten into success.
 No console result establishes synchronous sampling, latching or standstill.
 See [the protocol and qualification contract](sync.md).
+
+## Changes during a retained motion operation (prompt52)
+
+The attached application's explicit change prerequisites are closed by default.
+Parsing a command cannot install a qualification record. These commands use the
+same owner and reserve the existing stop capacity:
+
+```text
+velocity change ID VALUE RATE FRAME configured [round POLICY ERROR [approx ERROR]]
+move speed ID RPM [immediate|buffered]
+move ramps ID UP_MS DOWN_MS [immediate|buffered]
+move retarget ID [immediate|buffered] absolute VALUE UNIT FRAME RPM configured [round POLICY ERROR [approx ERROR]]
+```
+
+`ID` identifies the retained active operation, not a CAN node or wire token.
+Velocity keeps that ID and its original preparation-time stop and deadline.
+`velocity_change` records retain the native rate, quantization error, gate/record,
+execution, possible/uncertain effects and raw post-change report. An observed
+rate match is not physical qualification. Only one change fits the retained slot.
+
+Move replacement reserves a second ordinary result before changing anything.
+`move_relation` associates the original and replacement console identities and
+records observation supersession. The original terminal remains queryable;
+release it before releasing the replacement. Stop result capacity is separate.
+A pending stop, busy service boundary, unresolved prior write or stale generation
+refuses before admission. Relative/reversed mid-curve targets and zero/sign-changing
+velocity refuse. All replacement deadlines inherit the original deadline.
+
+The S2 measurement runner uses protocol14 and explicit `mode-probe`,
+`position-change` and `velocity-change` commands. Its plan records and CRC-covered
+request must agree. Position bare-write cases select quick stop because their
+raw writes cannot establish an acknowledged controlword history for HALT. The
+explicit fallback budget authorizes one bounded quick-stop attempt if the planned
+stop cannot qualify; this remains best effort and retains the original failure.
+Neither recorded mode acceptance nor fake-drive results open Q22-Q26.

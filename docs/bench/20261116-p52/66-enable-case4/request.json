@@ -1,0 +1,122 @@
+{
+  "started_utc": "2026-11-16T02:38:42.639667+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "enable",
+  "seconds": 20.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 52023,
+  "plan": "packet 15 P3",
+  "fields": [
+    2,
+    52023,
+    1,
+    2,
+    1,
+    32848,
+    28080,
+    60,
+    10000,
+    1500
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+      "accepted": true,
+      "covers_motion": true
+    },
+    "power_up_shaft": {
+      "typed": "FREE",
+      "read_from_drive": true,
+      "basis": "read from the drive's released start report (2100 bit 4 set: the power stage is off) at the user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "unattended: not observed"
+    },
+    "holding_after": {
+      "question": "Attendant: turn the node 2 shaft by hand now: FREE or HOLDING? ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "enable",
+    "--seconds",
+    "20",
+    "--output",
+    "docs\\bench\\20261116-p52\\66-enable-case4",
+    "--node",
+    "2",
+    "--campaign",
+    "docs\\bench\\20261116-p52\\position-campaign-b.jsonl",
+    "--unattended-waiver",
+    "if the drives are powered, do the tests, i cant watch the shafts etc, but do the tests - i take all responsibility",
+    "--waiver-covers-motion",
+    "--trial",
+    "52023",
+    "--status",
+    "32848",
+    "--position-target",
+    "28080",
+    "--velocity-target",
+    "60",
+    "--deadline-ms",
+    "10000",
+    "--interval-ms",
+    "1500",
+    "--released-by-recorded-stop",
+    "docs\\bench\\20261116-p52\\60-position-case3"
+  ],
+  "enable_start": "RELEASED_BY_RECORDED_STOP",
+  "start_record": {
+    "directory": "docs\\bench\\20261116-p52\\60-position-case3",
+    "command": "position-change",
+    "trial": 52022,
+    "stated": "nothing but one acknowledged 6060=1 since"
+  },
+  "host_revision": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261116-p52\\position-campaign-b.jsonl",
+    "motion_total": 3,
+    "cases": {
+      "E2": 1,
+      "S2": 1,
+      "p32": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5445322c35323032332c312c322c312c33323834382c32383038302c36302c31303030302c313530302c4b61376237343862320a"
+  ],
+  "image": {
+    "base": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+    "elf": "7e64e3d4f8177d96591830a3c83694b8128e3a123d6c9b7106df724ce0d51e8c",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TE2,52023,1,2,1,32848,28080,60,10000,1500,Ka7b748b2",
+  "tx_hex": "5445322c35323032332c312c322c312c33323834382c32383038302c36302c31303030302c313530302c4b61376237343862320a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-16T02:38:50.610555+00:00"
+}

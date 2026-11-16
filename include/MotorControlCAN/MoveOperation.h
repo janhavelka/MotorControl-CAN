@@ -38,7 +38,15 @@ enum class MoveInterruption : uint8_t {
     STOP,        ///< An explicit stop was requested. The stop is its own operation and evidence.
     DRIVE_FAULT, ///< Independently routed checked drive fault. Nothing is cleared.
     INVALIDATED, ///< Route, reservation, node, configuration or owner lifecycle withdrawn.
-    DEADLINE     ///< Immutable processing cutoff reached: `now >= deadlineUs`.
+    REPLACED, ///< Local observation handed to a retained replacement, never physical interruption proof.
+    DEADLINE ///< Immutable processing cutoff reached: `now >= deadlineUs`.
+};
+/** Copied host association. Both results retain their identities; observationSuperseded means only
+ * that the original local observer was withdrawn for the replacement. */
+struct MoveRelation {
+    uint32_t originalOperationId = 0; ///< Original retained operation, zero without a replacement.
+    uint32_t replacementOperationId = 0; ///< Distinct retained replacement identity.
+    bool observationSuperseded = false; ///< Local handoff completed, never a drive acknowledgement.
 };
 /** Local validation details in Status::detail for move calls. Protocol terminals stay in their
  * retained evidence and are never narrowed into these. */

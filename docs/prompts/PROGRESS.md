@@ -1,11 +1,15 @@
 # Prompt execution progress
 
-Execution has reached prompt51, **Partial**. The finite host SYNC producer and
-conditional TPDO1 type 1/255 transition are implemented and host-tested through
-the owner, adapter and console. [Report51](../reports/prompt_51.md) retains the
-scoped bench observations and final verification. Qualified same-cycle samples,
-RPDO buffering/withdrawal, the M09 map and sustained two-axis 10 ms operation
-remain gated; see the [SYNC guide](../sync.md).
+Prompt52 delivers gated changes during finite velocity and position operations,
+retained original/replacement results, console routes and bounded experiments.
+[Report52](../reports/prompt_52.md) and the [measurement tables](../reports/prompt_52_measurements.md)
+record the initial velocity, all eight position cases and the moving stop from
+003F. Bare writes that had no observed active-curve effect stay closed. This
+does not qualify all firmware, ramp laws or finished operations; prompt54 owns
+that qualification. Node1 remains quarantined pending an external server-session
+boundary, as recorded in the current bench handoff.
+Prompt51 remains Partial for same-cycle sample provenance, RPDO buffering and
+sustained two-axis10ms qualification; see [report51](../reports/prompt_51.md).
 The [fresh prompts50–51 audit](../reports/audit_50_51.md) corrects SYNC routing
 and stale-time handling, with adversarial regressions and a source-provenance
 correction. These fixes do not close the remaining physical/firmware gates.
@@ -87,7 +91,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Complete | Prompt18/Q17 and all retained feature/physical gates; no release publication | [Report](../reports/prompt_49.md) |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Complete software review | Earlier Partial software/source/physical gates remain inherited; no whole-library completion or publication | [Independent review and final checks](../reports/prompt_50.md) |
 | 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Partial | Consumes 17/24/38/42 artifacts; Q27 sample provenance, Q28 RPDO buffering/withdrawal and M09 map remain open; prompt56 throughput precedes the sustained two-axis 10 ms trial | [Finite producer, typed TPDO1 type experiment and remaining trials](../reports/prompt_51.md) |
-| 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Pending | 29, 33, 35, 42; gates Q22-Q26 (F01); measurements F02-F14 first | - |
+| 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Complete | Gated velocity/replacement lifecycle, owner/CLI and initial m/p/v measurements delivered; final checks recorded in report52; Q22-Q26 qualification remains open | [Report52](../reports/prompt_52.md) |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Pending | 42, 45, 51; capacity study, group-stop rules M02, S2 memory B01-B03 | - |
 | 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Pending | 48, 51, 52, 53; bench authorization and fixture facts | - |
 | 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | Pending | 24, 42, 45; DEC-3a SDO premise then Q18; one unplug action by the user | - |
@@ -121,6 +125,6 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
    [bench record](../hardware_bench.md) to select the next required observation.
    Old trial history is not a statement of the currently powered fixture.
 3. Prompts47-48 retain physical qualification and prompt48's serial-loss cause.
-   Prompts52-72 remain explicit later assignments; 53 owns concurrent application
+   Prompts53-72 remain explicit later assignments; 53 owns concurrent application
    axes and 55 owns reviewed communication recovery/retry policy. A corrected
    document does not implement their remaining work.

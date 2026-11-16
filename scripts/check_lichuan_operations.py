@@ -126,7 +126,24 @@ def command_inventory(text):
     """Read the existing initializer, retaining its actual gate field."""
     start = text.index("const ConsoleCommand commands[] = {")
     end = text.index("bool equal(", start)
-    rows = re.findall(r"\{([^{}]*)\}", strip_comments(text[start:end]))
+    # Braces in grammar/prose literals are data. Find actual initializer rows by
+    # depth outside quoted strings; the outer array initializer is depth one.
+    rows, depth, row_start, quoted, escaped = [], 0, None, False, False
+    source = strip_comments(text[start:end])
+    for cursor, char in enumerate(source):
+        if char == '"' and not escaped:
+            quoted = not quoted
+        if not quoted:
+            if char == "{":
+                depth += 1
+                if depth == 2:
+                    row_start = cursor + 1
+            elif char == "}":
+                if depth == 2 and row_start is not None:
+                    rows.append(source[row_start:cursor])
+                    row_start = None
+                depth -= 1
+        escaped = char == "\\" and not escaped
     result = {}
     # All command fields are string literals/enums/nullptr; concatenate adjacent
     # literals before splitting comma fields so commas inside prose stay quoted.

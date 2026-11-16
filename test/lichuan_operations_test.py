@@ -58,6 +58,21 @@ class OperationsTests(unittest.TestCase):
         self.assertRejected("function/overload inventory", edits={path: (ROOT / path).read_text() +
                             "\nStatus inventedTypedRead(ReadContext& output);\n"})
 
+    def test_cli_inventory_ignores_braces_and_commas_inside_literals(self):
+        source = '''const ConsoleCommand commands[] = {
+            {"move", "move {absolute|relative POS} [OPTS]", "bridge", "caps", E::DEVICE_ACTION,
+             C::ASYNCHRONOUS, "prose {braces}, and \\"quotes\\"", nullptr, 52},
+            {"blocked", "blocked {thing}", "bridge", "caps", E::DEVICE_ACTION,
+             C::ASYNCHRONOUS, "still gated", "Q25", 52}
+        };
+        bool equal(const char*, const char*);
+        '''
+        commands = checker.command_inventory(source)
+        self.assertEqual({"move", "blocked"}, set(commands))
+        self.assertTrue(commands["move"]["working"])
+        self.assertIn("{absolute|relative POS}", commands["move"]["grammar"])
+        self.assertFalse(commands["blocked"]["working"])
+
     def test_indented_namespace_free_function_is_not_silently_unmapped(self):
         path = "include/MotorControlCAN/profiles/lichuan_c/Reads.h"
         self.assertRejected("function/overload inventory", edits={path: (ROOT / path).read_text() +

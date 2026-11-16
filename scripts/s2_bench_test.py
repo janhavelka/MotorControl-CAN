@@ -1251,7 +1251,7 @@ class BenchTest(unittest.TestCase):
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
             # Older images, protocols 7 to 12 among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14):
+            for routes in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -2039,7 +2039,7 @@ class BenchTest(unittest.TestCase):
                      "two fresh full reads both report released standstill in mode 3",
                      "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
                      "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
-                     "routes=13", repr(signed("TF1,50,1,-6").encode("ascii"))):
+                     "routes=14", repr(signed("TF1,50,1,-6").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2083,7 +2083,7 @@ class BenchTest(unittest.TestCase):
         # Protocol 9 added the V line's range probe field and the K route: an image that speaks 8 would read a V
         # line one field long and know no K, so nothing is sent to it. Protocol 10 changed only the C line, 11
         # added T, 12 the V line's reverse field, 13 the l route.
-        self.assertEqual(bench.ROUTE_PROTOCOL, 13)
+        self.assertEqual(bench.ROUTE_PROTOCOL, 14)
         for argv, trial in ((VELOCITY, "30"), (["--command", "subdivision", "--node", "1", "--trial", "40",
                                                  "--value", "10000"], "40")):
             self.clear_output()
@@ -2117,7 +2117,7 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         for part in ("clear method controlword: after the library's admission, 2B 40 60 00 80 00 00 00, then "
-                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=13",
+                     "2B 40 60 00 00 00 00 00 only after the first one's acknowledgement", "routes=14",
                      repr(signed("TC1,9,1,3000,500,2").encode("ascii"))):
             self.assertIn(part, out.getvalue())
         self.assertFalse(self.output.exists())
@@ -2211,7 +2211,7 @@ class BenchTest(unittest.TestCase):
                      "one download 2B 40 60 00 80 00 00 00 (0x0080, fault reset, a bit 7 edge from 0), 3 "
                      "STATUS/MONITORS/FEEDBACK cycles 500 ms apart and one more full read",
                      "no second word, no retry, no enable, no 6060, 60FF or 2301 write", "runner prints ALERT and exits 4",
-                     "routes=13", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
+                     "routes=14", repr(signed("TT1,40,1,128,3,500").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2365,7 +2365,7 @@ class BenchTest(unittest.TestCase):
                        Operator())
         self.assertIn("range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap 6000 rpm", out.getvalue())
         self.assertIn("no reverse probe: a positive rate, 60FF 3000", out.getvalue())
-        self.assertIn("routes=13", out.getvalue())
+        self.assertIn("routes=14", out.getvalue())
         self.clear_output()
         self.ledger.write_bytes(b"")
         board = Board()
@@ -2447,7 +2447,7 @@ class BenchTest(unittest.TestCase):
         for text in ("reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate -6 rpm, 60FF written "
                      "23 FF 60 00 FA FF FF FF (two's complement I32; Q03 open",
                      "a 606C against the command by more than 2 rpm ends the run with its own stop",
-                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=13",
+                     "reverseQualified stays 0", "no range probe: the experiment's 60 rpm cap", "routes=14",
                      repr(signed("TV1,30,1,6,200,200,12000,5000,15500,1,%s,0,1" % tail).encode("ascii"))):
             self.assertIn(text, out.getvalue())
         # The record and the send entry keep it.
@@ -2542,7 +2542,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "must report released (2100 bit 4, no running or alarm)",
                      "one download 2B 01 22 00 10 27 00 00 (2201 = 10000)", "2200 never written",
-                     "no 6040, no enable, no save", "routes=13", repr(signed("TK1,40,1,10000").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=14", repr(signed("TK1,40,1,10000").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
@@ -2587,6 +2587,129 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(self.meta()["operator"]["attended"],
                          {"unattended": True, "waiver": "I accept it", "accepted": True})
 
+    def test_p52_mode_probe_bounds_and_explicit_restore(self):
+        for mode in (1, 2, 3, 4, 7, 8, 9, 10):
+            args, fields = bench.arguments(BASE + ["--command", "mode-probe", "--node", "1", "--trial", "52001",
+                "--mode-raw", str(mode), "--cycles", "2", "--interval-ms", "100"] + LEDGER + ["--output", "x"])
+            self.assertEqual(fields, [1, 52001, 1, mode, 2, 100])
+            self.assertEqual(bench.plan_bounds(args.command, fields), (35, 200))
+            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+            self.assertEqual(bench.encode(args.command, fields).decode(), signed("Tm1,52001,1,%d,2,100" % mode))
+        for mode in (0, 5, 6, 11):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.arguments(BASE + ["--command", "mode-probe", "--node", "1", "--trial", "52001",
+                    "--mode-raw", str(mode), "--cycles", "2", "--interval-ms", "100"] + LEDGER + ["--output", "x"])
+
+    def test_p52_position_plan_reserves_stop_and_refuses_unused_fields(self):
+        argv = BASE + ["--command", "position-change", "--node", "1", "--trial", "52002",
+            "--start-position", "0", "--target", "10000", "--rpm", "30", "--ramp-up-ms", "500",
+            "--ramp-down-ms", "500", "--change-case", "1", "--change-after-cycle", "2",
+            "--change-value", "60", "--replacement-target", "0", "--duration-ms", "5000", "--cycles", "8",
+            "--interval-ms", "500", "--stop-kind", "quick", "--stop-deadline-ms", "1500",
+            "--stop-best-effort-ms", "1500", "--stop-interval-ms", "500"] + LEDGER + ["--output", "x"]
+        args, fields = bench.arguments(argv)
+        self.assertEqual(fields, [1,52002,1,0,10000,30,500,500,1,2,60,0,5000,8,500,2,1500,1500,500])
+        self.assertEqual(bench.motion_weight(args.command, fields), (2, 1))
+        self.assertEqual(bench.plan_bounds(args.command, fields), (109, 6500))
+        bench.check_bounds(args.command, fields)
+        for name, value in (("--change-value", "0"), ("--replacement-target", "1"),
+                            ("--target", "-1"), ("--stop-kind", "none"), ("--change-after-cycle", "7")):
+            bad = list(argv); bad[bad.index(name) + 1] = value
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.arguments(bad)
+
+    def test_p52_shorter_ahead_target_and_mandatory_stop(self):
+        argv = BASE + ["--command", "position-change", "--node", "1", "--trial", "52002",
+            "--start-position", "0", "--target", "10000", "--rpm", "30", "--ramp-up-ms", "500",
+            "--ramp-down-ms", "500", "--change-case", "6", "--change-after-cycle", "2",
+            "--change-value", "0", "--replacement-target", "5000", "--duration-ms", "5000", "--cycles", "8",
+            "--interval-ms", "500", "--stop-kind", "halt", "--stop-deadline-ms", "1500",
+            "--stop-best-effort-ms", "1500", "--stop-interval-ms", "500"] + LEDGER + ["--output", "x"]
+        _, fields = bench.arguments(argv)
+        self.assertEqual((fields[4], fields[11]), (10000, 5000))
+        for name, value in (("--replacement-target", "0"), ("--stop-best-effort-ms", "0"), ("--rpm", "61")):
+            bad = list(argv); bad[bad.index(name) + 1] = value
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.arguments(bad)
+
+    def test_p52_campaign_keys_and_checked_line_inventory(self):
+        def entry(letter, trial, case):
+            if letter == "m":
+                line = "Tm1,%d,1,%d,2,100" % (trial, case)
+            else:
+                line = "Tp1,%d,1,0,10000,30,500,500,%d,2,60,0,5000,8,500,2,1500,1500,500" % (trial, case)
+            return {"event": "send", "route": letter, "node": 1, "trial": trial,
+                    "motion": 0 if letter == "m" else 2, "stop": 0 if letter == "m" else 1,
+                    "settings": int(letter == "m"), "line": bench.sign_line(line)}
+        campaign = bench.Campaign(self.ledger, False)
+        campaign.entries = [entry("m", trial, 2) for trial in range(1, 4)]
+        self.assertEqual(campaign.counts(), (0, {("m2", 1): 3}))
+        with self.assertRaises(bench.Refused):
+            campaign.check("mode-probe", [1, 4, 1, 2, 2, 100])
+        campaign.check("mode-probe", [1, 4, 1, 4, 2, 100])
+        campaign.entries = [entry("p", 1, 1), entry("p", 2, 1), entry("p", 3, 2)]
+        total, cases = campaign.counts()
+        self.assertEqual(total, 6)
+        self.assertEqual((cases[("p1", 1)], cases[("p2", 1)], cases[("S", 1)]), (2, 1, 3))
+        for letter in ("m", "p"):
+            good = entry(letter, 9, 2)
+            self.assertIsNone(bench._send_problem(good))
+            body = good["line"].rpartition(",K")[0]
+            for wrong in (body.rsplit(",", 1)[0], body.replace(",1,", ",01,", 1), body + ",0"):
+                self.assertIsNotNone(bench._send_problem(dict(good, line=bench.sign_line(wrong))))
+
+    def test_p52_velocity_change_bound_and_time_field(self):
+        fields = [1, 52003, 1, 30, 500, 500, 12000, 5000, 16000, 1, 52003, 2,
+                  262546, 12, 32, 4096, 1, 0, 1024, 512, 0, 0, 60, 6000]
+        self.assertEqual(bench.plan_bounds("velocity-change", fields), (126, 16000))
+        bench.check_bounds("velocity-change", fields)
+        dense = list(fields); dense[7] = 3000
+        with self.assertRaises(bench.Refused):
+            bench.check_bounds("velocity-change", dense)
+        argv = BASE + VELOCITY + ["--change-rpm", "60", "--change-after-ms", "20000"] + LEDGER + ["--output", "x"]
+        argv[argv.index("--command") + 1] = "velocity-change"
+        argv[argv.index("--duration-ms") + 1] = "30000"
+        argv[argv.index("--deadline-ms") + 1] = "35000"
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            bench.arguments(argv)
+
+    def test_p52_velocity_change_alert_and_scope_reach_the_capture(self):
+        argv = list(VELOCITY) + ["--change-rpm", "20", "--change-after-ms", "5000"]
+        argv[argv.index("--command") + 1] = "velocity-change"
+        board = Board()
+        board.answer = velocity_record(30, RUN_NEEDS, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1).replace(
+            "route=velocity ", "route=velocity-change ")
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 30", "none"))
+        self.assertEqual(status, 4, err)
+        self.assertIn("MAY BE RUNNING", err)
+        meta = self.meta()
+        self.assertEqual(meta["change_scope"], {"gate": "ATTENDED_EXPERIMENT", "record": 351,
+                                              "qualified": False, "rate_rpm": 20, "after_ms": 5000})
+        self.assertFalse(meta["velocity_scope"]["range_probe"])
+        self.assertFalse(meta["velocity_scope"]["reverse_probe"])
+        sends = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(entry.get("scope"), entry.get("range_probe"), entry.get("reverse_probe"))
+                          for entry in sends], [("ATTENDED_EXPERIMENT", False, False)])
+        self.assertEqual(sum(value.startswith(b"Tv") for value in board.writes), 1)
+        self.assertNotIn(b"A", board.writes)
+        settled = board.answer.replace(STOP_NONE, STOP_OWN).encode("ascii")
+        self.assertIsNone(bench.velocity_alert("velocity-change", [1, 30], settled))
+
+    def test_p52_position_change_alert_requires_possible_trigger_and_no_stop(self):
+        trigger = "RESULT object=6040:00 dir=1 possible=1 node=1\n"
+        summary = "TRIAL_CHANGE possible=1 started=1 writes=0 due=5000000 end=6500000\n"
+        def capture(*lines, trial=30):
+            return (("TRIAL id=%d node=1 route=position-change \n" % trial) + "".join(lines) + "END trial \n").encode("ascii")
+        alert = bench.position_change_alert("position-change", [1, 30], capture(summary, trigger, STOP_NONE))
+        self.assertIn("position trigger may have left with no stop", alert)
+        for data in (capture(summary, trigger.replace("possible=1", "possible=0"), STOP_NONE),
+                     capture(summary, STOP_NONE), capture(summary, trigger.replace("node=1", "node=2"), STOP_NONE),
+                     capture(summary, trigger, STOP_OWN),
+                     capture(summary, trigger, BEST_LEFT), capture(summary, trigger, trial=29),
+                     capture(summary, trigger.replace("possible=1", "possible=0"), trigger, STOP_NONE)):
+            self.assertIsNone(bench.position_change_alert("position-change", [1, 30], data))
+        self.assertIsNone(bench.position_change_alert("move", [1, 30], capture(summary, trigger)))
+
     def test_loop_line_bounds_dry_run_and_campaign(self):
         def loop(value, node="1", trial="40"):
             return ["--command", "loop", "--node", node, "--trial", trial, "--value", str(value)]
@@ -2630,7 +2753,7 @@ class BenchTest(unittest.TestCase):
         for part in ("require the operator to type: ATTENDED 40", "at most 12 terminals of 128 and 0 ms",
                      "route refuses unless 2100 reports released (bit 4)", "closed loop while 2501 reads 0",
                      "one download 2B 00 25 00 01 00 00 00 (2500 = 1, open loop)", "2501 never written",
-                     "no 6040, no enable, no save", "routes=13", repr(signed("Tl1,40,1,1").encode("ascii"))):
+                     "no 6040, no enable, no save", "routes=14", repr(signed("Tl1,40,1,1").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")

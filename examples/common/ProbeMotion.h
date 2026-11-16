@@ -57,6 +57,9 @@ struct MotionResult {
     MotionValue target;       ///< Move target, in command increments.
     MotionValue rate;      ///< Move/velocity rate or home search rate, with destination dimensions.
     MotionValue creepRate; ///< Home creep rate only.
+    /** Application helper IDs of the retained original and replacement. Native contexts retain
+     * their own operation IDs separately. Supersession withdraws only the original observer. */
+    MotorControlCAN::MoveRelation relation;
 };
 /** One native component of a requested stop, including its actual command terminal. */
 struct StopAttempt {
@@ -146,6 +149,12 @@ class ProbeMotion {
                          const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
                          const MotorControlCAN::LICHUAN_C::DriverContext* stored,
                          const MotorControlCAN::LICHUAN_C::MoveOptions& options) noexcept;
+    /** Install explicit replacement field/edge evidence and an optional measured feedback mapping.
+     * @param evidence Copied capability or experiment scope, closed by default.
+     * @param feedback Optional owned copy for changed endpoints. @return No change while retained. */
+    MotorControlCAN::Status setMoveReplacementPrerequisites(
+        const MotorControlCAN::LICHUAN_C::MoveReplacementEvidence& evidence,
+        const MotorControlCAN::LICHUAN_C::MoveFeedbackRelation* feedback = nullptr) noexcept;
     /** Name actual velocity prerequisites; no start/reverse/stop qualification is inferred.
      * @param state Acquired state. @param identity Acquired specimen identity.
      * @param evidence Copied qualification. @param profile Copied native ramps.
@@ -156,6 +165,11 @@ class ProbeMotion {
                              const MotorControlCAN::LICHUAN_C::VelocityEvidence& evidence,
                              const MotorControlCAN::LICHUAN_C::VelocityProfile& profile,
                              const MotorControlCAN::LICHUAN_C::VelocityOptions& options) noexcept;
+    /** Install a separate explicit mid-run change record before starting a run. Closed by default;
+     * a successful change never manufactures qualification. No device traffic or mode change.
+     * @param evidence Copied measured or experiment scope. @return Unchanged while a result is retained. */
+    MotorControlCAN::Status setVelocityChangePrerequisites(
+        const MotorControlCAN::LICHUAN_C::VelocityChangeEvidence& evidence) noexcept;
     /** Name method-specific home prerequisites; reads remain borrowed until request succeeds.
      * @param state Acquired state. @param identity Acquired specimen identity.
      * @param inputs Acquired input configuration. @param driver Acquired direction configuration.
@@ -201,6 +215,11 @@ class ProbeMotion {
     MotorControlCAN::Status requestMove(const MotorControlCAN::MoveRequest& request,
                                         const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
                                         uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Admit one explicit replacement of this helper's active move, keeping both results.
+     * @param id Original normalResult().id. @param request Exact selected fields and edge policy.
+     * @param nowUs Processing time; the original deadline is retained. @return Atomic admission. */
+    MotorControlCAN::Status requestMoveReplacement(uint32_t id,
+        const MotorControlCAN::LICHUAN_C::MoveReplacementRequest& request, uint64_t nowUs) noexcept;
     /** Dispatch finite duration and explicit stop selection, preserving exact native-rate units.
      * @param request Exact rate and duration. @param stopKind Explicit normal/fast choice.
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
@@ -208,6 +227,11 @@ class ProbeMotion {
     MotorControlCAN::Status requestVelocity(const MotorControlCAN::FiniteVelocityRequest& request,
                                             MotorControlCAN::LICHUAN_C::StopKind stopKind,
                                             uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Change the rate of this helper's retained active velocity run once, preserving its stop.
+     * @param id Stable normalResult().id of that run. @param request Exact engineering rate.
+     * @param nowUs Processing time. @return Atomic native admission or refusal; no new result identity. */
+    MotorControlCAN::Status requestVelocityChange(uint32_t id,
+        const MotorControlCAN::VelocityRequest& request, uint64_t nowUs) noexcept;
     /** Dispatch the typed home; native trigger invalidates the borrowed coordinates exactly once.
      * @param request Exact method/rates/ramp/offset. @param nowUs Supplied microseconds.
      * @param deadlineUs Exclusive future cutoff. @return Atomic native/local preparation status. */
@@ -268,6 +292,9 @@ class ProbeMotion {
     bool retained() const noexcept { return normal_.kind != MotionKind::NONE; }
     /** @return Stable ordinary projection; valid while retained(), updated by service until terminal. */
     const MotionResult& normalResult() const noexcept { return normal_; }
+    /** @param id Stable application helper identity. @return Retained original/replacement result,
+     * or null for a foreign/released identity; no service or observation is performed. */
+    const MotionResult* normalResult(uint32_t id) const noexcept;
     /** @param kind Stop selection. @return True when a requested stop of this kind is retained. */
     bool stopRetained(MotorControlCAN::LICHUAN_C::StopKind kind) const noexcept;
     /** @param kind Stop selection.
@@ -276,6 +303,9 @@ class ProbeMotion {
     /** Release terminal ordinary history only; native contexts/fences remain untouched.
      * @return False unchanged without a retained terminal. */
     bool releaseNormal() noexcept;
+    /** Release one named result; the original must be released before its replacement.
+     * @param id Stable helper identity. @return False unchanged while active, foreign or out of order. */
+    bool releaseNormal(uint32_t id) noexcept;
     /** Release one terminal stop; cannot release a superseded stop before its in-flight settlement.
      * @param kind Stop selection. @return False unchanged unless its terminal is retained. */
     bool releaseStop(MotorControlCAN::LICHUAN_C::StopKind kind) noexcept;
@@ -296,6 +326,7 @@ class ProbeMotion {
     MotorControlCAN::AxisConfig& axis_;
     MotorControlCAN::AxisReference& reference_;
     MotionResult normal_;
+    MotionResult originalMove_;
     MotionStopResult stops_[2];
     uint32_t nextId_ = 0;
     uint32_t coordinateOperation_ = 0;
@@ -311,9 +342,13 @@ class ProbeMotion {
     const MotorControlCAN::LICHUAN_C::DriverContext *stored_ = nullptr, *inputs_ = nullptr,
                                                     *driver_ = nullptr;
     MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;
+    MotorControlCAN::LICHUAN_C::MoveReplacementEvidence moveReplacementEvidence_;
+    MotorControlCAN::LICHUAN_C::MoveFeedbackRelation moveFeedback_;
+    bool moveFeedbackPresent_ = false;
     MotorControlCAN::LICHUAN_C::MoveProfile moveProfile_;
     MotorControlCAN::LICHUAN_C::MoveOptions moveOptions_;
     MotorControlCAN::LICHUAN_C::VelocityEvidence velocityEvidence_;
+    MotorControlCAN::LICHUAN_C::VelocityChangeEvidence velocityChangeEvidence_;
     MotorControlCAN::LICHUAN_C::VelocityProfile velocityProfile_;
     MotorControlCAN::LICHUAN_C::VelocityOptions velocityOptions_;
     MotorControlCAN::LICHUAN_C::HomeEvidence homeEvidence_;

@@ -376,3 +376,13 @@ pure codecs; `prepareSync`, `nextSync`, `advanceSync`, `cancelSync` describe a
 finite caller-owned schedule. `CanBusOwner::admitSync/syncResult/releaseSync`
 retain local unconfirmed-service evidence separately from SDO and motion.
 `LOCAL_TX` means final controller transmission only. See [the contract](../sync.md).
+
+## Prompt52 retained change names
+
+`MoveRelation::{originalOperationId,replacementOperationId,observationSuperseded}`
+retains RS's local association meaning. It is not a wire token or proof of motor
+interruption. `StoredPositionQualification` is derived from original retained
+per-field evidence, never from the replacement candidate. CAN does not adopt
+RS's same-stored-profile-only native trigger or serial/RPM representation.
+`prepareVelocityChange` modifies the existing finite velocity lifecycle; it does
+not create another engine or restart the run's preparation-time duration.

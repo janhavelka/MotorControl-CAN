@@ -220,6 +220,9 @@ TRIALS = {
     # Protocol 13 (backlog S21): one 2500 loop selector write and its readback on a released drive, as subdivision
     # writes 2201: a settings route. Lowercase, because every capital letter is taken.
     "loop": ("l", False, "protocol 13 2500 loop selector"),
+    "mode-probe": ("m", False, "prompt52 disabled mode-display probe"),
+    "position-change": ("p", True, "prompt52 finite position-change experiment"),
+    "velocity-change": ("v", True, "prompt52 finite positive velocity-change experiment"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -227,7 +230,7 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # Attended routes that are not motion: one send counts one case, never motion weight. The two settings
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
-SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop")
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop", "mode-probe")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
@@ -236,14 +239,14 @@ SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # the F route (gate Q03's 60FF probe), 9 the V line's field after the identity, prompt 59's range probe, and
 # the K route (one 2201 write), 10 the C line's last field, its reset method (2301 or 6040 bit 7), 11 the T route
 # (one reviewed non-enabling 6040 word), 12 the V line's last field, prompt 59's reverse probe, 13 the l route (one
-# 2500 loop selector write). Any other image would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 13
+# 2500 loop selector write), 14 the explicit m/p/v change experiments. Other protocol images refuse.
+ROUTE_PROTOCOL = 14
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
 STOP_LETTERS = frozenset(TRIALS[command][0] for command in STOP_ROUTES)
 # A finite velocity always asks for its own stop at its due time: one more against stop, every line.
-ALWAYS_STOP_ROUTES = ("velocity",)
+ALWAYS_STOP_ROUTES = ("velocity", "velocity-change", "position-change")
 ALWAYS_STOP_LETTERS = frozenset(TRIALS[command][0] for command in ALWAYS_STOP_ROUTES)
 # StatusLayout numbers the library admits for a velocity's alarm and running reports (State.h); 3 is ZH57.
 LAYOUTS = {"en86": 1, "zh86": 2, "op86": 4}
@@ -335,7 +338,7 @@ ENABLE_STOP_INTERVAL_MS = 500
 RELEASED_SHAFT_BASIS = ("read from the drive's released start report (2100 bit 4 set: the power stage is off) at the "
                         "user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt")
 # Records whose own QUICK_STOP may have left the drive released (TRIAL_STOP kind=2): the firmware route names.
-STOPPING_ROUTES = ("stop", "move", "position", "relative", "velocity")
+STOPPING_ROUTES = ("stop", "move", "position", "relative", "velocity", "velocity-change", "position-change")
 PING_TIMEOUT_S = 3.0
 CAPTURE_LIMIT = 1 << 20
 UNOBSERVED = "unattended: not observed"
@@ -426,7 +429,13 @@ def trial_line(args, parser):
     fields = [node, trial]
     if args.command in ("mode1", "mode3"):
         fields += [1, _within(parser, "cycles", args.cycles, 1, 10), _within(parser, "interval-ms", args.interval_ms, 100, 5000)]
-    elif args.command == "velocity":
+    elif args.command == "mode-probe":
+        mode = _within(parser, "mode-raw", args.mode_raw, 1, 10)
+        if mode not in (1, 2, 3, 4, 7, 8, 9, 10):
+            parser.error("--mode-raw permits probes2/4/7/8/9/10 or explicit restoration1/3")
+        fields += [1, mode, _within(parser, "cycles", args.cycles, 1, 10),
+                   _within(parser, "interval-ms", args.interval_ms, 100, 5000)]
+    elif args.command in ("velocity", "velocity-change"):
         if args.kind is None:
             parser.error("--kind is required for this route: the stop the run asks for at its due time (halt or quick)")
         if args.layout is None:
@@ -450,6 +459,11 @@ def trial_line(args, parser):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
         fields.append(1 if args.range_probe else 0)  # Protocol 9: the field after the identity.
         fields.append(1 if args.reverse else 0)  # Protocol 12: the line's last field, the reverse probe.
+        if args.command == "velocity-change":
+            if args.range_probe or args.reverse:
+                parser.error("velocity-change refuses range/reverse probes")
+            fields += [_within(parser, "change-rpm", args.change_rpm, 1, 60),
+                       _within(parser, "change-after-ms", args.change_after_ms, 1, min(19999, duration - 1))]
     elif args.command == "home":
         if args.method is None or args.method not in [str(m) for m in HOME_METHODS]:
             parser.error("--method is required for this route (%s)" % ", ".join(str(m) for m in HOME_METHODS))
@@ -481,6 +495,43 @@ def trial_line(args, parser):
         if best and best < deadline:
             parser.error("--best-effort-ms must be 0 or at least --deadline-ms")
         fields += [1, STOP_KINDS[args.kind], deadline, best, _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
+    elif args.command == "position-change":
+        if args.stop_kind not in ("halt", "quick"):
+            parser.error("position-change requires --stop-kind halt or quick")
+        case = _within(parser, "change-case", args.change_case, 1, 8)
+        if case in (1, 2, 3, 8) and args.stop_kind != "quick":
+            parser.error("bare-change experiments require quick stop; HALT history is not established")
+        cycles = _within(parser, "cycles", args.cycles, 3, 16)
+        after = _within(parser, "change-after-cycle", args.change_after_cycle, 1, cycles - 2)
+        duration = _within(parser, "duration-ms", args.duration_ms, 1000, 20000)
+        sd = _within(parser, "stop-deadline-ms", args.stop_deadline_ms, 1, 10000)
+        be = _within(parser, "stop-best-effort-ms", args.stop_best_effort_ms, sd, 10000)
+        fields += [1, _within(parser, "start-position", args.start_position, -1000000, 999999),
+                   _within(parser, "target", args.target, -999999, 1000000),
+                   # First prompt52 fixture experiment policy; firmware's native range is wider.
+                   _within(parser, "rpm", args.rpm, 1, 60),
+                   _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
+                   _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000), case, after,
+                   _within(parser, "change-value", args.change_value, 0, 2000),
+                   _within(parser, "replacement-target", args.replacement_target, -1000000, 1000000),
+                   duration, cycles, _within(parser, "interval-ms", args.interval_ms, 20, 5000),
+                   STOP_KINDS[args.stop_kind], sd, be,
+                   _within(parser, "stop-interval-ms", args.stop_interval_ms, 10, 10000)]
+        if fields[4] <= fields[3]:
+            parser.error("position-change requires a forward absolute endpoint")
+        if case in (1, 5) and not 1 <= fields[10] <= 60:
+            parser.error("speed change requires --change-value 1..60 rpm")
+        if case in (2, 3) and not 1 <= fields[10] <= 2000:
+            parser.error("ramp change requires --change-value 1..2000 ms")
+        if case in (4, 6, 7, 8) and fields[10] != 0:
+            parser.error("this change case requires --change-value 0")
+        if case in (6, 7, 8):
+            # The live firmware also proves the replacement ahead of its fresh actual position.
+            # A shorter endpoint ahead of that position is a valid separate experiment.
+            if fields[11] <= fields[3]:
+                parser.error("replacement endpoint must be ahead of the reviewed start position")
+        elif fields[11] != 0:
+            parser.error("this change case requires --replacement-target 0")
     elif args.command in ("position", "relative"):
         if args.stop_kind is None:
             parser.error("--stop-kind is required for this route (none, halt or quick)")
@@ -573,6 +624,14 @@ def trial_line(args, parser):
             parser.error("--observer is the other node, never the moving one")
         fields += [base, witness, observer]
         fields += _stop_fields(args, parser, 16)
+    if args.command != "position-change" and any(getattr(args, key) is not None for key in
+            ("change_case", "change_after_cycle", "change_value", "replacement_target")):
+        parser.error("position change fields belong to position-change")
+    if args.command != "velocity-change" and any(getattr(args, key) is not None for key in
+            ("change_rpm", "change_after_ms")):
+        parser.error("velocity change fields belong to velocity-change")
+    if args.command != "mode-probe" and args.mode_raw is not None:
+        parser.error("--mode-raw belongs to mode-probe")
     if args.command != "move" and (args.move_base is not None or args.base_position is not None or
                                    args.observer is not None):
         parser.error("--move-base, --base-position and --observer belong to move")
@@ -582,7 +641,7 @@ def trial_line(args, parser):
         parser.error("--soft-limit-code belongs to settings-2202")
     if args.command != "io-di3" and args.di3_change is not None:
         parser.error("--di3-change belongs to io-di3")
-    if args.command != "velocity" and any(getattr(args, name) is not None for name in ("duration_ms", "layout")):
+    if args.command not in ("velocity", "velocity-change", "position-change") and any(getattr(args, name) is not None for name in ("duration_ms", "layout")):
         parser.error("--duration-ms and --layout belong to velocity")
     if args.command != "home" and any(getattr(args, name) is not None for name in
                                       ("search_rpm", "creep_rpm", "ramp_ms", "offset")):
@@ -652,9 +711,18 @@ def plan_bounds(command, fields):
         cycles, interval = fields[3:5]
         # The readiness reads less their image, a second full read when the first reports mode 3, 6060, the cycles.
         return 15 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval
+    if command == "mode-probe":
+        cycles, interval = fields[4:6]
+        return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval
     if command == "mode3":
         cycles, interval = fields[3:5]
         return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval  # Two full reads, 6060, the cycles.
+    if command == "position-change":
+        return (9 + 3 + 1 + 5 + 4 + 7 * fields[13] + _stop_terminals(fields[16], fields[18]),
+                fields[12] + fields[17])
+    if command == "velocity-change":
+        terminals, duration = plan_bounds("velocity", fields[:-2])
+        return terminals + 8, duration
     if command == "velocity":
         interval, deadline = fields[7:9]
         # RUNNING waits one interval; an early own stop adds one immediate cycle and retains the
@@ -730,6 +798,8 @@ def check_bounds(command, fields):
     if command == "move" and fields[8] <= services:
         raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
                       "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
+    if command == "velocity-change":
+        check_bounds("velocity", fields[:-2])
     if command == "velocity":
         rpm, up, down, duration, deadline, probe, reverse = (fields[3], fields[4], fields[5], fields[6], fields[8],
                                                              fields[-2], fields[-1])
@@ -819,6 +889,20 @@ def _send_problem(entry):
         return "line names another route, node or trial"
     if route in STOP_LETTERS and (fields[-5] != "0") != bool(stop):
         return "line's stop kind does not match stop %d" % stop
+    if route in ("m", "p", "v"):
+        count = {"m": 6, "p": 19, "v": 24}[route]
+        try:
+            values = [int(value) for value in fields]
+        except ValueError:
+            return "change line has a noninteger field"
+        if len(values) != count or any(str(value) != raw for value, raw in zip(values, fields)):
+            return "change line has a different field count or noncanonical integer"
+        if values[2] != 1:
+            return "change line has no explicit experiment attendance"
+        if route == "m" and values[3] not in (1, 2, 3, 4, 7, 8, 9, 10):
+            return "mode probe line names an excluded candidate"
+        if route == "p" and values[8] not in range(1, 9):
+            return "position change line names another case"
     # Protocol 10 entries name the clear's method; earlier C lines had five fields and no method.
     if route == "C" and "clear_method" in entry and \
             (entry["clear_method"] not in CLEAR_METHODS or fields[5:] != [str(CLEAR_METHODS[entry["clear_method"]])]):
@@ -932,11 +1016,17 @@ class Campaign:
             if entry["event"] != "send":
                 continue
             if entry.get("settings"):
-                cases[(entry["route"], entry["node"])] += 1  # Counted, with no motion weight.
+                key = entry["route"]
+                if key == "m":
+                    key += entry["line"].split(",")[3]
+                cases[(key, entry["node"])] += 1  # Each disabled mode candidate has its own cap.
             if not entry["motion"]:
                 continue
             total += entry["motion"]
-            cases[(entry["route"], entry["node"])] += 1
+            key = entry["route"]
+            if key == "p":
+                key += entry["line"].split(",")[8]
+            cases[(key, entry["node"])] += 1
             cases[("S", entry["node"])] += entry["stop"]
         return total, cases
 
@@ -949,6 +1039,10 @@ class Campaign:
             raise Refused("trial %d is not above every trial of this campaign (highest %d)" % (trial, highest))
         motion, stop = motion_weight(command, fields)
         total, cases = self.counts()
+        if command == "mode-probe":
+            letter += str(fields[3])
+        if command == "position-change":
+            letter += str(fields[8])
         if command in SETTINGS_ROUTES and cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
             raise Refused("the campaign holds %d %s admissions on node %d, the cap is %d" %
                           (cases[(letter, node)], command, node, CAMPAIGN_PER_CASE))
@@ -1144,10 +1238,10 @@ def velocity_alert(command, fields, data):
     session's (fenced=1) and no stop of this record left: TRIAL_STOP has own=0 or exec=0, and no
     TRIAL_BEST_EFFORT has own=1 with a nonzero exec. A stop line the record lacks is a stop that did not
     leave. Only lines between this trial's TRIAL header and its END count; data is after the prefix."""
-    if command != "velocity":
+    if command not in ("velocity", "velocity-change"):
         return None
     node, trial = fields[0], fields[1]
-    header = "TRIAL id=%d node=%d route=velocity " % (trial, node)
+    header = "TRIAL id=%d node=%d route=%s " % (trial, node, command)
     velocity, stop, best = None, None, []
     inside = False
     for line in bytes(data).decode("utf8", errors="replace").splitlines():
@@ -1171,6 +1265,36 @@ def velocity_alert(command, fields, data):
     if left(stop) or any(left(values) for values in best):
         return None
     return "node %d MAY BE RUNNING: no stop left; use the cutoff" % node
+
+
+def position_change_alert(command, fields, data):
+    """Alert only when this finite trial retains possible trigger execution and no stop that left."""
+    if command != "position-change":
+        return None
+    node, trial = fields[:2]
+    header = "TRIAL id=%d node=%d route=position-change " % (trial, node)
+    inside, trigger_seen, trigger, possible, stop_left = False, False, False, False, False
+    for line in bytes(data).decode("utf8", errors="replace").splitlines():
+        if line.startswith(header):
+            inside = True
+        elif inside and line.startswith("END trial "):
+            break
+        elif inside:
+            values = pong_values(line)
+            if line.startswith("TRIAL_CHANGE "):
+                possible = values.get("possible") == "1"
+            elif (line.startswith("RESULT ") and values.get("object") == "6040:00" and
+                  values.get("dir") == "1" and values.get("node") == str(node)):
+                # The route's first 6040 download is its initial trigger; an admitted but proved-unsent
+                # request alone is insufficient to assert possible motion.
+                if not trigger_seen:
+                    trigger_seen = True
+                    trigger = values.get("possible") == "1"
+            elif line.startswith(("TRIAL_STOP ", "TRIAL_BEST_EFFORT ")):
+                stop_left |= values.get("own") == "1" and values.get("exec", "0") != "0"
+    if possible and trigger and not stop_left:
+        return "node %d MAY BE RUNNING: position trigger may have left with no stop; use the cutoff" % node
+    return None
 
 
 def enable_alert(command, fields, data):
@@ -1377,7 +1501,7 @@ def dry_run(args, fields):
                   "acknowledged one 60FF upload, kept raw, and one more full read that must report the same "
                   "standstill; an abort or lost reply ends there; never 6040, 6060 or another object, no enable, "
                   "no retry" % (" ".join("%02X" % byte for byte in written), fields[3]))
-        if args.command == "velocity":
+        if args.command in ("velocity", "velocity-change"):
             weight, _ = motion_weight(args.command, fields)
             print("  VelocityEvidence gate %s, startQualified 0, stopQualified 0: the run measures its start and "
                   "stop and claims neither; from this line: record %d, layout %d, stop kind %d (motion weight %d "
@@ -1386,14 +1510,14 @@ def dry_run(args, fields):
                   "the experiment's chosen budget, not a drive timing; the record's TRIAL_VELOCITY_WINDOW and "
                   "TRIAL_VELOCITY_SAMPLE which=2..4 bracket the enable report" %
                   (VELOCITY_WINDOW_MS, VELOCITY_SPACING_MS, VELOCITY_WINDOW_CYCLES))
-            if fields[-2]:
+            if fields[20]:
                 print("  range probe (prompt 59): VelocityEvidence::rangeProbe, rate cap %d rpm (project policy, "
                       "never a drive limit), both ramps at least %d ms, the library's over-speed stop in every "
                       "running cycle; the run qualifies nothing" %
                       (VELOCITY_RANGE_PROBE_RPM, VELOCITY_RANGE_PROBE_RAMP_MS))
             else:
                 print("  no range probe: the experiment's %d rpm cap" % VELOCITY_EXPERIMENT_RPM)
-            if fields[-1]:
+            if fields[21]:
                 written = (-fields[3] & 0xFFFFFFFF).to_bytes(4, "little")
                 print("  reverse probe (prompt 59 item 4): VelocityEvidence::reverseProbe, rate %d rpm, 60FF written "
                       "23 FF 60 00 %s (two's complement I32; Q03 open, no source states the direction); from the "
@@ -1402,6 +1526,9 @@ def dry_run(args, fields):
                       (-fields[3], " ".join("%02X" % byte for byte in written), VELOCITY_REVERSE_SIGN_MARGIN_RPM))
             else:
                 print("  no reverse probe: a positive rate, 60FF %d" % fields[3])
+            if args.command == "velocity-change":
+                print("  one explicit positive change to %d rpm after %d ms, at a fresh complete RUNNING cycle; "
+                      "no replay, original stop and deadline unchanged" % (fields[22], fields[23]))
         if args.command == "clear-alarm":
             name = next(k for k, v in CLEAR_METHODS.items() if v == fields[5])
             print("  clear method %s: after the library's admission, %s, then %s only after the first one's "
@@ -1499,6 +1626,13 @@ def arguments(argv):
     probe.add_argument("--value", type=int, help="velocity-target: the signed 60FF value, %d..%d; 3001 is the range "
                        "probe. subdivision: the 2201 value, %d..%d. loop: the 2500 code, %d..%d (0 noneffective, 1 open "
                        "loop, 2 closed loop)" % (VELOCITY_TARGET_RANGE + SUBDIVISION_RANGE + LOOP_RANGE))
+    trial.add_argument("--change-case", type=int, choices=range(1, 9), help="position-change: 1speed,2up,3down,4fall,5immediate speed,6immediate target,7buffered target,8bare target")
+    trial.add_argument("--change-after-cycle", type=int)
+    trial.add_argument("--change-value", type=int)
+    trial.add_argument("--replacement-target", type=int)
+    trial.add_argument("--change-rpm", type=int)
+    trial.add_argument("--change-after-ms", type=int)
+    trial.add_argument("--mode-raw", type=int, help="mode-probe: disabled6060 candidate; no implicit restore")
     word = parser.add_argument_group("controlword (protocol 11): one reviewed non-enabling 6040 word on a drive that "
                                      "reports low bits 000 (0x0000 also from 001 or 011); also --cycles 1..10 and "
                                      "--interval-ms 100..2000")
@@ -1557,7 +1691,7 @@ def arguments(argv):
                          "shaft observation (relay one the user made with --relayed-power-up-shaft)")
         if args.fault_led == "prompt":
             parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
-        if args.command == "velocity" and not args.waiver_covers_motion:
+        if args.command in ("velocity", "velocity-change", "position-change") and not args.waiver_covers_motion:
             parser.error("--unattended-waiver refuses velocity: its start and stop are unmeasured, so the attendant "
                          "with the independent drive-power cutoff in hand is its only control beyond its own stop")
     if args.waiver_covers_motion and args.unattended_waiver is None:
@@ -1639,8 +1773,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     if is_trial:
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
-        if args.command == "velocity":
-            probe, reverse = bool(fields[-2]), bool(fields[-1])
+        if args.command in ("velocity", "velocity-change"):
+            probe, reverse = bool(fields[20]), bool(fields[21])
             meta["velocity_scope"] = {"gate": VELOCITY_SCOPE, "start_qualified": False, "stop_qualified": False,
                                       "record": fields[10], "range_probe": probe,
                                       "maximum_rpm": VELOCITY_RANGE_PROBE_RPM if probe else VELOCITY_EXPERIMENT_RPM,
@@ -1652,6 +1786,12 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                                           rate_rpm=-fields[3] if reverse else fields[3])
             if reverse:
                 meta["velocity_scope"]["reverse_sign_margin_rpm"] = VELOCITY_REVERSE_SIGN_MARGIN_RPM
+            if args.command == "velocity-change":
+                meta["change_scope"] = {"gate": VELOCITY_SCOPE, "record": fields[10], "qualified": False,
+                                        "rate_rpm": fields[22], "after_ms": fields[23]}
+        if args.command == "position-change":
+            meta["change_scope"] = {"gate": VELOCITY_SCOPE, "record": fields[1], "qualified": False,
+                                    "case": fields[8], "fixture_maximum_rpm": 60}
         if args.command == "clear-alarm":
             meta["clear_method"] = args.method
         if args.command == "controlword":
@@ -1680,10 +1820,10 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                  "image": meta.get("image")}
         if args.command in SETTINGS_ROUTES:
             entry["settings"] = 1
-        if args.command == "velocity":
+        if args.command in ("velocity", "velocity-change"):
             entry["scope"] = VELOCITY_SCOPE
-            entry["range_probe"] = bool(fields[-2])
-            entry["reverse_probe"] = bool(fields[-1])
+            entry["range_probe"] = bool(fields[20])
+            entry["reverse_probe"] = bool(fields[21])
         if args.command == "clear-alarm":
             entry["clear_method"] = args.method
         if args.command == "controlword":
@@ -1706,7 +1846,7 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                 # Before the attendant's questions after the route: the cutoff may be needed now.
                 body = data[meta["prefix_bytes"]:]
                 for key, check in (("velocity_alert", velocity_alert), ("enable_alert", enable_alert),
-                                   ("controlword_alert", controlword_alert)):
+                                   ("controlword_alert", controlword_alert), ("position_change_alert", position_change_alert)):
                     alert = check(args.command, fields, body)
                     if alert:
                         meta[key] = alert
@@ -1756,7 +1896,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     print("verdict:", report.verdict, "failure:", report.failure_name or report.failure, "reason:", meta["reason"])
     # 4: a velocity, released-start enable or controlword record whose node may still move, whatever else the
     # record shows; 2: nothing admitted; 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
-    alert = meta.get("velocity_alert") or meta.get("enable_alert") or meta.get("controlword_alert")
+    alert = (meta.get("velocity_alert") or meta.get("enable_alert") or meta.get("controlword_alert") or
+             meta.get("position_change_alert"))
     if alert:
         print("ALERT: " + alert, file=sys.stderr)
         return VELOCITY_ALERT_STATUS

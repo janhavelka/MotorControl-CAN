@@ -1109,6 +1109,48 @@ void transmissionExperimentAndRestoration() {
         CHECK(r.experiment.release());
     }
 }
+void continuationAfterHigherExperimentIds() {
+    Rig r;
+    r.startTransmission(2, L::Tpdo1TransmissionTypeRaw::RAW_1, 9000);
+    r.finish();
+    CHECK(r.experiment.record()->failure == E::PdoExperimentFailure::NONE);
+    CHECK(r.experiment.release());
+    uint32_t retainedGrant = 0, retainedOperation = 0;
+    CHECK(r.services.lastExperiment(1, retainedGrant, retainedOperation));
+    CHECK(retainedGrant >= 9000 && retainedOperation >= 9000);
+    const unsigned transmitted = r.wire.transmitted;
+    auto stale = r.transmissionPlan(2, L::Tpdo1TransmissionTypeRaw::RAW_255, retainedOperation + 1);
+    stale.firstAuthorizationId = 1;
+    CHECK(r.experiment.beginWithServiceAge(stale, r.now) == E::EvidenceAdmission::ACCEPTED);
+    r.wire.now = r.now + 1;
+    r.wire.heartbeat(0x7f, 2);
+    r.turn(r.now + 1);
+    r.finish();
+    CHECK(r.experiment.record()->failure == E::PdoExperimentFailure::AUTHORIZATION);
+    CHECK(r.wire.transmitted == transmitted && r.wire.values[2][1] == 1);
+    CHECK(r.experiment.release());
+
+    uint32_t operation = retainedOperation + 2, grant = 0;
+    E::refreshExperimentIds(r.services, 0, operation, grant);
+    E::refreshExperimentIds(r.services, 3, operation, grant);
+    CHECK(operation == retainedOperation + 2 && grant == 0);
+    E::refreshExperimentIds(r.services, 1, operation, grant);
+    CHECK(grant == 0); // Another node cannot supply this channel's grant.
+    E::refreshExperimentIds(r.services, 2, operation, grant);
+    CHECK(operation == retainedOperation + 2 && grant == retainedGrant);
+    auto next = r.transmissionPlan(2, L::Tpdo1TransmissionTypeRaw::RAW_255, operation + 1);
+    next.firstAuthorizationId = grant + 1;
+    CHECK(r.experiment.beginWithServiceAge(next, r.now) == E::EvidenceAdmission::ACCEPTED);
+    r.wire.now = r.now + 1;
+    r.wire.heartbeat(0x7f, 2);
+    r.turn(r.now + 1);
+    r.finish();
+    CHECK(r.experiment.record()->failure == E::PdoExperimentFailure::NONE);
+    CHECK(r.experiment.record()->terminalCount == 19 && r.wire.values[2][1] == 255);
+    operation = grant = UINT32_MAX;
+    E::refreshExperimentIds(r.services, 2, operation, grant);
+    CHECK(operation == UINT32_MAX && grant == UINT32_MAX);
+}
 void transmissionExperimentRefusalsAndUnknownEffects() {
     for (unsigned which = 0; which < 7; ++which) {
         Rig r;
@@ -1173,6 +1215,7 @@ int main() {
     timerReadbackFollowsTheBoundary();
     serviceAgeOnlyForAdmission();
     transmissionExperimentAndRestoration();
+    continuationAfterHigherExperimentIds();
     transmissionExperimentRefusalsAndUnknownEffects();
     std::printf("pdo_experiment_test: %u checks passed\n", checks);
 }

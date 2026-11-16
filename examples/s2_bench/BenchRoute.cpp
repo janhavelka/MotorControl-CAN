@@ -97,7 +97,7 @@ static_assert(sizeof REVIEWED_CONTROLWORDS / sizeof REVIEWED_CONTROLWORDS[0] == 
 // 001 (ready to switch on, 0x31 after word 6 from a release) is not marked.
 constexpr uint16_t CONTROLWORD_ENABLED_BITS = 0x0006;
 // STEP_OBSERVE's argument: every planned cycle, or WORD67's cycles after its 0006 only.
-enum Observe : uint8_t { OBSERVE_ALL, OBSERVE_WORD_SIX };
+enum Observe : uint8_t { OBSERVE_ALL, OBSERVE_WORD_SIX, OBSERVE_BEFORE_CHANGE, OBSERVE_AFTER_FALL };
 // MOVE takes these enumerations as numbers from the host line.
 static_assert(unsigned(L::MoveSignalSource::STATUSWORD) == 1 && unsigned(L::MoveSignalSource::MONITOR) == 2 &&
                   unsigned(L::CompletionRule::AFTER_ABSENCE) == 1 &&
@@ -107,8 +107,9 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
-                             "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::LOOP) + 1, "one name per route");
+                             "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop", "mode-probe",
+                             "position-change", "velocity-change"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_CHANGE) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -120,8 +121,9 @@ bool isMotion(RouteKind kind) {
     return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) ||
            (kind >= RouteKind::RELEASED_QUICK && kind <= RouteKind::RELATIVE) || kind == RouteKind::COUNTER_ZERO ||
            kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY ||
-           kind == RouteKind::CONTROLWORD;
+           kind == RouteKind::CONTROLWORD || kind == RouteKind::POSITION_CHANGE || kind == RouteKind::VELOCITY_CHANGE;
 }
+bool isVelocity(RouteKind kind) { return kind == RouteKind::VELOCITY || kind == RouteKind::VELOCITY_CHANGE; }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 // The library's settings transactions: one candidate, its writes and its readback, with a configuration
 // epoch advance. SUBDIVISION is prompt 59's 2201 write, LOOP protocol 13's 2500 write.
@@ -144,11 +146,13 @@ int attendedCase(RouteKind kind) {
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
-bool writesPosition(RouteKind kind) { return kind == RouteKind::POSITION || kind == RouteKind::RELATIVE; }
+bool writesPosition(RouteKind kind) {
+    return kind == RouteKind::POSITION || kind == RouteKind::RELATIVE || kind == RouteKind::POSITION_CHANGE;
+}
 // Routes that may plan a stop of their own, counted against STOP as well. A finite velocity always asks
 // for its own stop at its due time.
 bool plansStop(const RoutePlan& p) {
-    return ((writesPosition(p.kind) || p.kind == RouteKind::MOVE) && p.stopKind) || p.kind == RouteKind::VELOCITY;
+    return ((writesPosition(p.kind) || p.kind == RouteKind::MOVE) && p.stopKind) || isVelocity(p.kind);
 }
 // VELOCITY's running cycles: the library's maxPolls, the fewest whose spacing covers the duration.
 uint32_t velocityPolls(const RoutePlan& p) { return (p.durationMs + p.intervalMs - 1) / p.intervalMs; }
@@ -237,6 +241,24 @@ static_assert(L::OBJECT_2500_00.widthBytes == 2 && L::OBJECT_2501_00.widthBytes 
 constexpr Field READ_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL)};
 constexpr Field MODE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                  ROUTE_FIELD(cycles, MODE_CYCLES), ROUTE_FIELD(intervalMs, MODE_INTERVAL)};
+constexpr Range PROBE_MODE = {1, 10};
+constexpr Field MODE_PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL),
+                                       ROUTE_FIELD(attended, FLAG), ROUTE_FIELD(modeRaw, PROBE_MODE),
+                                       ROUTE_FIELD(cycles, MODE_CYCLES), ROUTE_FIELD(intervalMs, MODE_INTERVAL)};
+// The probe excludes homing (6) and candidate 5; documented 1/3 are explicit restoration only.
+bool probeMode(uint8_t mode) {
+    return mode == 1 || mode == 2 || mode == 3 || mode == 4 || mode == 7 || mode == 8 || mode == 9 || mode == 10;
+}
+constexpr Range CHANGE_CASE = {1, 8}, CHANGE_AFTER = {1, 14}, CHANGE_VALUE = {0, 3000};
+constexpr Range CHANGE_DURATION = {1000, 20000};
+constexpr Field CHANGE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL),
+    ROUTE_FIELD(attended, FLAG), ROUTE_FIELD(startPosition, SIGNED32), ROUTE_FIELD(target, TARGET),
+    ROUTE_FIELD(rpm, MOVE_RPM), ROUTE_FIELD(rampUpMs, MOVE_RAMP_MS), ROUTE_FIELD(rampDownMs, MOVE_RAMP_MS),
+    ROUTE_FIELD(changeCase, CHANGE_CASE), ROUTE_FIELD(changeAfterCycle, CHANGE_AFTER),
+    ROUTE_FIELD(changeValue, CHANGE_VALUE), ROUTE_FIELD(replacementTarget, TARGET),
+    ROUTE_FIELD(durationMs, CHANGE_DURATION), ROUTE_FIELD(cycles, CYCLES), ROUTE_FIELD(intervalMs, CYCLE_MS),
+    ROUTE_FIELD(stopKind, KIND), ROUTE_FIELD(stopDeadlineMs, ACTION_MS), ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+    ROUTE_FIELD(stopIntervalMs, ACTION_INTERVAL)};
 constexpr Field ENABLE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                    ROUTE_FIELD(trial, TRIAL),
                                    ROUTE_FIELD(attended, FLAG),
@@ -346,6 +368,31 @@ constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(firmware.firmwareCode, U16),
                                      ROUTE_FIELD(rangeProbe, FLAG),
                                      ROUTE_FIELD(reverse, FLAG)};
+constexpr Range CHANGE_RPM = {1, L::VELOCITY_EXPERIMENT_MAXIMUM_RPM}, CHANGE_AFTER_MS = {1, 19999};
+constexpr Field VELOCITY_CHANGE_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                     ROUTE_FIELD(trial, TRIAL),
+                                     ROUTE_FIELD(attended, FLAG),
+                                     ROUTE_FIELD(rpm, VELOCITY_RPM),
+                                     ROUTE_FIELD(rampUpMs, MOVE_RAMP_MS),
+                                     ROUTE_FIELD(rampDownMs, MOVE_RAMP_MS),
+                                     ROUTE_FIELD(durationMs, ACTION_MS),
+                                     ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                     ROUTE_FIELD(deadlineMs, ACTION_MS),
+                                     ROUTE_FIELD(stopKind, KIND),
+                                     ROUTE_FIELD(record, TRIAL),
+                                     ROUTE_FIELD(layout, LAYOUT),
+                                     ROUTE_FIELD(firmware.deviceType, U32),
+                                     ROUTE_FIELD(firmware.hardwareVersion, U16),
+                                     ROUTE_FIELD(firmware.softwareVersion, U16),
+                                     ROUTE_FIELD(firmware.vendorId, U32),
+                                     ROUTE_FIELD(firmware.productCode, U32),
+                                     ROUTE_FIELD(firmware.revision, U32),
+                                     ROUTE_FIELD(firmware.modelCode, U16),
+                                     ROUTE_FIELD(firmware.firmwareCode, U16),
+                                     ROUTE_FIELD(rangeProbe, FLAG),
+                                     ROUTE_FIELD(reverse, FLAG),
+                                     ROUTE_FIELD(newPositiveRpm, CHANGE_RPM),
+                                     ROUTE_FIELD(changeAfterMs, CHANGE_AFTER_MS)};
 // HOME: the request requestHome would convert and check; with the closed gate none of it is reached.
 constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(trial, TRIAL),
                                  ROUTE_FIELD(attended, FLAG),      ROUTE_FIELD(method, METHOD),
@@ -458,8 +505,11 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 // The last free capital: the line reads `TT...`, the command byte and then the route.
                                 {'T', RouteKind::CONTROLWORD, CONTROLWORD_FIELDS, countOf(CONTROLWORD_FIELDS)},
                                 // No capital is left: lowercase from protocol 13, the line reads `Tl...`.
-                                {'l', RouteKind::LOOP, LOOP_FIELDS, countOf(LOOP_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::LOOP), "one grammar per route");
+                                {'l', RouteKind::LOOP, LOOP_FIELDS, countOf(LOOP_FIELDS)},
+                                {'m', RouteKind::MODE_PROBE, MODE_PROBE_FIELDS, countOf(MODE_PROBE_FIELDS)},
+                                {'p', RouteKind::POSITION_CHANGE, CHANGE_FIELDS, countOf(CHANGE_FIELDS)},
+                                {'v', RouteKind::VELOCITY_CHANGE, VELOCITY_CHANGE_FIELDS, countOf(VELOCITY_CHANGE_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_CHANGE), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -574,6 +624,8 @@ unsigned terminalBound(const RoutePlan& p) {
                (enableStopPlanned(p) ? stopTerminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) : 0);
     case RouteKind::STOP:
         return 5 + stopTerminals(p.deadlineMs, p.intervalMs);
+    case RouteKind::POSITION_CHANGE:
+        return 9 + 3 + 1 + 5 + 4 + 7u * p.cycles + stopTerminals(p.stopDeadlineMs, p.stopIntervalMs);
     case RouteKind::POSITION:
     case RouteKind::RELATIVE:
         return 9 + 3 + 1 + 5 + 7u * p.cycles +
@@ -615,8 +667,10 @@ unsigned terminalBound(const RoutePlan& p) {
         // MONITORS and STATUS to the deadline; then ERRORS once.
         return 2 + 5 + 5 + 2 + 2 + 5 * (2 + p.deadlineMs / p.intervalMs) + 2;
     case RouteKind::MODE_THREE:
+    case RouteKind::MODE_PROBE:
         // Two full reads, the 6060 write, then a full first cycle and image cycles.
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
+    case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         // Identity and full read; 60FF, 6083, 6084; 6, 7, 15, each followed by one seven-field cycle; at
         // most ROUTE_VELOCITY_WINDOW_CYCLES more after 15. RUNNING waits an interval; an early own stop
@@ -627,7 +681,7 @@ unsigned terminalBound(const RoutePlan& p) {
         // Up to five unsent stop attempts instead have no stop cycles: admitting the first drops
         // 000F evidence, and one unused seven-field cycle covers the two extra attempts. The drive
         // already reads mode 3, so no mode write or mode cycle. Runtime maxPolls is unchanged.
-        return 9 + 9 + 3 + 3 + 7 * 3 + 7 * ROUTE_VELOCITY_WINDOW_CYCLES +
+        return (p.kind == RouteKind::VELOCITY_CHANGE ? 8u : 0u) + 9 + 9 + 3 + 3 + 7 * 3 + 7 * ROUTE_VELOCITY_WINDOW_CYCLES +
                7 * ((p.deadlineMs + p.intervalMs - 1) / p.intervalMs) + 3;
     case RouteKind::HOME:
         // Identity, IO_INPUT_CONFIGURATION (2400:00..08), the full read and DRIVER (2200, 2201). No write.
@@ -670,6 +724,7 @@ uint32_t durationBound(const RoutePlan& p) {
         return p.deadlineMs + (enableStopPlanned(p) ? ENABLE_STOP_MS : 0);
     case RouteKind::COUNTER_ZERO:
     case RouteKind::CLEAR_ALARM:
+    case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         return p.deadlineMs;
     case RouteKind::STOP:
@@ -680,10 +735,13 @@ uint32_t durationBound(const RoutePlan& p) {
         const uint32_t planned = p.stopKind ? uint32_t(positionStopUs(p) / 1000) : 0;
         return cycles > planned ? cycles : planned;
     }
+    case RouteKind::POSITION_CHANGE:
+        return p.durationMs + stop;
     case RouteKind::MOVE:
         return p.deadlineMs + stop;
     case RouteKind::MODE_ONE:
     case RouteKind::MODE_THREE:
+    case RouteKind::MODE_PROBE:
     case RouteKind::REARM:
     case RouteKind::RELEASED_QUICK:
     case RouteKind::CONTROLWORD:
@@ -743,6 +801,17 @@ bool routePlanValid(const RoutePlan& p) noexcept {
             return false;
     }
     switch (p.kind) {
+    case RouteKind::POSITION_CHANGE: {
+        const bool field = p.changeCase == 1 || p.changeCase == 5 ? p.changeValue >= 1 && p.changeValue <= 3000
+                           : p.changeCase == 2 || p.changeCase == 3 ? p.changeValue >= 1 && p.changeValue <= 2000
+                                                                  : p.changeValue == 0;
+        const bool target = p.changeCase >= 6 ? p.replacementTarget > p.startPosition : p.replacementTarget == 0;
+        return p.target > p.startPosition && field && target && p.changeAfterCycle + 2u <= p.cycles &&
+               ((p.changeCase > 3 && p.changeCase != 8) || p.stopKind == 2) &&
+               p.bestEffortMs >= p.stopDeadlineMs;
+    }
+    case RouteKind::MODE_PROBE:
+        return probeMode(p.modeRaw);
     case RouteKind::ENABLE:
         // A released start's shaft basis is the released report itself, so the line carries FREE: read
         // from the drive at the user's instruction of 2026-11-10, never felt. HOLDING would contradict it.
@@ -762,12 +831,17 @@ bool routePlanValid(const RoutePlan& p) noexcept {
         return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && base &&
                (!p.relativeBase || p.target) && p.observer != p.node && stopPolicyValid(p, 16);
     }
+    case RouteKind::VELOCITY_CHANGE:
     case RouteKind::VELOCITY:
         // The duration starts at preparation and must end before the run's deadline; ZH57 is no 86C
         // dialect, which the library refuses too. Above the documented 3000 rpm only as the prompt 59 range
         // probe, whose ramps the library requires at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS: refused
         // here as the library would refuse it, before the line is counted.
-        return p.durationMs < p.deadlineMs && p.layout != unsigned(L::StatusLayout::ZH57) &&
+        return (p.kind != RouteKind::VELOCITY_CHANGE ||
+                (p.newPositiveRpm >= 1 && p.newPositiveRpm <= L::VELOCITY_EXPERIMENT_MAXIMUM_RPM &&
+                 p.rpm <= L::VELOCITY_EXPERIMENT_MAXIMUM_RPM && !p.rangeProbe && !p.reverse &&
+                 p.changeAfterMs < p.durationMs)) &&
+               p.durationMs < p.deadlineMs && p.layout != unsigned(L::StatusLayout::ZH57) &&
                (p.rangeProbe ? p.rampUpMs >= L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS &&
                                    p.rampDownMs >= L::VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS
                              : p.rpm <= 3000);
@@ -844,6 +918,13 @@ bool BenchRoute::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
             return false;
         if (!session->preflight(sequence, transfer, now, unhandledFault(slot)))
             return false;
+        if (routeWork && record_.plan.kind == RouteKind::POSITION_CHANGE) {
+            if (now >= record_.changeStopDueUs)
+                return false;
+            if ((steps_[stepIndex_].kind == STEP_CHANGE_FALL || steps_[stepIndex_].kind == STEP_CHANGE_WRITES) &&
+                checkPositionChange(now))
+                return false;
+        }
         if (routeWork && isSettings(record_.plan.kind)) {
             return noteSettings(sequence, transfer, now);
         }
@@ -918,7 +999,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         return "state";
     const bool motion = isMotion(plan.kind);
     // The settings writes and HOME: attended, counted per route and node, with no motion weight.
-    const int attendedRow = attendedCase(plan.kind);
+    const int attendedRow = plan.kind == RouteKind::MODE_PROBE ? 5 + plan.modeRaw : attendedCase(plan.kind);
     const bool settings = attendedRow >= 0;
     if ((motion || settings || isArm(plan.kind)) && !plan.attended)
         return "unattended";
@@ -926,14 +1007,15 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     const unsigned stopCase = unsigned(RouteKind::STOP);
     const unsigned settingsCase = settings ? unsigned(attendedRow) : 0;
     if (motion && (motionTotal_ + 1u + stop > ROUTE_MOTION_TOTAL ||
-                   motionCases_[unsigned(plan.kind)][index] + 1u > ROUTE_MOTION_PER_CASE ||
+                   (plan.kind == RouteKind::POSITION_CHANGE ? positionChangeCases_[plan.changeCase - 1][index]
+                                                           : motionCases_[unsigned(plan.kind)][index]) + 1u > ROUTE_MOTION_PER_CASE ||
                    motionCases_[stopCase][index] + stop > ROUTE_MOTION_PER_CASE))
         return "budget";
     if (settings && settingsCases_[settingsCase][index] + 1u > ROUTE_SETTINGS_PER_CASE)
         return "budget";
     // HOME keeps its input mapping, state read and request in RouteWork, as a settings route keeps its
     // prior; VELOCITY keeps its request there, off BenchRoute's own block. VELOCITY_TARGET needs none.
-    if ((isSettings(plan.kind) || plan.kind == RouteKind::HOME || plan.kind == RouteKind::VELOCITY) && !work_)
+    if ((isSettings(plan.kind) || plan.kind == RouteKind::HOME || isVelocity(plan.kind)) && !work_)
         return "memory";
     if (terminalBound(plan) > ROUTE_TERMINALS)
         return "capacity";
@@ -966,7 +1048,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     // The console work an arming prepares is ordinary SDO work of the session too, and so is the owner's
     // configuration advance a witness serves (SdoClient::configurationEligible).
     if ((plan.kind == RouteKind::ENABLE || plan.kind == RouteKind::MOVE || isClear(plan.kind) ||
-         plan.kind == RouteKind::VELOCITY || isArm(plan.kind)) &&
+         isVelocity(plan.kind) || isArm(plan.kind)) &&
         (!C::serviceEligibility(*node, now, eligibility) || !eligibility.ordinarySdo))
         return "eligibility";
     // The observer is read on its own route and session, opened here if this is its first route.
@@ -998,8 +1080,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         return "fenced";
     // A new 60FF value would become the target of anything still running, whatever a later report shows
     // (trial 1009 read idle after its 000F and ran): not while the session holds such a fact.
-    if (plan.kind == RouteKind::VELOCITY_TARGET && (session->velocityNeedsStop() || session->homeNeedsStop() ||
-                                                   session->moveFenced() || session->faultBlocked()))
+    if ((plan.kind == RouteKind::VELOCITY_TARGET || plan.kind == RouteKind::MODE_PROBE) &&
+        (session->velocityNeedsStop() || session->homeNeedsStop() || session->moveFenced() || session->faultBlocked()))
         return "fenced";
     // Last, so that a refusal above leaves every reservation's numbering as it was.
     if (!continueOperations(*session, index, now) ||
@@ -1010,7 +1092,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     armed_ = false; // This route's reads replace any arming's, whatever it is.
     if (motion) {
         motionTotal_ = uint8_t(motionTotal_ + 1 + stop);
-        ++motionCases_[unsigned(plan.kind)][index];
+        if (plan.kind == RouteKind::POSITION_CHANGE)
+            ++positionChangeCases_[plan.changeCase - 1][index];
+        else
+            ++motionCases_[unsigned(plan.kind)][index];
         motionCases_[stopCase][index] = uint8_t(motionCases_[stopCase][index] + stop);
     }
     if (settings)
@@ -1023,7 +1108,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.step = 0;
     r.motionTotal = motionTotal_;
     // Only motion and settings routes have a row.
-    r.caseCount = motion ? motionCases_[unsigned(plan.kind)][index] : settings ? settingsCases_[settingsCase][index] : 0;
+    r.caseCount = plan.kind == RouteKind::POSITION_CHANGE ? positionChangeCases_[plan.changeCase - 1][index]
+                  : motion ? motionCases_[unsigned(plan.kind)][index] : settings ? settingsCases_[settingsCase][index] : 0;
     r.cycles = 0;
     r.startedUs = now;
     r.completedUs = r.maxServiceGapUs = 0;
@@ -1043,6 +1129,11 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.statusCode = 0;
     r.statusDetail = 0;
     r.statusMessage = "";
+    r.changeStopDueUs = plan.kind == RouteKind::POSITION_CHANGE ? now + uint64_t(plan.durationMs) * 1000 : 0;
+    r.changeStopEndUs = plan.kind == RouteKind::POSITION_CHANGE ? r.changeStopDueUs + uint64_t(plan.stopDeadlineMs) * 1000 : 0;
+    r.velocityChangeAttempted = r.velocityChangeAccepted = false;
+    r.changeTriggerPossible = r.changeStarted = false;
+    r.changeWrites = 0;
     r.enableRequested = r.stopRequested = false;
     r.stopRequestKind = r.stopPathRequested = 0;
     r.actionRequestedUs = 0;
@@ -1251,11 +1342,19 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                        {STEP_WORD_WRITE, WORD_LINE}, {STEP_OBSERVE, OBSERVE_ALL},
                                        {STEP_STATE, FULL},           {STEP_CHECK_CONTROLWORD_AFTER, 0},
                                        {STEP_END, 0}};
+    static const Step modeProbe[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL},
+                                     {STEP_CHECK_MODE_PROBE, 0}, {STEP_MODE_WRITE, 0},
+                                     {STEP_OBSERVE, OBSERVE_ALL}};
+    static const Step positionChange[] = {{STEP_STATE, FULL}, {STEP_CHECK_POSITION, 0},
+        {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)}, {STEP_SINGLE, 1},
+        {STEP_POSITION_WRITES, 0}, {STEP_OBSERVE, OBSERVE_BEFORE_CHANGE},
+        {STEP_CHANGE_FALL, 0}, {STEP_OBSERVE, OBSERVE_AFTER_FALL},
+        {STEP_CHANGE_WRITES, 0}, {STEP_OBSERVE, OBSERVE_ALL}};
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
-                                  subdivision, controlword, loop};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::LOOP) + 1,
+                                  subdivision, controlword, loop, modeProbe, positionChange, velocity};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_CHANGE) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1394,6 +1493,17 @@ void BenchRoute::capture(bool tail) noexcept {
 void BenchRoute::finish(RouteFailure failure, const char* why, uint64_t now) noexcept {
     if (record_.terminal)
         return;
+    // Once the initial trigger may have reached the drive, a failure cannot remove this experiment's stop.
+    // Its first failure is retained while the outstanding exchange settles and the fixed stop runs.
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeTriggerPossible && !stopAttempted_ &&
+        failure != RouteFailure::NONE && !record_.emcy && !firmware_.progressionFailed()) {
+        endAfterSettling(failure, why);
+        return;
+    }
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && endFailure_ != RouteFailure::NONE) {
+        failure = endFailure_;
+        why = endWhy_;
+    }
     // Success is never recorded over a decided failure or lost evidence, whichever step got here.
     if (failure == RouteFailure::NONE && endFailure_ != RouteFailure::NONE) {
         failure = endFailure_;
@@ -1543,6 +1653,12 @@ void BenchRoute::service(uint64_t now) noexcept {
         return;
     if (record_.terminal)
         return;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && !stopAttempted_ && record_.changeTriggerPossible &&
+        !record_.emcy && (endFailure_ != RouteFailure::NONE || now >= record_.changeStopDueUs ||
+                         record_.cycles >= record_.plan.cycles)) {
+        startPositionChangeStop(now);
+        return;
+    }
     if (actionStarted_) {
         serviceAction(now);
         return;
@@ -1803,6 +1919,21 @@ bool BenchRoute::settle(uint64_t now) noexcept {
             writtenOperation_ = t.operation;
             writtenUs_ = done.completedUs;
         }
+        if (kind == STEP_CHANGE_FALL || kind == STEP_CHANGE_WRITES) {
+            if (t.index == 0x607a) {
+                commanded_[slot()] = record_.plan.changeCase == 5 ? record_.plan.target : record_.plan.replacementTarget;
+                commandedTrial_[slot()] = record_.plan.trial;
+                commandedEpoch_[slot()] = uint32_t(done.nodeGeneration);
+                commandedRelative_[slot()] = false;
+                commandedKnown_[slot()] = true;
+            }
+            ++record_.changeWrites;
+            const unsigned count = kind == STEP_CHANGE_FALL ? 1u : record_.plan.changeCase == 5 ? 3u
+                                   : record_.plan.changeCase == 6 || record_.plan.changeCase == 7 ? 2u : 1u;
+            if (subStep_ == count)
+                nextStep(now);
+            return true;
+        }
         if (kind == STEP_MODE_WRITE || kind == STEP_WORD_WRITE || kind == STEP_TARGET_WRITE || subStep_ == 5)
             nextStep(now);
         return true;
@@ -1843,6 +1974,14 @@ void BenchRoute::nextStep(uint64_t now) noexcept {
 }
 void BenchRoute::advanceStep(uint64_t now) noexcept {
     const Step& step = steps_[stepIndex_];
+    const bool changeRoute = record_.plan.kind == RouteKind::POSITION_CHANGE;
+    const bool bareChange = record_.plan.changeCase <= 3 || record_.plan.changeCase == 8;
+    if (changeRoute && ((bareChange && (step.kind == STEP_CHANGE_FALL ||
+                                       (step.kind == STEP_OBSERVE && step.arg == OBSERVE_AFTER_FALL))) ||
+                        (record_.plan.changeCase == 4 && step.kind == STEP_CHANGE_WRITES))) {
+        nextStep(now);
+        return;
+    }
     // MODE_ONE: only a first read of mode 3 asks for the released start's second read.
     if (step.kind == STEP_SECOND_RELEASED && !readActive_ && record_.last.mode != 3) {
         nextStep(now);
@@ -1880,6 +2019,7 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_CHECK_MOVE:
     case STEP_CHECK_RELEASED:
     case STEP_CHECK_MODE_THREE:
+    case STEP_CHECK_MODE_PROBE:
     case STEP_CHECK_VELOCITY:
     case STEP_CHECK_TARGET:
     case STEP_CHECK_WITNESS:
@@ -1891,6 +2031,7 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
                           : step.kind == STEP_CHECK_REARM        ? checkRearm()
                           : step.kind == STEP_CHECK_MOVE         ? checkMove()
                           : step.kind == STEP_CHECK_MODE_THREE   ? checkModeThree()
+                          : step.kind == STEP_CHECK_MODE_PROBE   ? checkModeProbe()
                           : step.kind == STEP_CHECK_VELOCITY     ? checkVelocity()
                           : step.kind == STEP_CHECK_TARGET       ? checkVelocityTarget()
                           : step.kind == STEP_CHECK_WITNESS      ? checkWitness()
@@ -1905,6 +2046,8 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     }
     case STEP_MODE_WRITE:
     case STEP_POSITION_WRITES:
+    case STEP_CHANGE_FALL:
+    case STEP_CHANGE_WRITES:
     case STEP_WORD_WRITE:
     case STEP_TARGET_WRITE:
         if (!stepActive_ && !startWrite(now))
@@ -1981,7 +2124,9 @@ bool BenchRoute::startRead(uint8_t mode, uint8_t arg, uint64_t now) noexcept {
         finish(RouteFailure::INVALIDATED, "route", now);
         return false;
     }
-    const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeStopDueUs < deadline)
+        deadline = record_.changeStopDueUs;
     const uint32_t operation = deadline > now ? axis().beginOperation(deadline, now) : 0;
     if (!operation) {
         finish(RouteFailure::INVALIDATED, "session", now);
@@ -2188,7 +2333,12 @@ void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
         grantedOperation_ = transfer.operation;
         grantedStep_ = transfer.step;
     }
-    const BusAdmission admission = axis().admitPrepared(transfer, now);
+    const bool bareParameter = record_.plan.kind == RouteKind::POSITION_CHANGE &&
+        steps_[stepIndex_].kind == STEP_CHANGE_WRITES &&
+        (record_.plan.changeCase <= 3 || record_.plan.changeCase == 8);
+    const BusAdmission admission = bareParameter
+        ? axis().admitPositionChangeParameter(transfer, record_.plan.trial, now)
+        : axis().admitPrepared(transfer, now);
     if (admission == BusAdmission::RESULTS_FULL)
         return; // Unsent: the same work, under the same grant, is offered again.
     if (admission != BusAdmission::ACCEPTED) {
@@ -2198,6 +2348,14 @@ void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     }
     expected_ = transfer;
     pending_ = true;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && transfer.direction == C::SdoDirection::DOWNLOAD) {
+        if (transfer.index == 0x607a)
+            commandedKnown_[slot()] = false;
+        if (steps_[stepIndex_].kind == STEP_POSITION_WRITES && transfer.index == 0x6040)
+            record_.changeTriggerPossible = true;
+        if (steps_[stepIndex_].kind == STEP_CHANGE_FALL || steps_[stepIndex_].kind == STEP_CHANGE_WRITES)
+            record_.changeStarted = true;
+    }
     if (readMode_ == READ_SINGLE && transfer.direction == C::SdoDirection::UPLOAD)
         singleAdmitted_ = true;
     if (transfer.direction == C::SdoDirection::DOWNLOAD && transfer.index == 0x6060)
@@ -2206,12 +2364,14 @@ void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
 bool BenchRoute::startWrite(uint64_t now) noexcept {
     // A planned stop refused for the cutoff would leave the trigger's motion running: refuse before
     // the first write unless the stop still fits when it is asked for at its latest.
-    if (steps_[stepIndex_].kind == STEP_POSITION_WRITES && record_.plan.stopKind &&
+    if (record_.plan.kind != RouteKind::POSITION_CHANGE && steps_[stepIndex_].kind == STEP_POSITION_WRITES && record_.plan.stopKind &&
         now + positionStopUs(record_.plan) > cutoffUs_) {
         finish(RouteFailure::REFUSED, "deadline", now);
         return false;
     }
-    const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeStopDueUs < deadline)
+        deadline = record_.changeStopDueUs;
     const uint32_t operation = deadline > now ? axis().beginOperation(deadline, now) : 0;
     if (!operation) {
         finish(RouteFailure::INVALIDATED, "session", now);
@@ -2234,12 +2394,40 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
     t.step = subStep_ + 1u;
     t.direction = C::SdoDirection::DOWNLOAD;
     uint32_t value = 0;
-    if (steps_[stepIndex_].kind == STEP_MODE_WRITE) {
+    if (steps_[stepIndex_].kind == STEP_CHANGE_FALL || steps_[stepIndex_].kind == STEP_CHANGE_WRITES) {
+        const uint8_t selected = p.changeCase;
+        const bool fall = steps_[stepIndex_].kind == STEP_CHANGE_FALL;
+        if (fall) {
+            if (subStep_)
+                return false;
+            t.index = 0x6040;
+            t.size = 2;
+            value = 0x000f;
+        } else if (selected <= 3 || selected == 8) {
+            if (subStep_)
+                return false;
+            t.index = selected == 1 ? 0x6081 : selected == 2 ? 0x6083 : selected == 3 ? 0x6084 : 0x607a;
+            t.size = 4;
+            value = selected == 8 ? uint32_t(p.replacementTarget) : p.changeValue;
+        } else if (selected == 5) {
+            if (subStep_ >= 3)
+                return false;
+            t.index = subStep_ == 0 ? 0x6081 : subStep_ == 1 ? 0x607a : 0x6040;
+            t.size = subStep_ == 2 ? 2 : 4;
+            value = subStep_ == 0 ? p.changeValue : subStep_ == 1 ? uint32_t(p.target) : 0x003f;
+        } else {
+            if (subStep_ >= 2)
+                return false;
+            t.index = subStep_ == 0 ? 0x607a : 0x6040;
+            t.size = subStep_ == 0 ? 4 : 2;
+            value = subStep_ == 0 ? uint32_t(p.replacementTarget) : selected == 6 ? 0x003f : 0x001f;
+        }
+    } else if (steps_[stepIndex_].kind == STEP_MODE_WRITE) {
         // P2: 2F 60 60 00 01 00 00 00; MODE_THREE: 2F 60 60 00 03 00 00 00, velocity mode (EN86/ZH86 p13).
         // EDS U8 WO against the manuals' I8 RW; both positive codes are one byte either way.
         t.index = 0x6060;
         t.size = 1;
-        value = p.kind == RouteKind::MODE_THREE ? 3 : 1;
+        value = p.kind == RouteKind::MODE_PROBE ? p.modeRaw : p.kind == RouteKind::MODE_THREE ? 3 : 1;
     } else if (steps_[stepIndex_].kind == STEP_TARGET_WRITE) {
         // 23 FF 60 00 and the line's value in four bytes, two's complement: EDS [60FF] and EN86/ZH86 p17
         // declare I32, p13 U32, and both are these four bytes. 60FF has no generated declaration while the
@@ -2302,6 +2490,13 @@ void BenchRoute::serviceWrite(uint64_t now) noexcept {
     const Step& step = steps_[stepIndex_];
     // The check step judged the predecessor on an earlier turn. It must still hold now, at each
     // offer of the first write of each step, or nothing is written.
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE &&
+        (step.kind == STEP_CHANGE_FALL || step.kind == STEP_CHANGE_WRITES) && subStep_ == 0) {
+        if (const char* why = checkPositionChange(now)) {
+            finish(RouteFailure::PREREQUISITE, why, now);
+            return;
+        }
+    }
     if (subStep_ == 0) {
         if (const char* why = predecessor(step.kind, step.arg)) {
             finish(RouteFailure::PREREQUISITE, why, now);
@@ -2334,6 +2529,11 @@ const char* BenchRoute::predecessor(uint8_t write, uint8_t word) const noexcept 
         if (axis().motionHistoryWritten() || modeAdmitted_[slot()])
             return "history";
         return control ? "control" : nullptr;
+    }
+    if (write == STEP_CHANGE_FALL || write == STEP_CHANGE_WRITES) {
+        const bool bare = record_.plan.changeCase <= 3 || record_.plan.changeCase == 8;
+        const uint16_t expected = write == STEP_CHANGE_FALL || bare ? 0x001f : 0x000f;
+        return control && control->transfer.data[0] == expected && control->transfer.data[1] == 0 ? nullptr : "control";
     }
     if (write == STEP_POSITION_WRITES)
         return control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0 ? nullptr : "control";
@@ -2544,6 +2744,92 @@ const char* BenchRoute::checkModeThree() const noexcept {
     }
     if (record_.first.position != record_.check.position)
         return "position";
+    return nullptr;
+}
+const char* BenchRoute::checkPositionChange(uint64_t now) noexcept {
+    L::ReadTarget target;
+    if (!currentTarget(target) || context_.read.state != M::ReadState::SUCCEEDED || context_.read.uncertain)
+        return "snapshot";
+    const L::StateBlock blocks[] = {L::StateBlock::MONITORS, L::StateBlock::STATUS, L::StateBlock::FEEDBACK};
+    for (L::StateBlock block : blocks)
+        if (!L::getStateBlock(context_.read, block, target, now,
+                             7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US), block_))
+            return "stale-change";
+    const RouteSnapshot& s = record_.last;
+    const RoutePlan& p = record_.plan;
+    if ((s.blocks & IMAGE) != IMAGE || s.mode != 1 || (s.statusword & L::STATUS_LOW_BITS) != 7)
+        return "snapshot";
+    if ((s.monitor & (L::MONITOR_ALARM | L::MONITOR_RELEASED)) || !(s.monitor & L::MONITOR_RUNNING))
+        return "not-running";
+    if (s.velocity == 0)
+        return "not-running";
+    if (s.position < p.startPosition || s.velocity < 0 || s.position >= p.target)
+        return "direction";
+    if (p.changeCase >= 6 && p.replacementTarget <= s.position)
+        return "target-behind";
+    return nullptr;
+}
+void BenchRoute::startPositionChangeStop(uint64_t now) noexcept {
+    readActive_ = stepActive_ = false;
+    const RoutePlan& p = record_.plan;
+    if (now >= record_.changeStopEndUs) {
+        stopAttempted_ = true;
+        finish(RouteFailure::DEADLINE, "stop-deadline", now);
+        return;
+    }
+    const uint8_t kind = endFailure_ != RouteFailure::NONE ? 2 : p.stopKind;
+    startStop(kind, p.stopDeadlineMs, p.bestEffortMs, p.stopIntervalMs, context_.read, now);
+}
+// Probe admission is a disabled-state experiment, independent of enabled mode-change claims.
+// A latched running bit is admitted only beside repeated stationary position and released reports.
+const char* BenchRoute::checkModeProbe() const noexcept {
+    if (const char* why = predecessor(STEP_MODE_WRITE))
+        return why;
+    if (!record_.firstPresent)
+        return "snapshot";
+    const RouteSnapshot* const reads[] = {&record_.first, &record_.check};
+    for (const RouteSnapshot* s : reads) {
+        if ((s->blocks & FULL) != FULL)
+            return "snapshot";
+        if (s->errorRegister)
+            return "error-register";
+        if (s->errorCode)
+            return "fault-code";
+        if (s->monitor & L::MONITOR_ALARM)
+            return "alarm";
+        if (!(s->monitor & L::MONITOR_RELEASED))
+            return "unreleased";
+        if ((s->statusword & L::STATUS_LOW_BITS) > 1)
+            return "status";
+        if (s->velocity)
+            return "velocity";
+        if (s->mode != 0 && !probeMode(s->mode))
+            return "mode";
+    }
+    if (record_.first.position != record_.check.position)
+        return "position";
+    if (record_.first.mode != record_.check.mode)
+        return "mode";
+    return nullptr;
+}
+const char* BenchRoute::checkModeProbeCycle(const RouteSnapshot& s) const noexcept {
+    if ((s.blocks & IMAGE) != IMAGE)
+        return "snapshot";
+    if ((s.blocks & ERROR_STATE) && s.errorRegister)
+        return "error-register";
+    if ((s.blocks & ERROR_STATE) && s.errorCode)
+        return "fault-code";
+    if (!(s.monitor & L::MONITOR_RELEASED))
+        return "unreleased";
+    if ((s.statusword & L::STATUS_LOW_BITS) > 1)
+        return "status";
+    if (s.velocity)
+        return "velocity";
+    if (s.position != record_.check.position)
+        return "position";
+    if ((s.monitor & L::MONITOR_RUNNING) && !(record_.check.monitor & L::MONITOR_RUNNING))
+        return "running";
+    // Any displayed mode is evidence, including an ignored candidate; no motion capability opens.
     return nullptr;
 }
 // VELOCITY's own fail-closed check before the library's, which judges released standstill, alarm, the
@@ -2760,6 +3046,13 @@ void BenchRoute::startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffor
     policy.options.maximumAgeUs = 7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
     policy.deadlineUs = now + uint64_t(deadlineMs) * 1000;
     policy.bestEffortDeadlineUs = bestEffortMs ? now + uint64_t(bestEffortMs) * 1000 : 0;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE) {
+        if (policy.deadlineUs > record_.changeStopEndUs)
+            policy.deadlineUs = record_.changeStopEndUs;
+        const uint64_t bestEnd = record_.changeStopDueUs + uint64_t(bestEffortMs) * 1000;
+        if (policy.bestEffortDeadlineUs > bestEnd)
+            policy.bestEffortDeadlineUs = bestEnd;
+    }
     // An attended STOP line may take the one experiment 000B of a drive a velocity HALT left halted (S18).
     policy.attendedExperiment = record_.plan.kind == RouteKind::STOP && record_.plan.attended;
     record_.stopRequestKind = kind;
@@ -2774,8 +3067,14 @@ void BenchRoute::startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffor
             finish(RouteFailure::REFUSED, "deadline", now);
         return;
     }
-    const StopPath path = axis().requestStop(kind == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP,
-                                             state, policy, now);
+    StopPath path = axis().requestStop(kind == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP,
+                                      state, policy, now);
+    if (path == StopPath::NONE && record_.plan.kind == RouteKind::POSITION_CHANGE && kind == 1) {
+        // The explicit pre-reserved fallback is one 000B when a failed/read-uncertain change prevents HALT.
+        // Its deadline is the same fixed upper bound; neither a new enable nor a replay is involved.
+        record_.stopRequestKind = 2;
+        path = axis().requestStop(L::StopKind::QUICK_STOP, state, policy, now);
+    }
     record_.stopPathRequested = uint8_t(path);
     if (path == StopPath::NONE) {
         // Even a refused stop ends an active move; its in-flight request settles into the move.
@@ -2935,7 +3234,8 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     // library writes as 60FF's two's complement I32, with the line's rpm as the reverse range; the library
     // ends the run on a 606C of the other sign from the enable report on. It claims nothing (Q03 open).
     evidence.reverseProbe = p.reverse;
-    evidence.maximumForwardRpm = p.rpm;
+    evidence.maximumForwardRpm = p.kind == RouteKind::VELOCITY_CHANGE && p.newPositiveRpm > p.rpm
+                                     ? p.newPositiveRpm : p.rpm;
     evidence.maximumReverseRpm = p.reverse ? p.rpm : 0;
     M::FiniteVelocityRequest& request = w.velocityRequest;
     request.velocity.value = M::Rational(p.reverse ? -int64_t(p.rpm) : int64_t(p.rpm));
@@ -2949,7 +3249,8 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     options.service.queueTimeoutUs = ROUTE_QUEUE_US;
     options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
     options.pollIntervalUs = uint64_t(p.intervalMs) * 1000;
-    options.maxPolls = velocityPolls(p);
+    // The scheduled change adds one immediate observation cycle; reserve it before preparation.
+    options.maxPolls = velocityPolls(p) + (p.kind == RouteKind::VELOCITY_CHANGE ? 1u : 0u);
     // The admission read is nine fields at the route budgets, and each cycle seven; the library's stop
     // reserve is its own minimum, eight services, and every enable word waits its 10 ms.
     options.maximumAgeUs = 9 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
@@ -3024,7 +3325,9 @@ void BenchRoute::startHome(uint64_t now) noexcept {
     axisConfig.nativeVelocityTime = M::TimeUnit::MINUTE;
     M::AxisReference& reference = moveReferences_[slot()];
     reference.nativeKnown = reference.idle = reference.stationary = false;
-    const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeStopDueUs < deadline)
+        deadline = record_.changeStopDueUs;
     const M::Status status = axis().requestHome(w.observer, identity_, w.prior, context_, evidence, request,
                                                 axisConfig, reference, options, deadline, now);
     if (status) {
@@ -3096,7 +3399,9 @@ void BenchRoute::startSettings(uint64_t now) noexcept {
         else
             io.invertedInputs = uint16_t(p.code == 3 ? io.invertedInputs | 1u << DI3 : io.invertedInputs & ~(1u << DI3));
     }
-    const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeStopDueUs < deadline)
+        deadline = record_.changeStopDueUs;
     const uint32_t operation = deadline > now ? axis().beginOperation(deadline, now) : 0;
     if (!operation) {
         finish(RouteFailure::INVALIDATED, "session", now);
@@ -3351,7 +3656,9 @@ bool BenchRoute::startObserverRead(uint8_t mask, uint64_t now) noexcept {
     L::ReadTarget target;
     target.channel = *channel;
     target.nodeGeneration = node->route.generation;
-    const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.changeStopDueUs < deadline)
+        deadline = record_.changeStopDueUs;
     const uint32_t operation = deadline > now ? observerAxis().beginOperation(deadline, now) : 0;
     if (!operation)
         return false;
@@ -3544,11 +3851,45 @@ void BenchRoute::serviceAction(uint64_t now) noexcept {
         return;
     }
     if (record_.velocityRequested) {
+        const L::VelocityContext& running = axis().velocityAction();
+        if (record_.plan.kind == RouteKind::VELOCITY_CHANGE && !record_.velocityChangeAttempted &&
+            running.state == M::ActionState::ACTIVE && running.phase == L::VelocityPhase::WAITING &&
+            running.observation == L::VelocityObservation::RUNNING && running.runningObserved &&
+            running.runningPolls > 0 && running.latest.present &&
+            running.latest.latestUs >= running.startedUs + uint64_t(record_.plan.changeAfterMs) * 1000 &&
+            running.latest.earliestUs <= now && running.latest.latestUs <= now &&
+            now - running.latest.earliestUs <= running.options.maximumAgeUs && now < running.stopDueUs) {
+            // WAITING also follows the final-enable observation. With a long poll interval that sample
+            // can be stale when the requested change time arrives: wait for a new complete RUNNING
+            // cycle at/after that time before consuming the one permitted change attempt.
+            record_.velocityChangeAttempted = true;
+            M::VelocityRequest request;
+            request.value = M::Rational(int64_t(record_.plan.newPositiveRpm));
+            request.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
+            request.configurationGeneration = running.axis.binding.configurationGeneration;
+            L::VelocityChangeEvidence evidence;
+            evidence.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
+            evidence.record = record_.plan.record;
+            evidence.model = running.evidence.model;
+            evidence.firmware = running.evidence.firmware;
+            evidence.maximumForwardRpm = running.evidence.maximumForwardRpm;
+            const M::Status status = axis().requestVelocityChange(request, evidence, now);
+            record_.velocityChangeAccepted = status.isOk();
+            if (!status) {
+                record_.statusPresent = true;
+                record_.statusCode = uint8_t(status.code);
+                record_.statusDetail = status.detail;
+                record_.statusMessage = status.msg ? status.msg : "";
+                endAfterSettling(RouteFailure::REFUSED, "velocity-change");
+            }
+        }
         // The run, then the stop it asked for, settle in the session; a stop still in flight ends first.
         if (axis().velocityActive() || axis().stopActive())
             return;
         const L::VelocityContext& v = axis().velocityAction();
         record_.cycles = uint16_t(v.observations > UINT16_MAX ? UINT16_MAX : v.observations);
+        if (record_.plan.kind == RouteKind::VELOCITY_CHANGE && !record_.velocityChangeAttempted)
+            endAfterSettling(RouteFailure::REFUSED, "change-window");
         // Backlog S16 (trial 1009 left node 1 turning until the attendant opened the cutoff): a run whose
         // own stop could not be composed, such as after word 15's reply was lost, ends with the session's
         // needs-stop signal up and no stop of the run sent. The route acts on that signal once, before the
@@ -3561,8 +3902,9 @@ void BenchRoute::serviceAction(uint64_t now) noexcept {
         if (!stopAttempted_ && v.startedUs >= record_.velocityRequestedUs && axis().velocityNeedsStop() &&
             v.stopExecution == M::ActionExecution::NOT_TRANSMITTED &&
             v.interruption != M::VelocityInterruption::DRIVE_FAULT) {
-            const uint32_t span = record_.plan.deadlineMs - record_.plan.durationMs; // Validated positive.
-            const uint64_t left = cutoffUs_ > now ? (cutoffUs_ - now) / 1000 : 0;
+            const uint32_t span = record_.plan.deadlineMs - record_.plan.durationMs;
+            const uint64_t end = v.deadlineUs < cutoffUs_ ? v.deadlineUs : cutoffUs_;
+            const uint64_t left = end > now ? (end - now) / 1000 : 0;
             const uint32_t ms = left < span ? uint32_t(left) : span;
             if (!ms) {
                 // Nothing left to stop in: the record says so, and TRIAL_STOP shows that nothing left.
@@ -3652,11 +3994,14 @@ void BenchRoute::serviceObserve(uint64_t now) noexcept {
         serviceRead(now);
         return;
     }
+    if (record_.plan.kind == RouteKind::POSITION_CHANGE && record_.cycles >= record_.plan.cycles)
+        return;
     if (now < nextCycleUs_)
         return;
     // P2's named fresh set includes 1001 and 603F; DEC-1 keeps them single reads, so only the
     // first cycle after the 6060 write reads them.
-    const bool first = (record_.plan.kind == RouteKind::MODE_ONE || record_.plan.kind == RouteKind::MODE_THREE) &&
+    const bool first = (record_.plan.kind == RouteKind::MODE_ONE || record_.plan.kind == RouteKind::MODE_THREE ||
+                        record_.plan.kind == RouteKind::MODE_PROBE) &&
                        record_.cycles == 0;
     cycleStartUs_ = now;
     if (!startRead(READ_STATE, first ? FULL : IMAGE, now))
@@ -3690,6 +4035,8 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
     const bool releasedModeOne = p.kind == RouteKind::MODE_ONE && record_.firstPresent;
     if (s.monitor & L::MONITOR_ALARM)
         why = "alarm";
+    else if (p.kind == RouteKind::MODE_PROBE)
+        why = checkModeProbeCycle(s);
     else if (releasedModeOne)
         why = checkModeOneCycle(s);
     else if (p.kind == RouteKind::MODE_ONE || p.kind == RouteKind::MODE_THREE) {
@@ -3720,6 +4067,14 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
             finish(RouteFailure::NONE, "none", now);
         else
             finish(RouteFailure::OBSERVATION, "mode", now);
+        return;
+    }
+    if (p.kind == RouteKind::POSITION_CHANGE) {
+        if ((steps_[stepIndex_].arg == OBSERVE_BEFORE_CHANGE && record_.cycles == p.changeAfterCycle) ||
+            steps_[stepIndex_].arg == OBSERVE_AFTER_FALL)
+            nextStep(now);
+        const uint64_t next = cycleStartUs_ + uint64_t(p.intervalMs) * 1000;
+        nextCycleUs_ = next > now ? next : now;
         return;
     }
     if (writesPosition(p.kind) && p.stopKind && record_.cycles == p.stopAfter) {
@@ -3789,8 +4144,10 @@ unsigned BenchRoute::summaryCount() const noexcept {
         count += 2;
     // VELOCITY: the host's evidence; once requested, the run, its timing, its enable report window and
     // five kept samples.
-    if (r.plan.kind == RouteKind::VELOCITY)
+    if (isVelocity(r.plan.kind))
         count += 1 + (r.velocityRequested ? 3 + VELOCITY_SAMPLES : 0);
+    if (r.plan.kind == RouteKind::POSITION_CHANGE || r.plan.kind == RouteKind::VELOCITY_CHANGE)
+        ++count;
     if (r.plan.kind == RouteKind::MOVE)
         count += 1 + (r.moveRequested ? 1 + MOVE_SAMPLES : 0);
     if (r.enableRequested)
@@ -3805,6 +4162,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     const RoutePlan& p = r.plan;
     if (index == 0) {
         switch (p.kind) {
+        case RouteKind::VELOCITY_CHANGE:
         case RouteKind::VELOCITY:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu dur=%lu interval=%lu "
@@ -3840,6 +4198,22 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(p.attended), unsigned(p.method), static_cast<unsigned long>(p.searchRpm),
                        static_cast<unsigned long>(p.creepRpm), static_cast<unsigned long>(p.homeRampMs),
                        static_cast<long>(p.offset));
+        case RouteKind::POSITION_CHANGE:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld target=%ld rpm=%lu "
+                       "up=%lu down=%lu case=%u after=%u value=%lu replacement=%ld duration=%lu cycles=%u interval=%lu "
+                       "stop=%u sd=%lu be=%lu si=%lu\n", routeName(p.kind), unsigned(p.node),
+                       static_cast<unsigned long>(p.trial), unsigned(p.attended), static_cast<long>(p.startPosition),
+                       static_cast<long>(p.target), static_cast<unsigned long>(p.rpm), static_cast<unsigned long>(p.rampUpMs),
+                       static_cast<unsigned long>(p.rampDownMs), unsigned(p.changeCase), unsigned(p.changeAfterCycle),
+                       static_cast<unsigned long>(p.changeValue), static_cast<long>(p.replacementTarget),
+                       static_cast<unsigned long>(p.durationMs), unsigned(p.cycles), static_cast<unsigned long>(p.intervalMs),
+                       unsigned(p.stopKind), static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
+                       static_cast<unsigned long>(p.stopIntervalMs));
+        case RouteKind::MODE_PROBE:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u mode=%u cycles=%u interval=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), unsigned(p.modeRaw), unsigned(p.cycles),
+                       static_cast<unsigned long>(p.intervalMs));
         case RouteKind::MODE_ONE:
         case RouteKind::MODE_THREE:
         case RouteKind::RELEASED_QUICK:
@@ -4240,7 +4614,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(r.last.logicalInputs), unsigned(r.homeDirection), unsigned(r.homeSubdivision),
                        unsigned(r.homeAdmitted));
     }
-    if (p.kind == RouteKind::VELOCITY) {
+    if (isVelocity(p.kind)) {
         if (!index--) {
             // The host's record as the firmware received it, and what this route adds: the experiment
             // gate (2, ATTENDED_EXPERIMENT), no start or stop qualification, the line's rpm as the whole
@@ -4253,7 +4627,9 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        "reverse=0 modeChange=0 dt=%08lx hw=%04x sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x "
                        "fc=%04x probe=%u reverseProbe=%u\n",
                        static_cast<unsigned long>(p.record), unsigned(p.layout), unsigned(velocityGate(p)),
-                       unsigned(p.stopKind), static_cast<unsigned long>(p.rpm),
+                       unsigned(p.stopKind),
+                       static_cast<unsigned long>(p.kind == RouteKind::VELOCITY_CHANGE && p.newPositiveRpm > p.rpm
+                                                      ? p.newPositiveRpm : p.rpm),
                        static_cast<unsigned long>(f.deviceType), unsigned(f.hardwareVersion),
                        unsigned(f.softwareVersion), static_cast<unsigned long>(f.vendorId),
                        static_cast<unsigned long>(f.productCode), static_cast<unsigned long>(f.revision),
@@ -4317,6 +4693,22 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
             index -= VELOCITY_SAMPLES;
         }
     }
+    if (p.kind == RouteKind::VELOCITY_CHANGE && !index--) {
+        const L::VelocityContext& run = axis().velocityAction();
+        const bool own = r.velocityRequested && run.startedUs >= r.velocityRequestedUs;
+        const L::VelocityChange& change = run.change;
+        return put(out, size, "TRIAL_VELOCITY_CHANGE rpm=%lu after=%lu attempted=%u admitted=%u present=%u "
+                   "terminal=%u exec=%u possible=%u uncertain=%u failure=%u\n",
+                   static_cast<unsigned long>(p.newPositiveRpm), static_cast<unsigned long>(p.changeAfterMs),
+                   unsigned(r.velocityChangeAttempted), unsigned(r.velocityChangeAccepted), unsigned(own && change.present),
+                   unsigned(own && change.serviceEvidencePresent), unsigned(own ? change.execution : M::ActionExecution::NOT_TRANSMITTED),
+                   unsigned(own && change.effectsPossible), unsigned(own && change.uncertain),
+                   unsigned(own ? change.firstFailure : M::ActionOutcome::NONE));
+    }
+    if (p.kind == RouteKind::POSITION_CHANGE && !index--)
+        return put(out, size, "TRIAL_CHANGE possible=%u started=%u writes=%u due=%llu end=%llu\n",
+                   unsigned(r.changeTriggerPossible), unsigned(r.changeStarted), unsigned(r.changeWrites),
+                   static_cast<unsigned long long>(r.changeStopDueUs), static_cast<unsigned long long>(r.changeStopEndUs));
     if (p.kind == RouteKind::MOVE && !index--) {
         // The host's measurement record as the firmware received it; never a firmware default.
         const L::MoveFirmware& f = p.firmware;
@@ -4415,7 +4807,9 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     }
     return false;
 }
-bool BenchRoute::formatLine(unsigned cursor, char* out, size_t size) const noexcept {
+bool BenchRoute::formatLine(unsigned cursor, char* out, size_t size, bool* lastLine) const noexcept {
+    if (lastLine)
+        *lastLine = false;
     if (!occupied_ || !record_.terminal || !out || !size)
         return false;
     const RouteRecord& r = record_;
@@ -4458,9 +4852,12 @@ bool BenchRoute::formatLine(unsigned cursor, char* out, size_t size) const noexc
     if (tail && index >= r.tailCount) {
         if (index != r.tailCount)
             return false;
-        return put(out, size, "END trial terminals=%u traffic=%u tail=%u tailLost=%u lost=%u; r=release\n",
+        const bool formatted = put(out, size, "END trial terminals=%u traffic=%u tail=%u tailLost=%u lost=%u; r=release\n",
                    unsigned(r.terminalCount), unsigned(r.trafficCount), unsigned(r.tailCount),
                    unsigned(r.tailOverflow), unsigned(r.evidenceLost));
+        if (lastLine)
+            *lastLine = formatted && size > 10 && std::strncmp(out, "END trial ", 10) == 0;
+        return formatted;
     }
     const RouteTraffic& t = tail ? r.tail[index] : r.traffic[index];
     const char* label = tail ? "TAIL" : "TRAFFIC";

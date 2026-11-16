@@ -1,0 +1,9 @@
+PONG target=esp32s2 base=6775a7ffab26bd161227258ca6e8d5d0e0165ad7 elf=7e64e3d4f8177d96591830a3c83694b8128e3a123d6c9b7106df724ce0d51e8c sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=215910965 routes=14 trial=0 motion=3 pdo=6 watch=0 capture=0
+NMT admitted node=2 cmd=128; addressed, no drive-stop claim; network observation separate
+NMT request=2 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=215942969 admitted=215939807; retained; network observation separate
+NMT result released; state/uncertainty retained
+PDO_CONFIG admitted node=2 raw=255; TPDO1 explicit raw only: nine exact reads, one write, nine exact reads; no retry
+PDO failure=1 lost=0 terminals=0 traffic=2 tail=0 tailLost=0 confirmed=0 effects=0 uncertain=0 ackMask=00 cfg=1 migrated=0 gap=2000 node=2 transition=3 raw=255 lastStep=0 effectStep=0 failedStep=0
+TRAFFIC k=0 p=216486968 id=701 ext=0 rtr=0 dlc=1 data=0500000000000000 ok=0 exact=0 t=0 bounds=1 lo=216484182 hi=216485082 epoch=1
+TRAFFIC k=0 p=216807965 id=702 ext=0 rtr=0 dlc=1 data=7f00000000000000 ok=1 exact=0 t=0 bounds=1 lo=216806165 hi=216806812 epoch=1
+END PDO; map readback and sample qualification are separate; r=release

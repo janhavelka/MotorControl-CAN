@@ -211,13 +211,81 @@ struct MoveOptions {
      * queue plus response budgets. */
     uint64_t maximumAgeUs = 0;
 };
+/** One explicit in-motion experiment or independently measured capability. */
+enum class MoveChangeGate : uint8_t {
+    CLOSED, ///< No change may be prepared; the default.
+    MEASURED, ///< Supplied firmware-scoped field, edge, stop and completion qualifications are required.
+    ATTENDED_EXPERIMENT ///< Explicit finite observation scope; no qualification or completion claim.
+};
+/** Project limits for an unqualified replacement experiment; never manufacturer guarantees. */
+constexpr uint32_t MOVE_CHANGE_EXPERIMENT_MAXIMUM_RPM = 60;
+/** Largest new endpoint extension beyond the original, in command increments; project policy. */
+constexpr uint32_t MOVE_CHANGE_EXPERIMENT_MAXIMUM_EXTENSION = 10000;
+/** Maximum original operation duration for an experimental replacement, in microseconds. */
+constexpr uint64_t MOVE_CHANGE_EXPERIMENT_MAXIMUM_DURATION_US = 20000000;
+/** The exact experiment/operation selected; no implicit edge accompanies BARE. */
+enum class MoveReplacementMode : uint8_t {
+    BARE,         ///< Only the selected parameter writes, then observations; experiment only.
+    FALLING_EDGE, ///< Only 000F, then observations; experiment only.
+    IMMEDIATE,    ///< Selected parameters, 000F, a fresh cycle with acceptance absent, then 003F.
+    BUFFERED      ///< Selected parameters, 000F, a fresh cycle with acceptance absent, then 001F.
+};
+/** Selected firmware evidence, independent for every field and edge. A caller retains the source
+ * record. ATTENDED_EXPERIMENT requires every qualification false and never claims completion. */
+struct MoveReplacementEvidence {
+    MoveChangeGate gate = MoveChangeGate::CLOSED; ///< Closed by default.
+    uint32_t record = 0; ///< Nonzero retained measurement or attended experiment identity.
+    SettingsModel model = SettingsModel::UNKNOWN; ///< Must match the original move.
+    MoveFirmware firmware;     ///< Exact tuple frozen by the original measured move.
+    uint8_t parameterMask = 0; ///< Qualified bare staging: bits 0..3 are 607A/6081/6083/6084.
+    bool fallingEdgeQualified = false; ///< 000F during a curve was independently established.
+    bool immediateQualified = false;   ///< 003F edge and fresh acceptance attribution established.
+    bool bufferedQualified = false;    ///< 001F edge and one outstanding target established.
+    /** Original signal rule established for this mode, including that completion of the old curve
+     * cannot qualify the replacement. Required independently for buffered operation. */
+    bool completionQualified = false;
+    bool stopQualified =
+        false; ///< Existing stop behavior established after this edge and ramp change.
+};
+/** Independently measured command-coordinate relation, deliberately limited to equal increments.
+ * command = signed 6064 + commandMinusFeedback. No default asserts that relation. */
+struct MoveFeedbackRelation {
+    uint32_t record = 0;              ///< Nonzero independently retained measurement record.
+    Binding binding;                  ///< Exact logical/configuration identity of that measurement.
+    Generation nodeGeneration = 0; ///< Exact drive boot/route epoch; zero is never current.
+    Generation referenceGeneration = 0; ///< Exact host origin/reference epoch of the measurement.
+    bool sameIncrement = false;       ///< Measurement established equal signed increments.
+    int64_t commandMinusFeedback = 0; ///< Measured origin offset, in command increments.
+};
+/** Bounded explicit replacement intent. Unselected fields must exactly retain their original values.
+ * A changed target is unwrapped absolute and extends the original endpoint in its current direction.
+ * Relative, wrapped, shortened/reversing targets and zero speed/ramps remain refused. */
+struct MoveReplacementRequest {
+    MoveRequest request; ///< Exact absolute target and positive speed.
+    MoveProfile profile; ///< Positive native ramp times; WRITE_ALL and immediateUpdate=false.
+    MoveReplacementMode mode = MoveReplacementMode::BARE; ///< Explicit wire behavior.
+    uint8_t fields =
+        0; ///< Writes selected: 1=607A, 2=6081, 4=6083, 8=6084; zero for FALLING_EDGE only.
+};
+/** Immutable qualification derived from an original's acknowledged WRITE_ALL history. Its timestamps
+ * never renew. It establishes stored values, not physical application or a safe change capability. */
+struct StoredPositionQualification {
+    AxisReservation reservation;      ///< Original continuously held reservation.
+    uint32_t originalOperationId = 0; ///< Original retained context identity.
+    uint32_t values[4] = {}; ///< Original raw 607A/6081/6083/6084, each independently acknowledged.
+    uint32_t steps[4] = {};  ///< Source terminal step per field, not wire transaction identifiers.
+    uint64_t completedUs[4] = {};    ///< Actual source acknowledgement times per field.
+    uint64_t triggerCompletedUs = 0; ///< Original acknowledged trigger boundary.
+    uint8_t acknowledgedMask = 0;    ///< Must be all four; no readback-only promotion.
+};
 /** Concrete phase of an active move. */
 enum class MovePhase : uint8_t {
     PARAMETERS, ///< Current parameter download pending; never replayed.
     TRIGGER,    ///< 6040=001F, or 005F for a relative move, pending; never replayed.
     WAITING,    ///< Next observation cycle due at eligibleUs; beginMoveObservation prepares it.
     OBSERVING,  ///< The borrowed observation read's cycle is in progress.
-    REARM       ///< Completion observed; 6040=000F pending as its own step.
+    REARM,      ///< Completion observed; 6040=000F pending as its own step.
+    CLEAR_EDGE  ///< Explicit replacement 000F; never enable and never a claimed stop.
 };
 /** One observation the move kept, raw. Not an interpretation, standstill or position claim. */
 struct MoveSample {
@@ -309,7 +377,56 @@ struct MoveContext {
     MoveSample acceptance; ///< First cycle reporting acceptance.
     MoveSample absence;    ///< First post-trigger cycle reporting completion absent.
     MoveSample completed;  ///< Cycle whose completion report qualified.
+    MoveRelation relation; ///< Original/replacement association; ordinary moves leave it empty.
+    MoveReplacementEvidence replacementEvidence; ///< Independent field/edge capability record.
+    MoveReplacementMode replacementMode =
+        MoveReplacementMode::BARE;         ///< Meaningful only with relation.
+    MoveFeedbackRelation feedbackRelation; ///< Explicit mapping consumed only by a changed target.
+    int32_t originalTargetNative = 0;      ///< Before-change endpoint for the same-direction check.
+    bool targetChanged = false;            ///< A different 607A consumes feedbackRelation.
+    bool awaitingClearObservation = false; ///< Fresh absent acceptance required before a new edge.
+    CANOPEN::SdoCompletion
+        clearEvidence;         ///< Actual mid-curve 000F terminal, distinct from final rearm.
+    bool clearPresent = false; ///< clearEvidence is meaningful.
+    MoveSample cleared;        ///< Fresh cycle with acceptance absent after clearEvidence.
 };
+/** Derive a stored witness from an active original with four confirmed setup terminals and trigger.
+ * @param[out] output Unchanged on refusal. @param[in] original Retained original, borrowed only.
+ * @param[in] nowUs Nondecreasing processing microseconds. @return Local status; no I/O or qualification. */
+Status prepareStoredPositionQualification(StoredPositionQualification& output,
+                                          const MoveContext& original, uint64_t nowUs) noexcept;
+/** Validate a replacement without changing any context or performing owner work.
+ * @param[in] output Destination used only for overlap checks. @param[in] original Active retained original.
+ * @param[in] stored Independently derived original setup witness. @param[in] live Continuous owner reservation.
+ * @param[in] current Actual current route/epochs. @param[in] evidence Explicit per-field/edge capability.
+ * @param[in] request Exact replacement intent. @param[in] axis Actual current conversion configuration.
+ * @param[in] feedback Explicit measured mapping required only for a different target, null otherwise.
+ * @param[in] operation Distinct increasing identity. @param[in] nowUs Processing microseconds.
+ * @return Atomic local validation. Original deadline/options are inherited, never extended. */
+Status validateMoveReplacement(const MoveContext& output, const MoveContext& original,
+                               const StoredPositionQualification& stored,
+                               const AxisReservation& live, const ReadTarget& current,
+                               const MoveReplacementEvidence& evidence,
+                               const MoveReplacementRequest& request, const AxisConfig& axis,
+                               const MoveFeedbackRelation* feedback, uint32_t operation,
+                               uint64_t nowUs) noexcept;
+/** Prepare one replacement in caller-owned storage. Same inputs/refusals as validateMoveReplacement.
+ * The owner must first retain both results, settle old admitted work, withdraw the old observer with
+ * REPLACED, then use beginOperation on the same reservation and original deadline. A stop request
+ * cancels that handoff even if the stop itself is refused. No service is admitted by this function.
+ * Experiments retain raw observations, never OBSERVED completion or an automatic final rearm.
+ * @param[out] output Replaced only on success; disjoint from all inputs. @param[in] original As validation.
+ * @param[in] stored As validation. @param[in] live As validation. @param[in] current As validation.
+ * @param[in] evidence As validation. @param[in] request As validation. @param[in] axis As validation.
+ * @param[in] feedback As validation. @param[in] operation As validation. @param[in] nowUs As validation.
+ * @return Local status; borrowed inputs are copied where retained. */
+Status prepareMoveReplacement(MoveContext& output, const MoveContext& original,
+                              const StoredPositionQualification& stored,
+                              const AxisReservation& live, const ReadTarget& current,
+                              const MoveReplacementEvidence& evidence,
+                              const MoveReplacementRequest& request, const AxisConfig& axis,
+                              const MoveFeedbackRelation* feedback, uint32_t operation,
+                              uint64_t nowUs) noexcept;
 /** Owned yielded work, not admission or transmission permission. */
 struct PreparedMove {
     CANOPEN::SdoTransfer transfer; ///< Complete copied service when ready.

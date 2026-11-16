@@ -1,0 +1,91 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T02:50:57.787923+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261116-p52/restore-node2-plan.json",
+    "--output",
+    "docs/bench/20261116-p52/112-restore-node2"
+  ],
+  "plan_file": "docs/bench/20261116-p52/restore-node2-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "fac4d1a6f9b15cd8a0f0daa702d96634e72d002e6125311ae21299e01234a4f2"
+  },
+  "host_revision": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "6775a7ffab26bd161227258ca6e8d5d0e0165ad7",
+    "elf": "7e64e3d4f8177d96591830a3c83694b8128e3a123d6c9b7106df724ce0d51e8c",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "215910965",
+    "routes": "14",
+    "trial": "0",
+    "motion": "3",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "terminal_failed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "N2,p",
+      "tx_hex": "4e322c700a",
+      "utc": "2026-11-16T02:50:58.186314+00:00",
+      "monotonic": 357495.031,
+      "reply": "NMT admitted node=2 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 2,
+      "end": "NMT request=2 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=215942969 admitted=215939807; retained; network observation separate",
+      "end_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T02:50:58.214314+00:00",
+      "monotonic": 357495.062,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "J2,255",
+      "tx_hex": "4a322c3235350a",
+      "utc": "2026-11-16T02:50:58.222314+00:00",
+      "monotonic": 357495.078,
+      "reply": "PDO_CONFIG admitted node=2 raw=255; TPDO1 explicit raw only: nine exact reads, one write, nine exact reads; no retry",
+      "reply_line": 5,
+      "end": "END PDO; map readback and sample qualification are separate; r=release",
+      "end_line": 9,
+      "outcome": "terminal_failed",
+      "problem": "pdo_failure_1"
+    }
+  ],
+  "ended_utc": "2026-11-16T02:51:00.223630+00:00",
+  "bytes": 1185
+}

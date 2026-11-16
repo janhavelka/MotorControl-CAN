@@ -554,3 +554,11 @@ node table or production motion context.
 | --- | --- | --- | --- |
 | Health projection, exact counters and reset lifetime | [Owner declarations](../adapters/owner/CanBusOwner.h), [diagnostics](../adapters/owner/CanBusDiagnostics.cpp), single routing hooks in CanBusOwner.cpp | [Native preview](../examples/owner_preview/main.cpp), [health suite](../test/can_bus_health_test.cpp) | Derived application facts only; no installed lifecycle, retry threshold or drive-state interpretation |
 | Saturation and bounded history/resource copies | Private adapters/owner/OwnerCounters.h, owner trace/resources methods | Same suite's extremes, full history and urgent/ordinary interleaving | Current state remains in the existing backend; copies never consume RX or requalify old PDO samples |
+
+## Changes during motion (prompt 52)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
+| --- | --- | --- | --- |
+| One finite positive-native velocity change | Existing [Velocity.h](../include/MotorControlCAN/profiles/lichuan_c/Velocity.h) / Velocity.cpp | AxisSession, ProbeMotion; velocity_change_test and motion_change_console_test | Original stopDue/deadline retained; closed per-firmware gate, no sign/zero changes or replay |
+| Absolute replacement and per-field evidence | Existing [Position.h](../include/MotorControlCAN/profiles/lichuan_c/Position.h) / Position.cpp, common MoveRelation | AxisSession and shared console; move_replacement_test, axis_change_test, move_change_console_test | Original/replacement contexts remain separate; one outstanding; fresh handshake, no guessed queue |
+| Explicit initial measurements | [BenchRoute](../examples/s2_bench/BenchRoute.h), scripts/s2_bench.py | mode_probe_test, position_change_test and transcript/Python regressions | m/p/v routes share the owner; retained raw captures in report52, no production qualification from a successful experiment |

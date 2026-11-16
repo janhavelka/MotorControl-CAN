@@ -418,3 +418,30 @@ gate for that firmware tuple:
 `DriverObservation::velocityTargetRpm`. It retains the I32 bit interpretation;
 general acquisition remains Q20 `UNQUALIFIED`. The earlier one-per-enable
 accepted prerequisite read does not authorize continuous velocity polling.
+
+## Changing a finite run's positive rate
+
+`validateVelocityChange` and `prepareVelocityChange` use the existing
+`VelocityContext`; `nextVelocity`/`advanceVelocity` yield and settle the one
+`60FF` download. `AxisSession::requestVelocityChange` requires a complete fresh
+running cycle and no pending service. The original request, prepared rate,
+`stopDueUs`, deadline and stop reserve are immutable. `change` retains the new
+exact request/rate, its service evidence and subsequent raw reports separately.
+Only one change is retained per run; refusal sends nothing. Its explicit evidence
+record is closed by default (Q25); an experiment claims no qualification.
+
+Both initial and changed native motor rates must be positive and in the admitted scope. A reversed axis polarity can therefore use negative engineering intent while retaining the same positive wire direction.
+Zero, reversal, sign changes, stale bindings, pending stops and unresolved earlier
+writes refuse. A failed change requests the run's already selected stop within
+the original deadline; no write is retried. An acknowledged change keeps the
+actual last controlword available to that stop. The raw first606C report equal
+to the requested rate establishes neither convergence nor physical speed.
+The observation envelope permits values up to the greater of initial/new rates
+while a change settles, avoiding a false overspeed failure during an up/down step.
+Ramp changes are separate Q26 experiments; no physical ramp law is inferred.
+
+The [initial30-to60rpm experiment](reports/prompt_52_measurements.md) retained
+the original timed quick stop. Its raw `6041=C437` occurred with nonzero `606C`
+and running monitor state; bit10 must not be used alone as a mode3 standstill
+indication. These sequential samples establish neither a physical rate nor a
+change-response deadline.

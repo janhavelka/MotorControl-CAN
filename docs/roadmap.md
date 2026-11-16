@@ -4,6 +4,13 @@ The [progress table](prompts/PROGRESS.md) owns each numbered prompt's current
 state and report. This roadmap lists the next work and its dependencies;
 dated implementation and bench history stays in those reports.
 
+## Changes during motion
+
+Prompt52 implements the finite change paths and explicit measurement harness.
+Its source/physical disposition is in [report52](reports/prompt_52.md). Prompt54
+owns finished-operation qualification, including sustained/multi-axis behavior;
+unknown Q22-Q26 facts remain precise gates. No RPDO change delivery is implied.
+
 ## Software candidate
 
 [Prompt49](reports/prompt_49.md) delivers user/package corrections and A-17
@@ -46,7 +53,8 @@ No evidence gap is resolved by a raw accessor, guessed native sequence or fake.
 The [promptset index](prompts/README.md) contains the executable assignments.
 Prompts51-72 remain separate from the prompt50 candidate audit. Prompt51 has
 delivered the host producer and typed TPDO1 experiment; its qualification work
-remains open. Prompt52 owns changes during motion, 53 concurrent
+remains open. Prompt52 delivers gated changes and initial measurements; prompt54 owns their
+finished-operation qualification. Prompt53 owns concurrent
 application axes/group stop, and 55 communication recovery/retry policy.
 The existing configurable adapter capacities do not by themselves implement
 multi-axis application coordination. User-requested features and measurements
