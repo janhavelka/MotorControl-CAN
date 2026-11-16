@@ -18,6 +18,12 @@ scope in [candidate notes](releases/0.1.0.md). Source/installed consumers and
 production multi-drive contrasts are recorded in [prompt46](reports/prompt_46.md).
 N5/EPOS4 fixtures do not constitute additional installed profiles.
 
+[Prompt51](reports/prompt_51.md) adds the finite host SYNC producer and conditional
+TPDO1 transmission-type setting through the same owner and console. It remains
+Partial: Q27 same-cycle sample evidence, Q28 remote RPDO buffering/withdrawal,
+M09 map artifacts and prompt56 throughput for the ten-minute two-axis 10 ms trial
+are still required. The [SYNC guide](sync.md) defines the implemented boundary.
+
 ## Retained earlier work
 
 | Work | Current boundary / next requirement |
@@ -38,8 +44,9 @@ No evidence gap is resolved by a raw accessor, guessed native sequence or fake.
 ## Later feature assignments
 
 The [promptset index](prompts/README.md) contains the executable assignments.
-Prompts51-72 remain separate from this candidate audit. In particular, 51 owns
-reviewed SYNC/synchronous PDO work, 52 changes during motion, 53 concurrent
+Prompts51-72 remain separate from the prompt50 candidate audit. Prompt51 has
+delivered the host producer and typed TPDO1 experiment; its qualification work
+remains open. Prompt52 owns changes during motion, 53 concurrent
 application axes/group stop, and 55 communication recovery/retry policy.
 The existing configurable adapter capacities do not by themselves implement
 multi-axis application coordination. User-requested features and measurements

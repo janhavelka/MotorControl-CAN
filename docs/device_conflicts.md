@@ -142,3 +142,26 @@ record its fixture/firmware scope and limitations, review the canonical ledger
 first, then update affected profile gates, generated declarations, meaningful
 tests, Doxygen and guides together. A measured result for one specimen never
 silently qualifies another Lichuan model, N5 or EPOS4.
+
+## Prompt 51 SYNC evidence gates
+
+Q27 and Q28 are recorded in the canonical ledger before dependent implementation.
+EDS `1005`, `1400:02`..`1403:02`, `1800:02`..`1803:02` establish stored
+width/access/defaults, not supported synchronous behavior. The [source review](reports/prompt_51_sources.md)
+separates original manufacturer claims from CANopenNode/N5 design contrasts.
+
+| Gate | Explicit experiment | Required evidence before qualification |
+| --- | --- | --- |
+| Q27 synchronous TPDO | TPDO1 type 255 to 1, finite host SYNC, separately requested restore to 255; no save | Count, latency and loss on the selected fixture; independently establish same-cycle sample provenance and remote/host retirement. Processing order alone is insufficient. |
+| Q28 synchronous RPDO | Reviewed target-only no-motion map first; controlword start only after M09 review | Buffering, last-wins, event timer, all-RPDO final local TX before SYNC, and actual remote-buffer withdrawal. An asynchronous controlword is not evidence of withdrawal. |
+
+After a possibly buffered start, every later SYNC stays inhibited until the
+reviewed withdrawal boundary is established. Host recovery cannot clear that
+hazard. No present trial qualifies 10 ms operation; the sustained two-axis trial
+also requires prompt 56's throughput work.
+
+P51 bench update (2026-11-16): node 1 accepted the explicit TPDO1 type 255-to-1
+change and restoration. Twenty SYNCs at 100 ms and twenty at 10 ms each produced
+twenty TPDO1 frames. The [retained report](reports/prompt_51.md) separates this
+observed response from Q27's still-open same-cycle and sustained qualification.
+Q28 remains unmeasured; no RPDO was sent.

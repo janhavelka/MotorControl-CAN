@@ -69,7 +69,8 @@ Transport TwaiAdapter::transport() noexcept {
 bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, TransportTxId id,
                           uint32_t epoch) noexcept {
     if (!initialized_ || diagnostics_.inhibited || epoch != epoch_ || serial_ == UINT32_MAX ||
-        !MotorControlCAN::validateFrame(frame))
+        !MotorControlCAN::validateFrame(frame) ||
+        (id.kind == TransportTxId::Kind::SYNC && !id.sync.owner))
         return false;
     for (const auto& slot : slots_)
         if (slot.state != State::FREE && sameTransportTxId(slot.report.id, id))
@@ -82,7 +83,9 @@ bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, TransportTxId id,
             slot.serial = ++serial_;
             slot.state = State::QUEUED;
             // Queued here means no SDK contact yet: no possible effect or response clock.
-            if (id.kind == TransportTxId::Kind::NMT)
+            if (id.kind == TransportTxId::Kind::SYNC)
+                const_cast<CanBusOwner*>(id.sync.owner)->holdSyncHandoff(id.sync);
+            else if (id.kind == TransportTxId::Kind::NMT)
                 services_.holdNmtHandoff(id.nmt);
             else if (id.kind == TransportTxId::Kind::SDO)
                 services_.holdHandoff(id.sdo);
@@ -152,13 +155,22 @@ void TwaiAdapter::promote(CanBusOwner& owner, uint64_t now) noexcept {
     for (auto& slot : slots_) {
         if (slot.state == State::ACTIVE)
             return;
-        if (slot.state == State::QUEUED && (!next || slot.serial < next->serial))
+        if (slot.state != State::QUEUED)
+            continue;
+        // A still-eligible SYNC waits behind urgent work. An expired/conflicted
+        // request must instead reach the proved-unsent report path below.
+        if (slot.report.id.kind == TransportTxId::Kind::SYNC &&
+            owner.canTransmitSync(slot.report.id.sync, now) && !owner.syncTxPriorityReady())
+            continue;
+        if (!next || slot.serial < next->serial)
             next = &slot;
     }
     if (!next)
         return;
     const TransportTxId id = next->report.id;
-    const bool eligible = id.kind == TransportTxId::Kind::NMT
+    const bool eligible = id.kind == TransportTxId::Kind::SYNC
+        ? owner.canTransmitSync(id.sync, now)
+        : id.kind == TransportTxId::Kind::NMT
         ? services_.canTransmitNmt(id.nmt, now)
         : id.kind == TransportTxId::Kind::SDO && services_.canTransmit(id.sdo, now);
     if (!eligible) {
@@ -178,7 +190,9 @@ void TwaiAdapter::promote(CanBusOwner& owner, uint64_t now) noexcept {
         next->state = State::REPORT;
         return;
     }
-    if (id.kind == TransportTxId::Kind::NMT)
+    if (id.kind == TransportTxId::Kind::SYNC)
+        owner.noteSyncSubmitted(id.sync, now);
+    else if (id.kind == TransportTxId::Kind::NMT)
         services_.noteNmtSubmitted(id.nmt, now);
     else if (id.kind == TransportTxId::Kind::SDO)
         services_.noteSubmitted(id.sdo, now);

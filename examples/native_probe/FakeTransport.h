@@ -11,7 +11,7 @@ using MotorControlCANOwner::TransportTxId;
 using MotorControlCANOwner::ReceivedFrame;
 using MotorControlCANOwner::TxReport;
 using MotorControlCANOwner::Transport;
-/** Synthetic server for the configured node 5 expedited identity/config uploads.
+/** Synthetic server for node 5 expedited identity/config uploads and local SYNC TX.
  * One owner alone calls receive. All queued frames/reports own their bytes.
  * Caller serializes methods and supplies nonwrapping time; no clocks or threads.
  * Synthetic raw values imply no real manufacturer, model or firmware identity.
@@ -37,7 +37,7 @@ class FakeTransport {
      * @return False unchanged for invalid input/full queue; no silent eviction.
      */
     bool push(const MotorControlCAN::Frame& frame) noexcept;
-    /** @return Accepted upload handoffs; never writes, NMT or physical evidence. */
+    /** @return Accepted uploads or SYNC handoffs; never drive writes, NMT or physical evidence. */
     unsigned transmitted() const noexcept { return transmitted_; }
     /** @return Every attempted handoff, including atomic refusal; useful for no-I/O checks. */
     unsigned transmitCalls() const noexcept { return transmitCalls_; }

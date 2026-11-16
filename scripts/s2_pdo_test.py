@@ -241,7 +241,7 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="6"), "image_without_pdo_lines"),
+                           (Board(watch=1), "watch_running"), (Board(pdo="7"), "image_without_pdo_lines"),
                            (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
@@ -496,6 +496,140 @@ def config_reply(node=2, raw=100, header=None, drop_result=None, outcome_at=None
                       "epoch=1 txk=0 txr=99 txf=1" % (0x600 + node, extra_tx))
     lines += frames + ["END PDO; map readback and sample qualification are separate; r=release"]
     return ("\n".join(lines) + "\n").encode("ascii")
+
+
+def transmission_reply(node=1, raw=1, header=None, result_changes=None, drop_result=None,
+                       tx=None, extra_tx=None):
+    """Synthetic J record with the actual baseline/core operation and request/step conventions."""
+    head = dict(failure=0, lost=0, terminals=19, traffic=19, tail=0, tailLost=0, confirmed=1, effects=1,
+                uncertain=0, ackMask="01", cfg=2, migrated=1, gap=10, node=node, transition=3, raw=raw,
+                lastStep=10, effectStep=1, failedStep=0)
+    head.update(header or {})
+    lines = ["PDO_CONFIG admitted node=%d raw=%d; TPDO1 explicit raw only: nine exact reads, one write, "
+             "nine exact reads; no retry" % (node, raw),
+             "PDO " + " ".join("%s=%s" % item for item in head.items())]
+    baseline = [0x180 + node, 255 if raw == 1 else 1, 100, 0, 3,
+                0x60410010, 0x60610008, 0x60640020, 0]
+    final = baseline[:]
+    final[1] = raw
+    terminal_fields = []
+    for i in range(19):
+        step = i + 1 if i < 9 else i - 8
+        operation = 31 if i < 9 else 32
+        if i == 9:
+            obj, size, data, direction = "1800:02", 0, "00000000", 1
+        else:
+            slot = i if i < 9 else i - 10
+            obj, size, _ = SNAPSHOT[slot]
+            data = (baseline if i < 9 else final)[slot].to_bytes(4, "little").hex()
+            direction = 0
+        fields = dict(op=operation, req=step if i < 9 else operation, oreq=100 + i, step=step,
+                      object=obj, dir=direction, outcome=0, ack=1, possible=1, uncertain=0,
+                      abort="00000000", cleanup=0, size=size, data=data,
+                      admitted=1000 + 100 * i, completed=1050 + 100 * i, ne=7, reason=0, st="3f")
+        fields.update((result_changes or {}).get(i, {}))
+        terminal_fields.append(fields)
+        if drop_result != i:
+            lines.append("RESULT " + " ".join("%s=%s" % item for item in fields.items()))
+    for i, fields in enumerate(terminal_fields):
+        index, sub = fields["object"].split(":")
+        mux = index[2:] + index[:2] + sub
+        data = (tx or "2f001802" + raw.to_bytes(1, "little").hex() + "000000") if i == 9 else \
+               "40" + mux + "00000000"
+        lines.append("TRAFFIC k=1 p=%d id=%x ext=0 rtr=0 dlc=8 data=%s ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 "
+                     "epoch=1 txk=0 txr=%d txf=1" % (1000 + 100 * i, 0x600 + node, data, 100 + i))
+    if extra_tx:
+        lines.append("TRAFFIC k=1 p=4000 id=%x ext=0 rtr=0 dlc=8 data=%s ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 "
+                     "epoch=1 txk=0 txr=200 txf=1" % (0x600 + node, extra_tx))
+    lines.append("END PDO; map readback and sample qualification are separate; r=release")
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+class TransmissionTypeTest(unittest.TestCase):
+    session = RunTest.session
+
+    @staticmethod
+    def step(node=1, raw=1):
+        return {"send": "J%d,%d" % (node, raw), "expect": "PDO_CONFIG admitted", "end": "END PDO"}
+
+    def test_exact_line_and_checked_terminal_are_required(self):
+        for node in (1, 2):
+            for raw in (1, 255):
+                step = self.step(node, raw)
+                self.assertEqual(pdo.check_plan(plan(step)), [step])
+                self.assertEqual(pdo.encode(step["send"]), (step["send"] + "\n").encode("ascii"))
+        for send in ("J", "J1", "J1,", "J0,1", "J3,1", "J1,0", "J1,2", "J1,254", "J1,256",
+                     "J1,-1", "J1,1 ", "J1,1,", "J1,01", "J01,1", "J1,4294967296"):
+            with self.subTest(send=send), self.assertRaises(pdo.SessionError):
+                pdo.check_plan(plan(dict(self.step(), send=send)))
+        for change in ({"expect": "PDO_CONFIG"}, {"end": "END raw"}, {"end": None}):
+            with self.assertRaises(pdo.SessionError):
+                pdo.check_plan(plan(dict(self.step(), **change)))
+        for after in (self.step(2), {"send": "r", "expect": "RELEASED record"}):
+            with self.assertRaises(pdo.SessionError):
+                pdo.check_plan(plan(self.step(), after))
+
+    def test_old_protocols_are_never_sent_a_j_line(self):
+        for version in ("1", "2", "3", "4", "5"):
+            board = Board(pdo=version)
+            code, meta, _ = self.session(board, [self.step()])
+            self.assertEqual((code, meta["reason"]), (1, "image_without_pdo_config"))
+            self.assertEqual(board.writes, [b"p"])
+
+    def test_both_nodes_and_restoration_use_only_explicit_steps(self):
+        for node in (1, 2):
+            steps = [self.step(node), {"send": "r", "expect": "PDO record released"}, self.step(node, 255)]
+            command = ("J%d,1\n" % node).encode("ascii")
+            restore = ("J%d,255\n" % node).encode("ascii")
+            board = Board({command: transmission_reply(node), restore: transmission_reply(node, 255),
+                           b"r": b"PDO record released; configuration/uncertainty retained\n"}, pdo="6")
+            code, meta, _ = self.session(board, steps)
+            self.assertEqual((code, meta["reason"]), (0, "completed"))
+            self.assertEqual(board.writes, [b"p", command, b"r", restore])
+
+    def test_incomplete_or_mismatched_records_stop_before_release_or_later_work(self):
+        cases = [(transmission_reply(header={"transition": 2}), "pdo_wrong_request"),
+                 (transmission_reply(header={"raw": 255}), "pdo_wrong_request"),
+                 (transmission_reply(header={"node": 2}), "pdo_wrong_node"),
+                 (transmission_reply(header={"uncertain": 1}), "pdo_not_confirmed"),
+                 (transmission_reply(header={"tailLost": 1}), "pdo_evidence_incomplete"),
+                 (transmission_reply(drop_result=18), "pdo_results_incomplete"),
+                 (transmission_reply(result_changes={4: {"outcome": 3}}), "pdo_results_incomplete"),
+                 (transmission_reply(result_changes={1: {"data": "01000000"}}), "pdo_baseline_differs"),
+                 (transmission_reply(result_changes={0: {"size": 2}}), "pdo_snapshot_shape_differs"),
+                 (transmission_reply(result_changes={6: {"object": "1a00:03"}}), "pdo_snapshot_shape_differs"),
+                 (transmission_reply(result_changes={12: {"data": "00000000"}}),
+                  "pdo_snapshot_readback_differs"),
+                 (transmission_reply(result_changes={11: {"data": "ff000000"}}), "pdo_readback_differs"),
+                 (transmission_reply(result_changes={9: {"object": "1800:05"}}), "pdo_write_differs"),
+                 (transmission_reply(result_changes={9: {"size": 1}}), "pdo_write_differs"),
+                 (transmission_reply(result_changes={10: {"req": 31}}), "pdo_result_identity_differs"),
+                 (transmission_reply(result_changes={10: {"step": 11}}), "pdo_result_identity_differs"),
+                 (transmission_reply(result_changes={15: {"op": 33}}), "pdo_result_identity_differs"),
+                 (transmission_reply(result_changes={15: {"oreq": 100}}), "pdo_result_identity_differs"),
+                 (transmission_reply(result_changes={15: {"ne": 8}}), "pdo_result_identity_differs"),
+                 (transmission_reply(result_changes={15: {"admitted": 0}}), "pdo_result_evidence_differs"),
+                 (transmission_reply(tx="2f001802ff000000"), "pdo_write_bytes_differ"),
+                 (transmission_reply().replace(b"id=601 ext=0", b"id=601 ext=1", 1),
+                  "pdo_wire_evidence_differs"),
+                 (transmission_reply(extra_tx="2b171000e8030000").replace(
+                     b"p=4000 id=601", b"p=4000 id=602"), "pdo_write_bytes_differ"),
+                 (transmission_reply(extra_tx="2b171000e8030000"), "pdo_write_bytes_differ")]
+        for reply, problem in cases:
+            board = Board({b"J1,1\n": reply}, pdo="6")
+            steps = [self.step(), {"send": "r", "expect": "PDO record released"}, self.step(2)]
+            code, meta, _ = self.session(board, steps)
+            self.assertEqual((code, meta["reason"], meta["steps"][0].get("problem")),
+                             (1, "terminal_failed", problem), problem)
+            self.assertEqual(board.writes, [b"p", b"J1,1\n"], problem)
+
+    def test_a_truncated_record_is_never_followed_by_another_command(self):
+        reply = transmission_reply().rsplit(b"END PDO", 1)[0]
+        board = Board({b"J1,1\n": reply}, pdo="6")
+        code, meta, _ = self.session(board, [dict(self.step(), end_timeout_s=0.1),
+                                             {"send": "r", "expect": "PDO record released"}])
+        self.assertEqual((code, meta["reason"]), (1, "no_end"))
+        self.assertEqual(board.writes, [b"p", b"J1,1\n"])
 
 
 def capture_reply(identity=1, seconds=2, frames=8, reason="duration", stored=2, overflow=0, tap=0, lost=0,
@@ -944,7 +1078,7 @@ class FirmwareTextTest(unittest.TestCase):
         for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
-        self.assertIn("pdo=5", widest)
+        self.assertIn("pdo=6", widest)
         self.assertIn("routes=13", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)

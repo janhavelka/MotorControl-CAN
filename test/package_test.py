@@ -26,7 +26,7 @@ HEADERS = {"MotorControlCAN/Capabilities.h", "MotorControlCAN/Native.h", "MotorC
            "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN/profiles/lichuan_c/Homing.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h", "MotorControlCAN/profiles/lichuan_c/Persistence.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",
-           "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/Version.h",
+           "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/canopen/Sync.h", "MotorControlCAN/Version.h",
            "MotorControlCAN/MotorControlCAN.h",
            "MotorControlCAN/profiles/lichuan_c/Types.h",
            "MotorControlCAN/profiles/lichuan_c/Objects.h",
@@ -120,9 +120,9 @@ def check_package(args, work, summary):
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",
-        "src/Capabilities.cpp", "src/Native.cpp", "src/ActionOperation.cpp", "src/Endpoint.cpp", "src/Discovery.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
+        "src/Capabilities.cpp", "src/Native.cpp", "src/ActionOperation.cpp", "src/Endpoint.cpp", "src/Discovery.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Sync.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
-        "docs/getting_started.md", "docs/commissioning.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
+        "docs/getting_started.md", "docs/commissioning.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:
         require(len(package.namelist()) == len(expected) and set(package.namelist()) == expected,
                 package.namelist())
@@ -232,7 +232,7 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
-        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeConsoleMotion.cpp", "ProbeConsoleText.h", "ProbeMotion.h", "ProbeMotion.cpp", "MotionIntent.h", "MotionIntent.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeSync.h", "ProbeSync.cpp", "ProbeConsoleMotion.cpp", "ProbeConsoleText.h", "ProbeMotion.h", "ProbeMotion.cpp", "MotionIntent.h", "MotionIntent.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp",
                     "ConfigurationRestore.h", "ConfigurationRestore.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
@@ -265,7 +265,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbeAppLocal.cpp common/ProbeConsole.cpp common/ProbeConsoleMotion.cpp common/ProbeMotion.cpp common/MotionIntent.cpp common/ProbeDevice.cpp common/ProbeSettings.cpp common/ProbeCommissioning.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbeAppLocal.cpp common/ProbeConsole.cpp common/ProbeSync.cpp common/ProbeConsoleMotion.cpp common/ProbeMotion.cpp common/MotionIntent.cpp common/ProbeDevice.cpp common/ProbeSettings.cpp common/ProbeCommissioning.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)

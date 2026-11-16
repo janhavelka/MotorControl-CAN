@@ -97,6 +97,13 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
             return false;
         result.eventTimer = uint16_t(value);
         break;
+    case 'J':
+        result.kind = PdoCommandKind::TRANSMISSION_TYPE;
+        if (!node(text, end, result.node) || !comma(text, end) || !number(text, end, value) ||
+            (value != 1 && value != 255))
+            return false;
+        result.transmissionType = uint8_t(value);
+        break;
     case 'C':
         // C0 alone stops; any other line states identity, duration and frame capacity together.
         result.kind = PdoCommandKind::CAPTURE;

@@ -6,6 +6,7 @@
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbeAppLocal.cpp",
     "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeSync.cpp",
     "examples/common/ProbeConsoleMotion.cpp",
     "examples/common/ProbeMotion.cpp",
     "examples/common/MotionIntent.cpp",

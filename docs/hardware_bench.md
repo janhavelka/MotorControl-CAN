@@ -1341,3 +1341,28 @@ Host tests, firmware compilation and readback are different evidence. Missing
 hardware does not prevent independent software work, and no fake result closes
 a physical qualification requirement. Follow [COMMON](prompts/COMMON.md) and
 retain the precise feature gates in [the backlog](backlog.md).
+
+## P51 SYNC bench refresh, 2026-11-16
+
+The [P51 report](reports/prompt_51.md) records a new S2 image flashed through
+ESP-Prog2 COM15 (USB serial `94A990398B40`), with its exact input and ELF hashes.
+Both CL86-C nodes at 1 Mbit/s answered fresh identity, complete communication
+configuration, status, monitor and feedback reads. Raw identity remains
+`1009=0C`, `100A=20`, `2000=0400`, `2001=0200`; these bytes are not a decoded
+manufacturer firmware version. No new electrical or shaft observation was made.
+
+Node 1 accepted a temporary TPDO1 transmission type 1, emitted twenty frames for
+twenty host SYNCs at each of 100 ms and 10 ms, then accepted an explicit return to
+255. Final reads show all eight PDO types 255 on both nodes; maps remain unchanged.
+The host producer is disarmed and has no retained request. Explicit setup left
+both nodes Operational with `1017=1000 ms`; no save was issued and persistence
+is unmeasured. Final `6041=C050`, mode 3, `2100=0015`, `2101=2102=0`,
+`606C=0` and `6064=16846/16845` match the pre-trial observations.
+
+Final controller counters report zero errors, dropped RX and TX rejection. The
+maximum observed owner service gap was 4259 us; runtime stack high-water evidence
+leaves 5604 of 12288 bytes free. The 5952-byte static known-chain result is only
+a lower bound and does not cover the full SDK/application call graph. UART trace
+backlog and bounded RX timing are retained in the report. These short experiments
+do not qualify sustained timing, simultaneous sample provenance or a common
+motion start. No enable, motion, RPDO, fault clear, save or reset was sent.

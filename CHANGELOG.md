@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Finite host SYNC and conditional TPDO type
+
+- Add a pure fixed-origin finite SYNC schedule, independent owner capacity,
+  final controller TX results and explicit disarm/conflict resolution.
+- Carry SYNC through the existing TWAI path after urgent work, with queued
+  retirement, immutable terminal outcomes and no replay after recovery.
+- Add shared finite console commands and the isolated TPDO1 type1/255 setting,
+  exact readback and retained partial effects. Existing typed communication
+  reads cover the requested SYNC/PDO objects.
+- Keep same-cycle sample provenance and buffered RPDO starts gated by Q27/Q28;
+  correct the assumption that an asynchronous controlword clears a pending RPDO.
+
 ### Independent software-candidate review
 
 - Quote relative CMake `-D` path arguments so the README works in PowerShell.

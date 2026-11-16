@@ -230,6 +230,11 @@ OwnerResources CanBusOwner::resources() const noexcept {
     value.traceUsed = traceCount_;
     value.inhibited = inhibited_;
     value.recoveryPending = recoveryOccupied_ && !recoveryTerminal_;
+    value.syncArmed = syncArmed_;
+    value.syncConflict = syncConflict_;
+    value.syncPending = syncOccupied_ && !syncTerminal_;
+    value.syncRetained = syncOccupied_ && syncTerminal_;
+    value.syncTxPending = syncExternal_.pending || syncExternal_.blocked;
     value.nmtRetained = nmtOccupied_ && services_.nmtResult(nmtId_);
     value.nmtPending = nmtOccupied_ && !value.nmtRetained;
     value.nmtTxPending = nmtExternal_.pending || nmtExternal_.blocked;

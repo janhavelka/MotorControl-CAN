@@ -50,7 +50,7 @@ FILES = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
     "docs/native_application.md",
     "platformio.ini",
     "scripts/check_firmware.py",
@@ -61,6 +61,7 @@ FILES = {
     "test/esp_probe_platform_test.cpp",
     "test/firmware_build_test.py",
     "examples/common/firmware_sources.json",
+    "examples/common/ProbeSync.h", "examples/common/ProbeSync.cpp", "test/probe_sync_console_test.cpp",
     "examples/common/FirmwareProbe.h",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/FirmwareBoard.h",
@@ -113,6 +114,7 @@ FILES = {
     "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
     "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
     "test/sdo_reconciliation_test.cpp",
+    "include/MotorControlCAN/canopen/Sync.h", "src/canopen/Sync.cpp", "test/sync_test.cpp", "test/sync_owner_test.cpp",
     "include/MotorControlCAN/canopen/Network.h", "src/canopen/Network.cpp", "test/network_codec_test.cpp", "test/network_events_test.cpp",
     "adapters/canopennode/NetworkState.h", "adapters/canopennode/Network.cpp",
     "adapters/canopennode/Nmt.h", "adapters/canopennode/Nmt.cpp", "test/nmt_codec_test.cpp", "test/nmt_services_test.cpp",
@@ -186,7 +188,7 @@ FILES = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 EXPORTS = ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md"]
+           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md"]
 
 
 class RepositoryTests(unittest.TestCase):
@@ -205,7 +207,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "fieldcore_consumer", "combined_contract", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "sync", "sync_owner", "probe_sync_console", "fieldcore_consumer", "combined_contract", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

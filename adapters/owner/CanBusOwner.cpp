@@ -426,6 +426,7 @@ bool CanBusOwner::mayHaveTransmitted(RequestId id) const noexcept {
     return slot.submitted && services_.transmissionPossible(slot.native);
 }
 void CanBusOwner::expire(uint64_t now) noexcept {
+    expireSync(now);
     for (unsigned i = 0; i < TOTAL_REQUESTS; ++i) {
         const Slot& slot = slots_[i];
         if (!slot.occupied || slot.terminal)
@@ -584,12 +585,14 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             if (!transport_.takeTxReport(transport_.context, report))
                 break;
             if (report.controllerEpoch != controllerEpoch_ ||
-                (report.id.kind != TransportTxId::Kind::SDO && report.id.kind != TransportTxId::Kind::NMT) ||
+                (report.id.kind != TransportTxId::Kind::SDO && report.id.kind != TransportTxId::Kind::NMT &&
+                 report.id.kind != TransportTxId::Kind::SYNC) ||
                 (report.id.kind == TransportTxId::Kind::SDO &&
                  report.id.sdo.request.channel >= C::SdoClient::CHANNELS))
                 continue;
-            ExternalTx& tx = report.id.kind == TransportTxId::Kind::NMT
-                ? nmtExternal_ : external_[report.id.sdo.request.channel];
+            ExternalTx& tx = report.id.kind == TransportTxId::Kind::SYNC ? syncExternal_
+                : report.id.kind == TransportTxId::Kind::NMT ? nmtExternal_
+                : external_[report.id.sdo.request.channel];
             if (!tx.pending || !sameTransportTxId(tx.id, report.id))
                 continue;
             if (report.transmitted)
@@ -606,7 +609,21 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             tx = ExternalTx(); // A matching final report proves this exact local frame is retired.
             if (report.id.kind == TransportTxId::Kind::SDO)
                 services_.noteTxRetired(report.id.sdo);
-            if (report.id.kind == TransportTxId::Kind::NMT) {
+            if (report.id.kind == TransportTxId::Kind::SYNC) {
+                if (validSync(report.id.sync) && !syncTerminal_) {
+                    if (report.transmitted) {
+                        sync_.service.transmissionPossible = true;
+                        sync_.service.transmissionConfirmed = true;
+                        finishSync(C::SyncOutcome::LOCAL_TX, now);
+                    } else if (report.provedUnsent) {
+                        sync_.service.transmissionPossible = false;
+                        finishSync(C::SyncOutcome::REFUSED, now);
+                    } else {
+                        sync_.service.transmissionPossible = true;
+                        finishSync(C::SyncOutcome::TRANSPORT_ERROR, now);
+                    }
+                }
+            } else if (report.id.kind == TransportTxId::Kind::NMT) {
                 if (report.transmitted)
                     services_.confirmNmtTx(report.id.nmt, now);
                 else if (report.provedUnsent)
@@ -635,7 +652,9 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
                 (!frame.receivedTimeKnown || frame.receivedUs <= now) &&
                 (!frame.receiveBoundsKnown || (frame.receivedEarliestUs <= frame.receivedLatestUs &&
                                                frame.receivedLatestUs <= now))) {
-                if (frame.receivedTimeKnown)
+                if (observeSync(frame, now))
+                    accepted = true;
+                else if (frame.receivedTimeKnown)
                     accepted = services_.receive(frame.frame, frame.receivedUs, now);
                 else if (frame.receiveBoundsKnown)
                     accepted = services_.receive(frame.frame, frame.receivedEarliestUs,
@@ -672,6 +691,10 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         ++sent;
         collect();
         expire(now);
+        settleExternal(now, budget.events != 0);
+    }
+    if (sent < tx && transmitSync(now)) {
+        ++sent;
         settleExternal(now, budget.events != 0);
     }
     const uint8_t firstChannel = nextChannel_;
@@ -738,7 +761,8 @@ bool CanBusOwner::nmtBlocks(const Binding& binding) const noexcept {
         (nmtTransfer_.broadcast || peer(binding, nmtTransfer_.target.binding));
 }
 bool CanBusOwner::canTransmit(TransportTxId id, uint64_t now) const noexcept {
-    return id.kind == TransportTxId::Kind::NMT ? services_.canTransmitNmt(id.nmt, now) :
+    return id.kind == TransportTxId::Kind::SYNC ? canTransmitSync(id.sync, now) :
+        id.kind == TransportTxId::Kind::NMT ? services_.canTransmitNmt(id.nmt, now) :
         id.kind == TransportTxId::Kind::SDO && services_.canTransmit(id.sdo, now);
 }
 void CanBusOwner::settle(ExternalTx& tx, uint64_t now, bool allowCallback) noexcept {
@@ -758,6 +782,200 @@ void CanBusOwner::settleExternal(uint64_t now, bool allowCallback) noexcept {
     for (ExternalTx& tx : external_)
         settle(tx, now, allowCallback);
     settle(nmtExternal_, now, allowCallback);
+    settle(syncExternal_, now, allowCallback);
+}
+bool CanBusOwner::validSync(SyncRequestId id) const noexcept {
+    return syncOccupied_ && id.owner == this && id.generation &&
+           id.generation == sync_.id.generation;
+}
+bool CanBusOwner::syncRoutesCompatible() const noexcept {
+    for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
+        const auto* route = services_.channel(uint8_t(i));
+        const auto* node = services_.node(uint8_t(i));
+        if ((route && (route->clientToServerId == 0x80 || route->serverToClientId == 0x80)) ||
+            (node && (node->route.heartbeatId == 0x80 || node->route.emcyId == 0x80))) return false;
+    }
+    for (unsigned i = 0; i < C::SdoClient::PDO_ROUTES; ++i) {
+        const auto* record = services_.pdo(uint8_t(i));
+        if (record && !record->map.route.extended && record->map.route.cobId == 0x80) return false;
+    }
+    return true;
+}
+bool CanBusOwner::armSync(uint32_t cobId, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || inhibited_ || !identity_ || !transport_.transmit ||
+        cobId != 0x80 || syncArmGeneration_ == UINT32_MAX || syncConflict_ || syncOccupied_ || syncExternal_.pending ||
+        syncExternal_.blocked || !syncRoutesCompatible() ||
+        services_.controllerState() == C::ControllerState::BUS_OFF ||
+        services_.controllerState() == C::ControllerState::RECOVERING) return false;
+    lastUs_ = now;
+    ++syncArmGeneration_;
+    syncArmed_ = true;
+    return true;
+}
+bool CanBusOwner::disarmSync(uint64_t now) noexcept {
+    if (entered_ || now < lastUs_) return false;
+    const detail::EnteredScope entered(entered_);
+    lastUs_ = now;
+    expireSync(now);
+    syncArmed_ = false;
+    syncDisarmOutcome_ = C::SyncOutcome::CANCELLED;
+    finishSync(C::SyncOutcome::CANCELLED, now);
+    settleExternal(now, true);
+    return true;
+}
+bool CanBusOwner::resolveSyncConflict(uint32_t evidenceId, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !evidenceId || syncArmed_ || syncOccupied_ ||
+        syncExternal_.pending || syncExternal_.blocked) return false;
+    lastUs_ = now;
+    syncResolutionEvidence_ = evidenceId;
+    syncConflict_ = false;
+    return true;
+}
+BusAdmission CanBusOwner::admitSync(const C::SyncWork& work, uint64_t now,
+                                  SyncRequestId& output) noexcept {
+    if (entered_ || now < lastUs_ || !identity_ || !transport_.transmit || !work.available ||
+        !work.generation || work.dueUs > now || work.expiresUs <= work.dueUs ||
+        !C::checkSyncFrame(work.frame, 0x80) ||
+        overlap(&output, sizeof output, this, sizeof *this) ||
+        overlap(&output, sizeof output, &services_, sizeof services_) ||
+        overlap(&output, sizeof output, &work, sizeof work)) return BusAdmission::INVALID;
+    if (now >= work.expiresUs) return BusAdmission::EXPIRED;
+    if (!syncArmed_ || syncConflict_ || inhibited_ || syncExternal_.pending ||
+        syncExternal_.blocked || !syncRoutesCompatible()) return BusAdmission::INHIBITED;
+    if (syncOccupied_) return BusAdmission::RESULTS_FULL;
+    if (lastId_ == UINT32_MAX) return BusAdmission::IDS_EXHAUSTED;
+    SyncTerminal candidate;
+    candidate.id.owner = this;
+    candidate.id.generation = ++lastId_;
+    candidate.work = work;
+    candidate.service.generation = work.generation;
+    candidate.service.slot = work.slot;
+    candidate.admittedUs = now;
+    sync_ = candidate;
+    syncOccupied_ = true;
+    syncTerminal_ = syncHanded_ = syncHeld_ = false;
+    lastUs_ = now;
+    output = candidate.id;
+    return BusAdmission::ACCEPTED;
+}
+void CanBusOwner::finishSync(C::SyncOutcome outcome, uint64_t now) noexcept {
+    if (!syncOccupied_ || syncTerminal_) return;
+    sync_.service.outcome = outcome;
+    sync_.completedUs = now;
+    syncTerminal_ = true;
+    if (outcome != C::SyncOutcome::LOCAL_TX) {
+        syncArmed_ = false;
+        syncDisarmOutcome_ = outcome;
+    }
+}
+void CanBusOwner::expireSync(uint64_t now) noexcept {
+    if (!syncOccupied_ || syncTerminal_) return;
+    if (now >= sync_.work.expiresUs) finishSync(C::SyncOutcome::MISSED_DEADLINE, now);
+    else if (!syncRoutesCompatible()) finishSync(C::SyncOutcome::INVALIDATED, now);
+}
+bool CanBusOwner::canTransmitSync(SyncRequestId id, uint64_t now) const noexcept {
+    return validSync(id) && !syncTerminal_ && syncArmed_ && !syncConflict_ && !inhibited_ &&
+           now >= lastUs_ && now >= sync_.work.dueUs && now < sync_.work.expiresUs &&
+           syncRoutesCompatible();
+}
+bool CanBusOwner::syncTxPriorityReady() const noexcept {
+    for (unsigned i = REQUESTS; i < TOTAL_REQUESTS; ++i)
+        if (slots_[i].occupied && !slots_[i].terminal) return false;
+    return true;
+}
+bool CanBusOwner::holdSyncHandoff(SyncRequestId id) noexcept {
+    if (!syncHandoffCallback_ || !validSync(id) || syncTerminal_ || !syncHanded_ || !syncExternal_.pending ||
+        syncHeld_) return false;
+    syncHeld_ = true;
+    sync_.service.transmissionPossible = false;
+    return true;
+}
+bool CanBusOwner::noteSyncSubmitted(SyncRequestId id, uint64_t now) noexcept {
+    if (entered_ || !canTransmitSync(id, now) || !syncHanded_ || !syncHeld_ ||
+        !syncTxPriorityReady()) return false;
+    lastUs_ = now;
+    syncHeld_ = false;
+    sync_.service.transmissionPossible = true;
+    return true;
+}
+bool CanBusOwner::withdrawSyncUnsent(SyncRequestId id, uint64_t now) noexcept {
+    if (entered_ || !validSync(id) || now < lastUs_ || syncTerminal_) return false;
+    lastUs_ = now;
+    expireSync(now);
+    if (syncTerminal_) return false;
+    sync_.service.transmissionPossible = false;
+    finishSync(C::SyncOutcome::REFUSED, now);
+    return true;
+}
+bool CanBusOwner::transmitSync(uint64_t now) noexcept {
+    if (!canTransmitSync(sync_.id, now) || syncHanded_ || !syncTxPriorityReady() ||
+        syncExternal_.pending || syncExternal_.blocked || !transport_.transmit) return false;
+    syncHanded_ = true;
+    sync_.handoffUs = now;
+    sync_.service.transmissionPossible = true;
+    syncExternal_ = ExternalTx();
+    syncExternal_.pending = true;
+    syncExternal_.epoch = controllerEpoch_;
+    syncExternal_.id = TransportTxId::fromSync(sync_.id);
+    syncHandoffCallback_ = true;
+    const bool accepted = transport_.transmit(transport_.context, sync_.work.frame,
+                                             syncExternal_.id, controllerEpoch_);
+    syncHandoffCallback_ = false;
+    syncExternal_.rejected = !accepted;
+    if (!accepted) {
+        detail::add(stats_.txRejected);
+        finishSync(C::SyncOutcome::TRANSPORT_ERROR, now);
+    }
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::TX;
+    diagnostic.frame = sync_.work.frame;
+    diagnostic.txId = syncExternal_.id;
+    diagnostic.accepted = accepted;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    trace(diagnostic);
+    return true;
+}
+bool CanBusOwner::observeSync(const ReceivedFrame& frame, uint64_t now) noexcept {
+    const Frame& f = frame.frame;
+    if (f.id != 0x80 || f.extended || f.rtr || f.fd || f.dlc > 1) return false;
+    syncObservation_.present = true;
+    if (syncObservation_.serial != UINT32_MAX) ++syncObservation_.serial;
+    syncObservation_.frame = f;
+    syncObservation_.controllerEpoch = frame.controllerEpoch;
+    C::ObservationTime time;
+    time.present = true;
+    time.receivedTimeKnown = frame.receivedTimeKnown;
+    time.receivedUs = frame.receivedUs;
+    time.receiveBoundsKnown = frame.receiveBoundsKnown;
+    time.receivedEarliestUs = frame.receivedEarliestUs;
+    time.receivedLatestUs = frame.receivedLatestUs;
+    time.processedUs = now;
+    time.generation = controllerEpoch_;
+    syncObservation_.time = time;
+    syncConflict_ = true;
+    syncArmed_ = false;
+    syncDisarmOutcome_ = C::SyncOutcome::PRODUCER_CONFLICT;
+    finishSync(C::SyncOutcome::PRODUCER_CONFLICT, now);
+    return true;
+}
+bool CanBusOwner::cancelSync(SyncRequestId id, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !validSync(id)) return false;
+    const detail::EnteredScope entered(entered_);
+    lastUs_ = now;
+    expireSync(now);
+    const bool won = !syncTerminal_;
+    if (won) finishSync(C::SyncOutcome::CANCELLED, now);
+    settleExternal(now, true);
+    return won;
+}
+const SyncTerminal* CanBusOwner::syncResult(SyncRequestId id) const noexcept {
+    return validSync(id) && syncTerminal_ ? &sync_ : nullptr;
+}
+bool CanBusOwner::releaseSync(SyncRequestId id) noexcept {
+    if (entered_ || !syncResult(id)) return false;
+    syncOccupied_ = false;
+    return true;
 }
 bool CanBusOwner::admitNmt(const C::NmtTransfer& work, uint64_t now,
                             C::NmtRequestId& output) noexcept {
@@ -913,6 +1131,10 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
         cancelSlot(i, CompletionReason::RECOVERY, now);
     for (Reservation& s : sequences_)
         s.invalidated = true;
+    syncArmed_ = false;
+    syncDisarmOutcome_ = C::SyncOutcome::INVALIDATED;
+    expireSync(now);
+    finishSync(C::SyncOutcome::INVALIDATED, now);
     services_.reportController(C::ControllerState::RECOVERING, now);
     collect();
     recovery_ = RecoveryCompletion();
@@ -949,6 +1171,7 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
         for (ExternalTx& tx : external_)
             tx = ExternalTx();
         nmtExternal_ = ExternalTx();
+        syncExternal_ = ExternalTx();
         services_.reportController(C::ControllerState::AVAILABLE, now);
         inhibited_ = false;
     }
@@ -981,6 +1204,12 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     diagnostic.processedUs = now;
     trace(diagnostic);
     if (state != C::ControllerState::AVAILABLE) {
+        expireSync(now);
+        syncArmed_ = false;
+        syncDisarmOutcome_ = state == C::ControllerState::BUS_OFF ? C::SyncOutcome::BUS_OFF
+                                                                : C::SyncOutcome::INVALIDATED;
+        finishSync(state == C::ControllerState::BUS_OFF ? C::SyncOutcome::BUS_OFF
+                                                       : C::SyncOutcome::INVALIDATED, now);
         inhibited_ = true;
         for (Reservation& s : sequences_)
             s.invalidated = true;

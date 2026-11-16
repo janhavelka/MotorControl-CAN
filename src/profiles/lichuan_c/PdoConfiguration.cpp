@@ -7,29 +7,41 @@ namespace MotorControlCAN {
 namespace LICHUAN_C {
 using namespace Detail;
 namespace {
-// The nine-entry snapshot read before and after either transition, in step order.
+// The nine-entry snapshot read before and after each transition, in step order.
 const uint16_t kReadIndex[9] = {0x1800, 0x1800, 0x1800, 0x1800, 0x1a00,
                                 0x1a00, 0x1a00, 0x1a00, 0x1a00};
 const uint8_t kReadSub[9] = {1, 2, 3, 5, 0, 1, 2, 3, 4};
 const uint8_t kReadWidth[9] = {4, 1, 2, 2, 1, 4, 4, 4, 4};
 // Snapshot slots that name fields: 1800:01 COB-ID and 1800:05 event timer.
-const unsigned kCobSlot = 0, kEventSlot = 3;
+const unsigned kCobSlot = 0, kTypeSlot = 1, kEventSlot = 3;
 Status error(ReadError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
 }
 bool literal(Tpdo1EventTimerRaw v) {
     return v == Tpdo1EventTimerRaw::RAW_0 || v == Tpdo1EventTimerRaw::RAW_100;
 }
+bool literal(Tpdo1TransmissionTypeRaw v) {
+    return v == Tpdo1TransmissionTypeRaw::RAW_1 || v == Tpdo1TransmissionTypeRaw::RAW_255;
+}
 // The map change preserves event 0, so its request names RAW_0: one meaning for the field.
 bool validRequest(const Tpdo1ConfigurationRequest& r) {
     return (r.transition == Tpdo1Transition::MAP3_TO_MAP2 &&
-            r.eventTimer == Tpdo1EventTimerRaw::RAW_0) ||
-           (r.transition == Tpdo1Transition::EVENT_TIMER && literal(r.eventTimer));
+            r.eventTimer == Tpdo1EventTimerRaw::RAW_0 &&
+            r.transmissionType == Tpdo1TransmissionTypeRaw::RAW_255) ||
+           (r.transition == Tpdo1Transition::EVENT_TIMER && literal(r.eventTimer) &&
+            r.transmissionType == Tpdo1TransmissionTypeRaw::RAW_255) ||
+           (r.transition == Tpdo1Transition::TRANSMISSION_TYPE &&
+            r.eventTimer == Tpdo1EventTimerRaw::RAW_0 && literal(r.transmissionType));
 }
 bool timer(const Tpdo1ConfigurationContext& c) {
     return c.request.transition == Tpdo1Transition::EVENT_TIMER;
 }
-unsigned writes(const Tpdo1ConfigurationContext& c) { return timer(c) ? 1 : 6; }
+bool transmissionType(const Tpdo1ConfigurationContext& c) {
+    return c.request.transition == Tpdo1Transition::TRANSMISSION_TYPE;
+}
+unsigned writes(const Tpdo1ConfigurationContext& c) {
+    return c.request.transition == Tpdo1Transition::MAP3_TO_MAP2 ? 6 : 1;
+}
 // Writes are steps 1..W, reads W+1..W+9; meaningful in WRITING and READING_BACK only.
 uint8_t step(const Tpdo1ConfigurationContext& c) {
     return uint8_t(c.state == PdoConfigurationState::READING_BACK ? writes(c) + 1 + c.cursor
@@ -108,8 +120,16 @@ bool validBaseline(const CANOPEN::SdoCompletion& e, const AxisReservation& r, un
 // TPDO1 (packet 6 transition record); nothing is defaulted from the EDS.
 bool validBaselineValues(const uint32_t (&v)[9], const Tpdo1ConfigurationRequest& request,
                          const Binding& binding) {
-    if (v[1] != 255 || v[2] != 100 || v[4] != 3 || v[5] != 0x60410010u ||
+    if (v[2] != 100 || v[4] != 3 || v[5] != 0x60410010u ||
         v[6] != 0x60610008u || v[7] != 0x60640020u || v[8] != 0)
+        return false;
+    const uint32_t node = binding.endpoint.address;
+    if (request.transition == Tpdo1Transition::TRANSMISSION_TYPE) {
+        const uint32_t other = request.transmissionType == Tpdo1TransmissionTypeRaw::RAW_1 ? 255 : 1;
+        return node >= 1 && node <= 127 && v[kCobSlot] == 0x180 + node &&
+               v[kTypeSlot] == other && v[kEventSlot] == 0;
+    }
+    if (v[kTypeSlot] != 255)
         return false;
     if (request.transition == Tpdo1Transition::MAP3_TO_MAP2) {
         const uint32_t allowedCob = 0x400007ffu;
@@ -118,11 +138,12 @@ bool validBaselineValues(const uint32_t (&v)[9], const Tpdo1ConfigurationRequest
     // The EDS rule [1800sub1] DefaultValue=$NODEID+0x180 (EDS line 810), valid, standard and with
     // bit 30 clear, as read on nodes 1 and 2. Any other value is another configuration, possibly
     // another node's identifier, and is not changed.
-    const uint32_t node = binding.endpoint.address;
     const uint32_t other = request.eventTimer == Tpdo1EventTimerRaw::RAW_0 ? 100 : 0;
     return node >= 1 && node <= 127 && v[kCobSlot] == 0x180 + node && v[kEventSlot] == other;
 }
 uint32_t expectedValue(const Tpdo1ConfigurationContext& c, unsigned slot) {
+    if (transmissionType(c))
+        return slot == kTypeSlot ? uint32_t(c.request.transmissionType) : c.original[slot];
     if (timer(c))
         return slot == kEventSlot ? uint32_t(c.request.eventTimer) : c.original[slot];
     return slot == 4 ? 2 : slot == 6 ? 0x60640020u : c.original[slot];
@@ -134,7 +155,7 @@ Status publishedLayout(const Tpdo1ConfigurationRequest& request, const Binding& 
     map.direction = CANOPEN::PdoDirection::TPDO;
     map.number = 1;
     map.words[0] = 0x60410010u;
-    if (request.transition == Tpdo1Transition::EVENT_TIMER) {
+    if (request.transition != Tpdo1Transition::MAP3_TO_MAP2) {
         map.count = 3;
         map.words[1] = 0x60610008u;
         map.words[2] = 0x60640020u;
@@ -161,7 +182,12 @@ CANOPEN::SdoTransfer work(const Tpdo1ConfigurationContext& c) {
         return t;
     }
     uint32_t value = 0;
-    if (timer(c)) {
+    if (transmissionType(c)) {
+        t.index = 0x1800;
+        t.subindex = 2;
+        t.size = 1;
+        value = uint32_t(c.request.transmissionType);
+    } else if (timer(c)) {
         t.index = 0x1800;
         t.subindex = 5;
         t.size = 2;
@@ -425,7 +451,7 @@ Status getTpdo1Configuration(const Tpdo1ConfigurationContext& c, const AxisReser
     candidate.evidenceId = evidenceId;
     candidate.communicationKnown = true;
     candidate.cobIdParameter = c.original[kCobSlot];
-    candidate.transmissionType = 255;
+    candidate.transmissionType = uint8_t(expectedValue(c, kTypeSlot));
     output = candidate;
     return Ok();
 }

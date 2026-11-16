@@ -200,6 +200,7 @@ class BenchConsole {
     ProbePlatform platform_; // The console's own byte queue; never the UART's.
     ProbeDevice& device_;
     ProbeConsole& console_;
+    ProbeSync sync_; // Same sole owner; construction is passive.
     char line_[LINE_CAPACITY] = {};
     uint16_t used_ = 0;
     ConsoleLine parsed_; // The classified line; here, not on the stack under the console's dispatch.

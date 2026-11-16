@@ -534,7 +534,7 @@ void timerRequestAndBaselineRejections() {
         CHECK(f.prepare()); // The request form of the existing map change.
         f = Fixture();
         f.legacy = false;
-        f.request.transition = L::Tpdo1Transition(3);
+        f.request.transition = L::Tpdo1Transition(255);
         CHECK(refusedAs(f.prepare(), M::ReadError::ARGUMENT));
     }
     // Baseline values: each case alone leaves the context unchanged with VALUE.
@@ -835,6 +835,208 @@ void timerCancellationDeadlineAndGenerations() {
     f.context.request.eventTimer = L::Tpdo1EventTimerRaw(200);
     CHECK(refusedAs(f.next(out), M::ReadError::STATE));
 }
+// Type 1 is an explicit experiment candidate, not measured firmware behavior.
+Fixture transmissionType(L::Tpdo1TransmissionTypeRaw target = L::Tpdo1TransmissionTypeRaw::RAW_1) {
+    Fixture f;
+    f.legacy = false;
+    f.request.transition = L::Tpdo1Transition::TRANSMISSION_TYPE;
+    f.request.transmissionType = target;
+    setValue(f.baseline[1], target == L::Tpdo1TransmissionTypeRaw::RAW_1 ? 255 : 1);
+    std::memcpy(f.expected, baselineValues, sizeof f.expected);
+    f.expected[1] = uint32_t(target);
+    return f;
+}
+void transmissionTypeSequenceAndRestore() {
+    const L::Tpdo1TransmissionTypeRaw targets[] = {L::Tpdo1TransmissionTypeRaw::RAW_1,
+                                                   L::Tpdo1TransmissionTypeRaw::RAW_255};
+    for (L::Tpdo1TransmissionTypeRaw target : targets) {
+        Fixture f = transmissionType(target);
+        CHECK(f.prepare());
+        // Changing the caller request after preparation cannot alter admitted intent.
+        f.request.transmissionType = L::Tpdo1TransmissionTypeRaw(99);
+        L::PreparedRead p;
+        CHECK(f.next(p) && p.ready);
+        CHECK(p.transfer.direction == C::SdoDirection::DOWNLOAD && p.transfer.step == 1);
+        CHECK(p.transfer.index == 0x1800 && p.transfer.subindex == 2 && p.transfer.size == 1);
+        CHECK(p.transfer.data[0] == uint8_t(target));
+        CHECK(p.transfer.requirePreOperational && p.transfer.channel.binding.configurationGeneration == 7);
+        const uint8_t bytes[8] = {0x2f, 0x00, 0x18, 0x02, uint8_t(target), 0, 0, 0};
+        M::Frame frame;
+        frame.id = 0x601;
+        frame.dlc = frame.payloadLength = 8;
+        std::memcpy(frame.data, bytes, sizeof bytes);
+        C::SdoExpectation expected;
+        expected.channel = p.transfer.channel;
+        expected.index = 0x1800;
+        expected.subindex = 2;
+        expected.width = 1;
+        expected.direction = C::SdoDirection::DOWNLOAD;
+        CHECK(C::checkRequest(frame, expected));
+        // A terminal claiming possible TX without the confidence-withdrawal notice is rejected.
+        const C::SdoCompletion ack = terminal(p.transfer, f.now, 0);
+        const Saved<L::Tpdo1ConfigurationContext> unnoted(f.context);
+        CHECK(!L::advancePdoConfiguration(f.context, f.reservation, f.binding, ack, f.now + 1));
+        unnoted.unchanged(f.context);
+        CHECK(f.notice());
+        CHECK(f.binding.configurationGeneration == 8 && f.context.effectsPossible && f.context.uncertain);
+        CHECK(!f.context.mapConfirmed && f.context.firstEffectStep == 1);
+        f.now += 2;
+        CHECK(L::advancePdoConfiguration(f.context, f.reservation, f.binding, ack, f.now));
+        CHECK(f.context.state == L::PdoConfigurationState::READING_BACK);
+        CHECK(f.context.acknowledgedMask == 1 && !f.context.mapConfirmed);
+        for (unsigned i = 0; i < 9; ++i) {
+            CHECK(f.next(p) && p.ready);
+            CHECK(p.transfer.direction == C::SdoDirection::UPLOAD);
+            CHECK(p.transfer.step == 2 + i && p.transfer.index == readIndex[i]);
+            CHECK(p.transfer.subindex == readSub[i] && p.transfer.size == readWidth[i]);
+            CHECK(p.transfer.channel.binding.configurationGeneration == 8);
+            f.success();
+        }
+        CHECK(f.context.state == L::PdoConfigurationState::SUCCEEDED && !f.context.uncertain);
+        CHECK(f.context.review.scope == L::PdoConfigurationScope::ISOLATED_EXPERIMENT);
+        CHECK(f.context.confirmedStep == 10 && f.context.readback[1] == uint32_t(target));
+        C::PdoMapEvidence map;
+        L::Tpdo1EventTimerRaw event = L::Tpdo1EventTimerRaw::RAW_100;
+        CHECK(L::getTpdo1Configuration(f.context, f.reservation, f.binding, f.now, 12, 42, map, event));
+        CHECK(event == L::Tpdo1EventTimerRaw::RAW_0);
+        CHECK(map.transmissionType == uint8_t(target) && map.cobIdParameter == 0x181);
+        CHECK(map.route.layout.mapping.count == 3 && map.route.layout.payloadLength == 7);
+        CHECK(map.route.layout.mapping.words[1] == 0x60610008);
+        CHECK(map.route.binding.configurationGeneration == 8);
+        CHECK(f.next(p) && !p.ready); // No automatic restoration, save, SYNC or NMT request.
+    }
+    Fixture qualified = transmissionType();
+    qualified.review.scope = L::PdoConfigurationScope::FIXTURE_QUALIFIED;
+    CHECK(qualified.prepare());
+    qualified.prefix(10);
+    CHECK(qualified.context.review.scope == L::PdoConfigurationScope::FIXTURE_QUALIFIED);
+}
+void transmissionTypeAdmissionAndAtomicity() {
+    const uint8_t invalid[] = {0, 2, 240, 241, 252, 254};
+    for (uint8_t v : invalid) {
+        Fixture f = transmissionType();
+        f.request.transmissionType = L::Tpdo1TransmissionTypeRaw(v);
+        const Saved<L::Tpdo1ConfigurationContext> saved(f.context);
+        CHECK(refusedAs(f.prepare(), M::ReadError::ARGUMENT));
+        saved.unchanged(f.context);
+    }
+    for (unsigned which = 0; which < 8; ++which) {
+        Fixture f = transmissionType();
+        if (which == 0) f.review.scope = L::PdoConfigurationScope::UNQUALIFIED;
+        if (which == 1) f.review.fixtureRecord = 0;
+        if (which == 2) f.review.firmwareRecord = 0;
+        if (which == 3) f.review.procedureRecord = 0;
+        if (which == 4) f.review.authorizationRecord = 0;
+        if (which == 5) f.request.eventTimer = L::Tpdo1EventTimerRaw::RAW_100;
+        if (which == 6) f.options.queueTimeoutUs = 0;
+        if (which == 7) f.preOp.present = false;
+        const Saved<L::Tpdo1ConfigurationContext> saved(f.context);
+        CHECK(refusedAs(f.prepare(), M::ReadError::ARGUMENT));
+        saved.unchanged(f.context);
+    }
+    // A complete request is validated: unused fields cannot authorize another effect.
+    Fixture old = timer();
+    old.request.transmissionType = L::Tpdo1TransmissionTypeRaw::RAW_1;
+    CHECK(refusedAs(old.prepare(), M::ReadError::ARGUMENT));
+    old = Fixture();
+    old.legacy = false;
+    old.request.transition = L::Tpdo1Transition::MAP3_TO_MAP2;
+    old.request.transmissionType = L::Tpdo1TransmissionTypeRaw::RAW_1;
+    CHECK(refusedAs(old.prepare(), M::ReadError::ARGUMENT));
+    // Type 1 baselines must not silently expand the existing timer or map workflows.
+    old = timer();
+    setValue(old.baseline[1], 1);
+    CHECK(refusedAs(old.prepare(), M::ReadError::VALUE));
+    old = Fixture();
+    setValue(old.baseline[1], 1);
+    CHECK(refusedAs(old.prepare(), M::ReadError::VALUE));
+    // Every stored field is part of the candidate. Also reject an already-matching target.
+    for (unsigned slot = 0; slot < 9; ++slot) {
+        Fixture f = transmissionType();
+        setValue(f.baseline[slot], baselineValues[slot] ^ 1u);
+        const Saved<L::Tpdo1ConfigurationContext> saved(f.context);
+        CHECK(refusedAs(f.prepare(), M::ReadError::VALUE));
+        saved.unchanged(f.context);
+    }
+    Fixture f = transmissionType();
+    setValue(f.baseline[1], 1);
+    CHECK(refusedAs(f.prepare(), M::ReadError::VALUE));
+    f = transmissionType(L::Tpdo1TransmissionTypeRaw::RAW_255);
+    setValue(f.baseline[1], 255);
+    CHECK(refusedAs(f.prepare(), M::ReadError::VALUE));
+    f = transmissionType();
+    f.baseline[1].transfer.size = f.baseline[1].size = 2;
+    CHECK(refusedAs(f.prepare(), M::ReadError::CORRELATION));
+    f = transmissionType();
+    CHECK(refusedAs(L::prepareTpdo1Configuration(f.context, f.reservation, f.review, f.request,
+                                                 f.baseline, 9, C::NmtState::OPERATIONAL,
+                                                 f.preOp, 9, f.now, 2000, f.options, 10000),
+                    M::ReadError::ARGUMENT));
+    const Saved<L::Tpdo1ConfigurationContext> saved(f.context);
+    CHECK(refusedAs(L::prepareTpdo1Configuration(f.context, f.reservation, f.review,
+                                                 f.context.request, f.baseline, 9,
+                                                 C::NmtState::PRE_OPERATIONAL, f.preOp, 9,
+                                                 f.now, 2000, f.options, 10000),
+                    M::ReadError::OVERLAP));
+    saved.unchanged(f.context);
+}
+void transmissionTypeFailureAndPartialEffects() {
+    const C::SdoOutcome failures[] = {C::SdoOutcome::SERVER_ABORT, C::SdoOutcome::TIMEOUT,
+                                      C::SdoOutcome::BUS_OFF};
+    for (unsigned at = 0; at < 10; ++at) {
+        for (C::SdoOutcome failure : failures) {
+            Fixture f = transmissionType();
+            CHECK(f.prepare());
+            f.prefix(at);
+            L::PreparedRead p;
+            CHECK(f.next(p));
+            if (at == 0) CHECK(f.notice());
+            const C::SdoCompletion e = terminal(p.transfer, f.now, 0, failure);
+            f.now += 2;
+            CHECK(L::advancePdoConfiguration(f.context, f.reservation, f.binding, e, f.now));
+            CHECK(f.context.state == L::PdoConfigurationState::FAILED && f.context.uncertain);
+            CHECK(f.context.effectsPossible && f.binding.configurationGeneration == 8);
+            CHECK(f.context.acknowledgedMask == (at == 0 ? 0 : 1));
+            CHECK(f.context.failedStep == at + 1 && f.context.confirmedStep == at);
+            CHECK(f.context.evidence.outcome == failure && f.context.evidence.abortCode == e.abortCode);
+            C::PdoMapEvidence map;
+            const Saved<C::PdoMapEvidence> kept(map);
+            CHECK(!L::getTpdo1Configuration(f.context, f.reservation, f.binding, f.now, 12, 42, map));
+            kept.unchanged(map);
+            CHECK(f.next(p) && !p.ready);
+        }
+        if (at != 0) {
+            Fixture f = transmissionType();
+            CHECK(f.prepare());
+            f.prefix(at);
+            L::PreparedRead p;
+            CHECK(f.next(p));
+            const C::SdoCompletion mismatch = terminal(p.transfer, f.now, f.expected[at - 1] ^ 1u);
+            f.now += 2;
+            CHECK(L::advancePdoConfiguration(f.context, f.reservation, f.binding, mismatch, f.now));
+            CHECK(f.context.outcome == M::ReadOutcome::REPLY_ERROR && f.context.uncertain);
+            CHECK(f.context.acknowledgedMask == 1 && f.context.readbackCount == at);
+        }
+    }
+    Fixture f = transmissionType();
+    CHECK(f.prepare());
+    CHECK(L::advancePdoConfiguration(f.context, M::ReadOutcome::CANCELLED, f.now));
+    CHECK(!f.context.effectsPossible && !f.context.uncertain && f.binding.configurationGeneration == 7);
+    f = transmissionType();
+    CHECK(f.prepare());
+    CHECK(f.notice());
+    CHECK(L::advancePdoConfiguration(f.context, M::ReadOutcome::CANCELLED, f.now));
+    CHECK(f.context.uncertain && f.context.firstEffectStep == 1 && f.context.acknowledgedMask == 0);
+    f = transmissionType();
+    CHECK(f.prepare(102));
+    L::PreparedRead p;
+    CHECK(f.next(p));
+    CHECK(f.notice());
+    const C::SdoCompletion ack = terminal(p.transfer, f.now, 0);
+    CHECK(L::advancePdoConfiguration(f.context, f.reservation, f.binding, ack, 102));
+    CHECK(f.context.outcome == M::ReadOutcome::DEADLINE && f.context.acknowledgedMask == 1);
+    CHECK(f.context.uncertain && !f.context.mapConfirmed);
+}
 } // namespace
 int main() {
     exactSequenceAndPublication();
@@ -845,6 +1047,9 @@ int main() {
     timerRequestAndBaselineRejections();
     timerFailureAtEveryStep();
     timerCancellationDeadlineAndGenerations();
+    transmissionTypeSequenceAndRestore();
+    transmissionTypeAdmissionAndAtomicity();
+    transmissionTypeFailureAndPartialEffects();
     // Every active baseline field except COB-ID must exactly match this reviewed subset.
     for (unsigned i = 1; i < 9; ++i) {
         Fixture f;

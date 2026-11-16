@@ -89,7 +89,20 @@ bool FakeTransport::transmit(void* context, const M::Frame& request, TransportTx
                              uint32_t epoch) noexcept {
     FakeTransport& fake = *static_cast<FakeTransport*>(context);
     ++fake.transmitCalls_;
-    if (!M::validateFrame(request) || request.extended || request.rtr || request.id != 0x605 ||
+    if (id.kind == TransportTxId::Kind::SYNC) {
+        if (epoch != 1 || !M::CANOPEN::checkSyncFrame(request, 0x80) ||
+            fake.reportCount_ == REPORT_CAPACITY)
+            return false;
+        TxReport report;
+        report.id = id;
+        report.controllerEpoch = epoch;
+        report.transmitted = true; // Synthetic controller only; no consumer reply or self echo.
+        fake.reports_[(fake.reportHead_ + fake.reportCount_) % REPORT_CAPACITY] = report;
+        ++fake.reportCount_;
+        ++fake.transmitted_;
+        return true;
+    }
+    if (id.kind != TransportTxId::Kind::SDO || !M::validateFrame(request) || request.extended || request.rtr || request.id != 0x605 ||
         request.payloadLength != 8 || request.data[0] != 0x40 || epoch != 1)
         return false;
     const Field* selected = nullptr;

@@ -484,3 +484,26 @@ Recovery has reserved correlation capacity for an explicitly held never-sent sto
 it is never started automatically. Cancellation of ordinary motion withdraws future
 steps and settles the in-flight service; it sends no stop. `release ID` frees delivered
 history only and never clears a native fence, while `motor-release` remains gated.
+
+## Finite SYNC commands (prompt 51)
+
+The same console/helper is attached in the native fake, Arduino/ESP-IDF assembly
+and S2 bench. Startup is passive. `sync arm` explicitly declares one local
+producer on the configured CANopen interface at COB-ID 0x80; establish actual
+1005/routes and absence of another producer before this call. It sends no frame.
+`sync once` requests one slot with a 10 ms host window. `sync period MS COUNT`
+requires positive uint32 decimal fields and a representable finite total duration.
+It never accepts an omitted count or creates an unbounded producer.
+
+Both producing commands return an ordinary operation identity. `result ID`,
+`cancel ID` and `release ID` use the existing retained lifecycle. Transmission
+progress continues under output pressure. `sync inspect` is cached only;
+`sync disarm` withdraws local production using reserved control reply capacity
+and is not a motor stop. `sync resolve EVIDENCE_ID` explicitly records external
+exclusive-producer evidence after conflict and retirement, but does not rearm.
+
+An owner deadline/cancel terminal is immutable. TX counts in the operation result
+cover confirmation delivered to that result; a later matching hardware report
+is separately retained as an owner diagnostic, never rewritten into success.
+No console result establishes synchronous sampling, latching or standstill.
+See [the protocol and qualification contract](sync.md).

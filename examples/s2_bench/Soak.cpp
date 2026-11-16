@@ -350,7 +350,9 @@ void Soak::copyDiagnostics(uint64_t now) noexcept {
             entry.state = uint8_t(in.recovery);
         else if (in.kind == DiagnosticKind::TX || in.kind == DiagnosticKind::TX_REPORT) {
             entry.state = uint8_t(in.txId.kind);
-            entry.txRequest = uint16_t(in.txId.kind == MotorControlCANOwner::TransportTxId::Kind::NMT
+            entry.txRequest = uint16_t(in.txId.kind == MotorControlCANOwner::TransportTxId::Kind::SYNC
+                                                     ? in.txId.sync.generation
+                                                     : in.txId.kind == MotorControlCANOwner::TransportTxId::Kind::NMT
                                            ? in.txId.nmt.generation
                                            : in.txId.sdo.request.generation);
             entry.txFrame = uint8_t(in.txId.sdo.frame > UINT8_MAX ? UINT8_MAX : in.txId.sdo.frame);

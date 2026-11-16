@@ -1,0 +1,112 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T00:01:48.174082+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    ".build/p51-preflight-plan.json",
+    "--output",
+    "docs/bench/20261116-p51-preflight"
+  ],
+  "plan_file": ".build/p51-preflight-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "87858ecf700661ac26ff61b89905d318be38d273f9f2169d3802fabef74a87b0"
+  },
+  "host_revision": "630600473aa2194bf9382755969e0a3cfcc311b4",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "630600473aa2194bf9382755969e0a3cfcc311b4",
+    "elf": "77b4c9ffc43737f08d5da378ccb82fb7400f771b8e23a65295028ab562af3106",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "77315988",
+    "routes": "13",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-16T00:01:48.638300+00:00",
+      "monotonic": 347345.281,
+      "reply": "COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 2,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 117,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:01:51.851752+00:00",
+      "monotonic": 347348.5,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 118,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "K2",
+      "tx_hex": "4b320a",
+      "utc": "2026-11-16T00:01:51.861267+00:00",
+      "monotonic": 347348.5,
+      "reply": "COMM admitted node=2 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 119,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 234,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:01:55.101777+00:00",
+      "monotonic": 347351.75,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 235,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-16T00:01:55.110777+00:00",
+      "monotonic": 347351.75,
+      "reply": "STATS running=1 inhibited=0 rx=190 tx=190 dropped=0 errors=0 flags=00000000 stackFree=7720 t=83861988 txRej=0 rxLost=0 unmatched=0 traceOver=736 ownerGap=3999 conRej=2354",
+      "reply_line": 236,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T00:01:56.309643+00:00",
+  "bytes": 43007
+}

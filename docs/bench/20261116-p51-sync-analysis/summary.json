@@ -1,0 +1,181 @@
+{
+  "trials": [
+    {
+      "input": "docs/bench/20261116-p51-type1-100ms/rx.bin",
+      "sha256": "5a66036bfba6c2e9d858fb0609b2064d64e06bd6a6f98a2b1e8fa2a302085e29",
+      "requested_period_us": 100000,
+      "requested_count": 20,
+      "terminal": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "terminal",
+        "id": 5203,
+        "command": "sync",
+        "ok": true,
+        "status": "OK",
+        "detail": 1,
+        "outcome": "LOCAL_TX",
+        "uncertain": true,
+        "command_id": 5203,
+        "operation_id": 14,
+        "completed_us": "336056663",
+        "abort_code": null,
+        "local_tx_count": 20,
+        "requested_count": 20,
+        "transmission_possible": true,
+        "drive_effect_known": false
+      },
+      "tx_enqueue_records": 20,
+      "local_tx_report_records": 20,
+      "tpdo1_rx_count": 20,
+      "emcy_rx_count": 0,
+      "tpdo1_node2_rx_count": 0,
+      "enqueue_interval_us": {
+        "min": 99000,
+        "max": 101000
+      },
+      "enqueue_phase_relative_first_enqueue_us": {
+        "min": -2000,
+        "max": 0
+      },
+      "rx_upper_bound_interval_us": {
+        "min": 98978,
+        "max": 101023
+      },
+      "rx_bound_width_us": {
+        "min": 981,
+        "max": 1088
+      },
+      "ordered_rx_bounds_after_enqueue_us": {
+        "earliest": {
+          "min": 255,
+          "max": 257
+        },
+        "latest": {
+          "min": 1236,
+          "max": 1343
+        }
+      },
+      "payloads": [
+        "50c003ce410000"
+      ],
+      "watch": {
+        "n": "47",
+        "t": "341217990",
+        "reason": "duration",
+        "frames": "36",
+        "printed": "36",
+        "unprinted": "0",
+        "tapDropped": "0",
+        "untimed": "0",
+        "sdo": "0",
+        "idOverflow": "0"
+      },
+      "debug_after": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 5207,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 1153,
+        "trace_pending": 0,
+        "trace_dropped": 0
+      },
+      "interpretation": "Ordering is an experimental comparison only. Enqueue and processing times are not physical TX times; no on-wire cycle identity or same-cycle sample qualification is established."
+    },
+    {
+      "input": "docs/bench/20261116-p51-type1-10ms/rx.bin",
+      "sha256": "1ec7cdacd65ef202c1899200e6b1569a8d1f7a2b568edde20d0685d80c301739",
+      "requested_period_us": 10000,
+      "requested_count": 20,
+      "terminal": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "terminal",
+        "id": 5203,
+        "command": "sync",
+        "ok": true,
+        "status": "OK",
+        "detail": 1,
+        "outcome": "LOCAL_TX",
+        "uncertain": true,
+        "command_id": 5203,
+        "operation_id": 15,
+        "completed_us": "578800650",
+        "abort_code": null,
+        "local_tx_count": 20,
+        "requested_count": 20,
+        "transmission_possible": true,
+        "drive_effect_known": false
+      },
+      "tx_enqueue_records": 20,
+      "local_tx_report_records": 20,
+      "tpdo1_rx_count": 20,
+      "emcy_rx_count": 0,
+      "tpdo1_node2_rx_count": 0,
+      "enqueue_interval_us": {
+        "min": 7996,
+        "max": 11000
+      },
+      "enqueue_phase_relative_first_enqueue_us": {
+        "min": -3002,
+        "max": 0
+      },
+      "rx_upper_bound_interval_us": {
+        "min": 7954,
+        "max": 11014
+      },
+      "rx_bound_width_us": {
+        "min": 994,
+        "max": 1040
+      },
+      "ordered_rx_bounds_after_enqueue_us": {
+        "earliest": {
+          "min": 253,
+          "max": 266
+        },
+        "latest": {
+          "min": 1251,
+          "max": 1295
+        }
+      },
+      "payloads": [
+        "50c003ce410000"
+      ],
+      "watch": {
+        "n": "47",
+        "t": "585654990",
+        "reason": "duration",
+        "frames": "36",
+        "printed": "36",
+        "unprinted": "0",
+        "tapDropped": "0",
+        "untimed": "0",
+        "sdo": "0",
+        "idOverflow": "0"
+      },
+      "debug_after": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "reply",
+        "id": 5207,
+        "command": "debug",
+        "ok": true,
+        "status": "OK",
+        "mode": 0,
+        "trace_overwritten": 1610,
+        "trace_pending": 31,
+        "trace_dropped": 0
+      },
+      "interpretation": "Ordering is an experimental comparison only. Enqueue and processing times are not physical TX times; no on-wire cycle identity or same-cycle sample qualification is established."
+    }
+  ],
+  "scope": "One node, twenty SYNCs per run; not sustained two-axis qualification."
+}

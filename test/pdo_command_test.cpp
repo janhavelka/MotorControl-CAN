@@ -111,6 +111,18 @@ void configureLines() {
     refused("E1,-100");
     refused("E1;100");
 }
+void transmissionTypeLines() {
+    E::PdoCommand c;
+    CHECK(parse("J1,1", c) && c.kind == E::PdoCommandKind::TRANSMISSION_TYPE && c.node == 1 &&
+          c.transmissionType == 1);
+    CHECK(parse("J2,255", c) && c.node == 2 && c.transmissionType == 255);
+    CHECK(!c.eventTimer && !c.transmit && !c.subindex && !c.value && !c.nmt && !c.baseline);
+    const char* invalid[] = {"J", "J1", "J1,", "J,1", "J0,1", "J3,1", "J1,0", "J1,2",
+                              "J1,240", "J1,254", "J1,256", "J1,4294967296", "J1,-1",
+                              "J1,1,", "J1,1 ", "J1,1x", "j1,1", "J1;1"};
+    for (const char* text : invalid)
+        refused(text);
+}
 // The bounded silent capture: identity, seconds 1..600 and a frame capacity; C0 alone stops.
 void captureLines() {
     E::PdoCommand c;
@@ -204,6 +216,7 @@ int main() {
     readLines();
     writeLines();
     configureLines();
+    transmissionTypeLines();
     captureLines();
     discoveryLines();
     communicationLines();

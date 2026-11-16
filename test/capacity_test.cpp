@@ -49,7 +49,7 @@ namespace O = MotorControlCANOwner;
 static_assert(int(N) == CAPACITY_TEST_CHANNELS, "This build sees the capacity set its target names");
 static_assert(int(O::CanBusOwner::SEQUENCES) == int(N) && int(O::CanBusOwner::URGENT_REQUESTS) == int(N),
               "One reservation and one urgent slot per channel");
-static_assert(int(E::TwaiAdapter::TX_CAPACITY) == int(N) + 1, "One TX slot per channel plus the NMT frame");
+static_assert(int(E::TwaiAdapter::TX_CAPACITY) == int(N) + 2, "One TX slot per channel plus independent NMT and SYNC frames");
 #ifndef MOTORCONTROLCAN_OWNER_REQUESTS
 static_assert(int(O::CanBusOwner::REQUESTS) == (int(N) + 4 > 6 ? int(N) + 4 : 6), "Derived ordinary slots");
 #endif

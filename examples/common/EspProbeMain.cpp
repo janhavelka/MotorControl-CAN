@@ -43,6 +43,8 @@ void ownerTask(void*) {
     static DRAM_ATTR ProbeConsole commands(firmware.app(), firmware.owner(), firmware.platform());
     static DRAM_ATTR ProbeDevice device(firmware.app(), firmware.owner(), services,
                                         &firmware.evidence());
+    static DRAM_ATTR ProbeSync sync(firmware.owner());
+    commands.attachSync(sync);
     commands.attachDevice(device);
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);

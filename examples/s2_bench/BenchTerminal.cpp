@@ -62,7 +62,9 @@ int formatTraffic(char* out, size_t size, const EvidenceTraffic& t, const char* 
         std::snprintf(suffix, sizeof suffix, " rec=%u", unsigned(t.recovery));
     else if (t.kind == DiagnosticKind::TX || t.kind == DiagnosticKind::TX_REPORT)
         std::snprintf(suffix, sizeof suffix, " txk=%u txr=%lu txf=%lu", unsigned(t.txId.kind),
-                      static_cast<unsigned long>(t.txId.kind == TransportTxId::Kind::NMT
+                      static_cast<unsigned long>(t.txId.kind == TransportTxId::Kind::SYNC
+                                                     ? t.txId.sync.generation
+                                                     : t.txId.kind == TransportTxId::Kind::NMT
                                                      ? t.txId.nmt.generation
                                                      : t.txId.sdo.request.generation),
                       static_cast<unsigned long>(t.txId.sdo.frame));

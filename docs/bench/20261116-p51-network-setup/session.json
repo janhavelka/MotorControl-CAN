@@ -1,0 +1,178 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T00:03:29.266075+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    ".build/p51-network-plan.json",
+    "--output",
+    "docs/bench/20261116-p51-network-setup"
+  ],
+  "plan_file": ".build/p51-network-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "87858ecf700661ac26ff61b89905d318be38d273f9f2169d3802fabef74a87b0"
+  },
+  "host_revision": "630600473aa2194bf9382755969e0a3cfcc311b4",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "630600473aa2194bf9382755969e0a3cfcc311b4",
+    "elf": "77b4c9ffc43737f08d5da378ccb82fb7400f771b8e23a65295028ab562af3106",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "178412988",
+    "routes": "13",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "H1,1000",
+      "tx_hex": "48312c313030300a",
+      "utc": "2026-11-16T00:03:29.699252+00:00",
+      "monotonic": 347446.343,
+      "reply": "HB admitted node=1 raw=1000; exact baseline 0, one 1017:00 write, exact readback; no save, reset or retry",
+      "reply_line": 2,
+      "end": "END heartbeat terminals=3 traffic=9 tail=0 tailLost=0 lost=0; no save, reset or restore; r=release",
+      "end_line": 17,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:03:30.000921+00:00",
+      "monotonic": 347446.64,
+      "reply": "HB record released; configuration and uncertainty retained, producer interval stays withdrawn",
+      "reply_line": 18,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "H2,1000",
+      "tx_hex": "48322c313030300a",
+      "utc": "2026-11-16T00:03:30.012956+00:00",
+      "monotonic": 347446.656,
+      "reply": "HB admitted node=2 raw=1000; exact baseline 0, one 1017:00 write, exact readback; no save, reset or retry",
+      "reply_line": 19,
+      "end": "END heartbeat terminals=3 traffic=9 tail=0 tailLost=0 lost=0; no save, reset or restore; r=release",
+      "end_line": 34,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:03:30.319767+00:00",
+      "monotonic": 347446.968,
+      "reply": "HB record released; configuration and uncertainty retained, producer interval stays withdrawn",
+      "reply_line": 35,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "N1,o",
+      "tx_hex": "4e312c6f0a",
+      "utc": "2026-11-16T00:03:30.331769+00:00",
+      "monotonic": 347446.984,
+      "reply": "NMT admitted node=1 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 36,
+      "end": "NMT request=41 target=1 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=179088991 admitted=179085971; retained; network observation separate",
+      "end_line": 37,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:03:30.369647+00:00",
+      "monotonic": 347447.015,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 38,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "N2,o",
+      "tx_hex": "4e322c6f0a",
+      "utc": "2026-11-16T00:03:30.378646+00:00",
+      "monotonic": 347447.031,
+      "reply": "NMT admitted node=2 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 39,
+      "end": "NMT request=42 target=2 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=179134993 admitted=179131968; retained; network observation separate",
+      "end_line": 40,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:03:30.418287+00:00",
+      "monotonic": 347447.062,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 41,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "",
+      "wait_s": 2,
+      "utc": "2026-11-16T00:03:30.428387+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 10,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-16T00:03:32.429837+00:00",
+      "monotonic": 347449.078,
+      "reply": "END network; boot-up requires an actual observed00 frame; no inferred reset",
+      "reply_line": 48,
+      "outcome": "answered"
+    },
+    {
+      "step": 11,
+      "note": "",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-16T00:03:32.530337+00:00",
+      "monotonic": 347449.171,
+      "reply": "STATS running=1 inhibited=0 rx=240 tx=230 dropped=0 errors=0 flags=00000000 stackFree=5604 t=181280988 txRej=0 rxLost=0 unmatched=8 traceOver=864 ownerGap=4000 conRej=3101",
+      "reply_line": 49,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T00:03:33.738293+00:00",
+  "bytes": 6629
+}

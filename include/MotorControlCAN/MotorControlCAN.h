@@ -23,6 +23,7 @@
 #include <MotorControlCAN/canopen/Sdo.h>
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/canopen/Network.h>
+#include <MotorControlCAN/canopen/Sync.h>
 #include <MotorControlCAN/canopen/Pdo.h>
 #include <MotorControlCAN/canopen/PdoState.h>
 #include <MotorControlCAN/Version.h>

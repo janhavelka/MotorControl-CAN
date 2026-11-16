@@ -5,9 +5,10 @@ run: validates the recorded USB identity, opens only that port (neither EN nor B
 pings, refuses unless the image speaks the lines the plan uses (PONG pdo=1: N, P, R, W; pdo=2 adds
 E; pdo=3 adds C, the bounded silent capture; pdo=4 adds D, K and H: the discovery scan, the typed
 communication reads and the guarded heartbeat commissioning; pdo=5 adds the N line's r and c, NMT Reset
-Node and Reset Communication) with no soak, trial, watch or capture
+Node and Reset Communication; pdo=6 adds J, the isolated TPDO1 transmission-type experiment)
+with no soak, trial, watch or capture
 held, then sends the plan's steps in order and captures every byte to rx.bin. A step sends one
-console command (a single byte, or an N, P, R, W, E, C, D, K, H, S line of
+console command (a single byte, or an N, P, R, W, E, J, C, D, K, H, S line of
 examples/s2_bench/PdoCommand.h and the soak) and
 waits for its expected reply; a refusal or a missing reply ends the plan. The plan is the
 only source of device commands: nothing is retried, replayed or added, and no NMT, write or stop
@@ -58,14 +59,15 @@ REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDO_CO
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR", "CAP refused",
             "CAP_STOP refused", "CAP release refused", "DISC refused", "COMM refused", "HB refused",
             "DISC release refused", "COMM release refused", "HB release refused", "NETWORK refused")
-LINE_COMMANDS = ("N", "P", "R", "W", "E", "C", "D", "K", "H", "S")
+LINE_COMMANDS = ("N", "P", "R", "W", "E", "J", "C", "D", "K", "H", "S")
 # The PDO line letters each image protocol (PONG pdo=) serves. An older image answers an unknown
 # letter as single-byte commands: E1,100 there would start a node-1 identity read, and C1,10,64 the
 # same through its digits. Neither is ever sent to an image that does not serve it.
 # pdo=4 adds D, K and H; on a pdo=3 image "K1" would be UNKNOWN then a node-1 identity read.
 PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC"),
-                 "4": frozenset("NPRWECDKH"), "5": frozenset("NPRWECDKH")}
-PDO_LETTERS = "NPRWECDKH"
+                 "4": frozenset("NPRWECDKH"), "5": frozenset("NPRWECDKH"),
+                 "6": frozenset("NPRWEJCDKH")}
+PDO_LETTERS = "NPRWEJCDKH"
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
 # M (pdo=4) prints one HEAP line: internal heap totals and regions; it sends nothing on CAN.
@@ -74,6 +76,7 @@ SINGLE_BYTES = set("cpsrdnhjX34M")
 # steps may follow, keyed by the command itself, never by the plan's own expect text.
 CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END raw"),
            "W": ("PDO_WRITE admitted", "END raw"), "E": ("PDO_CONFIG admitted", "END PDO"),
+           "J": ("PDO_CONFIG admitted", "END PDO"),
            "h": ("HEARTBEAT experiment admitted", "END raw"),
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
            "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture"),
@@ -92,7 +95,7 @@ RESET_PROTOCOL = 5
 # The 2026-11-06 replay plans stopped twice: once expecting the wrong release line after E, once
 # leaving node 2 Operational because an N's result was never released before the next N.
 HOLDS = {"R": "raw", "W": "raw", "h": "raw", "j": "raw", "3": "raw", "4": "raw", "E": "pdo", "N": "nmt",
-         "C": "capture", "D": "discovery", "K": "comm", "H": "heartbeat"}
+         "J": "pdo", "C": "capture", "D": "discovery", "K": "comm", "H": "heartbeat"}
 RELEASE_LINES = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released",
                  "capture": "CAP record released", "discovery": "DISC record released",
                  "comm": "COMM record released", "heartbeat": "HB record released"}
@@ -144,6 +147,8 @@ def line_problem(text):
         return "%r is not K1 or K2" % text
     if text[0] == "H" and text not in ("H1,1000", "H2,1000"):
         return "%r is not H1,1000 or H2,1000: only raw 0 to raw 1000 is reviewed" % text
+    if text[0] == "J" and text not in ("J1,1", "J1,255", "J2,1", "J2,255"):
+        return "%r is not J<1|2>,<1|255>: only the isolated transmission-type transition is reviewed" % text
     return None
 
 
@@ -176,7 +181,7 @@ def check_plan(plan):
                 if text not in SINGLE_BYTES:
                     raise SessionError("step %d: %r is not a reviewed single-byte command" % (number, text))
             elif text[0] not in LINE_COMMANDS or any(c in text for c in "\r\n") or not text.isascii():
-                raise SessionError("step %d: %r is not an N, P, R, W, E, C, D, K, H or S line" % (number, text))
+                raise SessionError("step %d: %r is not an N, P, R, W, E, J, C, D, K, H or S line" % (number, text))
             elif line_problem(text):
                 raise SessionError("step %d: %s" % (number, line_problem(text)))
             if not isinstance(step.get("expect"), str) or not step["expect"]:
@@ -384,7 +389,9 @@ def terminal_problem(step, lines):
             if any(r.values.get("object") != wanted for r in results) or \
                     int.from_bytes(bytes.fromhex(last["data"])[:last["size"]], "little") != value:
                 return "write_readback_differs"
-    if command == "E":
+    if command == "J" and any(r.status == "malformed" for r in records):
+        return "pdo_terminal_unparsed"
+    if command in ("E", "J"):
         return config_problem(text, parsed)
     if command == "C":
         return capture_problem(text, parsed)
@@ -411,13 +418,16 @@ CONFIG_FIELDS = ("node", "transition", "raw", "lastStep", "effectStep", "failedS
 
 
 def config_problem(text, parsed):
-    """Check one E record: its PDO header, nineteen RESULTs and the one write it put on the wire.
+    """Check one E or J record: its PDO header, nineteen RESULTs and the sole wire write.
 
     Success is the firmware's own confirmed readback of the requested change on the sent node:
     failure 0, nothing lost, transition 2 (event timer), the requested raw literal, map confirmed,
     no uncertainty, write acknowledged (ackMask 01) and the epoch migrated, steps 1..10 confirmed
     and none failed; every RESULT successful, the tenth the 1800:05 download, the readback of
     1800:05 the literal, and exactly one non-upload frame to the node, 2B 00 18 05 then the literal.
+    J instead needs transition 3 and an exact 1800:02 U8 download. Its complete nine-field
+    baseline and readback, operation/request/step identities and terminal evidence are checked;
+    type 1 is still an experiment, never a sample-provenance or drive-effect qualification.
     """
     headers = [r for r in parsed if r.kind == "PDO"]
     results = [r for r in parsed if r.kind == "RESULT"]
@@ -426,28 +436,91 @@ def config_problem(text, parsed):
         return "pdo_terminal_unparsed"  # Includes an image whose record lacks the configuration fields.
     header = headers[0].values
     node, raw = (int(field) for field in text[1:].split(","))
+    transmission = text[0] == "J"
+    subindex, width, transition = (2, 1, 3) if transmission else (5, 2, 2)
     if header["failure"] != 0 or header["lost"] != 0:
         return "pdo_failure_%s" % header["failure"]
     if header["node"] != node:
         return "pdo_wrong_node"
-    if header["transition"] != 2 or header["raw"] != raw:
+    if header["transition"] != transition or header["raw"] != raw:
         return "pdo_wrong_request"
     if (header["confirmed"], header["uncertain"], header["ackMask"], header["migrated"], header["lastStep"],
             header["effectStep"], header["failedStep"]) != (1, 0, 1, 1, 10, 1, 0):
         return "pdo_not_confirmed"
     if len(results) != 19 or header["terminals"] != 19 or any(r.values.get("outcome") != 0 for r in results):
         return "pdo_results_incomplete"
-    if results[9].values["object"] != [0x1800, 5] or results[9].values.get("dir") != 1 or \
+    if results[9].values["object"] != [0x1800, subindex] or results[9].values.get("dir") != 1 or \
             any(r.values.get("dir") != 0 for i, r in enumerate(results) if i != 9):
         return "pdo_write_differs"
-    readbacks = [r.values for r in results[10:] if r.values["object"] == [0x1800, 5]]
-    if len(readbacks) != 1 or readbacks[0]["size"] != 2 or \
-            int.from_bytes(bytes.fromhex(readbacks[0]["data"])[:2], "little") != raw:
+    readbacks = [r.values for r in results[10:] if r.values["object"] == [0x1800, subindex]]
+    if len(readbacks) != 1 or readbacks[0]["size"] != width or \
+            int.from_bytes(bytes.fromhex(readbacks[0]["data"])[:width], "little") != raw:
         return "pdo_readback_differs"
     writes = [r.values["data"] for r in parsed if r.kind == "TRAFFIC" and r.values.get("k") == 1 and
               r.values.get("id") == 0x600 + node and not r.values["data"].startswith("40")]
-    if writes != ["2b001805" + raw.to_bytes(2, "little").hex() + "0000"]:
+    expected_write = (("2f001802" + raw.to_bytes(1, "little").hex() + "000000") if transmission else
+                      "2b001805" + raw.to_bytes(2, "little").hex() + "0000")
+    if writes != [expected_write]:
         return "pdo_write_bytes_differ"
+    if transmission:
+        if header.get("tailLost") != 0 or header.get("effects") != 1:
+            return "pdo_evidence_incomplete"
+        traffic = [r.values for r in parsed if r.kind == "TRAFFIC" and r.values.get("k") == 1]
+        if any(t.get("ext") != 0 or t.get("rtr") != 0 or t.get("dlc") != 8 or t.get("ok") != 1
+               for t in traffic):
+            return "pdo_wire_evidence_differs"
+        all_writes = [(t["id"], t["data"]) for t in traffic if not t["data"].startswith("40")]
+        if all_writes != [(0x600 + node, expected_write)]:
+            return "pdo_write_bytes_differ"
+        return transmission_snapshot_problem(node, raw, results)
+    return None
+
+
+def transmission_snapshot_problem(node, raw, results):
+    """The fixed J candidate: nine exact baseline uploads, one write, nine exact final uploads.
+
+    This mirrors the public workflow's observable contract, including the opposite type at the
+    baseline and unchanged map/timers. No default or stale RESULT can fill a missing field.
+    """
+    objects = ((0x1800, 1, 4), (0x1800, 2, 1), (0x1800, 3, 2), (0x1800, 5, 2),
+               (0x1a00, 0, 1), (0x1a00, 1, 4), (0x1a00, 2, 4), (0x1a00, 3, 4), (0x1a00, 4, 4))
+    before = [0x180 + node, 255 if raw == 1 else 1, 100, 0, 3,
+              0x60410010, 0x60610008, 0x60640020, 0]
+    after = before[:]
+    after[1] = raw
+    values = [r.values for r in results]
+    operation = values[0].get("op", 0)
+    epoch = values[0].get("ne", 0)
+    previous_completed = 0
+    owner_requests = []
+    for i, value in enumerate(values):
+        native_step = i + 1 if i < 9 else i - 8
+        native_operation = operation if i < 9 else operation + 1
+        native_request = native_step if i < 9 else native_operation
+        if not operation or not epoch or value.get("op") != native_operation or \
+                value.get("req") != native_request or value.get("step") != native_step or \
+                value.get("ne") != epoch or not value.get("oreq"):
+            return "pdo_result_identity_differs"
+        owner_requests.append(value["oreq"])
+        if value.get("ack") != 1 or value.get("possible") != 1 or value.get("uncertain") != 0 or \
+                value.get("abort") != 0 or value.get("cleanup") != 0 or value.get("reason") != 0 or \
+                value["admitted"] < previous_completed or value["completed"] < value["admitted"]:
+            return "pdo_result_evidence_differs"
+        previous_completed = value["completed"]
+        if i == 9:
+            if value["size"] != 0:
+                return "pdo_write_differs"
+            continue
+        slot = i if i < 9 else i - 10
+        index, sub, width = objects[slot]
+        if value["object"] != [index, sub] or value["size"] != width:
+            return "pdo_snapshot_shape_differs"
+        data = bytes.fromhex(value["data"])
+        wanted = before[slot] if i < 9 else after[slot]
+        if len(data) != 4 or int.from_bytes(data[:width], "little") != wanted:
+            return "pdo_baseline_differs" if i < 9 else "pdo_snapshot_readback_differs"
+    if len(set(owner_requests)) != len(owner_requests) or owner_requests != sorted(owner_requests):
+        return "pdo_result_identity_differs"
     return None
 
 

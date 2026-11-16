@@ -368,3 +368,11 @@ intentional differences, exact local commands/results, unavailable checks and
 remaining evidence. Documentation-only edits use local integrity checks. Major
 implementation milestones follow the parent final-commit CI policy when a
 remote exists. Never claim old RS CI or a sensor dry-run verifies a CAN commit.
+
+## Prompt 51 CANopen-specific names
+
+RS has no SYNC producer counterpart. `makeSyncRequest` and `checkSyncFrame` are
+pure codecs; `prepareSync`, `nextSync`, `advanceSync`, `cancelSync` describe a
+finite caller-owned schedule. `CanBusOwner::admitSync/syncResult/releaseSync`
+retain local unconfirmed-service evidence separately from SDO and motion.
+`LOCAL_TX` means final controller transmission only. See [the contract](../sync.md).

@@ -85,9 +85,9 @@ struct TwaiDiagnostics {
 class TwaiAdapter {
   public:
     enum {
-        /// Total waiting/active/report slots: one per SDO channel plus the one NMT frame,
+        /// Total waiting/active/report slots: one per SDO channel plus independent NMT and SYNC frames,
         /// the most the owner can have outstanding. No unread report eviction.
-        TX_CAPACITY = MotorControlCAN::CANOPEN::SdoClient::CHANNELS + 1
+        TX_CAPACITY = MotorControlCAN::CANOPEN::SdoClient::CHANNELS + 2
     };
     /** Borrow stationary resources; construction performs no I/O.
      * @param services Same exclusive service store as the CAN owner.

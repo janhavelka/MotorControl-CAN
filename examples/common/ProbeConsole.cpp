@@ -225,6 +225,12 @@ const ConsoleCommand commands[] = {
     {"network", "network", "SdoClient::node/serviceEligibility",
      "cached exact state and independent serviceability", E::CACHE, C::REPLY,
      "Inspect CANopen network facts; no state promotion.", nullptr, 41},
+    {"sync", "sync arm|disarm|inspect|once | sync period MS COUNT | sync resolve EVIDENCE_ID",
+     "ProbeSync/prepareSync/CanBusOwner::admitSync",
+     "explicit exclusive producer arm; finite count; default 0x80 only", E::DEVICE_ACTION,
+     C::ASYNCHRONOUS,
+     "Send finite DLC-zero SYNC; local TX is never drive effect. Use result/cancel/release ID.",
+     nullptr, 51},
     {"speed", "speed [VALUE [rpm]]", "setSimpleSpeed", "explicit integer motor-rpm destination",
      E::HOST_CONFIGURATION, C::REPLY, "Inspect/set exact host speed intent; no device write.",
      nullptr, 42},
@@ -269,6 +275,20 @@ const ConsoleCommand commands[] = {
      42}};
 bool equal(const char* a, const char* b) {
     return !std::strcmp(a, b);
+}
+const char* syncOutcomeLabel(N::SyncOutcome outcome) {
+    switch (outcome) {
+    case N::SyncOutcome::NONE: return "NONE";
+    case N::SyncOutcome::LOCAL_TX: return "LOCAL_TX";
+    case N::SyncOutcome::REFUSED: return "REFUSED";
+    case N::SyncOutcome::BUS_OFF: return "BUS_OFF";
+    case N::SyncOutcome::CANCELLED: return "CANCELLED";
+    case N::SyncOutcome::MISSED_DEADLINE: return "MISSED_DEADLINE";
+    case N::SyncOutcome::PRODUCER_CONFLICT: return "PRODUCER_CONFLICT";
+    case N::SyncOutcome::INVALIDATED: return "INVALIDATED";
+    case N::SyncOutcome::TRANSPORT_ERROR: return "TRANSPORT_ERROR";
+    }
+    return "UNKNOWN";
 }
 bool sameReadTarget(const L::ReadTarget& a, const L::ReadTarget& b) {
     return a.nodeGeneration == b.nodeGeneration &&
@@ -868,6 +888,22 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 status = succeeded ? "OK" : "PROTOCOL_ERROR";
                 detail = static_cast<int32_t>(terminal->outcome);
                 completed = terminal->completedUs;
+            } else if (op.sync) {
+                if (!sync_ || !sync_->retained() ||
+                    sync_->context().options.generation != op.nativeOperation) {
+                    outcome = "INVALIDATED";
+                    uncertain = true;
+                } else {
+                    if (sync_->active())
+                        continue;
+                    const auto& result = sync_->context();
+                    succeeded = result.state == N::SyncState::SUCCEEDED;
+                    outcome = syncOutcomeLabel(result.outcome);
+                    status = succeeded ? "OK" : "INVALID_CONFIG";
+                    detail = static_cast<int32_t>(result.outcome);
+                    uncertain = result.transmissionPossible;
+                    completed = result.lastNowUs;
+                }
             } else if (op.settings) {
                 if (!settings_ || !settings_->retained() ||
                     settings_->context().operation != op.nativeOperation) {
@@ -1038,6 +1074,15 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 body.add("%lu", static_cast<unsigned long>(abortCode));
             else
                 body.add("null");
+            if (op.sync && sync_ && sync_->retained() &&
+                sync_->context().options.generation == op.nativeOperation) {
+                const auto& result = sync_->context();
+                body.add(",\"local_tx_count\":%lu,\"requested_count\":%lu,"
+                         "\"transmission_possible\":%s,\"drive_effect_known\":false",
+                         static_cast<unsigned long>(result.transmittedCount),
+                         static_cast<unsigned long>(result.options.count),
+                         boolean(result.transmissionPossible));
+            }
             if (op.discovery && device_ && device_->discovery().complete() &&
                 device_->discoveryOperation() == op.nativeOperation) {
                 const auto& summary = device_->discovery().summary();
@@ -1125,6 +1170,8 @@ void ProbeConsole::service(uint64_t now) noexcept {
         device_->advance(now);
     if (motion_)
         motion_->service(now);
+    if (sync_)
+        sync_->service(now);
     poll(now);
     diagnostic(now);
     const int stopSlot = stopReplyUsed_[1] ? 1 : stopReplyUsed_[0] ? 0 : -1;
@@ -1162,7 +1209,8 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
     const bool json = line.json;
     const uint32_t id = line.id;
     const char* name = line.token(0);
-    const bool control = equal(name, "cancel") || equal(name, "recover");
+    const bool control = equal(name, "cancel") || equal(name, "recover") ||
+                         (equal(name, "sync") && equal(line.token(1), "disarm"));
     if (requestInUse(id)) {
         error(id, json, name, "duplicate_id", control);
         return;
@@ -1669,6 +1717,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                                                   app_.readContext().operation == op->readOperation;
             const bool originalSettings = settings_ && settings_->retained() &&
                                           settings_->context().operation == op->nativeOperation;
+            const bool originalSync = sync_ && sync_->retained() &&
+                                      sync_->context().options.generation == op->nativeOperation;
             const bool originalCommissioning =
                 commissioning_ && commissioning_->retained() &&
                 (commissioning_->communication() ? commissioning_->communication()->operation
@@ -1688,6 +1738,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                                                                         : L::StopKind::QUICK_STOP)
                                             : !motion_->releaseNormal())
                  : op->recovery      ? !owner_.releaseRecovery(op->recoveryId)
+                 : op->sync          ? originalSync && !sync_->release()
                  : op->commissioning ? originalCommissioning && !commissioning_->release()
                  : op->settings      ? originalSettings && !settings_->release()
                  : op->nmtId.owner   ? !owner_.releaseNmt(op->nmtId)
@@ -1712,6 +1763,9 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             const bool replacedSettings =
                 op->settings && (!settings_ || !settings_->retained() ||
                                  settings_->context().operation != op->nativeOperation);
+            const bool replacedSync =
+                op->sync && (!sync_ || !sync_->retained() ||
+                             sync_->context().options.generation != op->nativeOperation);
             const bool replacedCommissioning =
                 op->commissioning &&
                 (!commissioning_ || !commissioning_->retained() ||
@@ -1725,7 +1779,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 op->capture &&
                 (!device_ || !device_->evidence() || !device_->evidence()->record() ||
                  device_->evidence()->record()->plan.id != op->nativeOperation);
-            if (replacedMotion || replacedSettings || replacedCommissioning || replacedDiscovery ||
+            if (replacedMotion || replacedSync || replacedSettings || replacedCommissioning || replacedDiscovery ||
                 replacedCapture) {
                 reject("operation_context_replaced");
                 return;
@@ -1733,6 +1787,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             const bool cancelled =
                 !op->recovery && !op->terminal &&
                 (op->motion          ? !op->stop && motion_ && motion_->cancelNormal(now)
+                 : op->sync          ? sync_ && sync_->cancel(now)
                  : op->commissioning ? commissioning_ && commissioning_->cancel(now)
                  : op->settings      ? settings_ && settings_->cancel(now)
                  : op->nmtId.owner   ? owner_.cancelNmt(op->nmtId, now)
@@ -1911,12 +1966,13 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
     const size_t count = line.count;
     const bool json = line.json;
     const uint32_t id = line.id;
+    const bool control = equal(name, "sync") && equal(line.token(1), "disarm");
     const auto reject = [&](const char* reason) {
         increment(stats_.invalid);
-        error(id, json, name, reason);
+        error(id, json, name, reason, control);
     };
     const auto rejectStatus = [&](const M::Status& status) {
-        error(id, json, name, status.msg ? status.msg : M::errToString(status.code), false,
+        error(id, json, name, status.msg ? status.msg : M::errToString(status.code), control,
               status.code, status.detail);
     };
     Text text;
@@ -1949,7 +2005,74 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
         result = now + uint64_t(ms) * 1000;
         return true;
     };
-    if ((settings_ && settings_->active()) || (commissioning_ && commissioning_->active())) {
+    if (equal(name, "sync")) {
+        if (!sync_) {
+            reject("finite_sync_helper_required");
+            return;
+        }
+        if (count == 2 && equal(line.token(1), "inspect")) {
+            ok();
+            const auto& observation = owner_.syncObservation();
+            text.add(json ? ",\"armed\":%s,\"producer_conflict\":%s,\"retained\":%s,"
+                            "\"active\":%s,\"foreign_observed\":%s,\"foreign_serial\":%lu"
+                          : "armed=%s conflict=%s retained=%s active=%s foreign=%s serial=%lu",
+                     boolean(owner_.syncArmed()), boolean(owner_.syncConflict()),
+                     boolean(sync_->retained()), boolean(sync_->active()),
+                     boolean(observation.present), static_cast<unsigned long>(observation.serial));
+        } else if (count == 2 && equal(line.token(1), "arm")) {
+            const auto* selected = app_.selected();
+            const auto facts = app_.hostInterfaceFacts();
+            if (!selected || selected->channel.binding.endpoint.protocol != M::Protocol::CANOPEN ||
+                !facts.interfaceKnown || !facts.bitrateKnown || !facts.bitrateBitsPerSecond ||
+                facts.interfaceId != selected->channel.binding.endpoint.bus ||
+                !owner_.armSync(0x80, now)) {
+                reject("configured_canopen_interface_and_exclusive_producer_required");
+                return;
+            }
+            ok();
+        } else if (count == 2 && equal(line.token(1), "disarm")) {
+            if (!owner_.disarmSync(now)) {
+                reject("sync_disarm_rejected");
+                return;
+            }
+            if (sync_->active())
+                sync_->cancel(now);
+            ok();
+            text.add(json ? ",\"motor_stop\":false" : "local only; motor not stopped");
+        } else if (count == 3 && equal(line.token(1), "resolve")) {
+            uint32_t evidence = 0;
+            if (!decimal(line.token(2), evidence) || !owner_.resolveSyncConflict(evidence, now)) {
+                reject("explicit_exclusive_producer_evidence_and_retirement_required");
+                return;
+            }
+            ok();
+            text.add(json ? ",\"evidence_id\":%lu,\"armed\":false" : "evidence=%lu; disarmed",
+                     static_cast<unsigned long>(evidence));
+        } else {
+            uint32_t periodMs = 10, slots = 1;
+            const bool once = count == 2 && equal(line.token(1), "once");
+            const bool periodic = count == 4 && equal(line.token(1), "period") &&
+                                  decimal(line.token(2), periodMs) && decimal(line.token(3), slots);
+            if (!once && !periodic) {
+                reject("finite_sync_arguments_required");
+                return;
+            }
+            Operation* op = available();
+            if (!op) {
+                reject("retained_results_full");
+                return;
+            }
+            const auto status = sync_->request(uint64_t(periodMs) * 1000, slots, now);
+            if (!status) {
+                rejectStatus(status);
+                return;
+            }
+            *op = Operation();
+            op->sync = true;
+            op->nativeOperation = sync_->context().options.generation;
+            admit(*op);
+        }
+    } else if ((settings_ && settings_->active()) || (commissioning_ && commissioning_->active())) {
         if (equal(name, "host") || equal(name, "useaddr") || equal(name, "probe") ||
             equal(name, "read") || equal(name, "discover") || equal(name, "capture-read") ||
             equal(name, "monitor")) {
@@ -1958,7 +2081,9 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
         }
     }
     const bool applyingPdo = equal(name, "pdo") && equal(line.token(1), "apply");
-    if (equal(name, "communication") || equal(name, "persistence") || applyingPdo) {
+    if (equal(name, "sync")) {
+        // The complete SYNC branch above uses the ordinary retained operation lifecycle.
+    } else if (equal(name, "communication") || equal(name, "persistence") || applyingPdo) {
         size_t end = 0;
         if (equal(name, "communication")) {
             if (!equal(line.token(1), "heartbeat") || !equal(line.token(2), "1000")) {
@@ -2592,7 +2717,7 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
     }
     text.end(json);
     if (text.valid)
-        enqueue(text.bytes, false, id);
+        enqueue(text.bytes, control, id);
     else
         error(id, json, name, "record_capacity");
 }

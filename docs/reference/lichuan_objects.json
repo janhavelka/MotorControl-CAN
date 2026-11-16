@@ -23748,6 +23748,36 @@
           "CL57-C",
           "OL57-C"
         ]
+      },
+      {
+        "id": "Q27",
+        "feature": "Synchronous TPDO type and sample-cycle provenance",
+        "required_evidence": "EDS [1005] and [1800sub2..1803sub2] declare storage only (U32 COB-ID 0x80; U8 type default255); EN86/ZH86 p3 broad synchronization claim supplies no behavior. Explicit isolated TPDO1 type1/255 experiment may establish observed emission and latency for this fixture. Separately prove receive bounds, sample production/queue retirement and a non-overlapping cycle association; neither local SYNC token nor processing-after-SYNC proves same-cycle sampling. No 1006/1007/1019 or TPDO SYNC-start object exists in this EDS. On 2026-11-16 node1 CL86-C raw identity 1009=0C/100A=20/2000=0400/2001=0200 accepted 1800:02 type1 and later255 with exact readback; twenty SYNCs at each of100ms and10ms produced twenty TPDO1 frames (docs/reports/prompt_51.md). This narrow observation does not establish cycle identity, multi-axis sampling or sustained10ms qualification. See docs/reports/prompt_51_sources.md.",
+        "owner_prompts": [
+          51
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
+        "id": "Q28",
+        "feature": "Synchronous RPDO buffering and pending-start withdrawal",
+        "required_evidence": "EDS [1400sub2..1403sub2] U8 transmission types have no accepted range or latching semantics. Require reviewed M09 mapping, no-motion target-only buffering/last-wins and event-timer observations before synchronous controlword start. All required RPDOs need actual local TX before one SYNC. A failed SYNC can leave a remote start buffered: neither local queue retirement nor asynchronous 6040 without bit4 proves withdrawal. Block every later SYNC until explicit applicable remote-buffer retirement evidence; no hidden NMT/reset/stop or replay. See docs/reports/prompt_51_sources.md.",
+        "owner_prompts": [
+          51
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
       }
     ],
     "families": [

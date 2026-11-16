@@ -317,6 +317,21 @@ struct Rig {
         p.firstAuthorizationId = grant;
         return p;
     }
+    E::PdoExperimentPlan transmissionPlan(unsigned node, L::Tpdo1TransmissionTypeRaw value,
+                                          uint32_t id = 6000) {
+        E::PdoExperimentPlan p = timerPlan(node, L::Tpdo1EventTimerRaw::RAW_0, id, id);
+        p.configurationReview.scope = L::PdoConfigurationScope::ISOLATED_EXPERIMENT;
+        p.request.transition = L::Tpdo1Transition::TRANSMISSION_TYPE;
+        p.request.transmissionType = value;
+        return p;
+    }
+    void startTransmission(unsigned node, L::Tpdo1TransmissionTypeRaw value, uint32_t id = 6000) {
+        CHECK(experiment.beginWithServiceAge(transmissionPlan(node, value, id), now) ==
+              E::EvidenceAdmission::ACCEPTED);
+        wire.now = now + 1;
+        wire.heartbeat(0x7f, node);
+        turn(now + 1);
+    }
     // serveAgain: the owner serves once more at the same time after the experiment, as a
     // cooperative loop may before its clock advances, so new work can start at that instant.
     bool serveAgain = false;
@@ -1041,6 +1056,105 @@ void serviceAgeOnlyForAdmission() {
     r.turn(admitted.review.plan.deadlineUs);
     CHECK(r.experiment.record()->failure == E::PdoExperimentFailure::DEADLINE && r.experiment.release());
 }
+void transmissionExperimentAndRestoration() {
+    for (unsigned node = 1; node <= 2; ++node) {
+        Rig r(true);
+        Consumer consumer;
+        CHECK(r.services.configurePdo(0, uint8_t(node - 1), r.reviewedMap(node), L::pdoProfile(1),
+                                        consumer.observer(), 0));
+        r.startTransmission(node, L::Tpdo1TransmissionTypeRaw::RAW_1);
+        r.finish();
+        const auto* record = r.experiment.record();
+        CHECK(record->failure == E::PdoExperimentFailure::NONE && !record->evidenceLost);
+        CHECK(record->terminalCount == 19 && record->attemptedCount == 19);
+        CHECK(record->configuration.request.transition == L::Tpdo1Transition::TRANSMISSION_TYPE);
+        CHECK(record->configuration.review.scope == L::PdoConfigurationScope::ISOLATED_EXPERIMENT);
+        CHECK(record->configuration.original[1] == 255 && record->configuration.readback[1] == 1);
+        CHECK(record->configuration.mapConfirmed && !record->configuration.uncertain);
+        CHECK(record->configuration.firstEffectStep == 1 && record->configuration.acknowledgedMask == 1);
+        CHECK(record->current.configurationGeneration == 2);
+        CHECK(r.wire.downloads[node] == 1 && r.wire.values[node][1] == 1);
+        CHECK(!r.wire.attempts[node == 1 ? 2 : 1]);
+        CHECK(!r.services.pdo(0)->confirmed && !r.services.pdo(0)->qualified && consumer.invalidations);
+        for (unsigned i = 0; i < 19; ++i) {
+            const C::SdoTransfer& t = record->terminals[i].service.transfer;
+            CHECK(t.requirePreOperational && t.operation == (i < 9 ? 6000u : 6001u));
+            CHECK(t.channel.binding.configurationGeneration == (i < 10 ? 1u : 2u));
+            CHECK(t.index == 0x1800 || t.index == 0x1a00);
+            if (i == 9) {
+                CHECK(t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x1800);
+                CHECK(t.subindex == 2 && t.size == 1 && t.data[0] == 1);
+            } else CHECK(t.direction == C::SdoDirection::UPLOAD);
+        }
+        M::Frame writes[2];
+        CHECK(r.wire.writesTo(node, writes, 2) == 1);
+        const uint8_t type1[] = {0x2f, 0x00, 0x18, 0x02, 1, 0, 0, 0};
+        CHECK(std::memcmp(writes[0].data, type1, sizeof type1) == 0);
+        C::PdoMapEvidence map;
+        CHECK(L::getTpdo1Configuration(record->configuration, record->reservation, record->current,
+                                         r.now, 2, 88, map));
+        CHECK(map.transmissionType == 1 && map.route.layout.mapping.count == 3);
+        CHECK(r.experiment.release());
+        // Restoration uses a new request, fresh nine-field baseline and current epoch.
+        r.startTransmission(node, L::Tpdo1TransmissionTypeRaw::RAW_255, 7000);
+        r.finish();
+        record = r.experiment.record();
+        CHECK(record->failure == E::PdoExperimentFailure::NONE && record->terminalCount == 19);
+        CHECK(record->configuration.original[1] == 1 && record->configuration.readback[1] == 255);
+        CHECK(record->current.configurationGeneration == 3 && r.wire.downloads[node] == 2);
+        CHECK(r.wire.values[node][1] == 255 && r.wire.values[node][3] == 0);
+        CHECK(r.wire.writesTo(node, writes, 2) == 2);
+        const uint8_t type255[] = {0x2f, 0x00, 0x18, 0x02, 255, 0, 0, 0};
+        CHECK(std::memcmp(writes[1].data, type255, sizeof type255) == 0);
+        CHECK(r.experiment.release());
+    }
+}
+void transmissionExperimentRefusalsAndUnknownEffects() {
+    for (unsigned which = 0; which < 7; ++which) {
+        Rig r;
+        auto p = r.transmissionPlan(1, L::Tpdo1TransmissionTypeRaw::RAW_1);
+        if (which == 0) p.configurationReview.scope = L::PdoConfigurationScope::FIXTURE_QUALIFIED;
+        if (which == 1) p.configurationReview.scope = L::PdoConfigurationScope::UNQUALIFIED;
+        if (which == 2) p.request.transmissionType = L::Tpdo1TransmissionTypeRaw(2);
+        if (which == 3) p.request.eventTimer = L::Tpdo1EventTimerRaw::RAW_100;
+        if (which == 4) p.configurationReview.authorizationRecord = 0;
+        if (which == 5) p.firstAuthorizationId = UINT32_MAX - 17;
+        if (which == 6) {
+            p = r.timerPlan(1, L::Tpdo1EventTimerRaw::RAW_100);
+            p.request.transmissionType = L::Tpdo1TransmissionTypeRaw::RAW_1;
+        }
+        CHECK(r.experiment.beginWithServiceAge(p, 0) == E::EvidenceAdmission::INVALID);
+        CHECK(!r.wire.transmitted && !r.experiment.record() && !r.owner.resources().reservations);
+    }
+    // A baseline already at the target cannot produce a no-op write or claim a transition.
+    Rig matching;
+    matching.wire.values[1][1] = 1;
+    matching.startTransmission(1, L::Tpdo1TransmissionTypeRaw::RAW_1);
+    matching.finish();
+    CHECK(matching.experiment.record()->failure == E::PdoExperimentFailure::CONFIGURATION);
+    CHECK(matching.wire.attempts[1] == 9 && !matching.wire.downloads[1]);
+    const Wire::Failure failures[] = {Wire::Failure::ABORT, Wire::Failure::LOST,
+                                      Wire::Failure::READBACK};
+    for (Wire::Failure failure : failures) {
+        Rig r;
+        r.wire.failure = failure;
+        r.wire.failureAt = failure == Wire::Failure::READBACK ? 12 : 10;
+        r.startTransmission(1, L::Tpdo1TransmissionTypeRaw::RAW_1);
+        if (failure == Wire::Failure::LOST) {
+            for (unsigned i = 0; i < 100 && r.wire.attempts[1] < 10; ++i) r.turn(r.now + 1);
+            CHECK(r.wire.attempts[1] == 10);
+            r.turn(r.now + 250001);
+        }
+        r.finish();
+        const auto* record = r.experiment.record();
+        CHECK(record->terminal && record->failure != E::PdoExperimentFailure::NONE);
+        CHECK(record->configuration.uncertain && !record->configuration.mapConfirmed);
+        CHECK(record->configuration.firstEffectStep == 1 && record->current.configurationGeneration == 2);
+        CHECK(r.wire.attempts[1] == (failure == Wire::Failure::READBACK ? 12u : 10u));
+        CHECK(r.wire.downloads[1] <= 1); // No replay or automatic restoration after failure.
+        if (failure == Wire::Failure::LOST) CHECK(r.wire.values[1][1] == 1);
+    }
+}
 } // namespace
 int main() {
     passiveHappyAndReservation();
@@ -1058,5 +1172,7 @@ int main() {
     timerTwiceWithoutInstall();
     timerReadbackFollowsTheBoundary();
     serviceAgeOnlyForAdmission();
+    transmissionExperimentAndRestoration();
+    transmissionExperimentRefusalsAndUnknownEffects();
     std::printf("pdo_experiment_test: %u checks passed\n", checks);
 }

@@ -9,6 +9,7 @@
 #include "ProbeDevice.h"
 #include "ProbeMotion.h"
 #include "ProbeSettings.h"
+#include "ProbeSync.h"
 
 namespace MotorControlCANExample {
 /** Effect classification used by this inventory and later device routes. */
@@ -136,6 +137,15 @@ class ProbeConsole {
         motion_ = &motion;
         return true;
     }
+    /** Borrow a finite SYNC helper; no arm, producer grant or traffic is created.
+     * @param sync Stationary same-owner helper, outlives this console.
+     * @return False unchanged for replacement attachment or a different owner graph. */
+    bool attachSync(ProbeSync& sync) noexcept {
+        if ((sync_ && sync_ != &sync) || !sync.usesOwner(owner_))
+            return false;
+        sync_ = &sync;
+        return true;
+    }
     /** Withdraw the motion attachment, so that an application with one attachment per axis can attach
      * another axis's. No traffic; the attachment's own results and native contexts stay as they are.
      * @return False unchanged while any motion operation of this console is retained. */
@@ -187,7 +197,7 @@ class ProbeConsole {
         MotorControlCANOwner::RecoveryId recoveryId;
         MotorControlCAN::CANOPEN::NmtRequestId nmtId;
         bool automatic = false, discovery = false, capture = false, monitor = false,
-             settings = false, commissioning = false, motion = false;
+             settings = false, commissioning = false, motion = false, sync = false;
         uint8_t stop = 0; ///< Zero ordinary, one HALT, two QUICK_STOP; dedicated retained slots.
         uint8_t valueCursor = 0;
         char command[24] = "read";
@@ -197,6 +207,7 @@ class ProbeConsole {
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
     ProbeMotion* motion_ = nullptr;
+    ProbeSync* sync_ = nullptr;
     SimpleMoveIntent intent_;
     uint8_t debug_ = 0;
     // Only the fields the console publishes. Keeping Completion out saves scarce S2 RAM.

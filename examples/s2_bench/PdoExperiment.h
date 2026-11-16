@@ -1,7 +1,8 @@
 /** @file PdoExperiment.h
  * @brief Finite explicit TPDO1 configuration through the ordinary single owner.
  * The bench caller of the profile's TPDO1 lifecycle: the isolated map3-to-map2 experiment (`m`)
- * and the supported 1800:05 event-timer change (`E`). Application only; no device I/O, NMT,
+ * and the supported 1800:05 event-timer change (`E`), plus the isolated 1800:02 type
+ * experiment (`J`). Application only; no device I/O, NMT,
  * clocks, heap, hidden retries or motion.
  * SPDX-License-Identifier: MIT
  */
@@ -20,14 +21,18 @@ using MotorControlCANOwner::CanBusOwner;
 /** Entire copied exact intent; records are external review attestations.
  * MAP3_TO_MAP2 is the isolated node-1 experiment: scope ISOLATED_EXPERIMENT, 24 services.
  * EVENT_TIMER is the supported change on node 1 or 2: scope FIXTURE_QUALIFIED, 19 services
- * (nine baseline reads, one 1800:05 write, nine final reads). Anything else refuses at begin.
+ * (nine baseline reads, one 1800:05 write, nine final reads).
+ * TRANSMISSION_TYPE is the isolated experiment on node 1 or 2: ISOLATED_EXPERIMENT,
+ * 19 services (nine baseline reads, one 1800:02 write, nine final reads); only 255 to 1 or
+ * 1 to 255 from the exact profile baseline. Nothing establishes same-SYNC sample provenance.
+ * Anything else refuses at begin.
  */
 struct PdoExperimentPlan {
     ReadExperiment review; ///< Fixture/source/control/failure/reconciliation metadata and budgets.
     MotorControlCAN::LICHUAN_C::Tpdo1ConfigurationReview configurationReview;
     ///< Exact target, retained fixture/firmware records and the scope its transition requires.
     MotorControlCAN::LICHUAN_C::Tpdo1ConfigurationRequest request;
-    ///< Explicit transition and 1800:05 literal; the default names none and refuses.
+    ///< Explicit transition and raw timer/type literal; the default names none and refuses.
     uint8_t slot = 0; ///< Existing service slot whose current live route is the target.
     uint32_t firstAuthorizationId = 0; ///< First of 24 or 19 strictly increasing exact grants.
     uint64_t maximumAgeUs = 0;         ///< Nonzero conservative NMT/baseline/result age policy.
@@ -58,7 +63,7 @@ struct PdoExperimentRecord {
     MotorControlCAN::Binding
         current; ///< Actual application interpretation epoch, withdrawn before TX.
     MotorControlCAN::LICHUAN_C::Tpdo1ConfigurationContext configuration;
-    ///< Public typed sequence result; its scope is the plan's: ISOLATED_EXPERIMENT for the map
+    ///< Public typed sequence result; its scope is the plan's: ISOLATED_EXPERIMENT for map/type
     ///< change, FIXTURE_QUALIFIED for the event timer. Success never promotes it.
     bool configurationPrepared = false; ///< Baseline acquired and typed candidate admitted locally.
     bool configurationMigrated = false; ///< Idle owner/adapter synchronized to next configuration.
@@ -87,6 +92,8 @@ class PdoExperiment {
      * @param plan Exact transition, target, nonzero records, operation ID and age; id+1 is
      * reserved for the core phase. MAP3_TO_MAP2 needs node 1 and ISOLATED_EXPERIMENT;
      * EVENT_TIMER needs node 1 or 2, FIXTURE_QUALIFIED and a RAW_0 or RAW_100 literal.
+     * TRANSMISSION_TYPE needs node 1 or 2, ISOLATED_EXPERIMENT, timer RAW_0 and type RAW_1 or
+     * RAW_255. Existing map/timer plans require transmissionType RAW_255.
      * Queue/response budgets must be 250000 us.
      * @param nowUs Supplied nondecreasing monotonic microseconds before deadline.
      * @return ACCEPTED locally only. Waits for a current qualified Pre-operational
@@ -97,7 +104,7 @@ class PdoExperiment {
      */
     EvidenceAdmission begin(const PdoExperimentPlan& plan, uint64_t nowUs) noexcept;
     /** Set the node's service evidence age to plan.maximumAgeUs, then begin.
-     * The application path of `m` and `E`: begin requires that policy already in force. On
+     * The application path of `m`, `E` and `J`: begin requires that policy already in force. On
      * any refusal the node's previous age is restored, so a refused request changes nothing;
      * an accepted one keeps the age after release, for the rest of the owner's life.
      * @param plan As begin. @param nowUs Supplied nondecreasing monotonic microseconds.

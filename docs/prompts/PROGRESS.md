@@ -1,10 +1,14 @@
 # Prompt execution progress
 
-Execution has reached prompt50. The [independent candidate review](../reports/prompt_50.md)
-corrects literal README consumption and source/evidence summaries; full local
-native/package/Doxygen verification passed. Final exact-commit CI is checked at
-handoff. The [documentation/package audit](../reports/prompt_49.md)
-remains its prerequisite. Bounded read/load campaigns remain in [report48](../reports/prompt_48.md).
+Execution has reached prompt51, **Partial**. The finite host SYNC producer and
+conditional TPDO1 type 1/255 transition are implemented and host-tested through
+the owner, adapter and console. [Report51](../reports/prompt_51.md) retains the
+scoped bench observations and final verification. Qualified same-cycle samples,
+RPDO buffering/withdrawal, the M09 map and sustained two-axis 10 ms operation
+remain gated; see the [SYNC guide](../sync.md).
+The [independent candidate review](../reports/prompt_50.md) and
+[documentation/package audit](../reports/prompt_49.md) retain their earlier scope.
+Bounded read/load campaigns remain in [report48](../reports/prompt_48.md).
 The earlier finite motion and physical observation limits remain in [report47](../reports/prompt_47.md).
 Partial rows below retain their distinct software/source/physical obligations.
 No current hardware qualification is inferred from a host test or an old bench run.
@@ -79,7 +83,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | Partial | Physical fault/link/restart observation and OL86-C/CL57-C/OL57-C fixtures unavailable; no save/restore campaign executed | [Finite read/load work and exact pending campaigns](../reports/prompt_48.md) |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | Complete | Prompt18/Q17 and all retained feature/physical gates; no release publication | [Report](../reports/prompt_49.md) |
 | 50 | [Final independent release-candidate review](50_final_review.md) | Complete software review | Earlier Partial software/source/physical gates remain inherited; no whole-library completion or publication | [Independent review and final checks](../reports/prompt_50.md) |
-| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Pending | 17, 24, 38, 42; Lichuan SYNC undocumented (M10, M13); RPDO trial after the M09 map review | - |
+| 51 | [Host SYNC producer and synchronous PDO operation](51_sync_producer.md) | Partial | Consumes 17/24/38/42 artifacts; Q27 sample provenance, Q28 RPDO buffering/withdrawal and M09 map remain open; prompt56 throughput precedes the sustained two-axis 10 ms trial | [Finite producer, typed TPDO1 type experiment and remaining trials](../reports/prompt_51.md) |
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Pending | 29, 33, 35, 42; gates Q22-Q26 (F01); measurements F02-F14 first | - |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Pending | 42, 45, 51; capacity study, group-stop rules M02, S2 memory B01-B03 | - |
 | 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Pending | 48, 51, 52, 53; bench authorization and fixture facts | - |
@@ -104,15 +108,16 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 
 ## Next ready
 
-1. Prompt50 closes the independent scoped software-candidate review after its
-   final local and exact-commit CI gates. It does not mark prompt18/Q17, missing
-   standalone reads or physical qualification complete. Prompt51 is the next
-   numbered assignment when requested; later prompts are not part of this review.
+1. Prompt51 retains its Q27/Q28 and M09 evidence work. The finite producer and
+   conditional TPDO1 type setting are usable artifacts; they do not qualify
+   synchronous samples or RPDO starts. Prompt56 throughput is required before
+   the sustained two-axis 10 ms trial. Continue independent assigned work under
+   [COMMON](COMMON.md) while those precise obligations remain visible.
 2. Resume earlier Partial rows only for their named unfulfilled scope. Use
    [device conflicts](../device_conflicts.md), the [backlog](../backlog.md) and the
    [bench record](../hardware_bench.md) to select the next required observation.
    Old trial history is not a statement of the currently powered fixture.
 3. Prompts47-48 retain physical qualification and prompt48's serial-loss cause.
-   Prompts51-72 remain explicit later assignments; 53 owns concurrent application
+   Prompts52-72 remain explicit later assignments; 53 owns concurrent application
    axes and 55 owns reviewed communication recovery/retry policy. A corrected
    document does not implement their remaining work.

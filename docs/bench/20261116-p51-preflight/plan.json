@@ -1,0 +1,30 @@
+{
+  "purpose": "P51 fresh complete communication records: 1005, all RPDO/TPDO types/maps/timers, no writes",
+  "authorization": "Standing bench authorization; original EDS widths and existing reviewed typed acquisition; no save, motion, NMT or replay",
+  "steps": [
+    {
+      "send": "K1",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "send": "K2",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

@@ -46,8 +46,9 @@ common names and has no SYNC API, so record that no common name exists. Inspect 
 ownership integration. If HEAD, dirty state and seam match the last recorded row, write "unchanged since prompt N" and do
 not reread. A sibling row must name a behavior adopted or rejected, with path and symbol. This does not relax vendor
 evidence, safety, uncertainty or verification rules. Read the [multi-axis and SYNC survey](../reports/2026-11-12_multiaxis_sync_survey.md),
-the [multi-drive preparation](../reports/2026-11-12_multidrive_preparation.md), the vendored CANopenNode `CO_SYNC` and
-`CO_PDO` sources under `experiments/canopen_service_fit/vendor`, the EDS entries above, prompt 17/18/38 reports and
+the [multi-drive preparation](../reports/2026-11-12_multidrive_preparation.md), the pinned CANopenNode `CO_SYNC` and
+`CO_PDO` sources (see the paths and exact revision in
+[the prompt51 source review](../reports/prompt_51_sources.md); the fit vendor subset does not contain these files), the EDS entries above, prompt 17/18/38 reports and
 the N5 SYNC material in `docs/reference/multidrive` as design contrast only. Apply [CONVENTIONS.md](CONVENTIONS.md),
 [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and
 [DELEGATION.md](DELEGATION.md). Record new gates (for example Q27 synchronous TPDO types, Q28 synchronous RPDO latching)
@@ -76,7 +77,9 @@ in `device_conflicts.md` and the ledger before implementation depends on them.
    substitute; ordinary per-axis SDO stops remain available and urgent, and a stop is never sent through a synchronous
    RPDO (it would wait for the next SYNC). Hazard (survey, inferred): an armed synchronous RPDO stays pending until the
    next SYNC, so a failed start SYNC leaves any later SYNC able to start the motion; early trials use one-shot SYNC only,
-   and the trigger is withdrawn (an asynchronous controlword without the start edge) before any later SYNC.
+   and every later SYNC is blocked until applicable evidence proves the remote pending trigger withdrawn.
+   An asynchronous controlword without the start edge is not, by itself, that proof; it may leave the
+   synchronous RPDO buffer untouched. Keep the Q28 gate closed when withdrawal is unknown.
 7. Bench and console: bench routes for the trials below on the S2 image and finite console commands (for example
    `sync once`, `sync period MS COUNT`), never an unbounded producer.
 8. Trials, each reported as works, ignored or refused with raw traffic: (a) one SYNC with every PDO at type 255 (expect

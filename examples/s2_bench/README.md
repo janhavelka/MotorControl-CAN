@@ -57,6 +57,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
 | `E<node>,<0\|100>` | The supported TPDO1 event-timer change on node 1 or 2: `1800:05` from raw 100 to raw 0 or from raw 0 to raw 100, through the profile's typed lifecycle (below) |
+| `J<node>,<1\|255>` | PONG `pdo=6`: isolated TPDO1 transmission-type experiment or explicit restoration on node 1 or 2; one typed `1800:02` write and exact readback, with no SYNC, NMT, save or motion side effect |
 | `C<capture>,<seconds>,<frames>`, `C0` | One bounded silent capture, 1..600 s and 1..128 stored frames, with every transmission refused and S18 requested high; `C0` ends it early (below) |
 | `D<o\|p\|i>,<seconds>,<select>,<expect>` | Prompt 37: the library's `DiscoveryScan` over both configured nodes within a 1..60 s window, `o` passive (nothing sent), `p` one accepted `1000:00` probe per node, `i` nine accepted identity uploads per node; then host selection of node 1 or 2 (0 none), which sends nothing; `expect` 1 (with `i` only) compares the raw identity with the retained fixture identity (below) |
 | `K<node>` | Prompt 38: all eighteen typed communication read groups of node 1 or 2, 95 uploads with one reviewed grant each, no write (below) |
@@ -76,7 +77,7 @@ operation, traces or scans, every bench command that admits owner work is refuse
 
 ### PDO stream sessions
 
-The `N`, `P`, `R`, `W` and `E` lines (`PdoCommand.h`) end with a line feed and use decimal numbers. `scripts/s2_pdo.py run` sends a JSON plan of them, with single-byte commands such as `c`, `h`, `j` and `r`, and keeps one capture for the whole session. Each step waits for its expected reply; a refusal or silence ends the plan, and only a running watch is then ended with `P0`. `scripts/s2_pdo.py analyze DIR` reports each received ID's frames and timing, every NMT request with its TX completion time, the first and last frame of each ID around it, heartbeat states and every PDO record read or write.
+The `N`, `P`, `R`, `W`, `E` and `J` lines (`PdoCommand.h`) end with a line feed and use decimal numbers. `scripts/s2_pdo.py run` sends a JSON plan of them, with single-byte commands such as `c`, `h`, `j` and `r`, and keeps one capture for the whole session. Each step waits for its expected reply; a refusal or silence ends the plan, and only a running watch is then ended with `P0`. `scripts/s2_pdo.py analyze DIR` reports each received ID's frames and timing, every NMT request with its TX completion time, the first and last frame of each ID around it, heartbeat states and every PDO record read or write.
 
 - **Watch** (`PdoWatch.h`): the TWAI tap copies every frame the adapter delivers into a 32-frame ring, without taking it from the owner, so the watch runs beside any record, NMT request or soak. SDO frames are only counted. Per ID it keeps count, gaps, mean and deviation, data changes and the last payload, and prints each frame as `PDOW_F` while the console has room. A frame's `hi` is the ISR clock sample at enqueue, an upper bound and never a bus timestamp, so gaps include ISR and service latency. `tapDropped` or `unprinted` above 0 qualifies the output. A watched frame is not a qualified PDO sample.
 - **NMT** (`N`): the owner admits one request at a time, with a 250 ms queue budget and a 5 s deadline; release its `NMT request` result with `r` before the next. TX completion is local evidence; the drive's state comes only from its heartbeat or from frames that follow. NMT Stop is not a motor stop, and in Stopped the owner refuses SDO until Pre-operational or Start.
@@ -94,7 +95,41 @@ The `N`, `P`, `R`, `W` and `E` lines (`PdoCommand.h`) end with a line feed and u
   RESULT ... (19 lines, the tenth the 1800:05 download), TRAFFIC ..., END PDO; map readback and sample qualification are separate; r=release
   ```
 
-  `PDO_CONFIG refused; no work` names no reason: an active record, dump, network listing or NMT result, an exhausted identity or grant, or an invalid plan. The `PDO` header of both `m` and `E` now ends with `node`, `transition` (1 map, 2 event timer), `raw` (the requested `1800:05` literal, no unit) and `lastStep`, `effectStep`, `failedStep` (step 1 is the first write, 0 none). PONG reports `pdo=2` for this line set; `scripts/s2_pdo.py` refuses to send an `E` line to an image that reports `pdo=1`.
+  `PDO_CONFIG refused; no work` names no reason: an active record, dump, network listing or NMT result, an exhausted identity or grant, or an invalid plan. The `PDO` header carries `node`, `transition` (1 map, 2 event timer, 3 transmission type), `raw` (the requested timer/type literal) and `lastStep`, `effectStep`, `failedStep` (step 1 is the first write, 0 none). Protocol 2 introduced `E`; the current image reports `pdo=6`. The runner refuses `E` on protocol 1 and refuses `J` on protocols 1–5 before sending the line.
+
+- **TPDO1 transmission type** (`J`): `J1,1`, `J2,1` and the explicit reverse requests
+  `J1,255`, `J2,255` use `Tpdo1Transition::TRANSMISSION_TYPE` with
+  `ISOLATED_EXPERIMENT` scope. The nineteen-service lifecycle and 8 s deadline
+  match `E`: fresh qualified Pre-operational heartbeat after reservation, nine
+  exact baseline uploads, one U8 `1800:02` download and all nine final uploads.
+  The baseline must contain the opposite type, COB-ID `0x180+node`, inhibit raw
+  100, event raw 0 and the original count-3 map above. Whole-candidate validation
+  refuses other values before writing. The node's configuration/map confidence
+  is withdrawn before possible TX; failure retains partial/unknown effects.
+  Release the PDO record with `r` before another command. Restoration is a
+  separate `J<node>,255`; no save, NMT change or automatic restoration occurs.
+  Grants share the increasing per-node `R`/`W`/`E` sequence. The runner requires
+  protocol 6 and checks all nineteen identities, widths, baseline/readback values
+  and the sole wire write before continuing. Stored readback establishes no
+  synchronous sampling or firmware-wide capability; see [prompt51](../../docs/reports/prompt_51.md).
+
+**Finite host SYNC.**
+
+The shared console exposes `sync inspect`, explicit `sync arm`, `sync once`,
+`sync period MS COUNT`, `sync disarm` and `sync resolve EVIDENCE_ID`, each through
+an `@ID` line. The [SYNC guide](../../docs/sync.md) owns the fixed-origin timing,
+exclusive-producer premise, immutable terminal and local retirement contracts.
+Use the actual returned operation ID with `result ID` and `release ID`.
+No startup or recovery path arms production. `LOCAL_TX` is local controller
+evidence only, and local disarm is not a motor stop or remote RPDO withdrawal.
+
+`J` changes the stored type only; SYNC production is separately requested.
+No synchronous RPDO start path exists: M09's controlword-only map and Q28's
+buffer-withdrawal evidence are missing. Q27 still gates qualified same-cycle
+samples. Initial specimen observations and exact captures belong in
+[report51](../../docs/reports/prompt_51.md); the sustained two-axis ten-minute
+10 ms trial awaits prompt56 throughput. No flash write may run during production
+or motion on this S2 image.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
@@ -406,7 +441,7 @@ command. `scripts/s2_bench.py` checks `PONG` before every line, so neither chang
 - While the bench holds owner work (a route record, active or held, other than a settled arming record; a raw, PDO, `D`,
   `K`, `H` or identity record; a retained NMT request; a soak; a capture) the console takes only inspection and its own
   retained results: `help`, `version`, `profile`, `caps`, `config`, `status`, `health`, `stats`, `drv`, `memory`, `load`,
-  `network`, `heartbeat`, `pdo SLOT`, `debug`/`debug off`, `result`, `release`, `cancel`, `monitor off`,
+  `network`, `heartbeat`, `pdo SLOT`, `sync inspect|disarm`, `debug`/`debug off`, `result`, `release`, `cancel`, `monitor off`,
   `discover inspect|cancel` and the host intent commands (`wiring`, `prepare`, `axis config`, `speed`, `accel`, `decel`,
   `motion`, `home methods`). Everything else, `host` and `useaddr` included, answers `bench_wire_work_active`. So does
   `stop`: during a bench route its own planned stop, `A` (local, sends no stop) and the attendant's independent power
@@ -417,7 +452,7 @@ command. `scripts/s2_bench.py` checks `PONG` before every line, so neither chang
   and epoch, and this image has no recovery path.
 - While the console retains an operation (from admission until `release ID`, active or terminal, delivered or not), has
   `debug raw|decoded` on (it would drain the owner's diagnostic copies that every bench record keeps) or monitors or
-  scans, the bench refuses every command that admits owner work: `T`, `S`, a `C` capture, the `D`/`K`/`H`/`E`/`N`/`R`/`W`
+  scans, the bench refuses every command that admits owner work: `T`, `S`, a `C` capture, the `D`/`K`/`H`/`E`/`J`/`N`/`R`/`W`
   lines (`PDO_LINE refused reason=console`), `1` to `4`, `v`/`b`, `h`/`j`, `m`, `q`/`w` and `x`, each with its own
   refusal line and reason `console` where it has one. `p`, `s`, `M`, `n`, `d`, `r`, `A`, `X`, `P`, `C0` and `o` are served.
   A held console read also holds the application's read context, which `BenchRoute::begin` refuses (`state`) by itself.

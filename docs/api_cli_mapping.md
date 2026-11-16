@@ -282,3 +282,13 @@ retention, source gates and tested examples. The native operation's context rema
 the complete evidence; `MotionResult` is an example-only owned projection.
 `motor-release`, `motion stored` and qualification-install capabilities appear only
 as precise gated rows. No survey-only driver or raw object sender is exposed.
+
+## Prompt 51 SYNC
+
+`CANOPEN::prepareSync/nextSync/advanceSync/cancelSync` own the finite schedule;
+`ProbeSync` bridges it to the sole owner. The shared console exposes explicit
+`sync arm`, `sync once`, `sync period MS COUNT`, `sync inspect`, `sync disarm` and
+`sync resolve EVIDENCE_ID`. Existing `result`, `cancel` and `release` retain
+correlated outcomes. These names are CANopen-specific; RS has no SYNC operation.
+The typed TPDO1 type transition uses the existing configuration lifecycle; the
+bench `Jnode,1|255` path is experiment scope. See [SYNC](sync.md).

@@ -398,8 +398,10 @@ class Console:
             if any(row["type"] == kind and row["command"] == item["command"] for row in handle.records):
                 self._fail("duplicate inventory entry")
             if kind == "capability":
+                # ConsoleCommand::owner is positive uint8 provenance metadata, not
+                # a capability grant or a bound on the evolving prompt sequence.
                 if (type(item.get("implemented")) is not bool or
-                    type(item.get("owner")) is not int or not 1 <= item["owner"] <= 50 or
+                    type(item.get("owner")) is not int or not 1 <= item["owner"] <= 255 or
                     type(item.get("effect")) is not str or
                     item["effect"] not in {"cache", "pure", "host_configuration", "local_cancel", "host_recovery", "device_read", "device_setting", "device_action"} or
                     type(item.get("completion")) is not str or item["completion"] not in {"reply", "asynchronous"} or

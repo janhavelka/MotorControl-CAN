@@ -109,6 +109,8 @@ int runConsoleFake(const char* path) {
     E::ProbeApp app(owner, platform);
     E::ProbeConsole console(app, owner, platform);
     E::ProbeDevice device(app, owner, services);
+    E::ProbeSync sync(owner);
+    console.attachSync(sync);
     console.attachDevice(device);
     E::HostInterfaceFacts interface;
     interface.interfaceKnown = interface.bitrateKnown = true;

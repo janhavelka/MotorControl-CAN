@@ -1,0 +1,41 @@
+{
+  "purpose": "P51 explicit restoration of node1 TPDO1 type1 to255, exact19service readback, then NMToperational; no save, motion or RPDO",
+  "authorization": "Standing bench and explicit P51 restoration; first failure stops without replay",
+  "steps": [
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J1,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

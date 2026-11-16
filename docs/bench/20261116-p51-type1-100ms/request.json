@@ -1,0 +1,70 @@
+{
+  "period_ms": 100,
+  "count": 20,
+  "steps": [
+    {
+      "send": "P8"
+    },
+    {
+      "send": "@5200 host 0",
+      "monotonic": 347601.171
+    },
+    {
+      "send": "@5201 debug raw",
+      "monotonic": 347601.234
+    },
+    {
+      "send": "@5202 sync arm",
+      "monotonic": 347601.281
+    },
+    {
+      "send": "@5203 sync period 100 20",
+      "monotonic": 347602.046
+    },
+    {
+      "terminal": {
+        "schema": "motorcontrolcan.console/1",
+        "protocol": 3,
+        "profile": "lichuan_c",
+        "type": "terminal",
+        "id": 5203,
+        "command": "sync",
+        "ok": true,
+        "status": "OK",
+        "detail": 1,
+        "outcome": "LOCAL_TX",
+        "uncertain": true,
+        "command_id": 5203,
+        "operation_id": 14,
+        "completed_us": "336056663",
+        "abort_code": null,
+        "local_tx_count": 20,
+        "requested_count": 20,
+        "transmission_possible": true,
+        "drive_effect_known": false
+      }
+    },
+    {
+      "send": "@5204 result 14",
+      "monotonic": 347604.234
+    },
+    {
+      "send": "@5205 release 14",
+      "monotonic": 347604.484
+    },
+    {
+      "send": "@5206 sync disarm",
+      "monotonic": 347604.734
+    },
+    {
+      "send": "@5207 debug off",
+      "monotonic": 347604.796
+    },
+    {
+      "send": "@5208 stats",
+      "monotonic": 347613.906
+    }
+  ],
+  "fixture": "COM15 303A:1002 94A990398B40; same P51 image",
+  "no_automatic_retry": true
+}

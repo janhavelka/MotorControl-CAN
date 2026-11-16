@@ -448,6 +448,34 @@ class AdversarialConsoleTest(unittest.TestCase):
                     console.command("probe 10", timeout_s=0.02)
                 self.assert_poisoned_without_replay(console, port)
 
+    def test_capability_owner_uses_producer_width_not_old_prompt_count(self):
+        # The first post-50 capability must not break identification of unrelated
+        # reads. Owner metadata does not make the new command supported by this runner.
+        for owner in (51, 72, 255, 0, -1, True, 51.0, "51", None, 256):
+            with self.subTest(owner=owner):
+                clock, port = Clock(), Port()
+                def inventory(identity, command):
+                    data = Port.handshake(identity, command)
+                    if command == "caps":
+                        rows = data.splitlines(keepends=True)
+                        rows.insert(-1, record(identity, "capability", "sync", implemented=True,
+                                               owner=owner, effect="device_action",
+                                               completion="asynchronous", reason="finite local SYNC"))
+                        return b"".join(rows)
+                    return data
+                port.handler = inventory
+                console = Console(port, clock=clock, sleeper=clock.sleep, first_id=1)
+                if type(owner) is int and 1 <= owner <= 255:
+                    console.identify(expected_version="0.1.0")
+                    self.assertTrue(console.identified)
+                    self.assertEqual(console.capabilities["sync"]["owner"], owner)
+                    self.assertEqual(len(port.writes), 4)  # Only version/profile/caps/config.
+                else:
+                    with self.assertRaisesRegex(BenchError, "invalid capability inventory"):
+                        console.identify(expected_version="0.1.0")
+                    self.assertFalse(console.identified)
+                    self.assert_poisoned_without_replay(console, port)
+
     def test_capability_bad_container_and_boolean_endpoint_are_rejected(self):
         for field, value in (("effect", []), ("endpoint_range", [True, 127])):
             with self.subTest(field=field):

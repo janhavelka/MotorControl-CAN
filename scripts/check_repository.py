@@ -17,7 +17,7 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
     "test/combined_contract_test.cpp", "test/installed_consumer/core.cpp",
@@ -52,7 +52,7 @@ REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/sync.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
     "docs/native_application.md",
     "platformio.ini",
     "scripts/check_firmware.py",
@@ -63,6 +63,7 @@ REQUIRED = {
     "test/esp_probe_platform_test.cpp",
     "test/firmware_build_test.py",
     "examples/common/firmware_sources.json",
+    "examples/common/ProbeSync.h", "examples/common/ProbeSync.cpp", "test/probe_sync_console_test.cpp",
     "examples/common/FirmwareProbe.h",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/FirmwareBoard.h",
@@ -115,6 +116,7 @@ REQUIRED = {
     "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
     "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
     "test/sdo_reconciliation_test.cpp",
+    "include/MotorControlCAN/canopen/Sync.h", "src/canopen/Sync.cpp", "test/sync_test.cpp", "test/sync_owner_test.cpp",
     "include/MotorControlCAN/canopen/Network.h", "src/canopen/Network.cpp", "test/network_codec_test.cpp", "test/network_events_test.cpp",
     "adapters/canopennode/NetworkState.h", "adapters/canopennode/Network.cpp",
     "adapters/canopennode/Nmt.h", "adapters/canopennode/Nmt.cpp", "test/nmt_codec_test.cpp", "test/nmt_services_test.cpp",

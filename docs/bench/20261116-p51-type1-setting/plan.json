@@ -1,0 +1,41 @@
+{
+  "purpose": "P51 Q27 isolated TPDO1 type255->1 experiment onnode1 only; exact19service readback, explicitNMTpreop/start, no save/motor/RPDO",
+  "authorization": "Standingbench + explicitP51 experiment; type1 behavior unknown; firstfailure stops, restoration separate explicitJ1,255",
+  "steps": [
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

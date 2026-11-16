@@ -301,3 +301,13 @@ remains absent. Command/schema parity is still assigned to 40-42.
 | Normal/fast stop, held recovery and uncertain motion retention | Separate correlations/component records; `motion_console_test`, `axis_session_test` | Best-effort replies never qualify execution; physical stopping not established |
 | Shared inventory and exact JSONL | `ProbeConsole.*`, `console_protocol_test.py`; native and pinned firmware builds | Compile/fake parity only |
 | Motor release and stored-only setup | Explicit caps-only gates with reasons in `consoleCommands` | D-17 release command absent; no native stored-only policy |
+
+## Prompt 51 host SYNC scope
+
+The finite portable codec/scheduler, independent owner admission/retirement,
+TWAI integration and shared finite console are software scope. Conditional
+TPDO1 type1/255 uses the existing typed configuration path. The existing
+Communication groups already cover all nine requested read rows.
+[The prompt51 report](reports/prompt_51.md) records actual checks and trials;
+Q27 same-cycle sampling, Q28 RPDO latching/withdrawal and the P56-dependent
+sustained 10 ms trial remain distinct obligations.

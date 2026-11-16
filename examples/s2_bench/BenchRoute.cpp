@@ -1330,7 +1330,8 @@ void BenchRoute::copyTraffic(const Diagnostic& in, bool tail) noexcept {
     out.id = in.frame.id;
     out.epoch = in.controllerEpoch;
     out.txKind = uint8_t(in.txId.kind);
-    out.txRequest = in.txId.kind == TransportTxId::Kind::NMT ? in.txId.nmt.generation
+    out.txRequest = in.txId.kind == TransportTxId::Kind::SYNC ? in.txId.sync.generation
+                    : in.txId.kind == TransportTxId::Kind::NMT ? in.txId.nmt.generation
                                                             : in.txId.sdo.request.generation;
     out.txFrame = in.txId.sdo.frame;
     out.txChannel = in.txId.kind == TransportTxId::Kind::NMT ? 0 : in.txId.sdo.request.channel;

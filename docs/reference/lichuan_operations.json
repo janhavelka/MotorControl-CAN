@@ -1271,6 +1271,52 @@
       "console_api_only_reason": "A service-evidence projection consumes caller facts only; the console already serializes the concrete operation evidence without manufacturing acknowledgement.",
       "python_scenarios": [],
       "python_api_only_reason": "No named campaign claims independent acknowledgement projection; production contrast tests cover absence, unknown, rejection and observed completion separately."
+    },
+    {
+      "id": "Sync",
+      "header": "include/MotorControlCAN/canopen/Sync.h",
+      "functions": {
+        "makeSyncRequest": 1,
+        "checkSyncFrame": 1,
+        "prepareSync": 1,
+        "nextSync": 1,
+        "advanceSync": 2,
+        "cancelSync": 1
+      },
+      "implementation": [
+        "src/canopen/Sync.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/sync_test.cpp",
+          "ctest": "sync"
+        },
+        {
+          "path": "test/sync_owner_test.cpp",
+          "ctest": "sync_owner"
+        },
+        {
+          "path": "test/probe_sync_console_test.cpp",
+          "ctest": "probe_sync_console"
+        }
+      ],
+      "api_only_reason": "Codec checks and caller-owned schedule phases are used by the single owner/application; individual progression calls are not console commands.",
+      "console": [
+        {
+          "command": "sync",
+          "entry": "prepareSync",
+          "implementation": [
+            "examples/common/ProbeSync.cpp"
+          ],
+          "api": "ProbeSync/prepareSync/CanBusOwner::admitSync",
+          "dispatch": "ProbeSync::request",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsole.cpp",
+            "function": "ProbeConsole::dispatchDevice"
+          }
+        }
+      ],
+      "python_api_only_reason": "The existing s2_bench_console runner sends finite explicit SYNC commands and retains raw JSONL; no separate automatic SYNC campaign or hardware qualification is claimed."
     }
   ],
   "ledger_bindings": {

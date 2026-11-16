@@ -4,7 +4,9 @@
 candidate, fixes PowerShell README consumption and corrects current evidence
 provenance. Its full verifier and exact-commit CI close the review only; the four
 standalone read omissions, other Partial features and physical obligations below
-remain assigned. Prompts51–72 are later work, not silently completed here.
+remain assigned. [Prompt51](reports/prompt_51.md) now delivers the finite host SYNC
+producer and typed TPDO1 type experiment; its Q27/Q28, map and sustained-rate
+obligations remain open. Prompts52–72 retain their separate assignments.
 
 [Prompt48](reports/prompt_48.md) adds bounded two-node read/output load and fixes
 false-complete soak evidence. Its 20 ms read-load capture also retains a 64-byte
@@ -173,9 +175,9 @@ resolve the above facts by themselves.
 
 ## Wanted features (requested 2026-11-12)
 
-The user wants, in future: changes of velocity, ramps and targets during motion; several drives operating at
+The user requested changes of velocity, ramps and targets during motion; several drives operating at
 once, including a SYNC attempt even though the Lichuan sources do not document it; and the S2 memory needed for
-both. These are wanted features with their evidence gates, not delivered behavior. Prompts [51](prompts/51_sync_producer.md) (SYNC master), [52](prompts/52_motion_changes.md) (changes during motion), [53](prompts/53_multi_axis.md) (multi-axis, capacity, group stop) and [54](prompts/54_hardware_sync_multiaxis.md) (their hardware qualification) own them. The user's standing wishes, 2026-11-12: the MCU is the SYNC master on usual classic CAN; test changes with motion already in place, including replacing the whole target, not only bit 5 parameter updates; the library should allow everything such drives can offer as openly as possible (typed where documented, an explicit recorded experiment scope where not); capacity as large as the MCU allows, optionally in PSRAM. Details and sources:
+both. Delivered subsets and remaining gates are distinguished below. Prompts [51](prompts/51_sync_producer.md) (SYNC master), [52](prompts/52_motion_changes.md) (changes during motion), [53](prompts/53_multi_axis.md) (multi-axis, capacity, group stop) and [54](prompts/54_hardware_sync_multiaxis.md) (their hardware qualification) own them. The user's standing wishes, 2026-11-12: the MCU is the SYNC master on usual classic CAN; test changes with motion already in place, including replacing the whole target, not only bit 5 parameter updates; the library should allow everything such drives can offer as openly as possible (typed where documented, an explicit recorded experiment scope where not); capacity as large as the MCU allows, optionally in PSRAM. Details and sources:
 [on-the-fly changes](reports/2026-11-12_on_the_fly_changes.md), [multi-drive preparation](reports/2026-11-12_multidrive_preparation.md),
 [S2 memory](reports/2026-11-12_s2_memory.md).
 
@@ -209,7 +211,8 @@ bench route at a time, one console motion attachment, compile-time capacity 2 by
 page, and the EDS): the manuals only claim "multi-axis high-speed bus synchronization control" (EN86, ZH86 and ZH57
 p3) and describe no SYNC object; the EDS has `1005` SYNC COB-ID (RW U32, default `0x80`) and writable PDO transmission
 types (`1400:02`..`1403:02`, `1800:02`..`1803:02`, U8, default 255, no range given), and no `1006`, `1007` or `1019`.
-A drive can therefore at most consume SYNC; the host must produce it. The documented modes are 1, 3 and 6 (no IP or
+No drive producer configuration is documented; the implemented host producer never sets drive `1005` bit 30.
+The documented modes are 1, 3 and 6 (no IP or
 CSP); which modes the firmware accepts is unmeasured (D17). The user's target period is 10 ms ("10ms updating would be
 enough for all of my purposes", 2026-11-12); prompts 51 and 54 test exactly that period.
 
@@ -223,11 +226,11 @@ enough for all of my purposes", 2026-11-12); prompts 51 and 54 test exactly that
 | M06 | A distinct producer per session in `ProbeApp::openAxis` | example code | Host test |
 | M07 | Measure the skew of triggers sent to both drives in one owner turn | 48 | HM6 |
 | M08 | TPDO monitoring of several axes (PDO-aware soak, sample provenance) | 17, 18 | After S13, D11 and Q17 |
-| M09 | Review a controlword-only RPDO map before any RPDO start or stop (today RPDO1 also writes target, mode and homing method) | 18 | Map review |
-| M10 | SYNC evidence: `1005` present, no `1006`, synchronous PDO types unqualified | 29 | Read `1005` and `1400:02`..`1803:02` on both nodes |
+| M09 | Review a controlword-only RPDO map before any RPDO start or stop (today RPDO1 also writes target, mode and homing method) | 18; consumed by 51/53 | Map/procedure artifacts remain absent; review exact mapping/readback and partial effects. Q28 separately requires remote buffer withdrawal; see [SYNC](sync.md). |
+| M10 | SYNC source and specimen evidence | 51 via 29 | Typed `1005` and all eight transmission-type reads exist; fresh both-node baseline and initial type-1 observations are retained in [report51](reports/prompt_51.md). Q27 same-cycle provenance and wider firmware behavior remain unqualified. |
 | M11 | Cap and ledger rules for paired admissions in `s2_bench.py` | bench | Runner tests |
 | M12 | Example policy for a fault on one axis: stop the others explicitly, with per-axis results | 45 | Host test, then HM9 |
-| M13 | **Undocumented SYNC trial** (requested): a host SYNC producer as an explicit owner service (COB-ID `0x80`, application-timed, never automatic); then (a) a SYNC with every PDO at type 255 (expect no change and no EMCY); (b) TPDO1 type 1 on one node with SYNC at 10 to 100 ms: one TPDO per SYNC or not, latency, then restore 255 without a save; (c) after M09, a synchronous RPDO controlword on both nodes and one SYNC as a common start trigger, start skew compared with M07. Never set `1005` bit 30 (no `1006`). Each step reports works, ignored or refused. Target period 10 ms (the user's): when the producer exists, a 10 ms run on one node then both, at least 10 minutes, counting missed and late TPDOs, SYNC jitter, bus load and service gaps; 10 ms set-point updates follow prompt 52's measurements | 51, then 54 | Owner SYNC service design, then step (a) |
+| M13 | Host SYNC and synchronous PDO trials | 51, then 54 | **Implemented and host-tested:** finite `0x80` producer through independent owner capacity, conflict/fault disarm, finite console commands and conditional TPDO1 type 1/255 setting. Initial specimen observations are in [report51](reports/prompt_51.md). **Pending:** Q27 qualified same-cycle sampling; no-motion RPDO buffering/timer and Q28 withdrawal trials; M09/common-start skew versus M07; ten-minute one-/two-axis 10 ms evidence after prompt56 throughput. Explicit restoration is separate; no save or automatic replay. Set-point updating needs prompt52 measurements. |
 | M14 | Measure what NMT Stop does to an enabled, moving drive (no `6007` in the EDS; only a released node has received one, D15). One node at 6 to 30 rpm, NMT Stop, then Pre-operational, read `6041`, `6064`, `606C`, then the run's own stop; reported as stopped, kept running or faulted. Never a library stop path: in Stopped, SDO and PDO are not served, so "NMT Stop first, then per-axis stops" would block the stops | 53, 54 | Bench trial after 53's host work |
 | M15 | Wired stop line: DI function 5 (stop) or 6 (emergency stop) on each drive, one signal wired in parallel (button, relay or an application-owned MCU output). `prepareIoSettings` already sets the function; an example output and the drive's reaction (ramp, final state, alarm, re-enable) are missing. Not safety-rated | 62 | The user wires a signal to one DI; then a trial during motion |
 | M16 | Shared quick-stop RPDO: one COB-ID on every drive, controlword-only map, type 255, volatile, carrying only `000B` (a shared `010F` would enable a switched-on drive). One frame stops every axis at once; each axis still settles from its own observation | 53 after M09, 54 | Map review (M09), then host tests |

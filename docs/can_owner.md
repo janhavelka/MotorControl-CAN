@@ -759,3 +759,13 @@ budget, component-evidence, cancellation and delivery rules instead of a second 
 withdraws old current controlword evidence; it preserves terminals and fences.
 `followSelectionConfiguration` follows only the selected session's exact epoch and
 keeps retained reads at their old, now stale, provenance.
+
+## SYNC admission and retirement
+
+`armSync`, `admitSync`, `syncResult`, `cancelSync`, `releaseSync` and `disarmSync`
+use one independent retained request and transport slot. The [SYNC contract](sync.md)
+specifies urgent precedence, the processing cutoff, foreign-producer conflict and
+explicit rearming after retirement. `resolveSyncConflict` records external
+resolution evidence; it performs no network reset and never arms automatically.
+The TWAI adapter now reserves CHANNELS+2 entries (SDO channels, NMT, SYNC), with
+one actual SDK frame active. Receive evidence remains independent of console output.

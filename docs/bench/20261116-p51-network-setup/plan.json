@@ -1,0 +1,55 @@
+{
+  "purpose": "P51 explicit heartbeat0->1000 and NMTOperational on bothnodes before type255 SYNC trial; no motor command",
+  "authorization": "Standing bench authorization and P51 trials; separately requested setup, no save/reset/enable; retain heartbeat change",
+  "steps": [
+    {
+      "send": "H1,1000",
+      "expect": "HB admitted",
+      "end": "END heartbeat",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "HB record released"
+    },
+    {
+      "send": "H2,1000",
+      "expect": "HB admitted",
+      "end": "END heartbeat",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "HB record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "n",
+      "expect": "END network"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

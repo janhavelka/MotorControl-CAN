@@ -1,0 +1,143 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-16T00:10:46.054113+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    ".build/p51-restore-plan.json",
+    "--output",
+    "docs/bench/20261116-p51-restore"
+  ],
+  "plan_file": ".build/p51-restore-plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "a4e0370767ecd9952be7c5d074138deed8baa77504b12feffb6dc3fe20c58fb2",
+    "s2_evidence.py": "87858ecf700661ac26ff61b89905d318be38d273f9f2169d3802fabef74a87b0"
+  },
+  "host_revision": "630600473aa2194bf9382755969e0a3cfcc311b4",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "630600473aa2194bf9382755969e0a3cfcc311b4",
+    "elf": "77b4c9ffc43737f08d5da378ccb82fb7400f771b8e23a65295028ab562af3106",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "615219988",
+    "routes": "13",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "6",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-16T00:10:46.569523+00:00",
+      "monotonic": 347883.218,
+      "reply": "NMT admitted node=1 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 2,
+      "end": "NMT request=47 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=615322991 admitted=615319986; retained; network observation separate",
+      "end_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:10:46.605370+00:00",
+      "monotonic": 347883.265,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "J1,255",
+      "tx_hex": "4a312c3235350a",
+      "utc": "2026-11-16T00:10:46.615370+00:00",
+      "monotonic": 347883.265,
+      "reply": "PDO_CONFIG admitted node=1 raw=255; TPDO1 explicit raw only: nine exact reads, one write, nine exact reads; no retry",
+      "reply_line": 5,
+      "end": "END PDO; map readback and sample qualification are separate; r=release",
+      "end_line": 87,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:10:48.713768+00:00",
+      "monotonic": 347885.359,
+      "reply": "PDO record released; configuration/uncertainty retained",
+      "reply_line": 88,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "N1,o",
+      "tx_hex": "4e312c6f0a",
+      "utc": "2026-11-16T00:10:48.724288+00:00",
+      "monotonic": 347885.375,
+      "reply": "NMT admitted node=1 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 89,
+      "end": "NMT request=50 target=1 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=617477991 admitted=617474978; retained; network observation separate",
+      "end_line": 90,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-16T00:10:48.761831+00:00",
+      "monotonic": 347885.421,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 91,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "wait_s": 1,
+      "utc": "2026-11-16T00:10:48.770830+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-16T00:10:49.766065+00:00",
+      "monotonic": 347886.421,
+      "reply": "STATS running=1 inhibited=0 rx=1209 tx=323 dropped=0 errors=0 flags=00000000 stackFree=5604 t=618512988 txRej=0 rxLost=0 unmatched=55 traceOver=1659 ownerGap=4000 conRej=8822",
+      "reply_line": 92,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-16T00:10:50.906516+00:00",
+  "bytes": 13345
+}

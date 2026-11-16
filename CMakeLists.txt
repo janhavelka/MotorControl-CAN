@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/Discovery.cpp src/Capabilities.cpp src/Native.cpp src/ActionOperation.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Communication.cpp src/profiles/lichuan_c/HeartbeatCommunication.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/Velocity.cpp src/profiles/lichuan_c/Homing.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/Discovery.cpp src/Capabilities.cpp src/Native.cpp src/ActionOperation.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Sync.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Communication.cpp src/profiles/lichuan_c/HeartbeatCommunication.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/Velocity.cpp src/profiles/lichuan_c/Homing.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
 
 list(APPEND MOTORCONTROLCAN_SOURCES src/profiles/lichuan_c/Persistence.cpp)
 
@@ -89,6 +89,7 @@ install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/
 install(FILES include/MotorControlCAN/can/Frame.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/can")
 install(FILES include/MotorControlCAN/canopen/Sdo.h include/MotorControlCAN/canopen/SdoTransfer.h
+    include/MotorControlCAN/canopen/Sync.h
     include/MotorControlCAN/canopen/Network.h
     include/MotorControlCAN/canopen/Pdo.h
     include/MotorControlCAN/canopen/PdoState.h

@@ -18,6 +18,7 @@ review, corrections, verification and inherited work without requiring this chat
 | Conditional finite motion | [Position and angle](position_parameters.md), [velocity](velocity.md), [homing](homing.md) |
 | Discovery, changes and persistence | [Commissioning](commissioning.md) |
 | CANopen services and application ownership | [Services](canopen_services.md), [owner/capacity/health](can_owner.md), [TWAI adapter](../adapters/twai/README.md) |
+| Finite host synchronization | [SYNC producer and conditional TPDO1 type](sync.md); Q27/Q28 and RPDO-map gates remain open |
 | Firmware | [Arduino and ESP-IDF](firmware_examples.md), [S2 bench image](../examples/s2_bench/README.md) |
 | Console and host clients | [CLI/JSONL](cli_contract.md), [API/CLI map](api_cli_mapping.md), [Python runners](runners.md), [finite scenarios](bench_scenarios.md) |
 | Physical evidence and open questions | [Bench facts](hardware_bench.md), [device conflicts](device_conflicts.md), [host-loss limits](host_loss.md) |
@@ -55,6 +56,8 @@ above own current behavior; historical claims are not silently rewritten.
 
 - [Documentation/package audit](reports/prompt_49.md), [finite campaign](reports/prompt_47.md)
   and [failure/load campaign](reports/prompt_48.md).
+- [Prompt51 implementation and trials](reports/prompt_51.md): finite host SYNC,
+  typed TPDO1 experiment and remaining sampling/RPDO/10 ms qualification.
 - [Independent auditor disposition](audit/2026-11-15_auditor_disposition.md),
   [RS audit](audit/MOTORCONTROL_RS_AUDIT.md), [ecosystem audit](audit/ECOSYSTEM_CONVENTIONS.md)
   and [audit summary](audit/SUMMARY.md).

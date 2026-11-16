@@ -38,12 +38,15 @@ enum class PdoCommandKind : uint8_t {
     COMMUNICATION,
     /** `H<node>,1000`: the reviewed 1017:00 raw 0 to raw 1000 heartbeat commissioning. No other
      * value exists: the reverse transition is not a reviewed workflow. */
-    HEARTBEAT
+    HEARTBEAT,
+    /** `J<node>,<1|255>`: isolated TPDO1 1800:02 transmission-type experiment or explicit
+     * restoration through the typed lifecycle. Does not send SYNC, NMT or save. */
+    TRANSMISSION_TYPE
 };
 /** Parsed console request; only the fields of its kind are meaningful. Numbers are decimal. */
 struct PdoCommand {
     PdoCommandKind kind = PdoCommandKind::NMT;
-    uint8_t node = 0;      ///< NMT, READ, WRITE, CONFIGURE: CANopen node 1 or 2 of this fixture.
+    uint8_t node = 0;      ///< Node-bearing commands: CANopen node 1 or 2 of this fixture.
     /** NMT: CiA 301 command byte, 0x01 Start, 0x02 Stop, 0x80 Pre-operational, 0x81 Reset Node, 0x82 Reset
      * Communication. */
     uint8_t nmt = 0;
@@ -60,6 +63,7 @@ struct PdoCommand {
     uint8_t select = 0;    ///< DISCOVER: host selection afterwards, node 1 or 2, 0 none.
     bool expect = false;   ///< DISCOVER: identity only; compare with the retained fixture identity.
     uint16_t producerTime = 0; ///< HEARTBEAT: requested 1017:00 raw literal, always 1000.
+    uint8_t transmissionType = 0; ///< TRANSMISSION_TYPE: target raw 1800:02 literal, 1 or 255.
 };
 /** Parse one complete console line without its line end.
  * Checks syntax, node 1..2, set 0..3, watch seconds 0..600, capture seconds 1..600, the NMT
@@ -67,7 +71,7 @@ struct PdoCommand {
  * value rules itself, the profile checks the whole TPDO1 baseline before any write, and the
  * capture checks its identity order and frame capacity. A discovery line needs its mode letter,
  * seconds 1..60, selection 0..2 and expectation 0 or 1 (1 only with `i`); a heartbeat line needs
- * the literal 1000.
+ * the literal 1000. A transmission-type experiment line requires literal 1 or 255.
  * @param text Borrowed bytes, first byte the command letter; not retained.
  * @param length Byte count; no terminator is needed.
  * @param output Published only on true.

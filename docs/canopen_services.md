@@ -966,3 +966,10 @@ Explicit new-epoch map evidence requires withdrawal/reinstallation; delayed
 same-ID samples still need an independent qualification boundary. This is a
 local bookkeeping seam for confirmed settings, not PDO reconfiguration or a
 controller recovery operation.
+
+## Explicit host SYNC (prompt 51)
+
+The [finite SYNC contract](sync.md) owns the fixed-origin scheduler, DLC-zero codec,
+local transmission evidence and Q27/Q28 gates. CANopenNode remains the one SDO
+service implementation; its CO_SYNC timer is not instantiated beside this explicit
+application scheduler. Typed `1005` and PDO-type reads reuse Communication.h.

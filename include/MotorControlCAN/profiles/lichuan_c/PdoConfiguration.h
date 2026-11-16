@@ -1,10 +1,12 @@
 /** @file PdoConfiguration.h
- * @brief Explicit bounded TPDO1 configuration: two reviewed transitions and nothing else.
+ * @brief Explicit bounded TPDO1 configuration with exact baseline and readback.
  * EN86 p16/EDS expose RW communication and mapping records; CiA's variable-mapping
  * procedure supplies the conditional order of the map change. The 1800:05 event-timer
  * transition rests on exact baseline, write and readback measurements in Pre-operational on
  * two CL86-C specimens of one firmware identity (bench continuation packet 6). Neither
- * qualifies every CL86-C firmware. No I/O, allocation, clock, NMT, motor command, retry,
+ * qualifies every CL86-C firmware. The 1800:02 type 255/1 transition is closed without
+ * explicit experiment or fixture review; EDS metadata does not establish synchronous
+ * firmware behavior or sample provenance (Q27). No I/O, allocation, clock, NMT, motor command, retry,
  * rollback or save occurs here.
  * SPDX-License-Identifier: MIT
  */
@@ -36,7 +38,8 @@ struct Tpdo1ConfigurationReview {
 enum class Tpdo1Transition : uint8_t {
     NONE,         ///< Invalid default; preparation rejects it.
     MAP3_TO_MAP2, ///< Six writes: map [6041,6061,6064] to [6041,6064]; isolated node-1 experiment origin.
-    EVENT_TIMER   ///< One 1800:05 write between the two measured raw literals; all else kept.
+    EVENT_TIMER,  ///< One 1800:05 write between the two measured raw literals; all else kept.
+    TRANSMISSION_TYPE ///< One experimental 1800:02 write between raw 255 and 1; all else kept.
 };
 /** Raw U16 values of TPDO1 event timer 1800:05 (EDS RW U16, not PDO-mappable) this profile writes.
  * These are raw values, not a time setting: no unit is established. On the two CL86-C bench
@@ -51,28 +54,45 @@ enum class Tpdo1EventTimerRaw : uint16_t {
     RAW_0 = 0,    ///< Raw 0, the specimens' observed baseline; no claim about what zero means.
     RAW_100 = 100 ///< Raw 100; unit not established (see the enumeration note).
 };
+/** Exact U8 literals for the conditional 1800:02 experiment.
+ * EDS [1800sub2] declares RW U8/default 255 without a supported range. Raw 1 is an
+ * explicit synchronous-TPDO experiment, based on protocol mechanics only; stored
+ * readback does not prove sampling at SYNC, one frame per cycle or physical timing.
+ * No other transmission type, timer or PDO is authorized by these literals.
+ */
+enum class Tpdo1TransmissionTypeRaw : uint8_t {
+    RAW_1 = 1,     ///< Candidate for one TPDO per SYNC; firmware effect remains Q27 gated.
+    RAW_255 = 255  ///< Observed asynchronous baseline and explicit restoration candidate.
+};
 /** Small typed intent, copied and frozen at preparation. The default is invalid. */
 struct Tpdo1ConfigurationRequest {
     Tpdo1Transition transition = Tpdo1Transition::NONE; ///< Explicit transition; NONE rejects.
     /** Raw 1800:05 literal the final readback must hold. EVENT_TIMER: the target, and the
      * baseline must read the other literal, so only 0 to 100 or 100 to 0. MAP3_TO_MAP2:
      * RAW_0, the value its baseline requires and the map change preserves.
+     * TRANSMISSION_TYPE requires RAW_0 and preserves it.
      */
     Tpdo1EventTimerRaw eventTimer = Tpdo1EventTimerRaw::RAW_0;
+    /** TRANSMISSION_TYPE: target literal, with the opposite type in the baseline.
+     * Other transitions require RAW_255. Neither the default nor a successful
+     * readback grants synchronous sample qualification or arms a SYNC producer.
+     */
+    Tpdo1TransmissionTypeRaw transmissionType = Tpdo1TransmissionTypeRaw::RAW_255;
 };
 /** Explicit finite sequence state, independent of native drive/NMT state. */
 enum class PdoConfigurationState : uint8_t {
     EMPTY,        ///< Unprepared.
-    WRITING,      ///< Ordered acknowledged downloads pending: six for the map, one for the timer.
+    WRITING,      ///< Ordered downloads pending: six for the map, one for timer or type.
     READING_BACK, ///< Nine exact final communication/mapping uploads pending.
     SUCCEEDED,    ///< Complete exact readback matched; samples still unqualified.
     FAILED        ///< First failure retained with partial/unknown effects.
 };
 /** Fixed caller-owned context. Do not edit active fields; serialize access.
  * Steps are numbered 1..W for the W downloads, then W+1..W+9 for the nine final uploads
- * 1800:01/02/03/05 and 1A00:00..04; W is 6 for MAP3_TO_MAP2 and 1 for EVENT_TIMER.
+ * 1800:01/02/03/05 and 1A00:00..04; W is 6 for MAP3_TO_MAP2 and 1 otherwise.
  * MAP3_TO_MAP2 writes disable, count0, slot1, slot2, count2, enable, and preserves COB-ID
  * flags, type255, inhibit100, event0 and inactive slots. EVENT_TIMER writes 1800:05 only.
+ * TRANSMISSION_TYPE writes 1800:02 only, preserving the exact count3 map and event0.
  * One failed step never rolls back or replays; possible earlier effects stay retained.
  */
 struct Tpdo1ConfigurationContext {
@@ -144,17 +164,20 @@ Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output,
  * the published map through pdoProfile().
  * @param[in] review Explicit exact fixture/firmware experiment or qualification records,
  * scope ISOLATED_EXPERIMENT or FIXTURE_QUALIFIED, target equal to the reservation's.
- * @param[in] request Copied intent. NONE, a MAP3_TO_MAP2 request whose eventTimer is not
- * RAW_0 and any value outside Tpdo1EventTimerRaw's two literals reject.
+ * @param[in] request Copied intent. NONE and unknown literals reject. MAP3_TO_MAP2 and
+ * TRANSMISSION_TYPE require eventTimer RAW_0. MAP3_TO_MAP2 and EVENT_TIMER require
+ * transmissionType RAW_255. TRANSMISSION_TYPE permits only RAW_1 or RAW_255.
  * @param[in] baseline Nine successful EXACT SDO upload completions in documented order:
  * 1800:01/02/03/05, 1A00:00..04. All must carry requirePreOperational, follow reservation and
  * confirmed preOperational.processedUs, share its node epoch and original binding, be fresh,
- * sequential and have the EDS widths. Both transitions require type255, inhibit raw100,
+ * sequential and have the EDS widths. All transitions require inhibit raw100,
  * count3 and 60410010,60610008,60640020,0. MAP3_TO_MAP2 also requires an enabled standard
  * COB-ID (bits 0..10 nonzero, bit 30 either value) and event raw0. EVENT_TIMER requires COB-ID
  * exactly 0x180 + node, the EDS $NODEID+0x180 rule (valid, standard, bit 30 clear; measured on
- * nodes 1 and 2), and event equal to the literal other than request.eventTimer. No EDS default
- * substitution.
+ * nodes 1 and 2), and event equal to the literal other than request.eventTimer. Both require
+ * type255. TRANSMISSION_TYPE requires COB-ID exactly 0x180 + node, event raw0 and the
+ * type opposite to request.transmissionType (255 to 1 or 1 to 255 only). No EDS default
+ * substitution. Type 1 acceptance/effect and synchronous sampling remain Q27 experiments.
  * @param[in] count Exactly nine; null rejects.
  * @param[in] nmt Actual currently qualified NMT state; must be PRE_OPERATIONAL.
  * @param[in] preOperational Actual owner observation with exact capture OR conservative
@@ -193,6 +216,7 @@ Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output,
  * @return Local status. Downloads retain old transport epoch; final uploads use
  * next epoch after owner retirement/reconciliation. Owner checks NMT before enqueue too.
  * The EVENT_TIMER download is 1800:05, two bytes, the requested literal little-endian.
+ * The TRANSMISSION_TYPE download is 1800:02, one byte, the requested literal.
  */
 Status nextPdoConfiguration(const Tpdo1ConfigurationContext& context,
                             const AxisReservation& live, const Binding& current,
@@ -233,8 +257,9 @@ Status advancePdoConfiguration(Tpdo1ConfigurationContext& context, const AxisRes
 Status advancePdoConfiguration(Tpdo1ConfigurationContext& context, ReadOutcome reason,
                                uint64_t nowUs) noexcept;
 /** Publish only complete exact readback contents, never sample qualification.
- * MAP3_TO_MAP2 publishes count2 [6041,6064]; EVENT_TIMER publishes the unchanged count3
- * [6041,6061,6064] map. Both carry the original COB-ID parameter and type 255.
+ * MAP3_TO_MAP2 publishes count2 [6041,6064]; other transitions publish the unchanged count3
+ * [6041,6061,6064] map. Evidence carries the original COB-ID parameter and confirmed type
+ * (1 or 255 for TRANSMISSION_TYPE, 255 otherwise). Experiment scope never promotes itself.
  * @param[in] context Successful sequence. @param[in] live Actual reservation.
  * @param[in] current Actual next-generation binding. @param[in] nowUs Supplied time.
  * @param[in] mappingGeneration New nonzero mapping epoch allocated by sole owner.

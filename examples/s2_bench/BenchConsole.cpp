@@ -77,6 +77,9 @@ Admitted admitted(const BenchAxis* axis) {
 ConsoleGate benchConsoleGate(const ConsoleLine& line) noexcept {
     const char* name = line.token(0);
     const char* first = line.token(1);
+    if (is(name, "sync"))
+        return is(first, "inspect") || is(first, "disarm") ? ConsoleGate::ALWAYS
+                                                           : ConsoleGate::IDLE_BENCH;
     if (is(name, "recover"))
         return ConsoleGate::NEVER;
     if (is(name, "discover"))
@@ -104,7 +107,9 @@ BenchConsole::BenchConsole(FirmwareProbe& firmware, MotorControlCAN::CANOPEN::Sd
                            const BenchConsoleStorage& storage) noexcept
     : firmware_(firmware), platform_(consoleCallbacks(this, clock, write)),
       device_(*new (storage.device) ProbeDevice(firmware.app(), firmware.owner(), services, &firmware.evidence())),
-      console_(*new (storage.console) ProbeConsole(firmware.app(), firmware.owner(), platform_)) {
+      console_(*new (storage.console) ProbeConsole(firmware.app(), firmware.owner(), platform_)),
+      sync_(firmware.owner()) {
+    console_.attachSync(sync_);
     console_.attachDevice(device_);
     policy();
 }

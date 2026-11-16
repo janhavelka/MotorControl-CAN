@@ -13,13 +13,17 @@ proprietary CAN and CAN FD need additional implementations.
 
 | Layer | Available scope | Limit |
 | --- | --- | --- |
-| Installed core | Exact units, axis/reference conversion, CAN/SDO/PDO values, typed reads/settings, conditional actions, position/angle, finite velocity, homing, discovery and persistence | Per-operation prerequisites and firmware gates apply |
-| Optional application layer | One CANopen owner, CANopenNode adapter, ESP TWAI adapter, shared CLI and bounded Python runners | Full repository required; not installed with the core |
+| Installed core | Exact units, axis/reference conversion, CAN/SDO/PDO values, finite caller-timed SYNC, typed reads/settings, conditional actions, position/angle, finite velocity, homing, discovery and persistence | Per-operation prerequisites and firmware gates apply |
+| Optional application layer | One CANopen owner with finite SYNC service, CANopenNode adapter, ESP TWAI adapter, shared CLI and bounded Python runners | Full repository required; not installed with the core |
 | Firmware | S3 Arduino/IDF and S2 IDF build paths | Arduino S2 is blocked by the pinned package; P4 has isolated core/component evidence only |
 | Hardware | Retained S2/two-CL86-C communication and conditional motion trials | Physical motion/stop, failure/load and related-model qualification remain incomplete |
 
 See the [candidate scope and migration notes](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/releases/0.1.0.md)
 and [current feature gates](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/device_conflicts.md).
+The [finite SYNC guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/sync.md)
+covers explicit production and the conditional TPDO1 type 1/255 experiment.
+Qualified same-cycle samples, synchronous RPDO starts and sustained two-axis
+10 ms operation remain open work.
 
 ## Install and use the native core
 

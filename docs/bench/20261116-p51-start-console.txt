@@ -1,0 +1,4 @@
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+CONSOLE open slot0=node1 slot1=node2 bitrate=1000000; routes configured, nothing sent or selected
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5101,"command":"host","ok":true,"status":"OK","wire_work":false}
+{"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":5102,"command":"sync","ok":true,"status":"OK","armed":false,"producer_conflict":false,"retained":false,"active":false,"foreign_observed":false,"foreign_serial":0}

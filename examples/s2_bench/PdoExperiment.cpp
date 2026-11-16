@@ -30,16 +30,24 @@ bool revision(const char (&s)[41]) {
             return false;
     return true;
 }
-// The two plans this harness runs, each with the provenance its scope names. The map change is
+// Each plan carries the provenance its scope names. The map change is
 // the 2026-11-02 node-1 experiment; the event timer is the subset measured on both nodes.
 bool mapPlan(const L::Tpdo1ConfigurationRequest& q) {
     return q.transition == L::Tpdo1Transition::MAP3_TO_MAP2 &&
-           q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0;
+           q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0 &&
+           q.transmissionType == L::Tpdo1TransmissionTypeRaw::RAW_255;
 }
 bool timerPlan(const L::Tpdo1ConfigurationRequest& q) {
     return q.transition == L::Tpdo1Transition::EVENT_TIMER &&
+           q.transmissionType == L::Tpdo1TransmissionTypeRaw::RAW_255 &&
            (q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0 ||
             q.eventTimer == L::Tpdo1EventTimerRaw::RAW_100);
+}
+bool transmissionPlan(const L::Tpdo1ConfigurationRequest& q) {
+    return q.transition == L::Tpdo1Transition::TRANSMISSION_TYPE &&
+           q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0 &&
+           (q.transmissionType == L::Tpdo1TransmissionTypeRaw::RAW_1 ||
+            q.transmissionType == L::Tpdo1TransmissionTypeRaw::RAW_255);
 }
 // The node's own TPDO1 route under this logical binding, at this or an earlier configuration
 // epoch: a route installed before an earlier change of this lifecycle keeps that older epoch
@@ -122,19 +130,22 @@ EvidenceAdmission PdoExperiment::begin(const PdoExperimentPlan& p, uint64_t now)
     const auto& q = p.configurationReview;
     const auto* route = services_.channel(p.slot);
     const auto* node = services_.node(p.slot);
-    const bool map = mapPlan(p.request), timer = timerPlan(p.request);
+    const bool map = mapPlan(p.request), timer = timerPlan(p.request),
+               transmission = transmissionPlan(p.request);
     const uint32_t address = a.target.channel.binding.endpoint.address;
     // 9 baseline reads, the writes, 9 final reads: one exact grant each.
     const uint32_t services = map ? 24 : 19;
     if (overlap(&p, sizeof p, this, sizeof *this) || now < lastUs_ || now < owner_.lastTimeUs() ||
         !a.id || a.id == UINT32_MAX || a.id <= lastOperation_ || a.deadlineUs <= now ||
-        (!map && !timer) || !p.firstAuthorizationId ||
+        (!map && !timer && !transmission) || !p.firstAuthorizationId ||
         p.firstAuthorizationId > UINT32_MAX - (services - 1) || !p.maximumAgeUs ||
         a.options.queueTimeoutUs != 250000 || a.options.responseTimeoutUs != 250000 ||
         a.kind != L::ReadKind::IDENTITY || a.stateMask ||
         (map && (address != 1 || q.scope != L::PdoConfigurationScope::ISOLATED_EXPERIMENT)) ||
         (timer && ((address != 1 && address != 2) ||
                    q.scope != L::PdoConfigurationScope::FIXTURE_QUALIFIED)) ||
+        (transmission && ((address != 1 && address != 2) ||
+                          q.scope != L::PdoConfigurationScope::ISOLATED_EXPERIMENT)) ||
         a.target.channel.binding.configurationGeneration == UINT32_MAX || !text(a.fixtureId) ||
         !revision(a.softwareRevision) || !text(a.firmware) || !text(a.dialect) ||
         !text(a.authorization) || !text(a.observations) || !text(r.sourceReview) ||

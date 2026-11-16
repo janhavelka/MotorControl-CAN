@@ -342,9 +342,9 @@ void startupValidationAndOwnedCapacity() {
     CHECK(t.transmit(t.context, original, arbitraryId(r.services, 1), 1));
     original.data[0] = 0xff;
     CHECK(t.transmit(t.context, original, arbitraryId(r.services, 2), 1));
-    // Capacity is one slot per SDO channel plus the one NMT frame, the most the
+    // Capacity is one slot per SDO channel plus independent NMT and SYNC frames, the most the
     // owner can have outstanding, so ordinary work is never refused for capacity.
-    CHECK(E::TwaiAdapter::TX_CAPACITY == C::SdoClient::CHANNELS + 1);
+    CHECK(E::TwaiAdapter::TX_CAPACITY == C::SdoClient::CHANNELS + 2);
     for (uint32_t n = 3; n <= E::TwaiAdapter::TX_CAPACITY; ++n)
         CHECK(t.transmit(t.context, original, arbitraryId(r.services, n), 1));
     const uint32_t beyond = E::TwaiAdapter::TX_CAPACITY + 1;
@@ -1900,9 +1900,116 @@ void holdNeedsNoPriorPollInTheTurn() {
         checkNoIntent(r);
     }
 }
+O::SyncRequestId syncRequest(Rig& r, uint64_t deadline = 100) {
+    CHECK(r.owner.armSync(0x80, r.now));
+    C::SyncWork work;
+    work.available = true;
+    work.generation = 1;
+    work.dueUs = r.now;
+    work.expiresUs = deadline;
+    CHECK(C::makeSyncRequest(0x80, work.frame));
+    O::SyncRequestId id;
+    CHECK(r.owner.admitSync(work, r.now, id) == O::BusAdmission::ACCEPTED);
+    return id;
+}
+void syncQueuedBehindSdoRemainsUnsent() {
+    Rig r;
+    r.request();
+    r.turn(0);
+    CHECK(r.sdk.submits == 1);
+    const auto sync = syncRequest(r, 5);
+    r.turn(1);
+    CHECK(r.sdk.submits == 1 && !r.owner.syncResult(sync));
+    r.turn(5);
+    const auto* result = r.owner.syncResult(sync);
+    CHECK(result && result->service.outcome == C::SyncOutcome::MISSED_DEADLINE);
+    CHECK(!result->service.transmissionPossible && !r.owner.resources().syncTxPending);
+    r.sdk.complete(true);
+    r.turn(6);
+    CHECK(r.sdk.submits == 1); // Expired SYNC was retired from staging, never submitted.
+}
+void urgentArrivingAfterSyncStagingWinsSdkPriority() {
+    Rig r;
+    const auto sync = syncRequest(r);
+    r.stage(0);
+    CHECK(r.sdk.submits == 0);
+    const auto stop = r.urgentStop(1, 1000, 100);
+    r.turn(1);
+    CHECK(r.sdk.submits == 1 && r.sdk.sent[0].id == 0x601 && r.sdk.sent[0].data[4] == 0x0b);
+    CHECK(!r.owner.syncResult(sync) && !r.owner.syncTxPriorityReady());
+    r.sdk.complete(true);
+    M::Frame reply = frame(0x581);
+    reply.data[0] = 0x60;
+    reply.data[1] = 0x40;
+    reply.data[2] = 0x60;
+    r.sdk.push(reply, true, 2);
+    r.turn(2);
+    CHECK(r.owner.result(stop));
+    CHECK(r.sdk.submits == 2 && r.sdk.sent[1].id == 0x80);
+    r.sdk.complete(true);
+    r.turn(3);
+    CHECK(r.owner.syncResult(sync)->service.outcome == C::SyncOutcome::LOCAL_TX);
+}
+void foreignSyncBeforePromotionWithdrawsQueuedFrame() {
+    Rig r;
+    const auto sync = syncRequest(r);
+    r.stage(0);
+    r.sdk.pushBounded(frame(0x80, 0), 0, 1);
+    r.turn(1, budget(8, 0, 0, 0));
+    CHECK(r.owner.syncConflict() && !r.owner.syncArmed());
+    CHECK(r.owner.syncResult(sync)->service.outcome == C::SyncOutcome::PRODUCER_CONFLICT);
+    CHECK(!r.owner.syncResult(sync)->service.transmissionPossible);
+    CHECK(r.sdk.attempts == 0);
+    CHECK(r.owner.resources().syncTxPending); // Zero event budget postpones retirement only.
+    r.turn(2, budget(0, 0, 8, 0));
+    CHECK(!r.owner.resources().syncTxPending);
+    CHECK(r.sdk.submits == 0);
+}
+void syncSdkFailuresAndActiveRetirement() {
+    for (unsigned uncertain = 0; uncertain < 2; ++uncertain) {
+        Rig r;
+        const auto sync = syncRequest(r);
+        r.sdk.submitResult = uncertain ? E::TwaiSubmit::FAILED_UNCERTAIN
+                                      : E::TwaiSubmit::FAILED_UNSENT;
+        r.turn(0);
+        r.turn(1);
+        const auto* result = r.owner.syncResult(sync);
+        CHECK(result && result->service.outcome == (uncertain ? C::SyncOutcome::TRANSPORT_ERROR
+                                                            : C::SyncOutcome::REFUSED));
+        CHECK(result->service.transmissionPossible == bool(uncertain));
+        CHECK(!result->service.transmissionConfirmed && !r.owner.resources().syncTxPending);
+        CHECK(r.sdk.attempts == 1 && r.sdk.submits == 0);
+    }
+    Rig r;
+    const auto sync = syncRequest(r);
+    r.turn(0);
+    CHECK(r.sdk.submits == 1);
+    CHECK(r.owner.cancelSync(sync, 1));
+    CHECK(r.owner.syncResult(sync)->service.transmissionPossible);
+    CHECK(r.owner.resources().syncTxPending); // SDK-active cannot be locally withdrawn.
+    CHECK(r.owner.releaseSync(sync));
+    CHECK(!r.owner.armSync(0x80, 1));
+    r.sdk.complete(true);
+    r.turn(2);
+    CHECK(r.owner.stats().txFrames == 1 && !r.owner.resources().syncTxPending);
+    CHECK(!r.owner.syncArmed());
+    CHECK(r.owner.armSync(0x80, 2));
+    Rig deadline;
+    const auto late = syncRequest(deadline, 2);
+    deadline.turn(0);
+    deadline.sdk.complete(true);
+    deadline.turn(2);
+    CHECK(deadline.owner.syncResult(late)->service.outcome == C::SyncOutcome::MISSED_DEADLINE);
+    CHECK(!deadline.owner.syncResult(late)->service.transmissionConfirmed);
+    CHECK(deadline.owner.stats().txFrames == 1 && !deadline.owner.resources().syncTxPending);
+}
 } // namespace
 
 int main() {
+    syncQueuedBehindSdoRemainsUnsent();
+    urgentArrivingAfterSyncStagingWinsSdkPriority();
+    foreignSyncBeforePromotionWithdrawsQueuedFrame();
+    syncSdkFailuresAndActiveRetirement();
     startupValidationAndOwnedCapacity();
     delayedImmediateAndFailedCompletion();
     copiedPayloadAndWireFormatsReachTheDriver();

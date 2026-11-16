@@ -241,6 +241,69 @@ class CanBusOwner {
      * Cached serialized inspection only; no I/O, clock, callback or mutation.
      */
     bool localTxRetired(uint8_t slot) const noexcept;
+    /** Arm the explicit one-shot service, never schedule or transmit implicitly.
+     * @param configured1005 Only default 0x80 is currently supported; custom route analysis is pending.
+     * @param nowUs Nondecreasing caller microseconds.
+     * @return False for conflict, known route collision, retained work, unretired TX or unavailable transport.
+     * Caller establishes one producer per network and resolves any remote buffered RPDO hazard first.
+     */
+    bool armSync(uint32_t configured1005, uint64_t nowUs) noexcept;
+    /** Disarm and cancel pending work locally; never stops motion or clears a remote RPDO buffer.
+     * @param nowUs Nondecreasing caller time. @return False unchanged on time/reentrancy failure.
+     */
+    bool disarmSync(uint64_t nowUs) noexcept;
+    /** Clear a foreign-producer latch while disarmed and locally retired; does not rearm.
+     * @param evidenceId Nonzero application record establishing exclusive producer ownership.
+     * @param nowUs Nondecreasing caller time. @return False while work/transport is retained or active.
+     * Neither quiet time nor controller recovery is such evidence.
+     */
+    bool resolveSyncConflict(uint32_t evidenceId, uint64_t nowUs) noexcept;
+    /** Copy one due DLC-zero work item into independent fixed request/result capacity.
+     * @param work Owned candidate from nextSync; dueUs <= nowUs < expiresUs, nonzero generation.
+     * @param nowUs Nondecreasing supplied microseconds. @param output Changed only on acceptance, no overlap.
+     * @return Local admission only; never consumes ordinary or urgent SDO capacity.
+     */
+    BusAdmission admitSync(const MotorControlCAN::CANOPEN::SyncWork& work, uint64_t nowUs,
+                          SyncRequestId& output) noexcept;
+    /** @param id Exact admission. @param nowUs Caller time; deadline wins at equality.
+     * @return True only when local cancellation wins; retirement may remain pending.
+     */
+    bool cancelSync(SyncRequestId id, uint64_t nowUs) noexcept;
+    /** @param id Exact admission. @return Immutable retained terminal or null until closure. */
+    const SyncTerminal* syncResult(SyncRequestId id) const noexcept;
+    /** @param id Exact terminal. @return True releases storage only, not the TX interlock. */
+    bool releaseSync(SyncRequestId id) noexcept;
+    /** @return Explicit production permission, never inferred from controller recovery. */
+    bool syncArmed() const noexcept { return syncArmed_; }
+    /** @return Nonwrapping explicit-arm epoch; zero before first arm, never a wire identity.
+     * Every successful arm advances it, including rearm between application service calls.
+     * Disarm remains visible through syncArmed and syncDisarmOutcome; exhaustion refuses arm.
+     */
+    uint32_t syncArmGeneration() const noexcept { return syncArmGeneration_; }
+    /** @return Last local disarm cause; meaningful while !syncArmed(), never a motor-stop result. */
+    MotorControlCAN::CANOPEN::SyncOutcome syncDisarmOutcome() const noexcept { return syncDisarmOutcome_; }
+    /** @return Latched foreign producer conflict, including while disarmed. */
+    bool syncConflict() const noexcept { return syncConflict_; }
+    /** @return Last foreign observation, including historical bounds; no freshness inference. */
+    const SyncObservation& syncObservation() const noexcept { return syncObservation_; }
+    /** @param id Exact handoff. @param nowUs Caller time. @return Current liveness/deadline only.
+     * Adapter must also check syncTxPriorityReady before first SDK submission.
+     */
+    bool canTransmitSync(SyncRequestId id, uint64_t nowUs) const noexcept;
+    /** @return False while any urgent request is pending; never preempts already active CAN TX. */
+    bool syncTxPriorityReady() const noexcept;
+    /** Adapter-only synchronous callback hook proving staging has not reached the SDK.
+     * @param id Exact handoff. @return False for stale/nonpending identity; otherwise records unsent staging.
+     */
+    bool holdSyncHandoff(SyncRequestId id) noexcept;
+    /** Record first actual SDK submission after the adapter checked eligibility.
+     * @param id Exact handoff. @param nowUs Nondecreasing time. @return False if no longer eligible.
+     */
+    bool noteSyncSubmitted(SyncRequestId id, uint64_t nowUs) noexcept;
+    /** Report proof that adapter staging never reached SDK; late reports cannot alter terminals.
+     * @param id Exact admission. @param nowUs Caller time. @return True only for a current pending request.
+     */
+    bool withdrawSyncUnsent(SyncRequestId id, uint64_t nowUs) noexcept;
     /** Admit one copied explicit NMT intent into the sole native manager slot.
      * @param work Command, physical bus/address or explicit broadcast, finite budgets.
      * @param nowUs Nondecreasing supplied microseconds.
@@ -365,7 +428,15 @@ class CanBusOwner {
         bool pending = false, blocked = false, retirementTried = false, rejected = false;
         uint32_t epoch = 0;
         TransportTxId id;
-    } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS], nmtExternal_;
+    } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS], nmtExternal_, syncExternal_;
+    SyncTerminal sync_;
+    SyncObservation syncObservation_;
+    bool syncOccupied_ = false, syncTerminal_ = false, syncArmed_ = false, syncConflict_ = false;
+    bool syncHanded_ = false, syncHeld_ = false, syncHandoffCallback_ = false;
+    uint32_t syncResolutionEvidence_ = 0;
+    uint32_t syncArmGeneration_ = 0;
+    MotorControlCAN::CANOPEN::SyncOutcome syncDisarmOutcome_ =
+        MotorControlCAN::CANOPEN::SyncOutcome::INVALIDATED;
     MotorControlCAN::CANOPEN::NmtRequestId nmtId_;
     bool nmtOccupied_ = false;
     MotorControlCAN::CANOPEN::NmtTransfer nmtTransfer_;
@@ -410,6 +481,12 @@ class CanBusOwner {
     void finish(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
     bool transmit(uint8_t channel, uint64_t nowUs) noexcept;
     bool transmitNmt(uint64_t nowUs) noexcept;
+    bool transmitSync(uint64_t nowUs) noexcept;
+    bool syncRoutesCompatible() const noexcept;
+    bool validSync(SyncRequestId id) const noexcept;
+    void finishSync(MotorControlCAN::CANOPEN::SyncOutcome outcome, uint64_t nowUs) noexcept;
+    void expireSync(uint64_t nowUs) noexcept;
+    bool observeSync(const ReceivedFrame& frame, uint64_t nowUs) noexcept;
     bool canTransmit(TransportTxId id, uint64_t nowUs) const noexcept;
     bool nmtBlocks(const Binding& binding) const noexcept;
     void settle(ExternalTx& tx, uint64_t nowUs, bool allowCallback) noexcept;

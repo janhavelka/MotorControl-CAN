@@ -261,7 +261,9 @@ void trafficLine(char* out, size_t size, const E::EvidenceTraffic& t, const char
         formatLine(out + used, size - used, " rec=%u\n", unsigned(t.recovery));
     else if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT)
         formatLine(out + used, size - used, " txk=%u txr=%lu txf=%lu\n", unsigned(t.txId.kind),
-                   static_cast<unsigned long>(t.txId.kind == O::TransportTxId::Kind::NMT
+                   static_cast<unsigned long>(t.txId.kind == O::TransportTxId::Kind::SYNC
+                                                     ? t.txId.sync.generation
+                                                     : t.txId.kind == O::TransportTxId::Kind::NMT
                                                   ? t.txId.nmt.generation
                                                   : t.txId.sdo.request.generation),
                    static_cast<unsigned long>(t.txId.sdo.frame));
@@ -466,10 +468,11 @@ bool startMap(E::FirmwareProbe& firmware, C::SdoClient& services, E::PdoExperime
 // for the boot; a refused one leaves it as it was.
 bool startConfig(E::FirmwareProbe& firmware, C::SdoClient& services, E::PdoExperiment* pdo,
                  bool& configured, unsigned node, uint16_t eventTimer, uint32_t operation,
-                 uint32_t firstGrant, uint64_t now) {
+                 uint32_t firstGrant, uint64_t now, bool transmissionType = false) {
     const unsigned slot = node - 1;
     if (!pdo || !firmware.running() || now > UINT64_MAX - 8000000 ||
-        (eventTimer != 0 && eventTimer != 100) ||
+        (transmissionType ? (eventTimer != 1 && eventTimer != 255)
+                          : (eventTimer != 0 && eventTimer != 100)) ||
         !ensureRoute(services, node, configured, now))
         return false;
     const auto* channel = services.channel(slot);
@@ -515,6 +518,22 @@ bool startConfig(E::FirmwareProbe& firmware, C::SdoClient& services, E::PdoExper
         eventTimer ? L::Tpdo1EventTimerRaw::RAW_100 : L::Tpdo1EventTimerRaw::RAW_0;
     plan.slot = uint8_t(slot);
     plan.firstAuthorizationId = firstGrant;
+    if (transmissionType) {
+        plan.configurationReview.scope = L::PdoConfigurationScope::ISOLATED_EXPERIMENT;
+        plan.configurationReview.procedureRecord = 51;
+        plan.configurationReview.authorizationRecord = 20261116;
+        plan.request.transition = L::Tpdo1Transition::TRANSMISSION_TYPE;
+        plan.request.eventTimer = L::Tpdo1EventTimerRaw::RAW_0;
+        plan.request.transmissionType = eventTimer == 1 ? L::Tpdo1TransmissionTypeRaw::RAW_1
+                                                       : L::Tpdo1TransmissionTypeRaw::RAW_255;
+        label(r.plan.authorization, "user prompt51 explicit synchronous TPDO experiment");
+        label(r.plan.observations, "19 exact services; one 1800:02 write; no sample qualification");
+        label(r.sourceReview, "EDS1800sub2 RW U8 default255; type1 behavior unknown Q27");
+        label(r.independentReview, "prompt51 source and owner reviews; typed fake tests");
+        label(r.reconciliation, "Failure retains effects; restore only by separate Jnode,255");
+    } else {
+        plan.request.transmissionType = L::Tpdo1TransmissionTypeRaw::RAW_255;
+    }
     plan.maximumAgeUs = 3000000;
     return pdo->beginWithServiceAge(plan, now) == E::EvidenceAdmission::ACCEPTED;
 }
@@ -541,7 +560,10 @@ bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor
             unsigned(r->configurationMigrated),
             static_cast<unsigned long long>(r->maxServiceGapUs),
             static_cast<unsigned long>(r->plan.review.plan.target.channel.binding.endpoint.address),
-            unsigned(r->plan.request.transition), unsigned(r->plan.request.eventTimer),
+            unsigned(r->plan.request.transition),
+            unsigned(r->plan.request.transition == L::Tpdo1Transition::TRANSMISSION_TYPE
+                         ? uint16_t(r->plan.request.transmissionType)
+                         : uint16_t(r->plan.request.eventTimer)),
             unsigned(c.confirmedStep), unsigned(c.firstEffectStep), unsigned(c.failedStep));
     } else if (cursor <= r->terminalCount) {
         resultLine(out, sizeof out, r->terminals[cursor - 1]);
@@ -1250,7 +1272,7 @@ void ownerTask(void*) {
                 if (!open) // A single-byte command is retired; a line start opens that line.
                     open = byte == '@' ? (commands ? '@' : '#')
                            : byte == 'T' || byte == 'S' ? char(byte)
-                           : byte && std::strchr("NPRWECDKH", byte) ? 'N'
+                           : byte && std::strchr("NPRWECDKHJ", byte) ? 'N'
                                                             : 0;
                 if (open == '@')
                     (void)commands->take(byte, now, activity); // No line end: only its @ID prefix is kept.
@@ -1540,7 +1562,9 @@ void ownerTask(void*) {
                                            unsigned(parsed.node), unsigned(parsed.producerTime));
                         }
                         line(firmware, output);
-                    } else if (parsed.kind == E::PdoCommandKind::CONFIGURE) {
+                    } else if (parsed.kind == E::PdoCommandKind::CONFIGURE ||
+                               parsed.kind == E::PdoCommandKind::TRANSMISSION_TYPE) {
+                        const bool type = parsed.kind == E::PdoCommandKind::TRANSMISSION_TYPE;
                         // Grant sequencing as R and W: nineteen from this slot's next grant.
                         const unsigned slot = parsed.node - 1;
                         const bool accepted =
@@ -1549,17 +1573,17 @@ void ownerTask(void*) {
                             acquisition < UINT32_MAX - 1 && pdoGrant[slot] <= UINT32_MAX - 19 &&
                             firmware.platform().nowUs(now) &&
                             startConfig(firmware, services, pdoStorage(), configured[slot], parsed.node,
-                                        parsed.eventTimer, acquisition + 1, pdoGrant[slot] + 1,
-                                        now);
+                                        type ? parsed.transmissionType : parsed.eventTimer, acquisition + 1, pdoGrant[slot] + 1,
+                                        now, type);
                         if (accepted) {
                             acquisition += 2;
                             pdoGrant[slot] += 19;
                             reported = false;
                             formatLine(output, sizeof output,
-                                       "PDO_CONFIG admitted node=%u raw=%u; TPDO1 1800:05 raw "
+                                       "PDO_CONFIG admitted node=%u raw=%u; TPDO1 explicit raw "
                                        "only: nine exact reads, one write, nine exact reads; no "
                                        "retry\n",
-                                       unsigned(parsed.node), unsigned(parsed.eventTimer));
+                                       unsigned(parsed.node), unsigned(type ? parsed.transmissionType : parsed.eventTimer));
                         } else {
                             formatLine(output, sizeof output, "PDO_CONFIG refused; no work\n");
                         }
@@ -1663,7 +1687,7 @@ void ownerTask(void*) {
                 soakCollectUs = firmware.platform().nowUs(now) ? now : 0;
             } else if (command == 'N' || command == 'P' || command == 'R' || command == 'W' ||
                        command == 'E' || command == 'C' || command == 'D' || command == 'K' ||
-                       command == 'H') {
+                       command == 'H' || command == 'J') {
                 // A soak or a trial admits only the watch line; the collector refuses the rest.
                 pdoCollecting = true;
                 pdoText[0] = char(command);
@@ -1906,7 +1930,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=13 trial=%u motion=%u pdo=5 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=13 trial=%u motion=%u pdo=6 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

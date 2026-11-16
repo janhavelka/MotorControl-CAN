@@ -6,6 +6,7 @@
  */
 #pragma once
 #include "SdoClient.h"
+#include <MotorControlCAN/canopen/Sync.h>
 
 namespace MotorControlCANOwner {
 using MotorControlCAN::Binding;
@@ -54,18 +55,49 @@ struct Stats {
     uint32_t traceOverwritten = 0; ///< Oldest diagnostic records replaced at fixed trace capacity.
     uint64_t maxServiceGapUs = 0;  ///< Largest gap between accepted service turns; not a guarantee.
 };
+/** Exact local SYNC admission identity; absent from the wire. */
+struct SyncRequestId {
+    const CanBusOwner* owner = nullptr; ///< Stationary owner, borrowed for its lifetime.
+    uint32_t generation = 0; ///< Nonzero nonwrapping serial.
+};
+/** First immutable local terminal; release never proves transport retirement. */
+struct SyncTerminal {
+    SyncRequestId id; ///< Exact admission.
+    MotorControlCAN::CANOPEN::SyncWork work; ///< Owned finite request.
+    MotorControlCAN::CANOPEN::SyncCompletion service; ///< Local TX evidence, never drive effect.
+    uint64_t admittedUs = 0; ///< Supplied admission time, zero valid.
+    uint64_t handoffUs = 0; ///< First application handoff time; meaningful after handoff.
+    uint64_t completedUs = 0; ///< First terminal processing time.
+};
+/** Last foreign SYNC observation; time bounds concern frame completion, not sampling. */
+struct SyncObservation {
+    bool present = false; ///< A valid standard 0x80 DLC-zero or counter-bearing frame was received.
+    uint32_t serial = 0; ///< Nonwrapping local observation identity, never a wire counter.
+    Frame frame; ///< Owned foreign frame.
+    MotorControlCAN::CANOPEN::ObservationTime time; ///< Exact, bounded or unknown receive time.
+    uint32_t controllerEpoch = 0; ///< Local ingress epoch, not sender identity.
+};
 /** Exact application transport identity; the selected payload alone is meaningful.
- * SDO frame IDs and NMT admission IDs are local correlation, absent from CAN.
+ * SDO frame IDs and NMT/SYNC admission IDs are local correlation, absent from CAN.
  */
 struct TransportTxId {
     /** Concrete service, never inferred from CAN frame bytes. */
     enum class Kind : uint8_t {
         SDO, ///< SDO admission plus exact frame number.
-        NMT  ///< One-shot explicit NMT manager admission.
+        NMT, ///< One-shot explicit NMT manager admission.
+        SYNC ///< Explicit unconfirmed SYNC production.
     };
-    Kind kind = Kind::SDO; ///< Selects sdo or nmt.
+    Kind kind = Kind::SDO; ///< Selects sdo, nmt or sync.
+    SyncRequestId sync; ///< Exact owner SYNC handoff when kind is SYNC.
     MotorControlCAN::CANOPEN::SdoTxId sdo; ///< Exact SDO admission/frame when kind is SDO.
     MotorControlCAN::CANOPEN::NmtRequestId nmt; ///< One-shot NMT handoff when kind is NMT.
+    /** @param id Exact SYNC handoff. @return Explicit tagged identity. */
+    static TransportTxId fromSync(SyncRequestId id) noexcept {
+        TransportTxId result;
+        result.kind = Kind::SYNC;
+        result.sync = id;
+        return result;
+    }
     /** @param id Exact SDO handoff. @return Explicit tagged identity. */
     static TransportTxId fromSdo(MotorControlCAN::CANOPEN::SdoTxId id) noexcept {
         TransportTxId result;
@@ -82,7 +114,9 @@ struct TransportTxId {
 };
 /** @param a First identity. @param b Second identity. @return Exact selected-payload equality. */
 inline bool sameTransportTxId(TransportTxId a, TransportTxId b) noexcept {
-    return a.kind == b.kind && (a.kind == TransportTxId::Kind::NMT
+    return a.kind == b.kind && (a.kind == TransportTxId::Kind::SYNC
+        ? a.sync.owner == b.sync.owner && a.sync.generation == b.sync.generation
+        : a.kind == TransportTxId::Kind::NMT
         ? a.nmt.owner == b.nmt.owner && a.nmt.generation == b.nmt.generation
         : a.sdo.request.owner == b.sdo.request.owner &&
           a.sdo.request.channel == b.sdo.request.channel &&
@@ -204,6 +238,11 @@ struct OwnerResources {
     uint8_t traceUsed = 0;        ///< Retained diagnostic copies, at most TRACE_CAPACITY.
     bool inhibited = false;       ///< Actual controller/recovery interlock, independent of Health.
     bool recoveryPending = false; ///< Explicit recovery awaiting its terminal.
+    bool syncArmed = false; ///< Explicit production permission; recovery never restores it.
+    bool syncConflict = false; ///< Foreign producer latch, cleared only by explicit resolution.
+    bool syncPending = false; ///< Independent copied request awaits a terminal.
+    bool syncRetained = false; ///< Independent terminal awaits release.
+    bool syncTxPending = false; ///< Exact external SYNC handoff remains unretired.
     bool nmtPending = false; ///< Sole explicit manager intent awaits its native terminal.
     bool nmtRetained = false; ///< Sole native manager terminal is retained until releaseNmt.
     bool nmtTxPending = false; ///< Manager handoff lacks exact final report/retirement proof.
@@ -233,6 +272,7 @@ struct TxReport {
 struct Transport {
     void* context = nullptr; ///< Borrowed stationary application/controller context.
     bool (*receive)(void*, ReceivedFrame&) = nullptr; ///< At most one frame per call; false empty.
+    ///< Must exclude local self-echo: an indistinguishable received SYNC is foreign.
     bool (*transmit)(void*, const Frame&, TransportTxId, uint32_t) = nullptr;
     ///< One-shot enqueue, borrowing frame only during call; true is queue acceptance only.
     ///< Final argument is controller epoch; false conservatively permits uncertain acceptance.
@@ -264,7 +304,7 @@ struct ServiceBudget {
     uint8_t rx = 0;     ///< Max receive callbacks, clamped to RX_LIMIT; false stops draining.
     uint8_t tx = 0;     ///< Max one-shot enqueues, clamped to TX_LIMIT.
     uint8_t events = 0; ///< Max report callbacks, clamped to EVENT_LIMIT; nonzero also permits
-                        ///< at most CHANNELS+1 one-shot SDO/NMT retirement callbacks.
+                        ///< at most CHANNELS+2 one-shot SDO/NMT/SYNC retirement callbacks.
     uint8_t starts = 0; ///< Max new adapter admissions, clamped to START_LIMIT; needs TX budget.
     uint8_t recovery =
         0; ///< Max one recovery poll per turn; zero does not poll, deadline still expires.
