@@ -165,3 +165,25 @@ change and restoration. Twenty SYNCs at 100 ms and twenty at 10 ms each produced
 twenty TPDO1 frames. The [retained report](reports/prompt_51.md) separates this
 observed response from Q27's still-open same-cycle and sustained qualification.
 Q28 remains unmeasured; no RPDO was sent.
+
+## Prompt 52 changes during motion
+
+Q22?Q26 are recorded in the canonical ledger before dependent implementation.
+Original EN86/ZH86 p12?13 and EDS descriptors were rechecked on 2026-11-16;
+[the source study](reports/2026-11-12_on_the_fly_changes.md) separates their
+claims from proposed experiments. All five gates begin open. Explicit experimental
+admission is not firmware qualification and never opens the ordinary capability.
+
+| Gate | Required observation | Smallest affected feature |
+| --- | --- | --- |
+| Q22 | Bare607A/6081/6083/6084 effects; mid-curve bit4 falling edge, raw6041 bits10/12,6064,606C | Parameter staging and falling-edge replacement |
+| Q23 | Immediate003F same-endpoint speed and ahead-target replacement; fresh acceptance/completion and stop | Immediate replacement |
+| Q24 | Buffered001F ahead-target behavior, consumption and queue capacity | Buffered replacement; one outstanding only |
+| Q25 | Positive60FF change during an existing run, observed response and subsequent stop | Finite velocity change |
+| Q26 | Ramp response for different-size changes and stop after changed6084 | Ramp changes and stop-curve claims |
+
+Each finite trial retains exact bytes, field acknowledgements, rejected and
+unknown effects. A local token or old latched bit12 never proves acceptance of
+the replacement. Relative mid-curve targets, reversal and zero/sign-changing
+velocity stay refused (F15). Disabled mode-display probes for2/4/7/8/9/10 are
+separate: acceptance by6061 establishes no supported motion mode.

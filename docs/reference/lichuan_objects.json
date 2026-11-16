@@ -23750,6 +23750,86 @@
         ]
       },
       {
+        "id": "Q22",
+        "feature": "Bare position parameters and falling set-point edge",
+        "required_evidence": "EN86/ZH86 p12 and EDS [6040],[607A],[6081],[6083],[6084] establish words and widths, not live effects. Separately measure bare target/speed/ramp writes and 001F->000F during a curve; retain 6041 bits10/12,6064,606C and partial effects. No generic CiA402 falling-edge assumption.",
+        "owner_prompts": [
+          52,
+          54
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
+        "id": "Q23",
+        "feature": "Immediate position set-point replacement",
+        "required_evidence": "EN86/ZH86 p12 documents bit5 and 000F->003F, not mid-curve handshake, acceptance latency or completion attribution. Measure same-endpoint speed change then absolute endpoint ahead, fresh bit12 absence/new assertion, raw trajectory and stops from003F. Keep one outstanding set-point and preserve original deadline.",
+        "owner_prompts": [
+          52,
+          54
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
+        "id": "Q24",
+        "feature": "Buffered position set-point replacement",
+        "required_evidence": "EN86/ZH86 p12 bit5=0 says update after current curve; no queue capacity or full-buffer behavior is established. Measure 000F->001F replacement ahead and distinguish buffered, immediate, ignored or refused. Acknowledgement is not consumption; one outstanding set-point until evidenced retirement.",
+        "owner_prompts": [
+          52,
+          54
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
+        "id": "Q25",
+        "feature": "Velocity target change during a finite run",
+        "required_evidence": "EN86/ZH86 p13 and EDS [60FF] disagree on signedness and startup order. Measure positive-to-positive60FF changes while already running with acknowledged000F, fixed stopDue/deadline and raw606C/6064/status. No zero, reversal or sign change; no automatic retry or enabling.",
+        "owner_prompts": [
+          52,
+          54
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
+        "id": "Q26",
+        "feature": "Ramp and stop behavior during a change",
+        "required_evidence": "EN86/ZH86 p12-13 document6083/6084 U32 milliseconds0..2000, not a physical slope or duration formula during changes. Compare finite different-size positive rate steps and bare ramp changes; independently measure stop after changed6084. Zero remains gatedQ11. Do not infer convergence or stopping distance from a download acknowledgement.",
+        "owner_prompts": [
+          52,
+          54
+        ],
+        "status": "open",
+        "models": [
+          "CL86-C",
+          "OL86-C",
+          "CL57-C",
+          "OL57-C"
+        ]
+      },
+      {
         "id": "Q27",
         "feature": "Synchronous TPDO type and sample-cycle provenance",
         "required_evidence": "EDS [1005] and [1800sub2..1803sub2] declare storage only (U32 COB-ID 0x80; U8 type default255); EN86/ZH86 p3 broad synchronization claim supplies no behavior. Explicit isolated TPDO1 type1/255 experiment may establish observed emission and latency for this fixture. Separately prove receive bounds, sample production/queue retirement and a non-overlapping cycle association; neither local SYNC token nor processing-after-SYNC proves same-cycle sampling. No 1006/1007/1019 or TPDO SYNC-start object exists in this EDS. On 2026-11-16 node1 CL86-C raw identity 1009=0C/100A=20/2000=0400/2001=0200 accepted 1800:02 type1 and later255 with exact readback; twenty SYNCs at each of100ms and10ms produced twenty TPDO1 frames (docs/reports/prompt_51.md). This narrow observation does not establish cycle identity, multi-axis sampling or sustained10ms qualification. See docs/reports/prompt_51_sources.md.",

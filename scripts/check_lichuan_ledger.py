@@ -646,14 +646,14 @@ def validate_ledger(data, root=ROOT):
                     "gate needs feature and required observation")
             owners = gate.get("owner_prompts")
             require(isinstance(owners, list) and bool(owners) and
-                    all(type(n) is int and (12 <= n <= 48 or n == 51) for n in owners), "gate owners invalid")
+                    all(type(n) is int and (12 <= n <= 48 or n in (51, 52, 54)) for n in owners), "gate owners invalid")
             models = gate.get("models")
             expected_models = {"CL86-C", "OL86-C"} if gate["id"] == "Q06" else (
                 {"CL57-C", "OL57-C"} if gate["id"] == "Q07" else MODELS)
             require(isinstance(models, list) and all(isinstance(m, str) for m in models)
                     and len(models) == len(expected_models) and set(models) == expected_models,
                     "gate model applicability invalid")
-        require(gate_ids == ({"Q{:02d}".format(n) for n in range(1, 22)} | {"Q27", "Q28"}),
+        require(gate_ids == {"Q{:02d}".format(n) for n in range(1, 29)},
                 "qualification gate inventory incomplete")
         families = review.get("families")
         require(isinstance(families, list), "family matrix missing")

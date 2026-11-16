@@ -188,7 +188,7 @@ velocity run.
 
 | ID | Wanted work | Owner | Smallest next step |
 | --- | --- | --- | --- |
-| F01 | Record gates Q22 to Q26 (change semantics) in `device_conflicts.md` and the ledger | 29 (33, 35) | Documentation only |
+| F01 | Record gates Q22 to Q26 (change semantics) in `device_conflicts.md` and the ledger | 52 | Complete documentary intake; gates open, see [source review](reports/prompt_52_sources.md) |
 | F02 | Measure a velocity rate change during a run (positive rates only) | 35 via 29 | Trial T6, node 1, 30 to 60 rpm |
 | F03 | Host velocity change step in `VelocityContext`, closed by default, never extending the deadline or stop | 35 | Fake-owner tests |
 | F04 | Console `velocity change ID ...` | 42 (43) | Native console tests |

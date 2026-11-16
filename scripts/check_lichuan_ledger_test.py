@@ -503,6 +503,17 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(q20["status"], "open")
         self.assertEqual(q20["owner_prompts"], [19, 29, 37, 41, 44, 47])
 
+    def test_midrun_change_gates_are_present_open_and_scoped(self):
+        gates = {row["id"]: row for row in LEDGER["semantic_review"]["gates"]}
+        for number in range(22, 27):
+            row = gates["Q%02d" % number]
+            self.assertEqual(row["status"], "open")
+            self.assertEqual(row["owner_prompts"], [52, 54])
+            self.assertTrue(row["required_evidence"])
+        data = self.changed()
+        data["semantic_review"]["gates"] = [row for row in data["semantic_review"]["gates"] if row["id"] != "Q25"]
+        self.reject(data, "qualification gate inventory incomplete")
+
     def test_extra_accepted_row_is_rejected(self):
         # Fault and history first, then neighbours of accepted rows and an ordinary setting.
         for key in ("0x603F:00", "0x1001:00", "0x1003:00", "0x1003:01", "0x60FD:00",
