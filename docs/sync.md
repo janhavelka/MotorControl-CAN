@@ -105,7 +105,7 @@ and actual wire timing remain separate evidence requirements.
 
 ### Current two-node qualification
 
-[Prompt54](reports/prompt_54.md) tested the two CL86-C specimens on the S2 image
+[Prompt54](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_54.md) tested the two CL86-C specimens on the S2 image
 identified in its manifest. After correcting diagnostic output throughput, the
 short 10 ms/500-slot capture passed without receive-record loss. The requested
 1800-second run stopped at 42988 of 180000 slots with `MISSED_DEADLINE`: the

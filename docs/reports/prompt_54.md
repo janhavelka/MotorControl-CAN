@@ -209,6 +209,14 @@ receive stream; they are not silently classified as CAN loss.
 
 ## Verification, handoff and remaining work
 
+The first exact-commit CI run (`f974e4b1`) caught a late documentation mistake:
+the exported SYNC guide linked a repository-only report with a relative path.
+The existing package gate correctly rejected the missing packaged target after
+the sanitizer tests passed. The guide now uses the repository URL, preserving
+the package boundary. The full package/consumer gate passed after this
+correction (`.build/p54-package-linkfix`), including the README workflow,
+independent headers, relocated install and isolated native applications.
+
 - `python scripts/verify.py --mode full --compiler gcc --build-dir .build/p54-final-drain`
   passed: 166 contract/native/Python CTest checks, generated-file checks,
   package/relocated consumers and strict Doxygen. The final focused SYNC timing
