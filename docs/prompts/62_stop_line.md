@@ -51,9 +51,11 @@ uncertainty or verification rules. Reopen EN86/ZH86 p8 and OP86 p7 for the DI fu
    assignment and of the input state (`2101`); a per-axis capability fact that the axis has a configured stop input,
    independent of motor kind.
 2. Example stop line in `examples/common` behind platform hooks: a `StopLine` with states STOPPED, RELEASED and
-   UNKNOWN, STOPPED at boot, released only by an explicit application call, an optional watchdog pulse output whose
-   period comes from supplied time, ESP-IDF and Arduino implementations with the same semantics, and board pins from
-   the board configuration only.
+   UNKNOWN, STOPPED at boot and after any trip the application decides or sees (stopped watchdog pulses, a reset, a
+   line readback), released only by an explicit application call, an optional watchdog pulse output whose period comes
+   from supplied time, ESP-IDF and Arduino implementations with the same semantics, and board pins from the board
+   configuration only. A watchdog output that returns to the run level by itself never releases the line (the
+   host-loss guide's watchdog chips section; prompt 69).
 3. Group-stop integration (prompt 53): when the application enables it, the group stop drops the line first, still
    sends every per-axis stop and settles each axis from its own observation; the line state is part of the group
    result. Losing the line during motion is reported per axis like any other stop cause.
@@ -66,11 +68,11 @@ uncertainty or verification rules. Reopen EN86/ZH86 p8 and OP86 p7 for the DI fu
 
 ## Verify and exit
 
-Host tests use a fake GPIO and supplied time: boot state, explicit release and stop, watchdog timing, refusal of
-undocumented function or polarity values, no enable or fault clear on release, and the group-stop integration under a
-refused or lost axis. Run the native, firmware (S2, S3, Arduino), stack and documentation gates and CI on the actual
-final commit. Missing wiring blocks only the trials, never the host work; report the trials as pending until the user
-has the hardware.
+Host tests use a fake GPIO and supplied time: boot state, explicit release and stop, a trip whose watchdog output
+returns to the run level leaving the line STOPPED, watchdog timing, refusal of undocumented function or polarity
+values, no enable or fault clear on release, and the group-stop integration under a refused or lost axis. Run the
+native, firmware (S2, S3, Arduino), stack and documentation gates and CI on the actual final commit. Missing wiring
+blocks only the trials, never the host work; report the trials as pending until the user has the hardware.
 
 ## Documentation and delegation
 

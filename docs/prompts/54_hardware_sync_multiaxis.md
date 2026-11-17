@@ -30,7 +30,10 @@ symbol. This does not relax vendor evidence, safety, uncertainty or verification
    SYNC for at least 30 minutes with one TPDO per SYNC per node (jitter, missed and late samples, bus load, service
    gaps), then, only where prompt 52 opened it, a 10 ms set-point stream latched on SYNC (`60FF` in mode 3; `607A` in
    mode 1 only if its handshake measured as workable), with a stop of one axis during the stream and the group stop.
-   A 10 ms result that fails is reported with the longest period that passed.
+   A 10 ms result that fails is reported with the shortest tested period that passed the same 30-minute run length,
+   with the tested periods, node count, load, failures and measurement limits. The 20 ms, 30-minute pass of
+   2026-11-16 ([HIL report](../reports/2026-11-16_hil_campaign.md#sync)) is one tested point, not the threshold; a
+   shorter run (for example 60 s) is not equivalent evidence.
 3. Changes during motion: each operation prompt 52 opened, at several speeds and ramps, with stops during and after a
    change (backlog F13).
 4. Multi-axis: both nodes moving at once with one stopped while the other continues, the group stop including a lost
@@ -38,9 +41,10 @@ symbol. This does not relax vendor evidence, safety, uncertainty or verification
    soak.
 5. Stop reactions (backlog M14 to M16): NMT Stop to one node during a slow velocity run (6 to 30 rpm), then
    Pre-operational and reads of `6041`, `6064` and `606C`, then the run's own stop, reported as stopped, kept running
-   or faulted; the shared quick-stop RPDO on both nodes during motion, with the skew between the two stops; and, once
-   the user has wired a stop signal to a DI, the DI stop (5) and emergency-stop (6) functions during motion, with the
-   final state and what re-enabling needs.
+   or faulted (measured 2026-11-16 on image `17386514`, 4 of 4 kept running, backlog M14; repeat only to qualify a
+   changed image); the shared quick-stop RPDO on both nodes during motion, with the skew between the two stops; and,
+   once the user has wired a stop signal to a DI, the DI stop (5) and emergency-stop (6) functions during motion, with
+   the final state and what re-enabling needs.
 6. Root-cause every anomaly with a native regression where representable; a later passing run is not a fix.
 
 ## Verify and exit

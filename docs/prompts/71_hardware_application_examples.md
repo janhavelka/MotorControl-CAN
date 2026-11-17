@@ -11,6 +11,11 @@ ESP32-S3 boards once prompt 67 has brought them up. Results stay scoped to the a
 firmware and configuration; nothing transfers between boards. Apply the applicable bench authorization and the
 evidence rules of [prompt 47](47_hardware_finite.md) and [prompt 48](48_hardware_stress.md).
 
+Prompt 68's CAN task carries prompt 55's primitives and an empty supervisor call site; the self-repair policies are
+[prompt 74](74_reference_self_repair_example.md)'s. Although numbered later, prompt 74's result is an evidence gate for
+this prompt's policy part, as for prompt 66: no presence-state, retry, reconciliation, restart-schedule or fault-clear
+coverage is claimed before it, and the job soak resumes with prompt 74's module filling the call site.
+
 ## Read and audit
 
 For this prompt, refresh MotorControl-RS HEAD and dirty state and read its hardware campaign conventions for this seam;
@@ -26,7 +31,9 @@ host-loss guide, the hardware bench record and the wiring the user provides. App
 1. A short existing-feature regression on the image under test, then each of prompts 68 to 70's focused checks on the
    combined image with raw traffic, timing, service gaps and stack margins.
 2. A headless job soak (at least 2 hours, attended or under a written waiver for that run) on both axes with stops,
-   injected SDO timeouts, an absent node and console traffic, counting every refusal, self-repair and uncertain result.
+   injected SDO timeouts, an absent node and console traffic, counting every refusal, resync, TX-lifetime expiry,
+   explicit recovery and uncertain result. After prompt 74, the same soak again with its module filling the call site,
+   also counting presence transitions, retries, reconciliations, scheduled restarts and fault clears.
 3. When the hardware exists: every prompt 69 trial on the wired board (each stop-line failure path, watchdog trip,
    frozen pin, button, limit, permit, relay, brake), the attended host-loss trial, and timing from each trigger to the
    drive's reported standstill.
@@ -35,8 +42,8 @@ host-loss guide, the hardware bench record and the wiring the user provides. App
 ## Verify and exit
 
 Each qualified claim names its board, chip, wiring, drives, firmware, configuration and evidence directory; trials
-without hardware stay pending and explicit. Run the appropriate host gates for any fix and CI on the actual final
-commit.
+without hardware, and the policy soak before prompt 74, stay pending and explicit. Run the appropriate host gates for
+any fix and CI on the actual final commit.
 
 ## Documentation and delegation
 

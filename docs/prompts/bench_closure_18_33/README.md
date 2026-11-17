@@ -1,14 +1,22 @@
 # Bench continuation for original prompts 18-33
 
+**Executed; historical.** All eight packets ran from 2026-11-06 to 2026-11-09; the
+[execution index](../../reports/bench_closure_18_33/README.md) records their
+commits and hardware results. Do not paste or execute them again. Remaining work
+lives in the original prompts' Partial rows in [PROGRESS.md](../PROGRESS.md) and
+in the [backlog](../../backlog.md). Branch choice for any new work follows root
+[AGENTS.md](../../../AGENTS.md), not the branch named below.
+
 Prepared 2026-11-06 against MotorControl-CAN 4eb7683. This is a continuation of
 promptset v2 on branch `promptset/motorcontrol-can`, not a new execution branch
-or replacement for the main 1-50 sequence. These packets have **not been executed**.
+or replacement for the main 1-50 sequence. These packets had not been executed
+when this file was prepared.
 They resume specific original responsibilities; completed packets do not make
 their original prompts complete while other owned requirements remain open.
 
-Paste one entire numbered file into the coder's chat with this repository open.
-Each file applies [COMMON](COMMON.md) and names exact code, evidence and checks.
-To assign the whole continuation, paste:
+Each entire numbered file was pasted into the coder's chat with this repository
+open. Each file applies [COMMON](COMMON.md) and names exact code, evidence and
+checks. The whole continuation was assigned with this text (historical):
 
 > Read docs/prompts/bench_closure_18_33/README.md and COMMON.md. Execute packets
 > 1 through 8 fully, in numeric order among ready independent work. Implement,
@@ -19,7 +27,7 @@ To assign the whole continuation, paste:
 > with another plan or restart completed APIs. Return to earlier work when its
 > evidence becomes available.
 
-## Execute these packets
+## Packets (executed)
 
 | Packet | Deliverable | Original owner | Dependencies and feasibility |
 | --- | --- | --- | --- |

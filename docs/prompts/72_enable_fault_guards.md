@@ -18,8 +18,9 @@ Facts, two CL86-C specimens, one firmware (`1000=00040192`, `1009=000c`, `100A=0
   Reset Node and Communication, `2201` changes, the `2500` toggle, an open-loop enable and `6040=0x0000` did not.
 - In open loop (`2500=1`) the velocity enable refused at word 7 on `606C` nonzero and left the drive switched on
   and energized (`6041=8033`, `2100=0001`, no alarm). The stop refused it (stationary report), the clear refused it
-  (no alarm). `6040=0x0000` released it (`8050`, `2100=0011`, trial 5991). Afterwards `606C` read a constant 1711
-  while released, so every enable route refused the drive until a power cycle.
+  (no alarm). About 15 minutes later, from a fresh `8033`/`0001` report with `606C` zero, `6040=0x0000` released it
+  (`8050`, `2100=0011`, trial 5991). In that same read and afterwards `606C` read a constant 1711 while released, so
+  every enable route refused the drive until a power cycle.
 - The `6064` step at enable word 7 is a routine counter switch (I: command and encoder counters); it is not the
   cause and must not be used as a fault signature.
 - No source documents a pulse-rate limit, this state, the 0.5 s delay or a recovery (D, by absence;
@@ -52,11 +53,21 @@ the source audit, the afternoon section of the
    only as an attended experiment that says so. A changed `2201` (prompt 59's settings epoch) invalidates the
    evidence. Report the computed rate in the refusal detail.
 2. **Word 7 guard.** When an enable (velocity, position, regular enable of prompt 57) refuses or fails after word 7
-   was acknowledged and before word 15 was sent, the session follows at once with prompt 57's release from the
-   switched-on state (`6040=0x0000`, measured once from `8033`), recorded as that operation's own write, with its
-   execution evidence and uncertainty. It is not a stop and claims no standstill. On `606C` nonzero at word 7 the
-   result carries a distinct detail ("speed reported at enable without a command"), which the application can
-   count across attempts.
+   was acknowledged while word 15 is definitely not submitted (its execution evidence shows it never crossed the
+   owner's possible-TX boundary: refused, withdrawn or cancelled before handoff), the session follows at once with
+   prompt 57's `prepareRelease` on the refusing cycle's own fresh report, plus one fresh `2500` read and the ERRORS fields when that cycle lacks
+   them, through its ordinary admission and its
+   release table. A report matching a measured row gets that row's one word (the switched-on row: `0x0000` from
+   `8033`/`0001` in mode 3, open loop, `606C` zero, measured once), recorded as the release operation's own write
+   with its execution evidence and uncertainty. A report matching no measured row, `606C` nonzero at word 7 included,
+   gets no word unless the application set the release's experiment option; otherwise the result says the drive
+   was left switched on and why. Once word 15 has crossed that boundary (handed to the controller, sent, acknowledged
+   or its reply lost), the guard does not apply and the word 7 report certifies nothing: no release follows from it,
+   and after a lost reply the enable keeps UNKNOWN. In mode 3 an executed word 15 may start the motor at `60FF`
+   (ZH86 p13, [drive actions](../drive_actions.md)), so the application decides on a stop under prompt 42's rules
+   (on an unresolved route only an explicit best-effort `000B`); a later release needs a fresh report on a resolved
+   route. The guard is not a stop and claims no standstill. On `606C` nonzero at word 7 the result carries a
+   distinct detail ("speed reported at enable without a command"), which the application can count across attempts.
 3. **Fault-state report.** A typed, documented application signal, not a library decision: after an FF05 whose run
    exceeded the pulse limit, or after a word 7 speed report, the axis result says "the drive may need a power cycle;
    verify with a short slow enable". The examples (`AxisSession`, `ProbeMotion`, console) print it and stop
@@ -67,9 +78,12 @@ the source audit, the afternoon section of the
 ## Verify and exit
 
 Host tests: the pulse-rate refusal at the boundary and just below, with `2201` 1000, 25600 and 51200; a stale or
-missing `2201` refuses; the word 7 guard's release after a `606C` nonzero report and after a lost word 15 reply
-(nothing more than the one `0x0000`); the fault-state signal never enables, clears or retries. Run the native,
-firmware, stack and documentation gates and CI on the actual final commit.
+missing `2201` refuses; the word 7 guard with word 15 cancelled before handoff, accepted by the controller,
+physically transmitted, and transmitted with its reply lost, each separately: only the first releases, with exactly
+the matching row's one word from prompt 57's table (none for a report outside it, and `0x0000` with `606C` nonzero
+only under the experiment option), and the others send no release and keep both the enable's UNKNOWN outcome and
+any follow-up outcome; the fault-state signal never enables, clears or retries. Run the native, firmware, stack and
+documentation gates and CI on the actual final commit.
 
 Bench, under the applicable authorization, each step needing a user power cycle afterwards:
 
@@ -78,7 +92,8 @@ Bench, under the applicable authorization, each step needing a user power cycle 
    the power cycle, so it is volatile too, and node 1's unsaved `2201=51200` read 1000
    ([report](../reports/2026-11-16_hil_campaign.md)).
 2. In a reproduced fault state (one 3300 rpm run at 51200): a mode 1 enable, and the word 7 guard's `0x0000` within
-   100 ms of word 7, recording whether the FF05 and the pull still occur.
+   100 ms of word 7, recording whether the FF05 and the pull still occur. `606C` nonzero at word 7 matches no
+   measured row, so this runs under prompt 57's release experiment option; a reviewed result adds its row.
 3. The discriminator: 3000 rpm with a 500 ms ramp at 51200 (pulse limit versus the `250A` deviation threshold).
    Done on 2026-11-16, node 1: clean, which favours the pulse limit ([report](../reports/2026-11-16_hil_campaign.md)); repeat on node 2 if the
    guard's limit needs a second specimen.

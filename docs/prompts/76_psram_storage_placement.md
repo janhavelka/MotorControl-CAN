@@ -23,12 +23,24 @@ qualifies the user's S3 boards; it consumes this prompt's design when its boards
 
 Deliver:
 
-1. **Placement rule:** hot data (the owner, SDO channels, TWAI ISR and callback storage, stop and urgent reservations,
-   stacks, TCBs) is always internal. Cold per-node blocks (sessions, retained results, record and trace rings, console
-   scratch) may go to PSRAM through `StartupColdStorage`, each with its internal fallback and a reported placement.
-2. **Allocation order:** every block allocated once at startup in a documented order, before the TWAI driver and owner
-   start, with attempt-once flags; lazy allocation only for console or diagnostic scratch; no PSRAM allocation inside a
-   control path.
+1. **Placement rule:** hot data is always internal: the owner with its request/result slots, SDO channels, TWAI ISR
+   and callback storage (external RAM is inaccessible while the flash cache is disabled), stop and urgent reservations,
+   every live `AxisSession` (it embeds pending and urgent work, both stop contexts, best-effort stop state and the live
+   move, replacement, enable and motion contexts) and every other active operation context, stacks and TCBs. A stop
+   then never depends on PSRAM presence, its fallback or cache-miss timing, as the `StartupColdStorage` contract
+   already requires. Cold blocks may go to PSRAM through `StartupColdStorage`, each with its internal fallback and a
+   reported placement: detached copies of completed results and history that no owner or session path references, with
+   a stable lifetime; record and trace rings; console and diagnostic scratch. An object is not cold because some of its
+   fields hold history. Internal RAM therefore bounds the session count; the placement table reports each session's
+   internal bytes and the count that fits. Moving part of a session to PSRAM to raise that count is a separate reviewed
+   split that names the exact members and their lifetimes first and keeps all stop and urgent state internal.
+2. **Allocation order:** every block, console and diagnostic scratch included, allocated once at startup in a
+   documented order, before the TWAI driver and owner start, with attempt-once flags; no cold-block allocation,
+   external or internal fallback, after startup, so first console or diagnostic use allocates nothing. Mutually exclusive
+   diagnostic tools (soak, silent capture, PDO watch) share one startup-reserved arena sized to the largest, claimed
+   and returned at the tool's start and end, so preallocation fits the S2. Measure that budget first: the
+   [S2 memory report](../reports/2026-11-12_s2_memory.md) found about 20,644 bytes free after the console, before
+   the 4096-byte stack increase.
 3. **Capacity:** the node count is set at build time as the storage bound and at runtime by prompt 75's table; a request
    that does not fit is refused "requested N, fits M" before work is admitted, never shrunk silently. A descending
    capacity ladder is allowed only for cold history depth, and reports what it obtained.
@@ -70,9 +82,12 @@ PSRAM documentation. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MUL
 ## Verify and exit
 
 Host tests: each cold block's internal fallback, an injected failure per site, the capacity refusal text, placement
-reported per block, and no PSRAM allocation after startup. Run the native, firmware (all storage variants), stack and
-documentation gates and CI on the actual final commit. Bench on the S2: the memory report, stack high-water after the
-console's deepest commands, and a short regression; the S3 board trials stay with prompt 67.
+reported per block, a placement inventory showing the owner, every live session and all stop and urgent storage
+internal, ordinary and urgent work still available at the reported capacity with external memory refused, and allocator
+spies proving no cold-block allocation after startup, including first console and diagnostic use during service. Run
+the native, firmware (all storage variants), stack and documentation gates and CI on the actual final commit. Bench on
+the S2: the memory report, stack high-water after the console's deepest commands, and a short regression; the S3
+board trials stay with prompt 67.
 
 ## Documentation and delegation
 

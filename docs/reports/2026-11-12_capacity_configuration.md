@@ -38,6 +38,10 @@ time to allow control of a user-set number of drives".
   - owner CPU per turn, which grows with roughly N²;
   - bus time;
   - 127 CANopen node IDs, or 125 with the owner's 8-bit slot index.
+- **Correction 2026-11-17 ([promptset audit](../prompts/audit.md) A05):** memory is still a limit with PSRAM. A
+  complete `AxisSession` embeds pending and urgent work, both stop contexts and the live move contexts, so it stays
+  in internal RAM ([prompt 76](../prompts/76_psram_storage_placement.md), item 1), and internal RAM bounds the axis
+  count. The PSRAM candidates are detached result and history copies, record and trace rings, and scratch.
 
 ## Method
 
@@ -204,8 +208,14 @@ runtime-span form, so the lead should record that as a decision, or choose spans
 | `IdfTwaiDriver`: RX ring, TX frame, `portMUX` and the SDK callback context | Internal, `static DRAM_ATTR` as today | TWAI ISR callbacks write it (`rxDone`/`txDone`, registered with `this` at `IdfTwaiDriver.cpp:105`). `start` refuses an object that is not entirely internal (`IdfTwaiDriver.cpp:58-59`, `esp_ptr_internal`). Existing rule: "Keep the callback context and ISR storage in internal RAM" (`adapters/twai/README.md:26-29`, `docs/adapters/twai_sdk.md:77`, `:126`, `docs/adapters/twai_esp32s2.md:43`, `IdfTwaiDriver.h:13-14`). The exact phrase "SDK callback storage never resides in optional PSRAM" is not in the repository; these lines carry the rule. The SDK itself puts the node in internal RAM "because it contains atomic variable" (`esp_driver_twai/esp_twai_onchip.c:684-685`) |
 | TWAI SDK TX queue and event group | Chosen by the SDK | They use `TWAI_MALLOC_CAPS = MALLOC_CAP_DEFAULT` unless `TWAI_OBJ_CACHE_SAFE` is set (`esp_driver_twai/twai_private.h:50-54`). Only `TWAI_ISR_IN_IRAM` or `TWAI_IO_FUNC_IN_IRAM` select that, and the adapter forbids `ISR_IN_IRAM` (`IdfTwaiDriver.cpp:17`). On S3, `DEFAULT` is served from internal DRAM first, and from PSRAM only when internal is exhausted (`heap/port/esp32s3/memory_layout.c:63-65`). Start the node before internal RAM fills up, and check the internal free size afterwards |
 | Owner task stack and TCB | Internal, `static DRAM_ATTR` | PSRAM stacks need `FREERTOS_TASK_CREATE_ALLOW_EXT_MEM`, and the stack must never be used while the cache is disabled (`freertos/Kconfig:585-596`). Today: `EspProbeMain.cpp:23-24`, bench `main.cpp:38-39` |
-| `CanBusOwner`, `SdoClient`, `TwaiAdapter`, `EspProbePlatform` | Internal preferred, PSRAM permitted | No ISR touches them; they run in the cooperative context only. The owner and the SDO adapter are scanned every turn, and at N = 2 to 32 they are 25 to 105 KB, comparable to or larger than the 32 KB data cache |
+| `CanBusOwner`, `SdoClient`, `TwaiAdapter`, `EspProbePlatform` | Internal preferred, PSRAM permitted (superseded 2026-11-17, audit A05: internal under prompt 76) | No ISR touches them; they run in the cooperative context only. The owner and the SDO adapter are scanned every turn, and at N = 2 to 32 they are 25 to 105 KB, comparable to or larger than the 32 KB data cache |
 | `AxisSession`, `ProbeMotion`, `BenchAxis`, `ProbeConsole`, `ProbeDevice`, `DeviceEvidence`, route records, the arena, soak and capture | PSRAM candidates | Large, mostly cold and used only by the owner task |
+
+Correction 2026-11-17 ([promptset audit](../prompts/audit.md) A05): the last row is wrong for any object that holds a
+live operation, stop or urgent context. `AxisSession` embeds both stop contexts, the urgent work and the live move
+contexts, and [`StartupColdStorage.h`](../../examples/common/StartupColdStorage.h) already excludes active axis
+contexts and reserved stop storage. [Prompt 76](../prompts/76_psram_storage_placement.md) keeps every live session
+and operation context internal; only detached copies, rings and scratch are cold.
 
 ### How an S3 application places storage (application code, never the core)
 
@@ -301,6 +311,10 @@ The table gives the smaller of the two.
 | S3 without PSRAM, with B03 | 13 | 10 | 9 | Same heap. Contiguity allows 13 sessions of 21064 |
 | S3 with 2 MB PSRAM | 45 or more | About 45 | About 40 | Per-axis objects go to PSRAM; internal RAM keeps 2684 per axis. The other limits below apply first |
 | S3 with 8 MB PSRAM | About 125 | About 125 | About 125 | Bound by the slot index, not by memory |
+
+Correction 2026-11-17 ([promptset audit](../prompts/audit.md) A05): the two PSRAM rows assume the per-axis objects
+move to PSRAM. Under [prompt 76](../prompts/76_psram_storage_placement.md) every live session stays internal, so with
+PSRAM the count stays near the rows without it (about 7, 13 with B03) until prompt 76 measures its placement table.
 
 How the S3 heap of about 312000 bytes is computed:
 

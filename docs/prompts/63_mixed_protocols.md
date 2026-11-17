@@ -9,12 +9,16 @@ CANbus operation but not CANopen protocol? (like fieldcore-node - using rs485, b
 protocol - both on same bus)".
 
 Facts ([self-repair and mixed-protocol report](../reports/2026-11-12_self_repair_and_mixed_protocols.md) section 5):
-CANopen uses fixed 11-bit identifier ranges per node (NMT `0x000`, SYNC/EMCY `0x080`-`0x0FF`, PDOs `0x180`-`0x57F`, SDO
-`0x580`-`0x67F`, heartbeat `0x700`-`0x77F`, LSS `0x7E4`/`0x7E5`) and CiA 301 restricted ranges (`CO_driver.h:418-427`).
-A clean 11-bit block is `0x680`-`0x6DF`; 29-bit frames are the other separation. Format-blind devices are the trap:
-moteus ignores the IDE bit up to `0x7FFF`, ODrive's node-ID pairs need CANopen nodes of 32 or more. How the Lichuan
-treats 29-bit frames is unknown. On CAN, unlike FieldCore-node's half-duplex RS485, protocols are separated by
-identifier, not by time slots.
+CANopen's predefined connection set gives default 11-bit identifier ranges per node (NMT `0x000`, SYNC/EMCY
+`0x080`-`0x0FF`, PDOs `0x180`-`0x57F`, SDO `0x580`-`0x67F`, heartbeat `0x700`-`0x77F`, LSS `0x7E4`/`0x7E5`) and CiA 301
+restricted ranges (`CO_driver.h:418-427`). The defaults are not fixed: the Lichuan EDS lists the PDO, SYNC, EMCY and
+SDO COB-IDs (`1400`-`1403:01`, `1800`-`1803:01`, `1005`, `1014`, `1200:01/02`) as RW, and CANopenNode treats the
+predefined set as configurable defaults ([`CO_PDO.h`](../reference/public_code/canopennode/301/CO_PDO.h), lines 72-91).
+`0x680`-`0x6DF` is outside the default and restricted ranges, so it is a candidate block only after every device's
+actual configured identifiers, broadcasts and frame-format behavior are checked; 29-bit frames are the other
+separation. Format-blind devices are the trap: moteus ignores the IDE bit up to `0x7FFF`, ODrive's node-ID pairs need
+CANopen nodes of 32 or more. How the Lichuan treats 29-bit frames is unknown. On CAN, unlike FieldCore-node's
+half-duplex RS485, protocols are separated by identifier, not by time slots.
 
 Deliver the foundation for a second protocol on the same physical CAN interface, under the one owner: an identifier
 plan checked at configuration, a receive route for frames in the plan, and a raw transmit kind ranked below stops.
@@ -40,18 +44,20 @@ vendor evidence, safety, uncertainty or verification rules. Read the report, `Ca
 ## Implement
 
 1. A fixed-capacity identifier plan (11-bit ranges, 29-bit ranges, flags for format-blind devices and broadcasts),
-   validated against every configured CANopen node's identifiers and the restricted ranges.
+   validated against every configured CANopen node's actual identifiers (configured routes and COB-IDs, not the
+   predefined defaults) and the restricted ranges.
 2. A receive route that delivers plan-matched frames to an application callback, built on the existing passive path,
    without delaying CANopen dispatch.
 3. A raw transmit kind with its own admission class below stops and above ordinary SDO, with local TX evidence only.
 4. Restart and bus-off notification to every module.
 5. Bench, drives released: a 29-bit frame whose low bits look like `0x601` with a read payload (expect no `0x581`
-   reply), and 11-bit frames in `0x680`-`0x6DF` (expect no EMCY, statusword change or error counts); never an
-   NMT-looking payload.
+   reply), and, after reading both drives' PDO, SYNC, EMCY and SDO server (`1200:01/02`) COB-IDs, 11-bit frames in `0x680`-`0x6DF` (expect no
+   EMCY, statusword change or error counts); never an NMT-looking payload.
 
 ## Verify and exit
 
-Host tests: overlapping, restricted-range and format-blind plans refused; a 29-bit plan accepted; plan and CANopen
+Host tests: overlapping, restricted-range and format-blind plans refused; a `0x680`-`0x6DF` plan refused when a
+configured PDO uses `0x680` (default-range separation alone never passes); a 29-bit plan accepted; plan and CANopen
 frames routed separately; stop ordering ahead of raw frames; restart notification. Run the native, firmware, stack and
 documentation gates and CI on the actual final commit.
 

@@ -40,15 +40,31 @@ prompt 21, 53, 62 and 68 reports and backlog M15 and D10. Apply [CONVENTIONS.md]
 
 1. Hardware watchdog: a `HardwareWatchdog` example module behind platform hooks with WDI toggling decided by the CAN
    task's health from prompt 68 (recent service, no stuck channel, no unrecoverable axis), never by a free-running
-   timer or ISR; the watchdog output gates the stop line in hardware (wiring sketch in the host-loss guide); boot holds
-   the line at STOP; the board configuration names the chip, pins, timeout and whether its reset output drives the
-   MCU's EN. The chip's watchdog output must stay at STOP until WDI toggles again (the 706 type, first choice
-   SP706REN-L/TR); a part whose output only pulses must also reset the MCU or feed a latch, as the guide explains. A
-   console `watchdog status|test` where `test` deliberately stops toggling (attended) to prove the trip.
+   timer or ISR; the watchdog output gates the stop line in hardware in series with the RUN output (wiring sketch in the
+   host-loss guide); boot holds the line at STOP; the board configuration names the chip, pins, timeout, whether its
+   reset output drives the MCU's EN, whether WDO is tied to MR and whether WDO is read back on an input. The watchdog
+   output is not a latch. On the first choice, SP706REN-L/TR (706 type), WDO returns high when the timer clears on a WDI
+   edge, an asserted RESET or a high-impedance WDI (which also disables the watchdog), and as soon as VCC recovers from
+   a dip ([MaxLinear SP706R/S/T, SP708S/T datasheet Rev 3.0.2](https://www.maxlinear.com/ds/sp706r_sp706s_sp706t_sp708s_sp708t.pdf),
+   PDF pages 10, 14 and 15). STOP therefore survives an MCU reset, a disabled watchdog and a brownout through the RUN
+   output and the application, not through WDO: RUN is low at boot and falls to its pull-down in reset; the module drops
+   RUN and latches STOP whenever it stops toggling or sees a trip (a toggle gap that reached the chip's minimum timeout,
+   the WDO readback or the reset reason); RUN rises only on an explicit release while WDI is driven and toggling. WDO
+   returning high or toggling resuming never releases the line. A board without RESET to EN and without a WDO readback
+   cannot see a supply dip that the MCU survives; `watchdog status` reports that gap. It also reports WDO tied to MR without RESET
+   to EN as a wiring that cannot hold STOP: the RESET that MR starts clears the timer, so WDO only pulses
+   while a frozen MCU keeps RUN high (inferred from the datasheet's clearing rule). A part whose output only pulses must also reset
+   the MCU or feed a latch, as the guide explains. A console `watchdog status|test` where `test` deliberately stops
+   toggling (attended) to prove the trip.
 2. MCU inputs: a debounced stop button (normally closed, so a broken wire stops) that triggers prompt 53's group stop
    and drops the stop line; limit and home switches read by the MCU for axes whose drive inputs are not used, each
-   mapped to that axis's stop and documented as one CAN round trip slower than a drive input; an enable-permit input
-   that must be active for any enable. Debounce from supplied time.
+   mapped to that axis's stop; an enable-permit input that must be active for any enable. Debounce from supplied time.
+   Document an MCU-mapped switch as slower and less certain than a drive input, with no fixed latency figure: its path
+   adds debounce, task scheduling, waiting for in-flight work to settle (`AxisSession::requestStop` never cancels it),
+   queueing and bus arbitration before the drive reacts, and a bus or host failure can prevent delivery, so a limit
+   that must act without the host belongs on a drive input or the stop line. Record the input edge, the stop request,
+   the stop frame's TX and the observed standstill separately, and report measured latency with its load; the board
+   configuration may set a response budget that the trials compare against.
 3. MCU outputs: the stop line (prompt 62), a motor-supply relay output (off at boot, switched only by an explicit
    application call), a per-axis brake release output (released only after the drive reports operation enabled,
    engaged before any disable or release, timing from the board configuration), and status LEDs (ready, moving,
@@ -60,18 +76,24 @@ prompt 21, 53, 62 and 68 reports and backlog M15 and D10. Apply [CONVENTIONS.md]
 6. Trials, run only when the user has wired the hardware (a physical action by the user): with a slow velocity run on
    one node, each failure path drops the line and the drive stops: stop-line wire unplugged, MCU reset, toggling
    stopped by `watchdog test`, a frozen pin (a test-only firmware hook that spins with the run pin held), MCU board
-   power removed; the stop button, a limit input and the permit; the brake sequence if a brake exists. One attended
+   power removed; after each, including when power returns and toggling resumes, the line stays at STOP until an
+   explicit release; WDI released to high impedance (a test-only hook) and, if fitted, WDO tied to MR; the stop button,
+   a limit input with its measured latency and the permit; the brake sequence if a brake exists. One attended
    host-loss trial without the line: unplug the MCU's CAN connector during a 6 rpm velocity run, then read the drive
    (does it keep running?), with the stop line as the backup stop.
 
 ## Verify and exit
 
 Host tests with fake GPIO and supplied time: the watchdog toggles only while healthy and stops toggling on a stalled
-CAN task; boot state STOP; debounce; the stop button triggers the group stop and the line; the permit blocks enable; the
-brake is engaged before release and released only after enable is reported; refusal of undocumented DI values and of
-DO writes while gated; no enable or fault clear on any release. Run the native, firmware (S2, S3, Arduino), stack and
-documentation gates and CI on the actual final commit. Missing wiring blocks only the trials; report them as pending
-until the user has the hardware.
+CAN task; boot state STOP; a fake 706 whose WDO clears on a WDI edge, an asserted RESET, a high-impedance WDI and
+supply recovery (and on its own RESET when WDO is tied to MR) never returns the line to RUN without an explicit
+release, including after a stall that ends and toggling resumes; WDO tied to MR without RESET to EN reported;
+debounce; an MCU-mapped limit under debounce, an occupied channel, delayed TX and failed delivery, reporting the
+request, TX and observed stop separately; the stop button triggers the group stop and the line; the permit blocks
+enable; the brake is engaged before release and released only after enable is reported; refusal of undocumented DI
+values and of DO writes while gated; no enable or fault clear on any release. Run the native, firmware (S2, S3,
+Arduino), stack and documentation gates and CI on the actual final commit. Missing wiring blocks only the trials;
+report them as pending until the user has the hardware.
 
 ## Documentation and delegation
 

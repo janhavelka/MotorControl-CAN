@@ -69,7 +69,7 @@ Prompts51-76 remain separate from the prompt50 candidate audit. Prompt51 has
 delivered the host producer and typed TPDO1 experiment; its qualification work
 remains open. Prompt52 delivers gated changes and initial measurements; prompt54 owns their
 finished-operation qualification. Prompt53 delivers concurrent
-application axes/group stop; 55 owns communication recovery/retry policy.
+application axes/group stop; 55 owns the communication recovery primitives and retry classes; 74 owns the one reference recovery and retry policy.
 Configurable adapter capacities and application coordination are separate
 contracts, both tested in prompt53. User-requested features and measurements
 remain linked from backlog F/M/B rows, with their original ownership.

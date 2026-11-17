@@ -33,20 +33,28 @@ HEAD `5ad9292d`: `include/TunnelMonitor/rs485/Rs485Task.h`, `src/.../Rs485Diagno
   slot and assigns a never-reused token, then `xQueueSend(..., 0)`; on a full queue it rolls the reservation back and
   returns `QueueFull`. "Accepted" therefore means delivery and exactly one terminal are both reserved.
 - Terminal results stay in their reserved slots, read by inspect (non-consuming) then take (exact identity); they are
-  never aged away. The event queue carries notifications only (state, presence, faults, self-repair), overwriting the
-  oldest entry and counting losses, so a full event queue can never lose a terminal.
+  never aged away. The event queue carries notifications only (result available, state, presence, faults,
+  self-repair), overwriting the oldest entry and counting losses, so a full event queue can never lose a terminal.
+  Output therefore has three classes, as the [CLI contract](../cli_contract.md) already requires: retained admission,
+  terminal and control results (reserved before mutation, never dropped, released explicitly); lossy diagnostic
+  notifications; and deferred bulk dumps, written only in capacity the other two leave. Only diagnostics, and refusals
+  of commands that were never admitted, may be dropped, each loss counted.
 - Command identity is the caller's request ID plus its source plus the owner's token, compared exactly; each producer
   (console, job runner, application) has its own ID range. The original deadline travels with the command, and work
   that expired in the queue gets an exact terminal at dequeue.
 - Per-axis stop slots outside the queue, serviced first every pass, mapped to the owner's urgent class; ordinary work
-  on that axis is refused while a stop is held, and a stop or an uncertain result sets a motion inhibit with a
-  generation that only an explicit fresh standstill read clears (FieldCore's `motionInhibited`, `inhibitGeneration`).
+  on that axis is refused while a stop is held, and an unchecked or best-effort stop, or an uncertain result, sets a motion inhibit
+  with a generation (FieldCore's `motionInhibited`, `inhibitGeneration`), built on `AxisSession`'s fences: a checked
+  stop's own observed standstill clears it, as `moveFenced()` does since 2026-11-17, and otherwise
+  `acknowledgeStandstill` with the application's fresh standstill read. It is the one inhibit; prompt 74's reconciliation
+  extends it.
 - A documented per-pass bound (for example one queued command, one stop, two result transfers), status published as a
   whole copy under `portMUX` before the terminal it explains becomes visible.
 - Health in the shape of `Rs485RuntimeStats` and `ServiceHealth`: heartbeat every pass, stack free minimum every pass,
   queue depth, high-water and overflow, slow-pass count and maximum, worst service gap, init attempts.
 - The task and queues are created once (`xTaskCreateStaticPinnedToCore`, `xQueueCreateStatic`), separately from the
-  TWAI install; a failed install is retried at fixed due times without recreating the task or replaying anything, and
+  TWAI install; a failed install is reported and left to an explicit recovery through prompt 55's restart entry point
+  (FieldCore's fixed due-time retry is prompt 74's schedule), without recreating the task or replaying anything, and
   commands still get typed terminals while the bus is down. Recovery is a reserved request with one retained result.
 - The task watchdog sequence of `WatchdogRuntime` (status, init or reconfigure, add) with recorded block reasons and a
   test hook that withholds the feed; unlike FieldCore, which subscribes only its loop task, the CAN task itself is
@@ -66,8 +74,10 @@ API. The examples add sequencing, not motion logic, units or protocol rules of t
 receiver on its interface (one owner per physical interface); application tasks never call the owner directly. Queues
 are bounded and statically allocated; a full queue refuses new work with a visible result and never blocks the CAN
 task. Stops never wait behind ordinary work: each axis has its own reserved stop request that bypasses the ordinary
-queue and goes to the owner's urgent class. No automatic retry, replay, enable or fault clear beyond prompt 55's
-configured policies. The installed core stays C++11, heap-free and without tasks, clocks or device I/O.
+queue and goes to the owner's urgent class. No automatic retry, replay, enable, fault clear or scheduled controller
+restart here: this prompt supplies prompt 55's observations, explicit recovery and one documented supervisor call site
+per pass, empty by default, that prompt 74's module fills; it adds no second supervisor. The installed core stays
+C++11, heap-free and without tasks, clocks or device I/O.
 
 ## Read and audit
 
@@ -91,14 +101,18 @@ reports and the [host-loss guide](../host_loss.md). Apply [CONVENTIONS.md](CONVE
    and queue storage (`xTaskCreateStaticPinnedToCore`, `xQueueCreateStatic`); feeds the ESP-IDF task watchdog; publishes
    its health (last service time, pass rate, worst service gap, queue high-water marks) for prompt 69's watchdog
    toggle. Measured stack high-water mark recorded.
-3. Command and result interface: one bounded command queue in (axis operations through the common API) and one
-   bounded event queue out (results, state changes, presence, faults, self-repair events). Each command carries a
-   caller token and returns exactly one terminal result; uncertainty is preserved in the result. Per-axis reserved
-   stop requests and a group stop (prompt 53) bypass the command queue.
+3. Command and result interface: one bounded command queue in (axis operations through the common API), reserved
+   result slots, and one bounded, lossy event queue out for notifications only (result available, state changes,
+   presence, faults, self-repair events). Each command carries a caller token and returns exactly one terminal result,
+   retained until explicit release; uncertainty is preserved in the result. Per-axis reserved stop requests and a group
+   stop (prompt 53) bypass the command queue. The supervisor call site receives the owner, prompt 55's per-node
+   presence observations and each terminal before new work is admitted.
 4. Headless job runner: a fixed, caller-owned table of steps (move to, move by, velocity run, wait for standstill,
    dwell, wait for an input or an operator acknowledgment) executed through the command interface. On a fault,
-   presence loss or uncertain result on any axis the job stops every axis it started, reports why and waits; it never
-   resumes on its own. The console gains `job load|start|stop|status` and runs a built-in demonstration job.
+   presence loss (a boot-up or a no-response terminal from prompt 55's observations, or, once prompt 74's module
+   fills the call site, its Offline state instead of a single no-response) or uncertain result on any axis the job stops every axis it started, reports why and
+   waits; it never resumes on its own. The console gains `job load|start|stop|status` and runs a built-in
+   demonstration job.
 5. Native version: the same command interface and job runner built for the host with the fake transport, stepping the
    task body from a test loop with supplied time, so the whole structure is host-tested without a framework.
 6. Move the existing console onto the command interface (same command semantics), so the console and a headless
@@ -107,11 +121,14 @@ reports and the [host-loss guide](../host_loss.md). Apply [CONVENTIONS.md](CONVE
 ## Verify and exit
 
 Host tests with the fake transport and supplied time: a stop overtakes queued moves; a full queue refuses with a
-visible result and the CAN task keeps serving; one terminal result per command; a job aborts on one axis's fault and
-stops the others; an uncertain move is never replayed by the job; presence loss on one axis does not stall the other
-axis's commands. Run the native, firmware (S2, S3, Arduino), stack and documentation gates and CI on the actual final
-commit. Bench on the S2: short existing-feature regression, the console through the CAN task, a headless job of moves
-on both nodes with a stop of one axis in the middle, and the measured pass rate, service gaps and stack margins.
+visible result and the CAN task keeps serving; one terminal result per command; with the event queue and a bulk dump
+saturated while both axes admit work and urgent stops, every accepted command keeps one terminal until explicit
+release, and event loss is counted and never makes a command appear complete or disappear; a job aborts on one axis's
+fault and stops the others; an uncertain move is never replayed by the job; presence loss on one axis does not stall
+the other axis's commands; with the call site empty nothing retries, restarts or clears a fault automatically. Run
+the native, firmware (S2, S3, Arduino), stack and documentation gates and CI on the actual final commit. Bench on the
+S2: short existing-feature regression, the console through the CAN task, a headless job of moves on both nodes with a
+stop of one axis in the middle, and the measured pass rate, service gaps and stack margins.
 
 ## Documentation and delegation
 

@@ -37,11 +37,19 @@ documentation. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIV
    records with CRC, magic, record and schema versions and erased-means-missing, loading defaults on corruption and
    never boot-looping ([FieldCore audit](../reports/2026-11-17_fieldcore_capacity_psram_audit.md));
    [prompt 75](75_runtime_node_table.md) adds runtime edits and monitor-only entries to this table.
-2. Power-up sequence: stop line at STOP; wait for each configured node's boot-up or heartbeat within a board time;
-   identity check through prompt 57's policy (product identity refuses, firmware identity is reported); configuration
-   readback against the table (mode, ramps, DI assignments, heartbeat, PDO maps) with one report per axis; READY only
-   when every required axis passes; an optional axis that is missing is reported and left out.
-3. Drive reboot during operation: on a boot-up frame or presence loss and return, the example reports it, applies the
+2. Power-up sequence: stop line at STOP; a bounded passive window (a board time) records any boot-up or heartbeat,
+   then the existing explicit probe and identity reads (`DiscoveryScan` `PROBE`, `IDENTITY`) address every configured
+   node, heard or not. Silence is not absence: a drive powered before the MCU sent its one boot-up unseen, and `1017`
+   defaults to 0 in the EDS and read 0 on both drives after a power cycle
+   ([2026-11-16](../reports/2026-11-16_hil_campaign.md#boundary-and-setup-facts-m)). The per-axis report keeps heard,
+   silent but answering, no response (unavailable; a timed-out read leaves its channel unresolved until prompt 55's resync reopens it
+   under the configured reuse policy), identity mismatch
+   and other unresolved outcomes distinct. Startup never resets or starts a node or changes `1017` to provoke the
+   awaited frame. Then the identity check through prompt 57's policy (product identity refuses, firmware identity is
+   reported); configuration readback against the table (mode, ramps, DI assignments, heartbeat, PDO maps) with one
+   report per axis; READY only when every required axis passes; an optional axis that is missing is reported and left
+   out.
+3. Drive reboot during operation: on a boot-up frame, or presence loss and return as prompt 68's job runner defines it, the example reports it, applies the
    application's choice (stop the other axes, or let them continue), repeats that axis's startup check and waits for
    an operator acknowledgment before the axis can be enabled again.
 4. MCU reset reason and event log: the reset reason at boot (power-on, brownout, panic, task or interrupt watchdog,
@@ -51,13 +59,16 @@ documentation. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIV
 ## Verify and exit
 
 Host tests with fakes: table version and checksum mismatch falls back to defaults with a report; save refused while
-enabled; startup with a missing required axis stays not READY, with a missing optional axis READY with a report; an
+enabled; an MCU start with already powered, silent drives (`1017=0`, no boot-up seen) reaches READY through reads
+alone; a node that does not answer stays unavailable with its timed-out read unresolved and no write or NMT command
+sent; startup with a missing required axis stays not READY, with a missing optional axis READY with a report; an
 identity mismatch refuses; a configuration mismatch is reported per field and nothing is written by default; a drive
 boot-up during a move invalidates that axis, never re-enables, and follows the chosen policy for the others; the log
 ring keeps the newest entries within its bound. Run the native, firmware (S2, S3, Arduino), stack and documentation
-gates and CI on the actual final commit. Bench on the S2: startup with both drives powered; table save and load across
-an MCU reset; a software reset and a task-watchdog test hook showing the reset reason; a drive reboot from an explicit,
-attended NMT reset-node of a released drive, or a natural power cycle, handled without re-enable.
+gates and CI on the actual final commit. Bench on the S2: startup with both drives powered before the MCU and their
+`1017` recorded as found; table save and load across an MCU reset; a software reset and a task-watchdog test hook
+showing the reset reason; a drive reboot from an explicit, attended NMT reset-node of a released drive, or a natural
+power cycle, handled without re-enable.
 
 ## Documentation and delegation
 

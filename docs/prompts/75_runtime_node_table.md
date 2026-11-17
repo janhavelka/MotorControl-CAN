@@ -44,8 +44,11 @@ Deliver:
    override option. Measure it on the fixture at 921600, 2000000 and 3000000 baud with the platform's input and output
    loss counters and a long dump, and choose the highest clean rate as the default (unless the 2026-11-17 change
    already did). Recorded evidence keeps the rate it was taken at. S3 boards use USB Serial/JTAG instead
-   ([prompt 76](76_psram_storage_placement.md)). Adopt bounded publications: a per-response byte budget, whole-record
-   discard with a counter, non-blocking chunked writes, one command per poll.
+   ([prompt 76](76_psram_storage_placement.md)). Adopt bounded publications within prompt 68's three output classes
+   and the [CLI contract](../cli_contract.md): a per-response byte budget, non-blocking chunked writes and one command
+   per poll for all output; whole-record discard with a counter only for lossy diagnostic notifications and refusals of
+   commands that were never admitted. Admission, terminal and control results are reserved before mutation and kept
+   until delivered and explicitly released; record dumps are deferred into the capacity those leave.
 5. **Memory report:** a console `memory` command with internal and 8-bit heap total, free, low-water and largest block,
    each task's configured stack and minimum free, and the size of every per-node block; prompt 76 adds PSRAM rows and
    placement.
@@ -78,10 +81,12 @@ the bench README. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTID
 
 Host tests: add, remove and rebind refused while busy or uncertain and accepted at idle; invalidation on removal; the
 capacity refusal message; a disabled entry silent; monitor-only staleness from heartbeat and TPDO times; two nodes'
-bench records interleaved without blocking; console replies never delayed by a dump. Run the native, firmware, stack
-and documentation gates and CI on the actual final commit. Bench: add a third (absent) node ID and remove it; monitor
-one drive while the other moves; the UART rate matrix at 921600, 2000000 and 3000000 baud with loss counters and a
-long dump; a short regression on both drives.
+bench records interleaved without blocking; console replies never delayed by a dump; with dumps and diagnostic events
+saturated while both axes admit work and urgent stops, every accepted operation keeps one terminal until explicit
+release, and each discarded diagnostic is counted and never makes an operation appear complete or disappear. Run the
+native, firmware, stack and documentation gates and CI on the actual final commit. Bench: add a third (absent) node ID
+and remove it; monitor one drive while the other moves; the UART rate matrix at 921600, 2000000 and 3000000 baud with
+loss counters and a long dump; a short regression on both drives.
 
 ## Documentation and delegation
 

@@ -25,10 +25,16 @@ Facts ([configuration evidence report](../reports/2026-11-12_configuration_evide
 
 Boundaries: every change is an explicit request, never a side effect of startup, discovery, recovery or another
 setting; volatile unless a save is requested separately; readback after each write; a save is never automatic and is
-counted per node (cap 4 per node, project policy); a factory restore needs a complete backup first and is a separate
-decision; proving a save survives needs a drive power cycle, which waits for the user's next natural power cycle or
-one batched request (the user asked not to be asked for power cycles); this prompt must not depend on prompt 18,
-whose Q17 gates stay Partial, and consumes its artifacts only when available.
+counted per node (a per-node cap, 4 for the bench campaign, is an optional settable guard like the bench
+`RouteCaps`, project policy); a factory restore is a separate explicit decision and command
+(prompt 57's `prepareFactoryRestore`). Its backup guard is optional and settable, the user's policy of 2026-11-17
+and not a manufacturer statement. The backup it names is the recorded supported configuration subset read back
+before the restore, with its unknown fields listed (the complete persistent set and the factory values are unknown,
+[prompt 39](39_persistence.md)), never a complete or restorable device image. Guard set or not, the restore keeps
+its own intent, uncertain effects and no automatic replay. Proving a save survives needs a drive power cycle, which
+waits for the user's next natural power cycle or one batched request (the user asked not to be asked for power
+cycles); this prompt must not depend on prompt 18, whose Q17 gates stay Partial, and consumes its artifacts only
+when available.
 
 ## Read and audit
 
@@ -44,8 +50,10 @@ Q15, Q16, Q17 and M09. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](M
 ## Implement
 
 1. Persistence bench route and trials (report proposal P1): fresh reads under one-use grants, one `2300` write, reads
-   before and after, the save counter and backup rule; trials S0 to S3 on node 1 (change `6083`, save, natural power
-   cycle, read before any write, restore the old value and save again); the factory restore S5 last and separately.
+   before and after, the save counter and the optional backup guard; trials S0 to S3 on node 1 (change `6083`, save,
+   natural power cycle, read before any write, restore the old value and save again); the factory restore S5 last and
+   separately, with the backup guard set: afterwards re-read and compare with the backup, re-apply only fields that
+   have typed writes, and report every changed field without one as changed (the report's S5 list).
 2. Node setting (P2): `prepareNodeSetting` for 1..127 with the drive released, refusing 0 and any configured node, the
    operator's DIP attestation and a recorded route back; one write, readback on the old route, at most two explicit
    confirmation reads, never a scan; trials N0 to N3 as in the report.
@@ -60,10 +68,11 @@ Q15, Q16, Q17 and M09. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](M
 
 ## Verify and exit
 
-Host tests: ACK, abort, lost reply, boot-up during a save, the save cap, a missing backup, never writing `2300=0`, no
-retry, node-setting refusals, RPDO allowlist and collision refusals. Run the native, firmware, stack and documentation
-gates and CI on the actual final commit. Report each trial with its raw evidence; a trial waiting for a power cycle
-stays pending.
+Host tests: ACK, abort, lost reply, boot-up during a save, the optional save cap set and clear, the factory-restore backup guard set
+(refused before TX without a backup record) and clear (admitted explicitly), a backup record that lists its unknown
+fields and is never reported as complete, never writing `2300=0`, no retry, node-setting refusals, RPDO allowlist and
+collision refusals. Run the native, firmware, stack and documentation gates and CI on the actual final commit.
+Report each trial with its raw evidence; a trial waiting for a power cycle stays pending.
 
 ## Documentation and delegation
 

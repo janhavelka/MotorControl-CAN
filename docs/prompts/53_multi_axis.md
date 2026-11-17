@@ -33,8 +33,12 @@ better, and whether the library can stop the motors from a signal on the drives'
   neither SDO nor PDO, so stop commands sent after it are not acted on until the application sends Pre-operational or
   Start. What the motor does on NMT Stop is the CiA402 `6007` abort-connection option, which the Lichuan EDS does not
   have; the manuals say nothing. Measured so far: NMT Stop to a released node 2 changed neither its CiA402 state nor its
-  position (2026-11-06, backlog D15); an enabled or moving drive was never sent one. Its reaction during motion is a
-  measurement (backlog M14, in prompt 54), never a library stop path.
+  position (2026-11-06, backlog D15); when this prompt was written no enabled or moving drive had been sent one. Its
+  reaction during motion is a measurement (backlog M14, in prompt 54), never a library stop path. **2026-11-16**
+  ([M14 trials](../reports/2026-11-16_hil_campaign.md#m14-nmt-stop-during-a-slow-velocity-run-route-velocity-nmt)):
+  both CL86-C specimens, one firmware (`100A=0020`), image `17386514`, velocity mode at 6 and 30 rpm, 4 of 4 kept the
+  commanded speed through NMT Stopped and then Pre-operational until the run's own SDO quick stop (drive reports, no
+  shaft observation). Other modes, speeds and firmware are unmeasured; a repeat may qualify a changed image.
 - **One frame to all drives, a shared quick-stop RPDO (backlog M16).** CANopen lets several drives consume one PDO.
   One RPDO with the same COB-ID on every axis, a controlword-only map (after the M09 review), asynchronous type 255 and
   volatile configuration would let one frame carry `000B` to every drive at the same instant. Only the quick-stop word

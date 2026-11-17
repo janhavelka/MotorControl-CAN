@@ -34,13 +34,18 @@ only the library primitives; a runtime node table with monitor-only drives and a
 PSRAM-aware storage placement with stacks and memory reporting. They also run in ascending order unless the
 user reorders them.
 
+Prompt 74's module is the only self-repair policy implementation. Prompts 66 and 71 qualify prompt 55's primitives
+and their own application checks first; their policy parts are evidence-gated on prompt 74 and resume after it, as
+prompt 67's placement items wait for prompt 76. No dependency is added, so the graph stays acyclic and ascending.
+
 ## Shared contracts
 
-The [bench continuation for prompts 18-33](bench_closure_18_33/README.md) contains
-eight new, unexecuted packets for concrete remaining host work and bounded tests
-on the current S2/two-drive fixture. It distinguishes implementable gaps from
-instrument, firmware and operator-observation requirements. Continue the same
-execution branch; this supplement does not renumber or replace prompts 1-50.
+The [bench continuation for prompts 18-33](bench_closure_18_33/README.md) ran all
+eight packets from 2026-11-06 to 2026-11-09 and is kept for traceability; do not
+execute it again. Its [execution index](../reports/bench_closure_18_33/README.md)
+records each packet's commits and hardware results. The original prompts' Partial
+rows in [PROGRESS.md](PROGRESS.md) and the [backlog](../backlog.md) hold the
+remaining work. It did not renumber or replace prompts 1-50.
 
 The [external coder handoff](archive/handoff_19_33/README.md) for prompts 19–22 and
 29–33 has run all 22 packets and is archived for traceability; do not execute it again.

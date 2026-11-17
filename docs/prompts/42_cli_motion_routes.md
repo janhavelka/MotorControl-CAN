@@ -4,7 +4,7 @@ Apply [COMMON.md](COMMON.md). Prerequisites: [34](34_angle_moves.md), [35](35_ve
 
 ## Objective and boundaries
 
-Finish the console's finite motion/action routes and verify the complete shared command contract on native, Arduino and ESP-IDF. Every motor feature must already exist as a public typed API; this prompt adds parsing/dispatch and integration tests. Do not solve missing firmware evidence in the parser or duplicate an operation state machine. Gated capabilities use prompt 40's gated inventory state: shown by `caps` with exact reasons, absent from dispatch, never counted as implemented native coverage. Release (`motor-release`) is visibly gated until a sourced bus release command exists (D-17); no manual gives one, and `6040=0` is a status correspondence only.
+Finish the console's finite motion/action routes and verify the complete shared command contract on native, Arduino and ESP-IDF. Every motor feature must already exist as a public typed API; this prompt adds parsing/dispatch and integration tests. Do not solve missing firmware evidence in the parser or duplicate an operation state machine. Gated capabilities use prompt 40's gated inventory state: shown by `caps` with exact reasons, absent from dispatch, never counted as implemented native coverage. Release (`motor-release`) is visibly gated until a sourced bus release command exists (D-17); no manual gives one, and `6040=0` is a status correspondence only. (2026-11-17: [prompt 57](57_regular_drive_operations.md) opens `motor-release AXIS_ID` on measured evidence; this sentence records prompt 42's stage.)
 
 ## Read and audit
 

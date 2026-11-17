@@ -1,5 +1,10 @@
 # Contract for this bench continuation
 
+**Historical.** The eight packets were executed from 2026-11-06 to 2026-11-09
+([execution index](../../reports/bench_closure_18_33/README.md)); this contract
+is kept for traceability and assigns no further work. Branch choice for new work
+follows root [AGENTS.md](../../../AGENTS.md).
+
 Apply root AGENTS and [main COMMON](../COMMON.md), including its standing bench
 authorization, plus [CONVENTIONS](../CONVENTIONS.md),
 [DOCUMENTATION](../DOCUMENTATION.md), [MAINTAINABILITY](../MAINTAINABILITY.md),
@@ -12,7 +17,8 @@ to mark all of 18-33 complete or implement unrelated later stages.
 1. Read its original numbered prompts in full, its named current implementation
    and tests, then the relevant reports. Inspect branch/upstream, HEAD, dirty and
    staged changes; fetch/reconcile incoming changes safely. Continue
-   `promptset/motorcontrol-can`. Never overwrite or commit another session's work.
+   `promptset/motorcontrol-can` (the execution branch at the time; see the note
+   above). Never overwrite or commit another session's work.
 2. Refresh RS revision/dirty state and inspect the named seam; refresh only named
    I2C siblings. FieldCore is read-only where ownership changes. If the recorded
    revision, dirty state and seam match, cite the earlier row instead of repeating

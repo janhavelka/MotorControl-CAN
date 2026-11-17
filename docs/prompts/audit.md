@@ -6,6 +6,9 @@ prompts**, their shared contracts, execution metadata and active bench supplemen
 It is an instruction review, not implementation or new hardware qualification.
 The findings below are **open corrections**, not claims that the code was fixed.
 
+**Answered 17 November 2026:** each finding's verdict, the applied corrections and what stays open are in
+"Response to the findings" at the end of this report.
+
 The main problems are contradictory new requirements and missing integration
 contracts. The reviewed Lichuan object widths and mode tables generally remain
 correctly qualified. Do not replace existing explicit device gates with generic
@@ -521,3 +524,89 @@ This change adds only this audit report. No library code, original references,
 numbered prompt instructions or hardware state were changed. Native/HIL tests
 and manual CI dispatch are not needed to validate this documentation-only change;
 none are claimed as performed by this audit.
+
+## Response to the findings (17 November 2026)
+
+Answered against `main` at `c039781b`, which adds only this report to the audited `b6d5ffa1`. Every finding was
+checked individually against the current prompt text, the code it cites, the original EDS and Lichuan PDF pages, the
+external datasheet where one is named, and accepted CANopen practice. Five reviewers each owned a disjoint set of files
+and applied the fixes they adopted. A sixth reviewer then read the combined edits for contradictions between prompts.
+That review found about twenty seams, mostly between prompts edited by different reviewers, and they are fixed. No
+claimed fact was found invented; trial numbers, EDS sizes, the M14 result and the SP706 pages were spot-checked
+against their sources.
+
+The user's 12 and 17 November direction decides between valid alternatives. That direction means optional, settable
+guards with generous defaults, simple fresh reads instead of retained-history premises, and enable, release and save as
+regular explicit commands. It also keeps no motion replay, stop priority and honest uncertainty mandatory. A fix was
+adopted where it keeps a prompt implementable and truthful without bringing back a mandatory restriction that the
+user removed. Sibling sources are unchanged since this audit's refresh: MotorControl-RS `afe3588` and FieldCore-node
+`c40ea834`, both clean.
+
+**Result:** 20 claims confirmed and 1 partly confirmed (A09); 13 fixes adopted as proposed, 8 adopted with changes,
+none rejected. No current code defect was found. One public Doxygen comment was corrected (A17). Everything else is a
+correction to instructions for prompts that are still Pending or Partial.
+
+| Finding | Claim | Fix | Changed |
+| --- | --- | --- | --- |
+| A01 | Confirmed | Adopted with changes: a named, settable SDO reuse policy (*none*, *accepted risk with marker*, *accepted risk without marker*); the documented default is accepted risk with marker, as the prompt's earlier "marker on by default" intended. The premises are stated as accepted, never established. The undetectable `A → timeout → B → new A → old A reply` case is written down. Every result from a reopened route carries an accepted-correlation mark, which prompts 73 and 74 carry into their decisions. The owner sends the marker (`1000:00`, accepted under DEC-1). | 55, 73, 74 |
+| A02 | Confirmed | Adopted: `release OPERATION_ID` unchanged, `motor-release AXIS_ID` through `prepareRelease`, with the consumers listed (`ProbeConsole`, `cli_contract.md`, `local_routes.txt`, `bench_probe.py`, tests) | 57, 42 (dated pointer) |
+| A03 | Confirmed | Adopted with changes: the word-7 guard applies only while word 15 never crossed the possible-TX boundary, through prompt 57's release table and admission; once it may have crossed, the enable stays UNKNOWN and the old word-7 report certifies nothing. The automatic `0000` for the S21 case (`606C` nonzero at word 7) matches no measured row, so it runs through the experiment option until 72's bench step 2 measures it | 72 |
+| A04 | Confirmed: MaxLinear SP706R/S/T Rev 3.0.2, PDF pages 10, 14 and 15. The timer clears on a WDI edge, an asserted RESET or a three-stated WDI, and WDO goes high as soon as VCC recovers | Adopted with changes: the chip stays; STOP survives reset, a disabled watchdog and brownout through RUN low at boot plus a firmware latch released only explicitly. WDO tied to MR without RESET to EN is reported by `watchdog status`, not refused | 69, 62, `host_loss.md` |
+| A05 | Confirmed (`StartupColdStorage.h` lines 27-31) | Adopted with changes: every live `AxisSession` and active operation context stays internal; detached copies, rings and scratch are cold. Consequence: internal RAM, not PSRAM, bounds the session count (about 7 on an S3 today, 13 after B03) | 76; correction notes in the 2026-11-12 capacity and FieldCore PSRAM reports |
+| A06 | Confirmed: all 202 ledger entries keep `not_established` read effects | Adopted: new default class N (not repeatable); R only for reviewed or DEC-1 accepted reads, or an object the application promotes by an explicit recorded permission; the class never changes `readEffect` | 55, 74 |
+| A07 | Confirmed (13 bytes; at most four entries per TPDO). Also, no live TPDO carries `2100` or `606C` (2026-11-06 maps) | Adopted with changes: a minimum field set per decision, one TPDO preferred, otherwise per-field assembly with an acquisition window, newer-than-command capture and SDO fallback; no extra spread guard | 73 |
+| A08 | Confirmed, with one precision: the reply wait stayed bounded by `responseTimeoutUs`; the queue and TX-handoff waits became unbounded | Adopted: every attempt's cutoffs derived from the one timeout and finite with or without a deadline; "none" is an explicit state, never `UINT64_MAX`; named exhaustion outcomes; prompt 31's A-20 rule restated | 73 |
+| A09 | Partly confirmed: the prompt said "never refused *for a guard or a cap*", not "never refused". Unretired TX makes a stop wait, not refuse; `010F` enabling from an unsuitable state is a CiA402 inference, not a measurement | Adopted with changes: no optional guard suppresses an otherwise admissible stop; each non-guard refusal keeps its name; no substituted stop kind, evicted result or skipped retirement | 73 |
+| A10 | Confirmed | Adopted: the estimate is host policy and exists only with its inputs (position, scale, nonzero speed, Q11 ramp reading); otherwise the console asks for `deadline MS\|none` and the library never refuses a valid native move for lacking one | 73 |
+| A11 | Confirmed | Adopted: three output classes; the event queue carries "result available", never the only copy; discard only for diagnostics and refusals of commands that were never admitted | 68, 75; FieldCore report annotated |
+| A12 | Confirmed | Adopted, without a dependency cycle: 68 gets one supervisor call site, empty by default, and the one inhibit; 74 is the only policy implementation and also owns the restart schedule; 66 and 71 qualify primitives first and resume their policy parts after 74 as an evidence gate | 55, 66, 68, 71, 74; README, PROGRESS, roadmap |
+| A13 | Confirmed (`1017` default 0; read 0 on both drives on 2026-11-16) | Adopted with changes: after a bounded passive window, the existing `DiscoveryScan` PROBE and IDENTITY reads address every configured node; no reset, start or `1017` change to provoke a frame | 70 |
+| A14 | Confirmed, with an evidence correction: the one measured `8033 → 0000` (trial 5991) came about 15 minutes after the refusal, and the same read gave `606C=1711` and a bench-route alert | Adopted with changes: one release table, chosen by a fresh report, with the measured words and their scope; an already released drive is answered without TX; an explicit experiment option admits `0000` or `0006` only over the "unmeasured" refusal, never over an alarm, `2100` running or an already released report | 57, 72; backlog S21 |
+| A15 | Confirmed | Adopted: no fixed latency claim; phases recorded separately; the response budget is an optional board setting | 69 |
+| A16 | Confirmed | Adopted: the supplement is marked executed and historical; the entry points defer branch choice to root `AGENTS.md` and refer to `SEQUENCE.json` instead of a maximum | README, START_HERE, supplement README and COMMON |
+| A17 | Confirmed | Adopted: the backup guard is optional and settable in both prompts; the backup names the recorded subset and its unknown fields. The per-node save cap is also made an optional guard like the bench `RouteCaps`. `Persistence.h` no longer calls the backup record complete | 57, 61, `Persistence.h` |
+| A18 | Confirmed | Adopted, with preallocation: nothing is allocated after startup. Mutually exclusive diagnostic tools share one startup-reserved arena, so preallocation fits the S2's measured budget | 76 |
+| A19 | Confirmed (the EDS lists every cited COB-ID as RW; `CO_PDO.h` lines 72-91) | Adopted: default ranges, validation against the configured COB-IDs, the `0x680` refusal test, and the bench reads every COB-ID first | 63 |
+| A20 | Confirmed | Adopted: dated, specimen- and image-scoped M14 result with its link; the backlog and prompt 54 item 5 agree | 53, 54, backlog M14 |
+| A21 | Confirmed | Adopted: the shortest tested passing period at the same 30-minute length; 20 ms is one tested point | 54 |
+
+### Corrections to this audit
+
+- A01: `checkDrain` ends at line 340, not 339.
+- A05: the `StartupColdStorage.h` exclusion is at lines 27-31.
+- A08 and A09: precisions as in the table.
+- A14: the 1711 read and the alert after trial 5991 belong in the evidence. Without them the `0000` row would read as a clean release.
+
+The "Facts checked that should not be fixed" list was not contradicted by any edit.
+
+### Decisions beyond or against the proposed fixes
+
+- **A01:** the reuse default is accepted risk with the marker, not *none*. The user asked for simple, industry-standard
+  self-repair with generous settable defaults, and the prompt already reopened routes with the marker on by default.
+  The auditor's requirement that the choice be explicit and never silent is met by the named setting, health and the
+  mark on every affected result.
+- **A04:** an unsafe watchdog wiring is reported, not refused, because the board is the user's responsibility.
+- **A12:** the controller-restart schedule also moves to prompt 74, so that one policy owns it.
+- **A17:** the per-node save cap becomes an optional guard, in line with the bench caps made optional in `db4e5f3e`.
+- **Prompt 73:** it gains no dependency on prompt 18. Its TPDO path needs an explicitly configured map, and its SDO
+  fallback keeps the prompt implementable without one.
+
+### Still open after this response
+
+- Whether a TPDO captured after a command's acknowledgement can carry a value the drive sampled before the command
+  (Q27 class). Prompt 73 labels that capture as a host ordering bound and leaves the question to its stronger
+  reviewer.
+- These guides describe today's code. Their owning prompts change them with the API, so they are not edited now:
+  CONVENTIONS "Deadline cutoff" (prompt 73), the services guide's reopening rows and Q18 text (prompt 55), and the CLI
+  contract's output classes (prompts 68 and 75).
+- `SdoClient`'s `drainRefused` is cleared only when the client is constructed. Prompt 55's explicit re-accept call is
+  where that changes; the current behavior is not a defect.
+- Physical facts remain unmeasured: SP706 behavior in the fixture, release rows outside the table, the S21 `0000` with
+  `606C` nonzero, the S2 diagnostic-arena budget and the S3 session count.
+
+### Verification
+
+`python scripts/check_promptset.py` (76 stages), `python scripts/check_promptset_test.py`,
+`python scripts/check_repository.py`, `git diff --check`, `doxygen Doxyfile` with no warnings, and a C++11 syntax
+check of `Persistence.h` all pass. The only code change is one Doxygen comment, so no native build, HIL test or CI
+dispatch was performed or is claimed.

@@ -34,7 +34,7 @@ struct PersistenceReview {
     uint32_t firmwareRecord = 0;  ///< Nonzero exact model/firmware applicability record.
     uint32_t procedureRecord = 0; ///< Nonzero reviewed bounded procedure and effect-risk record.
     uint32_t authorizationRecord = 0; ///< Nonzero explicit execution authorization record.
-    uint32_t backupRecord = 0; ///< Factory restore: external complete configuration backup record.
+    uint32_t backupRecord = 0; ///< Factory restore: caller's backup record of the configuration subset it read back; never a complete image.
     uint32_t routeBackRecord = 0; ///< Factory restore: reviewed actual recommissioning route plan.
 };
 /** Actual independently acquired prerequisites; preparation copies checked observations only.
@@ -146,7 +146,7 @@ Status prepareSave(PersistenceContext& output, const AxisReservation& reservatio
  * @param[in] reservation Actual continuous owner exclusion.
  * @param[in] current Actual current route/epochs.
  * @param[in] review Exact FACTORY_RESTORE review plus external backup and route-back records.
- * @param[in] prior Fresh checked partial snapshots; these do not replace the complete backup.
+ * @param[in] prior Fresh checked partial snapshots; these are not a complete backup.
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] attemptOrdinal Nonzero caller-maintained cumulative restore number.
  * @param[in] nowUs Supplied microseconds.

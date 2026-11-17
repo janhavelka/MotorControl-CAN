@@ -16,8 +16,8 @@ focused tests, affected documentation/Doxygen and its report. Use subagents
 and available model/effort choices where useful, with disjoint ownership and
 lead integration. Do not execute later prompts in this assignment.
 
-Follow the current branch override in AGENTS.md: this execution stays on main
-until version0 is finished. Create no branch for a resumed prompt or audit.
+Follow the current branch rule in root AGENTS.md's Git section. Create no
+branch for a resumed prompt or audit.
 Commit and sync meaningful completed chunks and all completed work before
 handoff; verify upstream synchronization. Do not mark the prompt complete with
 unfinished owned work or failed required checks. Report any external blocker
@@ -29,7 +29,8 @@ precisely and preserve the remaining obligation instead of inventing evidence.
 ```text
 Execute the remaining assigned prompts from docs/prompts/SEQUENCE.json in
 numerical order, applying COMMON and root AGENTS. Read PROGRESS.md first;
-do not restart completed prompts. The current complete sequence is 1 through 72.
+do not restart completed prompts. The complete sequence is every entry in
+SEQUENCE.json.
 For a requested range, execute only that range after checking its prerequisites.
 Finish, test, document, commit and sync each ready prompt before proceeding.
 A prerequisite is usable when the specific artifact consumed exists and its
@@ -38,8 +39,8 @@ blocked, retain Partial/Blocked and the exact remaining work, commit and sync
 completed chunks, then continue the next independent ready work within the
 assignment under COMMON. Return to earlier work when its evidence arrives.
 Record predecessor gates as inherited gates. Never mark unfinished work Complete.
-Follow the current AGENTS branch override: remain on main until version0 is
-finished, without creating a new branch. Continue authorized work without routine
+Follow the current branch rule in root AGENTS.md's Git section; create no
+branch per prompt. Continue authorized work without routine
 confirmation; retain blocked work and qualification gaps explicitly.
 ```
 

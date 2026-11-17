@@ -4,12 +4,18 @@ Apply [COMMON.md](COMMON.md). Prerequisites: [54](54_hardware_sync_multiaxis.md)
 
 ## Objective and boundaries
 
-Qualify on the two-drive S2 bench, as one combined image, what prompts 55 to 63 delivered: communication self-repair,
-node presence and the retry policy; the faster event-woken service; regular enable, release and mode select with the
+Qualify on the two-drive S2 bench, as one combined image, what prompts 55 to 63 delivered: prompt 55's self-repair
+primitives (timeout abort and resync under the image's named reuse policy, TX lifetime and restart entry point,
+presence observations, retry classes); the faster event-woken service; regular enable, release and mode select with the
 firmware identity policy; records loaded from the console; the measured velocity range and reverse direction; user
 units; the node setting, RPDO maps and save trials that are still pending; the wired stop line once the user has wired
 it; and the mixed-protocol identifier separation. Each prompt ran its own focused trials; this prompt proves they work
 together under sustained mixed load. Results stay scoped to the actual drives, firmware, wiring and configuration.
+
+The policies built on those primitives (presence states, retries, reconciliation, the restart schedule and optional
+fault clear) are [prompt 74](74_reference_self_repair_example.md)'s. Although numbered later, its result is an evidence
+gate for this prompt's policy part: until it exists this prompt claims no policy coverage, and afterwards a resumed
+soak segment with prompt 74's module qualifies it on the same combined image.
 Apply the applicable bench authorization and the evidence rules of [prompt 47](47_hardware_finite.md) and
 [prompt 48](48_hardware_stress.md).
 
@@ -28,15 +34,18 @@ bench record and the night soak. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTID
    combined image, with raw traffic, timing and service gaps.
 2. A sustained mixed soak (at least 8 hours, unattended only under a written waiver for that night): both axes
    enabled, moving and stopped through the regular commands and console, records loaded from the console, PDO and
-   SDO traffic, injected SDO timeouts and an absent node, with every self-repair, restart and retry counted and every
-   uncertain motion command checked for the absence of a replay.
+   SDO traffic, injected SDO timeouts and an absent node, with every resync, TX-lifetime expiry and restart counted and
+   every uncertain motion command checked for the absence of a replay.
 3. Pending trials from prompts 59, 61 and 62 that waited for a power cycle or wiring, when those exist.
 4. Root-cause every anomaly with a native regression where representable; a later passing run is not a fix.
+5. After prompt 74: the resumed policy segment, item 2's soak on the same combined image plus prompt 74's module,
+   counting presence transitions, retries and exhaustions, reconciliations, scheduled restarts and fault clears.
 
 ## Verify and exit
 
 Each qualified claim names its exact model, firmware, configuration and evidence directory; unavailable checks stay
-explicit. Run the appropriate host gates for any fix and CI on the actual final commit.
+explicit. The report keeps primitive and policy coverage apart; the policy part stays pending until item 5 has run.
+Run the appropriate host gates for any fix and CI on the actual final commit.
 
 ## Documentation and delegation
 
