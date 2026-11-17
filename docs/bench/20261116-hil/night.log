@@ -5277,3 +5277,183 @@
 18:05:42Z   state n2 2100=0014 6041=4050 6061=03 6064=24885 606c=0 1001=00 603f=0000 607a=21819 60ff=30
 18:05:42Z   HM5 end n2 {'1001': '00', '603f': '0000', '2100': '0014', '6041': '4050', '6061': '03', '6064': 24885, '606c': 0, '607a': 21819, '60ff': 30}
 18:05:42Z paired session hm5 ended
+11:41:21Z ##### series 119 node 1 hm3r1 (S0119-n1-hm3r1)
+11:41:24Z === start
+11:41:28Z   exit 0 (4.1 s)
+11:41:28Z === 56495 read node 1
+11:41:31Z   TRIAL id=56495 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5010 lossCancel=0
+11:41:31Z   TRIAL_PLAN route=actions node=1 trial=56495 attended=0
+11:41:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+11:41:31Z   exit 0 (2.4 s)
+11:41:31Z === release 56495
+11:41:32Z   exit 0 (1.6 s)
+11:41:32Z   state n1 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:41:32Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+11:41:32Z === 56496 mode1 n1
+11:41:39Z   TRIAL id=56496 node=1 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0
+11:41:39Z   TRIAL_PLAN route=mode1 node=1 trial=56496 attended=1 cycles=5 interval=500
+11:41:39Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+11:41:39Z   exit 0 (6.8 s)
+11:41:39Z === release 56496
+11:41:41Z   exit 0 (1.6 s)
+11:41:41Z === release alert
+11:41:42Z   RELEASE refused
+11:41:42Z   exit 0 (1.7 s)
+11:41:42Z === 56497 emergency stop n1
+11:41:44Z   TRIAL id=56497 node=1 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=5002 lossCancel=0
+11:41:44Z   TRIAL_PLAN route=stop node=1 trial=56497 attended=1 kind=2 deadline=2000 be=2000 interval=250
+11:41:44Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+11:41:44Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+11:41:44Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+11:41:44Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+11:41:44Z   exit 3 (1.2 s)
+11:41:44Z === release emergency-56497
+11:41:45Z   exit 0 (1.7 s)
+11:41:45Z ##### series 120 node 1 hm3r1b (S0120-n1-hm3r1b)
+11:41:48Z === start
+11:41:53Z   exit 0 (4.1 s)
+11:41:53Z === 56498 read node 1
+11:41:55Z   TRIAL id=56498 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5015 lossCancel=0
+11:41:55Z   TRIAL_PLAN route=actions node=1 trial=56498 attended=0
+11:41:55Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:41:55Z   exit 0 (2.4 s)
+11:41:55Z === release 56498
+11:41:57Z   exit 0 (1.6 s)
+11:41:57Z   state n1 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:41:57Z ##### series 121 node 2 hm3r2 (S0121-n2-hm3r2)
+11:42:00Z === start
+11:42:04Z   exit 0 (4.2 s)
+11:42:04Z === 56499 read node 2
+11:42:06Z   TRIAL id=56499 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5010 lossCancel=0
+11:42:06Z   TRIAL_PLAN route=actions node=2 trial=56499 attended=0
+11:42:06Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8037 6061=00 6064=0 606c=0
+11:42:06Z   exit 0 (2.4 s)
+11:42:06Z === release 56499
+11:42:08Z   exit 0 (1.7 s)
+11:42:08Z   state n2 2100=0001 6041=8037 6061=00 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:42:08Z   power-up state: mode 1, best-effort quick stop, then a fresh series
+11:42:08Z === 56500 mode1 n2
+11:42:15Z   TRIAL id=56500 node=2 route=mode1 failure=0 why=none lost=0 terminals=53 traffic=159 tail=0 tailLost=0 summaries=4 step=8 cycles=5 motion=1 case=1 unsettled=0 gap=5002 lossCancel=0
+11:42:15Z   TRIAL_PLAN route=mode1 node=2 trial=56500 attended=1 cycles=5 interval=500
+11:42:15Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+11:42:15Z   exit 0 (6.9 s)
+11:42:15Z === release 56500
+11:42:17Z   exit 0 (1.7 s)
+11:42:17Z === release alert
+11:42:18Z   RELEASE refused
+11:42:18Z   exit 0 (1.6 s)
+11:42:18Z === 56501 emergency stop n2
+11:42:19Z   TRIAL id=56501 node=2 route=stop failure=10 why=best-effort lost=0 terminals=6 traffic=18 tail=0 tailLost=0 summaries=6 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=5002 lossCancel=0
+11:42:19Z   TRIAL_PLAN route=stop node=2 trial=56501 attended=1 kind=2 deadline=2000 be=2000 interval=250
+11:42:19Z   TRIAL_LAST passed=1 blocks=0c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 606c=0
+11:42:19Z   TRIAL_STOP kind=2 path=2 final=4 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 pred=0000 documented=0 basis=0 observations=0 op=0
+11:42:19Z   TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=20
+11:42:19Z   TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0
+11:42:19Z   exit 3 (1.2 s)
+11:42:19Z === release emergency-56501
+11:42:21Z   exit 0 (1.7 s)
+11:42:21Z ##### series 122 node 2 hm3r2b (S0122-n2-hm3r2b)
+11:42:24Z === start
+11:42:29Z   exit 0 (4.2 s)
+11:42:29Z === 56502 read node 2
+11:42:31Z   TRIAL id=56502 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5010 lossCancel=0
+11:42:31Z   TRIAL_PLAN route=actions node=2 trial=56502 attended=0
+11:42:31Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:42:31Z   exit 0 (2.4 s)
+11:42:31Z === release 56502
+11:42:33Z   exit 0 (1.6 s)
+11:42:33Z   state n2 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:42:33Z ##### series 123 node 1 hm3r (S0123-n1-hm3r)
+11:42:36Z === start
+11:42:40Z   exit 0 (4.2 s)
+11:42:40Z === 56503 read node 1
+11:42:43Z   TRIAL id=56503 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5010 lossCancel=0
+11:42:43Z   TRIAL_PLAN route=actions node=1 trial=56503 attended=0
+11:42:43Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:42:43Z   exit 0 (2.5 s)
+11:42:43Z === release 56503
+11:42:44Z   exit 0 (1.7 s)
+11:42:44Z   state n1 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:42:44Z === 56504 read node 1
+11:42:47Z   TRIAL id=56504 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+11:42:47Z   TRIAL_PLAN route=actions node=1 trial=56504 attended=0
+11:42:47Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:42:47Z   exit 0 (2.5 s)
+11:42:47Z === release 56504
+11:42:48Z   exit 0 (1.7 s)
+11:42:48Z   state n1 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:42:48Z === 56505 read node 2
+11:42:51Z   TRIAL id=56505 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=0 case=0 unsettled=0 gap=5002 lossCancel=0
+11:42:51Z   TRIAL_PLAN route=actions node=2 trial=56505 attended=0
+11:42:51Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:42:51Z   exit 0 (2.4 s)
+11:42:51Z === release 56505
+11:42:52Z   exit 0 (1.7 s)
+11:42:52Z   state n2 2100=0011 6041=8050 6061=01 6064=0 606c=0 1001=00 603f=0000 607a=5000 60ff=120
+11:42:52Z === 56506 enable n1
+11:42:58Z   TRIAL id=56506 node=1 route=enable failure=0 why=none lost=0 terminals=42 traffic=126 tail=0 tailLost=0 summaries=7 step=1 cycles=0 motion=1 case=1 unsettled=0 gap=6002 lossCancel=0
+11:42:58Z   TRIAL_PLAN route=enable node=1 trial=56506 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=120 deadline=10000 interval=1250
+11:42:58Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:42:58Z   TRIAL_ENABLE own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 mask=07 cursor=2 observations=4 op=14 pt=5000 vt=120 s0=8050 m0=0011 p0=0
+11:42:58Z   TRIAL_ENABLE_STEP word=15 present=1 status=8437 monitor=0001 position=0 velocity=0 history=1 outcome=0 ack=1 possible=1 uncertain=0
+11:42:58Z   exit 0 (5.5 s)
+11:42:58Z === release 56506
+11:43:00Z   exit 0 (1.7 s)
+11:43:00Z === 56507 enable n2
+11:43:05Z   TRIAL id=56507 node=2 route=enable failure=0 why=none lost=0 terminals=42 traffic=126 tail=0 tailLost=0 summaries=7 step=1 cycles=0 motion=2 case=1 unsettled=0 gap=6002 lossCancel=0
+11:43:05Z   TRIAL_PLAN route=enable node=2 trial=56507 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=120 deadline=10000 interval=1250
+11:43:05Z   TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0
+11:43:05Z   TRIAL_ENABLE own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 mask=07 cursor=2 observations=4 op=8 pt=5000 vt=120 s0=8050 m0=0011 p0=0
+11:43:05Z   TRIAL_ENABLE_STEP word=15 present=1 status=8437 monitor=0001 position=0 velocity=0 history=1 outcome=0 ack=1 possible=1 uncertain=0
+11:43:05Z   exit 0 (5.5 s)
+11:43:05Z === release 56507
+11:43:07Z   exit 0 (1.7 s)
+11:43:07Z === sched hm3r: HM3 on the relaxed image: released enables without stop records, paired moves 4000 counts at 30 rpm, group HALT at 3 s, group quick stop 2.3 s later (freshest-state rule)
+11:43:21Z   475827.109 CONSOLE armed pair nodes=1,2 trial=56508 route=arm-move-pair; prerequisites named for both, nothing sent
+11:43:21Z   475827.171 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":111,"command":"host","ok":true,"status":"OK","wire_work":false}
+11:43:21Z   475827.234 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":112,"command":"accel","ok":true,"status":"OK","device_traffic":false}
+11:43:21Z   475827.296 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":113,"command":"decel","ok":true,"status":"OK","device_traffic":false}
+11:43:21Z   475827.421 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":114,"command":"move","ok":true,"status":"OK","result":"accepted","operation_id":1,"axis_id":1}
+11:43:21Z   475827.484 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":115,"command":"host","ok":true,"status":"OK","wire_work":false}
+11:43:21Z   475827.546 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":116,"command":"accel","ok":true,"status":"OK","device_traffic":false}
+11:43:21Z   475827.609 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":117,"command":"decel","ok":true,"status":"OK","device_traffic":false}
+11:43:21Z   475827.734 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":118,"command":"move","ok":true,"status":"OK","result":"accepted","operation_id":2,"axis_id":2}
+11:43:21Z   475830.906 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":121,"command":"stop","ok":true,"status":"OK","result":"accepted","operation_id":3,"axis_count":2}
+11:43:21Z   475831.062 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":114,"command":"move","ok":false,"status":"INVALID_CONFIG","detail":3,"outcome":"CANCELLED","uncertain":true,"command_id":114,"operation_id":1,"completed_us":"38109291","abort_code":null,"execution_code":1,"completion_code":0,"native_operation":17,"axis_id":1}
+11:43:21Z   475831.171 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":118,"command":"move","ok":false,"status":"INVALID_CONFIG","detail":3,"outcome":"CANCELLED","uncertain":true,"command_id":118,"operation_id":2,"completed_us":"38109291","abort_code":null,"execution_code":1,"completion_code":0,"native_operation":11,"axis_id":2}
+11:43:21Z   475831.515 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"group_stop_axis","id":121,"command":"stop","operation_id":3,"axis_id":1,"accepted":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"native_operation":18}
+11:43:21Z   475831.531 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"group_stop_axis","id":121,"command":"stop","operation_id":3,"axis_id":2,"accepted":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"native_operation":12}
+11:43:21Z   475831.578 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":121,"command":"stop","ok":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"command_id":121,"operation_id":3,"completed_us":"38742820","abort_code":null,"axis_count":2}
+11:43:21Z   475833.015 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":122,"command":"result","ok":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"command_id":121,"operation_id":3,"completed_us":"38742820","abort_code":null,"axis_count":2}
+11:43:21Z   475833.078 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":123,"command":"release","ok":true,"status":"OK"}
+11:43:21Z   475833.203 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":124,"command":"stop","ok":true,"status":"OK","result":"accepted","operation_id":4,"axis_count":2}
+11:43:21Z   475833.234 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"group_stop_axis","id":124,"command":"stop","operation_id":4,"axis_id":1,"accepted":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"native_operation":19}
+11:43:21Z   475833.265 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"group_stop_axis","id":124,"command":"stop","operation_id":4,"axis_id":2,"accepted":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"native_operation":13}
+11:43:21Z   475833.328 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"terminal","id":124,"command":"stop","ok":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"command_id":124,"operation_id":4,"completed_us":"40473816","abort_code":null,"axis_count":2}
+11:43:21Z   475835.328 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":131,"command":"result","ok":true,"status":"OK","detail":0,"outcome":"OBSERVED","uncertain":false,"command_id":124,"operation_id":4,"completed_us":"40473816","abort_code":null,"axis_count":2}
+11:43:21Z   475835.437 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":132,"command":"result","ok":false,"status":"INVALID_CONFIG","detail":3,"outcome":"CANCELLED","uncertain":true,"command_id":114,"operation_id":1,"completed_us":"38109291","abort_code":null,"execution_code":1,"completion_code":0,"native_operation":17,"axis_id":1}
+11:43:21Z   475835.546 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":133,"command":"result","ok":false,"status":"INVALID_CONFIG","detail":3,"outcome":"CANCELLED","uncertain":true,"command_id":118,"operation_id":2,"completed_us":"38109291","abort_code":null,"execution_code":1,"completion_code":0,"native_operation":11,"axis_id":2}
+11:43:21Z   475835.609 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":141,"command":"release","ok":true,"status":"OK"}
+11:43:21Z   475835.671 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":142,"command":"release","ok":true,"status":"OK"}
+11:43:21Z   475835.734 {"schema":"motorcontrolcan.console/1","protocol":3,"profile":"lichuan_c","type":"reply","id":143,"command":"release","ok":true,"status":"OK"}
+11:43:21Z   475839.953 STATS running=1 inhibited=0 rx=321 tx=321 dropped=0 errors=0 flags=00000000 stackFree=9272 t=47209463 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=10013 conRej=6659
+11:43:21Z   sched exit 0 complete=True saved={'m1': 1, 'm2': 2, 'g1': 3, 'g2': 4} refusals=2
+11:43:21Z === 56509 read node 1
+11:43:23Z   TRIAL id=56509 node=1 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=8 case=0 unsettled=0 gap=5000 lossCancel=0
+11:43:23Z   TRIAL_PLAN route=actions node=1 trial=56509 attended=0
+11:43:23Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0010 6041=0050 6061=01 6064=-1712 606c=0
+11:43:23Z   exit 0 (2.5 s)
+11:43:23Z === release 56509
+11:43:25Z   exit 0 (1.7 s)
+11:43:25Z   state n1 2100=0010 6041=0050 6061=01 6064=-1712 606c=0 1001=00 603f=0000 607a=-4000 60ff=120
+11:43:25Z   HM3r end n1 {'1001': '00', '603f': '0000', '2100': '0010', '6041': '0050', '6061': '01', '6064': -1712, '606c': 0, '607a': -4000, '60ff': 120}
+11:43:25Z === 56510 read node 2
+11:43:27Z   TRIAL id=56510 node=2 route=actions failure=0 why=none lost=0 terminals=22 traffic=66 tail=0 tailLost=0 summaries=3 step=6 cycles=0 motion=8 case=0 unsettled=0 gap=5000 lossCancel=0
+11:43:27Z   TRIAL_PLAN route=actions node=2 trial=56510 attended=0
+11:43:27Z   TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0010 6041=0050 6061=01 6064=1555 606c=0
+11:43:27Z   exit 0 (2.5 s)
+11:43:27Z === release 56510
+11:43:29Z   exit 0 (1.7 s)
+11:43:29Z   state n2 2100=0010 6041=0050 6061=01 6064=1555 606c=0 1001=00 603f=0000 607a=4000 60ff=120
+11:43:29Z   HM3r end n2 {'1001': '00', '603f': '0000', '2100': '0010', '6041': '0050', '6061': '01', '6064': 1555, '606c': 0, '607a': 4000, '60ff': 120}
+11:43:29Z relaxed session hm3 ended

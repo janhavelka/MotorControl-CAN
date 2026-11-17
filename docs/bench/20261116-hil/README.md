@@ -25,14 +25,15 @@ Report: [2026-11-16_hil_campaign.md](../../reports/2026-11-16_hil_campaign.md). 
 | --- | --- |
 | `00-ping` | Image check against the upload |
 | `20-pair-ping` | The second image's check, `b7033c12` (route protocol 16), flashed at 17:53Z ([upload](../20261116T1753Z-s2-upload/)) |
+| `21-relax-ping` | The third image's check, `7ded4336` (freshest stop state, optional caps), flashed 2026-11-17 11:38Z ([upload](../20261117T1138Z-s2-upload/)) |
 | `10-network` to `15-operational-sync` | NMT/heartbeat/TPDO1 setup plans' sessions (`s2_pdo.py`), raw |
 | `16-sync-10ms-short`, `17-sync-20ms-30min` | `sync_watch.py` captures, raw |
-| `S0001-…` to `S0118-…` | One MCU boot per series (S0103 to S0107: the reads after the second power cycle; S0108 to S0118: the paired two-axis trials on `b7033c12`): route records (`s2_bench.py`), console sessions, `sched-*` single-port console sessions with `rx.bin`, `transcript.txt`, `records.jsonl`, `summary.json`, the series' campaign ledger; packed in `packed/` (lossless tar.xz, `MANIFEST.json` with every member's SHA-256) |
+| `S0001-…` to `S0118-…` | One MCU boot per series (S0103 to S0107: the reads after the second power cycle; S0108 to S0118: the paired two-axis trials on `b7033c12`; S0119 to S0123: HM3 again on `7ded4336`, 2026-11-17): route records (`s2_bench.py`), console sessions, `sched-*` single-port console sessions with `rx.bin`, `transcript.txt`, `records.jsonl`, `summary.json`, the series' campaign ledger; packed in `packed/` (lossless tar.xz, `MANIFEST.json` with every member's SHA-256) |
 | `night.log` | The lead's log of every route, key record lines and decisions |
 | `ladder.jsonl`, `results.jsonl`, `state.json` | Driver notes, route log and state (trial counter from 56000) |
 | `run-*.out` | Driver console output per phase |
 | `plans/` | The `s2_pdo.py` plans |
-| `tools/` | The drivers, copied for provenance: `hil.py` (the 2026-11-13 ladder driver pointed here), `hilstep.py` (steps: velocity/position change, M14, state, loop, subdivision), `conhil.py` and `conhil2.py` (console sessions), `sched.py` (single-port scheduled console executor), `hilsum.py` (record summaries), `hil_p*.sh` (phase programs), `pack_hil.py`, `pairhil.py` (the paired HM1, HM2, HM3 and HM5 sessions; its output is `run-pair.out`) |
+| `tools/` | The drivers, copied for provenance: `hil.py` (the 2026-11-13 ladder driver pointed here), `hilstep.py` (steps: velocity/position change, M14, state, loop, subdivision), `conhil.py` and `conhil2.py` (console sessions), `sched.py` (single-port scheduled console executor), `hilsum.py` (record summaries), `hil_p*.sh` (phase programs), `pack_hil.py`, `pairhil.py` (the paired HM1, HM2, HM3 and HM5 sessions; its output is `run-pair.out`), `relaxhil.py` (HM3 with released enables on `7ded4336`; `run-relax.out`) |
 
 ## Reading the records
 

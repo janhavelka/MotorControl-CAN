@@ -201,6 +201,23 @@ from a fresher read (backlog M01).
 Not run: HM4 and HM6 to HM9 need a lost reply, a refused axis or a fault on one axis, which this bench cannot inject
 physically, and the sustained mixed soak needs its own session.
 
+### 2026-11-17: HM3 again after the freshest-state fix (image `7ded4336`)
+
+`db4e5f3e` lets `AxisSession::requestStop` use the freshest complete report it holds, so a quick stop after a finished
+HALT is sequenced on the HALT's own cycle, and a checked stop now clears the move fence. Image `7ded4336` (ELF
+`e0ae2c3b…8f6274`, flashed 11:38Z after the user's power cycle, [upload](../bench/20261117T1138Z-s2-upload/),
+[ping check](../bench/20261116-hil/21-relax-ping/)) ran HM3 again ([`relaxhil.py`](../bench/20261116-hil/tools/relaxhil.py),
+series S0119 to S0123). All M:
+
+- Setup without stop records: each drive's power-up report, mode 1 and the best-effort `000B` release as before, then
+  `s2_bench.py enable --released` from the fresh released report (`8050`/`0011`, mode 1) on both nodes: both enables
+  `failure=0` (trials 56506 and 56507). No 60 rpm stop-record run was needed.
+- `Ta` 56508, both moves of 4000 counts at 30 rpm admitted; `stop all normal` at 3 s: both axes `OBSERVED`.
+- `stop all fast` 2.3 s after the HALT request (1.6 s after its terminal): both axes `OBSERVED`, `uncertain:false`
+  (on 2026-11-16 both were `STOP_SENT_UNCONFIRMED`). The bench's own reads afterwards succeeded (on 2026-11-16 they were
+  refused `reason=session`): both drives released and still (`6041=0050`, `606C` 0) at 6064 -1712 and 1555.
+- The paired record parsed with no malformed or unterminated line, five of five summaries.
+
 ## SYNC
 
 Both TPDO1 at type 1, both nodes Operational with heartbeats, no other producer, `scripts/sync_watch.py` on the final
