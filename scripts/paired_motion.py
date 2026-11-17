@@ -224,6 +224,8 @@ def arguments(argv=None):
     parser.add_argument("--stop-policy", choices=("normal", "fast"), required=True)
     parser.add_argument("--campaign", type=Path)
     parser.add_argument("--new-campaign", action="store_true")
+    parser.add_argument("--motion-caps", action="store_true",
+                        help="Optional guard: packet 22's campaign caps refuse the reservation past them")
     args = parser.parse_args(argv)
     args.axes = [dict(zip(("axis_id", "node", "target", "rpm", "ramp_up_ms", "ramp_down_ms"), row)) for row in args.axis]
     try:
@@ -257,7 +259,7 @@ def main(argv=None):
             @staticmethod
             def utc(): return datetime.now(timezone.utc).isoformat()
         lock = bench.CampaignLock(args.campaign).acquire(Clock())
-        campaign = bench.Campaign(args.campaign, args.new_campaign).load()
+        campaign = bench.Campaign(args.campaign, args.new_campaign, args.motion_caps).load()
         def run(console, record):
             run_pair(console, record, campaign=campaign, **inputs)
         bench_session.run_recorded(port=args.port, baud=args.baud, out=args.out, scenario="paired-position",

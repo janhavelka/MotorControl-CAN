@@ -24,7 +24,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAME_LIMIT = 2048
-CHAIN_LIMIT = 6144
+CHAIN_LIMIT = 8192  # Half of FIRMWARE_STACK_BYTES (16384 since 2026-11-17).
 EXIT_PASSED = 0
 EXIT_FAILED = 1
 EXIT_SKIPPED = 77

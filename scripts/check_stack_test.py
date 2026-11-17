@@ -492,7 +492,7 @@ class MainTests(unittest.TestCase):
         self.assertNotIn("measurements", report)
 
     def test_unmeasured_remainder_uses_the_real_stack_size(self):
-        self.assertIn("6144 bytes", checker.remainder_text(12288))
+        self.assertIn("8192 bytes", checker.remainder_text(16384))
         self.assertIn("unknown", checker.remainder_text(None))
 
 

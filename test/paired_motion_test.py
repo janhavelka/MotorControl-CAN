@@ -201,7 +201,7 @@ class PairedTests(unittest.TestCase):
             campaign = bench.Campaign(path, True).load()
             for trial in (1, 2, 3):
                 campaign.reserve_pair(trial=trial, axes=AXES, stop_kind="fast", stop_after_ms=20)
-            campaign = bench.Campaign(path, False).load()
+            campaign = bench.Campaign(path, False, True).load()  # With the optional --motion-caps guard.
             self.assertEqual(campaign.counts()[0], 12)
             before = path.read_bytes()
             for trial in (3, 4):

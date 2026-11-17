@@ -548,7 +548,8 @@ void stopAndUnknownTrigger() {
         CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED);
         CHECK(r.a.stopAction(L::StopKind::HALT).predecessorWord == 0x001f);
         CHECK(wordsFrom(r, at, 0x010f) == 1 && !wordsFrom(r, at, 0x000f));
-        CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && r.a.moveFenced());
+        // The checked HALT prepared after the trigger shows the drive stopped: no fence (2026-11-17).
+        CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && !r.a.moveFenced());
         quiet(r);
     }
     scenario = "angle unknown trigger never replayed";

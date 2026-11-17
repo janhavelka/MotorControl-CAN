@@ -159,7 +159,9 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     L::resetAction(stops_[1]);
     L::resetAction(enable_);
     enableWithdrawn_ = M::ActionOutcome::NONE;
-    // moveFenced_ stays: reopening cannot show that an earlier move's motion ended.
+    // moveFenced_ stays: reopening cannot show that an earlier move's motion ended. Only a checked stop
+    // or acknowledgeStandstill after this reopen clears it.
+    checkedStopPresent_ = false;
     L::resetMove(move_);
     L::resetMove(replacement_);
     replacementActive_ = false;
@@ -577,14 +579,18 @@ bool AxisSession::retainSettings(L::DriverContext* const* contexts, uint8_t coun
     retainedCount_ = count;
     return true;
 }
-// A trigger that may have reached the drive with no observed completion leaves motion unknown, and
-// nothing in this session can show it ended: a stop reports the controller, not the shaft. A server
+// A trigger that may have reached the drive with no observed completion leaves motion unknown. A server
 // abort counts too: the frame reached the drive, and an abort does not establish that it had no effect.
+// A checked stop prepared at or after the move's start shows the drive stopped (2026-11-17): it clears
+// the fence here when it settled first, and in afterConfirmedEnd when it settles later.
 void AxisSession::afterMove() noexcept {
-    if ((activeMove().execution != M::ActionExecution::NOT_TRANSMITTED ||
-         activeMove().relation.originalOperationId) &&
-        activeMove().completion != M::ActionCompletion::OBSERVED)
+    const L::MoveContext& m = activeMove();
+    const uint64_t start = move_.startedUs < m.startedUs ? move_.startedUs : m.startedUs;
+    if ((m.execution != M::ActionExecution::NOT_TRANSMITTED || m.relation.originalOperationId) &&
+        m.completion != M::ActionCompletion::OBSERVED && !(checkedStopPresent_ && checkedStopUs_ >= start)) {
         moveFenced_ = true;
+        moveFenceAfterUs_ = start;
+    }
     moveAxis_ = nullptr; // The borrow ends with the move.
     moveReference_ = nullptr;
 }
@@ -1585,7 +1591,53 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
            (L::getStateBlock(state, L::StateBlock::STATUS, target_, now, age, status) &&
             ((status.modeRaw != 1 && status.modeRaw != 6) || (status.statusword & 7u) != 7));
 }
-StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
+bool AxisSession::acknowledgeStandstill(const L::ReadContext& state, uint64_t maximumAgeUs,
+                                        uint64_t now) noexcept {
+    if (!open_ || busy() || !maximumAgeUs || now < latestUs())
+        return false;
+    L::StateObservation monitors, feedback;
+    if (!L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, maximumAgeUs, monitors) ||
+        !L::getStateBlock(state, L::StateBlock::FEEDBACK, target_, now, maximumAgeUs, feedback) ||
+        monitors.window.earliestUs < lastWriteUs_ || feedback.window.earliestUs < lastWriteUs_ ||
+        (monitors.monitor & L::MONITOR_RUNNING) || feedback.actualVelocity != 0)
+        return false;
+    moveFenced_ = velocityNeedsStop_ = homeNeedsStop_ = false;
+    lastUs_ = now;
+    return true;
+}
+// A complete STATUS and MONITORS report younger than the stop's age cap; at is its earliest bound.
+bool AxisSession::stopState(const L::ReadContext& state, uint64_t maximumAgeUs, uint64_t now,
+                            uint64_t& at) const noexcept {
+    L::StateObservation status, monitors;
+    if (!L::getStateBlock(state, L::StateBlock::STATUS, target_, now, maximumAgeUs, status) ||
+        !L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, maximumAgeUs, monitors))
+        return false;
+    at = status.window.earliestUs < monitors.window.earliestUs ? status.window.earliestUs
+                                                                : monitors.window.earliestUs;
+    return true;
+}
+// The freshest complete report this session holds (2026-11-17): the caller's, the latest motion cycle,
+// or the other stop kind's last observation cycle. A stop after a stop is then sequenced on its
+// predecessor's fresh report instead of falling to the best-effort path. The slot being prepared is
+// never a candidate: prepareStop's output must not overlap its input.
+const L::ReadContext& AxisSession::freshestStopState(const L::ReadContext& state, L::StopKind kind,
+                                                     uint64_t maximumAgeUs, uint64_t now) const noexcept {
+    const L::ReadContext* best = &state;
+    uint64_t bestAt = 0;
+    bool found = stopState(state, maximumAgeUs, now, bestAt);
+    const unsigned other = kind == L::StopKind::HALT ? 1u : 0u;
+    const L::ReadContext* candidates[] = {&moveReads_[moveComplete_], &stops_[other].read};
+    for (const L::ReadContext* c : candidates) {
+        uint64_t at = 0;
+        if (c != &state && stopState(*c, maximumAgeUs, now, at) && (!found || at > bestAt)) {
+            best = c;
+            bestAt = at;
+            found = true;
+        }
+    }
+    return *best;
+}
+StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& requestedState,
                                   const StopPolicy& requested, uint64_t now) noexcept {
     // Even a stop refused below ends the enable, the move and the clear. Asking for a stop means no
     // further word, so a time that moved backward still ends them, at the last valid time: the later of
@@ -1610,6 +1662,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     StopPolicy policy = requested;
     policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
     policy.options.service.countWidths = L::CountWidths::DECLARED_U8;
+    const L::ReadContext& state = freshestStopState(requestedState, kind, policy.options.maximumAgeUs, now);
     if (!open_ || kind > L::StopKind::QUICK_STOP || now < latest || policy.deadlineUs <= now ||
         (policy.bestEffortDeadlineUs && policy.bestEffortDeadlineUs < policy.deadlineUs) ||
         !L::stopOptionsValid(policy.options))
@@ -1865,6 +1918,12 @@ void AxisSession::afterConfirmedEnd(uint64_t now) noexcept {
         velocityNeedsStop_ = false;
     if (checked && a.startedUs >= homeCommandAfterUs_)
         homeNeedsStop_ = false;
+    if (checked) {
+        checkedStopPresent_ = true;
+        checkedStopUs_ = a.startedUs;
+        if (moveFenced_ && a.startedUs >= moveFenceAfterUs_)
+            moveFenced_ = false;
+    }
     if (a.phase != L::ActionPhase::COMMAND || a.execution != M::ActionExecution::NOT_TRANSMITTED ||
         a.effectsPossible)
         return; // A write that may have left is never sent again.

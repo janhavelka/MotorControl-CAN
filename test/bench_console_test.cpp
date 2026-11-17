@@ -5,6 +5,7 @@
 // and movement here is manufactured by that fake: nothing shows what a CL86-C does.
 #include "BenchConsole.h"
 #include "BenchRoute.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -93,6 +94,7 @@ struct Rig {
         config.controller.rxQueueDepth = 16;
         CHECK(firmware.begin(config));
         CHECK(route.attach(1, one) && route.attach(2, two) && route.attachWork(work));
+        route.setCaps(E::RouteCaps::campaign()); // The optional guard, which testArmingAndMove exercises.
         CHECK(console.attachRoute(route) && console.attachAxis(1, axis1) && console.attachAxis(2, axis2));
         CHECK(!console.attachAxis(1, axis2) && console.hasAxis(1) && console.hasAxis(2));
     }
@@ -1565,6 +1567,81 @@ void testPairedArming() {
     CHECK(has(m.key('r'), "TRIAL record released") && !r->route.record());
     wholeLines(r->uart.output);
 }
+// HM3's order (2026-11-16 bench, image b7033c12): a group HALT during both moves, its result released, then a
+// group quick stop 2.3 s later. The quick stop is sequenced on each HALT's own last cycle (AxisSession picks the
+// freshest report, 2026-11-17), never the unconfirmed 000B branch, and both checked stops leave no move fence.
+void testGroupQuickStopAfterGroupHalt() {
+    scenario = "group-quick-after-halt";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    for (auto& drive : r->driver.drives) {
+        drive.statusBits = true;
+        drive.travelReads = 100000;
+    }
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    enabled(*r, trial, 2);
+    Image m(*r);
+    unsigned request = 0;
+    CHECK(has(m.console("@" + std::to_string(++request) + " host 0", "\"id\":1,"), "\"ok\":true"));
+    ArmSpec spec;
+    spec.rel = 0;
+    spec.sp = r->driver.drives[0].position;
+    CHECK(has(m.trial(pairMove(trial, spec, r->driver.drives[1].position)), "TRIAL admitted route=arm-move-pair"));
+    for (unsigned i = 0; i < 5000 && !has(r->notices, "CONSOLE "); ++i)
+        m.turn();
+    CHECK(has(r->notices, "CONSOLE armed pair nodes=1,2"));
+    const char* lines[] = {"useaddr 1", "accel 1000", "decel 1000", "move absolute 800 steps native 30 configured",
+                           "useaddr 2", "accel 1000", "decel 1000", "move absolute 1600 steps native 30 configured"};
+    for (const char* text : lines) {
+        const std::string tag = "\"id\":" + std::to_string(++request) + ",";
+        CHECK(has(m.console("@" + std::to_string(request) + " " + text, tag, 400), "\"ok\":true"));
+    }
+    CHECK(r->one.moveActive() && r->two.moveActive());
+    // As on the bench (3 s in): both moves have a complete observation cycle before the group HALT.
+    for (unsigned i = 0; i < 5000 && (r->one.moveAction().observations < 1 || r->two.moveAction().observations < 1); ++i)
+        m.turn();
+    CHECK(r->one.moveAction().observations >= 1 && r->two.moveAction().observations >= 1);
+    std::string tag = "\"id\":" + std::to_string(++request) + ",";
+    CHECK(has(m.console("@" + std::to_string(request) + " stop all normal", tag, 400), "\"axis_count\":2"));
+    m.turns(2000);
+    CHECK(!r->one.moveActive() && !r->two.moveActive());
+    CHECK(r->one.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED &&
+          r->two.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED);
+    CHECK(!r->one.moveFenced() && !r->two.moveFenced()); // Checked stops leave no fence.
+    const unsigned long groupHalt = operations(r->uart.output).back();
+    tag = "\"id\":" + std::to_string(++request) + ",";
+    CHECK(has(m.console("@" + std::to_string(request) + " release " + std::to_string(groupHalt), tag, 400),
+              "\"ok\":true"));
+    // Just past the stop age cap of each move's last cycle (BenchConsole::nameStop: seven fields at the route
+    // budgets) and still inside it for each HALT's last cycle, as on the bench: only the HALT's report is fresh.
+    const uint64_t age = 7 * (uint64_t(E::ROUTE_QUEUE_US) + E::ROUTE_RESPONSE_US);
+    uint64_t moveLast = 0, haltLast = UINT64_MAX;
+    for (E::AxisSession* s : {&r->one, &r->two}) {
+        moveLast = std::max(moveLast, s->moveObservation().servicedUs);
+        haltLast = std::min(haltLast, s->stopAction(L::StopKind::HALT).read.servicedUs);
+    }
+    while (r->uart.now <= moveLast + age + 2000)
+        m.turn();
+    // The console admits the stop when the line is fed, at this time: each HALT's report is still fresh then.
+    CHECK(haltLast > moveLast && r->uart.now < haltLast + age);
+    const size_t first = r->driver.requests.size(), mark = r->uart.output.size();
+    tag = "\"id\":" + std::to_string(++request) + ",";
+    CHECK(has(m.console("@" + std::to_string(request) + " stop all fast", tag, 400), "\"axis_count\":2"));
+    m.turns(3000);
+    const std::string group = r->uart.output.substr(mark);
+    CHECK(count(group, "\"type\":\"group_stop_axis\"") == 2 && !has(group, "STOP_SENT_UNCONFIRMED"));
+    for (unsigned node = 1; node <= 2; ++node) {
+        E::AxisSession& s = node == 1 ? r->one : r->two;
+        CHECK(s.stopAction(L::StopKind::QUICK_STOP).predecessorWord == 0x010f &&
+              s.bestEffort().outcome == M::ActionOutcome::NONE);
+        unsigned quick = 0;
+        for (size_t i = first; i < r->driver.requests.size(); ++i)
+            quick += r->driver.requests[i].id == 0x600 + node && !std::memcmp(r->driver.requests[i].data, QUICK_WORD, 8);
+        CHECK(quick == 1);
+    }
+    wholeLines(r->uart.output);
+}
 // The pair's own refusals: grammar, the other node's readiness, and a retained operation on either axis,
 // which leaves both axes as they were. Nothing is sent for any of them.
 void testPairRefusals() {
@@ -1697,6 +1774,7 @@ int main() {
     testFaultHoldsBack();
     testSingleArmingGuard();
     testPairedArming();
+    testGroupQuickStopAfterGroupHalt();
     testPairRefusals();
     testPairedVelocity();
     std::printf("bench_console: %u checks; BenchConsole %u, ProbeDevice %u, ProbeConsole %u, BenchAxis %u bytes\n",

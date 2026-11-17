@@ -97,7 +97,7 @@
  *   names, and then reads 2101 and 60FD once. The write's pre-transmit notice advances the configuration
  *   epoch; the owner's reservation follows before the readback, and the session, which has no epoch
  *   change of its own for this, is closed and opened again on the new binding. Settings routes are not
- *   motion: they are attended and have their own cap, ROUTE_SETTINGS_PER_CASE per route and node.
+ *   motion: they are attended, counted per route and node, and capped only by RouteCaps::settingsPerCase.
  *   SETTINGS_2202 reads 607D:00 in two bytes (CountWidths::MEASURED_U16) in its prior read and its
  *   readback, as both specimens answered it.
  * - COUNTER_ZERO and CLEAR_ALARM. A fresh read of what AxisSession::requestCounterZero or
@@ -265,11 +265,12 @@
  *
  * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE,
  * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY, CONTROLWORD), every settings route, HOME and VELOCITY_TARGET needs an attended flag
- * that the host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion
- * routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside
- * POSITION, RELATIVE or MOVE, and VELOCITY's own stop, counts as one more; a start 2 ENABLE's own stop
- * after a failure does not, so no cap can refuse it. These caps restart with the
- * MCU: scripts/s2_bench.py keeps the campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
+ * that the host sets only after the operator typed a confirmation. Every admission is counted per boot
+ * (motionAdmissions(), PONG `motion=`): a planned stop inside POSITION, RELATIVE or MOVE, and VELOCITY's
+ * own stop, counts as one more; a start 2 ENABLE's own stop after a failure does not. The per-boot caps on
+ * those counts are an optional guard, off by default since 2026-11-17 (setCaps, RouteCaps::campaign() for
+ * packet 22's 12 in all and 3 per route and node); scripts/s2_bench.py's ledger keeps its own count across
+ * boots, its caps opt-in too (`--motion-caps`). Any failed terminal, lost reply, grant or admission refusal,
  * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
  * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
  * and an abort sends no stop. The owner receives before it transmits, so a nonzero EMCY also holds
@@ -648,15 +649,28 @@ struct RouteCallbacks {
     void* context = nullptr; ///< Borrowed for this object's lifetime.
     void (*sample)(void*, RouteResources&) = nullptr; ///< Fills a zeroed sample; bounded, no I/O.
 };
-/** Fixed capacities and campaign caps. */
+/** Optional per-boot admission caps (2026-11-17). Zero turns a cap off, which is the default: admissions are
+ * still counted for PONG and the records, and nothing is refused for a count. An application that wants a
+ * hard firmware bound, for example an unattended demonstration image, sets one with BenchRoute::setCaps. */
+struct RouteCaps {
+    uint8_t motionTotal = 0;     ///< Motion admissions per boot, stops counted as above; 0 is off.
+    uint8_t motionPerCase = 0;   ///< Motion admissions per route kind and node per boot; 0 is off.
+    /** Settings, HOME and VELOCITY_TARGET admissions per route kind and node per boot; 0 is off. */
+    uint8_t settingsPerCase = 0;
+    /** @return Packet 22's attended-campaign caps: 12 motion admissions in all, 3 per route and node. */
+    static RouteCaps campaign() noexcept {
+        RouteCaps c;
+        c.motionTotal = 12;
+        c.motionPerCase = 3;
+        c.settingsPerCase = 3;
+        return c;
+    }
+};
+/** Fixed capacities. */
 enum {
     ROUTE_TERMINALS = 128,      ///< Copied owner terminals; a plan that could exceed it is refused.
     ROUTE_TRAFFIC = 448,        ///< Copied wire and controller records; overflow is evidence loss.
     ROUTE_TAIL = 16,            ///< Records copied after the terminal, until release.
-    ROUTE_MOTION_TOTAL = 12,    ///< Motion admissions per boot (packet 22).
-    ROUTE_MOTION_PER_CASE = 3,  ///< Motion admissions per route and node per boot (packet 22).
-    /** Settings, HOME and VELOCITY_TARGET admissions per route and node per boot; not motion. */
-    ROUTE_SETTINGS_PER_CASE = 3,
     ROUTE_CUTOFF_MS = 60000,    ///< Route cutoff after admission (packet 22: sixty seconds a case).
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
@@ -1097,6 +1111,11 @@ class BenchRoute {
                    const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
     /** @return Motion admissions this boot, the shared console's included. */
     uint8_t motionAdmissions() const noexcept { return motionTotal_; }
+    /** Set the optional per-boot caps (RouteCaps; all off by default). Counts made so far stay and are judged
+     * against the new caps from the next admission on. @param caps Copied. */
+    void setCaps(const RouteCaps& caps) noexcept { caps_ = caps; }
+    /** @return The caps in force. */
+    const RouteCaps& caps() const noexcept { return caps_; }
     /** The last route's arming, while nothing has replaced its reads.
      * @param output Set on true. @return True after a successful arming terminal (isArming), until
      * the next admitted route or a closeSessions that closed a session. Sends nothing. */
@@ -1206,6 +1225,7 @@ class BenchRoute {
     bool commandedKnown_[BENCH_NODES] = {}, commandedRelative_[BENCH_NODES] = {};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
     // RouteKind up to VELOCITY_CHANGE, the last motion route.
+    RouteCaps caps_; // Optional per-boot caps, all off by default (2026-11-17).
     uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::VELOCITY_NMT) + 1][BENCH_NODES] = {};
     uint8_t positionChangeCases_[8][BENCH_NODES] = {}; ///< Per experimental position case and node.
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.

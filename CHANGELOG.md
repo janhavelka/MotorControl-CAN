@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fewer fixed guards, more settable ones (2026-11-17)
+
+- A checked stop (SUCCEEDED, completion OBSERVED) prepared after a move's start now clears that axis's move fence,
+  in either completion order. `AxisSession::acknowledgeStandstill` lets the application clear the possible-motion
+  fences on its own fresh standstill report (running clear, `606C` 0, read after the latest write). An unconfirmed
+  best-effort `000B` still clears nothing.
+- `AxisSession::requestStop` uses the freshest complete report it holds: the caller's, the latest motion cycle, or
+  the other stop kind's last cycle. A quick stop after a finished HALT is therefore sequenced on the HALT's own
+  cycle instead of the unconfirmed `000B` branch (bench HM3, 2026-11-16).
+- The S2 bench's per-boot motion and settings caps are an optional guard, off by default (`BenchRoute::setCaps`,
+  `RouteCaps::campaign()`). `s2_bench.py` keeps its campaign ledger but applies its caps only with
+  `--motion-caps`.
+- `s2_bench.py enable --released` starts from the drive's own fresh released report alone, with no stop-record
+  directory.
+- The firmware task stack is 16384 bytes (was 12288), and `check_stack.py` keeps the known chain within 8192.
+
 ### Paired two-axis arming on the S2 bench
 
 - Add the attended paired armings `Ta` and `Te` (route protocol 16): one record

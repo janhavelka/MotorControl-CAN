@@ -735,7 +735,8 @@ void concurrentMovesWithOneHalt() {
     CHECK(!busy);
     const L::ActionContext& stop = stopping.stopAction(L::StopKind::HALT);
     CHECK(stop.state == M::ActionState::SUCCEEDED && stop.operation > stopping.moveAction().operation);
-    CHECK(stopping.moveAction().interruption == M::MoveInterruption::STOP && stopping.moveFenced());
+    // The checked HALT clears the stopped axis's fence (2026-11-17).
+    CHECK(stopping.moveAction().interruption == M::MoveInterruption::STOP && !stopping.moveFenced());
     CHECK(r->wire.words(halted, at, 0x010f) == 1 && !r->wire.words(halted, start, 0x000b));
     CHECK(r->wire.words(halted, start, 0x005f) == 1 && r->drive(halted).edges == 1);
     for (unsigned node = 1; node <= unsigned(N); ++node) {

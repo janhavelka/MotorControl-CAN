@@ -206,7 +206,8 @@ typed width-mismatch captures have no such tail and are explicitly incomplete
 continuous bus captures.
 
 The original 8192-byte stack was insufficient for the compiled typed acquisition
-call chain. Preflight now uses owned record scratch, and the task has 12288 bytes.
+call chain. Preflight now uses owned record scratch, and the task has 16384 bytes (12288 until 2026-11-17;
+`scripts/check_stack.py` keeps the known chain within 8192).
 The [live report](../../docs/reports/2026-11-02_s2_live_connection.md) retains the
 failed reset, compiler stack facts, pacing defect and corrected runs separately.
 
@@ -520,11 +521,13 @@ and velocity changes name the original operation ID; see the
   scale and an origin, each with its own `TX` witness (the scale consumes the witness), before the bench's `TE` enable
   in a boot; afterwards `TY` and the motion. `moveby` and `moveto` need the scale; `moveto` needs the origin;
   `move relative N steps native RPM configured` needs neither.
-- **Caps.** Each admitted console motion counts as a bench route of its kind against the per-boot caps (`motion=` in
-  `PONG`, at most 12 per boot and 3 per route kind and node): a move as MOVE, a velocity as VELOCITY with its own stop as
-  STOP, an enable, alarm clear or position clear as their routes. A line the caps no longer admit answers
-  `bench_motion_budget_spent` before the console sees it. A console `stop` is counted as STOP and never refused for the
-  caps.
+- **Counts and optional caps.** Each admitted console motion counts as a bench route of its kind (`motion=` in
+  `PONG`): a move as MOVE, a velocity as VELOCITY with its own stop as STOP, an enable, alarm clear or position clear as
+  their routes. Since 2026-11-17 the per-boot caps on those counts are an optional guard, off in this image
+  (`BenchRoute::setCaps`; `RouteCaps::campaign()` restores packet 22's 12 per boot and 3 per route kind and node). With
+  caps set, a line they no longer admit answers `bench_motion_budget_spent` before the console sees it. A console
+  `stop` is counted as STOP and never refused for the caps. `scripts/s2_bench.py` keeps its campaign ledger as the
+  record; its caps apply only with `--motion-caps`.
 - **Stop.** Before a `stop` reaches the console its prerequisites are named again: the arming line's stop budgets from
   this request (deadline, best-effort deadline, interval, as `BenchRoute::startStop` sets them) and the latest complete
   state: the session's last move or velocity cycle, else the arming's read while it stands, else the session's empty

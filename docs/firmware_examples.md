@@ -158,7 +158,7 @@ Before `start`, no firmware routes the controller to the CAN TX pin.
 ## Startup
 
 Both entry points call `startProbeFirmware(firmwareBoardConfig())`. One static
-12288-byte internal stack and task record run on core 1 for S3 and core 0 for S2;
+16384-byte internal stack (12288 until 2026-11-17) and task record run on core 1 for S3 and core 0 for S2;
 `EspProbeMain.cpp` checks that rule in each target build. SDK-facing context and
 queues stay internal. Construction has no I/O.
 
@@ -414,7 +414,7 @@ configuration with the same UART0 pins.
 
 | Resource | Current bound / evidence |
 | --- | --- |
-| Owner task | One static pinned task; 12288-byte internal stack, priority 1; core 1 S3 / core 0 S2 |
+| Owner task | One static pinned task; 16384-byte internal stack, priority 1; core 1 S3 / core 0 S2 |
 | Shared application I/O | 64 input bytes / 512 output bytes; 8 reads / 16 writes per turn |
 | USB SDK rings | RX 256 / TX 1024 bytes, plus SDK internal allocations |
 | USB callbacks | One zero-tick single-byte read/write attempt; no flush or host wait |

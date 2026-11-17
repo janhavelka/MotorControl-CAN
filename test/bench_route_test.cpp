@@ -114,6 +114,9 @@ struct Rig {
             CHECK(services.configureNetwork(uint8_t(node - 1), network, C::NetworkObserver(), console.now));
         }
         CHECK(route.attach(1, one) && route.attach(2, two));
+        // Packet 22's caps, as the image ran them until 2026-11-17: this suite tests them as the optional guard.
+        CHECK(route.caps().motionTotal == 0 && route.caps().motionPerCase == 0 && route.caps().settingsPerCase == 0);
+        route.setCaps(E::RouteCaps::campaign());
         CHECK(!work || (route.attachWork(routeWork) && !route.attachWork(routeWork)));
         CHECK(!route.attach(1, two));
     }
@@ -766,6 +769,14 @@ void testMotionBudget() {
     CHECK(r->downloadsFrom(0) == 2); // The two 6060 writes.
     // Reads are not motion admissions.
     CHECK(r->run("A1," + id()).failure == E::RouteFailure::NONE);
+    // The caps are an optional guard (2026-11-17): turned off, the same lines are admitted and still counted.
+    r->release();
+    r->route.setCaps(E::RouteCaps());
+    for (unsigned i = 0; i < 4; ++i) {
+        CHECK(r->run("S1," + id() + ",1,1,100,0,10").failure == E::RouteFailure::REFUSED);
+        r->release();
+    }
+    CHECK(r->route.motionAdmissions() == 16);
 }
 // A read abort ends after the in-flight upload settles, with nothing after it.
 void testReadAbort() {
@@ -1395,7 +1406,8 @@ void testMoveInterruptions() {
     size_t first = r->driver.requests.size();
     const E::RouteRecord& s = r->run(move(1, trial, spec));
     CHECK(s.failure == E::RouteFailure::NONE && s.stopRequested && s.stopPathRequested == uint8_t(E::StopPath::CONFIRMED));
-    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && r->one.moveFenced());
+    // The route's checked HALT clears the fence (2026-11-17).
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && !r->one.moveFenced());
     CHECK(r->one.stopAction(L::StopKind::HALT).predecessorWord == 0x001f);
     CHECK(wordsFrom(*r, first, 1, 0x010f) == 1 && wordsFrom(*r, first, 1, 0x000f) == 0 && r->route.motionAdmissions() == 4);
     std::string text = r->dump();
@@ -7648,7 +7660,8 @@ void testPacket8Plan() {
     CHECK(h.stopPathRequested == uint8_t(E::StopPath::CONFIRMED) && h.terminalCount <= E::ROUTE_TERMINALS);
     const L::ActionContext& hs = r->one.stopAction(L::StopKind::HALT);
     CHECK(hs.state == M::ActionState::SUCCEEDED && hs.predecessorWord == 0x005f && !hs.predecessorDocumented);
-    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && r->one.moveFenced());
+    // The checked HALT clears the fence (2026-11-17).
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && !r->one.moveFenced());
     CHECK(wordsFrom(*r, observed, 1, 0x005f) == 1 && wordsFrom(*r, observed, 1, 0x010f) == 1 &&
           wordsFrom(*r, observed, 1, 0x000f) == 0 && toNode(*r, observed, 2, true) == 0);
     CHECK(has(r->dump(), " kind=1 after=2 sd=1500 be=0 si=750 rel=1 base=-100 obs=2\n"));

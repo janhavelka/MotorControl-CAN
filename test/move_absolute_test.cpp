@@ -703,8 +703,13 @@ void interruptions() {
             const bool mayMove = c.execution == M::ActionExecution::ACKNOWLEDGED ||
                                  c.execution == M::ActionExecution::UNKNOWN;
             CHECK(mayMove == (triggers == 1));
+            // The move's record keeps its uncertainty; a checked stop after it clears the fence (2026-11-17).
+            const bool checkedStop = ((r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED &&
+                                       r.a.stopAction(L::StopKind::HALT).completion == M::ActionCompletion::OBSERVED) ||
+                                      (r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::SUCCEEDED &&
+                                       r.a.stopAction(L::StopKind::QUICK_STOP).completion == M::ActionCompletion::OBSERVED));
             if (mayMove && c.completion != M::ActionCompletion::OBSERVED)
-                CHECK(c.uncertain && r.a.moveFenced());
+                CHECK(c.uncertain && r.a.moveFenced() == !checkedStop);
             else
                 CHECK(!r.a.moveFenced());
             if (phase == Phase::PARAMETERS)

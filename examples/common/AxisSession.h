@@ -241,7 +241,10 @@ class AxisSession {
      * @param[in] state Application's latest complete state read. A read still in progress
      * counts as missing: keep the last complete copy for this. It must not be held inside
      * stopAction(kind), which this request overwrites: that also counts as missing. During or after
-     * a move pass moveObservation(), whose cycle began after the held trigger word.
+     * a move pass moveObservation(), whose cycle began after the held trigger word. The session uses
+     * the freshest complete STATUS and MONITORS report among this one, its latest motion cycle and the
+     * other stop kind's last observation cycle (2026-11-17), so a QUICK_STOP after a finished HALT is
+     * sequenced on the HALT's own fresh cycle instead of taking the 000B branch on a stale report.
      * @param[in] policy Copied caller limits; invalid budgets refuse the request. Its identity and
      * count width settings are ignored, so options shared with those reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds. A time before this session's or the
@@ -543,7 +546,8 @@ class AxisSession {
     const MotorControlCAN::LICHUAN_C::ReadContext& homeObservation() const noexcept {
         return moveReads_[moveComplete_];
     }
-    /** @return Persistent possible-motion fence, cleared only by a later checked stop. */
+    /** @return Persistent possible-motion fence, cleared by a later checked stop or by
+     * acknowledgeStandstill. */
     bool homeNeedsStop() const noexcept { return homeNeedsStop_; }
     /** @return Latest failed home admission/handover check; no motor or protocol outcome. */
     const MotorControlCAN::Status& homeRefusal() const noexcept { return homeRefusal_; }
@@ -697,9 +701,25 @@ class AxisSession {
     const MotorControlCAN::LICHUAN_C::ReadContext& moveObservation() const noexcept {
         return moveReads_[moveComplete_];
     }
-    /** @return True once a move's trigger may have reached the drive without an observed completion;
-     * new moves are refused for this object's life. */
+    /** @return True once a move's trigger may have reached the drive without an observed completion and
+     * no checked stop has followed it. New moves, velocity runs and homing are refused meanwhile. A
+     * checked stop (SUCCEEDED, completion OBSERVED) prepared at or after that move's start clears it,
+     * also when the stop settled before the move's own terminal; so does acknowledgeStandstill. */
     bool moveFenced() const noexcept { return moveFenced_; }
+    /** Clear the possible-motion fences, moveFenced(), velocityNeedsStop() and homeNeedsStop(), on the
+     * application's own fresh evidence that the drive stands still (2026-11-17). The caller takes the
+     * responsibility a checked stop would otherwise carry; this sends nothing and claims no physical
+     * reference or position. faultBlocked() and clearBlocked() are not standstill facts and stay.
+     * @param[in] state A complete read of this axis whose MONITORS report running clear and whose
+     * FEEDBACK report 606C 0, each block younger than maximumAgeUs and acquired after this session's
+     * latest write.
+     * @param[in] maximumAgeUs Nonzero age the caller accepts for that read.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return True when the fences are clear. False, with nothing changed, while an operation is active
+     * or for a read that is older, of another binding, earlier than the latest write, or that reports
+     * running or a nonzero velocity. */
+    bool acknowledgeStandstill(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint64_t maximumAgeUs,
+                               uint64_t nowUs) noexcept;
     /** @return Retained context of the latest requestClearAlarm or requestCounterZero; EMPTY if neither
      * was prepared since open. The two share this one slot, so a new request of either kind replaces it:
      * actionKind is CLEAR_ALARM or SET_DEVICE_POSITION. commandHistory keeps every write's terminal,
@@ -830,6 +850,10 @@ class AxisSession {
     MotorControlCAN::MoveInterruption moveWithdrawn_ = MotorControlCAN::MoveInterruption::NONE;
     MotorControlCAN::Status moveRefusal_;
     bool moveFenced_ = false;
+    // The latest checked stop's preparation time (checkedStopPresent_), and the fenced move's start: a
+    // checked stop prepared at or after that start clears the fence, in either completion order.
+    bool checkedStopPresent_ = false;
+    uint64_t checkedStopUs_ = 0, moveFenceAfterUs_ = 0;
     // The application's axis and witness, borrowed for the active move's admission rechecks only.
     const MotorControlCAN::AxisConfig* moveAxis_ = nullptr;
     const MotorControlCAN::AxisReference* moveReference_ = nullptr;
@@ -902,6 +926,12 @@ class AxisSession {
                       const StopPolicy& policy, uint64_t nowUs) const noexcept;
     bool freshlyIdle(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,
                      uint64_t nowUs) const noexcept;
+    bool stopState(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint64_t maximumAgeUs,
+                   uint64_t nowUs, uint64_t& at) const noexcept;
+    const MotorControlCAN::LICHUAN_C::ReadContext&
+    freshestStopState(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                      MotorControlCAN::LICHUAN_C::StopKind kind, uint64_t maximumAgeUs,
+                      uint64_t nowUs) const noexcept;
     bool controllerMoved(MotorControlCAN::Generation before) const noexcept;
     void settleSuperseded(uint64_t nowUs) noexcept;
     bool prepareHeld(uint64_t nowUs, uint64_t deadlineUs) noexcept;

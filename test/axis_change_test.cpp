@@ -18,6 +18,16 @@ static const char* scenario = "axis change";
 #include "support/VelocityRig.h"
 namespace {
 using namespace MoveRig;
+// A stop of either kind that SUCCEEDED with its completion OBSERVED: what clears a move fence.
+bool checkedStop(const E::AxisSession& a) {
+    const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
+    for (L::StopKind kind : kinds) {
+        const L::ActionContext& s = a.stopAction(kind);
+        if (s.state == M::ActionState::SUCCEEDED && s.completion == M::ActionCompletion::OBSERVED)
+            return true;
+    }
+    return false;
+}
 struct Fixture {
     Rig r;
     L::MoveReplacementRequest request;
@@ -102,7 +112,8 @@ void relationsAndStops() {
         CHECK(!f.replace());
         f.finish();
         CHECK(f.r.a.moveAction().interruption == M::MoveInterruption::STOP);
-        CHECK(f.r.a.moveAction().uncertain && f.r.a.moveFenced());
+        // The move keeps its uncertainty; only a checked stop clears the fence (2026-11-17).
+        CHECK(f.r.a.moveAction().uncertain && f.r.a.moveFenced() == !checkedStop(f.r.a));
         CHECK(wordsFrom(f.r, first, 0x000b) == 1);
         CHECK(!wordsFrom(f.r, first, 6) && !wordsFrom(f.r, first, 7));
         if (boundary <= 1)
@@ -206,7 +217,8 @@ void fullOrdinaryRetainsUrgent() {
         CHECK(f.r.owner.release(ids[i]));
     const unsigned after = f.r.wire.sentCount;
     f.r.steps(4);
-    CHECK(f.r.wire.sentCount == after && f.r.a.moveAction().uncertain && f.r.a.moveFenced());
+    CHECK(f.r.wire.sentCount == after && f.r.a.moveAction().uncertain &&
+          f.r.a.moveFenced() == !checkedStop(f.r.a));
 }
 void unresolvedAndDeadline() {
     {

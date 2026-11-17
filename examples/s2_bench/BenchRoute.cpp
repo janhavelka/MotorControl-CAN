@@ -1092,12 +1092,15 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     const unsigned stop = plansStop(plan) ? 1 : 0;
     const unsigned stopCase = unsigned(RouteKind::STOP);
     const unsigned settingsCase = settings ? unsigned(attendedRow) : 0;
-    if (motion && (motionTotal_ + 1u + stop > ROUTE_MOTION_TOTAL ||
-                   (plan.kind == RouteKind::POSITION_CHANGE ? positionChangeCases_[plan.changeCase - 1][index]
-                                                           : motionCases_[unsigned(plan.kind)][index]) + 1u > ROUTE_MOTION_PER_CASE ||
-                   motionCases_[stopCase][index] + stop > ROUTE_MOTION_PER_CASE))
+    // The optional caps (RouteCaps, off by default): a zero cap refuses nothing.
+    const auto over = [](unsigned count, unsigned add, uint8_t cap) { return cap && count + add > cap; };
+    if (motion && (over(motionTotal_, 1u + stop, caps_.motionTotal) ||
+                   over(plan.kind == RouteKind::POSITION_CHANGE ? positionChangeCases_[plan.changeCase - 1][index]
+                                                               : motionCases_[unsigned(plan.kind)][index],
+                        1u, caps_.motionPerCase) ||
+                   over(motionCases_[stopCase][index], stop, caps_.motionPerCase)))
         return "budget";
-    if (settings && settingsCases_[settingsCase][index] + 1u > ROUTE_SETTINGS_PER_CASE)
+    if (settings && over(settingsCases_[settingsCase][index], 1u, caps_.settingsPerCase))
         return "budget";
     // HOME keeps its input mapping, state read and request in RouteWork, as a settings route keeps its
     // prior; VELOCITY keeps its request there, off BenchRoute's own block. VELOCITY_TARGET needs none.
@@ -1943,9 +1946,10 @@ bool BenchRoute::consoleMotionAllowed(unsigned node, RouteKind kind) const noexc
         return false;
     const unsigned index = node - 1, stop = kind == RouteKind::VELOCITY ? 1 : 0;
     const unsigned stopCase = unsigned(RouteKind::STOP);
-    return motionTotal_ + 1u + stop <= ROUTE_MOTION_TOTAL &&
-           motionCases_[unsigned(kind)][index] + 1u <= ROUTE_MOTION_PER_CASE &&
-           motionCases_[stopCase][index] + stop <= ROUTE_MOTION_PER_CASE;
+    const auto within = [](unsigned count, unsigned add, uint8_t cap) { return !cap || count + add <= cap; };
+    return within(motionTotal_, 1u + stop, caps_.motionTotal) &&
+           within(motionCases_[unsigned(kind)][index], 1u, caps_.motionPerCase) &&
+           within(motionCases_[stopCase][index], stop, caps_.motionPerCase);
 }
 void BenchRoute::countConsoleMotion(unsigned node, RouteKind kind) noexcept {
     if (node < 1 || node > BENCH_NODES || !isMotion(kind))

@@ -182,7 +182,8 @@ const char* outcomeName(M::ActionOutcome outcome) {
     return n < sizeof names / sizeof names[0] ? names[n] : "UNKNOWN";
 }
 // Keep replacement-only parsing storage off ordinary move and home dispatch chains.
-// Inlining it into dispatchMotion exceeds the measured 6144-byte Xtensa chain budget.
+// Inlining it into dispatchMotion exceeded the measured 6144-byte Xtensa chain budget of the
+// 12288-byte stack (2026-11-17 the stack is 16384 and the budget 8192); it stays off that chain.
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((noinline))
 #elif defined(_MSC_VER)

@@ -8,8 +8,9 @@
 
 namespace MotorControlCANExample {
 enum {
-    FIRMWARE_STACK_BYTES =
-        12288, ///< Internal static task stack; S2 acquisition call-chain evidence in bench report.
+    /** Internal static task stack. 16384 since 2026-11-17 (was 12288): the console's measured call chain had
+     * reached the 6144-byte half; scripts/check_stack.py keeps the known chain within half of this. */
+    FIRMWARE_STACK_BYTES = 16384,
     FIRMWARE_OWNER_CORE =
         portNUM_PROCESSORS > 1 ? 1 : 0 ///< One pinned owner; S2 uses its sole core.
 };

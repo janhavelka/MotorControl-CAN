@@ -574,6 +574,9 @@ class BenchTest(unittest.TestCase):
         counted = command in bench.TRIALS and (bench.TRIALS[command][1] or command in bench.SETTINGS_ROUTES)
         if counted and "--campaign" not in argv:
             argv = argv + ["--campaign", str(self.ledger)]
+        # The campaign caps are an optional guard (2026-11-17); a test of them opts in with self.caps.
+        if counted and getattr(self, "caps", False) and "--motion-caps" not in argv:
+            argv = argv + ["--motion-caps"]
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             status = bench.main(BASE + argv + ["--output", str(self.output)], backend, Clock(),
                                 operator or Operator())
@@ -832,6 +835,31 @@ class BenchTest(unittest.TestCase):
             "TRIAL id=%d node=%d route=%s%slost=0 terminals=20\n%s uncertain=0\nEND trial terminals=20\n" % (
                 command, node, trial, trial, node, command, header, stop), encoding="utf-8")
         return directory
+
+    def test_released_enable_needs_no_stop_record(self):
+        # 2026-11-17: start 2 on the drive's own fresh released report; no record directory, no stop run first.
+        released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
+                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1250"]
+        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1250")
+        args, fields = bench.arguments(BASE + released + ["--released"] + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
+        for bad in (released + ["--released", "--no-motion-write-recorded"],
+                    released + ["--released", "--released-by-recorded-stop", str(self.stop_record())],
+                    ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "200",
+                     "--released"],
+                    released + ["--released", "--unattended-waiver", "I am not there"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + bad + LEDGER + ["--output", "x"])
+        board = Board()
+        operator = Operator("ATTENDED 12", "no movement", "HOLDING")
+        status, out, _ = self.run_main(released + ["--released"], Backend(board), operator)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(board.writes, [b"p", line.encode()])
+        self.assertFalse(any("FREE or HOLDING as felt" in q for q in operator.questions))
+        meta = self.meta()
+        self.assertEqual(meta["enable_start"], "RELEASED_BY_RECORDED_STOP")
+        self.assertIn("--released", meta["start_basis"])
+        self.assertNotIn("start_record", meta)
 
     def test_released_start_enable_reads_its_shaft_basis_from_the_drive(self):
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
@@ -1196,7 +1224,16 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(lines[1]["reason"], "ended")
         self.assertEqual(self.meta()["campaign"]["motion_total"], 0)
 
+    def test_campaign_caps_are_off_unless_asked(self):
+        # 2026-11-17: without --motion-caps the ledger records every send and refuses nothing for a count.
+        self.write_ledger([send_entry("P", 1, 1), send_entry("R", 1, 2), send_entry("P", 1, 3),
+                           send_entry("P", 1, 4)])
+        status, _, err = self.run_main(position(1, 5), Backend(Board()), Operator("ATTENDED 5", "none"))
+        self.assertEqual(status, 0, err)
+        self.assertEqual(self.entries()[-2]["trial"], 5)
+
     def test_campaign_caps_hold_across_boots(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         # Three position trials on node 1, each perhaps on another boot: the board reports motion=0.
         self.write_ledger([send_entry("P", 1, 1), send_entry("R", 1, 2), send_entry("P", 1, 3),
                            send_entry("P", 1, 4)])
@@ -1579,6 +1616,7 @@ class BenchTest(unittest.TestCase):
         self.assertIn("would refuse before sending: move deadline: 3000 ms", out.getvalue())
 
     def test_new_motion_routes_are_attended_and_counted(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         quick = ["--command", "released-quick", "--node", "2", "--trial", "5", "--cycles", "3", "--interval-ms", "100"]
         board = Board()
         operator = Operator("ATTENDED 5", "no movement")
@@ -1653,6 +1691,7 @@ class BenchTest(unittest.TestCase):
                 bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
 
     def test_settings_routes_are_attended_counted_and_not_motion(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         limits = ["--command", "settings-2202", "--node", "1", "--trial", "5", "--soft-limit-code", "limits-off",
                   "--fault-led", "prompt"]
         # The campaign is required, as for motion: each send counts.
@@ -1904,6 +1943,7 @@ class BenchTest(unittest.TestCase):
         self.assertEqual([entry.get("scope") for entry in send], ["ATTENDED_EXPERIMENT"])
 
     def test_velocity_and_mode3_are_attended_and_counted(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         board = Board()
         operator = Operator("ATTENDED 30", "turned about one revolution, then stopped")
         status, _, err = self.run_main(VELOCITY, Backend(board), operator)
@@ -1997,6 +2037,7 @@ class BenchTest(unittest.TestCase):
             self.assertNotIn("velocity_alert", self.meta())
 
     def test_home_is_attended_counted_and_not_motion(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         board = Board()
         operator = Operator("ATTENDED 31", "NONE")
         status, _, err = self.run_main(HOME, Backend(board), operator)
@@ -2040,6 +2081,7 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(self.meta()["operator"]["home_inputs_wired"]["typed"], bench.UNOBSERVED)
 
     def test_velocity_target_line_bounds_dry_run_and_campaign(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         def probe(value, node="1", trial="50"):
             return ["--command", "velocity-target", "--node", node, "--trial", trial, "--value", str(value)]
         # The firmware's grammar (BenchRoute.cpp PROBE_FIELDS): node, trial, attended and the signed value.
@@ -2190,6 +2232,7 @@ class BenchTest(unittest.TestCase):
         self.assertIn("inconsistent send entry", err)
 
     def test_controlword_line_bounds_dry_run_and_campaign(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         def word(value, node="1", trial="40", cycles="3", interval="500"):
             return ["--command", "controlword", "--node", node, "--trial", trial, "--word", value, "--cycles", cycles,
                     "--interval-ms", interval]
@@ -2536,6 +2579,7 @@ class BenchTest(unittest.TestCase):
             self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
 
     def test_subdivision_line_bounds_dry_run_and_campaign(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         def subdivision(value, node="1", trial="40"):
             return ["--command", "subdivision", "--node", node, "--trial", trial, "--value", str(value)]
         # The firmware's grammar (BenchRoute.cpp SUBDIVISION_FIELDS): node, trial, attended and the 2201 value.
@@ -2675,7 +2719,7 @@ class BenchTest(unittest.TestCase):
             return {"event": "send", "route": letter, "node": 1, "trial": trial,
                     "motion": 0 if letter == "m" else 2, "stop": 0 if letter == "m" else 1,
                     "settings": int(letter == "m"), "line": bench.sign_line(line)}
-        campaign = bench.Campaign(self.ledger, False)
+        campaign = bench.Campaign(self.ledger, False, True)  # With the optional caps.
         campaign.entries = [entry("m", trial, 2) for trial in range(1, 4)]
         self.assertEqual(campaign.counts(), (0, {("m2", 1): 3}))
         with self.assertRaises(bench.Refused):
@@ -2775,6 +2819,7 @@ class BenchTest(unittest.TestCase):
         self.assertIsNone(bench.position_change_alert("move", [1, 30], capture(summary, trigger)))
 
     def test_loop_line_bounds_dry_run_and_campaign(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
         def loop(value, node="1", trial="40"):
             return ["--command", "loop", "--node", node, "--trial", trial, "--value", str(value)]
         # The firmware's grammar (BenchRoute.cpp LOOP_FIELDS): node, trial, attended and the 2500 code, after the

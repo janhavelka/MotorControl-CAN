@@ -207,9 +207,12 @@ with such a cycle after it, the stop is sequenced (`predecessorWord` `001F`,
 best-effort `000B`. After a trigger whose reply was lost the route stays
 unresolved, so only that best-effort stop can follow, and its reply never
 qualifies. After any trigger that may have reached the drive without an observed
-completion, including one the drive answered with an abort, the session refuses
-new moves for the object's life, whatever later idle report or explicit `000F`
-arrives. A read reused under `REUSE_STORED` must be one the session retires on
+completion, including one the drive answered with an abort, `AxisSession` refuses
+new moves, velocity runs and homing (`moveFenced()`), whatever later idle report or
+explicit `000F` arrives, until a checked stop prepared after that move's start
+(SUCCEEDED, completion OBSERVED) or the application's own fresh standstill report
+(`acknowledgeStandstill`: running clear and `606C` 0, read after the latest write)
+lifts it (2026-11-17). An unconfirmed best-effort `000B` does not. A read reused under `REUSE_STORED` must be one the session retires on
 every move write, named with `retainSettings`; any other is refused. After a
 notice, `nextMove` never offers the same download again, and a partial setup
 reports `setup` as `UNKNOWN` with `setupHistory` saying which writes were
@@ -351,7 +354,8 @@ or invalidated target or witness, a moving witness, or an aged admission read.
 Each call is one explicit edge: identical values twice are
 two moves with two witnesses, and nothing retries a trigger, a parameter or a
 rearm. After a trigger that may have reached the drive without an observed
-completion, new moves stay fenced as for an absolute move.
+completion, new moves stay fenced as for an absolute move, until a checked stop or
+`acknowledgeStandstill`.
 
 **Drive faults.** One owner turn receives before it transmits, so an EMCY
 received in a turn does not by itself stop a download queued before it from

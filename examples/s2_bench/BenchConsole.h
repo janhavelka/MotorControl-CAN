@@ -50,7 +50,8 @@
  * console and reports one notice line. ARM_WITNESS's two reads only give the AxisReference the console's
  * stepsperturn and axis origin consume; it names no motion prerequisite. Each axis owns copies of
  * its acquired reads and their original times; another axis may reuse the route scratch. A motion
- * line still needs current native prerequisites and the per-boot motion caps; each admission the
+ * line still needs current native prerequisites and any per-boot caps the route has set (RouteCaps, off by
+ * default); each admission the
  * console then makes is counted with the bench routes' (BenchRoute::countConsoleMotion). Before a
  * `stop` is fed, the stop prerequisites are named again, from the arming's stop budgets and the
  * latest complete state: the session's last move or velocity cycle, else the arming's read while it

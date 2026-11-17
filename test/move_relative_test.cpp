@@ -43,6 +43,16 @@ M::MoveRequest relRequest(int64_t displacement, M::RelativeBasis basis = M::Rela
     value.position.basis = basis;
     return value;
 }
+// A stop of either kind that SUCCEEDED with its completion OBSERVED: what clears a move fence (2026-11-17).
+bool checkedStop(const E::AxisSession& a) {
+    const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
+    for (L::StopKind kind : kinds) {
+        const L::ActionContext& s = a.stopAction(kind);
+        if (s.state == M::ActionState::SUCCEEDED && s.completion == M::ActionCompletion::OBSERVED)
+            return true;
+    }
+    return false;
+}
 E::StopPolicy stopPolicy(const Rig& r) {
     E::StopPolicy policy;
     policy.options.service = reads();
@@ -581,8 +591,13 @@ void matrixCase(Point p, bool handedOff, Cut cut) {
     // The rearm comes only after an observed completion, as its own step, at most once.
     CHECK(!c.rearmPresent || c.completion == M::ActionCompletion::OBSERVED);
     CHECK(wordsFrom(r, start, 0x000f) == (c.rearm != M::ActionExecution::NOT_TRANSMITTED ? 1u : 0u));
+    // The move's record keeps its uncertainty; a checked stop after it clears the fence (2026-11-17).
+    const bool checkedStop = ((r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED &&
+                               r.a.stopAction(L::StopKind::HALT).completion == M::ActionCompletion::OBSERVED) ||
+                              (r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::SUCCEEDED &&
+                               r.a.stopAction(L::StopKind::QUICK_STOP).completion == M::ActionCompletion::OBSERVED));
     if (mayMove && c.completion != M::ActionCompletion::OBSERVED)
-        CHECK(c.uncertain && r.a.moveFenced());
+        CHECK(c.uncertain && r.a.moveFenced() == !checkedStop);
     else
         CHECK(!r.a.moveFenced());
     if (cut == Cut::STOP) {
@@ -732,7 +747,8 @@ void stopFromHeldTrigger() {
         CHECK(s.observations == haltReads + 2 && !(s.monitorObservation.monitor & L::MONITOR_RUNNING));
         CHECK(!(s.statusObservation.statusword & ACCEPT_BIT) && !(s.monitorObservation.monitor & L::MONITOR_POSITION_COMPLETE));
         CHECK(wordsFrom(r, at, 0x010f) == 1 && !wordsFrom(r, at, 0x000f) && !wordsFrom(r, at, 0x000b));
-        CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && r.a.moveFenced());
+        // The checked HALT clears the fence (2026-11-17).
+        CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && !r.a.moveFenced());
     }
 }
 
@@ -781,7 +797,8 @@ void bothNodesUrgent() {
     for (unsigned node = 1; node <= 2; ++node) {
         const L::ActionContext& s = r.axis(node).a.stopAction(node == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP);
         CHECK(s.predecessorWord == 0x005f && !s.predecessorDocumented && s.operation > moveOf(r, node).operation);
-        CHECK(moveOf(r, node).interruption == M::MoveInterruption::STOP && r.axis(node).a.moveFenced());
+        // Both stops are checked, so neither axis stays fenced (2026-11-17).
+        CHECK(moveOf(r, node).interruption == M::MoveInterruption::STOP && !r.axis(node).a.moveFenced());
         CHECK(wordsFrom(r, start, 0x005f, node) == 1 && !wordsFrom(r, at, 0x000f, node));
         onlyRelativeWords(r, start, node);
     }
@@ -884,7 +901,8 @@ void urgentBesideOtherWork(unsigned stopping, L::StopKind kind, Pending pending,
     const L::MoveContext& stopped = moveOf(r, stopping);
     CHECK(stopped.state == M::ActionState::FAILED && stopped.outcome == M::ActionOutcome::CANCELLED);
     CHECK(stopped.interruption == M::MoveInterruption::STOP && stopped.execution == M::ActionExecution::ACKNOWLEDGED);
-    CHECK(stopped.uncertain && s.a.moveFenced());
+    // The move keeps its uncertainty; its checked stop clears the fence (2026-11-17).
+    CHECK(stopped.uncertain && !s.a.moveFenced());
     CHECK(wordsFrom(r, start, 0x005f, stopping) == 1 && s.drive.edges == 1);
     CHECK(wordsFrom(r, at, stopWord, stopping) == 1);
     CHECK(wordsFrom(r, start, 0x010f, stopping) + wordsFrom(r, start, 0x000b, stopping) == 1);
@@ -1882,8 +1900,9 @@ void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
     CHECK(r.a.moveFenced() && !r.a.latestControl() && r.drive.edges == (acted ? 1u : 0u));
     // The next move admission is refused, with nothing sent, by two independent facts: the lost reply
     // left the route unresolved, so the session has no usable reservation, which it reports first; and
-    // the fence stays for this session object's life, should the route ever resolve. A witness of the
-    // drive's present position changes neither.
+    // the fence stays, should the route ever resolve, until a checked stop or the application's own
+    // standstill acknowledgement (acknowledgeStandstill). A witness of the drive's present position
+    // changes neither.
     const unsigned before = r.wire.sentCount;
     const M::Status again = r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900));
     CHECK(!again && again.code == M::Err::INVALID_CONFIG && again.detail == int32_t(M::MoveError::TARGET));
@@ -1911,7 +1930,7 @@ void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
         CHECK(!r.drive.moving && (r.drive.monitor & L::MONITOR_RELEASED));
     onlyRelativeWords(r, start);
     ended.unchanged(c); // The stop is its own operation; the move's record is not rewritten.
-    // Still fenced afterwards, and nothing follows.
+    // Still fenced afterwards: an unconfirmed best-effort 000B is no checked stop. Nothing follows.
     CHECK(r.a.moveFenced() && !r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900)));
     quiet(r);
     ended.unchanged(c);
@@ -1922,6 +1941,61 @@ void lostTriggerThenStop() {
         for (L::StopKind kind : kinds)
             for (unsigned admissionRead = 0; admissionRead < 2; ++admissionRead)
                 lostTriggerCase(acted != 0, kind, admissionRead != 0);
+}
+// 2026-11-17 (bench HM3): a QUICK_STOP after a finished HALT is sequenced on the HALT's own last cycle,
+// whatever stale or empty report the caller passes, instead of taking the unconfirmed 000B branch.
+void quickStopAfterFinishedHalt() {
+    scenario = "quick stop after a finished halt";
+    Rig r;
+    r.drive.travelReads = 1000000;
+    r.ready();
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(-4000)).isOk());
+    for (unsigned k = 0; k < 400 && moveOf(r).observations < 1; ++k)
+        r.step();
+    CHECK(r.a.requestStop(L::StopKind::HALT, r.a.moveObservation(), stopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+    finishAll(r);
+    CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED && !r.a.moveFenced());
+    const unsigned at = r.wire.sentCount;
+    const L::ReadContext none; // No report of the caller's own.
+    CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, none, stopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+    finishAll(r);
+    const L::ActionContext& q = r.a.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(q.predecessorWord == 0x010f && q.execution != M::ActionExecution::NOT_TRANSMITTED);
+    CHECK(wordsFrom(r, at, 0x000b) == 1 && r.a.bestEffort().outcome == M::ActionOutcome::NONE);
+}
+// 2026-11-17: the application's own fresh standstill report lifts the fence a move's unobserved end left,
+// once it postdates the latest write. A running or moving report, an earlier one, or one older than the
+// accepted age does not, and nothing is sent either way.
+void acknowledgeStandstillLiftsFence() {
+    scenario = "acknowledge standstill";
+    const uint8_t mask = uint8_t(STATE_MASK | bit(L::StateBlock::FEEDBACK));
+    const uint64_t age = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+    Rig r;
+    r.drive.travelReads = 1000000; // Never arrives: the move ends at its deadline, completion unobserved.
+    r.ready();
+    L::ReadContext before;
+    r.readState(before, mask);
+    L::MoveOptions sparse = options();
+    sparse.observationIntervalUs = 100000; // A few cycles before the deadline: the rig's wire log is bounded.
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(-900), 1, profile(), LEAD, sparse).isOk());
+    r.finishMove();
+    CHECK(moveOf(r).completion == M::ActionCompletion::NOT_OBSERVED && r.a.moveFenced());
+    const unsigned sent = r.wire.sentCount;
+    L::ReadContext running;
+    r.readState(running, mask);
+    const unsigned afterRead = r.wire.sentCount;
+    CHECK(!r.a.acknowledgeStandstill(running, age, r.now) && r.a.moveFenced()); // Still running.
+    CHECK(!r.a.acknowledgeStandstill(before, age, r.now) && r.a.moveFenced());  // Before the move's writes.
+    r.drive.moving = false;
+    r.drive.velocity = 0;
+    r.drive.monitor = uint16_t(r.drive.monitor & ~L::MONITOR_RUNNING);
+    L::ReadContext still;
+    r.readState(still, mask);
+    const unsigned afterStill = r.wire.sentCount;
+    CHECK(!r.a.acknowledgeStandstill(still, 1, r.now + 1000) && r.a.moveFenced()); // Older than accepted.
+    CHECK(!r.a.acknowledgeStandstill(still, 0, r.now));
+    CHECK(r.a.acknowledgeStandstill(still, age, r.now) && !r.a.moveFenced());
+    CHECK(sent < afterRead && r.wire.sentCount == afterStill); // Reads only; the acknowledgement sends nothing.
 }
 
 // 29. HALT and quick stop from an acknowledged 005F, each as its own finite request on node 1, while
@@ -1992,7 +2066,8 @@ void stopBesideObserver(L::StopKind kind) {
     const L::MoveContext& move = moveOf(r, 1);
     CHECK(move.state == M::ActionState::FAILED && move.outcome == M::ActionOutcome::CANCELLED);
     CHECK(move.interruption == M::MoveInterruption::STOP && move.execution == M::ActionExecution::ACKNOWLEDGED);
-    CHECK(move.uncertain && r.one.a.moveFenced() && move.operation == moveOperation);
+    // The move keeps its uncertainty; its checked stop clears the fence (2026-11-17).
+    CHECK(move.uncertain && !r.one.a.moveFenced() && move.operation == moveOperation);
     // Node 1's words: one 005F, then the one stop word, with nothing of the move after it and no 000F.
     CHECK(wordsFrom(r, start, 0x005f, 1) == 1 && r.one.drive.edges == 1 && !wordsFrom(r, start, 0x000f, 1));
     CHECK(wordsFrom(r, at, stopWord, 1) == 1 && wordsFrom(r, start, 0x010f, 1) + wordsFrom(r, start, 0x000b, 1) == 1);
@@ -2457,7 +2532,8 @@ void replayStopped(const StoppedReplay& t) {
     CHECK(c.uncertain && !c.readUncertain && c.effectsPossible && c.observations == 2);
     CHECK(c.setupMask == 0xf && c.setupEvidenceMask == 0xf && c.triggerPresent && !c.rearmPresent);
     CHECK(c.status.code == M::Err::INVALID_CONFIG && c.status.detail == int32_t(M::MoveError::STATE));
-    CHECK(r.one.a.moveFenced() && c.parameters.targetNative == 600);
+    // The fence follows the stop since 2026-11-17: a checked stop clears it (the record's fenced=1 predates that).
+    CHECK(r.one.a.moveFenced() == !checkedStop(r.one.a) && c.parameters.targetNative == 600);
     CHECK(c.parameters.target.endpointNative == t.start + 600 && c.parameters.target.retainedReference.nativePosition == t.start);
     // TRIAL_MOVE_SAMPLE lines 16 to 20: admission, latest, acceptance, absence; nothing completed.
     CHECK(sampleIs(c.admission, 0, 0x8437, 0x0001, false, 0, 0));
@@ -2664,6 +2740,8 @@ void runAll() {
     emcyDuringMove();
     faultFence();
     lostTriggerThenStop();
+    quickStopAfterFinishedHalt();
+    acknowledgeStandstillLiftsFence();
     if (PAIRED_CHANNELS)
         stopsBesideObserver();
     counterZeroAfterMove();
