@@ -13,7 +13,9 @@ Qualify the library on the user's ESP32-S3 boards when they arrive: internal-RAM
 application's storage (prompt 53 item 2), the user-set axis count, service gaps and throughput (prompt 56), and a short
 regression of every feature on the same drives. Then add further MCUs one at a time: each new chip needs its own TWAI
 (or other controller) adapter proof, because the exact TX retirement proof is chip and SDK specific. Adding a chip is
-an adapter task, not an architecture change.
+an adapter task, not an architecture change. [Prompt 76](76_psram_storage_placement.md) (added 2026-11-17) defines the
+placement rule, allocation order, stack margin and memory report this qualification measures; although numbered later,
+its result is an evidence gate for items 1 to 3 here.
 
 Boundaries: board facts are recorded, never assumed: module, PSRAM size and type (quad or octal), flash, CAN
 transceiver, pins, termination, supply. TWAI driver, ISR and callback storage, the owner task stack and TCB stay in

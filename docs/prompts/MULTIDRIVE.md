@@ -76,6 +76,10 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 70 | The axis table records each axis's profile and expected product identity; checks run each profile's own readbacks. |
 | 71 | Qualify only the actual board, wiring, drives and firmware; nothing transfers between boards or families. |
 | 72 | Pulse-rate limits, enable-fault signatures and the release word are per-profile, per-firmware measured facts; the common axis reports only the typed signal. |
+| 73 | Timeouts, deadlines and freshness guards are per-node, per-protocol settings with documented defaults; a protocol without SDO or PDO supplies its own freshness source, and no guard assumes another protocol's timing. |
+| 74 | The reference self-repair policy runs per node and per protocol; motion starts, enable, homing, save and NMT stay unretried for every profile, and retry classes come from each profile's operations. |
+| 75 | Each runtime node entry records its profile, role and expected product identity; a monitor-only node is observed passively, and no entry implies CANopen services for a protocol without them. |
+| 76 | Storage placement and capacity are profile-neutral; each profile's per-axis block reports its own size and placement, and no result transfers between chips or boards. |
 
 ## Required contrasting test cases
 

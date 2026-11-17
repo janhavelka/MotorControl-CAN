@@ -33,7 +33,10 @@ documentation. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIV
 
 1. Axis table: a versioned, checksummed application table (axis names, node IDs, profile, units and gearing, limits,
    expected product identity, DI map, required or optional) with compiled-in defaults; console
-   `config show|set|save|load|defaults`; save refused while any axis is enabled or SYNC runs.
+   `config show|set|save|load|defaults`; save refused while any axis is enabled or SYNC runs. Store it as two A/B
+   records with CRC, magic, record and schema versions and erased-means-missing, loading defaults on corruption and
+   never boot-looping ([FieldCore audit](../reports/2026-11-17_fieldcore_capacity_psram_audit.md));
+   [prompt 75](75_runtime_node_table.md) adds runtime edits and monitor-only entries to this table.
 2. Power-up sequence: stop line at STOP; wait for each configured node's boot-up or heartbeat within a board time;
    identity check through prompt 57's policy (product identity refuses, firmware identity is reported); configuration
    readback against the table (mode, ramps, DI assignments, heartbeat, PDO maps) with one report per axis; READY only

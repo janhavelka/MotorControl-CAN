@@ -65,7 +65,7 @@ No evidence gap is resolved by a raw accessor, guessed native sequence or fake.
 ## Later feature assignments
 
 The [promptset index](prompts/README.md) contains the executable assignments.
-Prompts51-72 remain separate from the prompt50 candidate audit. Prompt51 has
+Prompts51-76 remain separate from the prompt50 candidate audit. Prompt51 has
 delivered the host producer and typed TPDO1 experiment; its qualification work
 remains open. Prompt52 delivers gated changes and initial measurements; prompt54 owns their
 finished-operation qualification. Prompt53 delivers concurrent

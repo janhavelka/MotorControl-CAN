@@ -108,9 +108,9 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 52 | [Changes of velocity, ramps and targets during motion](52_motion_changes.md) | Partial | Gated velocity/replacement lifecycle, owner/CLI and initial m/p/v measurements delivered. Initial Q26 ramp-change meaning remains owned here; bare ramp writes do not close it. See the independent 52/54 audit for corrections and remaining fixture gates. 2026-11-16 on both nodes ([report](../reports/2026-11-16_hil_campaign.md)): 14/14 position-change forms, 6 velocity changes plus 4 correct budget refusals, 7/7 typed console velocity changes incl. a stop inside a change ramp; typed move replacements admitted only at the edge of the console's 10 s deadline, then `DEADLINE` by experiment design | [Report52](../reports/prompt_52.md) |
 | 53 | [Multi-axis operation, configurable capacity and group stop](53_multi_axis.md) | Complete | Independent axes/group stop, bounded paired runner and reviewed storage changes verified. Conditional shared RPDO/start remains M09/Q28 gated; physical54/67 and owner optimization56 remain separate | [Report53](../reports/prompt_53.md) |
 | 54 | [Hardware qualification of SYNC, motion changes and multi-axis operation](54_hardware_sync_multiaxis.md) | Partial | Diagnostics and captures complete; sustained10ms failed at42988 slots;100ms/60s passed. Node1 session and node2 trajectory fences, Q27/M09/Q28, skew and wired DI remain open. 2026-11-16 after the power cycle ([report](../reports/2026-11-16_hil_campaign.md)): fences retired; 20 ms/30 min SYNC passed; M14 measured (NMT Stop does not stop a running drive); changes on both nodes; two-axis trials not executable on image 17386514 (arming refused while the console holds an operation); image b7033c12 added one paired arming (`Ta`/`Te`): HM1, HM2, HM3's group HALT and HM5 passed, HM3's later group quick stop had only the best-effort path, HM4 and HM6 to HM9 remain | [Report54](../reports/prompt_54.md) |
-| 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | Pending | 24, 42, 45; DEC-3a SDO premise then Q18; one unplug action by the user | - |
+| 55 | [Communication self-repair, node presence and retry policy](55_self_repair.md) | Pending | 24, 42, 45; library primitives for prompt 74 (resync with marker guard, TX lifetime, presence inputs, retry classes); one unplug action by the user | - |
 | 56 | [Host throughput: faster service passes, event wake and owner turn cost](56_host_throughput.md) | Pending | 27, 42, 53; pass timing measured before changes | - |
-| 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | Pending | 30, 42, 45; release trials from mode 1 idle and halted mode 3 | - |
+| 57 | [Regular enable, release, mode select and firmware identity policy](57_regular_drive_operations.md) | Pending | 30, 42, 45; release trials from mode 1 idle and halted mode 3; released enable on the fresh report; save as a regular command, its proof after a user power cycle | - |
 | 58 | [Measured records through the library API and the console](58_measured_records.md) | Pending | 42, 57; records reviewed against raw evidence | - |
 | 59 | [Velocity in full range and in both directions](59_velocity_range_direction.md) | Partial | 35, 52, 58; range probe, `2201` write, speed, edge-acceleration, subdivision and node 2 position runs done early on 2026-11-13 ([report](../reports/2026-11-13_velocity_limits_and_fault_recovery.md)); reverse run on both nodes to −3000 rpm, clean (shaft direction unobserved; node 2 on 2026-11-16); node 1 position ladder 300 to 3000 rpm, arrival ±1 count (2026-11-16, [report](../reports/2026-11-16_hil_campaign.md)); enable-fault state (S21) investigated, cleared only by a power cycle ([report](../reports/2026-11-13_enable_fault_state.md)); prompt 58 records owed | - |
 | 60 | [User units for speed and acceleration](60_user_units.md) | Pending | 10, 59; ramp law Q11 from prompt 59 | - |
@@ -126,6 +126,10 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | Pending | 55, 57, 61, 68; startup verifies only unless the table opts in | - |
 | 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | Pending | 66, 69, 70; hardware trials wait for the user's wiring; S3 after 67 | - |
 | 72 | [Enable-fault guards: pulse-rate admission, word 7 guard and fault-state reporting](72_enable_fault_guards.md) | Pending | 57, 59; backlog S21 gaps; its bench steps each need a user power cycle | - |
+| 73 | [Simple timing: service timeouts, deadlines and freshness as optional guards](73_timing_freshness_guards.md) | Pending | 17, 42, 52, 53, 56; guards optional with documented defaults; causal ordering and no replay kept | - |
+| 74 | [Reference self-repair example: presence, retries, reconciliation and recovery](74_reference_self_repair_example.md) | Pending | 55, 57, 68, 73; FieldCore-node audit done; one unplug action by the user | - |
+| 75 | [Runtime node table, monitor-only drives and a flexible bench](75_runtime_node_table.md) | Pending | 53, 70, 73; capacity stays a compile-time bound | - |
+| 76 | [PSRAM-aware storage placement, stacks and memory reporting](76_psram_storage_placement.md) | Pending | 53, 56, 75; S3 board trials stay with prompt 67 | - |
 
 ## Next ready
 
@@ -139,6 +143,6 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
    [bench record](../hardware_bench.md) to select the next required observation.
    Old trial history is not a statement of the currently powered fixture.
 3. Prompts47-48 retain physical qualification and prompt48's serial-loss cause.
-   Prompt53 delivers concurrent application axes; prompts54-72 remain explicit
+   Prompt53 delivers concurrent application axes; prompts54-76 remain explicit
    later assignments. Prompt55 owns reviewed communication recovery/retry policy. A corrected
    document does not implement their remaining work.

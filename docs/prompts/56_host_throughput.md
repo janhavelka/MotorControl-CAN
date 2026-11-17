@@ -64,7 +64,11 @@ scan is withdrawn before `promote` (asserted as the new behavior); peer work end
 best-effort stop keeps its eligibility and outcome; the driver fake wakes once per TX-done or received frame and never
 on error; `idle()` waits at most one tick. Run the full suite with `capacity_n1`, `capacity_n8` and `capacity_n32`, the
 firmware, stack and documentation gates and CI on the actual final commit. Bench: step 1 repeated, a back-to-back read
-burst on both nodes, the identity, position and stop regression, and a console-loss check.
+burst on both nodes, the identity, position and stop regression, and a console-loss check. Then re-run the 30-minute
+two-node 10 ms SYNC with one TPDO per SYNC per node ([prompt 54](54_hardware_sync_multiaxis.md) item 2) on the final
+image: before this prompt it ended after 42988 of 180000 slots (about 430 s) on a missed processing deadline
+(prompt 54, run 38), while 20 ms passed 30 minutes on 2026-11-16 ([HIL report](../reports/2026-11-16_hil_campaign.md)).
+Report the result, and the shortest period that passes if 10 ms still fails.
 
 ## Documentation and delegation
 

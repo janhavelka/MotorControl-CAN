@@ -995,6 +995,75 @@
         "11"
       ],
       "kind": "software"
+    },
+    {
+      "id": 73,
+      "file": "73_timing_freshness_guards.md",
+      "title": "Simple timing: service timeouts, deadlines and freshness as optional guards",
+      "depends_on": [
+        17,
+        42,
+        52,
+        53,
+        56
+      ],
+      "source_stages": [
+        "06",
+        "07",
+        "10",
+        "12",
+        "15"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 74,
+      "file": "74_reference_self_repair_example.md",
+      "title": "Reference self-repair example: presence, retries, reconciliation and recovery",
+      "depends_on": [
+        55,
+        57,
+        68,
+        73
+      ],
+      "source_stages": [
+        "06",
+        "12",
+        "14"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 75,
+      "file": "75_runtime_node_table.md",
+      "title": "Runtime node table, monitor-only drives and a flexible bench",
+      "depends_on": [
+        53,
+        70,
+        73
+      ],
+      "source_stages": [
+        "12",
+        "13",
+        "14",
+        "15"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 76,
+      "file": "76_psram_storage_placement.md",
+      "title": "PSRAM-aware storage placement, stacks and memory reporting",
+      "depends_on": [
+        53,
+        56,
+        75
+      ],
+      "source_stages": [
+        "12",
+        "14"
+      ],
+      "kind": "software"
     }
   ]
 }

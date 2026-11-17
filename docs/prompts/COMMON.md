@@ -1,6 +1,6 @@
 # Common execution contract
 
-Every numbered prompt incorporates this contract and root [AGENTS.md](../../AGENTS.md). The active sequence is [SEQUENCE.json](SEQUENCE.json): work through its numbered prompts in numerical order within the assigned range, advancing to independent ready work when an earlier prompt is blocked as described below. Prompts 1-50 are the original sequence; 51-72 are explicit later additions, not prerequisites for claiming the original scoped software candidate. Historical 00-19 files in `archive/v1/` are traceability records, not additional assignments. Each current prompt is one complete work unit with its own tests, documentation and commit/sync gate.
+Every numbered prompt incorporates this contract and root [AGENTS.md](../../AGENTS.md). The active sequence is [SEQUENCE.json](SEQUENCE.json): work through its numbered prompts in numerical order within the assigned range, advancing to independent ready work when an earlier prompt is blocked as described below. Prompts 1-50 are the original sequence; 51-76 are explicit later additions, not prerequisites for claiming the original scoped software candidate. Historical 00-19 files in `archive/v1/` are traceability records, not additional assignments. Each current prompt is one complete work unit with its own tests, documentation and commit/sync gate.
 
 The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes

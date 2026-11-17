@@ -1,6 +1,6 @@
-# MotorControl-CAN implementation prompts 1-72
+# MotorControl-CAN implementation prompts 1-76
 
-Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. A new implementation starts at [prompt 1](1_source_audit.md); this checkout resumes from [PROGRESS.md](PROGRESS.md), with the scoped software-candidate review at prompt50 and earlier Partial obligations retained. Names use `1_...md` through `72_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. A new implementation starts at [prompt 1](1_source_audit.md); this checkout resumes from [PROGRESS.md](PROGRESS.md), with the scoped software-candidate review at prompt50 and earlier Partial obligations retained. Names use `1_...md` through `76_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -26,6 +26,13 @@ Prompts 68-71 were added on 2026-11-13 at the user's request for examples of eve
 a dedicated CAN task with bounded queues and a headless job runner, a hardware watchdog with MCU and
 drive I/O, startup checks with settings storage and reboot handling, and their hardware qualification.
 They are prepared and host-tested before the hardware exists; the trials wait for the user's wiring.
+
+Prompts 73-76 were added on 2026-11-17 at the user's request for good engineering practice, more
+responsibility for the end user and optional, settable guards: timing, deadlines and freshness as optional
+guards; a reference self-repair example after FieldCore-node's RS485 handling, for which prompt 55 now delivers
+only the library primitives; a runtime node table with monitor-only drives and a flexible bench; and
+PSRAM-aware storage placement with stacks and memory reporting. They also run in ascending order unless the
+user reorders them.
 
 ## Shared contracts
 
@@ -131,6 +138,10 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 70 | [Startup checks, application settings storage and reboot handling examples](70_startup_settings_reboot.md) | 55, 57, 61, 68 |
 | 71 | [Hardware qualification of the application examples](71_hardware_application_examples.md) | 66, 69, 70 |
 | 72 | [Enable-fault guards: pulse-rate admission, word 7 guard and fault-state reporting](72_enable_fault_guards.md) | 57, 59 |
+| 73 | [Simple timing: service timeouts, deadlines and freshness as optional guards](73_timing_freshness_guards.md) | 17, 42, 52, 53, 56 |
+| 74 | [Reference self-repair example: presence, retries, reconciliation and recovery](74_reference_self_repair_example.md) | 55, 57, 68, 73 |
+| 75 | [Runtime node table, monitor-only drives and a flexible bench](75_runtime_node_table.md) | 53, 70, 73 |
+| 76 | [PSRAM-aware storage placement, stacks and memory reporting](76_psram_storage_placement.md) | 53, 56, 75 |
 
 ## Completion and external blockers
 
