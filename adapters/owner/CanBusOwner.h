@@ -14,6 +14,13 @@ namespace MotorControlCANOwner {
  * routes/observers before use or in this same cooperative context while idle.
  * No second receiver, node table, heap, clocks, automatic retry or
  * motion executor. Transport callbacks are synchronous and nonreentrant.
+ * Self-repair primitives (prompt 55): a response timeout after possible TX stages one
+ * cleanup abort; a quarantine with possible TX (timeout, cancellation, bus-off, or a
+ * controller event before a retired recovery) arms the binding's SdoReusePolicy for one
+ * resync step (by default one drain marker the owner issues itself), never after a
+ * best-effort stop; a handoff without a final report within the TX lifetime enters
+ * NO_LISTENER. None of them resends work, restarts the controller or extends
+ * a deadline, and stops keep priority over every repair step.
  */
 class CanBusOwner {
   public:
@@ -32,7 +39,17 @@ class CanBusOwner {
         TX_LIMIT = 2,      ///< Maximum one-shot enqueue callbacks per turn.
         EVENT_LIMIT = 8,   ///< Maximum TX report callback calls per turn.
         START_LIMIT = 2,   ///< Maximum new native service admissions per turn.
-        TRACE_CAPACITY = 24 ///< Above one turn's RX, TX, report, terminal and controller records. Oldest-first diagnostic copies; full storage overwrites oldest.
+        TRACE_CAPACITY = 24, ///< Above one turn's RX, TX, report, terminal and controller records. Oldest-first diagnostic copies; full storage overwrites oldest.
+        /** Default TX lifetime in microseconds, a host policy, not a device fact. On the S2 bench
+         * the owner consumed each TX report about 3 ms after handoff and service gaps reached 4 to
+         * 6 ms (docs/reports/2026-11-12_host_throughput.md section 1); the adapter keeps one SDK
+         * frame in flight, so a frame can wait behind CHANNELS + 2 others at one submission per
+         * pass. 100 ms covers that for the default capacity set with a wide margin, and equals the
+         * bench example's SDO response timeout, so expiry is reported no later than the response
+         * cutoff its own request already has. The submit-to-done maximum under load is unmeasured:
+         * set it with setTxLifetime from the application's own measurement.
+         */
+        DEFAULT_TX_LIFETIME_US = 100000
     };
     /** Borrow stationary exclusive resources; construction performs no I/O.
      * @param[in] services Sole existing adapter, already configured or configured while idle.
@@ -85,7 +102,8 @@ class CanBusOwner {
      * finite run can thus retire start work at stop due while retaining its stop-settlement budget.
      * @param[in] nowUs Same nondecreasing clock; queue/overall age begins here.
      * @param[out] output Unchanged on rejection; no overlap with owner or request.
-     * @return ACCEPTED is local only. Rejection changes neither queue nor reservation.
+     * @return ACCEPTED is local only. NO_LISTENER while noListener() holds, with nothing sent.
+     * Rejection changes neither queue nor reservation.
      */
     BusAdmission admit(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
     /** Start a new urgent operation on a live reservation, such as a stop during a move.
@@ -128,6 +146,13 @@ class CanBusOwner {
      * Accepts only `6040:00=000B`, in the channel's urgent slot. It may go out on an
      * unresolved route. It is transmitted at most once, and no reply can qualify it, so
      * its route ends unresolved. It waits for local work in ordinary slots to settle.
+     * Stops keep priority over repair: once placement cannot fail, a marker the owner issued
+     * itself on any channel of the node is cancelled (the route stays unresolved), and an unsent
+     * cleanup abort on the stop's channel is dropped before dispatch (it settles nothing). Every
+     * other slot content is kept, as before. Acceptance also ends every pending resync step on
+     * the node under every policy, and none is armed there again until a reopening: the stop's
+     * own reply may still come and could confirm a later 6040 write, so reopening after a stop
+     * is explicit intent only (admitDrainMarker, or reacceptReuse after a refusal).
      * @param[in] transfer The exact stop with its own finite deadline.
      * @param[in] nowUs Nondecreasing processing microseconds.
      * @param[out] output Published only on acceptance.
@@ -146,19 +171,105 @@ class CanBusOwner {
      * @return Local admission only; ordinary pressure cannot consume this slot.
      */
     BusAdmission admitUrgent(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
-    /** Admit one explicit drain marker for an unresolved route, outside any reservation (DEC-3).
-     * Application-requested only. On a matched success the owner invalidates every
-     * reservation on the node before reopening, so new work needs a new reservation.
-     * Failure leaves the route unresolved. Earlier effects stay uncertain and nothing replays.
-     * @param[in] transfer One accepted upload whose object was not retained on this route.
-     * @param[in] premises Application's sole-client and ordered-server premises; Q18 gates the second.
+    /** Admit one explicit drain marker for an unresolved route, outside any reservation (DEC-3,
+     * amended by prompt 55). The binding's reuse policy states the premises (sole client,
+     * ordered server) as accepted, never established; under SdoReusePolicy::NONE every marker
+     * is refused. The marker uses the channel's urgent slot. On a matched success, and after its
+     * own frame is locally retired, the owner invalidates every reservation on the node and
+     * reopens the route, so new work needs a new reservation and carries
+     * Completion::acceptedCorrelation. A configured expected value that differs invalidates the
+     * binding instead. Failure leaves the route unresolved. Earlier effects stay uncertain and
+     * nothing replays. Admitting one ends a pending automatic resync step on that route: a
+     * further marker is always new explicit intent.
+     * @param[in] transfer One accepted (DEC-1) expedited upload of 1-4 bytes whose object was
+     * not retained on this route and is not its last completed pair; its own finite deadline.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @param[out] output Published only on acceptance; may not overlap the owner or the input.
+     * @return ACCEPTED is local admission only. INHIBITED while local work is pending or blocked
+     * or the controller is inhibited; INVALID for NONE, refused reuse, a failed marker check or
+     * bad input; RESULTS_FULL while the urgent slot is occupied. NO_LISTENER never applies.
+     */
+    BusAdmission admitDrainMarker(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                                  uint64_t nowUs, RequestId& output) noexcept;
+    /** Compatibility form for callers that still state premises themselves; prefer the policy
+     * form above. Refused under SdoReusePolicy::NONE; otherwise both supplied premises must hold,
+     * as before prompt 55, and they are recorded as accepted, not established.
+     * @param[in] transfer As the policy form.
+     * @param[in] premises Caller's statement of the sole-client and ordered-server premises.
      * @param[in] nowUs Nondecreasing processing microseconds.
      * @param[out] output Published only on acceptance.
-     * @return INHIBITED while local work is pending or blocked; INVALID if the marker fails its check.
+     * @return As the policy form; INVALID when either premise is false.
      */
     BusAdmission admitDrainMarker(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                                   const MotorControlCAN::CANOPEN::SdoDrainPremises& premises,
                                   uint64_t nowUs, RequestId& output) noexcept;
+    /** Set one binding's SDO route reuse policy and marker objects (prompt 55).
+     * The default, before any call, is SdoReuse(): ACCEPTED_RISK_WITH_MARKER, markers 1000:00,
+     * 1018:01, 1018:02 and 1018:03 tried in order, no expected values, marker budgets inherited
+     * from the route's last request. A change applies to later resync steps; it does not reopen,
+     * re-quarantine or cancel anything, and an admitted marker keeps its premises and budgets.
+     * Changing to NONE drops a pending resync step.
+     * @param[in] binding Exact configured SDO channel binding.
+     * @param[in] reuse Policy within the enumeration; markerCount 1..SdoReuse::MARKER_OBJECTS;
+     * each used object with a nonzero index, size 1..4 and an expected value that fits that size,
+     * the used objects pairwise distinct; marker budgets any value, zero inheriting. Copied; no
+     * pointer is retained.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return False, with nothing changed, for an unknown binding, invalid settings, backward
+     * time, reentrancy or overlapping input.
+     */
+    bool setSdoReuse(const Binding& binding, const SdoReuse& reuse, uint64_t nowUs) noexcept;
+    /** Copy one binding's reuse setting; no I/O, clock or mutation.
+     * @param[in] binding Exact configured SDO channel binding.
+     * @param[out] output Copy on success, unchanged otherwise; may not overlap the owner.
+     * @return False for an unknown binding.
+     */
+    bool sdoReuse(const Binding& binding, SdoReuse& output) const noexcept;
+    /** Re-accept reuse on a route where contradicting traffic stopped it, as an explicit
+     * application decision. The owner never calls it. It also ends a best-effort stop's hold on
+     * this route. The route stays unresolved; the binding's policy then takes its resync step
+     * once, as after a timeout: one marker read
+     * (ACCEPTED_RISK_WITH_MARKER, with the configured marker budgets or else the route's last
+     * request budgets; with neither the step reports MARKER_UNAVAILABLE and admitDrainMarker
+     * remains) or the no-marker reopening (ACCEPTED_RISK_WITHOUT_MARKER), each after local TX
+     * retirement.
+     * @param[in] binding Exact configured SDO channel binding whose reuse is refused.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return False, unchanged, for an unknown binding, policy NONE, no refusal, backward time or
+     * reentrancy. True traces a REUSE_ACCEPTED diagnostic.
+     */
+    bool reacceptReuse(const Binding& binding, uint64_t nowUs) noexcept;
+    /** Set the TX lifetime for every later accepted handoff check. A frame the transport accepted
+     * that has no final report once lifetimeUs has elapsed is reported expired (Stats::txExpired,
+     * a TX_EXPIRED diagnostic, OwnerResources::txExpired) and the interface enters NO_LISTENER.
+     * The lifetime starts at the SDK submission an adapter reports (SdoClient::noteSubmitted,
+     * noteNmtSubmitted, noteSyncSubmitted); a frame an adapter still holds behind another has
+     * not started. Without such a report it starts at the owner's handoff. Nothing is counted
+     * while a recovery is pending. The frame stays possibly sent and blocks its channel; nothing
+     * is resent and no recovery starts. A late final report retires it normally; otherwise only
+     * an explicit recover() retires it, as possibly sent.
+     * @param[in] lifetimeUs Microseconds after that start, checked in service turns at equality;
+     * zero disables the check. Default DEFAULT_TX_LIFETIME_US.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return False for backward time or reentrancy, unchanged.
+     */
+    bool setTxLifetime(uint64_t lifetimeUs, uint64_t nowUs) noexcept;
+    /** @return Current TX lifetime in microseconds; zero means disabled. */
+    uint64_t txLifetimeUs() const noexcept { return txLifetimeUs_; }
+    /** NO_LISTENER interface state: entered when a TX lifetime expires, kept through recovery,
+     * ended by a matching positive TX report or a valid current-epoch received frame whose
+     * capture is not known to precede the start of NO_LISTENER (an exact or earliest bound
+     * capture at or before that start does not end it; unknown capture does). While it lasts,
+     * ordinary admit returns BusAdmission::NO_LISTENER with nothing sent and ordinary work
+     * already queued does not start (its own queue cutoff still runs), while urgent work,
+     * best-effort stops and explicit drain markers stay admissible, so one ACKed frame can end
+     * it. No automatic resync step starts while it lasts, those re-armed by a retired recovery
+     * included: they become eligible when it ends. NMT and SYNC admission and dispatch are
+     * unchanged. Ending it restores controller evidence
+     * only: no identity, route freshness, service qualification or motion readiness.
+     * @return True while in NO_LISTENER. Cached, no I/O.
+     */
+    bool noListener() const noexcept { return noListener_; }
     /** Query whether cancelling a request could quarantine its route.
      * @param[in] id Current request.
      * @return True if a frame of it may have reached a controller.
@@ -184,6 +295,12 @@ class CanBusOwner {
      */
     bool invalidateProducer(uint8_t producer, uint64_t nowUs) noexcept;
     /** Begin explicit host/controller recovery, with independently retained result capacity.
+     * This is the one controller-restart entry point: bus-off, RX overflow and an expired TX
+     * lifetime all use it, keep their own causes (RecoveryCompletion::causes, the conditions
+     * reported since the previous recovery began) and never call it themselves. A cause reported
+     * while this recovery runs stays latched for the next one; a failed or timed-out recovery
+     * hands its own causes on as well. Single flight: a pending or unread result refuses another
+     * call.
      * @param[in] nowUs Nondecreasing microseconds; no hidden time acquisition.
      * @param[in] deadlineUs Absolute deadline, strictly greater than nowUs. The recovery times out
      * once processing time reaches it, `now >= deadlineUs`, before any later poll can report it
@@ -192,6 +309,13 @@ class CanBusOwner {
      * @return True reserves a result, invalidates all reservations/node freshness and
      * invokes at most one beginRecovery callback. Missing/failed callback closes FAILED.
      * No wire command, SDO reopening, PDO qualification, replay or physical stop occurs.
+     * A RETIRED closure retires every pending handoff, an expired one too, as possibly sent:
+     * routes it may answer on stay unresolved, and each route the controller event left
+     * unresolved with possible TX gets its reuse policy's one resync step (not after a
+     * best-effort stop). No resync step, armed then or before, starts in the service turn
+     * whose poll retired the recovery: from the next turn on, so an application that sees the
+     * closure can admit a held stop first, and the stop then ends the step on its node.
+     * NO_LISTENER survives it.
      */
     bool recover(uint64_t nowUs, uint64_t deadlineUs, RecoveryId& output) noexcept;
     /** @param[in] id Exact recovery identity.
@@ -226,6 +350,13 @@ class CanBusOwner {
      */
     uint64_t lastTimeUs() const noexcept { return lastUs_; }
     /** Run one bounded cooperative turn; deadlines progress even with all budgets zero.
+     * Order: deadlines, recovery poll, TX reports, RX (with presence observations), then the
+     * TX lifetime check, so a report or frame taken in this turn prevents an expiry or ends
+     * NO_LISTENER first. A staged cleanup abort waits while urgent work on another channel can
+     * start this turn. A binding's resync step admits its marker only in a turn with TX and
+     * start budget, after the route's local TX is retired and no stop waits on its node, never
+     * in the turn whose recovery poll retired a recovery (the one-turn grace for a held stop)
+     * and never while noListener() holds.
      * @param[in] nowUs Nondecreasing nonwrapping caller microseconds, zero valid.
      * @param[in] budget Clamped RX/TX/report/start/recovery budgets; zero prevents that work.
      * @return False without mutation for backward time/reentrancy/overlap. Accepted
@@ -417,6 +548,7 @@ class CanBusOwner {
     struct Slot {
         bool occupied = false, terminal = false, submitted = false, guarded = false;
         bool localCancellation = false, outsideSequence = false, bestEffortStop = false;
+        bool automaticMarker = false;
         MotorControlCAN::CANOPEN::SdoDrainPremises premises;
         uint32_t generation = 0;
         uint64_t queueDeadlineUs = 0;
@@ -426,9 +558,28 @@ class CanBusOwner {
     } slots_[TOTAL_REQUESTS];
     struct ExternalTx {
         bool pending = false, blocked = false, retirementTried = false, rejected = false;
+        bool expired = false; // Reported once past the TX lifetime; still possibly sent.
         uint32_t epoch = 0;
+        uint64_t handoffUs = 0;
         TransportTxId id;
     } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS], nmtExternal_, syncExternal_;
+    // Per channel: the binding's reuse setting and the state of its one pending resync step.
+    struct Resync {
+        SdoReuse reuse;
+        bool pending = false;    // A timeout (or a re-acceptance) awaits the policy's step.
+        bool mismatch = false;   // A marker value differed; invalidate instead of reopening.
+        bool refusedSeen = false; // Last reported reuse refusal, to count each refusal once.
+        bool stopped = false;    // A best-effort stop on the node: reopening is explicit intent only.
+        bool possible = false;   // Possible TX when a controller event struck; re-armed when retired.
+        bool settling = false;   // A marker succeeded; the reopening has not happened yet.
+        uint32_t sessions = 0;
+        uint32_t queueTimeoutUs = 0, responseTimeoutUs = 0; // Last request's budgets on the route.
+    } resync_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
+    uint64_t txLifetimeUs_ = DEFAULT_TX_LIFETIME_US;
+    bool noListener_ = false;
+    uint64_t noListenerSinceUs_ = 0; // Processing time NO_LISTENER began.
+    bool retiredThisTurn_ = false; // A recovery retired in this service turn: no resync step yet.
+    RecoveryCauses causes_; // Reported since the current or last recovery began.
     SyncTerminal sync_;
     SyncObservation syncObservation_;
     bool syncOccupied_ = false, syncTerminal_ = false, syncArmed_ = false, syncConflict_ = false;
@@ -466,7 +617,22 @@ class CanBusOwner {
     bool markerCurrent(const Slot& slot) const noexcept;
     BusAdmission placeOutside(uint8_t channel, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                               uint64_t nowUs, RequestId& output) noexcept;
-    void reopenSettledRoutes() noexcept;
+    BusAdmission admitMarker(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                             const MotorControlCAN::CANOPEN::SdoDrainPremises& premises,
+                             uint64_t nowUs, RequestId& output) noexcept;
+    void reopenSettledRoutes(uint64_t nowUs) noexcept;
+    bool markActive(unsigned channel) const noexcept;
+    bool stopWaits(const Binding& binding) const noexcept;
+    bool cleanupStaged(uint8_t channel) const noexcept;
+    void armResync(unsigned channel) noexcept;
+    void notePossible() noexcept;
+    void resyncRoutes(uint64_t nowUs) noexcept;
+    void markerTerminal(unsigned slot, uint64_t nowUs) noexcept;
+    void noteReuse() noexcept;
+    void expireHandoffs(uint64_t nowUs) noexcept;
+    void listener(bool absent, uint64_t nowUs) noexcept;
+    void resyncTrace(unsigned channel, ResyncStep step, uint64_t nowUs) noexcept;
+    void observePresence(const ReceivedFrame& frame, bool accepted, uint64_t nowUs) noexcept;
     bool valid(SequenceId id) const noexcept;
     bool valid(RequestId id) const noexcept;
     int channel(const Binding& binding) const noexcept;

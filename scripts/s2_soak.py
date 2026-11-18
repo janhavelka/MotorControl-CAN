@@ -54,7 +54,8 @@ PARSE_NOTES = 50  # Logged in transitions.txt; the rest are only counted.
 REPLAY_LIMIT_BYTES = 64 << 20  # Above this the closing replay is left for a later offline run.
 TRANSITION_KINDS = {"SOAK_BEGIN", "SOAK_TR", "SOAK_ANOM", "SOAK_OP", "SOAK_EMCY", "SOAK_BOOT",
                     "SOAK_NODE_STOP", "SOAK_TEND", "SOAK_END", "REFUSED", "SOAK_STOPPING", "SOAK_STOP_REFUSED"}
-SUMMARY_KINDS = {"SOAK_SUM", "SOAK_GAP", "SOAK_CON", "SOAK_NODE", "SOAK_HIST", "SOAK_OUT", "SOAK_ABORT"}
+SUMMARY_KINDS = {"SOAK_SUM", "SOAK_GAP", "SOAK_CON", "SOAK_NODE", "SOAK_HIST", "SOAK_OUT", "SOAK_LINK",
+                 "SOAK_ABORT", "SOAK_ABSENT"}
 
 
 class SoakError(RuntimeError):
@@ -121,9 +122,23 @@ def check_identity(port, serial_number, ports):
     return {"port": item.device, "serial": item.serial_number, "vid": item.vid, "pid": item.pid}
 
 
-def soak_line(trial, duration_s, interval_ms, summary_s, reads):
-    """The one multi-byte console request, parsed by parseSoakCommand in the firmware."""
-    return ("S%d,%d,%d,%d,%d\n" % (trial, duration_s, interval_ms, summary_s, reads)).encode("ascii")
+def soak_line(trial, duration_s, interval_ms, summary_s, reads, repair=None):
+    """The one multi-byte console request, parsed by parseSoakCommand in the firmware.
+
+    repair, when given, is prompt 55's (response_us, nodes, marker_ms) tail: each service's response
+    budget (0 the firmware default), the node mask (bit0 node 1, bit1 node 2, bit2 the absent node 3 on
+    the image's third SDO channel) and the marker response budget (0 none): the owner's marker budget on
+    the planned nodes and the soak's one explicit marker after the owner's own resync step ended without
+    reopening."""
+    tail = ",%d,%d,%d" % repair if repair is not None else ""
+    return ("S%d,%d,%d,%d,%d%s\n" % (trial, duration_s, interval_ms, summary_s, reads, tail)).encode("ascii")
+
+
+def repair_tail(args):
+    """The S line's prompt 55 tail from the arguments, or None for the line older images parse."""
+    if args.response_us is None and args.nodes is None and args.marker_ms is None:
+        return None
+    return (args.response_us or 0, args.nodes if args.nodes is not None else 3, args.marker_ms or 0)
 
 
 def repository_state():
@@ -385,9 +400,10 @@ def start_soak(trial, args):
     duration = min(int(run.remaining_s()), MAX_DURATION_S)
     if duration < 1:
         return "no_time_left"
-    request = soak_line(trial.identity, duration, args.interval_ms, args.summary_s, READS[args.reads])
+    request = soak_line(trial.identity, duration, args.interval_ms, args.summary_s, READS[args.reads],
+                        repair_tail(args))
     trial.meta.update(tx_hex=request.hex(), duration_s=duration, interval_ms=args.interval_ms,
-                      summary_s=args.summary_s, reads=args.reads)
+                      summary_s=args.summary_s, reads=args.reads, repair=repair_tail(args))
     trial.write_meta()
     trial.send(request)
     answer = trial.wait({"SOAK_BEGIN", "REFUSED"}, BEGIN_TIMEOUT_S)
@@ -566,8 +582,13 @@ def dry_run(args, directory, end_wall, remaining):
     print("  require USB %s %04X:%04X uniquely on %s" % (args.serial, FIXTURE["vid"], FIXTURE["pid"], args.port))
     print("  end %s, %d s from now, at most %d trials" % (end_wall.isoformat(), remaining, args.max_trials))
     print("  send p, then c if the controller is not yet started, then one request:")
-    print("    %r (trial,duration_s,interval_ms,summary_s,reads)" % soak_line(0, int(remaining), args.interval_ms,
-                                                                               args.summary_s, READS[args.reads]))
+    print("    %r (trial,duration_s,interval_ms,summary_s,reads[,response_us,nodes,marker_ms])" % soak_line(
+        0, int(remaining), args.interval_ms, args.summary_s, READS[args.reads], repair_tail(args)))
+    if repair_tail(args) is not None:
+        print("  prompt 55 repair: response %d us (0 default), nodes mask %d, marker budget %d ms (0 none); "
+              "each summary's SOAK_LINK names the reuse policy (reuse=) and counts timeouts, "
+              "aborts, markers, reopenings and failures; mask bit 4 adds SOAK_ABSENT for node 3" %
+              repair_tail(args))
     print("  reads %s, each node in turn: %s" % (args.reads, json.dumps(OBJECTS)))
     print("  write %s" % directory)
 
@@ -590,7 +611,22 @@ def arguments(argv):
     parser.add_argument("--reenumerate-s", type=float, default=120.0, help="Wait for the port to come back")
     parser.add_argument("--output", type=Path, help="New run directory; default docs/bench/<UTC>-s2-soak")
     parser.add_argument("--dry-run", action="store_true", help="Print the plan; touches nothing")
+    # Prompt 55 (images whose SOAK_BEGIN has reuse=): a short response budget and the repair it causes.
+    parser.add_argument("--response-us", type=int,
+                        help="Each service's response budget, 100..250000 us; below the drive's reply time "
+                             "every read's first upload times out")
+    parser.add_argument("--nodes", type=int, choices=(1, 2, 3, 5, 6, 7),
+                        help="Node mask: 1 node 1, 2 node 2, 3 both; plus 4 the absent node 3, probed once a "
+                             "second on the image's third SDO channel")
+    parser.add_argument("--marker-ms", type=int,
+                        help="Marker response budget, 1..1000 ms: the owner's marker budget on the planned nodes "
+                             "for the soak, and one explicit marker read when the owner's own resync step ended "
+                             "without reopening; 0 or absent none")
     args = parser.parse_args(argv)
+    if args.response_us is not None and not 100 <= args.response_us <= 250000:
+        parser.error("--response-us must be 100..250000")
+    if args.marker_ms is not None and not 0 <= args.marker_ms <= 1000:
+        parser.error("--marker-ms must be 0..1000")
     if args.duration_s is not None and not 1 <= args.duration_s <= MAX_DURATION_S:
         parser.error("--duration-s must be 1..%d" % MAX_DURATION_S)
     if not 20 <= args.interval_ms <= 60000:

@@ -335,6 +335,16 @@ struct ActionContext {
     ActionKind actionKind =
         ActionKind::STOP;                   ///< Explicit operation; kind remains the stop selector.
     StopKind kind = StopKind::HALT;         ///< Explicit native selection.
+    /** Set by successful preparation: MOTION_LIKE for prepareEnable; NOT_REPEATABLE for every
+     * stop (prepareStop, prepareEscalation, prepareVelocityStop, prepareHaltedVelocityQuickStop),
+     * for prepareClearAlarm (2301 or 6040 bit 7) and for prepareSetDevicePosition (2302), whose
+     * value-1 writes are edges with undocumented repeat behavior. A new stop is a new operation
+     * with its own identity, never a replay: QUICK_STOP may be prepared again while its admission
+     * rules hold and sends only 000B, and prepareStop refuses HALT after an acknowledged 010F. The
+     * library cannot see an unconfirmed earlier stop: the application withdraws its predecessor
+     * evidence when a stop may have left (AxisSession does), since a HALT prepared from an older
+     * 000F after an unconfirmed 010F would send 010F again. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     ActionOptions options;                  ///< Immutable caller budgets.
     ActionState state = ActionState::EMPTY; ///< Overall phase, distinct from drive state.
     ActionPhase phase = ActionPhase::COMMAND; ///< Current concrete work phase.
@@ -437,6 +447,9 @@ struct BestEffortStop {
     uint64_t startedUs = 0;        ///< Caller preparation time, zero valid.
     uint64_t servicedUs = 0;       ///< Last local mutation time.
     uint64_t deadlineUs = 0;       ///< Immutable exclusive cutoff, fixed at preparation.
+    /** NOT_REPEATABLE, also after prepareBestEffortStop: another best-effort stop is a new
+     * operation with its own identity, and it too yields only 000B. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     bool admitted = false;         ///< The owner holds this work; only its terminal can settle it.
     bool effectsPossible = false;  ///< The frame may have reached the drive.
     CANOPEN::SdoCompletion commandEvidence; ///< Owner terminal, when commandEvidencePresent.

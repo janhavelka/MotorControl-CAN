@@ -96,6 +96,10 @@ M::Frame replyTo(const M::Frame& sent, const FakeDrive& drive) {
     uint32_t raw = 0;
     unsigned size = 2;
     switch (index) {
+    case 0x1000: // The owner's resync marker (prompt 55): U32, the value both specimens reported.
+        raw = 0x00040192;
+        size = 4;
+        break;
     case 0x1001:
         raw = 1;
         size = 1;
@@ -328,6 +332,22 @@ void finish(Rig& r, const E::AxisSession& s) {
         r.step();
     CHECK(!s.stopActive());
 }
+// Prompt 55, default reuse policy: at frame `at` the timed-out request's one cleanup abort 0x05040000;
+// at `markerAt` (default at + 1: a stop goes first when one waits) the owner's one marker read (1000:00, or
+// 1018:01 when the request was 1000:00) and then, from a silent drive, the marker's own abort. Returns the
+// frame count that sequence ends at.
+unsigned silentRepair(const Rig& r, unsigned at, uint16_t index, uint8_t sub = 0, unsigned markerAt = 0) {
+    if (!markerAt)
+        markerAt = at + 1;
+    const bool alternate = index == 0x1000 && sub == 0;
+    const uint8_t abort[8] = {0x80, uint8_t(index), uint8_t(index >> 8), sub, 0x00, 0x00, 0x04, 0x05};
+    const uint8_t marker[8] = {0x40, uint8_t(alternate ? 0x18 : 0x00), 0x10, uint8_t(alternate ? 1 : 0), 0, 0, 0, 0};
+    const uint8_t markerAbort[8] = {0x80, marker[1], 0x10, marker[3], 0x00, 0x00, 0x04, 0x05};
+    CHECK(r.wire.sentCount >= markerAt + 2);
+    CHECK(!std::memcmp(r.wire.sent[at].data, abort, 8) && !std::memcmp(r.wire.sent[markerAt].data, marker, 8) &&
+          !std::memcmp(r.wire.sent[markerAt + 1].data, markerAbort, 8));
+    return markerAt + 2;
+}
 void quiet(Rig& r, unsigned from = UINT32_MAX) {
     const unsigned sent = from == UINT32_MAX ? r.wire.sentCount : from;
     r.steps(4);
@@ -427,7 +447,11 @@ void lostTriggerThenBestEffort() {
             CHECK(r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now), r.now) ==
                   E::StopPath::BEST_EFFORT);
             r.step();
-            CHECK(r.wire.sentCount == triggerFrame + 2 && isWord(r, triggerFrame + 1, WORD_QUICK));
+            // Prompt 55: the trigger's response timeout sent its one cleanup abort 0x05040000 before the
+            // stop was asked for; the 000B follows it. The trigger itself is never repeated.
+            const uint8_t abort[8] = {0x80, 0x40, 0x60, 0x00, 0x00, 0x00, 0x04, 0x05};
+            CHECK(r.wire.sentCount == triggerFrame + 3 && !std::memcmp(r.wire.sent[triggerFrame + 1].data, abort, 8) &&
+                  isWord(r, triggerFrame + 2, WORD_QUICK));
             M::Frame late = frame(0x581, 8);
             const uint8_t identical[] = {0x60, 0x40, 0x60, 0, 0, 0, 0, 0};
             std::memcpy(late.data, identical, sizeof identical);
@@ -436,7 +460,7 @@ void lostTriggerThenBestEffort() {
                 r.step();
                 CHECK(r.a.stopPath() == E::StopPath::BEST_EFFORT); // No reply settles or withdraws it.
                 CHECK(r.a.bestEffort().state == M::ActionState::ACTIVE);
-                r.wire.report(triggerFrame + 1);
+                r.wire.report(triggerFrame + 2);
                 r.step();
             } else {
                 r.step();
@@ -461,6 +485,16 @@ void lostTriggerThenBestEffort() {
             // The original outcome keeps its own identity and stays uncertain.
             CHECK(trigger.outcome == C::SdoOutcome::TIMEOUT && trigger.transfer.operation == triggerOperation &&
                   trigger.transfer.data[0] == 0x1f && trigger.effectUncertain && !trigger.protocolAcknowledged);
+            // Stops keep priority over repair. The best-effort stop on the node ended the trigger's
+            // pending resync: no policy reopens the route by itself after it, so no marker follows and
+            // reopening is explicit intent only. One trigger in all, and nothing replays.
+            r.steps(400);
+            CHECK(r.wire.sentCount == triggerFrame + 3);
+            unsigned triggers = 0;
+            for (unsigned i = 0; i < r.wire.sentCount; ++i)
+                triggers += isWord(r, i, WORD_TRIGGER);
+            CHECK(triggers == 1 && !r.owner.stats().markers);
+            CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
             quiet(r);
         }
 }
@@ -495,17 +529,25 @@ void lostPollWhileStopWaits() {
                 CHECK(poll.outcome == C::SdoOutcome::TIMEOUT && poll.transfer.operation == pollOperation);
                 if (!allowed) {
                     CHECK(r.a.stopPath() == E::StopPath::FINISHED);
-                    quiet(r, from);
+                    // The poll's cleanup abort, then the owner's marker, which this silent drive lets
+                    // time out too: the route stays unresolved and no stop word was sent.
+                    r.steps(400);
+                    CHECK(r.wire.sentCount == silentRepair(r, from, 0x2100) && r.services.unresolved(0));
+                    quiet(r);
                     continue;
                 }
                 CHECK(r.a.stopPath() == E::StopPath::BEST_EFFORT);
                 CHECK(r.a.bestEffort().deadlineUs == policy.bestEffortDeadlineUs);
                 r.step();
-                CHECK(r.wire.sentCount == from + 1 && isWord(r, from, WORD_QUICK)); // Never 010F here.
+                // The poll's cleanup abort was staged first; then only 000B, never 010F here.
+                CHECK(r.wire.sentCount == from + 2 && isWord(r, from + 1, WORD_QUICK));
                 finish(r, r.a);
                 checkEnded(r.a.bestEffort(), M::ActionOutcome::STOP_SENT_UNCONFIRMED,
                            M::ActionExecution::UNKNOWN);
-                quiet(r, from + 1);
+                // The best-effort stop ended the poll's pending resync: no marker follows by itself.
+                r.steps(400);
+                CHECK(r.wire.sentCount == from + 2 && !r.owner.stats().markers && r.services.unresolved(0));
+                quiet(r);
             }
 }
 
@@ -592,7 +634,12 @@ void sequencedOverallDeadlineEquality() {
                   stop.execution == M::ActionExecution::UNKNOWN && stop.uncertain && stop.effectsPossible);
             CHECK(r.a.stopPath() == E::StopPath::FINISHED && !r.a.latestControl()); // No branch after possible TX.
             r.turn(policy.deadlineUs + 100);
-            CHECK(r.wire.sentCount == from + 1);
+            // The HALT word is never sent again. At the overall deadline no cleanup abort had budget; once
+            // the word's own frame is locally retired (its report, or else the transport's retirement proof),
+            // the owner reads its one marker 1000:00 under the default reuse policy (prompt 55).
+            const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+            CHECK(r.wire.sentCount == from + 2 && writes6040(r, from) == 1 &&
+                  !std::memcmp(r.wire.sent[from + 1].data, marker, 8) && r.owner.stats().markers == 1);
         }
 }
 void bestEffortDeadlineEquality() {
@@ -865,7 +912,11 @@ void possibleWriteIsNeverResent() {
         O::RecoveryId id;
         recoverOnce(r, id);
         r.steps(4);
-        CHECK(r.wire.sentCount == from + 1);
+        // The HALT is never resent. The retired recovery gives the route it left unresolved its one
+        // resync step (prompt 55's default policy): the owner's marker read of 1000:00, not a 6040 write.
+        const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+        CHECK(r.wire.sentCount == from + 2 && writes6040(r, from) == 1 &&
+              !std::memcmp(r.wire.sent[from + 1].data, marker, 8) && r.owner.stats().markers == 1);
     }
     // The best-effort frame on the wire, then bus-off, then recovery.
     {
@@ -1339,13 +1390,22 @@ void escalationFromInFlightHalt() {
         CHECK(!r.a.latestControl()); // A superseded terminal is older intent, even a success.
         const Saved<L::ActionContext> old(halt);
         r.step();
-        CHECK(r.wire.sentCount == from + 2 && isWord(r, from + 1, WORD_QUICK));
+        // A lost 010F reply first sends its one cleanup abort 0x05040000 (prompt 55); then only 000B.
+        const unsigned quick = from + 1 + lost;
+        const uint8_t abort[8] = {0x80, 0x40, 0x60, 0x00, 0x00, 0x00, 0x04, 0x05};
+        CHECK(r.wire.sentCount == quick + 1 && isWord(r, quick, WORD_QUICK));
+        CHECK(!lost || !std::memcmp(r.wire.sent[from + 1].data, abort, 8));
         finish(r, r.a);
         const L::BestEffortStop& stop = r.a.bestEffort();
         checkEnded(stop, M::ActionOutcome::STOP_SENT_UNCONFIRMED, M::ActionExecution::UNKNOWN);
         CHECK(stop.commandEvidence.transfer.data[0] == 0x0b && stop.operation != halt.operation);
         old.unchanged(halt);
         CHECK(writes6040(r, from) == 2);
+        // A best-effort stop never arms a resync and ends a pending one: with or without the lost
+        // reply, no marker follows by itself, and reopening is explicit intent only.
+        r.steps(400);
+        CHECK(r.wire.sentCount == quick + 1 && !r.owner.stats().markers);
+        CHECK(r.services.unresolved(0) && writes6040(r, from) == 2);
     }
 }
 void escalationFromObservation() {
@@ -1825,7 +1885,11 @@ void zeroBestEffortRefusalKeepsQueuedWork() {
     const unsigned sent = r.wire.sentCount;
     CHECK(r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now, 5000, 0), r.now) == E::StopPath::NONE);
     CHECK(r.a.stopPath() == E::StopPath::NONE && r.a.bestEffort().state == M::ActionState::EMPTY);
-    quiet(r, sent);
+    // The refused stop sends nothing. What follows the poll's cleanup abort (already sent) is only the
+    // owner's own marker under the default reuse policy (prompt 55), unanswered here, and its abort.
+    r.steps(400);
+    CHECK(r.wire.sentCount == silentRepair(r, sent - 1, 0x2100) && !writes6040(r, 0));
+    quiet(r);
 }
 
 // 10. ProbeApp.
@@ -2005,8 +2069,13 @@ void noReservationStillSendsBestEffort() {
             r.step();
             session->service(r.now);
         }
+        // The poll's cleanup abort went first (prompt 55); then only 000B. The stop ended the poll's
+        // pending resync, so no marker follows by itself and the route stays unresolved.
         CHECK(r.wire.sentCount == from + 1 && isWord(r, from, WORD_QUICK));
+        CHECK(r.wire.sent[from - 1].data[0] == 0x80 && frameIndex(r.wire.sent[from - 1]) == 0x2100);
         checkEnded(session->bestEffort(), M::ActionOutcome::STOP_SENT_UNCONFIRMED, M::ActionExecution::UNKNOWN);
+        r.steps(400);
+        CHECK(r.wire.sentCount == from + 1 && !r.owner.stats().markers && writes6040(r, 0) == 1);
         CHECK(r.services.unresolved(0) && session->close());
     }
 }
@@ -2506,7 +2575,15 @@ void alarmErrorsFailureKeepsMonitorObservation() {
             CHECK(run.action.observationKnown && run.action.observations == 1);
             retained.unchanged(run.action.monitorObservation);
             CHECK(uploads(r, run.from, object) == 1); // Never tried again.
-            CHECK(r.wire.sentCount == before + (object == 0x603f ? 2u : 1u));
+            const unsigned request = before + (object == 0x603f ? 1u : 0u);
+            if (lost) {
+                // The lost read's cleanup abort, then the owner's own marker (prompt 55), both unanswered.
+                r.steps(400);
+                CHECK(r.wire.sentCount == silentRepair(r, request + 1, object) &&
+                      uploads(r, run.from, object) == 1);
+            } else {
+                CHECK(r.wire.sentCount == request + 1);
+            }
             quiet(r);
         }
 }
@@ -2776,13 +2853,20 @@ void supersededHaltSettlesAfterFinished() {
             CHECK(halt.outcome == M::ActionOutcome::CANCELLED); // The supersession, noted first.
             CHECK(halt.commandHistory[0].outcome == (lost ? C::SdoOutcome::TIMEOUT : C::SdoOutcome::SUCCESS));
             CHECK(!r.a.latestControl()); // Never from a superseded terminal, even a success.
+            // A lost 010F reply sends its one cleanup abort 0x05040000 at its timeout (prompt 55).
+            const uint8_t abort[8] = {0x80, 0x40, 0x60, 0x00, 0x00, 0x00, 0x04, 0x05};
+            CHECK(!lost || (r.wire.sentCount == sent + 1 && !std::memcmp(r.wire.sent[sent].data, abort, 8)));
+            const unsigned aborted = lost ? 1u : 0u;
             if (second) {
                 r.step();
-                CHECK(r.wire.sentCount == sent + 1 && isWord(r, sent, WORD_QUICK));
+                CHECK(r.wire.sentCount == sent + aborted + 1 && isWord(r, sent + aborted, WORD_QUICK));
                 finish(r, r.a);
                 checkEnded(r.a.bestEffort(), M::ActionOutcome::STOP_SENT_UNCONFIRMED, M::ActionExecution::UNKNOWN);
                 CHECK(r.a.bestEffort().commandEvidence.transfer.data[0] == 0x0b);
                 CHECK(r.a.close());
+                // The best-effort stop ended the lost word's pending resync: no marker follows by itself.
+                r.steps(3000);
+                CHECK(r.wire.sentCount == sent + aborted + 1 && !r.owner.stats().markers);
                 continue;
             }
             // close then succeeds, and a new stop sends.
@@ -2876,7 +2960,11 @@ void invalidOptionsRefuseAtRequest() {
                 r.step();
                 CHECK(isWord(r, sent, WORD_HALT) && writes6040(r, sent) == 1); // The HALT carries on alone.
             } else {
-                quiet(r, sent);
+                // The refused stop sends nothing; only the poll's repair (prompt 55's default policy)
+                // follows its cleanup abort: the owner's marker, unanswered, and the marker's abort.
+                r.steps(400);
+                CHECK(r.wire.sentCount == silentRepair(r, sent - 1, 0x2100) && !writes6040(r, sent));
+                quiet(r);
             }
         }
 }
@@ -3196,7 +3284,11 @@ void oneRecoveryFromTheRequest() {
         r.step();
         CHECK(r.a.stopPath() == E::StopPath::BEST_EFFORT);
         r.step();
-        CHECK(r.wire.sentCount == poll + 2 && isWord(r, poll + 1, WORD_QUICK));
+        // The poll's cleanup abort 0x05040000 (prompt 55), staged at its timeout, waited for the poll's
+        // own report like everything else on the channel; the 000B follows it.
+        const uint8_t abort[8] = {0x80, 0x00, 0x21, 0x00, 0x00, 0x00, 0x04, 0x05};
+        CHECK(r.wire.sentCount == poll + 3 && !std::memcmp(r.wire.sent[poll + 1].data, abort, 8) &&
+              isWord(r, poll + 2, WORD_QUICK));
     }
 }
 // Item 9: operation identities refuse early enough for every stop a request can need.
@@ -3469,18 +3561,29 @@ bool isClearWrite(const Rig& r, unsigned i, uint16_t index, uint16_t value, unsi
 // From `from` on, every frame is to `node` and is either the next of `count` writes of `index`, in order
 // and each once, an upload a clear or its read may send, or one of `stops` 000B frames. Anything else
 // would be an enable, controlword, mode, target, save, restore, NMT command or a resent write.
-void onlyClearTraffic(const Rig& r, unsigned from, uint16_t index, const uint16_t* writes, unsigned count,
-                      unsigned stops = 0, unsigned node = 1) {
+// Prompt 55 adds the two repair frames, never a write: a response timeout's one cleanup abort
+// 0x05040000 naming the clear's object or an upload above, and, only after such an abort, the owner's
+// marker read of 1000:00 under the default reuse policy. Returns the number of cleanup aborts.
+unsigned onlyClearTraffic(const Rig& r, unsigned from, uint16_t index, const uint16_t* writes, unsigned count,
+                          unsigned stops = 0, unsigned node = 1) {
     const uint16_t permitted[] = {0x1001, 0x1003, 0x2100, 0x2101, 0x2102, 0x603f, 0x6041, 0x6061, 0x6064, 0x606c};
-    unsigned written = 0, stopped = 0;
+    unsigned written = 0, stopped = 0, aborts = 0, markers = 0;
     for (unsigned i = from; i < r.wire.sentCount; ++i) {
         const M::Frame& f = r.wire.sent[i];
         CHECK(f.id == 0x600 + node && f.payloadLength == 8);
-        if (f.data[0] == 0x40) {
+        if (f.data[0] == 0x40 && frameIndex(f) == 0x1000 && f.data[3] == 0) {
+            CHECK(++markers <= aborts);
+        } else if (f.data[0] == 0x40) {
             bool known = false;
             for (uint16_t object : permitted)
                 known |= frameIndex(f) == object;
             CHECK(known);
+        } else if (f.data[0] == 0x80) {
+            bool known = frameIndex(f) == index || frameIndex(f) == 0x1000;
+            for (uint16_t object : permitted)
+                known |= frameIndex(f) == object;
+            CHECK(known && f.data[4] == 0 && f.data[5] == 0 && f.data[6] == 4 && f.data[7] == 5);
+            ++aborts;
         } else if (isWord(r, i, WORD_QUICK, node)) {
             ++stopped;
         } else {
@@ -3489,6 +3592,7 @@ void onlyClearTraffic(const Rig& r, unsigned from, uint16_t index, const uint16_
         }
     }
     CHECK(written == count && stopped == stops);
+    return aborts;
 }
 // The target of the session's current binding, which a counter clear's synchronization advances.
 L::ReadTarget sessionTarget(const Rig& r, const E::AxisSession& s, unsigned node = 1) {

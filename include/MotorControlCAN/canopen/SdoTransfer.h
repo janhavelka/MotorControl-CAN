@@ -15,6 +15,16 @@ enum class SdoReadEffect : uint8_t {
     REVIEWED_NON_CHANGING, ///< Applicable source review establishes no drive-changing effect.
     ACCEPTED_UNQUALIFIED ///< Owner accepted the risk (DEC-1). Effects stay unknown and possible.
 };
+/** Whether an upload with this effect policy may belong to a RetryClass::REPEATABLE_READ operation:
+ * REVIEWED_NON_CHANGING, or ACCEPTED_UNQUALIFIED under DEC-1. Pure; the effect itself is unchanged,
+ * and an accepted effect stays unknown and possible.
+ * @param[in] effect Upload policy; a value outside the enumeration is not repeatable.
+ * @return True for those two values only.
+ */
+constexpr bool repeatableReadEffect(SdoReadEffect effect) noexcept {
+    return effect == SdoReadEffect::REVIEWED_NON_CHANGING ||
+           effect == SdoReadEffect::ACCEPTED_UNQUALIFIED;
+}
 /** Upload representation policy; no policy establishes an object's native type. */
 enum class SdoUploadSize : uint8_t {
     EXACT, ///< size is the exact expected count, including reviewed unsized scalar prefixes.
@@ -79,6 +89,12 @@ struct SdoCompletion {
     Frame reply; ///< Last received matching frame, copied before callback; inspect only if replyValid.
     bool replyValid = false; ///< Raw response envelope exists; not a claim that it was well formed.
     bool clientAbortQueued = false; ///< Cleanup was staged at publication; never claims it was sent.
+    /** The route had been reopened, after an unclear end, on stated rather than established
+     * premises (sole client, server answering in order) in the server session current at
+     * admission. Any reply's correlation therefore rests on that accepted risk: a delayed reply
+     * naming the same object as this request could have completed it. Set by the service
+     * adapter; no detection is claimed either way, and false claims no established ordering. */
+    bool acceptedCorrelation = false;
 };
 
 /** How a route observation was handled; never establishes a wire request identity. */

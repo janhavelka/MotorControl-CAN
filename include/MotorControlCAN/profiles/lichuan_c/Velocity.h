@@ -231,6 +231,9 @@ struct VelocityContext {
     PreparedVelocityTarget rate;            ///< Immutable initial preparation and quantization evidence.
     VelocityChange change;                  ///< At most one separately retained mid-run change.
     ActionState state = ActionState::EMPTY; ///< ACTIVE includes pending composed stop.
+    /** MOTION_LIKE once prepareVelocity succeeds; prepareVelocityChange keeps it. The run's own
+     * stop is a separate ActionContext classified NOT_REPEATABLE. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     VelocityPhase phase = VelocityPhase::PARAMETERS;             ///< Current direct phase.
     VelocityObservation observation = VelocityObservation::MODE; ///< Current/next cycle purpose.
     ActionOutcome outcome = ActionOutcome::NONE; ///< First failure or observed stop terminal.

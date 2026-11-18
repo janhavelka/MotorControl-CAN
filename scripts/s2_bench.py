@@ -173,7 +173,10 @@ COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "dump": b"d", "release": b"r", "network": b"n",
             "heartbeat1": b"h", "heartbeat2": b"j", "preop1": b"q", "preop2": b"w", "tpdo1": b"m",
             "motion-readiness1": b"v", "motion-readiness2": b"b", "soak-stop": b"X",
-            "trial-abort": b"A", "close-sessions": b"x"}
+            "trial-abort": b"A", "close-sessions": b"x",
+            # Prompt 55 (PONG pdo=8): the owner's cached link lines, which send nothing on CAN, and one
+            # explicit marker read on node 1 or 2 for a route that no owner resync step reopens.
+            "link": b"L", "marker1": b"y", "marker2": b"z"}
 # Single-byte commands whose reply line decides the exit status: (prefix, status) in order; no such line is 1.
 REPLIES = {"close-sessions": (("SESSIONS closed ", 0), ("SESSIONS refused ", 2))}
 # A trial's exit status after a velocity record that may have left its node turning (velocity_alert).
@@ -556,6 +559,10 @@ def trial_line(args, parser):
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 0, 2000), cycles,
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
         fields += _stop_fields(args, parser, cycles)
+        if args.trigger_response_us is not None:
+            # Prompt 55 (bench item e): the trigger word's own response budget, the line's optional last
+            # field. Below the drive's reply time it forces that one frame's timeout; nothing resends it.
+            fields.append(_within(parser, "trigger-response-us", args.trigger_response_us, 100, 250000))
     elif args.command == "rearm":
         if args.predecessor is None:
             parser.error("--predecessor is required for this route (%s)" % ", ".join(PREDECESSORS))
@@ -648,6 +655,8 @@ def trial_line(args, parser):
         parser.error("--move-base, --base-position and --observer belong to move")
     if args.command != "rearm" and args.predecessor is not None:
         parser.error("--predecessor belongs to rearm")
+    if args.command not in ("position", "relative") and args.trigger_response_us is not None:
+        parser.error("--trigger-response-us belongs to position and relative")
     if args.command != "settings-2202" and args.soft_limit_code is not None:
         parser.error("--soft-limit-code belongs to settings-2202")
     if args.command != "io-di3" and args.di3_change is not None:
@@ -691,12 +700,18 @@ def encode(command, fields):
     return (sign_line("T%s%s" % (TRIALS[command][0], ",".join(str(v) for v in fields))) + "\n").encode("ascii")
 
 
+def _stop_tail(command, fields):
+    """The planned-stop tail of a position, relative or move line: its last five fields, before position's
+    and relative's optional trigger response field (prompt 55) when the line has one."""
+    return fields[10:15] if command in ("position", "relative") else fields[-5:]
+
+
 def motion_weight(command, fields):
     """Motion admissions this line counts, as the firmware counts them: one, plus a planned stop, or the
     stop a velocity always asks for itself."""
     if not TRIALS[command][1]:
         return 0, 0
-    stop = 1 if command in ALWAYS_STOP_ROUTES or (command in STOP_ROUTES and fields[-5]) else 0
+    stop = 1 if command in ALWAYS_STOP_ROUTES or (command in STOP_ROUTES and _stop_tail(command, fields)[0]) else 0
     return 1 + stop, stop
 
 
@@ -762,7 +777,8 @@ def plan_bounds(command, fields):
     if command == "stop":
         deadline, best, interval = fields[4:7]
         return 5 + _stop_terminals(deadline, interval), max(deadline, best)
-    stop_kind, after, stop_deadline, stop_best, stop_interval = fields[-5:] if command in STOP_ROUTES else (0,) * 5
+    stop_kind, after, stop_deadline, stop_best, stop_interval = (_stop_tail(command, fields) if command in STOP_ROUTES
+                                                                 else (0,) * 5)
     stop_terminals = _stop_terminals(stop_deadline, stop_interval) if stop_kind else 0
     stop_span = max(stop_deadline, stop_best) if stop_kind else 0
     if command in ("position", "relative"):
@@ -910,7 +926,8 @@ def _send_problem(entry):
     fields = body[2:].split(",")
     if body[:2] != "T" + route or fields[:2] != [str(node), str(trial)]:
         return "line names another route, node or trial"
-    if route in STOP_LETTERS and (fields[-5] != "0") != bool(stop):
+    kind = fields[10] if route in ("P", "L") and len(fields) > 10 else fields[-5]
+    if route in STOP_LETTERS and (kind != "0") != bool(stop):
         return "line's stop kind does not match stop %d" % stop
     if route in ("m", "p", "v", "n"):
         count = {"m": 6, "p": 19, "v": 24, "n": 22}[route]
@@ -1682,6 +1699,9 @@ def arguments(argv):
     trial.add_argument("--status", type=lambda text: int(text, 0), help="Reviewed 6041, for example 0x8037")
     trial.add_argument("--kind", choices=("halt", "quick"))
     trial.add_argument("--stop-kind", choices=("none", "halt", "quick"))
+    trial.add_argument("--trigger-response-us", type=int,
+                       help="position/relative, prompt 55: the 001F/005F trigger's own response budget, "
+                            "100..250000 us; below the reply time it forces that one frame's timeout")
     trial.add_argument("--predecessor", choices=sorted(PREDECESSORS),
                        help="rearm: the acknowledged latest word it follows, of a finished record on that node")
     trial.add_argument("--soft-limit-code", choices=sorted(SOFT_LIMIT_CODES), help="settings-2202: the 2202 code")

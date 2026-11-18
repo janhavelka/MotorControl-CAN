@@ -968,6 +968,9 @@ void settledMarkerCannotOutliveContraryEvidence() {
         const C::SdoRequestId id = admit(client, lost); take(client, 0);
         CHECK(client.service(5)); terminal(client, id, C::SdoOutcome::TIMEOUT);
         CHECK(client.release(id));
+        // Prompt 55: the timeout's cleanup abort must leave and retire before any marker.
+        C::SdoTxId abortTx;
+        CHECK(take(client, 5, 0, &abortTx).data[0] == 0x80 && client.noteTxRetired(abortTx));
         C::SdoTransfer marker = work(); marker.index = 0x2000;
         marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
         marker.allowSegmentedUpload = false;

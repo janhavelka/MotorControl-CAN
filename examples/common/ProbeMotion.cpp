@@ -598,6 +598,7 @@ void ProbeMotion::snapshotNormal() noexcept {
     if (!retained() || terminal(normal_.state))
         return;
     if (const L::MoveContext* c = nativeMove()) {
+        normal_.retryClass = c->retryClass;
         normal_.state = c->state;
         normal_.outcome = c->outcome;
         normal_.status = c->status;
@@ -619,6 +620,7 @@ void ProbeMotion::snapshotNormal() noexcept {
         if (c->observationEvidencePresent)
             abortEvidence(normal_, c->observationEvidence);
     } else if (const L::VelocityContext* c = nativeVelocity()) {
+        normal_.retryClass = c->retryClass;
         normal_.state = c->state;
         normal_.outcome = c->outcome;
         normal_.status = c->status;
@@ -642,6 +644,7 @@ void ProbeMotion::snapshotNormal() noexcept {
         if (c->stopOperation)
             abortEvidence(normal_, c->stopEvidence);
     } else if (const L::HomeContext* c = nativeHome()) {
+        normal_.retryClass = c->retryClass;
         normal_.state = c->state;
         normal_.outcome = c->outcome;
         normal_.status = c->status;
@@ -659,6 +662,7 @@ void ProbeMotion::snapshotNormal() noexcept {
         if (c->observationEvidencePresent)
             abortEvidence(normal_, c->observationEvidence);
     } else if (const L::ActionContext* c = nativeAction()) {
+        normal_.retryClass = c->retryClass;
         actionResult(normal_, *c);
     } else {
         normal_.state = M::ActionState::FAILED;

@@ -192,8 +192,11 @@ struct Rig {
         acquireRead(driver.read, 400);
     }
     M::Status prepare() {
-        return L::prepareHome(home, live, target, initial, control, identity, inputs, driver,
-                              evidence, request, axis, 42, now, DEADLINE, options);
+        const M::Status s = L::prepareHome(home, live, target, initial, control, identity, inputs,
+                                           driver, evidence, request, axis, 42, now, DEADLINE,
+                                           options);
+        CHECK(!s || home.retryClass == M::RetryClass::MOTION_LIKE); // Homing is M.
+        return s;
     }
     void reject() {
         home.operation = 0xbeef;

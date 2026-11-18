@@ -249,8 +249,9 @@ SHARED_IDF_BUILDS = {
                              "extra": (), "forbidden": (SMOKE_SOURCE,),
                              "sdkconfig": dict(COMMON_SDKCONFIG, **dict(S2_FLASH, **OPTAK_S2_CONSOLE))},
 }
-# The special bench image's examples/s2_bench/sdkconfig.defaults, reviewed as for the shared S2 image.
-BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **S2_FLASH)
+# The special bench image's examples/s2_bench/sdkconfig.defaults, reviewed as for the shared S2 image,
+# with prompt 55's third SDO channel (the absent node 3); the library default stays 2.
+BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **dict(S2_FLASH, CONFIG_MOTORCONTROLCAN_SDO_CHANNELS="3"))
 STORAGE_PROJECT = "examples/storage_placement"
 STORAGE_IDF_BUILDS = {
     "storage-s2": {"target": "esp32s2", "psram": False},

@@ -173,3 +173,13 @@ Repository links describe current main and may be newer than an exported
 archive; select the archive's commit when comparing historical behavior.
 
 Prompt52 adds explicit positive velocity changes and absolute position replacements, with retained original/replacement identities and unchanged finite stop budgets. Defaults remain closed; [change evidence and current bench limits](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_52.md) distinguish experiment support from qualified drive behavior.
+
+Prompt 55 adds communication self-repair primitives to the optional owner and CANopenNode
+adapter. A response timeout sends one cleanup abort. A settable per-binding reuse policy, by
+default one marker read the owner sends itself, reopens a timed-out route without an MCU
+restart; its premises are accepted, not established (Q18). The primitives also add a TX
+lifetime with a NO_LISTENER state, `recover()` as the one restart entry point, per-node
+presence observations and a retry class on every prepared operation. Nothing retries,
+replays or restarts by itself. These are host-tested only; the bench trials are pending.
+The [owner guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/can_owner.md), the [services guide](docs/canopen_services.md) and the
+[CLI contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/cli_contract.md) give the contracts.

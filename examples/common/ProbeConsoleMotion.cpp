@@ -892,6 +892,15 @@ bool ProbeConsole::motionTerminal(Operation& op) noexcept {
             body.add(",\"execution_code\":%u,\"completion_code\":%u,\"native_operation\":%lu",
                      unsigned(result->execution), unsigned(result->completion),
                      static_cast<unsigned long>(result->nativeOperation));
+        // Prompt 55: the native context's retry class. A stop terminal carries its path instead, within
+        // the record capacity; every stop is NOT_REPEATABLE, and a new stop is a new operation.
+        if (matched && !stopped)
+            body.add(",\"retry_class\":\"%s\"",
+                     // Prompt 55's letters, as every console terminal prints them.
+                     result->retryClass == M::RetryClass::MOTION_LIKE          ? "M"
+                     : result->retryClass == M::RetryClass::REPEATABLE_READ    ? "R"
+                     : result->retryClass == M::RetryClass::IDEMPOTENT_SETTING ? "W"
+                                                                                : "N");
         body.add(",\"axis_id\":%lu", static_cast<unsigned long>(op.axisId));
         if (stopped)
             body.add(",\"stop_path_code\":%u,\"superseded\":%s", unsigned(stopped->path),

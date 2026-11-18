@@ -64,7 +64,8 @@ struct ConsoleRig : Rig {
     bool answer(const M::Frame& sent, M::Frame& reply) {
         const uint16_t index = indexOf(sent);
         const unsigned sub = sent.data[3];
-        if (!home)
+        // A client abort (prompt 55's timeout cleanup) is no download: the server counts it, never answers.
+        if (!home || sent.data[0] == 0x80)
             return drive.respond(sent, reply);
         const bool download = sent.data[0] != 0x40;
         bool custom = false;
@@ -334,10 +335,15 @@ void homing() {
         CHECK(!r.writes(0x6040, 15) && !r.writes(0x2300, 0, false) && !r.writes(0x6060, 0, false));
         CHECK(r.axis.binding.configurationGeneration == 8 &&
               r.live.channel.binding.configurationGeneration == 8);
-        if (lost)
+        if (lost) {
             CHECK(result.state == M::ActionState::FAILED && result.uncertain &&
                   result.completion == M::ActionCompletion::NOT_OBSERVED);
-        else {
+            // Prompt 55: the lost trigger's one cleanup abort 0x05040000, naming 6040:00; the trigger
+            // itself is never repeated (one 0x001F above).
+            CHECK(r.drive.clientAborts == 1 && r.drive.lastClientAbort.data[1] == 0x40 &&
+                  r.drive.lastClientAbort.data[2] == 0x60 && r.drive.lastClientAbort.data[3] == 0 &&
+                  r.drive.lastClientAbort.data[6] == 4 && r.drive.lastClientAbort.data[7] == 5);
+        } else {
             CHECK(result.state == M::ActionState::SUCCEEDED && !result.uncertain &&
                   result.completion == M::ActionCompletion::OBSERVED);
             CHECK(r.session.homeAction().requiredInputObserved &&

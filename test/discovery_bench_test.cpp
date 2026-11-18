@@ -54,14 +54,32 @@ struct Wire : OwnerRig::WireBase {
     unsigned scriptLength[3] = {}, scriptAt[3] = {};
     uint16_t model[3] = {0, 0x0400, 0x0400};
     unsigned uploads = 0;
+    // Prompt 55: a response timeout's cleanup aborts, and the owner's own resync marker reads (the
+    // one upload a timed-out route admits after its abort), per node; neither is a scan upload.
+    unsigned aborts[3] = {}, markers[3] = {};
+    bool aborted[3] = {};
     static bool transmit(void* context, const M::Frame& f, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
-        // Any download, NMT, drain marker or other identifier fails the test.
+        // Any download, NMT, application drain marker or other identifier fails the test.
         CHECK(f.id == 0x601 || f.id == 0x602);
-        CHECK(f.data[0] == 0x40 && f.payloadLength == 8);
-        ++w.uploads;
-        CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
         const unsigned node = f.id - 0x600;
+        if (f.data[0] == 0x80) {
+            // Only the timeout abort 0x05040000, never another code.
+            CHECK(f.payloadLength == 8 && f.data[4] == 0 && f.data[5] == 0 && f.data[6] == 4 &&
+                  f.data[7] == 5);
+            ++w.aborts[node];
+            w.aborted[node] = true;
+            CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
+            return true;
+        }
+        CHECK(f.data[0] == 0x40 && f.payloadLength == 8);
+        if (w.aborted[node]) {
+            w.aborted[node] = false;
+            ++w.markers[node];
+        } else {
+            ++w.uploads;
+        }
+        CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
         if (w.silent[node])
             return true;
         const uint16_t index = uint16_t(f.data[1] | f.data[2] << 8);
@@ -337,6 +355,14 @@ void silentNodeKeepsUncertainty() {
     CHECK(rig.bench.begin(rig.request(E::DiscoveryMode::PROBE, 1, 1), rig.now) == nullptr);
     rig.finish();
     CHECK(rig.wire.uploads == 2); // One probe each; the silent one is never repeated.
+    // Prompt 55, default reuse policy: node 1's probe timeout sends its cleanup abort, then the
+    // owner's one marker read, 1018:01 because the timed-out 1000:00 is retained on the route.
+    const uint8_t abort[8] = {0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04, 0x05};
+    const uint8_t marker[8] = {0x40, 0x18, 0x10, 0x01, 0, 0, 0, 0};
+    CHECK(rig.wire.sentCount == 4 && rig.wire.aborts[1] == 1 && rig.wire.markers[1] == 1);
+    CHECK(rig.wire.sent[1].id == 0x601 && !std::memcmp(rig.wire.sent[1].data, abort, 8));
+    CHECK(rig.wire.sent[2].id == 0x601 && !std::memcmp(rig.wire.sent[2].data, marker, 8));
+    CHECK(!rig.wire.aborts[2] && !rig.wire.markers[2] && rig.owner.stats().markers == 1);
     const E::DiscoveryFinding* first = rig.bench.scan().result(0);
     CHECK(first->outcome == E::DiscoveryOutcome::NO_RESPONSE && first->unresolved &&
           first->read.uncertain);
@@ -351,6 +377,15 @@ void silentNodeKeepsUncertainty() {
     // Release keeps the quarantine: a new probe scan refuses the unresolved route.
     CHECK(rig.bench.release());
     CHECK(refused(rig.bench.begin(rig.request(E::DiscoveryMode::PROBE, 2), rig.now), "scan"));
+    // The silent node lets the marker time out as well: its own abort, and no further marker
+    // follows by itself, so a really absent node keeps its route quarantined.
+    for (unsigned i = 0; i < 4000; ++i)
+        rig.turn();
+    CHECK(rig.wire.sentCount == 5 && rig.wire.aborts[1] == 2 && rig.wire.markers[1] == 1);
+    CHECK(rig.wire.sent[4].data[0] == 0x80 && rig.wire.sent[4].data[1] == 0x18 &&
+          rig.wire.sent[4].data[3] == 1 && rig.owner.stats().markers == 1);
+    CHECK(rig.services.unresolved(0) && !rig.services.unresolved(1));
+    CHECK(refused(rig.bench.begin(rig.request(E::DiscoveryMode::PROBE, 3), rig.now), "scan"));
 }
 
 // ------------------------------------------------------- 2026-11-09 capture, replayed literally

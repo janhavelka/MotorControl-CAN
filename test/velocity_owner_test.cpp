@@ -478,6 +478,21 @@ void unretiredFinalEnableRetainsUncertaintyAcrossDue() {
         c.execution == M::ActionExecution::UNKNOWN && c.needsStop && r.session.velocityNeedsStop());
     CHECK(r.writes(0x6040, 15) == 1 && r.writes(0x6040, 6) == 1 && r.writes(0x6040, 7) == 1);
     CHECK(!r.writes(0x6040, 0x000b)); // A HALT policy never substitutes an unrequested QUICK_STOP.
+    // Prompt 55, default reuse policy. Word 15 ended at its overall deadline, so no cleanup abort
+    // was staged. Its late report retires the frame locally, and the owner issues its one marker
+    // read of 1000:00 as the next frame; the fake answers it, so the route reopens under accepted
+    // premises. The reopening resends nothing and the failed run keeps its record and its fence.
+    for (unsigned i = 0; i < 10 && r.services.unresolved(0); ++i)
+        r.step();
+    CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1 &&
+          r.owner.stats().markers == 1 && !r.drive.clientAborts);
+    CHECK(r.wire.sentCount == held + 2 && OwnerRig::isMarkerRead(r.wire.sent[held + 1], 0x601));
+    O::Health health;
+    CHECK(r.owner.health(target().channel.binding, health) && health.acceptedCorrelation);
+    failedWord.unchanged(c.commandHistory[2]);
+    CHECK(c.state == M::ActionState::FAILED && c.execution == M::ActionExecution::UNKNOWN &&
+          c.needsStop && r.session.velocityNeedsStop() && r.writes(0x6040, 15) == 1 &&
+          !r.writes(0x6040, 0x000b));
 }
 E::StopPolicy explicitStop(uint64_t now) {
     E::StopPolicy value;
@@ -588,6 +603,34 @@ void unknownStartSurvivesBestEffortStop() {
         r.wire.push(stale, r.now + TICK, r.owner.controllerEpoch());
         r.step();
         terminal.unchanged(r.session.velocityAction());
+        // Prompt 55, default reuse policy. Word 15's response timeout staged one cleanup abort
+        // naming 6040:00, handed off directly after it and so still ahead of every 000B. Each
+        // accepted best-effort stop ends the node's pending resync: no marker follows the stops,
+        // even after their results are released, since a stop's own reply could still confirm a
+        // later 6040 write; reopening is explicit intent. The route stays quarantined, nothing is
+        // resent, and the run keeps its record and its fence.
+        for (unsigned i = 0; i < 10; ++i)
+            r.step();
+        unsigned enable = r.startFrame;
+        while (enable < r.wire.sentCount &&
+               !(OwnerRig::sdoFrame(r.wire.sent[enable], 0x601, 0x2b, 0x6040, 0) &&
+                 valueOf(r.wire.sent[enable]) == 15))
+            ++enable;
+        CHECK(r.wire.sentCount == enable + 3 + quick &&
+              OwnerRig::isTimeoutAbort(r.wire.sent[enable + 1], 0x601, 0x6040));
+        for (unsigned k = 0; k <= quick; ++k)
+            CHECK(OwnerRig::sdoFrame(r.wire.sent[enable + 2 + k], 0x601, 0x2b, 0x6040, 0) &&
+                  valueOf(r.wire.sent[enable + 2 + k]) == 0x000b);
+        CHECK(r.drive.clientAborts == 1 &&
+              OwnerRig::isTimeoutAbort(r.drive.lastClientAbort, 0x601, 0x6040));
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0 &&
+              r.owner.stats().markers == 0);
+        O::Health health;
+        CHECK(r.owner.health(target().channel.binding, health) && !health.acceptedCorrelation &&
+              !health.resyncPending);
+        terminal.unchanged(r.session.velocityAction());
+        CHECK(r.session.velocityNeedsStop() && r.writes(0x6040, 15) == 1 &&
+              r.writes(0x6040, 0x000b) == quick + 1 && !r.writes(0x6040, 0x010f));
     }
 }
 void lostStopAcknowledgementStaysUnknown() {
@@ -679,11 +722,20 @@ struct Drive {
     const Report* afterEnable = &LATER;
     int32_t position = 0;
     uint32_t positionReads = 0;
+    // Client aborts received (prompt 55's one 0x05040000 abort after a response timeout). An
+    // abort is no download, and a server never answers one.
+    unsigned clientAborts = 0;
+    M::Frame lastClientAbort;
     void become(const Report& r) {
         report = r;
         later = r.status == LATER.status && r.monitor == LATER.monitor;
     }
     bool respond(const M::Frame& sent, M::Frame& out) {
+        if (sent.data[0] == 0x80) {
+            ++clientAborts;
+            lastClientAbort = sent;
+            return false;
+        }
         const uint16_t index = indexOf(sent);
         const uint8_t sub = sent.data[3];
         out = frame(0x581, 8);
@@ -1074,13 +1126,18 @@ void trial1009CancelledThenStoppedByTheApplication() {
 void trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop() {
     scenario = "trial 1009 replay with word 15's reply lost";
     Bench b;
+    // This case is the quarantined route's DEC-2 branch, so it keeps SdoReusePolicy::NONE: the
+    // route stays unresolved and no marker read or reopening follows the timeout.
+    CHECK(OwnerRig::keepQuarantine(b.owner, target().channel, b.now));
     b.drive.muteWord = 15;
     b.ready();
     CHECK(b.start());
     b.runToTerminal();
     const L::VelocityContext& c = b.session.velocityAction();
     const unsigned last = b.startFrame + 19;
-    CHECK(b.downloadAt(last, 0x6040, 15, 0x2b) && b.wire.sentCount == last + 1);
+    // Word 15, then only its one cleanup abort 0x05040000 at the response timeout: no marker read.
+    CHECK(b.downloadAt(last, 0x6040, 15, 0x2b) && b.wire.sentCount == last + 2 &&
+          OwnerRig::isTimeoutAbort(b.wire.sent[last + 1], 0x601, 0x6040));
     CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::SERVICE_TIMEOUT &&
           c.execution == M::ActionExecution::UNKNOWN && c.commandEvidenceMask == 7);
     CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && !c.stopOperation &&
@@ -1100,6 +1157,7 @@ void trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop() {
     b.runToTerminal();
     CHECK(b.wire.sentCount == before + 1 && b.downloadAt(before, 0x6040, 0x000b, 0x2b));
     CHECK(b.session.bestEffort().execution == M::ActionExecution::UNKNOWN && b.session.velocityNeedsStop());
+    CHECK(b.drive.clientAborts == 1 && b.services.unresolved(0) && !b.owner.stats().markers);
 }
 // The same run with word 15 refused by an SDO abort: the route stays usable and the latest acknowledged
 // word is 7, so again no stop can be composed. A fresh read then reports word 7's state in mode 3; while

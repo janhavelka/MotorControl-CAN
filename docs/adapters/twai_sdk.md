@@ -51,6 +51,16 @@ Bytes leave for as long as a frame is pending. These follow from `fail_retry_cnt
 - `LL:277-279` warns a later command can overwrite a latched TX bit. A lost TX command would look like a pending frame, with no TX-done and no error. A real retry loop produces `ack_err`, which separates the two on the bench.
 - `twai_node_transmit` returning non-OK proves the frame was neither mounted nor started and gets no callback (`esp_twai.c:137-138`, `onchip:579-606`). The IDF driver therefore never returns `FAILED_UNCERTAIN`; the value exists for adapters without that proof.
 
+## TX lifetime, NO_LISTENER and restart (prompt 55)
+
+The SDK has no TX timeout, so the owner keeps one: `CanBusOwner::setTxLifetime`, default `DEFAULT_TX_LIFETIME_US` = 100 ms, `0` disables it. The default is host policy, not a device fact: the S2 owner consumed each TX report about 3 ms after handoff, service gaps reached 4 to 6 ms, a frame can wait behind the other channels at one submission per pass, and 100 ms equals the bench SDO response timeout. The submit-to-done maximum under PDO load is still unmeasured.
+
+- The lifetime starts when the frame reaches the SDK (`noteSubmitted`), or at the owner handoff when no submission is reported; a held handoff never starts it. A frame with no final report within its lifetime is expired once: counted (`Stats::txExpired`, `OwnerResources::txExpired`) and logged (`TX_EXPIRED`). The frame stays possibly sent and may still leave; a late final report retires it, and nothing is resent. Nothing is counted expired while a recovery is pending.
+- The interface enters NO_LISTENER (`CanBusOwner::noListener`, `LISTENER` diagnostics). Ordinary admission returns `BusAdmission::NO_LISTENER` with nothing sent, and ordinary work already queued does not start (it keeps its own queue cutoff); NMT and SYNC admission are unchanged; urgent work, best-effort stops and explicit markers stay admissible, so one ACKed frame can end the state, while the owner's automatic resync steps wait until it ends (on an absent bus an automatic marker would be one more unacknowledged frame). A valid current-epoch receive whose capture is not known to precede the state, or a matching positive TX report, ends it. It survives a recovery and restores no identity, route freshness or motion readiness.
+- Nothing restarts by itself. The restart entry point is the existing explicit `recover()`, single-flight and logged. Bus-off, receive overflow and TX expiry are latched in `RecoveryCompletion::causes`; a cause reported during a recovery stays for the next one, a failed recovery hands its causes back, and a `RETIRED` closure clears them and reports each pending SDO handoff to the adapter as locally retired, possibly sent (retired does not mean undelivered, above). The application decides when to call it: explicitly, or through prompt 74's schedule.
+
+The unplug trial in prompt 55's bench list measures expiry, one restart and both nodes resynced on this fixture.
+
 ## Reviewed SDK behavior
 
 All source paths in this table are relative to the pinned ESP-IDF repository.

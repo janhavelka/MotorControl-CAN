@@ -245,7 +245,10 @@ void candidatesAndEvidence() {
 }
 void exactWriteAndExplicitConfirmation() {
     Fixture f;
+    CHECK(f.context.retryClass == M::RetryClass::NOT_REPEATABLE);
     CHECK(f.prepare());
+    // W: one absolute 1017 value with an explicit readback; writing 1000 again leaves 1000.
+    CHECK(f.context.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
     const auto p = f.next();
     CHECK(p.ready && p.transfer.index == 0x1017 && p.transfer.subindex == 0);
     CHECK(p.transfer.size == 2 && p.transfer.direction == C::SdoDirection::DOWNLOAD);
@@ -654,6 +657,9 @@ void realOwnerRequiresRetiredHandoff() {
 void realOwnerLostReplyWrongRouteAndBoot() {
     for (unsigned scenario = 0; scenario < 4; ++scenario) {
         Rig r;
+        // Reuse policy NONE: every frame is counted with no repair step, so the default policy's
+        // resync marker after the lost reply is not part of it. The cleanup abort still goes.
+        CHECK(OwnerRig::keepQuarantine(r.owner, OwnerRig::route(), r.now));
         const auto p = r.work();
         const auto id = r.admit(p.transfer);
         r.turn(3);
@@ -677,11 +683,19 @@ void realOwnerLostReplyWrongRouteAndBoot() {
         CHECK(L::advanceCommunication(r.f.context, r.f.reservation, r.f.binding, e, r.now));
         CHECK(r.f.context.state == L::CommunicationState::FAILED && r.f.context.uncertain);
         CHECK(!r.services.node(0)->producerKnown && !r.services.pdo(0)->confirmed);
-        CHECK(r.wire.sentCount == 2 && r.wire.notices == 1);
+        // The lost reply and the ignored wrong-route reply end in a response timeout after
+        // possible TX: its one cleanup abort 0x05040000 leaves in the same turn, outside the
+        // transmit guard. No write repeats. Boot-up and invalidation stage no abort.
+        const bool lost = scenario <= 1;
+        CHECK(e.clientAbortQueued == lost && !e.abortValid);
+        CHECK(r.wire.sentCount == (lost ? 3u : 2u) && r.wire.notices == 1);
+        if (lost)
+            CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[2], 0x601, p.transfer.index,
+                                           p.transfer.subindex));
         CHECK(!L::prepareCommunicationConfirmation(r.f.context, r.f.reservation, r.f.target(),
                                                    r.f.nmt, r.now));
         r.turn(r.now + 20);
-        CHECK(r.wire.sentCount == 2);
+        CHECK(r.wire.sentCount == (lost ? 3u : 2u) && r.owner.stats().markers == 0);
     }
 }
 void queuedPreOperationalWorkRejectsChangedState() {

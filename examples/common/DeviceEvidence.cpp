@@ -187,6 +187,12 @@ void DeviceEvidence::capture() noexcept {
         out.accepted = input.accepted;
         out.controller = input.controller;
         out.recovery = input.recovery;
+        out.recoveryCauses = uint8_t(unsigned(input.recoveryCauses.busOff) |
+                                     unsigned(input.recoveryCauses.receiveLost) << 1 |
+                                     unsigned(input.recoveryCauses.txExpired) << 2);
+        out.channel = input.channel;
+        out.resync = input.resync;
+        out.noListener = input.noListener;
     }
 }
 bool DeviceEvidence::service(uint64_t now) noexcept {

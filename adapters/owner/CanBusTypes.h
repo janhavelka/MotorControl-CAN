@@ -19,6 +19,62 @@ enum class DriverState : uint8_t {
     DEGRADED, ///< A failed attempted service has not been followed by a successful service.
     OFFLINE   ///< Explicitly unavailable controller or expired evidenced heartbeat deadline.
 };
+/** How an SDO route may be reused after an unclear end (prompt 55, amending DEC-3).
+ * Classic SDO carries no transaction tag. Both accepted settings state the premises "sole
+ * client on these COB-IDs" and "server answers one request at a time, in order" as an accepted
+ * risk, never as established fact (Q18 stays open), and neither can detect a delayed reply that
+ * names the same object as a later request. Results on a route reopened under either carry
+ * Completion::acceptedCorrelation for the rest of that server session.
+ */
+enum class SdoReusePolicy : uint8_t {
+    NONE, ///< No reuse: an unresolved route stays quarantined and every marker is refused.
+    ACCEPTED_RISK_WITH_MARKER, ///< Default. After a quarantine with possible TX (timeout, cancellation, bus-off, a controller event before a retired recovery), once local TX is retired, the owner issues one marker read of a different accepted object; its success reopens. Never after a best-effort stop.
+    ACCEPTED_RISK_WITHOUT_MARKER ///< After the same quarantines, local retirement of the request and its abort alone reopens, as CANopenNode and python-canopen reuse a channel. Pairs retained before it stay expected until the route's first success. Never after a best-effort stop.
+};
+/** One object the owner may read as a drain marker. It must be an accepted read (DEC-1) of 1-4
+ * bytes: the owner reads it with SdoReadEffect::ACCEPTED_UNQUALIFIED, EXACT size and no segmented
+ * transfer. Choosing another object is the application's responsibility; its read effect stays
+ * whatever the application reviewed, and the read stays effectPossible.
+ */
+struct SdoMarkerObject {
+    uint16_t index = 0x1000; ///< Object index, nonzero. Default 1000 (device type), a DEC-1 object.
+    uint8_t subindex = 0;    ///< Object subindex.
+    uint8_t size = 4;        ///< Exact width in bytes, 1..4. 1000:00 and 1018:01..03 are U32.
+    bool expectedKnown = false; ///< Compare the successful marker value with expectedValue.
+    uint32_t expectedValue = 0; ///< Commissioned value, little-endian over size bytes. A mismatch means another drive answers: the owner invalidates the binding instead of reopening.
+};
+/** Per-binding route reuse setting, settable through CanBusOwner::setSdoReuse. */
+struct SdoReuse {
+    /** Fixed list capacity. */
+    enum {
+        MARKER_OBJECTS = 4 ///< Capacity of the marker list.
+    };
+    SdoReusePolicy policy =
+        SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER; ///< Documented default; NONE keeps today's quarantine.
+    /** Marker objects, tried in order. The owner reads the first one that is neither the route's
+     * last completed pair nor a retained pair; with none left, the step reports MARKER_UNAVAILABLE.
+     * Default 1000:00 (device type), 1018:01 (vendor ID), 1018:02 (product code), 1018:03
+     * (revision number): all DEC-1 accepted reads, all U32, no expected values. Only the first
+     * markerCount entries are used. */
+    SdoMarkerObject markers[MARKER_OBJECTS];
+    uint8_t markerCount = MARKER_OBJECTS; ///< Entries in use, 1..MARKER_OBJECTS, pairwise distinct.
+    /** Queue budget of the owner's marker in microseconds, counted from its admission. Zero, the
+     * documented default, inherits the queue budget of the route's last request. */
+    uint32_t markerQueueTimeoutUs = 0;
+    /** Response budget of the owner's marker in microseconds after its handoff. Zero, the
+     * documented default, inherits the response budget of the route's last request; set it when
+     * that request's budget was deliberately short, or the marker times out the same way. The
+     * marker's own deadline is admission plus both budgets; no earlier deadline is extended. */
+    uint32_t markerResponseTimeoutUs = 0;
+    /** The documented default: ACCEPTED_RISK_WITH_MARKER, the four DEC-1 objects above, budgets
+     * inherited from the route's last request. */
+    SdoReuse() noexcept {
+        for (unsigned i = 1; i < MARKER_OBJECTS; ++i) {
+            markers[i].index = 0x1018;
+            markers[i].subindex = uint8_t(i);
+        }
+    }
+};
 /** Cached binding-local service history. Timestamp zero is valid when its flag is true. */
 struct Health {
     uint32_t totalSuccess = 0;  ///< Saturating completed attempted logical services, not frames.
@@ -34,6 +90,23 @@ struct Health {
     bool lastSeenKnown = false; ///< Makes lastSeenUs meaningful; does not qualify freshness alone.
     DriverState state =
         DriverState::UNINIT; ///< Passive projection at latest supplied health-refresh time.
+    // Presence observations of this binding's physical node. The owner records them and decides
+    // nothing from them; times are owner processing times, never wire capture times.
+    uint64_t lastResponseUs = 0; ///< Last frame received on this node's SDO response identifier, accepted or not.
+    bool lastResponseKnown = false; ///< Makes lastResponseUs meaningful, including zero.
+    uint64_t lastHeartbeatUs = 0; ///< Last heartbeat (not boot-up) the adapter accepted for this node.
+    bool lastHeartbeatKnown = false; ///< Makes lastHeartbeatUs meaningful, including zero.
+    uint32_t bootUps = 0; ///< Saturating boot-up frames the adapter accepted; each still invalidates the node as before.
+    uint64_t lastBootUpUs = 0; ///< Processing time of the latest of them.
+    bool lastBootUpKnown = false; ///< Makes lastBootUpUs meaningful, including zero.
+    uint8_t consecutiveNoResponse =
+        0; ///< Saturating attempted services that timed out after possible TX; any SDO response from the node clears it.
+    // Route reuse (prompt 55). Policy premises are accepted, not established.
+    SdoReusePolicy reusePolicy = SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER; ///< This binding's setting.
+    bool reuseStopped = false; ///< Contradicting traffic refused reuse; only reacceptReuse withdraws it.
+    bool resyncPending = false; ///< An armed resync step waits for local retirement, a free urgent slot or a start budget.
+    bool acceptedCorrelation = false; ///< The route was reopened under an accepted setting in this server session.
+    bool noListener = false; ///< Interface-wide NO_LISTENER copy; see CanBusOwner::noListener.
 };
 /** Interface lifetime totals, saturating at UINT32_MAX; no duplicate service totals. */
 struct Stats {
@@ -54,6 +127,9 @@ struct Stats {
     uint32_t recoveries = 0; ///< Successfully retired explicit host/controller recoveries.
     uint32_t traceOverwritten = 0; ///< Oldest diagnostic records replaced at fixed trace capacity.
     uint64_t maxServiceGapUs = 0;  ///< Largest gap between accepted service turns; not a guarantee.
+    uint32_t markers = 0; ///< Drain markers the owner issued itself as a resync step; explicit ones are not counted.
+    uint32_t reuseStopped = 0; ///< Routes whose reuse contradicting traffic refused, once per refusal.
+    uint32_t txExpired = 0; ///< Accepted handoffs without a final TX report within the TX lifetime, once per frame; none while a recovery is pending.
 };
 /** Exact local SYNC admission identity; absent from the wire. */
 struct SyncRequestId {
@@ -146,7 +222,8 @@ enum class BusAdmission : uint8_t {
     EXPIRED,       ///< Overall or operation deadline already reached.
     RESULTS_FULL,  ///< Every request/result slot occupied; no unread terminal is evicted.
     IDS_EXHAUSTED, ///< Nonwrapping owner serial exhausted.
-    INHIBITED      ///< Controller recovery/retirement has not established safe local resumption.
+    INHIBITED,     ///< Controller recovery/retirement has not established safe local resumption.
+    NO_LISTENER    ///< Ordinary work refused, nothing sent: no frame has been received or ACKed since a TX lifetime expired. Urgent work, best-effort stops and drain markers stay admissible.
 };
 /** Local owner closure, independent of the native service's outcome/effect fields. */
 enum class CompletionReason : uint8_t {
@@ -182,6 +259,16 @@ enum class RecoveryOutcome : uint8_t {
     FAILED,  ///< Adapter refused/failed; no safe resumption claimed.
     TIMEOUT  ///< Exclusive budget expired; a late callback cannot change this result.
 };
+/** Conditions reported since the previous recovery began, moved into a recovery when it begins.
+ * One reported while a recovery runs stays for the next; a failed or timed-out recovery hands its
+ * own on. Bus-off, receive loss and TX expiry share the one recovery entry point and keep their
+ * own cause here and in their own counters. None of them starts a recovery by itself.
+ */
+struct RecoveryCauses {
+    bool busOff = false;      ///< reportController(BUS_OFF) was accepted.
+    bool receiveLost = false; ///< receiveOverflow reported lost authoritative ingress.
+    bool txExpired = false;   ///< An accepted handoff outlived the TX lifetime without a final report.
+};
 /** Retained copied recovery evidence until releaseRecovery; no device effect is certified. */
 struct RecoveryCompletion {
     RecoveryId id;                ///< Canonical identity.
@@ -190,6 +277,7 @@ struct RecoveryCompletion {
     uint64_t deadlineUs = 0;      ///< Immutable exclusive absolute cutoff.
     uint64_t completedUs = 0;     ///< First terminal processing time.
     RecoveryOutcome outcome = RecoveryOutcome::FAILED; ///< No implicit success default.
+    RecoveryCauses causes; ///< Conditions pending when this recovery began; a retired recovery clears them.
 };
 /** Immutable first terminal, retained non-consumingly until explicit release. */
 struct Completion {
@@ -201,6 +289,20 @@ struct Completion {
     bool adapterAdmitted = false;    ///< Separate from owner admission and TX staging.
     bool controllerAccepted = false; ///< At least one frame accepted by controller callback.
     MotorControlCAN::CANOPEN::SdoCompletion service; ///< Complete native evidence and owned bytes.
+    SdoReusePolicy reusePolicy =
+        SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER; ///< The binding's reuse setting at owner admission.
+    bool acceptedCorrelation = false; ///< The route had been reopened under an accepted setting in this server session: a reply's correlation rests on accepted premises. Always equal to service.acceptedCorrelation. No detection is claimed either way.
+    bool automaticMarker = false; ///< The owner issued this drain marker itself; its slot is released at its terminal, so only the TERMINAL diagnostic keeps it.
+};
+/** Step of the owner's route resync, reported in a RESYNC diagnostic. */
+enum class ResyncStep : uint8_t {
+    MARKER_ADMITTED, ///< The owner admitted its one marker read for a timed-out route.
+    MARKER_FAILED,   ///< That marker ended without success; the route stays unresolved and no further marker follows by itself.
+    MARKER_MISMATCH, ///< A marker read returned another value than the configured one; the binding was invalidated instead of reopened.
+    REOPENED,        ///< The route reopened (after a marker or without one); reservations on the node were invalidated.
+    REUSE_STOPPED,   ///< Contradicting traffic refused reuse on the route.
+    REUSE_ACCEPTED,  ///< The application re-accepted reuse with reacceptReuse.
+    MARKER_UNAVAILABLE ///< The step ended without a marker: every listed object is a retained or last completed pair, no budget is configured or known for the route, or no identity is left. admitDrainMarker remains.
 };
 /** One owned passive diagnostic; completion is meaningful only for TERMINAL. */
 enum class DiagnosticKind : uint8_t {
@@ -209,7 +311,10 @@ enum class DiagnosticKind : uint8_t {
     TX_REPORT,  ///< Matching final controller report; never a protocol acknowledgement.
     TERMINAL,   ///< Complete copied request terminal, including raw abort and uncertainty.
     CONTROLLER, ///< Explicit application controller report.
-    RECOVERY    ///< Explicit host recovery closure.
+    RECOVERY,   ///< Explicit host recovery closure.
+    RESYNC,     ///< Route resync step on channel; see resync.
+    TX_EXPIRED, ///< An accepted handoff, txId, reached the TX lifetime without a final report. It stays possibly sent.
+    LISTENER    ///< NO_LISTENER began or ended; see noListener.
 };
 /** Bounded historical copy; no pointer into controller/stack buffers is retained. */
 struct Diagnostic {
@@ -228,6 +333,10 @@ struct Diagnostic {
     MotorControlCAN::CANOPEN::ControllerState controller =
         MotorControlCAN::CANOPEN::ControllerState::UNKNOWN; ///< CONTROLLER only.
     RecoveryOutcome recovery = RecoveryOutcome::FAILED;     ///< RECOVERY only.
+    RecoveryCauses recoveryCauses; ///< RECOVERY only: conditions pending when it began.
+    uint8_t channel = 0; ///< RESYNC only: adapter channel slot, not a wire node ID.
+    ResyncStep resync = ResyncStep::MARKER_ADMITTED; ///< RESYNC only.
+    bool noListener = false; ///< LISTENER only: true when NO_LISTENER began, false when it ended.
 };
 /** Cached resource usage, computed by fixed scans; no controller queries. */
 struct OwnerResources {
@@ -246,6 +355,8 @@ struct OwnerResources {
     bool nmtPending = false; ///< Sole explicit manager intent awaits its native terminal.
     bool nmtRetained = false; ///< Sole native manager terminal is retained until releaseNmt.
     bool nmtTxPending = false; ///< Manager handoff lacks exact final report/retirement proof.
+    bool noListener = false; ///< NO_LISTENER interface state; see CanBusOwner::noListener.
+    uint8_t txExpired = 0; ///< Pending handoffs past the TX lifetime, still possibly sent, until a final report or a retired recovery.
 };
 /** One ingress copy; processing time is supplied separately to service(). */
 struct ReceivedFrame {

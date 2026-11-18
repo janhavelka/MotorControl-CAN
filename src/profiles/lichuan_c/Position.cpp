@@ -749,6 +749,7 @@ void publishMove(MoveContext& output, const Checked& result, const AxisReservati
     c.displacement = result.known ? MoveDisplacement::KNOWN : MoveDisplacement::UNKNOWN;
     c.displacementNative = result.displacement;
     c.state = ActionState::ACTIVE;
+    c.retryClass = RetryClass::MOTION_LIKE;
     c.phase = MovePhase::PARAMETERS;
     c.operation = operation;
     c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = nowUs;

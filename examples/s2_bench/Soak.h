@@ -12,7 +12,26 @@
  * monitors are selected; 1000:00, 1009:00, 100A:00, 1018:00..03, 2000:00, 2001:00 once per node
  * when identity is selected. Their effects stay unknown. 603F, 1001 and 1003 are never read:
  * DEC-1 keeps them explicit single reads. Nothing here enables, moves, writes, sends NMT,
- * clears a fault, saves, reconfigures a PDO or reopens a route.
+ * clears a fault, saves or reconfigures a PDO.
+ *
+ * Prompt 55: a read that times out after possible TX gets the client's one cleanup abort, and the
+ * owner's reuse policy then takes its one resync step. While that step (or a reopening it settled)
+ * is pending, the node's ticks wait instead of stopping it, so every read is completed or its
+ * route is retained unresolved before the next one on that node. A nonzero markerMs sets the owner's
+ * marker budgets on the soak's nodes for the soak (SdoReuse::markerQueueTimeoutUs and
+ * markerResponseTimeoutUs; the previous setting is restored at the end), so that the owner's marker
+ * does not inherit a deliberately short read budget, and lets the soak admit one explicit marker
+ * read (CanBusOwner::admitDrainMarker, policy form, the binding's marker list) when the owner's own
+ * step still ended without reopening; nothing else is resent. A node whose route stays unresolved
+ * stops, as before.
+ *
+ * Node mask value 4 (prompt 55 bench item c) adds the absent node, node 3 on adapter slot 2, when the image
+ * has a third SDO channel and the caller configured that route: one accepted 1000:00 probe every
+ * second on its own owner reservation, concurrent with the soak's alternating reads of nodes 1 and 2,
+ * whose ticks and rate it does not touch. A probe that times out quarantines its route as every
+ * timed-out read does; the owner's resync step and, with markerMs, the soak's one explicit marker per
+ * quarantine follow it; while the route stays unresolved no further probe is sent. SOAK_ABSENT reports
+ * the probes and the owner's presence observations of node 3.
  */
 #pragma once
 #include "BenchNodes.h"
@@ -33,8 +52,20 @@ struct SoakPlan {
     uint32_t summaryS = 0;   ///< Spacing of summaries, 1..3600 seconds.
     bool monitors = false;   ///< Alternate 2100/2101/2102 operations with the state operations.
     bool identity = false;   ///< One typed identity read per node first, with MEASURED_U8 widths.
+    /** Prompt 55: each service's response budget in microseconds, 100..250000; 0 is the default
+     * 250000. A budget below the drive's reply time makes the read's first upload time out. */
+    uint32_t responseUs = 0;
+    /** Nodes read, bit0 node 1, bit1 node 2, 1..7 with node 1 or 2; another fixture node keeps its tick
+     * unused. Bit2 adds the absent node 3 (SOAK_ABSENT_NODE), which needs a third SDO channel and its
+     * configured route. */
+    uint8_t nodes = 3;
+    /** Marker response budget in milliseconds, 1..1000; 0 none. For the soak it is the owner's marker
+     * response budget on the planned nodes (queue budget 250 ms) and the budget of the soak's one explicit
+     * marker after the owner's own resync step ended without reopening. */
+    uint32_t markerMs = 0;
 };
-/** Parse the text after the command byte: `TRIAL,DURATION_S,INTERVAL_MS,SUMMARY_S,READS`.
+/** Parse the text after the command byte: `TRIAL,DURATION_S,INTERVAL_MS,SUMMARY_S,READS`, optionally
+ * followed by `,RESPONSE_US,NODES,MARKER_MS` (prompt 55; all three or none).
  * READS is 0 state only, 1 plus monitors, 2 plus identity, 3 plus both.
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
@@ -159,7 +190,20 @@ enum {
     SOAK_BUCKETS = 8,        ///< Latency histogram buckets.
     SOAK_OUTCOMES = 12,      ///< SdoOutcome values counted per node.
     SOAK_REASONS = 8,        ///< CompletionReason values counted per node.
-    SOAK_READ_OUTCOMES = 9   ///< ReadOutcome values counted per node.
+    SOAK_READ_OUTCOMES = 9,  ///< ReadOutcome values counted per node.
+    SOAK_ABSENT_NODE = BENCH_NODES + 1, ///< Prompt 55's absent node, on adapter slot BENCH_NODES.
+    SOAK_ABSENT_INTERVAL_MS = 1000,     ///< Spacing of its probes, host policy.
+    SOAK_ABSENT_RESPONSE_US = 20000     ///< Each probe's response budget, host policy.
+};
+/** Prompt 55's absent node probes since the soak began; each saturates at UINT32_MAX. */
+struct SoakAbsentStats {
+    uint32_t probes;      ///< 1000:00 probes the owner admitted.
+    uint32_t answered;    ///< Probes with SdoOutcome::SUCCESS.
+    uint32_t timeouts;    ///< Probes with SdoOutcome::TIMEOUT.
+    uint32_t other;       ///< Probes with any other terminal.
+    uint32_t refused;     ///< Probe ticks the owner refused; nothing was sent.
+    uint32_t explicitMarkers; ///< The soak's own explicit markers on its route.
+    uint32_t heldUnresolved;  ///< Probe ticks skipped because the route stayed unresolved.
 };
 /** Per-node totals since the soak began; each saturates at UINT32_MAX. */
 struct SoakNodeStats {
@@ -185,7 +229,17 @@ struct SoakNodeStats {
     uint32_t abortCount[SOAK_ABORTS];        ///< Count of each.
     uint32_t abortOther;     ///< Aborts with a code beyond the table.
     uint8_t abortCodes;      ///< Used table entries.
-    bool stopped;            ///< Reads ended for this node; nothing reopens the route.
+    bool stopped;            ///< Reads ended for this node: its route stayed unresolved or exhausted.
+    // Prompt 55 repair counts on this node's channel, from owner diagnostics and the soak's own marker.
+    uint32_t cleanupAborts;  ///< Client abort frames handed to the controller (0x80 command byte).
+    uint32_t autoMarkers;    ///< The owner's own markers (RESYNC MARKER_ADMITTED).
+    uint32_t markersFailed;  ///< RESYNC MARKER_FAILED.
+    uint32_t markersOther;   ///< RESYNC MARKER_MISMATCH or MARKER_UNAVAILABLE.
+    uint32_t reopened;       ///< RESYNC REOPENED, after either kind of marker or none.
+    uint32_t reuseStopped;   ///< RESYNC REUSE_STOPPED.
+    uint32_t explicitMarkers; ///< Markers this soak admitted itself (markerMs).
+    uint32_t explicitOk;     ///< Of those, terminals with SdoOutcome::SUCCESS.
+    uint32_t repairWaits;    ///< Ticks that waited for a pending resync step or reopening.
 };
 /** Soak-wide console and scheduling pressure since the soak began. */
 struct SoakPressure {
@@ -259,6 +313,8 @@ class Soak {
     const SoakNodeStats& nodeStats(unsigned node) const noexcept {
         return s_.nodes[node >= 1 && node <= SOAK_NODES ? node - 1 : 0];
     }
+    /** @return Absent node totals of the current or last soak; zero when its plan did not name it. */
+    const SoakAbsentStats& absentStats() const noexcept { return s_.absent; }
     /** @return Pressure totals of the current or last soak. */
     const SoakPressure& pressure() const noexcept { return s_.pressure; }
 
@@ -306,6 +362,20 @@ class Soak {
         uint8_t eventHead, eventCount, kindDumps[16], turn, opSlot, summaryCursor;
         uint8_t monitorPhase[SOAK_NODES];
         bool identityDone[SOAK_NODES], heartbeatSeen[SOAK_NODES], retireWait[SOAK_NODES];
+        // Prompt 55: an owner marker between its admission and its step, and the soak's own marker.
+        bool autoMarkerActive[SOAK_NODES], markerActive[SOAK_NODES], markerTried[SOAK_NODES];
+        MotorControlCANOwner::RequestId marker[SOAK_NODES];
+        uint32_t markerIdentity;
+        // The owner's marker budgets before this soak set them (markerMs), restored at the end.
+        uint32_t savedQueueUs[SOAK_NODES + 1], savedResponseUs[SOAK_NODES + 1];
+        bool budgetsSet[SOAK_NODES + 1], budgetsRestored;
+        // Prompt 55's absent node: its own reservation, probe and explicit marker.
+        SoakAbsentStats absent;
+        MotorControlCANOwner::SequenceId absentSequence;
+        MotorControlCANOwner::RequestId absentRequest, absentMarker;
+        uint64_t absentNextUs;
+        uint32_t absentOperation;
+        bool absentReserved, absentActive, absentMarkerActive, absentMarkerTried;
         bool opActive, releasePending, stopRequested, beginPending, endPending, summaryPending;
         bool lineReady;
         uint16_t lineLength;
@@ -338,6 +408,12 @@ class Soak {
     void schedule(uint64_t nowUs) noexcept;
     void startOperation(unsigned slot, uint64_t nowUs) noexcept;
     bool stopIfUnusable(unsigned slot, uint64_t nowUs) noexcept;
+    bool repairPending(unsigned slot, uint64_t nowUs) noexcept;
+    bool absentPlanned() const noexcept;
+    void serviceAbsent(uint64_t nowUs) noexcept;
+    void restoreBudgets(uint64_t nowUs) noexcept;
+    void serviceMarkers(uint64_t nowUs) noexcept;
+    void countRepair(const MotorControlCANOwner::Diagnostic& diagnostic) noexcept;
     void anomaly(unsigned kind, unsigned scope, uint32_t a, uint32_t b, uint64_t nowUs) noexcept;
     void push(uint8_t type, unsigned node, unsigned signal, bool flag, uint32_t a, uint32_t b,
               uint32_t c, uint32_t d, uint64_t nowUs, bool limited) noexcept;

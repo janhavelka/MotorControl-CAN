@@ -91,6 +91,14 @@ other tool, such as a PC configuration program, talks SDO to the drive at the sa
 - Change: measure Q18 with an independent listen-only observer to qualify the drain marker, or add an explicit,
   recorded "reset communication" recovery. Cost: bench time; the reset changes the drive's network state.
 - Evidence: `adapters/canopennode/SdoClient.h:30-33`, `:41-42`; backlog D14, H04.
+- Update 2026-11-18 (prompt 55, host-tested): a response timeout after possible TX now sends one cleanup abort,
+  and a settable reuse policy per binding decides the way back. Its default, `ACCEPTED_RISK_WITH_MARKER`, has the
+  owner send one marker read itself and reopen the route, so a stuck route no longer needs an MCU restart. After a
+  best-effort stop or a client abort the application sends one explicit marker instead. The sole-client and
+  ordered-server premises are stated as accepted, not established: Q18 stays unqualified, a delayed same-object
+  reply can still complete a later request, and every result on a reopened route carries
+  `acceptedCorrelation`. `NONE` keeps the quarantine described above. No bench trial has run yet
+  (`docs/hardware_bench.md`, "Prompt 55 self-repair bench"; `docs/canopen_services.md`).
 
 **2.6 Small SDO, no extra CANopen services.** One SDO transfer carries at most 32 bytes. There is no block transfer and
 no LSS (the service that sets node ID and bitrate over the bus). For example, a long text object cannot be read.
@@ -267,6 +275,14 @@ For example, if the cable is unplugged during a read, every later frame, stops i
 - Change: an application watchdog that starts owner recovery, and a deeper receive buffer where RAM allows. Cost:
   recovery invalidates routes and evidence.
 - Evidence: `adapters/twai/TwaiAdapter.h:80-82`; `TwaiAdapter.cpp:123-126`; `adapters/twai/IdfTwaiDriver.h:24-26`.
+- Update 2026-11-18 (prompt 55, host-tested): the owner now reports a frame with no final TX report within its TX
+  lifetime (default 100 ms from the SDK submission) as expired, once, and enters NO_LISTENER. Ordinary work is then
+  refused at once with nothing sent, while stops, urgent work and explicit markers stay admissible. A received or
+  ACKed frame ends it. The expired frame is never resent. Recovery is still the application's call: `recover()` is
+  the one restart entry point for TX expiry, bus-off and receive overflow, each kept as a cause, and nothing
+  restarts by itself (prompt 74 owns a restart schedule). After a retired recovery each route it left unresolved
+  with possible TX gets its reuse policy's one resync step once NO_LISTENER has ended. The unplug trial on the S2
+  (connector out for 10 s, drives released) is pending.
 
 ## 8. Safety and recovery rules (refused on purpose)
 
@@ -292,6 +308,13 @@ code decides what to do.
 - Kind: Rule.
 - Change: keep this in the core; applications may add explicit, recorded policies.
 - Evidence: `AGENTS.md:75`; `Position.h:216-217`.
+- Update 2026-11-18 (prompt 55, host-tested): the rule stands, and every prepared operation now states a
+  `RetryClass` for an application's own policy: N not repeatable (the default, stops and the fault and history
+  reads included), R repeatable read (DEC-1 accepted or reviewed non-changing reads only), W idempotent setting
+  with readback, M motion, enable, homing, save and NMT, never replayed. `classifyRead` with an explicit
+  `RepeatPermission` can promote one named object without changing its read effect. The library still never
+  retries; a quick stop is reissued only as a new operation that sends `000B`. Opt-in fault clear and a retry
+  policy belong to prompt 74's example. The forced trigger timeout and quick-stop reissue trials are pending.
 
 **8.4 Stops follow strict report rules.** A stop is admitted and settled only on drive reports that match measured
 patterns. On 2026-11-11 one drive reached a report no stop path accepted and stayed enabled (S20); some velocity quick

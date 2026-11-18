@@ -174,6 +174,7 @@ Status prepare(PersistenceContext& output, const AxisReservation& r, const ReadT
     output.before.firmwareRecord = review.firmwareRecord;
     output.kind = kind;
     output.state = PersistenceState::WRITING;
+    output.retryClass = RetryClass::MOTION_LIKE;
     output.operation = operation;
     output.attemptOrdinal = ordinal;
     output.startedUs = output.servicedUs = now;

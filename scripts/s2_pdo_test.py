@@ -241,7 +241,7 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="8"), "image_without_pdo_lines"),
+                           (Board(watch=1), "watch_running"), (Board(pdo="9"), "image_without_pdo_lines"),
                            (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
@@ -1078,7 +1078,7 @@ class FirmwareTextTest(unittest.TestCase):
         for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
-        self.assertIn("pdo=7", widest)
+        self.assertIn("pdo=8", widest)
         self.assertIn("routes=16", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
@@ -1368,6 +1368,19 @@ class NmtResetTest(unittest.TestCase):
         out = root / "session"
         code = pdo.run(Args(path, out), Backend(board), Clock())
         return code, json.loads((out / "session.json").read_text(encoding="utf-8")), out
+
+    def test_link_bytes_need_pdo8_and_the_watch_names_its_end(self):
+        # Prompt 55: L (link lines) and U (the unplug watch, its end line decides the plan).
+        unplug = {"send": "U", "expect": "LINK_WATCH armed", "end": "LINK_WATCH_END", "end_timeout_s": 150}
+        self.assertEqual(len(pdo.check_plan(plan({"send": "L", "expect": "LINK interface"}, unplug))), 2)
+        for wrong in ({"send": "U", "expect": "LINK_WATCH armed"}, {"send": "U", "expect": "LINK", "end": "LINK_WATCH_END"}):
+            with self.assertRaises(pdo.SessionError, msg=wrong):
+                pdo.check_plan(plan(wrong))
+        board = Board({}, pdo="7")
+        code, meta, _ = self.session(board, [{"send": "L", "expect": "LINK interface"}])
+        self.assertEqual((code, meta["reason"]), (1, "image_without_link"))
+        self.assertEqual(board.writes, [b"p"])
+        self.assertIn("LINK_WATCH refused", pdo.REFUSALS)
 
     def test_an_image_before_pdo5_is_never_sent_a_reset(self):
         for version in ("1", "4"):

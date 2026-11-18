@@ -144,6 +144,9 @@ struct FakeDrive {
     bool moving = false, halting = false;
     uint16_t lastWord = 0xffff;
     uint16_t silentIndex = 0, abortIndex = 0, silentWord = 0, abortWord = 0;
+    // Client aborts this fake received, such as prompt 55's one per response timeout after possible
+    // TX. A server answers none of them and none changes its state; replyTo only counts them.
+    unsigned clientAborts = 0;
     const Report* script = nullptr;
     unsigned scriptLength = 0, scriptCursor = 0;
     bool scripted = false;
@@ -244,6 +247,13 @@ inline uint32_t frameValue(const M::Frame& f) {
            (uint32_t(f.data[7]) << 24);
 }
 inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
+    // A client abort (CiA 301 ccs 4) gets no reply and is no download. Before prompt 55 the fake
+    // read one as a download of its object, so a 6040 cleanup abort acted as word 0000 and was
+    // answered with an ACK no server sends.
+    if (sent.data[0] == 0x80) {
+        ++drive.clientAborts;
+        return false;
+    }
     out = frame(sent.id - 0x600 + 0x580, 8);
     const uint16_t index = frameIndex(sent);
     const uint8_t sub = sent.data[3];
@@ -449,6 +459,13 @@ struct Rig {
     }
     Rig(const Rig&) = delete;
     Rig& operator=(const Rig&) = delete;
+    // Opt-in SdoReusePolicy::NONE on one node, for scenarios about an unresolved route: its timeout
+    // still sends the one cleanup abort, but no marker read or reopening follows. Without this call
+    // the owner's documented default (ACCEPTED_RISK_WITH_MARKER) applies, and this fake answers the
+    // owner's 1000:00 marker read like any other upload.
+    void keepQuarantine(unsigned node = 1) {
+        CHECK(OwnerRig::keepQuarantine(owner, target(node).channel, now));
+    }
     Axis& axis(unsigned node) { return node == 2 ? two : one; }
     L::ReadTarget current(unsigned node = 1) const {
         L::ReadTarget value = target(node);
@@ -717,8 +734,35 @@ inline unsigned downloadsFrom(const Rig& r, unsigned from, uint16_t index, unsig
     unsigned count = 0;
     for (unsigned i = from; i < r.wire.sentCount; ++i)
         count += r.wire.sent[i].id == 0x600 + node && r.wire.sent[i].data[0] != 0x40 &&
-                 frameIndex(r.wire.sent[i]) == index;
+                 r.wire.sent[i].data[0] != 0x80 && frameIndex(r.wire.sent[i]) == index;
     return count;
+}
+// Exact prompt 55 cleanup aborts (0x05040000) naming index:sub, sent from `from` on.
+inline unsigned abortsFrom(const Rig& r, unsigned from, uint16_t index, uint8_t sub = 0,
+                           unsigned node = 1) {
+    unsigned count = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        count += OwnerRig::isTimeoutAbort(r.wire.sent[i], 0x600 + node, index, sub);
+    return count;
+}
+// Every client abort from `from` on is an exact timeout abort, and each follows a request frame
+// of the object it names, sent after `from`: the abort cleans up that request and nothing else.
+// Returns the number of aborts.
+inline unsigned onlyTimeoutAborts(const Rig& r, unsigned from, unsigned node = 1) {
+    unsigned aborts = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i) {
+        const M::Frame& f = r.wire.sent[i];
+        if (f.id != 0x600 + node || f.data[0] != 0x80)
+            continue;
+        CHECK(OwnerRig::isTimeoutAbort(f, 0x600 + node, frameIndex(f), f.data[3]));
+        bool request = false;
+        for (unsigned k = from; k < i && !request; ++k)
+            request = r.wire.sent[k].id == f.id && r.wire.sent[k].data[0] != 0x80 &&
+                      frameIndex(r.wire.sent[k]) == frameIndex(f) && r.wire.sent[k].data[3] == f.data[3];
+        CHECK(request);
+        ++aborts;
+    }
+    return aborts;
 }
 inline unsigned uploadsFrom(const Rig& r, unsigned from, uint16_t index, unsigned node = 1) {
     unsigned count = 0;

@@ -61,7 +61,10 @@ before reusing an ID. A pressure-refused command is never executed or retried.
 `txRejected`, `rxDropped`, `rxLost`, `unmatchedFrames`, `queueRejected`,
 `resultsRejected`, `cancelled`, `timeouts`, `busOffEvents`, `recoveries`,
 `traceOverwritten`, `consoleDropped`. All are uint32 JSON integers. The first
-13 and the decimal-string `maxServiceGapUs` come from the owner. `stats reset`
+13 and the decimal-string `maxServiceGapUs` come from the owner. Since prompt 55
+three named owner totals follow `maxServiceGapUs` outside the array, whose order is
+unchanged: `markers`, `reuseStopped` and `txExpired` (uint32 JSON integers; human
+`markers=`, `reuseStopped=`, `txExpired=`). `stats reset`
 clears owner totals/high-water marks and binding success/failure totals only;
 it preserves health streaks, timestamps, errors, faults, generations, history,
 uncertainty, retained results, live buffers and console pressure counters.
@@ -562,3 +565,74 @@ raw writes cannot establish an acknowledged controlword history for HALT. The
 explicit fallback budget authorizes one bounded quick-stop attempt if the planned
 stop cannot qualify; this remains best effort and retains the original failure.
 Neither recorded mode acceptance nor fake-drive results open Q22-Q26.
+
+## Self-repair settings and observations (prompt 55)
+
+These routes call the owner API only. They send nothing, start no recovery,
+reopen no route and decide nothing. The [owner guide](can_owner.md) and the
+[services guide](canopen_services.md) own the rules they expose. Each is
+`HOST_CONFIGURATION` (or cached inspection) with an immediate reply, from the
+same inventory in the native fake, Arduino and IDF builds. `reuse` acts on the
+selected binding; `txlifetime` is interface-wide.
+
+| Grammar | Owner API | Reply |
+| --- | --- | --- |
+| `reuse` | `sdoReuse`, `health` | `reuse_policy`: `NONE`, `ACCEPTED_RISK_WITH_MARKER` (the owner's default) or `ACCEPTED_RISK_WITHOUT_MARKER`. `markers`: the used marker objects in try order, each a hexadecimal `"iiii:ss"` string. `marker_queue_us` and `marker_response_us`: decimal strings, `"0"` inheriting the route's last request budget. `reuse_stopped`, `resync_pending`, `accepted_correlation`: booleans from `Health` |
+| `reuse none\|marker\|nomarker` | `setSdoReuse` | Sets the policy and keeps the marker list and budgets; replies as `reuse`. It applies to later resync steps only; `none` drops a pending one |
+| `reuse budget QUEUE_US RESPONSE_US` | `setSdoReuse` | Sets both marker budgets, each 0..60000000 us; replies as `reuse` |
+| `reuse accept` | `reacceptReuse` | Re-accepts reuse on a route where contradicting traffic stopped it; the owner then takes the policy's one resync step. Without such a refusal the owner refuses it (`refused`) |
+| `txlifetime [MICROSECONDS]` | `txLifetimeUs`, `setTxLifetime`, `noListener`, `resources`, `stats` | `tx_lifetime_us`: decimal string, `"0"` disabled. `no_listener`: boolean. `tx_expired`: expired handoffs still pending (`OwnerResources::txExpired`). `tx_expired_total`: `Stats::txExpired`. The setting accepts 0..60000000 us, a console bound, not an owner one, and resends nothing |
+| `health link` | `health` | `known`, then `reusePolicy`, `reuseStopped`, `resyncPending`, `acceptedCorrelation`, `noListener` and the presence observations `lastResponseUs`, `lastHeartbeatUs`, `bootUps`, `lastBootUpUs`, `consecutiveNoResponse`. Times are decimal owner processing-time strings, `null` while unknown (human `unknown`); counts are integers. Without a selected binding it replies `known:false` as plain `health` does |
+
+Human replies use the same facts as `key=value` pairs: `reusePolicy=`,
+`markers=1000:00,1018:01,1018:02,1018:03`, `markerQueueUs=`, `markerResponseUs=`,
+`reuseStopped=`, `resyncPending=`, `acceptedCorrelation=`, and for `txlifetime`
+`txLifetimeUs=`, `noListener=`, `txExpired=`, `txExpiredTotal=`. Errors leave
+every setting unchanged: `no_binding` (no selected binding, or one the owner does
+not know), `invalid_arguments` (grammar, a non-decimal value or a value above
+60000000), `refused` (the owner refused the setting or the re-acceptance) and
+`busy` (the owner refused `txlifetime`: backward time or reentrancy). `stats
+reset` clears `markers`, `reuseStopped` and `txExpired` with the other owner
+totals; it leaves the presence observations, the reuse settings and NO_LISTENER.
+
+`drv` adds `noListener` (boolean) and `txExpired` (pending expired handoffs).
+Terminal records add `retry_class`, one letter for `RetryClass`: `N`
+`NOT_REPEATABLE`, `R` `REPEATABLE_READ`, `W` `IDEMPOTENT_SETTING`, `M`
+`MOTION_LIKE`. The letter is an application's input; the console and the library
+never repeat work. Read terminals carry it with `reuse_policy` (the read binding's
+policy when the record is formatted, `null` when the binding is unknown) and
+`accepted_correlation` (the read's service evidence carried the mark). Settings,
+communication, persistence and PDO terminals and motion terminals carry
+`retry_class` alone.
+
+Record size decides these shapes, so that each record stays within the 511-byte
+capacity:
+
+- The class is one letter, not the enum name, so each terminal that carries it fits.
+- `health link` is its own record, apart from the plain `health` record and its
+  service history, so that each stays within the capacity.
+- A stop terminal carries its stop path instead of a class: every stop is `N`,
+  and a reissued stop is a new operation with its own identity.
+- A capture terminal keeps its acquisition fields instead of the read facts. Its
+  retained application record holds every owner terminal with them.
+
+The new `stats` totals are named fields after the positional `counters` array,
+which keeps its 14 entries and their order.
+
+Unsolicited `type:"trace"` records carry the prompt 55 diagnostic kinds in the
+compact record's unused data bytes, added after `decoded`:
+
+| `kind` | Owner `DiagnosticKind` | Added fields |
+| --- | --- | --- |
+| 5 | `RECOVERY` | `recovery` (`RecoveryOutcome`: 0 `RETIRED`, 1 `FAILED`, 2 `TIMEOUT`) and `causes` (`bus_off`, `receive_lost`, `tx_expired` booleans: the conditions pending when it began) |
+| 6 | `RESYNC` | `resync_step` (`ResyncStep`: 0 `MARKER_ADMITTED`, 1 `MARKER_FAILED`, 2 `MARKER_MISMATCH`, 3 `REOPENED`, 4 `REUSE_STOPPED`, 5 `REUSE_ACCEPTED`, 6 `MARKER_UNAVAILABLE`) and `channel` (the adapter channel slot, not a node ID) |
+| 7 | `TX_EXPIRED` | `tx_kind` (`TransportTxId::Kind`: 0 SDO, 1 NMT, 2 SYNC) and `channel` (meaningful for SDO). The frame stays possibly sent |
+| 8 | `LISTENER` | `no_listener`: true when NO_LISTENER began, false when it ended |
+
+These are copies of owner diagnostics. They prove neither delivery nor absence on
+the wire. `probe_console_test` checks the replies with and without a selected
+binding, the refusals, the read terminal facts, a silent node's presence miss and
+the widest `health link` record; it sends nothing for any setting. The S2 console
+script `scripts/console_scripts/local_routes.txt` adds the no-binding cases for a
+real image (`s2_console.py --script`). These are host results; no route here has a
+hardware result.

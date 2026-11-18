@@ -4,6 +4,7 @@
  */
 #pragma once
 #include "NetworkState.h"
+#include <MotorControlCAN/ActionOperation.h>
 
 namespace MotorControlCAN {
 namespace CANOPEN {
@@ -17,6 +18,10 @@ struct NmtTransfer {
     uint32_t request = 0; ///< Nonzero application identity, not transmitted.
     uint64_t deadlineUs = 0; ///< Immutable exclusive overall microsecond cutoff.
     uint32_t queueTimeoutUs = 0; ///< Nonzero staging interval, clamped to deadlineUs.
+    /** Retry class of every NMT command: M, never replayed, because an unconfirmed command
+     * may already have acted (prompt 55). admitNmt refuses any other value, and the copy in
+     * NmtCompletion::transfer carries it to the result. */
+    RetryClass retryClass = RetryClass::MOTION_LIKE;
 };
 /** Nonwrapping handle for the owner's single retained manager request. */
 struct NmtRequestId {

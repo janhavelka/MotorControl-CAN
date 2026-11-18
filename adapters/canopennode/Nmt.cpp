@@ -85,6 +85,7 @@ bool SdoClient::admitNmt(const NmtTransfer& input, uint64_t now, NmtRequestId& i
     if (!makeNmtRequest(work.command, work.broadcast ? 0 :
         static_cast<uint8_t>(work.target.binding.endpoint.address), checked) ||
         !work.request || !work.queueTimeoutUs || work.deadlineUs <= now ||
+        work.retryClass != RetryClass::MOTION_LIKE ||
         (!work.broadcast && (!validateNetworkRoute(work.target) || work.target.binding.endpoint.bus != work.bus))) return false;
     NmtCompletion candidate;
     candidate.transfer = work;
@@ -223,8 +224,15 @@ bool SdoClient::nextNmtTx(NmtRequestId id, uint64_t now, Frame& frame) {
     std::memcpy(candidate.data, nmtPort_.queued.data, candidate.payloadLength);
     nmtPort_.queueOccupied = false; nmtPort_.tx.bufferFull = false;
     nmtCompletion_.transmissionPossible = true;
+    nmtTxStartUs_ = now;
     applyNmt(now);
     frame = candidate;
+    return true;
+}
+bool SdoClient::nmtTxStart(NmtRequestId id, uint64_t& startUs) const {
+    if (!validNmt(id) || nmtHeld_ || !nmtCompletion_.transmissionPossible ||
+        overlap(&startUs, sizeof startUs, this, sizeof *this)) return false;
+    startUs = nmtTxStartUs_;
     return true;
 }
 bool SdoClient::canTransmitNmt(NmtRequestId id, uint64_t now) const {
@@ -260,6 +268,7 @@ bool SdoClient::noteNmtSubmitted(NmtRequestId id, uint64_t now) {
     lastUs_ = now;
     nmtHeld_ = false;
     nmtCompletion_.transmissionPossible = true;
+    nmtTxStartUs_ = now;
     recordNmtIntent(now, true);
     return true;
 }

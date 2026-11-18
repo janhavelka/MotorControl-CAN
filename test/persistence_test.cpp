@@ -204,7 +204,10 @@ void commandsAndKnowledge() {
         Fixture f;
         f.review.backupRecord = 20;
         f.review.routeBackRecord = 21;
+        CHECK(f.context.retryClass == M::RetryClass::NOT_REPEATABLE);
         CHECK(f.prepare(factory != 0));
+        // Save and factory restore are M: an unconfirmed one may already have run.
+        CHECK(f.context.retryClass == M::RetryClass::MOTION_LIKE);
         auto p = f.next();
         CHECK(p.ready && p.transfer.index == 0x2300 && !p.transfer.subindex &&
               p.transfer.size == 2);
@@ -236,6 +239,8 @@ void lostReplyDoesNotBecomeSuccess() {
     f.finish(C::SdoOutcome::TIMEOUT);
     CHECK(f.context.state == L::PersistenceState::FAILED && f.context.uncertain);
     CHECK(f.context.execution == M::ActionExecution::UNKNOWN && f.context.effectsPossible);
+    // The lost reply leaves the class M and offers nothing again.
+    CHECK(f.context.retryClass == M::RetryClass::MOTION_LIKE && !f.next().ready);
     const Saved<C::SdoCompletion> write(f.context.writeEvidence);
     const auto v = f.verification(true);
     CHECK(L::verifyPersistence(f.context, v, f.now));
@@ -608,6 +613,9 @@ void realOwnerCommandsAndRetirement() {
 void realOwnerLostReplyAndReset() {
     for (unsigned reset = 0; reset < 2; ++reset) {
         Rig r;
+        // Reuse policy NONE: every frame is counted with no repair step, so the default policy's
+        // resync marker after the lost reply is not part of it. The cleanup abort still goes.
+        CHECK(OwnerRig::keepQuarantine(r.owner, OwnerRig::route(), r.now));
         C::SdoTransfer t;
         const auto id = r.admit(t);
         r.turn(r.now + 1);
@@ -639,12 +647,18 @@ void realOwnerLostReplyAndReset() {
         } else {
             CHECK(!r.f.next().ready);
         }
-        CHECK(r.wire.notices == 1 && r.wire.sentCount == 1);
+        // The lost reply's response timeout stages one cleanup abort 0x05040000, which leaves in
+        // that turn outside the transmit guard; the save is never sent again. Boot-up stages none.
+        CHECK(e.clientAbortQueued == !reset && !e.abortValid);
+        CHECK(r.wire.notices == 1 && r.wire.sentCount == (reset ? 1u : 2u));
+        if (!reset)
+            CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[1], 0x601, e.transfer.index,
+                                           e.transfer.subindex));
         const Saved<L::PersistenceContext> history(r.f.context);
         CHECK(r.owner.release(id));
         r.turn(r.now + 100);
         history.unchanged(r.f.context);
-        CHECK(r.wire.sentCount == 1);
+        CHECK(r.wire.sentCount == (reset ? 1u : 2u) && r.owner.stats().markers == 0);
     }
 }
 } // namespace

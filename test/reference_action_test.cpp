@@ -520,6 +520,9 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     const auto terminal = r.result(id, false);
     CHECK(terminal.outcome == C::SdoOutcome::TIMEOUT && terminal.effectUncertain &&
           r.services.unresolved(0) && r.wire.retireCalls == 1);
+    // Prompt 55: the response timeout staged its one cleanup abort behind the unreported frame.
+    // No turn below has TX budget, so neither it nor an owner marker reaches the wire.
+    CHECK(terminal.clientAbortQueued && !terminal.abortValid && r.stagedTimeoutAbort(0x2302));
     CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
     CHECK(action.execution == M::ActionExecution::UNKNOWN && action.uncertain);
     const Saved<L::ActionContext> failed(action);
@@ -532,6 +535,8 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     r.wire.push(reply(trigger.transfer), r.now + 1);
     r.turn(r.now + 1, budget(8, 0, 8, 0));
     retained.unchanged(*r.owner.result(id));
+    // The late ACK is unsolicited on the unresolved route: it retires the staged abort unsent.
+    CHECK(!r.services.port(0)->queueOccupied && r.wire.sentCount == sent + 1);
     CHECK(r.owner.release(id));
     CHECK(r.services.unresolved(0) && !r.owner.sequence(r.sequence));
     CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
@@ -561,9 +566,21 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     readback.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
     readback.allowSegmentedUpload = false;
     readback.deadlineUs = r.now + 1000;
-    C::SdoDrainPremises premises;
-    premises.soleClient = premises.orderedServer = true;
-    CHECK(r.owner.admitDrainMarker(readback, premises, r.now, rejected) == O::BusAdmission::INVALID);
+    // The binding keeps the default reuse policy, ACCEPTED_RISK_WITH_MARKER, which states both
+    // premises (sole client, ordered server) as accepted, as the explicit premises did before.
+    O::SdoReuse reuse;
+    CHECK(r.owner.sdoReuse(r.services.channel(0)->binding, reuse) &&
+          reuse.policy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+    C::SdoDrainPremises accepted;
+    accepted.soleClient = accepted.orderedServer = true;
+    // The pure check pins the refusal to the retained pair: another object would pass it.
+    C::SdoTransfer other = readback;
+    other.index = 0x1000;
+    other.subindex = 0;
+    other.size = 4;
+    CHECK(!r.services.checkDrain(0, readback, accepted, r.now) &&
+          r.services.checkDrain(0, other, accepted, r.now));
+    CHECK(r.owner.admitDrainMarker(readback, r.now, rejected) == O::BusAdmission::INVALID);
     CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
     CHECK(r.wire.sentCount == sent + 1 && !r.wire.pending[sent] && r.invalidations == 0);
     failed.unchanged(action);

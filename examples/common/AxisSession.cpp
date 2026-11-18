@@ -1998,7 +1998,10 @@ void AxisSession::serviceHeld(uint64_t now) noexcept {
         dropControl();
         L::noteBestEffortAdmission(bestEffort_, now);
         path_ = StopPath::BEST_EFFORT;
-    } else if (admission != BusAdmission::INHIBITED && admission != BusAdmission::RESULTS_FULL) {
+    } else if (admission != BusAdmission::INHIBITED && admission != BusAdmission::RESULTS_FULL &&
+               admission != BusAdmission::NO_LISTENER) {
+        // INHIBITED, RESULTS_FULL and NO_LISTENER (prompt 55: no frame received or ACKed since a TX
+        // lifetime expired) are no-TX refusals, not faults: the held stop waits within its deadline.
         endHeld(M::ActionOutcome::INVALIDATED, now);
     }
 }

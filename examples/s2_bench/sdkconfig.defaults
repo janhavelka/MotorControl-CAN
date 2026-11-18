@@ -20,3 +20,6 @@ CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH=y
 # CONFIG_LIBC_LOCKS_PLACE_IN_IRAM is not set
 # CONFIG_UART_ISR_IN_IRAM is not set
 CONFIG_ESP_TIMER_TASK_STACK_SIZE=2048
+# Prompt 55 bench item (c): a third SDO channel for the absent node 3 beside fixture nodes 1 and 2.
+# The library default stays 2; only this image sets it.
+CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=3

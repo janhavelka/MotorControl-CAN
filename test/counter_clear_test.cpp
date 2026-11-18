@@ -21,8 +21,11 @@ const uint8_t FEEDBACK = uint8_t(1u << unsigned(L::StateBlock::FEEDBACK));
 
 M::Status attempt(Rig& r, L::ActionContext& action, int64_t value = 0) {
     r.begin();
-    return L::prepareSetDevicePosition(action, r.reservation, r.state, value, r.axis, r.operation,
-                                       r.now, r.deadline, r.policy());
+    const M::Status s = L::prepareSetDevicePosition(action, r.reservation, r.state, value, r.axis,
+                                                    r.operation, r.now, r.deadline, r.policy());
+    // The 2302 value-1 write is an edge with undocumented repeat behavior: N.
+    CHECK(!s || action.retryClass == M::RetryClass::NOT_REPEATABLE);
+    return s;
 }
 // A new FEEDBACK read on the current epoch, as a later explicit operation. Returns raw 6064.
 int32_t freshFeedback(Rig& r) {
@@ -200,6 +203,7 @@ void stageMatrix() {
     for (unsigned slot = 0; slot < 3; ++slot)
         for (Stage stage : STAGES) {
             Rig r;
+            r.keepQuarantine(); // laterAdmission asserts the quarantine and exact traffic.
             r.acquire(0);
             L::ActionContext action;
             r.prepare(action, true);

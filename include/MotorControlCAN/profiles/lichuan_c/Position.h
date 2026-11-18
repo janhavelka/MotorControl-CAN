@@ -331,6 +331,9 @@ struct MoveContext {
      * displacement written to 607A. */
     int64_t displacementNative = 0;
     ActionState state = ActionState::EMPTY;    ///< Overall phase, distinct from drive state.
+    /** MOTION_LIKE once an absolute, relative, angle or replacement preparation succeeds. A trigger
+     * that may have left without a confirmed result is never offered again by nextMove. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     MovePhase phase = MovePhase::PARAMETERS;   ///< Current concrete work.
     ActionOutcome outcome = ActionOutcome::NONE; ///< Immutable first terminal cause.
     MoveInterruption interruption = MoveInterruption::NONE; ///< Local reason, when one ended it.

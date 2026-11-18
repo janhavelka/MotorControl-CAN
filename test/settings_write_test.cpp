@@ -289,9 +289,14 @@ void preparation() {
         }
         CHECK(!f.owner.competingWorkPermitted());
         CHECK(f.owner.settingsDownloads == 0);
+        CHECK(out.retryClass == M::RetryClass::NOT_REPEATABLE);
         CHECK(f.prepare(out));
         CHECK(out.state == L::SettingsState::WRITING && out.confirmed == 0 &&
               !out.effectsPossible && !out.uncertain);
+        // W: absolute level values with a whole-group readback. The readback's own class stays
+        // the read rule's, N here, since these groups are outside DEC-1.
+        CHECK(out.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
+        CHECK(out.readback.read.retryClass == M::RetryClass::NOT_REPEATABLE);
         CHECK(out.changed == (io ? 0x1fe : 7));
         CHECK(out.requested[io ? 1 : 0] == (io ? 0xa555u : 101u));
         const Saved<L::DriverSettingsContext> admitted(out);

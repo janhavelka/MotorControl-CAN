@@ -11,7 +11,11 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace {
 unsigned checks = 0;
+} // namespace
 #define CHECK(condition) do { ++checks; if (!(condition)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); std::abort(); } } while (false)
+#include "support/OwnerRig.h"
+namespace O = MotorControlCANOwner;
+namespace {
 // Cases on slot 1 (node 2, or a second channel of node 1) need a capacity set with two channels;
 // a one-channel set runs the rest on slot 0. Further channels stay unconfigured.
 constexpr bool PAIRED_CHANNELS = C::SdoClient::CHANNELS >= 2;
@@ -649,13 +653,29 @@ M::Frame named(uint8_t command, uint16_t index, uint8_t subindex = 0) {
     f.data[3] = subindex;
     return f;
 }
-// A released timed-out write: the route is unresolved and retains 0x2200:00.
+// The one cleanup abort a response timeout after possible TX stages (prompt 55): CiA 301
+// "SDO protocol timed out" 0x05040000 with the request's own object, handed off once and then
+// reported locally retired. It settles nothing.
+void retireAbort(C::SdoClient& c, uint64_t now, uint16_t index = 0x2200, uint8_t subindex = 0,
+                 uint8_t slot = 0) {
+    C::SdoTxId tx;
+    const M::Frame abort = take(c, now, slot, &tx);
+    const uint8_t literal[8] = {0x80, uint8_t(index), uint8_t(index >> 8), subindex, 0, 0, 0x04, 0x05};
+    CHECK(abort.id == c.channel(slot)->clientToServerId && abort.dlc == 8 && !abort.extended && !abort.rtr);
+    CHECK(std::memcmp(abort.data, literal, sizeof literal) == 0);
+    M::Frame again; C::SdoTxId second;
+    CHECK(!c.nextTx(slot, now, again, second)); // Handed off at most once.
+    CHECK(c.noteTxRetired(tx) && c.unresolved(slot));
+}
+// A released timed-out write: the route is unresolved and retains 0x2200:00. Its abort is
+// handed off and retired, so local TX on the route is retired.
 void quarantine(C::SdoClient& c) {
     CHECK(c.configure(0, route(), true, true));
     C::SdoTransfer lost = work(); lost.responseTimeoutUs = 5;
     const C::SdoRequestId id = admit(c, lost); take(c);
-    CHECK(c.service(5)); terminal(c, id, C::SdoOutcome::TIMEOUT);
+    CHECK(c.service(5)); CHECK(terminal(c, id, C::SdoOutcome::TIMEOUT).clientAbortQueued);
     CHECK(c.release(id) && c.unresolved(0));
+    retireAbort(c, 5);
 }
 
 void drainMarkerClientBoundary() {
@@ -799,6 +819,7 @@ void reopeningClearsArmedExperimentGrants() {
         const C::SdoRequestId lostId = admit(c, lost); take(c);
         CHECK(c.service(5)); terminal(c, lostId, C::SdoOutcome::TIMEOUT);
         CHECK(c.release(lostId) && c.unresolved(0) && !c.checkAdmission(0, grant, 5));
+        retireAbort(c, 5);
         C::SdoRequestId id;
         CHECK(c.admitDrain(0, drainMarker(), fakePremises(), 5, id, 1000));
         take(c, 5);
@@ -822,8 +843,642 @@ void strayDuringOrdinaryTransferIsRetained() {
     CHECK(!c.result(id));
     CHECK(c.service(5)); terminal(c, id, C::SdoOutcome::TIMEOUT);
     CHECK(c.release(id) && c.unresolved(0));
+    CHECK(!c.checkDrain(0, drainMarker(), fakePremises(), 5)); // Its abort is not retired yet.
+    retireAbort(c, 5);
     CHECK(c.checkDrain(0, drainMarker(), fakePremises(), 5));
     CHECK(!c.checkDrain(0, drainMarker(0x3000), fakePremises(), 5));
+}
+
+// Prompt 55: a response timeout after possible TX stages one abort through the existing
+// client-abort path. Nothing when TX was never possible, when no budget remains, or for a
+// best-effort stop. The abort is cleanup only and settles nothing.
+void timeoutAbortIsCleanupOnly() {
+    for (unsigned download = 0; download < 2; ++download) {
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        if (PAIRED_CHANNELS) CHECK(c.configure(1, route(2), true, true));
+        C::SdoTransfer lost = work(download != 0); lost.subindex = 3; lost.responseTimeoutUs = 5;
+        if (!download) lost.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        const C::SdoRequestId id = admit(c, lost); take(c);
+        CHECK(c.service(4) && !c.result(id) && !c.port(0)->queueOccupied);
+        CHECK(c.service(5));
+        const C::SdoCompletion& timedOut = terminal(c, id, C::SdoOutcome::TIMEOUT);
+        // TIMEOUT stays the cause and carries no abort code; the staged abort is cleanup.
+        CHECK(timedOut.clientAbortQueued && !timedOut.abortValid && timedOut.abortCode == 0);
+        CHECK(timedOut.transmissionPossible && timedOut.effectUncertain && !timedOut.protocolAcknowledged);
+        CHECK(c.unresolved(0) && c.port(0)->queueOccupied);
+        if (PAIRED_CHANNELS) {
+            // The other channel runs its own exchange meanwhile.
+            C::SdoTransfer other = work(); other.channel = route(2);
+            const C::SdoRequestId otherId = admit(c, other, 5, 1); take(c, 5, 1);
+            CHECK(c.receive(reply(0x60, route(2)), 5));
+            CHECK(terminal(c, otherId, C::SdoOutcome::SUCCESS).protocolAcknowledged && !c.unresolved(1));
+        }
+        CHECK(c.release(id));
+        retireAbort(c, 6, 0x2200, 3);
+        CHECK(c.port(0)->handedOff == 2);
+        blocked(c, work(), 7); // It settled nothing.
+        CHECK(c.service(10000) && c.port(0)->handedOff == 2 && c.unresolved(0));
+    }
+    {   // Not handed off within its own queue budget: retired and never sent later.
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        C::SdoTransfer lost = work(); lost.responseTimeoutUs = 5;
+        const C::SdoRequestId id = admit(c, lost); take(c);
+        CHECK(c.service(5) && terminal(c, id, C::SdoOutcome::TIMEOUT).clientAbortQueued);
+        CHECK(c.service(1005) && !c.port(0)->queueOccupied);
+        M::Frame f; C::SdoTxId tx;
+        CHECK(!c.nextTx(0, 1006, f, tx) && c.port(0)->handedOff == 1 && c.unresolved(0));
+    }
+    {   // Queue expiry before any handoff: no transmission was possible, so no abort.
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(c, work());
+        CHECK(c.service(0) && c.port(0)->queueOccupied && c.service(1000));
+        const C::SdoCompletion& expired = terminal(c, id, C::SdoOutcome::TIMEOUT);
+        CHECK(!expired.transmissionPossible && !expired.clientAbortQueued);
+        CHECK(!c.port(0)->queueOccupied && c.port(0)->handedOff == 0 && !c.unresolved(0));
+    }
+    {   // A handoff an adapter held short of its SDK never left either.
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(c, work());
+        C::SdoTxId tx; take(c, 0, 0, &tx);
+        CHECK(c.holdHandoff(tx) && c.service(1000));
+        const C::SdoCompletion& expired = terminal(c, id, C::SdoOutcome::TIMEOUT);
+        CHECK(!expired.transmissionPossible && !expired.clientAbortQueued && !c.port(0)->queueOccupied);
+        CHECK(!c.unresolved(0));
+    }
+    {   // At the overall deadline no budget remains for cleanup.
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        C::SdoTransfer w = work(); w.deadlineUs = 5;
+        const C::SdoRequestId id = admit(c, w); take(c);
+        CHECK(c.service(5));
+        const C::SdoCompletion& expired = terminal(c, id, C::SdoOutcome::TIMEOUT);
+        CHECK(expired.transmissionPossible && !expired.clientAbortQueued);
+        CHECK(!c.port(0)->queueOccupied && c.unresolved(0));
+    }
+    {   // A best-effort stop sends exactly one frame (DEC-2), even when it times out.
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        C::SdoTransfer stop = work(); stop.index = 0x6040; stop.subindex = 0;
+        stop.data[0] = 0x0b; stop.data[1] = 0; stop.responseTimeoutUs = 5;
+        C::SdoRequestId id;
+        CHECK(c.admitBestEffortStop(0, stop, 0, id, 1000));
+        take(c);
+        CHECK(c.service(5));
+        CHECK(!terminal(c, id, C::SdoOutcome::TIMEOUT).clientAbortQueued && !c.port(0)->queueOccupied);
+        CHECK(c.port(0)->handedOff == 1);
+    }
+}
+
+// The accepted no-marker setting settles after local retirement alone, through the one
+// reopening. Its premises stay stated, never established.
+void settlementWithoutMarker() {
+    C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+    C::SdoTransfer lost = work(false); lost.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    lost.responseTimeoutUs = 5;
+    const C::SdoRequestId id = admit(c, lost); take(c);
+    CHECK(c.service(5)); CHECK(!terminal(c, id, C::SdoOutcome::TIMEOUT).acceptedCorrelation);
+    CHECK(c.release(id));
+    CHECK(!c.settleWithoutMarker(0, C::SdoDrainPremises(), 5)); // Unstated premises (NONE).
+    CHECK(!c.settleWithoutMarker(0, fakePremises(), 5));        // Its abort is still staged.
+    C::SdoTxId abortTx; take(c, 5, 0, &abortTx);
+    CHECK(!c.settleWithoutMarker(0, fakePremises(), 5));        // Handed off, not yet retired.
+    CHECK(!c.settleWithoutMarker(C::SdoClient::CHANNELS, fakePremises(), 5));
+    CHECK(c.noteTxRetired(abortTx));
+    CHECK(c.settleWithoutMarker(0, fakePremises(), 6));
+    CHECK(c.drainSettled(0) && c.unresolved(0) && !c.settleWithoutMarker(0, fakePremises(), 6));
+    CHECK(c.reopenAfterDrain(0) && !c.unresolved(0) && c.requalifications(0) == 1);
+    CHECK(c.acceptedCorrelation(0) && !c.acceptedCorrelation(C::SdoClient::CHANNELS));
+    // D2: the timed-out request's own late reply, idle, is absorbed after a no-marker reopening.
+    CHECK(!c.receive(reply(0x4b), 7) && !c.unresolved(0) && !c.reuseRefused(0));
+    // A(x) again: the old A(x) reply completes it, and no client check can tell.
+    C::SdoTransfer again = lost; ++again.request; ++again.step; again.responseTimeoutUs = 1000;
+    const C::SdoRequestId next = admit(c, again, 7);
+    C::SdoTxId nextTx; take(c, 7, 0, &nextTx);
+    M::Frame old = reply(0x4b); old.data[4] = 0x11; old.data[5] = 0x22;
+    CHECK(c.receive(old, 8));
+    const C::SdoCompletion& result = terminal(c, next, C::SdoOutcome::SUCCESS);
+    CHECK(result.protocolAcknowledged && result.size == 2 && result.data[0] == 0x11 && !c.unresolved(0));
+    CHECK(result.acceptedCorrelation); // M8: the client's own result carries the mark.
+    CHECK(c.release(next) && c.noteTxRetired(nextTx));
+    // An unexpected frame after the reopening refuses reuse; an explicit re-acceptance resumes it.
+    CHECK(!c.receive(named(0x4b, 0x3000), 9));
+    CHECK(c.unresolved(0) && c.reuseRefused(0));
+    CHECK(!c.settleWithoutMarker(0, fakePremises(), 9) && !c.checkDrain(0, drainMarker(), fakePremises(), 9));
+    CHECK(!c.reuseRefused(C::SdoClient::CHANNELS) && !c.reacceptReuse(C::SdoClient::CHANNELS));
+    CHECK(c.reacceptReuse(0) && !c.reuseRefused(0) && !c.reacceptReuse(0) && c.unresolved(0));
+    CHECK(c.settleWithoutMarker(0, fakePremises(), 10) && c.reopenAfterDrain(0));
+    CHECK(c.requalifications(0) == 2 && !c.unresolved(0));
+    // A controller event refuses the settlement below the owner too.
+    C::SdoClient d; quarantine(d);
+    CHECK(d.reportController(C::ControllerState::RECOVERING, 6) && !d.settleWithoutMarker(0, fakePremises(), 6));
+    CHECK(d.reportController(C::ControllerState::AVAILABLE, 7) && d.settleWithoutMarker(0, fakePremises(), 7));
+}
+
+// The owner-level reuse policy (prompt 55). Every premise is stated by this fake; a positive
+// proves the host's logic and the accepted risk, never a real server's ordering (Q18).
+constexpr unsigned BENCH_NODES = PAIRED_CHANNELS ? 2 : 1;
+const uint32_t DEVICE_TYPE = 0x00020192; // A synthetic 1000:00 value, no real drive's.
+struct Bench {
+    C::SdoClient services;
+    OwnerRig::WireBase wire;
+    O::CanBusOwner owner;
+    uint64_t now = 0;
+    unsigned steps[7] = {}, kinds[9] = {};
+    explicit Bench(O::SdoReusePolicy policy, bool expect = false, uint32_t expected = DEVICE_TYPE)
+        : owner(services, wire.plumbing(), 55) {
+        for (unsigned node = 1; node <= BENCH_NODES; ++node) {
+            CHECK(services.configure(uint8_t(node - 1), OwnerRig::route(node), true, true));
+            C::NetworkRoute n;
+            n.binding = OwnerRig::route(node).binding;
+            n.generation = 11;
+            n.heartbeatId = 0x700 + node;
+            n.emcyId = 0x80 + node;
+            CHECK(services.configureNetwork(uint8_t(node - 1), n, C::NetworkObserver(), 0));
+            O::SdoReuse reuse;
+            CHECK(reuse.policy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER); // The default.
+            // The default list: 1000:00, then 1018:01..03, every one U32, and inherited budgets.
+            CHECK(reuse.markerCount == O::SdoReuse::MARKER_OBJECTS && O::SdoReuse::MARKER_OBJECTS == 4);
+            CHECK(reuse.markers[0].index == 0x1000 && reuse.markers[0].subindex == 0);
+            for (unsigned i = 1; i < 4; ++i)
+                CHECK(reuse.markers[i].index == 0x1018 && reuse.markers[i].subindex == i);
+            for (unsigned i = 0; i < 4; ++i)
+                CHECK(reuse.markers[i].size == 4 && !reuse.markers[i].expectedKnown);
+            CHECK(reuse.markerQueueTimeoutUs == 0 && reuse.markerResponseTimeoutUs == 0);
+            reuse.policy = policy;
+            reuse.markers[0].expectedKnown = expect;
+            reuse.markers[0].expectedValue = expected;
+            CHECK(owner.setSdoReuse(OwnerRig::route(node).binding, reuse, 0));
+        }
+    }
+    const M::Binding& binding(unsigned node = 1) const { return services.channel(uint8_t(node - 1))->binding; }
+    void turn(uint64_t time, O::ServiceBudget b = OwnerRig::budget()) {
+        now = time;
+        CHECK(owner.service(time, b));
+        O::Diagnostic d;
+        while (owner.takeDiagnostic(d)) {
+            ++kinds[unsigned(d.kind)];
+            if (d.kind == O::DiagnosticKind::RESYNC) ++steps[unsigned(d.resync)];
+        }
+        CHECK(owner.stats().traceOverwritten == 0);
+    }
+    O::SequenceId reserve(unsigned node, uint32_t operation) {
+        O::SequenceId id;
+        CHECK(owner.beginSequence(binding(node), uint8_t(node), now, id));
+        CHECK(owner.beginOperation(id, operation, now + 100000, now));
+        return id;
+    }
+    O::RequestId read(O::SequenceId s, uint16_t index, unsigned node = 1, uint32_t responseUs = 1000) {
+        const O::Sequence* q = owner.sequence(s);
+        CHECK(q);
+        O::BusRequest r;
+        r.sequence = s;
+        r.transfer.channel = *services.channel(uint8_t(node - 1));
+        r.transfer.operation = r.transfer.request = q->operation;
+        r.transfer.step = 1;
+        r.transfer.index = index;
+        r.transfer.size = 4;
+        r.transfer.direction = C::SdoDirection::UPLOAD;
+        r.transfer.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        r.transfer.queueTimeoutUs = 1000;
+        r.transfer.responseTimeoutUs = responseUs;
+        r.transfer.deadlineUs = q->deadlineUs;
+        O::RequestId id;
+        CHECK(owner.admit(r, now, id) == O::BusAdmission::ACCEPTED);
+        return id;
+    }
+    C::SdoTransfer marker1018(O::SequenceId s) const {
+        const O::Sequence* q = owner.sequence(s);
+        CHECK(q);
+        C::SdoTransfer t;
+        t.channel = *services.channel(0);
+        t.operation = t.request = q->operation;
+        t.step = 1;
+        t.index = 0x1018; t.subindex = 1; t.size = 4;
+        t.direction = C::SdoDirection::UPLOAD;
+        t.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        t.queueTimeoutUs = t.responseTimeoutUs = 1000;
+        t.deadlineUs = q->deadlineUs;
+        return t;
+    }
+    M::Frame upload(unsigned node, uint16_t index, uint32_t value, uint8_t subindex = 0) const {
+        M::Frame f = OwnerRig::frame(0x580 + node, 8);
+        f.data[0] = 0x43;
+        f.data[1] = uint8_t(index); f.data[2] = uint8_t(index >> 8); f.data[3] = subindex;
+        for (unsigned i = 0; i < 4; ++i) f.data[4 + i] = uint8_t(value >> (8 * i));
+        return f;
+    }
+    void answer(unsigned node, uint16_t index, uint32_t value, uint8_t subindex = 0) {
+        wire.push(upload(node, index, value, subindex), now + 1);
+        turn(now + 1);
+    }
+    const O::Completion& done(O::RequestId id) const {
+        const O::Completion* c = owner.result(id);
+        CHECK(c);
+        return *c;
+    }
+    O::Health health(unsigned node = 1) const {
+        O::Health h;
+        CHECK(owner.health(binding(node), h));
+        return h;
+    }
+    void expectSent(unsigned index, const uint8_t (&bytes)[8], unsigned node = 1) const {
+        CHECK(index < wire.sentCount && wire.sent[index].id == 0x600 + node);
+        CHECK(std::memcmp(wire.sent[index].data, bytes, 8) == 0);
+    }
+};
+const uint8_t READ_6064[8] = {0x40, 0x64, 0x60, 0, 0, 0, 0, 0};
+const uint8_t ABORT_6064[8] = {0x80, 0x64, 0x60, 0, 0, 0, 0x04, 0x05};
+const uint8_t MARKER_1000[8] = {0x40, 0x00, 0x10, 0, 0, 0, 0, 0};
+const uint8_t MARKER_1018[8] = {0x40, 0x18, 0x10, 1, 0, 0, 0, 0};
+
+// A(x) times out; its abort leaves once. Returns after the abort's report is consumed.
+O::SequenceId timeOut(Bench& b, O::RequestId& lost) {
+    const O::SequenceId s = b.reserve(1, 1);
+    lost = b.read(s, 0x6064);
+    b.turn(0);
+    CHECK(b.wire.sentCount == 1);
+    b.expectSent(0, READ_6064);
+    b.turn(999);
+    CHECK(!b.owner.result(lost) && b.wire.sentCount == 1);
+    b.turn(1000);
+    const O::Completion& timedOut = b.done(lost);
+    CHECK(timedOut.service.outcome == C::SdoOutcome::TIMEOUT && timedOut.service.clientAbortQueued);
+    CHECK(timedOut.service.transmissionPossible && !timedOut.acceptedCorrelation);
+    CHECK(b.wire.sentCount == 2 && b.services.unresolved(0));
+    b.expectSent(1, ABORT_6064);
+    CHECK(b.health().consecutiveNoResponse == 1 && b.health().resyncPending ==
+          (timedOut.reusePolicy != O::SdoReusePolicy::NONE));
+    CHECK(b.owner.release(lost));
+    return s;
+}
+// New A(x) on the reopened route; the old A(x) reply completes it and carries the mark.
+void lateSameObjectReply(Bench& b, O::SdoReusePolicy policy) {
+    CHECK(!b.services.unresolved(0) && b.health().acceptedCorrelation);
+    const unsigned sent = b.wire.sentCount;
+    const O::SequenceId s = b.reserve(1, 2);
+    const O::RequestId again = b.read(s, 0x6064);
+    b.turn(b.now + 1);
+    CHECK(b.wire.sentCount == sent + 1);
+    b.expectSent(sent, READ_6064);
+    b.answer(1, 0x6064, 0x1111); // The reply to the first, lost A(x), arriving late.
+    const O::Completion& result = b.done(again);
+    CHECK(result.service.outcome == C::SdoOutcome::SUCCESS && result.service.protocolAcknowledged);
+    CHECK(result.service.data[0] == 0x11 && result.service.data[1] == 0x11);
+    // The result says what its correlation rests on, and claims no detection. The client's
+    // own SdoCompletion carries the same mark, so profile contexts that copy it keep it.
+    CHECK(result.acceptedCorrelation && result.service.acceptedCorrelation && result.reusePolicy == policy);
+    CHECK(!b.services.unresolved(0) && !b.services.reuseRefused(0) && b.owner.stats().reuseStopped == 0);
+    CHECK(b.owner.release(again) && b.owner.releaseSequence(s));
+}
+// An unexpected frame after a reopening stops reuse, idle or while a request waits (that request
+// ends CORRELATION_LOST); the explicit re-acceptance resumes it once.
+void contradictionStopsReuse(Bench& b, bool marker, bool waiting, uint16_t contradicting) {
+    const uint32_t requalified = b.services.requalifications(0);
+    const uint32_t stopped = b.owner.stats().reuseStopped;
+    const unsigned stoppedSteps = b.steps[unsigned(O::ResyncStep::REUSE_STOPPED)];
+    const unsigned acceptedSteps = b.steps[unsigned(O::ResyncStep::REUSE_ACCEPTED)];
+    O::SequenceId held;
+    O::RequestId pending;
+    if (waiting) {
+        held = b.reserve(1, 3);
+        pending = b.read(held, 0x6041);
+        b.turn(b.now + 1);
+        CHECK(!b.owner.result(pending) && !b.services.unresolved(0));
+    }
+    const unsigned sent = b.wire.sentCount;
+    b.wire.push(b.upload(1, contradicting, 7), b.now + 1);
+    b.turn(b.now + 1);
+    CHECK(b.services.unresolved(0) && b.services.reuseRefused(0));
+    CHECK(b.owner.stats().reuseStopped == stopped + 1);
+    CHECK(b.steps[unsigned(O::ResyncStep::REUSE_STOPPED)] == stoppedSteps + 1);
+    CHECK(b.health().reuseStopped && !b.health().resyncPending);
+    if (waiting) {
+        // The waiting request cannot stand on the contradicted premise, not even with its own
+        // reply arriving afterwards.
+        CHECK(b.done(pending).service.outcome == C::SdoOutcome::CORRELATION_LOST);
+        CHECK(b.done(pending).acceptedCorrelation && !b.done(pending).service.protocolAcknowledged);
+        b.answer(1, 0x6041, 5);
+        CHECK(b.done(pending).service.outcome == C::SdoOutcome::CORRELATION_LOST && b.services.unresolved(0));
+        CHECK(b.owner.release(pending) && b.owner.releaseSequence(held));
+    }
+    C::SdoTransfer explicitMarker;
+    explicitMarker.channel = *b.services.channel(0);
+    explicitMarker.operation = explicitMarker.request = explicitMarker.step = 77;
+    explicitMarker.index = 0x1018; explicitMarker.subindex = 1; explicitMarker.size = 4;
+    explicitMarker.direction = C::SdoDirection::UPLOAD;
+    explicitMarker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    explicitMarker.allowSegmentedUpload = false; // Otherwise a valid marker in every other way.
+    explicitMarker.queueTimeoutUs = explicitMarker.responseTimeoutUs = 1000;
+    explicitMarker.deadlineUs = b.now + 5000;
+    O::RequestId refused;
+    CHECK(b.owner.admitDrainMarker(explicitMarker, b.now, refused) == O::BusAdmission::INVALID);
+    for (unsigned i = 0; i < 5; ++i) b.turn(b.now + 1000);
+    CHECK(b.wire.sentCount == sent && b.services.unresolved(0)); // Nothing by itself.
+    CHECK(b.owner.reacceptReuse(b.binding(), b.now) && !b.owner.reacceptReuse(b.binding(), b.now));
+    CHECK(b.steps[unsigned(O::ResyncStep::REUSE_ACCEPTED)] == acceptedSteps); // Not yet drained.
+    b.turn(b.now + 1);
+    CHECK(b.steps[unsigned(O::ResyncStep::REUSE_ACCEPTED)] == acceptedSteps + 1 && !b.health().reuseStopped);
+    if (marker) {
+        // 1000:00, or 1018:01 when 1000:00 completed last (an earlier marker).
+        CHECK(b.wire.sentCount == sent + 1);
+        const bool alternate = b.wire.sent[sent].data[1] == 0x18;
+        b.expectSent(sent, alternate ? MARKER_1018 : MARKER_1000);
+        b.answer(1, alternate ? 0x1018 : 0x1000, DEVICE_TYPE, alternate ? 1 : 0);
+    }
+    CHECK(b.wire.sentCount == sent + (marker ? 1 : 0));
+    CHECK(!b.services.unresolved(0) && b.services.requalifications(0) == requalified + 1);
+}
+
+void reusePolicyAfterTimeout() {
+    {   // ACCEPTED_RISK_WITH_MARKER, the default: the owner issues one marker of another object.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER, true);
+        O::RequestId lost;
+        const O::SequenceId first = timeOut(b, lost);
+        O::RequestId other;
+        if (PAIRED_CHANNELS) other = b.read(b.reserve(2, 1), 0x6064, 2);
+        b.turn(1001); // The abort is retired: the marker goes, and node 2 is served alongside.
+        CHECK(b.wire.sentCount == (PAIRED_CHANNELS ? 4u : 3u));
+        b.expectSent(2, MARKER_1000);
+        CHECK(b.owner.stats().markers == 1 && b.steps[unsigned(O::ResyncStep::MARKER_ADMITTED)] == 1);
+        CHECK(!b.health().resyncPending && b.services.unresolved(0));
+        if (PAIRED_CHANNELS) {
+            b.expectSent(3, READ_6064, 2);
+            b.answer(2, 0x6064, 5);
+            CHECK(b.done(other).service.outcome == C::SdoOutcome::SUCCESS && !b.done(other).acceptedCorrelation);
+            CHECK(!b.services.unresolved(1) && b.services.requalifications(1) == 0);
+        }
+        b.answer(1, 0x6064, 0x1111); // The old A(x) reply during the marker is a retained pair: absorbed.
+        CHECK(b.services.unresolved(0) && b.services.requalifications(0) == 0);
+        b.answer(1, 0x1000, DEVICE_TYPE);
+        CHECK(b.services.requalifications(0) == 1 && b.steps[unsigned(O::ResyncStep::REOPENED)] == 1);
+        CHECK(!b.owner.sequence(first)); // Reservations on the node were invalidated.
+        CHECK(b.owner.resources().retained == (PAIRED_CHANNELS ? 1 : 0)); // The marker slot is free.
+        lateSameObjectReply(b, O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        contradictionStopsReuse(b, true, false, 0x2000);
+        contradictionStopsReuse(b, true, true, 0x2001);
+    }
+    {   // ACCEPTED_RISK_WITHOUT_MARKER: local retirement alone reopens; nothing else is sent.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER);
+        O::RequestId lost;
+        timeOut(b, lost);
+        b.turn(1001);
+        CHECK(b.wire.sentCount == 2 && b.owner.stats().markers == 0);
+        CHECK(b.services.requalifications(0) == 1 && b.steps[unsigned(O::ResyncStep::REOPENED)] == 1);
+        lateSameObjectReply(b, O::SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER);
+        contradictionStopsReuse(b, false, false, 0x2000);
+        // 2000:00 is now a pair kept from before the no-marker reopening: another object.
+        contradictionStopsReuse(b, false, true, 0x2001);
+    }
+    {   // NONE: the abort still leaves, then the route stays quarantined and refuses markers.
+        Bench b(O::SdoReusePolicy::NONE);
+        O::RequestId lost;
+        timeOut(b, lost);
+        for (unsigned i = 0; i < 5; ++i) b.turn(b.now + 1000);
+        CHECK(b.wire.sentCount == 2 && b.services.unresolved(0) && b.services.requalifications(0) == 0);
+        CHECK(b.health().reusePolicy == O::SdoReusePolicy::NONE && !b.health().resyncPending);
+        C::SdoTransfer marker;
+        marker.channel = *b.services.channel(0);
+        marker.operation = marker.request = marker.step = 9;
+        marker.index = 0x1000; marker.size = 4;
+        marker.direction = C::SdoDirection::UPLOAD;
+        marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        marker.allowSegmentedUpload = false;
+        marker.queueTimeoutUs = marker.responseTimeoutUs = 1000;
+        marker.deadlineUs = b.now + 5000;
+        O::RequestId refused;
+        CHECK(b.owner.admitDrainMarker(marker, b.now, refused) == O::BusAdmission::INVALID);
+        C::SdoDrainPremises stated; stated.soleClient = stated.orderedServer = true;
+        CHECK(b.owner.admitDrainMarker(marker, stated, b.now, refused) == O::BusAdmission::INVALID);
+        CHECK(!b.owner.reacceptReuse(b.binding(), b.now) && b.wire.sentCount == 2);
+        // Setting an accepted policy later reopens nothing by itself: the step was never armed.
+        O::SdoReuse reuse;
+        CHECK(b.owner.setSdoReuse(b.binding(), reuse, b.now));
+        b.turn(b.now + 1);
+        CHECK(b.wire.sentCount == 2 && b.services.unresolved(0));
+        // An explicit marker is the application's own: its result is retained until release.
+        O::RequestId explicitMarker;
+        CHECK(b.owner.admitDrainMarker(marker, b.now, explicitMarker) == O::BusAdmission::ACCEPTED);
+        CHECK(explicitMarker.slot >= O::CanBusOwner::REQUESTS && b.owner.stats().markers == 0);
+        b.turn(b.now + 1);
+        CHECK(b.wire.sentCount == 3);
+        b.expectSent(2, MARKER_1000);
+        b.answer(1, 0x1000, DEVICE_TYPE);
+        const O::Completion& settled = b.done(explicitMarker);
+        CHECK(settled.service.outcome == C::SdoOutcome::SUCCESS && !settled.automaticMarker);
+        CHECK(!b.services.unresolved(0) && b.services.requalifications(0) == 1);
+        CHECK(b.owner.release(explicitMarker));
+    }
+}
+
+// D2: after a no-marker reopening the timed-out request's own late reply is the accepted risk
+// until the route's first success: absorbed when idle or while another object is awaited.
+void noMarkerKeepsRetainedPairs() {
+    Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER);
+    O::RequestId lost;
+    timeOut(b, lost);
+    b.turn(1001);
+    CHECK(!b.services.unresolved(0) && b.services.requalifications(0) == 1);
+    b.answer(1, 0x6064, 0x1111); // Idle: absorbed.
+    CHECK(!b.services.unresolved(0) && !b.services.reuseRefused(0) && b.owner.stats().reuseStopped == 0);
+    const O::SequenceId s = b.reserve(1, 2);
+    const O::RequestId other = b.read(s, 0x6041);
+    b.turn(b.now + 1);
+    b.answer(1, 0x6064, 0x2222); // While 6041:00 is awaited: absorbed, that request waits on.
+    CHECK(!b.owner.result(other) && !b.services.unresolved(0) && !b.services.reuseRefused(0));
+    b.answer(1, 0x6041, 0x0237);
+    const O::Completion& done = b.done(other);
+    CHECK(done.service.outcome == C::SdoOutcome::SUCCESS && done.acceptedCorrelation &&
+          done.service.acceptedCorrelation);
+    // That first success ends the kept pairs: the same late reply now contradicts the premise.
+    b.answer(1, 0x6064, 0x3333);
+    CHECK(b.services.unresolved(0) && b.services.reuseRefused(0) && b.owner.stats().reuseStopped == 1);
+}
+
+// The marker's checks are observable: another object's frame fails it, a configured value that
+// differs invalidates the binding, and the alternate serves when the first object is retained.
+void markerChecks() {
+    {   // A late frame naming another object fails the marker; no further marker follows.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        O::RequestId lost;
+        timeOut(b, lost);
+        b.turn(1001);
+        b.expectSent(2, MARKER_1000);
+        b.answer(1, 0x2000, 3);
+        CHECK(b.services.unresolved(0) && b.services.requalifications(0) == 0);
+        CHECK(b.steps[unsigned(O::ResyncStep::MARKER_FAILED)] == 1);
+        CHECK(b.owner.resources().retained == 0); // The owner's own result is not retained.
+        for (unsigned i = 0; i < 5; ++i) b.turn(b.now + 1000);
+        CHECK(b.wire.sentCount == 3 && b.services.unresolved(0) && !b.health().resyncPending);
+    }
+    {   // A value other than the commissioned one: another drive answers. Invalidate, not reopen.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER, true);
+        O::RequestId lost;
+        timeOut(b, lost);
+        const M::Generation generation = b.services.node(0)->route.generation;
+        b.turn(1001);
+        b.answer(1, 0x1000, DEVICE_TYPE + 1);
+        CHECK(b.steps[unsigned(O::ResyncStep::MARKER_MISMATCH)] == 1);
+        CHECK(b.steps[unsigned(O::ResyncStep::REOPENED)] == 0 && b.services.requalifications(0) == 0);
+        CHECK(b.services.unresolved(0) && !b.services.drainSettled(0));
+        CHECK(b.services.node(0)->route.generation != generation);
+        b.turn(b.now + 10);
+        CHECK(b.services.unresolved(0) && b.wire.sentCount == 3);
+    }
+    {   // The first object equals the last completed pair, so the alternate 1018:01 is read.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        const O::SequenceId s = b.reserve(1, 1);
+        const O::RequestId first = b.read(s, 0x1000);
+        b.turn(0);
+        b.answer(1, 0x1000, DEVICE_TYPE);
+        CHECK(b.done(first).service.outcome == C::SdoOutcome::SUCCESS && b.owner.release(first));
+        CHECK(b.owner.beginOperation(s, 2, b.now + 100000, b.now));
+        const O::RequestId lost = b.read(s, 0x6064);
+        b.turn(10);
+        b.turn(1010);
+        CHECK(b.done(lost).service.outcome == C::SdoOutcome::TIMEOUT && b.owner.release(lost));
+        b.turn(1011);
+        CHECK(b.wire.sentCount == 4);
+        b.expectSent(3, MARKER_1018);
+        b.answer(1, 0x1018, 0x5a, 1);
+        CHECK(!b.services.unresolved(0) && b.services.requalifications(0) == 1);
+    }
+    {   // M1: a second marker reply before the reopening withdraws the settlement: reported.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        O::RequestId lost;
+        timeOut(b, lost);
+        b.turn(1001);
+        b.expectSent(2, MARKER_1000);
+        b.wire.push(b.upload(1, 0x1000, DEVICE_TYPE), b.now + 1);
+        b.wire.push(b.upload(1, 0x1000, DEVICE_TYPE), b.now + 1);
+        b.turn(b.now + 1);
+        CHECK(b.services.unresolved(0) && b.steps[unsigned(O::ResyncStep::REOPENED)] == 0);
+        CHECK(b.steps[unsigned(O::ResyncStep::MARKER_FAILED)] == 1 && !b.health().resyncPending);
+        for (unsigned i = 0; i < 5; ++i) b.turn(b.now + 1000);
+        CHECK(b.wire.sentCount == 3 && b.steps[unsigned(O::ResyncStep::MARKER_FAILED)] == 1);
+    }
+    {   // M4: every listed object is a pair the route remembers: the step reports instead of
+        // waiting. With the list cut to 1000:00 and 1018:01 here; the default list goes on below.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        O::SdoReuse two;
+        two.markerCount = 2;
+        CHECK(b.owner.setSdoReuse(b.binding(), two, 0));
+        const O::SequenceId s = b.reserve(1, 1);
+        const O::RequestId first = b.read(s, 0x1000);
+        b.turn(0);
+        b.answer(1, 0x1000, DEVICE_TYPE);
+        CHECK(b.owner.release(first) && b.owner.beginOperation(s, 2, b.now + 100000, b.now));
+        O::BusRequest lostRead;
+        lostRead.sequence = s;
+        lostRead.transfer = b.marker1018(s);
+        O::RequestId lost;
+        CHECK(b.owner.admit(lostRead, b.now, lost) == O::BusAdmission::ACCEPTED);
+        b.turn(10);
+        b.turn(1010);
+        CHECK(b.done(lost).service.outcome == C::SdoOutcome::TIMEOUT && b.owner.release(lost));
+        b.turn(1011);
+        CHECK(b.steps[unsigned(O::ResyncStep::MARKER_UNAVAILABLE)] == 1 && !b.health().resyncPending);
+        CHECK(b.wire.sentCount == 3 && b.owner.stats().markers == 0 && b.services.unresolved(0));
+    }
+    {   // The list is tried in order: 1000:00 completed last and 1018:01 is retained, so the
+        // default list reads 1018:02.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        const O::SequenceId s = b.reserve(1, 1);
+        const O::RequestId first = b.read(s, 0x1000);
+        b.turn(0);
+        b.answer(1, 0x1000, DEVICE_TYPE);
+        CHECK(b.owner.release(first) && b.owner.beginOperation(s, 2, b.now + 100000, b.now));
+        O::BusRequest lostRead;
+        lostRead.sequence = s;
+        lostRead.transfer = b.marker1018(s);
+        O::RequestId lost;
+        CHECK(b.owner.admit(lostRead, b.now, lost) == O::BusAdmission::ACCEPTED);
+        b.turn(10);
+        b.turn(1010);
+        CHECK(b.done(lost).service.outcome == C::SdoOutcome::TIMEOUT && b.owner.release(lost));
+        b.turn(1011);
+        const uint8_t marker1018_02[8] = {0x40, 0x18, 0x10, 2, 0, 0, 0, 0};
+        CHECK(b.wire.sentCount == 4 && b.owner.stats().markers == 1);
+        b.expectSent(3, marker1018_02);
+        b.answer(1, 0x1018, 0x5a, 2);
+        CHECK(!b.services.unresolved(0) && b.services.requalifications(0) == 1);
+    }
+    {   // Marker budgets: the lost read had a deliberately short response budget. Inherited, the
+        // marker times out the same way; configured, it outlasts the drive's ordinary reply time.
+        for (unsigned configured = 0; configured < 2; ++configured) {
+            Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+            O::SdoReuse reuse;
+            if (configured)
+                reuse.markerResponseTimeoutUs = 5000;
+            CHECK(b.owner.setSdoReuse(b.binding(), reuse, 0));
+            const O::RequestId lost = b.read(b.reserve(1, 1), 0x6064, 1, 50);
+            b.turn(0);
+            b.turn(50);
+            CHECK(b.done(lost).service.outcome == C::SdoOutcome::TIMEOUT && b.owner.release(lost));
+            b.turn(51); // The abort's report: the marker goes.
+            CHECK(b.wire.sentCount == 3);
+            b.expectSent(2, MARKER_1000);
+            b.turn(51 + 1000); // A reply 1 ms later, typical of the bench drive's SDO server.
+            b.answer(1, 0x1000, DEVICE_TYPE);
+            CHECK(b.services.unresolved(0) == !configured);
+            CHECK(b.steps[unsigned(O::ResyncStep::MARKER_FAILED)] == unsigned(!configured));
+        }
+    }
+    {   // Marker settings are validated before anything changes.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        O::SdoReuse bad;
+        bad.markerCount = 0;
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad.markerCount = O::SdoReuse::MARKER_OBJECTS + 1;
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad = O::SdoReuse();
+        bad.markers[3] = bad.markers[1]; // A duplicate pair.
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad.markerCount = 3; // The duplicate is no longer used.
+        CHECK(b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad = O::SdoReuse();
+        bad.markers[2].size = 5;
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad = O::SdoReuse();
+        bad.markers[1].index = 0;
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        bad = O::SdoReuse();
+        bad.markers[0].size = 2;
+        bad.markers[0].expectedKnown = true;
+        bad.markers[0].expectedValue = 0x10000; // Does not fit two bytes.
+        CHECK(!b.owner.setSdoReuse(b.binding(), bad, 0));
+        O::SdoReuse kept;
+        CHECK(b.owner.sdoReuse(b.binding(), kept) && kept.markerCount == 3);
+    }
+    {   // M4: a re-acceptance on a route with no earlier request has no budget: reported.
+        Bench b(O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        b.wire.push(OwnerRig::frame(0x581, 4), 1); // Names no object: refuses reuse.
+        b.turn(1);
+        CHECK(b.services.unresolved(0) && b.services.reuseRefused(0));
+        CHECK(b.owner.reacceptReuse(b.binding(), b.now));
+        b.turn(2);
+        CHECK(b.steps[unsigned(O::ResyncStep::MARKER_UNAVAILABLE)] == 1 && !b.health().resyncPending);
+        CHECK(b.wire.sentCount == 0 && b.services.unresolved(0));
+        // With configured marker budgets the same re-acceptance builds its marker.
+        O::SdoReuse budgeted;
+        budgeted.markerQueueTimeoutUs = budgeted.markerResponseTimeoutUs = 2000;
+        CHECK(b.owner.setSdoReuse(b.binding(), budgeted, b.now));
+        b.wire.push(OwnerRig::frame(0x581, 4), b.now + 1);
+        b.turn(b.now + 1);
+        CHECK(b.services.reuseRefused(0) && b.owner.reacceptReuse(b.binding(), b.now));
+        b.turn(b.now + 1);
+        CHECK(b.wire.sentCount == 1 && b.owner.stats().markers == 1);
+        b.expectSent(0, MARKER_1000);
+    }
+}
+
+// C2: a frame naming no object while a request waits refuses reuse, as on the idle path.
+void shortFrameWhileWaitingRefusesReuse() {
+    C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+    const C::SdoRequestId id = admit(c, work(false)); take(c);
+    M::Frame shortFrame = reply(0x43);
+    shortFrame.dlc = shortFrame.payloadLength = 4;
+    CHECK(c.receive(shortFrame, 1));
+    CHECK(terminal(c, id, C::SdoOutcome::CLIENT_ABORT).clientAbortQueued);
+    CHECK(c.unresolved(0) && c.reuseRefused(0));
+    CHECK(!c.settleWithoutMarker(0, fakePremises(), 2));
 }
 } // namespace
 
@@ -844,6 +1499,12 @@ int main() {
     controllerEventsSamplePossibleWork();
     reopeningClearsArmedExperimentGrants();
     strayDuringOrdinaryTransferIsRetained();
+    timeoutAbortIsCleanupOnly();
+    settlementWithoutMarker();
+    reusePolicyAfterTimeout();
+    noMarkerKeepsRetainedPairs();
+    markerChecks();
+    shortFrameWhileWaitingRefusesReuse();
     std::printf("SDO reconciliation: %u checks\n", checks);
     std::printf("Host sizeof: SdoClient=%zu, SdoRxObservation=%zu bytes\n",
                 sizeof(C::SdoClient), sizeof(C::SdoRxObservation));

@@ -807,8 +807,9 @@ void staleConsoleNodeEpochCannotStartCurrentPreparedWork() {
     rig.current.nodeGeneration = rig.services.node(0)->route.generation;
     CHECK(rig.current.nodeGeneration != selectedEpoch);
 
-    // Reconcile the real quarantined channel through its explicit accepted drain marker.
-    // HOST_FAKE supplies the same sole-client/ordered-server premises as the owner tests.
+    // Reconcile the real quarantined channel through its explicit accepted drain marker. The
+    // binding's default reuse policy (prompt 55, ACCEPTED_RISK_WITH_MARKER) states the sole-client
+    // and ordered-server premises as accepted, never established.
     M::Frame preop = OwnerRig::frame(0x701, 1);
     preop.data[0] = 127;
     rig.wire.push(preop, rig.now + 1);
@@ -818,11 +819,8 @@ void staleConsoleNodeEpochCannotStartCurrentPreparedWork() {
     L::PreparedRead work;
     CHECK(L::nextRead(marker, rig.now, work) && work.ready);
     work.transfer.allowSegmentedUpload = false; // The bounded drain marker requires scalar-only.
-    C::SdoDrainPremises premises;
-    premises.soleClient = premises.orderedServer = true;
     O::RequestId id;
-    CHECK(rig.owner.admitDrainMarker(work.transfer, premises, rig.now, id) ==
-          O::BusAdmission::ACCEPTED);
+    CHECK(rig.owner.admitDrainMarker(work.transfer, rig.now, id) == O::BusAdmission::ACCEPTED);
     for (unsigned i = 0; i < 20 && !rig.owner.result(id); ++i)
         rig.tick();
     CHECK(rig.owner.result(id) && rig.owner.result(id)->service.outcome == C::SdoOutcome::SUCCESS);

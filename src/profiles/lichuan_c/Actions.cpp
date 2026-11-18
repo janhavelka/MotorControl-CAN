@@ -549,6 +549,7 @@ void publishStop(ActionContext& output, const AxisReservation& r,
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::NOT_REPEATABLE;
     output.controlEvidence = control;
     // Mode 3 is admitted only on a fresh running report after 000F (validateStop), so a later release
     // at standstill shows that this 000B acted (S18). Escalation follows 010F, which no record covers.
@@ -634,6 +635,8 @@ void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadConte
     c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
     c.deadlineUs = deadline;
     c.state = ActionState::ACTIVE;
+    // Both writes are value-1 edges whose repeat behavior is undocumented (Q13, Q14, D-27).
+    c.retryClass = RetryClass::NOT_REPEATABLE;
     const uint64_t age = options.maximumAgeUs;
     getStateBlock(state, StateBlock::STATUS, r.target, now, age, c.statusObservation);
     getStateBlock(state, StateBlock::MONITORS, r.target, now, age, c.monitorObservation);
@@ -898,6 +901,7 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::MOTION_LIKE;
     output.phase = ActionPhase::TARGETS;
     const uint64_t age = options.maximumAgeUs;
     getStateBlock(state, StateBlock::STATUS, r.target, now, age, output.statusObservation);
@@ -1295,6 +1299,7 @@ Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, u
     c.startedUs = c.servicedUs = now;
     c.deadlineUs = deadline;
     c.state = ActionState::ACTIVE;
+    c.retryClass = RetryClass::NOT_REPEATABLE;
     output = c;
     return Ok();
 }

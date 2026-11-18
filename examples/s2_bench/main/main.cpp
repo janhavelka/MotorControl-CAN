@@ -16,6 +16,7 @@
 #include "RawEvidence.h"
 #include "SilentCapture.h"
 #include "Soak.h"
+#include "LinkWatch.h"
 #include "driver/gpio.h"
 #include "esp_app_desc.h"
 #include "esp_attr.h"
@@ -61,6 +62,8 @@ void formatLine(char* output, size_t capacity, const char* pattern, ...) {
 // further command is taken until it has gone, so a response is not silently lost.
 // 320 bytes: PONG with every field at its widest is 301 with its newline (scripts/s2_pdo_test.py).
 DRAM_ATTR char retainedResponse[320];
+// Prompt 55's unplug check window (`U`), host policy: the user's 10 s unplug fits it with room to replug.
+const uint32_t UNPLUG_WATCH_SECONDS = 120;
 size_t retainedSize = 0;
 bool written(E::FirmwareProbe& firmware, const char* text, size_t size) {
     return firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(text), size);
@@ -266,8 +269,14 @@ void trafficLine(char* out, size_t size, const E::EvidenceTraffic& t, const char
     if (t.kind == E::DiagnosticKind::CONTROLLER)
         formatLine(out + used, size - used, " ctrl=%u\n", unsigned(t.controller));
     else if (t.kind == E::DiagnosticKind::RECOVERY)
-        formatLine(out + used, size - used, " rec=%u\n", unsigned(t.recovery));
-    else if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT)
+        formatLine(out + used, size - used, " rec=%u causes=%x\n", unsigned(t.recovery),
+                   unsigned(t.recoveryCauses));
+    else if (t.kind == E::DiagnosticKind::RESYNC)
+        formatLine(out + used, size - used, " rs=%u ch=%u\n", unsigned(t.resync), unsigned(t.channel));
+    else if (t.kind == E::DiagnosticKind::LISTENER)
+        formatLine(out + used, size - used, " nl=%u\n", unsigned(t.noListener));
+    else if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT ||
+             t.kind == E::DiagnosticKind::TX_EXPIRED)
         formatLine(out + used, size - used, " txk=%u txr=%lu txf=%lu\n", unsigned(t.txId.kind),
                    static_cast<unsigned long>(t.txId.kind == O::TransportTxId::Kind::SYNC
                                                      ? t.txId.sync.generation
@@ -618,6 +627,12 @@ const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::Soa
     if (!E::parseSoakCommand(text, size, plan))
         return "parse";
     if (!ensureFixtureRoutes(services, configured, now))
+        return "route";
+    // Prompt 55's absent node 3 (nodes bit 2) on the image's third SDO channel, configured on the first plan
+    // that names it and only then, like the fixture routes: no drive answers it on this fixture.
+    static bool absentConfigured = false;
+    if ((plan.nodes & 4) && unsigned(C::SdoClient::CHANNELS) > unsigned(E::BENCH_NODES) &&
+        !ensureRoute(services, E::SOAK_ABSENT_NODE, absentConfigured, now))
         return "route";
     soak = soakStorage(firmware, services, tap, driver);
     if (!soak)
@@ -987,6 +1002,12 @@ void ownerTask(void*) {
     static DRAM_ATTR E::EspProbePlatform console;
     static DRAM_ATTR E::SoakTwaiTap tap(driver.driver());
     static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks(), nullptr);
+    // Prompt 55's unplug check (`U`): one restart on TX lifetime expiry, in a bounded window.
+    static E::LinkWatch linkWatch(firmware, services);
+    // Prompt 55's explicit marker (`y` node 1, `z` node 2): the application's own repair decision.
+    static E::MarkerCommand markerCommand(firmware, services);
+    // The next `L` line, one per turn so that a full console never drops one; past the last, none.
+    unsigned linkNext = E::BENCH_NODES + 1;
     // Mutually exclusive large records share one reserved block (the heap plan above).
     static E::BenchArena arena;
     reserveBenchHeap(arena);
@@ -1154,6 +1175,19 @@ void ownerTask(void*) {
         }
         if (route)
             route->service(firmware.owner().lastTimeUs());
+        // After the soak, whose reads are the unplug check's traffic. One line per turn, never over a
+        // retained response; the watch's state does not wait for output.
+        linkWatch.service(firmware.owner().lastTimeUs());
+        static char linkLine[320]; // Static: the owner task's stack stays as it was.
+        if (!retainedSize && linkNext <= E::BENCH_NODES) {
+            if (E::formatLink(firmware, services, linkNext, linkLine, sizeof linkLine))
+                line(firmware, linkLine);
+            ++linkNext;
+        } else if (!retainedSize && linkWatch.takeLine(linkLine, sizeof linkLine)) {
+            line(firmware, linkLine);
+        } else if (!retainedSize && markerCommand.service(firmware.owner().lastTimeUs(), linkLine, sizeof linkLine)) {
+            line(firmware, linkLine);
+        }
         // The watch holds its lines while a one-shot response, a record dump, a network listing or
         // an NMT result waits for room: a stream can fill the console alone (2026-11-06, a 10 ms
         // TPDO starved a write record's dump for 15 s). Held frames still count; the flags are the
@@ -1786,6 +1820,42 @@ void ownerTask(void*) {
                     refusal = route ? route->closeSessions(closed) : "none";
                 E::formatSessionsLine(route, refusal, closed, output, sizeof output);
                 line(firmware, output);
+            } else if (command == 'L') {
+                // Prompt 55: the owner's cached link facts, in every state, one line per turn from the
+                // interface line on. Sends nothing.
+                linkNext = 0;
+            } else if (command == 'y' || command == 'z') {
+                // Prompt 55: one explicit marker read on node 1 (y) or 2 (z), for a route no owner resync
+                // step reopens (after a best-effort stop or a client abort). Single bytes with no digit,
+                // so that an older image answers UNKNOWN and never reads an identity.
+                const char* refusal = consoleHeld        ? "console"
+                                      : captureBlock     ? "capture"
+                                      : trialHeld        ? "trial"
+                                      : commissionHeld   ? "record"
+                                      : soakActive       ? "soak"
+                                      : nmtRequest.owner ? "nmt"
+                                                         : nullptr;
+                if (refusal)
+                    formatLine(output, sizeof output, "MARKER refused node=%u reason=%s; nothing sent\n",
+                               command == 'y' ? 1u : 2u, refusal);
+                else
+                    markerCommand.begin(command == 'y' ? 1u : 2u, firmware.owner().lastTimeUs(), output,
+                                        sizeof output);
+                line(firmware, output);
+            } else if (command == 'U') {
+                // Prompt 55's unplug check, beside a soak at most: the image restarts the controller
+                // itself, once, if a TX lifetime expires in the window. Sends nothing by itself.
+                const char* refusal = consoleHeld        ? "console"
+                                      : captureBlock     ? "capture"
+                                      : trialHeld        ? "trial"
+                                      : commissionHeld   ? "record"
+                                      : nmtRequest.owner ? "nmt"
+                                                         : linkWatch.begin(UNPLUG_WATCH_SECONDS,
+                                                                           firmware.owner().lastTimeUs());
+                if (refusal) {
+                    formatLine(output, sizeof output, "LINK_WATCH refused reason=%s; nothing armed\n", refusal);
+                    line(firmware, output);
+                }
             } else if (captureBlock && command != 'p' && command != 's' && command != 'n' &&
                        command != 'd' && command != 'r' && command != 'T' && command != '\r' &&
                        command != '\n') {
@@ -2018,7 +2088,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=16 trial=%u motion=%u pdo=7 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=16 trial=%u motion=%u pdo=8 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
@@ -2050,8 +2120,22 @@ void ownerTask(void*) {
                     }
                     controllerReady = ready;
                 }
-                line(firmware, ready ? "CAN ready bitrate=1000000 TX17 RX16 S18; no request\n"
-                                     : "CAN start refused or failed; no automatic retry\n");
+                // Prompt 55: the image names its reuse policy, read back from the owner for the first bench
+                // route, and the TX lifetime it starts with. Routes are configured on first use; before that
+                // the line says marker-default: the owner's documented default applies to every new route.
+                if (ready) {
+                    O::SdoReuse reuse;
+                    const C::SdoChannel* first = services.channel(0);
+                    const bool known = first && firmware.owner().sdoReuse(first->binding, reuse);
+                    const char* const policies[] = {"none", "marker", "nomarker"};
+                    formatLine(output, sizeof output,
+                               "CAN ready bitrate=1000000 TX17 RX16 S18 reuse=%s lifetime=%llu; no request\n",
+                               known && unsigned(reuse.policy) < 3 ? policies[unsigned(reuse.policy)] : "marker-default",
+                               static_cast<unsigned long long>(firmware.owner().txLifetimeUs()));
+                    line(firmware, output);
+                } else {
+                    line(firmware, "CAN start refused or failed; no automatic retry\n");
+                }
             } else if (command == 's') {
                 const E::TwaiDiagnostics diagnostics = firmware.transport().diagnostics();
                 const O::Stats stats = firmware.owner().stats();

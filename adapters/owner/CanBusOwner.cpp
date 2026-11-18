@@ -224,28 +224,100 @@ BusAdmission CanBusOwner::admitUrgent(const BusRequest& request, uint64_t now,
                                       RequestId& output) noexcept {
     return countAdmission(admit(request, now, output, true));
 }
+BusAdmission CanBusOwner::admitDrainMarker(const C::SdoTransfer& transfer, uint64_t now,
+                                           RequestId& output) noexcept {
+    C::SdoDrainPremises accepted; // Stated by the reuse policy as an accepted risk (Q18).
+    accepted.soleClient = accepted.orderedServer = true;
+    return countAdmission(admitMarker(transfer, accepted, now, output));
+}
 BusAdmission CanBusOwner::admitDrainMarker(const C::SdoTransfer& transfer,
                                            const C::SdoDrainPremises& premises, uint64_t now,
                                            RequestId& output) noexcept {
+    if (overlap(&output, sizeof output, &premises, sizeof premises))
+        return countAdmission(BusAdmission::INVALID);
+    const C::SdoDrainPremises stated = premises;
+    return countAdmission(admitMarker(transfer, stated, now, output));
+}
+BusAdmission CanBusOwner::admitMarker(const C::SdoTransfer& transfer,
+                                      const C::SdoDrainPremises& premises, uint64_t now,
+                                      RequestId& output) noexcept {
     if (entered_ || !transport_.transmit || now < lastUs_ ||
         overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_) ||
-        overlap(&output, sizeof output, &transfer, sizeof transfer) ||
-        overlap(&output, sizeof output, &premises, sizeof premises))
-        return countAdmission(BusAdmission::INVALID);
+        overlap(&output, sizeof output, &transfer, sizeof transfer))
+        return BusAdmission::INVALID;
     if (inhibited_)
-        return countAdmission(BusAdmission::INHIBITED);
+        return BusAdmission::INHIBITED;
     const int c = channel(transfer.channel);
     if (c < 0)
-        return countAdmission(BusAdmission::INVALID);
+        return BusAdmission::INVALID;
     if (active_[c] >= 0 || external_[c].pending || external_[c].blocked || nmtBlocks(transfer.channel.binding))
-        return countAdmission(BusAdmission::INHIBITED);
-    if (!services_.checkDrain(uint8_t(c), transfer, premises, now))
-        return countAdmission(BusAdmission::INVALID);
+        return BusAdmission::INHIBITED;
+    if (resync_[c].reuse.policy == SdoReusePolicy::NONE ||
+        !services_.checkDrain(uint8_t(c), transfer, premises, now))
+        return BusAdmission::INVALID;
     const BusAdmission placed = placeOutside(uint8_t(c), transfer, now, output);
-    if (placed == BusAdmission::ACCEPTED)
+    if (placed == BusAdmission::ACCEPTED) {
         slots_[output.slot].premises = premises;
-    return countAdmission(placed);
+        resync_[c].pending = false; // Any further marker is the application's explicit intent.
+        resync_[c].mismatch = false; // A value check belongs to the marker whose terminal set it.
+    }
+    return placed;
+}
+bool CanBusOwner::setSdoReuse(const Binding& binding, const SdoReuse& reuse, uint64_t now) noexcept {
+    const int c = channel(binding);
+    const auto valid = [](const SdoMarkerObject& object) {
+        return object.index && object.size >= 1 && object.size <= 4 &&
+               (!object.expectedKnown || object.size == 4 ||
+                object.expectedValue < (uint32_t(1) << (8 * object.size)));
+    };
+    if (entered_ || c < 0 || now < lastUs_ || overlap(&reuse, sizeof reuse, this, sizeof *this) ||
+        reuse.policy > SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER || !reuse.markerCount ||
+        reuse.markerCount > SdoReuse::MARKER_OBJECTS)
+        return false;
+    for (unsigned i = 0; i < reuse.markerCount; ++i) {
+        if (!valid(reuse.markers[i]))
+            return false;
+        for (unsigned k = 0; k < i; ++k)
+            if (reuse.markers[k].index == reuse.markers[i].index &&
+                reuse.markers[k].subindex == reuse.markers[i].subindex)
+                return false;
+    }
+    resync_[c].reuse = reuse;
+    if (reuse.policy == SdoReusePolicy::NONE)
+        resync_[c].pending = false;
+    lastUs_ = now;
+    refreshHealth(now);
+    return true;
+}
+bool CanBusOwner::sdoReuse(const Binding& binding, SdoReuse& output) const noexcept {
+    const int c = channel(binding);
+    if (c < 0 || overlap(&output, sizeof output, this, sizeof *this) ||
+        overlap(&output, sizeof output, &binding, sizeof binding))
+        return false;
+    output = resync_[c].reuse;
+    return true;
+}
+bool CanBusOwner::reacceptReuse(const Binding& binding, uint64_t now) noexcept {
+    const int c = channel(binding);
+    if (entered_ || c < 0 || now < lastUs_ || resync_[c].reuse.policy == SdoReusePolicy::NONE ||
+        !services_.reacceptReuse(uint8_t(c)))
+        return false;
+    lastUs_ = now;
+    resync_[c].refusedSeen = false;
+    resync_[c].stopped = false; // This call is the explicit intent a stop's route waits for.
+    if (services_.unresolved(uint8_t(c)))
+        armResync(unsigned(c));
+    resyncTrace(unsigned(c), ResyncStep::REUSE_ACCEPTED, now);
+    refreshHealth(now);
+    return true;
+}
+bool CanBusOwner::setTxLifetime(uint64_t lifetime, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_)
+        return false;
+    txLifetimeUs_ = lifetime;
+    lastUs_ = now;
+    return true;
 }
 BusAdmission CanBusOwner::admitBestEffortStop(const C::SdoTransfer& transfer, uint64_t now,
                                               RequestId& output) noexcept {
@@ -262,10 +334,33 @@ BusAdmission CanBusOwner::admitBestEffortStop(const C::SdoTransfer& transfer, ui
     if (external_[c].blocked || nmtBlocks(transfer.channel.binding) ||
         !services_.bestEffortEligible(uint8_t(c), now))
         return countAdmission(BusAdmission::INHIBITED);
+    // Stops keep priority over repair: the owner's own markers on this node give way, queued or
+    // in flight, but only once placement cannot fail; anything else in the slot is kept.
+    if (lastId_ != UINT32_MAX &&
+        (!slots_[REQUESTS + c].occupied || slots_[REQUESTS + c].automaticMarker))
+        for (unsigned k = 0; k < C::SdoClient::CHANNELS; ++k) {
+            const auto* route = services_.channel(uint8_t(k));
+            const Slot& held = slots_[REQUESTS + k];
+            if (route && peer(route->binding, transfer.channel.binding) && held.occupied &&
+                !held.terminal && held.automaticMarker) {
+                lastUs_ = now;
+                cancelSlot(REQUESTS + k, CompletionReason::CANCELLED, now);
+            }
+        }
     // Live work on the channel settles first, and dispatch rechecks all of the above.
     const BusAdmission placed = placeOutside(uint8_t(c), transfer, now, output);
-    if (placed == BusAdmission::ACCEPTED)
+    if (placed == BusAdmission::ACCEPTED) {
         slots_[output.slot].bestEffortStop = true;
+        // The stop's own reply may still come and could confirm a later write of 6040, so no
+        // policy reopens this node's routes by itself any more: that is explicit intent only.
+        for (unsigned k = 0; k < C::SdoClient::CHANNELS; ++k) {
+            const auto* route = services_.channel(uint8_t(k));
+            if (route && peer(route->binding, transfer.channel.binding)) {
+                resync_[k].pending = false;
+                resync_[k].stopped = true;
+            }
+        }
+    }
     return countAdmission(placed);
 }
 BusAdmission CanBusOwner::placeOutside(uint8_t c, const C::SdoTransfer& transfer, uint64_t now,
@@ -286,6 +381,9 @@ BusAdmission CanBusOwner::placeOutside(uint8_t c, const C::SdoTransfer& transfer
     candidate.completion.admittedUs = now;
     candidate.completion.service.transfer = transfer;
     candidate.completion.service.admittedUs = now;
+    candidate.completion.reusePolicy = resync_[c].reuse.policy;
+    candidate.completion.acceptedCorrelation = candidate.completion.service.acceptedCorrelation =
+        markActive(c);
     const auto* node = services_.node(c);
     candidate.completion.service.nodeGeneration = node ? node->route.generation : 0;
     slots_[free] = candidate;
@@ -310,6 +408,9 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, Request
         return BusAdmission::INVALID;
     if (inhibited_)
         return BusAdmission::INHIBITED;
+    // Fail fast with nothing sent: its frame could only queue behind one nobody acknowledged.
+    if (!urgent && noListener_)
+        return BusAdmission::NO_LISTENER;
     const Sequence* s = sequence(request.sequence);
     if (!s)
         return BusAdmission::INVALID;
@@ -352,6 +453,9 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, Request
     candidate.completion.service.transfer = request.transfer;
     candidate.completion.service.admittedUs = now;
     candidate.completion.service.nodeGeneration = s->nodeGeneration;
+    candidate.completion.reusePolicy = resync_[c].reuse.policy;
+    candidate.completion.acceptedCorrelation = candidate.completion.service.acceptedCorrelation =
+        markActive(unsigned(c));
     slots_[free] = candidate;
     sequences_[request.sequence.slot].lastStep = request.transfer.step;
     output = candidate.completion.id;
@@ -371,6 +475,8 @@ void CanBusOwner::finish(unsigned index, CompletionReason reason, uint64_t now) 
                 : reason == CompletionReason::CANCELLED ? C::SdoOutcome::CANCELLED
                                                         : C::SdoOutcome::BINDING_INVALIDATED;
     recordTerminal(slot);
+    if (slot.automaticMarker)
+        markerTerminal(index, now);
 }
 void CanBusOwner::collect() noexcept {
     for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
@@ -391,9 +497,21 @@ void CanBusOwner::collect() noexcept {
                     same(slots_[i].request.sequence, slot.request.sequence) &&
                     slots_[i].request.transfer.operation == slot.request.transfer.operation)
                     finish(i, CompletionReason::INVALIDATED, e->completedUs);
+        // The mark is the adapter's; the owner's admission copy can only add to it.
+        slot.completion.acceptedCorrelation = slot.completion.service.acceptedCorrelation =
+            slot.completion.acceptedCorrelation || e->acceptedCorrelation;
+        // A quarantine with possible TX arms the binding's resync step: a timeout, local
+        // cancellation (recover() cancels this way) and bus-off. A marker or a best-effort stop
+        // never does: a further marker is the application's explicit intent.
+        if (!slot.outsideSequence && e->transmissionPossible && services_.unresolved(uint8_t(c)) &&
+            (e->outcome == C::SdoOutcome::TIMEOUT || e->outcome == C::SdoOutcome::CANCELLED ||
+             e->outcome == C::SdoOutcome::BUS_OFF))
+            armResync(c);
         recordTerminal(slot);
         services_.release(slot.native);
         active_[c] = -1;
+        if (slot.outsideSequence && !slot.bestEffortStop)
+            markerTerminal(unsigned(index), lastUs_);
     }
 }
 bool CanBusOwner::markerCurrent(const Slot& slot) const noexcept {
@@ -401,7 +519,42 @@ bool CanBusOwner::markerCurrent(const Slot& slot) const noexcept {
     const auto* node = c < 0 ? nullptr : services_.node(uint8_t(c));
     return c >= 0 && (node ? node->route.generation : 0) == slot.completion.service.nodeGeneration;
 }
-void CanBusOwner::reopenSettledRoutes() noexcept {
+// The marker's read proves nothing about ordering, but a configured value that differs proves
+// that another drive answers on this route: invalidate the binding rather than reopen it.
+void CanBusOwner::markerTerminal(unsigned index, uint64_t now) noexcept {
+    Slot& slot = slots_[index];
+    const unsigned c = index - REQUESTS; // Markers use the urgent slot of their channel.
+    const C::SdoCompletion& e = slot.completion.service;
+    Resync& r = resync_[c];
+    if (slot.completion.reason == CompletionReason::SERVICE && e.outcome == C::SdoOutcome::SUCCESS) {
+        uint32_t value = 0;
+        for (unsigned i = 0; i < e.size && i < 4; ++i)
+            value |= uint32_t(e.data[i]) << (8 * i);
+        for (unsigned i = 0; i < r.reuse.markerCount; ++i) {
+            const SdoMarkerObject* object = &r.reuse.markers[i];
+            if (object->expectedKnown && object->index == e.transfer.index &&
+                object->subindex == e.transfer.subindex && value != object->expectedValue) {
+                resyncTrace(c, ResyncStep::MARKER_MISMATCH, now);
+                // Retirement clears the settled marker, so the route cannot reopen. When the
+                // adapter refuses this time, the reopening step retries it at the turn's time.
+                r.mismatch = !services_.invalidate(uint8_t(c), now);
+                break;
+            }
+        }
+        // Until the reopening: a later route frame can still withdraw the settlement.
+        r.settling = !r.mismatch && services_.drainSettled(uint8_t(c));
+    } else if (slot.automaticMarker) {
+        resyncTrace(c, ResyncStep::MARKER_FAILED, now);
+    }
+    // The owner's own marker has no other reader; free the urgent slot for a stop at once.
+    if (slot.automaticMarker)
+        slot.occupied = false;
+}
+bool CanBusOwner::markActive(unsigned c) const noexcept {
+    // The adapter's mark: cleared by a new server session, not by a local controller event.
+    return services_.acceptedCorrelation(uint8_t(c));
+}
+void CanBusOwner::reopenSettledRoutes(uint64_t now) noexcept {
     for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
         // The marker's own frame must be retired first, or its duplicate could answer new work.
         if (!services_.drainSettled(uint8_t(c)) || external_[c].pending || external_[c].blocked)
@@ -409,13 +562,204 @@ void CanBusOwner::reopenSettledRoutes() noexcept {
         const auto* route = services_.channel(uint8_t(c));
         if (!route)
             continue;
+        if (resync_[c].mismatch) {
+            resync_[c].mismatch = !services_.invalidate(uint8_t(c), now);
+            continue;
+        }
         // Otherwise sequence() would make an old reservation, and its old command
         // history, live again the moment the route reopens.
         for (Reservation& s : sequences_)
             if (s.occupied && peer(s.value.binding, route->binding))
                 s.invalidated = true;
-        services_.reopenAfterDrain(uint8_t(c));
+        if (services_.reopenAfterDrain(uint8_t(c))) {
+            resync_[c].settling = resync_[c].stopped = false;
+            resyncTrace(c, ResyncStep::REOPENED, now);
+        }
     }
+}
+bool CanBusOwner::stopWaits(const Binding& binding) const noexcept {
+    for (unsigned k = 0; k < C::SdoClient::CHANNELS; ++k) {
+        const auto* route = services_.channel(uint8_t(k));
+        const Slot& urgent = slots_[REQUESTS + k];
+        if (route && peer(route->binding, binding) && urgent.occupied && !urgent.terminal &&
+            urgent.bestEffortStop)
+            return true;
+    }
+    return false;
+}
+bool CanBusOwner::cleanupStaged(uint8_t c) const noexcept {
+    const auto* port = services_.port(c);
+    return port && port->queueOccupied && port->queued.data[0] == 0x80 &&
+           (active_[c] < 0 || slots_[active_[c]].terminal);
+}
+void CanBusOwner::armResync(unsigned c) noexcept {
+    Resync& r = resync_[c];
+    if (r.reuse.policy == SdoReusePolicy::NONE || r.stopped)
+        return;
+    const auto* node = services_.node(uint8_t(c));
+    r.pending = true;
+    r.sessions = node ? node->serverSessions : 0;
+}
+// The one resync step of a timed-out route, under its binding's policy. Waiting sends nothing,
+// so it is no retry; the step itself happens at most once per arming.
+void CanBusOwner::resyncRoutes(uint64_t now) noexcept {
+    C::SdoDrainPremises accepted; // Stated by the policy as an accepted risk (Q18), not established.
+    accepted.soleClient = accepted.orderedServer = true;
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
+        Resync& r = resync_[c];
+        if (!r.pending)
+            continue;
+        const auto* route = services_.channel(uint8_t(c));
+        const auto* node = services_.node(uint8_t(c));
+        // A new server session, an explicit reopening or refused reuse ends the step unused.
+        if (!route || r.reuse.policy == SdoReusePolicy::NONE || r.stopped ||
+            !services_.unresolved(uint8_t(c)) || services_.reuseRefused(uint8_t(c)) ||
+            services_.drainSettled(uint8_t(c)) || (node && node->serverSessions != r.sessions)) {
+            r.pending = false;
+            continue;
+        }
+        // The request's frame and its abort must be locally retired, the controller usable and
+        // no stop waiting on the node: stops keep priority over every repair step.
+        if (inhibited_ || active_[c] >= 0 || !localTxRetired(uint8_t(c)) ||
+            nmtBlocks(route->binding) || stopWaits(route->binding))
+            continue;
+        if (r.reuse.policy == SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER) {
+            if (services_.settleWithoutMarker(uint8_t(c), accepted, now)) {
+                r.pending = false;
+                reopenSettledRoutes(now);
+            }
+            continue;
+        }
+        if (slots_[REQUESTS + c].occupied)
+            continue; // An unread stop or marker result; nothing is sent meanwhile.
+        // The configured marker budgets, or else those the application chose for the route's
+        // last request; no deadline of earlier work is extended.
+        const uint32_t queueUs = r.reuse.markerQueueTimeoutUs ? r.reuse.markerQueueTimeoutUs
+                                                              : r.queueTimeoutUs;
+        const uint32_t responseUs = r.reuse.markerResponseTimeoutUs
+                                        ? r.reuse.markerResponseTimeoutUs
+                                        : r.responseTimeoutUs;
+        if (!queueUs || !responseUs || lastId_ == UINT32_MAX) {
+            // No budget configured or known for this route (the owner invents none) or no
+            // identity left: report and end the step; admitDrainMarker remains.
+            r.pending = false;
+            resyncTrace(c, ResyncStep::MARKER_UNAVAILABLE, now);
+            continue;
+        }
+        C::SdoTransfer marker;
+        marker.channel = *route;
+        marker.operation = marker.request = marker.step = lastId_ + 1; // Host-only identities.
+        marker.direction = C::SdoDirection::UPLOAD;
+        marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        marker.uploadSize = C::SdoUploadSize::EXACT;
+        marker.allowSegmentedUpload = false;
+        marker.queueTimeoutUs = queueUs;
+        marker.responseTimeoutUs = responseUs;
+        const uint64_t budget = uint64_t(queueUs) + responseUs;
+        marker.deadlineUs = now > UINT64_MAX - budget ? UINT64_MAX : now + budget;
+        bool ready = false;
+        // The first listed object that is neither the last completed nor a retained pair.
+        for (unsigned i = 0; i < r.reuse.markerCount && !ready; ++i) {
+            marker.index = r.reuse.markers[i].index;
+            marker.subindex = r.reuse.markers[i].subindex;
+            marker.size = r.reuse.markers[i].size;
+            ready = services_.checkDrain(uint8_t(c), marker, accepted, now);
+        }
+        if (!ready && services_.bestEffortEligible(uint8_t(c), now)) {
+            // Every object is refused while the controller and node state would allow a read:
+            // they are retained or last completed pairs. Report it rather than wait silently.
+            r.pending = false;
+            resyncTrace(c, ResyncStep::MARKER_UNAVAILABLE, now);
+            continue;
+        }
+        RequestId id;
+        if (!ready || placeOutside(uint8_t(c), marker, now, id) != BusAdmission::ACCEPTED)
+            continue;
+        Slot& slot = slots_[id.slot];
+        slot.premises = accepted;
+        slot.automaticMarker = slot.completion.automaticMarker = true;
+        r.pending = r.mismatch = false;
+        detail::add(stats_.markers);
+        resyncTrace(c, ResyncStep::MARKER_ADMITTED, now);
+    }
+}
+void CanBusOwner::noteReuse() noexcept {
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
+        const bool refused = services_.reuseRefused(uint8_t(c));
+        if (refused && !resync_[c].refusedSeen) {
+            resync_[c].refusedSeen = true;
+            resync_[c].pending = false;
+            detail::add(stats_.reuseStopped);
+            resyncTrace(c, ResyncStep::REUSE_STOPPED, lastUs_);
+        } else if (!refused) {
+            resync_[c].refusedSeen = false;
+        }
+        if (resync_[c].settling && !services_.drainSettled(uint8_t(c))) {
+            // Route traffic after the marker's success withdrew it before the reopening. A
+            // refusal was reported above; otherwise the marker counts as failed.
+            resync_[c].settling = resync_[c].pending = false;
+            if (!refused && services_.unresolved(uint8_t(c)))
+                resyncTrace(c, ResyncStep::MARKER_FAILED, lastUs_);
+        }
+    }
+}
+void CanBusOwner::resyncTrace(unsigned c, ResyncStep step, uint64_t now) noexcept {
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::RESYNC;
+    diagnostic.channel = uint8_t(c);
+    diagnostic.resync = step;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    trace(diagnostic);
+}
+// An accepted frame with no final report within the lifetime may still leave at any time
+// (no-ACK retransmission has no limit). Report it once and enter NO_LISTENER; only an
+// explicit recovery retires it, as possibly sent.
+void CanBusOwner::expireHandoffs(uint64_t now) noexcept {
+    // A pending recovery is retiring every handoff already, so none is reported then.
+    if (!txLifetimeUs_ || (recoveryOccupied_ && !recoveryTerminal_))
+        return;
+    ExternalTx* handoffs[C::SdoClient::CHANNELS + 2];
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c)
+        handoffs[c] = &external_[c];
+    handoffs[C::SdoClient::CHANNELS] = &nmtExternal_;
+    handoffs[C::SdoClient::CHANNELS + 1] = &syncExternal_;
+    for (ExternalTx* tx : handoffs) {
+        if (!tx->pending || tx->rejected || tx->expired)
+            continue;
+        // The lifetime runs from the SDK submission an adapter reports, otherwise from the
+        // owner's handoff. A frame an adapter still holds behind another has not started.
+        uint64_t start = tx->handoffUs;
+        if (tx->id.kind == TransportTxId::Kind::SDO ? !services_.txStart(tx->id.sdo, start)
+            : tx->id.kind == TransportTxId::Kind::NMT ? !services_.nmtTxStart(tx->id.nmt, start)
+                                                      : syncHeld_)
+            continue;
+        if (now < start || now - start < txLifetimeUs_)
+            continue;
+        tx->expired = true;
+        causes_.txExpired = true;
+        detail::add(stats_.txExpired);
+        Diagnostic diagnostic;
+        diagnostic.kind = DiagnosticKind::TX_EXPIRED;
+        diagnostic.txId = tx->id;
+        diagnostic.processedUs = now;
+        diagnostic.controllerEpoch = tx->epoch;
+        trace(diagnostic);
+        listener(true, now);
+    }
+}
+void CanBusOwner::listener(bool absent, uint64_t now) noexcept {
+    if (noListener_ == absent)
+        return;
+    noListener_ = absent;
+    if (absent)
+        noListenerSinceUs_ = now;
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::LISTENER;
+    diagnostic.noListener = absent;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    trace(diagnostic);
 }
 bool CanBusOwner::mayHaveTransmitted(RequestId id) const noexcept {
     if (!valid(id))
@@ -450,6 +794,9 @@ bool CanBusOwner::eligible(unsigned index, uint64_t now) const noexcept {
     if (!slot.occupied || slot.terminal || slot.submitted ||
         (!slot.outsideSequence && !sequence(slot.request.sequence)))
         return false;
+    // Ordinary work already queued waits out NO_LISTENER under its own queue cutoff.
+    if (noListener_ && index < REQUESTS)
+        return false;
     const int c = channel(slot.request.transfer.channel);
     if (c < 0 || active_[c] >= 0 || external_[c].pending || external_[c].blocked ||
         nmtBlocks(slot.request.transfer.channel.binding))
@@ -480,10 +827,13 @@ bool CanBusOwner::eligible(unsigned index, uint64_t now) const noexcept {
     return true;
 }
 int CanBusOwner::select(uint64_t now) const noexcept {
-    // Priority changes scheduling between reservations, never same-axis intent order.
-    for (unsigned i = REQUESTS; i < TOTAL_REQUESTS; ++i)
-        if (eligible(i, now))
-            return int(i);
+    // Priority changes scheduling between reservations, never same-axis intent order. Stops and
+    // other urgent work go before drain markers: stops keep priority over every repair step.
+    for (unsigned pass = 0; pass < 2; ++pass)
+        for (unsigned i = REQUESTS; i < TOTAL_REQUESTS; ++i)
+            if ((slots_[i].outsideSequence && !slots_[i].bestEffortStop) == (pass == 1) &&
+                eligible(i, now))
+                return int(i);
     for (unsigned p = 0; p < PRODUCERS; ++p) {
         const uint8_t producer = uint8_t((nextProducer_ - 1 + p) % PRODUCERS + 1);
         int first = -1;
@@ -533,6 +883,7 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
     external_[c] = ExternalTx();
     external_[c].pending = true;
     external_[c].epoch = controllerEpoch_;
+    external_[c].handoffUs = now;
     external_[c].id = TransportTxId::fromSdo(id);
     const bool accepted = transport_.transmit(transport_.context, frame, TransportTxId::fromSdo(id), controllerEpoch_);
     external_[c].rejected = !accepted;
@@ -595,9 +946,10 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
                 : external_[report.id.sdo.request.channel];
             if (!tx.pending || !sameTransportTxId(tx.id, report.id))
                 continue;
-            if (report.transmitted)
+            if (report.transmitted) {
                 detail::add(stats_.txFrames);
-            else if (!tx.rejected)
+                listener(false, now); // Some node acknowledged this frame: controller evidence only.
+            } else if (!tx.rejected)
                 detail::add(stats_.txRejected);
             Diagnostic diagnostic;
             diagnostic.kind = DiagnosticKind::TX_REPORT;
@@ -646,12 +998,13 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
                 break;
             detail::add(stats_.rxFrames);
             bool accepted = false;
-            if (frame.controllerEpoch == controllerEpoch_ &&
+            const bool current = frame.controllerEpoch == controllerEpoch_ &&
                 MotorControlCAN::validateFrame(frame.frame) &&
                 !(frame.receivedTimeKnown && frame.receiveBoundsKnown) &&
                 (!frame.receivedTimeKnown || frame.receivedUs <= now) &&
                 (!frame.receiveBoundsKnown || (frame.receivedEarliestUs <= frame.receivedLatestUs &&
-                                               frame.receivedLatestUs <= now))) {
+                                               frame.receivedLatestUs <= now));
+            if (current) {
                 // SYNC observation must not consume a configured native route.
                 // A colliding heartbeat/PDO still carries its ordinary lifecycle
                 // or sample evidence while the local producer stays inhibited.
@@ -669,6 +1022,16 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             } else
                 detail::add(stats_.rxDropped);
             refreshHealth(now);
+            if (current) {
+                // Another node transmits: controller evidence only. A frame whose capture is not
+                // known to follow the start of NO_LISTENER cannot end it.
+                const bool before = frame.receivedTimeKnown
+                    ? frame.receivedUs <= noListenerSinceUs_
+                    : frame.receiveBoundsKnown && frame.receivedEarliestUs <= noListenerSinceUs_;
+                if (!before)
+                    listener(false, now);
+                observePresence(frame, accepted, now);
+            }
             Diagnostic diagnostic;
             diagnostic.kind = DiagnosticKind::RX;
             diagnostic.frame = frame.frame;
@@ -688,7 +1051,11 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         }
     expire(now);
     settleExternal(now, budget.events != 0);
+    // Reports and receptions of this turn come first: a report taken now prevents expiry.
+    expireHandoffs(now);
+    noteReuse();
     const uint8_t tx = limit(budget.tx, TX_LIMIT);
+    const uint8_t startLimit = limit(budget.starts, START_LIMIT);
     unsigned sent = 0, starts = 0;
     if (sent < tx && transmitNmt(now)) {
         ++sent;
@@ -700,15 +1067,39 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         ++sent;
         settleExternal(now, budget.events != 0);
     }
+    // A best-effort stop drops an unsent cleanup abort on its own channel: the abort settles
+    // nothing and stops keep priority over every repair step. One already handed off stays.
+    for (unsigned k = 0; k < C::SdoClient::CHANNELS; ++k) {
+        const Slot& stop = slots_[REQUESTS + k];
+        if (stop.occupied && !stop.terminal && !stop.submitted && stop.bestEffortStop)
+            services_.dropCleanup(uint8_t(k));
+    }
+    // A cleanup abort waits while a stop or other urgent work can start this turn, so the stop
+    // reaches the controller queue first; the abort follows if budget remains.
+    bool urgentReady = false;
+    for (unsigned i = REQUESTS; startLimit && i < TOTAL_REQUESTS && !urgentReady; ++i)
+        urgentReady = !(slots_[i].outsideSequence && !slots_[i].bestEffortStop) && eligible(i, now);
+    bool deferred[C::SdoClient::CHANNELS] = {};
     const uint8_t firstChannel = nextChannel_;
     for (unsigned scan = 0; scan < C::SdoClient::CHANNELS && sent < tx; ++scan) {
         const uint8_t c = uint8_t((firstChannel + scan) % C::SdoClient::CHANNELS);
+        if (urgentReady && cleanupStaged(c)) {
+            deferred[c] = true;
+            continue;
+        }
         if (transmit(c, now)) {
             ++sent;
             nextChannel_ = uint8_t((c + 1) % C::SdoClient::CHANNELS);
         }
     }
-    while (!inhibited_ && sent < tx && starts < limit(budget.starts, START_LIMIT)) {
+    // The resync step admits a marker only when it can start in this same turn.
+    // Not in the turn a recovery retired: an application that sees the closure can admit a
+    // held stop before the next turn, and stops keep priority over every repair step. Not
+    // during NO_LISTENER either: on an absent bus an automatic marker would be one more frame
+    // nobody acknowledges; an explicit marker stays the application's probe that can end it.
+    if (!inhibited_ && !retiredThisTurn_ && !noListener_ && sent < tx && startLimit)
+        resyncRoutes(now);
+    while (!inhibited_ && sent < tx && starts < startLimit) {
         const int index = select(now);
         if (index < 0)
             break;
@@ -731,14 +1122,25 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             continue;
         }
         slot.submitted = slot.completion.adapterAdmitted = true;
+        slot.completion.acceptedCorrelation |= markActive(unsigned(c));
+        if (!slot.outsideSequence) {
+            // A later resync marker uses the budgets the application chose for this route.
+            resync_[c].queueTimeoutUs = slot.request.transfer.queueTimeoutUs;
+            resync_[c].responseTimeoutUs = slot.request.transfer.responseTimeoutUs;
+        }
         active_[c] = index;
         services_.service(now);
         collect();
         if (transmit(uint8_t(c), now))
             ++sent;
     }
-    reopenSettledRoutes();
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS && sent < tx; ++c)
+        if (deferred[c] && transmit(uint8_t(c), now))
+            ++sent;
+    reopenSettledRoutes(now);
+    noteReuse();
     refreshHealth(now);
+    retiredThisTurn_ = false; // Resync steps are eligible again from the next turn.
     return true;
 }
 bool CanBusOwner::localTxRetired(uint8_t slot) const noexcept {
@@ -899,6 +1301,7 @@ bool CanBusOwner::noteSyncSubmitted(SyncRequestId id, uint64_t now) noexcept {
     lastUs_ = now;
     syncHeld_ = false;
     sync_.service.transmissionPossible = true;
+    syncExternal_.handoffUs = now; // The TX lifetime starts at this submission.
     return true;
 }
 bool CanBusOwner::withdrawSyncUnsent(SyncRequestId id, uint64_t now) noexcept {
@@ -919,6 +1322,7 @@ bool CanBusOwner::transmitSync(uint64_t now) noexcept {
     syncExternal_ = ExternalTx();
     syncExternal_.pending = true;
     syncExternal_.epoch = controllerEpoch_;
+    syncExternal_.handoffUs = now;
     syncExternal_.id = TransportTxId::fromSync(sync_.id);
     syncHandoffCallback_ = true;
     const bool accepted = transport_.transmit(transport_.context, sync_.work.frame,
@@ -1010,6 +1414,7 @@ bool CanBusOwner::transmitNmt(uint64_t now) noexcept {
     nmtExternal_ = ExternalTx();
     nmtExternal_.pending = true;
     nmtExternal_.epoch = controllerEpoch_;
+    nmtExternal_.handoffUs = now;
     nmtExternal_.id = TransportTxId::fromNmt(nmtId_);
     const bool accepted = transport_.transmit(transport_.context, frame, nmtExternal_.id,
                                             controllerEpoch_);
@@ -1130,6 +1535,7 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
     lastUs_ = now;
     inhibited_ = true;
     collect();
+    notePossible();
     for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
         cancelSlot(i, CompletionReason::RECOVERY, now);
     for (Reservation& s : sequences_)
@@ -1146,6 +1552,9 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
     recovery_.controllerEpoch = ++controllerEpoch_;
     recovery_.startedUs = now;
     recovery_.deadlineUs = deadline;
+    // This recovery owns the causes so far; one reported while it runs stays for the next.
+    recovery_.causes = causes_;
+    causes_ = RecoveryCauses();
     recoveryOccupied_ = true;
     recoveryTerminal_ = false;
     output = recovery_.id;
@@ -1168,16 +1577,45 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
     diagnostic.processedUs = now;
     diagnostic.controllerEpoch = controllerEpoch_;
     diagnostic.recovery = outcome;
+    diagnostic.recoveryCauses = recovery_.causes;
     trace(diagnostic);
+    if (outcome != RecoveryOutcome::RETIRED) {
+        // Nothing was retired, so the causes stay for the next recovery.
+        causes_.busOff |= recovery_.causes.busOff;
+        causes_.receiveLost |= recovery_.causes.receiveLost;
+        causes_.txExpired |= recovery_.causes.txExpired;
+    }
     if (outcome == RecoveryOutcome::RETIRED) {
         detail::add(stats_.recoveries);
-        for (ExternalTx& tx : external_)
+        // Expired handoffs too: the old node is gone, so nothing can leave later, but each
+        // stays possibly sent, and recover()'s RECOVERING report quarantined its route. The
+        // adapter learns of the retirement as from a final report; nothing settles remotely.
+        for (ExternalTx& tx : external_) {
+            if (tx.pending && tx.id.kind == TransportTxId::Kind::SDO)
+                services_.noteTxRetired(tx.id.sdo);
             tx = ExternalTx();
+        }
         nmtExternal_ = ExternalTx();
         syncExternal_ = ExternalTx();
         services_.reportController(C::ControllerState::AVAILABLE, now);
         inhibited_ = false;
+        retiredThisTurn_ = true;
+        // Every route the controller event left unresolved with possible TX gets its policy's
+        // one resync step, so the routes of a restarted interface resync (not after a stop).
+        for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
+            if (resync_[c].possible && services_.unresolved(uint8_t(c)) &&
+                !services_.reuseRefused(uint8_t(c)))
+                armResync(c);
+            resync_[c].possible = false;
+        }
     }
+}
+// Sampled before a controller event retires local work: which routes may have a frame on the
+// bus, whether or not an owner terminal will record it.
+void CanBusOwner::notePossible() noexcept {
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c)
+        resync_[c].possible = resync_[c].possible || external_[c].pending || external_[c].blocked ||
+            (active_[c] >= 0 && services_.transmissionPossible(slots_[active_[c]].native));
 }
 const RecoveryCompletion* CanBusOwner::recoveryResult(RecoveryId id) const noexcept {
     return id.owner == this && recoveryOccupied_ && recoveryTerminal_ &&
@@ -1200,6 +1638,8 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     if (state == C::ControllerState::BUS_OFF &&
         services_.controllerState() != C::ControllerState::BUS_OFF)
         detail::add(stats_.busOffEvents);
+    if (state == C::ControllerState::BUS_OFF)
+        causes_.busOff = true;
     Diagnostic diagnostic;
     diagnostic.kind = DiagnosticKind::CONTROLLER;
     diagnostic.controller = state;
@@ -1207,6 +1647,7 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     diagnostic.processedUs = now;
     trace(diagnostic);
     if (state != C::ControllerState::AVAILABLE) {
+        notePossible();
         expireSync(now);
         syncArmed_ = false;
         syncDisarmOutcome_ = state == C::ControllerState::BUS_OFF ? C::SyncOutcome::BUS_OFF
@@ -1237,6 +1678,7 @@ bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept
         return false;
     detail::add(stats_.rxDropped, droppedFrames);
     detail::add(stats_.rxLost, droppedFrames);
+    causes_.receiveLost = true;
     return true;
 }
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,

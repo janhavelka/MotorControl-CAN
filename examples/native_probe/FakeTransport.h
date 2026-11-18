@@ -15,6 +15,9 @@ using MotorControlCANOwner::Transport;
  * One owner alone calls receive. All queued frames/reports own their bytes.
  * Caller serializes methods and supplies nonwrapping time; no clocks or threads.
  * Synthetic raw values imply no real manufacturer, model or firmware identity.
+ * The client's cleanup abort after a response timeout (prompt 55: `80 idx idx sub 00 00 04 05`,
+ * code 0x05040000) is accepted as transmitted and never answered, as a server takes it; any other
+ * client abort, download or identifier is refused.
  */
 class FakeTransport {
   public:
@@ -37,8 +40,13 @@ class FakeTransport {
      * @return False unchanged for invalid input/full queue; no silent eviction.
      */
     bool push(const MotorControlCAN::Frame& frame) noexcept;
-    /** @return Accepted uploads or SYNC handoffs; never drive writes, NMT or physical evidence. */
+    /** @return Accepted uploads or SYNC handoffs; never drive writes, NMT or physical evidence.
+     * The owner's own resync marker read is an upload and is counted; cleanup aborts are not. */
     unsigned transmitted() const noexcept { return transmitted_; }
+    /** @return Accepted timeout cleanup aborts (0x05040000), each reported transmitted, unanswered. */
+    unsigned clientAborts() const noexcept { return clientAborts_; }
+    /** @return Index << 8 | subindex of the last accepted upload; zero before the first one. */
+    uint32_t lastUpload() const noexcept { return lastUpload_; }
     /** @return Every attempted handoff, including atomic refusal; useful for no-I/O checks. */
     unsigned transmitCalls() const noexcept { return transmitCalls_; }
     /** @return Diagnostic copies after the owner's ordinary routing. */
@@ -57,6 +65,8 @@ class FakeTransport {
     TxReport reports_[REPORT_CAPACITY];
     unsigned rxHead_ = 0, rxCount_ = 0, reportHead_ = 0, reportCount_ = 0;
     unsigned transmitted_ = 0, transmitCalls_ = 0, observed_ = 0, receiveCalls_ = 0;
+    unsigned clientAborts_ = 0;
+    uint32_t lastUpload_ = 0;
     static bool receive(void*, ReceivedFrame&) noexcept;
     static bool transmit(void*, const MotorControlCAN::Frame&, TransportTxId,
                          uint32_t) noexcept;

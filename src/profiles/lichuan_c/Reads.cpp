@@ -200,6 +200,26 @@ void progress(ReadContext& c) {
         c.status = Ok();
     }
 }
+// One to one: no descriptor value may ever claim the absence of an effect.
+CANOPEN::SdoReadEffect uploadEffect(const ReadDescriptor& object) {
+    return object.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED
+               ? CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED
+               : CANOPEN::SdoReadEffect::UNQUALIFIED;
+}
+// R only when every selected field's upload effect is repeatable or a permission names that exact
+// field; one field that is neither keeps the whole read N. Nothing here changes an effect.
+RetryClass readClass(const ReadContext& c, const RepeatPermission* permissions, size_t count) {
+    for (unsigned i = 0; i < c.count; ++i) {
+        const ReadDescriptor& object = c.values[i].object;
+        bool repeatable = CANOPEN::repeatableReadEffect(uploadEffect(object));
+        for (size_t k = 0; k < count && !repeatable; ++k)
+            repeatable = permissions[k].index == object.index &&
+                         permissions[k].subindex == object.subindex;
+        if (!repeatable)
+            return RetryClass::NOT_REPEATABLE;
+    }
+    return c.count ? RetryClass::REPEATABLE_READ : RetryClass::NOT_REPEATABLE;
+}
 CANOPEN::SdoTransfer work(const ReadContext& c) {
     CANOPEN::SdoTransfer out;
     out.channel = c.target.channel;
@@ -209,10 +229,7 @@ CANOPEN::SdoTransfer work(const ReadContext& c) {
     out.index = object.index;
     out.subindex = object.subindex;
     out.size = object.widthBytes;
-    // One to one: no descriptor value may ever claim the absence of an effect.
-    out.readEffect = object.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED
-                         ? CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED
-                         : CANOPEN::SdoReadEffect::UNQUALIFIED;
+    out.readEffect = uploadEffect(object);
     out.requireUploadReview = pdoKind(c.kind) || c.kind == ReadKind::COMMUNICATION_NODE ||
                               c.kind == ReadKind::PERSISTENCE;
     out.deadlineUs = c.deadlineUs;
@@ -313,6 +330,7 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
         output.source = ReadSource::TPDO;
         output.pdoRoute = *route;
     }
+    output.retryClass = readClass(output, nullptr, 0);
     return Ok();
 }
 void fail(ReadContext& c, ReadOutcome outcome, Status status, uint64_t now) {
@@ -658,6 +676,22 @@ Status validateStateBlock(const ReadContext& c, StateBlock block, const ReadTarg
     if (block == StateBlock::ERROR_HISTORY && c.values[start].raw > 4)
         return invalid(ReadError::VALUE, "error history count out of range");
     window = bounds;
+    return Ok();
+}
+Status classifyRead(const ReadContext& c, const RepeatPermission* permissions, size_t count,
+                    RetryClass& output) noexcept {
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        (permissions && count <= REPEAT_PERMISSIONS &&
+         overlaps(&output, sizeof output, permissions, count * sizeof *permissions)))
+        return invalid(ReadError::OVERLAP, "read class output overlaps input");
+    if (!shape(c))
+        return invalid(ReadError::STATE, "read class needs a prepared read");
+    if ((!permissions && count) || count > REPEAT_PERMISSIONS)
+        return invalid(ReadError::ARGUMENT, "invalid repeat permission list");
+    for (size_t k = 0; k < count; ++k)
+        if (!permissions[k].record)
+            return invalid(ReadError::ARGUMENT, "repeat permission without a decision record");
+    output = readClass(c, permissions, count);
     return Ok();
 }
 Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target, uint64_t now,

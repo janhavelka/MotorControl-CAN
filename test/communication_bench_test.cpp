@@ -137,6 +137,10 @@ struct Wire : OwnerRig::WireBase {
     enum class Fault { NONE, ABORT, SILENT, BOOTUP } fault = Fault::NONE;
     unsigned failNode = 0, failAt = 0, frames[3] = {}, downloads[3] = {}, guardCalls = 0, nmtFrames = 0;
     bool silentDownload = false;
+    // Prompt 55: a response timeout's cleanup aborts and the owner's own resync marker reads (the
+    // one upload a timed-out route admits after its abort), per node; neither counts in frames.
+    unsigned aborts[3] = {}, markers[3] = {};
+    bool aborted[3] = {};
     uint8_t stateWithAck = 0; // Nonzero: a heartbeat in this state arrives just before the write's ACK.
     static bool guard(void* context, O::SequenceId sequence, const C::SdoTransfer& t, uint64_t now) {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
@@ -158,6 +162,30 @@ struct Wire : OwnerRig::WireBase {
         CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
         const uint16_t index = uint16_t(f.data[1] | f.data[2] << 8);
         const uint8_t sub = f.data[3];
+        if (f.data[0] == 0x80) {
+            // Only the timeout abort 0x05040000; the drive answers no client abort.
+            CHECK(f.payloadLength == 8 && f.data[4] == 0 && f.data[5] == 0 && f.data[6] == 4 &&
+                  f.data[7] == 5);
+            ++w.aborts[node];
+            w.aborted[node] = true;
+            return true;
+        }
+        if (w.aborted[node]) {
+            // The default policy's marker: 1000:00, or 1018:01 when 1000:00 is retained.
+            CHECK(f.data[0] == 0x40 && ((index == 0x1000 && sub == 0) || (index == 0x1018 && sub == 1)));
+            w.aborted[node] = false;
+            ++w.markers[node];
+            M::Frame reply = OwnerRig::frame(0x580 + node, 8);
+            reply.data[0] = 0x43;
+            reply.data[1] = f.data[1];
+            reply.data[2] = f.data[2];
+            reply.data[3] = sub;
+            const uint32_t raw = value(node, index, sub, w.stored[node]);
+            for (unsigned i = 0; i < 4; ++i)
+                reply.data[4 + i] = uint8_t(raw >> (8 * i));
+            w.push(reply, w.now, epoch);
+            return true;
+        }
         ++w.frames[node];
         if (w.fault != Fault::NONE && node == w.failNode && w.frames[node] == w.failAt) {
             if (w.fault == Fault::SILENT)
@@ -489,9 +517,14 @@ void readAbortMidSequence() {
 }
 
 // A lost reply: the owner's own timeout ends it, with possible effects kept and the route left
-// unresolved; nothing more is sent and the record still releases after TX retirement.
+// unresolved; nothing more is sent and the record still releases after TX retirement. Quarantine
+// is the scenario, so node 1 takes reuse policy NONE (prompt 55): only the client's one cleanup
+// abort follows the timeout, and the owner sends no marker.
 void readLostReplyKeepsUncertainty() {
     Rig rig;
+    O::SdoReuse none;
+    none.policy = O::SdoReusePolicy::NONE;
+    CHECK(rig.owner.setSdoReuse(rig.services.channel(0)->binding, none, rig.now));
     rig.wire.fault = Wire::Fault::SILENT;
     rig.wire.failNode = 1;
     rig.wire.failAt = 4;
@@ -500,9 +533,44 @@ void readLostReplyKeepsUncertainty() {
     const E::CommunicationBenchRecord& r = *rig.reads.record();
     CHECK(r.failure == E::CommunicationBenchFailure::SERVICE && r.uncertain);
     CHECK(r.outcome == M::ReadOutcome::SERVICE_TIMEOUT && r.published == 0 && r.terminalCount == 4);
-    CHECK(rig.wire.sentCount == 4 && rig.services.unresolved(0));
+    for (unsigned i = 0; i < 200; ++i)
+        rig.turn();
+    CHECK(rig.wire.sentCount == 5 && rig.wire.aborts[1] == 1 && !rig.wire.markers[1]);
+    CHECK(rig.wire.sent[4].data[0] == 0x80 && rig.wire.sent[4].data[1] == rig.wire.sent[3].data[1] &&
+          rig.wire.sent[4].data[2] == rig.wire.sent[3].data[2] &&
+          rig.wire.sent[4].data[3] == rig.wire.sent[3].data[3]);
+    CHECK(rig.services.unresolved(0) && !rig.owner.stats().markers);
     CHECK(rig.reads.release());
     CHECK(refused(rig.reads.begin(rig.readRequest(1, 300), rig.now), "unresolved"));
+}
+
+// The same lost reply under the default reuse policy: the cleanup abort, then the owner's one
+// marker read reopens the route, and a new K line is admitted as new work. The lost field's
+// effects stay possible and nothing of the old record is replayed.
+void readLostReplyResyncsUnderDefaultPolicy() {
+    Rig rig;
+    rig.wire.fault = Wire::Fault::SILENT;
+    rig.wire.failNode = 1;
+    rig.wire.failAt = 4;
+    CHECK(rig.reads.begin(rig.readRequest(1), rig.now) == nullptr);
+    rig.finish(rig.reads, 40000);
+    CHECK(rig.reads.record()->uncertain && rig.reads.record()->terminalCount == 4);
+    for (unsigned i = 0; i < 200; ++i)
+        rig.turn();
+    CHECK(rig.wire.sentCount == 6 && rig.wire.aborts[1] == 1 && rig.wire.markers[1] == 1);
+    CHECK(rig.wire.sent[4].data[0] == 0x80 && rig.wire.sent[5].data[0] == 0x40 &&
+          rig.wire.sent[5].data[1] == 0x00 && rig.wire.sent[5].data[2] == 0x10 &&
+          rig.wire.sent[5].data[3] == 0);
+    CHECK(!rig.services.unresolved(0) && rig.owner.stats().markers == 1 && rig.wire.frames[1] == 4);
+    O::Health health;
+    CHECK(rig.owner.health(rig.services.channel(0)->binding, health) && health.acceptedCorrelation);
+    CHECK(rig.reads.release());
+    CHECK(rig.reads.begin(rig.readRequest(1, 300, 20001), rig.now) == nullptr);
+    rig.wire.fault = Wire::Fault::NONE;
+    rig.finish(rig.reads, 40000);
+    CHECK(rig.reads.record()->failure == E::CommunicationBenchFailure::NONE &&
+          rig.wire.frames[1] == 4 + 95);
+    CHECK(rig.reads.release());
 }
 
 // A boot-up during the reads invalidates the node epoch: the record ends without another upload.
@@ -648,8 +716,15 @@ void heartbeatKnownIneligibleState() {
 
 // The write's reply is lost: the owner's timeout ends it, write effects stay uncertain, no readback
 // and no second write; the route is left unresolved and the application epoch stays advanced.
-void heartbeatLostWriteKeepsUncertainty() {
+// Under reuse policy NONE (prompt 55) only the client's one cleanup abort follows; the default
+// policy's resync is the next case.
+void heartbeatLostWriteKeepsUncertainty(bool defaultPolicy) {
     Rig rig;
+    if (!defaultPolicy) {
+        O::SdoReuse none;
+        none.policy = O::SdoReusePolicy::NONE;
+        CHECK(rig.owner.setSdoReuse(rig.services.channel(0)->binding, none, rig.now));
+    }
     rig.qualify(1);
     rig.wire.silentDownload = true;
     CHECK(rig.commission.begin(rig.heartbeatRequest(1), rig.now) == nullptr);
@@ -658,10 +733,23 @@ void heartbeatLostWriteKeepsUncertainty() {
     CHECK(r.failure == E::HeartbeatBenchFailure::SERVICE && r.prepared && !r.migrated);
     CHECK(r.context.state == L::CommunicationState::FAILED && r.context.uncertain &&
           r.context.effectsPossible && !r.context.writeAcknowledged && r.context.writeEvidencePresent);
-    CHECK(rig.wire.sentCount == 3 && rig.wire.downloads[1] == 1);
+    CHECK(rig.wire.downloads[1] == 1);
     for (unsigned i = 0; i < 200; ++i)
         rig.turn();
-    CHECK(rig.wire.sentCount == 3 && rig.services.unresolved(0));
+    // The cleanup abort names the write's own 1017:00; no readback and no second write.
+    CHECK(rig.wire.sent[3].data[0] == 0x80 && rig.wire.sent[3].data[1] == 0x17 &&
+          rig.wire.sent[3].data[2] == 0x10 && rig.wire.sent[3].data[3] == 0 &&
+          rig.wire.sent[3].data[6] == 4 && rig.wire.sent[3].data[7] == 5);
+    CHECK(rig.wire.downloads[1] == 1 && rig.wire.frames[1] == 3 && rig.wire.aborts[1] == 1);
+    if (defaultPolicy) {
+        // The owner's one marker read of 1000:00 reopens the route; the write stays uncertain.
+        CHECK(rig.wire.sentCount == 5 && rig.wire.markers[1] == 1 && rig.wire.sent[4].data[0] == 0x40 &&
+              rig.wire.sent[4].data[1] == 0x00 && rig.wire.sent[4].data[2] == 0x10);
+        CHECK(!rig.services.unresolved(0) && rig.owner.stats().markers == 1);
+    } else {
+        CHECK(rig.wire.sentCount == 4 && !rig.wire.markers[1] && rig.services.unresolved(0));
+    }
+    CHECK(r.context.uncertain && r.context.effectsPossible);
     CHECK(!rig.services.node(0)->producerKnown && r.current.configurationGeneration == 2);
     CHECK(rig.commission.release());
 }
@@ -1589,13 +1677,15 @@ int main() {
     readRefusals();
     readAbortMidSequence();
     readLostReplyKeepsUncertainty();
+    readLostReplyResyncsUnderDefaultPolicy();
     readRebootInvalidates();
     readGrantRefused();
     heartbeatCommissions();
     heartbeatRequiresServiceEvidence();
     heartbeatBaselineMismatch();
     heartbeatKnownIneligibleState();
-    heartbeatLostWriteKeepsUncertainty();
+    heartbeatLostWriteKeepsUncertainty(false);
+    heartbeatLostWriteKeepsUncertainty(true);
     heartbeatReadbackMismatch();
     heartbeatOperationalAfterWrite();
     heartbeatPreOperationalAfterWrite();

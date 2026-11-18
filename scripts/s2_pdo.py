@@ -5,7 +5,10 @@ run: validates the recorded USB identity, opens only that port (neither EN nor B
 pings, refuses unless the image speaks the lines the plan uses (PONG pdo=1: N, P, R, W; pdo=2 adds
 E; pdo=3 adds C, the bounded silent capture; pdo=4 adds D, K and H: the discovery scan, the typed
 communication reads and the guarded heartbeat commissioning; pdo=5 adds the N line's r and c, NMT Reset
-Node and Reset Communication; pdo=6 adds J, the isolated TPDO1 transmission-type experiment)
+Node and Reset Communication; pdo=6 adds J, the isolated TPDO1 transmission-type experiment; pdo=8 adds
+prompt 55's L, the owner's link lines, U, the unplug watch that restarts the controller itself once
+when a TX lifetime expires, which runs beside a soak the plan started, and y and z, one explicit marker
+read on node 1 or 2 for a route that no owner resync step reopens)
 with no soak, trial, watch or capture
 held, then sends the plan's steps in order and captures every byte to rx.bin. A step sends one
 console command (a single byte, or an N, P, R, W, E, J, C, D, K, H, S line of
@@ -58,7 +61,8 @@ REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDO_CO
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR", "CAP refused",
             "CAP_STOP refused", "CAP release refused", "DISC refused", "COMM refused", "HB refused",
-            "DISC release refused", "COMM release refused", "HB release refused", "NETWORK refused")
+            "DISC release refused", "COMM release refused", "HB release refused", "NETWORK refused",
+            "LINK_WATCH refused", "MARKER refused")
 LINE_COMMANDS = ("N", "P", "R", "W", "E", "J", "C", "D", "K", "H", "S")
 # The PDO line letters each image protocol (PONG pdo=) serves. An older image answers an unknown
 # letter as single-byte commands: E1,100 there would start a node-1 identity read, and C1,10,64 the
@@ -66,12 +70,16 @@ LINE_COMMANDS = ("N", "P", "R", "W", "E", "J", "C", "D", "K", "H", "S")
 # pdo=4 adds D, K and H; on a pdo=3 image "K1" would be UNKNOWN then a node-1 identity read.
 PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC"),
                  "4": frozenset("NPRWECDKH"), "5": frozenset("NPRWECDKH"),
-                 "6": frozenset("NPRWEJCDKH"), "7": frozenset("NPRWEJCDKH")}
+                 "6": frozenset("NPRWEJCDKH"), "7": frozenset("NPRWEJCDKH"), "8": frozenset("NPRWEJCDKH")}
+# Prompt 55's single bytes (pdo=8): L prints link lines and U arms the unplug watch. Older images answer
+# both as UNKNOWN, so neither is ever sent to one.
+LINK_PROTOCOL = 8
+LINK_BYTES = frozenset("LUyz")
 PDO_LETTERS = "NPRWEJCDKH"
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
 # M (pdo=4) prints one HEAP line: internal heap totals and regions; it sends nothing on CAN.
-SINGLE_BYTES = set("cpsrdnhjX34M")
+SINGLE_BYTES = set("cpsrdnhjX34MLUyz")
 # The admission line and end line of every command whose firmware terminal decides whether later
 # steps may follow, keyed by the command itself, never by the plan's own expect text.
 CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END raw"),
@@ -81,7 +89,8 @@ CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
            "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture"),
            "D": ("DISC admitted", "END discovery"), "K": ("COMM admitted", "END comm"),
-           "H": ("HB admitted", "END heartbeat")}
+           "H": ("HB admitted", "END heartbeat"), "U": ("LINK_WATCH armed", "LINK_WATCH_END"),
+           "y": ("MARKER admitted", "MARKER node="), "z": ("MARKER admitted", "MARKER node=")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational", 0x81: "reset-node", 0x82: "reset-communication"}
 # The N line's letter for each command (examples/s2_bench/PdoCommand.cpp). r and c, the two resets, need PONG
 # pdo=5: an older image refuses them as syntax. They are attended fault-recovery experiments only.
@@ -789,6 +798,8 @@ def preflight(capture, steps=()):
     if int(values["pdo"]) < 7 and any(step.get("send", "").startswith("P") and
                                      "," in step["send"] for step in steps):
         return values, "image_without_compact_watch"
+    if int(values["pdo"]) < LINK_PROTOCOL and any(step.get("send", "") in LINK_BYTES for step in steps):
+        return values, "image_without_link"
     resets = [step for step in steps if step.get("send", "")[:1] == "N" and nmt_plan(step["send"]) and
               nmt_plan(step["send"])[1] in RESET_COMMANDS]
     if resets and int(values["pdo"]) < RESET_PROTOCOL:

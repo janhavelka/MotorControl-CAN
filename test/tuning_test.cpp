@@ -520,6 +520,8 @@ void loopCandidatesAndRealWrite() {
         L::DriverSettingsContext c;
         CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41, owner.now, 5000,
                                         options(), 100));
+        // W: the selector is an absolute level value with readback, whatever it does at once.
+        CHECK(c.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         candidate.loopMode = L::LoopMode::OPEN_LOOP;
         L::PreparedRead p;
         CHECK(L::nextDriver(c, owner.reservation, owner.current, owner.now, p) && p.ready);

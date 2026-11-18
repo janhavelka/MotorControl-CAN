@@ -42,7 +42,8 @@ FAILURES = ("NONE", "AUTHORIZATION", "ADMISSION", "SERVICE", "CORRELATION", "EVI
 # BenchRoute RouteFailure, printed in a TRIAL header.
 TRIAL_FAILURES = ("NONE", "AUTHORIZATION", "ADMISSION", "SERVICE", "CORRELATION", "EVIDENCE_LOSS",
                   "INVALIDATED", "DEADLINE", "PREREQUISITE", "OBSERVATION", "ACTION", "REFUSED", "ABORTED")
-RX, TX, TX_REPORT, TERMINAL, CONTROLLER, RECOVERY = range(6)  # owner DiagnosticKind
+# owner DiagnosticKind; RESYNC, TX_EXPIRED and LISTENER from prompt 55.
+RX, TX, TX_REPORT, TERMINAL, CONTROLLER, RECOVERY, RESYNC, TX_EXPIRED, LISTENER = range(9)
 
 # Native values worth tracking as status. Anything else stays in the record list.
 STATUS_OBJECTS = {
@@ -86,6 +87,12 @@ def _frame_signals(record, _node):
         return [("controller", "controller_state", None, values.get("ctrl", record.raw))]
     if kind == RECOVERY:
         return [("controller", "recovery", None, values.get("rec", record.raw))]
+    if kind == RESYNC:
+        return [("health", "resync_step", values.get("ch"), values.get("rs"))]
+    if kind == TX_EXPIRED:
+        return [("controller", "tx_expired", None, True)]
+    if kind == LISTENER:
+        return [("controller", "no_listener", None, values.get("nl"))]
     return []
 
 
@@ -150,7 +157,7 @@ class Row(NamedTuple):
 
 # epoch is the controller epoch of that frame. txk/txr/txf are its local TX identity.
 _FRAME = ("k:u p:u id:x ext:b rtr:b dlc:u data:h ok:b exact:b t:u bounds:b lo:u hi:u "
-          "epoch:u? step:u? op:u? ctrl:s? rec:s? txk:u? txr:u? txf:u? txc:u?")
+          "epoch:u? step:u? op:u? ctrl:s? rec:s? causes:x? rs:u? ch:u? nl:b? txk:u? txr:u? txf:u? txc:u?")
 _FRAME_OLD = "kind:u>k time:u>p id:x ext:b rtr:b dlc:u data:h accepted:b>ok captureKnown:b>exact"
 # req is the transfer's request, oreq the owner's result handle, ne the node epoch at admission,
 # reason the owner's closure and st its stages: bit0 adapter admitted, bit1 controller accepted,
@@ -361,7 +368,7 @@ GRAMMAR = (
     Row("SOAK_STOP_REFUSED", "SOAK_STOP refused", "response"),
     Row("SOAK_BEGIN", "SOAK_BEGIN ", "soak",
         "n:u t:u trial:u dur:u interval:u summary:u monitors:b identity:b opDeadline:u queue:u resp:u "
-        "stack:u heap:u heapMin:u stale:u? base:s", "t"),
+        "stack:u heap:u heapMin:u stale:u? nodes:u? markerMs:u? reuse:s? lifetime:u? base:s", "t"),
     Row("SOAK_TR", "SOAK_TR ", "soak", "n:u t:u node:u sig:s from:x to:x first:b ne:u ce:u", "t",
         _soak_transition),
     Row("SOAK_ANOM", "SOAK_ANOM ", "soak", "n:u t:u id:u kind:s node:u dump:b a:x b:x", "t"),
@@ -390,7 +397,16 @@ GRAMMAR = (
         "earlyReply:u hb:u hbGapMax:u stopped:b", "t"),
     Row("SOAK_HIST", "SOAK_HIST ", "soak", "n:u t:u node:u b:s", "t"),
     Row("SOAK_OUT", "SOAK_OUT ", "soak", "n:u t:u node:u sdo:s reason:s read:s", "t"),
+    # Prompt 55: one node's route reuse policy, repair steps and presence observations per summary.
+    Row("SOAK_LINK", "SOAK_LINK ", "soak",
+        "n:u t:u node:u reuse:s timeouts:u aborts:u markers:u explicit:u explicitOk:u reopened:u failed:u "
+        "other:u reuseStopped:u waits:u noResponse:u bootUps:u responded:b lastResponse:u accepted:b", "t"),
     Row("SOAK_ABORT", "SOAK_ABORT ", "soak", "n:u t:u node:u a0:s a1:s a2:s a3:s other:u", "t"),
+    # Prompt 55 bench item (c): the absent node 3's probes and the owner's presence observations of it,
+    # after the fixture nodes' lines of a summary, only when the plan names it.
+    Row("SOAK_ABSENT", "SOAK_ABSENT ", "soak",
+        "n:u t:u node:u probes:u answered:u timeouts:u other:u refused:u explicit:u held:u unresolved:b "
+        "noResponse:u responded:b heartbeat:b bootUps:u", "t"),
     Row("SOAK_END", "SOAK_END ", "soak", "n:u t:u trial:u reason:s up:u lines:u settled:b", "t"),
     Row("RAW", "RAW ", "header",
         "id:u node:u failure:u lost:b terminals:u traffic:u tail:u tailLost:b gap:u epoch:u?",
@@ -422,7 +438,26 @@ GRAMMAR = (
     Row("STATS", "STATS ", "response",
         "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u t:u? txRej:u? rxLost:u? "
         "unmatched:u? traceOver:u? ownerGap:u? conRej:u?", "t", _STATS),
-    Row("CAN_READY", "CAN ready ", "response", "bitrate:u", signals=(("controller", "bitrate"),)),
+    Row("CAN_READY", "CAN ready ", "response", "bitrate:u reuse:s? lifetime:u?",
+        signals=(("controller", "bitrate"),)),
+    # Prompt 55 (PONG pdo=8): `L`, the owner's cached link facts, and `U`, the unplug watch
+    # (examples/s2_bench/LinkWatch.h). Observations only; the watch's one restart is its own event.
+    Row("LINK", "LINK interface ", "response",
+        "lifetime:u noListener:b expiredPending:u txExpired:u markers:u reuseStopped:u recoveries:u inhibited:b t:u",
+        "t", (("controller", "noListener"), ("controller", "txExpired"), ("controller", "markers"))),
+    Row("LINK_NODE", "LINK node=", "response",
+        "node:u reuse:s unresolved:b stopped:b pending:b accepted:b responded:b lastResponse:u heartbeat:b "
+        "lastHeartbeat:u bootUps:u noResponse:u", signals=(("health", "reuse"), ("health", "unresolved"))),
+    Row("LINK_NODE_UNCONFIGURED", "LINK node=", "response", "node:u configured:b"),
+    Row("LINK_WATCH", "LINK_WATCH armed", "response", "seconds:u lifetime:u reuse1:s reuse2:s t:u", "t"),
+    Row("LINK_EVENT", "LINK_EVENT ", "response", "t:u kind:s node:u value:x", "t"),
+    Row("LINK_WATCH_END", "LINK_WATCH_END ", "response",
+        "restarts:u expired:u recovery:i causes:x listenerEnd:b listenerUs:u resynced:s unmatchedAfter:u "
+        "refusedAfter:u markers:u explicit:u explicitOk:u noListener:b dropped:u"),
+    Row("REFUSED", "LINK_WATCH refused", "refused", "reason:s"),
+    Row("MARKER_ADMITTED", "MARKER admitted", "response", "node:u object:o"),
+    Row("MARKER", "MARKER node=", "response", "node:u object:o outcome:u possible:b reopened:b t:u", "t"),
+    Row("REFUSED", "MARKER refused", "refused", "node:u reason:s"),
     Row("CAN_REFUSED", "CAN start refused", "response"),
     Row("NETWORK", "NETWORK node=", "response",
         "node:u epoch:u state:u qualified:b producerKnown:b ms:u pending:b observed:b expired:b "
@@ -606,6 +641,10 @@ EXPECTED = {
     "preop2": Expect("", "NMT Pre-operational admitted", 2, responses=("NMT",)),
     "trial-abort": Expect(responses=("TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")),
     "close-sessions": Expect(responses=("SESSIONS_CLOSED", "SESSIONS_REFUSED")),
+    # Prompt 55 (PONG pdo=8): the link lines and one explicit marker on node 1 or 2.
+    "link": Expect(responses=("LINK", "LINK_NODE", "LINK_NODE_UNCONFIGURED")),
+    "marker1": Expect(responses=("MARKER_ADMITTED", "MARKER", "REFUSED")),
+    "marker2": Expect(responses=("MARKER_ADMITTED", "MARKER", "REFUSED")),
 }
 # Trial route commands: s2_bench.py sends a ping, then one T line; the node comes from request.json.
 # Ctrl-C during the route sends one local abort, so its response may appear too.

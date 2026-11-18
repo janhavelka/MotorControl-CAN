@@ -178,6 +178,10 @@ struct CommunicationContext {
     CANOPEN::SdoCompletion
         confirmationEvidence;         ///< Owned upload terminal when confirmationPresent.
     bool confirmationPresent = false; ///< Confirmation evidence is meaningful.
+    /** IDEMPOTENT_SETTING once prepareCommunication succeeds: one absolute 1017 value, confirmed
+     * by the explicit readback; writing 1000 again leaves 1000. A repeat needs a new preparation,
+     * whose baseline must read raw 0 again. The confirmation step leaves the class unchanged. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
 };
 /** Checked stored configuration observation, never an effective producer or persistent setting. */
 struct CommunicationResult {

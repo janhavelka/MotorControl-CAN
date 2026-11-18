@@ -90,7 +90,8 @@ void counters(const char* name, const O::Stats& s, const O::OwnerResources& r) {
     std::printf(
         "  %s stats tx=%lu rx=%lu txRejected=%lu rxDropped=%lu rxLost=%lu unmatched=%lu "
         "queueRejected=%lu resultsRejected=%lu cancelled=%lu timeouts=%lu "
-        "busOff=%lu recoveries=%lu traceOverwritten=%lu maxOwnerGap=%llu us\n",
+        "busOff=%lu recoveries=%lu traceOverwritten=%lu maxOwnerGap=%llu us markers=%lu "
+        "reuseStopped=%lu txExpired=%lu\n",
         name, static_cast<unsigned long>(s.txFrames), static_cast<unsigned long>(s.rxFrames),
         static_cast<unsigned long>(s.txRejected), static_cast<unsigned long>(s.rxDropped),
         static_cast<unsigned long>(s.rxLost), static_cast<unsigned long>(s.unmatchedFrames),
@@ -98,12 +99,13 @@ void counters(const char* name, const O::Stats& s, const O::OwnerResources& r) {
         static_cast<unsigned long>(s.cancelled), static_cast<unsigned long>(s.timeouts),
         static_cast<unsigned long>(s.busOffEvents), static_cast<unsigned long>(s.recoveries),
         static_cast<unsigned long>(s.traceOverwritten),
-        static_cast<unsigned long long>(s.maxServiceGapUs));
+        static_cast<unsigned long long>(s.maxServiceGapUs), static_cast<unsigned long>(s.markers),
+        static_cast<unsigned long>(s.reuseStopped), static_cast<unsigned long>(s.txExpired));
     std::printf("  %s resources queued=%u active=%u retained=%u reservations=%u traceUsed=%u "
-                "inhibited=%u recoveryPending=%u\n",
+                "inhibited=%u recoveryPending=%u noListener=%u txExpired=%u\n",
                 name, unsigned(r.queued), unsigned(r.active), unsigned(r.retained),
                 unsigned(r.reservations), unsigned(r.traceUsed), unsigned(r.inhibited),
-                unsigned(r.recoveryPending));
+                unsigned(r.recoveryPending), unsigned(r.noListener), unsigned(r.txExpired));
 }
 void dump(const E::AcquisitionRecord& r) {
     std::printf("Acquisition %lu fixture=%s sourceRevision=%s kind=%u experimental=%u\n",
@@ -183,7 +185,8 @@ void dump(const E::AcquisitionRecord& r) {
             static_cast<unsigned long long>(t.processedUs),
             static_cast<unsigned long long>(t.receivedUs), unsigned(t.receivedTimeKnown),
             unsigned(t.accepted));
-        if (t.kind == O::DiagnosticKind::TX || t.kind == O::DiagnosticKind::TX_REPORT)
+        if (t.kind == O::DiagnosticKind::TX || t.kind == O::DiagnosticKind::TX_REPORT ||
+            t.kind == O::DiagnosticKind::TX_EXPIRED)
             std::printf("transportKind=%u requestChannel=%u requestGeneration=%lu frameToken=%lu ",
                         unsigned(t.txId.kind), unsigned(t.txId.sdo.request.channel),
                         static_cast<unsigned long>(t.txId.sdo.request.generation),
@@ -193,7 +196,15 @@ void dump(const E::AcquisitionRecord& r) {
         else if (t.kind == O::DiagnosticKind::CONTROLLER)
             std::printf("controller=%u", unsigned(t.controller));
         else if (t.kind == O::DiagnosticKind::RECOVERY)
-            std::printf("recovery=%u", unsigned(t.recovery));
+            std::printf("recovery=%u causes=busOff:%u,receiveLost:%u,txExpired:%u", unsigned(t.recovery),
+                        unsigned(t.recoveryCauses & 1), unsigned((t.recoveryCauses >> 1) & 1),
+                        unsigned((t.recoveryCauses >> 2) & 1));
+        else if (t.kind == O::DiagnosticKind::RESYNC)
+            std::printf("resync=%u channel=%u", unsigned(t.resync), unsigned(t.channel));
+        else if (t.kind == O::DiagnosticKind::TX_EXPIRED)
+            std::printf("expired");
+        else if (t.kind == O::DiagnosticKind::LISTENER)
+            std::printf("noListener=%u", unsigned(t.noListener));
         std::putchar('\n');
     }
 }

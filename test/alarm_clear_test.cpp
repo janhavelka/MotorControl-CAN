@@ -33,8 +33,11 @@ const uint16_t ALARMED_STATUS = 0xc018, CLEARED_STATUS = 0x8010, RELEASED_STATUS
 
 M::Status attempt(Rig& r, L::ActionContext& action) {
     r.begin();
-    return L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now, r.deadline,
-                                r.policy(), r.clearMethod);
+    const M::Status s = L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now,
+                                             r.deadline, r.policy(), r.clearMethod);
+    // Either method's value-1 write is an edge with undocumented repeat behavior: N.
+    CHECK(!s || action.retryClass == M::RetryClass::NOT_REPEATABLE);
+    return s;
 }
 // Poll a persisting alarm for `cycles` complete cycles, then let the deadline end the attempt.
 void persistUntilDeadline(Rig& r, L::ActionContext& action, unsigned cycles) {
@@ -675,6 +678,7 @@ void prefixFailureAtEveryStage() {
                 const uint16_t index = written(method);
                 const uint8_t first = method == L::AlarmClearMethod::CONTROLWORD_BIT7 ? 0x80 : 1;
                 Rig r;
+                r.keepQuarantine(); // The matrix asserts the quarantine and exact traffic.
                 r.clearMethod = method;
                 r.acquire(ALARM);
                 L::ActionContext action;
@@ -729,13 +733,14 @@ void prefixFailureAtEveryStage() {
 // nothing, the value-1 consequence stays, and no new operation can start on that axis.
 void delayedFinalZeroAck() {
     Rig r;
+    r.keepQuarantine(); // The route must stay unresolved: no reuse policy.
     r.acquire(ALARM);
     L::ActionContext action;
     r.prepare(action, false);
     r.command(action, CLEAR, 1);
     const Rig::Failure f = r.failCommand(action, Stage::TX_REPORTED);
     CHECK(f.terminal.outcome == C::SdoOutcome::TIMEOUT && f.terminal.effectUncertain &&
-          f.terminal.transmissionConfirmed);
+          f.terminal.transmissionConfirmed && f.terminal.clientAbortQueued);
     CHECK(action.valueOneMayRemain && action.execution == M::ActionExecution::ACKNOWLEDGED &&
           action.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
     r.lateReplyChangesNothing(action, f);
@@ -743,6 +748,89 @@ void delayedFinalZeroAck() {
     CHECK(r.owner.release(f.id));
     CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
     CHECK(r.services.unresolved(0) && action.valueOneMayRemain);
+}
+
+// Prompt 55 default reuse policy, ACCEPTED_RISK_WITH_MARKER: the 2301 value-1 reply is lost. The
+// client sends its one cleanup abort, the owner then reads 1000:00 once as its marker and reopens
+// the route, invalidating the reservation. Nothing writes 2301 again, the action keeps its failure,
+// uncertainty and value-1 consequence, and later work on a new reservation carries the
+// accepted-correlation mark. The fake's 1000:00 value is synthetic.
+void lostClearReplyResyncsWithoutRewrite() {
+    Rig r;
+    r.acquire(ALARM);
+    L::ActionContext action;
+    r.prepare(action, false);
+    const unsigned from = r.wire.sentCount;
+    const L::PreparedAction work = r.next(action);
+    CHECK(work.ready && work.transfer.index == CLEAR && work.transfer.data[0] == 1);
+    const O::RequestId id = r.admit(work.transfer);
+    const uint64_t sentAt = r.now;
+    r.turn(sentAt);
+    r.turn(sentAt + 1, budget(8, 0, 8, 0)); // The controller's TX report; no reply follows.
+    CHECK(r.wire.sentCount == from + 1 && r.wire.notices == 1);
+    // At the response cutoff the abort leaves in the same turn, through no transmit guard.
+    r.turn(sentAt + 100);
+    const C::SdoCompletion terminal = r.result(id, false);
+    CHECK(terminal.outcome == C::SdoOutcome::TIMEOUT && terminal.transmissionConfirmed &&
+          terminal.effectUncertain && terminal.clientAbortQueued && !terminal.abortValid);
+    CHECK(r.wire.sentCount == from + 2 && r.wire.notices == 1);
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[from + 1], 0x601, CLEAR));
+    CHECK(r.services.unresolved(0) && r.owner.stats().markers == 0);
+    CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
+    CHECK(action.state == M::ActionState::FAILED &&
+          action.outcome == M::ActionOutcome::SERVICE_TIMEOUT &&
+          action.execution == M::ActionExecution::UNKNOWN && action.uncertain &&
+          action.valueOneMayRemain);
+    const Saved<L::ActionContext> failed(action);
+    const Saved<O::Completion> retained(*r.owner.result(id));
+    CHECK(!r.owner.result(id)->acceptedCorrelation);
+    // Once the abort is locally retired, exactly one marker read of a different object.
+    r.turn(sentAt + 101);
+    CHECK(r.wire.sentCount == from + 3 && OwnerRig::isMarkerRead(r.wire.sent[from + 2], 0x601));
+    CHECK(r.owner.stats().markers == 1 && r.services.unresolved(0));
+    r.wire.push(OwnerRig::uploadReply4(0x581, 0x1000, 0, 0x00020192), sentAt + 102);
+    r.turn(sentAt + 102);
+    O::Health health;
+    CHECK(r.owner.health(r.current.channel.binding, health));
+    CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    CHECK(health.reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER &&
+          health.acceptedCorrelation && !health.reuseStopped && !health.resyncPending);
+    // The reopening invalidated the old reservation: its history cannot become live again.
+    CHECK(!r.owner.sequence(r.sequence));
+    CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
+    retained.unchanged(*r.owner.result(id));
+    failed.unchanged(action);
+    CHECK(!r.next(action).ready);
+    for (unsigned i = 0; i < 4; ++i)
+        r.turn(r.now + 100);
+    CHECK(r.wire.sentCount == from + 3 && r.owner.stats().markers == 1); // No second marker.
+    // New work needs a new reservation; its result carries the mark.
+    CHECK(r.owner.release(id) && r.owner.releaseSequence(r.sequence));
+    O::SequenceId fresh;
+    CHECK(r.owner.beginSequence(r.current.channel.binding, 1, r.now, fresh));
+    CHECK(r.owner.beginOperation(fresh, ++r.operation, r.deadline, r.now));
+    C::SdoTransfer read;
+    read.channel = *r.services.channel(0);
+    read.operation = read.request = r.operation;
+    read.step = 1;
+    read.index = 0x6041;
+    read.size = 2;
+    read.direction = C::SdoDirection::UPLOAD;
+    read.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    read.queueTimeoutUs = read.responseTimeoutUs = 100;
+    read.deadlineUs = r.deadline;
+    const O::RequestId later = r.admit(read, &fresh);
+    r.turn(r.now);
+    r.wire.push(reply(read, CLEARED_STATUS), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    const O::Completion* next = r.owner.result(later);
+    CHECK(next && next->service.outcome == C::SdoOutcome::SUCCESS && next->acceptedCorrelation &&
+          next->reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+    // On the wire: the one 2301 write, its abort, the marker and the new read, nothing else.
+    CHECK(r.wire.sentCount == from + 4 && r.wire.notices == 1);
+    CHECK(OwnerRig::sdoFrame(r.wire.sent[from], 0x601, 0x2b, CLEAR, 0) &&
+          OwnerRig::sdoFrame(r.wire.sent[from + 3], 0x601, 0x40, 0x6041, 0));
+    failed.unchanged(action);
 }
 
 // A boot-up while the final 0 is in flight: the application ends the attempt INVALIDATED. The
@@ -1024,6 +1112,7 @@ int main() {
     methodsDoNotCross();
     prefixFailureAtEveryStage();
     delayedFinalZeroAck();
+    lostClearReplyResyncsWithoutRewrite();
     rebootDuringClear();
     emcyDuringClear();
     if (PAIRED_CHANNELS)

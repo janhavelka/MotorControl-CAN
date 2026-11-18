@@ -30,7 +30,16 @@ struct Drive {
     int32_t velocity = 0, position = 0;
     unsigned cycle = 0;
     bool triggered = false, complete = true, muteTrigger = false, muteStop = false;
+    // Client aborts received (prompt 55's one 0x05040000 abort after a response timeout). An
+    // abort is no download, and a server never answers one.
+    unsigned clientAborts = 0;
+    M::Frame lastClientAbort;
     bool respond(const M::Frame& sent, M::Frame& out) {
+        if (sent.data[0] == 0x80) {
+            ++clientAborts;
+            lastClientAbort = sent;
+            return false;
+        }
         const uint16_t index = indexOf(sent);
         const uint8_t sub = sent.data[3];
         out = OwnerRig::frame(sent.id - 0x600 + 0x580, 8);
@@ -426,6 +435,33 @@ void unknownTriggerSurvivesReopenAndBestEffortStop() {
     CHECK(r.session.open(r.current(), L::SettingsModel::CL86_C, 1, r.now));
     terminal.unchanged(r.session.homeAction());
     CHECK(r.session.homeNeedsStop() && !r.start());
+    // Prompt 55, default reuse policy. The trigger's response timeout staged one cleanup abort
+    // naming 6040:00, handed off directly after it and so still ahead of the explicit 000B. The
+    // accepted best-effort stop ended the node's pending resync: no marker follows it, even after
+    // its result is released, since its own reply could still confirm a later 6040 write;
+    // reopening is explicit intent. The route stays quarantined, nothing is resent and the
+    // uncertain home stays fenced.
+    for (unsigned i = 0; i < 10; ++i)
+        r.step();
+    unsigned trigger = r.startFrame;
+    while (trigger < r.wire.sentCount &&
+           !(OwnerRig::sdoFrame(r.wire.sent[trigger], 0x601, 0x2b, 0x6040, 0) &&
+             valueOf(r.wire.sent[trigger]) == 0x001f))
+        ++trigger;
+    CHECK(r.wire.sentCount == trigger + 3 &&
+          OwnerRig::isTimeoutAbort(r.wire.sent[trigger + 1], 0x601, 0x6040) &&
+          OwnerRig::sdoFrame(r.wire.sent[trigger + 2], 0x601, 0x2b, 0x6040, 0) &&
+          valueOf(r.wire.sent[trigger + 2]) == 0x000b);
+    CHECK(r.drive.clientAborts == 1 &&
+          OwnerRig::isTimeoutAbort(r.drive.lastClientAbort, 0x601, 0x6040));
+    CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0 &&
+          r.owner.stats().markers == 0);
+    O::Health health;
+    CHECK(r.owner.health(r.current().channel.binding, health) && !health.acceptedCorrelation &&
+          !health.resyncPending);
+    terminal.unchanged(r.session.homeAction());
+    CHECK(r.session.homeNeedsStop() && !r.start() && r.writes(0x6040, 31) == 1 &&
+          r.writes(0x6040, 11) == 1);
 }
 void handoverRejectsChangedAxis() {
     scenario = "configuration mutation before controller handover";

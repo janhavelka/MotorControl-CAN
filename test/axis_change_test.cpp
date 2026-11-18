@@ -223,15 +223,22 @@ void fullOrdinaryRetainsUrgent() {
 void unresolvedAndDeadline() {
     {
         Fixture f;
+        // The lost replacement write leaves the route unresolved; no marker may reopen it here.
+        f.r.keepQuarantine();
+        const unsigned first = f.r.wire.sentCount;
         CHECK(f.replace());
         f.r.drive.silentIndex = 0x6081;
         for (unsigned i = 0; i < 100 && f.r.a.moveActive(); ++i)
             f.r.step();
         CHECK(!f.r.a.moveActive() && f.r.a.moveAction().uncertain && f.r.a.moveFenced());
+        // Its response timeout sent exactly one cleanup abort, naming 6081 (prompt 55).
+        CHECK(abortsFrom(f.r, first, 0x6081) == 1 && onlyTimeoutAborts(f.r, first) == 1);
+        CHECK(f.r.services.unresolved(0));
         const unsigned before = f.r.wire.sentCount;
         CHECK(!f.replace());
         f.r.steps(4);
         CHECK(f.r.wire.sentCount == before);
+        CHECK(f.r.drive.clientAborts == 1 && f.r.owner.stats().markers == 0);
     }
     {
         Fixture f;

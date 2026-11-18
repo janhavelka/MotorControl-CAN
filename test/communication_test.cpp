@@ -678,6 +678,9 @@ void exactWidthsAndStoredNodeValues() {
 void partialAndUnknownEffects() {
     for (unsigned failure = 0; failure < 4; ++failure) {
         Bench b;
+        // Reuse policy NONE: the failed reads keep their route unresolved and every frame is
+        // counted, with no resync marker. The lost reply's cleanup abort still goes.
+        CHECK(OwnerRig::keepQuarantine(b.owner, target().channel, b.now));
         L::CommunicationReadContext c = b.prepare(G::RPDO_COMMUNICATION, 1);
         Field expected[6];
         fields(G::RPDO_COMMUNICATION, 1, expected);
@@ -700,6 +703,15 @@ void partialAndUnknownEffects() {
             } else
                 CHECK(b.owner.cancel(id, b.now) == O::Cancel::CANCELLED);
             done = b.terminal(id);
+            // Only the lost reply is a response timeout after possible TX: its one cleanup abort
+            // 0x05040000 for the same object left in that turn, right after the read.
+            CHECK(done.clientAbortQueued == (failure == 1) && !done.abortValid);
+            if (failure == 1)
+                CHECK(b.wire.sentCount == 4 &&
+                      OwnerRig::sdoFrame(b.wire.sent[2], 0x601, 0x40, done.transfer.index,
+                                         done.transfer.subindex) &&
+                      OwnerRig::isTimeoutAbort(b.wire.sent[3], 0x601, done.transfer.index,
+                                               done.transfer.subindex));
         }
         CHECK(L::advanceCommunication(c, done, b.now));
         CHECK(c.read.state == M::ReadState::FAILED && c.read.values[0].valid &&

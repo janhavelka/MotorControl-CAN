@@ -98,6 +98,8 @@ class ProbeConsole {
         GROUP_OPERATION_SLOT = OPERATION_CAPACITY + STOP_REPLY_CAPACITY, ///< Independently reserved group stop.
         TOTAL_OPERATION_CAPACITY = GROUP_OPERATION_SLOT + 2 ///< Group stop plus host recovery.
     };
+    /** Largest `txlifetime` the console accepts, 60 s: console policy, not an owner bound. */
+    static constexpr uint32_t TX_LIFETIME_MAXIMUM_US = 60000000;
     /** Borrow existing application/owner/platform; construction performs no I/O.
      * @param app Existing stationary shared application, outlives the console.
      * @param owner Its sole receive owner, outlives the console.
@@ -277,6 +279,7 @@ class ProbeConsole {
                  uint32_t terminal = 0) noexcept;
     void dispatch(const ConsoleLine& line, uint64_t now) noexcept;
     void dispatchLocal(const ConsoleLine& line, uint64_t now, size_t index) noexcept;
+    void dispatchLink(const ConsoleLine& line, uint64_t now) noexcept;
     void error(uint32_t id, bool json, const char* command, const char* reason,
                bool control = false,
                MotorControlCAN::Err code = MotorControlCAN::Err::ILLEGAL_VALUE,

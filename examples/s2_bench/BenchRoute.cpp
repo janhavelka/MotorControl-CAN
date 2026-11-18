@@ -819,17 +819,27 @@ bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcep
     const char* p = text + 1;
     const char* end = text + size;
     const bool arm = plan.kind == RouteKind::ARM_MOVE || plan.kind == RouteKind::ARM_VELOCITY;
+    // POSITION and RELATIVE take prompt 55's optional trigger response budget as one more last field.
+    const bool position = plan.kind == RouteKind::POSITION || plan.kind == RouteKind::RELATIVE;
     unsigned commas = 0;
     for (const char* q = p; q != end; ++q)
         commas += *q == ',';
-    const bool extra = arm && commas == grammar->count;
+    const bool extra = (arm || position) && commas == grammar->count;
     for (unsigned i = 0; i < grammar->count; ++i) {
         int64_t value = 0;
         if (!field(p, end, grammar->fields[i], i + 1 == grammar->count && !extra, value))
             return false;
         store(plan, grammar->fields[i], value);
     }
-    if (extra) {
+    if (extra && position) {
+        int64_t value = 0;
+        const Field trigger = {uint16_t(offsetof(RoutePlan, triggerResponseUs)),
+                               uint8_t(sizeof(plan.triggerResponseUs)), ROUTE_TRIGGER_RESPONSE_MINIMUM_US,
+                               ROUTE_RESPONSE_US};
+        if (!field(p, end, trigger, true, value))
+            return false;
+        store(plan, trigger, value);
+    } else if (extra) {
         int64_t value = 0;
         const Field allow = {uint16_t(offsetof(RoutePlan, allowChanges)),
                              uint8_t(sizeof(plan.allowChanges)), 0, 1};
@@ -856,6 +866,11 @@ bool routePlanValid(const RoutePlan& p) noexcept {
             return false;
     }
     if (p.allowChanges && p.kind != RouteKind::ARM_MOVE && p.kind != RouteKind::ARM_VELOCITY)
+        return false;
+    if (p.triggerResponseUs && (p.kind != RouteKind::POSITION && p.kind != RouteKind::RELATIVE))
+        return false;
+    if (p.triggerResponseUs &&
+        (p.triggerResponseUs < ROUTE_TRIGGER_RESPONSE_MINIMUM_US || p.triggerResponseUs > ROUTE_RESPONSE_US))
         return false;
     switch (p.kind) {
     case RouteKind::POSITION_CHANGE: {
@@ -1578,7 +1593,13 @@ void BenchRoute::copyTraffic(const Diagnostic& in, bool tail) noexcept {
                         unsigned(in.receivedTimeKnown) << 3 | unsigned(in.receiveBoundsKnown) << 4);
     out.state = in.kind == DiagnosticKind::CONTROLLER ? uint8_t(in.controller)
                 : in.kind == DiagnosticKind::RECOVERY ? uint8_t(in.recovery)
+                : in.kind == DiagnosticKind::RESYNC   ? uint8_t(in.resync)
+                : in.kind == DiagnosticKind::LISTENER ? uint8_t(in.noListener ? 1 : 0)
                                                       : 0;
+    if (in.kind == DiagnosticKind::RESYNC)
+        out.txChannel = in.channel;
+    out.causes = uint8_t(unsigned(in.recoveryCauses.busOff) | unsigned(in.recoveryCauses.receiveLost) << 1 |
+                         unsigned(in.recoveryCauses.txExpired) << 2);
 }
 void BenchRoute::capture(bool tail) noexcept {
     const MotorControlCANOwner::Stats stats = firmware_.owner().stats();
@@ -2640,6 +2661,15 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
     t.deadlineUs = writeDeadlineUs_;
     t.queueTimeoutUs = ROUTE_QUEUE_US;
     t.responseTimeoutUs = ROUTE_RESPONSE_US;
+    // Prompt 55's forced trigger timeout: only the POSITION or RELATIVE trigger word takes the line's budget.
+    const bool triggerWord = steps_[stepIndex_].kind != STEP_CHANGE_FALL &&
+                             steps_[stepIndex_].kind != STEP_CHANGE_WRITES &&
+                             steps_[stepIndex_].kind != STEP_MODE_WRITE &&
+                             steps_[stepIndex_].kind != STEP_TARGET_WRITE &&
+                             steps_[stepIndex_].kind != STEP_WORD_WRITE && subStep_ == 4;
+    if (triggerWord && p.triggerResponseUs &&
+        (p.kind == RouteKind::POSITION || p.kind == RouteKind::RELATIVE))
+        t.responseTimeoutUs = p.triggerResponseUs;
     // The public codec checks the exact expedited request these values make, as MotionPreview does.
     M::Frame frame;
     frame.id = t.channel.clientToServerId;
@@ -4449,6 +4479,25 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.intervalMs));
         case RouteKind::POSITION:
         case RouteKind::RELATIVE:
+            if (p.triggerResponseUs) {
+                // Prompt 55's forced trigger timeout: the line's budget and the route's reuse policy.
+                MotorControlCANOwner::SdoReuse reuse;
+                const C::SdoChannel* channel = services_.channel(uint8_t(p.node - 1));
+                const bool known = channel && firmware_.owner().sdoReuse(channel->binding, reuse);
+                const char* const policies[] = {"none", "marker", "nomarker"};
+                return put(out, size,
+                           "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld target=%ld rpm=%lu up=%lu "
+                           "down=%lu cycles=%u interval=%lu kind=%u after=%u sd=%lu be=%lu si=%lu trigResp=%lu "
+                           "reuse=%s\n",
+                           routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                           unsigned(p.attended), static_cast<long>(p.startPosition), static_cast<long>(p.target),
+                           static_cast<unsigned long>(p.rpm), static_cast<unsigned long>(p.rampUpMs),
+                           static_cast<unsigned long>(p.rampDownMs), unsigned(p.cycles),
+                           static_cast<unsigned long>(p.intervalMs), unsigned(p.stopKind), unsigned(p.stopAfter),
+                           static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
+                           static_cast<unsigned long>(p.stopIntervalMs), static_cast<unsigned long>(p.triggerResponseUs),
+                           known && unsigned(reuse.policy) < 3 ? policies[unsigned(reuse.policy)] : "unknown");
+            }
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld target=%ld rpm=%lu up=%lu "
                        "down=%lu cycles=%u interval=%lu kind=%u after=%u sd=%lu be=%lu si=%lu\n",
@@ -5123,8 +5172,12 @@ bool BenchRoute::formatLine(unsigned cursor, char* out, size_t size, bool* lastL
     if (kind == DiagnosticKind::CONTROLLER)
         put(suffix, sizeof suffix, " ctrl=%u", unsigned(t.state));
     else if (kind == DiagnosticKind::RECOVERY)
-        put(suffix, sizeof suffix, " rec=%u", unsigned(t.state));
-    else if (kind == DiagnosticKind::TX || kind == DiagnosticKind::TX_REPORT)
+        put(suffix, sizeof suffix, " rec=%u causes=%x", unsigned(t.state), unsigned(t.causes));
+    else if (kind == DiagnosticKind::RESYNC)
+        put(suffix, sizeof suffix, " rs=%u ch=%u", unsigned(t.state), unsigned(t.txChannel));
+    else if (kind == DiagnosticKind::LISTENER)
+        put(suffix, sizeof suffix, " nl=%u", unsigned(t.state));
+    else if (kind == DiagnosticKind::TX || kind == DiagnosticKind::TX_REPORT || kind == DiagnosticKind::TX_EXPIRED)
         put(suffix, sizeof suffix, " txk=%u txr=%lu txf=%lu txc=%u", unsigned(t.txKind),
             static_cast<unsigned long>(t.txRequest), static_cast<unsigned long>(t.txFrame), unsigned(t.txChannel));
     else

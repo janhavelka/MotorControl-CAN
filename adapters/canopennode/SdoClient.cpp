@@ -318,6 +318,13 @@ void SdoClient::retainFrame(Channel& c, const Frame& f) {
     if (c.requalifications) c.drainRefused = true;
     retainPair(c, index, subindex);
 }
+bool SdoClient::retainedFrame(const Channel& c, const Frame& f) {
+    uint16_t index = 0; uint8_t subindex = 0;
+    if (!frameMultiplexer(f, index, subindex)) return false;
+    for (uint8_t i = 0; i < c.retainedCount; ++i)
+        if (c.retained[i].index == index && c.retained[i].subindex == subindex) return true;
+    return false;
+}
 bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
     return slot < CHANNELS && !channels_[slot].unresolved && checkWork(slot, work, now);
 }
@@ -347,6 +354,31 @@ bool SdoClient::admitDrain(uint8_t slot, const SdoTransfer& work, const SdoDrain
     channels_[slot].drainActive = true;
     return true;
 }
+bool SdoClient::settleWithoutMarker(uint8_t slot, const SdoDrainPremises& premises, uint64_t now) {
+    if (slot >= CHANNELS || now < lastUs_ || !premises.soleClient || !premises.orderedServer ||
+        controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING)
+        return false;
+    Channel& c = channels_[slot];
+    // The same local retirement a marker needs, including the frame of the request itself.
+    if (!c.configured || !c.unresolved || c.drainRefused || c.drainSuccess || c.occupied ||
+        c.cleanup || c.handoffLive || c.txLive || c.port.queueOccupied ||
+        c.requalifications == UINT32_MAX) return false;
+    const int anchor = networkAnchor(slot);
+    if (anchor >= 0 && channels_[anchor].network.exhausted) return false;
+    c.drainSuccess = c.settledWithoutMarker = true;
+    lastUs_ = now;
+    return true;
+}
+bool SdoClient::reuseRefused(uint8_t slot) const {
+    return slot < CHANNELS && channels_[slot].configured && channels_[slot].drainRefused;
+}
+bool SdoClient::reacceptReuse(uint8_t slot) {
+    if (!reuseRefused(slot)) return false;
+    // Only the refusal goes. The route stays unresolved and its retained pairs stay, so a later
+    // marker still avoids them; a further contradicting frame refuses reuse again.
+    channels_[slot].drainRefused = false;
+    return true;
+}
 bool SdoClient::drainSettled(uint8_t slot) const {
     return slot < CHANNELS && channels_[slot].drainSuccess;
 }
@@ -354,9 +386,35 @@ bool SdoClient::reopenAfterDrain(uint8_t slot) {
     if (!drainSettled(slot)) return false;
     Channel& c = channels_[slot];
     c.drainSuccess = c.unresolved = false;
-    c.retainedCount = 0;
+    // A marker's reply followed every retained reply under the stated premise; a settlement
+    // without one showed nothing, so those late replies stay expected until a success.
+    c.keepRetained = c.settledWithoutMarker;
+    if (!c.keepRetained) c.retainedCount = 0;
+    c.settledWithoutMarker = false;
     c.experimentArmed = c.experimentActive = false; // A grant from before the loss stays void.
     ++c.requalifications;
+    const int anchor = networkAnchor(slot);
+    c.marked = true;
+    c.markSessions = anchor < 0 ? 0 : channels_[anchor].network.serverSessions;
+    return true;
+}
+bool SdoClient::acceptedCorrelation(uint8_t slot) const {
+    if (slot >= CHANNELS || !channels_[slot].configured || !channels_[slot].marked) return false;
+    const int anchor = networkAnchor(slot);
+    return anchor < 0 || channels_[anchor].network.serverSessions == channels_[slot].markSessions;
+}
+bool SdoClient::dropCleanup(uint8_t slot) {
+    if (slot >= CHANNELS || !channels_[slot].cleanup || !channels_[slot].port.queueOccupied) return false;
+    retire(channels_[slot]);
+    return true;
+}
+bool SdoClient::txStart(SdoTxId id, uint64_t& startUs) const {
+    if (id.request.owner != this || id.request.channel >= CHANNELS ||
+        overlap(&startUs, sizeof startUs, this, sizeof *this)) return false;
+    const Channel& c = channels_[id.request.channel];
+    if (id.request.generation == 0 || id.request.generation != c.generation || id.frame == 0 ||
+        id.frame != c.frame || c.held || c.txUnsubmitted) return false;
+    startUs = c.txStartUs;
     return true;
 }
 uint32_t SdoClient::requalifications(uint8_t slot) const {
@@ -444,6 +502,7 @@ bool SdoClient::start(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     c.unsizedExpedited = c.replyValid = c.handoffLive = false;
     c.held = c.withdrawn = c.possibleBeforeHandoff = c.txLive = c.abortClean = false;
     c.bestEffort = false;
+    c.markedAtAdmission = acceptedCorrelation(slot);
     c.uploaded = 0;
     c.frame = 0;
     c.queueCutoff = cutoff(now, work.deadlineUs, work.queueTimeoutUs);
@@ -467,6 +526,7 @@ void SdoClient::retire(Channel& c) {
     c.handoffLive = false;
     c.held = false;
     c.drainSuccess = false; // Any later local boundary outdates a settled marker.
+    c.settledWithoutMarker = false;
 }
 
 void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t returned,
@@ -491,6 +551,7 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
     out.abortCode = abortCode;
     out.reply = c.lastReply;
     out.replyValid = c.replyValid;
+    out.acceptedCorrelation = c.markedAtAdmission;
     if (outcome == SdoOutcome::SUCCESS && c.work.direction == SdoDirection::UPLOAD) {
         out.size = c.work.uploadSize == SdoUploadSize::SERVER_INDICATED ? c.uploaded : c.work.size;
         std::memcpy(out.data, c.upload, out.size);
@@ -511,6 +572,13 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
         outcome == SdoOutcome::REBOOT) c.unresolved = true;
     c.withdrawn = c.abortClean = false;
     c.drainSuccess = c.drainActive && outcome == SdoOutcome::SUCCESS;
+    c.settledWithoutMarker = false;
+    if (outcome == SdoOutcome::SUCCESS && c.keepRetained) {
+        // The first success after a no-marker reopening: old replies came before it under the
+        // accepted premise, so from now on a frame naming one contradicts it.
+        c.keepRetained = false;
+        c.retainedCount = 0;
+    }
     if (c.possible && !settled) retainPair(c, c.work.index, c.work.subindex);
     if (c.possible && settled) {
         // A late error can make a server answer twice, so a marker must not reuse this pair.
@@ -529,15 +597,22 @@ void SdoClient::expire(Channel& c, uint64_t now) {
     if (!c.configured) return;
     if (c.cleanup && (now >= c.work.deadlineUs || now >= c.queueCutoff)) retire(c);
     if (!c.occupied || c.terminal) return;
-    if (now >= c.work.deadlineUs ||
-        ((!c.started || c.port.queueOccupied || c.held) && now >= c.queueCutoff) ||
-        (c.awaiting && now >= c.responseCutoff)) {
-        retire(c);
+    const bool overall = now >= c.work.deadlineUs;
+    const bool response = c.awaiting && now >= c.responseCutoff;
+    if (overall || ((!c.started || c.port.queueOccupied || c.held) && now >= c.queueCutoff) ||
+        response) {
+        // A response timeout after possible TX stages one CiA 301 abort 0x05040000 with the
+        // request's own index/subindex, through the same engine path as every client abort.
+        // It is cleanup only: the terminal stays TIMEOUT without an abort code, the route stays
+        // unresolved, and the abort leaves only within the original deadline. At the overall
+        // deadline no budget remains, and a best-effort stop sends exactly one frame (DEC-2).
+        if (response && !overall && c.possible && !c.bestEffort) stageAbort(c, CO_SDO_AB_TIMEOUT, now);
+        else retire(c);
         finish(c, SdoOutcome::TIMEOUT, now);
     }
 }
 
-void SdoClient::abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t now) {
+int32_t SdoClient::stageAbort(Channel& c, uint32_t code, uint64_t now) {
     // Only the selected engine encodes aborts. Abort staging cannot qualify effects or reopen a route.
     retire(c);
     CO_SDO_abortCode_t nativeCode = CO_SDO_AB_NONE;
@@ -547,7 +622,12 @@ void SdoClient::abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t no
         ? CO_SDOclientDownload(&c.engine, 0, true, false, &nativeCode, nullptr, nullptr)
         : CO_SDOclientUpload(&c.engine, 0, true, &nativeCode, nullptr, nullptr, nullptr);
     c.queueCutoff = cutoff(now, c.work.deadlineUs, c.work.queueTimeoutUs);
-    finish(c, outcome, now, static_cast<int32_t>(returned), true, code);
+    return static_cast<int32_t>(returned);
+}
+
+void SdoClient::abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t now) {
+    const int32_t returned = stageAbort(c, code, now);
+    finish(c, outcome, now, returned, true, code);
 }
 
 void SdoClient::pump(Channel& c, uint64_t now) {
@@ -686,6 +766,15 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
                 return false;
             }
         }
+        if (c.keepRetained && !c.unresolved && retainedFrame(c, f) &&
+            !(c.occupied && !c.terminal && c.awaiting && !c.port.queueOccupied &&
+              (uint16_t(f.data[1]) | uint16_t(f.data[2]) << 8) == c.work.index &&
+              f.data[3] == c.work.subindex)) {
+            // After a no-marker reopening a late reply to a retained pair is the accepted risk,
+            // never a contradiction (prompt 55). Absorbed here: it cannot be the awaited reply.
+            // One naming the awaited object is processed below and may complete that request.
+            return false;
+        }
         const bool serverAbort = c.possible && f.payloadLength == 8 && f.data[0] == 0x80;
         // A reply to the one confirmed outstanding frame, the premise a success has.
         c.abortClean = serverAbort && c.awaiting && !c.port.queueOccupied && !c.handoffLive;
@@ -702,6 +791,8 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
             return false;
         }
         if (f.payloadLength != 8) {
+            // A frame naming no object refuses reuse here as on the idle path.
+            retainFrame(c, f);
             c.observation.disposition = SdoRxDisposition::PROCESSED;
             c.lastReply = f; c.replyValid = true;
             abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_CMD, now);
@@ -714,6 +805,14 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
                 f.data[3] != c.work.subindex) {
                 c.abortClean = false;
                 retainFrame(c, f);
+                if (c.requalifications) {
+                    // On a reopened route another object's frame contradicts the premise the
+                    // reopening rested on, as on the idle path: the waiting request cannot stand.
+                    retire(c);
+                    c.unresolved = true;
+                    c.observation.disposition = SdoRxDisposition::UNRESOLVED;
+                    finish(c, SdoOutcome::CORRELATION_LOST, now);
+                }
                 return false;
             }
         }
@@ -820,7 +919,8 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
     retire(c);
     c.handoffLive = true;
     c.txLive = true;
-    c.handoffUs = now;
+    c.handoffUs = c.txStartUs = now;
+    c.txUnsubmitted = false;
     c.handoffCutoff = cleanupCutoff;
     if (!cleanup) {
         c.possibleBeforeHandoff = c.possible;
@@ -848,7 +948,7 @@ bool SdoClient::holdHandoff(SdoTxId id) {
     if (!valid(id.request)) return false;
     Channel& c = channels_[id.request.channel];
     if (!c.handoffLive || id.frame == 0 || id.frame != c.frame) return false;
-    c.held = true;
+    c.held = c.txUnsubmitted = true;
     c.txLive = false;
     if (c.occupied && !c.terminal) {
         c.possible = c.possibleBeforeHandoff;
@@ -865,6 +965,8 @@ bool SdoClient::noteSubmitted(SdoTxId id, uint64_t now) {
     if (!c.held) return false;
     c.held = false;
     c.txLive = true;
+    c.txStartUs = now;
+    c.txUnsubmitted = false;
     if (c.occupied && !c.terminal) {
         c.possible = true;
         c.awaiting = true;

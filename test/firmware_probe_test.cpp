@@ -486,7 +486,12 @@ void saturationAndExplicitRecovery() {
     CHECK(result && result->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(r.driver.starts == 2 && r.driver.epoch == 2);
     r.turn(5);
-    CHECK(r.driver.submits == 1 && !r.driver.active);
+    // Nothing is replayed. The retired recovery re-armed the route the bus-off left unresolved with
+    // possible TX (prompt 55's default reuse policy), and from the next turn the owner's one marker
+    // read of 1000:00 leaves; the bus-off'd 1005:00 request itself never goes again.
+    const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+    CHECK(r.driver.submits == 2 && r.driver.active && r.driver.sent[1].id == 0x605 &&
+          std::memcmp(r.driver.sent[1].data, marker, 8) == 0 && r.firmware.owner().stats().markers == 1);
     CHECK(!r.firmware.transport().diagnostics().inhibited);
     for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
         CHECK(r.firmware.owner().result(ids[i]));
@@ -601,7 +606,20 @@ void firmwareEvidenceFailuresNeverReplay() {
             r.bytes.now = now;
             CHECK(r.firmware.service() == (variant == 0));
         }
-        CHECK(r.driver.submits == 1 && r.firmware.evidence().record()->terminalCount == 1);
+        // Prompt 55: after the response timeout the client sends its one cleanup abort
+        // 0x05040000 for the same object. The abort is not a replay; with its TX report
+        // missing, the owner's resync marker waits, so nothing else leaves.
+        if (variant == 0) {
+            const M::Frame& request = r.driver.sent[0];
+            const M::Frame& abort = r.driver.sent[1];
+            const uint8_t expected[8] = {0x80, request.data[1], request.data[2], request.data[3],
+                                         0x00, 0x00, 0x04, 0x05};
+            CHECK(r.driver.submits == 2 && abort.id == request.id && abort.payloadLength == 8 &&
+                  std::memcmp(abort.data, expected, 8) == 0);
+        } else {
+            CHECK(r.driver.submits == 1);
+        }
+        CHECK(r.firmware.evidence().record()->terminalCount == 1);
         CHECK(r.firmware.evidence().record()->completedUs == completedUs);
         CHECK(r.firmware.evidence().record()->read.uncertain);
         CHECK(r.firmware.evidence().release());

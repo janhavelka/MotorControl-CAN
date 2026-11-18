@@ -928,7 +928,15 @@ void quarantineAndOtherNodeProgress() {
         r.turn(r.now + 1, budget(8, 0, 8, 0));
         CHECK(r.done(other).service.outcome == C::SdoOutcome::SUCCESS);
         previous.unchanged(r.done(old));
-        CHECK(r.wire.sentCount == last + 2);
+        // The cancellation of possibly sent work armed node 1's resync (default policy). Its one
+        // marker read of 1000:00 goes only once the old frame is locally retired, after node 2's
+        // urgent work in the same turn; it is unanswered, so node 1 stays quarantined. Without
+        // retirement the frame stays possibly pending and no marker can go.
+        CHECK(r.wire.sentCount == last + 2 + retired && r.owner.stats().markers == retired);
+        CHECK(OwnerRig::sdoFrame(r.wire.sent[last + 1], 0x602, 0x40, 0x2101, 0));
+        if (retired)
+            CHECK(OwnerRig::isMarkerRead(r.wire.sent[last + 2], 0x601));
+        CHECK(r.services.unresolved(0));
         CHECK(r.owner.release(other));
         // A real stop on the other node uses this same owner while the first
         // node stays quarantined and its uncertain original outcome survives.
@@ -947,6 +955,7 @@ void quarantineAndOtherNodeProgress() {
         r.turn(r.now + 1, budget(8, 0, 8, 0));
         r.cycle(stop);
         CHECK(stop.outcome == M::ActionOutcome::OBSERVED && r.services.unresolved(0));
+        CHECK(r.owner.stats().markers == retired); // The failed marker is not followed by another.
         previous.unchanged(r.done(old));
     }
 }
@@ -1090,7 +1099,8 @@ void exactDeadlineAndRepeatedStopRejection() {
     }
 }
 // DEC-3: a marker reopens the route, not the reservation or its 000F. The ordered server here is
-// a fake premise: this proves the host's logic, not a real server's ordering (Q18).
+// an accepted premise, stated by the binding's reuse policy (prompt 55's default
+// ACCEPTED_RISK_WITH_MARKER): this proves the host's logic, not a real server's ordering (Q18).
 void drainMarkerConsumesOld000F() {
     Rig r;
     r.prerequisites();
@@ -1102,23 +1112,39 @@ void drainMarkerConsumesOld000F() {
     r.turn(r.now + 100, budget(0, 0, 8, 0));
     const C::SdoCompletion lost = r.done(lostId).service;
     CHECK(lost.outcome == C::SdoOutcome::TIMEOUT && lost.effectUncertain);
+    CHECK(lost.clientAbortQueued && !lost.abortValid);
     CHECK(r.services.unresolved(0) && !r.owner.sequence(r.sequence));
     CHECK(r.owner.release(lostId));
+    O::SdoReuse reuse;
+    CHECK(r.owner.sdoReuse(target().channel.binding, reuse) &&
+          reuse.policy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+    // The staged cleanup abort leaves first, in a turn with TX but no start budget, so the
+    // owner's own resync marker cannot start; the next turn takes its TX report.
+    const unsigned staged = r.wire.sentCount;
+    r.turn(r.now, budget(8, 2, 8, 0));
+    CHECK(r.wire.sentCount == staged + 1 &&
+          OwnerRig::isTimeoutAbort(r.wire.sent[staged], 0x601, 0x2200));
+    r.turn(r.now, budget(8, 0, 8, 0));
+    O::Health health;
+    CHECK(r.owner.localTxRetired(0) && r.owner.health(target().channel.binding, health));
+    CHECK(health.resyncPending && r.owner.stats().markers == 0);
     const unsigned sent = r.wire.sentCount;
     C::SdoTransfer marker = r.transfer(0x2000);
     marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
     marker.allowSegmentedUpload = false;
-    C::SdoDrainPremises premises;
-    premises.soleClient = premises.orderedServer = true;
     O::RequestId markerId;
-    CHECK(r.owner.admitDrainMarker(marker, premises, r.now, markerId) == O::BusAdmission::ACCEPTED);
+    CHECK(r.owner.admitDrainMarker(marker, r.now, markerId) == O::BusAdmission::ACCEPTED);
     r.turn(r.now);
     CHECK(r.wire.sentCount == sent + 1 && r.wire.sent[sent].data[1] == 0x00 &&
           r.wire.sent[sent].data[2] == 0x20);
+    // An explicit marker ends the pending automatic step: no owner marker follows it.
+    CHECK(r.owner.health(target().channel.binding, health) && !health.resyncPending);
     r.wire.push(reply(marker, 0x1234), r.now + 1);
     r.turn(r.now + 1, budget(8, 0, 8, 0));
     CHECK(r.done(markerId).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(!r.done(markerId).automaticMarker && r.owner.stats().markers == 0);
     CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    CHECK(r.owner.health(target().channel.binding, health) && health.acceptedCorrelation);
     // The reservation holding that 000F stays dead. Its copied values alone admit nothing.
     CHECK(!r.owner.sequence(r.sequence));
     CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));

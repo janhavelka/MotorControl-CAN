@@ -356,6 +356,32 @@ class DryRun(Base):
         self.assertFalse(self.out.exists())
         self.assertEqual(self.clock.seconds, 0.0)
 
+    def test_repair_tail_is_sent_only_when_asked_and_checked_first(self):
+        # Prompt 55: the S line's optional (response_us, nodes, marker_ms) tail, parseSoakCommand's order.
+        self.assertEqual(soak.soak_line(5, 60, 20, 1, 0), b"S5,60,20,1,0\n")
+        self.assertEqual(soak.soak_line(5, 60, 20, 1, 0, (1000, 1, 100)), b"S5,60,20,1,0,1000,1,100\n")
+        args = soak.arguments(["--duration-s", "60", "--response-us", "1000", "--nodes", "1", "--marker-ms", "100"])
+        self.assertEqual(soak.repair_tail(args), (1000, 1, 100))
+        self.assertIsNone(soak.repair_tail(soak.arguments(["--duration-s", "60"])))
+        self.assertEqual(soak.repair_tail(soak.arguments(["--duration-s", "60", "--nodes", "2"])), (0, 2, 0))
+        # Bench item (c): mask bit 4 adds the absent node 3 beside node 1 or 2, never alone.
+        self.assertEqual(soak.repair_tail(soak.arguments(["--duration-s", "60", "--nodes", "7", "--marker-ms", "100"])),
+                         (0, 7, 100))
+        for bad in (["--response-us", "99"], ["--response-us", "250001"], ["--nodes", "4"], ["--nodes", "8"],
+                    ["--marker-ms", "1001"]):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit):
+                soak.main(["--duration-s", "1", "--dry-run"] + bad, Forbidden(), self.clock)
+
+    def test_absent_node_line_parses(self):
+        # The final summary line test/soak_test.cpp's three-channel absent-node case prints.
+        record = evidence.parse_line(1, "SOAK_ABSENT n=164 t=7092000 node=3 probes=1 answered=0 timeouts=1 other=0 "
+                                        "refused=0 explicit=1 held=4 unresolved=1 noResponse=3 responded=0 "
+                                        "heartbeat=0 bootUps=0")
+        self.assertEqual((record.status, record.extra), ("parsed", {}))
+        self.assertEqual((record.values["node"], record.values["timeouts"], record.values["unresolved"],
+                          record.values["noResponse"]), (3, 1, True, 3))
+        self.assertIn("SOAK_ABSENT", soak.SUMMARY_KINDS)
+
     def test_duration_above_the_firmware_limit_is_refused(self):
         self.clock.start = datetime(2026, 11, 3, 8, 59, tzinfo=LOCAL)
         with self.assertRaises(SystemExit):

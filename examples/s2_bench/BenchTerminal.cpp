@@ -59,8 +59,14 @@ int formatTraffic(char* out, size_t size, const EvidenceTraffic& t, const char* 
     if (t.kind == DiagnosticKind::CONTROLLER)
         std::snprintf(suffix, sizeof suffix, " ctrl=%u", unsigned(t.controller));
     else if (t.kind == DiagnosticKind::RECOVERY)
-        std::snprintf(suffix, sizeof suffix, " rec=%u", unsigned(t.recovery));
-    else if (t.kind == DiagnosticKind::TX || t.kind == DiagnosticKind::TX_REPORT)
+        std::snprintf(suffix, sizeof suffix, " rec=%u causes=%x", unsigned(t.recovery),
+                      unsigned(t.recoveryCauses));
+    else if (t.kind == DiagnosticKind::RESYNC)
+        std::snprintf(suffix, sizeof suffix, " rs=%u ch=%u", unsigned(t.resync), unsigned(t.channel));
+    else if (t.kind == DiagnosticKind::LISTENER)
+        std::snprintf(suffix, sizeof suffix, " nl=%u", unsigned(t.noListener));
+    else if (t.kind == DiagnosticKind::TX || t.kind == DiagnosticKind::TX_REPORT ||
+             t.kind == DiagnosticKind::TX_EXPIRED)
         std::snprintf(suffix, sizeof suffix, " txk=%u txr=%lu txf=%lu", unsigned(t.txId.kind),
                       static_cast<unsigned long>(t.txId.kind == TransportTxId::Kind::SYNC
                                                      ? t.txId.sync.generation

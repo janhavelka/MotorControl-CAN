@@ -403,19 +403,29 @@ A matched server abort on a clean exchange, meaning a reply to the one confirmed
 
 A controller event, bus-off or recovery, quarantines only a route with a frame that may have left: `SdoClient::possibleWork`, sampled before retirement. A route with nothing possible stays open and needs NMT or service evidence for ordinary work. A boot-up or rebinding still quarantines.
 
-**Drain marker (DEC-3).** The only way to reopen. An application explicitly requests one finite marker through `CanBusOwner::admitDrainMarker`:
+**Timeout abort and reuse policy (DEC-3, amended by prompt 55 on 2026-11-18).** A response timeout after a possible transmission stages exactly one client abort, `80 <index> <subindex> 00 00 04 05` (code `0x05040000`), through the existing cleanup path. It is cleanup only: the terminal stays `TIMEOUT` with `clientAbortQueued`, and the abort settles nothing. No abort is staged when TX was never possible, when the overall deadline leaves no cleanup budget, or for a best-effort stop.
+
+Whether the route is used again is a named, settable policy per binding, `SdoReusePolicy` through `CanBusOwner::setSdoReuse`, reported in `Health` and on every result:
+
+| Policy | After a timeout with possible TX |
+| --- | --- |
+| `ACCEPTED_RISK_WITH_MARKER` (documented default) | Once local TX of the request and its abort has retired and no stop waits on the node, the owner itself sends one marker read, counted and logged: the first entry of `SdoReuse::markers` (default `1000:00`, `1018:01`, `1018:02`, `1018:03`, all accepted under DEC-1) that is neither the last completed nor a retained pair, with `markerQueueTimeoutUs` and `markerResponseTimeoutUs` (0 inherits the route's last request budgets). A matching reply reopens the route |
+| `ACCEPTED_RISK_WITHOUT_MARKER` | The route reopens after that local TX retirement alone, as CANopenNode and python-canopen reuse a channel; the reopening has the same effects as a marker success. The pairs retained before it stay retained until the route's first success, so the timed-out request's own late reply is absorbed (or completes a same-object request: the accepted risk) instead of counting as contradicting traffic |
+| `NONE` | Today's quarantine; the owner sends nothing and refuses a marker |
+
+The step arms for every quarantine with possible TX: a timeout, a cancellation of possibly sent work (including work a recovery closes) and bus-off. A `RETIRED` recovery re-arms each route it leaves unresolved, from the next service turn, so an application's held stop goes first. An accepted best-effort stop ends any pending step on its node, and no marker follows it, even after its result is released: reopening after a stop is explicit intent (the policy form of `admitDrainMarker`, or `reacceptReuse` after a refusal). No step starts during NO_LISTENER; held steps run once it ends. When no listed object is eligible, or no budget or request identity is left, the step reports `MARKER_UNAVAILABLE` and ends. Both accepted settings state the `SdoDrainPremises` (sole client, ordered server) as **accepted, not established**. Q18 stays unqualified. An application can still request a marker explicitly through the policy form of `CanBusOwner::admitDrainMarker`; prompt 74's presence probe does that, and the owner never repeats a failed marker by itself. The marker follows these rules:
 
 | Rule | Detail |
 | --- | --- |
-| Premises | `SdoDrainPremises`: sole client on these COB-IDs, and a server that answers one request at a time and in order. **No retained Lichuan or CiA source establishes the second.** It rests on memory of CiA 301 and the protocol's shape, and classic SDO carries no transaction tag. It stays open under Q18, so no real fixture sets it and real routes stay blocked. Tests that set it name it as a fake |
+| Premises | `SdoDrainPremises`: sole client on these COB-IDs, and a server that answers one request at a time and in order. **No retained Lichuan or CiA source establishes the second.** It rests on memory of CiA 301 and the protocol's shape, and classic SDO carries no transaction tag. It stays open under Q18. Since prompt 55 the reuse policy states it as accepted risk; nothing sets it as established |
 | Local TX | Every frame on the route retired, and the marker's own frame retired before reopening |
 | Marker | One accepted expedited upload whose object differs from the last completed transfer and from each of up to four retained pairs. Pairs come from unresolved requests and unsolicited frames |
-| Refusal | Retained-pair overflow, a frame with no multiplexer, or any unexpected frame after an earlier reopening: that evidence contradicts the premises, so the route refuses markers from then on |
+| Refusal | Retained-pair overflow, a frame with no multiplexer, or any unexpected frame after an earlier reopening, idle or while a request waits (that request ends `CORRELATION_LOST` and the route is quarantined): that evidence contradicts the premises, so reuse stops on that route under either accepted setting and is reported (`Health::reuseStopped`, a `RESYNC` diagnostic). Only an explicit `CanBusOwner::reacceptReuse` resumes it; prompt 74 never calls it automatically, and no MCU restart is needed |
 | While pending | A retained pair is ignored, because it may be the old reply still arriving. Any other frame fails the marker and is retained |
-| Success | The owner invalidates every reservation on the node first, so an old reservation and its old command history cannot come back. Armed experiment grants are void. `requalifications` counts it. Service qualification is not refreshed |
+| Success | The owner invalidates every reservation on the node first, so an old reservation and its old command history cannot come back. Armed experiment grants are void. `requalifications` counts it. Service qualification is not refreshed. Every later result on that binding carries `SdoCompletion::acceptedCorrelation`, copied into the owner's `Completion` and kept by profile contexts, until a new server session. A configured expected marker value that differs invalidates the binding instead |
 | Failure | The route stays unresolved. A further attempt is new explicit intent with a different object |
 
-A marker settles the channel only. Earlier effects stay uncertain, and nothing replays or re-enables. **If the ordered-server premise is false, a stale reply naming the same object as a later write can still confirm that write, and no client-side check can tell.** That is why the premise is a gate, not a default.
+A marker settles the channel only. Earlier effects stay uncertain, and nothing replays or re-enables. **If the ordered-server premise is false, a stale reply naming the same object as a later write can still confirm that write, and no client-side check can tell.** After `A(x)` times out and the route reopens, a new `A(x)` can complete on the old reply under either accepted setting. The accepted-correlation mark records that risk on every affected result; it is not a detection. Until prompt 55 the premise was a gate; it is now the documented default of a settable policy, and `NONE` keeps the gate. Local TX retirement is never remote retirement.
 
 ### Best-effort stop on an unresolved route (DEC-2)
 
@@ -423,7 +433,7 @@ A marker settles the channel only. Earlier effects stay uncertain, and nothing r
 
 ### Other proposed reopening paths
 
-Negative tests keep admission blocked for every path below, rather than supplying a success stub.
+Under policy `NONE`, negative tests keep admission blocked for every path below, rather than supplying a success stub. The client-abort row is what `ACCEPTED_RISK_WITHOUT_MARKER` accepts as a risk, not a settlement.
 The [source report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_14_sources.md) identifies the actual pinned
 stack, Lichuan documents and installed controller API inspected.
 

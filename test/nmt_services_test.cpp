@@ -95,6 +95,15 @@ C::SdoRequestId admitSdo(C::SdoClient& owner, const C::SdoTransfer& work, uint64
     CHECK(owner.admit(slot, work, now, id)); CHECK(!owner.result(id));
     return id;
 }
+// True while node 1's port stages exactly the client's one cleanup abort after a response
+// timeout (prompt 55): 80 <index> 00 00 00 04 05, the code 0x05040000 naming the request's object.
+bool stagedTimeoutAbort(const C::SdoClient& owner, uint16_t index, uint8_t slot = 0) {
+    const CO_CANmodule_t* port = owner.port(slot);
+    const uint8_t expected[8] = {0x80, uint8_t(index), uint8_t(index >> 8), 0, 0, 0, 0x04, 0x05};
+    return port && port->queueOccupied && port->queued.ident == 0x601u && port->queued.DLC == 8 &&
+           !port->queued.extended && !port->queued.rtr &&
+           !std::memcmp(port->queued.data, expected, sizeof expected);
+}
 C::SdoTxId handoffSdo(C::SdoClient& owner, uint64_t now, uint8_t slot = 0) {
     M::Frame frame;
     C::SdoTxId id;
@@ -380,11 +389,18 @@ void sdoDeadlinesAndStopUncertainty() {
             CHECK(owner.service(18)); // Original response cutoff: handoff 3 + 15.
             CHECK(owner.result(sdo) && owner.result(sdo)->outcome == C::SdoOutcome::TIMEOUT);
             CHECK(owner.result(sdo)->transfer.deadlineUs == 20 && owner.result(sdo)->effectUncertain);
+            // A response timeout before the overall deadline stages the one cleanup abort; it is
+            // cleanup only, so the terminal carries no abort code of its own.
+            CHECK(owner.result(sdo)->clientAbortQueued && !owner.result(sdo)->abortValid);
+            CHECK(stagedTimeoutAbort(owner, 0x6041));
         }
+        CHECK(owner.result(sdo)->clientAbortQueued == !stop);
         const Saved<C::SdoCompletion> retained(*owner.result(sdo));
         CHECK(owner.confirmNmtTx(nmt, 19)); CHECK(owner.service(100));
         CHECK(retained.unchanged(*owner.result(sdo)));
-        CHECK(owner.nmtPort()->accepted == 1 && owner.port(0)->accepted == 1);
+        // Only the request ever left; the unhanded abort retired at its own cutoff (deadline 20).
+        CHECK(owner.nmtPort()->accepted == 1 && owner.port(0)->accepted == (stop ? 1u : 2u));
+        CHECK(owner.port(0)->handedOff == 1 && !owner.port(0)->queueOccupied);
     }
 }
 
@@ -752,9 +768,12 @@ void configurationPremisesIncludePendingTransition() {
     auto lost = transfer(); lost.channel.binding = next; lost.deadlineUs = 200;
     const auto pending = admitSdo(owner, lost, 61); handoffSdo(owner, 62);
     CHECK(owner.service(113) && owner.result(pending) && owner.unresolved(0));
+    // Its response timeout (62 + 50) staged the one cleanup abort, the port's third acceptance.
+    CHECK(owner.result(pending)->clientAbortQueued && stagedTimeoutAbort(owner, 0x6041));
     CHECK(owner.release(pending) && eligibility(owner, 113).ordinarySdo);
     CHECK(!owner.configurationEligible(0, next, 113));
-    CHECK(owner.port(0)->accepted == 2 && owner.nmtPort()->accepted == 1);
+    CHECK(owner.port(0)->accepted == 3 && owner.port(0)->handedOff == 2 &&
+          owner.nmtPort()->accepted == 1);
     {   // A matching heartbeat after the intent ends the wait at once, with exact state and service;
         // the held NMT result alone still refuses until it is released.
         C::SdoClient observed; setup(observed, true, false);

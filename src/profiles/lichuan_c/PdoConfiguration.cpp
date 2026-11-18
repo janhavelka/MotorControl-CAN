@@ -295,6 +295,10 @@ Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output, const AxisRe
     c.operation = operation;
     for (unsigned i = 0; i < 9; ++i)
         c.original[i] = values[i];
+    // The map change passes through a disabled PDO and a zero count; the others write one value.
+    c.retryClass = request.transition == Tpdo1Transition::MAP3_TO_MAP2
+                       ? RetryClass::NOT_REPEATABLE
+                       : RetryClass::IDEMPOTENT_SETTING;
     output = c;
     return Ok();
 }

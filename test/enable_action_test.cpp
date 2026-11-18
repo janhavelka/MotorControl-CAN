@@ -43,6 +43,7 @@ const uint64_t TICK = 500;
 const uint64_t INTERVAL = L::ENABLE_WORD_INTERVAL_US;
 const uint32_t QUEUE = 2000, RESPONSE = 2000;
 const uint16_t POWER_UP_STATUS = 0x8037; // The measured raw word, used here only as bytes.
+const uint32_t DEVICE_TYPE = 0x00420192; // Synthetic 1000:00 answer for the owner's resync marker.
 uint8_t bit(L::StateBlock block) { return uint8_t(1u << unsigned(block)); }
 const uint8_t FULL_MASK = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::MONITORS) |
                                   bit(L::StateBlock::STATUS) | bit(L::StateBlock::FEEDBACK));
@@ -100,6 +101,7 @@ struct FakeDrive {
     uint16_t unlatchWord = 0;
     bool unlatchStatus = true;
     unsigned words = 0, targetReads = 0;
+    unsigned clientAborts = 0, markerReads = 0; // Absorbed 0x80 cleanup frames; answered 1000:00 reads.
     // Once this many enable words have arrived, the driftRead-th 6064 read after that (1 the first) adds
     // driftChange first: a position report that moves on a later cycle, as word 7's did in trial 308.
     unsigned driftWord = 0, driftRead = 0, driftReads = 0;
@@ -124,6 +126,10 @@ uint16_t frameWord(const M::Frame& f) { return uint16_t(f.data[4] | (uint16_t(f.
 bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
     out = frame(sent.id - 0x600 + 0x580, 8);
     const uint16_t index = frameIndex(sent);
+    if (sent.data[0] == 0x80) { // A client abort is cleanup: a server answers nothing (CiA 301).
+        ++drive.clientAborts;
+        return false;
+    }
     out.data[1] = sent.data[1];
     out.data[2] = sent.data[2];
     out.data[3] = sent.data[3];
@@ -173,6 +179,11 @@ bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
     uint32_t raw = 0;
     unsigned size = 2;
     switch (index) {
+    case 0x1000: // The owner's resync marker (prompt 55); a synthetic U32, not a device fact.
+        raw = DEVICE_TYPE;
+        size = 4;
+        ++drive.markerReads;
+        break;
     case 0x1001:
         raw = drive.errorRegister;
         size = 1;
@@ -405,6 +416,27 @@ void quiet(Rig& r, unsigned ticks = 40) {
     r.steps(ticks);
     CHECK(r.wire.sentCount == sent);
 }
+// Prompt 55's default resync (ACCEPTED_RISK_WITH_MARKER) after a lost reply on node 1, just after
+// the action ended on it: the request's one cleanup abort 0x05040000 left in its timeout turn,
+// right after the request itself; then exactly one owner marker read of 1000:00, which the fake
+// answers. The route reopens with accepted correlation, and no 6040 word or other download follows.
+// Returns the index of the abort frame, so the caller can check the request just before it.
+unsigned resyncAfterLoss(Rig& r, uint16_t index) {
+    const unsigned abortAt = r.wire.sentCount - 1;
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[abortAt], 0x601, index));
+    CHECK(r.services.unresolved(0) && r.owner.stats().markers == 0);
+    const unsigned words = wordsFrom(r, r.startFrame);
+    r.steps(4);
+    CHECK(r.wire.sentCount == abortAt + 2 && OwnerRig::isMarkerRead(r.wire.sent[abortAt + 1], 0x601));
+    CHECK(r.drive.markerReads == 1 && r.drive.clientAborts == 1 && r.owner.stats().markers == 1);
+    CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    O::Health health;
+    CHECK(r.owner.health(target().channel.binding, health));
+    CHECK(health.acceptedCorrelation && !health.resyncPending && !health.reuseStopped &&
+          health.reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+    CHECK(wordsFrom(r, r.startFrame) == words && downloadsFrom(r, abortAt + 1) == 0);
+    return abortAt;
+}
 // Run until the session has admitted this many words or the action has ended.
 void runToWords(Rig& r, unsigned count, unsigned limit = 300) {
     for (unsigned i = 0; i < limit && r.a.enableActive() && wordsFrom(r, r.startFrame) < count; ++i)
@@ -423,9 +455,12 @@ void goldenSequence() {
     admittedRig(r, state);
     CHECK(r.request(state).isOk());
     CHECK(r.wire.sentCount == r.startFrame); // Preparation sends nothing.
+    // Enable is M: an unconfirmed word may already have energized the drive.
+    CHECK(r.a.enableAction().retryClass == M::RetryClass::MOTION_LIKE);
     r.finishEnable();
     const L::ActionContext& c = r.a.enableAction();
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(c.retryClass == M::RetryClass::MOTION_LIKE);
     CHECK(c.completion == M::ActionCompletion::OBSERVED && c.execution == M::ActionExecution::ACKNOWLEDGED);
     CHECK(!c.uncertain && c.effectsPossible && c.actionKind == M::ActionKind::ENABLE);
     unsigned i = r.startFrame;
@@ -820,7 +855,12 @@ void targetsDecideBeforeAnyWord() {
             CHECK(c.outcome == (silent ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::PROTOCOL_REJECTED));
             CHECK(c.uncertain && c.observationEvidencePresent); // An upload's effect stays unqualified.
             CHECK(c.execution == M::ActionExecution::NOT_TRANSMITTED && wordsFrom(r, r.startFrame) == 0);
+            if (silent)
+                CHECK(uploadAt(r, resyncAfterLoss(r, index) - 1, index));
+            else
+                CHECK(!r.drive.clientAborts && !r.owner.stats().markers); // A server abort settles.
             quiet(r);
+            CHECK(wordsFrom(r, r.startFrame) == 0 && r.drive.clientAborts == silent);
         }
 }
 
@@ -965,7 +1005,11 @@ void wordFailuresAtEachStep() {
             CHECK(c.execution == M::ActionExecution::UNKNOWN && c.uncertain && c.effectsPossible);
             CHECK(wordsFrom(r, r.startFrame) == at + 1); // A lost reply is never replayed.
             CHECK(!r.a.latestControl()); // A possible word withdrew the history.
+            // The default resync cleans the route up; it never repeats the word.
+            CHECK(wordAt(r, resyncAfterLoss(r, 0x6040) - 1, words[at]));
             quiet(r);
+            CHECK(wordsFrom(r, r.startFrame) == at + 1 && r.drive.clientAborts == 1);
+            CHECK(!r.a.latestControl() && c.uncertain && c.execution == M::ActionExecution::UNKNOWN);
             CHECK(!r.a.requestEnable(state, r.bound(evidence()), options(), r.now + 400000, r.now).isOk());
         }
     }

@@ -317,3 +317,21 @@ These are application helpers over existing typed operations. No group API is
 claimed as an RS precedent, no NMT command substitutes for a stop, and no new
 firmware capability is inferred. [Multi-axis guidance](multi_axis.md) records
 shared-RPDO and synchronization gates.
+
+## Prompt 55 self-repair primitives
+
+| Intent | Owner or core API | Console |
+| --- | --- | --- |
+| Inspect or set route reuse | `CanBusOwner::sdoReuse/setSdoReuse` with `SdoReuse`, `SdoReusePolicy`, `SdoMarkerObject` | `reuse`, `reuse none\|marker\|nomarker`, `reuse budget QUEUE_US RESPONSE_US` |
+| Resume reuse after contradicting traffic | `CanBusOwner::reacceptReuse` | `reuse accept` |
+| One explicit marker for an unresolved route | `CanBusOwner::admitDrainMarker` (policy form) | None in the shared console; S2 bench `y`, `z` |
+| TX lifetime and NO_LISTENER | `setTxLifetime`, `txLifetimeUs`, `noListener`, `BusAdmission::NO_LISTENER` | `txlifetime [MICROSECONDS]`; `drv` `noListener`, `txExpired` |
+| Restart with its causes | `recover`, `RecoveryCompletion::causes` | Existing `recover`; trace `causes` |
+| Presence and reuse observations | `Health` presence and reuse fields, `Stats::markers/reuseStopped/txExpired` | `health link`; `stats` named fields |
+| Retry classification | `RetryClass`, each context's `retryClass`, `classifyRead`, `RepeatPermission`, `NmtTransfer::retryClass` | Terminal `retry_class` letters `N`, `R`, `W`, `M` |
+
+MotorControl-RS names no retry type. Its architecture says only explicitly classified
+operations may be retried under application policy, and `RetryClass` is that
+classification here. The other names are CANopen- and owner-specific, with no RS
+counterpart. The console settings call these APIs only; the
+[CLI contract](cli_contract.md) gives the fields and their record-size reasons.

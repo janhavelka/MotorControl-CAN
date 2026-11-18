@@ -150,6 +150,7 @@ struct HomeContext {
     uint32_t observations = 0;         ///< Complete observed cycles, bounded by maxPolls.
     uint8_t setupCursor = 0;           ///< Current parameter, 0..4.
     uint8_t setupEvidenceMask = 0;     ///< Actual setupHistory terminals.
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE; ///< MOTION_LIKE once prepareHome succeeds.
     uint64_t startedUs = 0;            ///< Preparation time.
     uint64_t servicedUs = 0;           ///< Last processing time.
     uint64_t deadlineUs = 0;           ///< Immutable inclusive processing cutoff.

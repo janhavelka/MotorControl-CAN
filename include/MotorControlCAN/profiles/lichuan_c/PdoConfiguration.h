@@ -130,6 +130,11 @@ struct Tpdo1ConfigurationContext {
     bool mapConfirmed = false;        ///< Only full successful final readback sets true.
     CANOPEN::SdoCompletion evidence;  ///< Latest retained full terminal, including unsigned abort.
     bool evidencePresent = false;     ///< Makes evidence meaningful; no traffic implied by default.
+    /** Set by successful preparation. MAP3_TO_MAP2: NOT_REPEATABLE, since its six writes disable
+     * the PDO and zero its map count on the way, and a repeat would pass through those states
+     * again. EVENT_TIMER and TRANSMISSION_TYPE: IDEMPOTENT_SETTING, one absolute value confirmed by
+     * the nine-field readback. Neither changes the readback uploads' own readEffect. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
 };
 /** Prepare the fixed map3-to-map2 change; kept for existing callers.
  * Identical to the request overload with transition MAP3_TO_MAP2 and eventTimer RAW_0; see

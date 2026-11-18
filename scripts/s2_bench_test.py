@@ -671,6 +671,12 @@ class BenchTest(unittest.TestCase):
             ("--command", "position", "--node", "1", "--trial", "8", "--start-position", "0", "--target", "16",
              "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
              "--stop-kind", "none"): signed("TP1,8,1,0,16,1,1000,1000,4,100,0,0,0,0,0"),
+            # Prompt 55 (bench item e): the trigger's own response budget, the line's optional last field.
+            ("--command", "position", "--node", "1", "--trial", "8", "--start-position", "0", "--target", "16",
+             "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
+             "--stop-kind", "halt", "--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms", "0",
+             "--stop-interval-ms", "200", "--trigger-response-us", "500"):
+                signed("TP1,8,1,0,16,1,1000,1000,4,100,1,2,2000,0,200,500"),
             ("--command", "rearm", "--node", "2", "--trial", "9", "--predecessor", "position-trigger", "--cycles", "3",
              "--interval-ms", "100"): signed("TR2,9,1,1,3,100"),
             ("--command", "rearm", "--node", "2", "--trial", "9", "--predecessor", "position-halt", "--cycles", "3",
@@ -684,6 +690,19 @@ class BenchTest(unittest.TestCase):
         for argv, line in cases.items():
             args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
             self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
+        # The optional field changes neither the planned stop's weight nor the plan's bounds.
+        args, fields = bench.arguments(BASE + position(1, 8, "halt") + ["--trigger-response-us", "500"] + LEDGER +
+                                       ["--output", "x"])
+        plain = bench.arguments(BASE + position(1, 8, "halt") + LEDGER + ["--output", "x"])[1]
+        self.assertEqual(bench.motion_weight("position", fields), bench.motion_weight("position", plain))
+        self.assertEqual(bench.plan_bounds("position", fields), bench.plan_bounds("position", plain))
+        self.assertIsNone(bench._send_problem({"event": "send", "route": "P", "node": 1, "trial": 8, "motion": 2,
+                                               "stop": 1, "line": bench.encode("position", fields).decode()[:-1]}))
+        for bad in (["--trigger-response-us", "99"], ["--trigger-response-us", "250001"]):
+            with self.assertRaises(SystemExit):
+                bench.arguments(BASE + position(1, 8) + bad + LEDGER + ["--output", "x"])
+        with self.assertRaises(SystemExit):
+            bench.arguments(BASE + list(MODE3) + ["--trigger-response-us", "500"] + LEDGER + ["--output", "x"])
         # The longest move line fits the firmware's ROUTE_LINE (256 bytes after T).
         widest = list(MOVE)
         for name, value in (("--trial", "4294967295"), ("--start-position", "-2147483648"), ("--target", "-1000000"),

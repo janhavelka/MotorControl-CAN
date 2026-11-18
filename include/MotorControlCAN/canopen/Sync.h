@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <MotorControlCAN/ActionOperation.h>
 #include <MotorControlCAN/Endpoint.h>
 #include <MotorControlCAN/can/Frame.h>
 
@@ -90,6 +91,10 @@ struct SyncContext {
     SyncOptions options; ///< Owned admitted schedule.
     SyncState state = SyncState::EMPTY; ///< Explicit schedule phase.
     SyncOutcome outcome = SyncOutcome::NONE; ///< Sticky terminal cause.
+    /** NOT_REPEATABLE, also after prepareSync: each SYNC is a trigger that synchronous PDOs
+     * sample or apply on, so a repeated slot would be a new trigger. A missed slot is never caught
+     * up. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     uint32_t transmittedCount = 0; ///< Actual LOCAL_TX reports, including a late terminal report.
     uint32_t nextSlot = 0; ///< Next slot; advances only on actual LOCAL_TX.
     uint64_t lastNowUs = 0; ///< Last successful progression call's supplied time.

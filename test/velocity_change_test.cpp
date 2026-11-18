@@ -145,7 +145,10 @@ struct Rig {
         CHECK(run.runningObserved && run.phase == L::VelocityPhase::WAITING);
     }
     M::Status change() {
-        return L::prepareVelocityChange(run, live, current, axis, replacement, proof, now);
+        const M::Status s =
+            L::prepareVelocityChange(run, live, current, axis, replacement, proof, now);
+        CHECK(run.retryClass == M::RetryClass::MOTION_LIKE); // A change keeps the run's class.
+        return s;
     }
     void reject() {
         const Saved<L::VelocityContext> before(run);
@@ -155,10 +158,13 @@ struct Rig {
         before.unchanged(run);
         CHECK(wire.sentCount == sent);
     }
+    // 60FF downloads. A client abort (80) naming 60FF is no write; the failed-change case
+    // asserts it separately.
     unsigned changes() const {
         unsigned count = 0;
         for (unsigned i = 0; i < wire.sentCount; ++i)
-            if (wire.sent[i].data[0] != 0x40 && indexOf(wire.sent[i]) == 0x60ff)
+            if (wire.sent[i].data[0] != 0x40 && wire.sent[i].data[0] != 0x80 &&
+                indexOf(wire.sent[i]) == 0x60ff)
                 ++count;
         return count;
     }
@@ -286,9 +292,25 @@ void failedChangeRequestsStopWithoutReplay() {
             r.drive.muteIndex = 0x60ff;
         else
             r.drive.abortIndex = 0x60ff;
+        const unsigned write = r.wire.sentCount;
         r.step();
         CHECK(r.run.phase == L::VelocityPhase::STOPPING && r.run.stopRequested && r.run.needsStop);
         CHECK(r.run.change.serviceEvidencePresent && r.changes() == 2);
+        CHECK(OwnerRig::sdoFrame(r.wire.sent[write], 0x601, 0x23, 0x60ff, 0) &&
+              valueOf(r.wire.sent[write]) == 180);
+        if (lost) {
+            // Prompt 55, default reuse policy: the response timeout stages one cleanup abort
+            // naming 60FF:00, then the owner issues its one marker read of 1000:00. Neither is a
+            // replay of the change.
+            CHECK(r.wire.sentCount == write + 3 && r.drive.clientAborts == 1 &&
+                  OwnerRig::isTimeoutAbort(r.wire.sent[write + 1], 0x601, 0x60ff) &&
+                  OwnerRig::isMarkerRead(r.wire.sent[write + 2], 0x601));
+            CHECK(r.owner.stats().markers == 1 && r.services.unresolved(0));
+        } else {
+            // A server abort settles the exchange: no client abort, no marker, route open.
+            CHECK(r.wire.sentCount == write + 1 && !r.drive.clientAborts &&
+                  !r.owner.stats().markers && !r.services.unresolved(0));
+        }
         CHECK(r.run.firstFailure == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::PROTOCOL_REJECTED));
         CHECK(r.run.change.firstFailure == r.run.firstFailure);
         if (lost)
@@ -302,6 +324,21 @@ void failedChangeRequestsStopWithoutReplay() {
         CHECK(L::nextVelocity(r.run, r.observation, r.live, r.current, r.now, work) && !work.ready);
         r.reject();
         CHECK(r.wire.sentCount == sent);
+        if (!lost)
+            continue;
+        // The fake answers the marker, so the route reopens under accepted premises: the node's
+        // reservation is invalidated and the change's uncertainty and stop request stay.
+        const Saved<L::VelocityContext> failed(r.run);
+        for (unsigned bound = 0; r.services.unresolved(0) && bound < 10; ++bound)
+            r.turn();
+        O::Health health;
+        CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1 &&
+              r.owner.health(r.current.channel.binding, health) && health.acceptedCorrelation &&
+              health.reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+        CHECK(r.owner.sequence(r.sequence) == nullptr && r.wire.sentCount == sent &&
+              r.changes() == 2 && r.owner.stats().markers == 1);
+        failed.unchanged(r.run);
+        CHECK(r.run.change.uncertain && r.run.needsStop && r.run.stopRequested);
     }
 }
 } // namespace

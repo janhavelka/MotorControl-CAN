@@ -51,6 +51,9 @@ struct MotionResult {
     MotorControlCAN::ActionCompletion completion =
         MotorControlCAN::ActionCompletion::NOT_OBSERVED; ///< Qualified controller observation only.
     bool uncertain = false;   ///< Retained possible write/read/motion effects.
+    /** The native context's retry class (prompt 55), copied for an application's repeat policy; the
+     * library never repeats work. MOTION_LIKE for moves, velocities, homing and enables. */
+    MotorControlCAN::RetryClass retryClass = MotorControlCAN::RetryClass::NOT_REPEATABLE;
     bool abortKnown = false;  ///< Full unsigned abortCode is meaningful.
     uint32_t abortCode = 0;   ///< Never narrowed into Status::detail.
     uint64_t completedUs = 0; ///< Native last processing time; zero is valid.

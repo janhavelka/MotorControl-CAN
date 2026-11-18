@@ -35,9 +35,11 @@ void golden() {
     CHECK(r.request().isOk());
     CHECK(r.wire.sentCount == r.startFrame); // Preparation sends nothing.
     CHECK(r.a.moveActive() && r.a.busy() && !r.a.close());
+    CHECK(moveOf(r).retryClass == M::RetryClass::MOTION_LIKE); // A motion start is M.
     r.finishMove();
     const L::MoveContext& c = moveOf(r);
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(c.retryClass == M::RetryClass::MOTION_LIKE);
     CHECK(c.completion == M::ActionCompletion::OBSERVED);
     CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
     CHECK(c.rearm == M::ActionExecution::ACKNOWLEDGED && c.interruption == M::MoveInterruption::NONE);
@@ -735,11 +737,51 @@ void interruptions() {
         }
 }
 
-// 11. A trigger whose reply is lost: unknown, fenced, and a stop after it stays unqualified.
+// 11a. Prompt 55: an unconfirmed trigger is never offered again. From the turn the 001F reaches the
+// wire, nextMove itself yields no work for it: while its reply is awaited, and after the response
+// timeout has ended the move uncertain. Exactly one trigger is ever sent.
+void unconfirmedTriggerNotOffered() {
+    scenario = "unconfirmed trigger";
+    Rig r;
+    r.drive.silentIndex = 0x6040;
+    r.drive.silentWord = 0x001f;
+    r.ready();
+    CHECK(r.request().isOk());
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.retryClass == M::RetryClass::MOTION_LIKE);
+    const unsigned first = r.startFrame;
+    const auto nothingOffered = [&] {
+        L::PreparedMove work;
+        CHECK(L::nextMove(c, r.a.moveObservation(), c.reservation, c.reservation.target, r.now,
+                          work));
+        CHECK(!work.ready && !work.observe);
+    };
+    unsigned awaited = 0;
+    for (unsigned i = 0; i < 2000 && (r.a.moveActive() || r.a.busy()); ++i) {
+        r.step();
+        if (!wordsFrom(r, first, 0x001f))
+            continue;
+        nothingOffered();
+        awaited += c.state == M::ActionState::ACTIVE;
+    }
+    CHECK(awaited > 1); // Asked repeatedly while the trigger's reply was awaited.
+    CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
+    CHECK(c.execution == M::ActionExecution::UNKNOWN && c.uncertain);
+    CHECK(c.retryClass == M::RetryClass::MOTION_LIKE);
+    for (unsigned i = 0; i < 20; ++i) {
+        r.step();
+        nothingOffered();
+    }
+    CHECK(wordsFrom(r, first, 0x001f) == 1 && !wordsFrom(r, first, 0x005f));
+}
+
+// 11. A trigger whose reply is lost: unknown, fenced, and a stop after it stays unqualified. The
+// route stays unresolved under SdoReusePolicy::NONE; lostTriggerResync runs the default policy.
 void lostTrigger() {
     for (unsigned lateBeforeReport = 0; lateBeforeReport < 2; ++lateBeforeReport) {
         scenario = "lost trigger";
         Rig r;
+        r.keepQuarantine();
         r.drive.silentIndex = 0x6040;
         r.drive.silentWord = 0x001f;
         r.ready();
@@ -749,8 +791,13 @@ void lostTrigger() {
         CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
         CHECK(c.execution == M::ActionExecution::UNKNOWN && c.trigger.transmissionPossible);
         CHECK(c.uncertain && c.effectsPossible && r.a.moveFenced() && !r.a.latestControl());
+        CHECK(c.trigger.clientAbortQueued && !c.trigger.abortValid);
         const unsigned first = r.startFrame; // request() below moves startFrame.
         CHECK(wordsFrom(r, first, 0x001f) == 1);
+        // The timeout's one cleanup abort names the trigger's object and is no word; no marker
+        // read follows under NONE.
+        CHECK(abortsFrom(r, first, 0x6040) == 1 && onlyTimeoutAborts(r, first) == 1);
+        CHECK(r.owner.stats().markers == 0);
         // New motion stays fenced, whatever is supplied.
         const M::Status again = r.request();
         CHECK(!again && (again.detail == int32_t(M::MoveError::TARGET) || again.detail == int32_t(M::MoveError::STATE)));
@@ -806,7 +853,64 @@ void lostTrigger() {
         CHECK(r.services.unresolved(0) && r.a.moveFenced());
         CHECK(!r.request());
         quiet(r);
+        // Still the trigger's one abort: the best-effort stop sends exactly its own frame (DEC-2).
+        CHECK(r.drive.clientAborts == 1 && abortsFrom(r, first, 0x6040) == 1);
+        CHECK(onlyTimeoutAborts(r, first) == 1 && r.owner.stats().markers == 0);
     }
+}
+
+// 11b. Prompt 55, the owner's default reuse policy (ACCEPTED_RISK_WITH_MARKER) after the lost
+// trigger of 11: one cleanup abort naming 6040, then, once it is locally retired, one marker read of
+// 1000:00 that this fake answers. The route reopens and invalidates the move's reservation; the move
+// keeps its unknown execution and uncertainty, stays fenced, and its trigger is never sent again.
+void lostTriggerResync() {
+    scenario = "lost trigger resync";
+    Rig r;
+    O::SdoReuse reuse;
+    CHECK(r.owner.sdoReuse(target().channel.binding, reuse));
+    CHECK(reuse.policy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER); // Nothing set: the default.
+    r.drive.silentIndex = 0x6040;
+    r.drive.silentWord = 0x001f;
+    r.ready();
+    CHECK(r.request().isOk());
+    const O::SequenceId reservation = r.a.sequence();
+    r.finishMove();
+    const L::MoveContext& c = moveOf(r);
+    const unsigned first = r.startFrame;
+    // The timeout ends the move exactly as in 11; the abort goes out in the same turn.
+    CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
+    CHECK(c.execution == M::ActionExecution::UNKNOWN && c.trigger.transmissionPossible);
+    CHECK(c.uncertain && c.effectsPossible && r.a.moveFenced() && !r.a.latestControl());
+    CHECK(c.trigger.clientAbortQueued && !c.trigger.abortValid);
+    CHECK(wordAt(r, r.wire.sentCount - 2, 0x001f) && r.wire.sentCount - 2 >= first);
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[r.wire.sentCount - 1], 0x601, 0x6040));
+    CHECK(r.services.unresolved(0) && r.owner.stats().markers == 0);
+    const unsigned abortFrame = r.wire.sentCount - 1;
+    const Saved<L::MoveContext> move(c);
+    r.step(); // The fake takes the abort without a reply; the abort's TX report retires it.
+    r.step(); // The resync step: one marker read of 1000:00, answered by the fake.
+    r.step();
+    CHECK(r.wire.sentCount == abortFrame + 2 && r.drive.clientAborts == 1);
+    CHECK(OwnerRig::isMarkerRead(r.wire.sent[abortFrame + 1], 0x601, 0x1000, 0));
+    CHECK(r.owner.stats().markers == 1 && r.owner.stats().reuseStopped == 0);
+    // Reopened on the accepted premises: later results carry the mark, and the move's own
+    // reservation was invalidated, so its old command history cannot become live again.
+    CHECK(!r.services.unresolved(0) && !r.owner.sequence(reservation));
+    O::Health health;
+    CHECK(r.owner.health(target().channel.binding, health));
+    CHECK(health.acceptedCorrelation && !health.resyncPending && !health.reuseStopped);
+    CHECK(health.reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER);
+    // A repair is no qualification: the move's record is untouched, its uncertainty stays, new
+    // motion stays refused, and nothing is sent again.
+    move.unchanged(c);
+    CHECK(r.a.moveFenced());
+    const M::Status again = r.request();
+    CHECK(!again && (again.detail == int32_t(M::MoveError::TARGET) || again.detail == int32_t(M::MoveError::STATE)));
+    quiet(r);
+    move.unchanged(c);
+    CHECK(wordsFrom(r, first, 0x001f) == 1 && !wordsFrom(r, first, 0x005f));
+    CHECK(abortsFrom(r, first, 0x6040) == 1 && onlyTimeoutAborts(r, first) == 1);
+    CHECK(r.owner.stats().markers == 1);
 }
 
 // 12. Acknowledged trigger, missing completion: the route stays resolved and new motion is fenced.
@@ -853,6 +957,8 @@ void rearmFailure() {
     scenario = "rearm";
     for (unsigned lost = 0; lost < 2; ++lost) {
         Rig r;
+        if (lost) // The lost case is about the unresolved route; see lostTriggerResync for reuse.
+            r.keepQuarantine();
         r.ready(); // Its stand-in 000F goes before the fault is armed.
         (lost ? r.drive.silentIndex : r.drive.abortIndex) = 0x6040;
         (lost ? r.drive.silentWord : r.drive.abortWord) = 0x000f;
@@ -866,7 +972,11 @@ void rearmFailure() {
         // A rejected or lost 000F may still have changed the drive: uncertain, never resent.
         CHECK(c.uncertain && !r.a.moveFenced());
         CHECK(wordsFrom(r, r.startFrame, 0x000f) == 1 && !r.a.latestControl());
+        // Only the lost reply's timeout sends a cleanup abort, naming 6040; a server abort ends
+        // the exchange without one.
+        CHECK(abortsFrom(r, r.startFrame, 0x6040) == lost && onlyTimeoutAborts(r, r.startFrame) == lost);
         quiet(r);
+        CHECK(r.owner.stats().markers == 0 && r.services.unresolved(0) == (lost != 0));
         if (!lost) // A lost reply leaves the route unresolved, so no read can follow.
             r.readState(r.state);
         CHECK(!r.request());
@@ -1373,7 +1483,9 @@ void runAll() {
     profileReuse();
     staleReports();
     interruptions();
+    unconfirmedTriggerNotOffered();
     lostTrigger();
+    lostTriggerResync();
     missingCompletion();
     abortedTrigger();
     rearmFailure();

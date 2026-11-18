@@ -50,9 +50,11 @@ struct Fixture {
         request.mode = L::MoveReplacementMode::BARE;
     }
     M::Status prepare(const L::MoveFeedbackRelation* feedback = nullptr) {
-        return L::prepareMoveReplacement(changed, original, stored, live, current, evidence,
-                                         request, rig.one.coordinates, feedback,
-                                         original.operation + 1, rig.now);
+        const M::Status s = L::prepareMoveReplacement(changed, original, stored, live, current,
+                                                      evidence, request, rig.one.coordinates,
+                                                      feedback, original.operation + 1, rig.now);
+        CHECK(!s || changed.retryClass == M::RetryClass::MOTION_LIKE); // A retrigger is M too.
+        return s;
     }
     void handoff() {
         // This is a core consumer on the real owner. Production AxisSession handoff is tested

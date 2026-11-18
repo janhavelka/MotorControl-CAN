@@ -60,6 +60,8 @@ struct Wire {
     M::Frame sent[64];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
     unsigned transmitted = 0, uploads = 0, receives = 0;
+    // Prompt 55: the owner's own resync marker reads after the collector's terminal; not uploads.
+    unsigned markers = 0;
     unsigned failureAt = 0; ///< Zero applies selected fault to every field.
     bool holdCleanupReport = false;
     bool holdReport = false;
@@ -105,6 +107,28 @@ struct Wire {
         report.controllerEpoch = epoch;
         if (request.data[0] == 0x80)
             return true;
+        if (request.data[0] == 0x40 && w.collector && w.collector->record() &&
+            w.collector->record()->terminal) {
+            // The default reuse policy's marker after a timeout, 1000:00 or its alternate 1018:01.
+            // A live node answers it; a node silent for every field (failureAt 0) does not.
+            const unsigned index = unsigned(request.data[1]) | unsigned(request.data[2]) << 8;
+            CHECK((index == 0x1000 && request.data[3] == 0) || (index == 0x1018 && request.data[3] == 1));
+            ++w.markers;
+            if (w.mode == Mode::SILENT && !w.failureAt)
+                return true;
+            M::Frame reply;
+            reply.id = 0x581;
+            reply.dlc = reply.payloadLength = 8;
+            reply.data[0] = 0x43;
+            reply.data[1] = request.data[1];
+            reply.data[2] = request.data[2];
+            reply.data[3] = request.data[3];
+            reply.data[4] = 0x92;
+            reply.data[5] = 0x01;
+            reply.data[6] = 0x04;
+            w.push(reply);
+            return true;
+        }
         ++w.uploads;
         const Mode mode = w.failureAt && w.uploads != w.failureAt ? Mode::SUCCESS : w.mode;
         if (mode == Mode::SILENT)
@@ -404,6 +428,16 @@ void failures() {
         const uint64_t completed = out->completedUs;
         r.turn(r.now + 1);
         r.turn(r.now + 1);
+        // Prompt 55, default reuse policy: only a response timeout (silent node, or a reply naming
+        // another object) gets the cleanup abort 0x05040000 and then the owner's one marker, the
+        // alternate 1018:01 because the timed-out 1000:00 is retained. Nothing is replayed.
+        const bool timedOut = mode == Wire::Mode::SILENT || mode == Wire::Mode::WRONG_OBJECT;
+        const uint8_t abort[8] = {0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04, 0x05};
+        const uint8_t marker[8] = {0x40, 0x18, 0x10, 0x01, 0, 0, 0, 0};
+        CHECK(r.wire.markers == (timedOut ? 1u : 0u) && r.owner.stats().markers == r.wire.markers);
+        if (timedOut)
+            CHECK(r.wire.transmitted == 3 && !std::memcmp(r.wire.sent[1].data, abort, 8) &&
+                  !std::memcmp(r.wire.sent[2].data, marker, 8));
         CHECK(r.wire.uploads == 1 && out->completedUs == completed);
         CHECK(!std::memcmp(&terminal, &out->terminals[0], sizeof terminal));
         CHECK(r.collector.release());
@@ -524,6 +558,20 @@ void authoritativeRetirement() {
     CHECK(!lost.owner.localTxRetired(0) && !lost.collector.release());
     lost.wire.holdReport = false;
     lost.turn(250003);
+    // Prompt 55: the held report outlived the default 100 ms TX lifetime, so the handoff was
+    // reported expired once; the report's arrival ended NO_LISTENER. Then the client's cleanup
+    // abort leaves, and after its own report the owner's marker (1018:01, as 1000:00 is retained)
+    // follows. Release waits for each frame's local retirement; nothing is replayed.
+    const uint8_t abort[8] = {0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04, 0x05};
+    const uint8_t marker[8] = {0x40, 0x18, 0x10, 0x01, 0, 0, 0, 0};
+    CHECK(lost.owner.stats().txExpired == 1 && !lost.owner.noListener());
+    CHECK(lost.wire.transmitted == 2 && !std::memcmp(lost.wire.sent[1].data, abort, 8));
+    CHECK(!lost.owner.localTxRetired(0) && !lost.collector.release());
+    lost.turn(250004);
+    CHECK(lost.wire.transmitted == 3 && !std::memcmp(lost.wire.sent[2].data, marker, 8) &&
+          lost.owner.stats().markers == 1 && lost.wire.uploads == 1);
+    CHECK(!lost.owner.localTxRetired(0) && !lost.collector.release());
+    lost.turn(250005);
     CHECK(lost.owner.localTxRetired(0) && lost.collector.release());
 
     // A field admitted but not started has no frame to settle, so loss withdraws it unsent.
@@ -737,8 +785,20 @@ void networkAndHeartbeat() {
         CHECK(r.collector.record()->failure == E::RawEvidenceFailure::SERVICE);
         CHECK(r.collector.record()->terminalCount == step);
         const unsigned sent = r.wire.transmitted;
+        // The timed-out 1017 step's cleanup abort 0x05040000 left with its terminal. No repeated
+        // write or restoration follows: the one later frame is the owner's marker read of 1000:00
+        // (prompt 55's default reuse policy), and after it nothing more.
+        const M::Frame& abort = r.wire.sent[sent - 1];
+        CHECK(abort.data[0] == 0x80 && abort.data[1] == 0x17 && abort.data[2] == 0x10 &&
+              abort.data[4] == 0 && abort.data[5] == 0 && abort.data[6] == 4 && abort.data[7] == 5);
         r.turn(r.now + 1000000);
-        CHECK(r.wire.transmitted == sent);
+        const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+        CHECK(r.wire.transmitted == sent + 1 && r.wire.markers == 1 &&
+              !std::memcmp(r.wire.sent[sent].data, marker, 8));
+        r.turn(r.now + 1); // The answered marker reopens the route after its own TX report.
+        CHECK(!r.services.unresolved(0));
+        r.turn(r.now + 1000000);
+        CHECK(r.wire.transmitted == sent + 1 && !r.services.unresolved(0));
     }
 }
 void motionReadinessUploadsOnly() {

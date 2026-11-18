@@ -658,12 +658,20 @@ void retainedReadCorrelation(E::FakeTransport::Mode mode) {
         CHECK(rig.app.readContext().state == M::ReadState::SUCCEEDED);
         contains(retained, "SUCCESS");
     }
-    CHECK(rig.services.node(0)->heartbeat.present && rig.services.node(0)->emcyCount == 1);
-    CHECK(rig.wire.fake.transmitted() == 1 && rig.wire.fake.observed() >= 3);
+    // Prompt 55, default reuse policy: the silent probe's cleanup abort, then the owner's one marker
+    // read, 1018:01 as 1000:00 is retained, which times out with its own abort. The marker is an
+    // upload, so this fixture's passive traffic (one EMCY per upload) comes with it.
+    const bool silent = mode == E::FakeTransport::Mode::SILENT;
+    rig.drain();
+    const unsigned uploads = silent ? 2u : 1u;
+    CHECK(rig.wire.fake.clientAborts() == (silent ? 2u : 0u) && rig.owner.stats().markers == (silent ? 1u : 0u));
+    CHECK(!silent || rig.wire.fake.lastUpload() == 0x101801u);
+    CHECK(rig.services.node(0)->heartbeat.present && rig.services.node(0)->emcyCount == uploads);
+    CHECK(rig.wire.fake.transmitted() == uploads && rig.wire.fake.observed() >= 3);
     const Saved<L::ReadContext> evidence(rig.app.readContext());
     reply(rig.command("@68 stats reset"), true);
     evidence.unchanged(rig.app.readContext());
-    CHECK(rig.wire.fake.transmitted() == 1); // Counters reset cannot replay a request.
+    CHECK(rig.wire.fake.transmitted() == uploads); // Counters reset cannot replay a request.
     reply(rig.command("@65 release 701"), false);
     reply(rig.command("@66 release 700"), true);
     reply(rig.command("@67 result 700"), false);
@@ -867,6 +875,86 @@ void axisListingOwnsItsSnapshot() {
     CHECK(caps.find("\"type\":\"axis\"") == std::string::npos);
     CHECK(!rig.wire.fake.transmitCalls());
 }
+// Prompt 55 console settings call the owner API only and send nothing; health link, stats and drv
+// show the reuse, presence and TX lifetime facts; a read terminal names its retry class.
+void selfRepairSettings() {
+    Rig rig;
+    contains(rig.command("@1 reuse"), "\"error\":\"no_binding\"");
+    CHECK(rig.app.select(E::FakeTransport::target()));
+    const M::Binding binding = E::FakeTransport::target().channel.binding;
+    std::string out = rig.command("@2 reuse");
+    reply(out, true);
+    contains(out, "\"reuse_policy\":\"ACCEPTED_RISK_WITH_MARKER\",\"markers\":[\"1000:00\",\"1018:01\","
+                  "\"1018:02\",\"1018:03\"],\"marker_queue_us\":\"0\",\"marker_response_us\":\"0\","
+                  "\"reuse_stopped\":false,\"resync_pending\":false,\"accepted_correlation\":false");
+    contains(rig.command("@3 reuse none"), "\"reuse_policy\":\"NONE\"");
+    O::SdoReuse reuse;
+    CHECK(rig.owner.sdoReuse(binding, reuse) && reuse.policy == O::SdoReusePolicy::NONE &&
+          reuse.markerCount == 4 && reuse.markers[0].index == 0x1000 && reuse.markers[1].index == 0x1018);
+    // The marker budgets: API only, zero inherits the route's last request's budget.
+    contains(rig.command("@20 reuse budget 250000 200000"),
+             "\"marker_queue_us\":\"250000\",\"marker_response_us\":\"200000\"");
+    CHECK(rig.owner.sdoReuse(binding, reuse) && reuse.markerQueueTimeoutUs == 250000 &&
+          reuse.markerResponseTimeoutUs == 200000 && reuse.policy == O::SdoReusePolicy::NONE);
+    contains(rig.command("@21 reuse budget 1 x"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@22 reuse budget 60000001 0"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@23 reuse budget 0 0"), "\"marker_queue_us\":\"0\",\"marker_response_us\":\"0\"");
+    contains(rig.command("@4 reuse nomarker"), "\"reuse_policy\":\"ACCEPTED_RISK_WITHOUT_MARKER\"");
+    contains(rig.command("@5 reuse marker"), "\"reuse_policy\":\"ACCEPTED_RISK_WITH_MARKER\"");
+    // Nothing refused reuse, so there is nothing to re-accept: an owner refusal, not a success.
+    contains(rig.command("@6 reuse accept"), "\"error\":\"refused\"");
+    contains(rig.command("@7 reuse bogus"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@8 reuse marker extra"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@9 txlifetime"), "\"tx_lifetime_us\":\"100000\",\"no_listener\":false,"
+                                           "\"tx_expired\":0,\"tx_expired_total\":0");
+    contains(rig.command("@10 txlifetime 5000"), "\"tx_lifetime_us\":\"5000\"");
+    CHECK(rig.owner.txLifetimeUs() == 5000);
+    contains(rig.command("@11 txlifetime 60000001"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@12 txlifetime -1"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@13 txlifetime 0"), "\"tx_lifetime_us\":\"0\"");
+    CHECK(rig.owner.txLifetimeUs() == 0);
+    contains(rig.command("txlifetime 100000"), "txlifetime: OK txLifetimeUs=100000 noListener=false");
+    CHECK(rig.owner.txLifetimeUs() == 100000);
+    out = rig.command("@14 health link");
+    reply(out, true);
+    contains(out, "\"reusePolicy\":\"ACCEPTED_RISK_WITH_MARKER\",\"reuseStopped\":false,"
+                  "\"resyncPending\":false,\"acceptedCorrelation\":false,\"noListener\":false,"
+                  "\"lastResponseUs\":null,\"lastHeartbeatUs\":null,\"bootUps\":0,"
+                  "\"lastBootUpUs\":null,\"consecutiveNoResponse\":0");
+    contains(rig.command("@15 health links"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@16 stats"), "\"markers\":0,\"reuseStopped\":0,\"txExpired\":0");
+    contains(rig.command("@17 drv"), "\"noListener\":false,\"txExpired\":0");
+    CHECK(!rig.wire.fake.transmitCalls()); // The settings sent nothing.
+    // A probe of 1000:00 is a DEC-1 accepted read: R (REPEATABLE_READ) for an application's policy.
+    CHECK(rig.app.requestProbe(rig.now, rig.now + 100000, options()));
+    CHECK(rig.console.trackRead(18, true, 800));
+    rig.finishRead();
+    contains(rig.bytes.output, "\"retry_class\":\"R\",\"reuse_policy\":"
+                               "\"ACCEPTED_RISK_WITH_MARKER\",\"accepted_correlation\":false");
+    // The probe's reply is a presence observation of the node; the fixture also sends a heartbeat.
+    out = rig.command("@19 health link");
+    CHECK(out.find("\"lastResponseUs\":null") == std::string::npos &&
+          out.find("\"lastHeartbeatUs\":null") == std::string::npos);
+    contains(out, "\"consecutiveNoResponse\":0");
+    // The widest request identity still fits one bounded record.
+    const std::string widest = rig.command("@4294967295 health link");
+    reply(widest, true);
+    CHECK(widest.size() < E::ProbeConsole::RECORD_CAPACITY);
+}
+// A silent node: the presence miss is counted, and the owner's one marker shows in stats.
+void selfRepairObservationsOfASilentNode() {
+    Rig rig(E::FakeTransport::Mode::SILENT);
+    CHECK(rig.app.select(E::FakeTransport::target()));
+    CHECK(rig.app.requestProbe(rig.now, rig.now + 100000, options()));
+    CHECK(rig.console.trackRead(20, true, 801));
+    rig.finishRead();
+    rig.drain();
+    contains(rig.bytes.output, "\"retry_class\":\"R\"");
+    contains(rig.command("@21 stats"), "\"markers\":1,\"reuseStopped\":0,\"txExpired\":0");
+    const std::string out = rig.command("@22 health link");
+    contains(out, "\"lastResponseUs\":null");
+    contains(out, "\"consecutiveNoResponse\":2"); // The probe, then the marker, timed out.
+}
 void jsonTranscript() {
     Rig rig;
     rig.command("@1 version");
@@ -915,5 +1003,7 @@ int main(int argc, char** argv) {
     releaseWaitsForPhysicalOutput();
     externallyReleasedReadDoesNotOwnReplacement();
     axisListingOwnsItsSnapshot();
+    selfRepairSettings();
+    selfRepairObservationsOfASilentNode();
     std::printf("probe_console: %u checks\n", checks);
 }

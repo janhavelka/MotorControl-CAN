@@ -126,6 +126,12 @@ inline bool ambiguous(Stage stage) {
     return stage == Stage::SDK_ACCEPTED || stage == Stage::TX_REPORTED ||
            stage == Stage::REPLY_AT_DEADLINE;
 }
+// The stages whose terminal stages the one cleanup abort 0x05040000 (prompt 55): a response
+// timeout after possible TX, before the overall deadline. failCommand gives that turn no TX budget
+// and the abort's queue cutoff passes before the next one, so it never reaches the wire here.
+inline bool abortStaged(Stage stage) {
+    return stage == Stage::SDK_ACCEPTED || stage == Stage::TX_REPORTED;
+}
 // The stages whose write ends with its positive acknowledgement kept.
 inline bool acknowledged(Stage stage) {
     return stage == Stage::ACK_THEN_DEADLINE;
@@ -261,6 +267,25 @@ struct Rig {
         reservation2.sequence = uint32_t(sequence2.slot + 1);
         reservation2.generation = sequence2.generation;
         reservation2.acquiredUs = owner.sequence(sequence2)->acquiredUs;
+    }
+    // Prompt 55: SdoReusePolicy::NONE on every configured route, the quarantine the failure
+    // matrices assert. A timeout after possible TX still stages its one cleanup abort; no marker
+    // read or reopening follows. Without this call each binding keeps the owner's default,
+    // ACCEPTED_RISK_WITH_MARKER.
+    void keepQuarantine() {
+        for (uint8_t slot = 0; slot < 2; ++slot)
+            if (const C::SdoChannel* route = services.channel(slot))
+                CHECK(OwnerRig::keepQuarantine(owner, *route, now));
+    }
+    // True while node 1's staging port holds exactly the cleanup abort 0x05040000 for this object,
+    // 80 <index> 00 00 00 04 05, staged but not yet handed to the controller.
+    bool stagedTimeoutAbort(uint16_t index) const {
+        const CO_CANmodule_t* port = services.port(0);
+        CHECK(port);
+        const uint8_t expected[8] = {0x80, uint8_t(index), uint8_t(index >> 8), 0, 0, 0, 0x04, 0x05};
+        return port->queueOccupied && port->queued.ident == 0x601 && port->queued.DLC == 8 &&
+               !port->queued.extended && !port->queued.rtr &&
+               !std::memcmp(port->queued.data, expected, sizeof expected);
     }
     void begin() { CHECK(owner.beginOperation(sequence, ++operation, deadline, now)); }
     void turn(uint64_t time, const O::ServiceBudget& work = budget()) {
@@ -515,6 +540,11 @@ struct Rig {
             break;
         }
         f.terminal = result(f.id, false);
+        // Prompt 55: only a response timeout after possible TX stages the cleanup abort, under
+        // every reuse policy; an overall deadline, a server abort or a success stages none.
+        CHECK(f.terminal.clientAbortQueued == abortStaged(stage));
+        CHECK(stagedTimeoutAbort(f.work.index) == abortStaged(stage));
+        CHECK(f.terminal.abortValid == (stage == Stage::ABORTED)); // The server's code, not ours.
         CHECK(L::advanceAction(action, reservation, current, f.terminal, now));
         return f;
     }

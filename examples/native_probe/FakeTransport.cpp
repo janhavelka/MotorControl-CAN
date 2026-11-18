@@ -103,7 +103,23 @@ bool FakeTransport::transmit(void* context, const M::Frame& request, TransportTx
         return true;
     }
     if (id.kind != TransportTxId::Kind::SDO || !M::validateFrame(request) || request.extended || request.rtr || request.id != 0x605 ||
-        request.payloadLength != 8 || request.data[0] != 0x40 || epoch != 1)
+        request.payloadLength != 8 || epoch != 1)
+        return false;
+    if (request.data[0] == 0x80) {
+        // The cleanup abort a response timeout stages: transmitted, and no server answers it.
+        if (request.data[4] || request.data[5] || request.data[6] != 0x04 || request.data[7] != 0x05 ||
+            fake.reportCount_ == REPORT_CAPACITY)
+            return false;
+        TxReport report;
+        report.id = id;
+        report.controllerEpoch = epoch;
+        report.transmitted = true;
+        fake.reports_[(fake.reportHead_ + fake.reportCount_) % REPORT_CAPACITY] = report;
+        ++fake.reportCount_;
+        ++fake.clientAborts_;
+        return true;
+    }
+    if (request.data[0] != 0x40)
         return false;
     const Field* selected = nullptr;
     const uint16_t index = uint16_t(request.data[1]) | uint16_t(request.data[2]) << 8;
@@ -148,6 +164,7 @@ bool FakeTransport::transmit(void* context, const M::Frame& request, TransportTx
     fake.reports_[(fake.reportHead_ + fake.reportCount_) % REPORT_CAPACITY] = report;
     ++fake.reportCount_;
     ++fake.transmitted_;
+    fake.lastUpload_ = uint32_t(index) << 8 | request.data[3];
     return true;
 }
 } // namespace MotorControlCANExample

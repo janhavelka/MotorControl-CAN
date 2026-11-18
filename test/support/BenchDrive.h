@@ -452,6 +452,10 @@ struct Driver {
     uint8_t nmtState = 5;
     uint64_t nmtBeatDue = 0;
     unsigned nmtHoldTurns = 0;
+    // The S2's CAN connector pulled (prompt 55's unplug check): nothing ACKs the frame in the
+    // controller, so it gets no TX report and no reply, until replugged. Stopping the node then
+    // deletes that frame, as deleting the TWAI node does. Off by default.
+    bool unplugged = false;
 
     static bool start(void* context, const E::TwaiConfig&, uint32_t epoch) {
         Driver& d = *static_cast<Driver*>(context);
@@ -460,7 +464,10 @@ struct Driver {
         return true;
     }
     static bool stop(void* context) {
-        static_cast<Driver*>(context)->live = false;
+        Driver& d = *static_cast<Driver*>(context);
+        d.live = false;
+        if (d.unplugged)
+            d.active = false; // The deleted node drops the unacknowledged frame.
         return true;
     }
     static E::TwaiSubmit submit(void* context, const M::Frame& value, uint32_t serial) {
@@ -521,6 +528,8 @@ struct Driver {
         next.receivedLatestUs = console->now - 100;
     }
     void deliver() {
+        if (unplugged)
+            return; // No ACK, no reply, no heartbeat reaches the S2.
         if (nmtEnabled && console->now >= nmtBeatDue) {
             if (!((nmtState == 4 && nmtLostStopBeat) || (nmtState == 0x7f && nmtLostPreopBeat))) {
                 M::Frame beat = frame(0x701, 1);

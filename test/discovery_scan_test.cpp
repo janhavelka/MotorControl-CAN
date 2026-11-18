@@ -52,12 +52,24 @@ struct Wire : OwnerRig::WireBase {
     bool abortReply = false, malformed = false;
     bool bootAfterReply = false;
     unsigned uploads = 0, clientAborts = 0;
+    // Prompt 55: a response timeout's one cleanup abort 0x05040000 per node, and the owner's own
+    // resync marker read (the one upload a timed-out route admits after that abort). Neither is a
+    // scan upload or an application drain marker.
+    unsigned timeoutAborts[3] = {}, markers[3] = {};
+    bool aborted[3] = {};
     static bool transmit(void* context, const M::Frame& request, O::TransportTxId id,
                          uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
-        // Any download, NMT, drain marker or guessed route is a test failure.
+        // Any download, NMT, application drain marker or guessed route is a test failure.
         CHECK(request.id == 0x601 || request.id == 0x602);
         CHECK(!request.extended && !request.rtr && request.payloadLength == 8);
+        const unsigned node = request.id - 0x600;
+        if (request.data[0] == 0x80 && request.data[4] == 0 && request.data[5] == 0 &&
+            request.data[6] == 4 && request.data[7] == 5) {
+            ++w.timeoutAborts[node];
+            w.aborted[node] = true;
+            return OwnerRig::WireBase::transmit(context, request, id, epoch);
+        }
         if (request.data[0] == 0x80) {
             // The real stack terminates malformed replies with a protocol abort.
             // This is no upload retry, download, or application mutation intent.
@@ -67,9 +79,13 @@ struct Wire : OwnerRig::WireBase {
             return OwnerRig::WireBase::transmit(context, request, id, epoch);
         }
         CHECK(request.data[0] == 0x40);
-        ++w.uploads;
+        if (w.aborted[node]) {
+            w.aborted[node] = false;
+            ++w.markers[node];
+        } else {
+            ++w.uploads;
+        }
         CHECK(OwnerRig::WireBase::transmit(context, request, id, epoch));
-        const unsigned node = request.id - 0x600;
         if (w.silent[node - 1])
             return true;
         const uint16_t index = uint16_t(request.data[1]) | uint16_t(request.data[2]) << 8;
@@ -282,11 +298,16 @@ void explicitInterpretation() {
                                 malformed.now, 200));
 }
 void permanentSlotsAndSilence() {
+    // Quarantine is the scenario: both bindings take reuse policy NONE (prompt 55), so each probe's
+    // response timeout sends only its one cleanup abort and the owner sends no marker.
     Rig rig;
+    CHECK(OwnerRig::keepQuarantine(rig.owner, target(1).channel, rig.now));
+    CHECK(!PAIRED_CHANNELS || OwnerRig::keepQuarantine(rig.owner, target(2).channel, rig.now));
     rig.wire.silent[0] = rig.wire.silent[1] = true;
     CHECK(rig.scan.begin(rig.plan(E::DiscoveryMode::PROBE), rig.actual, 0, 100));
     rig.finish();
-    CHECK(rig.wire.sentCount == 2 && rig.scan.summary().unresolvedSlots == 2);
+    CHECK(rig.wire.sentCount == 4 && rig.wire.uploads == 2 && rig.scan.summary().unresolvedSlots == 2);
+    CHECK(rig.wire.timeoutAborts[1] == 1 && rig.wire.timeoutAborts[2] == 1);
     for (uint8_t i = 0; i < 2; ++i) {
         const E::DiscoveryFinding& f = *rig.scan.result(i);
         CHECK(f.outcome == E::DiscoveryOutcome::NO_RESPONSE && f.unresolved && f.read.uncertain);
@@ -296,7 +317,10 @@ void permanentSlotsAndSilence() {
     CHECK(!rig.services.configure(0, target(3).channel, true, true));
     CHECK(!rig.services.configure(1, target(3).channel, true, true));
     CHECK(!rig.scan.begin(rig.plan(E::DiscoveryMode::PROBE), rig.actual, rig.now, 200));
-    CHECK(rig.wire.sentCount == 2); // No automatic marker, retry, fresh adapter or rebind.
+    for (unsigned i = 0; i < 400; ++i)
+        rig.turn(rig.now + 1);
+    // No automatic marker, retry, fresh adapter or rebind.
+    CHECK(rig.wire.sentCount == 4 && !rig.wire.markers[1] && !rig.wire.markers[2] && !rig.owner.stats().markers);
 }
 void atomicPlanRefusal() {
     Rig rig(1);
@@ -374,11 +398,21 @@ void cancellationAndDeadline() {
         CHECK(rig.app.pendingRequest().owner && rig.wire.sentCount == sent);
         CHECK(rig.scan.cancel(rig.now) && !rig.scan.result(0));
         rig.finish();
-        CHECK(rig.scan.summary().cancelled && rig.wire.sentCount == sent);
+        // A sent probe settles at its response timeout, which sends its one cleanup abort (prompt 55).
+        CHECK(rig.scan.summary().cancelled && rig.wire.sentCount == 2 * sent && rig.wire.uploads == sent);
+        CHECK(!sent || OwnerRig::isTimeoutAbort(rig.wire.sent[1], 0x601, 0x1000));
         CHECK(rig.scan.result(0)->outcome == E::DiscoveryOutcome::CANCELLED);
         CHECK(rig.scan.result(0)->unresolved == bool(sent));
         CHECK(rig.scan.result(0)->read.uncertain == bool(sent));
         CHECK(rig.scan.result(1)->outcome == E::DiscoveryOutcome::CANCELLED);
+        // The owner then reads its one marker, 1018:01 because 1000:00 is retained; the silent node
+        // lets it time out with its own abort, and the cancelled scan sends nothing more itself.
+        for (unsigned i = 0; i < 400; ++i)
+            rig.turn(rig.now + 1);
+        CHECK(rig.wire.uploads == sent && rig.wire.markers[1] == sent && rig.wire.timeoutAborts[1] == 2 * sent);
+        CHECK(!sent || (OwnerRig::isMarkerRead(rig.wire.sent[2], 0x601, 0x1018, 1) &&
+                        OwnerRig::isTimeoutAbort(rig.wire.sent[3], 0x601, 0x1018, 1)));
+        CHECK(rig.wire.sentCount == 4 * sent && rig.services.unresolved(0) == bool(sent));
     }
     Rig zero;
     E::DiscoveryPlan p = zero.plan(E::DiscoveryMode::PROBE);
@@ -410,7 +444,17 @@ void cancellationAndDeadline() {
     ++changedAfterTx.actual.bitrate;
     changedAfterTx.turn(changedAfterTx.now + 1);
     changedAfterTx.finish();
-    CHECK(changedAfterTx.wire.sentCount == 1);
+    // The sent probe settles at its response timeout with its one cleanup abort (prompt 55).
+    CHECK(changedAfterTx.wire.sentCount == 2 && changedAfterTx.wire.uploads == 1 &&
+          OwnerRig::isTimeoutAbort(changedAfterTx.wire.sent[1], 0x601, 0x1000));
+    for (unsigned i = 0; i < 400; ++i)
+        changedAfterTx.turn(changedAfterTx.now + 1);
+    // Then the owner's one marker, 1018:01 as 1000:00 is retained; the silent node lets it time out.
+    CHECK(changedAfterTx.wire.sentCount == 4 && changedAfterTx.wire.uploads == 1 &&
+          changedAfterTx.wire.markers[1] == 1 && changedAfterTx.wire.timeoutAborts[1] == 2);
+    CHECK(OwnerRig::isMarkerRead(changedAfterTx.wire.sent[2], 0x601, 0x1018, 1) &&
+          OwnerRig::isTimeoutAbort(changedAfterTx.wire.sent[3], 0x601, 0x1018, 1));
+    CHECK(changedAfterTx.services.unresolved(0));
     CHECK(changedAfterTx.scan.result(0)->outcome == E::DiscoveryOutcome::INVALIDATED &&
           changedAfterTx.scan.result(0)->read.uncertain &&
           changedAfterTx.scan.result(0)->unresolved);
@@ -640,7 +684,9 @@ void lifecycleAtPublication() {
     CHECK(second.unresolved == batch.services.unresolved(1));
     CHECK(batch.scan.summary().unresolvedSlots ==
           unsigned(batch.services.unresolved(0)) + unsigned(batch.services.unresolved(1)));
-    CHECK(batch.scan.summary().unresolvedSlots == 2 && batch.wire.sentCount == 2);
+    // Node 2's probe timeout sent its one cleanup abort (prompt 55); no further scan upload.
+    CHECK(batch.scan.summary().unresolvedSlots == 2 && batch.wire.sentCount == 3 && batch.wire.uploads == 2);
+    CHECK(OwnerRig::isTimeoutAbort(batch.wire.sent[2], 0x602, 0x1000));
     CHECK(!first.bindingCurrent && second.bindingCurrent);
 }
 void negativeIdentitySurvivesInvalidation() {
@@ -668,7 +714,9 @@ void negativeIdentitySurvivesInvalidation() {
         CHECK(first.read.values[8].valid && first.read.values[8].raw == 0x6789);
         CHECK(rig.scan.result(1)->outcome == E::DiscoveryOutcome::NO_RESPONSE &&
               rig.scan.result(1)->bindingCurrent);
-        CHECK(rig.scan.summary().unresolvedSlots == 2 && rig.wire.sentCount == 10);
+        // Node 2's probe timeout sent its one cleanup abort (prompt 55); no further scan upload.
+        CHECK(rig.scan.summary().unresolvedSlots == 2 && rig.wire.sentCount == 11 && rig.wire.uploads == 10);
+        CHECK(OwnerRig::isTimeoutAbort(rig.wire.sent[10], 0x602, 0x1000));
     }
 }
 void passiveWithoutServicePremises() {

@@ -48,6 +48,8 @@ struct Wire {
     Failure failure = Failure::NONE;
     unsigned failureNode = 1, failureAt = 0, transmitted = 0, receives = 0;
     unsigned attempts[3] = {}, downloads[3] = {};
+    // Prompt 55: the owner's own resync marker reads of 1000:00 per node, kept apart from attempts.
+    unsigned markers[3] = {};
     uint64_t now = 0;
     uint32_t values[3][9] = {{},
                              {0x181, 255, 100, 0, 3, 0x60410010, 0x60610008, 0x60640020, 0},
@@ -110,6 +112,18 @@ struct Wire {
         if (f.data[0] == 0x80)
             return true;
         CHECK(f.data[0] == 0x40 || f.data[0] == 0x23 || f.data[0] == 0x2b || f.data[0] == 0x2f);
+        if (f.data[0] == 0x40 && f.data[1] == 0x00 && f.data[2] == 0x10 && f.data[3] == 0) {
+            // The default reuse policy's marker after a response timeout: 1000:00 answers the
+            // device type both specimens reported (docs/bench/20261102-nmt-pdo-node1/rx.txt).
+            ++w.markers[node];
+            const uint8_t reply[8] = {0x43, 0x00, 0x10, 0x00, 0x92, 0x01, 0x04, 0x00};
+            M::Frame response;
+            response.id = 0x580 + node;
+            response.dlc = response.payloadLength = 8;
+            std::memcpy(response.data, reply, 8);
+            w.push(response);
+            return true;
+        }
         ++w.attempts[node];
         const uint16_t index = uint16_t(f.data[1]) | uint16_t(f.data[2]) << 8;
         const uint8_t sub = f.data[3];
@@ -556,7 +570,11 @@ void evidenceLossWithdrawsOnlyUnstartedWork() {
     CHECK(sent.experiment.record()->terminal);
     CHECK(sent.experiment.record()->failure == E::PdoExperimentFailure::EVIDENCE_LOSS);
     CHECK(sent.experiment.record()->terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
-    CHECK(sent.wire.transmitted == 1);
+    // The experiment sends nothing more. The timeout met the overall deadline, so no cleanup
+    // abort had budget (prompt 55); the one later frame is the owner's own resync marker.
+    CHECK(sent.wire.transmitted == 2 && sent.wire.attempts[1] == 1 && sent.wire.markers[1] == 1 &&
+          sent.wire.sent[1].data[0] == 0x40 && sent.wire.sent[1].data[1] == 0x00 &&
+          sent.wire.sent[1].data[2] == 0x10 && sent.owner.stats().markers == 1);
 }
 void planRejections() {
     for (unsigned i = 0; i < 16; ++i) {
@@ -823,10 +841,15 @@ void timerFailureAtEveryStep() {
 void timerUnresolvedRouteIsNotReused() {
     // The write goes out and takes effect, but nothing answers: the response timeout ends the
     // record with an unknown effect and an unresolved route. The next E line sends nothing.
+    // Quarantine is the scenario, so node 2's binding takes reuse policy NONE (prompt 55): the
+    // client still sends its one cleanup abort, and the owner sends no marker.
     Rig r;
     r.wire.failure = Wire::Failure::LOST;
     r.wire.failureNode = 2;
     r.wire.failureAt = 10;
+    O::SdoReuse none;
+    none.policy = O::SdoReusePolicy::NONE;
+    CHECK(r.owner.setSdoReuse(r.services.channel(1)->binding, none, r.now));
     r.startTimer(2, L::Tpdo1EventTimerRaw::RAW_100);
     for (unsigned i = 0; i < 100 && r.wire.attempts[2] < 10; ++i)
         r.turn(r.now + 1);
@@ -855,6 +878,55 @@ void timerUnresolvedRouteIsNotReused() {
         r.turn(r.now + 1);
     CHECK(r.wire.transmitted == sent && r.services.unresolved(1)); // No replay, no new traffic.
     CHECK(!r.services.unresolved(0)); // Node 1's independent route stays resolved.
+    // The last frame on the wire is the write's cleanup abort 0x05040000; no marker followed.
+    const M::Frame& last = r.wire.sent[sent - 1];
+    CHECK(last.id == 0x602 && last.data[0] == 0x80 && last.data[1] == 0x00 && last.data[2] == 0x18 &&
+          last.data[3] == 5 && last.data[4] == 0 && last.data[5] == 0 && last.data[6] == 4 &&
+          last.data[7] == 5);
+    CHECK(!r.wire.markers[2] && !r.owner.stats().markers);
+}
+void timerTimeoutResyncsUnderDefaultPolicy() {
+    // The same lost reply under the default reuse policy (prompt 55): the cleanup abort, then the
+    // owner's one marker read of 1000:00 reopens node 2's route. The write's effect stays unknown,
+    // nothing is replayed, and the restoring line that follows carries the accepted-correlation mark.
+    Rig r;
+    r.wire.failure = Wire::Failure::LOST;
+    r.wire.failureNode = 2;
+    r.wire.failureAt = 10;
+    r.startTimer(2, L::Tpdo1EventTimerRaw::RAW_100);
+    for (unsigned i = 0; i < 100 && r.wire.attempts[2] < 10; ++i)
+        r.turn(r.now + 1);
+    const unsigned write = r.wire.transmitted - 1;
+    for (unsigned i = 0; i < 4 && !r.experiment.record()->terminal; ++i) {
+        r.wire.now = r.now + 260000;
+        r.wire.heartbeat(0x7f, 2);
+        r.turn(r.now + 260000);
+    }
+    CHECK(r.experiment.record()->terminal &&
+          r.experiment.record()->failure == E::PdoExperimentFailure::SERVICE);
+    CHECK(r.experiment.record()->configuration.uncertain && r.wire.values[2][3] == 100);
+    for (unsigned i = 0; i < 4 && !r.experiment.release(); ++i)
+        r.turn(r.now + 1);
+    for (unsigned i = 0; i < 8; ++i)
+        r.turn(r.now + 1);
+    const uint8_t abort[8] = {0x80, 0x00, 0x18, 0x05, 0x00, 0x00, 0x04, 0x05};
+    const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+    CHECK(r.wire.transmitted == write + 3 && r.wire.attempts[2] == 10 && r.wire.markers[2] == 1);
+    CHECK(!std::memcmp(r.wire.sent[write + 1].data, abort, 8) &&
+          !std::memcmp(r.wire.sent[write + 2].data, marker, 8));
+    CHECK(r.owner.stats().markers == 1 && !r.services.unresolved(1) && !r.services.unresolved(0));
+    O::Health health;
+    CHECK(r.owner.health(r.services.channel(1)->binding, health) && health.acceptedCorrelation &&
+          health.reusePolicy == O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER && !health.reuseStopped);
+    // New intent, not a replay: the restoring line from the unknown-effect value is admitted.
+    r.startTimer(2, L::Tpdo1EventTimerRaw::RAW_0, 6000, 6000);
+    r.finish();
+    const auto* out = r.experiment.record();
+    CHECK(out->failure == E::PdoExperimentFailure::NONE && r.wire.values[2][3] == 0);
+    CHECK(out->terminalCount > 0);
+    for (unsigned i = 0; i < out->terminalCount; ++i)
+        CHECK(out->terminals[i].acceptedCorrelation);
+    CHECK(r.experiment.release());
 }
 void timerStateHeldTxAndPressure() {
     // Operational arrives after the baseline, between the write's owner admission and its
@@ -1288,6 +1360,7 @@ int main() {
     timerOnOneNodeWhileAnotherStreams();
     timerFailureAtEveryStep();
     timerUnresolvedRouteIsNotReused();
+    timerTimeoutResyncsUnderDefaultPolicy();
     timerStateHeldTxAndPressure();
     timerUncertainWriteWithdrawsTheRoute();
     timerTwiceWithoutInstall();

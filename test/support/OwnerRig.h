@@ -130,4 +130,55 @@ struct WireBase {
         input.controllerEpoch = epoch;
     }
 };
+// Prompt 55 self-repair helpers. They add no behavior to WireBase or any existing helper.
+//
+// Keep one binding's unresolved routes quarantined: SdoReusePolicy::NONE, the setting before
+// prompt 55. A response timeout after possible TX still stages its one cleanup abort; no marker
+// read or reopening follows, and every marker is refused.
+inline bool keepQuarantine(O::CanBusOwner& owner, const C::SdoChannel& channel, uint64_t now) {
+    O::SdoReuse reuse;
+    reuse.policy = O::SdoReusePolicy::NONE;
+    return owner.setSdoReuse(channel.binding, reuse, now);
+}
+// Exact classical 8-byte SDO frame with this command byte and multiplexer.
+inline bool sdoFrame(const M::Frame& f, uint32_t id, uint8_t command, uint16_t index,
+                     uint8_t subindex) {
+    return f.id == id && !f.extended && !f.rtr && f.dlc == 8 && f.payloadLength == 8 &&
+           f.data[0] == command && f.data[1] == uint8_t(index) && f.data[2] == uint8_t(index >> 8) &&
+           f.data[3] == subindex;
+}
+// The one cleanup abort after a response timeout: 80 <index> <subindex> 00 00 04 05, the CiA 301
+// code 0x05040000 (SDO protocol timed out) naming the timed-out request's own object.
+inline bool isTimeoutAbort(const M::Frame& f, uint32_t id, uint16_t index, uint8_t subindex = 0) {
+    return sdoFrame(f, id, 0x80, index, subindex) && f.data[4] == 0 && f.data[5] == 0 &&
+           f.data[6] == 0x04 && f.data[7] == 0x05;
+}
+// The same abort while it is still staged in a channel's port (SdoClient::port()->queued).
+inline bool isTimeoutAbort(const StackFrame& f, uint32_t id, uint16_t index, uint8_t subindex = 0) {
+    M::Frame copy = frame(f.ident, f.DLC);
+    copy.extended = f.extended;
+    copy.rtr = f.rtr;
+    for (unsigned i = 0; i < 8; ++i)
+        copy.data[i] = f.data[i];
+    return isTimeoutAbort(copy, id, index, subindex);
+}
+// The owner's own resync marker read: an expedited upload request of the default marker 1000:00
+// (alternate 1018:01), 40 <index> <subindex> 00 00 00 00.
+inline bool isMarkerRead(const M::Frame& f, uint32_t id, uint16_t index = 0x1000,
+                         uint8_t subindex = 0) {
+    return sdoFrame(f, id, 0x40, index, subindex) && !f.data[4] && !f.data[5] && !f.data[6] &&
+           !f.data[7];
+}
+// A server's expedited four-byte upload reply, 43 <index> <subindex> <value LE>, such as the
+// answer to a marker read of the U32 objects 1000:00 or 1018:01.
+inline M::Frame uploadReply4(uint32_t id, uint16_t index, uint8_t subindex, uint32_t value) {
+    M::Frame f = frame(id, 8);
+    f.data[0] = 0x43;
+    f.data[1] = uint8_t(index);
+    f.data[2] = uint8_t(index >> 8);
+    f.data[3] = subindex;
+    for (unsigned i = 0; i < 4; ++i)
+        f.data[4 + i] = uint8_t(value >> (8 * i));
+    return f;
+}
 } // namespace OwnerRig

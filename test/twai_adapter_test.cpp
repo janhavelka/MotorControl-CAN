@@ -582,8 +582,17 @@ void faultsRecoveryAndFailureOwnership() {
         CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
         CHECK(r.sdk.starts == 2 && r.sdk.epoch == 2 && r.sdk.submits == 1);
         CHECK(!r.adapter.diagnostics().inhibited);
+        CHECK(r.owner.stats().markers == 0); // A re-armed resync starts no earlier than next turn.
         r.turn(5);
-        CHECK(r.sdk.submits == 1 && r.owner.stats().txFrames == 0 && r.owner.stats().rxFrames == 0);
+        // The old completion and RX stay retired and the write is never resent. The RETIRED
+        // closure re-armed node 1's route, quarantined with possible TX, so under the default
+        // policy the owner's one marker read of 1000:00 is the only new frame. Node 2's request
+        // never left, so its route stays clean and gets none.
+        CHECK(r.sdk.submits == 2 && OwnerRig::isMarkerRead(r.sdk.sent[1], 0x601));
+        CHECK(r.owner.stats().markers == 1 && r.services.unresolved(0));
+        if (PAIRED_CHANNELS)
+            CHECK(!r.services.unresolved(1));
+        CHECK(r.owner.stats().txFrames == 0 && r.owner.stats().rxFrames == 0);
     }
     for (unsigned failure = 0; failure < 2; ++failure) {
         Rig r;
@@ -983,8 +992,11 @@ void arbitrationLossThenSuccessIsOneSubmission() {
 
 // No ACK: hardware retransmission keeps the frame ACTIVE. The application resends
 // nothing, the transfer ends unresolved, and only recovery retires the frames.
+// Reuse policy NONE: this counts every SDK frame with no repair step, so the owner's
+// resync marker (the default policy's step after recovery) is not part of it.
 void noAckStaysActiveUntilRecoveryRetiresBothSlots() {
     Rig r;
+    CHECK(OwnerRig::keepQuarantine(r.owner, route(1), 0));
     const auto stuck = r.request(1, true, 1000, 100);
     r.turn(0);
     CHECK(sameWire(r.sdk.sent[0], writeRequest()));
@@ -999,6 +1011,11 @@ void noAckStaysActiveUntilRecoveryRetiresBothSlots() {
     CHECK(terminal.service.transmissionPossible && terminal.service.effectPossible);
     CHECK(terminal.service.effectUncertain && !terminal.service.transmissionConfirmed);
     CHECK(!terminal.service.protocolAcknowledged && r.services.unresolved(0));
+    // The response timeout staged its one cleanup abort 0x05040000; it waits behind the stuck
+    // frame and never reaches the SDK (attempts stay 1), and its queue cutoff retires it.
+    CHECK(terminal.service.clientAbortQueued && !terminal.service.abortValid);
+    CHECK(r.services.port(0)->queueOccupied &&
+          OwnerRig::isTimeoutAbort(r.services.port(0)->queued, 0x601, 0x6040));
     Retained first;
     first.take(terminal);
     // The stuck frame stalls the interface; node 2 waits and nothing is resent.
@@ -1007,6 +1024,7 @@ void noAckStaysActiveUntilRecoveryRetiresBothSlots() {
         CHECK(r.sdk.active && r.sdk.submits == 1 && r.sdk.attempts == 1);
         CHECK(!r.owner.result(queued) && !r.owner.localTxRetired(0) && !r.owner.localTxRetired(1));
     }
+    CHECK(!r.services.port(0)->queueOccupied); // Retired unsent at its queue cutoff (200).
     CHECK(first.unchanged(r, stuck));
     CHECK(r.sdk.stops == 0); // No automatic recovery.
     O::RecoveryId recovery;
@@ -1167,7 +1185,14 @@ void controllerFailureWhileQueuedAndActive() {
         CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
         CHECK(one.unchanged(r, active) && two.unchanged(r, queued));
         r.turn(7);
-        CHECK(r.sdk.submits == 1 && r.sdk.attempts == 1 && r.sdk.stops == 1);
+        // Neither request is resent. The RETIRED closure re-armed node 1's route, left unresolved
+        // with possible TX, so the owner's one marker read of 1000:00 is the only new frame; the
+        // never-sent node 2 request leaves its route clean and gets none.
+        CHECK(r.sdk.submits == 2 && r.sdk.attempts == 2 && r.sdk.stops == 1);
+        CHECK(OwnerRig::isMarkerRead(r.sdk.sent[1], 0x601) && r.owner.stats().markers == 1);
+        CHECK(one.unchanged(r, active) && two.unchanged(r, queued));
+        if (PAIRED_CHANNELS)
+            CHECK(!r.services.unresolved(1));
     }
     // Bus-off between this turn's poll and the submit: no acceptance, then the
     // controller fact arrives on the next poll and decides the terminal.
@@ -1271,7 +1296,11 @@ void retirementNeverImpliesNotDelivered() {
         CHECK(c.service.outcome == C::SdoOutcome::CANCELLED);
         CHECK(c.reason == O::CompletionReason::RECOVERY);
         r.turn(4);
-        CHECK(r.sdk.submits == 1 && r.tap.count == 0);
+        // The discarded report never reappears and the write is not resent. The RETIRED closure
+        // re-armed the route its possibly sent work left unresolved: the owner's one marker read
+        // of 1000:00 is the only new frame, and it settles nothing about the old write.
+        CHECK(r.sdk.submits == 2 && OwnerRig::isMarkerRead(r.sdk.sent[1], 0x601));
+        CHECK(r.tap.count == 0 && r.owner.stats().markers == 1);
         CHECK(r.done(id).service.effectUncertain);
     }
     // Through local shutdown, as FirmwareProbe's failure path does.
@@ -1469,9 +1498,13 @@ void pendingFrameDoesNotQuarantineAHealthyAxis() {
         CHECK(r.done(pending).service.outcome == C::SdoOutcome::TIMEOUT);
         CHECK(r.done(pending).service.transmissionPossible && r.services.unresolved(0));
         CHECK(held.unchanged(r, stop) && !r.services.unresolved(1));
+        CHECK(r.done(pending).service.clientAbortQueued);
         r.sdk.complete(true);
         r.turn(101);
-        CHECK(held.unchanged(r, stop) && r.sdk.attempts == 1);
+        // Node 1's own cleanup abort 0x05040000 follows its now-reported frame; node 2's stop
+        // still never reaches the SDK.
+        CHECK(held.unchanged(r, stop) && r.sdk.attempts == 2 && r.sdk.submits == 2);
+        CHECK(OwnerRig::isTimeoutAbort(r.sdk.attempted[1], 0x601, 0x6040));
         r.sdk.pending.busOff = true;
         r.turn(102);
         CHECK(held.unchanged(r, stop));
@@ -1480,7 +1513,8 @@ void pendingFrameDoesNotQuarantineAHealthyAxis() {
         r.turn(104, budget(0, 0, 0, 0, 1));
         r.turn(105, budget(0, 0, 0, 0, 1));
         CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
-        CHECK(held.unchanged(r, stop) && r.sdk.attempts == 1);
+        // Recovery turns carry no TX budget, so node 1's resync marker has not gone either.
+        CHECK(held.unchanged(r, stop) && r.sdk.attempts == 2 && r.owner.stats().markers == 0);
         checkNeverSent(r.done(stop));
     }
     // With no event budget the owner cannot retire the frame directly, so the same

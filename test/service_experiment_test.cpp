@@ -241,7 +241,16 @@ void cancellationConsumesNativeGrantWithoutReplay() {
         CHECK(r.services.unresolved(0));
         CHECK(r.owner.release(id));
         r.turn(3);
-        CHECK(r.wire.count == 1 && !r.services.checkAdmission(0, exact, 3));
+        // The experimental write is never replayed. A cancellation of possibly sent work arms the
+        // default policy's one resync step: once the write's frame is locally retired, the owner
+        // reads 1000:00 as its marker (40 00 10 00), unanswered here, so the route stays
+        // quarantined. A rejected handoff (TRANSPORT_ERROR) arms nothing.
+        const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0};
+        CHECK(r.wire.count == (reject ? 1u : 2u) && r.owner.stats().markers == (reject ? 0u : 1u));
+        if (!reject)
+            CHECK(r.wire.sent[1].id == 0x601 && r.wire.sent[1].dlc == 8 &&
+                  !std::memcmp(r.wire.sent[1].data, marker, sizeof marker));
+        CHECK(!r.services.checkAdmission(0, exact, 3) && r.services.unresolved(0));
         C::SdoTransfer next = transfer(C::SdoDirection::DOWNLOAD, 2);
         CHECK(!r.grant(next, 2, 3)); // Quarantine survives a new review identity.
         CHECK(outcome == (reject ? C::SdoOutcome::TRANSPORT_ERROR : C::SdoOutcome::CANCELLED));

@@ -29,8 +29,12 @@ const uint32_t TOKEN_US = 100000, TOKEN_BURST = SOAK_EVENTS;
 const unsigned VALUE_QUEUE_LIMIT = SOAK_EVENTS * 3 / 4;
 const uint32_t LATENCY_LIMITS[SOAK_BUCKETS - 1] = {2000, 5000, 10000, 20000, 50000, 100000, 250000};
 
-// Trace entry kinds beyond owner DiagnosticKind, which supplies RX..RECOVERY as 0..5.
+// Trace entry kinds: owner DiagnosticKind RX..RECOVERY as 0..5, then a submission as 6, which earlier
+// captures fixed; the prompt 55 kinds RESYNC, TX_EXPIRED and LISTENER follow as 7..9.
 const uint8_t TRACE_SUBMIT = 6;
+const uint8_t TRACE_PROMPT55_OFFSET = 1;
+// The soak's own explicit markers: host-only identities far above its read operations.
+const uint32_t MARKER_IDENTITY_BASE = 0xE0000000u;
 const uint8_t FLAG_OK = 1, FLAG_EXTENDED = 2, FLAG_RTR = 4, FLAG_BOUNDS = 8, FLAG_EXACT = 16;
 
 enum EventType : uint8_t { EVENT_TRANSITION, EVENT_ANOMALY, EVENT_OPERATION, EVENT_EMCY, EVENT_BOOT,
@@ -151,12 +155,22 @@ bool parseSoakCommand(const char* text, size_t size, SoakPlan& output) noexcept 
     const char* cursor = text;
     const char* const end = text + size;
     uint32_t trial = 0, duration = 0, interval = 0, summary = 0, reads = 0;
+    uint32_t response = 0, nodes = 3, marker = 0;
     if (!number(cursor, end, trial) || !separated(cursor, end, duration) ||
         !separated(cursor, end, interval) || !separated(cursor, end, summary) ||
-        !separated(cursor, end, reads) || cursor != end || !trial || !duration ||
-        duration > 172800 || interval < 20 || interval > 60000 || !summary || summary > 3600 ||
-        reads > 3)
+        !separated(cursor, end, reads))
         return false;
+    // Prompt 55's optional tail: all three fields or none.
+    if (cursor != end && (!separated(cursor, end, response) || !separated(cursor, end, nodes) ||
+                          !separated(cursor, end, marker)))
+        return false;
+    if (cursor != end || !trial || !duration || duration > 172800 || interval < 20 || interval > 60000 ||
+        !summary || summary > 3600 || reads > 3 || (response && (response < 100 || response > 250000)) ||
+        !(nodes & 3) || nodes > 7 || marker > 1000)
+        return false;
+    output.responseUs = response;
+    output.nodes = uint8_t(nodes);
+    output.markerMs = marker;
     output.trial = trial;
     output.durationS = duration;
     output.intervalMs = interval;
@@ -274,12 +288,19 @@ SoakAdmission Soak::begin(const SoakPlan& plan, uint64_t now) noexcept {
         return SoakAdmission::BUSY;
     if (!plan.trial || plan.trial <= lastTrial_ || !plan.durationS || plan.durationS > 172800 ||
         plan.intervalMs < 20 || plan.intervalMs > 60000 || !plan.summaryS || plan.summaryS > 3600 ||
+        (plan.responseUs && (plan.responseUs < 100 || plan.responseUs > 250000)) || !(plan.nodes & 3) ||
+        plan.nodes > 7 || plan.markerMs > 1000 ||
         !firmware_.running() || now < firmware_.owner().lastTimeUs() ||
         now > UINT64_MAX - uint64_t(plan.durationS) * 1000000u)
         return SoakAdmission::INVALID;
     for (unsigned slot = 0; slot < SOAK_NODES; ++slot)
         if (!services_.channel(uint8_t(slot)) || !services_.node(uint8_t(slot)))
             return SoakAdmission::INVALID;
+    // The absent node needs a third channel and its route; its owner producer is the last one.
+    if ((plan.nodes & 4) && (unsigned(C::SdoClient::CHANNELS) <= unsigned(SOAK_NODES) ||
+                             unsigned(CanBusOwner::PRODUCERS) <= 4u || !services_.channel(uint8_t(SOAK_NODES)) ||
+                             !services_.node(uint8_t(SOAK_NODES))))
+        return SoakAdmission::INVALID;
     if (firmware_.app().readContext().state != M::ReadState::EMPTY || firmware_.evidence().record())
         return SoakAdmission::BUSY;
     const OwnerResources resources = firmware_.owner().resources();
@@ -306,6 +327,20 @@ SoakAdmission Soak::begin(const SoakPlan& plan, uint64_t now) noexcept {
          ++i)
         ++s_.staleObservations;
     lastTrial_ = plan.trial;
+    s_.absentNextUs = now + uint64_t(SOAK_ABSENT_INTERVAL_MS) * 1000u;
+    // markerMs: the owner's marker gets its own budgets on the soak's nodes, not the reads' short ones.
+    if (plan.markerMs)
+        for (unsigned slot = 0; slot <= SOAK_NODES; ++slot) {
+            const C::SdoChannel* channel = slot < C::SdoClient::CHANNELS ? services_.channel(uint8_t(slot)) : nullptr;
+            MotorControlCANOwner::SdoReuse reuse;
+            if (!(plan.nodes & (1u << slot)) || !channel || !firmware_.owner().sdoReuse(channel->binding, reuse))
+                continue;
+            s_.savedQueueUs[slot] = reuse.markerQueueTimeoutUs;
+            s_.savedResponseUs[slot] = reuse.markerResponseTimeoutUs;
+            reuse.markerQueueTimeoutUs = QUEUE_TIMEOUT_US;
+            reuse.markerResponseTimeoutUs = plan.markerMs * 1000u;
+            s_.budgetsSet[slot] = firmware_.owner().setSdoReuse(channel->binding, reuse, now);
+        }
     if (callbacks_.sample)
         callbacks_.sample(callbacks_.context, s_.resources);
     // The first status pass prints every first observation at this boundary.
@@ -336,8 +371,9 @@ void Soak::copyDiagnostics(uint64_t now) noexcept {
         const auto& in = diagnostic_;
         if (in.kind == DiagnosticKind::TERMINAL)
             continue; // recordStep copies it when the terminal is consumed.
+        countRepair(in);
         TraceEntry& entry = addTrace(in.processedUs);
-        entry.kind = uint8_t(in.kind);
+        entry.kind = uint8_t(in.kind) + (in.kind >= DiagnosticKind::RESYNC ? TRACE_PROMPT55_OFFSET : 0);
         entry.id = in.frame.id;
         entry.dlc = in.frame.dlc;
         std::memcpy(entry.data, in.frame.data, sizeof entry.data);
@@ -346,9 +382,17 @@ void Soak::copyDiagnostics(uint64_t now) noexcept {
         entry.epoch = uint8_t(in.controllerEpoch > UINT8_MAX ? UINT8_MAX : in.controllerEpoch);
         if (in.kind == DiagnosticKind::CONTROLLER)
             entry.state = uint8_t(in.controller);
-        else if (in.kind == DiagnosticKind::RECOVERY)
+        else if (in.kind == DiagnosticKind::RECOVERY) {
             entry.state = uint8_t(in.recovery);
-        else if (in.kind == DiagnosticKind::TX || in.kind == DiagnosticKind::TX_REPORT) {
+            entry.data[0] = uint8_t(unsigned(in.recoveryCauses.busOff) | unsigned(in.recoveryCauses.receiveLost) << 1 |
+                                    unsigned(in.recoveryCauses.txExpired) << 2);
+        } else if (in.kind == DiagnosticKind::RESYNC) {
+            entry.state = uint8_t(in.resync);
+            entry.txRequest = in.channel;
+        } else if (in.kind == DiagnosticKind::LISTENER) {
+            entry.state = in.noListener ? 1 : 0;
+        } else if (in.kind == DiagnosticKind::TX || in.kind == DiagnosticKind::TX_REPORT ||
+                   in.kind == DiagnosticKind::TX_EXPIRED) {
             entry.state = uint8_t(in.txId.kind);
             entry.txRequest = uint16_t(in.txId.kind == MotorControlCANOwner::TransportTxId::Kind::SYNC
                                                      ? in.txId.sync.generation
@@ -598,14 +642,249 @@ void Soak::trackNodes(uint64_t now) noexcept {
     }
 }
 
+void Soak::countRepair(const MotorControlCANOwner::Diagnostic& in) noexcept {
+    using MotorControlCANOwner::ResyncStep;
+    using MotorControlCANOwner::TransportTxId;
+    if (in.kind == DiagnosticKind::TX && in.accepted && in.txId.kind == TransportTxId::Kind::SDO &&
+        in.frame.data[0] == 0x80 && in.txId.sdo.request.channel < SOAK_NODES) {
+        add(s_.nodes[in.txId.sdo.request.channel].cleanupAborts);
+        return;
+    }
+    if (in.kind != DiagnosticKind::RESYNC || in.channel >= SOAK_NODES)
+        return;
+    SoakNodeStats& stats = s_.nodes[in.channel];
+    switch (in.resync) {
+    case ResyncStep::MARKER_ADMITTED:
+        add(stats.autoMarkers);
+        s_.autoMarkerActive[in.channel] = true;
+        break;
+    case ResyncStep::MARKER_FAILED:
+        add(stats.markersFailed);
+        s_.autoMarkerActive[in.channel] = false;
+        break;
+    case ResyncStep::MARKER_MISMATCH:
+    case ResyncStep::MARKER_UNAVAILABLE:
+        add(stats.markersOther);
+        s_.autoMarkerActive[in.channel] = false;
+        break;
+    case ResyncStep::REOPENED:
+        add(stats.reopened);
+        s_.autoMarkerActive[in.channel] = false;
+        break;
+    case ResyncStep::REUSE_STOPPED:
+        add(stats.reuseStopped);
+        break;
+    case ResyncStep::REUSE_ACCEPTED:
+        break;
+    }
+}
+
+// A repair step that may still reopen the route: the owner's pending resync step or its marker, a
+// settled marker awaiting the reopening, or the soak's own explicit marker. When the owner's step
+// ended without reopening, admit the soak's one explicit marker (markerMs). Nothing else is sent.
+bool Soak::repairPending(unsigned slot, uint64_t now) noexcept {
+    const C::SdoChannel* channel = services_.channel(uint8_t(slot));
+    if (!channel)
+        return false;
+    CanBusOwner& owner = firmware_.owner();
+    Health health;
+    const bool known = owner.health(channel->binding, health);
+    if ((known && health.resyncPending) || s_.autoMarkerActive[slot] || s_.markerActive[slot] ||
+        services_.drainSettled(uint8_t(slot)))
+        return true;
+    MotorControlCANOwner::SdoReuse reuse;
+    if (!s_.plan.markerMs || s_.markerTried[slot] || !known || health.reuseStopped ||
+        !owner.sdoReuse(channel->binding, reuse) || reuse.policy == MotorControlCANOwner::SdoReusePolicy::NONE)
+        return false;
+    if (!owner.localTxRetired(uint8_t(slot)) || owner.resources().inhibited)
+        return true; // Its own frames first; the marker waits for them, as the owner's would.
+    C::SdoTransfer marker;
+    marker.channel = *channel;
+    marker.direction = C::SdoDirection::UPLOAD;
+    marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    marker.uploadSize = C::SdoUploadSize::EXACT;
+    marker.allowSegmentedUpload = false;
+    marker.queueTimeoutUs = QUEUE_TIMEOUT_US;
+    marker.responseTimeoutUs = s_.plan.markerMs * 1000u;
+    marker.deadlineUs = now + QUEUE_TIMEOUT_US + marker.responseTimeoutUs;
+    // The binding's marker list, in order: the owner refuses one that is retained or the last completed
+    // pair, and the next is tried.
+    for (unsigned i = 0; i < reuse.markerCount && i < MotorControlCANOwner::SdoReuse::MARKER_OBJECTS; ++i) {
+        const MotorControlCANOwner::SdoMarkerObject* object = &reuse.markers[i];
+        marker.operation = marker.request = marker.step = MARKER_IDENTITY_BASE + ++s_.markerIdentity;
+        marker.index = object->index;
+        marker.subindex = object->subindex;
+        marker.size = object->size;
+        RequestId id;
+        const MotorControlCANOwner::BusAdmission admitted = owner.admitDrainMarker(marker, now, id);
+        if (admitted == MotorControlCANOwner::BusAdmission::ACCEPTED) {
+            s_.marker[slot] = id;
+            s_.markerActive[slot] = s_.markerTried[slot] = true;
+            add(s_.nodes[slot].explicitMarkers);
+            return true;
+        }
+        if (admitted != MotorControlCANOwner::BusAdmission::INVALID)
+            return true; // INHIBITED or RESULTS_FULL: nothing sent; the next tick asks again.
+    }
+    s_.markerTried[slot] = true; // No object is admissible: the route stays unresolved.
+    return false;
+}
+
+bool Soak::absentPlanned() const noexcept {
+    return (s_.plan.nodes & 4) && unsigned(C::SdoClient::CHANNELS) > unsigned(SOAK_NODES);
+}
+
+// Prompt 55's absent node: one probe at a time on its own reservation, never inside the soak's
+// alternation, so nodes 1 and 2 keep their ticks. Nothing is resent: a timed-out probe quarantines the
+// route, and no probe follows until the route reopens.
+void Soak::serviceAbsent(uint64_t now) noexcept {
+    if (!absentPlanned())
+        return;
+    CanBusOwner& owner = firmware_.owner();
+    SoakAbsentStats& a = s_.absent;
+    const uint8_t slot = uint8_t(SOAK_NODES);
+    if (s_.absentActive) {
+        if (const Completion* done = owner.result(s_.absentRequest)) {
+            const C::SdoOutcome outcome = done->service.outcome;
+            add(outcome == C::SdoOutcome::SUCCESS ? a.answered : outcome == C::SdoOutcome::TIMEOUT ? a.timeouts : a.other);
+            s_.absentActive = !owner.release(s_.absentRequest);
+        }
+        return;
+    }
+    if (s_.absentMarkerActive) {
+        if (owner.result(s_.absentMarker))
+            s_.absentMarkerActive = !owner.release(s_.absentMarker);
+        return;
+    }
+    if (s_.phase != PHASE_RUNNING || now < s_.absentNextUs)
+        return;
+    s_.absentNextUs = now + uint64_t(SOAK_ABSENT_INTERVAL_MS) * 1000u;
+    const C::SdoChannel* channel = services_.channel(slot);
+    const C::NodeSnapshot* node = services_.node(slot);
+    if (!channel || !node || owner.resources().inhibited || !owner.localTxRetired(slot))
+        return;
+    if (services_.unresolved(slot)) {
+        if (s_.absentReserved && !owner.sequence(s_.absentSequence)) {
+            owner.releaseSequence(s_.absentSequence);
+            s_.absentReserved = false;
+        }
+        Health health;
+        MotorControlCANOwner::SdoReuse reuse;
+        if (owner.health(channel->binding, health) && !health.resyncPending && !health.reuseStopped &&
+            !services_.drainSettled(slot) && s_.plan.markerMs && !s_.absentMarkerTried &&
+            owner.sdoReuse(channel->binding, reuse) && reuse.policy != MotorControlCANOwner::SdoReusePolicy::NONE) {
+            C::SdoTransfer marker;
+            marker.channel = *channel;
+            marker.direction = C::SdoDirection::UPLOAD;
+            marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+            marker.uploadSize = C::SdoUploadSize::EXACT;
+            marker.allowSegmentedUpload = false;
+            marker.queueTimeoutUs = QUEUE_TIMEOUT_US;
+            marker.responseTimeoutUs = s_.plan.markerMs * 1000u;
+            marker.deadlineUs = now + QUEUE_TIMEOUT_US + marker.responseTimeoutUs;
+            s_.absentMarkerTried = true; // One per quarantine; the list's objects are tried in order.
+            for (unsigned i = 0; i < reuse.markerCount && i < MotorControlCANOwner::SdoReuse::MARKER_OBJECTS; ++i) {
+                marker.operation = marker.request = marker.step = MARKER_IDENTITY_BASE + ++s_.markerIdentity;
+                marker.index = reuse.markers[i].index;
+                marker.subindex = reuse.markers[i].subindex;
+                marker.size = reuse.markers[i].size;
+                const MotorControlCANOwner::BusAdmission admitted = owner.admitDrainMarker(marker, now, s_.absentMarker);
+                if (admitted == MotorControlCANOwner::BusAdmission::ACCEPTED) {
+                    s_.absentMarkerActive = true;
+                    add(a.explicitMarkers);
+                    return;
+                }
+                if (admitted != MotorControlCANOwner::BusAdmission::INVALID) {
+                    s_.absentMarkerTried = false; // Nothing sent; the next tick asks again.
+                    return;
+                }
+            }
+            return;
+        }
+        add(a.heldUnresolved);
+        return;
+    }
+    s_.absentMarkerTried = false;
+    if (s_.absentReserved && !owner.sequence(s_.absentSequence)) {
+        owner.releaseSequence(s_.absentSequence); // Invalidated (boot-up, reopening): a new one follows.
+        s_.absentReserved = false;
+    }
+    if (!s_.absentReserved) {
+        if (!owner.beginSequence(channel->binding, uint8_t(CanBusOwner::PRODUCERS), now, s_.absentSequence)) {
+            add(a.refused);
+            return;
+        }
+        s_.absentReserved = true;
+    }
+    const uint64_t deadline = now + QUEUE_TIMEOUT_US + SOAK_ABSENT_RESPONSE_US;
+    const uint32_t operation = MARKER_IDENTITY_BASE - 0x100000u + ++s_.absentOperation;
+    MotorControlCANOwner::BusRequest probe;
+    probe.sequence = s_.absentSequence;
+    probe.transfer.channel = *channel;
+    probe.transfer.operation = probe.transfer.request = operation;
+    probe.transfer.step = 1;
+    probe.transfer.direction = C::SdoDirection::UPLOAD;
+    probe.transfer.index = 0x1000; // Device type, an accepted (DEC-1) read.
+    probe.transfer.size = 4;
+    probe.transfer.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    probe.transfer.uploadSize = C::SdoUploadSize::EXACT;
+    probe.transfer.allowSegmentedUpload = false;
+    probe.transfer.queueTimeoutUs = QUEUE_TIMEOUT_US;
+    probe.transfer.responseTimeoutUs = SOAK_ABSENT_RESPONSE_US;
+    probe.transfer.deadlineUs = deadline;
+    if (!owner.beginOperation(s_.absentSequence, operation, deadline, now) ||
+        owner.admit(probe, now, s_.absentRequest) != MotorControlCANOwner::BusAdmission::ACCEPTED) {
+        add(a.refused);
+        return;
+    }
+    s_.absentActive = true;
+    add(a.probes);
+}
+
+void Soak::restoreBudgets(uint64_t now) noexcept {
+    if (s_.budgetsRestored)
+        return;
+    s_.budgetsRestored = true;
+    for (unsigned slot = 0; slot <= SOAK_NODES && slot < C::SdoClient::CHANNELS; ++slot) {
+        const C::SdoChannel* channel = services_.channel(uint8_t(slot));
+        MotorControlCANOwner::SdoReuse reuse;
+        if (!s_.budgetsSet[slot] || !channel || !firmware_.owner().sdoReuse(channel->binding, reuse))
+            continue;
+        reuse.markerQueueTimeoutUs = s_.savedQueueUs[slot];
+        reuse.markerResponseTimeoutUs = s_.savedResponseUs[slot];
+        firmware_.owner().setSdoReuse(channel->binding, reuse, now);
+    }
+    if (s_.absentReserved && !s_.absentActive && firmware_.owner().releaseSequence(s_.absentSequence))
+        s_.absentReserved = false;
+}
+
+void Soak::serviceMarkers(uint64_t now) noexcept {
+    (void)now;
+    for (unsigned slot = 0; slot < SOAK_NODES; ++slot) {
+        if (!s_.markerActive[slot])
+            continue;
+        const Completion* done = firmware_.owner().result(s_.marker[slot]);
+        if (!done)
+            continue;
+        if (done->service.outcome == C::SdoOutcome::SUCCESS)
+            add(s_.nodes[slot].explicitOk);
+        if (firmware_.owner().release(s_.marker[slot]))
+            s_.markerActive[slot] = false;
+    }
+}
+
 bool Soak::stopIfUnusable(unsigned slot, uint64_t now) noexcept {
     SoakNodeStats& stats = s_.nodes[slot];
     if (stats.stopped)
         return true;
     const C::NodeSnapshot* node = services_.node(uint8_t(slot));
     const bool unresolved = services_.unresolved(uint8_t(slot));
-    if (!unresolved && node && !node->exhausted)
+    if (!unresolved && node && !node->exhausted) {
+        s_.markerTried[slot] = false; // A new quarantine may take a new explicit marker.
         return false;
+    }
+    if (unresolved && node && !node->exhausted && repairPending(slot, now))
+        return true; // Waits: its route may still reopen.
     stats.stopped = true;
     push(EVENT_NODE_STOP, slot + 1, unresolved ? 0 : 1, false, s_.operation, 0, 0, 0, now, false);
     return true;
@@ -802,8 +1081,13 @@ void Soak::startOperation(unsigned slot, uint64_t now) noexcept {
     SoakNodeStats& stats = s_.nodes[slot];
     const C::SdoChannel* channel = services_.channel(uint8_t(slot));
     const C::NodeSnapshot* node = services_.node(uint8_t(slot));
-    if (stopIfUnusable(slot, now) || !channel || !node)
+    if (!(s_.plan.nodes & (1u << slot)))
+        return; // Not in this soak: its tick stays unused, so the other node keeps its cadence.
+    if (stopIfUnusable(slot, now) || !channel || !node) {
+        if (!stats.stopped)
+            add(stats.repairWaits);
         return;
+    }
     C::ServiceEligibility eligibility;
     if (firmware_.owner().resources().inhibited || !firmware_.running() ||
         !C::serviceEligibility(*node, now, eligibility) || !eligibility.probeUpload) {
@@ -820,7 +1104,7 @@ void Soak::startOperation(unsigned slot, uint64_t now) noexcept {
     ProbeApp& app = firmware_.app();
     L::ReadOptions options;
     options.queueTimeoutUs = QUEUE_TIMEOUT_US;
-    options.responseTimeoutUs = RESPONSE_TIMEOUT_US;
+    options.responseTimeoutUs = s_.plan.responseUs ? s_.plan.responseUs : RESPONSE_TIMEOUT_US;
     const uint64_t deadline = now + OPERATION_DEADLINE_US;
     bool prepared = app.select(target);
     if (prepared) {
@@ -905,8 +1189,9 @@ void Soak::finishPhases(uint64_t now) noexcept {
     if (s_.phase == PHASE_FINISHING) {
         // A started operation settles; none is cancelled for the sake of stopping or the log.
         const bool timedOut = now - s_.finishUs >= FINISH_TIMEOUT_US;
-        if ((s_.opActive || s_.releasePending) && !timedOut)
+        if ((s_.opActive || s_.releasePending || s_.absentActive || s_.absentMarkerActive) && !timedOut)
             return;
+        restoreBudgets(now);
         s_.summaryPending = true;
         s_.summaryCursor = 0;
         s_.phase = PHASE_FINAL;
@@ -1099,9 +1384,27 @@ bool Soak::formatSummary(uint64_t now) noexcept {
                    static_cast<unsigned long>(tap_.deferred()), static_cast<unsigned long>(io.outputWritten),
                    unsigned(io.outputUsed));
     }
-    const unsigned part = (cursor - 3) % 4, slot = (cursor - 3) / 4;
+    // Five lines per node; SOAK_ABORT stays the last of each node's; SOAK_ABSENT follows the fixture
+    // nodes when the absent node is planned.
+    if (cursor - 3 >= SOAK_NODES * 5) {
+        s_.summaryPending = false;
+        const C::SdoChannel* channel = services_.channel(uint8_t(SOAK_NODES));
+        Health health;
+        const bool known = channel && firmware_.owner().health(channel->binding, health);
+        const SoakAbsentStats& a = s_.absent;
+        return put("SOAK_ABSENT n=%lu t=%llu node=%u probes=%lu answered=%lu timeouts=%lu other=%lu refused=%lu "
+                   "explicit=%lu held=%lu unresolved=%u noResponse=%u responded=%u heartbeat=%u bootUps=%lu\n",
+                   n, t, unsigned(SOAK_ABSENT_NODE), static_cast<unsigned long>(a.probes),
+                   static_cast<unsigned long>(a.answered), static_cast<unsigned long>(a.timeouts),
+                   static_cast<unsigned long>(a.other), static_cast<unsigned long>(a.refused),
+                   static_cast<unsigned long>(a.explicitMarkers), static_cast<unsigned long>(a.heldUnresolved),
+                   unsigned(channel && services_.unresolved(uint8_t(SOAK_NODES))),
+                   unsigned(known ? health.consecutiveNoResponse : 0), unsigned(known && health.lastResponseKnown),
+                   unsigned(known && health.lastHeartbeatKnown), static_cast<unsigned long>(known ? health.bootUps : 0));
+    }
+    const unsigned part = (cursor - 3) % 5, slot = (cursor - 3) / 5;
     const SoakNodeStats& node = s_.nodes[slot];
-    if (slot == SOAK_NODES - 1 && part == 3)
+    if (slot == SOAK_NODES - 1 && part == 4 && !absentPlanned())
         s_.summaryPending = false;
     const unsigned scope = slot + 1;
     if (part == 0)
@@ -1147,6 +1450,30 @@ bool Soak::formatSummary(uint64_t now) noexcept {
                    static_cast<unsigned long>(a[6]), static_cast<unsigned long>(a[7]),
                    static_cast<unsigned long>(a[8]));
     }
+    if (part == 3) {
+        // Prompt 55: the route's reuse policy, the repair steps on this node's channel and the
+        // owner's presence observations of the node. Observations only: nothing here is decided.
+        const C::SdoChannel* channel = services_.channel(uint8_t(slot));
+        MotorControlCANOwner::SdoReuse reuse;
+        Health health;
+        const bool policy = channel && firmware_.owner().sdoReuse(channel->binding, reuse);
+        const bool known = channel && firmware_.owner().health(channel->binding, health);
+        const char* const policies[] = {"none", "marker", "nomarker"};
+        return put("SOAK_LINK n=%lu t=%llu node=%u reuse=%s timeouts=%lu aborts=%lu markers=%lu explicit=%lu "
+                   "explicitOk=%lu reopened=%lu failed=%lu other=%lu reuseStopped=%lu waits=%lu "
+                   "noResponse=%u bootUps=%lu responded=%u lastResponse=%llu accepted=%u\n",
+                   n, t, scope, policy && unsigned(reuse.policy) < 3 ? policies[unsigned(reuse.policy)] : "unknown",
+                   static_cast<unsigned long>(node.outcomes[unsigned(C::SdoOutcome::TIMEOUT)]),
+                   static_cast<unsigned long>(node.cleanupAborts), static_cast<unsigned long>(node.autoMarkers),
+                   static_cast<unsigned long>(node.explicitMarkers), static_cast<unsigned long>(node.explicitOk),
+                   static_cast<unsigned long>(node.reopened), static_cast<unsigned long>(node.markersFailed),
+                   static_cast<unsigned long>(node.markersOther), static_cast<unsigned long>(node.reuseStopped),
+                   static_cast<unsigned long>(node.repairWaits), unsigned(known ? health.consecutiveNoResponse : 0),
+                   static_cast<unsigned long>(known ? health.bootUps : 0),
+                   unsigned(known && health.lastResponseKnown),
+                   static_cast<unsigned long long>(known && health.lastResponseKnown ? health.lastResponseUs : 0),
+                   unsigned(known && health.acceptedCorrelation));
+    }
     return put("SOAK_ABORT n=%lu t=%llu node=%u a0=%08lx:%lu a1=%08lx:%lu a2=%08lx:%lu a3=%08lx:%lu other=%lu\n",
                n, t, scope, static_cast<unsigned long>(node.abortCode[0]),
                static_cast<unsigned long>(node.abortCount[0]),
@@ -1164,19 +1491,24 @@ bool Soak::formatNext(uint64_t now) noexcept {
     const unsigned long long t = static_cast<unsigned long long>(now);
     if (s_.beginPending) {
         s_.beginPending = false;
+        // Prompt 55: the plan's nodes, its explicit marker budget and the TX lifetime. Each node's reuse
+        // policy is in every SOAK_LINK line.
         return put("SOAK_BEGIN n=%lu t=%llu trial=%lu dur=%lu interval=%lu summary=%lu monitors=%u identity=%u "
-                   "opDeadline=%lu queue=%lu resp=%lu stack=%lu heap=%lu heapMin=%lu stale=%lu base=%s\n",
+                   "opDeadline=%lu queue=%lu resp=%lu stack=%lu heap=%lu heapMin=%lu stale=%lu nodes=%u "
+                   "markerMs=%lu lifetime=%llu base=%s\n",
                    n, t, static_cast<unsigned long>(s_.plan.trial),
                    static_cast<unsigned long>(s_.plan.durationS),
                    static_cast<unsigned long>(s_.plan.intervalMs),
                    static_cast<unsigned long>(s_.plan.summaryS), unsigned(s_.plan.monitors),
                    unsigned(s_.plan.identity), static_cast<unsigned long>(OPERATION_DEADLINE_US),
                    static_cast<unsigned long>(QUEUE_TIMEOUT_US),
-                   static_cast<unsigned long>(RESPONSE_TIMEOUT_US),
+                   static_cast<unsigned long>(s_.plan.responseUs ? s_.plan.responseUs : RESPONSE_TIMEOUT_US),
                    static_cast<unsigned long>(s_.resources.stackFree),
                    static_cast<unsigned long>(s_.resources.heapFree),
                    static_cast<unsigned long>(s_.resources.heapMinimum),
-                   static_cast<unsigned long>(s_.staleObservations), revision_);
+                   static_cast<unsigned long>(s_.staleObservations), unsigned(s_.plan.nodes),
+                   static_cast<unsigned long>(s_.plan.markerMs),
+                   static_cast<unsigned long long>(firmware_.owner().txLifetimeUs()), revision_);
     }
     if (s_.eventCount) {
         const Event event = s_.events[s_.eventHead];
@@ -1242,6 +1574,8 @@ void Soak::service(uint64_t now, bool holdOutput) noexcept {
     trackInterface(now);
     trackNodes(now);
     advance(now);
+    serviceMarkers(now);
+    serviceAbsent(now);
     schedule(now);
     if (s_.phase == PHASE_RUNNING && now >= s_.nextSummaryUs) {
         s_.nextSummaryUs = now + uint64_t(s_.plan.summaryS) * 1000000u;

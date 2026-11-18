@@ -73,8 +73,8 @@ const ConsoleCommand commands[] = {
      "List implemented routes and exact remaining gates.", nullptr, 40},
     {"status", "status", "ProbeApp::selected/readContext; owner.resources", "cached evidence",
      E::CACHE, C::REPLY, "Inspect separate cached application and read facts.", nullptr, 40},
-    {"health", "health", "ProbeApp::health", "selected binding", E::CACHE, C::REPLY,
-     "Inspect cached communication health without a read.", nullptr, 40},
+    {"health", "health [link]", "ProbeApp::health", "selected binding", E::CACHE, C::REPLY,
+     "Inspect cached health; link shows route reuse and presence observations.", nullptr, 40},
     {"stats", "stats [reset]", "CanBusOwner::stats/clearStats", "interface counters",
      E::HOST_CONFIGURATION, C::REPLY, "Inspect counters; reset clears totals only.", nullptr, 40},
     {"drv", "drv", "CanBusOwner::resources; ProbePlatform::stats", "cached resources", E::CACHE,
@@ -272,9 +272,37 @@ const ConsoleCommand commands[] = {
      E::HOST_CONFIGURATION, C::REPLY, "No console-created qualification.",
      "Native start/reverse/stop qualification requires exact firmware evidence supplied by the "
      "application.",
-     42}};
+     42},
+    {"reuse", "reuse | reuse none|marker|nomarker | reuse budget QUEUE_US RESPONSE_US | reuse accept",
+     "CanBusOwner::sdoReuse/setSdoReuse/reacceptReuse", "selected binding's SDO route",
+     E::HOST_CONFIGURATION, C::REPLY,
+     "Inspect or set route reuse and marker budgets (0 inherits); accept lets the owner read one marker.",
+     nullptr, 55},
+    {"txlifetime", "txlifetime [MICROSECONDS]", "CanBusOwner::txLifetimeUs/setTxLifetime",
+     "interface-wide TX lifetime; 0 disables", E::HOST_CONFIGURATION, C::REPLY,
+     "Inspect or set when an unreported frame counts as expired; nothing is resent.", nullptr,
+     55}};
 bool equal(const char* a, const char* b) {
     return !std::strcmp(a, b);
+}
+const char* reuseLabel(O::SdoReusePolicy policy) {
+    switch (policy) {
+    case O::SdoReusePolicy::NONE: return "NONE";
+    case O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER: return "ACCEPTED_RISK_WITH_MARKER";
+    case O::SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER: return "ACCEPTED_RISK_WITHOUT_MARKER";
+    }
+    return "UNKNOWN";
+}
+// Prompt 55's own class letters, which keep every terminal within its record capacity: N
+// NOT_REPEATABLE, R REPEATABLE_READ, W IDEMPOTENT_SETTING, M MOTION_LIKE.
+const char* retryLabel(M::RetryClass value) {
+    switch (value) {
+    case M::RetryClass::NOT_REPEATABLE: return "N";
+    case M::RetryClass::REPEATABLE_READ: return "R";
+    case M::RetryClass::IDEMPOTENT_SETTING: return "W";
+    case M::RetryClass::MOTION_LIKE: return "M";
+    }
+    return "?";
 }
 const char* syncOutcomeLabel(N::SyncOutcome outcome) {
     switch (outcome) {
@@ -988,6 +1016,8 @@ void ProbeConsole::poll(uint64_t now) noexcept {
             uint64_t completed = now;
             uint32_t abortCode = 0;
             bool abortKnown = false;
+            bool readFacts = false, accepted = false;
+            M::RetryClass retry = M::RetryClass::NOT_REPEATABLE;
             if (op.recovery) {
                 const O::RecoveryCompletion* terminal = owner_.recoveryResult(op.recoveryId);
                 if (!terminal)
@@ -1162,6 +1192,9 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                     completed = read.servicedUs;
                     abortKnown = read.evidencePresent && read.evidence.abortValid;
                     abortCode = read.evidence.abortCode;
+                    readFacts = true;
+                    retry = read.retryClass;
+                    accepted = read.evidencePresent && read.evidence.acceptedCorrelation;
                 }
             }
             if (op.monitor && device_ && !device_->monitoring() &&
@@ -1185,6 +1218,24 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 body.add("%lu", static_cast<unsigned long>(abortCode));
             else
                 body.add("null");
+            if (readFacts && !op.capture) {
+                // Prompt 55: the class an application's repeat policy may use (the library never
+                // repeats), the binding's reuse policy when this terminal was recorded, and whether
+                // the reply's correlation rests on an accepted reopening. A capture's terminal keeps
+                // its acquisition fields instead, within the record capacity; its retained record
+                // holds every owner terminal with these facts.
+                O::SdoReusePolicy policy = O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER;
+                O::SdoReuse reuse;
+                const bool policyKnown = owner_.sdoReuse(app_.readContext().target.channel.binding, reuse);
+                if (policyKnown)
+                    policy = reuse.policy;
+                body.add(op.json ? ",\"retry_class\":\"%s\",\"reuse_policy\":" : " retry_class=%s reuse_policy=",
+                         retryLabel(retry));
+                body.add(policyKnown ? (op.json ? "\"%s\"" : "%s") : (op.json ? "null" : "unknown"),
+                         reuseLabel(policy));
+                body.add(op.json ? ",\"accepted_correlation\":%s" : " accepted_correlation=%s",
+                         boolean(accepted));
+            }
             if (op.sync && sync_ && sync_->retained() &&
                 sync_->context().options.generation == op.nativeOperation) {
                 const auto& result = sync_->context();
@@ -1205,10 +1256,10 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 settings_->context().operation == op.nativeOperation) {
                 const auto& settings = settings_->context();
                 body.add(",\"confirmed_mask\":%u,\"changed_mask\":%u,\"effects_possible\":%s,"
-                         "\"native_outcome_code\":%u,\"status_detail\":%ld",
+                         "\"native_outcome_code\":%u,\"status_detail\":%ld,\"retry_class\":\"%s\"",
                          unsigned(settings.confirmed), unsigned(settings.changed),
                          boolean(settings.effectsPossible), unsigned(settings.outcome),
-                         static_cast<long>(settings.status.detail));
+                         static_cast<long>(settings.status.detail), retryLabel(settings.retryClass));
             }
             if (op.commissioning && commissioning_ && commissioning_->retained() &&
                 (commissioning_->communication() ? commissioning_->communication()->operation
@@ -1217,19 +1268,21 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                                                  : 0) == op.nativeOperation) {
                 if (const auto* c = commissioning_->communication())
                     body.add(",\"write_acknowledged\":%s,\"readback_matched\":%s,\"restart\":null,"
-                             "\"persistent\":null,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             "\"persistent\":null,\"native_outcome_code\":%u,\"status_detail\":%ld,"
+                             "\"retry_class\":\"%s\"",
                              boolean(c->writeAcknowledged), boolean(c->readbackMatched),
-                             unsigned(c->outcome), static_cast<long>(c->status.detail));
+                             unsigned(c->outcome), static_cast<long>(c->status.detail), retryLabel(c->retryClass));
                 else if (const auto* c = commissioning_->persistence())
                     body.add(",\"execution_code\":%u,\"attempts\":%u,\"durability_known\":false,"
-                             "\"restart\":null,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             "\"restart\":null,\"native_outcome_code\":%u,\"status_detail\":%ld,"
+                             "\"retry_class\":\"%s\"",
                              unsigned(c->execution), unsigned(c->attempts), unsigned(c->outcome),
-                             static_cast<long>(c->status.detail));
+                             static_cast<long>(c->status.detail), retryLabel(c->retryClass));
                 else if (const auto* c = commissioning_->pdo())
                     body.add(",\"acknowledged_mask\":%u,\"map_confirmed\":%s,\"samples_qualified\":"
-                             "false,\"native_outcome_code\":%u,\"status_detail\":%ld",
+                             "false,\"native_outcome_code\":%u,\"status_detail\":%ld,\"retry_class\":\"%s\"",
                              unsigned(c->acknowledgedMask), boolean(c->mapConfirmed),
-                             unsigned(c->outcome), static_cast<long>(c->status.detail));
+                             unsigned(c->outcome), static_cast<long>(c->status.detail), retryLabel(c->retryClass));
             }
             if (op.capture && device_ && device_->evidence() && device_->evidence()->record() &&
                 device_->evidence()->record()->plan.id == op.nativeOperation) {
@@ -1371,11 +1424,107 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
         dispatchMotion(line, now);
         return;
     }
+    if (equal(name, "reuse") || equal(name, "txlifetime")) {
+        dispatchLink(line, now);
+        return;
+    }
     if (index > MEMORY) {
         dispatchDevice(line, now);
         return;
     }
     dispatchLocal(line, now, index);
+}
+// Prompt 55 settings: each calls the owner API only, sends nothing itself and decides nothing.
+void ProbeConsole::dispatchLink(const ConsoleLine& line, uint64_t now) noexcept {
+    const bool json = line.json;
+    const uint32_t id = line.id;
+    const char* name = line.token(0);
+    const size_t count = line.count;
+    const auto reject = [&](const char* reason) {
+        increment(stats_.invalid);
+        error(id, json, name, reason);
+    };
+    Text text;
+    text.start(json, id, "reply", name);
+    if (json)
+        text.add(",\"ok\":true,\"status\":\"OK\"");
+    else
+        text.add("OK ");
+    if (equal(name, "txlifetime")) {
+        uint32_t lifetime = 0;
+        if (count > 2 || (count == 2 && (!unsignedDecimal(line.token(1), lifetime) ||
+                                         lifetime > TX_LIFETIME_MAXIMUM_US))) {
+            reject("invalid_arguments");
+            return;
+        }
+        if (count == 2 && !owner_.setTxLifetime(lifetime, now)) {
+            reject("busy");
+            return;
+        }
+        const O::OwnerResources resources = owner_.resources();
+        text.add(json ? ",\"tx_lifetime_us\":\"%llu\",\"no_listener\":%s,\"tx_expired\":%u,"
+                        "\"tx_expired_total\":%lu"
+                      : "txLifetimeUs=%llu noListener=%s txExpired=%u txExpiredTotal=%lu",
+                 static_cast<unsigned long long>(owner_.txLifetimeUs()), boolean(owner_.noListener()),
+                 unsigned(resources.txExpired), static_cast<unsigned long>(owner_.stats().txExpired));
+    } else {
+        const L::ReadTarget* selected = app_.selected();
+        O::SdoReuse reuse;
+        const bool budget = count == 4 && equal(line.token(1), "budget");
+        if ((count > 2 && !budget) || !selected || !owner_.sdoReuse(selected->channel.binding, reuse)) {
+            reject(!selected || count <= 2 || budget ? "no_binding" : "invalid_arguments");
+            return;
+        }
+        if (count >= 2) {
+            const char* word = line.token(1);
+            bool done = false;
+            uint32_t queue = 0, response = 0;
+            if (budget) {
+                // The owner's marker budgets; zero inherits the route's last request's budget.
+                if (!unsignedDecimal(line.token(2), queue) || !unsignedDecimal(line.token(3), response) ||
+                    queue > TX_LIFETIME_MAXIMUM_US || response > TX_LIFETIME_MAXIMUM_US) {
+                    reject("invalid_arguments");
+                    return;
+                }
+                reuse.markerQueueTimeoutUs = queue;
+                reuse.markerResponseTimeoutUs = response;
+                done = owner_.setSdoReuse(selected->channel.binding, reuse, now);
+            } else if (equal(word, "accept")) {
+                done = owner_.reacceptReuse(selected->channel.binding, now);
+            } else if (equal(word, "none") || equal(word, "marker") || equal(word, "nomarker")) {
+                reuse.policy = equal(word, "none")     ? O::SdoReusePolicy::NONE
+                               : equal(word, "marker") ? O::SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER
+                                                       : O::SdoReusePolicy::ACCEPTED_RISK_WITHOUT_MARKER;
+                done = owner_.setSdoReuse(selected->channel.binding, reuse, now);
+            } else {
+                reject("invalid_arguments");
+                return;
+            }
+            if (!done) {
+                reject("refused");
+                return;
+            }
+            owner_.sdoReuse(selected->channel.binding, reuse);
+        }
+        O::Health health;
+        const bool known = owner_.health(selected->channel.binding, health);
+        text.add(json ? ",\"reuse_policy\":\"%s\",\"markers\":[" : "reusePolicy=%s markers=",
+                 reuseLabel(reuse.policy));
+        for (unsigned i = 0; i < reuse.markerCount && i < O::SdoReuse::MARKER_OBJECTS; ++i)
+            text.add(json ? "%s\"%04x:%02x\"" : "%s%04x:%02x", i ? "," : "", unsigned(reuse.markers[i].index),
+                     unsigned(reuse.markers[i].subindex));
+        text.add(json ? "],\"marker_queue_us\":\"%lu\",\"marker_response_us\":\"%lu\",\"reuse_stopped\":%s,"
+                        "\"resync_pending\":%s,\"accepted_correlation\":%s"
+                      : " markerQueueUs=%lu markerResponseUs=%lu reuseStopped=%s resyncPending=%s "
+                        "acceptedCorrelation=%s",
+                 static_cast<unsigned long>(reuse.markerQueueTimeoutUs),
+                 static_cast<unsigned long>(reuse.markerResponseTimeoutUs),
+                 boolean(known && health.reuseStopped), boolean(known && health.resyncPending),
+                 boolean(known && health.acceptedCorrelation));
+    }
+    text.end(json);
+    if (text.valid)
+        enqueue(text.bytes, false, id);
 }
 void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t index) noexcept {
     const bool json = line.json;
@@ -1539,7 +1688,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
         break;
     }
     case HEALTH: {
-        if (count != 1) {
+        const bool link = count == 2 && equal(line.token(1), "link");
+        if (count != 1 && !link) {
             reject("invalid_arguments");
             return;
         }
@@ -1549,6 +1699,33 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
         if (!known) {
             text.add(json ? ",\"known\":false,\"state\":null"
                           : "unknown binding; health unavailable");
+            break;
+        }
+        if (link) {
+            // Prompt 55 observations, kept apart so that each record stays within its capacity:
+            // the binding's reuse setting and presence inputs. The owner decides nothing from them.
+            const auto time = [&](const char* key, bool present, uint64_t value) {
+                if (json)
+                    text.add(present ? ",\"%s\":\"%llu\"" : ",\"%s\":null", key,
+                             static_cast<unsigned long long>(value));
+                else if (present)
+                    text.add(" %s=%llu", key, static_cast<unsigned long long>(value));
+                else
+                    text.add(" %s=unknown", key);
+            };
+            text.add(json ? ",\"known\":true,\"reusePolicy\":\"%s\",\"reuseStopped\":%s,\"resyncPending\":"
+                            "%s,\"acceptedCorrelation\":%s,\"noListener\":%s"
+                          : "reusePolicy=%s reuseStopped=%s resyncPending=%s acceptedCorrelation=%s "
+                            "noListener=%s",
+                     reuseLabel(health.reusePolicy), boolean(health.reuseStopped),
+                     boolean(health.resyncPending), boolean(health.acceptedCorrelation),
+                     boolean(health.noListener));
+            time("lastResponseUs", health.lastResponseKnown, health.lastResponseUs);
+            time("lastHeartbeatUs", health.lastHeartbeatKnown, health.lastHeartbeatUs);
+            text.add(json ? ",\"bootUps\":%lu" : " bootUps=%lu", static_cast<unsigned long>(health.bootUps));
+            time("lastBootUpUs", health.lastBootUpKnown, health.lastBootUpUs);
+            text.add(json ? ",\"consecutiveNoResponse\":%u" : " consecutiveNoResponse=%u",
+                     unsigned(health.consecutiveNoResponse));
             break;
         }
         const char* states[] = {"UNINIT", "READY", "DEGRADED", "OFFLINE"};
@@ -1593,10 +1770,11 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
         // A positional array keeps the complete named contract within one bounded record.
         text.add(
             json ? ",\"counters\":[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
-                   "\"maxServiceGapUs\":\"%llu\""
+                   "\"maxServiceGapUs\":\"%llu\",\"markers\":%lu,\"reuseStopped\":%lu,\"txExpired\":%lu"
                  : "tx=%lu rx=%lu txRejected=%lu rxDropped=%lu rxLost=%lu unmatched=%lu "
                    "queueRejected=%lu resultsRejected=%lu cancelled=%lu timeouts=%lu busOff=%lu "
-                   "recoveries=%lu traceOverwritten=%lu consoleDropped=%lu maxGapUs=%llu",
+                   "recoveries=%lu traceOverwritten=%lu consoleDropped=%lu maxGapUs=%llu markers=%lu "
+                   "reuseStopped=%lu txExpired=%lu",
             static_cast<unsigned long>(s.txFrames), static_cast<unsigned long>(s.rxFrames),
             static_cast<unsigned long>(s.txRejected), static_cast<unsigned long>(s.rxDropped),
             static_cast<unsigned long>(s.rxLost), static_cast<unsigned long>(s.unmatchedFrames),
@@ -1606,7 +1784,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             static_cast<unsigned long>(s.recoveries),
             static_cast<unsigned long>(s.traceOverwritten),
             static_cast<unsigned long>(stats_.outputDropped),
-            static_cast<unsigned long long>(s.maxServiceGapUs));
+            static_cast<unsigned long long>(s.maxServiceGapUs), static_cast<unsigned long>(s.markers),
+            static_cast<unsigned long>(s.reuseStopped), static_cast<unsigned long>(s.txExpired));
         break;
     }
     case DRV:
@@ -1620,13 +1799,15 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
         if (command == DRV) {
             const auto io = platform_.stats();
             text.add(json ? ",\"queued\":%u,\"active\":%u,\"retained\":%u,\"reservations\":%u,"
-                            "\"inputDropped\":%lu,\"outputRejected\":%lu,\"consoleDropped\":%lu"
+                            "\"inputDropped\":%lu,\"outputRejected\":%lu,\"consoleDropped\":%lu,"
+                            "\"noListener\":%s,\"txExpired\":%u"
                           : "queued=%u active=%u retained=%u reservations=%u inputDropped=%lu "
-                            "outputRejected=%lu consoleDropped=%lu",
+                            "outputRejected=%lu consoleDropped=%lu noListener=%s txExpired=%u",
                      unsigned(r.queued), unsigned(r.active), unsigned(r.retained),
                      unsigned(r.reservations), static_cast<unsigned long>(io.inputDropped),
                      static_cast<unsigned long>(io.outputRejected),
-                     static_cast<unsigned long>(stats_.outputDropped));
+                     static_cast<unsigned long>(stats_.outputDropped), boolean(r.noListener),
+                     unsigned(r.txExpired));
         } else
             text.add(json ? ",\"app_bytes\":\"%llu\",\"owner_bytes\":\"%llu\",\"console_bytes\":\"%"
                             "llu\",\"platform_bytes\":\"%llu\",\"line_capacity\":256,\"record_"
@@ -2030,6 +2211,22 @@ void ProbeConsole::captureDiagnostics() noexcept {
         saved.processedUs = copy.processedUs;
         saved.id = copy.frame.id;
         std::memcpy(saved.data, copy.frame.data, sizeof saved.data);
+        // Kinds without a frame keep their own fields in the unused bytes (prompt 55): the resync
+        // step and channel, the NO_LISTENER edge, the recovery outcome and its causes.
+        if (copy.kind == O::DiagnosticKind::RESYNC) {
+            saved.data[0] = uint8_t(copy.resync);
+            saved.data[1] = copy.channel;
+        } else if (copy.kind == O::DiagnosticKind::LISTENER) {
+            saved.data[0] = copy.noListener ? 1 : 0;
+        } else if (copy.kind == O::DiagnosticKind::RECOVERY) {
+            saved.data[0] = uint8_t(copy.recovery);
+            saved.data[1] = uint8_t(unsigned(copy.recoveryCauses.busOff) |
+                                    unsigned(copy.recoveryCauses.receiveLost) << 1 |
+                                    unsigned(copy.recoveryCauses.txExpired) << 2);
+        } else if (copy.kind == O::DiagnosticKind::TX_EXPIRED) {
+            saved.data[0] = uint8_t(copy.txId.kind);
+            saved.data[1] = copy.txId.sdo.request.channel;
+        }
         saved.kind = uint8_t(copy.kind);
         saved.dlc = copy.frame.dlc;
         saved.payloadLength = copy.frame.payloadLength;
@@ -2077,6 +2274,16 @@ void ProbeConsole::diagnostic(uint64_t) noexcept {
         bool(N::checkNetworkEvent(frame, selected->route, selected->route.binding,
                                   selected->route.generation, event));
     text.add("\",\"decoded\":%s", boolean(decoded));
+    if (copy.kind == unsigned(O::DiagnosticKind::RESYNC))
+        text.add(",\"resync_step\":%u,\"channel\":%u", unsigned(copy.data[0]), unsigned(copy.data[1]));
+    else if (copy.kind == unsigned(O::DiagnosticKind::LISTENER))
+        text.add(",\"no_listener\":%s", boolean(copy.data[0] != 0));
+    else if (copy.kind == unsigned(O::DiagnosticKind::RECOVERY))
+        text.add(",\"recovery\":%u,\"causes\":{\"bus_off\":%s,\"receive_lost\":%s,\"tx_expired\":%s}",
+                 unsigned(copy.data[0]), boolean(copy.data[1] & 1), boolean(copy.data[1] & 2),
+                 boolean(copy.data[1] & 4));
+    else if (copy.kind == unsigned(O::DiagnosticKind::TX_EXPIRED))
+        text.add(",\"tx_kind\":%u,\"channel\":%u", unsigned(copy.data[0]), unsigned(copy.data[1]));
     if (decoded) {
         text.add(",\"event_kind\":%u", unsigned(event.kind));
         if (event.kind == N::NetworkEventKind::EMCY)

@@ -523,6 +523,9 @@ M::ActionOutcome expectedOutcome(Point p, Cut cut) {
 }
 void matrixCase(Point p, bool handedOff, Cut cut) {
     Rig r;
+    // The matrix accounts for every frame of an interrupted move, so a missing reply leaves the
+    // route quarantined as before prompt 55; mutedRouteResync runs the owner's default reuse.
+    r.keepQuarantine();
     r.drive.travelReads = 2; // Cycle 1 accepts, cycle 2 still moves, cycle 3 completes.
     r.ready();
     r.drive.position = 700;
@@ -578,6 +581,10 @@ void matrixCase(Point p, bool handedOff, Cut cut) {
     CHECK(triggers == 1 || p <= Point::POSSIBLE_TRIGGER);
     for (unsigned k = 0; k < 4; ++k)
         CHECK(downloadsFrom(r, start, SETUP[k]) <= 1);
+    // Only a missing reply's response timeout sends a cleanup abort: exactly one, naming the request
+    // that timed out (prompt 55), which is no download, and no marker read follows under NONE.
+    CHECK(onlyTimeoutAborts(r, start) == (cut == Cut::MISSING ? 1u : 0u));
+    CHECK(r.owner.stats().markers == 0);
     // Earlier, possibly executed work stays in the record.
     for (unsigned k = 0; k < 4; ++k)
         if (setupBefore & (1u << k))
@@ -1006,6 +1013,70 @@ void ambiguousLateAck() {
     stop.unchanged(r.a.bestEffort());
     CHECK(wordsFrom(r, first, 0x005f) == 1 && wordsFrom(r, first, 0x000b) == 1);
     CHECK(!r.relative(witness(r, 900), relEvidence(), relRequest(900)));
+    // Prompt 55, the owner's default reuse (ACCEPTED_RISK_WITH_MARKER): after the trigger come
+    // exactly its one cleanup abort, handed off in the timeout turn and so still ahead of the
+    // stop, then the stop. The accepted best-effort stop ended the node's pending resync: no
+    // marker follows it, even after its result is released, because the stop's own reply could
+    // still confirm a later 6040 write; reopening is explicit intent. The late ACK, received
+    // while the route was unresolved, is absorbed. The move and the stop keep their records; no
+    // word is sent again.
+    unsigned trigger = first;
+    while (trigger < r.wire.sentCount && !wordAt(r, trigger, 0x005f))
+        ++trigger;
+    CHECK(r.wire.sentCount == trigger + 3);
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[trigger + 1], 0x601, 0x6040));
+    CHECK(wordAt(r, trigger + 2, 0x000b) && r.sentAt[trigger + 2] > r.sentAt[trigger + 1]);
+    CHECK(r.drive.clientAborts == 1 && r.owner.stats().markers == 0 && r.owner.stats().reuseStopped == 0);
+    O::Health health;
+    CHECK(r.owner.health(target().channel.binding, health));
+    CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
+    CHECK(!health.acceptedCorrelation && !health.resyncPending && !health.reuseStopped);
+    CHECK(r.a.moveFenced() && c.uncertain && c.execution == M::ActionExecution::UNKNOWN);
+    move.unchanged(c);
+    stop.unchanged(r.a.bestEffort());
+    quiet(r);
+}
+
+// 12a. Prompt 55, the owner's default reuse with a drive that stays silent: the trigger's timeout
+// sends one cleanup abort, then one marker read of 1000:00, which goes unanswered too and ends with
+// its own cleanup abort. No second marker follows by itself, the route stays unresolved and
+// unmarked, and nothing of the move is sent again.
+void toNotedTrigger(Rig& r);
+void mutedRouteResync() {
+    scenario = "muted route resync";
+    Rig r;
+    r.drive.travelReads = 1000000;
+    r.ready();
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(900)).isOk());
+    const unsigned first = r.startFrame;
+    toNotedTrigger(r);
+    r.drive.mute = true; // Acts on every frame from here; every reply is lost.
+    r.finishMove();
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.outcome == M::ActionOutcome::SERVICE_TIMEOUT && c.execution == M::ActionExecution::UNKNOWN);
+    CHECK(c.trigger.transmissionPossible && c.trigger.clientAbortQueued && c.uncertain && r.a.moveFenced());
+    const Saved<L::MoveContext> move(c);
+    for (unsigned k = 0; k < 40; ++k)
+        r.step();
+    unsigned trigger = first;
+    while (trigger < r.wire.sentCount && !wordAt(r, trigger, 0x005f))
+        ++trigger;
+    CHECK(r.wire.sentCount == trigger + 4);
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[trigger + 1], 0x601, 0x6040));
+    CHECK(OwnerRig::isMarkerRead(r.wire.sent[trigger + 2], 0x601, 0x1000, 0));
+    CHECK(OwnerRig::isTimeoutAbort(r.wire.sent[trigger + 3], 0x601, 0x1000, 0));
+    // The marker has the route's last request budgets; nothing extends the move's deadline.
+    CHECK(r.sentAt[trigger + 3] - r.sentAt[trigger + 2] == RESPONSE);
+    CHECK(r.drive.clientAborts == 2 && r.owner.stats().markers == 1 && r.owner.stats().reuseStopped == 0);
+    O::Health health;
+    CHECK(r.owner.health(target().channel.binding, health));
+    CHECK(r.services.unresolved(0) && !health.acceptedCorrelation && !health.resyncPending);
+    CHECK(health.consecutiveNoResponse == 2); // The trigger and the marker; an observation only.
+    move.unchanged(c);
+    CHECK(wordsFrom(r, first, 0x005f) == 1 && r.drive.edges == 1 && !wordsFrom(r, first, 0x000f));
+    CHECK(!r.relative(witness(r, 900), relEvidence(), relRequest(900)));
+    quiet(r);
+    move.unchanged(c);
 }
 
 // 13. Bus-off during a move, a held stop, one explicit recovery: one 000B, and nothing resumes.
@@ -1126,6 +1197,8 @@ void rearmNoRetry() {
     scenario = "relative rearm";
     for (unsigned lost = 0; lost < 2; ++lost) {
         Rig r;
+        if (lost) // Counts every frame after the lost reply: the route stays quarantined.
+            r.keepQuarantine();
         r.ready();
         (lost ? r.drive.silentIndex : r.drive.abortIndex) = 0x6040;
         (lost ? r.drive.silentWord : r.drive.abortWord) = 0x000f;
@@ -1135,8 +1208,12 @@ void rearmNoRetry() {
         CHECK(c.completion == M::ActionCompletion::OBSERVED && c.execution == M::ActionExecution::ACKNOWLEDGED);
         CHECK(c.outcome == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::PROTOCOL_REJECTED));
         CHECK(c.uncertain && !r.a.moveFenced() && wordsFrom(r, r.startFrame, 0x000f) == 1);
+        // The lost reply's one cleanup abort names 6040 and is no word; a server abort needs none.
+        CHECK(abortsFrom(r, r.startFrame, 0x6040) == lost && onlyTimeoutAborts(r, r.startFrame) == lost);
         quiet(r);
         CHECK(wordsFrom(r, r.startFrame, 0x000f) == 1);
+        CHECK(r.drive.clientAborts == lost && r.owner.stats().markers == 0);
+        CHECK(r.services.unresolved(0) == (lost != 0));
     }
 }
 
@@ -1611,6 +1688,7 @@ void emcyBeforeHandover(EmcyAt at) {
     r.drive.travelReads = 1;
     r.ready();
     if (at == EmcyAt::REARM_LOST) { // The rearm's reply is lost; ready()'s own 000F was answered.
+        r.keepQuarantine(); // Its route stays unresolved: no usable reservation follows.
         r.drive.silentIndex = 0x6040;
         r.drive.silentWord = 0x000f;
     }
@@ -1702,8 +1780,12 @@ void emcyBeforeHandover(EmcyAt at) {
         CHECK(!wordsFrom(r, beforeFault, 0x000f)); // Nothing trails the fault.
     // The owner's store still holds that EMCY, and no later frame replaced it.
     CHECK(r.services.node(0)->emcyCount == emcys + 1 && r.services.node(0)->emcy.manufacturer[4] == 0x5a);
+    // Only the lost rearm's response timeout sends its one cleanup abort, naming 6040.
+    CHECK(onlyTimeoutAborts(r, start) == (at == EmcyAt::REARM_LOST ? 1u : 0u));
+    CHECK(abortsFrom(r, start, 0x6040) == (at == EmcyAt::REARM_LOST ? 1u : 0u));
     const Saved<L::MoveContext> ended(c);
     quiet(r);
+    CHECK(r.owner.stats().markers == 0);
     // The fence: the admission read from before the fault, and then a clean fresh read after the alarm
     // has gone, admit no new move.
     const M::Status stale = r.relative(witness(r, 600), relEvidence(), relRequest(600));
@@ -1877,6 +1959,7 @@ void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
                   admissionRead ? "the admission read" : "the move's last cycle");
     scenario = name;
     Rig r;
+    r.keepQuarantine(); // The unresolved route is this case's subject; every later frame is counted.
     r.drive.travelReads = 1000000;
     if (!acted) {
         r.drive.silentIndex = 0x6040;
@@ -1904,6 +1987,9 @@ void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
     // standstill acknowledgement (acknowledgeStandstill). A witness of the drive's present position
     // changes neither.
     const unsigned before = r.wire.sentCount;
+    // The timeout's one cleanup abort, naming 6040, left in its own turn, right after the trigger.
+    CHECK(wordAt(r, before - 2, 0x005f) && OwnerRig::isTimeoutAbort(r.wire.sent[before - 1], 0x601, 0x6040));
+    CHECK(c.trigger.clientAbortQueued && !c.trigger.abortValid);
     const M::Status again = r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900));
     CHECK(!again && again.code == M::Err::INVALID_CONFIG && again.detail == int32_t(M::MoveError::TARGET));
     CHECK(again.msg && std::strstr(again.msg, "no usable reservation"));
@@ -1934,6 +2020,8 @@ void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
     CHECK(r.a.moveFenced() && !r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900)));
     quiet(r);
     ended.unchanged(c);
+    // Still the trigger's one abort; the best-effort 000B gets none (DEC-2), and no marker follows.
+    CHECK(onlyTimeoutAborts(r, start) == 1 && r.drive.clientAborts == 1 && r.owner.stats().markers == 0);
 }
 void lostTriggerThenStop() {
     const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
@@ -2724,6 +2812,7 @@ void runAll() {
         urgentBesideOtherNode();
     }
     ambiguousLateAck();
+    mutedRouteResync();
     explicitRecovery();
     repeatedValues();
     partialSetup();

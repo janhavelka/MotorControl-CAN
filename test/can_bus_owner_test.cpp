@@ -736,6 +736,10 @@ void lostWriteCannotConfirmDifferentValue() {
     r.turn(100); // Lost reply: the exact response cutoff closes this write.
     CHECK(r.done(original).service.outcome == C::SdoOutcome::TIMEOUT);
     CHECK(r.done(original).service.effectUncertain && r.services.unresolved(0));
+    // Prompt 55: one cleanup abort 0x05040000 naming the write's object, never the write again.
+    const uint8_t abort[8] = {0x80, 0x40, 0x60, 0x00, 0x00, 0x00, 0x04, 0x05};
+    CHECK(r.fake.sentCount == 2 && r.fake.sent[1].id == 0x601 && !std::memcmp(r.fake.sent[1].data, abort, 8));
+    CHECK(r.done(original).service.clientAbortQueued && !r.done(original).service.abortValid);
     const Saved<O::Completion> retained(r.done(original));
     work.transfer.step = 2;
     work.transfer.data[0] = 0x1f; // Same object, different new intent.
@@ -745,14 +749,18 @@ void lostWriteCannotConfirmDifferentValue() {
     CHECK(refused.generation == 123);
     r.fake.push(response(1, 0x6040, 2, 0, true), 101); // ACK echoes no written value.
     r.turn(101);
-    CHECK(r.fake.sentCount == 1 && r.services.unresolved(0));
+    // The default reuse policy's one marker reads 1000:00, a different object. The late ACK
+    // named the retained 6040:00, so it confirmed nothing and the route stays unresolved.
+    const uint8_t marker[8] = {0x40, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
+    CHECK(r.fake.sentCount == 3 && !std::memcmp(r.fake.sent[2].data, marker, 8));
+    CHECK(r.services.unresolved(0) && r.owner.stats().markers == 1);
     retained.unchanged(r.done(original));
     CHECK(r.owner.release(original));
     CHECK(r.owner.admit(work, r.now, refused) == O::BusAdmission::INVALID);
     CHECK(!r.owner.result(original) && refused.generation == 123);
-    r.fake.push(response(1, 0x6040, 2, 0, true), 102);
+    r.fake.push(response(1, 0x6040, 2, 0, true), 102); // Absorbed by the marker: a retained pair.
     r.turn(102);
-    CHECK(r.fake.sentCount == 1 && r.services.unresolved(0));
+    CHECK(r.fake.sentCount == 3 && r.services.unresolved(0));
 }
 
 void invalidAdmissionSequenceAndIdExhaustion() {
@@ -1333,13 +1341,17 @@ void checkFailedControlRetention(Rig& r, O::SequenceId sequence, O::RequestId fa
     CHECK(!L::getControl(settings, r.fake.reservation, current, r.now, 1000, output));
     oldOutput.unchanged(output);
     CHECK(r.fake.current.configurationGeneration == 8 && r.fake.guards == 1);
-    unsigned downloads = 0, reads = 0;
+    unsigned downloads = 0, reads = 0, markers = 0;
     for (unsigned i = 0; i < r.fake.sentCount; ++i) {
         const M::Frame& sent = r.fake.sent[i];
         if (sent.id != 0x601)
             continue;
         if (sent.data[0] == 0x80)
             continue; // Native abort cleanup is neither a setting nor a replay.
+        if (sent.data[0] == 0x40 && sent.data[2] == 0x10 && sent.data[1] == 0x00 && sent.data[3] == 0) {
+            ++markers; // The owner's resync marker reads 1000:00 (prompt 55): not a setting either.
+            continue;
+        }
         CHECK(sent.data[2] == 0x25 && sent.data[1] <= 1 && sent.data[3] == 0);
         if (sent.data[0] == 0x40)
             ++reads;
@@ -1349,7 +1361,7 @@ void checkFailedControlRetention(Rig& r, O::SequenceId sequence, O::RequestId fa
             ++downloads;
         }
     }
-    CHECK(downloads == 1 && reads == uploads);
+    CHECK(downloads == 1 && reads == uploads && markers == r.owner.stats().markers);
     CHECK(r.owner.release(failed) && !r.owner.result(failed));
     CHECK(r.owner.releaseSequence(sequence));
 }

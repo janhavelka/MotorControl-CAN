@@ -11,6 +11,10 @@ bool sameIdentity(const Binding& a, const Binding& b) {
     candidate.configurationGeneration = b.configurationGeneration;
     return MotorControlCAN::sameBinding(candidate, b);
 }
+bool sameNode(const Binding& a, const Binding& b) {
+    return a.endpoint.protocol == b.endpoint.protocol && a.endpoint.bus == b.endpoint.bus &&
+           a.endpoint.address == b.endpoint.address;
+}
 MotorControlCAN::Status failure(C::SdoOutcome outcome) {
     using MotorControlCAN::Err;
     const Err code = outcome == C::SdoOutcome::SERVER_ABORT   ? Err::PROTOCOL_ERROR
@@ -117,6 +121,46 @@ void CanBusOwner::refreshHealth(uint64_t now) noexcept {
                        : health.consecutiveFailures ? DriverState::DEGRADED
                        : evidence                   ? DriverState::READY
                                                     : DriverState::UNINIT;
+        health.reusePolicy = resync_[i].reuse.policy;
+        health.reuseStopped = route && services_.reuseRefused(uint8_t(i));
+        health.resyncPending = route && resync_[i].pending;
+        health.acceptedCorrelation = route && markActive(i);
+        health.noListener = noListener_;
+    }
+}
+// Observations only: the owner changes no state, admission or policy from them.
+void CanBusOwner::observePresence(const ReceivedFrame& input, bool accepted, uint64_t now) noexcept {
+    const Frame& f = input.frame;
+    if (f.extended || f.rtr || f.fd)
+        return;
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
+        const auto* route = services_.channel(uint8_t(c));
+        const auto* node = services_.node(uint8_t(c));
+        const bool response = route && f.id == route->serverToClientId;
+        // The adapter accepted it as a checked boot-up (state byte 0) or heartbeat.
+        const bool network = !response && node && accepted && f.id == node->route.heartbeatId &&
+                             f.payloadLength == 1;
+        if (!response && !network)
+            continue;
+        const Binding& origin = route ? route->binding : node->route.binding;
+        for (HealthRecord& record : health_) {
+            if (!record.bound || !sameNode(record.binding, origin))
+                continue;
+            Health& health = record.value;
+            if (response) {
+                health.lastResponseUs = now;
+                health.lastResponseKnown = true;
+                health.consecutiveNoResponse = 0;
+            } else if (f.data[0] == 0) {
+                detail::add(health.bootUps);
+                health.lastBootUpUs = now;
+                health.lastBootUpKnown = true;
+            } else {
+                health.lastHeartbeatUs = now;
+                health.lastHeartbeatKnown = true;
+            }
+        }
+        return; // Identifiers are unique on this interface, and peers share one node anchor.
     }
 }
 void CanBusOwner::recordTerminal(const Slot& slot) noexcept {
@@ -142,6 +186,15 @@ void CanBusOwner::recordTerminal(const Slot& slot) noexcept {
             health.lastError = failure(completion.service.outcome);
         }
     }
+    // A presence miss: an attempted service that timed out after possible TX. A best-effort
+    // stop's timeout means no TX report, so it is not counted.
+    if (index >= 0 && !slot.bestEffortStop && completion.reason == CompletionReason::SERVICE &&
+        completion.service.outcome == C::SdoOutcome::TIMEOUT &&
+        completion.service.transmissionPossible)
+        for (HealthRecord& record : health_)
+            if (record.bound &&
+                sameNode(record.binding, completion.service.transfer.channel.binding))
+                detail::add(record.value.consecutiveNoResponse);
     refreshHealth(lastUs_);
     Diagnostic record;
     record.kind = DiagnosticKind::TERMINAL;
@@ -238,6 +291,11 @@ OwnerResources CanBusOwner::resources() const noexcept {
     value.nmtRetained = nmtOccupied_ && services_.nmtResult(nmtId_);
     value.nmtPending = nmtOccupied_ && !value.nmtRetained;
     value.nmtTxPending = nmtExternal_.pending || nmtExternal_.blocked;
+    value.noListener = noListener_;
+    for (const ExternalTx& tx : external_)
+        value.txExpired = uint8_t(value.txExpired + (tx.pending && tx.expired ? 1 : 0));
+    value.txExpired = uint8_t(value.txExpired + (nmtExternal_.pending && nmtExternal_.expired ? 1 : 0) +
+                              (syncExternal_.pending && syncExternal_.expired ? 1 : 0));
     return value;
 }
 } // namespace MotorControlCANOwner

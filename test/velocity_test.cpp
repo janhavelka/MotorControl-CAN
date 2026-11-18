@@ -171,8 +171,10 @@ struct Rig {
         }
     }
     M::Status prepare(uint64_t deadline = DEADLINE) {
-        return L::prepareVelocity(context, live, target, initial, identity, evidence, request,
-                                  profile, axis, 42, now, deadline, options);
+        const M::Status s = L::prepareVelocity(context, live, target, initial, identity, evidence,
+                                               request, profile, axis, 42, now, deadline, options);
+        CHECK(!s || context.retryClass == M::RetryClass::MOTION_LIKE); // A velocity start is M.
+        return s;
     }
     void reject(uint64_t deadline = DEADLINE) {
         context.operation = 0xbeef;
@@ -919,6 +921,9 @@ void enableWindowThenRunning() {
     static L::ActionContext halt;
     CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, r.context.commandHistory[2],
                                  L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+    // The run's stop is its own N operation; the run stays M.
+    CHECK(halt.retryClass == M::RetryClass::NOT_REPEATABLE &&
+          r.context.retryClass == M::RetryClass::MOTION_LIKE);
     runStop(r, halt, 0x0001, 0x9437);
     CHECK(halt.state == M::ActionState::SUCCEEDED && halt.completion == M::ActionCompletion::OBSERVED);
     CHECK(L::advanceVelocityStop(r.context, halt, r.now));
@@ -1440,6 +1445,7 @@ void haltedVelocityQuickStop() {
         readStopState(r, state, HALTED);
         CHECK(L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, control, 44 + variant,
                                                 r.now, r.now + 500000, o));
+        CHECK(quick.retryClass == M::RetryClass::NOT_REPEATABLE);
         CHECK(quick.kind == L::StopKind::QUICK_STOP && quick.stopModeRaw == 3 && quick.predecessorWord == 0x010f &&
               !quick.predecessorDocumented && quick.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION &&
               quick.standstillObserving && quick.monitorObservation.monitor == 0x0001);

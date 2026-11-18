@@ -106,6 +106,12 @@ struct DriverSettingsContext {
     uint16_t confirmed = 0; ///< Individually acknowledged write fields, retained on later failure.
     uint64_t acknowledgedUs[9] = {}; ///< Per-confirmed-field processing time; zero valid.
     uint8_t cursor = 0;              ///< Current changed field; bounded by selected group's count.
+    /** IDEMPOTENT_SETTING once any of these preparations succeeds, the unchanged no-TX candidate
+     * included: each writes absolute level values, never an edge or trigger, and reads the whole
+     * group back. 2500 changes the loop at once (prepareControlSettings), but writing the same
+     * selector again leaves it as it was. readback.read.retryClass classifies the readback
+     * uploads alone. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     uint64_t startedUs = 0;          ///< Supplied preparation time.
     uint64_t deadlineUs = 0;         ///< Exclusive immutable overall deadline, never renewed.
     uint64_t servicedUs = 0;         ///< Last local progression time.

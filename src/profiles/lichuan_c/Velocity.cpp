@@ -768,6 +768,7 @@ Status prepareVelocity(VelocityContext& output, const AxisReservation& r, const 
     output.latest = result.admission;
     output.operation = operation;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::MOTION_LIKE;
     output.phase = result.admission.modeRaw == 3 ? VelocityPhase::PARAMETERS : VelocityPhase::MODE;
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.stopDueUs = now + request.durationUs;
@@ -1370,6 +1371,7 @@ Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::NOT_REPEATABLE;
     output.controlEvidence = control;
     output.standstillObserving = releaseStandstill(run, kind, options);
     return Ok();
@@ -1404,6 +1406,7 @@ Status prepareHaltedVelocityQuickStop(ActionContext& output, const VelocityConte
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::NOT_REPEATABLE;
     output.controlEvidence = control;
     // Only a released standstill completes it (Actions.cpp): the drive reported idle before 000B.
     output.standstillObserving = true;

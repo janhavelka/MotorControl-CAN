@@ -25,8 +25,10 @@ struct SdoTxId {
     SdoRequestId request; ///< Exact owning admission.
     uint32_t frame = 0; ///< Nonzero monotonic frame number within this admission.
 };
-/** Premises a drain marker rests on. A host fake can state these; only evidence can qualify them.
- * Both default false, so a route stays blocked until an application establishes them.
+/** Premises a reopening (a drain marker or the accepted no-marker settlement) rests on.
+ * Both default false, so a route stays blocked unless they are stated. No retained source
+ * establishes the second (Q18): the application owner's CanBusOwner reuse policy states both as
+ * an accepted risk, never as established fact, and this adapter cannot tell the difference.
  */
 struct SdoDrainPremises {
     bool soleClient = false;    ///< This host is the only SDO client on these COB-IDs.
@@ -40,7 +42,10 @@ struct SdoDrainPremises {
  * Contexts cannot move while callback pointers/handles exist. Application TX
  * acceptance may already permit transmission; nextTx conservatively marks that
  * boundary before returning bytes. Quarantine survives release and all tokens; only
- * an explicit drain marker on established premises can end it.
+ * a reopening on stated premises ends it: a drain marker, or the accepted no-marker
+ * settlement (settleWithoutMarker), each followed by reopenAfterDrain.
+ * A response timeout after possible transmission stages one client abort 0x05040000
+ * (cleanup only; see nextTx and SdoCompletion::clientAbortQueued).
  * Every exchange requires a qualified peer/controller premise that old responses
  * cannot arrive as a later exchange's reply. This includes individual segments
  * within one transfer; a repeated toggle or host token cannot establish freshness.
@@ -66,7 +71,8 @@ public:
      * @param[in] nowUs Nondecreasing caller microseconds.
      * @param[out] id Published on success only; no overlap with work or owner.
      * @return False atomically on invalid target, occupied result, pending target,
-     * stale epoch, controller failure, invalid budget or generation exhaustion.
+     * stale epoch, controller failure, invalid budget, a retry class other than
+     * RetryClass::MOTION_LIKE, or generation exhaustion.
      */
     bool admitNmt(const NmtTransfer& work, uint64_t nowUs, NmtRequestId& id);
     /** Yield the one native-producer frame, conservatively marking possible TX.
@@ -412,17 +418,19 @@ public:
      * occupied terminal/active storage and cleanup. No state or output is changed.
      */
     bool checkAdmission(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs) const;
-    /** Check one explicit drain marker for an unresolved route (DEC-3).
+    /** Check one drain marker for an unresolved route (DEC-3, amended by prompt 55).
      * The marker is one accepted upload whose object differs from every pair retained on
-     * this route. All local TX must be retired. It settles the channel only: earlier
-     * effects stay uncertain. Quiet time, heartbeat, epochs and same-object readback
-     * are not substitutes. Never triggered automatically.
+     * this route and from the last completed pair. All local TX must be retired. It settles
+     * the channel only: earlier effects stay uncertain. Quiet time, heartbeat, epochs and
+     * same-object readback are not substitutes. This adapter never issues one itself: the
+     * application owner does, explicitly or as its reuse policy's resync step.
      * @param[in] slot Unresolved configured channel.
      * @param[in] transfer Marker upload with its own finite deadline.
-     * @param[in] premises Both must hold; the ordered-server premise is Q18.
+     * @param[in] premises Both must hold; the ordered-server premise is Q18, stated as accepted.
      * @param[in] nowUs Same supplied time.
-     * @return False on overflowed or unidentifiable history, a retained pair, live local
-     * work, an ineligible controller or NMT state, or a stale binding.
+     * @return False on refused reuse (overflowed or unidentifiable history, or an unexpected
+     * frame after a reopening), a retained pair, live local work, an ineligible controller or
+     * NMT state, or a stale binding. Pure check: no state changes.
      */
     bool checkDrain(uint8_t slot, const SdoTransfer& transfer, const SdoDrainPremises& premises,
                     uint64_t nowUs) const;
@@ -483,17 +491,83 @@ public:
      * @return True if a frame of it may have reached a controller.
      */
     bool transmissionPossible(SdoRequestId id) const;
+    /** Settle an unresolved route without a marker, on accepted premises (prompt 55's
+     * ACCEPTED_RISK_WITHOUT_MARKER, as CANopenNode and python-canopen reuse a channel).
+     * Requires the same local retirement a marker needs: no request, staging, cleanup abort,
+     * live handoff or controller-owned frame (txLive) on this route, an available controller
+     * and an unexhausted node. It only marks the route settled, exactly as a successful marker
+     * does; reopenAfterDrain then applies the one reopening with its usual effects. Nothing
+     * is sent and no remote retirement is claimed: a delayed reply naming the same object as
+     * a later request can still complete that request.
+     * @param[in] slot Unresolved configured channel.
+     * @param[in] premises Both must be stated; they stay accepted, never established.
+     * @param[in] nowUs Same supplied nondecreasing time.
+     * @return False, with nothing changed, for refused reuse, live local work, an already
+     * settled or open route, a controller event or exhausted counts.
+     */
+    bool settleWithoutMarker(uint8_t slot, const SdoDrainPremises& premises, uint64_t nowUs);
+    /** Query whether observed traffic stopped route reuse: retained-pair overflow, a frame with
+     * no multiplexer, or an unexpected frame after a reopening. Cached, no I/O.
+     * @param[in] slot Channel.
+     * @return True while refused; false for an invalid or unconfigured slot.
+     */
+    bool reuseRefused(uint8_t slot) const;
+    /** Withdraw a reuse refusal on the application's explicit decision; never automatic.
+     * The route stays unresolved and keeps its retained pairs, so a later marker still avoids
+     * them. Nothing is sent. A further contradicting frame refuses reuse again.
+     * @param[in] slot Channel whose reuse is refused.
+     * @return True when a refusal was withdrawn; false, unchanged, otherwise.
+     */
+    bool reacceptReuse(uint8_t slot);
     /** Query a channel's settled marker.
      * @param[in] slot Channel.
-     * @return True after a matched marker success, until reopenAfterDrain. Stays unresolved.
+     * @return True after a matched marker success or settleWithoutMarker, until
+     * reopenAfterDrain or a later local boundary. Stays unresolved meanwhile.
      */
     bool drainSettled(uint8_t slot) const;
     /** Reopen a settled route. The caller must first invalidate every reservation on its node,
      * or an old reservation and its old command history become live again.
-     * @param[in] slot Channel whose marker succeeded.
+     * After a marker the retained pairs are cleared: the marker's reply followed theirs under
+     * the stated premise, so a later frame naming one refuses reuse. After settleWithoutMarker
+     * nothing has shown that, so the pairs retained before the reopening are kept until the
+     * route's first successful exchange. Until then a frame naming one is the accepted risk:
+     * absorbed when it cannot be the awaited reply, and able to complete a waiting request for
+     * the same object; it never refuses reuse. Armed experiment grants are void either way.
+     * Later results on the route carry SdoCompletion::acceptedCorrelation for the rest of the
+     * node's server session.
+     * @param[in] slot Channel whose marker succeeded or that settleWithoutMarker settled.
      * @return True when reopened; requalifications then counts it.
      */
     bool reopenAfterDrain(uint8_t slot);
+    /** Query the accepted-correlation mark: the route was reopened (reopenAfterDrain) on stated,
+     * not established, premises in the node's current server session. A boot-up, rebinding or
+     * reset (a new server session) clears it; a local controller event does not. No detection
+     * of a delayed same-object reply is implied either way. Cached, no I/O.
+     * @param[in] slot Channel.
+     * @return True while marked; false for an invalid or unconfigured slot.
+     */
+    bool acceptedCorrelation(uint8_t slot) const;
+    /** Retire an unsent cleanup abort so that a best-effort stop on this channel goes first.
+     * The abort is cleanup only and settles nothing, so dropping it changes no evidence; one
+     * already handed off stays live local work until its report. Nothing is sent.
+     * @param[in] slot Channel.
+     * @return True when a staged, not yet handed off abort was retired.
+     */
+    bool dropCleanup(uint8_t slot);
+    /** Report where the TX lifetime of the channel's latest handoff starts.
+     * A handoff an adapter holds short of its SDK (holdHandoff) has not started; after
+     * noteSubmitted it starts at that submission; otherwise at the handoff itself.
+     * @param[in] id Exact latest handoff of its channel.
+     * @param[out] startUs Start time on success, unchanged otherwise.
+     * @return False while held or for a stale or foreign handoff.
+     */
+    bool txStart(SdoTxId id, uint64_t& startUs) const;
+    /** The same for the one NMT handoff: false while held by an adapter.
+     * @param[in] id Exact NMT admission.
+     * @param[out] startUs Handoff or submission time on success, unchanged otherwise.
+     * @return False while held, before any handoff or for a stale identity.
+     */
+    bool nmtTxStart(NmtRequestId id, uint64_t& startUs) const;
     /** Query a route's reopening count.
      * @param[in] slot Channel.
      * @return Marker reopenings on this route, retained across results. Zero for a bad slot.
@@ -697,7 +771,14 @@ private:
         bool lastCompletedValid = false;
         uint8_t retainedCount = 0;
         bool drainRefused = false, drainActive = false, drainSuccess = false;
+        // Prompt 55: a no-marker settlement keeps the pre-reopening pairs until a success.
+        bool settledWithoutMarker = false, keepRetained = false;
+        // Accepted-correlation mark of the current server session, and its copy per request.
+        bool marked = false, markedAtAdmission = false;
+        uint32_t markSessions = 0;
         uint32_t requalifications = 0;
+        uint64_t txStartUs = 0; // Handoff, or SDK submission when an adapter reported it.
+        bool txUnsubmitted = false; // Held short of the SDK and not since submitted, terminal or not.
         bool experimentArmed = false, experimentActive = false;
         uint32_t experimentAuthorization = 0;
         Generation experimentNodeGeneration = 0;
@@ -733,6 +814,7 @@ private:
     bool nmtOccupied_ = false, nmtTerminal_ = false, nmtHeld_ = false;
     uint32_t nmtGeneration_ = 0;
     uint64_t nmtQueueCutoff_ = 0;
+    uint64_t nmtTxStartUs_ = 0; // Handoff, or SDK submission when an adapter reported it.
     bool validNmt(NmtRequestId id) const;
     void serviceNmt(uint64_t nowUs);
     void expireNmt(uint64_t nowUs);
@@ -746,6 +828,7 @@ private:
     static bool possibleWork(const Channel& channel);
     static void retainPair(Channel& channel, uint16_t index, uint8_t subindex);
     static void retainFrame(Channel& channel, const Frame& frame);
+    static bool retainedFrame(const Channel& channel, const Frame& frame);
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
@@ -774,6 +857,7 @@ private:
     void finish(Channel& c, SdoOutcome outcome, uint64_t nowUs, int32_t returned = 0,
                 bool abortValid = false, uint32_t abortCode = 0);
     void abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t nowUs);
+    int32_t stageAbort(Channel& c, uint32_t code, uint64_t nowUs);
     void retire(Channel& c);
     bool receiveFrame(const Frame& frame, bool receivedTimeKnown, uint64_t receivedUs, uint64_t nowUs,
                       bool boundsKnown = false, uint64_t earliestUs = 0, uint64_t latestUs = 0);

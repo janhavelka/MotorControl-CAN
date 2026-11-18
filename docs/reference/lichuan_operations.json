@@ -19,7 +19,8 @@
         "getIdentity": 1,
         "getStateBlock": 1,
         "validateStateBlock": 1,
-        "getConfig": 1
+        "getConfig": 1,
+        "classifyRead": 1
       },
       "implementation": [
         "src/profiles/lichuan_c/Reads.cpp"
@@ -36,6 +37,10 @@
         {
           "path": "test/probe_device_console_test.cpp",
           "ctest": "probe_device_console"
+        },
+        {
+          "path": "test/retry_class_test.cpp",
+          "ctest": "retry_class"
         }
       ],
       "api_only_reason": "Validation, reset, stepping and checked getters are caller-owned phases of read/probe; exposing each phase as a standalone command would bypass the owner lifecycle.",
@@ -1258,6 +1263,27 @@
       "api_only_reason": "Scalar SDO shape/word codecs are below typed profile services. No raw SDO console command bypasses per-object effects or typed getters.",
       "console": [],
       "console_api_only_reason": "Scalar SDO shape/word codecs are below typed profile services. No raw SDO console command bypasses per-object effects or typed getters.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
+      "id": "SdoTransfer",
+      "header": "include/MotorControlCAN/canopen/SdoTransfer.h",
+      "functions": {
+        "repeatableReadEffect": 1
+      },
+      "implementation": [
+        "include/MotorControlCAN/canopen/SdoTransfer.h"
+      ],
+      "tests": [
+        {
+          "path": "test/retry_class_test.cpp",
+          "ctest": "retry_class"
+        }
+      ],
+      "api_only_reason": "The retry-class read-effect rule is shared classification vocabulary below typed profile reads, not a device operation or a console command; it never changes an effect or repeats work.",
+      "console": [],
+      "console_api_only_reason": "The retry-class read-effect rule is shared classification vocabulary below typed profile reads, not a device operation or a console command; it never changes an effect or repeats work.",
       "python_scenarios": [],
       "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
     },

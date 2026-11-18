@@ -99,6 +99,7 @@ struct Driver {
     uint32_t epoch = 0, serial = 0;
     bool live = false, active = false;
     bool silent[2] = {false, false};
+    uint16_t silentIndex = 0; // No reply to this object only, on either node.
     uint16_t abortIndex = 0;
     bool reportLate = false;
     bool reportHeld = false;
@@ -118,7 +119,8 @@ struct Driver {
         CHECK(d.live && !d.active);
         if (d.count)
             return E::TwaiSubmit::DEFERRED;
-        CHECK(value.id == 0x601 || value.id == 0x602); // No NMT, PDO or other identifier.
+        // No NMT, PDO or other identifier; 0x603 only where the absent node 3 has its own channel.
+        CHECK(value.id == 0x601 || value.id == 0x602 || (value.id == 0x603 && C::SdoClient::CHANNELS > 2));
         CHECK(value.dlc == 8);
         if (value.data[0] != 0x80) { // A client abort is local cleanup; nothing else but uploads.
             CHECK(value.data[0] == 0x40);
@@ -206,9 +208,13 @@ struct Driver {
         if (request.data[0] == 0x80)
             return;
         const unsigned node = unsigned(request.id - 0x600);
+        if (node == 3)
+            return; // The absent node: nodes 1 and 2 ACK its frame, nothing answers.
         if (silent[node - 1])
             return;
         const uint16_t index = uint16_t(request.data[1]) | uint16_t(request.data[2]) << 8;
+        if (index == silentIndex)
+            return;
         M::Frame reply = frame(0x580 + node, 8);
         std::memcpy(reply.data + 1, request.data + 1, 3);
         if (index == abortIndex) {
@@ -463,6 +469,153 @@ void testTimeoutStopsOnlyThatNode() {
     CHECK(node1After >= 8);
     CHECK(rig->services.unresolved(1)); // Nothing reopened it.
     CHECK(rig->firmware.owner().stats().recoveries == 0);
+    rig->linesContiguous();
+}
+// Prompt 55: the S line's optional tail and its range checks.
+void testRepairParse() {
+    E::SoakPlan out;
+    const char tail[] = "8,60,20,1,0,1000,1,100";
+    CHECK(E::parseSoakCommand(tail, sizeof tail - 1, out) && out.responseUs == 1000 && out.nodes == 1 &&
+          out.markerMs == 100);
+    const char old[] = "8,60,20,1,0";
+    CHECK(E::parseSoakCommand(old, sizeof old - 1, out) && !out.responseUs && out.nodes == 3 && !out.markerMs);
+    const char absent[] = "8,60,20,1,0,0,7,100";
+    CHECK(E::parseSoakCommand(absent, sizeof absent - 1, out) && out.nodes == 7 && out.markerMs == 100);
+    const char* const bad[] = {"8,60,20,1,0,1000,1", "8,60,20,1,0,99,1,0", "8,60,20,1,0,250001,1,0",
+                               "8,60,20,1,0,0,0,0",  "8,60,20,1,0,0,4,0",  "8,60,20,1,0,0,3,1001",
+                               "8,60,20,1,0,0,3,0,1", "8,60,20,1,0,0,8,0"};
+    for (const char* text : bad)
+        CHECK(!E::parseSoakCommand(text, std::strlen(text), out));
+}
+// A drive that never answers 6041:00 under the default reuse policy: each read times out, the client
+// sends its one cleanup abort, the owner's one marker 1000:00 (answered) reopens the route, and the next
+// read starts only then. Each read is completed or its route retained unresolved before the next one.
+void testTimeoutResyncsAndContinues() {
+    std::unique_ptr<Rig> rig(new Rig);
+    rig->driver.silentIndex = 0x6041;
+    E::SoakPlan p = plan();
+    p.nodes = 1;
+    p.summaryS = 1;
+    CHECK(rig->soak.begin(p, rig->console.now) == E::SoakAdmission::ACCEPTED);
+    rig->turns(6000);
+    const E::SoakNodeStats& one = rig->soak.nodeStats(1);
+    CHECK(!one.stopped && one.operations >= 10 && one.operationsOk == 0);
+    CHECK(one.outcomes[unsigned(C::SdoOutcome::TIMEOUT)] >= one.operations - 1);
+    CHECK(one.cleanupAborts >= one.operations - 1 && one.autoMarkers >= one.operations - 1);
+    CHECK(one.reopened == one.autoMarkers || one.reopened + 1 == one.autoMarkers);
+    CHECK(!one.markersFailed && !one.explicitMarkers && !one.reuseStopped);
+    CHECK(!rig->soak.nodeStats(2).operations); // Not in the mask: node 2 is never read.
+    // The marker alternates 1000:00 and 1018:01: the last completed pair is never the next marker.
+    for (const Sent& sent : rig->driver.sent)
+        CHECK(sent.node == 1 && (sent.index == 0x6041 || (sent.index == 0x1000 && !sent.subindex) ||
+                                 (sent.index == 0x1018 && sent.subindex == 1)));
+    // Every abort names the timed-out 6041:00 with code 0x05040000.
+    for (const M::Frame& f : rig->driver.requests)
+        if (f.data[0] == 0x80)
+            CHECK(f.data[1] == 0x41 && f.data[2] == 0x60 && f.data[4] == 0 && f.data[5] == 0 && f.data[6] == 4 &&
+                  f.data[7] == 5);
+    CHECK(rig->has("SOAK_BEGIN ") && rig->has(" nodes=1 markerMs=0 lifetime=100000 "));
+    CHECK(rig->has("SOAK_LINK ") && rig->has(" node=1 reuse=marker timeouts="));
+    rig->linesContiguous();
+}
+// A response budget below the reply time. Without markerMs the owner's marker inherits it and times out
+// too (MARKER_FAILED): the node stops, retained unresolved. With markerMs the soak gives the owner's
+// marker its own budget (SdoReuse::markerResponseTimeoutUs) for the soak, so the owner's one marker per
+// timeout reopens the route by itself and no explicit marker is needed; the setting is restored after.
+void testShortBudgetNeedsMarkerBudget() {
+    for (unsigned budget = 0; budget < 2; ++budget) {
+        std::unique_ptr<Rig> rig(new Rig);
+        E::SoakPlan p = plan(1, 4);
+        p.nodes = 1;
+        p.responseUs = 500; // Below this fixture's one-turn (1 ms) reply.
+        p.markerMs = budget ? 100 : 0;
+        const M::Binding binding = rig->services.channel(0)->binding;
+        CHECK(rig->soak.begin(p, rig->console.now) == E::SoakAdmission::ACCEPTED);
+        O::SdoReuse reuse;
+        CHECK(rig->firmware.owner().sdoReuse(binding, reuse));
+        CHECK(reuse.markerResponseTimeoutUs == (budget ? 100000u : 0u) &&
+              reuse.markerQueueTimeoutUs == (budget ? 250000u : 0u));
+        rig->turns(3500);
+        const E::SoakNodeStats& one = rig->soak.nodeStats(1);
+        CHECK(one.operations >= 1 && !one.operationsOk);
+        if (!budget) {
+            CHECK(one.stopped && one.operations == 1 && one.autoMarkers == 1 && one.markersFailed == 1 && !one.reopened);
+            CHECK(rig->has("node=1 reason=unresolved") && rig->services.unresolved(0));
+            continue;
+        }
+        CHECK(!one.stopped && one.operations >= 8 && !one.markersFailed && !one.explicitMarkers);
+        CHECK(one.autoMarkers >= one.operations - 1 && (one.reopened == one.autoMarkers || one.reopened + 1 == one.autoMarkers));
+        // The owner's list: 1000:00 and 1018:01 alternate, as the last completed pair is never the next one.
+        for (const Sent& sent : rig->driver.sent)
+            CHECK(sent.index == 0x6041 || sent.index == 0x1000 || (sent.index == 0x1018 && sent.subindex == 1));
+        CHECK(rig->has(" markerMs=100 "));
+        rig->turns(2000); // Past the 4 s duration: the soak ends and restores the owner's setting.
+        CHECK(!rig->soak.active());
+        CHECK(rig->firmware.owner().sdoReuse(binding, reuse) && !reuse.markerResponseTimeoutUs &&
+              !reuse.markerQueueTimeoutUs);
+        rig->linesContiguous();
+    }
+}
+// Prompt 55's absent node 3 beside nodes 1 and 2 (bench item c). With the fixture's two channels a plan
+// naming it is refused and leaves nothing. With the bench image's third channel its route is configured
+// like the others (0x603/0x583); nodes 1 and 2 ACK its frames and nothing answers. Its one probe times
+// out (cleanup abort), the owner's one marker inherits no short budget (markerMs sets it) and times out
+// too, the soak's one explicit marker per quarantine times out as well, and the route is then held
+// unresolved: no probe is resent. Nodes 1 and 2 keep their alternation and rate meanwhile.
+void testAbsentNode() {
+    std::unique_ptr<Rig> rig(new Rig);
+    E::SoakPlan p = plan(1, 6);
+    p.nodes = 7;
+    p.markerMs = 100;
+    if (C::SdoClient::CHANNELS <= 2) {
+        CHECK(rig->soak.begin(p, rig->console.now) == E::SoakAdmission::INVALID);
+        CHECK(!rig->soak.active());
+        rig->turns(50);
+        CHECK(rig->driver.sent.empty() && rig->console.output.empty());
+        return;
+    }
+    E::SoakPlan unconfigured = p; // Without node 3's route the plan is refused as well.
+    CHECK(rig->soak.begin(unconfigured, rig->console.now) == E::SoakAdmission::INVALID);
+    C::SdoChannel channel;
+    channel.binding.logicalAxisId = 3;
+    channel.binding.endpoint.profile = 1;
+    channel.binding.endpoint.address = 3;
+    channel.binding.bindingGeneration = channel.binding.configurationGeneration = 1;
+    channel.clientToServerId = 0x603;
+    channel.serverToClientId = 0x583;
+    CHECK(rig->services.configure(2, channel, false, true));
+    C::NetworkRoute route;
+    route.binding = channel.binding;
+    route.generation = 1;
+    route.heartbeatId = 0x703;
+    route.emcyId = 0x83;
+    CHECK(rig->services.configureNetwork(2, route, C::NetworkObserver(), rig->console.now));
+    CHECK(rig->soak.begin(p, rig->console.now) == E::SoakAdmission::ACCEPTED);
+    rig->turns(5000);
+    const E::SoakAbsentStats& a = rig->soak.absentStats();
+    CHECK(a.probes == 1 && a.timeouts == 1 && !a.answered && !a.other && !a.refused);
+    CHECK(a.explicitMarkers == 1 && a.heldUnresolved >= 2 && rig->services.unresolved(2));
+    // Node 3's frames: the probe, its cleanup abort, the owner's marker and its abort, the soak's
+    // explicit marker (the next list object) and its abort; nothing else, never a resent probe.
+    std::vector<M::Frame> three;
+    for (const M::Frame& request : rig->driver.requests)
+        if (request.id == 0x603)
+            three.push_back(request);
+    const uint8_t expected[6][4] = {{0x40, 0x00, 0x10, 0x00}, {0x80, 0x00, 0x10, 0x00}, {0x40, 0x18, 0x10, 0x01},
+                                    {0x80, 0x18, 0x10, 0x01}, {0x40, 0x18, 0x10, 0x02}, {0x80, 0x18, 0x10, 0x02}};
+    CHECK(three.size() == 6);
+    for (unsigned i = 0; i < 6 && i < three.size(); ++i)
+        CHECK(!std::memcmp(three[i].data, expected[i], 4));
+    const E::SoakNodeStats& one = rig->soak.nodeStats(1);
+    const E::SoakNodeStats& two = rig->soak.nodeStats(2);
+    CHECK(!one.stopped && !two.stopped && one.operationsOk >= 100 && two.operationsOk >= 100);
+    CHECK(one.operationsOk + 2 >= two.operationsOk && two.operationsOk + 2 >= one.operationsOk);
+    CHECK(!one.operationsFailed && !two.operationsFailed && !one.autoMarkers && !two.autoMarkers);
+    rig->turns(2000); // Past the 6 s duration: the final summary carries the absent node's line.
+    CHECK(!rig->soak.active());
+    CHECK(rig->has(" node=3 probes=1 answered=0 timeouts=1 other=0 refused=0 explicit=1 held=") &&
+          rig->has(" unresolved=1 noResponse=3 responded=0 heartbeat=0 bootUps=0\n")); // Probe and both markers.
+    CHECK(rig->count("SOAK_ABSENT ") == rig->count("SOAK_ABORT n=") / 2);
     rig->linesContiguous();
 }
 void testBootAndEmcy() {
@@ -773,6 +926,10 @@ int main(int argc, char** argv) {
     testValueChange();
     testAbortRetainedNotRetried();
     testTimeoutStopsOnlyThatNode();
+    testRepairParse();
+    testTimeoutResyncsAndContinues();
+    testShortBudgetNeedsMarkerBudget();
+    testAbsentNode();
     testBootAndEmcy();
     testHeartbeatGapsAndNmt();
     testObservationsBeforeBeginBelongToNoSoak();

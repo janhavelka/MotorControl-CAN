@@ -458,11 +458,24 @@ void failedEvidenceAndNoReplay() {
           C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
     CHECK(timeout.read.uncertain && timeout.terminals[0].service.effectUncertain);
     CHECK(timeout.terminals[0].service.effectPossible);
-    CHECK(!timeout.terminals[0].service.replyValid && silent.wire.transmitted == 1);
+    CHECK(!timeout.terminals[0].service.replyValid && silent.wire.sent[0].data[0] == 0x40);
+    // Prompt 55 under the default reuse policy: the one cleanup abort 0x05040000 for the timed-out
+    // 1000:00, then the owner's one marker read. 1000:00 is retained on the route, so the marker is
+    // the alternate 1018:01; it times out too, gets its own abort, and no further marker follows.
+    for (unsigned i = 0; i < 400; ++i)
+        silent.turn(silent.now + 1);
+    const uint8_t frames[4][8] = {{0x40, 0x00, 0x10, 0x00, 0, 0, 0, 0},
+                                  {0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x04, 0x05},
+                                  {0x40, 0x18, 0x10, 0x01, 0, 0, 0, 0},
+                                  {0x80, 0x18, 0x10, 0x01, 0x00, 0x00, 0x04, 0x05}};
+    CHECK(silent.wire.transmitted == 4);
+    for (unsigned i = 0; i < 4; ++i)
+        CHECK(!std::memcmp(silent.wire.sent[i].data, frames[i], 8));
+    CHECK(silent.owner.stats().markers == 1);
     CHECK(silent.evidence.release());
     CHECK(silent.evidence.request(silent.plan(L::ReadKind::CONFIG, 2), silent.now) ==
           E::EvidenceAdmission::INVALID);
-    CHECK(silent.wire.transmitted == 1); // Quarantine cannot be repaired by a new acquisition ID.
+    CHECK(silent.wire.transmitted == 4); // Quarantine cannot be repaired by a new acquisition ID.
     Rig stale;
     stale.wire.mode = Wire::Mode::STALE;
     CHECK(stale.evidence.request(stale.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
@@ -653,7 +666,12 @@ void boundedLossAndTime() {
     CHECK(rig.evidence.record()->trafficCount == E::EVIDENCE_TRAFFIC && rig.wire.transmitted == 1);
     CHECK(rig.app.pendingRequest().owner && rig.evidence.record()->terminalCount == 0);
     rig.turn(1000);
-    CHECK(rig.evidence.record()->terminal && rig.wire.transmitted == 1);
+    // The remainder never starts. The response cutoff met the overall deadline, so no budget
+    // remained for a cleanup abort (prompt 55); the second frame is the owner's own resync marker,
+    // the alternate 1018:01 because the timed-out 1000:00 is retained on the route.
+    const uint8_t marker[8] = {0x40, 0x18, 0x10, 0x01, 0, 0, 0, 0};
+    CHECK(rig.evidence.record()->terminal && rig.wire.transmitted == 2 &&
+          !std::memcmp(rig.wire.sent[1].data, marker, 8) && rig.owner.stats().markers == 1);
     CHECK(rig.evidence.record()->read.uncertain && rig.evidence.record()->terminalCount == 1);
     CHECK(rig.evidence.record()->terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
     Rig overwrite;
@@ -676,7 +694,9 @@ void boundedLossAndTime() {
     const unsigned receives = overwrite.wire.receiveCalls;
     CHECK(!overwrite.evidence.service(2) && !overwrite.evidence.interrupt(2));
     retained.unchanged(*overwrite.evidence.record());
-    CHECK(overwrite.wire.receiveCalls == receives && overwrite.wire.transmitted == 1);
+    // The request, then (as above, with no budget left for an abort) the owner's one marker.
+    CHECK(overwrite.wire.receiveCalls == receives && overwrite.wire.transmitted == 2 &&
+          !std::memcmp(overwrite.wire.sent[1].data, marker, 8));
     Rig deadline;
     E::AcquisitionPlan finite = deadline.plan();
     finite.deadlineUs = 1;

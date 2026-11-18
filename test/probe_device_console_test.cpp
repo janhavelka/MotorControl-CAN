@@ -583,7 +583,16 @@ void failedReadKeepsNativeEvidence() {
     contains(timeout.bytes.output, "\"type\":\"terminal\"");
     contains(timeout.bytes.output, "\"uncertain\":true");
     CHECK(timeout.app.readContext().state == M::ReadState::FAILED);
-    CHECK(timeout.wire.fake.transmitted() == 1); // No retry after an unconfirmed upload.
+    // No retry after an unconfirmed upload. Prompt 55's default reuse policy adds only repair. The
+    // probe's response budget met its 10 ms cutoff, so no cleanup abort had budget; then the owner's
+    // one marker read, 1018:01 as the probe's 1000:00 is retained, with the probe's own 100 ms service
+    // budgets, which this silent fixture lets time out with its own abort.
+    for (unsigned k = 0; k < 130; ++k) // 1 ms turns, past the marker's 100 ms response budget.
+        timeout.turn(1000);
+    timeout.drain();
+    CHECK(timeout.wire.fake.transmitted() == 2 && timeout.wire.fake.lastUpload() == 0x101801u);
+    CHECK(timeout.wire.fake.clientAborts() == 1 && timeout.owner.stats().markers == 1);
+    CHECK(timeout.services.unresolved(0));
 }
 
 void cancelSettlesInflightWithoutNextField() {

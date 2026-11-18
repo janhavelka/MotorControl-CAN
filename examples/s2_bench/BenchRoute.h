@@ -523,6 +523,12 @@ struct RoutePlan {
     /** LOOP: the 2500 candidate, LoopMode 0 INEFFECTIVE, 1 OPEN_LOOP or 2 CLOSED_LOOP (EN86/ZH86 p19), as
      * prepareControlSettings admits them for CL86_C. What 0 does and when a change applies are unmeasured. */
     uint8_t loopMode = 0;
+    /** POSITION and RELATIVE (prompt 55): an optional last field, the trigger word's own response budget in
+     * microseconds, ROUTE_TRIGGER_RESPONSE_MINIMUM_US..ROUTE_RESPONSE_US; 0, or absent from the line, keeps
+     * ROUTE_RESPONSE_US. Below the drive's reply time it forces the trigger's response timeout: the client
+     * then sends one cleanup abort and the trigger is never sent again (bench item e). The other writes
+     * keep ROUTE_RESPONSE_US. */
+    uint32_t triggerResponseUs = 0;
 };
 /** CONTROLWORD's reviewed set, the only words the parser, routePlanValid and the write admit: 0x0000 disable
  * voltage, 0x0006 shutdown, 0x000B quick stop and 0x0080 fault reset (a rising bit 7 edge from 0). None has
@@ -549,7 +555,7 @@ inline bool isArming(RouteKind kind) noexcept {
  * <deadlineMs>,<intervalMs>`;
  * `S<node>,<trial>,<attended>,<kind>,<deadlineMs>,<bestEffortMs>,<intervalMs>`;
  * `P|L<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<cycles>,<intervalMs>,
- * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
+ * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>[,<triggerResponseUs>]`;
  * `R<node>,<trial>,<attended>,<predecessor>,<cycles>,<intervalMs>`;
  * `Q<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `W<node>,<trial>,<attended>,<wordCycles>,<cycles>,<intervalMs>`;
@@ -674,6 +680,7 @@ enum {
     ROUTE_CUTOFF_MS = 60000,    ///< Route cutoff after admission (packet 22: sixty seconds a case).
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
+    ROUTE_TRIGGER_RESPONSE_MINIMUM_US = 100, ///< Least RoutePlan::triggerResponseUs, host policy.
     ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
     /** VELOCITY's final-enable report window, VelocityOptions::enableWindowUs in milliseconds (backlog
      * S17): the attended experiment's chosen budget, about twice the 850 to 880 ms mode 1 lag of
@@ -762,7 +769,9 @@ struct RouteTraffic {
     uint8_t flags = 0;        ///< Bit0 ext, bit1 rtr, bit2 accepted, bit3 exact time, bit4 bounds.
     uint8_t state = 0;        ///< ControllerState or RecoveryOutcome, by kind.
     uint8_t txKind = 0;       ///< TransportTxId kind.
-    uint8_t txChannel = 0;    ///< SDO channel of the local TX identity, which names its node.
+    uint8_t txChannel = 0;    ///< SDO channel of the local TX identity, which names its node; RESYNC: its channel.
+    /** RECOVERY: its causes as bits, 1 bus-off, 2 receive lost, 4 TX expired (prompt 55). */
+    uint8_t causes = 0;
 };
 /** Raw values of one fresh state read, kept for the prerequisite check and its summary line. */
 struct RouteSnapshot {

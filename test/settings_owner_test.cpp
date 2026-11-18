@@ -354,6 +354,17 @@ struct Bench {
     // Index of the next frame this bench will send.
     unsigned mark() const { return wire.sentCount; }
     void checkSilentSince(unsigned sent) const { CHECK(wire.sentCount == sent); }
+    // Reuse policy NONE (prompt 55): an unresolved route stays quarantined, with no resync marker
+    // read or reopening, as before. Its timeout still stages the cleanup abort.
+    void keepQuarantine() { CHECK(OwnerRig::keepQuarantine(owner, route(1), now)); }
+    // After a response timeout after possible TX: the one cleanup abort 0x05040000 naming the
+    // timed-out object leaves in the next turn with TX budget, and nothing else does.
+    void sendTimeoutAbort(uint16_t index, uint8_t subindex = 0) {
+        const unsigned staged = mark();
+        turn(now);
+        CHECK(wire.sentCount == staged + 1 &&
+              OwnerRig::isTimeoutAbort(wire.sent[staged], 0x601, index, subindex));
+    }
 };
 bool frameIs(const M::Frame& f, uint8_t command, uint16_t index, uint8_t subindex, uint32_t value) {
     if (f.id != 0x601 || f.dlc != 8 || f.data[0] != command || f.data[1] != uint8_t(index) ||
@@ -542,9 +553,10 @@ void everyDocumentedBoundary() {
         }
         const unsigned first = b.mark();
         CHECK(prepareLimit(c, b, e, code));
+        CHECK(c.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         b.run(c);
         CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 1);
-        CHECK(b.drive.value(0x2202) == code);
+        CHECK(b.drive.value(0x2202) == code && c.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         // One literal write, then the group's four literal reads, and nothing else.
         CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, code));
         CHECK(frameIs(b.wire.sent[first + 1], 0x40, 0x2202, 0, 0));
@@ -1108,6 +1120,9 @@ void frozenTokenCannotPrepareAFalseNoOp() {
 void failedStateReadIsRefused() {
     for (Drive::Fault fault : {Drive::ABORT, Drive::LOST}) {
         Bench b;
+        // Reuse policy NONE: the lost case asserts its route stays unresolved, with no resync
+        // marker or reopening; its one cleanup abort is asserted below.
+        b.keepQuarantine();
         b.drive.set(0x6061, 0, 1);
         const C::SdoCompletion control = b.control();
         L::DriverContext prior, limits, inputs;
@@ -1135,6 +1150,10 @@ void failedStateReadIsRefused() {
         b.turn(b.now + (fault == Drive::LOST ? 100 : 1), budget(8, 0, 8, 0));
         const O::Completion* terminal = b.owner.result(id);
         CHECK(terminal);
+        CHECK(terminal->service.clientAbortQueued == (fault == Drive::LOST) &&
+              terminal->service.abortValid == (fault == Drive::ABORT));
+        if (fault == Drive::LOST) // Nothing follows it under NONE: every refusal below is silent.
+            b.sendTimeoutAbort(0x60fd);
         CHECK(L::advanceRead(state, terminal->service, b.now));
         CHECK(state.state == M::ReadState::FAILED);
         CHECK(state.uncertain || fault == Drive::ABORT);
@@ -2915,6 +2934,7 @@ void diStateRules() {
     // A failed or partial state read refuses even though the blocks this call reads completed.
     for (Drive::Fault fault : {Drive::ABORT, Drive::LOST}) {
         Bench b;
+        b.keepQuarantine(); // The lost case's route stays unresolved: no marker, no reopening.
         L::DriverContext prior;
         b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
         b.drive.inject(fault, 0x60fd, 0, false);
@@ -2935,7 +2955,9 @@ void diStateRules() {
         b.deliver();
         b.turn(b.now + (fault == Drive::LOST ? 100 : 1), budget(8, 0, 8, 0));
         const O::Completion* terminal = b.owner.result(id);
-        CHECK(terminal);
+        CHECK(terminal && terminal->service.clientAbortQueued == (fault == Drive::LOST));
+        if (fault == Drive::LOST) // Nothing follows it under NONE: the refusal below is silent.
+            b.sendTimeoutAbort(0x60fd);
         CHECK(L::advanceRead(state, terminal->service, b.now));
         CHECK(state.state == M::ReadState::FAILED);
         L::DriverSettingsContext c;
@@ -3410,6 +3432,7 @@ void loopStateRules() {
     // A failed or partial state read refuses even though the blocks this call reads completed.
     for (Drive::Fault fault : {Drive::ABORT, Drive::LOST}) {
         Bench b;
+        b.keepQuarantine(); // The lost case's route stays unresolved: no marker, no reopening.
         L::DriverContext prior;
         readControl(b, prior);
         b.drive.inject(fault, 0x60fd, 0, false);
@@ -3430,7 +3453,9 @@ void loopStateRules() {
         b.deliver();
         b.turn(b.now + (fault == Drive::LOST ? 100 : 1), budget(8, 0, 8, 0));
         const O::Completion* terminal = b.owner.result(id);
-        CHECK(terminal);
+        CHECK(terminal && terminal->service.clientAbortQueued == (fault == Drive::LOST));
+        if (fault == Drive::LOST) // Nothing follows it under NONE: the refusal below is silent.
+            b.sendTimeoutAbort(0x60fd);
         CHECK(L::advanceRead(state, terminal->service, b.now));
         CHECK(state.state == M::ReadState::FAILED);
         L::DriverSettingsContext c;
@@ -4210,6 +4235,7 @@ void subdivisionEndToEnd() {
             before[i] = b.drive.table[i].raw;
         L::DriverSettingsContext c;
         CHECK(prepareSubdivision(c, b, e, k.raw));
+        CHECK(c.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         // Only field 1 is selected; 2200 is carried as its readback must find it.
         CHECK(c.state == L::SettingsState::WRITING && c.changed == 2 && c.cursor == 1 && !c.confirmed);
         CHECK(c.requested[0] == k.direction && c.requested[1] == k.raw && !c.effectsPossible && !c.uncertain);
@@ -4313,6 +4339,8 @@ void subdivisionCandidates() {
         CHECK(prepareSubdivision(c, b, e, stored));
         CHECK(c.state == L::SettingsState::SUCCEEDED && c.outcome == M::ReadOutcome::SUCCESS);
         CHECK(!c.changed && !c.confirmed && !c.effectsPossible && !c.uncertain);
+        // The unchanged candidate sends nothing and is still the same W setting.
+        CHECK(c.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         L::PreparedRead work;
         work.ready = true;
         CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && !work.ready);
@@ -4392,6 +4420,7 @@ void subdivisionStateRules() {
     // A failed or partial state read refuses even though the blocks this call reads completed.
     for (Drive::Fault fault : {Drive::ABORT, Drive::LOST}) {
         Bench b;
+        b.keepQuarantine(); // The lost case's route stays unresolved: no marker, no reopening.
         b.drive.set(0x2100, 0, RELEASED);
         L::DriverContext prior;
         b.read(prior, L::DriverGroup::DRIVER);
@@ -4413,7 +4442,9 @@ void subdivisionStateRules() {
         b.deliver();
         b.turn(b.now + (fault == Drive::LOST ? 100 : 1), budget(8, 0, 8, 0));
         const O::Completion* terminal = b.owner.result(id);
-        CHECK(terminal);
+        CHECK(terminal && terminal->service.clientAbortQueued == (fault == Drive::LOST));
+        if (fault == Drive::LOST) // Nothing follows it under NONE: the refusals below are silent.
+            b.sendTimeoutAbort(0x60fd);
         CHECK(L::advanceRead(state, terminal->service, b.now));
         CHECK(state.state == M::ReadState::FAILED);
         L::DriverSettingsContext c;

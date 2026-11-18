@@ -509,6 +509,7 @@ Status prepareHome(HomeContext& output, const AxisReservation& live, const ReadT
     output.control = control;
     output.operation = operation;
     output.state = ActionState::ACTIVE;
+    output.retryClass = RetryClass::MOTION_LIKE;
     output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
     output.deadlineUs = deadline;
     return Ok();

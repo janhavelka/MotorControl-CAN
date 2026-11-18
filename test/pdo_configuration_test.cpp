@@ -152,7 +152,10 @@ struct Fixture {
 };
 void exactSequenceAndPublication() {
     Fixture f;
+    CHECK(f.context.retryClass == M::RetryClass::NOT_REPEATABLE);
     CHECK(f.prepare());
+    // N: the six writes pass through a disabled PDO and a zero count, which a repeat would redo.
+    CHECK(f.context.retryClass == M::RetryClass::NOT_REPEATABLE);
     CHECK(f.context.review.scope == L::PdoConfigurationScope::ISOLATED_EXPERIMENT);
     for (unsigned i = 0; i < 6; ++i) {
         L::PreparedRead p;
@@ -423,6 +426,8 @@ void timerSequenceAndPublication() {
     for (L::Tpdo1EventTimerRaw target : targets) {
         Fixture f = timer(target);
         CHECK(f.prepare());
+        // W: one absolute 1800:05 value, confirmed by the nine-field readback.
+        CHECK(f.context.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         CHECK(f.context.request.transition == L::Tpdo1Transition::EVENT_TIMER);
         CHECK(f.context.request.eventTimer == target && f.context.original[3] == other(target));
         CHECK(f.context.state == L::PdoConfigurationState::WRITING && !f.context.effectsPossible);
@@ -852,6 +857,7 @@ void transmissionTypeSequenceAndRestore() {
     for (L::Tpdo1TransmissionTypeRaw target : targets) {
         Fixture f = transmissionType(target);
         CHECK(f.prepare());
+        CHECK(f.context.retryClass == M::RetryClass::IDEMPOTENT_SETTING);
         // Changing the caller request after preparation cannot alter admitted intent.
         f.request.transmissionType = L::Tpdo1TransmissionTypeRaw(99);
         L::PreparedRead p;

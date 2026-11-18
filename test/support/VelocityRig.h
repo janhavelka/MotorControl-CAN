@@ -115,7 +115,16 @@ struct Drive {
     uint32_t rampUp = 50, rampDown = 50;
     uint16_t muteIndex = 0, muteWord = 0, abortIndex = 0;
     bool stopWorks = true, releaseOnStop = false;
+    // Client aborts this server received (prompt 55: one 0x05040000 abort follows a response
+    // timeout after possible TX). An abort is no download and a server never answers it.
+    unsigned clientAborts = 0;
+    M::Frame lastClientAbort;
     bool respond(const M::Frame& sent, M::Frame& out) {
+        if (sent.data[0] == 0x80) {
+            ++clientAborts;
+            lastClientAbort = sent;
+            return false;
+        }
         const uint16_t index = indexOf(sent);
         const uint8_t sub = sent.data[3];
         const bool download = sent.data[0] != 0x40;

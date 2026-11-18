@@ -79,6 +79,12 @@ struct EvidenceTraffic {
         MotorControlCAN::CANOPEN::ControllerState::UNKNOWN; ///< CONTROLLER only, not drive state.
     RecoveryOutcome recovery =
         RecoveryOutcome::FAILED; ///< RECOVERY only, not remote qualification.
+    /** RECOVERY only: Diagnostic::recoveryCauses as bits, 1 bus-off, 2 receive lost, 4 TX expired. */
+    uint8_t recoveryCauses = 0;
+    uint8_t channel = 0; ///< RESYNC only: adapter channel slot, not a wire node ID.
+    MotorControlCANOwner::ResyncStep resync =
+        MotorControlCANOwner::ResyncStep::MARKER_ADMITTED; ///< RESYNC only.
+    bool noListener = false; ///< LISTENER only: true when NO_LISTENER began.
 };
 enum {
     EVIDENCE_TRAFFIC = 64 ///< Fixed acquisition traffic capacity; excess is counted, never hidden.

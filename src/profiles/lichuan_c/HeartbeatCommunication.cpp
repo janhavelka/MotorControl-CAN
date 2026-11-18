@@ -170,6 +170,7 @@ Status prepareCommunication(CommunicationContext& output, const AxisReservation&
     c.requirePreOperational = nmt.known;
     c.baseline = baseline;
     c.state = CommunicationState::WRITING;
+    c.retryClass = RetryClass::IDEMPOTENT_SETTING;
     output = c;
     return Ok();
 }

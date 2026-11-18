@@ -105,6 +105,7 @@ void publish(DriverSettingsContext& c, const AxisReservation& r, DriverGroup gro
     c.startedUs = c.servicedUs = c.stepStartedUs = now;
     c.deadlineUs = deadline;
     c.state = SettingsState::WRITING;
+    c.retryClass = RetryClass::IDEMPOTENT_SETTING;
     prepareDriverRead(c.readback, r.target, operation, now, deadline, options, group);
 }
 void select(DriverSettingsContext& c, const DriverContext& prior, unsigned first) {

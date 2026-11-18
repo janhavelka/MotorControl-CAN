@@ -15,6 +15,77 @@
   APIs, DMA descriptors and buffers, kernel objects, atomics) and a hot set that stays internal until a
   measurement promotes it. The S2 bench board has no PSRAM. Documents only; no code changed.
 
+### Communication self-repair primitives (prompt 55, 2026-11-18)
+
+Library and adapter primitives only; the presence state machine, retry policy, reconciliation,
+restart schedule and opt-in fault clear are prompt 74's example module. Host-tested; **no hardware
+result yet**: the prompt 55 bench trials in `docs/hardware_bench.md` are pending,
+and Q18 stays unqualified.
+
+- **Contract change, timeout abort:** a response timeout after a possible transmission stages one
+  client abort `80 <index> <subindex> 00 00 04 05` (`0x05040000`, SDO protocol timed out) through the
+  existing cleanup path. It is cleanup only: the terminal stays `TIMEOUT` with `clientAbortQueued`, and
+  the route stays unresolved. No abort follows when TX was never possible, at the overall deadline,
+  for a best-effort stop, or when the late reply is taken in the same turn as the timeout. Tests that
+  count frames after a timeout now expect this abort.
+- **Contract change, route reuse by default:** `SdoReusePolicy` per binding (`CanBusOwner::setSdoReuse`,
+  `sdoReuse`), default `ACCEPTED_RISK_WITH_MARKER`. After a quarantine with possible TX (timeout,
+  cancellation of possibly sent work, bus-off, a retired recovery) and local TX retirement, the owner
+  sends one marker read itself, the first eligible entry of `1000:00`, `1018:01`, `1018:02`, `1018:03`.
+  Its marker budgets default to 0, inheriting the route's last request budgets. A matching reply
+  reopens the route. Before, the route stayed quarantined unless the application stated both premises
+  for an explicit marker; no real route did, so on the bench it cost an MCU restart (D14). Tests that relied
+  on permanent quarantine now set `NONE` explicitly, or expect the marker read and the reopening.
+  `ACCEPTED_RISK_WITHOUT_MARKER` reopens after that local retirement alone and keeps the pairs
+  retained before it until the route's first success. `NONE` keeps the old quarantine and refuses
+  every marker. Both accepted settings state the sole-client and ordered-server premises as accepted,
+  not established.
+- A reopening invalidates every reservation on the node, an idle open `AxisSession`'s included; the S2
+  bench routes then refuse `session` until `x`. Every later result on the binding carries
+  `SdoCompletion::acceptedCorrelation`, copied to `Completion::acceptedCorrelation` and kept by profile
+  contexts, until a new server session. It marks the accepted risk that a delayed same-object reply
+  completed the request; it is not a detection.
+- Contradicting traffic (retained-pair overflow, a frame without a multiplexer, an unexpected frame
+  after a reopening) stops reuse on that route under either accepted setting (`Health::reuseStopped`,
+  `Stats::reuseStopped`, a `RESYNC` diagnostic). On a reopened route a waiting request then ends
+  `CORRELATION_LOST`. Only the explicit `reacceptReuse` resumes it.
+- **Contract change, stops before repair:** a pending best-effort stop drops an unsent cleanup abort on
+  its channel (it settles nothing and is never sent) and cancels the owner's own marker on the node. An
+  accepted best-effort stop ends the node's pending resync step, and no marker follows it. A route after
+  a stop, a client abort or a failed automatic marker reopens only through an explicit marker: the new
+  policy form of `admitDrainMarker`, whose premises the binding's policy states. The form that takes
+  `SdoDrainPremises` remains for compatibility.
+- TX lifetime: `setTxLifetime`, `txLifetimeUs`, default `DEFAULT_TX_LIFETIME_US` = 100 ms from the SDK
+  submission, `0` disables it. A frame with no final report within it is counted once (`Stats::txExpired`,
+  `OwnerResources::txExpired`, a `TX_EXPIRED` diagnostic), stays possibly sent and is never resent. The
+  interface then enters NO_LISTENER (`noListener`, `LISTENER` diagnostics): ordinary admission returns
+  the new `BusAdmission::NO_LISTENER` with nothing sent, while urgent work, best-effort stops and
+  explicit markers stay admissible. A received or ACKed frame ends it. `AxisSession` treats
+  `NO_LISTENER` as a no-TX refusal for a held stop.
+- `recover()` stays the one restart entry point for bus-off, receive overflow and TX expiry, single
+  flight. `RecoveryCompletion::causes` and the `RECOVERY` diagnostic keep each cause. Nothing restarts
+  by itself. New `DiagnosticKind` values `RESYNC`, `TX_EXPIRED` and `LISTENER`, and `ResyncStep`.
+- Presence observations in `Health`: `lastResponseUs`, `lastHeartbeatUs`, `bootUps`, `lastBootUpUs`,
+  `consecutiveNoResponse`, with `reusePolicy`, `resyncPending`, `acceptedCorrelation` and `noListener`.
+  The owner decides nothing from them. `Stats` adds `markers`.
+- `RetryClass` (`ActionOperation.h`): N `NOT_REPEATABLE` (default), R `REPEATABLE_READ`, W
+  `IDEMPOTENT_SETTING`, M `MOTION_LIKE`, set on every prepared context. `classifyRead` with caller-owned
+  `RepeatPermission` records promotes a named object for an application's policy without changing any
+  `readEffect`; `repeatableReadEffect` names the two repeatable effects. `NmtTransfer::retryClass` is M,
+  and `admitNmt` refuses any other value. The library never retries; a quick stop is reissued only as a
+  new operation, which sends only `000B`.
+- Shared console (Arduino, IDF, native): `reuse`, `reuse none|marker|nomarker`, `reuse budget QUEUE_US
+  RESPONSE_US`, `reuse accept`, `txlifetime [US]` and `health link`. `stats` adds `markers`,
+  `reuseStopped` and `txExpired`, and `drv` adds `noListener` and `txExpired`. Traces add the new
+  diagnostic kinds. Terminals add `retry_class` (`N`, `R`, `W`, `M`), and read terminals add
+  `reuse_policy` and `accepted_correlation`. See the CLI contract (`docs/cli_contract.md`).
+- S2 bench image (PONG `pdo=8`): three SDO channels (`CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=3`; the library
+  default stays 2). The `c` line names the reuse policy and TX lifetime. `L` link lines, `U` unplug watch
+  (one `recover()` on expiry, bounded explicit marker probes), `y`/`z` explicit markers. The soak gains
+  the optional `,RESPONSE_US,NODES,MARKER_MS` tail (`s2_soak.py --response-us --nodes --marker-ms`) with
+  `SOAK_LINK` and `SOAK_ABSENT` lines, and position/relative lines an optional trigger response budget
+  (`s2_bench.py --trigger-response-us`). The runners and `s2_evidence.py` parse the new lines.
+
 ### Fewer fixed guards, more settable ones (2026-11-17)
 
 - A checked stop (SUCCEEDED, completion OBSERVED) prepared after a move's start now clears that axis's move fence,
@@ -211,7 +282,6 @@
   experiment per node, including exact traffic and unchanged qualification gates.
   Prompt47 remains Partial for physical motion, electrical and homing evidence.
 
-
 ### Independent prompt46 audit (2026-11-15)
 
 - Retire withdrawn example transfers against their original admitted identity
@@ -223,7 +293,6 @@
   qualification claims; reconcile current conditional routes and ledger scopes.
 - Exercise native protocol acknowledgement/completion without identifiable
   controller TX confirmation. N5/EPOS4 remain fixtures, with no new physical claim.
-
 
 ### Independent consumers and production contrasts (prompt46, 2026-11-15)
 
@@ -237,7 +306,6 @@
   gates. Correct stale generated zero-action coverage through a separate conditional
   workflow facet; original source and physical qualification gates remain visible.
 - Settle unsent example work at its deadline and reject fake-clock latency overflow.
-
 
 ### Public header and promptset corrections (2026-11-15)
 
@@ -1325,7 +1393,6 @@ An independent review of the bench routes found no unrequested motion or control
 - Add independent real fake-controller write/failure tests, standalone consumers
   and documentation. DO/filter/action and scale/limit/mode gates remain pending.
 
-
 ### Digital I/O reads
 
 - Add four finite I/O groups through `prepareDriverRead/nextDriver/advanceDriver`
@@ -1336,7 +1403,6 @@ An independent review of the bench routes found no unrequested motion or control
   explicit generated read ownership. Prompt 21 remains Partial: DO/filter writes,
   output actions and their partial-effect/invalidation contracts stay gated by
   the specific source facts in the I/O guide.
-
 
 This repository contains planning/reference material and native service/API ownership proofs. No CAN library, firmware or hardware qualification is released.
 

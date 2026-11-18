@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: MIT
  */
 #pragma once
+#include <MotorControlCAN/ActionOperation.h>
 #include <MotorControlCAN/ReadOperation.h>
 #include <MotorControlCAN/canopen/PdoState.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
@@ -155,6 +156,12 @@ struct ReadContext {
         false; ///< Possible effects survive failed unqualified uploads/local withdrawal.
     bool invalidated =
         false; ///< Known lifecycle withdrawal blocks current publication even when deadline wins the outcome.
+    /** Set by successful preparation from the selected fields' read effects, TPDO-sourced reads
+     * included: REPEATABLE_READ only when every one is ACCEPTED_UNQUALIFIED (DEC-1), the one
+     * repeatable effect this profile's ledger records, otherwise NOT_REPEATABLE. No readEffect is
+     * changed. classifyRead adds an application's explicit permissions without changing this
+     * field. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
 };
 /** Complete owned work candidate; terminal/passive next calls only set ready=false. */
 struct PreparedRead {
@@ -162,6 +169,18 @@ struct PreparedRead {
     CANOPEN::SdoTransfer
         transfer; ///< Repeated next calls yield the same operation/step; owner prevents replay.
 };
+/** One application decision to count one named upload as repeatable when classifying a read.
+ * It names exactly one object, so a read with two unqualified uploads needs two permissions. It
+ * records the application's acceptance, not evidence: the object's readEffect, every yielded
+ * upload's SdoReadEffect and every possible effect stay as they were. The library never makes one.
+ */
+struct RepeatPermission {
+    uint16_t index = 0;   ///< Native object index the decision names.
+    uint8_t subindex = 0; ///< Exact subindex; no other subindex of the index is covered.
+    uint32_t record = 0;  ///< Nonzero identity of the application's retained decision record.
+};
+/** Most permissions one classifyRead call takes: one for each field a read can hold. */
+constexpr unsigned REPEAT_PERMISSIONS = READ_FIELDS;
 /** Checked successful minimal presence observation, never model or firmware identification. */
 struct ProbeObservation {
     ReadTarget target;         ///< Full frozen route/configuration/node provenance.
@@ -397,5 +416,24 @@ Status validateStateBlock(const ReadContext& context, StateBlock block, const Re
  */
 Status getConfig(const ReadContext& context, const ReadTarget& current, uint64_t nowUs,
                  uint64_t maximumAgeUs, ConfigObservation& output) noexcept;
+/** Classify a prepared read for an application's repeat policy, counting its explicit permissions.
+ * Pure: no I/O, clock or allocation, and nothing borrowed is changed or retained. The context's
+ * retryClass, its descriptors' readEffect and the work nextRead yields stay as they were, so an
+ * admitted repeat still carries its unqualified effect. Repeating stays the application's act: it
+ * prepares a new read under a new operation identity and its own deadline.
+ * @param[in] context Prepared read in any phase but EMPTY, also the `read` of a DriverContext or
+ * CommunicationReadContext.
+ * @param[in] permissions Borrowed array of count entries; null only when count is zero. An entry
+ * that names no field of this read is ignored.
+ * @param[in] count Entries in permissions, 0..REPEAT_PERMISSIONS.
+ * @param[out] output REPEATABLE_READ when every selected field's readEffect is ACCEPTED_UNQUALIFIED
+ * (DEC-1) or a permission names its exact index and subindex, NOT_REPEATABLE otherwise. Unchanged
+ * on failure; must not overlap context or permissions.
+ * @return OK. INVALID_CONFIG with ReadError::OVERLAP for output aliasing the context or the entries
+ * it would read, STATE for an EMPTY or malformed context, ARGUMENT for a null array with entries,
+ * more than REPEAT_PERMISSIONS entries or an entry with record zero, checked in that order.
+ */
+Status classifyRead(const ReadContext& context, const RepeatPermission* permissions, size_t count,
+                    RetryClass& output) noexcept;
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

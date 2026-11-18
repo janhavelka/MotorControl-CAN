@@ -461,9 +461,11 @@ void cancellationPhasesAndTerminalPrecedence() {
     CHECK(staged.services.port(0)->queueOccupied);
     CHECK(staged.owner.cancel(segment, 1) == O::Cancel::CANCELLED);
     staged.turn(2, budget(0, 2, 8, 2));
-    CHECK(staged.fake.sentCount == 1);
-    for (unsigned i = 1; i < staged.fake.sentCount; ++i)
-        CHECK(staged.fake.sent[i].data[0] == 0x80); // Only optional native abort cleanup.
+    // The staged segment never leaves. Cancelling possibly sent work arms the binding's one
+    // resync step (prompt 55), so the only later frame is its marker, a read of 1000:00.
+    CHECK(staged.fake.sentCount == 2 && staged.owner.stats().markers == 1);
+    CHECK(staged.fake.sent[1].data[0] == 0x40 && staged.fake.sent[1].data[1] == 0x00 &&
+          staged.fake.sent[1].data[2] == 0x10 && staged.fake.sent[1].data[3] == 0);
     CHECK(staged.done(segment).service.effectUncertain);
 }
 
@@ -711,7 +713,14 @@ void recoveryActuallyRetiresLocalQueues() {
             CHECK(r.fake.sent[1].data[1] == 0x46);
         }
         r.turn(5, budget(8, 2, 8, 2, 1));
-        CHECK(r.fake.sentCount == 2 && r.services.unresolved(0) && r.services.unresolved(1));
+        // A retired recovery gives each route it left unresolved with possible TX its one resync
+        // step (prompt 55, R1): one marker read of 1000:00 per route, nothing else. A failed or
+        // timed-out recovery keeps the owner inhibited, so nothing is sent then.
+        CHECK(r.fake.sentCount == (outcome == 0 ? 4u : 2u));
+        CHECK(r.services.unresolved(0) && r.services.unresolved(1));
+        for (unsigned i = 2; i < r.fake.sentCount; ++i)
+            CHECK(r.fake.sent[i].id == 0x5ffu + i && r.fake.sent[i].data[0] == 0x40 &&
+                  r.fake.sent[i].data[1] == 0x00 && r.fake.sent[i].data[2] == 0x10);
         CHECK(!r.services.node(1)->heartbeat.present);
         firstResult.unchanged(r.done(first));
         secondResult.unchanged(r.done(second));
@@ -1218,11 +1227,31 @@ void expectWrite(const M::Frame& sent, unsigned node, uint16_t index) {
     const uint8_t literal[8] = {0x2b, uint8_t(index), uint8_t(index >> 8), 0, 0xa5, 0x5a, 0, 0};
     CHECK(!std::memcmp(sent.data, literal, sizeof literal));
 }
+// The one cleanup abort of a response timeout (prompt 55): CiA 301 0x05040000, the request's object.
+void expectAbort(const M::Frame& sent, unsigned node, uint16_t index, uint8_t subindex = 0) {
+    CHECK(sent.id == 0x600 + node && sent.dlc == 8 && sent.payloadLength == 8);
+    const uint8_t literal[8] = {0x80, uint8_t(index), uint8_t(index >> 8), subindex, 0, 0, 0x04, 0x05};
+    CHECK(!std::memcmp(sent.data, literal, sizeof literal));
+}
+// Hands off a timed-out request's staged abort and reports it, with no start budget, so the
+// owner's own resync marker is not issued in these turns.
+void retireAbort(Rig& r, unsigned node, uint16_t index) {
+    const unsigned abort = r.fake.sentCount;
+    r.turn(r.now, budget(0, 1, 0, 0));
+    CHECK(r.fake.sentCount == abort + 1);
+    expectAbort(r.fake.sent[abort], node, index);
+    r.fake.report(abort);
+    r.turn(r.now, budget(0, 0, 8, 0));
+    CHECK(r.owner.localTxRetired(uint8_t(node - 1)) && r.services.unresolved(uint8_t(node - 1)));
+}
 struct Lost {
     O::SequenceId sequence;
     O::RequestId request;
 };
-// One sent write that never gets a reply: a possible effect, and LOST_INDEX:00 retained.
+// One sent write that never gets a reply: a possible effect, and LOST_INDEX:00 retained. Its
+// cleanup abort then leaves and is reported, so local TX is retired. No turn here has start
+// budget, so the owner has not issued its own resync marker: the binding's step stays armed
+// until an explicit marker takes its place or a turn with start budget runs it.
 Lost lose(Rig& r, unsigned node = 1) {
     Lost out;
     out.sequence = r.sequence(node, uint8_t(node));
@@ -1234,6 +1263,8 @@ Lost lose(Rig& r, unsigned node = 1) {
     const C::SdoCompletion& result = r.done(out.request).service;
     CHECK(result.outcome == C::SdoOutcome::TIMEOUT && result.effectPossible &&
           result.effectUncertain && r.services.unresolved(uint8_t(node - 1)));
+    CHECK(result.clientAbortQueued && !result.abortValid);
+    retireAbort(r, node, LOST_INDEX);
     return out;
 }
 O::RequestId admitMarker(Rig& r, const C::SdoTransfer& work) {
@@ -1363,9 +1394,11 @@ void controllerEventsQuarantineOnlyPossibleWork() {
             CHECK(r.services.node(1)->nmtTime.present && r.services.checkAdmission(1, write.transfer, r.now));
             write = r.request(other, 2, true);
             CHECK(r.owner.admit(write, r.now, output) == O::BusAdmission::ACCEPTED);
-            r.turn(r.now, budget(0, 1, 0, 1));
-            CHECK(r.fake.sentCount == 2);
-            expectWrite(r.fake.sent[1], 2, LOST_INDEX);
+            r.turn(r.now, budget(0, 2, 0, 2));
+            // Node 1's one resync marker after the retired recovery (prompt 55, R1), then node 2.
+            CHECK(r.fake.sentCount == 3 && r.owner.stats().markers == 1);
+            expectUpload(r.fake.sent[1], 1, 0x1000);
+            expectWrite(r.fake.sent[2], 2, LOST_INDEX);
         }
         // Service evidence qualifies the untouched axis as well as NMT does.
         {
@@ -1511,6 +1544,7 @@ void markerRefusals() {
         r.fake.report(1);
         r.turn(r.now + 1000, budget(0, 0, 8, 0));
         CHECK(r.done(lost).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+        retireAbort(r, 1, LOST_INDEX);
         markerRefused(r, markerWork(r.now, 1, 0x2346), O::BusAdmission::INVALID);
         CHECK(r.services.checkDrain(0, markerWork(r.now), fakePremises(), r.now));
     }
@@ -1564,6 +1598,10 @@ void markerRefusals() {
         markerRefused(r, markerWork(r.now), O::BusAdmission::INHIBITED);
         r.fake.report(0);
         r.turn(r.now, budget(0, 0, 8, 0));
+        // The timeout's abort is still staged behind it (prompt 55): local work on this route.
+        CHECK(!r.owner.localTxRetired(0) && r.services.port(0)->queueOccupied);
+        markerRefused(r, markerWork(r.now), O::BusAdmission::INVALID);
+        retireAbort(r, 1, LOST_INDEX);
         CHECK(r.owner.localTxRetired(0));
         CHECK(r.services.checkDrain(0, markerWork(r.now), fakePremises(), r.now));
     }
@@ -1591,6 +1629,10 @@ void markerRefusals() {
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INHIBITED);
         r.turn(r.now + 1000, budget(0, 0, 8, 0));
         CHECK(r.done(first).service.outcome == C::SdoOutcome::TIMEOUT);
+        // A marker's own response timeout stages its abort too, local work until it is retired.
+        CHECK(r.done(first).service.clientAbortQueued);
+        markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID);
+        retireAbort(r, 1, MARKER_INDEX);
         // Its retained result occupies this channel's urgent slot until released.
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.release(first));
@@ -1723,8 +1765,9 @@ void pendingMarkerTraffic() {
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID);
         CHECK(r.services.unresolved(0));
     }
-    {   // So does a wrong-object frame on later live work. It does not end that work or
-        // close the route, but the next loss cannot be drained.
+    {   // So does a wrong-object frame on later live work. Contract change (prompt 55, D3): on
+        // a reopened route it ends that work CORRELATION_LOST and quarantines the route, as on
+        // the idle path, and the next loss cannot be drained.
         Rig r;
         const Lost lost = lose(r);
         const auto id = sendMarker(r, markerWork(r.now));
@@ -1737,14 +1780,10 @@ void pendingMarkerTraffic() {
         r.turn(r.now, budget(0, 1, 0, 1));
         r.fake.report(r.fake.sentCount - 1);
         stray(r, uploaded(1, 0x3000));
-        CHECK(!r.owner.result(read) && !r.services.unresolved(0));
-        stray(r, uploaded(1, 0x2347));
-        CHECK(r.done(read).service.outcome == C::SdoOutcome::SUCCESS && !r.services.unresolved(0));
-        const auto write = r.admit(r.request(sequence, 2, true));
-        r.turn(r.now, budget(0, 1, 0, 1));
-        r.fake.report(r.fake.sentCount - 1);
-        r.turn(r.now + 1000, budget(0, 0, 8, 0));
-        CHECK(r.done(write).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+        CHECK(r.done(read).service.outcome == C::SdoOutcome::CORRELATION_LOST);
+        CHECK(r.services.unresolved(0) && r.services.reuseRefused(0));
+        stray(r, uploaded(1, 0x2347)); // Its own reply comes too late to count.
+        CHECK(r.done(read).service.outcome == C::SdoOutcome::CORRELATION_LOST && r.services.unresolved(0));
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID);
     }
     {   // An unrecorded stray fails the marker. Both it and the marker are now retained.
@@ -1807,7 +1846,12 @@ void pendingMarkerTraffic() {
         const unsigned sent = r.fake.sentCount;
         r.turn(r.now + 1000, budget());
         CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
-        CHECK(r.services.unresolved(0) && r.fake.sentCount == sent);
+        // The one new frame is its cleanup abort (prompt 55), never the marker again.
+        CHECK(r.services.unresolved(0) && r.fake.sentCount == sent + 1);
+        expectAbort(r.fake.sent[sent], 1, MARKER_INDEX);
+        r.fake.report(sent);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == sent + 1 && r.owner.localTxRetired(0));
         CHECK(r.owner.release(id));
         markerRefused(r, markerWork(r.now), O::BusAdmission::INVALID);
         CHECK(r.services.checkDrain(0, markerWork(r.now, 1, 0x2001), fakePremises(), r.now));
@@ -1828,7 +1872,7 @@ void pendingMarkerTraffic() {
         lose(r);
         const auto unsent = admitMarker(r, markerWork(r.now));
         CHECK(r.owner.cancel(unsent, r.now) == O::Cancel::CANCELLED);
-        CHECK(r.owner.release(unsent) && r.services.unresolved(0) && r.fake.sentCount == 1);
+        CHECK(r.owner.release(unsent) && r.services.unresolved(0) && r.fake.sentCount == 2);
         const auto sent = sendMarker(r, markerWork(r.now));
         CHECK(r.owner.cancel(sent, r.now) == O::Cancel::CANCELLED);
         CHECK(r.owner.release(sent) && r.services.unresolved(0));
@@ -1840,9 +1884,9 @@ void pendingMarkerTraffic() {
         const auto id = admitMarker(r, markerWork(r.now));
         stray(r, uploaded());
         r.turn(r.now, budget(0, 2, 0, 2));
-        CHECK(r.fake.sentCount == 1 && !r.owner.result(id));
+        CHECK(r.fake.sentCount == 2 && !r.owner.result(id));
         r.turn(r.now + 1000, budget());
-        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT && r.fake.sentCount == 1);
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT && r.fake.sentCount == 2);
         CHECK(r.services.unresolved(0));
     }
     {   // A marker queued before a boot belongs to the old session and never starts in the new one.
@@ -1853,7 +1897,7 @@ void pendingMarkerTraffic() {
         stray(r, networkState(1, 0));
         CHECK(r.services.node(0)->route.generation == generation + 1);
         CHECK(r.done(id).reason == O::CompletionReason::INVALIDATED);
-        CHECK(!r.done(id).service.transmissionPossible && r.fake.sentCount == 1);
+        CHECK(!r.done(id).service.transmissionPossible && r.fake.sentCount == 2);
         CHECK(r.services.unresolved(0));
         CHECK(r.owner.release(id));
         // The same object remains available to a new explicit marker in the new session.
@@ -1887,6 +1931,7 @@ void markerSuccessThroughOwner() {
     r.turn(r.now, budget(0, 1, 0, 1));
     r.fake.report(1);
     r.turn(r.now + 1000, budget(0, 0, 8, 0));
+    retireAbort(r, 1, LOST_INDEX); // Prompt 55: the timeout's abort leaves and retires first.
     const auto other = r.sequence(2, 2);
     const uint32_t otherGeneration = r.owner.sequence(other)->nodeGeneration;
     CHECK(r.done(lost).service.effectUncertain && r.services.unresolved(0));
@@ -1894,7 +1939,7 @@ void markerSuccessThroughOwner() {
     const Saved<O::Completion> ackResult(r.done(acknowledged)), lostResult(r.done(lost));
     const uint32_t generation = r.services.node(0)->route.generation;
     const auto id = sendMarker(r, markerWork(r.now));
-    CHECK(r.fake.sentCount == 3 && !r.services.drainSettled(0));
+    CHECK(r.fake.sentCount == 4 && !r.services.drainSettled(0));
     CHECK(r.services.requalifications(0) == 0 && r.services.unresolved(0));
     CHECK(!r.owner.sequence(sequence)); // The pending marker lends the old reservation nothing.
     stray(r, uploaded());
@@ -1912,7 +1957,7 @@ void markerSuccessThroughOwner() {
     lostResult.unchanged(r.done(lost));
     CHECK(r.done(lost).service.effectUncertain && !r.done(lost).service.protocolAcknowledged);
     r.turn(r.now + 1, budget());
-    CHECK(r.fake.sentCount == 3);
+    CHECK(r.fake.sentCount == 4);
     // Every reservation on the node is invalid, including the one holding the old 000F history.
     CHECK(!r.owner.sequence(sequence));
     CHECK(!r.owner.beginOperation(sequence, 2, r.now + 1000, r.now));
@@ -1932,8 +1977,8 @@ void markerSuccessThroughOwner() {
     CHECK(live && live->nodeGeneration == otherGeneration);
     const auto independent = r.admit(r.request(other));
     r.turn(r.now, budget(0, 1, 0, 1));
-    CHECK(r.fake.sentCount == 4);
-    expectUpload(r.fake.sent[3], 2, LOST_INDEX);
+    CHECK(r.fake.sentCount == 5);
+    expectUpload(r.fake.sent[4], 2, LOST_INDEX);
     r.complete(independent, 2);
     // Contract change (W6): new work needs a new reservation, and the invalid one no longer has
     // to be released first. Retained results stay readable and the old identity stays dead.
@@ -1950,8 +1995,8 @@ void markerSuccessThroughOwner() {
     CHECK(r.owner.beginOperation(fresh, 1, r.now + 1000, r.now));
     const auto after = r.admit(r.request(fresh, 1, false, 0x2347));
     r.turn(r.now, budget(0, 1, 0, 1));
-    CHECK(r.fake.sentCount == 5);
-    expectUpload(r.fake.sent[4], 1, 0x2347);
+    CHECK(r.fake.sentCount == 6);
+    expectUpload(r.fake.sent[5], 1, 0x2347);
     r.complete(after, 1, false, 0x2347);
     CHECK(r.done(after).service.outcome == C::SdoOutcome::SUCCESS);
     // Reopening consumed the history. A later loss starts it again: only that request's pair is
@@ -1962,6 +2007,8 @@ void markerSuccessThroughOwner() {
     r.fake.report(r.fake.sentCount - 1);
     r.turn(r.now + 1000, budget(0, 0, 8, 0));
     CHECK(r.done(again).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+    // This loss reached the operation's overall deadline, so no cleanup budget remained.
+    CHECK(!r.done(again).service.clientAbortQueued && r.owner.localTxRetired(0));
     markerRefused(r, markerWork(r.now, 1, 0x2346), O::BusAdmission::INVALID);
     CHECK(r.owner.release(id));
     const auto second = sendMarker(r, markerWork(r.now, 1, LOST_INDEX));
@@ -2182,9 +2229,14 @@ void retiredCleanupAbortReleasesTheMarker() {
     }
 }
 
-// None of these is the required boundary. They leave the route blocked and send nothing.
+// None of these is the required boundary. They leave the route blocked and send nothing. This is
+// the DEC-3 negative test under SdoReusePolicy::NONE (prompt 55): an accepted policy would itself
+// issue a marker, and the services guide records that contract change.
 void quietTimeHeartbeatEpochAndReadbackCannotReopen() {
     Rig r;
+    O::SdoReuse none;
+    none.policy = O::SdoReusePolicy::NONE;
+    CHECK(r.owner.setSdoReuse(route(1).binding, none, r.now));
     const Lost lost = lose(r);
     const Saved<O::Completion> result(r.done(lost.request));
     C::SdoTransfer readback = markerWork(r.now, 1, LOST_INDEX);
@@ -2195,7 +2247,8 @@ void quietTimeHeartbeatEpochAndReadbackCannotReopen() {
         CHECK(!r.owner.sequence(lost.sequence));
         O::SequenceId refused;
         CHECK(!r.owner.beginSequence(route(1).binding, 3, now, refused));
-        CHECK(r.services.requalifications(0) == 0 && r.fake.sentCount == 1);
+        // The lost write and its one cleanup abort, nothing else.
+        CHECK(r.services.requalifications(0) == 0 && r.fake.sentCount == 2);
         result.unchanged(r.done(lost.request));
     };
     // Quiet time, longer than every timeout in this rig.
@@ -2798,18 +2851,22 @@ void beginUrgentOperationRetiresOnlyUnsentWork() {
         CHECK(r.done(poll).service.transmissionPossible && !r.done(poll).service.protocolAcknowledged);
         const Saved<O::Completion> lostPoll(r.done(poll));
         expectNeverSent(r.done(urgent), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
-        CHECK(r.fake.sentCount == 1);
+        // Only the poll's own cleanup abort followed it (prompt 55).
+        CHECK(r.fake.sentCount == 2);
+        expectAbort(r.fake.sent[1], 1, LOST_INDEX);
+        r.fake.report(1);
         CHECK(!r.owner.beginUrgentOperation(sequence, 3, r.now + 1000, r.now));
         CHECK(!r.owner.sequence(sequence));
         O::SequenceId found;
         CHECK(!r.owner.findSequence(route().binding, found));
         manyTurns(r);
-        CHECK(r.fake.sentCount == 1);
+        // The unread urgent result holds the slot a resync marker would use, so none goes.
+        CHECK(r.fake.sentCount == 2);
         // The separate best-effort path is what remains, once this axis's slot is released.
         stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.release(urgent));
         const SentStop stop = sendStop(r, stopWork(r.now));
-        CHECK(stop.frame == 1);
+        CHECK(stop.frame == 2);
         lostPoll.unchanged(r.done(poll));
     }
     {   // A deadline is exclusive and belongs to its own operation. The new one is refused at
@@ -2994,6 +3051,8 @@ void stopAfterLostTriggerStaysUnqualified() {
     r.fake.report(1);
     r.turn(r.now + 1000, budget(0, 0, 8, 0));
     CHECK(r.done(trigger).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+    // Prompt 55: the trigger's cleanup abort is staged; the stop below drops it unsent (C1).
+    CHECK(r.done(trigger).service.clientAbortQueued && r.services.port(0)->queueOccupied);
     const Saved<O::Completion> readResult(r.done(read)), triggerResult(r.done(trigger));
     const Saved<C::ObservationTime> qualification(r.services.node(0)->serviceQualification);
     const Saved<C::ObservationTime> sdo(r.services.node(0)->sdo);
@@ -3014,7 +3073,7 @@ void stopAfterLostTriggerStaysUnqualified() {
     };
     refusesOrdinary();
     const SentStop stop = sendStop(r, stopWork(r.now));
-    CHECK(stop.frame == 2);
+    CHECK(stop.frame == 2 && !r.services.port(0)->queueOccupied); // The abort never left.
     refusesOrdinary();
     r.fake.report(stop.frame);
     r.turn(r.now, budget(0, 0, 8, 0));
@@ -3041,7 +3100,7 @@ void stopAfterLostTriggerStaysUnqualified() {
         refusesOrdinary();
     }
     manyTurns(r);
-    CHECK(r.fake.sentCount == 3);
+    CHECK(r.fake.sentCount == 3); // No resync marker follows a stop (prompt 55, D1).
     stopResult.unchanged(r.done(stop.id));
     // Release frees storage and settles nothing. A marker must not reuse the stop's own pair.
     CHECK(r.owner.release(stop.id) && !r.owner.result(stop.id) && !r.owner.release(stop.id));
@@ -3255,7 +3314,7 @@ void stopRoutesAndCapacity() {
         stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.release(marker));
         const SentStop stop = sendStop(r, stopWork(r.now));
-        CHECK(stop.frame == 1);
+        CHECK(stop.frame == 2); // After the lost write and its cleanup abort.
     }
     {   // So does urgent work still queued.
         Rig r;
@@ -3450,11 +3509,14 @@ void stopWaitsBehindLiveWork() {
         r.fake.report(0);
         r.turn(1000, budget(0, 1, 8, 1));
         CHECK(r.done(poll).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
-        CHECK(r.fake.sentCount == 2);
+        // The poll's cleanup abort was staged, but the stop drops it unsent (prompt 55, C1).
+        CHECK(r.done(poll).service.clientAbortQueued && r.fake.sentCount == 2);
         expectStop(r.fake.sent[1]);
         r.fake.report(1);
         r.turn(r.now, budget(0, 0, 8, 0));
         expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 2); // Neither the abort nor a resync marker follows the stop.
     }
     {   // Queue budget: pending one before the cutoff, unsent terminal at it, and the poll carries on.
         Rig r;
@@ -3526,10 +3588,12 @@ void stopWaitsBehindLiveWork() {
         CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
         r.fake.report(0);
         r.turn(r.now, budget(0, 1, 8, 1));
+        // The write's staged cleanup abort is dropped unsent: the stop goes next (prompt 55, C1).
         CHECK(r.fake.sentCount == 2);
         expectStop(r.fake.sent[1]);
     }
-    {   // A staged cleanup abort is live local work too: it goes first, and the stop follows.
+    {   // Contract change (prompt 55, C1): an unsent cleanup abort gives way to a stop on its
+        // channel. It settles nothing, so it is dropped and never sent.
         Rig r;
         const auto sequence = r.sequence();
         O::BusRequest read = r.request(sequence);
@@ -3544,11 +3608,12 @@ void stopWaitsBehindLiveWork() {
         CHECK(r.done(id).service.clientAbortQueued && r.services.port(0)->queueOccupied);
         const auto stop = admitStop(r, stopWork(r.now));
         r.turn(r.now, budget(0, 2, 0, 2));
-        CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x80 && !r.owner.result(stop));
+        CHECK(r.fake.sentCount == 2 && !r.services.port(0)->queueOccupied);
+        expectStop(r.fake.sent[1]);
         r.fake.report(1);
         r.turn(r.now, budget(0, 1, 8, 1));
-        CHECK(r.fake.sentCount == 3);
-        expectStop(r.fake.sent[2]);
+        CHECK(r.fake.sentCount == 2); // The dropped abort never follows.
+        expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
     }
     {   // A cleanup abort already on the controller is live local work too.
         Rig r;
@@ -3575,8 +3640,12 @@ void stopWaitsBehindLiveWork() {
 }
 
 void stopResultIsFinalAcrossManyTurns() {
-    {   // No report by its cutoff: TIMEOUT, still possible, and no resend ever.
+    {   // No report by its cutoff: TIMEOUT, still possible, and no resend ever. Under NONE, so that
+        // the lost write's resync marker (prompt 55) cannot follow the late report here.
         Rig r;
+        O::SdoReuse none;
+        none.policy = O::SdoReusePolicy::NONE;
+        CHECK(r.owner.setSdoReuse(route(1).binding, none, r.now));
         lose(r);
         const uint64_t cutoff = r.now + 1000;
         const SentStop stop = sendStop(r, stopWork(r.now));
@@ -3745,7 +3814,7 @@ void stopNetworkAndTransportInhibits() {
                 stray(r, networkState(1, 0x7f));
                 CHECK(r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
                 const SentStop stop = sendStop(r, stopWork(r.now));
-                CHECK(stop.frame == lost);
+                CHECK(stop.frame == (lost ? 2u : 0u)); // A loss sent its write and abort.
             }
         }
     }
@@ -3780,9 +3849,10 @@ void stopNetworkAndTransportInhibits() {
         CHECK(other.frame == 1);
         r.fake.report(0);
         r.turn(r.now, budget(0, 0, 8, 0));
-        CHECK(r.owner.localTxRetired(0) && r.services.unresolved(0));
+        // The write's cleanup abort (prompt 55) was staged behind it; the stop drops it (C1).
+        CHECK(r.services.port(0)->queueOccupied && r.services.unresolved(0));
         const SentStop stop = sendStop(r, stopWork(r.now));
-        CHECK(stop.frame == 2);
+        CHECK(stop.frame == 2 && !r.services.port(0)->queueOccupied);
     }
     {   // An NMT frame still owned by the controller holds this node, and not the other.
         Rig r;
@@ -3952,7 +4022,7 @@ void onlyTheExactStopPasses() {
     O::RequestId output;
     CHECK(q.owner.admit(ordinary, q.now, output) == O::BusAdmission::INVALID);
     CHECK(q.owner.admitUrgent(ordinary, q.now, output) == O::BusAdmission::INVALID);
-    CHECK(q.fake.sentCount == 1);
+    CHECK(q.fake.sentCount == 2); // The lost write and its cleanup abort only.
 }
 
 // State refusals are INHIBITED on an idle channel and a busy one alike, and only state is at
@@ -4252,16 +4322,16 @@ void asynchronousDeliveryContinuesDuringStop() {
     };
     // Queued.
     deliver(0x10, 1);
-    CHECK(!r.owner.result(stop) && r.fake.sentCount == 1);
+    CHECK(!r.owner.result(stop) && r.fake.sentCount == 2); // The lost write and its abort.
     // Handed off and unreported, with the other axis in flight too.
     r.turn(r.now, budget(0, 2, 0, 2));
-    CHECK(r.fake.sentCount == 3);
-    expectStop(r.fake.sent[1]);
-    expectUpload(r.fake.sent[2], 2, LOST_INDEX);
+    CHECK(r.fake.sentCount == 4);
+    expectStop(r.fake.sent[2]);
+    expectUpload(r.fake.sent[3], 2, LOST_INDEX);
     deliver(0x20, 2);
     CHECK(!r.owner.result(stop) && !r.owner.result(work));
     // A reply on node 1 changes nothing there, and node 2's own reply settles node 2's work.
-    r.fake.report(2);
+    r.fake.report(3);
     r.fake.push(serverFrame(1, 0x60, 0x6040), r.now + 1);
     r.fake.push(reply(2), r.now + 1);
     r.turn(r.now + 1, budget(8, 0, 8, 0));
@@ -4269,14 +4339,14 @@ void asynchronousDeliveryContinuesDuringStop() {
     CHECK(r.done(work).service.outcome == C::SdoOutcome::SUCCESS && !r.services.unresolved(1));
     CHECK(r.services.node(1)->sdo.present);
     deliver(0x30, 3);
-    r.fake.report(1);
+    r.fake.report(2);
     r.turn(r.now, budget(0, 0, 8, 0));
     expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
     // After its terminal, and after its release.
     deliver(0x40, 4);
     CHECK(r.owner.release(stop));
     deliver(0x50, 5);
-    CHECK(r.fake.sentCount == 3);
+    CHECK(r.fake.sentCount == 4);
 }
 
 } // namespace

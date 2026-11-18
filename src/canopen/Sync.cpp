@@ -92,6 +92,8 @@ Status prepareSync(const SyncOptions& options, uint64_t nowUs, SyncContext& cont
     SyncContext candidate;
     candidate.options = options;
     candidate.state = SyncState::ACTIVE;
+    // Each SYNC is a trigger: synchronous PDOs sample or apply on it, so a repeat is a new trigger.
+    candidate.retryClass = RetryClass::NOT_REPEATABLE;
     candidate.lastNowUs = nowUs;
     context = candidate;
     return Ok();

@@ -23,9 +23,9 @@
 @1 version
 # reply ok: grammar "version" and its help text.
 @2 help version
-# 51 "help" records, one per working inventory row (the 6 gated rows are absent), then reply result complete.
+# 54 "help" records, one per working inventory row (the 6 gated rows are absent), then reply result complete.
 @3 help
-# 57 "capability" records, one per row (gated rows implemented:false with their reason), then reply result
+# 60 "capability" records, one per row (gated rows implemented:false with their reason), then reply result
 # complete with probe/identity/non_changing, can_match_exact_model/can_match_firmware, model_match null,
 # firmware_match null, endpoint_range, motor_kind null, feedback null, hardware_qualified false.
 @4 caps
@@ -253,5 +253,22 @@ version
 # image answers reject unknown_command "ver@111" with id 110 and nothing for 111.
 !hex:40 31 31 30 20 76 65 72
 @111 version
+# ---- prompt 55 self-repair settings and observations (owner API only; nothing is sent)
+# reject no_binding: no selected binding, so no route reuse setting to show or change.
+@113 reuse
+# reject no_binding.
+@114 reuse none
+# reply ok: tx_lifetime_us "100000" (the owner's documented default), no_listener false, tx_expired 0, tx_expired_total 0.
+@115 txlifetime
+# reply ok: tx_lifetime_us "100000" again: the same value set explicitly; nothing is resent or restarted.
+@116 txlifetime 100000
+# reject invalid_arguments: above the console's 60000000 us bound.
+@117 txlifetime 60000001
+# reply ok: known false, state null (no selected binding), as plain health.
+@118 health link
+# reply ok: the stats counters, then markers 0, reuseStopped 0, txExpired 0.
+@119 stats
+# reject no_binding: the marker budgets belong to a selected binding's route as well.
+@120 reuse budget 250000 200000
 # reply ok: the session ends on a clean line.
 @112 version

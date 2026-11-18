@@ -12,6 +12,13 @@ Build with the pinned ESP-IDF 5.5.5 tool environment:
 python scripts/check_firmware.py --target s2 --idf-path PATH_TO_IDF --idf-python PATH_TO_IDF_PYTHON
 ```
 
+The image sets `CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=3` in its `sdkconfig.defaults` (the library default stays
+2, and the gate checks the resolved value): the fixture keeps its two drives on slots 0 and 1, and the third
+channel serves only prompt 55's absent node 3 in a soak that names it. On the 2026-11-18 build the third
+channel adds 2904 bytes of static DRAM (`.dram0.data`, `_heap_start` 0x3FFC8270 to 0x3FFC8DC8) and 3936 bytes
+of image; the heap plan's reserved blocks keep their sizes. The boot heap after the reservations is measured
+only on the board (`M`).
+
 This checks compilation and never flashes. Add `--temporary-root C:/Temp` when
 that existing short path is needed for Windows compiler dependency files. For
 a retained local build, from an exported IDF shell, use:
@@ -64,6 +71,9 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `H<node>,1000` | Prompt 38: the guarded `1017:00` commissioning on node 1 or 2, exact baseline raw 0, one write of raw 1000, epoch migration, exact readback; any other value is refused as syntax and no reverse transition exists (below) |
 | `o` | The shared console's premise: both nodes' bench routes configured as every command configures its node on first use, and the controller's interface facts (interface 0, 1 Mbit/s) given to the application; sends, selects and grants nothing (shared console, below) |
 | `@ID ...` | One JSONL line of the shared console ([cli_contract.md](../../docs/cli_contract.md)), collected whole and judged against the bench's activity before the console sees it (shared console, below) |
+| `L` / `scripts/s2_bench.py --command link` | PONG `pdo=8`, prompt 55: `LINK interface` (TX lifetime, NO_LISTENER, pending expired handoffs, markers, reuse refusals, recoveries) and one `LINK node=N` line per node (reuse policy, unresolved, reuse stopped, resync pending, accepted correlation, presence observations), one per turn, in every state; sends nothing |
+| `U` | PONG `pdo=8`, prompt 55's unplug check ([`LinkWatch`](LinkWatch.h)): a 120 s window, beside a soak at most, in which the image calls `CanBusOwner::recover` itself exactly once when a TX lifetime expires (`LINK_WATCH armed`, `LINK_EVENT` lines, `LINK_WATCH_END`). After that restart it probes each node whose route is still unresolved with an explicit marker (policy form, the binding's marker list), without waiting for NO_LISTENER to end: the owner starts no resync step while NO_LISTENER holds and this fixture sends no heartbeat or PDO, while the marker's ACK ends it. A probe that ends without reopening is followed by another after 1 s, only once its frame is locally retired, at most 4 per node and window (`kind=marker`, `kind=marker-result`). Sends nothing else |
+| `y`, `z` / `--command marker1`, `marker2` | PONG `pdo=8`: one explicit drain marker read on node 1 or 2 through `admitDrainMarker` (policy form), for a route that no owner resync step reopens (after a best-effort stop or a client abort); `MARKER admitted`, then `MARKER node=N ... reopened=` after its terminal, released at once. Refused while a console operation, capture, trial, D/K/H record, soak or NMT result is held |
 
 While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
 `SOAK_REFUSED reason=active` (an `N`, `R`, `W` or `E` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
@@ -328,7 +338,23 @@ allocation order, the reservation mask (bits route, session 1, session 2, arena,
 ## Communication soak
 
 `S` followed by `TRIAL,DURATION_S,INTERVAL_MS,SUMMARY_S,READS` and a line end starts one
-finite soak. [`Soak`](Soak.h) runs in the owner task through the ordinary `ProbeApp` typed
+finite soak. Prompt 55 adds an optional tail, `,RESPONSE_US,NODES,MARKER_MS` (all three or none;
+`scripts/s2_soak.py --response-us --nodes --marker-ms`): each service's response budget (100..250000 us,
+0 the default 250000), the node mask (1 node 1, 2 node 2, 3 both, plus 4 the absent node 3) and a marker
+response budget (1..1000 ms, 0 none). That budget is the owner's marker budget on the planned nodes for the
+soak (`SdoReuse::markerResponseTimeoutUs`, queue 250 ms; restored at the end), so that the owner's one
+marker does not inherit a deliberately short read budget, and the budget of the soak's one explicit marker
+after the owner's own resync step ended without reopening. While a resync step or its reopening is
+pending, the node's ticks wait (`waits=`) instead of stopping it; every summary adds one `SOAK_LINK` line
+per node (reuse policy, timeouts, aborts, the owner's markers, explicit markers, reopenings, failed and
+other marker steps, reuse refusals, waits, presence observations). Mask value 4 (bench item c) configures
+node 3's route (0x603/0x583) on the third channel and probes it with one 1000:00 read per second on its own
+owner reservation, beside the alternating reads of nodes 1 and 2, whose ticks it does not touch. Nodes 1
+and 2 ACK its frames and nothing answers: the probe times out, the owner's marker and the soak's one
+explicit marker follow it, and while its route stays unresolved no probe is resent (`held=`). The summary's
+last line, `SOAK_ABSENT`, counts the probes and their terminals and carries the owner's presence
+observations of node 3 (`noResponse=`, `responded=`, `heartbeat=`, `bootUps=`). An image without a third
+channel refuses the mask. [`Soak`](Soak.h) runs in the owner task through the ordinary `ProbeApp` typed
 reads and the sole owner, one finite operation at a time, alternating nodes 1 and 2. It sends
 no write, NMT command or controlword, and has no raw sender or second receiver. Startup stays
 passive: nothing runs before the request, and the routes are configured by the request with the
@@ -341,6 +367,13 @@ allocation, and a build that never soaks spends nothing. Free heap is reported i
 and every `SOAK_GAP`.
 
 ## Attended bench routes
+
+Prompt 55 adds an optional last field to the `position` and `relative` lines (`TP`, `TL`,
+`scripts/s2_bench.py --trigger-response-us`, 100..250000 us, routes protocol unchanged: an older image
+refuses the longer line as syntax): the trigger word's own response budget. Below the drive's reply time it
+forces that one frame's response timeout; the record's `TRIAL_PLAN` then ends in `trigResp=` and the route's
+`reuse=` policy, its traffic holds exactly one trigger frame, and the client's cleanup abort follows it.
+A quick-stop reissue is two `stop --kind quick` lines: the second is a new operation that sends only `000B`.
 
 `T` followed by a route letter and its fields starts one finite route of
 [`BenchRoute`](BenchRoute.h): the packet 13, 14 and 15 reads, one `6060:00=1`, the session's

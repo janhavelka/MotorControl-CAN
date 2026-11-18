@@ -1,11 +1,43 @@
 /** @file ActionOperation.h
- * @brief Common action phase and evidence vocabulary, independent of wire protocol.
+ * @brief Common action phase, evidence and retry-class vocabulary, independent of wire protocol.
  * SPDX-License-Identifier: MIT
  */
 #pragma once
 #include <MotorControlCAN/Status.h>
 
 namespace MotorControlCAN {
+/** What an application's own policy may do with a prepared operation after an attempt failed or
+ * its result stayed unknown. Every prepared operation context states one, set on successful
+ * preparation; an empty or reset context reads NOT_REPEATABLE.
+ *
+ * A class describes the operation, never its read effects: it does not change, qualify or replace
+ * any upload's readEffect, and repeating a read whose effect is unknown leaves that effect unknown.
+ * The library never repeats work. No core function, context or owner retries, replays or resends
+ * anything because of a class; an application that repeats an operation prepares a new, separately
+ * identified operation within its own deadline. MotorControl-RS has no type for this; its
+ * architecture says only explicitly classified operations may be retried under application policy,
+ * and this is that classification.
+ */
+enum class RetryClass : uint8_t {
+    /** N, the default for everything not classified otherwise: an upload whose effect is
+     * unqualified (the fault and history reads 603F, 1001 and 1003 among them), a write with an
+     * edge or trigger effect (an alarm clear, a counter zero), a stop, a multi-step
+     * reconfiguration, a SYNC schedule. Policy never repeats it. A new stop request is new intent,
+     * not a replay; the profile's stop contract says which stop words a new preparation may
+     * send. */
+    NOT_REPEATABLE,
+    /** R: the operation only uploads, and every upload's readEffect is REVIEWED_NON_CHANGING, or
+     * ACCEPTED_UNQUALIFIED under DEC-1, which is risk acceptance and not evidence. */
+    REPEATABLE_READ,
+    /** W: an idempotent absolute setting that the operation confirms by reading it back. Writing
+     * the same value again leaves the same stored value, and the write has no edge or trigger
+     * effect. Its readback uploads keep their own readEffect. */
+    IDEMPOTENT_SETTING,
+    /** M: motion start, enable, homing, save or factory restore, NMT. An unconfirmed attempt may
+     * already have run (a relative +10 mm move sent twice moves +20 mm), so it is never
+     * replayed. */
+    MOTION_LIKE
+};
 /** Explicit intent; a device counter clear is distinct from host origin or home. */
 enum class ActionKind : uint8_t {
     STOP,               ///< Profile-selected explicit stop.

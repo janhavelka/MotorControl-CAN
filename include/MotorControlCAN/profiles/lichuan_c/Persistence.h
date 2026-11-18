@@ -99,6 +99,10 @@ struct PersistenceContext {
     uint32_t attemptOrdinal =
         0;                ///< Caller's nonzero cumulative command number, not flash endurance.
     uint8_t attempts = 0; ///< Zero before possible TX, exactly one afterwards; no retry.
+    /** MOTION_LIKE once prepareSave or prepareFactoryRestore succeeds: an unconfirmed save or
+     * restore may already have run, so it is never replayed. verifyPersistence leaves it
+     * unchanged. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
     bool transmissionNoted = false; ///< Owner crossed possible-TX boundary exactly once.
     bool effectsPossible = false;   ///< Persistent/volatile effect may exist, even with no reply.
     bool prerequisitesWithdrawn =

@@ -492,6 +492,22 @@ identical delayed SDO replies. Q20 leaves Lichuan read effects unestablished.
 The DEC-1 accepted list is owner risk acceptance, not evidence; reads are not
 automatically harmless.
 
+## Self-repair primitives (prompt 55)
+
+The owner supplies primitives and observations; the presence state machine, retries, reconciliation, the restart schedule and the opt-in fault clear are prompt 74's reference module. Nothing here retries or restarts by itself.
+
+| Primitive | Contract |
+| --- | --- |
+| Timeout abort and reuse | `setSdoReuse(binding, reuse, nowUs)` and `sdoReuse` select `SdoReusePolicy` per binding (default `ACCEPTED_RISK_WITH_MARKER`; marker list `1000:00`, `1018:01`, `1018:02`, `1018:03`; marker budgets 0, inheriting the route's last request budgets; `setSdoReuse` refuses an invalid list or budget whole). After a timeout with possible TX the client stages one abort and the owner resyncs the route under that policy: the CANopen services guide, "Settling and reopening a route", gives the rules. Markers wait behind urgent work. A pending stop drops an unsent cleanup abort on its channel, and an accepted best-effort stop ends the node's pending resync, so no marker follows a stop. Results carry `reusePolicy`, `acceptedCorrelation` and `automaticMarker` |
+| Contradicting traffic | Stops reuse on the route (`Health::reuseStopped`, `Stats::reuseStopped`). `reacceptReuse(binding, nowUs)` is the explicit application decision that resumes it; the route stays unresolved until a resync reopens it |
+| TX lifetime | `setTxLifetime`, `txLifetimeUs`, `noListener`; an expired frame is counted and logged once, NO_LISTENER refuses ordinary work with `BusAdmission::NO_LISTENER`, and `recover()` stays the one restart entry point (TWAI SDK guide) |
+| Presence | `Health` per node: `lastResponseUs` (any frame on the node's response ID), `lastHeartbeatUs`, `bootUps` and `lastBootUpUs` (counted only when the adapter accepted the frame), and `consecutiveNoResponse` (attempted-service timeouts after possible TX, cleared by any response). Observations only; the owner decides nothing from them |
+| Retry classes | Every prepared core context states `RetryClass` (`ActionOperation.h`): `REPEATABLE_READ` only for reads whose every field is `REVIEWED_NON_CHANGING` or `ACCEPTED_UNQUALIFIED`, `IDEMPOTENT_SETTING` for absolute settings confirmed by readback, `MOTION_LIKE` for motion starts, enable, homing, save, factory restore and NMT (`NmtTransfer::retryClass`), and `NOT_REPEATABLE`, the default, for everything else including stops, alarm clear, counter zero and the fault and history reads. `classifyRead` with caller-owned `RepeatPermission` records lets an application promote a named object to R; it never changes `readEffect`. The library never retries; a quick stop is reissued only as a new operation |
+
+The bench image names its reuse policy in its evidence. Host tests: `owner_self_repair`, `sdo_reconciliation` and `retry_class`.
+
+Under the default policy an application sees one resync as follows. A read times out after its frame may have left, and the client stages its one abort, `80 <index> <subindex> 00 00 04 05`. Once the request and the abort are locally retired and no stop waits on the node, the owner admits its own marker read (`RESYNC` `MARKER_ADMITTED`, `Stats::markers`, `Completion::automaticMarker`). A matching reply settles the channel: the owner invalidates every reservation on the node, an idle open session's included, and reopens the route (`RESYNC` `REOPENED`). The application then opens a new reservation, and every later result on the binding carries `acceptedCorrelation`. Nothing replays the timed-out read or settles its effect. The owner takes no step after an accepted best-effort stop, a client abort or a failed automatic marker (`MARKER_FAILED`, `MARKER_UNAVAILABLE`). That route stays unresolved until the application admits one marker itself through the policy form of `admitDrainMarker`, as the S2 bench's `y` and `z` commands and its unplug watch do.
+
 ## Native settings exclusion and configuration epochs
 
 The [confirmed settings](driver_settings.md#explicit-position-parameter-settings)

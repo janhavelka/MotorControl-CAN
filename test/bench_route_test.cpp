@@ -192,6 +192,12 @@ bool upload(const M::Frame& f, unsigned node, uint16_t index, uint8_t sub = 0) {
 bool download(const M::Frame& f, unsigned node, const uint8_t (&expected)[8]) {
     return f.id == 0x600 + node && !std::memcmp(f.data, expected, 8);
 }
+// Prompt 55: the one client abort 0x05040000 a response timeout after possible TX sends, naming the
+// timed-out request's own object. Cleanup only, never a replay.
+bool timeoutAbort(const M::Frame& f, unsigned node, uint16_t index, uint8_t sub = 0) {
+    const uint8_t expected[8] = {0x80, uint8_t(index), uint8_t(index >> 8), sub, 0x00, 0x00, 0x04, 0x05};
+    return f.id == 0x600 + node && !std::memcmp(f.data, expected, 8);
+}
 struct Address {
     uint16_t index;
     uint8_t sub;
@@ -613,12 +619,19 @@ void testPrerequisitesAndLostReplies() {
     lost->driver.drives[1].silentIndex = 0x6060;
     const E::RouteRecord& l = lost->run("M2,1,1,3,200");
     CHECK(l.failure == E::RouteFailure::SERVICE && std::strcmp(l.why, "uncertain") == 0);
-    CHECK(lost->downloadsFrom(0) == 1 && lost->driver.requests.back().data[0] == 0x2f);
+    // The 6060 write's reply is lost: its cleanup abort follows at once.
+    const size_t write = lost->driver.requests.size() - 2;
+    CHECK(lost->downloadsFrom(0) == 1 && lost->driver.requests[write].data[0] == 0x2f &&
+          timeoutAbort(lost->driver.requests[write + 1], 2, 0x6060));
     lost->turns(2000);
+    // Under the bench image's default reuse policy the owner then reads its marker 1000:00 once,
+    // which the fake answers, and reopens the route. That repairs only the channel.
+    CHECK(lost->driver.requests.size() == write + 3 && upload(lost->driver.requests[write + 2], 2, 0x1000));
+    CHECK(lost->firmware.owner().stats().markers == 1 && !lost->services.unresolved(1));
     CHECK(lost->downloadsFrom(0) == 1); // Never replayed.
     lost->release();
-    // The mode may have changed unacknowledged: the session's record refuses any enable, and the
-    // route stays unresolved, so nothing reopens it for another route either.
+    // The mode may have changed unacknowledged: the session's record refuses any enable, also on
+    // the reopened route, so no repair replays or builds on the uncertain write.
     CHECK(lost->two.motionHistoryWritten());
     CHECK(lost->start("E2,2,1,1,1,32823,5000,120,10000,800") != nullptr);
     CHECK(lost->downloadsFrom(0) == 1);
@@ -2937,7 +2950,16 @@ void testMoveObserver() {
     CHECK(!a->route.release()); // Its request has not settled.
     a->turns(400);              // Past the 250 ms response budget.
     CHECK(a->route.release());
-    CHECK(toNode(*a, 0, 1, true) == 4 && toNode(*a, 0, 2, true) == 0); // 6060 and the enable's three words.
+    // 6060 and the enable's three words. Node 2 is never written: its one non-upload frame is the
+    // timed-out observer read's cleanup abort 0x05040000 (prompt 55), and the owner's marker read of
+    // 1000:00 then reopens its route.
+    CHECK(toNode(*a, 0, 1, true) == 4 && toNode(*a, 0, 2, true) == 1);
+    unsigned aborts = 0, markers = 0;
+    for (const M::Frame& f : a->driver.requests) {
+        aborts += timeoutAbort(f, 2, 0x2100);
+        markers += upload(f, 2, 0x1000);
+    }
+    CHECK(aborts == 1 && markers == 1 && a->firmware.owner().stats().markers == 1);
     // The observer is the other node only.
     E::RoutePlan p;
     MoveSpec self = observed(1);
@@ -4315,9 +4337,13 @@ void testCloseKeepsFaultFence() {
     CHECK(z.failure == E::RouteFailure::REFUSED && std::strcmp(z.why, "clear") == 0 && z.statusPresent);
     CHECK(std::strstr(z.statusMessage, "drive fault") && r->downloadsFrom(sent) == 0 && r->one.faultBlocked());
     // An unconfirmed write: the 6060 reply is lost, its effect unknown. The idle session closes, and its write
-    // record stays; the route stays unresolved, so neither a route nor K can reserve the node again.
+    // record stays; the route stays unresolved, so neither a route nor K can reserve the node again. That
+    // quarantine is reuse policy NONE (prompt 55), set here for node 1; the default policy follows below.
     scenario = "close-keeps-uncertain-write";
     std::unique_ptr<Rig> u(new Rig);
+    O::SdoReuse none;
+    none.policy = O::SdoReusePolicy::NONE;
+    CHECK(u->firmware.owner().setSdoReuse(u->services.channel(0)->binding, none, u->console.now));
     u->driver.drives[0].silentIndex = 0x6060;
     trial = 0;
     const E::RouteRecord& m = u->run("M1," + id(trial) + ",1,3,200");
@@ -4337,6 +4363,27 @@ void testCloseKeepsFaultFence() {
     CHECK(refusedAs(u->comm.begin(k.reads(*u, 1), u->console.now), "unresolved"));
     u->turns(100);
     CHECK(u->driver.requests.size() == after && u->downloadsFrom(0) == 1);
+    CHECK(timeoutAbort(u->driver.requests[after - 1], 1, 0x6060) && !u->firmware.owner().stats().markers);
+    // The bench image's default policy: the cleanup abort, then the owner's one marker read reopens the
+    // route. The write record stays, so the session still refuses an enable; a read route is new work.
+    scenario = "close-uncertain-write-resynced";
+    std::unique_ptr<Rig> d(new Rig);
+    d->driver.drives[0].silentIndex = 0x6060;
+    trial = 0;
+    CHECK(d->run("M1," + id(trial) + ",1,3,200").failure == E::RouteFailure::SERVICE);
+    d->turns(400);
+    d->release();
+    const size_t abortAt = d->driver.requests.size() - 2;
+    CHECK(timeoutAbort(d->driver.requests[abortAt], 1, 0x6060) &&
+          upload(d->driver.requests[abortAt + 1], 1, 0x1000));
+    CHECK(!d->services.unresolved(0) && d->firmware.owner().stats().markers == 1 && d->one.motionHistoryWritten());
+    // The reopening invalidated every reservation on the node, the open session's too: a route refuses
+    // the session until the explicit close (`x`), which sends nothing; the reopened session then reserves.
+    CHECK(refusedAs(d->start("A1," + id(trial)), "session"));
+    CHECK(closeAll(*d) == 1 && d->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE));
+    CHECK(d->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800") != nullptr);
+    CHECK(d->run("A1," + id(trial)).failure == E::RouteFailure::NONE && d->downloadsFrom(0) == 1);
+    CHECK(d->one.motionHistoryWritten());
 }
 // A counter clear whose final 0 went unanswered: its 1 withdrew the coordinates and the owner's move to the
 // new configuration epoch is still owed, so the close refuses. After an ordinary counter clear the
@@ -7587,6 +7634,90 @@ void replayRouteBootR4b() {
     CHECK(r->route.motionAdmissions() == 4); // HOME weighs no motion.
     r->release();
 }
+// Prompt 55's forced trigger timeout (bench item e): a POSITION line with the optional last field gives
+// only its 001F trigger a response budget below this fixture's one-turn reply. The trigger times out, the
+// route ends with its effect uncertain, and exactly one trigger frame is on the wire: nothing replays it.
+void testForcedTriggerTimeout() {
+    scenario = "trigger-timeout";
+    E::RoutePlan parsed;
+    std::string line = "P1,9,1,0,16,1,1000,1000,4,100,0,0,0,0,0,500";
+    CHECK(E::parseRouteCommand(line.data(), line.size(), parsed) && parsed.triggerResponseUs == 500);
+    line = "P1,9,1,0,16,1,1000,1000,4,100,0,0,0,0,0";
+    CHECK(E::parseRouteCommand(line.data(), line.size(), parsed) && parsed.triggerResponseUs == 0);
+    for (const char* bad : {"P1,9,1,0,16,1,1000,1000,4,100,0,0,0,0,0,99", "P1,9,1,0,16,1,1000,1000,4,100,0,0,0,0,0,250001",
+                            "P1,9,1,0,16,1,1000,1000,4,100,0,0,0,0,0,500,1"}) {
+        line = bad;
+        CHECK(!E::parseRouteCommand(line.data(), line.size(), parsed));
+    }
+    E::RoutePlan other;
+    other.kind = E::RouteKind::STOP;
+    other.triggerResponseUs = 500; // Only POSITION and RELATIVE carry it, however a plan is built.
+    CHECK(!E::routePlanValid(other));
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& p = r->run(position(1, trial, 0, 16, 4, 100) + ",500");
+    CHECK(p.failure == E::RouteFailure::SERVICE);
+    r->turns(600);
+    unsigned triggers = 0;
+    const uint8_t trigger[8] = {0x2b, 0x40, 0x60, 0, 0x1f, 0, 0, 0};
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        triggers += download(r->driver.requests[i], 1, trigger);
+    CHECK(triggers == 1);
+    CHECK(has(r->dump(), " trigResp=500 reuse=marker\n"));
+    r->release();
+}
+// Prompt 55's quick-stop reissue (bench item f): a second STOP route with QUICK_STOP is a new operation,
+// not a replay. Each sends one 6040 word, 000B only, never 010F, 000F or an enable word, and the second
+// carries its own operation identity. Here the first stop's reply is lost, so it ends uncertain; the
+// owner's resync marker reopens the route, the explicit close (`x`) lets the session reserve again,
+// and the reissued stop goes out as new intent.
+void testQuickStopReissue() {
+    scenario = "quick-reissue";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    Drive& d = r->driver.drives[0];
+    d.silentIndex = 0x6040;
+    d.silentWord = 0x000b;
+    d.silentSkip = 0;
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& lost = r->run("S1," + id(trial) + ",1,2,2000,0,500");
+    CHECK(lost.failure != E::RouteFailure::NONE);
+    const uint32_t firstOperation = r->one.stopAction(L::StopKind::QUICK_STOP).operation;
+    r->turns(400);
+    r->release();
+    const uint8_t quick[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
+    unsigned words = 0;
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        if (r->driver.requests[i].data[0] != 0x40 && r->driver.requests[i].data[0] != 0x80) {
+            CHECK(download(r->driver.requests[i], 1, quick));
+            ++words;
+        }
+    bool aborted = false; // The lost 000B's one cleanup abort 0x05040000.
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        aborted |= timeoutAbort(r->driver.requests[i], 1, 0x6040);
+    CHECK(words == 1 && aborted);
+    d.silentIndex = 0;
+    CHECK(!r->services.unresolved(0) && r->firmware.owner().stats().markers >= 1);
+    CHECK(closeAll(*r) == 1);
+    const size_t second = r->driver.requests.size();
+    // The reissue: the session withdrew its predecessor evidence when the first 000B may have left, and
+    // the close dropped the latest word, so the policy's best-effort branch is what remains: 000B again.
+    const E::RouteRecord& again = r->run("S1," + id(trial) + ",1,2,2000,3000,500");
+    CHECK(again.stopPathRequested == uint8_t(E::StopPath::BEST_EFFORT));
+    const uint32_t secondOperation = r->one.bestEffort().operation;
+    CHECK(secondOperation && secondOperation != firstOperation);
+    words = 0;
+    for (size_t i = second; i < r->driver.requests.size(); ++i)
+        if (r->driver.requests[i].data[0] != 0x40 && r->driver.requests[i].data[0] != 0x80) {
+            CHECK(download(r->driver.requests[i], 1, quick));
+            ++words;
+        }
+    CHECK(words == 1);
+    r->release();
+}
 } // namespace
 
 // Packet 8's planned boot, replayed in order through the real routes on this fake, with the procedure's
@@ -7912,6 +8043,8 @@ int main(int argc, char** argv) {
     testPrerequisitesAndLostReplies();
     testEnableWithdrawals();
     testStopPolicy();
+    testQuickStopReissue();
+    testForcedTriggerTimeout();
     testMotionBudget();
     testReadAbort();
     testParseRearmMove();

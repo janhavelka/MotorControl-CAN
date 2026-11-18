@@ -712,10 +712,9 @@ void refusedDrainMarker() {
     marker.operation = marker.request = marker.step = 900;
     marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
     marker.allowSegmentedUpload = false;
-    C::SdoDrainPremises premises;
-    premises.soleClient = premises.orderedServer = true;
+    // The binding's default reuse policy states the premises as accepted (prompt 55).
     O::RequestId id;
-    CHECK(c.r->firmware.owner().admitDrainMarker(marker, premises, c.r->console.now, id) ==
+    CHECK(c.r->firmware.owner().admitDrainMarker(marker, c.r->console.now, id) ==
           O::BusAdmission::ACCEPTED);
     c.r->turns(4);
     provedUnsent(c.r->firmware.owner().result(id));
