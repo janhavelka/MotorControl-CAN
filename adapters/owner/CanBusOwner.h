@@ -21,6 +21,10 @@ namespace MotorControlCANOwner {
  * best-effort stop; a handoff without a final report within the TX lifetime enters
  * NO_LISTENER. None of them resends work, restarts the controller or extends
  * a deadline, and stops keep priority over every repair step.
+ * Communication evidence (guide rules C2, C3, C13): each terminal gets one EvidenceClass and
+ * Health counts by it. Bus-level faults (the recovery interlock, an RX overflow episode,
+ * NO_LISTENER) are an interface fact, OwnerResources::interfaceState: while one is active every
+ * terminal is LOCAL_END and node rows keep their last state marked Health::notObserved.
  */
 class CanBusOwner {
   public:
@@ -47,7 +51,9 @@ class CanBusOwner {
          * pass. 100 ms covers that for the default capacity set with a wide margin, and equals the
          * bench example's SDO response timeout, so expiry is reported no later than the response
          * cutoff its own request already has. The submit-to-done maximum under load is unmeasured:
-         * set it with setTxLifetime from the application's own measurement.
+         * set it with setTxLifetime from the application's own measurement. Controller hardware
+         * retransmission (DEC-4) is link-level, not an application retry: it has no retry class
+         * and this lifetime is its only bound (guide rule C7).
          */
         DEFAULT_TX_LIFETIME_US = 100000
     };
@@ -248,6 +254,11 @@ class CanBusOwner {
      * while a recovery is pending. The frame stays possibly sent and blocks its channel; nothing
      * is resent and no recovery starts. A late final report retires it normally; otherwise only
      * an explicit recover() retires it, as possibly sent.
+     * Controller hardware retransmission (DEC-4: a frame is repeated after an error or a missing
+     * ACK) is link-level, not an application retry: it has no retry class and is bounded only by
+     * this lifetime (guide rule C7). Its hazard is late delivery of a frame that stays possibly
+     * sent. Single-shot transmission (no hardware retransmission) is an option to evaluate on the
+     * bench, not a default; the TWAI adapter keeps retransmission.
      * @param[in] lifetimeUs Microseconds after that start, checked in service turns at equality;
      * zero disables the check. Default DEFAULT_TX_LIFETIME_US.
      * @param[in] nowUs Nondecreasing supplied microseconds.
@@ -267,6 +278,8 @@ class CanBusOwner {
      * included: they become eligible when it ends. NMT and SYNC admission and dispatch are
      * unchanged. Ending it restores controller evidence
      * only: no identity, route freshness, service qualification or motion readiness.
+     * It is a bus-level fault (guide rule C2): while it lasts the interface is OFFLINE, terminals
+     * are LOCAL_END and node rows are not observed.
      * @return True while in NO_LISTENER. Cached, no I/O.
      */
     bool noListener() const noexcept { return noListener_; }
@@ -327,6 +340,9 @@ class CanBusOwner {
      */
     bool releaseRecovery(RecoveryId id) noexcept;
     /** Report bus-off, recovery or RX loss through the same serialized owner.
+     * Any state but AVAILABLE is a bus-level fault (guide rule C2): the interface goes OFFLINE
+     * until a recovery closes RETIRED, ends work as LOCAL_END and marks node rows not observed;
+     * it marks no binding OFFLINE (the revision of prompt 25's projection, prompt 55).
      * @param[in] state Actual controller state, never inferred from a missing reply.
      * @param[in] nowUs Nondecreasing supplied time. Non-AVAILABLE invalidates work;
      * direct AVAILABLE cannot bypass an owner retirement/recovery interlock.
@@ -335,6 +351,9 @@ class CanBusOwner {
      */
     bool reportController(MotorControlCAN::CANOPEN::ControllerState state, uint64_t nowUs) noexcept;
     /** Report a dropped authoritative RX frame: revoke dependent trust and inhibit TX.
+     * Starts an RX overflow episode (OwnerResources::receiveLost, Stats::rxOverflows), a bus-level
+     * fault until a recovery closes RETIRED. Evidence the lost frames may have carried (a reply,
+     * a heartbeat, an EMCY) is invalidated: pending SDO work ends, node freshness is withdrawn.
      * @param[in] nowUs Nondecreasing processing microseconds.
      * @param[in] droppedFrames Nonzero reported minimum number lost; saturating addition.
      * @return Same as reportController(RECOVERING); recovery requires explicit request.
@@ -492,6 +511,7 @@ class CanBusOwner {
      */
     bool advanceConfiguration(SequenceId id, const Binding& current, uint64_t nowUs) noexcept;
     /** Copy cached communication health at the most recent supplied owner time.
+     * Counted by evidence class (Health); frozen and marked notObserved during a bus-level fault.
      * @param[in] binding Exact configured current binding, including configuration epoch.
      * @param[out] output Owned copy, unchanged for unknown/stale binding or input overlap.
      * @return True for a known binding, including UNINIT before any service turn.
@@ -506,9 +526,12 @@ class CanBusOwner {
     bool driverState(const Binding& binding, DriverState& output) const noexcept;
     /** @return Borrowed cached interface totals until mutation/destruction; copy to retain. */
     const Stats& stats() const noexcept { return stats_; }
-    /** Clear interface totals/max gap and binding totalSuccess/totalFailures only.
-     * @return False unchanged during callback reentrancy; otherwise true. Preserves
-     * failure streak/error/times/state, history, active work, generations and interlocks.
+    /** Clear every Stats field and, per binding, the totals (totalSuccess, totalErrors,
+     * totalMisses, totalFailures) and node counters (abortsSent, abortsReceived, resyncs, each
+     * with its time) only.
+     * @return False unchanged during callback reentrancy; otherwise true. Preserves both
+     * streaks, lastError, the service and presence times, state, notObserved, history, active
+     * work, generations and interlocks.
      * The previous service timestamp survives, so the next observed gap remains honest.
      */
     bool clearStats() noexcept;
@@ -559,6 +582,7 @@ class CanBusOwner {
     struct ExternalTx {
         bool pending = false, blocked = false, retirementTried = false, rejected = false;
         bool expired = false; // Reported once past the TX lifetime; still possibly sent.
+        bool abort = false; // A client abort frame: a positive report counts it sent.
         uint32_t epoch = 0;
         uint64_t handoffUs = 0;
         TransportTxId id;
@@ -579,6 +603,9 @@ class CanBusOwner {
     bool noListener_ = false;
     uint64_t noListenerSinceUs_ = 0; // Processing time NO_LISTENER began.
     bool retiredThisTurn_ = false; // A recovery retired in this service turn: no resync step yet.
+    bool receiveLost_ = false; // RX overflow episode, until a recovery closes RETIRED.
+    bool interfaceOffline_ = false; // Last refreshed interface state.
+    uint64_t offlineSinceUs_ = 0; // Processing time the current bus-level fault was first seen.
     RecoveryCauses causes_; // Reported since the current or last recovery began.
     SyncTerminal sync_;
     SyncObservation syncObservation_;
@@ -660,7 +687,11 @@ class CanBusOwner {
     void settleExternal(uint64_t nowUs, bool allowCallback) noexcept;
     void closeRecovery(RecoveryOutcome outcome, uint64_t nowUs) noexcept;
     void refreshHealth(uint64_t nowUs) noexcept;
-    void recordTerminal(const Slot& slot) noexcept;
+    void recordTerminal(Slot& slot) noexcept;
+    bool busFault() const noexcept { return inhibited_ || noListener_; }
+    EvidenceClass classify(const Slot& slot) const noexcept;
+    void countNode(unsigned channel, uint32_t Health::*count, uint64_t Health::*last,
+                   uint64_t nowUs) noexcept;
     void trace(const Diagnostic& record) noexcept;
     int healthSlot(const Binding& binding) const noexcept;
 };

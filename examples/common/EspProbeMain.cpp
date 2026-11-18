@@ -51,6 +51,10 @@ void ownerTask(void*) {
     commands.attachSync(sync);
     commands.attachGroupStop(groupStop);
     commands.attachDevice(device);
+    ConsoleBusSource bus; // `drv bus`: the TWAI error counters, bus evidence.
+    bus.context = &firmware;
+    bus.read = readConsoleBus;
+    commands.attachBus(bus);
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);
     if (firmware.prepared()) {

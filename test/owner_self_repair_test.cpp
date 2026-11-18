@@ -423,6 +423,12 @@ void recoveryIsTheOneEntryPoint() {
         CHECK(closed->causes.busOff == !overflow && closed->causes.receiveLost == bool(overflow));
         CHECK(!closed->causes.txExpired && r.lastCauses.busOff == !overflow);
         CHECK(r.owner.stats().recoveries == 1 && r.owner.stats().rxLost == (overflow ? 3u : 0u));
+        // Deliver item 5: each counter moves on its own event only.
+        const O::Stats& s = r.owner.stats();
+        CHECK(s.rxOverflows == overflow && s.busOffEvents == !overflow && s.txExpired == 0);
+        CHECK(s.recoveriesStarted == 1 && s.recoveriesFailed == 0 && s.resyncs == 0 &&
+              s.abortsSent == 0 && s.abortsReceived == 0);
+        CHECK(!r.owner.resources().receiveLost && !r.health(1).notObserved);
     }
 }
 
@@ -625,19 +631,28 @@ void presenceOfTwoNodes() {
     CHECK(h1.lastResponseKnown && h1.lastResponseUs == 5 && h1.lastHeartbeatKnown && h1.lastHeartbeatUs == 7);
     CHECK(h1.consecutiveNoResponse == 0 && h1.bootUps == 0);
     if (PAIRED_CHANNELS) {
-        // Node 2 is silent. Its read and then the owner's one resync marker each time out.
+        // Node 2 is silent. Its read and then the owner's one resync marker each time out. Each
+        // TX report is taken before the response timeout, as on a live bus (a report taken in
+        // the timeout's own turn comes too late: the request is then a local end, rule C3).
         const O::RequestId silent = r.admit(r.read(r.reserve(2), 2));
         r.turn(10);
+        r.turn(11);
         r.turn(1010);
         CHECK(r.done(silent).service.outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(silent).evidence == O::EvidenceClass::NO_ANSWER);
         CHECK(r.health(2).consecutiveNoResponse == 1 && !r.health(2).lastResponseKnown);
         r.turn(1011); // The abort's report: then the marker.
         CHECK(r.owner.stats().markers == 1);
+        r.turn(1012);
         r.turn(2011);
         r.turn(2012);
         O::Health h2 = r.health(2);
         CHECK(h2.consecutiveNoResponse == 2 && !h2.lastResponseKnown && !h2.lastHeartbeatKnown);
         CHECK(h2.consecutiveFailures == 2 && r.wire.sentCount == 5); // Read, abort, marker, abort.
+        CHECK(h2.totalMisses == 2 && h2.totalErrors == 0);
+        // Both cleanup aborts were confirmed: node 2's, never node 1's.
+        CHECK(h2.abortsSent == 2 && h2.lastAbortSentUs == 2012 && r.owner.stats().abortsSent == 2);
+        CHECK(r.health(1).abortsSent == 0 && h2.abortsReceived == 0);
         // Node 1 is unaffected throughout.
         const O::Health same = r.health(1);
         CHECK(same.consecutiveNoResponse == 0 && same.lastResponseUs == 5 && same.lastHeartbeatUs == 7);
@@ -790,6 +805,165 @@ void stopsGoBeforeTheOwnersMarker() {
 }
 } // namespace
 
+// Prompt 55, rule C2: NO_LISTENER is a bus-level fault. A confirmed read on node 2 that times out
+// while it lasts is a local end: no miss, and the node rows keep their state, marked not
+// observed. Without the fault (the lifetime check off) the same timeout is a miss.
+void noListenerTimeoutIsNoMiss() {
+    if (!PAIRED_CHANNELS)
+        return;
+    for (unsigned fault = 0; fault < 2; ++fault) {
+        Rig r(false);
+        if (!fault)
+            CHECK(r.owner.setTxLifetime(0, 0));
+        stuck(r); // Node 1's frame, never reported.
+        const O::SequenceId two = r.reserve(2);
+        const O::RequestId answered = r.admit(r.read(two, 2));
+        r.turn(1);
+        r.wire.report(1);
+        r.push(r.upload(2, 0x6041, 1)); // An earlier answer of node 2: READY before the fault.
+        r.turn(2);
+        CHECK(r.done(answered).evidence == O::EvidenceClass::ANSWERED && r.owner.release(answered));
+        CHECK(r.owner.beginOperation(two, 2, r.now + 10000000, r.now));
+        O::BusRequest work = r.read(two, 2);
+        work.transfer.responseTimeoutUs = 2 * LIFETIME;
+        const O::RequestId id = r.admit(work);
+        r.turn(3);
+        CHECK(r.wire.sentCount == 3);
+        r.wire.report(2); // Node 2's read was ACKed.
+        r.turn(4);
+        CHECK(r.health(2).state == O::DriverState::READY);
+        r.turn(LIFETIME);
+        CHECK(r.owner.noListener() == bool(fault));
+        const O::OwnerResources during = r.owner.resources();
+        CHECK(during.interfaceState ==
+              (fault ? O::InterfaceState::OFFLINE : O::InterfaceState::AVAILABLE));
+        CHECK(!fault || (during.offlineSinceUs == LIFETIME && r.health(2).notObserved &&
+                         r.health(2).notObservedSinceUs == LIFETIME));
+        r.turn(2 * LIFETIME + 3);
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT &&
+              r.done(id).service.transmissionConfirmed);
+        CHECK(r.done(id).evidence ==
+              (fault ? O::EvidenceClass::LOCAL_END : O::EvidenceClass::NO_ANSWER));
+        const O::Health h = r.health(2);
+        CHECK(h.consecutiveNoResponse == !fault && h.totalMisses == !fault &&
+              h.totalFailures == !fault);
+        // The bus fault marks no binding OFFLINE: node 2 keeps its last projection.
+        CHECK(h.state == (fault ? O::DriverState::READY : O::DriverState::DEGRADED));
+        CHECK(h.notObserved == bool(fault) && r.health(1).notObserved == bool(fault));
+        if (!fault)
+            continue;
+        // A received frame ends NO_LISTENER: the rows are observed again.
+        r.wire.push(r.heartbeat(1, 0x7f), r.now + 1, r.owner.controllerEpoch());
+        r.turn(r.now + 1);
+        CHECK(!r.owner.noListener() && !r.health(2).notObserved && !r.health(1).notObserved);
+        CHECK(r.owner.resources().interfaceState == O::InterfaceState::AVAILABLE &&
+              r.owner.resources().offlineSinceUs == 0);
+    }
+}
+
+// Prompt 55, rule C2: bus-off ends a confirmed wait as a local end and freezes the rows; an RX
+// overflow does the same, invalidates what the lost frames may have carried and lasts until a
+// recovery retires.
+void busOffAndOverflowFreezeRows() {
+    for (unsigned overflow = 0; overflow < 2; ++overflow) {
+        Rig r;
+        const O::SequenceId one = r.reserve(1);
+        const O::RequestId first = r.admit(r.read(one, 1));
+        r.turn(0);
+        r.push(r.upload(1, 0x6041, 0x0237));
+        r.turn(1);
+        CHECK(r.done(first).evidence == O::EvidenceClass::ANSWERED && r.owner.release(first));
+        r.push(r.heartbeat(1, 0x7f));
+        r.turn(2);
+        CHECK(r.services.node(0)->heartbeat.present);
+        CHECK(r.owner.beginOperation(one, 2, r.now + 10000000, r.now));
+        const O::RequestId waiting = r.admit(r.read(one, 1));
+        r.turn(3);
+        r.turn(4); // Its TX report: the read waits, confirmed.
+        CHECK(r.health(1).state == O::DriverState::READY && r.health(1).totalSuccess == 1);
+        if (overflow)
+            CHECK(r.owner.receiveOverflow(5, 2));
+        else
+            CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 5));
+        const O::Completion& ended = r.done(waiting);
+        CHECK(ended.service.outcome ==
+              (overflow ? C::SdoOutcome::BINDING_INVALIDATED : C::SdoOutcome::BUS_OFF));
+        CHECK(ended.evidence == O::EvidenceClass::LOCAL_END);
+        // Evidence the lost frames could have carried is withdrawn: here the heartbeat.
+        CHECK(!r.services.node(0)->heartbeat.present || !overflow);
+        const O::Health h = r.health(1);
+        CHECK(h.state == O::DriverState::READY && h.notObserved && h.notObservedSinceUs == 5);
+        CHECK(h.totalFailures == 0 && h.consecutiveFailures == 0 && h.consecutiveNoResponse == 0);
+        O::OwnerResources resources = r.owner.resources();
+        CHECK(resources.interfaceState == O::InterfaceState::OFFLINE && resources.offlineSinceUs == 5);
+        CHECK(resources.receiveLost == bool(overflow));
+        CHECK(r.owner.stats().rxOverflows == overflow && r.owner.stats().busOffEvents == !overflow);
+        CHECK(r.owner.stats().lastRxOverflowUs == (overflow ? 5u : 0u) &&
+              r.owner.stats().lastBusOffUs == (overflow ? 0u : 5u));
+        // A failed restart keeps the fault and the episode; a retired one ends both.
+        O::RecoveryId failed, retired;
+        r.wire.progress = O::RecoveryProgress::FAILED;
+        CHECK(r.owner.recover(6, 1000, failed));
+        r.turn(7, budget(0, 0, 0, 0, 1));
+        CHECK(r.owner.recoveryResult(failed)->outcome == O::RecoveryOutcome::FAILED);
+        CHECK(r.owner.stats().recoveriesFailed == 1 && r.owner.stats().lastRecoveryFailedUs == 7);
+        CHECK(r.owner.resources().receiveLost == bool(overflow) && r.health(1).notObserved &&
+              r.health(1).notObservedSinceUs == 5);
+        CHECK(r.owner.releaseRecovery(failed));
+        r.wire.progress = O::RecoveryProgress::RETIRED;
+        CHECK(r.owner.recover(8, 1000, retired));
+        r.turn(9, budget(0, 0, 0, 0, 1));
+        CHECK(r.owner.recoveryResult(retired)->outcome == O::RecoveryOutcome::RETIRED);
+        resources = r.owner.resources();
+        CHECK(resources.interfaceState == O::InterfaceState::AVAILABLE && !resources.receiveLost);
+        CHECK(!r.health(1).notObserved && r.health(1).state == O::DriverState::UNINIT);
+        CHECK(r.owner.stats().recoveriesStarted == 2 && r.owner.stats().recoveries == 1 &&
+              r.owner.stats().lastRecoveryUs == 9 && r.owner.stats().lastRecoveryStartedUs == 8);
+        CHECK(r.health(1).totalSuccess == 1 && r.health(1).totalFailures == 0);
+    }
+}
+
+// Deliver item 5: resyncs, TX expiries and aborts received count on their events, with times, in
+// the interface and per node; clearStats clears them and nothing else.
+void countersMoveOnTheirEvents() {
+    Rig r;
+    const O::RequestId lost = r.admit(r.read(r.reserve(1), 1));
+    r.turn(0);
+    r.turn(1);
+    r.turn(1000);
+    CHECK(r.done(lost).evidence == O::EvidenceClass::NO_ANSWER && r.owner.stats().resyncs == 0);
+    r.turn(1001); // The abort's report, then the marker.
+    CHECK(r.owner.stats().markers == 1 && r.owner.stats().abortsSent == 1);
+    r.push(r.upload(1, 0x1000, 0x00020192, 4));
+    r.turn(1002);
+    r.turn(1003);
+    CHECK(!r.services.unresolved(0) && r.steps[unsigned(O::ResyncStep::REOPENED)] == 1);
+    const O::Stats& s = r.owner.stats();
+    CHECK(s.resyncs == 1 && s.lastResyncUs >= 1002 && s.lastResyncUs <= 1003);
+    O::Health h = r.health(1);
+    CHECK(h.resyncs == 1 && h.lastResyncUs == s.lastResyncUs && h.abortsSent == 1);
+    CHECK(s.txExpired == 0 && s.busOffEvents == 0 && s.rxOverflows == 0 && s.recoveriesStarted == 0);
+    if (PAIRED_CHANNELS)
+        CHECK(r.health(2).resyncs == 0 && r.health(2).abortsSent == 0);
+    // A late abort on an idle route: received and counted, not a terminal.
+    M::Frame abort = r.upload(1, 0x6041, 0);
+    abort.data[0] = 0x80;
+    r.push(abort);
+    r.turn(1004);
+    CHECK(s.abortsReceived == 1 && s.lastAbortReceivedUs == 1004 &&
+          r.health(1).abortsReceived == 1 && r.health(1).lastAbortReceivedUs == 1004);
+    // A TX expiry carries its time; clearStats clears every counter and node count, no streak.
+    Rig e(false);
+    stuck(e);
+    e.turn(LIFETIME);
+    CHECK(e.owner.stats().txExpired == 1 && e.owner.stats().lastTxExpiredUs == LIFETIME);
+    CHECK(r.owner.clearStats() && s.resyncs == 0 && s.lastResyncUs == 0 && s.abortsSent == 0 &&
+          s.abortsReceived == 0 && s.lastAbortReceivedUs == 0);
+    h = r.health(1);
+    CHECK(h.resyncs == 0 && h.abortsSent == 0 && h.abortsReceived == 0 && h.lastResyncUs == 0 &&
+          h.consecutiveNoResponse == 0 && h.lastResponseKnown);
+}
+
 int main() {
     lifetimeExpiresWithoutResendOrRestart();
     lifetimeSettingAndReportRaces();
@@ -806,6 +980,9 @@ int main() {
     stopEndsResync();
     stopKeepsMarkerWhenPlacementFails();
     nmtIsMotionLike();
+    noListenerTimeoutIsNoMiss();
+    busOffAndOverflowFreezeRows();
+    countersMoveOnTheirEvents();
     std::printf("owner self-repair: %u checks\n", checks);
     return 0;
 }

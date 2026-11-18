@@ -249,6 +249,13 @@ TwaiDriver SoakTwaiTap::driver() noexcept {
         }
         return received;
     };
+    // The controller status read (TEC, REC, error state) passes through untouched; without this
+    // the adapter behind the tap would report the status unknown.
+    if (inner_.status)
+        result.status = [](void* p, TwaiControllerStatus& output) {
+            const SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
+            return self.inner_.status(self.inner_.context, output);
+        };
     return result;
 }
 bool SoakTwaiTap::take(SoakSubmission& output) noexcept {

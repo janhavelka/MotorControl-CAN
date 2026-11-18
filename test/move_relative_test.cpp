@@ -1071,7 +1071,10 @@ void mutedRouteResync() {
     O::Health health;
     CHECK(r.owner.health(target().channel.binding, health));
     CHECK(r.services.unresolved(0) && !health.acceptedCorrelation && !health.resyncPending);
-    CHECK(health.consecutiveNoResponse == 2); // The trigger and the marker; an observation only.
+    // The trigger and the marker are two misses, an observation only. With asynchronous traffic the rig's
+    // heartbeats keep arriving; a heartbeat is an answer (communication practice C3) and ends the streak.
+    CHECK(health.totalMisses == 2);
+    CHECK(health.consecutiveNoResponse == (asyncTraffic ? 0u : 2u));
     move.unchanged(c);
     CHECK(wordsFrom(r, first, 0x005f) == 1 && r.drive.edges == 1 && !wordsFrom(r, first, 0x000f));
     CHECK(!r.relative(witness(r, 900), relEvidence(), relRequest(900)));

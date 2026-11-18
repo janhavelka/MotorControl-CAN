@@ -442,12 +442,27 @@ GRAMMAR = (
         signals=(("controller", "bitrate"),)),
     # Prompt 55 (PONG pdo=8): `L`, the owner's cached link facts, and `U`, the unplug watch
     # (examples/s2_bench/LinkWatch.h). Observations only; the watch's one restart is its own event.
+    # The interface state is a bus fact (guide rule C2); offlineSince is 0 while available.
     Row("LINK", "LINK interface ", "response",
-        "lifetime:u noListener:b expiredPending:u txExpired:u markers:u reuseStopped:u recoveries:u inhibited:b t:u",
-        "t", (("controller", "noListener"), ("controller", "txExpired"), ("controller", "markers"))),
+        "lifetime:u noListener:b expiredPending:u txExpired:u markers:u reuseStopped:u recoveries:u inhibited:b t:u "
+        "state:s? offlineSince:u? receiveLost:b?",
+        "t", (("controller", "noListener"), ("controller", "txExpired"), ("controller", "markers"),
+              ("controller", "state"))),
+    # answered/errors/misses: the node's counts by evidence class (guide rule C3); notObserved: a
+    # bus-level fault leaves the row at its last state.
     Row("LINK_NODE", "LINK node=", "response",
         "node:u reuse:s unresolved:b stopped:b pending:b accepted:b responded:b lastResponse:u heartbeat:b "
-        "lastHeartbeat:u bootUps:u noResponse:u", signals=(("health", "reuse"), ("health", "unresolved"))),
+        "lastHeartbeat:u bootUps:u noResponse:u answered:u? errors:u? misses:u? notObserved:b?",
+        signals=(("health", "reuse"), ("health", "unresolved"))),
+    # The controller's error counters, read at t: bus evidence that names no node and locates no node
+    # or cable segment (guide rule C5). prev, deltas: whether the earlier reading and its status exist.
+    Row("LINK_BUS", "LINK bus ", "response",
+        "read:b t:u known:b state:s tec:u rec:u busErrors:u arbLost:u prev:b prevT:u dBusErrors:u dArbLost:u "
+        "deltas:b prevState:s dTec:i dRec:i", "t"),
+    Row("LINK_BUS_UNREAD", "LINK bus ", "response", "read:b"),
+    Row("LINK_COUNTERS", "LINK counters ", "response",
+        "busOff:u recoveriesStarted:u recoveries:u recoveriesFailed:u rxOverflows:u abortsSent:u "
+        "abortsReceived:u resyncs:u"),
     Row("LINK_NODE_UNCONFIGURED", "LINK node=", "response", "node:u configured:b"),
     Row("LINK_WATCH", "LINK_WATCH armed", "response", "seconds:u lifetime:u reuse1:s reuse2:s t:u", "t"),
     Row("LINK_EVENT", "LINK_EVENT ", "response", "t:u kind:s node:u value:x", "t"),
@@ -642,7 +657,8 @@ EXPECTED = {
     "trial-abort": Expect(responses=("TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")),
     "close-sessions": Expect(responses=("SESSIONS_CLOSED", "SESSIONS_REFUSED")),
     # Prompt 55 (PONG pdo=8): the link lines and one explicit marker on node 1 or 2.
-    "link": Expect(responses=("LINK", "LINK_NODE", "LINK_NODE_UNCONFIGURED")),
+    "link": Expect(responses=("LINK", "LINK_NODE", "LINK_NODE_UNCONFIGURED", "LINK_BUS", "LINK_BUS_UNREAD",
+                              "LINK_COUNTERS")),
     "marker1": Expect(responses=("MARKER_ADMITTED", "MARKER", "REFUSED")),
     "marker2": Expect(responses=("MARKER_ADMITTED", "MARKER", "REFUSED")),
 }

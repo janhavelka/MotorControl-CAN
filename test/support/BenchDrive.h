@@ -456,6 +456,16 @@ struct Driver {
     // controller, so it gets no TX report and no reply, until replugged. Stopping the node then
     // deletes that frame, as deleting the TWAI node does. Off by default.
     bool unplugged = false;
+    // The controller status read (TEC, REC, error state): a test input, absent unless set.
+    bool statusAvailable = false;
+    E::TwaiControllerStatus controllerStatus;
+    static bool status(void* context, E::TwaiControllerStatus& output) {
+        const Driver& d = *static_cast<Driver*>(context);
+        if (!d.statusAvailable)
+            return false;
+        output = d.controllerStatus;
+        return true;
+    }
 
     static bool start(void* context, const E::TwaiConfig&, uint32_t epoch) {
         Driver& d = *static_cast<Driver*>(context);
@@ -516,6 +526,7 @@ struct Driver {
         value.submit = submit;
         value.events = events;
         value.receive = receive;
+        value.status = status;
         return value;
     }
     void push(const M::Frame& value) {

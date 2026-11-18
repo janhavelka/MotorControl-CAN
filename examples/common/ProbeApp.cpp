@@ -290,6 +290,7 @@ M::Status ProbeApp::requestAt(L::ReadKind kind, const L::ReadTarget& target, uin
     // Whole-plan validation already succeeded; owner reservation changes none of these inputs.
     prepareRead(driverRead_, preparation);
     readWithdrawn_ = false;
+    readEvidenceKnown_ = false;
     operation_ = last + 1;
     lastUs_ = now;
     return M::Ok();
@@ -380,8 +381,11 @@ bool ProbeApp::advanceRead(uint64_t now) noexcept {
         return false;
     // Owner-local closures also retain the exact transfer/epochs/times and honest
     // no-TX flags. Consume that evidence rather than relabel a queue timeout.
+    const MotorControlCANOwner::EvidenceClass evidence = terminal->evidence;
     if (!L::advanceRead(driverRead_.read, terminal->service, now) || !owner_.release(pending_))
         return false;
+    readEvidence_ = evidence;
+    readEvidenceKnown_ = true;
     pending_ = RequestId();
     if (readWithdrawn_ && driverRead_.read.state == M::ReadState::ACTIVE)
         L::advanceRead(driverRead_.read, M::ReadOutcome::CANCELLED, now);
@@ -432,6 +436,7 @@ bool ProbeApp::releaseRead() noexcept {
         return false;
     readOwnsSequence_ = false;
     readWithdrawn_ = false;
+    readEvidenceKnown_ = false;
     sequence_ = SequenceId();
     L::resetRead(driverRead_.read);
     return true;

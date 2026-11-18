@@ -326,12 +326,20 @@ shared-RPDO and synchronization gates.
 | Resume reuse after contradicting traffic | `CanBusOwner::reacceptReuse` | `reuse accept` |
 | One explicit marker for an unresolved route | `CanBusOwner::admitDrainMarker` (policy form) | None in the shared console; S2 bench `y`, `z` |
 | TX lifetime and NO_LISTENER | `setTxLifetime`, `txLifetimeUs`, `noListener`, `BusAdmission::NO_LISTENER` | `txlifetime [MICROSECONDS]`; `drv` `noListener`, `txExpired` |
-| Restart with its causes | `recover`, `RecoveryCompletion::causes` | Existing `recover`; trace `causes` |
+| Restart with its causes | `recover`, `RecoveryCompletion::causes`, `Stats::recoveriesStarted/recoveries/recoveriesFailed` | Existing `recover`; trace `causes`; `stats` `counters` (`recoveries`) and `repair` |
 | Presence and reuse observations | `Health` presence and reuse fields, `Stats::markers/reuseStopped/txExpired` | `health link`; `stats` named fields |
+| Evidence classes | `EvidenceClass`, `Completion::evidence`; `Health::totalSuccess/totalErrors/totalMisses` | Read terminal `evidence` letters `A`, `E`, `N`, `L`; trace kind 3 `evidence`, `sdo_outcome`, `address`; `health counts` |
+| Bus-level faults | `InterfaceState`, `OwnerResources::interfaceState/offlineSinceUs/receiveLost`; `Health::notObserved/notObservedSinceUs` | `drv` `interface`, `receiveLost`, `offlineSinceUs`; `health` `notObserved`, `notObservedSinceUs` |
+| Counters with latest-event times | `Stats::recoveriesStarted/recoveriesFailed/rxOverflows/abortsSent/abortsReceived/resyncs` and the `last...Us` times; per node `Health::abortsSent/abortsReceived/resyncs` with their times | `stats` `repair` array; `stats times`; `health counts` |
+| Controller error counters (bus evidence) | `TwaiAdapter::readErrorCounters`, `TwaiErrorCounters`; example `FirmwareProbe::readBusCounters`, `ConsoleBusSource`, `ProbeConsole::attachBus` | `drv bus`; S2 bench `L` (`LINK bus`) |
 | Retry classification | `RetryClass`, each context's `retryClass`, `classifyRead`, `RepeatPermission`, `NmtTransfer::retryClass` | Terminal `retry_class` letters `N`, `R`, `W`, `M` |
 
 MotorControl-RS names no retry type. Its architecture says only explicitly classified
 operations may be retried under application policy, and `RetryClass` is that
 classification here. The other names are CANopen- and owner-specific, with no RS
-counterpart. The console settings call these APIs only; the
-[CLI contract](cli_contract.md) gives the fields and their record-size reasons.
+counterpart. The evidence classes, interface state and counters follow the
+[communication practice](communication_practice.md) rules C2, C3, C5 and C13, and
+[CONVENTIONS](prompts/CONVENTIONS.md) section 5 records the delivered names. The
+console settings call these APIs only, and `drv bus` only reads the board's
+counter source; the [CLI contract](cli_contract.md) gives the fields and their
+record-size reasons.

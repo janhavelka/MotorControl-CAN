@@ -25,6 +25,15 @@ struct SdoTxId {
     SdoRequestId request; ///< Exact owning admission.
     uint32_t frame = 0; ///< Nonzero monotonic frame number within this admission.
 };
+/** What the server did for one terminal, before bus-level faults are considered (prompt 55,
+ * guide rule C3). The application owner adds those and the local closure reason and publishes
+ * the evidence class; this adapter states only what it saw on the request's own route.
+ */
+enum class SdoAnswer : uint8_t {
+    NONE,    ///< No frame from the server after a request frame possibly left, and no confirmed frame waited for one: a local end.
+    FRAME,   ///< A frame on the response identifier arrived after the latest request frame possibly left (not after a best-effort stop): the server is present, whatever the frame said.
+    NO_FRAME ///< A response timeout while the latest request frame, confirmed by a positive TX report, waited, with no frame on the response identifier since it left.
+};
 /** Premises a reopening (a drain marker or the accepted no-marker settlement) rests on.
  * Both default false, so a route stays blocked unless they are stated. No retained source
  * establishes the second (Q18): the application owner's CanBusOwner reuse policy states both as
@@ -547,6 +556,14 @@ public:
      * @return True while marked; false for an invalid or unconfigured slot.
      */
     bool acceptedCorrelation(uint8_t slot) const;
+    /** Report the server's part in a terminal (guide rule C3). A frame arriving after the latest
+     * request frame left is FRAME even when it ended nothing (another object, a retained pair);
+     * a segment's reply does not count for a later segment. The client's own cleanup abort is
+     * not evidence and changes nothing here.
+     * @param[in] id Exact terminal admission, before release.
+     * @return The terminal's answer; NONE for a pending, stale or foreign handle.
+     */
+    SdoAnswer answer(SdoRequestId id) const;
     /** Retire an unsent cleanup abort so that a best-effort stop on this channel goes first.
      * The abort is cleanup only and settles nothing, so dropping it changes no evidence; one
      * already handed off stays live local work until its report. Nothing is sent.
@@ -778,6 +795,9 @@ private:
         uint32_t markSessions = 0;
         uint32_t requalifications = 0;
         uint64_t txStartUs = 0; // Handoff, or SDK submission when an adapter reported it.
+        // Evidence of the latest request frame (rule C3): a positive TX report, a server frame.
+        bool frameConfirmed = false, frameAnswered = false;
+        SdoAnswer evidence = SdoAnswer::NONE; // Of the current terminal.
         bool txUnsubmitted = false; // Held short of the SDK and not since submitted, terminal or not.
         bool experimentArmed = false, experimentActive = false;
         uint32_t experimentAuthorization = 0;

@@ -45,7 +45,8 @@ integer is emitted as `"effective_native":"9007199254740993"`; it never passes
 through floating point. The axis response identifies an offline workspace with
 `"reference_known":false` and `"origin_native":null`. No live target, interface
 or bitrate is selected, so `config` reports those facts as null. `stats` reports
-zero CAN traffic. `wiring` records only a host declaration; it changes no terminal
+zero CAN traffic. `drv bus` answers `"available":false`: this fake attaches no
+controller error-counter source, which the TWAI firmware entries do. `wiring` records only a host declaration; it changes no terminal
 function and establishes no electrical state.
 
 The application starts without scales, origins or a native position witness.

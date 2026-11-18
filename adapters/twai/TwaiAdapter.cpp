@@ -122,6 +122,7 @@ void TwaiAdapter::pollEvents(CanBusOwner& owner, uint64_t now) noexcept {
     const TwaiEvents events = driver_.events(driver_.context);
     diagnostics_.rxDropped = add(diagnostics_.rxDropped, events.rxDropped);
     diagnostics_.busErrors = add(diagnostics_.busErrors, events.busErrors);
+    diagnostics_.arbitrationLost = add(diagnostics_.arbitrationLost, events.arbitrationLost);
     diagnostics_.errorFlags |= events.errorFlags;
     if (events.rxDropped) {
         diagnostics_.inhibited = true;
@@ -198,6 +199,39 @@ void TwaiAdapter::promote(CanBusOwner& owner, uint64_t now) noexcept {
         services_.noteSubmitted(id.sdo, now);
     if (result == TwaiSubmit::FAILED_UNCERTAIN)
         next->state = State::REPORT;
+}
+bool TwaiAdapter::readErrorCounters(uint64_t now, TwaiErrorCounters& output) noexcept {
+    if (readKnown_ && now < lastRead_.readUs)
+        return false;
+    TwaiErrorCounters value;
+    value.readUs = now;
+    TwaiControllerStatus status;
+    value.statusKnown = driver_.status && driver_.status(driver_.context, status);
+    if (value.statusKnown) {
+        value.state = status.state;
+        value.transmitErrors = status.transmitErrors;
+        value.receiveErrors = status.receiveErrors;
+    }
+    value.busErrors = diagnostics_.busErrors;
+    value.arbitrationLost = diagnostics_.arbitrationLost;
+    if (readKnown_) {
+        value.previousKnown = true;
+        value.previousReadUs = lastRead_.readUs;
+        // Both are saturating lifetime counts, so neither decreases between reads.
+        value.busErrorsDelta = value.busErrors - lastRead_.busErrors;
+        value.arbitrationLostDelta = value.arbitrationLost - lastRead_.arbitrationLost;
+        value.statusDeltaKnown = value.statusKnown && lastRead_.statusKnown;
+        if (value.statusDeltaKnown) {
+            value.previousState = lastRead_.state;
+            value.transmitErrorsDelta =
+                int32_t(value.transmitErrors) - int32_t(lastRead_.transmitErrors);
+            value.receiveErrorsDelta = int32_t(value.receiveErrors) - int32_t(lastRead_.receiveErrors);
+        }
+    }
+    lastRead_ = value;
+    readKnown_ = true;
+    output = value;
+    return true;
 }
 bool TwaiAdapter::beginRecovery(uint32_t epoch) noexcept {
     if (!attempted_ || epoch <= epoch_)

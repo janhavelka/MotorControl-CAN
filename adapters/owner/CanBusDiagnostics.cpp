@@ -22,19 +22,6 @@ MotorControlCAN::Status failure(C::SdoOutcome outcome) {
                                                               : Err::INVALID_CONFIG;
     return MotorControlCAN::Status(code, static_cast<int32_t>(outcome), "CANopen service failed");
 }
-bool attempted(const Completion& completion) {
-    if (completion.reason != CompletionReason::SERVICE || !completion.service.transmissionPossible)
-        return false;
-    switch (completion.service.outcome) {
-    case C::SdoOutcome::CANCELLED:
-    case C::SdoOutcome::UNSUPPORTED:
-    case C::SdoOutcome::BINDING_INVALIDATED:
-    case C::SdoOutcome::UNCONFIRMED_SENT: // No reply exists to count for or against the service.
-        return false;
-    default:
-        return true;
-    }
-}
 bool current(const C::ObservationTime& time, const C::NodeSnapshot& node, uint64_t now) {
     uint64_t earliest = 0, latest = 0;
     return !node.exhausted && time.present && time.generation == node.route.generation &&
@@ -54,6 +41,11 @@ int CanBusOwner::healthSlot(const Binding& binding) const noexcept {
     return -1;
 }
 void CanBusOwner::refreshHealth(uint64_t now) noexcept {
+    // A bus-level fault names no node (rule C2): the rows keep their last projection, marked.
+    const bool offline = busFault();
+    if (offline && !interfaceOffline_)
+        offlineSinceUs_ = now;
+    interfaceOffline_ = offline;
     for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
         const auto* route = services_.channel(uint8_t(i));
         const auto* node = services_.node(uint8_t(i));
@@ -114,13 +106,18 @@ void CanBusOwner::refreshHealth(uint64_t now) noexcept {
             expired = C::heartbeatFreshness(*node, now, record.heartbeatMaximumAgeUs, freshness) &&
                       freshness == C::HeartbeatFreshness::EXPIRED;
         }
-        const auto controller = services_.controllerState();
-        health.state = inhibited_ || controller == C::ControllerState::BUS_OFF ||
-                               controller == C::ControllerState::RECOVERING || expired
-                           ? DriverState::OFFLINE
-                       : health.consecutiveFailures ? DriverState::DEGRADED
-                       : evidence                   ? DriverState::READY
-                                                    : DriverState::UNINIT;
+        if (offline) {
+            if (!health.notObserved) {
+                health.notObserved = true;
+                health.notObservedSinceUs = offlineSinceUs_;
+            }
+        } else {
+            health.notObserved = false;
+            health.state = expired                     ? DriverState::OFFLINE
+                           : health.consecutiveFailures ? DriverState::DEGRADED
+                           : evidence                   ? DriverState::READY
+                                                        : DriverState::UNINIT;
+        }
         health.reusePolicy = resync_[i].reuse.policy;
         health.reuseStopped = route && services_.reuseRefused(uint8_t(i));
         health.resyncPending = route && resync_[i].pending;
@@ -156,45 +153,91 @@ void CanBusOwner::observePresence(const ReceivedFrame& input, bool accepted, uin
                 health.lastBootUpUs = now;
                 health.lastBootUpKnown = true;
             } else {
+                // A heartbeat is an answer (rule C3): it ends the miss streak, counts no success.
                 health.lastHeartbeatUs = now;
                 health.lastHeartbeatKnown = true;
+                health.consecutiveNoResponse = 0;
             }
+        }
+        if (response && f.payloadLength == 8 && f.data[0] == 0x80) {
+            detail::add(stats_.abortsReceived);
+            stats_.lastAbortReceivedUs = now;
+            countNode(c, &Health::abortsReceived, &Health::lastAbortReceivedUs, now);
         }
         return; // Identifiers are unique on this interface, and peers share one node anchor.
     }
 }
-void CanBusOwner::recordTerminal(const Slot& slot) noexcept {
+// One class per terminal (rule C3). Only the server's own frames make it answered, and only a
+// confirmed request frame that waited in vain makes it a miss: no ACK is bus evidence (C2).
+EvidenceClass CanBusOwner::classify(const Slot& slot) const noexcept {
     const Completion& completion = slot.completion;
+    if (completion.reason != CompletionReason::SERVICE || slot.bestEffortStop || busFault())
+        return EvidenceClass::LOCAL_END;
+    const C::SdoAnswer answer = services_.answer(slot.native);
+    switch (completion.service.outcome) {
+    case C::SdoOutcome::SUCCESS:
+        return EvidenceClass::ANSWERED;
+    case C::SdoOutcome::SERVER_ABORT:
+    case C::SdoOutcome::CLIENT_ABORT:
+    case C::SdoOutcome::CORRELATION_LOST:
+        return answer == C::SdoAnswer::FRAME ? EvidenceClass::ANSWERED_WITH_ERROR
+                                             : EvidenceClass::LOCAL_END;
+    case C::SdoOutcome::TIMEOUT:
+        return answer == C::SdoAnswer::FRAME      ? EvidenceClass::ANSWERED_WITH_ERROR
+               : answer == C::SdoAnswer::NO_FRAME ? EvidenceClass::NO_ANSWER
+                                                  : EvidenceClass::LOCAL_END;
+    default: // Cancelled, unsupported, boot-up, invalidated, bus-off, transport, unconfirmed stop.
+        return EvidenceClass::LOCAL_END;
+    }
+}
+void CanBusOwner::countNode(unsigned c, uint32_t Health::*count, uint64_t Health::*last,
+                            uint64_t now) noexcept {
+    const auto* route = services_.channel(uint8_t(c));
+    const auto* node = services_.node(uint8_t(c));
+    if (!route && !node)
+        return;
+    const Binding& origin = route ? route->binding : node->route.binding;
+    for (HealthRecord& record : health_)
+        if (record.bound && sameNode(record.binding, origin)) {
+            detail::add(record.value.*count);
+            record.value.*last = now;
+        }
+}
+void CanBusOwner::recordTerminal(Slot& slot) noexcept {
+    Completion& completion = slot.completion;
     if (slot.localCancellation)
         detail::add(stats_.cancelled);
     if (completion.service.outcome == C::SdoOutcome::TIMEOUT)
         detail::add(stats_.timeouts);
+    completion.evidence = classify(slot);
     refreshHealth(lastUs_);
     const int index = healthSlot(completion.service.transfer.channel.binding);
-    if (index >= 0 && attempted(completion)) {
+    if (index >= 0 && completion.evidence != EvidenceClass::LOCAL_END) {
         Health& health = health_[index].value;
-        if (completion.service.outcome == C::SdoOutcome::SUCCESS) {
+        if (completion.evidence == EvidenceClass::ANSWERED) {
             detail::add(health.totalSuccess);
             health.consecutiveFailures = 0;
             health.lastOkUs = completion.service.completedUs;
             health.lastOkKnown = true;
         } else {
+            detail::add(completion.evidence == EvidenceClass::NO_ANSWER ? health.totalMisses
+                                                                        : health.totalErrors);
             detail::add(health.totalFailures);
             detail::add(health.consecutiveFailures);
             health.lastErrorUs = completion.service.completedUs;
             health.lastErrorKnown = true;
             health.lastError = failure(completion.service.outcome);
         }
-    }
-    // A presence miss: an attempted service that timed out after possible TX. A best-effort
-    // stop's timeout means no TX report, so it is not counted.
-    if (index >= 0 && !slot.bestEffortStop && completion.reason == CompletionReason::SERVICE &&
-        completion.service.outcome == C::SdoOutcome::TIMEOUT &&
-        completion.service.transmissionPossible)
+        // The miss streak is the node's: peers on the same node share it.
         for (HealthRecord& record : health_)
             if (record.bound &&
-                sameNode(record.binding, completion.service.transfer.channel.binding))
-                detail::add(record.value.consecutiveNoResponse);
+                sameNode(record.binding, completion.service.transfer.channel.binding)) {
+                if (completion.evidence == EvidenceClass::NO_ANSWER)
+                    detail::add(record.value.consecutiveNoResponse);
+                else
+                    record.value.consecutiveNoResponse = 0;
+            }
+    }
     refreshHealth(lastUs_);
     Diagnostic record;
     record.kind = DiagnosticKind::TERMINAL;
@@ -232,8 +275,10 @@ bool CanBusOwner::clearStats() noexcept {
         return false;
     stats_ = Stats();
     for (HealthRecord& record : health_) {
-        record.value.totalSuccess = 0;
-        record.value.totalFailures = 0;
+        Health& health = record.value;
+        health.totalSuccess = health.totalErrors = health.totalMisses = health.totalFailures = 0;
+        health.abortsSent = health.abortsReceived = health.resyncs = 0;
+        health.lastAbortSentUs = health.lastAbortReceivedUs = health.lastResyncUs = 0;
     }
     return true;
 }
@@ -292,6 +337,9 @@ OwnerResources CanBusOwner::resources() const noexcept {
     value.nmtPending = nmtOccupied_ && !value.nmtRetained;
     value.nmtTxPending = nmtExternal_.pending || nmtExternal_.blocked;
     value.noListener = noListener_;
+    value.receiveLost = receiveLost_;
+    value.interfaceState = busFault() ? InterfaceState::OFFLINE : InterfaceState::AVAILABLE;
+    value.offlineSinceUs = !busFault() ? 0 : interfaceOffline_ ? offlineSinceUs_ : lastUs_;
     for (const ExternalTx& tx : external_)
         value.txExpired = uint8_t(value.txExpired + (tx.pending && tx.expired ? 1 : 0));
     value.txExpired = uint8_t(value.txExpired + (nmtExternal_.pending && nmtExternal_.expired ? 1 : 0) +

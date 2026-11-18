@@ -152,7 +152,7 @@ ConsoleGate benchConsoleGate(const ConsoleLine& line) noexcept {
         return ConsoleGate::IDLE_BENCH;
     if ((is(name, "home") && !is(first, "methods")) || (is(name, "monitor") && !is(first, "off")) ||
         (is(name, "pdo") && is(first, "apply")) || (is(name, "axis") && is(first, "origin")) ||
-        (is(name, "stats") && line.count > 1) || (is(name, "debug") && line.count > 1 && !is(first, "off")) ||
+        (is(name, "stats") && line.count > 1 && !is(first, "times")) || (is(name, "debug") && line.count > 1 && !is(first, "off")) ||
         (is(name, "motion-profile") && (is(first, "read") || is(first, "restore"))))
         return ConsoleGate::IDLE_BENCH;
     return ConsoleGate::ALWAYS;
@@ -167,6 +167,10 @@ BenchConsole::BenchConsole(FirmwareProbe& firmware, MotorControlCAN::CANOPEN::Sd
     console_.attachSync(sync_);
     console_.attachGroupStop(groupStop_);
     console_.attachDevice(device_);
+    ConsoleBusSource bus; // `drv bus`: the TWAI error counters, shared with the bench's `L` lines.
+    bus.context = &firmware;
+    bus.read = readConsoleBus;
+    console_.attachBus(bus);
     policy();
 }
 bool BenchConsole::policy() noexcept {

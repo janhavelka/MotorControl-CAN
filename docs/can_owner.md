@@ -500,11 +500,15 @@ The owner supplies primitives and observations; the presence state machine, retr
 | --- | --- |
 | Timeout abort and reuse | `setSdoReuse(binding, reuse, nowUs)` and `sdoReuse` select `SdoReusePolicy` per binding (default `ACCEPTED_RISK_WITH_MARKER`; marker list `1000:00`, `1018:01`, `1018:02`, `1018:03`; marker budgets 0, inheriting the route's last request budgets; `setSdoReuse` refuses an invalid list or budget whole). After a timeout with possible TX the client stages one abort and the owner resyncs the route under that policy: the CANopen services guide, "Settling and reopening a route", gives the rules. Markers wait behind urgent work. A pending stop drops an unsent cleanup abort on its channel, and an accepted best-effort stop ends the node's pending resync, so no marker follows a stop. Results carry `reusePolicy`, `acceptedCorrelation` and `automaticMarker` |
 | Contradicting traffic | Stops reuse on the route (`Health::reuseStopped`, `Stats::reuseStopped`). `reacceptReuse(binding, nowUs)` is the explicit application decision that resumes it; the route stays unresolved until a resync reopens it |
-| TX lifetime | `setTxLifetime`, `txLifetimeUs`, `noListener`; an expired frame is counted and logged once, NO_LISTENER refuses ordinary work with `BusAdmission::NO_LISTENER`, and `recover()` stays the one restart entry point (TWAI SDK guide) |
-| Presence | `Health` per node: `lastResponseUs` (any frame on the node's response ID), `lastHeartbeatUs`, `bootUps` and `lastBootUpUs` (counted only when the adapter accepted the frame), and `consecutiveNoResponse` (attempted-service timeouts after possible TX, cleared by any response). Observations only; the owner decides nothing from them |
+| TX lifetime | `setTxLifetime`, `txLifetimeUs`, `noListener`; an expired frame is counted and logged once, NO_LISTENER refuses ordinary work with `BusAdmission::NO_LISTENER`, and `recover()` stays the one restart entry point (TWAI SDK guide). Controller hardware retransmission (DEC-4) is link-level, not an application retry: it has no retry class and this lifetime is its only bound (guide rule C7). Single-shot transmission is an option to evaluate on the bench, not a default |
+| Evidence class | Each terminal gets one `Completion::evidence` (guide rule C3): `ANSWERED` (a success), `ANSWERED_WITH_ERROR` (server abort, wrong multiplexer, toggle error, malformed or wrong-size reply, a contradicting frame, or a timeout after a frame arrived for the awaited request), `NO_ANSWER` (a response timeout of a request frame confirmed by a positive TX report, with no frame since and no bus-level fault) or `LOCAL_END` (everything else, an unconfirmed request frame included: no ACK is bus evidence, not node absence). The client's own cleanup abort is not evidence; an EMCY is a node event that counts neither way. `Health` counts by class: see "Passive communication health" |
+| Bus-level faults | The recovery interlock (controller bus-off, recovering or reported unavailable, a recovery running or failed), an RX overflow episode (`OwnerResources::receiveLost`, from `receiveOverflow` until a recovery closes `RETIRED`) and NO_LISTENER make the interface `OFFLINE` (`OwnerResources::interfaceState`, `offlineSinceUs`). While one lasts every terminal is `LOCAL_END`, no miss is counted, and each node row keeps its last `state` with `Health::notObserved` and `notObservedSinceUs`. No binding becomes `OFFLINE` from a bus fact (guide rule C2). An RX overflow also ends pending SDO work and withdraws node freshness, the evidence the lost frames may have carried |
+| Presence | `Health` per node: `lastResponseUs` (any frame on the node's response ID), `lastHeartbeatUs`, `bootUps` and `lastBootUpUs` (counted only when the adapter accepted the frame), and the miss streak `consecutiveNoResponse` (`NO_ANSWER` terminals of the node, cleared by an answered terminal, any frame on the node's response ID or a heartbeat). Observations only; the owner decides nothing from them |
+| Counters | Saturating, each with the processing time of its latest event, cleared only by `clearStats` (guide rule C13). `Stats`: `abortsSent` (client aborts confirmed by a positive TX report), `abortsReceived`, `resyncs` (routes reopened), `txExpired`, `rxOverflows`, `busOffEvents`, `recoveriesStarted`, `recoveries` (succeeded) and `recoveriesFailed`. Per node in `Health`, from node-level evidence only: `abortsSent`, `abortsReceived`, `resyncs` |
+| Controller error counters | `TwaiAdapter::readErrorCounters(nowUs, output)` reads the error state, TEC and REC (`twai_node_get_info`) and the adapter's error-callback and arbitration-lost counts, with the read time and each one's change since the previous read. Bus evidence only (guide rule C5): never a node miss; no threshold is applied (TWAI SDK guide) |
 | Retry classes | Every prepared core context states `RetryClass` (`ActionOperation.h`): `REPEATABLE_READ` only for reads whose every field is `REVIEWED_NON_CHANGING` or `ACCEPTED_UNQUALIFIED`, `IDEMPOTENT_SETTING` for absolute settings confirmed by readback, `MOTION_LIKE` for motion starts, enable, homing, save, factory restore and NMT (`NmtTransfer::retryClass`), and `NOT_REPEATABLE`, the default, for everything else including stops, alarm clear, counter zero and the fault and history reads. `classifyRead` with caller-owned `RepeatPermission` records lets an application promote a named object to R; it never changes `readEffect`. The library never retries; a quick stop is reissued only as a new operation |
 
-The bench image names its reuse policy in its evidence. Host tests: `owner_self_repair`, `sdo_reconciliation` and `retry_class`.
+The bench image names its reuse policy in its evidence. Host tests: `owner_self_repair`, `sdo_reconciliation`, `can_bus_health`, `twai_adapter`, `twai_driver` and `retry_class`.
 
 Under the default policy an application sees one resync as follows. A read times out after its frame may have left, and the client stages its one abort, `80 <index> <subindex> 00 00 04 05`. Once the request and the abort are locally retired and no stop waits on the node, the owner admits its own marker read (`RESYNC` `MARKER_ADMITTED`, `Stats::markers`, `Completion::automaticMarker`). A matching reply settles the channel: the owner invalidates every reservation on the node, an idle open session's included, and reopens the route (`RESYNC` `REOPENED`). The application then opens a new reservation, and every later result on the binding carries `acceptedCorrelation`. Nothing replays the timed-out read or settles its effect. The owner takes no step after an accepted best-effort stop, a client abort or a failed automatic marker (`MARKER_FAILED`, `MARKER_UNAVAILABLE`). That route stays unresolved until the application admits one marker itself through the policy form of `admitDrainMarker`, as the S2 bench's `y` and `z` commands and its unplug watch do.
 
@@ -556,7 +560,8 @@ can be `UNINIT`. The accessors, `stats()` and `resources()` perform no I/O,
 callbacks or clock reads. `stats()` borrows a view until the next owner mutation;
 copy it to retain a snapshot. `resources()` returns a fixed-scan value containing
 queued, active and retained request counts, reservation count, trace occupancy,
-TX inhibition and pending recovery.
+TX inhibition, pending recovery, NO_LISTENER, the RX overflow episode and the
+interface state with the time it went `OFFLINE`.
 
 Health ageing occurs when an owner method refreshes it using supplied monotonic
 time, particularly `service(nowUs, budget)` and
@@ -568,10 +573,24 @@ The projection applies this precedence:
 
 | State | Cached condition |
 | --- | --- |
-| `OFFLINE` | Global owner TX interlock/controller unavailability, reported bus-off/recovery, or an expired configured and evidenced heartbeat deadline |
-| `DEGRADED` | A current failed attempted-service streak remains |
+| `OFFLINE` | An expired configured and evidenced heartbeat deadline. Bus-off and controller unavailability no longer set it: they are interface facts (below) |
+| `DEGRADED` | A current streak of answered-with-error or no-answer services remains |
 | `READY` | Checked current-generation endpoint evidence meets the selected evidence-age policy |
 | `UNINIT` | No qualifying current endpoint evidence |
+
+Contract change (prompt 55, guide rule C2; the planned revision of prompt 25's
+projection): bus-off and controller unavailability used to make every binding
+`OFFLINE`. A bus fact names no node, and counting it against every node made a
+recovery look like node loss and hid which node was silent. Now the interface
+carries it: while a bus-level fault lasts (the owner's recovery interlock for
+bus-off, a recovering or otherwise reported unavailable controller and a running
+or failed recovery; an RX overflow episode; NO_LISTENER),
+`resources().interfaceState` is `OFFLINE` with `offlineSinceUs`, and each node
+row keeps its last `state`, marked `notObserved` with `notObservedSinceUs`.
+Nothing is projected for a node while it cannot be observed: no heartbeat
+expiry, no miss. When the fault ends the rows are observed again; a recovery
+has withdrawn old freshness, so a row returns to `UNINIT` or `DEGRADED` until
+new evidence arrives.
 
 `READY` describes communication. Controller state, NMT state, heartbeat
 freshness, statusword, mode, EMCY, drive fault, operation outcome and uncertain
@@ -589,8 +608,9 @@ startup timer, heartbeat default or interval multiplier. The independent node
 evidence-age policy determines whether current checked evidence supports READY.
 An evidenced heartbeat expiry has priority even if other traffic is present.
 
-`Health` holds saturating `uint32_t totalSuccess` and `totalFailures`, saturating
-`uint8_t consecutiveFailures`, supplied `uint64_t lastOkUs`, `lastErrorUs` and
+`Health` holds saturating `uint32_t totalSuccess`, `totalErrors`, `totalMisses`
+and `totalFailures` (their sum of errors and misses), saturating
+`uint8_t consecutiveFailures` and `consecutiveNoResponse`, supplied `uint64_t lastOkUs`, `lastErrorUs` and
 `lastSeenUs`, their known flags, retained `Status lastError`, and `state`.
 Timestamp zero is valid when its known flag is true. Success/failure timestamps
 are terminal processing times. `lastSeenUs` is the latest checked endpoint
@@ -600,28 +620,45 @@ currently qualified PDO delivered after its capture-age limit still updates
 `lastSeenUs`; it cannot establish READY. Unqualified, revoked-map, malformed and
 unknown-capture PDO samples cannot update that delivery history.
 
-One completed attempted SDO upload/download counts once, including every
-segment. A multi-object read or motion operation adds no extra owner total.
-Owner collection of the native terminal is the authoritative counting boundary.
-An attempted service requires possible controller transmission. Successful
-services increment `totalSuccess`, clear the current failure streak and set
-`lastOkUs`; they preserve `lastError` and `lastErrorUs`. Failed attempted
-services increment `totalFailures` and the streak, and retain their failed
-status/time. `lastError.detail` contains `SdoOutcome`; the unsigned abort is never
+One SDO upload/download counts once at its terminal, including every
+segment, by its evidence class (`Completion::evidence`, guide rule C3). A
+multi-object read or motion operation adds no extra owner total. Owner
+collection of the native terminal is the authoritative counting boundary.
+
+| Class | Counts |
+| --- | --- |
+| `ANSWERED` | `totalSuccess`; clears `consecutiveFailures` and the miss streak; sets `lastOkUs`; preserves `lastError` and `lastErrorUs` |
+| `ANSWERED_WITH_ERROR` | `totalErrors` and `totalFailures`, `consecutiveFailures`, `lastError`; the node is present, so it clears the miss streak and is never a miss |
+| `NO_ANSWER` | `totalMisses` and `totalFailures`, `consecutiveFailures`, `lastError`, and one `consecutiveNoResponse` for every binding of the node |
+| `LOCAL_END` | Nothing |
+
+`NO_ANSWER` needs a response timeout of a request frame that a positive TX
+report confirmed, no frame on the response identifier since that frame left,
+and no bus-level fault at the terminal. A report taken in the timeout's own
+service turn comes too late (deadlines go first), so that terminal is a local
+end. A segment's reply does not answer the next segment. A heartbeat also ends
+the miss streak but counts no success; an EMCY and a boot-up count neither way.
+Contract change (prompt 55): an attempted service used to count as a failure
+whenever a frame possibly left, including a refused enqueue, a negative or
+missing TX report, bus-off and boot-up; those are now local ends.
+
+`lastError.detail` contains `SdoOutcome`; the unsigned abort is never
 narrowed into that field. Server abort maps to PROTOCOL_ERROR, malformed client
 abort to FRAME_ERROR, and other failed services to INVALID_CONFIG with their
 native cause in detail. A valid server abort both fails that service and proves endpoint
 communication; its complete unsigned abort code stays in the retained terminal
-and copied terminal history. Checked malformed responses and attempted-service
-timeouts fail their service. Unrelated frames cannot create a service failure
-or extend its deadline.
+and copied terminal history. Checked malformed responses fail their service as
+answered with error. A frame naming another object cannot end a request or
+extend its deadline, but it shows that the server answered: the request's
+timeout is then an error, not a miss.
 
 Local validation, unsupported capability, queue refusal, waiting, local
 cancellation and pre-handoff withdrawal do not change logical-service totals
 or the streak. Fire-and-forget TX is not endpoint confirmation. Explicit probes
 using a reviewed confirmed service count normally. Passive heartbeat, EMCY and
 qualified PDO observations update endpoint liveness without changing service
-totals, the streak or the prior error. A successful independent reconciliation
+totals, `consecutiveFailures` or the prior error; a heartbeat ends the miss
+streak. A successful independent reconciliation
 service may clear the current streak; it cannot rewrite an earlier failed
 operation or settle its uncertain effects. Cleanup traffic never replaces the
 original failed service result.
@@ -666,13 +703,26 @@ observed maximum. There are no duplicate binding-service totals in `Stats`.
 | `cancelled` | Each newly terminal request whose winning cause is local withdrawal: explicit cancel, sequence/producer invalidation, recovery interruption or preflight guard. Earlier eligible terminals win; repeat cancellation does not count again. |
 | `timeouts` | Each request TIMEOUT terminal, including untransmitted owner queue/deadline expiry, and each recovery TIMEOUT terminal. This interface count does not imply an attempted-service health failure. |
 | `busOffEvents` | Accepted `reportController(BUS_OFF, nowUs)` changes the reported controller state into BUS_OFF. Repeated BUS_OFF reports do not increment it. |
-| `recoveries` | An explicit host/controller recovery first closes `RETIRED`; attempts, refusals, failed recovery and timeout do not count. |
-| `traceOverwritten` | A new owner diagnostic replaces the oldest copy when all eight history slots are occupied. Reading copies does not increment it. |
+| `recoveriesStarted` | An accepted `recover()` call: one controller restart started, including one whose begin callback fails at once. |
+| `recoveries` | An explicit host/controller recovery first closes `RETIRED`: a restart succeeded. Attempts, refusals, failed recovery and timeout do not count. |
+| `recoveriesFailed` | A recovery closes `FAILED` or `TIMEOUT`. |
+| `rxOverflows` | An accepted `receiveOverflow` report; `rxLost` counts its frames. |
+| `txExpired` | An accepted handoff reaches the TX lifetime without a final report, once per frame; none while a recovery is pending. |
+| `abortsSent` | A client abort frame (cleanup after a timeout or a rejected reply) receives a matching positive final report. A handoff alone does not count. Also per node in `Health`. |
+| `abortsReceived` | A current-epoch abort frame arrives on a configured SDO response identifier, matched to a request or not. Also per node in `Health`. |
+| `resyncs` | A route reopens (`ResyncStep::REOPENED`), after a marker or without one. Also per node in `Health`. |
+| `traceOverwritten` | A new owner diagnostic replaces the oldest copy when all `TRACE_CAPACITY` history slots are occupied. Reading copies does not increment it. |
 | `maxServiceGapUs` | Maximum difference between consecutive accepted `service` timestamps; first accepted turn establishes the baseline. Other owner calls do not create service turns. |
 
+Each counter's `last...Us` field holds the processing time of its latest event
+and is meaningful while the counter is nonzero; `markers`, `reuseStopped` and
+the counters of the table above that have no time field are plain counts.
+
 `clearStats()` returns false during callback reentrancy. Otherwise it zeros all
-interface totals/high-water marks and each binding's `totalSuccess` and
-`totalFailures`. It preserves the live failure streak, current state, timestamps
+interface totals, their times and high-water marks, and each binding's
+`totalSuccess`, `totalErrors`, `totalMisses`, `totalFailures` and node counters
+(`abortsSent`, `abortsReceived`, `resyncs` with their times). It preserves both
+streaks, current state and `notObserved`, the service and presence timestamps
 and known flags, last error, heartbeat-age policy, configuration/binding/node
 generations, controller interlocks, drive faults, uncertain effects, active and
 queued work, retained completions and diagnostic history. It also preserves the

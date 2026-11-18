@@ -261,6 +261,20 @@ class FirmwareProbe {
     ProbePlatform& platform() noexcept { return platform_; }
     /** @return Controller transport for diagnostics and explicit checked shutdown. */
     TwaiAdapter& transport() noexcept { return transport_; }
+    /** Read the controller error counters as bus evidence (guide rule C5) through
+     * TwaiAdapter::readErrorCounters, for every reader of this assembly (the console's `drv bus`,
+     * a bench's link lines), so that each reading's deltas run from the previous one by any of them.
+     * The reading time is nowUs, raised to the previous reading's when earlier, so that two readers
+     * with their own clocks never present a backward time. On the owner's task only.
+     * @param nowUs Supplied microseconds. @param output Complete reading on success, else unchanged.
+     * @return The adapter's result. */
+    bool readBusCounters(uint64_t nowUs, TwaiErrorCounters& output) noexcept {
+        const uint64_t at = nowUs > busReadUs_ ? nowUs : busReadUs_;
+        if (!transport_.readErrorCounters(at, output))
+            return false;
+        busReadUs_ = at;
+        return true;
+    }
     /** @return The borrowed sole service store, for explicit route configuration. */
     MotorControlCAN::CANOPEN::SdoClient& services() noexcept { return services_; }
     /** Register exact download authorization at owner-to-adapter handoff.
@@ -288,6 +302,7 @@ class FirmwareProbe {
     ProbeApp app_;
     DeviceEvidence evidence_;
     uint64_t lastUs_ = 0;
+    uint64_t busReadUs_ = 0; // Time of the latest readBusCounters reading.
     bool callbacksValid_ = false, attempted_ = false, prepared_ = false, started_ = false;
     bool running_ = false, stopped_ = false, stopConfirmed_ = false, faultRetired_ = false;
     bool retired_ = true;      // No controller resources outstanding.
@@ -296,6 +311,12 @@ class FirmwareProbe {
     TransceiverState transceiver_ = TransceiverState::NOT_CONTROLLED;
     FirmwareFailure failure_ = FirmwareFailure::NONE;
 };
+struct ConsoleBusEvidence;
+/** ConsoleBusSource::read over FirmwareProbe::readBusCounters: TWAI error state, TEC, REC and the
+ * error-callback counts as the console prints them (`drv bus`). Bus evidence only.
+ * @param firmware The FirmwareProbe, as the source's context. @param nowUs Supplied microseconds.
+ * @param output Complete reading on success, unchanged otherwise. @return Its result. */
+bool readConsoleBus(void* firmware, uint64_t nowUs, ConsoleBusEvidence& output) noexcept;
 /** Status projection used by the shared firmware task after every turn; pure, no I/O.
  * Explicit outcomes win over startup facts, so a hook that starts the controller after a
  * console failure reports RUNNING rather than PLATFORM_FAILED. Among startup facts a

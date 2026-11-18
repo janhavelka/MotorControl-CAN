@@ -1964,5 +1964,53 @@ class SoakRepairTail(unittest.TestCase):
         self.assertEqual(self.mismatches(default.hex()), [])
 
 
+class LinkLines(unittest.TestCase):
+    """Prompt 55's `L` lines (examples/s2_bench/LinkWatch.cpp) as test/link_watch_test.cpp prints them."""
+
+    def parsed(self, text):
+        record = evidence.parse_line(1, text)
+        self.assertEqual((record.status, record.extra), ("parsed", {}), text)
+        return record
+
+    def test_every_link_line_parses_exactly(self):
+        interface = self.parsed("LINK interface lifetime=100000 noListener=1 expiredPending=1 txExpired=1 markers=0 "
+                                "reuseStopped=0 recoveries=0 inhibited=1 t=1104000 state=offline "
+                                "offlineSince=1104000 receiveLost=0")
+        self.assertEqual((interface.kind, interface.values["state"], interface.values["offlineSince"]),
+                         ("LINK", "offline", 1104000))
+        node = self.parsed("LINK node=1 reuse=marker unresolved=1 stopped=0 pending=0 accepted=0 responded=1 "
+                           "lastResponse=24000 heartbeat=0 lastHeartbeat=0 bootUps=0 noResponse=0 answered=1 errors=0 "
+                           "misses=0 notObserved=1")
+        self.assertEqual((node.kind, node.values["answered"], node.values["notObserved"]), ("LINK_NODE", 1, True))
+        bus = self.parsed("LINK bus read=1 t=2000 known=1 state=warning tec=100 rec=3 busErrors=7 arbLost=2 prev=1 "
+                          "prevT=1000 dBusErrors=4 dArbLost=1 deltas=1 prevState=passive dTec=-30 dRec=0")
+        self.assertEqual((bus.kind, bus.values["dTec"], bus.values["prevState"], bus.values["t"]),
+                         ("LINK_BUS", -30, "passive", 2000))
+        self.assertEqual(self.parsed("LINK bus read=0").kind, "LINK_BUS_UNREAD")
+        counters = self.parsed("LINK counters busOff=1 recoveriesStarted=2 recoveries=1 recoveriesFailed=1 "
+                               "rxOverflows=0 abortsSent=3 abortsReceived=4 resyncs=2")
+        self.assertEqual((counters.kind, counters.values["recoveriesFailed"]), ("LINK_COUNTERS", 1))
+        # The lines of an image before these fields still parse.
+        self.assertEqual(self.parsed("LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 "
+                                     "markers=0 reuseStopped=0 recoveries=0 inhibited=0 t=1").kind, "LINK")
+        for kind in ("LINK_BUS", "LINK_BUS_UNREAD", "LINK_COUNTERS"):
+            self.assertIn(kind, evidence.EXPECTED["link"].responses)
+
+    def test_every_link_format_field_is_in_the_grammar(self):
+        text = (ROOT / "examples/s2_bench/LinkWatch.cpp").read_text(encoding="utf-8")
+        heads = {"LINK interface": ("LINK",), "LINK node=": ("LINK_NODE", "LINK_NODE_UNCONFIGURED"),
+                 "LINK bus": ("LINK_BUS", "LINK_BUS_UNREAD"), "LINK counters": ("LINK_COUNTERS",)}
+        found = set()
+        for head, body in re.findall(r'"(LINK (?:interface|node=|bus|counters))((?:[^"]|"\s*")*?)\\n"', text):
+            found.add(head)
+            fields = set(re.findall(r"(\w+)=%", re.sub(r'"\s*"', "", head + body)))
+            names = set()
+            for row in evidence.GRAMMAR:
+                if row.kind in heads[head]:
+                    names |= set(evidence._compile(row.fields))
+            self.assertLessEqual(fields, names, head)
+        self.assertEqual(found, set(heads))
+
+
 if __name__ == "__main__":
     unittest.main()

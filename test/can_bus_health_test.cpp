@@ -313,6 +313,11 @@ void abortFailureThenIndependentRead() {
     CHECK(h.totalSuccess == 0 && h.totalFailures == 1 && h.consecutiveFailures == 1);
     CHECK(h.lastErrorKnown && h.lastErrorUs == 0 && h.lastSeenKnown && h.lastSeenUs == 0);
     CHECK(h.state == O::DriverState::DEGRADED);
+    // Prompt 55 (rule C3): a server abort is answered with error, never a miss.
+    CHECK(r.done(failed).evidence == O::EvidenceClass::ANSWERED_WITH_ERROR);
+    CHECK(h.totalErrors == 1 && h.totalMisses == 0 && h.consecutiveNoResponse == 0);
+    CHECK(h.abortsReceived == 1 && h.lastAbortReceivedUs == 0 && h.abortsSent == 0);
+    CHECK(r.owner.stats().abortsReceived == 1 && r.owner.stats().abortsSent == 0);
     CHECK(r.done(failed).service.abortValid && r.done(failed).service.abortCode == 0xf1234567u);
     const O::Completion failedOperation = r.done(failed);
     const Saved<O::Completion> terminal(failedOperation);
@@ -344,6 +349,7 @@ void abortFailureThenIndependentRead() {
     r.turn(3, budget(1, 0, 8, 0));
     h = r.health();
     CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.consecutiveFailures == 0);
+    CHECK(r.done(reconcile).evidence == O::EvidenceClass::ANSWERED && h.totalErrors == 1);
     CHECK(h.state == O::DriverState::READY && h.lastOkKnown && h.lastOkUs == 3);
     CHECK(h.lastErrorKnown && h.lastErrorUs == 0 && h.lastError.code == error.code &&
           h.lastError.detail == error.detail && h.lastSeenUs == 3);
@@ -354,6 +360,8 @@ void abortFailureThenIndependentRead() {
     CHECK(r.owner.clearStats());
     h = r.health();
     CHECK(h.state == O::DriverState::READY && h.totalSuccess == 0 && h.totalFailures == 0);
+    CHECK(h.totalErrors == 0 && h.abortsReceived == 0 && h.lastAbortReceivedUs == 0 &&
+          r.owner.stats().abortsReceived == 0);
     CHECK(h.lastOkKnown && h.lastOkUs == 3 && h.lastErrorKnown && h.lastErrorUs == 0 &&
           h.lastSeenKnown && h.lastSeenUs == 3 && h.lastError.detail == error.detail);
 }
@@ -392,27 +400,42 @@ void failureStreakSurvivesRecoveryOnAnOpenRoute() {
     CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.lastErrorKnown && h.lastErrorUs == 0);
 }
 
+// Contract change (prompt 55, rule C3): a negative TX report is a local end, not a node failure,
+// so it counts nothing; the service failure that a heartbeat preserves comes from a server abort.
 void freshHeartbeatPreservesServiceFailure() {
-    Rig r;
-    CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 1, 0));
-    CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 5, 0));
-    const auto sequence = r.sequence();
-    const auto id = r.admit(r.request(sequence));
-    r.turn(0);
-    r.fake.reportTx(0, false);
-    r.fake.push(heartbeat(), 1);
-    r.turn(1, budget(1, 0, 8, 0));
-    CHECK(r.done(id).service.outcome == C::SdoOutcome::TRANSPORT_ERROR);
-    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().totalFailures == 1);
-    r.turn(6, O::ServiceBudget());
-    CHECK(r.health().state == O::DriverState::DEGRADED);
-    r.turn(7, O::ServiceBudget());
-    CHECK(r.health().state == O::DriverState::OFFLINE);
-    r.fake.push(heartbeat(), 7);
-    r.turn(7, budget(1, 0, 0, 0));
-    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().consecutiveFailures == 1 &&
-          r.health().totalSuccess == 0 && r.health().lastErrorUs == 1);
-    CHECK(r.services.unresolved(0));
+    for (unsigned answered = 0; answered < 2; ++answered) {
+        Rig r;
+        CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 1, 0));
+        CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 5, 0));
+        const auto sequence = r.sequence();
+        const auto id = r.admit(r.request(sequence));
+        r.turn(0);
+        if (answered) {
+            r.fake.reportTx(0);
+            M::Frame abort = reply();
+            abort.data[0] = 0x80;
+            r.fake.push(abort, 1);
+        } else
+            r.fake.reportTx(0, false);
+        r.fake.push(heartbeat(), 1);
+        r.turn(1, budget(2, 0, 8, 0));
+        CHECK(r.done(id).service.outcome ==
+              (answered ? C::SdoOutcome::SERVER_ABORT : C::SdoOutcome::TRANSPORT_ERROR));
+        CHECK(r.done(id).evidence ==
+              (answered ? O::EvidenceClass::ANSWERED_WITH_ERROR : O::EvidenceClass::LOCAL_END));
+        const O::DriverState live = answered ? O::DriverState::DEGRADED : O::DriverState::READY;
+        CHECK(r.health().state == live && r.health().totalFailures == answered);
+        r.turn(6, O::ServiceBudget());
+        CHECK(r.health().state == live);
+        r.turn(7, O::ServiceBudget());
+        CHECK(r.health().state == O::DriverState::OFFLINE);
+        r.fake.push(heartbeat(), 7);
+        r.turn(7, budget(1, 0, 0, 0));
+        CHECK(r.health().state == live && r.health().consecutiveFailures == answered &&
+              r.health().totalSuccess == 0 && r.health().lastErrorKnown == bool(answered));
+        CHECK(!answered || r.health().lastErrorUs == 1);
+        CHECK(r.services.unresolved(0) == !answered); // A matched abort leaves the route open.
+    }
 }
 
 void heartbeatPolicyAndControllerRecovery() {
@@ -445,19 +468,31 @@ void heartbeatPolicyAndControllerRecovery() {
     CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 0, 80));
     r.turn(90, O::ServiceBudget());
     CHECK(r.health().state == O::DriverState::READY);
+    // Contract change (prompt 55, rule C2; the planned revision of this prompt-25 projection):
+    // bus-off names no node. The interface goes OFFLINE; the binding keeps its last state,
+    // marked not observed since the fault began.
+    CHECK(!r.health().notObserved);
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 90));
-    CHECK(r.health().state == O::DriverState::OFFLINE && r.owner.stats().busOffEvents == 1);
+    CHECK(r.health().state == O::DriverState::READY && r.owner.stats().busOffEvents == 1);
+    CHECK(r.health().notObserved && r.health().notObservedSinceUs == 90);
+    CHECK(r.owner.resources().interfaceState == O::InterfaceState::OFFLINE &&
+          r.owner.resources().offlineSinceUs == 90 && r.owner.stats().lastBusOffUs == 90);
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 90));
     CHECK(r.owner.stats().busOffEvents == 1);
     CHECK(!r.owner.reportController(C::ControllerState::AVAILABLE, 90));
-    CHECK(r.health().state == O::DriverState::OFFLINE && r.owner.resources().inhibited);
+    CHECK(r.health().state == O::DriverState::READY && r.owner.resources().inhibited);
+    CHECK(r.health().notObserved && r.health().notObservedSinceUs == 90);
     O::RecoveryId recovery;
     CHECK(r.owner.recover(90, 100, recovery));
     r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(91, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(r.health().state == O::DriverState::UNINIT && !r.owner.resources().inhibited);
+    CHECK(!r.health().notObserved &&
+          r.owner.resources().interfaceState == O::InterfaceState::AVAILABLE);
     CHECK(r.owner.stats().recoveries == 1 && r.fake.beginCalls == 1 && r.fake.pollCalls == 1);
+    CHECK(r.owner.stats().recoveriesStarted == 1 && r.owner.stats().lastRecoveryStartedUs == 90 &&
+          r.owner.stats().lastRecoveryUs == 91 && r.owner.stats().recoveriesFailed == 0);
     CHECK(r.owner.releaseRecovery(recovery));
     r.fake.push(heartbeat(), 92, true, r.owner.controllerEpoch());
     r.turn(92, budget(1, 0, 0, 0));
@@ -518,6 +553,9 @@ void localCancellationAndQueueExpiryAreHealthNeutral() {
     const auto expires = r.admit(r.request(sequence, 2));
     r.turn(100, O::ServiceBudget());
     CHECK(r.done(expires).service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(r.done(queued).evidence == O::EvidenceClass::LOCAL_END &&
+          r.done(expires).evidence == O::EvidenceClass::LOCAL_END);
+    CHECK(r.health().totalMisses == 0 && r.health().consecutiveNoResponse == 0);
     CHECK(r.owner.stats().cancelled == 1 && r.owner.stats().timeouts == 1);
     CHECK(r.health().totalFailures == 0 && r.health().totalSuccess == 0 &&
           r.health().consecutiveFailures == 0 && !r.health().lastErrorKnown);
@@ -585,9 +623,12 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
     const O::Health before = r.health();
     const auto resources = r.owner.resources();
     CHECK(before.totalFailures == 1 && before.consecutiveFailures == 1);
+    CHECK(r.done(write).evidence == O::EvidenceClass::NO_ANSWER && before.totalMisses == 1 &&
+          before.consecutiveNoResponse == 1);
     CHECK(r.owner.clearStats());
     auto h = r.health();
     CHECK(h.totalFailures == 0 && h.totalSuccess == 0 && h.consecutiveFailures == 1);
+    CHECK(h.totalMisses == 0 && h.consecutiveNoResponse == 1); // Streaks survive the reset.
     CHECK(h.state == O::DriverState::DEGRADED && h.lastErrorKnown &&
           h.lastErrorUs == before.lastErrorUs);
     CHECK(h.lastError.code == before.lastError.code &&
@@ -618,7 +659,9 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
     const uint32_t epoch = r.owner.controllerEpoch();
     CHECK(r.owner.clearStats());
     CHECK(r.owner.resources().inhibited && r.owner.controllerEpoch() == epoch);
-    CHECK(r.health().state == O::DriverState::OFFLINE);
+    // Contract change (prompt 55, rule C2): bus-off freezes the row instead of marking it OFFLINE.
+    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().notObserved);
+    CHECK(r.health(2).totalFailures == 0 && r.health(2).consecutiveNoResponse == 0);
     retained.unchanged(r.done(write));
 }
 
@@ -663,7 +706,9 @@ void exactIngressEnqueueAndAdmissionBoundaries() {
     denied.fake.reportTx(0, false);
     denied.fake.reportTx(0, false);
     denied.turn(1, budget(0, 0, 8, 0));
-    CHECK(denied.owner.stats().txRejected == 1 && denied.health().totalFailures == 1);
+    // Contract change (prompt 55, rule C3): a refused enqueue is a local end, not a failure.
+    CHECK(denied.owner.stats().txRejected == 1 && denied.health().totalFailures == 0);
+    CHECK(denied.done(failed).evidence == O::EvidenceClass::LOCAL_END);
     Rig negative;
     const auto ns = negative.sequence();
     const auto nf = negative.admit(negative.request(ns));
@@ -893,11 +938,18 @@ void recoveryTimeoutAndCounterSaturation() {
     r.turn(5, O::ServiceBudget());
     CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::TIMEOUT);
     CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().recoveries == 0);
+    CHECK(r.owner.stats().recoveriesStarted == 1 && r.owner.stats().recoveriesFailed == 1 &&
+          r.owner.stats().lastRecoveryFailedUs == 5);
     CHECK(r.fake.pollCalls == 0 && r.health().totalFailures == 0);
+    CHECK(!r.owner.resources().receiveLost);
     CHECK(r.owner.receiveOverflow(5, UINT32_MAX));
-    CHECK(r.owner.stats().rxDropped == UINT32_MAX);
+    CHECK(r.owner.stats().rxDropped == UINT32_MAX && r.owner.stats().rxOverflows == 1);
     CHECK(r.owner.receiveOverflow(5, UINT32_MAX) && r.owner.stats().rxDropped == UINT32_MAX);
+    CHECK(r.owner.stats().rxOverflows == 2 && r.owner.stats().lastRxOverflowUs == 5 &&
+          r.owner.resources().receiveLost);
     CHECK(r.owner.clearStats() && r.owner.stats().rxDropped == 0);
+    CHECK(r.owner.stats().rxOverflows == 0 && r.owner.stats().recoveriesStarted == 0 &&
+          r.owner.resources().receiveLost); // Statistics only: the episode stays.
     CHECK(r.owner.resources().inhibited && r.owner.recoveryResult(recovery));
     uint32_t count = UINT32_MAX - 1;
     O::detail::add(count);
@@ -966,11 +1018,16 @@ void malformedReplyAndCleanupTransmissionCountSeparately() {
     const auto h = r.health();
     CHECK(h.totalSuccess == 0 && h.totalFailures == 1 && h.consecutiveFailures == 1);
     CHECK(h.lastErrorKnown && h.lastErrorUs == 1 && h.state == O::DriverState::DEGRADED);
+    CHECK(r.done(id).evidence == O::EvidenceClass::ANSWERED_WITH_ERROR && h.totalErrors == 1);
     CHECK(r.owner.stats().txFrames == 1 && r.owner.stats().txRejected == 0);
+    CHECK(r.owner.stats().abortsSent == 0 && h.abortsSent == 0); // Staged and handed off only.
     r.fake.reportTx(1);
     r.fake.reportTx(1);
     r.turn(2, budget(0, 0, 8, 0));
     CHECK(r.owner.stats().txFrames == 2 && r.owner.stats().txRejected == 0);
+    CHECK(r.owner.stats().abortsSent == 1 && r.owner.stats().lastAbortSentUs == 2 &&
+          r.health().abortsSent == 1 && r.health().lastAbortSentUs == 2);
+    CHECK(r.owner.stats().abortsReceived == 0);
     terminal.unchanged(r.done(id));
     const auto after = r.health();
     CHECK(after.totalSuccess == 0 && after.totalFailures == 1 && after.consecutiveFailures == 1);
@@ -979,8 +1036,10 @@ void malformedReplyAndCleanupTransmissionCountSeparately() {
     CHECK(after.state == O::DriverState::DEGRADED && !after.lastOkKnown);
 }
 
+// Contract change (prompt 55, rule C3): a deadline after a handoff nobody confirmed is a local
+// end; only a confirmed request frame that waited in vain is a miss.
 void deadlineWinsCancellationAtSameCutoff() {
-    for (unsigned transmitted = 0; transmitted < 2; ++transmitted) {
+    for (unsigned transmitted = 0; transmitted < 3; ++transmitted) {
         Rig r;
         O::SequenceId sequence;
         CHECK(r.owner.beginSequence(route().binding, 1, 0, sequence));
@@ -988,11 +1047,19 @@ void deadlineWinsCancellationAtSameCutoff() {
         const auto id = r.admit(r.request(sequence));
         if (transmitted)
             r.turn(0);
+        if (transmitted == 2) {
+            r.fake.reportTx(0);
+            r.turn(1, budget(0, 0, 8, 0));
+        }
+        const unsigned missed = transmitted == 2;
         CHECK(r.owner.cancel(id, 5) == O::Cancel::ALREADY_TERMINAL);
         CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(id).evidence ==
+              (missed ? O::EvidenceClass::NO_ANSWER : O::EvidenceClass::LOCAL_END));
         CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().cancelled == 0);
-        CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == transmitted &&
-              r.health().consecutiveFailures == transmitted);
+        CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == missed &&
+              r.health().consecutiveFailures == missed && r.health().totalMisses == missed &&
+              r.health().consecutiveNoResponse == missed);
         const Saved<O::Completion> terminal(r.done(id));
         CHECK(r.owner.cancel(id, 5) == O::Cancel::ALREADY_TERMINAL);
         CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().cancelled == 0);
@@ -1034,6 +1101,75 @@ void exactRetirementAlsoRetiresFinalReports() {
         terminal.unchanged(r.done(cancelled));
     }
 }
+// Prompt 55, rule C3: the evidence class of each kind of terminal and what each one counts.
+void evidenceClassesCountByClass() {
+    // A wrong-multiplexer reply ends nothing, but the server answered: the timeout that follows
+    // is an error, not a miss.
+    {
+        Rig r;
+        const auto id = r.admit(r.request(r.sequence()));
+        r.turn(0);
+        r.fake.reportTx(0);
+        r.fake.push(reply(1, 0x2346), 1);
+        r.turn(1, budget(1, 0, 8, 0));
+        CHECK(!r.owner.result(id) && r.owner.stats().unmatchedFrames == 1);
+        r.turn(100, O::ServiceBudget());
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(id).evidence == O::EvidenceClass::ANSWERED_WITH_ERROR);
+        const O::Health h = r.health();
+        CHECK(h.totalErrors == 1 && h.totalMisses == 0 && h.totalFailures == 1 &&
+              h.consecutiveFailures == 1 && h.consecutiveNoResponse == 0);
+    }
+    // A confirmed request with no frame since is the one miss; an unconfirmed one is a local end.
+    for (unsigned confirmed = 0; confirmed < 2; ++confirmed) {
+        Rig r;
+        const auto id = r.admit(r.request(r.sequence()));
+        r.turn(0);
+        if (confirmed)
+            r.fake.reportTx(0);
+        r.turn(1, budget(0, 0, 8, 0));
+        r.turn(100, O::ServiceBudget());
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT &&
+              r.done(id).service.transmissionPossible);
+        CHECK(r.done(id).evidence ==
+              (confirmed ? O::EvidenceClass::NO_ANSWER : O::EvidenceClass::LOCAL_END));
+        const O::Health h = r.health();
+        CHECK(h.totalMisses == confirmed && h.totalFailures == confirmed && h.totalErrors == 0 &&
+              h.consecutiveNoResponse == confirmed && h.consecutiveFailures == confirmed);
+        CHECK(h.state == (confirmed ? O::DriverState::DEGRADED : O::DriverState::UNINIT));
+        if (!confirmed)
+            continue;
+        // An EMCY shows presence and counts neither way; a heartbeat ends the miss streak only.
+        M::Frame emcy = frame(0x81);
+        emcy.data[0] = 0x10;
+        r.fake.push(emcy, 101);
+        r.turn(101, budget(1, 0, 0, 0));
+        CHECK(r.health().consecutiveNoResponse == 1 && r.health().totalMisses == 1);
+        CHECK(r.health().lastSeenKnown && r.health().lastSeenUs == 101);
+        r.fake.push(heartbeat(), 102);
+        r.turn(102, budget(1, 0, 0, 0));
+        CHECK(r.health().consecutiveNoResponse == 0 && r.health().consecutiveFailures == 1);
+        CHECK(r.health().totalSuccess == 0 && r.health().totalMisses == 1);
+    }
+    // A segment's reply does not answer the next segment: its timeout is a miss.
+    {
+        Rig r;
+        auto work = r.request(r.sequence(), 1, true);
+        work.transfer.size = 8;
+        const auto id = r.admit(work);
+        r.turn(0);
+        r.fake.reportTx(0);
+        r.fake.push(reply(1, 0x2345, true), 1);
+        r.turn(1);
+        CHECK(r.fake.sentCount == 2 && !r.owner.result(id));
+        r.fake.reportTx(1);
+        r.turn(2, budget(0, 0, 8, 0));
+        r.turn(101, O::ServiceBudget());
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT && r.done(id).service.replyValid);
+        CHECK(r.done(id).evidence == O::EvidenceClass::NO_ANSWER &&
+              r.health().consecutiveNoResponse == 1);
+    }
+}
 } // namespace
 int main() {
     cachedStateAndKnownZero();
@@ -1058,6 +1194,7 @@ int main() {
     deadlineWinsCancellationAtSameCutoff();
     if (PAIRED_CHANNELS)
         exactRetirementAlsoRetiresFinalReports();
+    evidenceClassesCountByClass();
     std::printf("CAN owner health: %u checks passed\n", checks);
     std::printf(
         "host bytes: CanBusOwner=%zu Health=%zu Stats=%zu Diagnostic=%zu OwnerResources=%zu\n",

@@ -21,6 +21,42 @@ struct TwaiConfig {
     uint8_t sdkTxQueueDepth = 0;     ///< Must be one; adapter never queues a second SDK frame.
     uint8_t rxQueueDepth = 0;        ///< Application-selected copied RX capacity, 1..16.
 };
+/** Controller fault-confinement state (ISO 11898-1) as the SDK reports it. */
+enum class TwaiErrorState : uint8_t {
+    UNKNOWN, ///< Not read: no status callback, no node, or the SDK refused.
+    ACTIVE,  ///< TEC and REC below 96 (SDK TWAI_ERROR_ACTIVE).
+    WARNING, ///< TEC or REC at or above 96 and below 128 (TWAI_ERROR_WARNING).
+    PASSIVE, ///< TEC or REC at or above 128 and below 256 (TWAI_ERROR_PASSIVE): no active error flags.
+    BUS_OFF  ///< TEC at or above 256 (TWAI_ERROR_BUS_OFF): the node takes no part in bus traffic.
+};
+/** One copied SDK status read: error state and both error counters. */
+struct TwaiControllerStatus {
+    TwaiErrorState state = TwaiErrorState::UNKNOWN; ///< Fault-confinement state at the read.
+    uint16_t transmitErrors = 0; ///< Transmit error counter (TEC).
+    uint16_t receiveErrors = 0;  ///< Receive error counter (REC).
+};
+/** Controller error counters as bus evidence (guide rule C5), from TwaiAdapter::readErrorCounters.
+ * They name no node and, unlike an EtherCAT port counter, locate no node or cable segment: never
+ * node evidence and never a node miss. No threshold is applied; thresholds are caller settings,
+ * still to measure. A controller restart creates a new node whose TEC and REC start at zero.
+ */
+struct TwaiErrorCounters {
+    uint64_t readUs = 0;      ///< Supplied time of this read.
+    bool statusKnown = false; ///< The SDK answered: state, transmitErrors and receiveErrors are meaningful.
+    TwaiErrorState state = TwaiErrorState::UNKNOWN; ///< Error state at the read.
+    uint16_t transmitErrors = 0; ///< TEC at the read.
+    uint16_t receiveErrors = 0;  ///< REC at the read.
+    uint32_t busErrors = 0;       ///< TwaiDiagnostics::busErrors as of the last pollEvents.
+    uint32_t arbitrationLost = 0; ///< TwaiDiagnostics::arbitrationLost as of the last pollEvents.
+    bool previousKnown = false;   ///< An earlier read exists: previousReadUs and the count deltas are meaningful.
+    uint64_t previousReadUs = 0;  ///< Time of that earlier read.
+    uint32_t busErrorsDelta = 0;  ///< Increase of busErrors since the earlier read; a saturated count hides further ones.
+    uint32_t arbitrationLostDelta = 0; ///< Increase of arbitrationLost since the earlier read.
+    bool statusDeltaKnown = false; ///< Both reads have known status: the fields below are meaningful.
+    TwaiErrorState previousState = TwaiErrorState::UNKNOWN; ///< State at the earlier read.
+    int32_t transmitErrorsDelta = 0; ///< TEC change since the earlier read; TEC is a level, so it can fall.
+    int32_t receiveErrorsDelta = 0;  ///< REC change since the earlier read.
+};
 /** Atomically copied ISR evidence, reset on successful controller destruction. */
 struct TwaiEvents {
     bool txDone = false;      ///< One exact final report, never enqueue acceptance.
@@ -31,6 +67,7 @@ struct TwaiEvents {
     uint32_t rxDropped =
         0; ///< Saturating observed ring/format drops, not hidden hardware overruns.
     uint32_t busErrors = 0;  ///< Saturating raw SDK error callbacks, not failed logical services.
+    uint32_t arbitrationLost = 0; ///< Saturating error callbacks whose flags include arbitration lost; a subset of busErrors.
     uint32_t errorFlags = 0; ///< Bitwise union of raw SDK error flags in this snapshot.
     bool rxPending = false;  ///< Unread authoritative RX exists at this snapshot.
 };
@@ -60,11 +97,15 @@ struct TwaiDriver {
     bool (*receive)(void*, ReceivedFrame&, uint64_t) = nullptr;
     ///< One copied ingress stamped at ISR enqueue; final argument is inclusive
     ///< processing cutoff. Leave a newer head frame queued until a later turn.
+    bool (*status)(void*, TwaiControllerStatus&) = nullptr;
+    ///< Optional bounded SDK status read, never from an ISR; false, output unchanged, when no
+    ///< node exists or the SDK refused. Without it readErrorCounters reports unknown status.
 };
 /** Cached adapter diagnostics; no hardware queries and no inferred wire completion. */
 struct TwaiDiagnostics {
     uint32_t rxDropped = 0; ///< Observed software/invalid-frame drops, saturating.
-    uint32_t busErrors = 0; ///< Raw error callback count, saturating.
+    uint32_t busErrors = 0; ///< Raw error callback count, saturating. The SDK raises one callback for a bus error, an arbitration loss or both.
+    uint32_t arbitrationLost = 0; ///< Error callbacks carrying the arbitration-lost flag, saturating; a subset of busErrors.
     uint32_t errorFlags =
         0; ///< Lifetime bitwise union of raw SDK error flags; busErrors qualifies it.
     bool inhibited = true; ///< Local transport cannot accept new work.
@@ -77,9 +118,11 @@ struct TwaiDiagnostics {
  * poll: the owner's blocked handling for that race stays required. promote submits at
  * most one queued frame after rechecking the same SDO store, and starts the frame's
  * response clock only at SDK submission. Owner remains sole RX router.
- * Hardware retransmits until ACK, so a no-ACK frame stays ACTIVE and stalls this
- * interface until an application-started owner recovery deletes the node. That is
- * not an application retry, and its external effects stay uncertain.
+ * Hardware retransmits until ACK (DEC-4), so a no-ACK frame stays ACTIVE and stalls this
+ * interface until an application-started owner recovery deletes the node. That retransmission
+ * is link-level, not an application retry: it has no retry class and only the owner's TX
+ * lifetime bounds it (guide rule C7); its external effects stay uncertain. Single-shot
+ * transmission is an option to evaluate on the bench, not a default.
  * No automatic retry/recovery, clocks, device commands or heap allocation here.
  */
 class TwaiAdapter {
@@ -125,6 +168,16 @@ class TwaiAdapter {
     void promote(CanBusOwner& owner, uint64_t nowUs) noexcept;
     /** @return Cached saturating diagnostics, without I/O. */
     TwaiDiagnostics diagnostics() const noexcept { return diagnostics_; }
+    /** Read the controller error counters as bus evidence (guide rule C5): error state, TEC and
+     * REC through TwaiDriver::status at nowUs, the cumulative error-callback counts as of the
+     * last pollEvents, and each one's change since the previous read. Never node evidence; no
+     * threshold is applied. Not for an ISR: call at a diagnostic rate, not per service turn.
+     * @param nowUs Supplied time, not before the previous read's.
+     * @param[out] output Complete reading on success, unchanged otherwise.
+     * @return False, unchanged, for backward time; true otherwise, with statusKnown false when
+     * the status callback is missing or failed. Each successful read becomes the next one's base.
+     */
+    bool readErrorCounters(uint64_t nowUs, TwaiErrorCounters& output) noexcept;
 
   private:
     enum class State : uint8_t { FREE, QUEUED, ACTIVE, REPORT };
@@ -138,6 +191,8 @@ class TwaiAdapter {
     TwaiDriver driver_;
     TwaiConfig config_;
     TwaiDiagnostics diagnostics_;
+    TwaiErrorCounters lastRead_;
+    bool readKnown_ = false;
     uint32_t epoch_ = 0, serial_ = 0, recoveryEpoch_ = 0;
     uint64_t now_ = 0;
     bool initialized_ = false, attempted_ = false, haveTime_ = false;

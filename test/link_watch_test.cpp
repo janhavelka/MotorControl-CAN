@@ -89,7 +89,7 @@ struct Rig {
         options.queueTimeoutUs = options.responseTimeoutUs = 250000;
         CHECK(firmware.app().requestProbe(console.now, console.now + 2000000, options));
     }
-    std::string link(unsigned index) const {
+    std::string link(unsigned index) {
         char line[320];
         CHECK(E::formatLink(firmware, services, index, line, sizeof line));
         return line;
@@ -100,17 +100,45 @@ void linkLines() {
     scenario = "link";
     std::unique_ptr<Rig> r(new Rig);
     r->turns(2);
-    CHECK(r->link(0).rfind("LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 markers=0 "
-                           "reuseStopped=0 recoveries=0 inhibited=0 ", 0) == 0);
+    const std::string interface = r->link(0);
+    CHECK(interface.rfind("LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 markers=0 "
+                          "reuseStopped=0 recoveries=0 inhibited=0 ", 0) == 0);
+    CHECK(interface.find(" state=available offlineSince=0 receiveLost=0\n") != std::string::npos);
     CHECK(r->link(1).rfind("LINK node=1 reuse=marker unresolved=0 stopped=0 pending=0 accepted=0 responded=0 ", 0) == 0);
+    CHECK(r->link(1).find(" answered=0 errors=0 misses=0 notObserved=0\n") != std::string::npos);
     CHECK(r->link(2).rfind("LINK node=2 reuse=marker ", 0) == 0);
+    // The controller's error counters, bus evidence: without a status read only the callback counts.
+    const unsigned long long t = static_cast<unsigned long long>(r->firmware.owner().lastTimeUs());
+    char expected[200];
+    std::snprintf(expected, sizeof expected,
+                  "LINK bus read=1 t=%llu known=0 state=unknown tec=0 rec=0 busErrors=0 arbLost=0 prev=0 prevT=0 "
+                  "dBusErrors=0 dArbLost=0 deltas=0 prevState=unknown dTec=0 dRec=0\n", t);
+    CHECK(r->link(3) == expected);
+    CHECK(r->link(4) == "LINK counters busOff=0 recoveriesStarted=0 recoveries=0 recoveriesFailed=0 rxOverflows=0 "
+                        "abortsSent=0 abortsReceived=0 resyncs=0\n");
     char line[320];
-    CHECK(!E::formatLink(r->firmware, r->services, 3, line, sizeof line));
+    CHECK(!E::formatLink(r->firmware, r->services, E::LINK_LINES, line, sizeof line));
     CHECK(!E::formatLink(r->firmware, r->services, 0, line, 8)); // Too small: refused, never cut.
     CHECK(r->driver.requests.empty()); // Formatting sent nothing.
     r->probe(1);
     r->turns(5);
     CHECK(r->link(1).find(" responded=1 ") != std::string::npos);
+    CHECK(r->link(1).find(" answered=1 errors=0 misses=0 notObserved=0\n") != std::string::npos);
+    // A status read: state and counters, then each later reading's change since the one before.
+    r->driver.statusAvailable = true;
+    r->driver.controllerStatus.state = E::TwaiErrorState::PASSIVE;
+    r->driver.controllerStatus.transmitErrors = 130;
+    r->driver.controllerStatus.receiveErrors = 3;
+    const std::string first = r->link(3);
+    CHECK(first.find(" known=1 state=passive tec=130 rec=3 busErrors=0 arbLost=0 prev=1 ") != std::string::npos &&
+          first.find(" deltas=0 prevState=unknown dTec=0 dRec=0\n") != std::string::npos);
+    r->driver.controllerStatus.state = E::TwaiErrorState::WARNING;
+    r->driver.controllerStatus.transmitErrors = 100;
+    r->turns(1);
+    const std::string second = r->link(3);
+    CHECK(second.find(" known=1 state=warning tec=100 rec=3 ") != std::string::npos &&
+          second.find(" deltas=1 prevState=passive dTec=-30 dRec=0\n") != std::string::npos);
+    CHECK(r->driver.requests.size() == 1); // The probe; the reads sent nothing.
 }
 void refusals() {
     scenario = "refusals";
@@ -144,6 +172,10 @@ void unplugAndReplug() {
     CHECK(r->firmware.owner().stats().txExpired >= 1 && r->watch.restarts() == 1);
     CHECK(r->has("LINK_EVENT ") && r->has(" kind=expired node=0 value=1\n") && r->has(" kind=restart node=0 "));
     CHECK(r->has(" kind=recovery node=4 value=0\n")); // RETIRED, cause: TX expired.
+    // NO_LISTENER is a bus-level fault: the interface is offline and the rows are not observed.
+    CHECK(r->link(0).find(" state=offline ") != std::string::npos &&
+          r->link(1).find(" notObserved=1\n") != std::string::npos &&
+          r->link(2).find(" notObserved=1\n") != std::string::npos);
     CHECK(r->has(" kind=marker node=1 value=101801\n")); // Probed at once, NO_LISTENER or not.
     r->turns(300); // Still unplugged: whatever expires again, the watch never restarts twice.
     CHECK(r->watch.restarts() == 1 && r->firmware.owner().stats().recoveries == 1);
@@ -158,6 +190,8 @@ void unplugAndReplug() {
     CHECK(r->has(" kind=listener-end node=0 ") && r->has(" kind=marker node=1 value=101802\n") &&
           r->has(" kind=marker-result node=1 value=1\n"));
     CHECK(r->has(" kind=resynced node=1 ") && r->has(" kind=resynced node=2 "));
+    CHECK(r->link(0).find(" state=available offlineSince=0 ") != std::string::npos &&
+          r->link(1).find(" notObserved=0\n") != std::string::npos);
     // After the replug the first probe's frame, held unACKed in the controller since 1.106 s, leaves; its
     // late reply lands in the same turn as its TX report, so no cleanup abort follows it. Then only the
     // second probe leaves; the 1000:00 read the restart deleted is never resent.

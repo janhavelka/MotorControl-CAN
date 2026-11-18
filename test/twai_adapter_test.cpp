@@ -59,6 +59,9 @@ struct FakeDriver {
     unsigned rxRead = 0, rxWrite = 0;
     uint32_t epoch = 0, activeSerial = 0;
     E::TwaiSubmit submitResult = E::TwaiSubmit::SENT;
+    E::TwaiControllerStatus status; // Answered by readStatus while statusOk.
+    unsigned statusCalls = 0;
+    bool statusOk = true;
     bool startOk = true, stopOk = true, immediate = false;
     bool live = false, active = false;
     static bool start(void* p, const E::TwaiConfig& cfg, uint32_t epoch) {
@@ -123,6 +126,14 @@ struct FakeDriver {
         output = f.rx[f.rxRead++ % RX_CAPACITY];
         return true;
     }
+    static bool readStatus(void* p, E::TwaiControllerStatus& output) {
+        FakeDriver& f = *static_cast<FakeDriver*>(p);
+        ++f.statusCalls;
+        if (!f.statusOk)
+            return false;
+        output = f.status;
+        return true;
+    }
     E::TwaiDriver driver() {
         E::TwaiDriver value;
         value.context = this;
@@ -131,6 +142,7 @@ struct FakeDriver {
         value.submit = submit;
         value.events = events;
         value.receive = receive;
+        value.status = readStatus;
         return value;
     }
     void complete(bool transmitted, uint32_t serial = 0) {
@@ -702,6 +714,65 @@ void rawErrorsRemainDiagnosticAndSaturate() {
     r.sdk.pending.busErrors = 1;
     r.turn(3);
     CHECK(r.adapter.diagnostics().busErrors == UINT32_MAX && r.sdk.submits == 0);
+}
+
+// Prompt 55, guide rule C5: controller error counters are bus evidence, read with their time and
+// their change since the previous read. They touch no owner state and apply no threshold.
+void errorCountersAreBusEvidenceWithDeltas() {
+    Rig r;
+    r.sdk.status.state = E::TwaiErrorState::ACTIVE;
+    r.sdk.status.transmitErrors = 8;
+    r.sdk.pending.busErrors = 3;
+    r.sdk.pending.arbitrationLost = 1;
+    r.turn(0);
+    CHECK(r.adapter.diagnostics().busErrors == 3 && r.adapter.diagnostics().arbitrationLost == 1);
+    CHECK(r.sdk.statusCalls == 0); // Never read by a service turn.
+    O::Health health;
+    CHECK(r.owner.health(route(1).binding, health));
+    const O::Health beforeHealth = health;
+    const O::Stats beforeStats = r.owner.stats();
+    E::TwaiErrorCounters c;
+    CHECK(r.adapter.readErrorCounters(10, c));
+    CHECK(c.readUs == 10 && c.statusKnown && c.state == E::TwaiErrorState::ACTIVE);
+    CHECK(c.transmitErrors == 8 && c.receiveErrors == 0 && c.busErrors == 3 && c.arbitrationLost == 1);
+    CHECK(!c.previousKnown && !c.statusDeltaKnown && c.busErrorsDelta == 0);
+    r.sdk.status.state = E::TwaiErrorState::PASSIVE;
+    r.sdk.status.transmitErrors = 130;
+    r.sdk.status.receiveErrors = 2;
+    r.sdk.pending.busErrors = 2;
+    r.turn(20);
+    CHECK(r.adapter.readErrorCounters(30, c) && c.previousKnown && c.previousReadUs == 10);
+    CHECK(c.busErrors == 5 && c.busErrorsDelta == 2 && c.arbitrationLostDelta == 0);
+    CHECK(c.statusDeltaKnown && c.previousState == E::TwaiErrorState::ACTIVE &&
+          c.state == E::TwaiErrorState::PASSIVE && c.transmitErrorsDelta == 122 &&
+          c.receiveErrorsDelta == 2);
+    r.sdk.status.transmitErrors = 100; // TEC is a level: it falls after successful frames.
+    CHECK(r.adapter.readErrorCounters(30, c) && c.transmitErrorsDelta == -30 && c.busErrorsDelta == 0);
+    const E::TwaiErrorCounters kept = c;
+    CHECK(!r.adapter.readErrorCounters(29, c) && !std::memcmp(&kept, &c, sizeof c));
+    r.sdk.statusOk = false;
+    CHECK(r.adapter.readErrorCounters(40, c) && !c.statusKnown && c.previousKnown);
+    CHECK(c.state == E::TwaiErrorState::UNKNOWN && !c.statusDeltaKnown && c.transmitErrorsDelta == 0);
+    r.sdk.statusOk = true;
+    CHECK(r.adapter.readErrorCounters(50, c) && c.statusKnown && !c.statusDeltaKnown);
+    r.sdk.pending.busErrors = UINT32_MAX;
+    r.turn(60);
+    CHECK(r.adapter.readErrorCounters(60, c) && c.busErrors == UINT32_MAX &&
+          c.busErrorsDelta == UINT32_MAX - 5);
+    // Bus evidence only: no node row, owner counter or admission moved.
+    CHECK(r.owner.health(route(1).binding, health));
+    CHECK(health.totalFailures == beforeHealth.totalFailures &&
+          health.consecutiveNoResponse == beforeHealth.consecutiveNoResponse &&
+          health.state == beforeHealth.state && !health.notObserved);
+    CHECK(r.owner.stats().busOffEvents == beforeStats.busOffEvents &&
+          r.owner.resources().interfaceState == O::InterfaceState::AVAILABLE);
+    // Without a status callback the read still reports the counts, with unknown status.
+    C::SdoClient services;
+    FakeDriver bare;
+    E::TwaiDriver plain = bare.driver();
+    plain.status = nullptr;
+    E::TwaiAdapter adapter(services, plain);
+    CHECK(adapter.readErrorCounters(0, c) && !c.statusKnown && bare.statusCalls == 0);
 }
 
 void backwardClockInvalidatesAtLatestOwnerTime() {
@@ -2081,6 +2152,7 @@ int main() {
     }
     uncertainNmtSubmissionKeepsTheIntent();
     holdNeedsNoPriorPollInTheTurn();
+    errorCountersAreBusEvidenceWithDeltas();
     std::printf("TWAI adapter: %u checks; host sizeof(TwaiAdapter)=%zu\n", checks,
                 sizeof(E::TwaiAdapter));
 }

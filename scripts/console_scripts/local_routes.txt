@@ -37,11 +37,13 @@
 @7 status
 # reply ok: known false, state null (no selected binding).
 @8 health
-# reply ok: counters, 14 uint32, all 0 on a fresh boot (the owner is never serviced while the controller is closed), maxServiceGapUs "0".
+# reply ok: counters, 14 uint32, all 0 on a fresh boot (the owner is never serviced while the controller is closed), maxServiceGapUs "0",
+# markers/reuseStopped/txExpired 0, repair [0,0,0,0,0,0] (recoveriesStarted, recoveriesFailed, rxOverflows, abortsSent, abortsReceived, resyncs).
 @9 stats
 # reply ok: the same counters after CanBusOwner::clearStats.
 @10 stats reset
-# reply ok: queued/active/retained/reservations 0, platform inputDropped/outputRejected, consoleDropped 0 when paced.
+# reply ok: queued/active/retained/reservations 0, platform inputDropped/outputRejected, consoleDropped 0 when paced,
+# noListener false, txExpired 0, interface "AVAILABLE", receiveLost false, offlineSinceUs null.
 @11 drv
 # reply ok: app/owner/console/platform byte sizes as decimal strings, line_capacity 256, record_capacity 512,
 # runtime_stack_high_water null, free_heap null.
@@ -266,9 +268,17 @@ version
 @117 txlifetime 60000001
 # reply ok: known false, state null (no selected binding), as plain health.
 @118 health link
-# reply ok: the stats counters, then markers 0, reuseStopped 0, txExpired 0.
+# reply ok: the stats counters, then markers 0, reuseStopped 0, txExpired 0, repair [0,0,0,0,0,0].
 @119 stats
 # reject no_binding: the marker budgets belong to a selected binding's route as well.
 @120 reuse budget 250000 200000
+# reply ok: known false, state null (no selected binding), as plain health.
+@121 health counts
+# reply ok: times, nine entries, all null: no counter has an event yet.
+@122 stats times
+# reply ok: evidence "bus", available true, readUs, statusKnown false and state "UNKNOWN" with tec/rec null while the
+# controller is closed (no TWAI node exists), busErrors 0, arbitrationLost 0; the previous reading and its deltas null
+# on the first reading. Bus evidence: it names no node. Reading it sends nothing.
+@123 drv bus
 # reply ok: the session ends on a clean line.
 @112 version

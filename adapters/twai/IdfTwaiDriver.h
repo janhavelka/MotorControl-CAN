@@ -39,6 +39,14 @@ class IdfTwaiDriver {
      * @return True when the node exists and the SDK answered.
      */
     bool errorCounters(uint32_t& transmit, uint32_t& receive) const noexcept;
+    /** Read the error state, TEC and REC through twai_node_get_info (esp_twai.h, ESP-IDF 5.5.5;
+     * twai_node_status_t in esp_twai_types.h). The 5.5.5 node API has no separate bus-error or
+     * arbitration-lost counter: twai_node_record_t::bus_err_num counts both together, so the
+     * adapter counts error callbacks instead (TwaiEvents). On the pinned task only.
+     * @param[out] output Copied status, unchanged on failure.
+     * @return True when the node exists and the SDK answered.
+     */
+    bool status(TwaiControllerStatus& output) const noexcept;
 
   private:
     twai_node_handle_t node_ = nullptr;

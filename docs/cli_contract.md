@@ -64,17 +64,23 @@ before reusing an ID. A pressure-refused command is never executed or retried.
 13 and the decimal-string `maxServiceGapUs` come from the owner. Since prompt 55
 three named owner totals follow `maxServiceGapUs` outside the array, whose order is
 unchanged: `markers`, `reuseStopped` and `txExpired` (uint32 JSON integers; human
-`markers=`, `reuseStopped=`, `txExpired=`). `stats reset`
-clears owner totals/high-water marks and binding success/failure totals only;
-it preserves health streaks, timestamps, errors, faults, generations, history,
-uncertainty, retained results, live buffers and console pressure counters.
+`markers=`, `reuseStopped=`, `txExpired=`). The positional `repair` array follows
+them (human `repair=a,b,c,d,e,f`): `recoveriesStarted`, `recoveriesFailed`,
+`rxOverflows`, `abortsSent`, `abortsReceived`, `resyncs`, all uint32. `stats reset`
+clears owner totals/high-water marks with their latest-event times, binding
+answered/error/miss/failure totals and the per-node abort and resync counters only;
+it preserves health streaks, service and presence timestamps, errors, faults,
+generations, history, uncertainty, retained results, live buffers and console
+pressure counters.
 
 ## Local routes
 
-`help [command]`, `version`, `profile list`, `caps`, `config`, `status`, `health`,
-`stats [reset]`, `drv`, `memory`, `result [ID]`, `release ID`, `cancel [ID]`,
+`help [command]`, `version`, `profile list`, `caps`, `config`, `status`,
+`health [link|counts]`, `stats [reset|times]`, `drv [bus]`, `memory`, `result [ID]`,
+`release ID`, `cancel [ID]`,
 `recover`, `wiring [di0..di6|do0..do2 unknown|unconnected|connected]`, `axis` and
-`prepare` comprise this increment. The compiled profile inventory lists Lichuan C
+`prepare` comprise this increment; the `link`, `counts`, `times` and `bus` forms are
+prompt 55's (below). The compiled profile inventory lists Lichuan C
 only; it claims no detected model, firmware match or hardware qualification.
 
 `config` inspects host facts only. Interface/bitrate configuration comes from the
@@ -568,12 +574,14 @@ Neither recorded mode acceptance nor fake-drive results open Q22-Q26.
 
 ## Self-repair settings and observations (prompt 55)
 
-These routes call the owner API only. They send nothing, start no recovery,
-reopen no route and decide nothing. The [owner guide](can_owner.md) and the
+These routes call the owner API only, and `drv bus` the board's controller
+counter source. They send nothing on CAN, start no recovery, reopen no route and
+decide nothing. The [owner guide](can_owner.md) and the
 [services guide](canopen_services.md) own the rules they expose. Each is
 `HOST_CONFIGURATION` (or cached inspection) with an immediate reply, from the
-same inventory in the native fake, Arduino and IDF builds. `reuse` acts on the
-selected binding; `txlifetime` is interface-wide.
+same inventory in the native fake, Arduino and IDF builds. `reuse`, `health link`
+and `health counts` act on the selected binding; `txlifetime`, `stats times` and
+`drv bus` are interface-wide.
 
 | Grammar | Owner API | Reply |
 | --- | --- | --- |
@@ -583,6 +591,9 @@ selected binding; `txlifetime` is interface-wide.
 | `reuse accept` | `reacceptReuse` | Re-accepts reuse on a route where contradicting traffic stopped it; the owner then takes the policy's one resync step. Without such a refusal the owner refuses it (`refused`) |
 | `txlifetime [MICROSECONDS]` | `txLifetimeUs`, `setTxLifetime`, `noListener`, `resources`, `stats` | `tx_lifetime_us`: decimal string, `"0"` disabled. `no_listener`: boolean. `tx_expired`: expired handoffs still pending (`OwnerResources::txExpired`). `tx_expired_total`: `Stats::txExpired`. The setting accepts 0..60000000 us, a console bound, not an owner one, and resends nothing |
 | `health link` | `health` | `known`, then `reusePolicy`, `reuseStopped`, `resyncPending`, `acceptedCorrelation`, `noListener` and the presence observations `lastResponseUs`, `lastHeartbeatUs`, `bootUps`, `lastBootUpUs`, `consecutiveNoResponse`. Times are decimal owner processing-time strings, `null` while unknown (human `unknown`); counts are integers. Without a selected binding it replies `known:false` as plain `health` does |
+| `health counts` | `health` | `known`, then the node's services by evidence class, `totalSuccess` (answered), `totalErrors` (answered with an error) and `totalMisses` (no answer), and its node counters `abortsSent`, `lastAbortSentUs`, `abortsReceived`, `lastAbortReceivedUs`, `resyncs`, `lastResyncUs`. Counts are uint32 integers. Each time is a decimal string while its counter is nonzero and `null` (human `unknown`) while it is zero. Without a selected binding it replies `known:false` as plain `health` does |
+| `stats times` | `stats` | `times`: nine latest-event times in this fixed order: `busOff`, `recoveriesStarted`, `recoveries`, `recoveriesFailed`, `rxOverflows`, `abortsSent`, `abortsReceived`, `resyncs`, `txExpired`. Each is a decimal owner processing-time string while its counter is nonzero, `null` while it is zero. Human: `busOffUs=` to `txExpiredUs=`, `unknown` for null |
+| `drv bus` | The board's `ConsoleBusSource` (on TWAI, `FirmwareProbe::readBusCounters` over `TwaiAdapter::readErrorCounters`) | Always `evidence:"bus"` and `available`. `available:false` and nothing else when no source is attached (the native fake). Otherwise, read at the command's turn: `readUs`, `statusKnown`, `state` (`ACTIVE`, `WARNING`, `PASSIVE`, `BUS_OFF`, or `UNKNOWN` while the status is unknown), `tec` and `rec` (`null` while the status is unknown), `busErrors` and `arbitrationLost` (cumulative error-callback counts, arbitration loss a subset). Then the change since the previous reading by any reader of the same source, the S2 bench's `L` included: `previousReadUs`, `busErrorsDelta`, `arbitrationLostDelta` (`null` on the first reading), and `previousState`, `tecDelta`, `recDelta` (signed; `null` unless both readings had a known status). A source that refuses the reading answers the error `unavailable` |
 
 Human replies use the same facts as `key=value` pairs: `reusePolicy=`,
 `markers=1000:00,1018:01,1018:02,1018:03`, `markerQueueUs=`, `markerResponseUs=`,
@@ -592,16 +603,39 @@ every setting unchanged: `no_binding` (no selected binding, or one the owner doe
 not know), `invalid_arguments` (grammar, a non-decimal value or a value above
 60000000), `refused` (the owner refused the setting or the re-acceptance) and
 `busy` (the owner refused `txlifetime`: backward time or reentrancy). `stats
-reset` clears `markers`, `reuseStopped` and `txExpired` with the other owner
-totals; it leaves the presence observations, the reuse settings and NO_LISTENER.
+reset` clears `markers`, `reuseStopped`, `txExpired`, the `repair` array, the
+`stats times` times and the `health counts` totals with the other owner totals; it
+leaves the presence observations, the reuse settings, NO_LISTENER and the interface
+state.
 
-`drv` adds `noListener` (boolean) and `txExpired` (pending expired handoffs).
+`drv bus` is bus evidence (communication practice rule C5): TEC, REC and the error
+state name no node and locate no node or cable segment, so the console never turns
+them into a node miss or a node state, and applies no threshold. A reading queries
+the controller and sends nothing on CAN. Each successful reading becomes the delta
+base of the next one, whoever reads. With the controller closed (no TWAI node),
+`statusKnown` is false. The board's real values are measured only on the bench.
+
+`drv` adds `noListener` (boolean), `txExpired` (pending expired handoffs),
+`interface` (`AVAILABLE`, or `OFFLINE` while a bus-level fault is active: the
+recovery interlock, an RX overflow episode or NO_LISTENER), `receiveLost` (an RX
+overflow episode, from the overflow report until a recovery closes `RETIRED`) and
+`offlineSinceUs` (a decimal string while `OFFLINE`, `null` otherwise). Plain
+`health` adds `notObserved` and `notObservedSinceUs`: while the interface is
+`OFFLINE` the node row keeps its last `state`, marked not observed since that
+time (`null` otherwise). A bus fact never makes a node `OFFLINE`; that takes an
+expired evidenced heartbeat deadline. Its `totalSuccess` counts answered services
+and `totalFailures` answered-with-error plus no-answer services; a local end is
+never counted (owner guide, "Passive communication health").
 Terminal records add `retry_class`, one letter for `RetryClass`: `N`
 `NOT_REPEATABLE`, `R` `REPEATABLE_READ`, `W` `IDEMPOTENT_SETTING`, `M`
 `MOTION_LIKE`. The letter is an application's input; the console and the library
 never repeat work. Read terminals carry it with `reuse_policy` (the read binding's
-policy when the record is formatted, `null` when the binding is unknown) and
-`accepted_correlation` (the read's service evidence carried the mark). Settings,
+policy when the record is formatted, `null` when the binding is unknown),
+`accepted_correlation` (the read's service evidence carried the mark) and
+`evidence`, the evidence class of the owner terminal that ended the read as one
+letter: `A` `ANSWERED`, `E` `ANSWERED_WITH_ERROR`, `N` `NO_ANSWER`, `L`
+`LOCAL_END` (`null`, human `unknown`, when the read consumed no owner terminal).
+Settings,
 communication, persistence and PDO terminals and motion terminals carry
 `retry_class` alone.
 
@@ -615,15 +649,22 @@ capacity:
   and a reissued stop is a new operation with its own identity.
 - A capture terminal keeps its acquisition fields instead of the read facts. Its
   retained application record holds every owner terminal with them.
+- The evidence class on a read terminal is one letter as well; the trace spells it.
+- `health counts`, `stats times` and `drv bus` are three more separate records,
+  apart from `health`, `stats` and `drv`.
+- The `repair` counters are positional in both forms, as `counters` is, and the
+  `stats times` times are a positional array.
 
 The new `stats` totals are named fields after the positional `counters` array,
 which keeps its 14 entries and their order.
 
-Unsolicited `type:"trace"` records carry the prompt 55 diagnostic kinds in the
-compact record's unused data bytes, added after `decoded`:
+Unsolicited `type:"trace"` records carry the prompt 55 diagnostic fields in the
+compact record's unused data bytes, added after `decoded`. These kinds have no
+frame of their own:
 
 | `kind` | Owner `DiagnosticKind` | Added fields |
 | --- | --- | --- |
+| 3 | `TERMINAL` | `evidence` (`ANSWERED`, `ANSWERED_WITH_ERROR`, `NO_ANSWER` or `LOCAL_END`, the class assigned once by the owner), `sdo_outcome` (`SdoOutcome`: 0 `SUCCESS`, 1 `SERVER_ABORT`, 2 `CLIENT_ABORT`, 3 `TIMEOUT`, 4 `CANCELLED`, 5 `BUS_OFF`, 6 `REBOOT`, 7 `BINDING_INVALIDATED`, 8 `CORRELATION_LOST`, 9 `TRANSPORT_ERROR`, 10 `UNSUPPORTED`, 11 `UNCONFIRMED_SENT`) and `address` (the binding's node address, 0 above 255) |
 | 5 | `RECOVERY` | `recovery` (`RecoveryOutcome`: 0 `RETIRED`, 1 `FAILED`, 2 `TIMEOUT`) and `causes` (`bus_off`, `receive_lost`, `tx_expired` booleans: the conditions pending when it began) |
 | 6 | `RESYNC` | `resync_step` (`ResyncStep`: 0 `MARKER_ADMITTED`, 1 `MARKER_FAILED`, 2 `MARKER_MISMATCH`, 3 `REOPENED`, 4 `REUSE_STOPPED`, 5 `REUSE_ACCEPTED`, 6 `MARKER_UNAVAILABLE`) and `channel` (the adapter channel slot, not a node ID) |
 | 7 | `TX_EXPIRED` | `tx_kind` (`TransportTxId::Kind`: 0 SDO, 1 NMT, 2 SYNC) and `channel` (meaningful for SDO). The frame stays possibly sent |
@@ -631,8 +672,12 @@ compact record's unused data bytes, added after `decoded`:
 
 These are copies of owner diagnostics. They prove neither delivery nor absence on
 the wire. `probe_console_test` checks the replies with and without a selected
-binding, the refusals, the read terminal facts, a silent node's presence miss and
-the widest `health link` record; it sends nothing for any setting. The S2 console
-script `scripts/console_scripts/local_routes.txt` adds the no-binding cases for a
-real image (`s2_console.py --script`). These are host results; no route here has a
-hardware result.
+binding, the refusals, the read terminal facts and their evidence letters, a silent
+node's presence miss and miss counts, a synthetic `drv bus` source at its widest
+values and its refusal, the interface `OFFLINE` with the node row not observed
+during a host recovery, and the widest record of each new form; it sends nothing
+for any setting or reading. The S2 console script
+`scripts/console_scripts/local_routes.txt` adds the no-binding cases and `drv bus`
+with the controller closed for a real image (`s2_console.py --script`). These are
+host results; no route here has a hardware result, and the board's TWAI status and
+counter values are unmeasured.

@@ -33,6 +33,19 @@ bool IdfTwaiDriver::errorCounters(uint32_t& transmit, uint32_t& receive) const n
     receive = status.rx_error_count;
     return true;
 }
+bool IdfTwaiDriver::status(TwaiControllerStatus& output) const noexcept {
+    twai_node_status_t native = {};
+    if (!taskValid() || !node_ || twai_node_get_info(node_, &native, nullptr) != ESP_OK)
+        return false;
+    output.state = native.state == TWAI_ERROR_ACTIVE    ? TwaiErrorState::ACTIVE
+                   : native.state == TWAI_ERROR_WARNING ? TwaiErrorState::WARNING
+                   : native.state == TWAI_ERROR_PASSIVE ? TwaiErrorState::PASSIVE
+                   : native.state == TWAI_ERROR_BUS_OFF ? TwaiErrorState::BUS_OFF
+                                                        : TwaiErrorState::UNKNOWN;
+    output.transmitErrors = native.tx_error_count;
+    output.receiveErrors = native.rx_error_count;
+    return true;
+}
 TwaiDriver IdfTwaiDriver::driver() noexcept {
     TwaiDriver result;
     result.context = this;
@@ -46,6 +59,9 @@ TwaiDriver IdfTwaiDriver::driver() noexcept {
     result.events = [](void* p) { return static_cast<IdfTwaiDriver*>(p)->events(); };
     result.receive = [](void* p, ReceivedFrame& frame, uint64_t cutoffUs) {
         return static_cast<IdfTwaiDriver*>(p)->receive(frame, cutoffUs);
+    };
+    result.status = [](void* p, TwaiControllerStatus& output) {
+        return static_cast<const IdfTwaiDriver*>(p)->status(output);
     };
     return result;
 }
@@ -89,8 +105,9 @@ bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
     configNative.io_cfg.bus_off_indicator = static_cast<gpio_num_t>(-1);
     configNative.bit_timing.bitrate = config.bitrate;
     configNative.bit_timing.sp_permill = config.samplePointPermill;
-    // Hardware retransmits until ACK (DEC-4). Not an application replay; a pending
-    // frame is retired only by deleting the node.
+    // Hardware retransmits until ACK (DEC-4): link-level, not an application retry, and
+    // bounded only by the owner's TX lifetime (guide rule C7). A pending frame is retired
+    // only by deleting the node. Single-shot stays a bench option, not this default.
     configNative.fail_retry_cnt = -1;
     configNative.tx_queue_depth = 1;
     // Timestamp disabled: the reviewed S2/S3 HAL has no wire-arrival timestamp.
@@ -323,6 +340,9 @@ bool IdfTwaiDriver::error(twai_node_handle_t, const twai_error_event_data_t* eve
     auto& self = *static_cast<IdfTwaiDriver*>(p);
     portENTER_CRITICAL_ISR(&self.mux_);
     increment(self.events_.busErrors);
+    // One SDK callback covers a bus error, an arbitration loss or both (esp_twai_onchip.c).
+    if (event->err_flags.arb_lost)
+        increment(self.events_.arbitrationLost);
     self.events_.errorFlags |= event->err_flags.val;
     portEXIT_CRITICAL_ISR(&self.mux_);
     return false;

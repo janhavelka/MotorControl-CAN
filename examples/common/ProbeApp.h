@@ -282,6 +282,16 @@ class ProbeApp {
     AxisSession* axis(const MotorControlCAN::Binding& binding) noexcept;
     /** @return Current owner request handle by value; default invalid between fields. */
     RequestId pendingRequest() const noexcept { return pending_; }
+    /** Evidence class of the latest owner terminal the current read consumed (prompt 55, guide rule
+     * C3): the step that ended the read, or the latest one while it is active.
+     * @param[out] output Copied class, unchanged when the read consumed no terminal yet.
+     * @return False before the first consumed terminal of the current read. Cached, no I/O. */
+    bool readEvidence(MotorControlCANOwner::EvidenceClass& output) const noexcept {
+        if (!readEvidenceKnown_)
+            return false;
+        output = readEvidence_;
+        return true;
+    }
     /** Explicitly consume an inspected pending terminal and release its owner slot.
      * @param[in] nowUs Same nondecreasing us, at least terminal delivery time.
      * @return True advances the typed context, including failure, then releases the
@@ -383,6 +393,8 @@ class ProbeApp {
     bool selected_ = false;
     bool readOwnsSequence_ = false;
     bool readWithdrawn_ = false;
+    bool readEvidenceKnown_ = false;
+    MotorControlCANOwner::EvidenceClass readEvidence_ = MotorControlCANOwner::EvidenceClass::LOCAL_END;
     MotorControlCAN::Status request(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs,
                                     uint64_t deadlineUs,
                                     const MotorControlCAN::LICHUAN_C::ReadOptions& options,

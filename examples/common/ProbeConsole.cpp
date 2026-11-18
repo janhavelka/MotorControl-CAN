@@ -73,12 +73,15 @@ const ConsoleCommand commands[] = {
      "List implemented routes and exact remaining gates.", nullptr, 40},
     {"status", "status", "ProbeApp::selected/readContext; owner.resources", "cached evidence",
      E::CACHE, C::REPLY, "Inspect separate cached application and read facts.", nullptr, 40},
-    {"health", "health [link]", "ProbeApp::health", "selected binding", E::CACHE, C::REPLY,
-     "Inspect cached health; link shows route reuse and presence observations.", nullptr, 40},
-    {"stats", "stats [reset]", "CanBusOwner::stats/clearStats", "interface counters",
-     E::HOST_CONFIGURATION, C::REPLY, "Inspect counters; reset clears totals only.", nullptr, 40},
-    {"drv", "drv", "CanBusOwner::resources; ProbePlatform::stats", "cached resources", E::CACHE,
-     C::REPLY, "Inspect queue, result and console pressure.", nullptr, 40},
+    {"health", "health [link|counts]", "ProbeApp::health", "selected binding", E::CACHE, C::REPLY,
+     "Inspect cached health; link: reuse and presence; counts: evidence classes, aborts, resyncs.",
+     nullptr, 40},
+    {"stats", "stats [reset|times]", "CanBusOwner::stats/clearStats", "interface counters",
+     E::HOST_CONFIGURATION, C::REPLY, "Inspect counters; reset clears totals only; times: last events.",
+     nullptr, 40},
+    {"drv", "drv [bus]", "CanBusOwner::resources; ProbePlatform::stats; board bus source", "cached resources",
+     E::CACHE, C::REPLY, "Inspect pressure and interface state; bus: controller error counters, bus evidence.",
+     nullptr, 40},
     {"result", "result [ID]", "ProbeConsole retained operation evidence", "retained operation", E::CACHE,
      C::REPLY, "Inspect without consuming the retained result.", nullptr, 40},
     {"release", "release ID", "tracked operation's public release", "delivered terminal",
@@ -303,6 +306,36 @@ const char* retryLabel(M::RetryClass value) {
     case M::RetryClass::MOTION_LIKE: return "M";
     }
     return "?";
+}
+// Prompt 55's evidence classes (guide rule C3). Results carry the letter, within their capacity: A
+// ANSWERED, E ANSWERED_WITH_ERROR, N NO_ANSWER, L LOCAL_END; traces and `health counts` spell them.
+const char* evidenceLabel(O::EvidenceClass value) {
+    switch (value) {
+    case O::EvidenceClass::ANSWERED: return "ANSWERED";
+    case O::EvidenceClass::ANSWERED_WITH_ERROR: return "ANSWERED_WITH_ERROR";
+    case O::EvidenceClass::NO_ANSWER: return "NO_ANSWER";
+    case O::EvidenceClass::LOCAL_END: return "LOCAL_END";
+    }
+    return "UNKNOWN";
+}
+const char* evidenceLetter(O::EvidenceClass value) {
+    switch (value) {
+    case O::EvidenceClass::ANSWERED: return "A";
+    case O::EvidenceClass::ANSWERED_WITH_ERROR: return "E";
+    case O::EvidenceClass::NO_ANSWER: return "N";
+    case O::EvidenceClass::LOCAL_END: return "L";
+    }
+    return "?";
+}
+const char* busStateLabel(ConsoleBusState value) {
+    switch (value) {
+    case ConsoleBusState::UNKNOWN: return "UNKNOWN";
+    case ConsoleBusState::ACTIVE: return "ACTIVE";
+    case ConsoleBusState::WARNING: return "WARNING";
+    case ConsoleBusState::PASSIVE: return "PASSIVE";
+    case ConsoleBusState::BUS_OFF: return "BUS_OFF";
+    }
+    return "UNKNOWN";
 }
 const char* syncOutcomeLabel(N::SyncOutcome outcome) {
     switch (outcome) {
@@ -1016,7 +1049,8 @@ void ProbeConsole::poll(uint64_t now) noexcept {
             uint64_t completed = now;
             uint32_t abortCode = 0;
             bool abortKnown = false;
-            bool readFacts = false, accepted = false;
+            bool readFacts = false, accepted = false, evidenceKnown = false;
+            O::EvidenceClass evidence = O::EvidenceClass::LOCAL_END;
             M::RetryClass retry = M::RetryClass::NOT_REPEATABLE;
             if (op.recovery) {
                 const O::RecoveryCompletion* terminal = owner_.recoveryResult(op.recoveryId);
@@ -1195,6 +1229,7 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                     readFacts = true;
                     retry = read.retryClass;
                     accepted = read.evidencePresent && read.evidence.acceptedCorrelation;
+                    evidenceKnown = app_.readEvidence(evidence);
                 }
             }
             if (op.monitor && device_ && !device_->monitoring() &&
@@ -1235,6 +1270,10 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                          reuseLabel(policy));
                 body.add(op.json ? ",\"accepted_correlation\":%s" : " accepted_correlation=%s",
                          boolean(accepted));
+                // The evidence class of the owner terminal that ended the read (guide rule C3).
+                body.add(evidenceKnown ? (op.json ? ",\"evidence\":\"%s\"" : " evidence=%s")
+                                       : (op.json ? ",\"evidence\":null" : " evidence=unknown"),
+                         evidenceLetter(evidence));
             }
             if (op.sync && sync_ && sync_->retained() &&
                 sync_->context().options.generation == op.nativeOperation) {
@@ -1689,7 +1728,8 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
     }
     case HEALTH: {
         const bool link = count == 2 && equal(line.token(1), "link");
-        if (count != 1 && !link) {
+        const bool counts = count == 2 && equal(line.token(1), "counts");
+        if (count != 1 && !link && !counts) {
             reject("invalid_arguments");
             return;
         }
@@ -1701,18 +1741,36 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                           : "unknown binding; health unavailable");
             break;
         }
+        // Prompt 55 observations, kept apart so that each record stays within its capacity.
+        const auto time = [&](const char* key, bool present, uint64_t value) {
+            if (json)
+                text.add(present ? ",\"%s\":\"%llu\"" : ",\"%s\":null", key,
+                         static_cast<unsigned long long>(value));
+            else if (present)
+                text.add(" %s=%llu", key, static_cast<unsigned long long>(value));
+            else
+                text.add(" %s=unknown", key);
+        };
+        if (counts) {
+            // Node counters by evidence class (guide rules C3, C13): node-level evidence of this
+            // binding's node only. A time is null while its counter is zero.
+            text.add(json ? ",\"known\":true,\"totalSuccess\":%lu,\"totalErrors\":%lu,\"totalMisses\":%lu,"
+                            "\"abortsSent\":%lu"
+                          : "totalSuccess=%lu totalErrors=%lu totalMisses=%lu abortsSent=%lu",
+                     static_cast<unsigned long>(health.totalSuccess),
+                     static_cast<unsigned long>(health.totalErrors),
+                     static_cast<unsigned long>(health.totalMisses),
+                     static_cast<unsigned long>(health.abortsSent));
+            time("lastAbortSentUs", health.abortsSent != 0, health.lastAbortSentUs);
+            text.add(json ? ",\"abortsReceived\":%lu" : " abortsReceived=%lu",
+                     static_cast<unsigned long>(health.abortsReceived));
+            time("lastAbortReceivedUs", health.abortsReceived != 0, health.lastAbortReceivedUs);
+            text.add(json ? ",\"resyncs\":%lu" : " resyncs=%lu", static_cast<unsigned long>(health.resyncs));
+            time("lastResyncUs", health.resyncs != 0, health.lastResyncUs);
+            break;
+        }
         if (link) {
-            // Prompt 55 observations, kept apart so that each record stays within its capacity:
-            // the binding's reuse setting and presence inputs. The owner decides nothing from them.
-            const auto time = [&](const char* key, bool present, uint64_t value) {
-                if (json)
-                    text.add(present ? ",\"%s\":\"%llu\"" : ",\"%s\":null", key,
-                             static_cast<unsigned long long>(value));
-                else if (present)
-                    text.add(" %s=%llu", key, static_cast<unsigned long long>(value));
-                else
-                    text.add(" %s=unknown", key);
-            };
+            // The binding's reuse setting and presence inputs. The owner decides nothing from them.
             text.add(json ? ",\"known\":true,\"reusePolicy\":\"%s\",\"reuseStopped\":%s,\"resyncPending\":"
                             "%s,\"acceptedCorrelation\":%s,\"noListener\":%s"
                           : "reusePolicy=%s reuseStopped=%s resyncPending=%s acceptedCorrelation=%s "
@@ -1754,19 +1812,46 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             else
                 text.add("null");
         }
+        // A bus-level fault names no node (guide rule C2): the state above is the last observed one.
+        text.add(json ? ",\"notObserved\":%s" : " notObserved=%s", boolean(health.notObserved));
+        time("notObservedSinceUs", health.notObserved, health.notObservedSinceUs);
         break;
     }
     case STATS: {
-        if (count > 2 || (count == 2 && !equal(line.token(1), "reset"))) {
+        const bool times = count == 2 && equal(line.token(1), "times");
+        if (count > 2 || (count == 2 && !times && !equal(line.token(1), "reset"))) {
             reject("invalid_arguments");
             return;
         }
-        if (count == 2 && !owner_.clearStats()) {
+        if (count == 2 && !times && !owner_.clearStats()) {
             reject("busy");
             return;
         }
         ok();
         const auto& s = owner_.stats();
+        if (times) {
+            // Each counter's latest event time, null while that counter is zero, in this order:
+            // busOff, recoveriesStarted, recoveries, recoveriesFailed, rxOverflows, abortsSent,
+            // abortsReceived, resyncs, txExpired.
+            const uint32_t counts[] = {s.busOffEvents, s.recoveriesStarted, s.recoveries, s.recoveriesFailed,
+                                       s.rxOverflows, s.abortsSent, s.abortsReceived, s.resyncs, s.txExpired};
+            const uint64_t at[] = {s.lastBusOffUs, s.lastRecoveryStartedUs, s.lastRecoveryUs,
+                                   s.lastRecoveryFailedUs, s.lastRxOverflowUs, s.lastAbortSentUs,
+                                   s.lastAbortReceivedUs, s.lastResyncUs, s.lastTxExpiredUs};
+            const char* const names[] = {"busOff", "recoveriesStarted", "recoveries", "recoveriesFailed",
+                                         "rxOverflows", "abortsSent", "abortsReceived", "resyncs", "txExpired"};
+            text.add(json ? ",\"times\":[" : "");
+            for (unsigned i = 0; i < sizeof counts / sizeof counts[0]; ++i) {
+                if (json)
+                    text.add(counts[i] ? "%s\"%llu\"" : "%snull", i ? "," : "",
+                             static_cast<unsigned long long>(at[i]));
+                else
+                    text.add(counts[i] ? "%s%sUs=%llu" : "%s%sUs=unknown", i ? " " : "", names[i],
+                             static_cast<unsigned long long>(at[i]));
+            }
+            text.add(json ? "]" : "");
+            break;
+        }
         // A positional array keeps the complete named contract within one bounded record.
         text.add(
             json ? ",\"counters\":[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
@@ -1786,13 +1871,63 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             static_cast<unsigned long>(stats_.outputDropped),
             static_cast<unsigned long long>(s.maxServiceGapUs), static_cast<unsigned long>(s.markers),
             static_cast<unsigned long>(s.reuseStopped), static_cast<unsigned long>(s.txExpired));
+        // Prompt 55's counters (guide rule C13), positional in both forms for the same reason, in this
+        // order: recoveriesStarted, recoveriesFailed, rxOverflows, abortsSent, abortsReceived, resyncs.
+        text.add(json ? ",\"repair\":[%lu,%lu,%lu,%lu,%lu,%lu]" : " repair=%lu,%lu,%lu,%lu,%lu,%lu",
+                 static_cast<unsigned long>(s.recoveriesStarted), static_cast<unsigned long>(s.recoveriesFailed),
+                 static_cast<unsigned long>(s.rxOverflows), static_cast<unsigned long>(s.abortsSent),
+                 static_cast<unsigned long>(s.abortsReceived), static_cast<unsigned long>(s.resyncs));
         break;
     }
     case DRV:
     case MEMORY: {
-        if (count != 1) {
+        const bool busForm = command == DRV && count == 2 && equal(line.token(1), "bus");
+        if (count != 1 && !busForm) {
             reject("invalid_arguments");
             return;
+        }
+        if (busForm) {
+            // Controller error counters (guide rule C5): bus evidence that names no node and
+            // locates no node or cable segment. Read now, through the board's source.
+            ConsoleBusEvidence bus;
+            if (bus_.read && !bus_.read(bus_.context, now, bus)) {
+                reject("unavailable");
+                return;
+            }
+            ok();
+            text.add(json ? ",\"evidence\":\"bus\",\"available\":%s" : "evidence=bus available=%s",
+                     boolean(bus_.read != nullptr));
+            if (!bus_.read)
+                break;
+            text.add(json ? ",\"readUs\":\"%llu\",\"statusKnown\":%s,\"state\":\"%s\""
+                          : " readUs=%llu statusKnown=%s state=%s",
+                     static_cast<unsigned long long>(bus.readUs), boolean(bus.statusKnown),
+                     busStateLabel(bus.statusKnown ? bus.state : ConsoleBusState::UNKNOWN));
+            if (bus.statusKnown)
+                text.add(json ? ",\"tec\":%u,\"rec\":%u" : " tec=%u rec=%u", unsigned(bus.transmitErrors),
+                         unsigned(bus.receiveErrors));
+            else
+                text.add(json ? ",\"tec\":null,\"rec\":null" : " tec=unknown rec=unknown");
+            text.add(json ? ",\"busErrors\":%lu,\"arbitrationLost\":%lu" : " busErrors=%lu arbitrationLost=%lu",
+                     static_cast<unsigned long>(bus.busErrors), static_cast<unsigned long>(bus.arbitrationLost));
+            if (bus.previousKnown)
+                text.add(json ? ",\"previousReadUs\":\"%llu\",\"busErrorsDelta\":%lu,\"arbitrationLostDelta\":%lu"
+                              : " previousReadUs=%llu busErrorsDelta=%lu arbitrationLostDelta=%lu",
+                         static_cast<unsigned long long>(bus.previousReadUs),
+                         static_cast<unsigned long>(bus.busErrorsDelta),
+                         static_cast<unsigned long>(bus.arbitrationLostDelta));
+            else
+                text.add(json ? ",\"previousReadUs\":null,\"busErrorsDelta\":null,\"arbitrationLostDelta\":null"
+                              : " previousReadUs=unknown busErrorsDelta=unknown arbitrationLostDelta=unknown");
+            if (bus.statusDeltaKnown)
+                text.add(json ? ",\"previousState\":\"%s\",\"tecDelta\":%ld,\"recDelta\":%ld"
+                              : " previousState=%s tecDelta=%ld recDelta=%ld",
+                         busStateLabel(bus.previousState), static_cast<long>(bus.transmitErrorsDelta),
+                         static_cast<long>(bus.receiveErrorsDelta));
+            else
+                text.add(json ? ",\"previousState\":null,\"tecDelta\":null,\"recDelta\":null"
+                              : " previousState=unknown tecDelta=unknown recDelta=unknown");
+            break;
         }
         ok();
         const auto r = owner_.resources();
@@ -1808,6 +1943,15 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                      static_cast<unsigned long>(io.outputRejected),
                      static_cast<unsigned long>(stats_.outputDropped), boolean(r.noListener),
                      unsigned(r.txExpired));
+            // The interface state is a bus fact (guide rule C2): OFFLINE marks no node OFFLINE.
+            text.add(json ? ",\"interface\":\"%s\",\"receiveLost\":%s,\"offlineSinceUs\":"
+                          : " interface=%s receiveLost=%s offlineSinceUs=",
+                     r.interfaceState == O::InterfaceState::OFFLINE ? "OFFLINE" : "AVAILABLE",
+                     boolean(r.receiveLost));
+            if (r.interfaceState == O::InterfaceState::OFFLINE)
+                text.add(json ? "\"%llu\"" : "%llu", static_cast<unsigned long long>(r.offlineSinceUs));
+            else
+                text.add(json ? "null" : "unknown");
         } else
             text.add(json ? ",\"app_bytes\":\"%llu\",\"owner_bytes\":\"%llu\",\"console_bytes\":\"%"
                             "llu\",\"platform_bytes\":\"%llu\",\"line_capacity\":256,\"record_"
@@ -2226,6 +2370,12 @@ void ProbeConsole::captureDiagnostics() noexcept {
         } else if (copy.kind == O::DiagnosticKind::TX_EXPIRED) {
             saved.data[0] = uint8_t(copy.txId.kind);
             saved.data[1] = copy.txId.sdo.request.channel;
+        } else if (copy.kind == O::DiagnosticKind::TERMINAL) {
+            saved.data[0] = uint8_t(copy.completion.evidence);
+            saved.data[1] = uint8_t(copy.completion.service.outcome);
+            saved.data[2] = copy.completion.service.transfer.channel.binding.endpoint.address <= 0xff
+                                ? uint8_t(copy.completion.service.transfer.channel.binding.endpoint.address)
+                                : 0;
         }
         saved.kind = uint8_t(copy.kind);
         saved.dlc = copy.frame.dlc;
@@ -2284,6 +2434,10 @@ void ProbeConsole::diagnostic(uint64_t) noexcept {
                  boolean(copy.data[1] & 4));
     else if (copy.kind == unsigned(O::DiagnosticKind::TX_EXPIRED))
         text.add(",\"tx_kind\":%u,\"channel\":%u", unsigned(copy.data[0]), unsigned(copy.data[1]));
+    else if (copy.kind == unsigned(O::DiagnosticKind::TERMINAL))
+        text.add(",\"evidence\":\"%s\",\"sdo_outcome\":%u,\"address\":%u",
+                 evidenceLabel(static_cast<O::EvidenceClass>(copy.data[0])), unsigned(copy.data[1]),
+                 unsigned(copy.data[2]));
     if (decoded) {
         text.add(",\"event_kind\":%u", unsigned(event.kind));
         if (event.kind == N::NetworkEventKind::EMCY)

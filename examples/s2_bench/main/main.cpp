@@ -1007,7 +1007,7 @@ void ownerTask(void*) {
     // Prompt 55's explicit marker (`y` node 1, `z` node 2): the application's own repair decision.
     static E::MarkerCommand markerCommand(firmware, services);
     // The next `L` line, one per turn so that a full console never drops one; past the last, none.
-    unsigned linkNext = E::BENCH_NODES + 1;
+    unsigned linkNext = E::LINK_LINES;
     // Mutually exclusive large records share one reserved block (the heap plan above).
     static E::BenchArena arena;
     reserveBenchHeap(arena);
@@ -1179,7 +1179,7 @@ void ownerTask(void*) {
         // retained response; the watch's state does not wait for output.
         linkWatch.service(firmware.owner().lastTimeUs());
         static char linkLine[320]; // Static: the owner task's stack stays as it was.
-        if (!retainedSize && linkNext <= E::BENCH_NODES) {
+        if (!retainedSize && linkNext < E::LINK_LINES) {
             if (E::formatLink(firmware, services, linkNext, linkLine, sizeof linkLine))
                 line(firmware, linkLine);
             ++linkNext;

@@ -948,6 +948,9 @@ void rawDebugCapturesIdentityBurstUnderOutputPressure() {
     CHECK(occurrences(r.bytes.output, "\"kind\":1,") == 10);
     CHECK(occurrences(r.bytes.output, "\"kind\":2,") == 10);
     CHECK(occurrences(r.bytes.output, "\"kind\":3,") == 10);
+    // Each terminal trace carries its evidence class (prompt 55, guide rule C3): ten answered uploads
+    // of node 5 (SdoOutcome SUCCESS).
+    CHECK(occurrences(r.bytes.output, "\"evidence\":\"ANSWERED\",\"sdo_outcome\":0,\"address\":5}") == 10);
     contains(r.bytes.output, "400A100000000000"); // The identity request lost on the original bench run.
 }
 

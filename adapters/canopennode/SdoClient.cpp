@@ -502,6 +502,8 @@ bool SdoClient::start(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     c.unsizedExpedited = c.replyValid = c.handoffLive = false;
     c.held = c.withdrawn = c.possibleBeforeHandoff = c.txLive = c.abortClean = false;
     c.bestEffort = false;
+    c.frameConfirmed = c.frameAnswered = false;
+    c.evidence = SdoAnswer::NONE;
     c.markedAtAdmission = acceptedCorrelation(slot);
     c.uploaded = 0;
     c.frame = 0;
@@ -587,6 +589,11 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
         c.lastCompletedValid = true;
     }
     c.drainActive = false;
+    // Before awaiting is cleared: a response timeout is no answer only for a confirmed frame
+    // that still waited. A best-effort stop takes no reply as its own (DEC-2).
+    c.evidence = c.frameAnswered ? SdoAnswer::FRAME
+        : outcome == SdoOutcome::TIMEOUT && c.awaiting && c.frameConfirmed && !c.bestEffort
+            ? SdoAnswer::NO_FRAME : SdoAnswer::NONE;
     CO_SDOclientClose(&c.engine);
     c.awaiting = false;
     c.completion = out;
@@ -749,6 +756,9 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
             c.observation.disposition = SdoRxDisposition::UNRESOLVED;
             return false;
         }
+        // The server is present whatever this frame turns out to be; earlier frames of the
+        // transfer do not count for its latest request frame (nextTx clears this).
+        if (c.occupied && !c.terminal && c.possible) c.frameAnswered = true;
         if (c.drainActive && c.occupied && !c.terminal) {
             // A retained pair may be the old reply still arriving, so it cannot settle
             // the marker. Anything else on this route contradicts the sole-client premise.
@@ -926,6 +936,7 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
         c.possibleBeforeHandoff = c.possible;
         c.possible = true;
         c.awaiting = true;
+        c.frameConfirmed = c.frameAnswered = false;
         c.responseCutoff = cutoff(now, c.work.deadlineUs, c.work.responseTimeoutUs);
         c.handoffCutoff = c.responseCutoff;
         // The drive's ordinary reply must not count as an unexpected frame on this route.
@@ -1010,7 +1021,7 @@ bool SdoClient::confirmTx(SdoTxId id, uint64_t now) {
     Channel& c = channels_[id.request.channel];
     expire(c, now);
     if (c.terminal || id.frame == 0 || id.frame != c.frame || !c.possible) return false;
-    c.txConfirmed = true;
+    c.txConfirmed = c.frameConfirmed = true;
     c.handoffLive = false;
     if (c.bestEffort) finish(c, SdoOutcome::UNCONFIRMED_SENT, now);
     return true;
@@ -1074,6 +1085,9 @@ bool SdoClient::transportFailure(SdoRequestId id, uint64_t now) {
 
 const SdoCompletion* SdoClient::result(SdoRequestId id) const {
     return valid(id) && channels_[id.channel].terminal ? &channels_[id.channel].completion : nullptr;
+}
+SdoAnswer SdoClient::answer(SdoRequestId id) const {
+    return valid(id) && channels_[id.channel].terminal ? channels_[id.channel].evidence : SdoAnswer::NONE;
 }
 const SdoRxObservation* SdoClient::observation(uint8_t slot) const {
     return slot < CHANNELS && channels_[slot].observationValid ? &channels_[slot].observation : nullptr;

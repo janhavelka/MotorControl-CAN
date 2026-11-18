@@ -36,6 +36,7 @@ struct FakeSdk {
     // Bus-off taking effect after the state query, seen by the SDK at disable.
     bool busOffAtDisable = false, invalidStateAtDisable = false;
     unsigned infoCalls = 0, failInfoAtCall = 0;
+    uint16_t tec = 0, rec = 0; // Reported by twai_node_get_info.
     const twai_frame_t* deferredPointer = nullptr;
     int currentCore = 1, taskCore = 1;
     TaskHandle_t task = reinterpret_cast<TaskHandle_t>(1);
@@ -251,6 +252,8 @@ esp_err_t twai_node_get_info(twai_node_handle_t node, twai_node_status_t* status
     if (sdk.record(Call::INFO) || sdk.infoCalls == sdk.failInfoAtCall)
         return ESP_FAIL;
     status->state = sdk.state;
+    status->tx_error_count = sdk.tec;
+    status->rx_error_count = sdk.rec;
     return ESP_OK;
 }
 esp_err_t twai_node_transmit(twai_node_handle_t node, const twai_frame_t* frame, int timeout) {
@@ -885,6 +888,54 @@ void reportOfAFrameCompletingBeforeStopIsDiscarded() {
 }
 } // namespace
 
+// Prompt 55, guide rule C5: the error state, TEC and REC come from twai_node_get_info; the
+// arbitration-lost count from the error callback's flag, a subset of the raw callback count.
+void errorStateAndArbitrationLossAreRead() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    E::TwaiControllerStatus status;
+    status.transmitErrors = 77;
+    CHECK(driver.status && !driver.status(driver.context, status)); // No node yet.
+    CHECK(status.transmitErrors == 77 && sdk.infoCalls == 0);
+    CHECK(driver.start(driver.context, config(), 1));
+    const twai_error_state_t states[] = {TWAI_ERROR_ACTIVE, TWAI_ERROR_WARNING, TWAI_ERROR_PASSIVE,
+                                         TWAI_ERROR_BUS_OFF};
+    const E::TwaiErrorState mapped[] = {E::TwaiErrorState::ACTIVE, E::TwaiErrorState::WARNING,
+                                        E::TwaiErrorState::PASSIVE, E::TwaiErrorState::BUS_OFF};
+    for (unsigned i = 0; i < 4; ++i) {
+        sdk.state = states[i];
+        sdk.tec = uint16_t(100 + i);
+        sdk.rec = uint16_t(i);
+        CHECK(driver.status(driver.context, status));
+        CHECK(status.state == mapped[i] && status.transmitErrors == 100 + i &&
+              status.receiveErrors == i);
+    }
+    // A refused SDK read leaves the output unchanged; so does a call from another task.
+    sdk.failInfoAtCall = sdk.infoCalls + 1;
+    CHECK(!driver.status(driver.context, status) && status.transmitErrors == 103);
+    sdk.task = reinterpret_cast<TaskHandle_t>(2);
+    const unsigned calls = sdk.infoCalls;
+    CHECK(!driver.status(driver.context, status) && sdk.infoCalls == calls);
+    sdk.task = reinterpret_cast<TaskHandle_t>(1);
+    sdk.state = TWAI_ERROR_ACTIVE;
+    twai_error_flags_t lost = {};
+    lost.arb_lost = 1;
+    twai_error_flags_t both = lost;
+    both.bit_err = 1;
+    twai_error_flags_t ack = {};
+    ack.ack_err = 1;
+    sdk.error(lost.val);
+    sdk.error(both.val);
+    sdk.error(ack.val);
+    const auto events = driver.events(driver.context);
+    CHECK(events.busErrors == 3 && events.arbitrationLost == 2);
+    CHECK(events.errorFlags == (both.val | ack.val));
+    CHECK(driver.events(driver.context).arbitrationLost == 0); // Copied once.
+    stop(driver);
+    CHECK(!driver.status(driver.context, status));
+}
+
 int main() {
     initializationAndConfiguration();
     gpioValidationMatchesPinnedS3();
@@ -900,6 +951,7 @@ int main() {
     stopToleratesBusOffBetweenQueryAndDisable();
     finalReportOnBusOffIsCopiedNotInterpreted();
     reportOfAFrameCompletingBeforeStopIsDiscarded();
+    errorStateAndArbitrationLossAreRead();
     std::printf("TWAI SDK shim host simulation: %u checks; host sizeof(IdfTwaiDriver)=%zu\n",
                 checks, sizeof(E::IdfTwaiDriver));
 }

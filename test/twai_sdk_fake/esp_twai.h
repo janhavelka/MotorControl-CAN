@@ -35,9 +35,22 @@ struct twai_rx_done_event_data_t {};
 struct twai_state_change_event_data_t {
     twai_error_state_t old_sta, new_sta;
 };
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4201) // The SDK's anonymous bit-field struct.
+#endif
 union twai_error_flags_t {
+#if defined(__GNUC__)
+    __extension__
+#endif
+    struct {
+        uint32_t arb_lost : 1, bit_err : 1, form_err : 1, stuff_err : 1, ack_err : 1;
+    };
     uint32_t val;
 };
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 struct twai_error_event_data_t {
     twai_error_flags_t err_flags;
 };

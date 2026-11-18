@@ -24,24 +24,64 @@ bool put(size_t size, int written) noexcept {
 }
 } // namespace
 
-bool formatLink(const FirmwareProbe& firmware, const C::SdoClient& services, unsigned index, char* out,
+bool formatLink(FirmwareProbe& firmware, const C::SdoClient& services, unsigned index, char* out,
                 size_t size) noexcept {
-    // FirmwareProbe exposes the owner only through its non-const accessor; nothing here changes it.
-    MotorControlCANOwner::CanBusOwner& owner = const_cast<FirmwareProbe&>(firmware).owner();
+    MotorControlCANOwner::CanBusOwner& owner = firmware.owner();
     if (!out || !size)
         return false;
     if (index == 0) {
         const Stats& s = owner.stats();
         const MotorControlCANOwner::OwnerResources r = owner.resources();
+        const bool offline = r.interfaceState == MotorControlCANOwner::InterfaceState::OFFLINE;
         return put(size,
                    std::snprintf(out, size,
                                  "LINK interface lifetime=%llu noListener=%u expiredPending=%u txExpired=%lu "
-                                 "markers=%lu reuseStopped=%lu recoveries=%lu inhibited=%u t=%llu\n",
+                                 "markers=%lu reuseStopped=%lu recoveries=%lu inhibited=%u t=%llu state=%s "
+                                 "offlineSince=%llu receiveLost=%u\n",
                                  static_cast<unsigned long long>(owner.txLifetimeUs()), unsigned(owner.noListener()),
                                  unsigned(r.txExpired), static_cast<unsigned long>(s.txExpired),
                                  static_cast<unsigned long>(s.markers), static_cast<unsigned long>(s.reuseStopped),
                                  static_cast<unsigned long>(s.recoveries), unsigned(r.inhibited),
-                                 static_cast<unsigned long long>(owner.lastTimeUs())));
+                                 static_cast<unsigned long long>(owner.lastTimeUs()),
+                                 offline ? "offline" : "available",
+                                 static_cast<unsigned long long>(offline ? r.offlineSinceUs : 0),
+                                 unsigned(r.receiveLost)));
+    }
+    if (index == BENCH_NODES + 1) {
+        // Bus evidence (guide rule C5): it names no node and locates no node or cable segment.
+        TwaiErrorCounters c;
+        if (!firmware.readBusCounters(owner.lastTimeUs(), c))
+            return put(size, std::snprintf(out, size, "LINK bus read=0\n"));
+        const char* const states[] = {"unknown", "active", "warning", "passive", "busoff"};
+        const unsigned state = unsigned(c.state) < 5 ? unsigned(c.state) : 0;
+        const unsigned previous = unsigned(c.previousState) < 5 ? unsigned(c.previousState) : 0;
+        return put(size,
+                   std::snprintf(out, size,
+                                 "LINK bus read=1 t=%llu known=%u state=%s tec=%u rec=%u busErrors=%lu arbLost=%lu "
+                                 "prev=%u prevT=%llu dBusErrors=%lu dArbLost=%lu deltas=%u prevState=%s dTec=%ld "
+                                 "dRec=%ld\n",
+                                 static_cast<unsigned long long>(c.readUs), unsigned(c.statusKnown),
+                                 states[c.statusKnown ? state : 0], unsigned(c.transmitErrors),
+                                 unsigned(c.receiveErrors), static_cast<unsigned long>(c.busErrors),
+                                 static_cast<unsigned long>(c.arbitrationLost), unsigned(c.previousKnown),
+                                 static_cast<unsigned long long>(c.previousReadUs),
+                                 static_cast<unsigned long>(c.busErrorsDelta),
+                                 static_cast<unsigned long>(c.arbitrationLostDelta), unsigned(c.statusDeltaKnown),
+                                 states[c.statusDeltaKnown ? previous : 0], static_cast<long>(c.transmitErrorsDelta),
+                                 static_cast<long>(c.receiveErrorsDelta)));
+    }
+    if (index == BENCH_NODES + 2) {
+        const Stats& s = owner.stats();
+        return put(size,
+                   std::snprintf(out, size,
+                                 "LINK counters busOff=%lu recoveriesStarted=%lu recoveries=%lu recoveriesFailed=%lu "
+                                 "rxOverflows=%lu abortsSent=%lu abortsReceived=%lu resyncs=%lu\n",
+                                 static_cast<unsigned long>(s.busOffEvents),
+                                 static_cast<unsigned long>(s.recoveriesStarted),
+                                 static_cast<unsigned long>(s.recoveries),
+                                 static_cast<unsigned long>(s.recoveriesFailed),
+                                 static_cast<unsigned long>(s.rxOverflows), static_cast<unsigned long>(s.abortsSent),
+                                 static_cast<unsigned long>(s.abortsReceived), static_cast<unsigned long>(s.resyncs)));
     }
     if (index > BENCH_NODES)
         return false;
@@ -54,14 +94,18 @@ bool formatLink(const FirmwareProbe& firmware, const C::SdoClient& services, uns
     return put(size,
                std::snprintf(out, size,
                              "LINK node=%u reuse=%s unresolved=%u stopped=%u pending=%u accepted=%u responded=%u "
-                             "lastResponse=%llu heartbeat=%u lastHeartbeat=%llu bootUps=%lu noResponse=%u\n",
+                             "lastResponse=%llu heartbeat=%u lastHeartbeat=%llu bootUps=%lu noResponse=%u "
+                             "answered=%lu errors=%lu misses=%lu notObserved=%u\n",
                              index, policyName(reuse.policy), unsigned(services.unresolved(slot)),
                              unsigned(health.reuseStopped), unsigned(health.resyncPending),
                              unsigned(health.acceptedCorrelation), unsigned(health.lastResponseKnown),
                              static_cast<unsigned long long>(health.lastResponseUs),
                              unsigned(health.lastHeartbeatKnown),
                              static_cast<unsigned long long>(health.lastHeartbeatUs),
-                             static_cast<unsigned long>(health.bootUps), unsigned(health.consecutiveNoResponse)));
+                             static_cast<unsigned long>(health.bootUps), unsigned(health.consecutiveNoResponse),
+                             static_cast<unsigned long>(health.totalSuccess),
+                             static_cast<unsigned long>(health.totalErrors),
+                             static_cast<unsigned long>(health.totalMisses), unsigned(health.notObserved)));
 }
 
 MotorControlCANOwner::BusAdmission admitExplicitMarker(FirmwareProbe& firmware, const C::SdoClient& services,

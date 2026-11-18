@@ -18,9 +18,9 @@
 ### Communication self-repair primitives (prompt 55, 2026-11-18)
 
 Library and adapter primitives only; the presence state machine, retry policy, reconciliation,
-restart schedule and opt-in fault clear are prompt 74's example module. Host-tested; **no hardware
-result yet**: the prompt 55 bench trials in `docs/hardware_bench.md` are pending,
-and Q18 stays unqualified.
+restart schedule and opt-in fault clear are prompt 74's example module. Host-tested. On the bench
+only items (a) and (c) of `docs/hardware_bench.md` have run, once each on image `12130ece`
+(2026-11-18); the other trials are pending, and Q18 stays unqualified.
 
 - **Contract change, timeout abort:** a response timeout after a possible transmission stages one
   client abort `80 <index> <subindex> 00 00 04 05` (`0x05040000`, SDO protocol timed out) through the
@@ -45,6 +45,29 @@ and Q18 stays unqualified.
   `SdoCompletion::acceptedCorrelation`, copied to `Completion::acceptedCorrelation` and kept by profile
   contexts, until a new server session. It marks the accepted risk that a delayed same-object reply
   completed the request; it is not a detection.
+- **Contract change, evidence classes and bus-level faults** (communication practice C2 and C3; revises prompt 25's
+  delivered health): each owner terminal is classified once, `Completion::evidence`: `ANSWERED`,
+  `ANSWERED_WITH_ERROR` (server abort, wrong multiplexer, malformed reply, a timeout after a server frame),
+  `NO_ANSWER` or `LOCAL_END`. `NO_ANSWER` needs a timeout whose request frame had a positive TX report, with
+  no server frame since and no bus-level fault; everything else that ends without an answer is `LOCAL_END`
+  (cancelled, expired, refused, invalidated, unconfirmed TX, ended during a bus fault) and counts nothing.
+  `Health` counts answers in `totalSuccess`, errors in `totalErrors` and misses in `totalMisses`;
+  `totalFailures` is their sum, and a heartbeat is an answer that ends the miss streak. Bus-off, a
+  recovering or unavailable controller, NO_LISTENER and an RX overflow episode take the interface `OFFLINE`
+  (`OwnerResources::interfaceState`) and leave each node row in its last state, marked `notObserved`;
+  they no longer make every binding `OFFLINE`. A binding is `OFFLINE` only when its evidenced heartbeat
+  deadline expires. `can_bus_health` tests changed accordingly: a negative TX report or a refused enqueue
+  is no failure, and bus-off keeps the node's state with `notObserved`.
+- **Counters** (C13), saturating and cleared only by `clearStats`, each with its last time: in `Stats`,
+  `recoveriesStarted`, `recoveriesFailed` (`recoveries` stays the succeeded count), `rxOverflows`,
+  `abortsSent` (client aborts with a positive TX report), `abortsReceived`, `resyncs`, plus last times for
+  `busOffEvents` and `txExpired`; per node in `Health`, `abortsSent`, `abortsReceived` and `resyncs`.
+- **Controller error counters** (C5): `TwaiAdapter::readErrorCounters` returns the controller state, TEC
+  and REC from `twai_node_get_info`, the error-callback count and the arbitration-lost count, each with
+  its change since the previous read and the read time. They are bus evidence only and never mark a node.
+  IDF 5.5.5 has no separate bus-error count, hardware RX overrun count or bus-off count (TWAI SDK guide).
+- Controller hardware retransmission (DEC-4) is documented as a link mechanism with no retry class, bounded
+  only by the TX lifetime; single-shot transmission stays an option to evaluate on the bench.
 - Contradicting traffic (retained-pair overflow, a frame without a multiplexer, an unexpected frame
   after a reopening) stops reuse on that route under either accepted setting (`Health::reuseStopped`,
   `Stats::reuseStopped`, a `RESYNC` diagnostic). On a reopened route a waiting request then ends
@@ -85,6 +108,20 @@ and Q18 stays unqualified.
   the optional `,RESPONSE_US,NODES,MARKER_MS` tail (`s2_soak.py --response-us --nodes --marker-ms`) with
   `SOAK_LINK` and `SOAK_ABSENT` lines, and position/relative lines an optional trigger response budget
   (`s2_bench.py --trigger-response-us`). The runners and `s2_evidence.py` parse the new lines.
+- Console forms for the evidence classes, interface state and counters, each its own record within
+  the 511-byte capacity: `health counts` (answered, error and miss totals, node abort and resync
+  counters with their times), `stats times` (nine latest-event times) and `drv bus` (the board's
+  controller error state, TEC, REC and error-callback counts with their changes, labelled
+  `evidence:"bus"`; `available:false` without a board source, `unavailable` when the source refuses).
+  `health` adds `notObserved` and `notObservedSinceUs`, `drv` adds `interface`, `receiveLost` and
+  `offlineSinceUs`, and `stats` adds the positional `repair` array (recoveries started and failed,
+  RX overflows, aborts sent and received, resyncs). Read terminals add the `evidence` letter (`A`,
+  `E`, `N`, `L`), and the trace's `TERMINAL` records add `evidence`, `sdo_outcome` and `address`.
+  The S2 bench `L` lines add the interface state, `offlineSince` and `receiveLost`, the node's
+  `answered`, `errors`, `misses` and `notObserved`, and two lines, `LINK bus` (the same controller
+  reading as `drv bus`, sharing its delta base) and `LINK counters`. Fixed: the bench image's
+  `SoakTwaiTap` did not pass the new controller status read through to the adapter, so the bench
+  would have reported TEC, REC and the error state unknown. The board's real readings are pending.
 
 ### Fewer fixed guards, more settable ones (2026-11-17)
 

@@ -61,6 +61,10 @@ The SDK has no TX timeout, so the owner keeps one: `CanBusOwner::setTxLifetime`,
 
 The unplug trial in prompt 55's bench list measures expiry, one restart and both nodes resynced on this fixture.
 
+**Controller error counters (communication practice C5).** `TwaiAdapter::readErrorCounters(nowUs, out)` returns the controller state, TEC and REC read through `twai_node_get_info` (`esp_twai.h:108`, `twai_node_status_t`), the count of error callbacks (`busErrors`) and of those carrying `arb_lost` (`arbitrationLost`, `hal/twai_types.h:46`), each with its change since the previous read, the previous state and the read time. They are bus evidence: they locate no node or cable segment, never make a node `OFFLINE` and have no built-in threshold (thresholds are caller settings, to measure). What IDF 5.5.5 does not give: a separate bus-error count (`twai_node_record_t::bus_err_num` counts every error ISR, arbitration loss included, `esp_twai_onchip.c:222-226`), so `busErrors` counts callbacks, and one callback can carry both flags; a hardware RX overrun count (the adapter's `rxDropped` counts software drops only); and a bus-off count (the owner's `busOffEvents` covers it).
+
+Hardware retransmission (DEC-4) is a link mechanism, not an application retry: it has no retry class and is bounded only by the TX lifetime. Single-shot transmission stays an option to evaluate on the bench, not a default.
+
 ## Reviewed SDK behavior
 
 All source paths in this table are relative to the pinned ESP-IDF repository.

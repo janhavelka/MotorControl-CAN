@@ -646,17 +646,26 @@ void retainedReadCorrelation(E::FakeTransport::Mode mode) {
     contains(retained, "\"id\":64");
     contains(retained, "\"command_id\":60");
     contains(retained, "\"operation_id\":700");
+    O::EvidenceClass evidenceClass = O::EvidenceClass::LOCAL_END;
+    CHECK(rig.app.readEvidence(evidenceClass));
     if (mode == E::FakeTransport::Mode::ABORT) {
         CHECK(rig.app.readContext().state == M::ReadState::FAILED);
         CHECK(rig.app.readContext().evidence.abortCode == 0xfedcba98u);
         contains(retained, "4275878552");
         contains(retained, "PROTOCOL_REJECTED");
+        // A server abort is an answer with an error (guide rule C3): present, not a miss.
+        CHECK(evidenceClass == O::EvidenceClass::ANSWERED_WITH_ERROR);
+        contains(retained, "\"evidence\":\"E\"");
     } else if (mode == E::FakeTransport::Mode::SILENT) {
         CHECK(rig.app.readContext().state == M::ReadState::FAILED);
         contains(retained, "\"uncertain\":true");
+        CHECK(evidenceClass == O::EvidenceClass::NO_ANSWER);
+        contains(retained, "\"evidence\":\"N\"");
     } else {
         CHECK(rig.app.readContext().state == M::ReadState::SUCCEEDED);
         contains(retained, "SUCCESS");
+        CHECK(evidenceClass == O::EvidenceClass::ANSWERED);
+        contains(retained, "\"evidence\":\"A\"");
     }
     // Prompt 55, default reuse policy: the silent probe's cleanup abort, then the owner's one marker
     // read, 1018:01 as 1000:00 is retained, which times out with its own abort. The marker is an
@@ -922,24 +931,137 @@ void selfRepairSettings() {
                   "\"lastResponseUs\":null,\"lastHeartbeatUs\":null,\"bootUps\":0,"
                   "\"lastBootUpUs\":null,\"consecutiveNoResponse\":0");
     contains(rig.command("@15 health links"), "\"error\":\"invalid_arguments\"");
-    contains(rig.command("@16 stats"), "\"markers\":0,\"reuseStopped\":0,\"txExpired\":0");
-    contains(rig.command("@17 drv"), "\"noListener\":false,\"txExpired\":0");
+    contains(rig.command("@16 stats"), "\"markers\":0,\"reuseStopped\":0,\"txExpired\":0,\"repair\":[0,0,0,0,0,0]}");
+    contains(rig.command("@17 drv"), "\"noListener\":false,\"txExpired\":0,\"interface\":\"AVAILABLE\","
+                                     "\"receiveLost\":false,\"offlineSinceUs\":null}");
+    // Prompt 55 counters and evidence classes (guide rules C2, C3, C5, C13).
+    contains(rig.command("@30 stats times"), "\"times\":[null,null,null,null,null,null,null,null,null]}");
+    contains(rig.command("@31 health counts"), "\"known\":true,\"totalSuccess\":0,\"totalErrors\":0,\"totalMisses\":0,"
+                                               "\"abortsSent\":0,\"lastAbortSentUs\":null,\"abortsReceived\":0,"
+                                               "\"lastAbortReceivedUs\":null,\"resyncs\":0,\"lastResyncUs\":null}");
+    contains(rig.command("@32 health"), "\"notObserved\":false,\"notObservedSinceUs\":null}");
+    contains(rig.command("@33 drv bus"), "\"evidence\":\"bus\",\"available\":false}"); // No board source.
+    contains(rig.command("@34 health count"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@35 drv bus x"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("@36 stats times x"), "\"error\":\"invalid_arguments\"");
+    contains(rig.command("stats times"), "stats: OK busOffUs=unknown recoveriesStartedUs=unknown");
+    contains(rig.command("health counts"), "health: OK totalSuccess=0 totalErrors=0 totalMisses=0 abortsSent=0 "
+                                          "lastAbortSentUs=unknown abortsReceived=0");
+    contains(rig.command("stats"), " txExpired=0 repair=0,0,0,0,0,0\n");
     CHECK(!rig.wire.fake.transmitCalls()); // The settings sent nothing.
     // A probe of 1000:00 is a DEC-1 accepted read: R (REPEATABLE_READ) for an application's policy.
     CHECK(rig.app.requestProbe(rig.now, rig.now + 100000, options()));
     CHECK(rig.console.trackRead(18, true, 800));
     rig.finishRead();
     contains(rig.bytes.output, "\"retry_class\":\"R\",\"reuse_policy\":"
-                               "\"ACCEPTED_RISK_WITH_MARKER\",\"accepted_correlation\":false");
+                               "\"ACCEPTED_RISK_WITH_MARKER\",\"accepted_correlation\":false,\"evidence\":\"A\"");
+    contains(rig.command("@37 health counts"), "\"totalSuccess\":1,\"totalErrors\":0,\"totalMisses\":0,");
     // The probe's reply is a presence observation of the node; the fixture also sends a heartbeat.
     out = rig.command("@19 health link");
     CHECK(out.find("\"lastResponseUs\":null") == std::string::npos &&
           out.find("\"lastHeartbeatUs\":null") == std::string::npos);
     contains(out, "\"consecutiveNoResponse\":0");
     // The widest request identity still fits one bounded record.
-    const std::string widest = rig.command("@4294967295 health link");
-    reply(widest, true);
-    CHECK(widest.size() < E::ProbeConsole::RECORD_CAPACITY);
+    for (const char* form : {"@4294967295 health link", "@4294967295 health counts", "@4294967295 health",
+                             "@4294967295 stats", "@4294967295 stats times", "@4294967295 drv",
+                             "@4294967295 drv bus"}) {
+        const std::string widest = rig.command(form);
+        reply(widest, true);
+        CHECK(widest.size() < E::ProbeConsole::RECORD_CAPACITY);
+    }
+}
+// A board's controller error-counter source behind `drv bus`: bus evidence, read on request. The
+// widest reading still fits one record.
+struct BusSource {
+    E::ConsoleBusEvidence value;
+    bool refuse = false;
+    unsigned reads = 0;
+    uint64_t lastNow = 0;
+    static bool read(void* context, uint64_t nowUs, E::ConsoleBusEvidence& output) {
+        BusSource& self = *static_cast<BusSource*>(context);
+        ++self.reads;
+        self.lastNow = nowUs;
+        if (self.refuse)
+            return false;
+        output = self.value;
+        return true;
+    }
+    E::ConsoleBusSource source() {
+        E::ConsoleBusSource value;
+        value.context = this;
+        value.read = read;
+        return value;
+    }
+};
+void busEvidenceSource() {
+    Rig rig;
+    BusSource bus;
+    E::ConsoleBusSource none;
+    CHECK(!rig.console.attachBus(none)); // A source needs its read function.
+    CHECK(rig.console.attachBus(bus.source()));
+    BusSource other;
+    CHECK(!rig.console.attachBus(other.source())); // No replacement.
+    CHECK(rig.console.attachBus(bus.source()));    // The same one again is accepted.
+    bus.value.readUs = 5000;
+    std::string out = rig.command("@1 drv bus");
+    reply(out, true);
+    contains(out, "\"evidence\":\"bus\",\"available\":true,\"readUs\":\"5000\",\"statusKnown\":false,"
+                  "\"state\":\"UNKNOWN\",\"tec\":null,\"rec\":null,\"busErrors\":0,\"arbitrationLost\":0,"
+                  "\"previousReadUs\":null,\"busErrorsDelta\":null,\"arbitrationLostDelta\":null,"
+                  "\"previousState\":null,\"tecDelta\":null,\"recDelta\":null}");
+    CHECK(bus.reads == 1 && bus.lastNow == rig.now - 1000); // Read once, at the command's turn.
+    bus.value.statusKnown = bus.value.previousKnown = bus.value.statusDeltaKnown = true;
+    bus.value.state = E::ConsoleBusState::PASSIVE;
+    bus.value.previousState = E::ConsoleBusState::ACTIVE;
+    bus.value.transmitErrors = 136;
+    bus.value.receiveErrors = 2;
+    bus.value.busErrors = 9;
+    bus.value.arbitrationLost = 1;
+    bus.value.previousReadUs = 4000;
+    bus.value.busErrorsDelta = 8;
+    bus.value.arbitrationLostDelta = 1;
+    bus.value.transmitErrorsDelta = 128;
+    bus.value.receiveErrorsDelta = -1;
+    contains(rig.command("@2 drv bus"), "\"statusKnown\":true,\"state\":\"PASSIVE\",\"tec\":136,\"rec\":2,"
+                                        "\"busErrors\":9,\"arbitrationLost\":1,\"previousReadUs\":\"4000\","
+                                        "\"busErrorsDelta\":8,\"arbitrationLostDelta\":1,\"previousState\":"
+                                        "\"ACTIVE\",\"tecDelta\":128,\"recDelta\":-1}");
+    contains(rig.command("drv bus"), "drv: OK evidence=bus available=true readUs=5000 statusKnown=true state=PASSIVE "
+                                     "tec=136 rec=2 busErrors=9 arbitrationLost=1 previousReadUs=4000 "
+                                     "busErrorsDelta=8 arbitrationLostDelta=1 previousState=ACTIVE tecDelta=128 "
+                                     "recDelta=-1\n");
+    bus.value.readUs = bus.value.previousReadUs = UINT64_MAX;
+    bus.value.state = bus.value.previousState = E::ConsoleBusState::WARNING;
+    bus.value.transmitErrors = bus.value.receiveErrors = UINT16_MAX;
+    bus.value.busErrors = bus.value.arbitrationLost = bus.value.busErrorsDelta = bus.value.arbitrationLostDelta =
+        UINT32_MAX;
+    bus.value.transmitErrorsDelta = bus.value.receiveErrorsDelta = INT32_MIN;
+    for (const char* form : {"@4294967295 drv bus", "drv bus"}) {
+        const std::string widest = rig.command(form);
+        CHECK(widest.find("record_capacity") == std::string::npos);
+        CHECK(widest.size() < E::ProbeConsole::RECORD_CAPACITY);
+    }
+    bus.refuse = true;
+    contains(rig.command("@3 drv bus"), "\"error\":\"unavailable\"");
+    CHECK(!rig.wire.fake.transmitCalls()); // Reading the counters sent nothing.
+}
+// A bus-level fault (guide rule C2): while the host recovery runs the interface is OFFLINE and the
+// selected node's row keeps its last state, marked not observed; nothing marks the node OFFLINE.
+void interfaceOfflineDuringRecovery() {
+    Rig rig;
+    CHECK(rig.app.select(E::FakeTransport::target()));
+    contains(rig.command("@1 health"), "\"state\":\"UNINIT\"");
+    reply(rig.command("@2 recover"), true);
+    std::string out = rig.command("@3 drv");
+    contains(out, "\"interface\":\"OFFLINE\",\"receiveLost\":false,\"offlineSinceUs\":\"");
+    out = rig.command("@4 health");
+    contains(out, "\"state\":\"UNINIT\"");
+    contains(out, "\"notObserved\":true,\"notObservedSinceUs\":\"");
+    rig.wire.recovery = O::RecoveryProgress::RETIRED;
+    rig.drain();
+    contains(rig.command("@5 drv"), "\"interface\":\"AVAILABLE\",\"receiveLost\":false,\"offlineSinceUs\":null}");
+    contains(rig.command("@6 health"), "\"notObserved\":false,\"notObservedSinceUs\":null}");
+    contains(rig.command("@7 stats"), "\"repair\":[1,0,0,0,0,0]}"); // One restart started, none failed.
 }
 // A silent node: the presence miss is counted, and the owner's one marker shows in stats.
 void selfRepairObservationsOfASilentNode() {
@@ -950,10 +1072,22 @@ void selfRepairObservationsOfASilentNode() {
     rig.finishRead();
     rig.drain();
     contains(rig.bytes.output, "\"retry_class\":\"R\"");
-    contains(rig.command("@21 stats"), "\"markers\":1,\"reuseStopped\":0,\"txExpired\":0");
+    contains(rig.bytes.output, "\"evidence\":\"N\""); // The probe's terminal: no answer.
+    // Two misses (the probe, then the owner's marker), each followed by its confirmed cleanup abort.
+    contains(rig.command("@21 stats"), "\"markers\":1,\"reuseStopped\":0,\"txExpired\":0,\"repair\":[0,0,0,2,0,0]}");
     const std::string out = rig.command("@22 health link");
     contains(out, "\"lastResponseUs\":null");
-    contains(out, "\"consecutiveNoResponse\":2"); // The probe, then the marker, timed out.
+    // The fixture's heartbeat 0x705 comes with every request. A heartbeat is an answer (guide rule
+    // C3): the one with the marker's request (24 us) ended the probe's miss streak, so the streak
+    // holds the marker's miss (43 us) alone, while the miss total holds both.
+    contains(out, "\"lastHeartbeatUs\":\"24\",\"bootUps\":0,\"lastBootUpUs\":null,\"consecutiveNoResponse\":1}");
+    contains(rig.command("@23 health counts"), "\"totalSuccess\":0,\"totalErrors\":0,\"totalMisses\":2,"
+                                               "\"abortsSent\":2,\"lastAbortSentUs\":\"44\",\"abortsReceived\":0,"
+                                               "\"lastAbortReceivedUs\":null,\"resyncs\":0,\"lastResyncUs\":null}");
+    // The failure streak counts errors and misses; only an answered service ends it.
+    contains(rig.command("@24 health"), "\"state\":\"DEGRADED\",\"totalSuccess\":0,\"totalFailures\":2,"
+                                        "\"consecutiveFailures\":2,\"lastError\":\"INVALID_CONFIG\"");
+    contains(rig.command("@25 stats times"), "\"times\":[null,null,null,null,null,\"44\",null,null,null]}");
 }
 void jsonTranscript() {
     Rig rig;
@@ -1005,5 +1139,7 @@ int main(int argc, char** argv) {
     axisListingOwnsItsSnapshot();
     selfRepairSettings();
     selfRepairObservationsOfASilentNode();
+    busEvidenceSource();
+    interfaceOfflineDuringRecovery();
     std::printf("probe_console: %u checks\n", checks);
 }

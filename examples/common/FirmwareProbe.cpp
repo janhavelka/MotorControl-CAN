@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "FirmwareProbe.h"
+#include "ProbeConsole.h"
 
 namespace MotorControlCANExample {
 FirmwareConfigCheck checkFirmwareConfig(const FirmwareConfig& config, bool silentDriver) noexcept {
@@ -218,6 +219,41 @@ bool FirmwareProbe::service() noexcept {
         faultRetired_ = retire();
         return false;
     }
+    return true;
+}
+namespace {
+ConsoleBusState busState(TwaiErrorState state) noexcept {
+    switch (state) {
+    case TwaiErrorState::ACTIVE: return ConsoleBusState::ACTIVE;
+    case TwaiErrorState::WARNING: return ConsoleBusState::WARNING;
+    case TwaiErrorState::PASSIVE: return ConsoleBusState::PASSIVE;
+    case TwaiErrorState::BUS_OFF: return ConsoleBusState::BUS_OFF;
+    case TwaiErrorState::UNKNOWN: break;
+    }
+    return ConsoleBusState::UNKNOWN;
+}
+} // namespace
+bool readConsoleBus(void* firmware, uint64_t nowUs, ConsoleBusEvidence& output) noexcept {
+    TwaiErrorCounters counters;
+    if (!firmware || !static_cast<FirmwareProbe*>(firmware)->readBusCounters(nowUs, counters))
+        return false;
+    ConsoleBusEvidence value;
+    value.readUs = counters.readUs;
+    value.statusKnown = counters.statusKnown;
+    value.state = busState(counters.state);
+    value.transmitErrors = counters.transmitErrors;
+    value.receiveErrors = counters.receiveErrors;
+    value.busErrors = counters.busErrors;
+    value.arbitrationLost = counters.arbitrationLost;
+    value.previousKnown = counters.previousKnown;
+    value.previousReadUs = counters.previousReadUs;
+    value.busErrorsDelta = counters.busErrorsDelta;
+    value.arbitrationLostDelta = counters.arbitrationLostDelta;
+    value.statusDeltaKnown = counters.statusDeltaKnown;
+    value.previousState = busState(counters.previousState);
+    value.transmitErrorsDelta = counters.transmitErrorsDelta;
+    value.receiveErrorsDelta = counters.receiveErrorsDelta;
+    output = value;
     return true;
 }
 } // namespace MotorControlCANExample

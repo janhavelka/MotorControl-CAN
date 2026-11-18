@@ -12,12 +12,28 @@ namespace MotorControlCANOwner {
 using MotorControlCAN::Binding;
 using MotorControlCAN::Frame;
 class CanBusOwner;
-/** Passive communication projection only; never drive readiness or an admission policy. */
+/** Passive communication projection of one node; never drive readiness or an admission policy.
+ * Node-level evidence only (guide rule C2): a bus-level fault never sets OFFLINE. While one is
+ * active the projection keeps its last value, marked Health::notObserved; the interface carries
+ * the fault (OwnerResources::interfaceState).
+ */
 enum class DriverState : uint8_t {
     UNINIT,   ///< No current qualified endpoint evidence.
     READY,    ///< Current communication evidence, no live failed-service streak.
-    DEGRADED, ///< A failed attempted service has not been followed by a successful service.
-    OFFLINE   ///< Explicitly unavailable controller or expired evidenced heartbeat deadline.
+    DEGRADED, ///< An answered-with-error or no-answer service has not been followed by an answered one.
+    OFFLINE   ///< The evidenced heartbeat deadline expired (setHeartbeatMaximumAge).
+};
+/** Interface communication state: a bus fact that names no node (guide rule C2). */
+enum class InterfaceState : uint8_t {
+    AVAILABLE, ///< No bus-level fault is active.
+    OFFLINE    ///< A bus-level fault is active: the recovery interlock (controller bus-off, recovering or reported unavailable, a recovery running or failed, an RX overflow episode) or NO_LISTENER. Node rows keep their last state, marked not observed.
+};
+/** Evidence class of one terminal, assigned once by the owner (prompt 55, guide rule C3). */
+enum class EvidenceClass : uint8_t {
+    ANSWERED,            ///< A valid response completed the service: the server is present.
+    ANSWERED_WITH_ERROR, ///< The server answered, but not with a success: server abort, wrong multiplexer, toggle error, malformed or wrong-size reply, a contradicting frame, or a response timeout after a frame arrived for the awaited request. Present; an error, not a miss.
+    NO_ANSWER,           ///< Response timeout of a request frame confirmed by a positive TX report, with no frame on the response identifier since, while no bus-level fault was active. The only miss.
+    LOCAL_END            ///< Everything else: cancelled, expired in the queue, deadline before handoff, invalidated (boot-up, rebinding, controller event), refused or failed admission, a request frame never confirmed (no ACK is bus evidence, not node absence), a best-effort stop, a capability the client refused, or any terminal while a bus-level fault was active. Changes no count.
 };
 /** How an SDO route may be reused after an unclear end (prompt 55, amending DEC-3).
  * Classic SDO carries no transaction tag. Both accepted settings state the premises "sole
@@ -75,11 +91,17 @@ struct SdoReuse {
         }
     }
 };
-/** Cached binding-local service history. Timestamp zero is valid when its flag is true. */
+/** Cached binding-local service history, counted by evidence class (guide rule C3).
+ * Timestamp zero is valid when its flag is true. CanBusOwner::clearStats clears the totals and
+ * the node counters with their times; the streaks, the service and presence times, state,
+ * notObserved and lastError survive it. A binding identity change resets the whole record.
+ */
 struct Health {
-    uint32_t totalSuccess = 0;  ///< Saturating completed attempted logical services, not frames.
-    uint32_t totalFailures = 0; ///< Saturating failed attempted logical services.
-    uint8_t consecutiveFailures = 0; ///< Saturating streak; only successful service clears it.
+    uint32_t totalSuccess = 0;  ///< Saturating ANSWERED services, not frames.
+    uint32_t totalErrors = 0;   ///< Saturating ANSWERED_WITH_ERROR services.
+    uint32_t totalMisses = 0;   ///< Saturating NO_ANSWER services.
+    uint32_t totalFailures = 0; ///< Saturating totalErrors plus totalMisses, kept for one failure total; LOCAL_END is never counted.
+    uint8_t consecutiveFailures = 0; ///< Saturating streak of errors and misses; only an ANSWERED service clears it.
     uint64_t lastOkUs = 0;       ///< Supplied successful-service terminal processing microseconds.
     uint64_t lastErrorUs = 0;    ///< Supplied failed-service terminal processing microseconds.
     bool lastOkKnown = false;    ///< Makes lastOkUs meaningful, including zero.
@@ -100,7 +122,20 @@ struct Health {
     uint64_t lastBootUpUs = 0; ///< Processing time of the latest of them.
     bool lastBootUpKnown = false; ///< Makes lastBootUpUs meaningful, including zero.
     uint8_t consecutiveNoResponse =
-        0; ///< Saturating attempted services that timed out after possible TX; any SDO response from the node clears it.
+        0; ///< Miss streak: saturating NO_ANSWER services of this node. An ANSWERED or ANSWERED_WITH_ERROR service, any frame on the node's SDO response identifier and a heartbeat (not a boot-up or EMCY) clear it; LOCAL_END changes it neither way.
+    // Node counters (guide rule C13), from node-level evidence of this binding's node only. Each
+    // saturates; its time is the processing time of the latest event, meaningful while the
+    // counter is nonzero. clearStats clears both.
+    uint32_t abortsSent = 0; ///< Client aborts on this node's routes confirmed transmitted by a positive TX report, cleanup aborts included.
+    uint64_t lastAbortSentUs = 0; ///< Time of the latest of them.
+    uint32_t abortsReceived = 0; ///< Abort frames received on this node's SDO response identifiers, matched or not.
+    uint64_t lastAbortReceivedUs = 0; ///< Time of the latest of them.
+    uint32_t resyncs = 0; ///< Routes of this node reopened (ResyncStep::REOPENED), with a marker or without.
+    uint64_t lastResyncUs = 0; ///< Time of the latest of them.
+    /** A bus-level fault is active (OwnerResources::interfaceState is OFFLINE): state keeps its
+     * last value and no miss is counted until the fault ends; then the row is observed again. */
+    bool notObserved = false;
+    uint64_t notObservedSinceUs = 0; ///< Processing time the current fault began; meaningful while notObserved.
     // Route reuse (prompt 55). Policy premises are accepted, not established.
     SdoReusePolicy reusePolicy = SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER; ///< This binding's setting.
     bool reuseStopped = false; ///< Contradicting traffic refused reuse; only reacceptReuse withdraws it.
@@ -108,7 +143,10 @@ struct Health {
     bool acceptedCorrelation = false; ///< The route was reopened under an accepted setting in this server session.
     bool noListener = false; ///< Interface-wide NO_LISTENER copy; see CanBusOwner::noListener.
 };
-/** Interface lifetime totals, saturating at UINT32_MAX; no duplicate service totals. */
+/** Interface lifetime totals, saturating at UINT32_MAX; no duplicate service totals.
+ * Each `last...Us` time is the processing time of the latest event of the counter before it,
+ * meaningful while that counter is nonzero. clearStats clears every field.
+ */
 struct Stats {
     uint32_t txFrames = 0; ///< Exact matching final reports confirming actual transmission.
     uint32_t rxFrames = 0; ///< Frames returned by the receive callback, including rejected ingress.
@@ -124,12 +162,27 @@ struct Stats {
     uint32_t timeouts = 0; ///< SDO request/recovery timeouts, including local SDO queue expiry.
     uint32_t busOffEvents =
         0;                   ///< Accepted transitions into reported BUS_OFF, not repeated reports.
-    uint32_t recoveries = 0; ///< Successfully retired explicit host/controller recoveries.
+    uint64_t lastBusOffUs = 0; ///< Time of the latest bus-off event.
+    uint32_t recoveriesStarted = 0; ///< Accepted recover() calls: controller restarts started.
+    uint64_t lastRecoveryStartedUs = 0; ///< Time of the latest of them.
+    uint32_t recoveries = 0; ///< Controller restarts succeeded: recoveries closed RETIRED.
+    uint64_t lastRecoveryUs = 0; ///< Time of the latest of them.
+    uint32_t recoveriesFailed = 0; ///< Controller restarts failed: recoveries closed FAILED or TIMEOUT.
+    uint64_t lastRecoveryFailedUs = 0; ///< Time of the latest of them.
+    uint32_t rxOverflows = 0; ///< Accepted receiveOverflow reports (rxLost counts their frames).
+    uint64_t lastRxOverflowUs = 0; ///< Time of the latest of them.
+    uint32_t abortsSent = 0; ///< Client abort frames confirmed transmitted by a positive TX report.
+    uint64_t lastAbortSentUs = 0; ///< Time of the latest of them.
+    uint32_t abortsReceived = 0; ///< Abort frames received on configured SDO response identifiers.
+    uint64_t lastAbortReceivedUs = 0; ///< Time of the latest of them.
+    uint32_t resyncs = 0; ///< Routes reopened (ResyncStep::REOPENED), with a marker or without.
+    uint64_t lastResyncUs = 0; ///< Time of the latest of them.
     uint32_t traceOverwritten = 0; ///< Oldest diagnostic records replaced at fixed trace capacity.
     uint64_t maxServiceGapUs = 0;  ///< Largest gap between accepted service turns; not a guarantee.
     uint32_t markers = 0; ///< Drain markers the owner issued itself as a resync step; explicit ones are not counted.
     uint32_t reuseStopped = 0; ///< Routes whose reuse contradicting traffic refused, once per refusal.
     uint32_t txExpired = 0; ///< Accepted handoffs without a final TX report within the TX lifetime, once per frame; none while a recovery is pending.
+    uint64_t lastTxExpiredUs = 0; ///< Time of the latest of them.
 };
 /** Exact local SYNC admission identity; absent from the wire. */
 struct SyncRequestId {
@@ -293,6 +346,7 @@ struct Completion {
         SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER; ///< The binding's reuse setting at owner admission.
     bool acceptedCorrelation = false; ///< The route had been reopened under an accepted setting in this server session: a reply's correlation rests on accepted premises. Always equal to service.acceptedCorrelation. No detection is claimed either way.
     bool automaticMarker = false; ///< The owner issued this drain marker itself; its slot is released at its terminal, so only the TERMINAL diagnostic keeps it.
+    EvidenceClass evidence = EvidenceClass::LOCAL_END; ///< Assigned once at the terminal; Health counts by it.
 };
 /** Step of the owner's route resync, reported in a RESYNC diagnostic. */
 enum class ResyncStep : uint8_t {
@@ -356,6 +410,9 @@ struct OwnerResources {
     bool nmtRetained = false; ///< Sole native manager terminal is retained until releaseNmt.
     bool nmtTxPending = false; ///< Manager handoff lacks exact final report/retirement proof.
     bool noListener = false; ///< NO_LISTENER interface state; see CanBusOwner::noListener.
+    bool receiveLost = false; ///< RX overflow episode: from an accepted receiveOverflow until a recovery closes RETIRED. Evidence the lost frames may have carried is invalidated.
+    InterfaceState interfaceState = InterfaceState::AVAILABLE; ///< OFFLINE while inhibited or noListener.
+    uint64_t offlineSinceUs = 0; ///< Processing time the current OFFLINE began; meaningful while OFFLINE.
     uint8_t txExpired = 0; ///< Pending handoffs past the TX lifetime, still possibly sent, until a final report or a retired recovery.
 };
 /** One ingress copy; processing time is supplied separately to service(). */

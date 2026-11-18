@@ -67,6 +67,42 @@ MotorControlCAN::Status parseConsoleLine(const char* bytes, size_t size,
  * @param capacity Available bytes. @return True complete; false leaves output unchanged.
  */
 bool consoleJsonString(const char* text, char* output, size_t capacity) noexcept;
+/** Controller fault-confinement state as `drv bus` names it (ISO 11898-1). The board's source maps
+ * its controller's reading onto it; the console itself has no controller access. */
+enum class ConsoleBusState : uint8_t {
+    UNKNOWN, ///< Not read, or the controller did not answer.
+    ACTIVE,  ///< TEC and REC below 96.
+    WARNING, ///< TEC or REC at or above 96 and below 128.
+    PASSIVE, ///< TEC or REC at or above 128 and below 256: no active error flags.
+    BUS_OFF  ///< TEC at or above 256: the controller takes no part in bus traffic.
+};
+/** One controller error-counter reading for `drv bus`: bus evidence (guide rule C5). It names no
+ * node and, unlike an EtherCAT port counter, locates no node or cable segment; it is never node
+ * evidence. No threshold is applied. A board's source fills it (FirmwareProbe for TWAI). */
+struct ConsoleBusEvidence {
+    uint64_t readUs = 0;      ///< Supplied time of this reading.
+    bool statusKnown = false; ///< The controller answered: state and both error counters are meaningful.
+    ConsoleBusState state = ConsoleBusState::UNKNOWN; ///< Error state at the reading.
+    uint16_t transmitErrors = 0;  ///< TEC at the reading.
+    uint16_t receiveErrors = 0;   ///< REC at the reading.
+    uint32_t busErrors = 0;       ///< Cumulative saturating error callbacks.
+    uint32_t arbitrationLost = 0; ///< Cumulative saturating arbitration-lost callbacks, a subset of busErrors.
+    bool previousKnown = false;   ///< An earlier reading exists: previousReadUs and both count deltas are meaningful.
+    uint64_t previousReadUs = 0;  ///< Time of that earlier reading, by any reader of the same source.
+    uint32_t busErrorsDelta = 0;       ///< Increase of busErrors since that reading.
+    uint32_t arbitrationLostDelta = 0; ///< Increase of arbitrationLost since that reading.
+    bool statusDeltaKnown = false; ///< Both readings had known status: the three fields below are meaningful.
+    ConsoleBusState previousState = ConsoleBusState::UNKNOWN; ///< State at the earlier reading.
+    int32_t transmitErrorsDelta = 0; ///< TEC change; TEC is a level, so it can fall.
+    int32_t receiveErrorsDelta = 0;  ///< REC change.
+};
+/** Optional controller error-counter source of one board, borrowed by the console. */
+struct ConsoleBusSource {
+    void* context = nullptr; ///< Borrowed; outlives the console.
+    /** Read once, on the owner's task, never from an ISR. Each successful reading becomes the
+     * next one's delta base for every reader of the same source. False leaves output unchanged. */
+    bool (*read)(void* context, uint64_t nowUs, ConsoleBusEvidence& output) = nullptr;
+};
 /** Cached pressure counters; saturating except the current storage sizes. */
 struct ConsoleStats {
     uint32_t lines = 0;         ///< Complete nonempty input lines, including rejected lines.
@@ -166,6 +202,16 @@ class ProbeConsole {
         sync_ = &sync;
         return true;
     }
+    /** Borrow the board's controller error-counter source for `drv bus`; nothing is read here.
+     * Without one, `drv bus` answers that no controller counters are available.
+     * @param source Read function and its context, both outliving this console.
+     * @return False unchanged for a missing function or a replacement attachment. */
+    bool attachBus(ConsoleBusSource source) noexcept {
+        if (!source.read || (bus_.read && (bus_.read != source.read || bus_.context != source.context)))
+            return false;
+        bus_ = source;
+        return true;
+    }
     /** Withdraw the selected attachment, or the sole attachment when none is selected.
      * No traffic; the attachment's own results and native contexts stay as they are.
      * @return False unchanged while its console correlation is retained or selection is ambiguous. */
@@ -232,6 +278,7 @@ class ProbeConsole {
     ProbeDevice* device_ = nullptr;
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
+    ConsoleBusSource bus_;
     struct MotionAttachment {
         ProbeMotion* motion = nullptr;
         SimpleMoveIntent intent;

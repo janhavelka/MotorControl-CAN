@@ -704,6 +704,11 @@ void CanBusOwner::noteReuse() noexcept {
     }
 }
 void CanBusOwner::resyncTrace(unsigned c, ResyncStep step, uint64_t now) noexcept {
+    if (step == ResyncStep::REOPENED) {
+        detail::add(stats_.resyncs);
+        stats_.lastResyncUs = now;
+        countNode(c, &Health::resyncs, &Health::lastResyncUs, now);
+    }
     Diagnostic diagnostic;
     diagnostic.kind = DiagnosticKind::RESYNC;
     diagnostic.channel = uint8_t(c);
@@ -739,6 +744,7 @@ void CanBusOwner::expireHandoffs(uint64_t now) noexcept {
         tx->expired = true;
         causes_.txExpired = true;
         detail::add(stats_.txExpired);
+        stats_.lastTxExpiredUs = now;
         Diagnostic diagnostic;
         diagnostic.kind = DiagnosticKind::TX_EXPIRED;
         diagnostic.txId = tx->id;
@@ -885,6 +891,7 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
     external_[c].epoch = controllerEpoch_;
     external_[c].handoffUs = now;
     external_[c].id = TransportTxId::fromSdo(id);
+    external_[c].abort = frame.payloadLength == 8 && frame.data[0] == 0x80;
     const bool accepted = transport_.transmit(transport_.context, frame, TransportTxId::fromSdo(id), controllerEpoch_);
     external_[c].rejected = !accepted;
     if (!accepted)
@@ -949,6 +956,12 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             if (report.transmitted) {
                 detail::add(stats_.txFrames);
                 listener(false, now); // Some node acknowledged this frame: controller evidence only.
+                if (tx.abort) {
+                    detail::add(stats_.abortsSent);
+                    stats_.lastAbortSentUs = now;
+                    countNode(report.id.sdo.request.channel, &Health::abortsSent,
+                              &Health::lastAbortSentUs, now);
+                }
             } else if (!tx.rejected)
                 detail::add(stats_.txRejected);
             Diagnostic diagnostic;
@@ -1557,6 +1570,8 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
     causes_ = RecoveryCauses();
     recoveryOccupied_ = true;
     recoveryTerminal_ = false;
+    detail::add(stats_.recoveriesStarted);
+    stats_.lastRecoveryStartedUs = now;
     output = recovery_.id;
     if (!transport_.beginRecovery || !transport_.pollRecovery ||
         !transport_.beginRecovery(transport_.context, controllerEpoch_))
@@ -1580,6 +1595,8 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
     diagnostic.recoveryCauses = recovery_.causes;
     trace(diagnostic);
     if (outcome != RecoveryOutcome::RETIRED) {
+        detail::add(stats_.recoveriesFailed);
+        stats_.lastRecoveryFailedUs = now;
         // Nothing was retired, so the causes stay for the next recovery.
         causes_.busOff |= recovery_.causes.busOff;
         causes_.receiveLost |= recovery_.causes.receiveLost;
@@ -1587,6 +1604,8 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
     }
     if (outcome == RecoveryOutcome::RETIRED) {
         detail::add(stats_.recoveries);
+        stats_.lastRecoveryUs = now;
+        receiveLost_ = false; // Every older RX queue is retired; the overflow episode ends.
         // Expired handoffs too: the old node is gone, so nothing can leave later, but each
         // stays possibly sent, and recover()'s RECOVERING report quarantined its route. The
         // adapter learns of the retirement as from a final report; nothing settles remotely.
@@ -1636,8 +1655,10 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     if (state == C::ControllerState::BUS_OFF &&
-        services_.controllerState() != C::ControllerState::BUS_OFF)
+        services_.controllerState() != C::ControllerState::BUS_OFF) {
         detail::add(stats_.busOffEvents);
+        stats_.lastBusOffUs = now;
+    }
     if (state == C::ControllerState::BUS_OFF)
         causes_.busOff = true;
     Diagnostic diagnostic;
@@ -1678,7 +1699,10 @@ bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept
         return false;
     detail::add(stats_.rxDropped, droppedFrames);
     detail::add(stats_.rxLost, droppedFrames);
+    detail::add(stats_.rxOverflows);
+    stats_.lastRxOverflowUs = now;
     causes_.receiveLost = true;
+    receiveLost_ = true;
     return true;
 }
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,

@@ -295,25 +295,39 @@ independently inspectable. Protocol-specific snapshots are present only for that
 protocol. FieldCore maps these facts into its own `HealthState`; the core never
 includes or imitates that application's enum.
 
-### Communication evidence (planned revision, prompt 55; guide rules C2, C3, C12, C14)
+### Communication evidence (delivered, prompt 55; guide rules C2, C3, C12, C14)
 
-The text above describes the behavior delivered by prompt 25. Prompt 55 revises
-it as follows and changes code, tests, `can_owner.md` and the CHANGELOG together;
-until then the delivered rules above hold. See the
+Prompt 55 revised the prompt-25 rules above as follows; where they differ, these
+rules hold. The [owner guide](../can_owner.md) "Passive communication health"
+and "Statistics boundaries and reset lifetime" give the details. See the
 [communication practice](../communication_practice.md).
 
-- Node rows count only node-level evidence. Bus-off, error-passive with no ACK
-  and an RX overflow are interface facts: the interface is unavailable, the node
-  rows keep their last state marked "not observed", and no node failure or
-  no-response count is added while the fault lasts. An RX overflow also
-  invalidates evidence that may have been in the lost frames. This replaces
-  "bus-off makes every binding `OFFLINE`".
-- Each terminal has one class. A checked SDO abort, a wrong multiplexer, a toggle
-  error and a malformed reply are answered (the node is present; an error, not a
-  no-response). An EMCY is a node event: presence, no success, no miss. A
-  response timeout with no frame is the only no-response. A local end
-  (cancelled, expired in the queue, invalidated, refused, TX never left) changes
-  no count. Passive age of a node nobody addressed is not a failure.
+- Node rows count only node-level evidence. Bus-off, a recovering or otherwise
+  unavailable controller, a running or failed recovery, an RX overflow episode
+  (until a recovery retires) and NO_LISTENER (error-passive with no ACK) are
+  interface facts: `OwnerResources::interfaceState` is `OFFLINE` with
+  `offlineSinceUs`, each node row keeps its last `state` with `notObserved` and
+  `notObservedSinceUs`, and no node failure or miss is added while the fault
+  lasts. An RX overflow also invalidates evidence that may have been in the lost
+  frames. This replaces "bus-off makes every binding `OFFLINE`": a binding is
+  `OFFLINE` only for an expired evidenced heartbeat deadline.
+- Each terminal has one class, `Completion::evidence`. `ANSWERED`: a success.
+  `ANSWERED_WITH_ERROR`: a checked SDO abort, a wrong multiplexer, a toggle
+  error, a malformed or wrong-size reply, a contradicting frame, or a timeout
+  after a frame arrived for the awaited request; the node is present, an error,
+  not a miss. `NO_ANSWER`: a response timeout of a request frame confirmed by a
+  positive TX report, with no frame since and no bus-level fault; the only miss.
+  `LOCAL_END`: cancelled, expired in the queue, invalidated, refused, TX never
+  left or never confirmed (no ACK is bus evidence), or ended during a bus-level
+  fault; it changes no count. An EMCY is a node event: presence, no success, no
+  miss. Passive age of a node nobody addressed is not a failure.
+- `Health` counts by class: `totalSuccess`, `totalErrors`, `totalMisses` and
+  `totalFailures` (errors plus misses); `consecutiveFailures` (errors and misses,
+  cleared by an answered service) and the miss streak `consecutiveNoResponse`
+  (cleared by an answer, any response frame or a heartbeat). The counters of
+  guide rule C13 saturate, carry their latest time and are cleared only by
+  `clearStats`; node counters (`abortsSent`, `abortsReceived`, `resyncs`) come
+  from node-level evidence only.
 - A status value carries its acquisition time and node epoch and is refreshed
   only by a completed exchange. A stale value is flagged and kept, never zeroed.
 - Events report transitions only; routine success is a counter. Where an

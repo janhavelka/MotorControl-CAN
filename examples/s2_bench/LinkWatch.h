@@ -6,8 +6,12 @@
  * first, then this object, on the owner task.
  *
  * formatLink prints the owner's cached prompt 55 facts, `L`: one interface line (TX lifetime,
- * NO_LISTENER, expired handoffs, markers, refusals, recoveries) and one line per fixture node (its
- * route's reuse policy and state and the owner's presence observations). It sends nothing.
+ * NO_LISTENER, expired handoffs, markers, refusals, recoveries, the interface state and RX loss
+ * episode), one line per fixture node (its route's reuse policy and state, the owner's presence
+ * observations and its counts by evidence class, and whether a bus-level fault leaves it not
+ * observed), the controller's error counters (`LINK bus`, read then: bus evidence that names no node
+ * and locates no node or cable segment, guide rule C5) and the owner's prompt 55 counters
+ * (`LINK counters`). It sends nothing.
  *
  * LinkWatch is the unplug check (the single byte `U`, a fixed 120 s window): for that window it watches the owner, and when a
  * TX lifetime expires (Stats::txExpired rises or NO_LISTENER begins) it calls the one restart entry
@@ -36,19 +40,22 @@ enum {
     /** Budget of the watch's one recovery, in microseconds: host policy, not an SDK or drive timing. */
     LINK_WATCH_RECOVERY_US = 1000000,
     LINK_WATCH_PROBES = 4, ///< Most explicit marker probes per node in one window, host policy.
+    LINK_LINES = BENCH_NODES + 3, ///< `L` lines: interface, one per fixture node, bus, counters.
     /** Least spacing of a node's probes, in microseconds, host policy: above a probe's 500 ms budget. */
     LINK_WATCH_PROBE_INTERVAL_US = 1000000
 };
-/** Format link line `index` (0 the interface, then one per fixture node, 1..BENCH_NODES).
- * @param firmware The assembly whose owner is read; nothing is sent or changed.
+/** Format link line `index` (0 the interface, then one per fixture node, 1..BENCH_NODES, then the
+ * controller error counters and the owner's counters, up to LINK_LINES - 1).
+ * @param firmware The assembly whose owner is read; nothing is sent. The bus line reads the controller
+ * through FirmwareProbe::readBusCounters at the owner's time, which makes it the next reading's base.
  * @param services That assembly's service store.
  * @param index Line number.
  * @param out Output buffer, NUL-terminated on success.
  * @param size Its size; LINE bytes suffice.
  * @return False for an index past the last line or a buffer too small.
  */
-bool formatLink(const FirmwareProbe& firmware, const MotorControlCAN::CANOPEN::SdoClient& services,
-                unsigned index, char* out, size_t size) noexcept;
+bool formatLink(FirmwareProbe& firmware, const MotorControlCAN::CANOPEN::SdoClient& services, unsigned index,
+                char* out, size_t size) noexcept;
 /** Admit one explicit drain marker read on a fixture node's unresolved route through the policy form of
  * CanBusOwner::admitDrainMarker: the first object of the binding's SdoReuse marker list (default 1000:00,
  * 1018:01, 1018:02, 1018:03, accepted DEC-1 U32 reads) that the owner admits, which skips retained and
