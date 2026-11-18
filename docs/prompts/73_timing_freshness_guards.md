@@ -68,7 +68,7 @@ Facts (code at the time of writing; recheck before changing):
    documented rule, stay finite whether or not the operation has a deadline, and give way to an earlier operation
    deadline. An attempt that expires ends with its own outcome and keeps its effect evidence (a write that may have
    left stays uncertain and is not replayed), the operation ends as it does today on a failed service, and other nodes
-   stay serviceable. A real completion seen before the expiry check wins, queue time consumes the operation's
+   stay serviceable. Expiry follows CONVENTIONS' deadline cutoff (`now >= deadlineUs` expires even if the frame was received earlier), queue time consumes the operation's
    deadline, and expiry is `now >= deadline` (guide rule C10, [communication practice](../communication_practice.md)).
    All derived service counts use this value, so faster settings shorten every derived bound.
 2. **Deadlines the user sets, with sane defaults.** An operation's deadline is the application's choice. The library

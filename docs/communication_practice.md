@@ -180,8 +180,8 @@ only the probe (prompt 74 item 1).
 
 *Practice.* One immutable deadline per operation, fixed at admission. Queue
 time consumes it. One per-node response timeout derives every attempt's
-cutoffs (prompt 73 item 1). Expiry is `now >= deadline`. A real completion
-seen before the expiry check wins. Every wait has a bound. The SDO response
+cutoffs (prompt 73 item 1). Expiry is `now >= deadline`, even if the frame was
+received earlier (CONVENTIONS, deadline cutoff). Every wait has a bound. The SDO response
 timeout is a client setting; CiA 301 does not fix a value (to verify against
 V4.2.0). The default comes from prompt 56's measured reply times (*to
 measure*).
