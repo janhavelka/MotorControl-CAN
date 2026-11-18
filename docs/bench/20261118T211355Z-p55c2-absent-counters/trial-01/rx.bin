@@ -1,0 +1,167 @@
+PONG target=esp32s2 base=50050825d879d2b2e943b478d23e573a79966c6f elf=f20eaea3f2fdca2709619faec6fb170944adccaaadb79a033aabd10daeef93ce sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=34479502 routes=16 trial=0 motion=0 pdo=8 watch=0 capture=0
+SOAK_BEGIN n=0 t=34611204 trial=1795036436 dur=44 interval=20 summary=45 monitors=0 identity=0 opDeadline=2000000 queue=250000 resp=250000 stack=13280 heap=81860 heapMin=81860 stale=0 nodes=7 markerMs=250 lifetime=100000 base=50050825d879d2b2e943b478d23e573a79966c6f
+SOAK_TR n=1 t=34607273 node=0 sig=controller from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=2 t=34607273 node=0 sig=controllerEpoch from=0 to=1 first=1 ne=0 ce=1
+SOAK_TR n=3 t=34607273 node=0 sig=inhibited from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=4 t=34607273 node=0 sig=recovery from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=5 t=34607273 node=0 sig=firmware from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=6 t=34607273 node=0 sig=busOff from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=7 t=34607273 node=0 sig=recoveries from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=8 t=34607273 node=0 sig=twaiErrors from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=9 t=34607273 node=0 sig=twaiFlags from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=10 t=34607273 node=0 sig=twaiDropped from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=11 t=34607273 node=0 sig=rxDropped from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=12 t=34607273 node=0 sig=rxLost from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=13 t=34607273 node=0 sig=txRejected from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=14 t=34607273 node=0 sig=unmatched from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=15 t=34607273 node=0 sig=queueRejected from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=16 t=34607273 node=0 sig=resultsRejected from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=17 t=34607273 node=0 sig=traceOverwritten from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=18 t=34607273 node=0 sig=networkDropped from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=19 t=34607273 node=0 sig=submitOverwritten from=0 to=0 first=1 ne=0 ce=1
+SOAK_TR n=20 t=34607273 node=1 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+SOAK_TR n=21 t=34607273 node=1 sig=health from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=22 t=34607273 node=1 sig=streak from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=23 t=34607273 node=1 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=24 t=34607273 node=1 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+SOAK_TR n=25 t=34607273 node=1 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+SOAK_TR n=26 t=34607273 node=1 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=27 t=34607273 node=1 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=28 t=34607273 node=1 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=29 t=34607273 node=1 sig=producer from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=30 t=34607273 node=2 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+SOAK_TR n=31 t=34607273 node=2 sig=health from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=32 t=34607273 node=2 sig=streak from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=33 t=34607273 node=2 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=34 t=34607273 node=2 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+SOAK_TR n=35 t=34607273 node=2 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+SOAK_TR n=36 t=34607273 node=2 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=37 t=34607273 node=2 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=38 t=34607273 node=2 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=39 t=34607273 node=2 sig=producer from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=40 t=34638326 node=1 sig=health from=0 to=1 first=0 ne=1 ce=1
+SOAK_TR n=41 t=34638326 node=1 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+SOAK_TR n=42 t=34667330 node=1 sig=6041 from=0 to=50 first=1 ne=1 ce=1
+SOAK_TR n=43 t=34667330 node=1 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+SOAK_TR n=44 t=34667330 node=1 sig=6064 from=0 to=fffff950 first=1 ne=1 ce=1
+SOAK_TR n=45 t=34667330 node=1 sig=606c from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=46 t=34678332 node=2 sig=health from=0 to=1 first=0 ne=1 ce=1
+SOAK_TR n=47 t=34678332 node=2 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+SOAK_TR n=48 t=34707335 node=2 sig=6041 from=0 to=50 first=1 ne=1 ce=1
+SOAK_TR n=49 t=34707335 node=2 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+SOAK_TR n=50 t=34707335 node=2 sig=6064 from=0 to=613 first=1 ne=1 ce=1
+SOAK_TR n=51 t=34707335 node=2 sig=606c from=0 to=0 first=1 ne=1 ce=1
+SOAK_TR n=52 t=36618215 node=0 sig=queueRejected from=0 to=2 first=0 ne=0 ce=1
+SOAK_ANOM n=53 t=36618215 id=1 kind=admission node=0 dump=1 a=0 b=2
+SOAK_T n=54 a=1 i=961 k=2 p=36471506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=94 tf=1
+SOAK_T n=55 a=1 i=962 k=0 p=36471506 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=970 ce=1 st=0 tr=0 tf=0
+SOAK_T n=56 a=1 i=963 k=3 p=36471506 id=606100 ext=0 rtr=0 dlc=1 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=48 tf=2
+SOAK_T n=57 a=1 i=964 k=1 p=36477505 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=95 tf=1
+SOAK_T n=58 a=1 i=965 k=6 p=36479307 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=195 tf=0
+SOAK_T n=59 a=1 i=966 k=2 p=36480506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=95 tf=1
+SOAK_T n=60 a=1 i=967 k=0 p=36480506 id=582 ext=0 rtr=0 dlc=8 data=4364600013060000 ok=1 ex=0 bounds=1 dlo=2742 dhi=912 ce=1 st=0 tr=0 tf=0
+SOAK_T n=61 a=1 i=968 k=3 p=36480506 id=606400 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=48 tf=3
+SOAK_T n=62 a=1 i=969 k=1 p=36486505 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=96 tf=1
+SOAK_T n=63 a=1 i=970 k=6 p=36488307 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=196 tf=0
+SOAK_T n=64 a=1 i=971 k=2 p=36489506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=96 tf=1
+SOAK_T n=65 a=1 i=972 k=0 p=36489506 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=932 ce=1 st=0 tr=0 tf=0
+SOAK_T n=66 a=1 i=973 k=3 p=36489506 id=606c00 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=48 tf=4
+SOAK_T n=67 a=1 i=974 k=1 p=36497507 id=601 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=97 tf=1
+SOAK_T n=68 a=1 i=975 k=6 p=36499306 id=601 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=197 tf=0
+SOAK_T n=69 a=1 i=976 k=2 p=36500506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=97 tf=1
+SOAK_T n=70 a=1 i=977 k=0 p=36500506 id=581 ext=0 rtr=0 dlc=8 data=4b41600050000000 ok=1 ex=0 bounds=1 dlo=2737 dhi=962 ce=1 st=0 tr=0 tf=0
+SOAK_T n=71 a=1 i=978 k=3 p=36500506 id=604100 ext=0 rtr=0 dlc=2 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5778 dhi=0 ce=1 st=1 tr=49 tf=1
+SOAK_T n=72 a=1 i=979 k=1 p=36506505 id=601 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=98 tf=1
+SOAK_T n=73 a=1 i=980 k=6 p=36508306 id=601 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=198 tf=0
+SOAK_T n=74 a=1 i=981 k=2 p=36509506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=98 tf=1
+SOAK_T n=75 a=1 i=982 k=0 p=36509506 id=581 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 ex=0 bounds=1 dlo=2740 dhi=912 ce=1 st=0 tr=0 tf=0
+SOAK_T n=76 a=1 i=983 k=3 p=36509506 id=606100 ext=0 rtr=0 dlc=1 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=49 tf=2
+SOAK_T n=77 a=1 i=984 k=1 p=36515505 id=601 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=99 tf=1
+SOAK_T n=78 a=1 i=985 k=6 p=36517304 id=601 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=199 tf=0
+SOAK_T n=79 a=1 i=986 k=2 p=36518506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=99 tf=1
+SOAK_T n=80 a=1 i=987 k=0 p=36518506 id=581 ext=0 rtr=0 dlc=8 data=4364600050f9ffff ok=1 ex=0 bounds=1 dlo=2742 dhi=930 ce=1 st=0 tr=0 tf=0
+SOAK_T n=81 a=1 i=988 k=3 p=36518506 id=606400 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=49 tf=3
+SOAK_T n=82 a=1 i=989 k=1 p=36524505 id=601 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=100 tf=1
+SOAK_T n=83 a=1 i=990 k=6 p=36526304 id=601 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=200 tf=0
+SOAK_T n=84 a=1 i=991 k=2 p=36527506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=100 tf=1
+SOAK_T n=85 a=1 i=992 k=0 p=36527506 id=581 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=932 ce=1 st=0 tr=0 tf=0
+SOAK_T n=86 a=1 i=993 k=3 p=36527506 id=606c00 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=49 tf=4
+SOAK_T n=87 a=1 i=994 k=1 p=36535507 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=97 tf=1
+SOAK_T n=88 a=1 i=995 k=6 p=36537307 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=201 tf=0
+SOAK_T n=89 a=1 i=996 k=2 p=36538506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=97 tf=1
+SOAK_T n=90 a=1 i=997 k=0 p=36538506 id=582 ext=0 rtr=0 dlc=8 data=4b41600050000000 ok=1 ex=0 bounds=1 dlo=2739 dhi=953 ce=1 st=0 tr=0 tf=0
+SOAK_T n=91 a=1 i=998 k=3 p=36538506 id=604100 ext=0 rtr=0 dlc=2 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5778 dhi=0 ce=1 st=2 tr=50 tf=1
+SOAK_T n=92 a=1 i=999 k=1 p=36544505 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=98 tf=1
+SOAK_T n=93 a=1 i=1000 k=6 p=36546307 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=202 tf=0
+SOAK_T n=94 a=1 i=1001 k=2 p=36547506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=98 tf=1
+SOAK_T n=95 a=1 i=1002 k=0 p=36547506 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=963 ce=1 st=0 tr=0 tf=0
+SOAK_T n=96 a=1 i=1003 k=3 p=36547506 id=606100 ext=0 rtr=0 dlc=1 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=50 tf=2
+SOAK_T n=97 a=1 i=1004 k=1 p=36553505 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=99 tf=1
+SOAK_T n=98 a=1 i=1005 k=6 p=36555307 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=203 tf=0
+SOAK_T n=99 a=1 i=1006 k=2 p=36556506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=99 tf=1
+SOAK_T n=100 a=1 i=1007 k=0 p=36556506 id=582 ext=0 rtr=0 dlc=8 data=4364600013060000 ok=1 ex=0 bounds=1 dlo=2742 dhi=942 ce=1 st=0 tr=0 tf=0
+SOAK_T n=101 a=1 i=1008 k=3 p=36556506 id=606400 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=50 tf=3
+SOAK_T n=102 a=1 i=1009 k=1 p=36562505 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=100 tf=1
+SOAK_T n=103 a=1 i=1010 k=6 p=36564307 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=204 tf=0
+SOAK_T n=104 a=1 i=1011 k=2 p=36565506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=100 tf=1
+SOAK_T n=105 a=1 i=1012 k=0 p=36565506 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=943 ce=1 st=0 tr=0 tf=0
+SOAK_T n=106 a=1 i=1013 k=3 p=36565506 id=606c00 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=2 tr=50 tf=4
+SOAK_T n=107 a=1 i=1014 k=1 p=36573507 id=601 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=101 tf=1
+SOAK_T n=108 a=1 i=1015 k=6 p=36575306 id=601 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=205 tf=0
+SOAK_T n=109 a=1 i=1016 k=2 p=36576506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=101 tf=1
+SOAK_T n=110 a=1 i=1017 k=0 p=36576506 id=581 ext=0 rtr=0 dlc=8 data=4b41600050000000 ok=1 ex=0 bounds=1 dlo=2737 dhi=912 ce=1 st=0 tr=0 tf=0
+SOAK_T n=111 a=1 i=1018 k=3 p=36576506 id=604100 ext=0 rtr=0 dlc=2 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5778 dhi=0 ce=1 st=1 tr=51 tf=1
+SOAK_T n=112 a=1 i=1019 k=1 p=36582505 id=601 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=102 tf=1
+SOAK_T n=113 a=1 i=1020 k=6 p=36584306 id=601 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=206 tf=0
+SOAK_T n=114 a=1 i=1021 k=2 p=36585506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=102 tf=1
+SOAK_T n=115 a=1 i=1022 k=0 p=36585506 id=581 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 ex=0 bounds=1 dlo=2740 dhi=935 ce=1 st=0 tr=0 tf=0
+SOAK_T n=116 a=1 i=1023 k=3 p=36585506 id=606100 ext=0 rtr=0 dlc=1 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=51 tf=2
+SOAK_T n=117 a=1 i=1024 k=1 p=36591505 id=601 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=103 tf=1
+SOAK_T n=118 a=1 i=1025 k=6 p=36593304 id=601 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=207 tf=0
+SOAK_T n=119 a=1 i=1026 k=2 p=36594506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=103 tf=1
+SOAK_T n=120 a=1 i=1027 k=0 p=36594506 id=581 ext=0 rtr=0 dlc=8 data=4364600050f9ffff ok=1 ex=0 bounds=1 dlo=2742 dhi=943 ce=1 st=0 tr=0 tf=0
+SOAK_T n=121 a=1 i=1028 k=3 p=36594506 id=606400 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=51 tf=3
+SOAK_T n=122 a=1 i=1029 k=1 p=36600505 id=601 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=104 tf=1
+SOAK_T n=123 a=1 i=1030 k=6 p=36602304 id=601 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=208 tf=0
+SOAK_T n=124 a=1 i=1031 k=2 p=36603506 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=104 tf=1
+SOAK_T n=125 a=1 i=1032 k=0 p=36603506 id=581 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 ex=0 bounds=1 dlo=2742 dhi=945 ce=1 st=0 tr=0 tf=0
+SOAK_T n=126 a=1 i=1033 k=3 p=36603506 id=606c00 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5770 dhi=0 ce=1 st=1 tr=51 tf=4
+SOAK_T n=127 a=1 i=1034 k=1 p=36611507 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=101 tf=1
+SOAK_T n=128 a=1 i=1035 k=6 p=36613307 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=209 tf=0
+SOAK_T n=129 a=1 i=1036 k=2 p=36615507 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=101 tf=1
+SOAK_T n=130 a=1 i=1037 k=0 p=36615507 id=582 ext=0 rtr=0 dlc=8 data=4b41600050000000 ok=1 ex=0 bounds=1 dlo=3740 dhi=1913 ce=1 st=0 tr=0 tf=0
+SOAK_T n=131 a=1 i=1038 k=1 p=36615507 id=603 ext=0 rtr=0 dlc=8 data=4018100200000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=3 tf=1
+SOAK_T n=132 a=1 i=1039 k=6 p=36618215 id=603 ext=0 rtr=0 dlc=8 data=4018100200000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=210 tf=0
+SOAK_T n=133 a=1 i=1040 k=3 p=36615507 id=604100 ext=0 rtr=0 dlc=2 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=6779 dhi=0 ce=1 st=2 tr=52 tf=1
+SOAK_T n=134 a=1 i=1041 k=2 p=36620759 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=3 tf=1
+SOAK_T n=135 a=1 i=1042 k=1 p=36623505 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=102 tf=1
+SOAK_T n=136 a=1 i=1043 k=6 p=36625489 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=211 tf=0
+SOAK_T n=137 a=1 i=1044 k=2 p=36626511 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=102 tf=1
+SOAK_T n=138 a=1 i=1045 k=0 p=36626511 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 ex=0 bounds=1 dlo=2678 dhi=785 ce=1 st=0 tr=0 tf=0
+SOAK_T n=139 a=1 i=1046 k=3 p=36626511 id=606100 ext=0 rtr=0 dlc=1 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5752 dhi=0 ce=1 st=2 tr=52 tf=2
+SOAK_T n=140 a=1 i=1047 k=1 p=36633507 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=103 tf=1
+SOAK_T n=141 a=1 i=1048 k=6 p=36635493 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=212 tf=0
+SOAK_T n=142 a=1 i=1049 k=2 p=36636512 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=103 tf=1
+SOAK_T n=143 a=1 i=1050 k=0 p=36636512 id=582 ext=0 rtr=0 dlc=8 data=4364600013060000 ok=1 ex=0 bounds=1 dlo=2679 dhi=810 ce=1 st=0 tr=0 tf=0
+SOAK_T n=144 a=1 i=1051 k=3 p=36636512 id=606400 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5786 dhi=0 ce=1 st=2 tr=52 tf=3
+SOAK_T n=145 a=1 i=1052 k=1 p=36643507 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=104 tf=1
+SOAK_T n=146 a=1 i=1053 k=6 p=36645493 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=213 tf=0
+SOAK_T n=147 a=1 i=1054 k=2 p=36646513 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 ex=0 bounds=0 dlo=0 dhi=0 ce=1 st=0 tr=104 tf=1
+SOAK_T n=148 a=1 i=1055 k=0 p=36646513 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 ex=0 bounds=1 dlo=2680 dhi=764 ce=1 st=0 tr=0 tf=0
+SOAK_T n=149 a=1 i=1056 k=3 p=36646513 id=606c00 ext=0 rtr=0 dlc=4 data=00003f0100000000 ok=1 ex=0 bounds=1 dlo=5787 dhi=0 ce=1 st=2 tr=52 tf=4
+SOAK_TEND n=150 t=38278346 a=1 abandoned=0 held=1660131 unprinted=0
+SOAK_SUM n=151 t=78635214 trial=1795036436 up=44027941 rx=4456 tx=4462 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=2 resFull=0 timeouts=3 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+SOAK_GAP n=152 t=78640345 gapMax=5131 gapWin=5131 ownerGap=5996 qHw=1 actHw=2 retHw=1 trHw=4 trOver=0 netDrop=0 stack=12688 heap=81860 heapMin=81860 tec=0 rec=0
+SOAK_CON n=153 t=78642351 lines=153 blocked=883 conRej=0 conHw=496 evFull=0 evLimit=0 evHw=41 anomalies=1 dumps=1 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=1660131 defDump=824 defBusy=8895 defTx=0 defInh=0 slips=559 sdkDefer=0 uartBytes=19164 queued=328
+SOAK_NODE n=154 t=78652348 node=1 ops=557 opsOk=557 opsFail=0 refused=0 steps=2228 stepsOk=2228 min=5732 mean=5776 max=6792 retireMax=4784 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+SOAK_HIST n=155 t=78676348 node=1 b=0,0,2228,0,0,0,0,0
+SOAK_OUT n=156 t=78682348 node=1 sdo=2228,0,0,0,0,0,0,0,0,0,0,0 reason=2228,0,0,0,0,0,0,0 read=0,557,0,0,0,0,0,0,0
+SOAK_LINK n=157 t=78696348 node=1 reuse=marker timeouts=0 aborts=0 markers=0 explicit=0 explicitOk=0 reopened=0 failed=0 other=0 reuseStopped=0 waits=0 noResponse=0 bootUps=0 responded=1 lastResponse=78595506 accepted=0
+SOAK_ABORT n=158 t=78724348 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+SOAK_NODE n=159 t=78736348 node=2 ops=557 opsOk=557 opsFail=0 refused=0 steps=2228 stepsOk=2228 min=5727 mean=5779 max=10784 retireMax=5131 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+SOAK_HIST n=160 t=78758348 node=2 b=0,0,2227,1,0,0,0,0
+SOAK_OUT n=161 t=78766348 node=2 sdo=2228,0,0,0,0,0,0,0,0,0,0,0 reason=2228,0,0,0,0,0,0,0 read=0,557,0,0,0,0,0,0,0
+SOAK_LINK n=162 t=78780348 node=2 reuse=marker timeouts=0 aborts=0 markers=0 explicit=0 explicitOk=0 reopened=0 failed=0 other=0 reuseStopped=0 waits=0 noResponse=0 bootUps=0 responded=1 lastResponse=78633506 accepted=0
+SOAK_ABORT n=163 t=78808348 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+SOAK_ABSENT n=164 t=78820348 node=3 probes=1 answered=0 timeouts=1 other=0 refused=0 explicit=1 held=41 unresolved=1 noResponse=3 responded=0 heartbeat=0 bootUps=0
+SOAK_END n=165 t=78840346 trial=1795036436 reason=duration up=44233073 lines=165 settled=1
