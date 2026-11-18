@@ -1448,9 +1448,11 @@ See [report52](reports/prompt_52.md) for exact images, plans, failures and gates
 
 ## Prompt 55 self-repair bench
 
-**Status: partly run.** Items (a) and (c) ran once each on image `12130ece` on 2026-11-18
-(results below). Items (b), (d), (e) and (f) and the board's controller error-counter readings
-are pending. The primitives are host-tested (`owner_self_repair`, `sdo_reconciliation`,
+**Status: partly run.** On 2026-11-18 items (a) and (c) ran once each on image `12130ece`. On
+image `50050825` the `L` lines were read idle and after a second absent-node soak with the
+owner's counters, and that soak ran too (results below). Items (b), (d), (e) and (f), a
+shared-console `drv bus` reading and the controller readings after item (d) are pending. The
+primitives are host-tested (`owner_self_repair`, `sdo_reconciliation`,
 `retry_class`, `can_bus_health`, `twai_adapter`, `twai_driver`, `link_watch`, `soak`,
 `bench_route`, `probe_console` and the runner tests). Q18 stays unqualified, and no trial
 here shows that an ordered server, remote retirement or the absence of a stale frame on the
@@ -1470,6 +1472,27 @@ These are single short runs on these two specimens, not qualification:
   and 1170 operations, all successful, with matching latency. Node 3 got one probe and the owner's
   one marker, both unanswered (`noResponse=2`). No further probe was sent while its route stayed
   unresolved (`held=87`). No explicit marker followed, because the run set no `--marker-ms`.
+
+**Results on `50050825`, 2026-11-18.** These are the first board readings of the controller status
+and of the new counters, again single short runs:
+
+- [`20261118T211341Z-s2-link`](bench/20261118T211341Z-s2-link/rx.txt), idle, before any route
+  was configured: `LINK interface ... state=available receiveLost=0`; `LINK bus read=1 known=1
+  state=active tec=0 rec=0 busErrors=0 arbLost=0`, the first reading, so no deltas; `LINK
+  counters` all 0.
+- [`20261118T211355Z-p55c2-absent-counters`](bench/20261118T211355Z-p55c2-absent-counters/summary.txt),
+  45 s at a 20 ms interval, `--nodes 7 --marker-ms 250`. Nodes 1 and 2 completed 557 operations
+  each, all answered. Node 3's probe, the owner's marker and the soak's one explicit marker went
+  unanswered, each followed by its cleanup abort (`SOAK_ABSENT probes=1 explicit=1 held=41
+  unresolved=1 noResponse=3`). TEC and REC stayed 0. The verdict is `failed-evidence`: the absent
+  node's failures are expected, and one admission anomaly is recorded with `node=0`, not
+  attributed to nodes 1 or 2; its cause is not established.
+- [`20261118T211441Z-s2-link-after-absent`](bench/20261118T211441Z-s2-link-after-absent/rx.txt),
+  after that soak. Nodes 1 and 2 show `answered=2228 errors=0 misses=0 notObserved=0`, counting
+  services, four per operation. `LINK bus` reads `state=active tec=0 rec=0 busErrors=0 arbLost=0`,
+  with `dTec=0 dRec=0` and no new bus errors since the idle reading. `LINK counters` shows
+  `abortsSent=3` (node 3's three cleanup aborts) and every other counter 0, and the interface line
+  shows `markers=1`.
 
 **Image.** The bench image answers PONG `pdo=8` and builds with three SDO channels
 (`CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=3` in its `sdkconfig.defaults`; the library default
@@ -1495,9 +1518,9 @@ The shared console gives the same facts in JSONL: `@ID drv bus`, `@ID drv`, `@ID
 `@ID stats times`, `@ID health counts` ([CLI contract](cli_contract.md)), sent with
 `python scripts/s2_bench_console.py --send "@1 drv bus" --output NEW_FILE`. Images before this
 revision (`12130ece` included) print neither `LINK bus` nor `LINK counters` and lack the new
-fields. **The board's real TWAI state, TEC, REC and error-callback counts are therefore still
-unread through these forms**: the next image needs one `L` and one `drv bus`, idle and then
-after item (d), to record them. Before the SoakTwaiTap fix the bench image's tap did not pass
+fields. On `50050825` the `L` lines have recorded the board's TWAI state, TEC, REC and
+error-callback counts (above). **Still missing:** one shared-console `drv bus` reading, and the
+`L` and `drv bus` readings after item (d). Before the SoakTwaiTap fix the bench image's tap did not pass
 the controller status read through, so these forms would have reported the status unknown.
 
 **After every reopening, `x`.** A reopening invalidates every reservation on the node, an idle
