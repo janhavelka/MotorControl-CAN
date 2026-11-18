@@ -2035,17 +2035,26 @@ def _check_soak_request(report, meta):
             request = bytes.fromhex(meta["tx_hex"])
         except (TypeError, ValueError):
             request = b""
-        match = re.fullmatch(rb"S([0-9]+),([0-9]+),([0-9]+),([0-9]+),([0-3])\n", request)
+        # Prompt 55 added an optional tail ,RESPONSE_US,NODES,MARKER_MS; SOAK_BEGIN reports all three.
+        match = re.fullmatch(rb"S([0-9]+),([0-9]+),([0-9]+),([0-9]+),([0-3])(?:,([0-9]+),([0-9]+),([0-9]+))?\n",
+                             request)
         if match is None:
             report.error("request_byte_mismatch", None, "malformed soak request")
         else:
             try:
-                trial, duration, interval, summary, value = map(int, match.groups())
+                trial, duration, interval, summary, value = map(int, match.groups()[:5])
+                tail = [int(group) for group in match.groups()[5:]] if match.group(6) is not None else None
             except ValueError:
                 report.error("request_byte_mismatch", None, "malformed soak request numbers")
             else:
-                plans.append(dict(trial=trial, dur=duration, interval=interval, summary=summary,
-                                  monitors=bool(value & 1), identity=bool(value & 2)))
+                plan = dict(trial=trial, dur=duration, interval=interval, summary=summary,
+                            monitors=bool(value & 1), identity=bool(value & 2))
+                if tail is not None:
+                    # A requested response of 0 means the default, which SOAK_BEGIN reports as admitted.
+                    plan.update(nodes=tail[1], markerMs=tail[2])
+                    if tail[0]:
+                        plan.update(resp=tail[0])
+                plans.append(plan)
     image = meta.get("image")
     if isinstance(image, dict) and "base" in image:
         plans.append({"base": image["base"]})

@@ -1,0 +1,3 @@
+LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 markers=0 reuseStopped=0 recoveries=0 inhibited=0 t=59173423
+LINK node=1 configured=0
+LINK node=2 configured=0

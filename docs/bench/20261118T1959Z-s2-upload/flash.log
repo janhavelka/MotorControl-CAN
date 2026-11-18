@@ -1,0 +1,56 @@
+esptool.py --chip esp32s2 --port COM15 --baud 115200 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 bootloader/bootloader.bin 0x10000 motorcontrol_can_s2_bench.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.12.0
+Serial port COM15
+Connecting.....
+Chip is ESP32-S2FH4 (revision v1.0)
+Features: WiFi, Embedded Flash 4MB, No Embedded PSRAM, ADC and temperature sensor calibration in BLK2 of efuse V2
+Crystal is 40MHz
+MAC: dc:b4:d9:b5:a6:ce
+Uploading stub...
+Running stub...
+Stub running...
+Configuring flash size...
+Flash will be erased from 0x00001000 to 0x00004fff...
+Flash will be erased from 0x00010000 to 0x000bffff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 14592 bytes to 9981...
+Writing at 0x00001000... (100 %)
+Wrote 14592 bytes (9981 compressed) at 0x00001000 in 1.1 seconds (effective 111.1 kbit/s)...
+Hash of data verified.
+Compressed 718976 bytes to 424172...
+Writing at 0x00010000... (3 %)
+Writing at 0x0001c14a... (7 %)
+Writing at 0x0002952f... (11 %)
+Writing at 0x00042b18... (15 %)
+Writing at 0x00047c3d... (19 %)
+Writing at 0x0004d288... (23 %)
+Writing at 0x0005223d... (26 %)
+Writing at 0x000572e5... (30 %)
+Writing at 0x0005c4f2... (34 %)
+Writing at 0x000612c1... (38 %)
+Writing at 0x0006606c... (42 %)
+Writing at 0x0006b3d3... (46 %)
+Writing at 0x0007097c... (50 %)
+Writing at 0x00075d66... (53 %)
+Writing at 0x0007af05... (57 %)
+Writing at 0x00080721... (61 %)
+Writing at 0x000859b8... (65 %)
+Writing at 0x0008ad56... (69 %)
+Writing at 0x000900f1... (73 %)
+Writing at 0x0009565d... (76 %)
+Writing at 0x0009b052... (80 %)
+Writing at 0x000a053f... (84 %)
+Writing at 0x000a5a80... (88 %)
+Writing at 0x000abdae... (92 %)
+Writing at 0x000b3d2f... (96 %)
+Writing at 0x000b9b30... (100 %)
+Wrote 718976 bytes (424172 compressed) at 0x00010000 in 38.8 seconds (effective 148.4 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.1 seconds (effective 208.8 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

@@ -1935,5 +1935,34 @@ class Prompt54DiagnosticsTests(unittest.TestCase):
         self.assertIn("nmt_experiment_record", codes(report))
 
 
+class SoakRepairTail(unittest.TestCase):
+    """Prompt 55's S line tail (response_us, nodes, marker_ms) is checked against SOAK_BEGIN, not skipped."""
+
+    def setUp(self):
+        self.capture = BENCH / "20261118T200253Z-p55a-shorttimeout/trial-01"
+        self.data = (self.capture / "rx.bin").read_bytes()
+        self.meta = json.loads((self.capture / "request.json").read_text(encoding="utf-8"))
+
+    def mismatches(self, tx_hex):
+        meta = dict(self.meta, tx_hex=tx_hex)
+        report = evidence.replay_bytes(self.data, meta, str(self.capture))
+        return [issue for issue in report.errors if issue["code"] == "request_byte_mismatch"]
+
+    def test_retained_tail_matches_its_admission(self):
+        self.assertEqual(self.mismatches(self.meta["tx_hex"]), [])
+
+    def test_a_differing_tail_value_is_refused(self):
+        request = bytes.fromhex(self.meta["tx_hex"])
+        self.assertTrue(request.endswith(b",1000,1,250\n"))
+        for changed in (b",1000,1,100\n", b",2000,1,250\n", b",1000,3,250\n"):
+            wrong = request[:-len(b",1000,1,250\n")] + changed
+            self.assertTrue(self.mismatches(wrong.hex()), changed)
+
+    def test_a_default_response_is_not_compared(self):
+        request = bytes.fromhex(self.meta["tx_hex"])
+        default = request[:-len(b",1000,1,250\n")] + b",0,1,250\n"
+        self.assertEqual(self.mismatches(default.hex()), [])
+
+
 if __name__ == "__main__":
     unittest.main()
