@@ -191,6 +191,11 @@ SDO reply may be indistinguishable from a fresh reply: local generation does not
 solve that wire ambiguity. Retire/reconcile channels explicitly. Recovery never
 replays work, enables a drive or clears its fault. Local cancel is not stop.
 
+Deadlines, repeats, queue order and depth reporting, and controller recovery
+follow the [communication practice](../communication_practice.md): one immutable
+deadline per operation, repeats only as new operations inside it, reserve then
+enqueue, and a single-flight recovery with its own retained result.
+
 ## 5. Selected application health and metrics
 
 **This is the CAN example/application contract implemented from prompt 25.** RS
@@ -289,6 +294,31 @@ heartbeat freshness, statusword/controlword, EMCY, service outcomes and `Health`
 independently inspectable. Protocol-specific snapshots are present only for that
 protocol. FieldCore maps these facts into its own `HealthState`; the core never
 includes or imitates that application's enum.
+
+### Communication evidence (planned revision, prompt 55; guide rules C2, C3, C12, C14)
+
+The text above describes the behavior delivered by prompt 25. Prompt 55 revises
+it as follows and changes code, tests, `can_owner.md` and the CHANGELOG together;
+until then the delivered rules above hold. See the
+[communication practice](../communication_practice.md).
+
+- Node rows count only node-level evidence. Bus-off, error-passive with no ACK
+  and an RX overflow are interface facts: the interface is unavailable, the node
+  rows keep their last state marked "not observed", and no node failure or
+  no-response count is added while the fault lasts. An RX overflow also
+  invalidates evidence that may have been in the lost frames. This replaces
+  "bus-off makes every binding `OFFLINE`".
+- Each terminal has one class. A checked SDO abort, a wrong multiplexer, a toggle
+  error and a malformed reply are answered (the node is present; an error, not a
+  no-response). An EMCY is a node event: presence, no success, no miss. A
+  response timeout with no frame is the only no-response. A local end
+  (cancelled, expired in the queue, invalidated, refused, TX never left) changes
+  no count. Passive age of a node nobody addressed is not a failure.
+- A status value carries its acquisition time and node epoch and is refreshed
+  only by a completed exchange. A stale value is flagged and kept, never zeroed.
+- Events report transitions only; routine success is a counter. Where an
+  application limits event rates, status and counters stay current when an event
+  is suppressed, and the suppressions are counted.
 
 ## 6. CLI, Python and platform parity
 

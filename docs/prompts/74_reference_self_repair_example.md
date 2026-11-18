@@ -11,6 +11,12 @@ them in here (audit the fieldcore code thoroughly and write new prompts)"; and g
 engineering practises and more responsibility on the end user of this firmware with possible optional settable
 guards".
 
+The owner added on 2026-11-18 (verbatim in the [communication practice guide](../communication_practice.md)) that
+retransmissions, retries, health, statuses and queues should follow the FieldCore-node practices where they are good
+engineering. The guide's rules C2 to C6, C8, C14 and C15 are applied below, citing rule numbers; they refine the
+items and keep the 2026-11-17 decisions (thresholds 2 and 5, retry classes with N as default, the one restart
+schedule, optional fault clear) except where an item says it changes one.
+
 The FieldCore-node audit is done ([report](../reports/2026-11-17_fieldcore_rs485_audit.md), HEAD
 `c40ea8341edf8d665460b902cafefbe857a7f73f`). Its "Recommended adoption" table is this prompt's design input. Prompt 55
 now delivers only the library primitives; this prompt builds the reference application policy on them, in the examples,
@@ -21,16 +27,20 @@ task, queue or inhibit.
 Deliver, per node, with every policy settable and reported:
 
 1. **Presence:** Unknown → Online → Degraded → Offline, plus Disabled (visible, bus-silent). A miss is one operation
-   ending without any response, counted once after its retries; an SDO abort, a wrong reply or an EMCY is "present but
-   erroring". Thresholds default to 2 and 5 (FieldCore's), validated degraded > 0 and offline > degraded. One response,
+   ending without any response, counted once per operation after its repeats; an SDO abort, a wrong reply or an EMCY
+   is "present but erroring" (guide rules C3 and C4). Local ends (cancelled, queue-expired, invalidated, refused) and
+   passive age are no misses, and a node nobody addressed does not age into Degraded. A bus-level fault (bus-off,
+   error-passive with no ACK, RX overflow) freezes the node rows as "not observed" and counts no miss (rule C2).
+   A heartbeat consumer timeout is a miss with its own cause. Thresholds default to 2 and 5 (FieldCore's), validated degraded > 0 and offline > degraded. One response,
    heartbeat or boot-up sets Online and emits a returned event. Offline nodes fail fast (new non-stop work is refused
    as unavailable) and get one probe per settable interval (one cheap reviewed read or a heartbeat; on a quarantined route that read is prompt 55's marker). Never an NMT reset
-   on loss; a boot-up still invalidates that node's bindings and motion evidence.
+   on loss; prompt 55 owns the revision of the delivered bus-off projection (the interface, not each binding, goes
+   `OFFLINE`), and this module only consumes it; a boot-up still invalidates that node's bindings and motion evidence.
 2. **Timeouts and retries:** the per-node response timeout of prompt 73; a per-operation deadline that no retry
    extends. Retry classes, from prompt 55's class on each operation: R (reads whose `readEffect` is reviewed
    non-changing or accepted under DEC-1, 0..3, default 0; a nonzero count is the application's decision to repeat them
-   and leaves `readEffect` and its uncertainty unchanged; settable backoff, only on no response or a malformed reply,
-   with an "exhausted" result), W (idempotent absolute settings with readback, off by default), M (motion start,
+   and leaves `readEffect` and its uncertainty unchanged; settable backoff that doubles from the base on each repeat and is cut by the remaining deadline (rule C8),
+   only on no response or a malformed reply, with an "exhausted" result; each repeat records `repeatOf`), W (idempotent absolute settings with readback, off by default), M (motion start,
    enable, homing, save and NMT: never retried; policy validation refuses a nonzero count, as FieldCore's
    `Rs485MotorModule::applyRuntimeConfig` does) and N (the default for everything else, including `UNQUALIFIED` fault
    and history reads: never retried, validated as M). A repeat after a timeout waits until prompt 55's resync has
@@ -45,14 +55,23 @@ Deliver, per node, with every policy settable and reported:
    keep their history; readiness is never silently requalified.
 4. **Controller recovery:** bus-off, RX overflow, a frame without TX-done within its lifetime or a failed install
    (prompt 68) restarts the controller through prompt 55's entry point, at a due time that backs off after each failed
-   restart, with a rate limit, no catch-up and no replay; this is the only restart schedule. An explicit operator recovery is single-flight
+   restart, with a rate limit, no catch-up and no replay; this is the only restart schedule. Schedule fields, all
+   settable and validated (rule C15): minimum interval, backoff maximum, attempts per window, attempts per boot; a
+   schedule that was paused does not run the missed attempts afterwards. Ordinary SDO timeouts and misses never
+   trigger a restart by themselves, and there is no NMT reset on loss. An explicit operator recovery is single-flight
    with its own result. Recovery invalidates bindings and motion evidence and inhibits motion.
 5. **Optional fault clear:** off by default; only through `prepareClearAlarm` while released or idle, limited per window
    and per boot; it never enables, never retries motion and never escalates to reset or save.
 6. **Health and diagnostics:** a per-node status (presence, counts of success, error, timeout, miss and stale, last
    attempt/success/error times, last error); bus metrics with depths, high-water marks, overflow and drop counts; a
-   bounded trace ring with sequence numbers; rate-limited state-change events; application age thresholds with boot
-   grace and Required/Optional roles.
+   bounded trace ring with sequence numbers; application age thresholds with boot grace and Required/Optional roles.
+   Events are transitions only (Degraded, Offline, returned, boot-up, EMCY, bus-off, error-passive, recovery start,
+   success and failure, queue overflow), never routine success; each kind is rate-limited per node by a settable
+   interval with a suppressed count, status and counters stay current when an event is suppressed, and recovery
+   events are reported once per episode (rule C14). Application aggregation is the worst Required row, Optional
+   rows visible only, Disabled ignored, and the start-up grace hides missing evidence but never an explicit fault
+   (rule C4). Controller error counters (prompt 55) set the interface Degraded with cause "bus errors" above a
+   settable rate and never a node Offline (rule C5).
 7. **Configuration:** caller-owned node slots and a `NodePolicy` (response timeout, prompt 55's SDO reuse policy, read
    retries, retry backoff, degraded and offline thresholds, probe interval, quick-stop repeat, automatic reconcile,
    automatic fault clear, fault-clear limit), `validateNodePolicy()`, staging applied at an idle boundary, and console
@@ -96,7 +115,9 @@ result; an accepted-unqualified state read repeated only under a nonzero count a
 or history read (N) never repeated, and a fake reviewed non-changing read repeated under the same count, each inside
 the original deadline; no repeat before the route reopens; a nonzero M or N retry refused at validation unless prompt 55's recorded per-object permission makes that object R; a quick-stop
 repeat as a new operation and never a HALT repeat; reconciliation refused on an old, other-generation, moving or
-in-flight case and accepted on a fresh standstill; recovery rate limit and no replay; fault clear off by default and
+in-flight case and accepted on a fresh standstill; recovery rate limit, backoff doubling and no catch-up, and no restart from ordinary timeouts; a bus-off does not push
+a node to Offline (rows frozen "not observed"); a cancelled or queue-expired command is no miss; an EMCY is no miss;
+event rate limiting with the suppressed count and current status; fault clear off by default and
 limited when on; policy staging at idle only. Run the native, firmware, stack and documentation gates and CI on the
 actual final commit. Bench: one node unplugged by the user and returned (Degraded, Offline, probe, Online, the other
 node unaffected), a forced read timeout with a read retry, and a stop then reconcile then move, then a short

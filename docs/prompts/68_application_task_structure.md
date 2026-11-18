@@ -48,6 +48,11 @@ HEAD `5ad9292d`: `include/TunnelMonitor/rs485/Rs485Task.h`, `src/.../Rs485Diagno
   stop's own observed standstill clears it, as `moveFenced()` does since 2026-11-17, and otherwise
   `acknowledgeStandstill` with the application's fresh standstill read. It is the one inhibit; prompt 74's reconciliation
   extends it.
+- Order and queue reporting (guide rules C11 and C13, [communication practice](../communication_practice.md)): stops
+  first, then recovery and urgent work, then ordinary work, which rotates between nodes and channels and keeps first in
+  first out within a channel. Every queue (command, TX, RX, event, trace) reports depth, capacity, high-water mark and
+  overflow count in the runtime health; an RX queue overflow is a bus fact, not a node fault, and is passed to prompt
+  55's observations. The event queue may lose entries, each counted, and never a terminal.
 - A documented per-pass bound (for example one queued command, one stop, two result transfers), status published as a
   whole copy under `portMUX` before the terminal it explains becomes visible.
 - Health in the shape of `Rs485RuntimeStats` and `ServiceHealth`: heartbeat every pass, stack free minimum every pass,

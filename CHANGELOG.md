@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Communication practice and PSRAM-first placement (2026-11-18)
+
+- `docs/communication_practice.md`: rules for health, retries, statuses, queues and recovery, mapped to CANopen and
+  CAN, at the owner's request (inspired by FieldCore-node's RS485 and I2C handling, paraphrased). Prompts 55, 56,
+  68, 73 and 74 and CONVENTIONS sections 4 and 5 follow them. Prompt 55 records a planned revision: a bus-off
+  marks the interface offline and freezes node rows instead of marking every binding offline; the delivered
+  behavior of prompt 25 and `docs/can_owner.md` stay as they are until prompt 55 changes code, tests and the
+  guide together.
+- Prompts 76 and 67: memory placement is PSRAM first for everything the board allows, with a sourced prohibited
+  list for the ESP32-S3 and ESP32-S2 (cache-off access during flash operations, stacks of tasks that call flash
+  APIs, DMA descriptors and buffers, kernel objects, atomics) and a hot set that stays internal until a
+  measurement promotes it. The S2 bench board has no PSRAM. Documents only; no code changed.
+
 ### Fewer fixed guards, more settable ones (2026-11-17)
 
 - A checked stop (SUCCEEDED, completion OBSERVED) prepared after a move's start now clears that axis's move fence,

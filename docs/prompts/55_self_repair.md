@@ -21,6 +21,12 @@ reconciliation, the controller-restart schedule and optional fault clear are pro
 implementation. The [FieldCore-node audit](../reports/2026-11-17_fieldcore_rs485_audit.md) replaces the earlier
 comparison notes.
 
+Communication rules (owner, 2026-11-18, verbatim in the [guide](../communication_practice.md)): the guide's rules C2,
+C3, C7 and C13 apply here: bus-level and node-level faults are different facts, each terminal has one evidence class,
+controller retransmission is link-level, and the counters below are delivered. The 2026-11-17 audit decisions (the
+named reuse policy with its default, retry class N by default, the restart entry point and schedule in prompt 74)
+are kept unchanged.
+
 Observations ([self-repair report](../reports/2026-11-12_self_repair_and_mixed_protocols.md)); refresh them against
 current code before implementation:
 
@@ -56,14 +62,27 @@ AGENTS.md requires):
    retirement is never remote retirement, and historical effects stay uncertain.
 2. **TX lifetime and controller restart:** a frame without TX-done within its lifetime (settable, with a documented default; prompt 73
    derives it from the node's response timeout) is reported expired; it may still
-   leave until a controller restart retires it as possibly sent, and nothing is resent. A restart entry point performs
+   leave until a controller restart retires it as possibly sent, and nothing is resent. Controller hardware
+   retransmission (DEC-4) is link-level, not an application retry: it has no retry class and is bounded only by this
+   lifetime (guide rule C7). Single-shot transmission stays an option to evaluate on the bench, not a default. A restart entry point performs
    the existing delete/recreate recovery, single-flight and logged; the application decides when to call it (an
    explicit recovery, or prompt 74's schedule with its due time, backoff and rate limit). The interface enters
    NO_LISTENER until a received frame or one ACKed frame. ACK or RX restores only controller evidence, not identity,
    route freshness or motion readiness. Bus-off and RX overflow use the same entry point and keep their own causes.
 3. **Presence inputs:** per node, the owner exposes the last response, last heartbeat, boot-up and consecutive
    no-response counts as observations; it decides nothing. Boot-up still invalidates bindings, motion evidence and
-   sessions.
+   sessions. Evidence classes (guide rules C2 and C3): each terminal is classified once as answered, answered with
+   error (abort, wrong multiplexer, toggle error, malformed reply), no answer (response timeout with no frame; the
+   only class that adds to the no-response count) or local end (cancelled, expired in the queue, invalidated,
+   refused, TX never left), and a local end changes no count. An EMCY is a node event: it shows presence and counts
+   as neither success nor miss. While the controller is bus-off, error-passive with no ACK or after an RX overflow,
+   no node no-response is counted and node rows keep their last observation marked "not observed"; an RX overflow
+   also invalidates evidence that may have been in the lost frames. **Planned revision of prompt 25's delivered
+   behavior** ([owner guide](../can_owner.md) `DriverState` table: bus-off and controller unavailability make each
+   binding `OFFLINE`): the interface is the unavailable party, and bindings are not marked `OFFLINE` or counted
+   down by a bus-level fault. Reason: a bus fact names no node, and counting it against every node makes recovery
+   look like loss and hides which node is actually silent. The executing agent changes code, tests, the owner
+   guide, CONVENTIONS section 5 and the CHANGELOG together, and states the change in the prompt report.
 4. **Retry classification:** every prepared operation states its class: R (an upload whose `readEffect` is
    `REVIEWED_NON_CHANGING`, or `ACCEPTED_UNQUALIFIED` under DEC-1), W (idempotent absolute setting with readback), M
    (motion start, enable, homing, save, NMT) or N (not repeatable), the default for everything else, including
@@ -73,7 +92,12 @@ AGENTS.md requires):
    never retries. A quick stop can be issued again as a new, separately identified operation; the HALT word
    `010F` is never repeated (from Switched On it could enable); M operations are never replayed, because an
    unconfirmed start may already have run (a relative +10 mm move sent twice becomes +20 mm).
-5. **Fault clear** stays `prepareClearAlarm` with its current gates; the opt-in policy is prompt 74's. The post-FF05
+5. **Counters** (guide rule C13; saturating, in the owner's `Stats` and per-node health, cleared only by
+   `clearStats` within the existing reset rules): SDO aborts sent and received, resyncs, TX expiries, RX overflows,
+   bus-off events and controller restarts started, succeeded and failed, each with its last time. Controller error
+   counters (TEC, REC, error state, bus-error and arbitration-lost counts) are reported with their read time and
+   delta as bus evidence (rule C5), never as node evidence; thresholds are caller settings and to measure.
+6. **Fault clear** stays `prepareClearAlarm` with its current gates; the opt-in policy is prompt 74's. The post-FF05
    enable fault (backlog S21, prompt 72) is preserved.
 
 Boundaries: every primitive is reported in health and results; no deadline is extended by a resync; stops keep
@@ -101,9 +125,10 @@ does not relax vendor evidence, safety, uncertainty or verification rules. Read 
    premises, recorded as accepted; the setting without a marker reuses `reopenAfterDrain`'s effects (reservations
    invalidated, experiment grants void, `requalifications` counted), not a second reopening.
 3. TX lifetime expiry, the single-flight, logged restart entry point and the NO_LISTENER state; no restart schedule.
-4. Presence observations per node in the owner's health.
+4. Presence observations per node in the owner's health, with the evidence classes, the bus-level freeze and the
+   revision of the delivered bus-off projection from Deliver item 3.
 5. The retry class on every prepared operation and the quick-stop reissue as a new operation.
-6. Console and health output for each primitive; console settings call the API only.
+6. The Deliver item 5 counters; console and health output for each primitive; console settings call the API only.
 7. Bench, with the bench image naming its reuse policy in the evidence: a short response-timeout read on node 1 with
    repeated recoveries (for example 1000), each completed or retained unresolved before the next; the 2026-11-04 read
    cases without a restart; an absent node ID beside nodes 1 and 2; one physical action by the user: unplug the S2's
@@ -122,11 +147,15 @@ marker mismatch invalidates the binding; other channels unaffected; TX lifetime 
 expiry or a stop, no restart without a call and one per call; bus-off and RX overflow on the same path; presence
 observations of two nodes with one silent; N as the default class, R only for the two listed read effects with
 `readEffect` unchanged; one trigger on the wire after an uncertain move; the quick-stop reissue sends only `000B`;
-boot-up invalidation. Run the native, firmware, stack and documentation gates and CI on the actual final commit.
+boot-up invalidation; a response timeout while the controller is bus-off or error-passive with no ACK adds no
+node count, and the nodes stay unmarked `OFFLINE` with rows "not observed"; an abort, a wrong-multiplexer reply and
+an EMCY add no no-response count; a cancelled and a queue-expired request change no count; an RX overflow
+invalidates evidence that may have been lost; the Deliver item 5 counters move on their events only. Run the native, firmware, stack and documentation gates and CI on the actual final commit.
 
 ## Documentation and delegation
 
-Update the owner, CANopen services and TWAI SDK guides, the README, coverage, backlog (D14, H04, T04) and the
+Update the owner (including the `DriverState` table's bus-off row and `Health` text, as the planned revision),
+CANopen services and TWAI SDK guides, CONVENTIONS section 5's delivered-behavior text, the README, coverage, backlog (D14, H04, T04) and the
 limitations report items 2.5, 7.3 and 8.3, CHANGELOG and Doxygen in the same stage, keeping host-tested and measured
 separate. The services guide's "Settling and reopening a route" records the named reuse policy as a contract change:
 its "Client abort queued, handed off or CAN-ACKed" row changes for the setting without a marker, the drain-marker

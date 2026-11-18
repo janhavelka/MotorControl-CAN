@@ -38,7 +38,7 @@ The accepted scope is one library for multiple manufacturers' stepper and servo 
 
 Read `docs/prompts/README.md`, `docs/prompts/COMMON.md`, the active numbered prompt, the applicable reports in `docs/audit/`, and the applicable parent `AGENTS.md` before work. The parent Projects CI policy applies. Local Markdown in this checkout is repository documentation; keep it here.
 
-The concrete shared contracts are [CONVENTIONS.md](docs/prompts/CONVENTIONS.md), [DOCUMENTATION.md](docs/prompts/DOCUMENTATION.md), [MAINTAINABILITY.md](docs/prompts/MAINTAINABILITY.md) and [DELEGATION.md](docs/prompts/DELEGATION.md). Apply them in every stage. Preserve exact source-backed names; distinguish planned CAN additions from existing sibling behavior. Write plain engineering English in code comments, docs, progress and handoffs.
+The concrete shared contracts are [CONVENTIONS.md](docs/prompts/CONVENTIONS.md), [DOCUMENTATION.md](docs/prompts/DOCUMENTATION.md), [MAINTAINABILITY.md](docs/prompts/MAINTAINABILITY.md) and [DELEGATION.md](docs/prompts/DELEGATION.md). Apply them in every stage. The [communication practice](docs/communication_practice.md) holds the rules for health, retries, deadlines, queues, counters, events and recovery (2026-11-18); prompts 55, 56, 68, 73 and 74 cite it. Preserve exact source-backed names; distinguish planned CAN additions from existing sibling behavior. Write plain engineering English in code comments, docs, progress and handoffs.
 
 ## Documentation and delegation
 

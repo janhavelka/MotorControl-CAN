@@ -22,7 +22,7 @@ measurements, diagnostic fixes and the exact remaining motion/fixture gates.
 | Explicit actions | [Drive state/enable](drive_actions.md), [stop](stop_actions.md), [fault/counter clear](fault_reference_actions.md) |
 | Conditional finite motion | [Position and angle](position_parameters.md), [velocity](velocity.md), [homing](homing.md) |
 | Discovery, changes and persistence | [Commissioning](commissioning.md) |
-| CANopen services and application ownership | [Services](canopen_services.md), [owner/capacity/health](can_owner.md), [TWAI adapter](../adapters/twai/README.md) |
+| CANopen services and application ownership | [Services](canopen_services.md), [owner/capacity/health](can_owner.md), [communication practice](communication_practice.md), [TWAI adapter](../adapters/twai/README.md) |
 | Finite host synchronization | [SYNC producer and conditional TPDO1 type](sync.md); Q27/Q28 and RPDO-map gates remain open |
 | Concurrent axes | [Independent/group stop, capacity and storage](multi_axis.md) |
 | Firmware | [Arduino and ESP-IDF](firmware_examples.md), [S2 bench image](../examples/s2_bench/README.md) |

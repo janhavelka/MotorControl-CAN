@@ -43,7 +43,9 @@ uncertainty or verification rules. Read the throughput report, `CanBusOwner.cpp`
 
 1. Measure first (example code only): passes per second, pass time minimum, maximum and histogram, cycles per phase,
    and submit and TX-done timestamps on the bench image; runs: idle, an identity read set, the node 1 position trial, a
-   10 ms TPDO1 watch and a 20 minute read soak. Then correct the documents the report lists (the multi-drive
+   10 ms TPDO1 watch and a 20 minute read soak; each run also records the queue depth and high-water mark of
+   the owner's command, TX, RX and event queues and the RX overflow count (guide rules C11 and C13,
+   [communication practice](../communication_practice.md)), so an overflow is a measured bus fact, not a guess. Then correct the documents the report lists (the multi-drive
    preparation, capacity study, limitations report, overnight soak report and prompt 51's budget).
 2. Owner change "C" from the report: the service scan skips channels with nothing staged, `transmit()` is unchanged,
    and `expire(now)` runs once after the scan before `select()`; every handoff still expires first. The rejected
