@@ -82,7 +82,8 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
   basis):
   - Outcomes:
     - CONFIRMED: a reference of the declared model matches, every other candidate has a reference and none
-      matches.
+      matches. It means unique among the supplied references, not physical proof of the model: an unmeasured
+      product can still match another model's reference.
     - CONTRADICTED: a reference of another candidate matches and none of the declared model does.
     - UNCONFIRMED: everything else, including values shared by the declared model and another candidate, a
       candidate without references, no match and fields that could not be read.
@@ -95,6 +96,10 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
     setting or option overrides it; the application corrects the declaration, candidate set or references
     instead. A model of either set also needs a current outcome before such a download; CL86-C and OL86-C keep
     prompt 57's existing admission (stage 01 register).
+  - Motion rule (this prompt's product-identity refusal, the same for both sets): CONTRADICTED also refuses enable,
+    mode select, every motion preparation and every other changing request on that binding before TX; only the
+    bootstrap identity and state reads remain. No acceptance, guard setting or option overrides it. A differing
+    firmware identity never produces CONTRADICTED.
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
