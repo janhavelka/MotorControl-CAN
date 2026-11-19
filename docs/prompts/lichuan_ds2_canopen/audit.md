@@ -250,3 +250,63 @@ bodies, package and checker sources, workflows and Git state were not supplied, 
 build gates could not be verified. The parent Projects instructions, the full conditional-experiment prerequisites and
 several consumed main-sequence prompts were not supplied. The audit was text-only: no script, build, CI job or hardware
 test ran, and no DS2 fixture capture existed.
+
+## Round 5
+
+A condensed, faithful copy of the fifth reviewer report; dispositions are in
+[audit_application.md](audit_application.md) round 5. Line numbers refer to the files at the audited revision.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-204126-7fc8ca` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~205448 tokens)") |
+| Date | 2026-11-19 20:41:26 (from the ID), 152.6 s, one attempt |
+| Revision | `main` at `09147a84831d9b36c2c21cf875f9980043a1c66a`, no uncommitted changes recorded (the audited hashes equal the committed files) |
+| Cost | Estimated USD 0.40 (0.397068, configured pricing); 155,079 input and 8,691 output tokens (3,083 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-204126-7fc8ca.json` (local) |
+| Location checks | 31 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 19 files of this directory, including rounds 1 to 4 of `audit.md` and
+`audit_application.md` (`README.md` 124 lines, sha256 `db1e04f0...`; `execution_contract.md` 211, `3b7d1f83...`).
+Context: canopen_shared `README.md`, `02_profile_integration_contract.md` (376 lines, at `09147a84`, before
+`2d3bb736`) and `01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, the reference pack `README.md` and
+`review.md`, prompt 57 (219 lines); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The stages implement several earlier resolutions (halt history from transmitted words, separate
+mode-select and enable prerequisites for homing, the narrow NMT Stopped recovery command). The latest shared contract
+adds a timed-run fallback deadline, an owner-level targeted NMT deny before the family's NMT stage and an
+external-writer rule, which the DS2 stages do not consistently carry into admission and acceptance. Evidence intake,
+tooling and independent read-only work can proceed; affected changing routes stay gated. **Verdict:** blocking issues.
+Registration can pass its acceptance without the owner's targeted NMT deny; the motion stages can pass theirs without
+an independent fallback when an urgent stop has not confirmed its effect; stop-row coverage, queued-work invalidation
+and settings restoration need explicit acceptance cases. These are work-order defects, not findings about firmware or
+observed DS2 behavior.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *Timed runs can be admitted without the required fallback stop deadline.* Shared 02 requires a declared independent stop with a caller-supplied fallback deadline, invoked if the urgent stop is refused, misses its dispatch window or has not confirmed its effect by then. DS2 requires the independent stop only until `DS-DEC-3` is accepted; afterwards velocity, torque and homing rely on S3 and the every-state SDO paths alone. Keeping `needsStop` is not a fallback action; S3 cannot confirm a stop, and an early homing interruption can still have an upload pending. Make the declared stop and its deadline prerequisites of all three timed preparations even after `DS-DEC-3`; specify the application action at the deadline; test refusal before changing TX without the fallback, urgent-stop refusal, missed dispatch, unconfirmed effect and early homing interruption with an upload pending; dispatch or acknowledgement never satisfies the fallback condition. | contract 02:147-151; 06:50-52; 06b:53-55; 07:62-66 |
+| F2 | High, verified defect, high | *Registration does not require the owner to deny targeted NMT before stage 09.* S13 now requires the owner entry point to refuse targeted NMT to a non-Lichuan binding until its NMT stage lands. 02b's operative default-deny steps and acceptance check only SYNC and node-0 NMT, so its zero-TX criteria pass without testing direct targeted NMT on a newly admitted DS2 binding. 09 lists only 03 as prerequisite, although its ordinary NMT rows need 04's tested `released` predicate. Make direct targeted NMT denial part of the S2 landing and registration acceptance (through the real owner, zero NMT TX for targeted Start, Stop, Enter Pre-operational and both resets until 09's policy lands); make 04's predicate an explicit prerequisite of the ordinary rows; keep independent observation work, the bootstrap branch and node-0 denial separate. | contract 02:303-306; 02b:34-35, 95-96; 09:4, 28-30 |
+| F3 | High, verified defect, high | *DS2 treats local history as sufficient even where another writer is declared.* Shared 02 allows a declared interface ownership exception and makes dependent evidence unqualified. DS2's halt and trigger rules treat a continuous reservation, acknowledged words and current generations as sufficient, with no exception for another actor writing `6040` or `6060`: an intervening word can invalidate the bit-4 predecessor or leave Halt set while local history says clear. The same applies to live maps and restore baselines. Consume the premise in the affected rules and tests: refuse a trigger without a trustworthy predecessor, use the unknown-halt rule where it admits a stop, do not qualify affected maps or restore baselines; test declaration and revocation without requiring an observed foreign frame; foreign-traffic detection stays optional and silence establishes no exclusivity. | contract 02:102-109; 04:20-23, 105-108; 09:16-18 |
+| F4 | High, probable defect, high | *Changing SDO work is not explicitly retired when identity changes after admission.* Prompt 57 retires every other pending changing step when the outcome changes after a stop was prepared or queued; the stop itself is not withdrawn on identity grounds. DS2 specifies a hand-off recheck for NMT, but its family-wide changing-request test starts from an already foreign server, and position rearm's retirement list omits a contradicting identity update. An implementer checking identity only at preparation could let a queued trigger, rearm, enable or settings write leave after its admission evidence no longer permits it. Add a family-wide rule for pending changing SDO steps at the owner hand-off: retire unsent dependent steps on a contradicting update or invalidation, keep uncertainty for a step already handed off, keep an explicitly requested stop under its non-identity checks; test the race in both orders through the real owner, including a queued trigger or rearm and a queued stop. | prompt 57:108-110; contract:132-134, 145-148; 05:46-48 |
+| F5 | High, probable defect, high | *Stop-table acceptance misses acknowledged partial enables and fresh reports without a covered predecessor.* 04's enumerated predecessors cover final enable, position and homing triggers and uncertain words, not an acknowledged 0x0006 or 0x0007 followed by a failed intermediate report, although 06 keeps a stop obligation in that case and its preflight names only acknowledged 0x000F and uncertain enable words. 04's every-state branch covers unusable reports, not a fresh recognized report with no covered predecessor, so the normal urgent stop is undetermined when the route stays fresh but the history fails the row check. Enumerate reachable acknowledged and uncertain partial-enable states with a stop disposition each; state when the every-state word covers an unmatched predecessor with a fresh report and when the application must use the independent fallback; assert exact stop traffic after acknowledged 0x0006 and 0x0007 with failed progression and on a fresh attachment without trustworthy history, before and after `DS-DEC-3`. | 04:30-32, 71-73; 06:14-16, 41-43 |
+| F6 | High, verified defect, high | *A settings write can make its own restore record stale.* 10 keys the record to the configuration generation of the prior reads and refuses an ordinary restore if that generation is not current, while 08 bumps the configuration generation on settings changes; an ordinary same-session restore of such a change fails its own check with no intervening operation. The record stores the encoder suffix, but neither acceptance nor revalidation requires a suffix match. Keep the snapshot generation and separately record the expected generation and partial-write evidence after the originating operation; define an explicit typed parameter-restore path, distinct from unsupported factory restore, admitting a matching same-session record and refusing unrelated intervening changes and target or suffix mismatches; test same-session restore after a bump, an uncertain partial change and refusal after an unrelated change; use that path or a separately reviewed experiment for Q12. | 08:53-55; 10:43-46, 47-50; 12a:47 |
+| F7 | Medium, verified defect, high | *Torque can change settings before its required snapshot and restore record are delivered.* 10 assigns restore records to settings written by 06b, and the execution contract requires a prior read before every settings write, but 06b's sequence and acceptance write torque limits, slope and the model's speed-limit object without naming the prior reads, the record's publication or the failure behavior of those reads; waiting for 10 would expose the writes without the required evidence. Make the record format a specification before 06b; require 06b to capture prior values and publish the record before exposing the route; define what is captured before the first change and kept on partial or uncertain setup; test a failed prior read with zero changing TX; 10 consumes the records; never a target or enable replay in a restore plan. | contract:90-92; 06b:14-16; 10:42-44 |
+| F8 | Medium, probable defect, high | *Signed target declarations lack a lower wire-range limit.* The positive rules check the quantized value before narrowing, but the negative exceptions refer to a caller-declared range without intersecting it with the signed four-byte wire range, so a declaration or quantization could admit an unrepresentable negative value; tests cover undeclared negatives and the positive boundary only. Validate the quantized target against both the declared range and the reviewed signed wire type before narrowing; bind the declaration to its generations; add exact-frame tests for the signed minimum, one below it and rounding across that edge on the native and common paths, with zero changing TX on rejection. | 05:28-31; 06:21-23; AGENTS.md:60 |
+
+### Unresolved questions (reviewer)
+
+1. Which shared seams and main-sequence artifacts have landed and passed at the execution HEAD, including the S2/S13
+   owner guards, S4/S5 and prompt 57's shared comparison? (The seam inventory and prior dispositions describe earlier
+   revisions; stage 01 must separate verified reusable artifacts from work still blocked or owned elsewhere.)
+2. What model- and firmware-scoped evidence exists for `DS-DEC-2` and `DS-DEC-3`, especially after a trigger or
+   partial enable, and for a quiet mixed-interface attachment? (These decide which stop rows and shared-bus operations
+   can be exposed; synthetic acknowledgements establish neither the drive's reaction nor a safe attachment.)
+
+### Coverage gaps (reviewer)
+
+The rendered DS2 manuals, EDS bodies, product-page snapshots and source manifest were not supplied; device claims were
+compared with the reference review only. The repository index was truncated: owner, SDO, NMT, SYNC, build,
+package-checker and workflow implementations were not supplied, so Git state, seam landings and CI executability could
+not be verified. The parent Projects AGENTS, the communication practice, the conditional-experiment prerequisites and
+several referenced main-sequence prompts were not supplied. No DS2 fixture record or raw capture existed. The audit was
+text-only: no checker, build, CI run or hardware test ran.

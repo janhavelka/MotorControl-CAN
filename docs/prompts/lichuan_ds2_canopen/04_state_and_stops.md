@@ -24,13 +24,18 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    unknown-class 0x010B or the S3 attempt, acknowledged or not) ends it, as do boot-up, NMT reset, an admitted NMT
    command, rebind, bus-off, owner invalidation and the end of the reservation; an acknowledged 0x010B never
    establishes it. Unknown: every other case (attachment without history, an already-enabled drive, first contact,
-   after a bit-8-set word). A clear row sends its reviewed word; an unknown row sends the same word with bit 8 set
+   after a bit-8-set word). The history rests on canopen_shared 02's ownership premise ("Operation admission"): while
+   the application declares an exception for the interface naming an actor that may write `6040` or `6060`, the
+   class is unknown and item 10's predecessor absent; declaring it ends both at once, and withdrawing it requalifies
+   no word sent before the withdrawal. No observed foreign frame is needed, and silence proves no exclusivity. A
+   clear row sends its reviewed word; an unknown row sends the same word with bit 8 set
    (0x010B for `QUICK_STOP`) and the result records the unknown halt state, because setting the CiA 402 halt bit
    cannot start motion. A stop is never refused merely because the halt state is unknown. Every-state stop (same
    bullet): once `DS-DEC-3` (item 7) is accepted, its reviewed word 0x010B is the `QUICK_STOP` row for a resolved
-   route whose report is stale, missing, alarmed, an undocumented pattern or an unknown mode, sent without a fresh
-   report and recording the drive and halt states as unknown; until then those reports refuse `QUICK_STOP` and only
-   the application's independent stop remains. DS2 evidence gives bit 8 no other meaning: the controlword
+   route whose report is stale, missing, alarmed, an undocumented pattern or an unknown mode, or fresh and documented
+   but with a predecessor key that item 6 refuses, sent without relying on the report and recording the drive and
+   halt states as unknown; until then those cases refuse `QUICK_STOP` and only the application's declared
+   independent stop remains (06 item 5). DS2 evidence gives bit 8 no other meaning: the controlword
    tables describe only bits 4 to 6 and the 0/6/7/15 example (DS2C p11-13; the same tables in MINI p13/p15, IBL60
    p12/p14 and ISL60 p15/p16), and `605D` "halt control" names only the drive's reaction to the controlword halt
    command, 0 normal stop or 1 quick stop (DS2C p27, MINI p29, IBL60 p28, IBL80 p28, ISL60 p31, ISL80 p30; DS2EDS
@@ -68,11 +73,16 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    tables do not describe bit 8; item 1's unknown-halt stop word sets it only under the shared rule, which is not a
    halt operation. A zero velocity target is not a stop (06).
 6. Stop predecessors and completion. The only documented arrow starts at 15 in position mode (DS2C p11; the same table
-   in MINI p13, IBL60 p12 and ISL60 p15). `DS-DEC-2` records one row per mode and predecessor it admits, keyed by item
-   10's history (word 0x000B after 15, 31, 95 or 0x001F, and after each uncertain word, in modes 1, 3, 4 and 6), each
-   with its basis (DS2C p11 for 15 in mode 1, project decision otherwise) and the reaction as undocumented. Each row
-   gives its word for both halt classes of item 1 (0x000B when clear, 0x010B when unknown). 06, 06b and 07 refuse a
-   run whose mode has no row (canopen_shared 02 "Operation admission", timed runs). DEC-8 does not transfer. A stop
+   in MINI p13, IBL60 p12 and ISL60 p15). `DS-DEC-2` disposes of every predecessor key of item 10's history in modes
+   1, 3, 4 and 6: an acknowledged 15, 31, 95 or 0x001F; an acknowledged 0x0006 or 0x0007 after which an enable or
+   embedded enable ended (item 3); each uncertain word; and no trustworthy history (attachment, first contact, after
+   boot-up, an NMT command or rebind, item 1's declared external writer) with a fresh documented report. Each key
+   gets either a row for word 0x000B with its basis (DS2C p11 for 15 in mode 1, project decision otherwise) and the
+   reaction as undocumented, or an explicit refusal with its reason. Each row gives its word for both halt classes of
+   item 1 (0x000B when clear, 0x010B when unknown; a key without trustworthy history is always unknown). A refused key
+   is covered only by item 1's every-state stop once `DS-DEC-3` is accepted, otherwise only by the application's
+   declared independent stop. 06, 06b and 07 refuse a run whose mode lacks a row or one of those covers for a key the
+   run may leave (canopen_shared 02 "Operation admission", timed runs). DEC-8 does not transfer. A stop
    ends `ACKNOWLEDGED` or `UNKNOWN`; `OBSERVED` needs a fresh post-stop report the stage names per dialect (DS2C bit
    10 "speed zero"; the IBL60 dialect has no zero-speed bit, so fresh zero `606C` samples are a fixture hypothesis).
    Never enable to prepare a stop. Urgent admission uses `admitUrgent`; an in-flight request settles first.
@@ -108,7 +118,8 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    that word is exactly 0x000F with no later `6040` or `6060` write. Only three transitions establish it: this
    stage's enable sequence ending in an acknowledged 0x000F, 05's `DS-DEC-5` rearm inside its move and 07's explicit
    homing interrupt. A trigger, a stop (`QUICK_STOP` or a best-effort word), an uncertain or aborted `6040` write, an
-   admitted NMT command, boot-up, rebind, bus-off and owner invalidation leave none, and "already enabled" creates
+   admitted NMT command, boot-up, rebind, bus-off, owner invalidation and item 1's declared external writer leave
+   none, and "already enabled" creates
    none: attaching to an enabled drive needs an explicit release and enable first. A move or homing never writes
    0x000F to make one; without one it refuses before TX and says why.
 
@@ -134,12 +145,19 @@ UNSUPPORTED fault clear and halt with no TX, and no replay after a lost reply. T
 acknowledged enable and is absent, with exact owner traffic, after an already-enabled attachment, a trigger, a stop,
 an uncertain or aborted word, an NMT command, boot-up and rebind. Halt-class cases through the real owner:
 `QUICK_STOP` sends 0x000B after an acknowledged bit-8-clear word of the current reservation, also after a later
-uncertain bit-8-clear word, and 0x010B with the unknown halt state recorded on an attachment without trustworthy
-history (an already-enabled drive, first contact, after boot-up, an NMT command and rebind); two successive stops from
-an unknown attachment both send 0x010B, and after a prior clear word a possibly sent S3 0x010B or an acknowledged or
-uncertain 0x010B makes the next stop send 0x010B; no stop is refused for an unknown halt state. A stale, missing or
-alarmed report refuses `QUICK_STOP` with no TX before `DS-DEC-3`'s acceptance and sends 0x010B with the state
-recorded unknown after it. The
+uncertain bit-8-clear word, and, where item 6 admits a row or after `DS-DEC-3`'s acceptance, 0x010B with the unknown
+halt state recorded on an attachment without trustworthy history (an already-enabled drive, first contact, after
+boot-up, an NMT command and rebind); two successive stops from such an attachment both send 0x010B, and after a prior
+clear word a possibly sent S3 0x010B or an acknowledged or uncertain 0x010B makes the next stop send 0x010B; no stop
+is refused for an unknown halt state. A stale, missing or alarmed report refuses `QUICK_STOP` with no TX before
+`DS-DEC-3`'s acceptance and sends 0x010B with the state recorded unknown after it. Item 6's keys, before and after
+that acceptance: after an acknowledged 0x0006 and after an acknowledged 0x0007 whose next report failed (modes 3 and 4
+through the test caller), and on a fresh documented report without trustworthy history, `QUICK_STOP` emits exactly
+the recorded disposition's word, and a refused key sends nothing before the acceptance and 0x010B with the states
+recorded unknown after it. A declared external writer of `6040` or `6060`, with no foreign frame on the bus: declared
+after an acknowledged bit-8-clear 0x000F, the next stop sends 0x010B with the unknown halt state and the trigger
+predecessor is absent (no TX from 05 or 07); after its withdrawal, words sent before it restore neither, and only
+words acknowledged after it count (the predecessor again only through item 10's transitions). The
 best-effort stop returns `INVALID` with no TX before `DS-DEC-3`'s opt-in and sends one 0x010B word after it; a fake
 server accepting either word clears no gate. Lichuan C stop shapes and tests are unchanged. Quick and full verification and required CI on the exact final pushed commit pass.
 Hardware NOT TESTED. Commit, push and hand off before any motion stage exposes a route.

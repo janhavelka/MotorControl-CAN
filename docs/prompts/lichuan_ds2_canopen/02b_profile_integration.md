@@ -35,9 +35,14 @@ application/console changes separately, each tested.
    refuses `armSync` and `admitSync`, and the owner refuses node-0 NMT, on every interface with a DS2 binding, and
    admitting a DS2 binding onto an owner with a running schedule revokes the schedule first and retires a node-0 NMT
    command not yet handed to the controller (S13's hand-off recheck; one already handed off is reported as possibly
-   sent). Test a DS2-only and a mixed interface (zero SYNC and node-0 NMT TX, also when the application arms the
-   producer directly), admission onto an armed schedule (no later SYNC TX) and onto an admitted, unsent node-0
-   command (zero NMT TX); Lichuan-only interfaces keep their behavior. If another family landed
+   sent). The owner also refuses, at its own entry point and not only in the console, every targeted NMT command to a
+   DS2 binding (Start, Stop, Enter Pre-operational, Reset Node, Reset Communication) until 09 lands that command's
+   row with its tests (S13 bullet); 09's bootstrap row is one of them, not an exception here. Test a DS2-only and a
+   mixed interface (zero SYNC and node-0 NMT TX, also when the application arms the producer directly), each of the
+   five targeted commands to a DS2 binding through the real owner's own entry point, not the console (zero NMT TX,
+   also to a node with a fresh Stopped heartbeat), admission onto an armed schedule (no later SYNC TX) and onto an
+   admitted, unsent node-0 command (zero NMT TX); Lichuan bindings keep their targeted NMT and Lichuan-only
+   interfaces their behavior. If another family landed
    it, add these DS2 cases; if S2 landed without it, no DS2 binding is admitted until it lands.
 4. Probe. `prepareProbe` performs one explicit upload of `1000:00` through the real owner and `SdoClient`. It proves a
    responding CANopen server only, never DS2, model or firmware. Before it runs, this stage adds the probe's
@@ -92,8 +97,9 @@ The probe runs through the real owner, `SdoClient` and fake server in API tests,
 frames once S4 has landed (otherwise the console items are BLOCKED and the stage is PARTIAL). The probe refuses with
 no TX while its read-effect row is absent. No identity-dependent write or motion route is callable at this stage; 03
 lands the identity refusal tests before 04 exposes one. Foreign-profile refusals send nothing in both directions.
-`admitBestEffortStop` returns `INVALID` with no TX for every DS2 binding before 04 opts in its shape, and SYNC and
-node-0 NMT are refused with no TX on every interface with a DS2 binding. JSONL records follow S6: `lichuan_ds2` only
+`admitBestEffortStop` returns `INVALID` with no TX for every DS2 binding before 04 opts in its shape, SYNC and
+node-0 NMT are refused with no TX on every interface with a DS2 binding, and the owner refuses each targeted NMT
+command to a DS2 binding with zero NMT TX until 09 lands its row. JSONL records follow S6: `lichuan_ds2` only
 on records that target or were admitted for a DS2 binding, `null` without a resolved target, and Lichuan C targeted
 records otherwise unchanged. All consumers build in C++11 with no catalogue dependency. Checker negative tests still
 fail as intended. `python scripts/verify.py --mode quick` and `--mode full`, the Arduino and IDF firmware gates of the

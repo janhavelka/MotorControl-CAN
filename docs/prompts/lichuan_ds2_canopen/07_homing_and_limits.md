@@ -63,7 +63,10 @@ prose.
    reply on an unresolved route: the binding's S3 shape opted in under `DS-DEC-3` (04 item 7) or an
    application-declared independent stop named in the result, and on a resolved route whose report is stale, missing
    or alarmed at the interruption time: 04 item 1's every-state stop once `DS-DEC-3` is accepted, otherwise the
-   declared stop (06 item 5). Bit 4 falling (word 0x000F, DS2C p13 "interrupt homing")
+   declared stop (06 item 5). The declared stop's fallback deadline, invocation rule and optionality are 06 item
+   5's; an early interruption by the travel bound while an observation upload is still pending (capped only at the
+   latest interruption time) is one of the cases in which the application invokes it by its fallback deadline.
+   Bit 4 falling (word 0x000F, DS2C p13 "interrupt homing")
    is a separate native interrupt: offer it as an acknowledged-only homing interrupt, never as a stop and never as
    either stop path above, because its effect on motion is undocumented. It is admitted only in mode 6 when the latest
    acknowledged word is this binding's 0x001F; its acknowledged 0x000F is the predecessor of a later trigger (04 item
@@ -86,7 +89,8 @@ without a mode-6 `DS-DEC-2` row or without either stop path, the timed-run cases
 latest interruption time in the duration's place (an interruption time that no longer fits with the stop budget,
 an observation in flight near it, service resuming after it), a lost trigger reply with each admitted stop path (the
 interrupt never counted as one), a stale, missing or alarmed report at the interruption time on a resolved route
-(06's cases), `6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
+(06's cases), 06's fallback-deadline cases plus an early travel-bound interruption while an observation upload is
+pending (the declared-stop hook invoked by its fallback deadline, `needsStop` kept), `6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
 without `DS-DEC-1`, timeout with a stop obligation and no re-trigger, interruption by bit 4 falling and by an explicit stop, reference publication only after fresh evidence,
 a trigger refused with no TX without 04's predecessor (an already-enabled attachment, a second homing before the
 interrupt, an uncertain trigger, a stop, a reset or a rebind) and admitted after the interrupt's acknowledged 0x000F,

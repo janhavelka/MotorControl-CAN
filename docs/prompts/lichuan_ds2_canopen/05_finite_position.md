@@ -27,7 +27,10 @@ decides completion evidence per dialect. MULTIDRIVE rows 9, 10, 33, 34, 52 and 6
    where both readings give the same wire meaning: 0..2147483647. The printed endpoint 2147483648 is 0x80000000,
    negative under I32, and rejects. Validate the exact quantized native value before narrowing it to the wire; a value
    outside 0..2147483647 rejects before TX, unless it is negative and a caller declaration states that signed
-   targets, in a range the declaration names (never above 2147483647), are qualified for this binding. Absolute moves
+   targets, in a range the declaration names, are qualified for this binding. That range must lie within
+   -2147483647..2147483647, the printed range (DS2C p10) intersected with the I32 wire range, so 0x80000000 stays
+   excluded under both readings; a wider declaration is refused, and the exact quantized value is checked against the
+   declared range before narrowing. Absolute moves
    to smaller nonnegative targets and nonnegative relative displacements in range need no declaration. Record that an
    unqualified U32 reading of a negative word is a move of about 4.29e9 pul.
 5. Sequence (DS2C p11). Preconditions: 04's `enabled` predicate in mode 1 on a fresh report, no other operation on
@@ -44,7 +47,8 @@ decides completion evidence per dialect. MULTIDRIVE rows 9, 10, 33, 34, 52 and 6
    operation and the same binding, node and configuration generations, after that trigger's acknowledgement (fresh
    rising bit 12 in `DS2C_TABLE`, the trigger's SDO confirmation in `IBL60_TABLE`) or its completion evidence, and only
    while no stop is admitted for the axis. Stop admission, cancel, deadline expiry, a timeout or lost reply on the
-   trigger, boot-up, reset, rebind and invalidation retire a pending rearm; word 15 is never appended as cleanup of a
+   trigger, boot-up, reset, rebind, invalidation and an identity outcome change after admission (the execution
+   contract's identity rule) retire a pending rearm; word 15 is never appended as cleanup of a
    terminal. A rearm's acknowledged 15 is the next move's predecessor. A move never writes 15 to make one: after a
    trigger whose rearm was retired, the next move refuses before TX until 04's enable (after an explicit release)
    establishes it.
@@ -72,12 +76,13 @@ coverage, operation map, `docs/position_parameters.md` and `docs/speed_units.md`
 
 Tests cover exact quantization at range edges (2147483647 accepted, 2147483648 rejected, rounding across that boundary
 on the native and common paths, zero changing TX on every rejection), negative native targets rejected without
-declaration, smaller nonnegative absolute targets accepted, each ramp policy and an undeclared ramp request rejected,
+declaration, with a signed declaration -2147483647 accepted and -2147483648 rejected, rounding across that edge on
+the native and common paths and a declaration naming a wider range refused (zero changing TX), smaller nonnegative absolute targets accepted, each ramp policy and an undeclared ramp request rejected,
 scale invalidation on a changed `6091`, the write and trigger order, a lost trigger with no re-trigger, stale bits 12
 and 15, both dialects' completion rules, completion `NOT_OBSERVED` with no repeated upload when `DS-DEC-1` is absent
 and the bounded observation budget when it exists, a stop during the move and a retained terminal. Rearm cases assert
-exact owner traffic: a stop racing a pending rearm, an unknown trigger outcome, cancel and expiry each send no word
-15. A trigger is refused with no TX without 04's predecessor: an already-enabled attachment, a move after a retired
+exact owner traffic: a stop racing a pending rearm, an unknown trigger outcome, cancel, expiry and an identity read
+turning CONTRADICTED before the rearm's hand-off each send no word 15. A trigger is refused with no TX without 04's predecessor: an already-enabled attachment, a move after a retired
 rearm, after an uncertain trigger or rearm, after a stop, a reset or a rebind; after a completed rearm the next move
 is admitted. No hidden restoration or replay can restart motion. Quick and full verification and required CI on the
 exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off with the declarations listed.

@@ -19,7 +19,10 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    the mode table (DS2C p12), a signed range with type U32 in DS2OP p6, IBL60 p13 and ISL80 p14, and I32 default 120
    in DS2EDS. As for `607A` (05), the unqualified range is 0..2147483647, checked on the exact quantized value before
    narrowing; 2147483648 rejects. A negative `60FF` encoding rejects before TX unless a caller declaration states
-   signed velocity, in a range it names, is qualified for the binding; `607E` polarity has no documented bit meaning
+   signed velocity, in a range it names, is qualified for the binding. That range must lie within
+   -2147483647..2147483647, the printed signed range (DS2OP p6, IBL60 p13, ISL80 p14) intersected with the I32 wire
+   range, so 0x80000000 stays excluded under both readings; a wider declaration is refused, and the exact quantized
+   value is checked against the declared range before narrowing. `607E` polarity has no documented bit meaning
    (DS2C p28) and `P02-02` direction is unreachable, so neither provides reverse motion.
 3. Units. `60FF` is pul/s in the manual; DS2EDS default 120 and the p11 figure leave it unqualified (DS-D16). Use 05's
    rate-unit declaration; without it only the native-value path exists. `VelocityError::RATE_BASIS` is documented as
@@ -38,18 +41,29 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    context issues no further work and the application composes 04's `QUICK_STOP` as its separate urgent stop with
    its own deadline, which the run's deadline, identity outcome and a missing acknowledgement never bar. DS2 adds:
    no velocity-mode stop is documented (the only stop arrow is in the position-mode table, DS2C p11), so the run is
-   refused before its first changing TX, mode select included, unless `DS-DEC-2` (04 item 6) has a mode-3 row for
-   every state the run may leave (an acknowledged 0x000F and each uncertain enable word, in both halt classes of 04
-   item 1); neither a valid encoding nor a fake server accepting 0x000B clears that gate. A stop row is not a
+   refused before its first changing TX, mode select included, unless `DS-DEC-2` (04 item 6) covers in mode 3 every
+   key the run may leave (an acknowledged 0x0006, 0x0007 or 0x000F, each uncertain enable word, in both halt classes
+   of 04 item 1), by a row or by a refusal that one of the stop paths below covers; neither a valid encoding nor a
+   fake server accepting 0x000B clears that gate. A stop row is not a
    stop path (same bullet): after a lost start reply the route stays unresolved (S10 `NONE`), so admission also
    needs a stop that can still leave then, either the binding's S3 shape opted in by 04 item 7 under `DS-DEC-3` or an
    independent stop the application declares for the run (its own enable, STO or power path), named in the
    preparation's result. The stop path must also hold on a resolved route whose report is stale, missing or alarmed
    at stop due (same bullet), where 04's ordinary `QUICK_STOP` rows refuse: 04 item 1's every-state stop covers it
    once `DS-DEC-3` is accepted, otherwise the declared independent stop is needed. Without a path for both route
-   states the run is refused before its first changing TX, mode select included. Until `DS-DEC-3` is accepted
-   `admitBestEffortStop` returns `INVALID` with no TX and the every-state stop is unavailable, so every DS2 run needs
-   the declared independent stop. A dispatched stop is never standstill evidence. `needsStop`
+   states the run is refused before its first changing TX, mode select included. Until `DS-DEC-3` is accepted and
+   04 item 7 has opted in the binding's shape, `admitBestEffortStop` returns `INVALID` with no TX and the every-state
+   stop is unavailable, so every DS2 run needs the declared independent stop with a caller-supplied fallback deadline
+   (same bullet), and preparation refuses before its first changing TX without both. The application invokes that
+   stop when the urgent stop is not admitted at stop due, misses its dispatch window, or leaves the stop effect
+   unconfirmed at the fallback deadline; admission, TX or an acknowledgement of `QUICK_STOP` never retire that need.
+   Where 04 item 6 names no post-stop evidence for the dialect (the `IBL60_TABLE` dialect has none), the effect stays
+   unconfirmed, so such a run that reaches stop due ends with the declared stop invoked by its fallback deadline. The
+   result names the declared stop and its deadline; the application records when it invoked it. Once `DS-DEC-3` is
+   accepted and the shape opted in, those two reviewed paths cover both route states and a declared stop is optional
+   (same bullet, as revised in `2d3bb736`): `needsStop` and the execution uncertainty stay in the result, and a
+   declared stop, when present, keeps its fallback deadline and the same invocation rule. A dispatched stop is never
+   standstill evidence. `needsStop`
    survives cancellation, failure, recovery, a lost start reply and acknowledgement-only completion while any enable
    word may have left; the result says whether a stop was never or possibly transmitted and never reports success
    while the drive may still run. Changing `60FF` while enabled is undocumented: a zero target is neither a stop nor
@@ -81,20 +95,29 @@ map, Doxygen, CHANGELOG; the `RATE_BASIS` core review recorded in the report (la
 
 Tests cover refusal from every report 04's `released` predicate rejects, the target-then-enable order, exact enable
 traffic from every admitted starting report, no 0x000F after a missing, stale, alarmed or unexpected intermediate
-report or an uncertain intermediate word (stop obligation kept), the range edges
-2147483647 and 2147483648 and negative targets rejected without a declaration (zero changing TX), undeclared units and
-ramps, a lost enable word with retained stop obligation, and the timed-run cases of canopen_shared 02 through the real
+report or an uncertain intermediate word (stop obligation kept), after an acknowledged 0x0006 or 0x0007 with failed
+progression the exact stop traffic of 04's recorded disposition before and after `DS-DEC-3`'s acceptance, the range
+edges 2147483647 and 2147483648 and negative targets rejected without a declaration (zero changing TX), with a signed
+declaration -2147483647 accepted and -2147483648 rejected (zero changing TX), rounding across that edge on the native
+and common paths and a declaration naming a wider range refused, undeclared units and ramps, a lost enable word with retained stop obligation, and the timed-run cases of canopen_shared 02 through the real
 owner: a duration that no longer fits with the stop budget (refused at preparation), setup delay reaching stop due (no
 enable word), an observation in flight near stop due (its deadline ends there), `now` equal to stop due (no run
 transfer, the urgent stop composed), a lost start reply (`needsStop` kept), service resuming after stop due (no run
 work, the separate stop still composed) and a queue-pressured stop. Also a run refused with zero TX while `DS-DEC-2`
 has no mode-3 row, a run with valid `DS-DEC-2` rows but neither stop path refused with
-zero changing TX (mode select included), and a lost start reply on an unresolved route for each admitted path: with a
+zero changing TX (mode select included), before `DS-DEC-3`'s acceptance a declared stop without a fallback deadline
+refused the same way, and a lost start reply on an unresolved route for each admitted path: with a
 declared independent stop the result names it and no best-effort TX occurs before 04's opt-in; after the opt-in
 `admitBestEffortStop` sends exactly one word; `needsStop` is kept and no result claims standstill. An acknowledged
 start followed at stop due by a stale or missing report and by a fresh alarmed report on a resolved route: before
 `DS-DEC-3`'s acceptance `QUICK_STOP` refuses with no TX and the result names the declared independent stop; after it
-`QUICK_STOP` sends 0x010B with the state recorded unknown; `needsStop` is kept and dispatch infers no standstill. Also
+`QUICK_STOP` sends 0x010B with the state recorded unknown; `needsStop` is kept and dispatch infers no standstill.
+Fallback tests at the service level, through the example application with a recording declared-stop hook and a fake
+clock: the urgent stop not admitted at stop due, admitted but not dispatched in its window under queue pressure, and
+acknowledged with no confirming report at the fallback deadline (also in the `IBL60_TABLE` dialect); each asserts the
+hook invoked by the fallback deadline, no cancellation by admission, TX or acknowledgement, and `needsStop` kept. After
+the acceptance and opt-in, a run without a declared stop is admitted with `needsStop` and its uncertainty in the
+result, and a declared one is still invoked under the same rule. Also
 a lost stop, a priority stop from another producer, deadline cutoff `now >= deadlineUs`, cancel that is not a stop and
 no repeat of any start. Tests drive the production sequence through the owner and fake server. Quick and full
 verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED; never substitute an unbounded

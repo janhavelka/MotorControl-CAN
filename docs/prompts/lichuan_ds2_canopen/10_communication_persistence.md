@@ -41,31 +41,43 @@ UNSUPPORTED results; the one write path is `1017`.
    (DS2OP p5-7, ISLMP). The library never runs, wraps or emulates it.
 9. Restore records. Settings written by 06b, 08 and this stage leave restore records in the shape of
    [prompt 57](../57_regular_drive_operations.md)'s configuration restore, keyed by physical interface, node,
-   resolved profile, declared model and encoder suffix, and the binding, session and configuration generations and
-   identity outcome under which the prior values were read. An ordinary restore refuses before TX a record whose
-   interface, node, profile or model differs from the current binding or whose generations are not current. A
-   restore planned across a restart or rebind (12a Q12) is a separate explicit intent naming the record, admitted
-   only after revalidation: the same interface, node, profile and declared model, a fresh identity outcome the
-   execution contract's table admits for changing requests, both firmware identities reported (prompt 57) and a
-   fresh read of each object before its write. A restore is its
+   resolved profile, declared model and encoder suffix. Each record holds the binding, session and configuration
+   generations and identity outcome under which the prior values were read, the generations the originating
+   operation left at its end (its own configuration bump included, 08 item 10), and each write as confirmed or
+   uncertain with its prior value. This stage consumes the records 06b and 08 publish and adds the ordinary restore:
+   an explicit typed record-restore preparation, named under CONVENTIONS and distinct from the UNSUPPORTED
+   `prepareFactoryRestore` (item 5). It refuses before TX a record whose interface, node, profile, model or encoder
+   suffix differs from the current binding, or when the current generations differ from those the originating
+   operation left (an unrelated change intervened); otherwise it writes the prior value of each confirmed and
+   uncertain write, with readback. A restore planned across a restart or rebind (12a Q12) is a separate explicit
+   intent naming the record, admitted only after revalidation: the same interface, node, profile, declared model and
+   encoder suffix, a fresh identity outcome the execution contract's table admits for changing requests, both
+   firmware identities reported (prompt 57) and a fresh read of each object before its write. Records rest on
+   canopen_shared 02's ownership premise ("Operation admission"): while the application declares an exception naming
+   an actor that may write the recorded objects (another master, a configuration tool, the vendor debug software of
+   item 8), the prior values are no qualified baseline, so the ordinary restore refuses before TX and only the planned
+   restore, with its fresh reads, remains, its result naming the baseline unqualified. A restore is its
    own intent with uncertain effects and never replays a motion or enable word. The node, bitrate, PDO-map and save
    mechanics that [prompt 61](../61_drive_configuration.md) adds for Lichuan C are per-profile; DS2 refuses each of
    them before any work until DS2 evidence exists (MULTIDRIVE row 61).
 
 ## Deliver
 
-`Communication.h`/`Communication.cpp` with `CommunicationContext` for `1017` and explicit UNSUPPORTED preparations
-for node, bitrate, COB-ID, save and restore; `test/lichuan_ds2_communication_test.cpp` and
+`Communication.h`/`Communication.cpp` with `CommunicationContext` for `1017`, item 9's record restore and explicit
+UNSUPPORTED preparations for node, bitrate, COB-ID, save and factory restore; `test/lichuan_ds2_communication_test.cpp` and
 `test/lichuan_ds2_persistence_test.cpp`; owner-backed `ds2 communication heartbeat <ms>` and refused routes with
 reasons; `docs/commissioning.md` DS2 section, coverage, operation map, Doxygen and CHANGELOG.
 
 ## Acceptance
 
 Tests cover the `1017` prior read, write, readback and restore record, a lost write keeping execution unknown with no
-retry, freshness invalidation, and UNSUPPORTED results without TX for node, bitrate, COB-ID, save and restore. Restore
-records: a record refused with no TX on a binding with the same node and profile on another interface, after a
-rebind and after a restart until the planned restore's revalidation, and a partially applied 08 settings write whose
-record lists its confirmed and uncertain writes with their prior values. No DS2
+retry, freshness invalidation, and UNSUPPORTED results without TX for node, bitrate, COB-ID, save and factory
+restore. Restore records: a same-session restore admitted after the originating write's own generation bump, a
+restore of a partially applied 08 settings write whose record lists its confirmed and uncertain writes with their
+prior values, and a record refused with no TX after an unrelated intervening settings change, with another encoder
+suffix, on a binding with the same node and profile on another interface, after a rebind, after a restart until the
+planned restore's revalidation, and while a declared external writer of the recorded objects makes the baseline
+unqualified (no foreign frame needed). No DS2
 test or route writes `1010`, `1011` or any `2xxx` object; 06b's IBL `2406h` write stays withheld until its evidence exists. Quick and full verification and required CI on the exact
 final pushed commit pass. Restart-dependent facts need a DS2 fixture with restart control; hardware NOT TESTED.
 Commit, push and hand off.

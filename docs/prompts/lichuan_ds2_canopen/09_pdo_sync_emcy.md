@@ -1,7 +1,9 @@
 # 09 — PDO, SYNC, EMCY and heartbeat observation
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs after 03. DS-D06, DS-D07, DS-D19 and DS-D32 belong here. MULTIDRIVE rows 15, 16, 17, 18 and
+Status: NOT STARTED. Runs after 03; item 5's ordinary targeted NMT rows also need 04's tested `released` predicate
+and keep 02b's owner deny without it, while the observation items and the bootstrap row do not wait for 04. DS-D06,
+DS-D07, DS-D19 and DS-D32 belong here. MULTIDRIVE rows 15, 16, 17, 18 and
 51 apply, and backlog D11 (delayed same-ID samples) applies to every reused route. Observation only: no remap and no
 RPDO.
 
@@ -15,7 +17,11 @@ RPDO.
    `607A`/`6081` (l.606-626), TPDO1 `6041`/`60FD`/`6061` (l.995-1024) and TPDO2 `6064`/`606C` (l.1047-1067), with event
    timers 1000 and 100 ms (l.359, l.800) and RW COB-IDs. Assume neither. `preparePdoRead` reads the live
    communication and mapping records `1400`-`1403`, `1600`-`1603`, `1800`-`1803`, `1A00`-`1A03` through
-   `pdoMapFromReadback`; a TPDO is decoded only by a confirmed live map with a host generation.
+   `pdoMapFromReadback`; a TPDO is decoded only by a confirmed live map with a host generation. The map is qualified
+   only under canopen_shared 02's ownership premise ("Operation admission"): while the application declares an
+   exception for the interface naming an actor that may change PDO communication or mapping records (another master,
+   a configuration tool), the readback stays raw, the samples it would decode stay unqualified and S13 refuses what
+   depends on them; after the withdrawal only a fresh readback qualifies a map. No observed foreign frame is needed.
 3. Reused routes. A confirmed map and a new host generation do not qualify a delayed same-ID, same-length sample
    (backlog D11). Require an evidenced transition or retirement boundary, a distinct verified route or an observable
    marker; keep ambiguous samples unqualified without invalidating unrelated traffic.
@@ -30,7 +36,9 @@ RPDO.
    predicate accepts and with no pending operation on the binding. The one exception is the table's bootstrap row
    (prompt 57 "Admission by outcome"): a targeted Enter Pre-operational to a node whose fresh heartbeat (item 6)
    reports Stopped, admitted under every outcome except CONTRADICTED without a `released` report; DS2 adds no node
-   guarding for it. Node-0 commands are refused by S13's default deny (item 7). The owner admits an NMT command
+   guarding for it. Node-0 commands are refused by S13's default deny (item 7). 02b's owner deny refuses each
+   targeted command until this item lands its row with the tests below; it is replaced row by row, never wholesale,
+   and an ordinary row lands only with 04's tested `released` predicate. The owner admits an NMT command
    without TX and sends it in a later service step (`CanBusOwner::admitNmt`), so the row's conditions and the identity
    outcome are rechecked at hand-off to the controller (canopen_shared 02 S13): a rebind, a conflicting operation
    admitted on the binding (a `1017` or settings write in flight included) or evidence gone stale (the `released`
@@ -84,7 +92,9 @@ CHANGELOG.
 ## Acceptance
 
 Tests cover both default-map claims as fake-server variants with decoding only from the live readback, a delayed
-same-ID sample left unqualified, no RPDO frame ever emitted, refused remap and SYNC with no TX, EMCY routed on a live
+same-ID sample left unqualified, a declared PDO-configuring actor leaving a confirmed map and its samples unqualified
+with an unchanged readback and no foreign frame (requalified only by a fresh readback after the withdrawal), a
+command whose row has not landed still refused by 02b's owner deny with zero NMT TX, no RPDO frame ever emitted, refused remap and SYNC with no TX, EMCY routed on a live
 1014 value and an EMCY overflow counted, a boot-up invalidating dependent work, and NMT commands sent only on explicit
 request. Each targeted NMT command sends zero NMT TX on CONTRADICTED, unmatched, unread-field, no-outcome and stale
 bindings, while the drive reports enabled, while a position, velocity, torque, homing, enable or settings operation is

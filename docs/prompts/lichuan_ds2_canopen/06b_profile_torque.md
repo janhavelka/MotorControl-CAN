@@ -44,16 +44,23 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
    list `607F`, but their torque sections name `2406h`; do not write `607F` as an IBL torque limit.
 5. Required caller inputs. Target torque, maximum torque, slope, speed limit and a positive finite `durationUs` are
    all explicit; no manual or EDS default is written and no field is left at an unread value. Zero torque is a
-   setting, not a run.
+   setting, not a run. Before its first changing TX, mode select included, the operation reads the current `6072`,
+   `6087` and the model's speed-limit object once each (the settings it writes; the execution contract's settings
+   rule) and publishes a restore record for them keyed as 10 item 9 states; whichever of this stage and 08 lands
+   first delivers that record type, and 10 consumes it and adds the restore path. A failed, aborted or timed-out
+   prior read refuses the operation with zero changing TX. After a partial or uncertain setup the record lists each
+   confirmed and uncertain write with its prior value. `6071` is a target: neither it nor a mode, enable or trigger
+   word ever enters a record, so no restore can replay a start.
 6. Run and stop. As 06 item 5 (canopen_shared 02 timed-runs bullet): the duration runs from successful preparation,
    the stop budget is checked there, every transfer of the run ends by stop due, and at stop due the application
    composes 04's `QUICK_STOP` as its separate urgent stop. No torque-mode stop is documented, so the run is refused
-   before its first changing TX, mode select included, unless `DS-DEC-2` has a mode-4 row for every state the run may
-   leave (both halt classes, 04 item 1) and one of 06 item 5's stop paths exists for an unresolved route after a lost
-   start reply: the binding's S3 shape opted in under `DS-DEC-3` or an application-declared independent stop named in
-   the result (canopen_shared 02 timed runs), and on a resolved route whose report is stale, missing or alarmed at
-   stop due: 04 item 1's every-state stop once `DS-DEC-3` is accepted, otherwise the declared stop. Torque on a free
-   shaft accelerates until the speed limit acts, and
+   before its first changing TX, mode select included, unless `DS-DEC-2` covers in mode 4 every key the run may leave
+   as 06 item 5 lists them (both halt classes, 04 item 1) and one of 06 item 5's stop paths exists for an unresolved
+   route after a lost start reply: the binding's S3 shape opted in under `DS-DEC-3` or an application-declared
+   independent stop named in the result (canopen_shared 02 timed runs), and on a resolved route whose report is
+   stale, missing or alarmed at stop due: 04 item 1's every-state stop once `DS-DEC-3` is accepted, otherwise the
+   declared stop. The declared stop's fallback deadline, its invocation rule and its optionality once `DS-DEC-3` is
+   accepted and the shape opted in are 06 item 5's. Torque on a free shaft accelerates until the speed limit acts, and
    whether either limit object actually clamps is unqualified: the API documentation states this, and 12a qualifies it
    before any physical claim. Lost enable or stop words keep `UNKNOWN` execution and a stop obligation; nothing is
    repeated; local cancel is not a stop; host loss produces no documented drive action (DS-D32).
@@ -70,7 +77,8 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
 ## Deliver
 
 `Torque.h`/`Torque.cpp` with `TorqueContext`; `test/lichuan_ds2_torque_test.cpp` covering both speed-limit objects;
-owner-backed `ds2 torque` with API/CLI parity; ledger `write_policy` for `6071`, `6072`, `6087`, `607F` (per scope)
+owner-backed `ds2 torque` with API/CLI parity; item 5's restore records; ledger `write_policy` for `6071`, `6072`,
+`6087`, `607F` (per scope)
 and `2406h` (withheld), and the coverage rows naming the models the torque operation admits today (ISL only, pending
 02's confirmation) and the evidence each withheld model needs;
 a DS2 torque section in the coverage file and the API guide, Doxygen with units and limits, CHANGELOG and the backlog
@@ -82,11 +90,14 @@ Tests cover each model's speed-limit object: zero changing TX (mode select inclu
 `607F` width is unresolved and for IBL while the `2406h` write is withheld, also with a readable `2406h` and an
 otherwise admissible outcome; the exact four-byte `607F` download for ISL; `2406h` refused outside IBL; CONTRADICTED
 (another group's pair and 0x1000/0x0001) and no current outcome refusing the whole operation;
-range and sign checks for every field, missing caller inputs rejected before TX, target-then-enable order,
-06's embedded-enable cases in mode 4 (no 0x000F after an unexpected intermediate report or an uncertain word),
-the timed-run cases of 06, a run refused with zero TX while `DS-DEC-2` has no mode-4 row, valid mode-4 rows with
-neither stop path refused with zero changing TX (mode select included), a lost start reply with each admitted stop
-path and a stale, missing or alarmed report at stop due on a resolved route (06's cases), lost enable and lost stop,
+range and sign checks for every field, missing caller inputs rejected before TX, the prior reads of item 5 before
+the first changing TX with a failed prior read refused with zero changing TX and the record of a partial or uncertain
+setup (confirmed and uncertain writes with prior values, no target, mode or enable word), target-then-enable order,
+06's embedded-enable cases in mode 4 (no 0x000F after an unexpected intermediate report or an uncertain word; the
+stop traffic after an acknowledged 0x0006 or 0x0007), the timed-run cases of 06, a run refused with zero TX while
+`DS-DEC-2` has no mode-4 row, valid mode-4 rows with neither stop path refused with zero changing TX (mode select
+included), a lost start reply with each admitted stop path and a stale, missing or alarmed report at stop due on a
+resolved route (06's cases), 06's fallback-deadline cases, lost enable and lost stop,
 a priority stop, deadline cutoff and no replay. Lichuan C behavior and
 the common headers' meanings are
 unchanged. Quick and full verification and required CI on the exact

@@ -134,6 +134,18 @@ DS2 binding on a foreign fake server (0x1000/0x0001): zero changing TX, while 04
 the contradicted identity in its result (0x010B with the unknown halt state recorded unless 04 item 1's halt class
 is clear: an acknowledged bit-8-clear word of the reservation with no later possibly sent bit-8-set word).
 
+The outcome governs each changing step until it is handed to the controller, not only its preparation (prompt 57's
+motion rule). A contradicting identity read, or an invalidator of canopen_shared 02 that clears the outcome, after
+a changing step was admitted retires every unsent changing step on the binding (a queued trigger, rearm, enable
+word, mode select, settings write or NMT command): the context yields none, and the application cancels each one the
+owner holds that `CanBusOwner::mayHaveTransmitted` reports unsent (`CanBusOwner::cancel`). A step that may have been
+transmitted is reported possibly sent with `UNKNOWN` execution, never recalled or repeated. An explicitly requested
+stop prepared or queued before the change is not withdrawn on identity grounds (prompt 57's stop exemption) and
+still passes its own route, binding-generation and source-state checks. Every stage with a changing request tests
+both orders through the real owner: the change before the hand-off of a queued trigger or rearm (05, 07), enable word
+(04, 06, 06b) or settings write (06b, 08, 10) sends no further changing frame, also with a stop queued beside it,
+which still leaves; the change after the hand-off reports that step possibly sent.
+
 A collision that includes the declared model admits by the declaration (prompt 57 "Admission by outcome"; lead
 decision of 2026-11-19, [audit application](audit_application.md) round 2). The colliding siblings can differ: IBL60
 and IBL80 share the IBLEDS pair but use different status dialects, and the DS2EDS/ISLEDS pair spans both dialects
@@ -143,9 +155,10 @@ nothing is decoded with a sibling's tables. 03 tests sibling servers under each 
 Targeted NMT commands (09) are changing requests in the table above and never the stop exemption, with one
 exception: prompt 57's bootstrap command (Identity policy, "Admission by outcome"), the Enter Pre-operational row
 below. DS2 documents no NMT effect on the drive (DS-D32), so each also needs the condition below before TX; a command
-without a row stays refused. The identity outcome and the condition are rechecked at hand-off to the controller
-(canopen_shared 02 S13; 09 item 5): a binding change, a conflicting operation or stale evidence retires a
-not-yet-sent command.
+without a row stays refused; until 09 lands a command's row, the owner refuses that command to a DS2 binding at its
+own entry point (S13 default deny, 02b item 3). The identity outcome and the condition are rechecked at hand-off to
+the controller (canopen_shared 02 S13; 09 item 5): a binding change, a conflicting operation or stale evidence
+retires a not-yet-sent command.
 
 | NMT command to a DS2 node | Condition before TX, beyond the identity table | Effect to record |
 | --- | --- | --- |
@@ -165,7 +178,8 @@ not-yet-sent command.
   only for reviewed effects on every declared node, so DS2's unknown effects refuse both (11). Until then each
   family has its own interface. S13's default deny lands earlier, in the S2 commit (02b): from DS2's first binding
   prompt 51's producer refuses SYNC and the owner refuses node-0 NMT on every interface with a DS2 binding, a
-  DS2-only one included, and a schedule running when a DS2 binding is admitted is revoked first (09).
+  DS2-only one included, and targeted NMT to a DS2 binding until 09 lands each command's row; a schedule running
+  when a DS2 binding is admitted is revoked first (09).
 - No implicit enable, mode change, homing, fault clear, NMT command, PDO or heartbeat change or parameter write on
   startup, selection, probe, recovery or cached reads. Never enable to prepare a stop. Release, stop, NMT stop, cancel
   and recovery stay distinct. Write preflight, the one operation deadline and the source-state table follow
