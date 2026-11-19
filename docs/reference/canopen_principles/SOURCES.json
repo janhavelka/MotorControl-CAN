@@ -1,0 +1,527 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-11-19",
+  "timezone": "Europe/Prague",
+  "purpose": "Free, citable restatements of CANopen (CiA 301/305/306) and CiA 402 principles shared by every CANopen family promptset; no normative text and no device evidence",
+  "sources": [
+    {
+      "id": "CIAOV",
+      "title": "CiA: CANopen CC - the standardized embedded network (overview)",
+      "path": "vendor/cia_canopen_cc_overview.html",
+      "url": "https://www.can-cia.org/can-knowledge/canopen",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 73798,
+      "sha256": "b8b397d8f644c71e7f0ae3ae0756936e8c81bd061db356ed1b1f1b5227ac8e07",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text",
+        "CiA 301 version 4.2.0 listed as PAS, 2011-02-21, login required"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIANMT",
+      "title": "CiA: Network management (NMT)",
+      "path": "vendor/cia_network_management.html",
+      "url": "https://www.can-cia.org/can-knowledge/network-management",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 43491,
+      "sha256": "a5b137d55bbcc2ce288a13743cb971560e11def8496756ac622306093edbd169",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIAEC",
+      "title": "CiA: Error control protocols (heartbeat, boot-up, node/life guarding)",
+      "path": "vendor/cia_error_control_protocols.html",
+      "url": "https://www.can-cia.org/can-knowledge/error-control-protocols",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 25623,
+      "sha256": "aed275a88727cfbf8304b925cd552e3ee92daeb6782335d90d0120ea0df2fb21",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIASDO",
+      "title": "CiA: SDO protocol",
+      "path": "vendor/cia_sdo_protocol.html",
+      "url": "https://www.can-cia.org/can-knowledge/sdo-protocol",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 28285,
+      "sha256": "30577e7f15cee3b1ebcd7c65134c4520924c436439e27fbd694f7387ffb1b306",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIAPDO",
+      "title": "CiA: PDO protocol (parameter sets, triggers, mapping procedure)",
+      "path": "vendor/cia_pdo_protocol.html",
+      "url": "https://www.can-cia.org/can-knowledge/pdo-protocol",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 28738,
+      "sha256": "777c06e296d51b0dca3fc943e242f09eee54a1729a8db4b10d7e384a69c5c24f",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIASFP",
+      "title": "CiA: Special function protocols (SYNC, EMCY, TIME)",
+      "path": "vendor/cia_special_function_protocols.html",
+      "url": "https://www.can-cia.org/can-knowledge/special-function-protocols",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 44780,
+      "sha256": "3a4dc9cf19fbd1bf0c5b691d5cf04c0e0eba24fe19544567a3784b3c71e8ebed",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIAARCH",
+      "title": "CiA: CANopen internal device architecture (object dictionary)",
+      "path": "vendor/cia_internal_device_architecture.html",
+      "url": "https://www.can-cia.org/can-knowledge/canopen-internal-device-architecture",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 42519,
+      "sha256": "e484d47190184978620f985051890cd30d417f0a29347a67c0602c314f974b66",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIA305",
+      "title": "CiA 305: Layer setting services (LSS) overview",
+      "path": "vendor/cia_305_lss_overview.html",
+      "url": "https://www.can-cia.org/can-knowledge/cia-305-layer-setting-services-lss",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 76459,
+      "sha256": "79fc162fbe44d319a099f3a8c038ac340f2896896a0578b8b89b2085ec51421a",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text",
+        "Lists CiA 305 v3.0.0 (2013-05-08), CiA 702 v1.0.0 and CiA 1305 v2.0.0; all login required"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIA306",
+      "title": "CiA 306 series: Electronic device description (EDS, DCF) overview",
+      "path": "vendor/cia_306_edd_overview.html",
+      "url": "https://www.can-cia.org/can-knowledge/cia-306-series-electronic-device-description-edd",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 155157,
+      "sha256": "43b9e390b04339e94148395e5a9b1dd80d42b471b240f002cfc9f461b3d64816",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text",
+        "Lists CiA 306-1 v1.4.0, 306-2 v1.2.0, 306-3 v1.2.0 (2019-08-01) and CiA 301 v4.2.0; all login required"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIA402",
+      "title": "CiA 402 series: CANopen device profile for drives and motion control overview",
+      "path": "vendor/cia_402_overview.html",
+      "url": "https://www.can-cia.org/can-knowledge/cia-402-series-canopen-device-profile-for-drives-and-motion-control",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 149457,
+      "sha256": "202a51e2a11d6988a2584ebe8aee6fa04d2b521d000baf7e213637fddf21342c",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text",
+        "Lists CiA 402-1 v5.0.0 (2023-12-05), 402-2 and 402-3 v5.0.0 (2024-02-06), 402-4, 402-5 and 402-6; all login required"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CIA890",
+      "title": "CiA 890: coding of SI units and prefixes overview",
+      "path": "vendor/cia_890_si_units_overview.html",
+      "url": "https://www.can-cia.org/can-knowledge/cia-890-recommends-the-coding-of-si-units-and-prefixes",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 59451,
+      "sha256": "63ddbfd5a3ad8192773eb7510564a26b3c3ed3daf14844d7c292b2eed84db5ce",
+      "language": "en",
+      "applicability": [
+        "Public CiA overview page restating the login-gated specification; not the normative text",
+        "CiA 890 v1.0.0 replaces the withdrawn CiA 303-2 v1.5.0 (both listed 2023-01-10, login required)"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored)",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "standards organization website",
+      "license": "CiA copyright (page footer: 1992-2026 CAN in Automation, all rights reserved); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CSS",
+      "title": "CSS Electronics: CANopen Explained - A Simple Intro",
+      "path": "vendor/css_electronics_canopen_tutorial.html",
+      "url": "https://www.csselectronics.com/pages/canopen-tutorial-simple-intro",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 185430,
+      "sha256": "10203354630121332cbd19385236c166d7f0c9b323005f95f8d89d11d6a972a0",
+      "language": "en",
+      "applicability": [
+        "Vendor tutorial restating CiA 301; not normative"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored); page title says 2026",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "third-party vendor website",
+      "license": "CSS Electronics copyright 2026; Manufacturer copyright; no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CSSEDS",
+      "title": "CSS Electronics: CANopen EDS File Explained",
+      "path": "vendor/css_electronics_canopen_eds_intro.html",
+      "url": "https://www.csselectronics.com/pages/canopen-eds-file-electronic-data-sheet",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 158529,
+      "sha256": "1fa7409abd0682a2e64d4149082e0dce5fbbd866b390b9094d6a0374fe32ca83",
+      "language": "en",
+      "applicability": [
+        "Vendor tutorial restating CiA 306-1; not normative"
+      ],
+      "revision": "Live page snapshot 2026-11-19 (single HTML file; images external, not stored); page says updated February 2025",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "third-party vendor website",
+      "license": "CSS Electronics copyright 2026; Manufacturer copyright; no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "IXXAT",
+      "title": "HMS Ixxat: Basics of the CANopen and CANopen FD protocol (whitepaper)",
+      "path": "vendor/hms_ixxat_canopen_protocol_whitepaper.pdf",
+      "url": "https://media.hms-networks.com/image/upload/v1701953901/Documents/Whitepapers/Ixxat_CANopen-Protocol-Whitepaper_EN.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 1213706,
+      "sha256": "d25e35990785a30f269f17c4a56439aa3e7e67160dde0920821e5c209e2aac62",
+      "language": "en",
+      "applicability": [
+        "Vendor whitepaper restating CiA 301 and CiA 1301; not normative"
+      ],
+      "revision": "Undated; PDF metadata created 2023-07-18",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "tool vendor website",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "pdf_pages": 33
+    },
+    {
+      "id": "TECHNO",
+      "title": "Technosoft iPOS CANopen Programming User Manual",
+      "path": "vendor/technosoft_ipos_canopen_programming_P091.063_UM_1125.pdf",
+      "url": "https://technosoftmotion.com/wp-content/uploads/P091.063.CANopen.iPOS_.UM_.1224.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 11394449,
+      "sha256": "4bf9f14840877b3a7764349eb0427d1fee4e15b8dde2bf3bb93fb45d530a79e3",
+      "language": "en",
+      "applicability": [
+        "Technosoft iPOS drives; claims CiA 301 v4.2, CiA WD 305 v2.2.13 and CiA (DSP) 402 v4.0 / IEC 61800-7 (PDF p12)",
+        "Vendor restatement of CiA 301/305/402 with device-specific deviations"
+      ],
+      "revision": "Cover P091.063.CANopen.iPOS.UM.1125 (PDF p1); PDF metadata created 2025-11-28; the URL file name says .1224",
+      "firmware_match": "Document scope only (text names firmware F514x, FA01x, F508/509/523/524x); no drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Technosoft copyright 2025; PDF p12: no part may be reproduced or transmitted without written permission. Not covered by the library license",
+      "pdf_pages": 238
+    },
+    {
+      "id": "PYCODOC",
+      "title": "python-canopen documentation: Device profiles (CiA 402 BaseNode402)",
+      "path": "vendor/python_canopen_profiles_doc_14b3336.html",
+      "url": "https://canopen.readthedocs.io/en/latest/profiles.html",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 44689,
+      "sha256": "518438128f27503d976c921acf12b8e8783f7e5fe7d5e2241749a2c196f2da73",
+      "language": "en",
+      "applicability": [
+        "Implementation documentation, not device or standard evidence",
+        "Build label 0.1.dev56+g14b3336bc matches the pinned public_code commit 14b3336bc973"
+      ],
+      "revision": "Read the Docs latest build, snapshot 2026-11-19",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "open-source project documentation",
+      "license": "python-canopen documentation, MIT license (see docs/reference/public_code/canopen_python/LICENSE.txt)"
+    },
+    {
+      "id": "CONODE_LSS",
+      "title": "CANopenNode/CANopenNode: 305/CO_LSS.h",
+      "path": "vendor/canopennode_9b8beed_305_CO_LSS.h",
+      "url": "https://raw.githubusercontent.com/CANopenNode/CANopenNode/9b8beed8367241e96ac03f916cd5a500bcb2cf23/305/CO_LSS.h",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 9383,
+      "sha256": "78ad6c37377acfbb91337241e66c862df33f61c13e46199149cff0222de9a38c",
+      "language": "en",
+      "applicability": [
+        "Implementation constants for CiA DSP 305 v3.0.0; not standard text"
+      ],
+      "revision": "9b8beed8367241e96ac03f916cd5a500bcb2cf23",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "open-source project repository",
+      "license": "Apache-2.0; LICENSE at the same commit is docs/reference/public_code/canopennode/LICENSE"
+    },
+    {
+      "id": "CONODE_SYNC",
+      "title": "CANopenNode/CANopenNode: 301/CO_SYNC.h",
+      "path": "vendor/canopennode_9b8beed_301_CO_SYNC.h",
+      "url": "https://raw.githubusercontent.com/CANopenNode/CANopenNode/9b8beed8367241e96ac03f916cd5a500bcb2cf23/301/CO_SYNC.h",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 9295,
+      "sha256": "3e9ae95c5b548a645f691829913e2bd118bf8d1857a6e2b8fbb9288eccc954a6",
+      "language": "en",
+      "applicability": [
+        "Implementation of CiA 301 SYNC; not standard text"
+      ],
+      "revision": "9b8beed8367241e96ac03f916cd5a500bcb2cf23",
+      "firmware_match": "Not applicable: protocol overview, no device firmware",
+      "origin": "open-source project repository",
+      "license": "Apache-2.0; LICENSE at the same commit is docs/reference/public_code/canopennode/LICENSE"
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "path": "extracted/hms_ixxat_canopen_protocol_whitepaper.txt",
+      "source_id": "IXXAT",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 97840,
+      "sha256": "07d883e4c4bb789c5b9147bc7d5652776017c9e2e35c6379a4fbdc69030a56a1"
+    },
+    {
+      "path": "extracted/technosoft_ipos_canopen_programming_P091.063_UM_1125.txt",
+      "source_id": "TECHNO",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 603240,
+      "sha256": "f53eafdb59a08f6956dac72fb1884f539318e267815d58d050f7e39c97626e1c"
+    }
+  ],
+  "remote_only": [
+    {
+      "id": "CIA301STD",
+      "title": "CiA 301 v4.2.0 CANopen application layer and communication profile (full text)",
+      "url": "https://www.can-cia.org/cia-groups/technical-documents",
+      "revision": "v4.2.0, 2011-02-21, PAS (per the CIAOV and CIA306 listings)",
+      "retrieval_status": "login_required_not_accessed",
+      "applicability": [
+        "Normative CiA 301"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "standards organization website",
+      "license": "Not stored",
+      "reviewed_content": "Not read; listing only. No login was attempted or bypassed."
+    },
+    {
+      "id": "CIA402STD",
+      "title": "CiA 402-2 v5.0.0 operation modes and application data (full text)",
+      "url": "https://www.can-cia.org/can-knowledge/cia-402-series-canopen-device-profile-for-drives-and-motion-control",
+      "revision": "v5.0.0, 2024-02-06, DSP (per the CIA402 listing)",
+      "retrieval_status": "login_required_not_accessed",
+      "applicability": [
+        "Normative CiA 402-2; CIA402 says IEC 61800-7-201 holds an earlier version"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "standards organization website",
+      "license": "Not stored",
+      "reviewed_content": "Not read; listing only. No login was attempted or bypassed."
+    },
+    {
+      "id": "CIA305STD",
+      "title": "CiA 305 v3.0.0 LSS (full text)",
+      "url": "https://www.can-cia.org/can-knowledge/cia-305-layer-setting-services-lss",
+      "revision": "v3.0.0, 2013-05-08, DSP",
+      "retrieval_status": "login_required_not_accessed",
+      "applicability": [
+        "Normative CiA 305"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "standards organization website",
+      "license": "Not stored",
+      "reviewed_content": "Not read; listing only."
+    },
+    {
+      "id": "CIA306STD",
+      "title": "CiA 306-1 v1.4.0 EDS and DCF (full text)",
+      "url": "https://www.can-cia.org/can-knowledge/cia-306-series-electronic-device-description-edd",
+      "revision": "v1.4.0, 2019-08-01, DSP",
+      "retrieval_status": "login_required_not_accessed",
+      "applicability": [
+        "Normative CiA 306-1"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "standards organization website",
+      "license": "Not stored",
+      "reviewed_content": "Not read; listing only."
+    },
+    {
+      "id": "TMBAS",
+      "title": "ADI Trinamic CANopen basics guide",
+      "url": "https://www-cce.cldnet.analog.com/media/en/technical-documentation/user-guides/trinamic_canopen_basics_guide.pdf",
+      "revision": "Unknown",
+      "retrieval_status": "retrieval_failed_connect_timeout",
+      "applicability": [
+        "Vendor tutorial (not obtained)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted",
+      "license": "Not stored",
+      "reviewed_content": "Not read. curl to www-cce.cldnet.analog.com failed to connect after 21 s; https://www.analog.com/media/en/technical-documentation/user-guides/trinamic_canopen_basics_guide.pdf gave 'connection reset' (curl) and a 60 s read timeout (Python urllib). The 2026-11-19 market survey recorded connection refused for the same guide."
+    },
+    {
+      "id": "ROS2CO402",
+      "title": "ros2_canopen canopen_402_driver documentation",
+      "url": "https://docs.ros.org/en/rolling/p/canopen_402_driver/",
+      "revision": "docs.ros.org returned an Anubis proof-of-work challenge page (HTTP 200, 7533 bytes); not stored, not bypassed",
+      "retrieval_status": "bot_challenge_page_not_stored",
+      "applicability": [
+        "Implementation documentation"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "open-source project documentation",
+      "license": "Not stored",
+      "reviewed_content": "The mirror https://ros-industrial.github.io/ros2_canopen/manual/rolling/user-guide/cia402-driver.html returned HTTP 200 and was read: it lists ROS services and topics (nmt_reset_node, sdo_read/sdo_write, init, enable, halt, recover, mode selection) but no CiA 402 bit-level facts, so it was not stored."
+    },
+    {
+      "id": "AKD",
+      "title": "Kollmorgen AKD CAN-BUS Communication (CANopen) manual, edition Y",
+      "url": "https://www.kollmorgen.com/sites/default/files/public_downloads/903-200004-00%20AKD%20CANopen%20Communications%20Manual%20EN%20REV%20Y.pdf",
+      "revision": "Part 903-200004-00, edition Y, October 2020, valid from firmware 1.20 (PDF p1)",
+      "applicability": [
+        "Kollmorgen AKD; vendor restatement of DS301/DS402 with device-specific deviations"
+      ],
+      "language": "en",
+      "origin": "manufacturer-hosted",
+      "license": "Kollmorgen copyright; PDF p2: no reproduction, storage or electronic distribution without written permission. Not covered by the library license",
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "retrieved_on": null,
+      "reviewed_on": "2026-11-19",
+      "retrieval_status": "read_not_stored: a plain request returned HTTP 403; the copy fetched with browser-style headers was not kept; the owner may download it in a browser"
+    }
+  ],
+  "cross_references": [
+    {
+      "id": "POSTER",
+      "path": "../public/canopen_poster_2024.pdf",
+      "manifest": "../public/cia_heartbeat_sources.json",
+      "note": "CiA-published CiA 301 poster (2024), one PDF page: NMT FSA and commands, heartbeat states, pre-defined CAN-IDs, SDO abort codes, PDO records, EMCY/TIME/SYNC frames, 1000h-1029h list"
+    },
+    {
+      "id": "N5",
+      "path": "../multidrive/vendor/nanotec_n5_canopen_v3.3.0.pdf",
+      "manifest": "../multidrive/SOURCES.json",
+      "note": "Nanotec N5 manual 3.3.0 (FIR-v2213): CiA 402 state machine, option codes, homing, factor objects, SYNC counter, 1029h"
+    },
+    {
+      "id": "EPOS4FW",
+      "path": "../maxon_epos4_canopen/vendor/maxon_epos4_firmware_specification_rel13740.pdf",
+      "manifest": "../maxon_epos4_canopen/SOURCES.json",
+      "note": "maxon EPOS4 Firmware Specification 2026-07 rel13740 (sibling pack, built concurrently): device control commands, homing methods"
+    },
+    {
+      "id": "PYCO",
+      "path": "../public_code/canopen_python/canopen/",
+      "manifest": "../public_code/SOURCES.json",
+      "note": "python-canopen 14b3336bc973: sdo/constants.py, sdo/client.py, nmt.py, profiles/p402.py"
+    },
+    {
+      "id": "CONODE",
+      "path": "../public_code/canopennode/301/",
+      "manifest": "../public_code/SOURCES.json",
+      "note": "CANopenNode 9b8beed8: CO_PDO.c/.h, CO_SDOclient.c/.h, CO_NMT_Heartbeat.h, CO_HBconsumer.h, CO_Emergency.h"
+    }
+  ],
+  "limitations": [
+    "No normative CiA specification text was obtained; every CiA 301/305/306/402 fact in principles.md comes from CiA public overview pages, the CiA poster already stored at docs/reference/public/canopen_poster_2024.pdf, vendor restatements or open-source implementations.",
+    "CiA 402 option-code values 3, 4, 7 and 8 (current-limit and voltage-limit stops) and the CiA 402-2 v5.0.0 additions (64-bit positions, new modes) are not documented by any stored free source.",
+    "Vendor manuals restate the standard with device-specific deviations; principles.md marks every vendor-derived fact.",
+    "maxon EPOS4 documents are stored in the sibling pack docs/reference/maxon_epos4_canopen (built concurrently) and the Nanotec N5 manual in docs/reference/multidrive; they are cited through cross_references, not duplicated.",
+    "No firmware, SDK or installer executed; no hardware contacted; no login used.",
+    "Public accessibility does not establish redistribution permission."
+  ]
+}

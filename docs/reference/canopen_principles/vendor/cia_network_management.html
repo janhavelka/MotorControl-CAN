@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="utf-8">
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+
+<title>Network Management: CAN in Automation (CiA)</title>
+<meta http-equiv="x-ua-compatible" content="IE=edge">
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Network Management">
+<meta name="twitter:card" content="summary">
+<meta name="apple-mobile-web-app-capable" content="no">
+<meta name="google-site-verification" content="fEAuXlUK7Y5r8pyaCsPjPFz-f3sW3meQc1T-xpJVmIE">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" media="all">
+
+<link rel="stylesheet" href="/typo3temp/assets/css/styles_8333255c856cbd5088877044da6cea7c.css?1795104502" media="all">
+<link rel="stylesheet" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Css/layout.css?1794903661" media="all">
+<link rel="stylesheet" href="/_assets/f038457a108ded7ca0b077b63bfae195/Css/Main.min.css?1787640617" media="all">
+<link rel="stylesheet" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Css/Vendor/bootstrap-grid.min.css?1794903661" media="all">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick.min.css?1771016268" media="all">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick-theme.min.css?1771016268" media="all" if="">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/CSS/default.min.css?1771016268" media="all">
+<link rel="stylesheet" href="/_assets/cb976ca624401ede23ba3e188d7fe434/Css/styles.css?1780779744" media="all">
+<link rel="stylesheet" href="/typo3temp/assets/css/dev_46bf29220dc6dc2060bdb503bf19cafa.css?1795065995" media="all">
+<link rel="stylesheet" href="/typo3temp/assets/css/32f6eacc0e603977c36ebc5507291006.css?1772441650" media="all">
+
+
+
+<script src="fileadmin/cia/dev/Resources/Public/jquery-3.7.1.min.js?1708295683" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+
+
+<link rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon.svg" type="image/svg" />
+<link sizes="16x16" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-16x16.png" type="image/png" />
+<link sizes="32x32" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-32x32.png" type="image/png" />
+<link sizes="128x128" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-128x128.png" type="image/png" />
+<link sizes="192x192" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-192x192.png" type="image/png" />
+<link sizes="152x152" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-152x152.png" type="image/png" />
+<link sizes="167x167" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-167x167.png" type="image/png" />
+<link sizes="180x180" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-180x180.png" type="image/png" />
+<style>header .inner #logo a { height: 85px; } header .inner #navbar nav { margin-bottom: 3px; }</style>
+<style>
+:root {
+    --ext-logo-url: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/logo.png');
+}
+</style>
+
+
+<style>
+@font-face {
+    font-family: 'Imperial';
+    src: local('URW Imperial'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf') format('opentype'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf.woff') format('woff'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: Icon;
+    src: local('Elegant Icons'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.eot') format('embedded-opentype'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.woff') format('woff'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: SourceCodePro;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/SourceCodePro/SourceCodePro-VariableFont_wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: OpenSans;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/OpenSans/OpenSans-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSans;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSans/NotoSans-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSansMono;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSansMono/NotoSansMono-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSerif;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSerif/NotoSerif-VariableFont_wdth,wght.ttf') format('truetype');
+}
+</style>
+
+<link rel="stylesheet" href="/typo3temp/assets/cssvars/fa-assets.1c8330be9ac6.css" />
+
+<link rel="canonical" href="https://www.can-cia.org/can-knowledge/network-management"/>
+
+<script type="application/ld+json" id="ext-schema-jsonld">{"@context":"https://schema.org/","@type":"WebPage"}</script>
+
+<!-- VhsAssetsDependenciesLoaded c186ebcf634cbe7cd468c885bea590e4 -->
+<link rel="stylesheet" href="/typo3temp/assets/vhs/vhs-assets-c186ebcf634cbe7cd468c885bea590e4.css" /></head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+<div itemscope itemtype="https://schema.org/Organization">
+
+    <a class="skip-link" href="#content">Skip to main content</a>
+
+    
+  
+  
+
+
+
+
+    
+  <nav role="navigation" aria-label="Utility Navigation">
+
+  
+
+  <details id="login">
+    <summary>
+      <div class="btnLogin">
+        Login
+      </div>
+      <div class="modalLoginOverlay">
+
+      </div>
+    </summary>
+    <div class="modalLogin">
+      <div class="modalLoginClose"><span>x</span></div>
+      <div class="modalLoginContent">
+        
+
+
+
+
+
+
+    
+            <div class="login-message login-message--welcome">
+                <h3>
+                    
+User login
+
+
+                </h3>
+                <p>
+                    
+Enter your username and password here in order to log in on the website
+
+
+                </p>
+            </div>
+        
+
+
+        <form spellcheck="false" method="post" target="_top" action="/can-knowledge/network-management?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=c45f9bf424bf4095b37e62db4d09b244">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Felogin" />
+<input type="hidden" name="__referrer[@controller]" value="Login" />
+<input type="hidden" name="__referrer[@action]" value="login" />
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt91e6ced53fec84362496411b343dcd372d8165e26" />
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Felogin&quot;,&quot;@controller&quot;:&quot;Login&quot;,&quot;@action&quot;:&quot;login&quot;}01f24ada93d22fc1048cbc31b5883b07a89e2ecf" />
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCIyYjloaE1rdDV4bUV5WWdvLU5kbWtnXCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMTc6MTM6MDkrMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTQiLCJyZXF1ZXN0Ijp7InVyaSI6Ii9jYW4ta25vd2xlZGdlL25ldHdvcmstbWFuYWdlbWVudD90eF9mZWxvZ2luX2xvZ2luJTVCYWN0aW9uJTVEPWxvZ2luJmFtcDt0eF9mZWxvZ2luX2xvZ2luJTVCY29udHJvbGxlciU1RD1Mb2dpbiZhbXA7Y0hhc2g9YzQ1ZjliZjQyNGJmNDA5NWIzN2U2MmRiNGQwOWIyNDQifX19.F9vqnuxal98HT5lYq-kXwZ9OLHLBTvkORPir9TcncC4"/><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;submit&quot;:1,&quot;logintype&quot;:1,&quot;pid&quot;:1}8faa1a5974cfc8437b92808fea6e1e6eebc7c47e" />
+</div>
+
+            
+    <fieldset>
+        <legend>
+            Login
+        </legend>
+        <div class="user">
+            <label for="user">
+                Username
+            </label>
+          	<input autocomplete="username" placeholder="Username" type="text" name="user" required="required" />
+        </div>
+        <div class="pass">
+            <label for="pass">
+                Password
+            </label>
+            <input required="required" autocomplete="current-password" placeholder="Password" type="password" name="pass" value="" />
+        </div>
+
+        
+
+        <div class="button">
+            <input type="submit" value="Login" name="submit" />
+        </div>
+
+        <div class="felogin-hidden">
+            <input type="hidden" name="logintype" value="login" />
+            <input type="hidden" name="pid" value="" />
+            
+            
+            
+            
+        </div>
+    </fieldset>
+
+        </form>
+    
+
+<div class="login-hints">
+    
+    
+            <a href="/user/registration" class="login-hint__link">Create account</a>
+        
+</div>
+
+
+
+
+      </div>
+    </div>
+  </details>
+
+
+
+
+  <ul id="language" class="language-menu">
+    
+      
+          
+                <li class="active"><span>English</span></li>
+            
+        
+    
+      
+
+        
+    
+      
+
+        
+    
+  </ul>
+</nav>
+
+<header class="site-header" role="banner">
+    <a class="logo" alt="CiA logo" itemprop="name" href="/">CAN in Automation (CiA)</a>
+    <input id="menu-toggle" type="checkbox" />
+    <label class="menu-toggle" for="menu-toggle" role="button" aria-label="Toggle main navigation" aria-controls="main-navigation" aria-expanded="false" tabindex="0">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+        <g stroke-width="6.5" stroke-linecap="round">
+          <path
+                d="M72 82.286h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 103.714l72.482-.143c.043 39.398-32.284 71.434-72.16 71.434-39.878 0-72.204-32.036-72.204-71.554"
+                fill="none"
+                stroke="#fff"
+                />
+          <path
+                d="M72 125.143h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 103.714l-71.908-.143c.026-39.638 32.352-71.674 72.23-71.674 39.876 0 72.203 32.036 72.203 71.554"
+                fill="none"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 82.286h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 125.143h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+        </g>
+      </svg>
+    </label>
+    <nav id="main-navigation" role="navigation" aria-label="Main Navigation">
+      <ul>
+        
+          <li><a href="/about-us" >About us</a></li>
+        
+          <li><a href="/services" >Services</a></li>
+        
+          <li><a href="/cia-groups" >CiA groups</a></li>
+        
+          <li><a href="/can-knowledge" >CAN knowledge</a></li>
+        
+          <li><a href="/news" >News</a></li>
+        
+      </ul>
+    </nav>
+  
+</header>
+
+
+
+    
+
+
+  <header class="toolbar">
+    <div id="breadcrumb">
+      <ul>
+        
+          <li class="first" >
+            
+	            <a href="/">CAN in Automation (CiA)</a>
+              
+          </li>
+		
+          <li  >
+            
+	            <a href="/can-knowledge">CAN knowledge</a>
+              
+          </li>
+		
+          <li  class="last">
+            
+                NMT
+              
+          </li>
+		
+      </ul>
+      
+    </div>
+  </header>
+
+
+
+
+
+    
+
+    <div id="content" name="content" role="knowledge">
+        <!--TYPO3SEARCH_begin-->
+        <div class="content">
+            <input id="knowledge-article" class="knowledge-tab-input" type="radio" name="knowledge-tabs" checked="checked" />
+            <input id="knowledge-related" class="knowledge-tab-input" type="radio" name="knowledge-tabs" />
+            <nav class="knowledge-tabs" role="tablist" aria-label="Page sections">
+                <label for="knowledge-article" role="tab" id="knowledge-tab-article" aria-controls="knowledge-panel-article" aria-selected="true">Article</label>
+                <label for="knowledge-related" role="tab" id="knowledge-tab-related" aria-controls="knowledge-panel-related" aria-selected="false">Related</label>
+            </nav>
+            <div class="knowledge-panels">
+                <main class="main-content frame" id="knowledge-panel-article" role="tabpanel" aria-labelledby="knowledge-tab-article">
+                    
+    
+
+            <div id="c552" class="frame frame-default frame-type-textpic frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+
+    
+        
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                Network management (NMT)
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+    
+
+
+                
+
+    <div class="ce-textpic ce-center ce-above">
+        
+            
+
+    <div class="ce-gallery" data-ce-columns="1" data-ce-images="1">
+        
+            <div class="ce-outer">
+                <div class="ce-inner">
+        
+        
+            <div class="ce-row">
+                
+                    
+                        <div class="ce-column">
+                            
+
+        
+<figure class="image">
+    
+            
+                    
+  
+      <img class="image-embed-item" src="/fileadmin/cia/knowledge/CANopen/nmt-slave.gif" width="300" height="186" loading="lazy" alt="" />
+    
+
+
+                
+        
+    
+            
+        
+</figure>
+
+    
+
+
+                        </div>
+                    
+                
+            </div>
+        
+        
+                </div>
+            </div>
+        
+    </div>
+
+
+
+        
+
+        
+                <div class="ce-bodytext">
+                    
+                    <p>All CANopen CC devices must support the CANopen CC network management (NMT) state machine. The NMT state machine defines the communication behavior of a CANopen CC device. The CANopen NMT state machine consists of the&nbsp;NMT initialization state, NMT pre-operational state, NMT operational state, and NMT stopped state. After power-on or reset, the device enters the NMT initialization state.</p>
+<p>After the device initialization is finished, the device automatically transits to the NMT pre-operational state and indicates this transition by sending the boot-up message. This way the device indicates that it is ready to work. A device that stays in the NMT pre-operational state can start to transmit SYNC (synchronization), time stamp, or heartbeat messages if these services are supported and configured in the right way. In contrast to PDO (process data object) communication that has to be disabled in this state, the device can communicate via SDO (service data object). PDO communication is only possible in the NMT operational state. During the NMT operational state, the device can use all supported communication objects. A device that was switched to the NMT stopped state only reacts to received NMT commands. In addition, the device indicates the current NMT state by supporting the error control protocol during the NMT stopped state.&nbsp;</p>
+                </div>
+            
+
+        
+    </div>
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c553" class="frame frame-default frame-type-text frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+                    
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                NMT initilization state
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+                
+                
+
+  
+      <div class="ce-bodytext">
+          <p>The NMT initialization state covers the three substates: Initialising, reset application, and reset communication. During initialising, the device starts up and initializes its internal parameters. The two substates reset application and reset communication were introduced to enable partial reset commands. During reset application all parameters in the object dictionary range from 2000<sub>h</sub> to 9FFF<sub>h</sub> are set to the power-on or default values. After setting the power-on values, the NMT substate reset communication is entered autonomously. During the reset communication substate, the parameters of the communication profile (index range 1xxx<sub>h</sub>) are set to their power-on or default values. After this state, the NMT initialization state is left.</p>
+      </div>
+    
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c554" class="frame frame-default frame-type-textpic frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+
+    
+        
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                NMT protocol
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+    
+
+
+                
+
+    <div class="ce-textpic ce-center ce-above">
+        
+            
+
+    <div class="ce-gallery" data-ce-columns="1" data-ce-images="1">
+        
+            <div class="ce-outer">
+                <div class="ce-inner">
+        
+        
+            <div class="ce-row">
+                
+                    
+                        <div class="ce-column">
+                            
+
+        
+<figure class="image">
+    
+            
+                    
+  
+      <img class="image-embed-item" src="/fileadmin/cia/knowledge/CANopen/nmt_message_inclusive.gif" width="287" height="122" loading="lazy" alt="" />
+    
+
+
+                
+        
+    
+            
+        
+</figure>
+
+    
+
+
+                        </div>
+                    
+                
+            </div>
+        
+        
+                </div>
+            </div>
+        
+    </div>
+
+
+
+        
+
+        
+                <div class="ce-bodytext">
+                    
+                    <p>The NMT protocol is transmitted by the active NMT manager in a CANopen network. The reception of the NMT protocol forces the CANopen device to transit to the commanded NMT state. The NMT protocol comes in a single CAN frame with a data length of 2 byte. The first byte contains the command specifier and the second contains the node-ID of the device that has to perform the command (if this value is equal to 0, all nodes have to perform the commanded state transition). The NMT protocol comes with the CAN-ID 0, the highest prior CAN identifier in a CAN-based system.</p>
+                </div>
+            
+
+        
+    </div>
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+                </main>
+                <aside class="related" id="knowledge-panel-related" role="tabpanel" aria-labelledby="knowledge-tab-related" aria-label="Related">
+                    
+    
+
+            <div id="c2173" class="no-frame none type-menu_subpages layout-1">
+                
+                
+                    
+
+
+
+                
+                
+                    
+  
+    
+        
+    
+  
+
+
+                
+                
+
+    
+        <ul>
+            
+                <li>
+                    <a href="/can-knowledge/canopen" title="CANopen">
+                        <span>CANopen</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/sdo-protocol" title="SDO">
+                        <span>SDO</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/pdo-protocol" title="PDO">
+                        <span>PDO</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/error-control-protocols" title="Error control protocols">
+                        <span>Error control protocols</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/network-management" aria-current="page" title="NMT">
+                        <span>NMT</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/canopen-profiles" title="Profiles">
+                        <span>Profiles</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/generic-device-profiles" title="Generic device profiles">
+                        <span>Generic device profiles</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/application-specific-device-profiles" title="Application-specific device profiles">
+                        <span>Application-specific device profiles</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/application-profiles" title="Application profiles">
+                        <span>Application profiles</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/interface-profiles" title="Interface profiles">
+                        <span>Interface profiles</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-106-connector-pin-assignment" title="CiA 106">
+                        <span>CiA 106</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-302-series-canopen-additional-application-layer-funtions" title="CiA 302">
+                        <span>CiA 302</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-303-series-canopen-related-documents" title="CiA 303">
+                        <span>CiA 303</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-305-layer-setting-services-lss" title="CiA 305">
+                        <span>CiA 305</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-306-series-electronic-device-description-edd" title="CiA 306">
+                        <span>CiA 306</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-309-series-accessing-canopen-via-tcp" title="CiA 309">
+                        <span>CiA 309</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-311-xml-schema-definition" title="CiA 311">
+                        <span>CiA 311</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-314-canopen-access-from-iec-61131-3-programmable-devices" title="CiA 314">
+                        <span>CiA 314</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-315-canopen-generic-frame-for-wireless-tunneling-of-can-messages-and-for-transfer-of-diagnostic-data" title="CiA 315">
+                        <span>CiA 315</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-318-canopen-integration-to-rtc-environment" title="CiA 318">
+                        <span>CiA 318</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-320-canopen-services-and-protocols-for-sleep-and-wake-up-handling" title="CiA 320">
+                        <span>CiA 320</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-401-series-i/o-device-profile" title="CiA 401">
+                        <span>CiA 401</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-402-series-canopen-device-profile-for-drives-and-motion-control" title="CiA 402">
+                        <span>CiA 402</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-404-canopen-device-profile-for-measuring-devices-and-closed-loop-controllers" title="CiA 404">
+                        <span>CiA 404</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-406-encoder-profile" title="CiA 406">
+                        <span>CiA 406</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-408-canopen-profile-for-hydraulic-devices" title="CiA 408">
+                        <span>CiA 408</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-410-series-inclinometer-profile" title="CiA 410">
+                        <span>CiA 410</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-412-canopen-profiles-for-medical-devices" title="CiA 412">
+                        <span>CiA 412</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-413-canopen-device-profile-for-truck-gateways" title="CiA 413">
+                        <span>CiA 413</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-414-series-canopen-device-profiles-for-weaving-machines" title="CiA 414">
+                        <span>CiA 414</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-415-canopen-sensor-profile-for-mobile-machines" title="CiA 415">
+                        <span>CiA 415</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-416-series-canopen-application-profile-for-building-door-control" title="CiA 416">
+                        <span>CiA 416</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-417-series-profile-for-lift-control-systems" title="CiA 417">
+                        <span>CiA 417</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-418-canopen-device-profile-for-battery-modules" title="CiA 418">
+                        <span>CiA 418</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-419-canopen-device-profile-for-battery-chargers" title="CiA 419">
+                        <span>CiA 419</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-420-series-profiles-for-extruder-downstream-devices" title="CiA 420">
+                        <span>CiA 420</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-421-series-profiles-for-train-vehicle-control-systems" title="CiA 421">
+                        <span>CiA 421</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-422-series-canopen-application-profile-for-municipal-vehicles" title="CiA 422">
+                        <span>CiA 422</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-423-series-canopen-application-profile-for-diesel-engine-control" title="CiA 423">
+                        <span>CiA 423</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-424" title="CiA 424">
+                        <span>CiA 424</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-425-series-canopen-application-profile-for-medical-diagnostic-add-on-modules" title="CiA 425">
+                        <span>CiA 425</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-426-series-canopen-application-profile-for-exterior-light-units" title="CiA 426">
+                        <span>CiA 426</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-430-series-canopen-application-profile-for-rail-vehicle-auxiliary-operating-systems" title="CiA 430">
+                        <span>CiA 430</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-433-series-canopen-application-profile-for-interior-rail-vehicle-lighting" title="CiA 433">
+                        <span>CiA 433</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-434-canopen-device-profile-for-laboratory-automation-systems" title="CiA 434">
+                        <span>CiA 434</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-436-series-canopen-application-profile-for-construction-machines" title="CiA 436">
+                        <span>CiA 436</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-437-canopen-application-profile-for-grid-based-photovoltaic-systems" title="CiA 437">
+                        <span>CiA 437</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-442-canopen-profile-for-iec-61915-2-compatible-motor-starters" title="CiA 442">
+                        <span>CiA 442</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-443-canopen-profile-for-siis-level-2-devices" title="CiA 443">
+                        <span>CiA 443</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-444-series-canopen-profiles-for-container-handling-machine-add-on-devices" title="CiA 444">
+                        <span>CiA 444</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-445-canopen-device-profile-for-rfid-devices" title="CiA 445">
+                        <span>CiA 445</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-446-canopen-device-profile-for-as-interface-gateways" title="CiA 446">
+                        <span>CiA 446</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-447-series-canopen-application-profile-for-special-purpose-car-add-on-devices" title="CiA 447">
+                        <span>CiA 447</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-450-canopen-device-profile-for-pumps" title="CiA 450">
+                        <span>CiA 450</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-452-canopen-device-profile-for-plcopen-motion-control" title="CiA 452">
+                        <span>CiA 452</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-453-canopen-device-profile-for-power-supplies" title="CiA 453">
+                        <span>CiA 453</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-454-series-canopen-application-profile-for-energy-management-systems" title="CiA 454">
+                        <span>CiA 454</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-455-canopen-application-profile-for-drilling-machines" title="CiA 455">
+                        <span>CiA 455</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-456-canopen-interface-profile-for-configurable-network-components" title="CiA 456">
+                        <span>CiA 456</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-457-canopen-interface-profile-for-wireless-transmission" title="CiA 457">
+                        <span>CiA 457</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-458-canopen-device-profile-for-energy-measurements" title="CiA 458">
+                        <span>CiA 458</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-459-series-canopen-profile-for-on-board-weighing-devices" title="CiA 459">
+                        <span>CiA 459</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-460-canopen-profile-for-service-robot-control-systems" title="CiA 460">
+                        <span>CiA 460</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-462-canopen-device-profile-for-item-detection-devices" title="CiA 462">
+                        <span>CiA 462</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-463-canopen-device-profile-for-io-link-gateway" title="CiA 463">
+                        <span>CiA 463</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-510-mapping-of-sdo-and-emcy-protocols-to-j1939" title="CiA 510">
+                        <span>CiA 510</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-710-generic-canopen-bootloader" title="CiA 710">
+                        <span>CiA 710</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/cia-890-recommends-the-coding-of-si-units-and-prefixes" title="CiA 890">
+                        <span>CiA 890</span>
+                    </a>
+                </li>
+            
+                <li>
+                    <a href="/can-knowledge/canopen-internal-device-architecture" title="CANopen internal device architecture">
+                        <span>CANopen internal device architecture</span>
+                    </a>
+                </li>
+            
+        </ul>
+    
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+                </aside>
+            </div>
+        </div>
+        <!--TYPO3SEARCH_end-->
+    </div>
+
+
+
+    
+
+
+
+
+
+
+    
+
+  <footer role="contentinfo">
+  <nav aria-label="Sitemap">
+    <ul>
+      
+        <li>
+          <a href="/about-us" >About us</a>
+          
+            <ul>
+              
+                <li><a href="/about-us/the-cia-story" >The CiA story</a></li>
+              
+                <li><a href="/about-us/member-benefits" >Member benefits</a></li>
+              
+                <li><a href="/about-us/member-services" >Member services</a></li>
+              
+                <li><a href="/about-us/governing-bodies" >CiA governing bodies</a></li>
+              
+                <li><a href="/about-us/general-assembly" >General assembly</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/services" >Services</a>
+          
+            <ul>
+              
+                <li><a href="/services/canopen-vendor-id" >CANopen vendor-ID</a></li>
+              
+                <li><a href="https://www.lin-cia.org" >LIN supplier-ID</a></li>
+              
+                <li><a href="/services/cia-test-center" >CiA test center</a></li>
+              
+                <li><a href="/services/publications" >Publications</a></li>
+              
+                <li><a href="/services/education" >Education</a></li>
+              
+                <li><a href="/services/conferences/the-international-can-conference-icc" >Conferences</a></li>
+              
+                <li><a href="/services/trade-shows" >Trade shows</a></li>
+              
+                <li><a href="/services/publications/marketing-opportunities" >Marketing opportunities</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/cia-groups" >CiA groups</a>
+          
+            <ul>
+              
+                <li><a href="/cia-groups/marketing-groups" >Marketing groups</a></li>
+              
+                <li><a href="/cia-groups/technical-groups" >Technical groups</a></li>
+              
+                <li><a href="/cia-groups/technical-documents" >Technical documents</a></li>
+              
+                <li><a href="/cia-groups/meetings" >Meetings</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/can-knowledge" >CAN knowledge</a>
+          
+            <ul>
+              
+                <li><a href="/can-knowledge/can-cc" >CAN CC</a></li>
+              
+                <li><a href="/can-knowledge/can-fd-the-basic-idea" >CAN FD</a></li>
+              
+                <li><a href="/can-knowledge/can-xl" >CAN XL</a></li>
+              
+                <li><a href="/can-knowledge/canopen" >CANopen CC</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/news" >News</a>
+          
+            <ul>
+              
+                <li><a href="/services/publications/can-newsletter-magazine" >CAN Newsletter</a></li>
+              
+                <li><a href="/services/publications/can-community-news/ccn-2026-no-15" >CAN Community News</a></li>
+              
+                <li><a href="/news/pr-english" >Press releases (English)</a></li>
+              
+                <li><a href="/news/pr-deutsch" >Press releases (German)</a></li>
+              
+                <li><a href="/services/can-related-books" >CAN-related books</a></li>
+              
+            </ul>
+          
+        </li>
+      
+    </ul>
+  </nav>
+    <nav role="navigation">
+      <ul>
+        
+          <li><a href="/about-us/cias-european-union-eu-trademark-policy" >CiA®, CANopen®, CANopen FD®, and CANsec®</a></li>
+        
+          <li><a href="/privacy-policy" >Privacy Policy</a></li>
+        
+          <li><a href="/terms-of-service" >Terms of Service</a></li>
+        
+          <li><a href="/imprint" >Imprint</a></li>
+        
+      </ul>
+    </nav>
+    <p>&copy; 1992 - 2026 CAN in Automation. All rights reserved.</p>
+</footer>
+
+
+
+    
+
+
+
+
+    
+
+
+
+
+</div>
+
+<script src="/_assets/f038457a108ded7ca0b077b63bfae195/JavaScript/Validation.min.js?1787640617"></script>
+<script src="/_assets/f038457a108ded7ca0b077b63bfae195/JavaScript/Femanager.min.js?1787640617"></script>
+<script src="/_assets/9ffef70de06ec7e16a75d217743a958b/JavaScript/Dist/scripts.js?1794903661"></script>
+<script src="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick.min.js?1771016268"></script>
+<script src="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/randomize.js?1771016268"></script>
+
+<script>
+/*<![CDATA[*/
+/*TS_inlineFooter*/
+      $('body').on('click', 'div.tabs > nav > .tabs-nav > li > a', function(e) {
+
+        var contentLocation = $(this).attr('href').substring($(this).attr('href').indexOf('#'));
+
+        if (contentLocation.charAt(0)=="#") {
+          e.preventDefault();
+          $(this).parent().siblings().children('a').removeClass('active');
+          $(this).addClass('active');
+          $(contentLocation).show().addClass('active').siblings().hide().removeClass('active');
+        }
+      });
+					var typeOfSlickUids = typeof slickUids;
+					if( typeOfSlickUids != 'undefined' ) {
+						if(Array.isArray(slickUids)){
+							$(document).ready(function () {
+								for (var i = 0; i < slickUids.length; i++) {
+									var boolSlickRandomizeX = eval("boolSlickRandomize" + slickUids[i]);
+									//alert(boolSlickRandomizeX);
+									if( boolSlickRandomizeX == true ) {
+										$('#slickid-' + slickUids[i]).randomize();
+									}
+								}
+							});
+						}
+					}
+					$(document).ready(function () {
+						if( (typeof obj === "object") && (obj !== null) ) {
+							var sortedKeys = Object.keys(obj).sort();
+							//alert( sortedKeys[0] );
+							if(Array.isArray(sortedKeys)){
+								for (var i = 0; i < sortedKeys.length; i++) {
+									obj[sortedKeys[i]]();
+								}
+							}
+						}
+					});
+
+/*]]>*/
+</script>
+
+
+
+</body>
+</html>

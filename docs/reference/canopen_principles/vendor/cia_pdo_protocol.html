@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="utf-8">
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+
+<title>PDO protocol: CAN in Automation (CiA)</title>
+<meta http-equiv="x-ua-compatible" content="IE=edge">
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="PDO protocol">
+<meta name="twitter:card" content="summary">
+<meta name="apple-mobile-web-app-capable" content="no">
+<meta name="google-site-verification" content="fEAuXlUK7Y5r8pyaCsPjPFz-f3sW3meQc1T-xpJVmIE">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" media="all">
+
+<link rel="stylesheet" href="/typo3temp/assets/css/styles_8333255c856cbd5088877044da6cea7c.css?1795104502" media="all">
+<link rel="stylesheet" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Css/layout.css?1794903661" media="all">
+<link rel="stylesheet" href="/_assets/f038457a108ded7ca0b077b63bfae195/Css/Main.min.css?1787640617" media="all">
+<link rel="stylesheet" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Css/Vendor/bootstrap-grid.min.css?1794903661" media="all">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick.min.css?1771016268" media="all">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick-theme.min.css?1771016268" media="all" if="">
+<link rel="stylesheet" href="/_assets/166671fc32fd6936f615866c0ec34bb7/CSS/default.min.css?1771016268" media="all">
+<link rel="stylesheet" href="/_assets/cb976ca624401ede23ba3e188d7fe434/Css/styles.css?1780779744" media="all">
+<link rel="stylesheet" href="/typo3temp/assets/css/dev_46bf29220dc6dc2060bdb503bf19cafa.css?1795065995" media="all">
+<link rel="stylesheet" href="/typo3temp/assets/css/32f6eacc0e603977c36ebc5507291006.css?1772441650" media="all">
+
+
+
+<script src="fileadmin/cia/dev/Resources/Public/jquery-3.7.1.min.js?1708295683" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+
+
+<link rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon.svg" type="image/svg" />
+<link sizes="16x16" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-16x16.png" type="image/png" />
+<link sizes="32x32" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-32x32.png" type="image/png" />
+<link sizes="128x128" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-128x128.png" type="image/png" />
+<link sizes="192x192" rel="icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-192x192.png" type="image/png" />
+<link sizes="152x152" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-152x152.png" type="image/png" />
+<link sizes="167x167" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-167x167.png" type="image/png" />
+<link sizes="180x180" rel="apple-touch-icon" href="/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/favicon-180x180.png" type="image/png" />
+<style>header .inner #logo a { height: 85px; } header .inner #navbar nav { margin-bottom: 3px; }</style>
+<style>
+:root {
+    --ext-logo-url: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Icons/logo.png');
+}
+</style>
+
+
+<style>
+@font-face {
+    font-family: 'Imperial';
+    src: local('URW Imperial'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf') format('opentype'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf.woff') format('woff'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/URWImperial/URWImperialTOT-BolObl.otf.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: Icon;
+    src: local('Elegant Icons'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.eot') format('embedded-opentype'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.woff') format('woff'),
+        url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/ElegantIcons/ElegantIcons.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: SourceCodePro;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/SourceCodePro/SourceCodePro-VariableFont_wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: OpenSans;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/OpenSans/OpenSans-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSans;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSans/NotoSans-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSansMono;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSansMono/NotoSansMono-VariableFont_wdth,wght.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: NotoSerif;
+    src: url('/_assets/9ffef70de06ec7e16a75d217743a958b/Fonts/NotoSerif/NotoSerif-VariableFont_wdth,wght.ttf') format('truetype');
+}
+</style>
+
+<link rel="stylesheet" href="/typo3temp/assets/cssvars/fa-assets.1c8330be9ac6.css" />
+
+<link rel="canonical" href="https://www.can-cia.org/can-knowledge/pdo-protocol"/>
+
+<script type="application/ld+json" id="ext-schema-jsonld">{"@context":"https://schema.org/","@type":"WebPage"}</script>
+
+<!-- VhsAssetsDependenciesLoaded c186ebcf634cbe7cd468c885bea590e4 -->
+<link rel="stylesheet" href="/typo3temp/assets/vhs/vhs-assets-c186ebcf634cbe7cd468c885bea590e4.css" /></head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+<div itemscope itemtype="https://schema.org/Organization">
+
+    <a class="skip-link" href="#content">Skip to main content</a>
+
+    
+  
+  
+
+
+
+
+    
+  <nav role="navigation" aria-label="Utility Navigation">
+
+  
+
+  <details id="login">
+    <summary>
+      <div class="btnLogin">
+        Login
+      </div>
+      <div class="modalLoginOverlay">
+
+      </div>
+    </summary>
+    <div class="modalLogin">
+      <div class="modalLoginClose"><span>x</span></div>
+      <div class="modalLoginContent">
+        
+
+
+
+
+
+
+    
+            <div class="login-message login-message--welcome">
+                <h3>
+                    
+User login
+
+
+                </h3>
+                <p>
+                    
+Enter your username and password here in order to log in on the website
+
+
+                </p>
+            </div>
+        
+
+
+        <form spellcheck="false" method="post" target="_top" action="/can-knowledge/pdo-protocol?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=12bd465e9feaa4cac59dc267367ab8ae">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Felogin" />
+<input type="hidden" name="__referrer[@controller]" value="Login" />
+<input type="hidden" name="__referrer[@action]" value="login" />
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt91e6ced53fec84362496411b343dcd372d8165e26" />
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Felogin&quot;,&quot;@controller&quot;:&quot;Login&quot;,&quot;@action&quot;:&quot;login&quot;}01f24ada93d22fc1048cbc31b5883b07a89e2ecf" />
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCJ6eTdzWk9JTlJSYXV1eWZPYXhMRzVBXCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMTc6MTM6MTArMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTQiLCJyZXF1ZXN0Ijp7InVyaSI6Ii9jYW4ta25vd2xlZGdlL3Bkby1wcm90b2NvbD90eF9mZWxvZ2luX2xvZ2luJTVCYWN0aW9uJTVEPWxvZ2luJmFtcDt0eF9mZWxvZ2luX2xvZ2luJTVCY29udHJvbGxlciU1RD1Mb2dpbiZhbXA7Y0hhc2g9MTJiZDQ2NWU5ZmVhYTRjYWM1OWRjMjY3MzY3YWI4YWUifX19.veEjFRDODPfcmEXfBSdwVWZT4Qi-L2zsqrFlJu33gw4"/><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;submit&quot;:1,&quot;logintype&quot;:1,&quot;pid&quot;:1}8faa1a5974cfc8437b92808fea6e1e6eebc7c47e" />
+</div>
+
+            
+    <fieldset>
+        <legend>
+            Login
+        </legend>
+        <div class="user">
+            <label for="user">
+                Username
+            </label>
+          	<input autocomplete="username" placeholder="Username" type="text" name="user" required="required" />
+        </div>
+        <div class="pass">
+            <label for="pass">
+                Password
+            </label>
+            <input required="required" autocomplete="current-password" placeholder="Password" type="password" name="pass" value="" />
+        </div>
+
+        
+
+        <div class="button">
+            <input type="submit" value="Login" name="submit" />
+        </div>
+
+        <div class="felogin-hidden">
+            <input type="hidden" name="logintype" value="login" />
+            <input type="hidden" name="pid" value="" />
+            
+            
+            
+            
+        </div>
+    </fieldset>
+
+        </form>
+    
+
+<div class="login-hints">
+    
+    
+            <a href="/user/registration" class="login-hint__link">Create account</a>
+        
+</div>
+
+
+
+
+      </div>
+    </div>
+  </details>
+
+
+
+
+  <ul id="language" class="language-menu">
+    
+      
+          
+                <li class="active"><span>English</span></li>
+            
+        
+    
+      
+
+        
+    
+      
+
+        
+    
+  </ul>
+</nav>
+
+<header class="site-header" role="banner">
+    <a class="logo" alt="CiA logo" itemprop="name" href="/">CAN in Automation (CiA)</a>
+    <input id="menu-toggle" type="checkbox" />
+    <label class="menu-toggle" for="menu-toggle" role="button" aria-label="Toggle main navigation" aria-controls="main-navigation" aria-expanded="false" tabindex="0">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+        <g stroke-width="6.5" stroke-linecap="round">
+          <path
+                d="M72 82.286h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 103.714l72.482-.143c.043 39.398-32.284 71.434-72.16 71.434-39.878 0-72.204-32.036-72.204-71.554"
+                fill="none"
+                stroke="#fff"
+                />
+          <path
+                d="M72 125.143h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 103.714l-71.908-.143c.026-39.638 32.352-71.674 72.23-71.674 39.876 0 72.203 32.036 72.203 71.554"
+                fill="none"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 82.286h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+          <path
+                d="M100.75 125.143h28.75"
+                fill="#009100"
+                fill-rule="evenodd"
+                stroke="#fff"
+                />
+        </g>
+      </svg>
+    </label>
+    <nav id="main-navigation" role="navigation" aria-label="Main Navigation">
+      <ul>
+        
+          <li><a href="/about-us" >About us</a></li>
+        
+          <li><a href="/services" >Services</a></li>
+        
+          <li><a href="/cia-groups" >CiA groups</a></li>
+        
+          <li><a href="/can-knowledge" >CAN knowledge</a></li>
+        
+          <li><a href="/news" >News</a></li>
+        
+      </ul>
+    </nav>
+  
+</header>
+
+
+
+    
+
+
+  <header class="toolbar">
+    <div id="breadcrumb">
+      <ul>
+        
+          <li class="first" >
+            
+	            <a href="/">CAN in Automation (CiA)</a>
+              
+          </li>
+		
+          <li  >
+            
+	            <a href="/can-knowledge">CAN knowledge</a>
+              
+          </li>
+		
+          <li  class="last">
+            
+                PDO
+              
+          </li>
+		
+      </ul>
+      
+    </div>
+  </header>
+
+
+
+
+
+    
+
+    <div id="content" name="content" role="knowledge">
+        <!--TYPO3SEARCH_begin-->
+        <div class="content">
+            <input id="knowledge-article" class="knowledge-tab-input" type="radio" name="knowledge-tabs" checked="checked" />
+            <input id="knowledge-related" class="knowledge-tab-input" type="radio" name="knowledge-tabs" />
+            <nav class="knowledge-tabs" role="tablist" aria-label="Page sections">
+                <label for="knowledge-article" role="tab" id="knowledge-tab-article" aria-controls="knowledge-panel-article" aria-selected="true">Article</label>
+                <label for="knowledge-related" role="tab" id="knowledge-tab-related" aria-controls="knowledge-panel-related" aria-selected="false">Related</label>
+            </nav>
+            <div class="knowledge-panels">
+                <main class="main-content frame" id="knowledge-panel-article" role="tabpanel" aria-labelledby="knowledge-tab-article">
+                    
+    
+
+            <div id="c536" class="frame frame-default frame-type-text frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+                    
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                Process data object (PDO)
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+                
+                
+
+  
+      <div class="ce-bodytext">
+          <p>Process data objects (PDOs) are used in CANopen for broadcasting high-priority control and status information. A PDO in CANopen CC consists of a single CAN CC frame and communicates up to 8 byte of pure application data. Device designers have to evaluate the amount of process data that the device needs to receive and transmit. Based on the result of this evaluation process, they have to provide the related amount of receive and transmit PDOs within the device.</p>
+      </div>
+    
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c538" class="frame frame-default frame-type-text frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+                    
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                PDO parameter sets
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+                
+                
+
+  
+      <div class="ce-bodytext">
+          <p>In case a device is supposed to support the transmission/reception of a PDO, the corresponding parameter sets for this PDO have to be provided in the object dictionary of that device. A single PDO requires a set of communication parameters (PDO communication parameter record) and a set of mapping parameters (PDO mapping&nbsp;parameter record).</p>
+<p>Among others, the communication parameters indicate the CAN identifier that is used by this PDO, and the triggering event that prompts the transmission of the related PDO. The mapping parameters indicate which information of the local object dictionary is supposed to be transmitted and where the received information is to be stored.</p>
+<p>The communication parameters for receive PDOs are arranged in the index range from 1400<sub>h</sub> to 15FF<sub>h</sub> and for transmit PDOs in the range from 1800<sub>h</sub> to 19FF<sub>h</sub>. The related mapping entries are managed in the index ranges 1600<sub>h</sub> to 17FF<sub>h</sub> and 1A00<sub>h</sub> to 1BFF<sub>h</sub>.</p>
+      </div>
+    
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c539" class="frame frame-default frame-type-textpic frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+
+    
+        
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                PDO triggering events
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+    
+
+
+                
+
+    <div class="ce-textpic ce-left ce-intext">
+        
+            
+
+    <div class="ce-gallery" data-ce-columns="1" data-ce-images="1">
+        
+        
+            <div class="ce-row">
+                
+                    
+                        <div class="ce-column">
+                            
+
+        
+<figure class="image">
+    
+            
+                    
+  
+      <img class="image-embed-item" src="/fileadmin/cia/knowledge/CANopen/pdo_triggering.gif" width="268" height="327" loading="lazy" alt="" />
+    
+
+
+                
+        
+    
+            
+        
+</figure>
+
+    
+
+
+                        </div>
+                    
+                
+            </div>
+        
+        
+    </div>
+
+
+
+        
+
+        
+                <div class="ce-bodytext">
+                    
+                    <p>The following triggering events for PDOs are defined:</p>
+<p><strong>Event or timer-driven:</strong> A device-internal event triggers the PDO transmission (e.g., when the temperature value exceeds a certain limit; event-timer elapses; etc.).</p>
+<p><strong>Remotely-requested:</strong> As PDOs consist of a single CAN data frame, they can be requested via remote transmission request (RTR) in CANopen CC.</p>
+<p><strong>Synchronous transmission (cyclic):</strong> The transmission of the PDO can be coupled with the reception of the SYNC message.</p>
+<p><strong>Synchronous transmission (acyclic):</strong> These PDOs are triggered by a defined device-specific event but transmitted with the reception of the next SYNC message.</p>
+                </div>
+            
+
+        
+    </div>
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c540" class="frame frame-default frame-type-textpic frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+
+    
+        
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                PDO mapping
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+    
+
+
+                
+
+    <div class="ce-textpic ce-right ce-intext">
+        
+            
+
+    <div class="ce-gallery" data-ce-columns="1" data-ce-images="1">
+        
+        
+            <div class="ce-row">
+                
+                    
+                        <div class="ce-column">
+                            
+
+        
+<figure class="image">
+    
+            
+                    
+  
+      <img class="image-embed-item" src="/fileadmin/cia/knowledge/CANopen/pdo_mapping.gif" width="300" height="176" loading="lazy" alt="" />
+    
+
+
+                
+        
+    
+            
+        
+</figure>
+
+    
+
+
+                        </div>
+                    
+                
+            </div>
+        
+        
+    </div>
+
+
+
+        
+
+        
+                <div class="ce-bodytext">
+                    
+                    <p>PDO mapping defines which application objects are transmitted within a PDO. It describes the sequence and length of the mapped application objects. The mapping of the application objects is described in the related CANopen object dictionary entries for each PDO. CANopen distinguishes between three types of PDO mapping:</p>
+<p><strong>Static PDO mapping:</strong> In case static mapping is supported for a PDO, the content of the PDO is strictly pre-defined by the device manufacturer and cannot be changed via the CANopen interface.</p>
+<p><strong>Variable PDO mapping:</strong> Variable PDO mapping describes that the mapping entries of a PDO can be changed during the NMT pre-operational state.</p>
+<p><strong>Dynamic PDO mapping:</strong> A device supports dynamic mapping if the PDO mapping entries in the CANopen object dictionary can be changed during the NMT operational state as well.</p>
+                </div>
+            
+
+        
+    </div>
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+    
+
+            <div id="c541" class="frame frame-default frame-type-text frame-layout-0">
+                
+                
+                    
+
+
+
+                
+                
+                    
+  
+    
+        
+            <header>
+                
+  
+
+    
+            
+                
+  
+
+    
+            <h2 class="">
+                PDO mapping procedures
+            </h2>
+        
+
+
+            
+        
+
+
+                
+
+
+
+                
+
+
+
+            </header>
+        
+    
+  
+
+
+                
+                
+
+  
+      <div class="ce-bodytext">
+          <p>In contrast to a strictly pre-defined mapping, device designers have the option of offering to change the mapping of the PDOs. In CANopen such a flexibly adjustable PDO mapping capability is called variable or dynamic PDO mapping. In case variable or dynamic mapping is supported, the mapping entries of the PDO can only be changed by using the defined mapping procedure:</p><ol> 	<li>Set PDO invalid by switching Bit 31 in the related COB-ID entry.</li> 	<li>Set PDO mapping invalid by writing 00<sub>h</sub> to sub-index 00<sub>h</sub> of the related mapping entries.</li> 	<li>Adjust the desired PDO mapping.</li> 	<li>Set sub-index 00<sub>h</sub> of the related mapping index to number of mapped objects.</li> 	<li>Switch PDO valid by means of Bit 31 in the related COB-ID entry.</li> </ol>
+      </div>
+    
+
+
+                
+                    
+
+
+
+                
+                
+                    
+
+
+
+                
+            </div>
+
+        
+
+
+                </main>
+                <aside class="related" id="knowledge-panel-related" role="tabpanel" aria-labelledby="knowledge-tab-related" aria-label="Related">
+                    
+                </aside>
+            </div>
+        </div>
+        <!--TYPO3SEARCH_end-->
+    </div>
+
+
+
+    
+
+
+
+
+
+
+    
+
+  <footer role="contentinfo">
+  <nav aria-label="Sitemap">
+    <ul>
+      
+        <li>
+          <a href="/about-us" >About us</a>
+          
+            <ul>
+              
+                <li><a href="/about-us/the-cia-story" >The CiA story</a></li>
+              
+                <li><a href="/about-us/member-benefits" >Member benefits</a></li>
+              
+                <li><a href="/about-us/member-services" >Member services</a></li>
+              
+                <li><a href="/about-us/governing-bodies" >CiA governing bodies</a></li>
+              
+                <li><a href="/about-us/general-assembly" >General assembly</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/services" >Services</a>
+          
+            <ul>
+              
+                <li><a href="/services/canopen-vendor-id" >CANopen vendor-ID</a></li>
+              
+                <li><a href="https://www.lin-cia.org" >LIN supplier-ID</a></li>
+              
+                <li><a href="/services/cia-test-center" >CiA test center</a></li>
+              
+                <li><a href="/services/publications" >Publications</a></li>
+              
+                <li><a href="/services/education" >Education</a></li>
+              
+                <li><a href="/services/conferences/the-international-can-conference-icc" >Conferences</a></li>
+              
+                <li><a href="/services/trade-shows" >Trade shows</a></li>
+              
+                <li><a href="/services/publications/marketing-opportunities" >Marketing opportunities</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/cia-groups" >CiA groups</a>
+          
+            <ul>
+              
+                <li><a href="/cia-groups/marketing-groups" >Marketing groups</a></li>
+              
+                <li><a href="/cia-groups/technical-groups" >Technical groups</a></li>
+              
+                <li><a href="/cia-groups/technical-documents" >Technical documents</a></li>
+              
+                <li><a href="/cia-groups/meetings" >Meetings</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/can-knowledge" >CAN knowledge</a>
+          
+            <ul>
+              
+                <li><a href="/can-knowledge/can-cc" >CAN CC</a></li>
+              
+                <li><a href="/can-knowledge/can-fd-the-basic-idea" >CAN FD</a></li>
+              
+                <li><a href="/can-knowledge/can-xl" >CAN XL</a></li>
+              
+                <li><a href="/can-knowledge/canopen" >CANopen CC</a></li>
+              
+            </ul>
+          
+        </li>
+      
+        <li>
+          <a href="/news" >News</a>
+          
+            <ul>
+              
+                <li><a href="/services/publications/can-newsletter-magazine" >CAN Newsletter</a></li>
+              
+                <li><a href="/services/publications/can-community-news/ccn-2026-no-15" >CAN Community News</a></li>
+              
+                <li><a href="/news/pr-english" >Press releases (English)</a></li>
+              
+                <li><a href="/news/pr-deutsch" >Press releases (German)</a></li>
+              
+                <li><a href="/services/can-related-books" >CAN-related books</a></li>
+              
+            </ul>
+          
+        </li>
+      
+    </ul>
+  </nav>
+    <nav role="navigation">
+      <ul>
+        
+          <li><a href="/about-us/cias-european-union-eu-trademark-policy" >CiA®, CANopen®, CANopen FD®, and CANsec®</a></li>
+        
+          <li><a href="/privacy-policy" >Privacy Policy</a></li>
+        
+          <li><a href="/terms-of-service" >Terms of Service</a></li>
+        
+          <li><a href="/imprint" >Imprint</a></li>
+        
+      </ul>
+    </nav>
+    <p>&copy; 1992 - 2026 CAN in Automation. All rights reserved.</p>
+</footer>
+
+
+
+    
+
+
+
+
+    
+
+
+
+
+</div>
+
+<script src="/_assets/f038457a108ded7ca0b077b63bfae195/JavaScript/Validation.min.js?1787640617"></script>
+<script src="/_assets/f038457a108ded7ca0b077b63bfae195/JavaScript/Femanager.min.js?1787640617"></script>
+<script src="/_assets/9ffef70de06ec7e16a75d217743a958b/JavaScript/Dist/scripts.js?1794903661"></script>
+<script src="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/slick-1.9.0/slick/slick.min.js?1771016268"></script>
+<script src="/_assets/166671fc32fd6936f615866c0ec34bb7/JavaScript/randomize.js?1771016268"></script>
+
+<script>
+/*<![CDATA[*/
+/*TS_inlineFooter*/
+      $('body').on('click', 'div.tabs > nav > .tabs-nav > li > a', function(e) {
+
+        var contentLocation = $(this).attr('href').substring($(this).attr('href').indexOf('#'));
+
+        if (contentLocation.charAt(0)=="#") {
+          e.preventDefault();
+          $(this).parent().siblings().children('a').removeClass('active');
+          $(this).addClass('active');
+          $(contentLocation).show().addClass('active').siblings().hide().removeClass('active');
+        }
+      });
+					var typeOfSlickUids = typeof slickUids;
+					if( typeOfSlickUids != 'undefined' ) {
+						if(Array.isArray(slickUids)){
+							$(document).ready(function () {
+								for (var i = 0; i < slickUids.length; i++) {
+									var boolSlickRandomizeX = eval("boolSlickRandomize" + slickUids[i]);
+									//alert(boolSlickRandomizeX);
+									if( boolSlickRandomizeX == true ) {
+										$('#slickid-' + slickUids[i]).randomize();
+									}
+								}
+							});
+						}
+					}
+					$(document).ready(function () {
+						if( (typeof obj === "object") && (obj !== null) ) {
+							var sortedKeys = Object.keys(obj).sort();
+							//alert( sortedKeys[0] );
+							if(Array.isArray(sortedKeys)){
+								for (var i = 0; i < sortedKeys.length; i++) {
+									obj[sortedKeys[i]]();
+								}
+							}
+						}
+					});
+
+/*]]>*/
+</script>
+
+
+
+</body>
+</html>
