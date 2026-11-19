@@ -132,7 +132,10 @@ Commit tooling, core/profile and application/console changes separately, each te
   path: after a lost start reply the route can stay unresolved (S10 `NONE`), so admission also
   needs a stop that can still leave then, either the binding's opted-in S3 shape (CANopen) or the
   family's equivalent native stop, or an independent stop the application declares for the run
-  (its own enable, STO or power path, named in the result). Without one the run is refused
+  (its own enable, STO or power path, named in the result). The stop path must also hold on a
+  resolved route whose state report is stale, missing or alarmed at stop due: a stop row admitted
+  without a fresh report (State transitions) covers it, otherwise the declared independent stop
+  is needed. Without one the run is refused
   before its first changing TX. Homing is such a run: a caller-supplied latest interruption time
   takes the duration's place (a travel bound may interrupt earlier, from observations no older than
   a caller-supplied age), with the same stop budget, transfer cap and stop path. Tests: a duration that no
@@ -149,7 +152,11 @@ Commit tooling, core/profile and application/console changes separately, each te
   attachment without history) a stop word sets bit 8, because setting the CiA 402 halt bit cannot
   start motion; a stop row refuses only where the family's evidence gives bit 8 another meaning,
   and the result records the unknown halt state. A stop is never refused merely because the halt
-  state is unknown. Tests assert the first emitted frame, or none, for every
+  state is unknown. A stop word whose reaction the family has reviewed from every state the drive
+  may be in (the review an S3 opt-in needs) is admitted without a fresh report and records the
+  state as unknown; other stop rows need their fresh source state. Halt evidence follows the
+  words actually sent: only an acknowledged bit-8-clear word with no later possibly sent
+  bit-8-set word makes the halt state clear. Tests assert the first emitted frame, or none, for every
   starting state and mode in the table, halted and unknown-halt predecessors included.
 
 ### Console, help and JSONL (seam S6)
@@ -290,7 +297,10 @@ default as the restore value. An observation is that specimen's behavior.
   Remap, rebind, NMT reset or boot-up, a configuration generation change and owner
   invalidation (bus-off and recovery included) revoke it, also while a schedule runs; so does
   admitting any NMT command, targeted or broadcast, that can change an evaluated node's NMT
-  state (Start, Stop, Enter Pre-operational, either reset), before it is sent; only
+  state (Start, Stop, Enter Pre-operational, either reset), before it is sent. NMT admission,
+  targeted and broadcast, is rechecked at hand-off to the controller: a binding change, a
+  conflicting operation (an in-flight save included) or stale evidence retires a not-yet-sent
+  NMT command, and one already handed off is reported as possibly sent; only
   fresh evidence requalifies. Refusal and revocation mean zero further SYNC TX; a frame already
   handed to the controller is reported as possibly sent, never recalled, and disarming is not
   a stop. Tests through the real producer with several nodes: known harmless (admitted);
