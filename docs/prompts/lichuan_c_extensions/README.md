@@ -1,8 +1,8 @@
 # Lichuan C-family extensions promptset (TL-C integrated steppers, CL2 drives, 57C English manual)
 
 Prepared 2026-11-19. Source collection and prompt preparation complete. All implementation stages are NOT
-STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after an independent
-[audit](audit.md) of `1043608b` ([application](audit_application.md)) and prompt 57's identity policy of `0ab4e181`.
+STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after two independent
+[audit](audit.md) rounds ([application](audit_application.md)) and prompt 57's identity policy as of `a7656efb`.
 
 This promptset **extends the implemented Lichuan C profile** (`lichuan_c`, `MotorControlCAN::LICHUAN_C`,
 CL86-C first). It is not a new profile: no `DriveProfile` value, no copied profile directory, no second
@@ -43,7 +43,7 @@ host-loss reactions, which no extension source documents.
 | 04b | [CL2 operations](04b_cl2_operations.md) | 04a; LX-D23/D25/D26/D27/D29; prompt 77 where landed |
 | 05 | [The 57C English manual: C01, C02, C17 and Q02](05_en57_conflicts.md) | 02; ledger-only; LX-D15..D19 |
 | 06 | [Console, capabilities and coverage for the model rows](06_console_and_coverage.md) | Implemented subsets of 03a..05; canopen_shared S6 if landed; prompt 64 after it lands |
-| 07a | [First contact per model](07a_first_contact.md) | An exact TL-C or CL2 fixture, owner return and authorization; each question's evidence path: a production route (reads after 03a/04a, admitted operations after 03b/04b) or an assigned isolated experiment, otherwise NOT RUN |
+| 07a | [First contact per model](07a_first_contact.md) | An exact TL-C or CL2 fixture, owner return and authorization; a reviewed fixture electrical record before first power; each question's evidence path: a production route (reads after 03a/04a, admitted operations after 03b/04b) or an assigned isolated experiment, otherwise NOT RUN |
 | 07b | [Qualification and release reconciliation](07b_qualification_and_release.md) | Software closeout after 06; physical part needs the 07a fixture |
 
 Why this split: TL-C and CL2 each get two stages. The rows (ledger, reads, status decoding, hazards) are
@@ -103,9 +103,10 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
   declared defaults, not live values: both CL86-C specimens read `2000` = 0x0400, Q01), so a match does not
   prove a CL86-C; the declared binding selects the
   model and the Lichuan family sets add model-scoped checks on that one policy. Its outcomes (CONFIRMED means
-  unique among the supplied references, not physical proof), its vendor-object and motion rules for
-  CONTRADICTED and its firmware rule (reported, never refusing) are defined once in prompt 57's Identity
-  policy bullet; the execution contract's
+  unique among the supplied references, not physical proof), its "Admission by outcome" precedence (only a
+  declared-model match admits), its vendor-object and motion rules, its stop exemption and its firmware
+  rule (reported, never refusing) are defined once in prompt 57's Identity policy bullet; the execution
+  contract's
   [identity outcomes](execution_contract.md#identity-outcomes-prompt-57s-policy) list what this set supplies,
   as the DS2 set's do. Prompt 57, stage 01 and DS2 stage 03 land one comparison; whichever lands later
   extends it.
@@ -114,12 +115,15 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
 - [canopen_shared](../canopen_shared/README.md) seams. This set claims none and may land before any family:
   - S1 and S2 are not needed (no new profile); the model binding is profile-internal. Once S2 lands, a
     new-model binding carries `LICHUAN_C`'s `DriveProfile` value like every Lichuan binding.
-  - S3: the `000B` best-effort shape matches the documented 15 to 11 emergency stop (TLCEN p11, CL257 p12).
-    Before S3 lands it is consumed unchanged; after it lands the model declaration sets the shape per binding
-    from the model's ledger review rather than relying on the Lichuan default.
+  - S3: TLCEN p11 and CL257 p12 document `000B` only from predecessor 15, while the best-effort word goes out
+    with the predecessor unknown, so TL-C and CL2 keep S3's default deny until a reviewed model decision
+    covers that case (X15). Before S3 lands, `prepareBestEffortStop` refuses these models; after it, the
+    application configures no shape for their bindings (03b item 3, 04b item 3). CL86-C keeps DEC-2.
   - S10 keeps Lichuan's marker default for every `lichuan_c` binding, but the markers read `1018`, which CL2
     does not document and DEC-1 does not cover for any new model. New-model bindings are set to
-    `SdoReusePolicy::NONE` through the existing `setSdoReuse` (03a, 04a); this is per model, not S10.
+    `SdoReusePolicy::NONE` through the existing `setSdoReuse` (03a, 04a), and new-model preparations
+    require the application's attestation of it in the `ModelBinding` (stage 01 item 5); this is per model,
+    not S10.
   - S6: model fields in JSONL extend the Lichuan envelope; `profile` stays `lichuan_c` on every record S6 gives
     a target (and `null` where S6 says so), and S6's work stays with the family that claims it.
   - S7: a new header under `profiles/lichuan_c/`, or a common header such as stage 01's profile-neutral
@@ -129,8 +133,10 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
     prompt 64; prompt 64 later absorbs them. S5, S8 and S9 are not applicable.
   - S11 (host heartbeat producer) and S12 (RTR node guarding) are not needed: TLEDS declares no `1016`, `100C`
     or `100D` and the CL2 manuals document neither, so no extension documents host-loss supervision.
-  - S13 (SYNC side-effect admission) is not claimed: no TL-C or CL2 source documents what a SYNC does. No
-    model row of this set admits `sync` (03a item 6, 04a item 1), but a per-model refusal does not stop the
-    interface's producer, which reaches every node. Until S13 lands, TL-C and CL2 nodes therefore run only on
-    an interface without a SYNC schedule (06 item 6); once it lands they enter it with unknown effects and its
-    population-wide guard (canopen_shared 02, CANopen-only rules, S13) refuses SYNC on their interface.
+  - S13 (SYNC and NMT-broadcast effect admission) is not claimed: no TL-C or CL2 source documents what a
+    SYNC does. No model row of this set admits `sync` (03a item 6, 04a item 1), but a per-model refusal does
+    not stop the interface's producer or a node-0 NMT command, and S13's default deny keys on non-Lichuan
+    bindings, which these `LICHUAN_C` bindings are not. From 03a and 04a the application therefore refuses
+    SYNC and node-0 NMT on every interface holding a TL-C or CL2 binding (03a item 6) until S13's full gate
+    lands; then this set supplies their effects as unknown and its population-wide guard (canopen_shared 02,
+    CANopen-only rules, S13) refuses on their interface.

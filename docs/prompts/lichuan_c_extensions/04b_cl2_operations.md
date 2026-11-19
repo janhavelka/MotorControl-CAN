@@ -11,35 +11,39 @@ code and input codes, so most C-family evidence does not transfer. Prompt 77 is 
 ## Work
 
 1. Common admission, exactly as in [03b](03b_tlc_operations.md) item 1 with CL2 in place of TL-C: current
-   `ModelBinding`, same-model reservation, a ledger row and disposition-map cell, prompt 57's identity rules
-   rechecked at every changing step; evidence records of the CL2 model whose firmware differences are
+   `ModelBinding`, same-model reservation, a ledger row and disposition-map cell, prompt 57's "Admission by
+   outcome" rechecked at every changing step with its stop exemption for item 3's reviewed stops; evidence
+   records of the CL2 model whose firmware differences are
    reported and never refuse, while a missing behavioral fact refuses with its own gate (X15, X16, X11); and
    03b's observation source, with the owner's CL2 read acceptance (04a item 3) required before any polling
-   and samples only from the mode-aware decoder of 04a item 4.
+   and samples only from the mode-aware decoder's bracketed acquisitions of 04a item 4.
 2. Enable. 6, 7, 15 at about 10 ms (CL257 p12). The C-family scope rule does not transfer: its bit 10 mask would
    hide a CL2 completion flag, and its released test reads `2100` bit4, whose polarity CL2 does not state
    (LX-D28). A CL2 scope rule uses bit3 alarm, the mode-aware bit 10 and `2100` bits 2 and 3, keeps bit4 raw,
    with a CL2 source-state table (canopen_shared 02 "Operation admission", state transitions). `EnableGate`
    stays `CLOSED` by default; as in 03b item 2, `ATTENDED_EXPERIMENT` under its existing terms (07a K5's
-   route, mode 1, targets equal to the actual position) and prompt 57's measured gate with a CL2 enable
+   route, mode 1, targets equal to the actual position, observed and never written) and prompt 57's measured
+   gate with a CL2 enable
    record (X15) admit it.
 3. Stops. 15 to 271 stop, 15 to 11 emergency stop (CL257 p12): `StopKind::HALT` (modes 1/3) and
    `QUICK_STOP` for predecessor 15 only, HALT's mode-6 form on CL257 p13's bit 4 "1 to 0: interrupt homing".
    Other predecessors only from CL2 records (X15); no CL2 motion without an admitted stop for its
-   predecessors, with no first-measurement exception. Best-effort `000B` is unchanged with unknown effect
-   (with seam S3 landed, set explicitly from the CL2 ledger review of CL257 p12, as in 03b). The statusword has
+   predecessors, with no first-measurement exception. The best-effort `000B` is denied for CL2 exactly as 03b
+   item 3 denies it for TL-C (S3's default deny until a reviewed CL2 decision covers an unknown predecessor,
+   X15; CL257 p12 documents 15 to 11 only), with the same tests. The statusword has
    no running bit, so stop completion stays `UNKNOWN` without CL2 stop evidence (X15); `2100` bit2 is a
    controller report. `605D` (RW I16, CL257 p19) has no documented values and is never written.
 4. Position. `6060`=1, `607A` -1000000..1000000 command pulses, `6081` 0..3000 rpm, `6083`/`6084` 0..2000 ms
    (CL257 p11, p19); triggers 15 to 31, 95, 63, 127 (CL257 p12). Completion is bit 10 in mode 1 through the
-   mode-aware decoder and item 1's observation source, with fresh deassertion after the trigger and
-   reassertion required as CL2 evidence (X08); a bit already high proves nothing. `2201` 400..51200 (CL257
-   p16) sets command pulses; the encoder field `2501` is not a scale (Q04 analog). Moves need CL2
-   `MoveEvidence` (X16).
+   mode-aware decoder's bracketed acquisitions and item 1's observation source, with fresh deassertion
+   after the trigger and reassertion required as CL2 evidence (X08); a bit already high proves nothing.
+   `2201` 400..51200 (CL257 p16) sets command pulses; the encoder field `2501` is not a scale (Q04 analog).
+   Moves need CL2 `MoveEvidence` (X16).
 5. Velocity. CL257 p13: mode 3, write `60FF` and the ramps, then 6, 7, 15; enabling starts motion. This is one
    consistent CL2 claim, still unverified, so `prepareVelocity` refuses CL2 until a CL2 `VelocityEvidence`
    record exists (X16). Mode 3 has no documented completion or zero-speed bit; settlement uses `606C` and `6064`
-   observations under the existing rules, never bit 10.
+   observations under the existing rules, never bit 10. An admitted run follows 03b item 5's timed-run rule
+   (canopen_shared 02 "Operation admission"), with item 3's stop table.
 6. Homing (X11). The CL2 appendix "servo homing methods" (CL257 p21..31) lists 1..14, 17..30, 33, 34 and 35 with
    CiA 402-style edge descriptions; 17/18 end at a limit falling edge and 24/29 at a home rising edge after
    reversals, unlike the C family (EN86 p13..14; LX-D26). Do not reuse `HomingMethod` with C meanings: add a CL2
@@ -60,7 +64,8 @@ code and input codes, so most C-family evidence does not transfer. Prompt 77 is 
    concern the battery and Err9 is reset by P0D.07 without a CANopen index (CL257 p20; LX-D30, X13).
 8. Position clear. `2302` (P0D-04; CL257 p14, p16) with the C-family reference invalidation and a stationary
    admission over CL2 observations (`2100` bit2 running and bit3 alarm clear, `606C` zero) from one explicit
-   fresh state read through the model-taking getter; a C-family or TL-C sample is refused.
+   fresh state read through the model-taking getter; a C-family or TL-C sample is refused. As in 03b item 8
+   this is a controller-reported predicate: the result claims no standstill.
 9. I/O settings. A CL2 DI candidate covers `2400:01` bits 0..6 and `2400:02..08` codes 0..6 with CL2 meanings
    (code 4 motor release); codes 7..22 are refused as undescribed (LX-D25). Output polarity `2400:0C` bits 0..2
    and functions `0D..0F` codes 0..5, 7, 9..11 follow CL2's one documented layout (CL257 p10, p17) and may be
@@ -81,7 +86,8 @@ code and input codes, so most C-family evidence does not transfer. Prompt 77 is 
 12. Motor matching (P02.19, P00.00, P00.03, P00.12, P00.13; CL257 p10, LX-D29) is not exposed.
 13. Release and mode select, as 03b item 12 with CL2 pages: before prompt 57 lands both are NOT_IMPLEMENTED;
     after it, release stays GATED under X15 and `prepareModeSelect` admits only CL257's modes 1, 3 and 6 (CL257
-    p11..13) with a CL2 source-state table, otherwise GATED under X15.
+    p11..13) with a CL2 source-state table, otherwise GATED under X15. A later prompt 57 landing applies
+    these cells as 03b item 12 says.
 
 ## Decisions that do not transfer here
 
@@ -95,14 +101,16 @@ the release table's CL86-C rows and the existing `sameFirmware` refusal.
 CL2 admission in `Actions`, `Position`, `Velocity`, `Homing`, `Settings`, `Tuning` and `Persistence`; the CL2
 homing table and its admission; `test/cl2_operations_test.cpp` through the real owner and `LichuanCl2Drive.h`:
 bit 10 completion only with fresh transitions, a pre-high bit 10, mode 3 without completion, a mode or
-generation change between samples, a stale or other-model sample, a missing transition, a fault, no read
+generation change between samples, an acknowledged `6060` write whose `6061` display changes only after the
+statusword sample (`UNKNOWN`, no completion), a stale or other-model sample, a missing transition, a fault, no read
 acceptance (completion `UNKNOWN`) and expiry of the one operation deadline, each with no inferred standstill
 and no later trigger; method refusals before setup or trigger with no TX (index on CL2-57C/86C with and
 without a declared Z, index on ABZ without the Z fixture record, a missing switch or start-direction
 prerequisite, 35, C-family meaning of 17); code 4 release, `2500`=2 refused, `2501` never written, `605D`
 never written, both alarm-clear routes; save and restore sending no node or bitrate write and keeping the
 route-after-restart obligation on success and on a lost acknowledgement; CL86-C evidence refused; the paired
-firmware-only and missing-fact evidence tests of 03b. Ledger, coverage, `docs/api_cli_mapping.md`,
+firmware-only and missing-fact evidence tests, the identity stop-exemption tests, the best-effort refusals and
+the timed-run tests of 03b. Ledger, coverage, `docs/api_cli_mapping.md`,
 CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance

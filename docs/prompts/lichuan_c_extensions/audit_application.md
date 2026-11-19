@@ -79,3 +79,87 @@ principles pack needed no change here: this set already links the committed pack
 
 Checks: `python scripts/check_promptset.py` reports no errors for this directory; `git diff --check`
 is clean for it. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+## Round 2: audit `aud-20261119-184724-01623c`, 19 November 2026
+
+Each finding of the [second report](audit.md) was checked against this set's files at `bd2b30d9` (unchanged
+at `c2a2882a`), the [LX review](../../reference/lichuan_c_extensions/review.md), the rendered pages, extracts,
+EDS lines and code named below, and the texts that lead commit `a7656efb` changed for the cross-cutting part:
+prompt 57's Identity policy (stop-exemption scope, "Admission by outcome"), canopen_shared 02 "Identity and
+device evidence", "Operation admission" (timed runs), S3 and S13, and
+[canopen_shared audit_application](../canopen_shared/audit_application.md) "Round 3", whose themes 1 to 5
+cover F1, F3, F6, F2 and F4. Those five are applied here by citing the shared rule and adding only
+model-specific facts. Following the user's direction of 2026-11-19, every high finding was verified and fixed;
+the medium one was fixed where cheap and its remaining part deferred. Only files in this directory changed;
+prompt 57, the shared contract, the LX pack, code and tests were not edited. No hardware, port or build was used.
+
+Dispositions: 8 accepted, 1 accepted in part (F5, with its owner-enforced part deferred), none rejected.
+
+| Finding | Disposition | Evidence checked | Change |
+| --- | --- | --- | --- |
+| F1 stops under a refused identity | Accepted | Old 01 lines 50-52, 03b lines 12-15, 04b lines 13-18; prompt 57 motion rule after `a7656efb` (the exemption removes only the identity refusal; route, binding-generation and source-state checks stay; a later outcome never withdraws a prepared or queued stop; other pending changing steps retire; an NMT command is never that stop) | 01 item 5: a cleared, stale or no longer admitting outcome retires every pending changing step except prompt 57's exempt stop (03b and 04b item 3's reviewed stops), which keeps its own checks and claims no standstill. 03b and 04b item 1 consume the exemption by citation. 03b and 04b Deliver test a contradiction before preparation and after queueing; 01's test list points there because 01 admits no new-model stop |
+| F2 best-effort stop, unknown predecessor | Accepted | Old 03b lines 43-51, 04b lines 28-30; canopen_shared 02 S3 bullet and README row (a shape establishes no predecessor; opt in only with a review of the word from every state reachable after an uncertain write, otherwise default deny); TLCEN p11 and CL257 p12 document 15 to 11 only; `Actions.h` `prepareBestEffortStop` takes a `ReadTarget` and no model; `CanBusOwner::admitBestEffortStop` checks the shape only | 03b item 3 separates ordinary stop admission from the best-effort word and keeps S3's default deny for TL-C until a reviewed TL-C decision (X15): `prepareBestEffortStop` takes the live `ModelBinding` and refuses, the example path too, and after S3 lands the application configures no shape; no parallel transmitter; DEC-2 unchanged for CL86-C/OL86-C. 04b item 3 the same for CL2. README S3 bullet. Tests: unresolved route after a possibly sent controlword, stale binding, legacy best-effort tests unchanged |
+| F3 identity precedence | Accepted | Old execution contract lines 90-92 ("an outcome other than CONTRADICTED admits a vendor-object download") and 01 item 7 ("any value but CONTRADICTED"); prompt 57 "Admission by outcome"; canopen_shared 02 identity bullets; TLEDS l.83, l.91 (`1018:01/02`); 04a item 2 (CL2 `1018` optional) | Execution contract and 01 item 7 consume prompt 57's precedence for vendor downloads and every changing request, stops exempt: a new-model binding needs a MEASURED record of its own model first. Model-specific addition in 01 item 6: minimum record content (`1000`, `2000`, and `1018:01/02` where the model's sources declare them; for CL2 only when answered), so an empty record cannot match everything. 01 tests: definite mismatch with no other match, no declared-model reference, unread product field and no current outcome refused; a collision including the declared model admitted with every match named; firmware-only change unchanged; a record below the minimum rejected. README prompt-57 bullet and 01 acceptance |
+| F4 interface-wide SYNC and NMT | Accepted | Old 06 lines 43-51, README S13 bullet, execution contract line 99; canopen_shared 02 S13 bullet after `a7656efb`: its default deny applies "on an interface with any non-Lichuan binding" through the S2 lookup, so it never sees a TL-C or CL2 binding, both of which carry `LICHUAN_C` | 03a item 6, the first stage in which a TL-C binding carries traffic (04a item 1 cites it for CL2): the example application refuses `armSync`, every individual `admitSync` whatever node it names and every node-0 NMT command on an interface holding a TL-C or CL2 binding, and a new-model declaration while a schedule is armed; retired only when S13's full gate lands with this set's effects supplied as unknown. 06 item 6 exercises it with three models and now refuses broadcast NMT instead of admitting it on per-model rows. 03a acceptance, README S13 bullet and execution contract "Owner and bus" follow |
+| F5 SDO reuse markers for other callers | Accepted in part | Old 03a item 2, 04a item 3 and round 1 question 2; `CanBusOwner.h` `setSdoReuse` (every new binding starts with `ACCEPTED_RISK_WITH_MARKER`, markers `1000:00`, `1018:01..03`) and the `sdoReuse` copy getter; `Reads.h` `ReadTarget::channel` (binding and configuration epochs) | 01 item 5: `ModelBinding` holds the application's reuse attestation (the channel epoch for which `NONE` was read back); rebinding clears it; every new-model preparation that takes the binding refuses without a current one, so a forgotten setup or a rebind fails closed on those routes, and the example application checks its model-less probe, identity and read routes the same way. 03a item 2, 04a item 3 and the README S10 bullet; tests for a missing and a stale attestation. **Deferred:** an owner-enforced boundary for other applications' model-less reads and probes and raw owner use, for example S10 keyed by the declared model, is a shared-contract change outside this directory |
+| F6 finite run after acknowledgement-only completion | Accepted | Old 03b lines 28-32 and item 5, 04b items 1 and 5; canopen_shared 02 timed-runs bullet and the design it cites (`VelocityOperation.h` `FiniteVelocityRequest::durationUs`; `profiles/lichuan_c/Velocity.h` `requiredStopBudgetUs`, `needsStop`, `STOPPING`); LX review "Limits and protection" (host loss documented nowhere) | 03b item 1: ending without observations retires no stop obligation. 03b item 5: an admitted TL-C run is a timed run under the shared bullet; preparation refuses unless item 3's stop table admits every state the run can leave, a lost start reply included; an urgent stop that cannot be admitted (unresolved route, best-effort denied) keeps `needsStop` and motion unknown. 04b item 5 cites it. Timed-run tests with a synthetic record in 03b and 04b. 07b physical item 3: finite velocity qualifies only with measured start-to-stop criteria per run |
+| F7 CL2 mode behind a statusword | Accepted | Old 04a lines 37-48, 04b lines 34-36; CL257 p12 and p14 (bit 10 by mode, `6061` listed) | 04a item 4: every CL2 status acquisition brackets the statusword (`6061`, `6041`, `6061`) under the operation's reservation; bit 10 means something only when both mode replies equal the commanded mode and all three share node generation and server session, otherwise `UNKNOWN`; the residual (a mode changed and restored by another master or the vendor software between the reads) goes into Doxygen. 04b items 1 and 4 consume it. Tests: the reviewer's interleaving (04a) and an acknowledged `6060` whose display lags the sample (04b) |
+| F8 first-contact prerequisites | Accepted | Old 07a T1, T5, K2, K5 and Deliver, 06 item 2 (static configuration, no entry route), 03b item 2, 04b item 2; `Actions.h` `EnableGate::ATTENDED_EXPERIMENT` and `prepareEnable` (fresh read in mode 1 with reviewed `607A` and `60FF`; never changes mode or zeroes a target); `Position.h` `preparePositionParameters` (arithmetic only, writes nothing); TLEDS l.1083..1088 (`6060` default 0), l.1096 (`6061` 0), l.1119 (`607A` 5000); LX review "Units and scaling" (TLO position not measured) | T1 and K2 separate capture (the production read after 03a/04a) from loading: a record becomes a MEASURED reference only through the application's static configuration, the one loading path, defined and tested in 06 item 2 (minimum content checked at load, no console write). 07a "Evidence paths": every changing production route needs that record first (prompt 57's precedence). T5 and K5 name their preconditions, observed in one fresh state read and never written: an admitted starting state, `6061` = 1, `607A` equal to `6064` (a controller report on TLO) and a stop from predecessor 15 prepared; the TLEDS defaults would fail both checks; otherwise experiment or NOT RUN; an enable that stops before word 15 sends nothing further and leaves the independent power cutoff. 03b and 04b item 2 say the preconditions are observed |
+| F9 electrical ambiguities before first power | Accepted | Old 07a lines 20-23, 07b lines 36-37; rendered TLCEN p6 (pins 1 VDC and 2 GND both "DC Power Negative Terminal"; 24~36, 24~50, 24-70 V), rendered TLCEN p7 (figure DO1/DO2 alarm and brake release; DC18-36, DC24-48, DC24-48 V; note 3 DOCOM to 0 V only, while p6 lists no DOCOM pin), rendered TL57OP p4 (DO1/DO2 with brake output on DO2, DI 12~24 V); CL286 p5 extract (both main terminals "AC", DC30-110 V or AC20-80 V, no DC polarity); LX-D09, LX-D10, LX-D14, LX-D31 | 07a "Before first power": a fixture electrical record, reviewed by the owner before first power, states power connection and polarity, a supply inside every documented range for the frame size, and every connected output, common terminal and brake release, each from the unit's own marking or the vendor's written clarification, never by choosing between conflicting texts; outputs stay unconnected and a braked motor unused until resolved; without the record every bench step is NOT RUN. 07a Deliver and Acceptance, 07b physical item 1 (X14 keeps the `2502` current bounds), execution contract "Hardware" and the README 07a row follow |
+
+### Unresolved questions
+
+1. **TL-C position-clear stationarity: answered by the code, now written in 03b item 8.** The C path's own
+   Doxygen (`Actions.h` `prepareSetDevicePosition`: mode 1, `2100` running and alarm clear, `606C` zero,
+   "conservative stationarity evidence, not an observed shaft") makes the predicate a controller report.
+   03b item 8 now applies that conservative set to TL-C reports: one fresh read through the model-taking
+   getter with mode 1, bit3 alarm and bit14 running clear (TLCEN p11) and `606C` zero (listed on TLCEN p15).
+   It is a controller-reported predicate: on TLO `6064` and `606C` are not measured feedback, and with X04 open
+   the bits' freshness is unqualified, so the result names X04 and claims no standstill. A physical standstill,
+   where a test needs one, is the attendant's observation. 04b item 8 says the same for CL2.
+2. **Prompt 57 landing after closeout: answered in part by the files, now enforced here.** 03b item 12 and 04b
+   item 13 already gave the dispositions for both landing orders, and the set's rule for the identity
+   comparison is that whichever lands later extends it. Stage 02 item 9 now adds a checker rule: a
+   NOT_IMPLEMENTED cell names its dependency by public function, and once that function is in the operation
+   map the checker fails until the cell is decided again, so the commit that lands prompt 57 also updates the
+   TL-C and CL2 cells, their console tests and coverage rows (03b item 12, 04b item 13, 07b item 1). Prompt
+   57's own deliverables do not name this update; adding that line is outside this directory.
+
+### Reviewer coverage gaps
+
+- Original pages: this application rendered TLCEN p6 and p7 and TL57OP p4, read the CL286 p5 extract and
+  TLEDS l.54..107 and l.1083..1119; the other device claims it touched were checked in the extracts against
+  the review's citations.
+- Code: read only for the symbols named above; landing state, builds and hardware are unchanged.
+
+### Decisions for the lead or owner
+
+- S13's default deny keys on non-Lichuan bindings, so TL-C and CL2 bindings escape it. This set's
+  application isolation (03a item 6) fills the gap for the example application; other applications have a
+  Doxygen obligation. An owner-level deny keyed by the declared model, and a full S13 gate that evaluates
+  Lichuan effects per declared model, are shared-contract changes.
+- S3: a Lichuan binding keeps DEC-2's shape by default. 03b and 04b item 3 need the application to configure
+  no shape for a TL-C or CL2 binding, which S3's per-binding configuration must allow for a Lichuan binding
+  (or key its default by declared model).
+- An owner-enforced SDO reuse boundary (F5's deferred part, round 1 question 2).
+- Prompt 57's deliverables could name the update of this set's release and mode-select cells (question 2);
+  stage 02's checker rule enforces it either way.
+- Proposals to confirm: the owner as reviewer of the fixture electrical record, the `ModelBinding` reuse
+  attestation, and the bracketed CL2 status acquisition.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+### Round 2 lead decisions
+
+1. S13 keyed by declared model: not changed. S13's default deny stays keyed on non-Lichuan
+   bindings; this set's application rule in 03a item 6 and 04a covers TL-C and CL2 until S13's full
+   gate lands and consumes their unknown effects. One interim rule, owned here, is simpler than a
+   model key in the S2 commit.
+2. S3 with no shape for a Lichuan binding: not changed. The refusal in `prepareBestEffortStop` for
+   TL-C and CL2 (F2) is family-local and sufficient; CL86-C and OL86-C keep DEC-2.
+3. S10 owner-enforced reuse boundary (F5's deferred part): stays deferred and open.
+4. Prompt 57 deliverable: added to its "Verify and exit" (if this set closes out first, prompt 57's
+   landing commit updates the release and mode-select cells).
+5. Electrical record before first power (F9): the owner reviews it at the bench; while COMMON records
+   the owner as away, no TL-C or CL2 bench step runs in any case.

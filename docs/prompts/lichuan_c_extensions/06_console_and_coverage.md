@@ -18,8 +18,11 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 2. Model declaration route. One explicit console input per bound node declares the model by exact designation
    (`TLC57-C`, `TLO86-C`, `CL2-57C`, `CL257C-ABZ`, `CL86-C`, ...). It performs no I/O, is refused while work is
    admitted or a result is retained on that node, and replaces the node's `ModelBinding`. The identity
-   candidate set and identity records come from the application's static configuration; the existing identity
-   read also prints `checkModelIdentity`'s outcome for the node's declaration. Nothing selects a model.
+   candidate set and identity records come from the application's static configuration, the one loading
+   path for a MEASURED record (07a T1, K2): a record is entered there with its provenance id, checked against
+   stage 01 item 6's minimum content when loaded, and takes effect when the application starts with that
+   configuration; no console route writes or edits a record. The existing identity read also prints
+   `checkModelIdentity`'s outcome for the node's declaration. Nothing selects a model.
 3. Existing verbs keep their grammar and meaning. On a node with a new model each verb calls the same public
    API with the declared model and either runs the admitted row or prints the refusal with its disposition
    (X gate, NOT_DOCUMENTED, NOT_IMPLEMENTED or MISSING_PREREQUISITE). `help`, `caps` and `profile list`
@@ -40,15 +43,15 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    These test library behavior on a synthetic configuration whose identifier, routing and broadcast analysis
    (canopen_shared 02 "Multi-profile consumers and package scope") the test records as synthetic; they qualify
    no physical shared bus, and a real one needs that analysis, which CL2's undocumented COB-IDs (X09) block.
-   SYNC: before S13 lands, the application route refuses to declare a TL-C or CL2 model on an interface with
-   an armed SYNC schedule and refuses to arm one on an interface with such a declaration; this only refuses
-   and admits no SYNC. After S13 lands these bindings enter its population-wide guard with unknown effects.
-   Cover independent stops under queue pressure, reservations that conflict on the same bus and node whatever
-   the declared model, a model change with pending work refused, results and caches routed by the admitted
-   model, separate identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
+   SYNC and node-0 NMT follow 03a item 6's interface isolation, landed with 03a and 04a and exercised here
+   with all three models; after S13's full gate lands, its live guard decides. Cover independent stops
+   under queue pressure, reservations that conflict on the same bus and node whatever the declared model,
+   a model change with pending work refused, results and caches routed by the admitted model, separate
+   identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
    stay current, declaring a new model while a CL86-C-originated schedule is armed, a SYNC request aimed at the
-   CL86-C node, conflicting routes, and broadcast NMT admitted only when every declared model's row admits
-   that command; assert the interface's traffic (zero SYNC and no refused frame), not only a verb's return.
+   CL86-C node, conflicting routes, and a broadcast NMT command refused while a TL-C or CL2 binding is
+   present (a per-model row admitting the command is not S13's population-wide approval); assert the
+   interface's traffic (zero SYNC, zero NMT and no refused frame), not only a verb's return.
    `test/multidrive_contract_test.cpp` still passes.
 7. Coverage. Create `docs/lichuan_c_models.md`: one row per common operation of canopen_shared 02 (reads, enable,
    release, mode select, absolute, relative and angle moves, finite velocity, homing, each stop kind, fault
@@ -64,9 +67,10 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 ## Deliver
 
 Console and application changes, `console_jsonl.py` and bench-script guards, `test/model_console_test.cpp`
-(API/CLI parity per admitted row, refusals, declaration route) and `test/mixed_model_owner_test.cpp`, both
-registered; coverage and documentation files above; operation-map `console` rows proving each route;
-CHANGELOG, report and `PROGRESS.md`.
+(API/CLI parity per admitted row, refusals, declaration route, a record loaded from static configuration
+changing the printed outcome, a record below the minimum content rejected at load) and
+`test/mixed_model_owner_test.cpp`, both registered; coverage and documentation files above; operation-map
+`console` rows proving each route; CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance
 

@@ -16,7 +16,8 @@ Hardware is NOT TESTED for every model.
 1. Reconcile every model-scoped ledger row, every LX-D01..LX-D35 disposition and every X gate against the
    callable API, console routes and tests. Mark missing code separately from unresolved device behavior,
    unavailable fixtures and undocumented functions, per model. A row that is only documented stays in the
-   coverage denominator.
+   coverage denominator. A NOT_IMPLEMENTED cell whose dependency has not landed (release and mode select
+   before prompt 57) stays open with its owner: the commit that lands the dependency (stage 02 item 9).
 2. Re-run the applicability register of stage 01: every decision row names the models it now applies to, each
    refusal still has a test, and no new model gained admission without a ledger row and its evidence input.
 3. Packages and consumers: clean source, install and PlatformIO packages; standalone public headers; C++11 and
@@ -33,14 +34,19 @@ Hardware is NOT TESTED for every model.
 ### Physical qualification when a fixture exists
 
 1. Start from 07a's records: nameplate, order code, declared model, encoder, firmware evidence, identity
-   record, supply, DIP positions, wiring, node, bitrate, image and authorization. Resolve the model's rating
-   conflicts (X14) for that fixture; no document range is bench permission.
+   record, the fixture electrical record (power connection, supply and connected I/O, resolved before first
+   power), DIP positions, wiring, node, bitrate, image and authorization. Resolve the model's remaining
+   rating conflicts (X14: the current bounds `2502` needs) for that fixture; no document range is bench
+   permission.
 2. Non-changing reads first, with retained raw frames: identity outcome, status table, monitor, I/O
    configuration and communication records. No automatic writes, alarm clears, setting changes or probing by
    motion.
 3. Establish explicit enable and stop prerequisites and a restoration plan. Run small finite position moves,
    prepared stops from each admitted predecessor, repeated triggers, absolute and relative policies and, for
    CL2, bit 10 transitions in modes 1 and 6. Retain before/after settings and every uncertain outcome.
+   Finite velocity qualifies only with measured start-to-stop criteria per run: the stop due time, the
+   urgent stop's TX time and the first fresh report after it; a run whose stop is not confirmed reports
+   motion unknown.
 4. Qualify TLC against TLO, and CL2 absolute-encoder against ABZ, independently; measure shaft displacement
    before any physical-scale claim. Software timestamps bound observations; electrical timing needs measurement.
 5. Homing per method only with its actual switches and, for index methods, its actual Z source. Output, brake

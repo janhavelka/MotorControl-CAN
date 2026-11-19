@@ -83,7 +83,11 @@ C-family claims, conflicts C01..C24, gates Q01..Q28 and generated descriptor val
    NOT_IMPLEMENTED (with the missing dependency, such as prompt 57) or MISSING_PREREQUISITE (the caller record
    it needs); proposed names. This stage lands every new-model cell as something other than ADMITTED;
    03b and 04b change their cells. Refusal details, console text (06) and coverage come from this one map,
-   and a documented entry alone never makes a cell ADMITTED.
+   and a documented entry alone never makes a cell ADMITTED. A NOT_IMPLEMENTED cell names its dependency by
+   public function; once that function is in the operation map, the checker fails until the cell is
+   decided again, so the commit that lands the dependency (for example prompt 57's `prepareRelease` and
+   `prepareModeSelect`, also after this set's closeout) updates the TL-C and CL2 cells, their console tests
+   and coverage rows (03b item 12, 04b item 13).
 
 ## Deliver
 
@@ -92,8 +96,9 @@ writes) and `check_lichuan_operations.py`; regenerated `Types.h`, `Objects.h`, `
 model table and `lichuan_generated.md`; negative tests for a missing TLEDS section, a tampered LX hash, a model
 row without a source, a promoted X gate, a TL-C row inheriting a C-EDS default, an edited original C claim,
 a CL2 row citing an EDS line, a model admitted by code but not by the ledger, a disposition map missing a
-cell, and an EN57 row naming CL57-C and OL57-C that counts as documentary coverage while generating no
-runtime selector and no write admission. Report and `PROGRESS.md`.
+cell, a NOT_IMPLEMENTED cell whose dependency has landed, and an EN57 row naming CL57-C and OL57-C that
+counts as documentary coverage while generating no runtime selector and no write admission. Report and
+`PROGRESS.md`.
 
 ## Acceptance
 

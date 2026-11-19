@@ -23,10 +23,15 @@ observations. Everything here can be verified on the host.
    its markers (`1000:00`, `1018:01..03`, `adapters/owner/CanBusTypes.h`) rest on DEC-1, so a TL-C binding is
    set to `SdoReusePolicy::NONE` through `setSdoReuse` until that decision exists, before its first transfer
    and again after every rebinding (a new channel binding starts with the owner default). The example
-   application does this for every new model and checks it through the owner's reuse-setting copy, with a
-   test including a rebinding; the Doxygen of the new model values states the same obligation for other
-   applications. canopen_shared seam S10, when landed, keeps Lichuan's marker default for every `lichuan_c`
-   binding, so this model-level setting stays this set's responsibility.
+   application does this for every new model, checks it through the owner's reuse-setting copy and records
+   the check as the `ModelBinding` attestation for that channel epoch (stage 01 item 5), which every new-model
+   preparation taking the binding requires; its probe, identity and read routes, which take no model, check
+   the same for a declared new model. Tests cover
+   a missing attestation and a rebinding (stale attestation refused, no TX); the Doxygen of the new model
+   values states the obligation for other applications. canopen_shared seam S10, when landed, keeps
+   Lichuan's marker default for every `lichuan_c` binding, so this model-level setting stays this set's
+   responsibility; an owner-enforced boundary keyed by the declared model would be a shared S10 change and
+   is not made here.
 3. Model-aware typed observations. Group reads keep their wire plans; meaning comes from the declared model.
    A getter that attaches documentary labels takes the model binding; the existing getter keeps its C-family
    meaning and says so in its Doxygen. No TL-C operation (03b) consumes a sample from the existing getter or
@@ -67,6 +72,18 @@ observations. Everything here can be verified on the host.
    documentary-unqualified. The `1017` setter (`CL86_C` scope), TPDO1 transitions and every COB-ID, map or
    inhibit write refuse a TL-C binding, and no TL-C row admits `sync` (TL-C SYNC effects are unreviewed;
    README, seam S13). `CompactPDO=31` (LX-D05) stays a raw metadata fact.
+   Interface isolation until S13's full gate lands. A per-model refusal does not stop the interface's SYNC
+   producer or a node-0 NMT command, and S13's default deny keys on non-Lichuan bindings (canopen_shared 02
+   S13), so it does not see a TL-C or CL2 binding, which carries `LICHUAN_C`. From this stage, the first in
+   which a TL-C binding carries traffic (04a for CL2), the example application therefore refuses, on every
+   interface holding a TL-C or CL2 binding, `armSync`, every individual `admitSync` whatever node it names,
+   and every node-0 NMT command, with zero SYNC or NMT TX, and refuses a TL-C or CL2 declaration on an
+   interface whose SYNC schedule is armed. It admits nothing; the Doxygen of the new model values states the
+   same obligation for other applications. When S13's full gate lands, this set supplies TL-C and CL2 SYNC
+   and NMT effects as unknown, its population-wide guard then refuses on their interface, and only then is
+   the application rule retired. Tests through the real producer and owner: declaration refused while a
+   CL86-C-originated schedule is armed, arming after a declaration, an individual SYNC aimed at the CL86-C
+   node and a broadcast NMT command, each with zero SYNC and NMT TX on the interface.
 7. Ledger: mark each delivered TL-C row implemented and host-tested per model; X02, X03, X04 and X06 open.
 
 ## Decisions that do not transfer here
@@ -84,12 +101,14 @@ or other-model sample refused by a TL-C consumer, widths reported, serial abort 
 `test/tlc_hazard_test.cpp` (no download to `2401..2407` or `2203` planned on any TL-C path; the reviewed
 explicit uploads of these indices and of PDO records emit exactly their request frames and nothing else; a
 refused setter, restore plan or map mutation emits no frame; filter-writer rule; CL86-C regression
-unchanged); ledger, operation map, coverage, CHANGELOG, report and `PROGRESS.md`.
+unchanged); the item 2 attestation and item 6 isolation tests; ledger, operation map, coverage, CHANGELOG,
+report and `PROGRESS.md`.
 
 ## Acceptance
 
 A TL-C binding reads identity, state and configuration through the real owner with model-correct labels and
 raw values preserved; no TL-C path plans a download to `2401..2407`, `2203`, a COB-ID or a PDO record, and
-reads of them are the reviewed explicit uploads only; the bitrate change is listed BLOCKED with X02's
-missing evidence. Quick and full verification, firmware builds and
-exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and X06 stay open for 07a.
+reads of them are the reviewed explicit uploads only; the example application emits no SYNC and no node-0
+NMT on an interface holding a TL-C binding; the bitrate change is listed BLOCKED with X02's missing evidence.
+Quick and full verification, firmware builds and exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and
+X06 stay open for 07a.

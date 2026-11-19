@@ -16,7 +16,9 @@ independent of 03a/03b.
    SDO on `0x600+node`/`0x580+node` rests on the CiA 301 predefined set (principles pack section 2) and the
    `1000` row's text "supports CiA301 and CiA402" (CL257 p14): a protocol claim, not CL2 behavior; 07a verifies.
    Passive heartbeat, boot-up and EMCY observations stay raw and unqualified ("EMCY" is a feature claim on
-   CL257 p4). No PDO map, COB-ID, heartbeat, SYNC or NMT configuration path admits a CL2 binding. Every CL2
+   CL257 p4). No PDO map, COB-ID, heartbeat, SYNC or NMT configuration path admits a CL2 binding, and 03a
+   item 6's interface isolation (no SYNC, no node-0 NMT) applies from this stage to every interface holding
+   a CL2 binding, with the same tests. Every CL2
    read plan holds only objects with a CL2 row: the state read's error block plans `603F` without `1001`, and
    the error-history block (`1003`) is refused, since neither is listed (CL257 p14..15).
 2. Identity. A CL2 identity read plans the documented `1000`, `1009`, `100A` (CL257 p14), `2000` "drive model
@@ -31,19 +33,24 @@ independent of 03a/03b.
 3. Read effects. DEC-1 does not transfer; CL2 uploads are explicit single reads, `NOT_REPEATABLE`, never
    polled, until the owner records a CL2 read acceptance. Because `1018` is undocumented, the default
    `SdoReuse` markers (`1018:01..03`) do not apply: a CL2 binding is set to `SdoReusePolicy::NONE` through
-   `setSdoReuse` before its first admission and again after every rebinding, as 03a item 2 sets it for TL-C,
-   so the owner's automatic marker never reads `1018`, until a reviewed marker object exists. Seam S10 keeps
-   Lichuan's default for `lichuan_c` bindings, so this stays here.
+   `setSdoReuse` before its first admission and again after every rebinding, with the `ModelBinding`
+   attestation and tests of 03a item 2, so the owner's automatic marker never reads `1018`, until a reviewed
+   marker object exists. Seam S10 keeps Lichuan's default for `lichuan_c` bindings, so this stays here.
 4. Mode-dependent statusword (X08, LX-D23). CL257 p12 and p14: bit3 alarm; bit10 "position complete" when
    `6060`=1 and "homing complete" when `6060`=6; no meaning for bits 8, 14 or 15; nothing for bit 10 in mode 3.
    Add a CL2 layout value and a mode-aware interpretation (proposed `interpretStatuswordInMode`) taking the
-   `6061` display byte from the same acquisition and the operation's commanded mode; disagreement or mode 3
+   `6061` display bytes from the same acquisition and the operation's commanded mode; disagreement or mode 3
    gives `UNKNOWN` for bit 10. `6041` and `6061` are separate uploads, so one acquisition is not an atomic
-   sample: bit 10 has a meaning only when both reads belong to the current node generation and the displayed
-   mode equals the commanded one, a mode or generation change between samples gives `UNKNOWN`, and a
-   completion needs the low-to-high sequence over successive acquisitions in that mode (04b item 1). The
-   mode-less `interpretStatusword` refuses the CL2 layout (`INVALID_CONFIG`), so no caller can read bit 10
-   without a mode. `STATUS_EN86_ZERO_SPEED` never applies to a CL2 binding, and pairing refuses every C-family
+   sample, and a `6061` reply in the commanded mode after the statusword does not show which mode produced
+   it. A CL2 status acquisition therefore brackets the statusword: `6061`, `6041`, `6061`, consecutive
+   explicit uploads under the operation's continuous reservation, which excludes other changing work on the
+   node. Bit 10 has a meaning only when both `6061` replies equal the commanded mode and all three replies
+   belong to the current node generation and server session; anything else gives `UNKNOWN`, and a
+   completion needs the low-to-high sequence over successive bracketed acquisitions in that mode (04b item
+   1). Residual, stated in Doxygen: a mode changed and restored between the two `6061` reads by another
+   master or the vendor software is not detected; the application keeps both away while an operation runs.
+   The mode-less `interpretStatusword` refuses the CL2 layout (`INVALID_CONFIG`), so no caller can read bit
+   10 without a mode. `STATUS_EN86_ZERO_SPEED` never applies to a CL2 binding, and pairing refuses every C-family
    and TL-C layout for CL2 models; CL2 operations take samples only through the model-taking getter, as 03a
    item 3 requires for TL-C.
 5. Monitor bits (X12, LX-D28). `2100` (CL257 p15..16): bit0 in position, bit1 homing complete, bit2 running,
@@ -87,11 +94,12 @@ independent of 03a/03b.
 CL2 layout value, `interpretStatuswordInMode`, CL2 loop-mode and input-function decodings, CL2 monitor, I/O and
 tuning observations with Doxygen; `test/support/LichuanCl2Drive.h` (fake server answering only manual-listed
 objects, with undocumented objects configurable as abort or value, labelled synthetic); `test/cl2_reads_test.cpp`
-(bit 10 by mode including mode 3, disagreement and a mode or generation change between the two reads,
-mode-less refusal, `2500`=2 unknown, `2501` raw, code 4; the identity read with the `1018` option off (no
-`1018` frame) and on (exactly one upload per subindex, abort and reply kept raw, no marker, no retry, no
-download, no model inferred from an abort); state reads without `1001` or `1003`; `2402..2407` never
-planned); ledger, coverage, CHANGELOG, report and `PROGRESS.md`.
+(bit 10 by mode including mode 3, disagreement, a mode or generation change between reads, and a statusword
+sampled while the first `6061` showed another mode and the second the commanded one with the node generation
+unchanged, giving `UNKNOWN`; mode-less refusal, `2500`=2 unknown, `2501` raw, code 4; the identity read
+with the `1018` option off (no `1018` frame) and on (exactly one upload per subindex, abort and reply kept
+raw, no marker, no retry, no download, no model inferred from an abort); state reads without `1001` or
+`1003`; `2402..2407` never planned); ledger, coverage, CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance
 

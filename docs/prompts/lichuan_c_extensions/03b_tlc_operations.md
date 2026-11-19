@@ -10,9 +10,10 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
 ## Work
 
 1. Common admission. Every admitted TL-C operation requires the current `ModelBinding`, a reservation of the
-   same model, its own ledger row and cell in stage 02's disposition map, and prompt 57's identity rules
-   rechecked at every changing step (stage 01 item 5): CONTRADICTED refuses it before TX, and a
-   manufacturer-area download also needs a current outcome.
+   same model, its own ledger row and cell in stage 02's disposition map, and prompt 57's "Admission by
+   outcome" rechecked at every changing step (stage 01 items 5 and 7): only a current outcome in which a
+   reference of the declared model matches admits. Item 3's reviewed stops are exempt from the identity
+   refusal only, as prompt 57 states; they keep their route, generation and source-state checks.
    - Evidence records and firmware, defined here once (04b item 1 uses it). An operation whose C path takes
      a measured record (`MoveEvidence`, `VelocityEvidence`, enable, stop and homing records) takes a record of
      the same model; a CL86-C record never admits a TL-C binding. The record's product identity fields must
@@ -27,9 +28,10 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
      model-taking getter only, bound to model, operation, trigger, mode and current generations. An
      operation's repeated observation cycles are polling, so they run only after the owner records the
      TL-C read acceptance (03a item 2); until then the operation ends with its acknowledgement evidence and
-     completion and standstill stay `UNKNOWN`. No TL-C TPDO route is qualified (03a item 6). The one
-     operation deadline of canopen_shared 02 "Operation admission" bounds every poll, and no deadline expiry
-     infers standstill or permits a later trigger.
+     completion and standstill stay `UNKNOWN`. Ending without observations retires no stop obligation: a
+     finite run keeps `needsStop` and its stop due time (item 5). No TL-C TPDO route is qualified (03a item
+     6). The one operation deadline of canopen_shared 02 "Operation admission" bounds every poll, and no
+     deadline expiry infers standstill or permits a later trigger.
 2. Enable. TLCEN p11 and TL57ZH p10 document 6, 7, 15 at about 10 ms; TL57OP p7 says at least 10 ms between
    frames. `EnableGate` stays `CLOSED` by default; the CL86-C attended trials qualify nothing for TL-C. The
    C-family scope rule (`enableScopeHolds`: bit 10 mask, 2100 released bit, released latch) is replaced for
@@ -37,7 +39,8 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
    source-state table (canopen_shared 02 "Operation admission", state transitions) giving the admitted
    starting states and first word. Two gate values admit it: `ATTENDED_EXPERIMENT` under that gate's existing
    terms (one attended trial with an independent drive-power cutoff, qualifying nothing), which is 07a T5's
-   route, in mode 1 with targets equal to the actual position; and prompt 57's measured gate, where landed,
+   route, in mode 1 with targets equal to the actual position, both observed in the fresh state read and
+   never established by a write (07a T5); and prompt 57's measured gate, where landed,
    with a TL-C enable record (X05). TL57OP p7's third word `0x010F` is not an enable word here; it stays an
    X05 claim (LX-D08), and no path sends it as part of an enable.
 3. Stops. TLCEN p11 lists 15 to 271 stop and 15 to 11 emergency stop, so `StopKind::HALT` in modes 1/3
@@ -46,11 +49,17 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
    predecessors are CL86-C measurements: a TL-C stop admits another predecessor only from a TL-C record
    (X15). A TL-C motion operation is admitted only when the stop table admits the predecessors that motion
    leaves; no TL-C motion starts without an admitted stop, and production admission has no first-measurement
-   exception (07a runs such measurements only as assigned experiments). The best-effort `000B` route is
-   unchanged; for TL-C it is the documented 15 to 11 shape with unknown effect. If canopen_shared seam S3 has
-   landed, the model declaration sets the binding's shape explicitly from the TL-C ledger review (TLCEN p11)
-   instead of relying on the Lichuan default. Stop completion stays `UNKNOWN` without TL-C stop evidence
-   (X15) and the observation source of item 1.
+   exception (07a runs such measurements only as assigned experiments). Ordinary stop admission (a fresh
+   predecessor the table admits) is separate from the best-effort `000B` of DEC-2, which goes out after an
+   uncertain write with the predecessor unknown. TLCEN p11 documents 15 to 11 only and DEC-2's premise is a
+   CL86-C measurement, so TL-C keeps canopen_shared 02 S3's default deny (a shape needs a review of the
+   word's reaction from every state reachable after an uncertain write, a set halt bit included) until a
+   reviewed TL-C decision covers that case (X15): `prepareBestEffortStop` takes the live `ModelBinding`
+   (stage 01 item 7's migration rule) and refuses a TL-C binding before TX, the example application's
+   best-effort path does the same, and once S3 lands the application configures no shape for a TL-C binding,
+   so `admitBestEffortStop` returns `INVALID` with no TX. No parallel transmitter; CL86-C and OL86-C keep
+   DEC-2 and its tests unchanged. Stop completion stays `UNKNOWN` without TL-C stop evidence (X15) and the
+   observation source of item 1.
 4. Position. Documentary objects and ranges match the C family (TLCEN p10): `6060`=1, `607A` I32
    -1000000..1000000 command pulses, `6081` 0..3000 rpm, `6083`/`6084` 0..2000 ms. Triggers are 15 to 31, 95, 63
    and 127 (TLCEN p11); TL57OP p7's `0x011F` start is refused (LX-D08). `preparePositionParameters` admits TL-C
@@ -61,7 +70,13 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
 5. Velocity. LX-D07: TLCEN p12 writes the targets and enabling starts motion; TL57OP p7 writes `60FF` after
    enabling, says that starts motion and that writing 0 stops it. The C17 decision does not transfer: TL-C
    start order stays X05, `prepareVelocity` refuses TL-C until a TL-C `VelocityEvidence` record fixes the order,
-   and a zero target is never a stop operation.
+   and a zero target is never a stop operation. Once a record admits it, the run is a timed run under
+   canopen_shared 02 "Operation admission" (the existing `durationUs`, `requiredStopBudgetUs`, `needsStop`
+   and `STOPPING` design, with the application's separate urgent stop at stop due): item 1's
+   acknowledgement-only end never clears `needsStop`, and preparation refuses unless item 3's stop table
+   admits every state the run can leave, a lost start reply included. If the urgent stop cannot be admitted
+   (an unresolved route, where item 3 denies the best-effort word), the result keeps `needsStop` and reports
+   motion unknown.
 6. Homing. Methods 17, 18, 24 and 29 with the EN86 descriptions (TLCEN p12..13). Method 28 (TL57OP p7, written
    with a stray byte `0x1E`) is refused. Each method needs a TL-C homing record for that method (X17);
    completion uses TL-C bit 8 (TLCEN p14) from item 1's observation source.
@@ -71,9 +86,13 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
    TL-C: `2301` is declared by TLEDS l.1404 but absent from TLCEN p17 and TL57ZH p16 (LX-D11, X07). The C
    default choice is a CL86-C bench decision; TL-C callers name the method.
 8. Position clear. `prepareSetDevicePosition` (`2302` 0 to 1, then manual 0; TLCEN p14, p17; TL57OP p7) is
-   admitted for TL-C with the C-family reference invalidation and a stationary admission over the TL-C table
-   (bit3 alarm and bit14 running clear) from one explicit fresh state read through the model-taking getter;
-   a C-family or other-model sample is refused.
+   admitted for TL-C with the C-family reference invalidation and the C path's conservative stationary
+   admission on TL-C reports: one explicit fresh state read through the model-taking getter showing mode 1,
+   bit3 alarm and bit14 running clear (TLCEN p11) and `606C` zero; a C-family or other-model sample is
+   refused. This is a controller-reported predicate, not physical standstill: on TLO `6064` and `606C` are
+   not measured feedback (LX review, "Units and scaling": TLO has no encoder), and with X04 open the bits'
+   freshness is unqualified, so the result claims no standstill and names X04. Where a test needs a
+   stationary shaft, the attendant observes it (07a).
 9. I/O settings. A TL-C DI candidate covers `2400:01` bits 0..4 and `2400:02..06` codes 0..13 (TLCEN p17);
    `2400:07..08` are never written, so the C-family seven-slot `IoSettings` does not transfer. Output functions,
    polarity and `60FE` stay gated (X06; LX-D10: DO0/DO1 against DO1/DO2, brake on DO2 in TL57OP p4).
@@ -98,7 +117,8 @@ status table and stage 01's model binding and identity outcome. Prompts 57, 72 a
     CL86-C-only). After it lands, `prepareRelease` stays GATED under X15 for TL-C, because every release-table
     row is a CL86-C measurement, and `prepareModeSelect` admits TL-C only for the modes TLCEN documents (1,
     3 and 6, TLCEN p10..14) with a TL-C source-state table for its not-enabled check; without that table it is GATED under
-    X15. Stage 02's disposition map records both states.
+    X15. Stage 02's disposition map records both states; if prompt 57 lands after this set's closeout, its
+    landing commit applies them, as stage 02 item 9's checker rule requires.
 
 ## Decisions that do not transfer here
 
@@ -113,7 +133,14 @@ TL-C admission in `Actions`, `Position`, `Velocity`, `Homing`, `Settings`, `Tuni
 Doxygen naming pages and gates; `test/tlc_operations_test.cpp` through the real owner, `SdoClient` and
 `LichuanTlcDrive.h`: documented words and frames, refusals of `0x010F` enable, `0x011F` start, method 28,
 `2301`, closed loop on TLO, `2502` without a rating, `2400:07..08`, save without the bitrate acknowledgement,
-CL86-C evidence on a TL-C binding, and a stop admitted before every admitted motion. Paired evidence tests:
+CL86-C evidence on a TL-C binding, and a stop admitted before every admitted motion. Identity tests: a
+contradiction before preparation and after the stop was queued, each leaving the reviewed stop admitted (no
+refusal for identity alone, its result carrying the outcome and claiming no standstill) while every other
+pending changing step is retired. Best-effort tests: an unresolved route after a possibly sent controlword
+and a stale binding, each refused with no TX; CL86-C best-effort tests unchanged. Timed-run tests with a
+synthetic TL-C velocity record: canopen_shared 02's cases (duration plus budget not fitting, lost start reply,
+observation in flight near stop due, service resuming after stop due, queue-pressured stop) and an
+unresolved route at stop due (`needsStop` kept, motion unknown). Paired evidence tests:
 a TL-C record differing from the current identity only in firmware (admitted, result reports "firmware
 unqualified" with both identities) and one lacking the needed fact (refused with its gate, no TX).
 Observation tests: a bit already high before the trigger, a mode change or new generation between samples,
