@@ -119,9 +119,18 @@ observations. Everything here can be verified on the host.
    canopen_shared 02 S13's hand-off recheck has landed, it retires a not-yet-sent targeted command on a
    rebinding and the application consumes that terminal; the application check still covers a
    declaration, which the owner does not see. It admits
-   nothing; the Doxygen of the new model values states the same obligation for other applications. When
-   S13's full gate lands, this set supplies TL-C and CL2 SYNC and NMT effects as unknown, its
-   population-wide guard then refuses on their interface, and only then is the application rule retired.
+   nothing; the Doxygen of the new model values states the same obligation for other applications. The
+   two rules retire separately. The interface-wide deny (no `armSync`, `admitSync` or node-0 NMT) retires
+   when S13's full gate lands: this set then supplies TL-C and CL2 SYNC and NMT effects as unknown, and
+   S13's population-wide guard refuses on their interface. The declaration interlock (this
+   population-change check) stays after that: a model-only declaration replaces the application's
+   `ModelBinding` without a rebind or configuration-generation change, the triggers on which S13 revokes
+   approvals (canopen_shared 02 S13). It retires only in a reviewed change whose test shows that a
+   same-channel declaration updates S13's evaluated population and revokes every earlier approval
+   atomically with owner admission and hand-off: an approved schedule on an interface holding only
+   CL86-C bindings, a held one-shot SYNC and held targeted and broadcast NMT requests, then a model-only
+   declaration on one node; after a successful change no stale SYNC or NMT frame leaves, and a frame
+   already handed off keeps its possibly-sent disposition.
    Tests through the real producer and owner: declaration refused while a CL86-C-originated schedule is
    armed, arming after a declaration, an individual SYNC aimed at the CL86-C node and a broadcast NMT
    command, each with zero SYNC and NMT TX on the interface; a one-shot SYNC and a broadcast NMT admitted
@@ -158,7 +167,8 @@ raw values preserved; no TL-C path plans a download to `2401..2407`, `2203`, a C
 reads of them are the reviewed explicit uploads only; no TL-C traffic leaves before the binding carries
 `NONE` and S3's explicit no shape; the example application emits no SYNC and no node-0 NMT on an interface
 holding a TL-C binding and no targeted NMT to a TL-C binding, one admitted under the node's earlier
-declaration included; the bitrate change is listed BLOCKED with
+declaration included; its declaration interlock is not retired with the interface-wide deny; the bitrate
+change is listed BLOCKED with
 X02's missing evidence.
 Quick and full verification, firmware builds and exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and
 X06 stay open for 07a.

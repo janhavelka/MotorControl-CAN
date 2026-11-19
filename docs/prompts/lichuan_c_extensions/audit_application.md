@@ -420,3 +420,89 @@ directory. Nothing was compiled; no hardware or port was used; nothing was commi
 3. F5: canopen_shared 02 S3 now defines the way back from the explicit no shape (restore the profile
    default after reconciling the route and previous work, before first traffic, with a readback); 03a's
    path consumes it whichever commit lands S3 first.
+
+## Round 6: audit `aud-20261119-205720-581d91`, 19 November 2026
+
+Each finding of the [sixth report](audit.md) was checked against this set's files at `08040865` (unchanged
+from `6fd33ca0` and at `d2be8211`), the [LX review](../../reference/lichuan_c_extensions/review.md), the
+extract pages, ledger rows and code named below, and the shared change made after the audit in `d2be8211`,
+recorded in [canopen_shared audit_application](../canopen_shared/audit_application.md) theme 19: in
+canopen_shared 02 "Timed runs" a fallback deadline already elapsed at dispatch of the first possibly
+starting write refuses that write; when service resumes after the deadline with the stop still owed, the
+application invokes the declared stop at once and the result reports the missed deadline and unknown
+motion; an outstanding obligation blocks re-declaration or rebinding of that node; and a stop path means a
+stop usable from every reachable state of the run. F1 and F2 are applied by citing that rule, with the
+family tests added. Following the user's direction of 2026-11-19, every high finding was verified and fixed,
+and the two medium ones were cheap and clearly right. Only files in this directory changed; the shared
+contract, prompt 57, the LX pack, the ledger, code and tests were not edited. No hardware, port or build was
+used.
+
+Dispositions: 7 accepted, none accepted in part, rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change |
+| --- | --- | --- | --- |
+| F1 stop obligation blocks re-declaration | Accepted, by citation | Old 03b lines 36-38 (an acknowledgement-only end keeps `needsStop` and its stop due time) and 06 lines 18-22 (the re-declaration refusals name admitted work, a retained result, an unresolved route and resync steps, not an owed stop); canopen_shared 02 S3 (restore the default only with no pending stop) and "Timed runs" after `d2be8211` (an outstanding obligation blocks re-declaration or rebinding) | 03b item 5: the application keeps the stop obligation (`needsStop` with its stop due time and fallback deadline) independently of the run's result; releasing a retained result does not retire it, and while it is owed a rebinding or re-declaration of the node is refused, citing the shared rule. 06 item 2 adds an outstanding stop obligation to the re-declaration refusals, which also covers the legacy-shape restore it performs. Tests: 03b Deliver (an acknowledgement-only run released before stop due, then a rebinding: refused, owner settings unchanged, the urgent stop and the declared stop still serviced), 06 item 6 and Deliver (the same for a re-declaration), 04b Deliver consumes them |
+| F2 fallback deadline validity and late service | Accepted, by citation | Old 03b lines 129-137 and 287-289 (homing's "a service cycle resuming after it" named no expected result); canopen_shared 02 "Timed runs" after `d2be8211`; 07b physical items 4 and 6 (the fallback deadline is in the caller's approved envelope) | 03b item 5 applies the shared validity and late-service clauses (elapsed at dispatch of the first possibly starting write refuses that write; service resuming late with the stop owed invokes the declared stop at once and reports the miss and unknown motion, no late start) and states the premise: meeting the deadline rests on the application's service cadence or an actuation path independent of it, which the library assumes neither way. 04b item 5 cites both. Tests in 03b Deliver: an elapsed fallback deadline at dispatch (that write and every later one unsent), a service-level resumption after the fallback deadline (hook invoked at once, miss reported), and the homing resumption case split into after the latest interruption time (no further home work, HALT requested at once where admissible) and after the fallback deadline. No ordering rule between the fallback deadline and stop due is added: an earlier fallback deadline only invokes the declared stop earlier, and the time limits stay caller- or envelope-supplied (07b) |
+| F3 declaration interlock after S13 | Accepted | Old 03a lines 103-124 (the application rule, including the population-change check, retired when S13's full gate lands); canopen_shared 02 S13 (approval revoked by remap, rebind, NMT reset or boot-up, a configuration generation change and owner invalidation; NMT admission rechecked at hand-off on a binding change); 06 item 2 (a declaration replaces the application's `ModelBinding` in the owner's service context, no rebind) | 03a item 6 separates the two rules: the interface-wide deny (no `armSync`, `admitSync` or node-0 NMT) retires when S13's full gate lands with this set's unknown effects; the declaration interlock stays, because a model-only declaration is none of S13's revocation triggers, and retires only in a reviewed change whose test shows a same-channel declaration updating S13's evaluated population and revoking earlier approvals atomically with owner admission and hand-off (approved schedule on an all-CL86-C interface, held one-shot SYNC and held targeted and broadcast NMT, then a model-only declaration: no stale SYNC or NMT after a successful change, handed-off frames keep their possibly-sent disposition). 03a acceptance, 06 item 6 and the README S13 bullet follow |
+| F4 halt-state derivation at stop dispatch | Accepted | Old 03b lines 82-94 and 269-271, 04b item 3; canopen_shared 02 "State transitions" (halt clear only after an acknowledged bit-8-clear word with no later possibly sent bit-8-set word, or a controlword readback where the ledger shows `6040h` returns the received value; a declared external writer makes it unqualified) and "Ownership premise"; 03a item 4 (TL-C status bits 3, 8 homing complete, 14, 15; no halt bit) and 04a item 4 (CL2 bits 8, 14 and 15 without meaning) | 03b item 3: the halt state at dispatch follows that derivation; a declared external writer makes it unknown; the status bits never decide it; no TL-C source states that a `6040` upload returns the received word, so the readback alternative stays unused until a reviewed row shows it. 04b item 3 applies it for CL2. Tests in 03b Deliver, consumed by 04b: an acknowledged `000F` followed by a possibly sent `010F`, and a declared external writer after an acknowledged bit-8-clear word, each on an admissible route with a fresh low-bits-111 report, emitting `010F` for HALT and `010B` for the quick stop and recording the halt state unknown with its reason. The selected unknown-halt word is unchanged |
+| F5 position moves after a possibly sent trigger | Accepted | Old 03b lines 112-118 and 126-128, 04b line 58; canopen_shared 02 "Timed runs" (a run the host ends; a stop path usable from every reachable state, `d2be8211`); ADD_DRIVE.md line 25 (deadline service of finite onboard trajectories); AGENTS no-replay rule; the engineering direction of 2026-11-17 (settable guards, caller responsibility) as the lead's rounds apply it | 03b item 4 "Interruption choice", defined once: preparation takes the caller's choice before any changing TX. If the envelope requires interruption, the caller supplies a latest interruption time and the move is a host-ended run under the shared timed-run rule with item 5's stop path (stop budget before the one deadline, transfers capped at stop due, an application-declared independent stop with its fallback deadline, all before the trigger), otherwise MISSING_PREREQUISITE with zero TX; a move confirmed complete before that time owes no stop. Otherwise the result states the onboard-completion premise the caller accepted and, after a lost trigger reply, keeps motion and completion unknown, sends nothing further and names no usable stop path; no trigger replay, no completion from elapsed time. 04b item 4 consumes it (CL2 has no S3 shape, so the declared stop). Tests in 03b Deliver: a lost trigger reply under `NONE` in both choices, and an interruptible move without a latest interruption time or declared stop (refused, zero TX). 03b and 04b intros, README stage table (item 4 among the shared rules) and 07b physical item 4 (the choice in the envelope) follow |
+| F6 CL2 `6098` write policy | Accepted | Old 04a lines 99-100 and 04b lines 67-84; LX review LX-D33 (`6098` I8 p19 against U8 p13); CL257 PDF p13 extract ("6098h 00 回零模式 模式介绍见附录一 UNSIGNED8 RW") and p19 ("6098 00 Homing method (RW) I8"), the same pair on p13 and p19 of the CL286, ABZ57 and ABZ86 extracts; the appendix method list 1..14, 17..30, 33/34 (p31 "6098=33/34"), 35 in all four; the C family's C22 review in `lichuan_objects.json` ("positive codes 17/18/24/29 are wire-identical in U8/I8", write policy `qualification_required`); `Homing.cpp` `INDEXES` (`6098`, `6099:01/02`, `609A`, `607C`) and its mode-6 precondition (no mode write); canopen_shared 02 "Write preflight" | 04a item 11: `6098:00` gets an explicit CL2 write-policy row with C22's narrow disposition: both claims are one byte and every listed CL2 method is positive and below 0x80, so its wire byte is the same; only those values are admitted, the conflict stays recorded, and each manual's rendered p13 and p19 are reopened. 04b item 6: write preflight before any homing setup download over every write the home may issue (`6098`, `6099:01/02`, `609A`, `607C` and its `6040` words) against reviewed CL2 write-policy rows; a missing or unresolved one blocks the whole home with nothing sent; method or fixture evidence or a fake server's acceptance never stands in. Test in 04b Deliver: a missing or conflicting `6098` row with a valid method record sends no homing setup download at all |
+| F7 the stage 06 loader for changing first-contact questions | Accepted | Old 07a lines 10-11 and 51-53, 06 lines 33-35 (static configuration, the one loading path for a MEASURED record), README stage table row 07a | 07a: changing questions run after 03b or 04b and 06 item 2's static configuration, the one path that loads a MEASURED record (and, after the unresolved question below, the caller records and declared-stop hook); before stage 06 lands they are NOT RUN or assigned experiments, read-only capture still runs and its captures (T1, K2 included) stay evidence awaiting loading. T5 and K5 name 06; 07a Deliver and the README 07a row follow. The loader is not moved earlier, which would add scope to 03b and 04b |
+
+### Unresolved question
+
+1. **Answered by the code, now written in 06 item 2.** No such path exists today. The shared console creates
+   no qualification: `examples/common/ProbeConsole.cpp` lists `home qualification` and `velocity
+   qualification` as "No console-created qualification" rows ("CLI cannot attest a measured record"). Evidence
+   reaches motion only through `ProbeMotion`'s `setMovePrerequisites`, `setVelocityPrerequisites`,
+   `setHomePrerequisites` and `setEnablePrerequisites` (`examples/common/ProbeMotion.h`), called by application
+   code: the CL86-C-only `examples/s2_bench/BenchConsole.cpp` builds move and velocity evidence from its own
+   arming plan. No code has an application-declared independent stop (the "independent stop" of
+   `Velocity.h` and `Homing.h` is the composed CANopen urgent stop). 06 item 2 now names the path: the same
+   static configuration that loads identity records also loads the fixture-scoped records 03b and 04b take
+   (model evidence records, basis, fixture signal and Z fixture records, the X14 rating), each with its
+   provenance id and checked at load, and binds the declared independent stop as an application hook on the
+   fixture's own enable, STO or power path; request parameters (fallback deadline, latest interruption time,
+   travel bound, stop budget, save acknowledgement, move interruption choice) are verb arguments; a
+   per-admission actual-position record comes only from a measurement source named in the configuration,
+   never from console text; a missing record, source or hook prints MISSING_PREREQUISITE with zero TX. 06
+   Deliver adds parity runs with configured records and a recording hook and that refusal.
+
+### Reviewer coverage gaps
+
+- Original pages: this application read the PyMuPDF extracts of CL257, CL286, ABZ57 and ABZ86 PDF pages 13,
+  19 and the homing appendix; no page was rendered as an image this round, and 04a item 11 asks the
+  implementer to reopen each rendered page. Other device claims stay as earlier rounds checked them.
+- Code: `ProbeConsole.cpp` qualification rows, `ProbeMotion.h` prerequisite setters and their callers in
+  `BenchConsole.cpp`, `Homing.cpp` `INDEXES` and mode precondition, and the ledger's `6098:00` entry and
+  conflict C22. Whether S13's hand-off recheck or full gate has landed in code was not established; builds
+  and hardware are unchanged.
+
+### Decisions for the lead or owner
+
+1. F5: the onboard-completion choice is a caller-accepted premise in the spirit of the 2026-11-17 direction
+   (settable guards, caller responsibility); a move without the interruption requirement can leave motion
+   unknown with no usable stop path after a lost trigger reply. Confirm, or make the interruption
+   requirement the default.
+2. F3: the declaration interlock outlives S13's full gate until a reviewed change proves a model-only
+   declaration revokes S13 approvals atomically. If S13's landing should instead expose the application's
+   model declaration to the owner (a shared S13 change), the canopen_shared README S13 row could say so.
+3. Unresolved question: the static-configuration path for caller records and the declared-stop hook, and the
+   actual-position record coming only from a configured measurement source, are proposals for stage 06.
+   Confirm.
+4. F6: `6098:00` for CL2 adopts the C family's C22 narrow disposition (positive listed methods only); confirm
+   before stage 02 or 04a writes the row.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+### Round 6 lead decisions
+
+1. F5: onboard completion stays the default for a finite position move (as for the CL86-C move, which needs
+   no declared stop); interruption is the caller's opt-in with a latest interruption time and a declared stop
+   before the trigger. The result states which was chosen.
+2. F3: the declaration interlock lives until a test proves a model-only declaration revokes S13 approvals
+   atomically with admission and hand-off; no shared S13 change now.
+3. Stage 06's static records and stop-hook path is the example application's input path: confirmed.
+4. CL2 `6098` narrow U8/I8 disposition (checked in the four manuals' extracts): confirmed; original-page
+   confirmation is part of stage 04a's own evidence step.

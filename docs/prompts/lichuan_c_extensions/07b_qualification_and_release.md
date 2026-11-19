@@ -47,8 +47,9 @@ Hardware is NOT TESTED for every model.
    observation behind any physical claim, with limits from caller or fixture review and never invented
    device timing (AGENTS evidence rules). A run without an approved envelope is characterization: its
    observations are retained and attached to their gates, and it qualifies nothing.
-4. Establish explicit enable and stop prerequisites and a restoration plan. Run small finite position moves,
-   prepared stops from each admitted predecessor, repeated triggers, absolute and relative policies and, for
+4. Establish explicit enable and stop prerequisites and a restoration plan. Run small finite position moves
+   (the envelope records 03b item 4's interruption choice and, for an interruptible move, its latest
+   interruption time and declared stop with its fallback deadline), prepared stops from each admitted predecessor, repeated triggers, absolute and relative policies and, for
    CL2, bit 10 transitions in modes 1 and 6. Retain before/after settings and every uncertain outcome.
    Finite velocity: the envelope gives the latest acceptable urgent-stop TX after the stop due time, within
    the caller's stop budget, and the permitted stopping time or travel, measured by an independent

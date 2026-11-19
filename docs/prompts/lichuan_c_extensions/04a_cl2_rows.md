@@ -97,7 +97,13 @@ them; the CL2 rows and decoders are otherwise independent of 03a/03b.
     selects, and whether a stored value such as `2203` takes part, is undocumented, which is one reason a CL2
     save keeps a route uncertainty (04b item 11, X18); the LX pack review is not edited.
 11. Typos (LX-D33): `6098` I8 against U8, `6099:02` "creep time (rpm)", `607A` I3C; the reviewed I32/U8 forms
-    follow the C-family resolution only where the CL2 page agrees.
+    follow the C-family resolution only where the CL2 page agrees. `6098:00` gets an explicit CL2
+    write-policy row with the narrow disposition of the C family's C22 review: CL257 p13 prints U8 and p19
+    I8, both one byte, and every method the CL2 appendix lists (1..14, 17..30, 33, 34, 35; CL257 p21..31)
+    is positive and below 0x80, so its wire byte is the same under either claim. The row admits only those
+    method values (04b item 6 refuses others), keeps the conflict recorded and cites both pages per manual
+    (CL286, ABZ57 and ABZ86 print the same pair on p13 and p19; reopen each rendered page). 04b item 6's
+    write preflight consumes it.
 
 ## Deliver
 

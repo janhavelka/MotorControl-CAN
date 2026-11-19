@@ -7,8 +7,9 @@ Admit the four CL2 models to existing operations where CL2 pages document the be
 [04a](04a_cl2_rows.md)'s mode-aware status decoder and CL2 observations and stage 01's model binding and
 identity outcome. CL2 uses the C-family controlword list but a different statusword, homing table, loop-mode
 code and input codes, so most C-family evidence does not transfer. Prompt 77 is consumed if landed. Items
-1, 3, 5, 6, 8, 10 and 13 consume rules that 03b items 1, 3, 5, 6, 8, 10 and 12 define (the declared
-stop's fallback deadline and the homing fixture signal record of items 5 and 6, item 8's retained
+1, 3, 4, 5, 6, 8, 10 and 13 consume rules that 03b items 1, 3, 4, 5, 6, 8, 10 and 12 define (the halt-state
+derivation of item 3, the move interruption choice of item 4, the declared stop's fallback deadline, the
+stop obligation and the homing fixture signal record of items 5 and 6, item 8's retained
 last-motion terminal input and rechecks before each write, item 10's caller peak-current record and its
 refusals among them); whichever of 03b and 04b runs first lands their shared parts for both groups with
 their tests (03b introduction).
@@ -43,7 +44,10 @@ their tests (03b introduction).
    predecessors, with no first-measurement exception. Halted and unknown-halt predecessors follow 03b item
    3: CL257 p12 gives controlword bit 8 no meaning other than the 271 stop, so HALT stays `010F`, the quick
    stop goes out as `010B` with its undocumented status recorded, and no stop is refused merely for an
-   unknown halt state. CL257 p12 documents 15 to 11 only, so the best-effort `000B` is denied for CL2 exactly
+   unknown halt state. The halt state at dispatch follows 03b item 3's derivation from the words actually
+   sent (a declared external writer making it unknown); no CL2 status bit shows a halt state (04a item 4),
+   and no CL2 source states that a `6040` upload returns the received word. CL257 p12 documents 15 to 11
+   only, so the best-effort `000B` is denied for CL2 exactly
    as 03b item 3 denies it for TL-C, until a reviewed CL2 decision covers an unknown predecessor (X15), at
    both levels: S3's explicit no shape on every CL2 binding before its first traffic, kept across rebind
    (04a item 3, landed by 03a item 2 or 04a), so a direct `admitBestEffortStop` returns `INVALID` with no
@@ -55,15 +59,19 @@ their tests (03b introduction).
    mode-aware decoder's bracketed acquisitions and item 1's observation source, with fresh deassertion
    after the trigger and reassertion required as CL2 evidence (X08); a bit already high proves nothing.
    `2201` 400..51200 (CL257 p16) sets command pulses; the encoder field `2501` is not a scale (Q04 analog).
-   Moves need CL2 `MoveEvidence` (X16).
+   Moves need CL2 `MoveEvidence` (X16) and take 03b item 4's interruption choice; CL2 has no S3 shape
+   (item 3), so an interruptible move needs the application-declared independent stop with its fallback
+   deadline.
 5. Velocity. CL257 p13: mode 3, write `60FF` and the ramps, then 6, 7, 15; enabling starts motion. This is one
    consistent CL2 claim, still unverified, so `prepareVelocity` refuses CL2 until a CL2 `VelocityEvidence`
    record exists (X16). Mode 3 has no documented completion or zero-speed bit; settlement uses `606C` and `6064`
    observations under the existing rules, never bit 10. An admitted run follows 03b item 5's timed-run rule
    (canopen_shared 02 "Operation admission"), with item 3's stop table and, since CL2 has no S3 shape, an
    application-declared independent stop named in the result with its fallback deadline, without which
-   preparation refuses; the application invokes it as 03b item 5 states, and until X15's CL2 stop record
-   and read acceptance exist every run that reaches stop due ends with it invoked.
+   preparation refuses; the application invokes it as 03b item 5 states (its elapsed-deadline and
+   late-service clauses and the stop obligation that blocks rebinding and re-declaration included), and
+   until X15's CL2 stop record and read acceptance exist every run that reaches stop due ends with it
+   invoked.
 6. Homing (X11). The CL2 appendix "servo homing methods" (CL257 p21..31) lists 1..14, 17..30, 33, 34 and 35 with
    CiA 402-style edge descriptions; 17/18 end at a limit falling edge and 24/29 at a home rising edge after
    reversals, unlike the C family (EN86 p13..14; LX-D26). Do not reuse `HomingMethod` with C meanings: add a CL2
@@ -79,6 +87,12 @@ their tests (03b introduction).
    `606C` as offset, which the dictionary does not support (LX-D27). Start on bit4 rising, interrupt on
    falling (CL257 p13). Completion is bit 10 in mode 6 with fresh transitions from item 1's observation
    source. `6099:01/02`, `609A`, `607C` per CL257 p13 (LX-D33 typos retained). Never disable a limit.
+   Write preflight (canopen_shared 02 "Write preflight"): before any homing setup download, every write the
+   home may issue (`6098`, `6099:01/02`, `609A`, `607C` and its `6040` words; the C path changes no mode)
+   needs a reviewed CL2 write-policy row for the bound model, `6098:00` with 04a item 11's narrow
+   disposition among them; a
+   missing or unresolved row blocks the whole home with nothing sent, and method or fixture evidence or a
+   fake server's acceptance never stands in for it.
    Each admitted method also needs a CL2 homing record for that model and method (X11), as TL-C needs X17's:
    its validated signal sequence, its search bound and the predecessors its interrupt admits. A page
    description and the prerequisite checks are not that record, and without it the method is GATED.
@@ -161,7 +175,9 @@ statusword sample (`UNKNOWN`, no completion), a stale or other-model sample, a m
 acceptance (completion `UNKNOWN`) and expiry of the one operation deadline, each with no inferred standstill
 and no later trigger; method refusals before setup or trigger with no TX (index on CL2-57C/86C with and
 without a declared Z, index on ABZ without the Z fixture record, a missing switch or start-direction
-prerequisite, 35, C-family meaning of 17, a method without its X11 record); code 4 release, `2500`=2
+prerequisite, 35, C-family meaning of 17, a method without its X11 record, a missing or conflicting `6098`
+write-policy row with a valid method record, which sends no homing setup download at all, not only no
+method write or trigger); code 4 release, `2500`=2
 refused, `2501` never written, `605D` never written; the alarm-clear table (every row GATED with zero TX
 without the X13 record; with a synthetic record, the first frame or none for every row, a lost first and a
 lost second acknowledgement, an already clear request, mode 3 and running set); the attended enable with
@@ -173,8 +189,9 @@ zero limit and a value inside the drive range above the motor limit (zero TX); s
 node or bitrate write and keeping the route-after-restart obligation on success and on a lost
 acknowledgement; CL86-C evidence refused; the paired firmware-only and missing-fact evidence tests, the
 identity stop-exemption tests, the best-effort refusals (a direct `admitBestEffortStop` included), the
-halted and unknown-halt stop rows, the timed-run, service-level fallback, homing-interruption and
-position-clear tests of 03b with CL2 observations. Ledger, coverage, `docs/api_cli_mapping.md`,
+halted and unknown-halt stop rows, the halt-derivation, move-interruption, timed-run (an elapsed fallback
+deadline and a released result before stop due included), service-level fallback, late-service,
+homing-interruption and position-clear tests of 03b with CL2 observations. Ledger, coverage, `docs/api_cli_mapping.md`,
 CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance

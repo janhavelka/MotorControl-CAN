@@ -6,8 +6,9 @@ Status: NOT STARTED.
 Admit TL-C models to the existing operations only where TL-C pages document the behavior, and only with TL-C
 evidence records where the C-family path relies on CL86-C measurements. Uses [03a](03a_tlc_rows.md)'s reads and
 status table and stage 01's model binding and identity outcome. Prompts 57, 72 and 77 are consumed if landed.
-Items 1, 3, 5, 6, 8, 10 and 12 define rules that 04b consumes for CL2 (common admission, evidence records and
-observation source; the best-effort denial; the timed-run stop path and its fallback deadline; homing
+Items 1, 3, 4, 5, 6, 8, 10 and 12 define rules that 04b consumes for CL2 (common admission, evidence records and
+observation source; the best-effort denial and the halt-state derivation; the move interruption choice; the
+timed-run stop path, its fallback deadline and the stop obligation; homing
 fixture signals and interruption; position clear's
 retained last-motion terminal input and its rechecks before each write; the caller's peak-current record and
 its refusals; the release and mode-select dispositions). Whichever of 03b and 04b runs first lands their
@@ -89,7 +90,13 @@ shared parts for both groups with their tests, and the other consumes them.
    02 "State transitions": a stop word keeps a set halt bit and, with the halt state unknown, sets bit 8.
    TLCEN p11 gives controlword bit 8 no meaning other than the 271 stop, so from a fresh report with low
    bits 111 whose halt state is set or unknown, HALT stays `010F` and the quick stop goes out as `010B`; no
-   stop is refused merely for an unknown halt state. No TL-C page documents `010B` (p11 lists 15 to 11), so
+   stop is refused merely for an unknown halt state. The halt state at stop dispatch follows that section's
+   derivation from the words actually sent: clear only after an acknowledged bit-8-clear word with no later
+   possibly sent bit-8-set word in the current reservation, and unknown when a declared external writer
+   makes the interface's controlword history unqualified (canopen_shared 02 "Ownership premise"). The TL-C
+   status table has no halt bit (03a item 4), so the status bits never decide it. No TL-C source states
+   that a `6040` upload returns the received word, so the readback alternative stays unused until a
+   reviewed TL-C ledger row shows it. No TL-C page documents `010B` (p11 lists 15 to 11), so
    its effect stays X15's question, and the result records the halt state and that the word is
    undocumented. Ordinary stop admission (a fresh
    predecessor the table admits) is separate from the best-effort `000B` of DEC-2, which goes out after an
@@ -116,6 +123,19 @@ shared parts for both groups with their tests, and the other consumes them.
    `MoveEvidence` (X16): acceptance and completion on the TL-C table (bit 15 position complete with a fresh
    transition after the trigger, from item 1's observation source). Relative basis and scale stay caller
    qualifications under X16 (Q04 does not transfer).
+   Interruption choice, defined here once (04b item 4 uses it). After a possibly sent trigger the drive runs
+   the finite move onboard, and under `NONE` a lost trigger reply leaves the route unresolved with no TL-C
+   stop that can still leave (item 3), so preparation takes the caller's choice before any changing TX. If
+   the caller's motion envelope requires the move to be interruptible, the caller supplies a latest
+   interruption time and the move is a host-ended run under canopen_shared 02 "Timed runs" with item 5's
+   stop-path rule, that time in the duration's place: the stop budget fits before the one operation
+   deadline, later transfers are capped at stop due, and an application-declared independent stop with its
+   fallback deadline is named, all before the trigger, otherwise MISSING_PREREQUISITE with zero TX; a move
+   confirmed complete from fresh observations before that time owes no stop. Otherwise the result states
+   the onboard-completion premise the caller accepted (the drive completes the move as `607A`, `6081`,
+   `6083` and `6084` were written, with no host interruption) and, after a lost trigger reply, keeps motion
+   and completion unknown, sends nothing further and names no usable stop path. No path replays a trigger
+   or infers completion from elapsed time.
 5. Velocity. LX-D07: TLCEN p12 writes the targets and enabling starts motion; TL57OP p7 writes `60FF` after
    enabling, says that starts motion and that writing 0 stops it. The C17 decision does not transfer: TL-C
    start order stays X05, `prepareVelocity` refuses TL-C until a TL-C `VelocityEvidence` record fixes the order,
@@ -134,7 +154,15 @@ shared parts for both groups with their tests, and the other consumes them.
    never retire that need. TL-C stop completion stays `UNKNOWN` without X15's record and item 1's read
    acceptance (item 3), so until both exist every run that reaches stop due ends with the declared stop
    invoked by its fallback deadline. The result keeps `needsStop`, reports motion unknown and names the
-   declared stop and its fallback deadline; the application records when it invoked it.
+   declared stop and its fallback deadline; the application records when it invoked it. The shared rule's
+   validity and late-service clauses apply as written there: a fallback deadline already elapsed at
+   dispatch of the first possibly starting write refuses that write, and service resuming after the
+   fallback deadline with the stop still owed invokes the declared stop at once, the result reporting the
+   missed deadline and unknown motion, with no late start. Meeting the deadline rests on the application's
+   service cadence or on an actuation path independent of it; the library assumes neither. The
+   application keeps the stop obligation (`needsStop` with its stop due time and fallback deadline)
+   independently of the run's result: releasing a retained result does not retire it, and while it is
+   owed a rebinding or re-declaration of that node is refused (canopen_shared 02 timed runs; 06 item 2).
 6. Homing. Methods 17, 18, 24 and 29 with the EN86 descriptions (TLCEN p12..13). Method 28 (TL57OP p7, written
    with a stray byte `0x1E`) is refused. Each method needs a TL-C homing record for that method (X17);
    completion uses TL-C bit 8 (TLCEN p14) from item 1's observation source.
@@ -268,24 +296,39 @@ pending changing step is retired. Best-effort tests: an unresolved route after a
 and a stale binding, each refused with no TX; a direct `admitBestEffortStop` on a TL-C binding carrying the
 explicit no shape, after a timeout and after a rebind (`INVALID`, zero TX); CL86-C best-effort tests
 unchanged. Stop-table tests with halted and unknown-halt predecessors (first frame `010F` or `010B`, bit 8
-set, the halt state and the undocumented `010B` recorded). Timed-run tests with
+set, the halt state and the undocumented `010B` recorded). Halt-derivation tests at stop dispatch, each on an
+admissible route with a fresh low-bits-111 report: an acknowledged `000F` followed by a possibly sent
+`010F`, and a declared external writer after an acknowledged bit-8-clear word; each emits `010F` for HALT
+and `010B` for the quick stop and records the halt state as unknown with its reason, whatever the status
+bits show. Move tests with a synthetic TL-C move record: a lost trigger reply under `NONE` without the
+interruption requirement (no replay, no inferred completion, motion and completion unknown, nothing
+further sent, the premise stated) and with it (the urgent stop requested at the latest interruption time
+where admissible, the declared stop invoked by its fallback deadline); an interruptible move without a
+latest interruption time or without a declared stop, refused at preparation with zero TX. Timed-run tests with
 a synthetic TL-C velocity record: canopen_shared 02's cases (duration plus budget not fitting, lost start
 reply, observation in flight near stop due, service resuming after stop due, queue-pressured stop); a run
 without a declared independent stop, refused at preparation with no changing TX; and with one, a possibly
 sent start followed by a timeout under `NONE` (`needsStop` kept, motion unknown, the declared stop named,
-no CANopen stop TX); a declared stop without a fallback deadline (refused at preparation). Fallback tests
+no CANopen stop TX); a declared stop without a fallback deadline (refused at preparation); a fallback
+deadline already elapsed at dispatch of the first possibly starting write (that write and every later one
+unsent); and an acknowledgement-only run whose result is released before stop due, then a rebinding of
+that node (refused, owner settings unchanged, the obligation still serviced: the urgent stop at stop due
+and the declared stop by its fallback deadline; 06 tests the re-declaration). Fallback tests
 at the service level, through the example application with a recording declared-stop hook and a fake
 clock, for a run and a home: the urgent stop not admitted at stop due, admitted but not dispatched in its
 window under queue pressure, acknowledged with no confirming observation at the fallback deadline, and an
 early homing interruption while an observation upload is pending; each asserts that the hook was invoked
 by the fallback deadline, that admission, TX or acknowledgement of the urgent stop did not cancel it, and
-that `needsStop` and motion unknown are kept. Homing signal tests: correct assignment bytes with no fixture
+that `needsStop` and motion unknown are kept. Service resuming only after the fallback deadline with the
+stop owed invokes the hook at once, and the result reports the missed deadline and unknown motion with no
+late start. Homing signal tests: correct assignment bytes with no fixture
 signal record, a record for another binding, the signal on another input, another polarity bit and an
 unmet starting condition, each refused before setup or trigger with zero TX. Homing interruption tests: no
 read acceptance, no latest interruption time, one that leaves no room for the stop budget, or no declared
 stop (refused before TX); an absent or stuck signal; an
 upload in flight at the latest interruption time (capped there, the HALT not delayed by it); a service cycle
-resuming after it; a travel bound seen only in a sample older than the age limit (no interruption from it,
+resuming after that time (no further home work, the HALT requested at once where admissible) and after the
+fallback deadline (the declared stop invoked at once, the miss and unknown motion reported); a travel bound seen only in a sample older than the age limit (no interruption from it,
 the latest time still applies); and observation loss or expiry after a possibly sent trigger (HALT requested
 where admissible, otherwise `needsStop` kept, motion and reference unknown and the declared stop named).
 Alarm-clear tests: the first frame or none for every row of item 7, a lost first and a lost second

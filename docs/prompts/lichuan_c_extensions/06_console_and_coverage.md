@@ -18,8 +18,10 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 2. Model declaration route. One explicit console input per bound node declares the model by exact designation
    (`TLC57-C`, `TLO86-C`, `CL2-57C`, `CL257C-ABZ`, `CL86-C`, ...). It performs no I/O, is refused while work is
    admitted on that node (a pending targeted NMT command included, 03a item 6), a result is retained there,
-   its route is unresolved or an owner resync step is pending on it, and replaces the node's `ModelBinding`
-   in the owner's service context. Both directions are defined, so owner settings never outlive the model
+   its route is unresolved, an owner resync step is pending on it or a stop obligation is outstanding there
+   (a run's `needsStop` with its stop due time or fallback deadline still owed, which the application keeps
+   apart from result retention; canopen_shared 02 timed runs, 03b item 5), and replaces the node's
+   `ModelBinding` in the owner's service context. Both directions are defined, so owner settings never outlive the model
    they were set for:
    - To a TL-C or CL2 model it sets the owner's `SdoReusePolicy::NONE` and S3's explicit no shape before any
      further work on that binding (03a item 2).
@@ -35,6 +37,19 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    stage 01 item 6's minimum content when loaded, and takes effect when the application starts with that
    configuration; no console route writes or edits a record. The existing identity read also prints
    `checkModelIdentity`'s outcome for the node's declaration. Nothing selects a model.
+
+   Caller records and the declared stop. Today the shared console creates no qualification (the `home
+   qualification` and `velocity qualification` rows of `ProbeConsole.cpp`), and only application code
+   installs evidence through `ProbeMotion`'s `set...Prerequisites` setters (the CL86-C-only
+   `BenchConsole.cpp`); no route supplies the new fixture records or a declared independent stop. So the same
+   static configuration is the one path for the fixture-scoped records 03b and 04b take (the model's
+   evidence records, the basis, fixture signal and Z fixture records, the X14 rating), each with its
+   provenance id and checked when loaded, and for the declared independent stop: an application hook bound
+   to the fixture's own enable, STO or power path. Request parameters (the fallback deadline, latest
+   interruption time, travel bound, stop budget, the save acknowledgement, the move interruption choice)
+   are console arguments of the verb. A per-admission actual-position record comes only from an
+   application measurement source named in the configuration, never from console text. A configuration
+   lacking a record, source or hook makes the verb print MISSING_PREREQUISITE and send nothing.
 3. Existing verbs keep their grammar and meaning. On a node with a new model each verb calls the same public
    API with the declared model and either runs the admitted row or prints the refusal with its disposition
    (X gate, NOT_DOCUMENTED, NOT_IMPLEMENTED or MISSING_PREREQUISITE). `help`, `caps` and `profile list`
@@ -56,9 +71,12 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    (canopen_shared 02 "Multi-profile consumers and package scope") the test records as synthetic; they qualify
    no physical shared bus, and a real one needs that analysis, which CL2's undocumented COB-IDs (X09) block.
    SYNC and node-0 NMT follow 03a item 6's interface isolation, landed with 03a and 04a and exercised here
-   with all three models; after S13's full gate lands, its live guard decides. Cover independent stops
+   with all three models; after S13's full gate lands, its live guard decides SYNC and node-0 NMT, while
+   03a item 6's declaration interlock stays until its own retirement test passes. Cover independent stops
    under queue pressure, reservations that conflict on the same bus and node whatever the declared model,
-   a model change with pending work refused, results and caches routed by the admitted model, separate
+   a model change with pending work refused, a re-declaration after an acknowledgement-only run whose
+   result was released before stop due (refused, owner settings unchanged, the original stop obligation
+   still serviced), results and caches routed by the admitted model, separate
    identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
    stay current, declaring a new model while a CL86-C-originated schedule is armed or a SYNC, node-0 NMT
    or targeted NMT request to that node admitted earlier is still pending (03a item 6), re-declarations
@@ -84,8 +102,10 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 
 Console and application changes, `console_jsonl.py` and bench-script guards, `test/model_console_test.cpp`
 (API/CLI parity per admitted row, refusals, declaration route with legacy-to-new and new-to-legacy
-re-declarations and their owner-setting readbacks, a record loaded from static configuration changing the
-printed outcome, a record below the minimum content rejected at load) and
+re-declarations and their owner-setting readbacks, a re-declaration refused while a released run's stop
+obligation is owed, a record loaded from static configuration changing the printed outcome, a record
+below the minimum content rejected at load, parity runs using configured caller records and a recording
+declared-stop hook, and a configuration lacking one printing MISSING_PREREQUISITE with zero TX) and
 `test/mixed_model_owner_test.cpp`, both registered; coverage and documentation files above; operation-map
 `console` rows proving each route; CHANGELOG, report and `PROGRESS.md`.
 

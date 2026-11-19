@@ -355,3 +355,68 @@ before use. The prompt 57 sequencing gap is repairable without delaying ledger, 
 - Main PROGRESS, the shared intake inventory, the DS2 identity stage, the parent instructions and prompts 64,
   65, 72 and 77 were not supplied.
 - A text audit: no checks, builds, CI jobs, port activity or hardware tests ran.
+
+## Round 6
+
+A condensed, faithful copy of the sixth report. It is untrusted reviewer input; the verified dispositions are
+in [audit_application.md](audit_application.md) "Round 6". Line numbers refer to the files as revised by round
+5 (committed in `6fd33ca0`, unchanged at `08040865`; the family files' hashes in the report equal those of that
+revision). The shared contract was audited before `d2be8211`.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-205720-581d91` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~224362 tokens)") |
+| Date | 2026-11-19 20:57:20 (from the ID), 180.4 s, one attempt |
+| Revision | `main` at `080408659d66d549c9eb869f3724ff38167e10ab`, no uncommitted changes recorded |
+| Cost | Estimated USD 0.43 (0.431982, configured pricing); 167,791 input and 9,640 output tokens (4,936 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-205720-581d91.json` (local) |
+| Location checks | 22 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_models_and_identity.md` (167, `7c36b431`),
+`02_model_ledger.md` (114, `5860ade7`), `03a_tlc_rows.md` (164, `5b1a90fb`), `03b_tlc_operations.md` (314,
+`ebe9513d`), `04a_cl2_rows.md` (124, `40903b67`), `04b_cl2_operations.md` (186, `2588c34a`),
+`05_en57_conflicts.md` (64, `2256a5fb`), `06_console_and_coverage.md` (99, `e08fc917`), `07a_first_contact.md`
+(100, `ff1577bd`), `07b_qualification_and_release.md` (87, `d5f74074`), `README.md` (152, `addf7d45`), `audit.md`
+(357, `773251b8`), `audit_application.md` (422, `6c579c7c`), `execution_contract.md` (183, `33460f1d`).
+Context: `canopen_shared/README.md` (81 lines) and `02_profile_integration_contract.md` (379, `02e0d03b`),
+`ADD_DRIVE.md`, `COMMON.md`, the LX pack `README.md` and `review.md`, `57_regular_drive_operations.md` (219),
+`docs/reference/lichuan_review.md`; project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The single-profile model scoping and the documentary stages can proceed. Two earlier fixes are
+confirmed: prompt 57 updates the disposition map whenever stage 02 has landed, and shared S3 defines how to
+restore the legacy stop shape. The remaining issues concern live stop obligations, deadline handling, the
+transition to S13 and evidence paths not yet executable as written. **Verdict:** significant issues. The lead's
+decisions on caller declarations, settable guards and application-owned stops need not be reversed; the
+affected motion, model-transition and first-contact routes need explicit guards and traffic-level tests before
+they are enabled. Ledger work, raw decoders and host-only refusal tests can proceed independently.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, probable defect, high | *Re-declaration does not explicitly check the application's outstanding stop obligation.* Stage 06 checks admitted work, retained results, unresolved transfers and resync work before restoring legacy settings, but 03b lets an acknowledgement-only run end with `needsStop` and a future stop due time; if its result is released before the separate stop is admitted, every listed check can be clear while the stop is still owed, and replacing the binding or restoring the legacy shape can orphan the obligation or change its policy. Shared S3 requires a pending stop to be reconciled first. Make an outstanding urgent-stop or independent-stop obligation an explicit blocker to re-declaration and to restoring the legacy shape, kept independently of result retention; test an acknowledgement-only run released before stop due: re-declaration refused, settings unchanged, the obligation still serviced. | 03b:36-38; 06:19-21; canopen_shared 02:288-290 |
+| F2 | High, verified defect, high | *The fallback deadline is required, but its validity and missed-deadline behavior are not defined.* 03b rejects a missing fallback deadline and requires the hook by that deadline, but does not reject one already elapsed before the first possibly starting write or relate it to the caller's stopping envelope, and its late-service tests do not say what happens when service resumes after the fallback deadline itself; a hook run by the same service loop cannot meet a deadline that expired while the loop was not running. Without the stop record and read acceptance every run reaching stop due relies on the independent stop. Define and test the caller-supplied time relationships; reject an unusable fallback deadline, also at dispatch of a possibly starting write; state the service or independent-actuation premise; after a missed fallback deadline require immediate invocation if still owed, explicit reporting of the miss and unknown motion, and no late start; keep limits caller- or fixture-supplied. | 03b:129-131, 134-137, 287-289 |
+| F3 | High, probable defect, high | *The S13 handoff does not specify how a model-only change invalidates a legacy approval.* The interim rule serializes declarations with pending SYNC and NMT because the owner does not see a model-only re-declaration, yet retires the application rule when S13's full gate lands. Supplying unknown TL-C and CL2 effects is not enough unless an in-place declaration makes them visible to the live guard and invalidates the earlier approval before the next hand-off; the shared contract names rebinding and configuration-generation changes as invalidators, and stage 06 replaces the application `ModelBinding`, not necessarily either. Separate the temporary interface-wide deny from the declaration interlock; keep the interlock until S13's integration proves that a same-channel model change updates the population and revokes prior approvals atomically with admission and hand-off; test after S13 with an approved legacy schedule and held one-shot SYNC and NMT requests, then a model-only declaration: zero stale traffic after a successful change, handed-off frames keep their disposition. | 03a:120-121, 123-124; canopen_shared 02:320-321 |
+| F4 | High, probable defect, high | *Stop tests do not establish when a previously clear halt state becomes unknown.* The stages specify the stop words for a known halted or unknown-halt predecessor, but the tests start from those states and do not exercise the shared derivation: an acknowledged bit-8-clear word no longer suffices after a later bit-8-set word was possibly sent, a later fresh low-bits-111 report does not resolve that, and a declared external writer makes controlword history unqualified. An implementation carrying forward the last acknowledged word could pick the bit-8-clear stop where halt must be preserved. A provenance gap, not a reason to revisit the selected unknown-halt word. Make the derivation an explicit 03b/04b acceptance case at stop dispatch: an acknowledged clear word followed by a possibly sent set word, and a declared external writer; on an admissible route with a fresh predecessor assert the halt-preserving word and the uncertainty; never infer halt from the low status bits. | 03b:269-271; canopen_shared 02:172-174, 105-107 |
+| F5 | High, probable defect, high | *A possibly started position move has no specified stop path when its SDO route stays unresolved.* Position rows need move evidence and an admitted stop predecessor, but the set states that a stop row is not a usable path after a lost start reply under `NONE` and neither model has a best-effort shape; velocity and homing use a declared independent stop, while position names neither a usable recovery nor an admission restriction for applications that must interrupt the move. An onboard finite target does not by itself establish a safe outcome after a lost reply, fault or lost completion evidence; ADD_DRIVE asks to audit deadline and service behavior of finite onboard trajectories. Define the behavior after a possibly sent trigger and loss of route or observations: if the caller's envelope requires interruption, require a declared usable stop path before the trigger or keep the request gated; if a reviewed configuration lets the trajectory finish without the host, state that premise and the uncertainty; test a lost trigger reply under `NONE`: no replay, no inferred completion, the specified application response. | 03b:114-118, 126-128; 04b:58; ADD_DRIVE.md:25 |
+| F6 | Medium, probable defect, high | *CL2 homing does not identify the write-policy decision that resolves the method-byte conflict.* 04a keeps the I8 and U8 claims for `6098`, while 04b admits homing once method and fixture evidence exist; that evidence establishes behavior and signals, not the write encoding or access, and the shared write preflight blocks the whole plan before any changing TX while an encoding or access conflict is unresolved. Make the reviewed `6098` write-policy row a named prerequisite of CL2 homing; record a narrow disposition explicitly if the pages support an exact positive-method subset common to both claims, otherwise keep the method write gated; test that a missing or conflicting row prevents all homing setup downloads. | 04a:99-100; 04b:82-84; canopen_shared 02:114-117 |
+| F7 | Medium, verified defect, high | *The advertised early first-contact write routes also need the stage 06 identity loader.* The summaries advertise production motion after 03b or 04b; those stages use synthetic records and T1/K2 can capture identity earlier, but 07a requires a loaded model reference for production enable, alarm clear and save, and stage 06 is the only loading path. Name the stage 06 static-reference loader as an inherited prerequisite of every changing production question, or move that loader and its tests earlier; keep early read-only capture, with captures awaiting loading recorded as evidence only. | 07a:10-11, 51-53; 06:33-35 |
+
+### Unresolved question
+
+1. What already-supported application input path supplies fixture-specific records and independent-stop hooks
+   to ordinary console operations, beyond the static identity records of stage 06? Stage 06 promises API/CLI
+   parity for admitted rows and 07a expects qualification inputs through ordinary routes; the parity and bench
+   checks need to know which inputs the example application can supply without a console bypass.
+
+### Coverage gaps stated by the reviewer
+
+- Vendor originals, EDS bytes, the normalized delta, manifests and Q01 raw specimen records were not supplied:
+  vendor encodings, translations, electrical claims, hashes and live identities were not verified.
+- The repository index was truncated; owner, adapter, profile, example, ledger, generator, checker, test and
+  workflow sources were not supplied, so dispatch ordering, binding lifetimes, signatures, package
+  registration and resource bounds are unverified.
+- The shared intake inventory, main PROGRESS, parent instructions, the DS2 identity contract and prompts 64,
+  65, 72 and 77 were not supplied.
+- A text audit: no checker, build, test, CI job, port activity or hardware procedure ran.
