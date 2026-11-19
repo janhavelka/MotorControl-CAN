@@ -23,7 +23,7 @@ authorized DS2-family fixture; the CL86-C bench is not that fixture. MULTIDRIVE 
    release policy; this stage authorizes no tag or publication.
 5. Audit reuse: remove accidental duplicates introduced by DS2 while keeping distinct device semantics; rerun affected
    tests.
-6. Reconcile declarations and decisions: list every caller declaration the API offers (identity acceptance, rate and
+6. Reconcile declarations and decisions: list every caller declaration the API offers (MEASURED identity references, rate and
    ramp units, signed encodings, relative basis, index availability, wiring) and every `DS-DEC-n` with its selector,
    date and scope. A declaration never appears as a closed DS-D; a decision taken while the owner was away stays
    marked for the owner's review.
@@ -40,7 +40,7 @@ authorized DS2-family fixture; the CL86-C bench is not that fixture. MULTIDRIVE 
    declaration and nameplate, never from a reply.
 3. Begin with non-changing reads and retained raw frames. Then explicit enable and release, small finite position
    moves with prepared stops, relative and absolute policies, and only then bounded velocity, torque and homing runs
-   with their written plans. Negative encodings run only after 12a Q8's conditions are met.
+   with their written plans. Negative encodings run only after 12a Q8a's or Q8b's conditions are met.
 4. Qualify each status dialect, unit, ramp, stop and completion rule per model and firmware. A DS2-10C result does not
    qualify IBL60-C or ISL80-C, and one free-shaft specimen does not qualify the family or a loaded axis.
 5. Brake, I/O, limit-switch, homing-switch and restart cases need their actual fixtures and restart control. Wire

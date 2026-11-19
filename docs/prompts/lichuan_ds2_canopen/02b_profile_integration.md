@@ -3,8 +3,9 @@
 Execute this stage under the [execution contract](execution_contract.md).
 Status: NOT STARTED. Runs after 02. Apply [canopen_shared 02](../canopen_shared/02_profile_integration_contract.md)
 as written; claim seams S1, S2, S6 and S10 in the [canopen_shared table](../canopen_shared/README.md) and land
-them, or extend them if another family claimed or landed them first. No stop route exists before 04, so seam S3
-stays with 04. The console items (6 and the console tests) stay BLOCKED until seam S4 lands (execution contract);
+them, or extend them if another family claimed or landed them first. Seam S3's default deny lands in the S2 commit
+(canopen_shared 02, S3 bullet), before any DS2 binding is admitted; only DS2's opt-in shape and its decision stay
+with 04. The console items (6 and the console tests) stay BLOCKED until seam S4 lands (execution contract);
 the API-level probe, refusals and owner tests do not wait. Commit tooling, core/profile and application/console
 changes separately, each tested.
 
@@ -26,12 +27,17 @@ changes separately, each tested.
    section. Every DS2 preparation and every Lichuan C preparation refuses a binding of the other profile before
    touching output or yielding work; test both directions, the old label 41, unknown values, a protocol mismatch,
    rebinding while a result is retained and that nothing is sent. Selection performs no I/O.
+   The same commit carries S3's default deny if no family landed it: through the S2 lookup a binding with no
+   configured stop shape gets `INVALID` and no TX from `admitBestEffortStop`. Test it directly on an unconfigured DS2
+   binding, an unresolved DS2 route after a timeout and a rebound channel, each with no TX; Lichuan C's best-effort
+   tests and DEC-2 behavior stay unchanged. If another family landed S2 and the deny, add these DS2 cases to its tests.
 4. Probe. `prepareProbe` performs one explicit upload of `1000:00` through the real owner and `SdoClient`. It proves a
    responding CANopen server only, never DS2, model or firmware, and its read effect stays unknown (no `DS-DEC-1`
    yet). Abort versus malformed reply, timeout and a late identical reply follow the existing service evidence.
 5. Seam S10, reviewed `SdoReuse` per binding. The owner's default markers (`1000:00`, `1018:01`-`03`) rest on
    Lichuan C DEC-1. S10 makes a non-Lichuan binding's effective default `NONE` through the S2 lookup; DS2 bindings
-   keep `NONE` until `DS-DEC-1` reviews marker objects and their read effects. Record the choice and test, on a
+   keep `NONE` until a reviewed marker decision, separate from `DS-DEC-1`'s polling list (03), covers marker objects
+   and their read effects. Record the choice and test, on a
    two-family owner without explicit configuration, that a timeout and then a late reply on the DS2 route send no
    marker, set no `acceptedCorrelation` and replay nothing, while the Lichuan route keeps its default marker.
 6. Console and JSONL (seam S6). One `commands[]` entry `ds2` in `examples/common/ProbeConsole.cpp`; grammar and
@@ -48,11 +54,12 @@ changes separately, each tested.
 8. Multi-profile consumers. By default a Lichuan C axis and a DS2 axis run on separate interfaces (owner and
    transport each) with separate caches, results and stops. On one interface, negative tests only: reservations
    conflict on the same bus and address whatever the profile label, foreign refusal sends nothing, and the
-   shared-interface positive test waits for 11's recorded same-domain analysis; `test/multidrive_contract_test.cpp`
-   still passes. Add sources to `MOTORCONTROLCAN_SOURCES`, an
-   `install(FILES ...)` rule for `profiles/lichuan_ds2/`, the `test/package_test.py` lists and archive set, and C++11
-   consumers of core only, Lichuan C only, DS2 only and both; `library.json` and `check_repository.py` `EXPORTS` stay
-   unchanged.
+   shared-interface positive test waits for 11's same-domain analysis and its enforced exclusions;
+   `test/multidrive_contract_test.cpp` still passes. 02 landed the install rule and package entries with the first
+   headers; this stage extends them only for the files it adds (`Model.h`, `Reads.h`, `src/profiles/lichuan_ds2/`
+   sources in `MOTORCONTROLCAN_SOURCES`, the install file list, `test/package_test.py` `HEADERS` and archive set) and
+   adds C++11 consumers of core only, Lichuan C only, DS2 only and both; `library.json` and `check_repository.py`
+   `EXPORTS` stay unchanged.
 9. Operation map. Add the `lichuan_ds2` family to `docs/reference/lichuan_ds2_operations.json` with the probe's
    function, tests and console row, so the checker proves the route.
 
@@ -70,7 +77,8 @@ profile, package and consumer entries, Doxygen for every public declaration, REA
 
 The probe runs through the real owner, `SdoClient` and fake server in API tests, and in console tests with identical
 frames once S4 has landed (otherwise the console items are BLOCKED and the stage is PARTIAL). Foreign-profile
-refusals send nothing in both directions. JSONL records follow S6: `lichuan_ds2` only on records that target or were
+refusals send nothing in both directions. `admitBestEffortStop` returns `INVALID` with no TX for every DS2 binding
+before 04 opts in its shape. JSONL records follow S6: `lichuan_ds2` only on records that target or were
 admitted for a DS2 binding, `null` without a resolved target, and Lichuan C targeted records otherwise unchanged. All consumers build in C++11 with no catalogue dependency. Checker
 negative tests still fail as intended. `python scripts/verify.py --mode quick` and `--mode full`, the Arduino and IDF
 firmware gates of the contract, and required CI on the exact final pushed commit pass. Hardware NOT TESTED; no DS2

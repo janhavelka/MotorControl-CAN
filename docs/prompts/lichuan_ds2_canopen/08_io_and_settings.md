@@ -1,17 +1,19 @@
 # 08 — I/O, brake, encoder and drive settings
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs after 03 and 05. DS-D24..DS-D28, DS-D30 and DS-D31 belong here; DS-D34 applies to
-`6091:02`. MULTIDRIVE rows 20, 21, 22 and 69 apply. Most vendor functions are P-parameters without a CANopen index;
-this stage implements the reachable 6000-group settings and records every unreachable function as UNSUPPORTED with
-its evidence reason.
+Status: NOT STARTED. Runs after 03, 04's source-state table and 05. DS-D24..DS-D28, DS-D30 and DS-D31 belong here;
+DS-D34 applies to `6091:02`. MULTIDRIVE rows 20, 21, 22 and 69 apply. Most vendor functions are P-parameters
+without a CANopen index; this stage implements the reachable 6000-group settings and records every unreachable
+function as UNSUPPORTED with its evidence reason.
 
 ## Work
 
 1. One settings context. `SettingsContext` with `prepareDriverRead`, `prepareDriverSettings`, `nextDriver`,
    `advanceDriver`, `getDriver`: prior read, whole-candidate validation, ordered writes, readback, partial evidence and
-   a restore record. No automatic save exists (10). Admission requires a released drive or a fresh stationary report;
-   the effect columns of the P tables do not cover 6000-group objects, so activation timing is unknown.
+   a restore record. No automatic save exists (10). Admission requires a drive that 04's `released` predicate accepts
+   on a fresh report; an enabled drive is refused even when it reports standstill, because the effect columns of the
+   P tables do not cover 6000-group objects, so activation timing is unknown and a gear or window change may act on a
+   holding servo loop.
 2. Reachable settings, each with ledger key, range and unit from 02: following-error window `6065` (U32 pul, default
    131072), `6066` (U16, "following-error count", RW in the table; read-only until its meaning is clear), in-position
    window `6067` (U32 pul, 500) and time `6068` (U16 ms, 100), velocity window `606D` (pul/s) and time `606E` (ms),
@@ -60,8 +62,8 @@ DS2 sections; Doxygen and CHANGELOG.
 
 ## Acceptance
 
-Tests cover full-candidate validation, ordered writes and readback, partial failure with restore record, refusal while
-enabled, scale invalidation on `6091`, `60FE` writes refused, read-only `607E`, `605D` and `6066`, and an UNSUPPORTED
+Tests cover full-candidate validation, ordered writes and readback, partial failure with restore record, refusal for
+every report 04's `released` predicate rejects, an enabled and stationary drive included, scale invalidation on `6091`, `60FE` writes refused, read-only `607E`, `605D` and `6066`, and an UNSUPPORTED
 result without TX for every unreachable function. The coverage denominator lists every P-parameter group. Quick and
 full verification and required CI on the exact final pushed commit pass. Physical I/O, brake and encoder checks need a
 DS2 fixture; hardware NOT TESTED. Commit, push and hand off.

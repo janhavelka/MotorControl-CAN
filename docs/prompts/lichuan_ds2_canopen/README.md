@@ -39,18 +39,18 @@ the next. Creating this promptset does not execute it. The family was
 | Stage | Deliverable | Dependencies and gates |
 | --- | --- | --- |
 | 01 | [Evidence, inventory and operation coverage](01_evidence_and_coverage.md) | Pack and contracts; canopen_shared 01 inventory at current HEAD; documentation only |
-| 02 | [Object ledger, checkers and generated tables](02_object_ledger.md) | 01; seam S7; tooling change under the CI policy; no hardware |
-| 02b | [Profile registration, probe and `ds2` console family](02b_profile_integration.md) | 02; seams S1, S2, S6; real owner, `SdoClient` and fake server |
-| 03 | [Typed reads, identity, status dialects and capabilities](03_reads_identity.md) | 02b; prompt 57's identity outcomes; DS-D01..D05, D14, D19, D30, D33, D34 gate interpretations only |
-| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; seam S3, seam S8 review; DS-D17, D21, D29 |
+| 02 | [Object ledger, checkers and generated tables](02_object_ledger.md) | 01; seam S7 with the first headers' package entries; tooling change under the CI policy; no hardware |
+| 02b | [Profile registration, probe and `ds2` console family](02b_profile_integration.md) | 02; seams S1, S2 with S3's default deny, S6, S10; real owner, `SdoClient` and fake server |
+| 03 | [Typed reads, identity, status dialects and capabilities](03_reads_identity.md) | 02b; prompt 57's identity outcomes; prepares `DS-DEC-1`; DS-D01..D05, D14, D19, D30, D33, D34 gate interpretations only |
+| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; source-state table first; seam S3 opt-in shape, seam S8 review; DS-D17, D21, D29 |
 | 05 | [Units and finite profile-position moves](05_finite_position.md) | 04; DS-D09, D16, D33, D34; negative encodings and ramp units stay declared or gated |
 | 06 | [Finite profile velocity](06_profile_velocity.md) | 04, 05 units; DS-D10, D16, D32; enable is the start |
-| 06b | [Finite profile torque](06b_profile_torque.md) | 04, 06 run pattern; DS-D11..D14; vendor `2406h` under the D18 rules |
-| 07 | [Homing and limits](07_homing_and_limits.md) | 04, 05; DS-D08, D15, D16, D18; prompt 77 vocabulary when landed |
-| 08 | [I/O, brake, encoder and drive settings](08_io_and_settings.md) | 03, 05; DS-D24..D28, D30, D31; most vendor functions unreachable |
+| 06b | [Finite profile torque](06b_profile_torque.md) | 04, 06 run pattern; DS-D11..D14; `607F` width per scope; `2406h` write withheld |
+| 07 | [Homing and limits](07_homing_and_limits.md) | 04, 05; `DS-DEC-1` for completion; DS-D08, D15, D16, D18; prompt 77 vocabulary when landed |
+| 08 | [I/O, brake, encoder and drive settings](08_io_and_settings.md) | 03, 04 `released` predicate, 05; DS-D24..D28, D30, D31; most vendor functions unreachable |
 | 09 | [PDO, SYNC, EMCY and heartbeat observation](09_pdo_sync_emcy.md) | 03; DS-D06, D07, D19, D32; no remap, no RPDO |
 | 10 | [Communication settings and persistence](10_communication_persistence.md) | 03, 08 settings context, 09; DS-D20, D22, D23 |
-| 11 | [Console and mixed-profile integration](11_console_integration.md) | Implemented subsets of 02b..10; prompts 64 and 65 when landed |
+| 11 | [Console and mixed-profile integration](11_console_integration.md) | Implemented subsets of 02b..10; prompts 64 and 65 when landed; shared-interface positive tests after S13 (SYNC and node-0 NMT) |
 | 12a | [First-contact questions](12a_first_contact.md) | Optional when a DS2 fixture and authorization exist; each question after its route |
 | 12 | [Qualification and release reconciliation](12_qualification_release.md) | Software closeout after 11; physical work needs a DS2 fixture |
 
@@ -89,8 +89,7 @@ Each DS-D stays open until its owning stage closes it with cited new evidence or
 - The [reference pack](../../reference/lichuan_ds2_canopen/README.md): 25 originals (seven manuals, three family
   EDS files and the DS-C EDS, nine product pages, four download-index pages), eight PyMuPDF extracts, the review and
   [SOURCES.json](../../reference/lichuan_ds2_canopen/SOURCES.json) with URL, Referer, size and SHA-256.
-- The [CANopen principles pack](../../reference/canopen_principles/principles.md), uncommitted at preparation and
-  committed since at `e02ab04f`.
+- The [CANopen principles pack](../../reference/canopen_principles/principles.md), committed at `e02ab04f`.
 - No object ledger, generated header, profile code, test, console route or `PROGRESS.md` exists. Stage 01 creates
   `PROGRESS.md` in this directory.
 
@@ -98,25 +97,28 @@ Each DS-D stays open until its owning stage closes it with cited new evidence or
 
 `python scripts/check_promptset.py` passed with no errors after these files were written; it checks links and table
 shapes and compiles nothing. No build, firmware gate, remote CI or hardware step ran, and no product file changed.
+An independent audit on 2026-11-19 ([audit](audit.md)) was verified and applied the same day
+([application](audit_application.md)); the same checks passed again for this directory.
 
 ## Relationship to the main sequence and shared seams
 
 | Seam ([table](../canopen_shared/README.md)) | This family |
 | --- | --- |
 | S1 inventory, S2 binding profile and foreign refusal, S6 console and JSONL profile | 02b lands or extends them; S6's console part waits for S4 |
-| S7 per-family ledger, generator and operation checker | 02 lands or extends it |
-| S3 per-binding best-effort stop shape | 04, with DS2's own stop decision; no stop route before 04 |
+| S7 per-family ledger, generator and operation checker, with the first header's package entries | 02 lands or extends it, package entries in the commit of the first DS2 headers |
+| S3 per-binding best-effort stop shape | Default deny in the S2 commit (02b), before any DS2 binding is admitted; 04 opts in DS2's shape under `DS-DEC-3` |
 | S8 shared CiA 402 helpers | 04 reviews; only an identical, evidenced helper is extracted |
 | S4 axis table and session, S5 package components | Consumed only after [prompt 64](../64_common_axis_interface.md) and [prompt 65](../65_application_package.md) |
 | S9 second protocol on one interface | Not needed: DS2 is CANopen; [prompt 63](../63_mixed_protocols.md) stays its owner |
-| S10 reviewed SDO reuse per binding | 02b lands or extends it; DS2 bindings keep `NONE` until `DS-DEC-1` |
+| S10 reviewed SDO reuse per binding | 02b lands or extends it; DS2 bindings keep `NONE` until a reviewed marker decision, separate from `DS-DEC-1` |
 | S11 host heartbeat producer, S12 RTR node guarding | Not needed: DS2 documents no `1016` consumer and no node guarding (DS-D32) |
-| S13 SYNC side-effect admission | Not claimed: DS2 documents no SYNC effect, so its bindings enter S13 as unknown once it lands (09, 11) |
+| S13 SYNC and NMT-broadcast side-effect admission | Not claimed: DS2 documents no SYNC or NMT effect, so its bindings enter S13 as unknown once it lands and refuse SYNC and node-0 NMT on a mixed interface (09, 11); until then DS2 shares no interface with another family |
 
 A family that reaches a seam first claims it in the canopen_shared table and implements it once; a later one extends
 it. Main-sequence prompts this family consumes or must stay compatible with: [57](../57_regular_drive_operations.md)
-(identity policy, whose outcomes the [Lichuan C extensions contract](../lichuan_c_extensions/execution_contract.md)
-defines for both Lichuan family sets; enable, release and mode select per profile), [60](../60_user_units.md) (user
+(identity policy, which defines the identity outcomes and the vendor-object and motion rules both Lichuan family sets
+use, beside the [Lichuan C extensions contract](../lichuan_c_extensions/execution_contract.md); enable, release and
+mode select per profile), [60](../60_user_units.md) (user
 units), [62](../62_stop_line.md) (wired stop and host loss), [70](../70_startup_settings_reboot.md) and
 [75](../75_runtime_node_table.md) (expected product identity per node), [73](../73_timing_freshness_guards.md)
 (optional guards) and [77](../77_switch_ready_homing_limits.md) (limit and homing vocabulary). While [COMMON.md](../COMMON.md) records the owner as away, no family bench step runs.

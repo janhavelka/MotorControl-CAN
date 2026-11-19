@@ -33,12 +33,20 @@ RPDO.
 7. SYNC. `1005` COB-ID 0x80 RW (DS2C p24, DS2EDS); no `1006`/`1007`; synchronous PDO behavior is undocumented.
    `prepareSync` and synchronous transmission types for a DS2 binding are refused before work (MULTIDRIVE row 51).
    DS2 does not claim seam S13: its SYNC effects are unknown, so once S13 lands a DS2 binding enters it as unknown
-   and prompt 51's producer refuses SYNC on that interface; until then 11's same-domain analysis records SYNC
-   production on a shared interface as excluded.
+   and prompt 51's producer refuses SYNC on that interface. Refusing `prepareSync` for a DS2 target does not stop a
+   SYNC requested for another family's node or already armed on the interface, and prompt 51's producer does not
+   check DS2's effects. Until S13 lands, a DS2 node therefore shares no interface with nodes of another family
+   (execution contract, 11); afterwards DS2 consumes S13's own producer tests and adds the DS2 cases (requests from
+   both families, DS2 attached while a schedule is armed: no further SYNC TX), never a profile-local producer. S13
+   also covers every NMT command to node 0 on a mixed interface, so this stage's explicit NMT operations broadcast there
+   only under S13's admission.
 8. EMCY (DS-D07, DS-D19). `1014` is 0x80 in the manual (DS2C p24) and `$NODEID+0x80` in DS2EDS l.213: read it live and
-   route EMCY only on the confirmed identifier. Retain every EMCY through `checkNetworkEvent` with raw code, error
-   register and vendor bytes; no table maps Er codes to EMCY or `603F` values, so no meaning is decoded. `1001` and
-   `1003` stay explicit single reads (03). An EMCY is a notification, not the drive state.
+   route EMCY only on the confirmed identifier. Deliver each EMCY through `checkNetworkEvent` with raw code, error
+   register and vendor bytes into the application's bounded event queue; an entry the queue cannot hold is counted
+   and reported, never silently dropped and never a lost terminal
+   ([communication practice](../../communication_practice.md) C11, C14). No table maps Er codes to EMCY or `603F`
+   values, so no meaning is decoded. `1001` and `1003` stay explicit single reads (03). An EMCY is a notification,
+   not the drive state.
 9. SDO channel. `1200` lists one RO entry in the manual and two RW entries in DS2EDS (l.290/l.299; DS-D07). Use the
    default 0x600/0x580 plus node identifiers and never write `1200`.
 10. Timing fields. Read `1800`-`1803:02/03/05` (transmission type, inhibit, event timer; RW/S in DS2C p24-26) as raw
@@ -61,5 +69,5 @@ CHANGELOG.
 
 Tests cover both default-map claims as fake-server variants with decoding only from the live readback, a delayed
 same-ID sample left unqualified, no RPDO frame ever emitted, refused remap and SYNC with no TX, EMCY routed on a
-live 1014 value, a boot-up invalidating dependent work, and NMT commands sent only on explicit request. Quick and full
+live 1014 value and an EMCY overflow counted, a boot-up invalidating dependent work, and NMT commands sent only on explicit request. Quick and full
 verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off.

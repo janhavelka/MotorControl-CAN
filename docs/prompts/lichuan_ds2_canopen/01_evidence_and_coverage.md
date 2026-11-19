@@ -17,8 +17,8 @@ code and needs no hardware.
    are other documented paths to P-parameters and stay excluded.
 3. Check the pack's integrity: `check_promptset.py` counts it among `reference_packs` and hashes every original; run
    it with `--check-git-ref HEAD`. Confirm `.gitattributes` disables line-ending conversion for the pack's `vendor/`
-   and `extracted/` paths. If the CANopen principles pack is still uncommitted, cite it by path and record that its
-   bytes are not yet under a committed hash; do not commit it from this stage.
+   and `extracted/` paths. Cite the committed [CANopen principles pack](../../reference/canopen_principles/README.md)
+   (`e02ab04f`; its Kollmorgen AKD manual is remote-only) as secondary evidence.
 4. Seam coordination. Other family promptsets (Nanotec N5, maxon EPOS4, MKS, Lichuan C extensions, MOONS') plan to
    land the same seams. Read their READMEs and record, per seam, which family is expected to execute first and the
    current claim and landed state in the canopen_shared table. A DS2 stage claims a seam there before its shared

@@ -55,6 +55,6 @@ reasons; `docs/commissioning.md` DS2 section, coverage, operation map, Doxygen a
 
 Tests cover the `1017` prior read, write, readback and restore record, a lost write keeping execution unknown with no
 retry, freshness invalidation, and UNSUPPORTED results without TX for node, bitrate, COB-ID, save and restore. No DS2
-test or route writes `1010`, `1011` or any `2xxx` object other than 06b's IBL `2406h`. Quick and full verification and required CI on the exact
+test or route writes `1010`, `1011` or any `2xxx` object; 06b's IBL `2406h` write stays withheld until its evidence exists. Quick and full verification and required CI on the exact
 final pushed commit pass. Restart-dependent facts need a DS2 fixture with restart control; hardware NOT TESTED.
 Commit, push and hand off.

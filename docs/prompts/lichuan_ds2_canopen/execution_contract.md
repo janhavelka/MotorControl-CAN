@@ -59,14 +59,14 @@ authoritative; extracts are for search. Do not substitute a CL86-C, TL-C, DS-C o
 | CDN retrieval with the linking page as Referer | Reuse the procedure for refreshed downloads | Pack SOURCES.json limitations |
 | Vendor document habits: printed versus PDF page offsets, "about 10 ms" enable example, arrow tables 15 to 31/95/63/127 and 15 to 11, bits 0..2 for controlword 0/6/7/15, template EDS defaults, vendor 0x1000 | Reviewer alert only | Recurring habits are not firmware evidence; the DS2C status table equals the EN86 table text and is still another product |
 | `StatusLayout`, `interpretStatusword`, `STATUS_EN86_ZERO_SPEED`, `MONITOR_*` (`2100`) | Must not reuse | DS2 has its own two dialects (DS-D04) and no `2100` |
-| Objects `2100`-`2102`, `2200`-`2203`, `2300`-`2302`, `2400`-`2407`, `2500`-`2520` | Must not exist in DS2 | DS2 EDS files declare no manufacturer objects; IBL `2406h` is a torque speed limit where CL86-C has a DI filter |
+| Lichuan C's definitions of objects `2100`-`2102`, `2200`-`2203`, `2300`-`2302`, `2400`-`2407`, `2500`-`2520` | Must not enter DS2: no DS2 ledger row, symbol or access uses them | DS2 EDS files declare no manufacturer objects. IBL `2406h` is DS2's own manual-only row (02 item 5) with another meaning, a torque speed limit where CL86-C has a DI filter; its write stays withheld (06b) |
 | `StopKind` (010F, 000B), `stopPredecessorAllowed`, DEC-2, DEC-8 | Must not reuse | DS2 documents only 15 to 11 in position mode; DS2 records its own `DS-DEC-n` |
-| DEC-1 read acceptance, DEC-3 drain premise, `SdoReuse` default markers | Must not inherit | DS2 needs its own read-effect decision before polling or markers |
+| DEC-1 read acceptance, DEC-3 drain premise, `SdoReuse` default markers | Must not inherit | DS2 needs its own read-effect decisions: `DS-DEC-1` (03) before polling, a separate one before markers (S10) |
 | `AlarmClearMethod`, `prepareSetDevicePosition`, `prepareSave`/`prepareFactoryRestore` (`2300`) | Must not reuse | No DS2 object (DS-D20, DS-D21) |
 | `IdentityWidths`, `CountWidths::MEASURED_U16`, `EnableGate`, `ENABLE_SERVICE_STEPS`, S20/S21, `2201` pulse limit, `MotionIntent` | Must not reuse | CL86-C specimen and bench facts |
 | Q01-Q28, conflict IDs, scope `eds_family_unbound`, console verbs of `lichuan_c` | Must not reuse | DS2 uses DS-Dnn, `DS-Gnn` and its own `ds2` grammar |
 | Bits 0..2 projection for controlword 0/6/7/15 | Seam S8 candidate only | Documented identically (EN86 p12, DS2C p12); extract only an identical helper |
-| The identity comparison of prompt 57's policy (outcomes, vendor-object rule) | Extend the one profile-neutral comparison | Defined once in the extensions contract's identity outcomes; it carries no `LICHUAN_C` type |
+| The identity comparison of prompt 57's policy (outcomes, vendor-object rule, motion rule) | Extend the one profile-neutral comparison | Defined once in prompt 57's Identity policy bullet; the comparison carries no `LICHUAN_C` type |
 
 ## Evidence and supported behavior
 
@@ -97,36 +97,53 @@ authoritative; extracts are for search. Do not substitute a CL86-C, TL-C, DS-C o
 
 There is no universal probe: a `1000` or `1018` reply proves a responding CANopen server only. Binding is the
 application's declared model, encoder suffix, node and bitrate; selection performs no I/O. Identity reads confirm or
-contradict, never select, under [prompt 57](../57_regular_drive_operations.md)'s identity policy. Its outcomes
-(CONFIRMED, UNCONFIRMED, CONTRADICTED), the one comparison and the vendor-object rule are defined once in the
-[identity outcomes](../lichuan_c_extensions/execution_contract.md#identity-outcomes-prompt-57s-policy) of the Lichuan C
-extensions contract; DS2 adds only the model-scoped rule below and writes no parallel check.
+contradict, never select. [Prompt 57](../57_regular_drive_operations.md)'s Identity policy bullet defines the outcomes
+(CONFIRMED, UNCONFIRMED, CONTRADICTED), their inputs, the one comparison, the vendor-object rule and the motion rule.
+DS2 consumes that definition and supplies only its references, candidates and the admission table below; it
+restates no outcome and writes no parallel check.
 
-DS2's references are the DOCUMENTED claim set per model: 0x0100/0x0002 in every family manual (DS-D01), DS2EDS and
-ISLEDS 0x1000/0x2000, IBLEDS 0x1000/0x3000, and the manual claim alone for DS2-Mini; MEASURED rows join them once 12a
-adds them. Every DS2 model and the D18 value 0x1000/0x0001 (CL86-C, TL-C and DS-C EDS, and the measured CL86-C
-identity recorded under Q01, used only as a foreign reference) are always candidates, whatever the application
-lists. `1000` is 0x00040192 everywhere and reads as a stepper under the N5 description (DS-D03), so it never yields
-a motor kind.
+DS2's references are the DOCUMENTED claim sets per model, each holding the product fields `1000`, `1018:01` and
+`1018:02`. `1000` is 0x00040192 in every source (DS2C p24, every EDS). The `1018:01`/`:02` pairs are 0x0100/0x0002
+in every family manual (DS-D01), 0x1000/0x2000 in DS2EDS (DS2 group) and ISLEDS (ISL models) and 0x1000/0x3000 in
+IBLEDS (IBL models); DS2-Mini has the manual claim alone. MEASURED references (an application-supplied specimen
+record, prompt 57's inputs; 12a adds the first) join them. Every DS2 model and the D18 reference 0x1000/0x0001
+(CL86-C, TL-C and DS-C EDS, and the measured CL86-C identity recorded under Q01, used only as a foreign reference)
+are always candidates, whatever the application lists. `1000` reads as a stepper under the N5 description
+(DS-D03), so it never yields a motor kind.
 
-| Outcome for live `1018:01`/`:02` | Standard-object operations | Vendor-object access (`2406h`, IBL models only) |
-| --- | --- | --- |
-| CONFIRMED, or UNCONFIRMED with a declared-model match (a value shared with another DS2 group, as 0x0100/0x0002 is) | Allowed; results say "documented, not observed" until a model-scoped MEASURED row exists, and name the sharing models | Allowed |
-| CONTRADICTED: only another DS2 group's claim, or 0x1000/0x0001, matches | Refused unless an explicit acceptance is set | Refused, and no acceptance applies; for writes this is the shared vendor-object rule |
-| UNCONFIRMED without a declared-model match (no documented claim matches) | Refused unless an explicit acceptance is set | Refused unless the acceptance names this exact live value |
+Consequences of these references, which 03 tests: no DOCUMENTED pair can give CONFIRMED, because the manual pair
+matches all nine models, the DS2EDS/ISLEDS pair five and the IBLEDS pair two. A live pair that only other models'
+references hold (the IBLEDS pair on a DS2 or ISL declaration, the DS2EDS/ISLEDS pair on a DS2-Mini or IBL
+declaration) is CONTRADICTED until a MEASURED reference for the declared model exists. A live `1000` other than
+0x00040192 matches no reference. No caller acceptance replaces a reference (prompt 57): when no reference of the
+declared model matches, the application supplies a MEASURED reference for its specimen, with firmware provenance.
 
-Firmware identity is reported and never locks motion (prompt 57). An acceptance is generation-bound, recorded in
-evidence and never set by the library.
+| Current outcome (prompt 57) and DS2 case | Bootstrap reads (probe, identity, state) | Configuration reads (03 groups) | Changing requests (mode select, enable, release, motion, settings, `1017` write) | Explicitly requested stop (04's `QUICK_STOP`) | Vendor object `2406h` (IBL models only) |
+| --- | --- | --- | --- | --- | --- |
+| No current outcome: never read, or cleared by canopen_shared 02's invalidators | Allowed | Refused until a fresh identity read | Refused until a fresh identity read | Admitted | Refused |
+| CONFIRMED, or UNCONFIRMED with a declared-model match | Allowed | Allowed | Allowed; results carry every matching model and its basis ("documented, not observed" for DOCUMENTED) | Admitted | Read allowed; the write stays withheld (06b) |
+| UNCONFIRMED without a declared-model match, every product field read (a differing `1000` included) | Allowed | Allowed | Refused; the application supplies a MEASURED reference or corrects the declaration | Admitted | Refused |
+| UNCONFIRMED with a product field unread (abort, timeout or not announced by `1018:00`) | Allowed | Allowed | Refused; read the field again | Admitted | Refused |
+| CONTRADICTED | Allowed | Refused | Refused before TX by prompt 57's motion rule; nothing overrides it | Admitted under prompt 57's stop exemption; the result carries the contradicted identity and claims no standstill | Refused (prompt 57's vendor-object rule for downloads; DS2 refuses the upload too) |
+
+An explicitly requested stop still follows 04's source-state table; refusing it on identity grounds could leave a
+moving drive running. Firmware identity (`1009`, `100A`, `1018:03`) is reported and never refuses (prompt 57). Every
+stage with a changing request (04 to 08, 10) tests a correctly labelled DS2 binding on a foreign fake server
+(0x1000/0x0001): zero changing TX, while 04's `QUICK_STOP` stays admitted with the contradicted identity in its result.
 
 ## Owner and bus rules
 
 - One `CanBusOwner` per interface receives every frame; DS2 uses the existing services and never forks them.
 - DS2 shares an interface with Lichuan C nodes only as one CANopen domain: one bitrate, distinct node IDs, COB-IDs
-  read live and without overlap (DS-D06, DS-D07), reservations by bus and address whatever the profile label.
+  read live and without overlap (DS-D06, DS-D07), reservations by bus and address whatever the profile label, and
+  only once canopen_shared seam S13 has landed: it admits SYNC and every NMT command to node 0 on a mixed interface
+  only for reviewed effects on every declared node, so DS2's unknown effects refuse both (11). Until then each
+  family has its own interface.
 - No implicit enable, mode change, homing, fault clear, NMT command, PDO or heartbeat change or parameter write on
   startup, selection, probe, recovery or cached reads. Never enable to prepare a stop. Release, stop, NMT stop, cancel
-  and recovery stay distinct. One immutable deadline per operation; no automatic repeat; an unconfirmed write keeps
-  `UNKNOWN` execution and is never replayed. CAN TX or ACK is not SDO success; SDO success is not drive acceptance.
+  and recovery stay distinct. Write preflight, the one operation deadline and the source-state table follow
+  canopen_shared 02 "Operation admission"; no automatic repeat; an unconfirmed write keeps `UNKNOWN` execution and
+  is never replayed. CAN TX or ACK is not SDO success; SDO success is not drive acceptance.
 - The drive documents no reaction to host loss (DS-D32). Host durations are host intent; a wired stop is the
   application's ([prompt 62](../62_stop_line.md)).
 

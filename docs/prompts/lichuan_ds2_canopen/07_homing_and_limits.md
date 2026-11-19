@@ -25,7 +25,9 @@ prose.
    unresolved". `607C` home offset is I32 pul, -1000000..+1000000 in the mode table (DS2C p13).
 5. Completion. `DS2C_TABLE`: bit 8 "homing complete" must be low after the trigger and then rise, with bit 10 speed
    zero as supporting evidence. `IBL60_TABLE`: bit 10 in mode 6 means homing complete (IBL60 p14), same rule. No
-   homing-error bit and no homing timeout are documented, so the caller supplies a bounded observation budget and a
+   homing-error bit and no homing timeout are documented. Observing the fall and rise is polling, so it runs only
+   under `DS-DEC-1` (03) with a caller-supplied observation budget inside that decision's bound. Without it homing is
+   refused before TX: a search whose end cannot be observed is bounded only by signals the host cannot see. A
    timeout ends the operation with a stop obligation, never a re-trigger. The position value after homing (CiA: the
    home offset) is not stated by DS2 sources: publish a host reference only after completion evidence and a fresh
    `6064` read, and invalidate the previous reference generation when the trigger is sent.
@@ -35,7 +37,8 @@ prose.
    lacks is refused. An unconnected terminal still has its function. Z-pulse methods (1..14, 33, 34) need a caller
    declaration that the encoder provides an index; the magnetic encoders' index is undocumented.
 7. Software limits (DS-D15). `607D` prints both rows as sub-index 01, positive first, with defaults 2147483647 and
-   2147483648 (DS2C p28); DS2EDS has sub 1 MIN and sub 2 MAX. Read both raw; write neither until a fixture read of
+   2147483648 (DS2C p28); DS2EDS, IBLEDS and ISLEDS have sub 1 MIN and sub 2 MAX. Read both raw where the scope's
+   EDS sources `:02`; MINI (manual rows both `:01`, no EDS) reads `:01` only. Write neither until a fixture read of
    unchanged defaults or a source settles the order. Activation is unstated; Er.D09 and Er.D10 (DS2C p32) name limit
    faults. Hardware limits FunIN.14/15 block one direction (DS2C p9); Er.950/Er.952 are warnings (DS2C p33).
 8. Shared vocabulary. Once [prompt 77](../77_switch_ready_homing_limits.md) lands, express input facts, limit admission
@@ -57,8 +60,8 @@ coverage, operation map, `docs/homing.md` DS2 section, Doxygen and CHANGELOG.
 ## Acceptance
 
 Tests cover every method's admission against declared signals, rejected 15/16/31/32/35, parameter order after enable,
-`6098` readback mismatch, a stale or already-high completion bit for both dialects, timeout with a stop obligation and
-no re-trigger, interruption by bit 4 falling and by an explicit stop, reference publication only after fresh evidence,
+`6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
+without `DS-DEC-1`, timeout with a stop obligation and no re-trigger, interruption by bit 4 falling and by an explicit stop, reference publication only after fresh evidence,
 and `607D` writes refused. Quick and full verification and required CI on the exact final pushed commit pass.
 Physical homing needs a DS2 fixture with real switches or a qualified index; hardware NOT TESTED. Commit, push and
 hand off.
