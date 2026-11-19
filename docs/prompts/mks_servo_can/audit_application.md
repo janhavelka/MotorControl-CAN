@@ -229,3 +229,84 @@ The coordinating lead decided the round 3 questions on 2026-11-19; they supersed
    owner work stays Blocked until that extension lands and its tests pass, as 02b says (README open question 1).
 
 Checks after these edits: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean.
+
+## Round 4
+
+Each finding of [audit `aud-20261119-192905-1c8982`](audit.md#round-4) was checked against the family files (unchanged
+since `ed32d654`; their hashes match the report), the [reference review](../../reference/mks_servo_can/review.md)
+sections 5, 11, 12 and 14, the original pages through the pack's page-marked MK109 extract where a device claim is
+involved (p.25-26, p.36, p.46, p.49, p.56, p.89, p.100, p.104, p.106-107), the owner types in
+[CanBusTypes.h](../../../adapters/owner/CanBusTypes.h) as cited by 02b, and [prompt 63](../63_mixed_protocols.md) at
+`c67e48dd`, where the lead applied F8's producer side. Under the user's direction of 2026-11-19 every verified high
+finding is fixed; the medium F7 and F9 were cheap and clearly right and are fixed too. Only this set's files changed:
+stages 02b, 04, 05, 06, 07, 08, 09, 10 and 12B, the README and these two audit files. No shared contract, main prompt,
+reference pack or source changed. Nothing was compiled and no hardware or port was used.
+
+Counts: 9 accepted, 0 accepted in part, 0 rejected, 0 deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 04 step 4 barrier (every changing operation except a stop refused while a start may transmit or an obligation is undischarged; discharge only by 05's `completed` or a stop) against old 05 step 8 (F5H update as an explicit change operation), 09 step 7 (4BH for `LATCHED_LIVE` members), 06 step 7 (run-time completion ends the context) and 07 step 4 (homing completion); MK109 p.100 and p.104 (F5H real-time update while the previous command runs), p.106-107 (4BH executes held commands, no reply); round 3 lead decision 2 (per-drive latch acceptance) | 04 step 4 **Motion record and admission barrier**: one per-address record kept across rebinding, bus-off and recovery with four conditions (live intent, open TX, uncertain execution, retained obligation), each with what it admits besides stops and how it ends; an attributed status 0 rejecting a start leaves nothing, a checked status 5 staging ending without a 4BH leaves `LATCHED_STALE` instead of an obligation. Same-intent transitions: an F5H update only on a live F5H move whose latest trigger has its attributed status 1, with no open TX, uncertain execution, retained obligation or outstanding request; a 4BH only when every possible recipient's record is empty or a live latched staging with its attributed 5 and deadline ahead. The per-drive latch acceptance answers only the latch-state gate and never passes open TX, uncertain execution, a retained obligation or a non-latched live intent. Terminal evidence per motion type: 05 `completed`, 06 run-time status 2 after the run's attributed 1, 07 step 4 completion, 09 step 7 latched rule; host-bounded and continuous runs only by a stop. 05 step 8, 06 step 7, 07 step 4 and 09 steps 6 and 7 consume it; acceptance in 04 (each condition and its end), 05 (update admitted, refused with the start held below the owner queue, after a lost start reply and after a stop; completed move then new move), 06 (run-time completion then new run), 07 (homing completion then motion) and 09 (4BH with the staging still open TX; acceptance not passing the barrier) |
+| F2 | Accepted | Old 04 step 3 (a status 2 after a same-code stop is cause-indistinguishable) against old step 4 (an attributed stop-complete reply discharges); old 02b step 6 (`QUIET_INTERVAL` may end the matching phase); MK-D36 (MK109 p.83-84, p.89-90, p.93-94: run and stop share code and statuses); MK109 p.81 (F7H documents status 0 and 1 only) | Lead direction applied: 04 step 3: a same-code status 2 after a stop stays an observation, discharges no obligation and claims neither completion, also with `QUIET_INTERVAL`; no stop reply is `OBSERVED` completion. 04 step 4: discharge only by a stop handed off after every earlier changing frame is proved, then the post-stop observation (F1H 1 with 32H 0 on two sequential attributed reads after the stop's handoff, stream state `OFF`, no changing frame, restart, bus-off, rebinding or recorded power cycle between); the old stop-reply route is removed. 02b step 6: `QUIET_INTERVAL` ends a phase only where the dependent stage gives the frame that meaning. 05 step 7 (`completed` excludes a 2 after a same-code stop; obligation discharged by the stop with its post-stop observation) and 06 step 7 follow. Acceptance in 04 and 06: an attributed run 2 after the stop's handoff with the stop's reply withheld, obligation retained and the next changing request refused |
+| F3 | Accepted | Old 09 step 7 (latched completion only through 05's standstill window) against 05 step 7 (`endpointObserved` relative to the trigger's acknowledgement; `completed` needs the trigger's status 1; 33H no endpoint proof, MK-D30); MK109 p.89 (status 5 "data has received for Synchronous mode"), p.106-107 (4BH has no reply) | 09 step 7: separate `stagingAccepted`, `triggerPossiblySent` and per-form rules, none importing the status-1 predicate. F4H and F5H: `latchedCompleted` needs a pre-trigger 31H read after the 5 and before the 4BH handoff outside tolerance of the latched target (F4H: that value plus the displacement) and then 05's standstill window with every read after the 4BH's final TX report; an in-tolerance target, an undelivered 4BH or a window elsewhere leaves execution `UNKNOWN`; never claimed under the per-drive acceptance. FDH, FEH and F6H latches have no reviewed completion route and need 04's stop. Acceptance: dropped 4BH, real post-trigger window with an outside pre-trigger read, target initially in tolerance, pulse and F6H forms |
+| F4 | Accepted | MK109 p.36 (setup and stop share the reply `[01, code, status]`; samples `[code, value]` identical in form to the polled reply); old 09 step 3 (an acknowledged period-0 stop gives `OFF`, correlation unspecified); 02b step 6 (every exchange enters its shape, so after a setup the stop's reply is at best `QUIET_INTERVAL`); AGENTS reused-route rule | 09 step 3: only a stop reply attributed `QUALIFIED` gives `OFF`; a `QUIET_INTERVAL` stop reply leaves `UNKNOWN`, reported as a risk-accepted acknowledgement, and 03 step 8's caller declaration stays the route to `OFF`; the residual-sample fence stays. 02b step 6 cites the exception. Acceptance: applied setup, unapplied stop, delayed setup success after the interval, a later poll refused before TX and zero dependent changing TX |
+| F5 | Accepted | Old 10 step 2 (quarantine entered on a sent or possibly sent disposition; old-value read or menu reading restores the old binding) and step 7 (3FH invalidates facts, no quarantine); 02b step 3 (a disposition may say a later TX is not excluded); MK109 p.46 (8AH, 8BH: status reply only, nothing on activation), p.25-26 (menu defaults CanRate 500K, CanID 01, CanRSP Enable, CanCRC SUM-8), p.56 (3FH restores and restarts; scope unlisted, MK-D22); review section 12 (delay before a changed ID or bitrate applies undocumented) and section 14 rule 15 | 10 step 2: the fence starts at the write's admission, before handoff; only a proven unsent disposition lifts it unchanged. Outcomes need TX settlement (write proved unable to transmit; deciding readings taken after it) and, for any outcome resting on the old value, configuration settlement (a recorded power cycle before the deciding read, inference that stored settings apply at power-on, or the operator's specimen reconciliation record accepting a deferred application); the table's unknown outcomes tolerate a late application and need none. Node lost keeps every candidate tuple reserved, keeps the drive in the participant record with every candidate value (multi-target and 4BH refused) and, after 8AH or 3FH, keeps the interface's other bindings fenced until an operator record. Step 7: 3FH enters interface quarantine with the old and menu-default tuples reserved, refused while another participant uses a candidate ID, participant record with old and default values and unknown group ID and active byte. Acceptance: write held below the owner queue with an early old-value read and a late TX, old value without a settlement boundary, node lost after 8AH, 3FH candidates and an unexpected-tuple reply |
+| F6 | Accepted | Old 08 step 9 (effects listed without timing; only 9FH covers a lost reply) and acceptance (lost reply: unknown execution, no repeat); 05 step 1 (pulse conversion from the declared or read microstep); AGENTS (configuration changes invalidate dependent evidence and queued work) | 08 step 9: invalidation fenced from the write's admission; a proven unsent disposition keeps the old evidence; sent or possibly sent invalidates it before any dependent handoff whatever the reply; preparations built on old evidence refuse at admission; results completing across the write name the possibly changed setting. Acceptance: 82H and 84H acknowledged, possibly applied with no reply and proven unsent, against retained evidence and a prepared or queued move, zero stale move TX |
+| F7 | Accepted | Old 04 acceptance (release plus a mode or microstep write in the late-start scenario) against 08 steps 1 and 3 (the typed 82H and 84H routes) and the README order (04 before 08) | 04 acceptance keeps the late-start regression with a release and an enable and hands the 82H and 84H cases to 08; 08 acceptance runs them through its real settings route; 08 status and the README stage row name 04's barrier as a prerequisite. The execution order already puts 04 before 08 |
+| F8 | Accepted | Prompt 63 at `c67e48dd` (Implement 5 for the exclusive domain; "Verify and exit" now lists whole-space admission on an empty interface, refusal in both admission orders with zero TX, restart and bus-off delivery to the exclusive service, TX hand-off and RX capture times with uncertain bounds) | Producer side applied by the lead in `c67e48dd`. 02b step 3 names the prompt 63 exit tests it reruns from the landed commit and keeps owner admission and owner-transmitting work Blocked until they pass. 02b step 6 judges "captured after the handoff" by the capture's earliest bound against the handoff's latest bound, overlap not counting, so the uncertain bounds are consumed conservatively |
+| F9 | Accepted | Old 12B step 8 (stop prerequisites and restoration plan only) and acceptance; round 3 unresolved question 2 (no motion envelope, timing criteria or abort conditions); ADD_DRIVE and AGENTS evidence rules | 12B step 8: a case counts toward qualification only under a fixture-specific procedure written, independently reviewed and approved by the lead under the applicable bench authorization before the run, naming the motion envelope, stop and service timing criteria and their measurement, the abort action and the expected end and restoration state; otherwise the run is a retained observation and its row stays open. Acceptance: every hardware-tested entry cites its procedure and the criteria it met |
+
+### Unresolved questions, round 4
+
+1. **S9 extension. Answered in part.** Prompt 63 now states the exclusive domain in Implement 5 and the matching exit
+   tests (`c67e48dd`), and 02b step 3 names them as its rerun set; no extension has landed, so owner admission and
+   everything that transmits through the owner stay Blocked (README open question 1).
+2. **Communication settlement. Not answered by the files.** No page documents when an 8AH, 8BH, 8CH, 8DH or 4CH
+   change applies (review section 12). 10 step 2 now requires TX settlement and, for an outcome resting on the old
+   value, a recorded power cycle or the operator's risk record; 12A Q10 is the measurement that can replace that
+   boundary for a named specimen and firmware.
+3. **V1.0.0 and continuity. Answered for V1.0.0; continuity stays open.** 03 step 5 and README open question 3 keep
+   `V1_0_0` bindings to the probe and reads until the shared contract's owner or the user decides whether a
+   declaration can stand as identity. The continuity policy for absolute motion stays that owner question; until then
+   05 step 4 needs the application's continuity record.
+
+No change outside this directory was made; prompt 63's part of F8 is the lead's `c67e48dd`.
+
+### Decisions for a lead or owner, round 4
+
+- Implementing lead or user, F1 and F2: no stop reply discharges an obligation any more, so every stop, including
+  F7H, is followed by the post-stop observation before other changing work on the address; a status 3 limit stop
+  also leaves a retained obligation. This is the strict reading of MK-D36 and of F7H's acceptance-only reply.
+- Implementing lead or user, F3: only F4H and F5H latched moves can complete, and only from a pre-trigger position
+  outside tolerance; pulse-form and F6H latches always end through a stop.
+- Application configuration, F4: after any 01H setup, `OFF` comes from the caller's evidence-backed declaration, or
+  from a stop reply only as the first 01H exchange after a recorded power cycle.
+- Implementing lead or user, F5: "old unchanged" after a possibly applied communication write needs a recorded power
+  cycle or the operator's recorded acceptance of a deferred application; after node lost on an 8AH or 3FH scope the
+  interface stays fenced until an operator record; 3FH is refused while another participant uses a menu-default ID.
+- Prompt 63 lead: the 02b matcher compares the earliest capture bound against the latest hand-off bound; the S9
+  extension's bounds need to support that comparison.
+- Shared contract owner or user: README open question 3 (V1.0.0 identity, continuity policy), unchanged.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this set. Nothing was
+compiled; no hardware or port was used.
+
+### Round 4 lead decisions
+
+The coordinating lead decided the round 4 questions on 2026-11-19; they supersede the matching items above.
+
+1. **02b step 6 ordering.** Confirmed: a frame is after a request's hand-off only when its earliest capture bound
+   follows the hand-off's latest bound; overlapping bounds give no ordering.
+2. **Limit stop.** No extra host stop command is required. An attributed status 3 is a drive-side limit stop that,
+   once every changing frame to the address is proved unable to transmit, discharges the obligation through the same
+   post-stop observation as any stop (two sequential attributed F1H 1 / 32H 0 reads after its capture); without that
+   observation the obligation stays (04 step 4 Retained obligation row, 06 step 7).
+3. **3FH and menu-default IDs.** Confirmed: 3FH is refused while another participant uses a candidate default ID
+   (10 step 7).
+4. **Interface fence after node lost on an 8AH or 3FH scope.** Confirmed for changing and multi-target traffic until an
+   operator record; stops stay admitted, and reads to other addresses stay admitted with their replies reported
+   unqualified while the fence lasts, because the lost node may answer on a reused ID (10 step 2 and acceptance).
+5. **V1.0.0 and continuity.** Confirmed: V1.0.0 stays probe and reads only; the continuity policy stays the owner's
+   question (README open question 3).
+
+Checks after these edits: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean.

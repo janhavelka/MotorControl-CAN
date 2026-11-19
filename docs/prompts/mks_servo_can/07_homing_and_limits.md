@@ -37,7 +37,9 @@ p.65-77), not only the extracts.
    1 success, 2 fail, one byte before 1.0.7 (p.35; MK106 p.19); F1H 5 while homing (p.80).
 4. Completion: a new status 2 for this pending phase that 02b step 6 attributes (`QUALIFIED`, or `QUIET_INTERVAL`
    reported as that risk), or a fresh 3BH transition to success observed after the trigger.
-   A pre-existing 3BH success, F1H 1 or an elapsed deadline is never completion. Only after qualified completion does
+   A pre-existing 3BH success, F1H 1 or an elapsed deadline is never completion. This completion is the homing's
+   terminal evidence under 04 step 4 and leaves the address free for new admission; a failed, stopped or expired
+   homing leaves a retained obligation for 04's stop and post-stop observation. Only after qualified completion does
    `getHomeReference` publish a host origin generation, with a fresh 31H read recorded; the manual says the marked
    position becomes coordinate zero, but no source establishes the residual reading, so do not require exact zero.
 5. Zero set: 92H sets the current position to zero without motion (MK109 p.69) as the native `SET_DEVICE_POSITION`
@@ -83,6 +85,7 @@ reference publication and invalidation; zero set with and without stationary adm
 limit change; limit admission at first attachment, after a lost 90H or 9EH reply and after a possibly applied 9FH
 change, each with zero ordinary motion TX until a read or declaration and a homing or commissioning record requalify
 it; stop during homing with F7H only and homing refused on V1_0_0; a 91H status 2 of an ambiguous shape not
-completing a new homing; status 3 handling. The full matrix of contract 02 "Registration
+completing a new homing; a qualified homing completion followed by a new motion admitted, and an expired homing
+followed by motion refused until 04's stop and post-stop observation; status 3 handling. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Physical homing needs the actual
 switch or mechanical fixture: hardware NOT RUN. Commit and push.

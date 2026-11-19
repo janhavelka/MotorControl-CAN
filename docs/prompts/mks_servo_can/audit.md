@@ -228,3 +228,75 @@ records, checker and package source and CI workflows (the repository index was t
 than 63, the conditional experiment prerequisites, parent project instructions and several interface and bench
 contracts. No fixture record, raw trace, reply-latency bound, stop measurement or service-gap data existed; the audit
 was text-only, and no checker, build, CI job or hardware test ran.
+
+## Round 4
+
+A condensed, faithful copy of the fourth report. It is untrusted reviewer input; the verified dispositions are in
+[audit_application.md](audit_application.md) "Round 4". Line numbers refer to the files as revised by round 3
+(committed in `ed32d654`; the family files' hashes in the report equal those of that commit).
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-192905-1c8982` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~198187 tokens)") |
+| Date | 2026-11-19 19:29:05 (from the ID), 206.4 s, one attempt |
+| Revision | `main` at `ed32d6541be8ee96e487fdd05b9884256e3f73dd`, no uncommitted changes recorded |
+| Cost | Estimated USD 0.41 (0.408278, configured pricing); 148,219 input and 11,184 output tokens (5,032 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-192905-1c8982.json` (local) |
+| Location checks | 37 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_evidence_and_command_ledger.md` (142, `a357bac7`),
+`02_codecs_and_dialects.md` (85, `5d873cf8`), `02b_protocol_domain_and_owner.md` (147, `5f0750d6`),
+`03_reads_identity_and_dialect.md` (112, `7b777885`), `04_enable_stop_and_uncertainty.md` (122, `e0829687`),
+`05_finite_position.md` (113, `e34d3c90`), `06_speed_mode.md` (77, `3cb874a1`), `07_homing_and_limits.md` (88,
+`55f34261`), `08_settings_and_persistence.md` (91, `6266008d`), `09_async_reports_and_reply_matching.md` (130,
+`ca6927a4`), `10_bus_settings_and_restart.md` (103, `7453cc3a`), `11_console_and_integration.md` (65, `23e4111a`),
+`12_qualification_and_release.md` (63, `67d33c83`), `12a_first_contact.md` (76, `ca009de7`), `README.md` (171,
+`317596d0`), `audit.md` (230, `fdb0be95`), `audit_application.md` (231, `22d505a0`), `execution_contract.md` (156,
+`7cb489b9`). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, `docs/reference/mks_servo_can/README.md` and
+`review.md`, `63_mixed_protocols.md` (80 lines, as of `ed32d654`, before `c67e48dd`); project instructions
+`AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The prompts correctly isolate MKS from CANopen, gate owner traffic on landed and tested S9 artifacts and
+distinguish a responder observation from evidence that authorizes work; several earlier corrections hold (the
+stream-state prerequisite, the board-code equality check, the settings-before-homing order). The remaining blockers
+are in how the stages compose: the motion barrier conflicts with live operations, stop and latch completion have
+incompatible evidence rules, and stream and communication recovery can restore admission without establishing the
+state they rely on. Text-only review; no implementation, CI, vendor original or hardware behavior was verified.
+**Verdict:** blocking issues. Independent ledger, codec and host-only work can proceed; the affected device-facing
+motion, report and communication paths need one executable admission and completion contract with regression tests,
+and owner-backed delivery stays gated on the tested S9 producer artifacts.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The retained-stop barrier conflicts with live motion transitions and omits normal terminal paths.* 04 refuses every changing operation except a stop while a start may still transmit or a stop obligation is outstanding, without distinguishing a live operation from a failed or preempted one, yet 05 offers an F5H update on an admitted move and 09 a 4BH for live latched members with no way past the barrier; conversely 06 ends a run on run-time completion and 07 recognizes homing completion, while 04 names only 05's position completion or a new stop as discharge. Define one per-address transition table separating live intent, pending or unretired TX, uncertain execution and a retained obligation after local termination; the exact conditions for an update or latch trigger to belong to the same live intent; and the terminal evidence that discharges each motion type. Keep per-drive latch-risk acceptance separate from the TX-order barrier. Test a valid live transition, the same with an unretired predecessor, and finite-velocity and homing completion followed by new admission. | 04:71-73, 75-77; 05:76-79; 06:50-52; 09:88-89 |
+| F2 | High, verified defect, high | *A same-code status 2 is both cause-indistinguishable and eligible to discharge an ordered stop.* 04 says status 2 after a same-code stop cannot tell a reached target from a completed stop, then lets an attributed stop-complete reply clear the barrier without excluding that shared status; 02b lets an ambiguous-shape frame end a phase after the quiet interval. A run's 2 after a speed-0 stop can therefore satisfy the discharge rule; TX retirement proves wire order, not which operation produced the reply. State whether such a 2 may clear the barrier; under the stated policy it stays an observation even with quiet-interval correlation, discharge using the fresh post-stop observation route. Test an attributed run 2 after the stop's handoff with the stop's reply withheld, and the obligation and a following changing request. | 04:51-53, 76-78; 02b:101-103 |
+| F3 | High, verified defect, high | *The latch completion test requires a window whose prerequisites cannot be met.* 09 completes a latched move only through 05's standstill window after 4BH and forbids inventing a status 1, but the window's `endpointObserved` is defined from a read after the latest trigger's acknowledgement and `completed` needs that trigger's status 1; the staging 5 acknowledges holding a command, not executing the reply-less 4BH. Dropping the check would let an axis already in tolerance look complete after a 4BH that never arrived; 05 withholds endpoint proof for pulse moves and an F6H run has no position target. Specify latch observations and terminal rules per native form (staging accepted, trigger possibly sent, endpoint or standstill observed), keep execution unknown unless evidence shows this trigger executed, and mark forms without a reviewed route. Test a live latch whose trigger is not delivered and a real post-trigger endpoint observation, including a target initially in tolerance. | 09:93-96, 126-128; 05:60-64, 70-73 |
+| F4 | High, probable defect, high | *A risk-accepted report-stop reply can turn an active stream into authoritative polled evidence.* 09 promotes an acknowledged period-0 stop to `OFF` without a minimum correlation, while setup and stop share one reply layout; a delayed setup success can end a later stop as `QUIET_INTERVAL` although the stop did not apply, and the still-active stream's samples, identical in form to polled replies, then need not be classified as unsolicited, defeating 03's stream guard (40H too, if reportable). Do not infer `OFF` from a quiet-interval acknowledgement when an earlier setup can produce the same reply; keep `UNKNOWN` until a reviewed discriminator or the caller's `OFF` declaration, retaining the fence for residual samples. Test an applied setup, a stop that does not apply, a delayed setup success after the interval and a sample during a later poll, with no dependent changing TX. | 09:27-28, 37-41; 03:46-49; AGENTS.md:79 |
+| F5 | High, probable defect, high | *Communication quarantine can clear before an uncertain change is settled.* 10 quarantines on possible TX but lets an attributed old-value read or a menu reading restore the old binding, while 02b allows a disposition that does not exclude later transmission, so a write held below the owner queue could apply after a valid old-value observation and after traffic resumes; even with final TX evidence, activation timing is undocumented, so a current value does not rule out a deferred change. 10 also invalidates facts after 3FH without defining reservations and admission during its unknown outcome. Separate local TX settlement from configuration settlement, fence the scope before the frame can be handed off and while it could still transmit, and require a reviewed settlement or operator reconciliation boundary before a value restores traffic; give 3FH a quarantine and participant-record rule, including what "node lost" permits on the interface. Test a delayed handed-off write after an old-value read and a restore with an unexpected tuple, neither allowing ordinary or multi-target TX. | 02b:34-37; 10:18-20, 31-34, 60-63; AGENTS.md:77 |
+| F6 | High, probable defect, high | *Lost mode and microstep replies lack a required invalidation and queue test.* 08 lists what 82H and 84H invalidate but not when, nor how dependent queued work retires; only 9FH covers a possibly applied change with a lost reply, and the general lost-reply test asks only for unknown execution and no repeat. Tied to acknowledgement or readback, an applied 84H with a lost reply leaves a stale pulse scale (a different displacement) and an applied 82H stale work-mode evidence. Require effect-specific invalidation for any write that may have applied, before dependent work is handed off, keeping old qualifications only on proven non-transmission or other deciding evidence; say how handed-off dependent work is reported; test acknowledged, possibly applied with no reply and proven unsent 82H and 84H writes against retained evidence and queued motion. | 08:61-65, 83-85; 05:21-23; AGENTS.md:77 |
+| F7 | Medium, verified defect, high | *Stage 04 still requires an end-to-end refusal test for writes introduced in stage 08.* The README fixes the settings-before-homing order but not 04's new case: after a late start and an apparent stop, a mode or microstep write must be refused through the real path, while the typed settings arrive in 08; a direct guard call or stub cannot show the later route enforces the barrier. Keep the late-start and release regression in 04, move the mode and microstep regressions to 08 through its real settings route with 04's barrier as a prerequisite, and keep any serialized stage order aligned with the README. | 04:111-114; 08:9-11; README:62 |
+| F8 | Medium, verified defect, high | *Prompt 63's exit criteria do not establish the complete S9 interface that 02b consumes.* Prompt 63's plan and raw-admission items still describe restricted-range validation and a raw class below stops without an explicit exclusive-domain branch; its exit list does not require whole-space admission on an empty interface, refusal in both CANopen/MKS admission orders or bus-off delivery to the exclusive service, and names RX capture times without the TX handoff time or ordering evidence 02b's matcher needs. A producer acceptance gap; 02b correctly stays blocked without the artifacts. Make shared and exclusive cases explicit in prompt 63, name per-frame TX handoff and RX ordering evidence with uncertain bounds, add producer tests, keep the shared-interface negatives, and have 02b rerun the named tests from the landed commit. | 63:33-41, 56-62, 69-73; 02b:71-73, 141-143 |
+| F9 | Medium, verified defect, high | *Physical release qualification has no required fixture-specific pass criteria.* 12B lists motion, stop, homing and timing cases with stop prerequisites and restoration, but no predeclared motion envelope, measurable stop or service limit, abort boundary or criteria separating a pass from a recorded run; round 3's application names the gap and calls such runs observations, yet the stage still allows a qualification disposition without the procedure. Require a reviewed fixture-specific procedure before a result can count as hardware-qualified, naming per case the motion envelope, stop and service timing criteria and their measurement, the abort action and the expected end and restoration state; otherwise keep the trace as an observation and the row open. | 12B:33-38, 59-62; audit_application:190-195 |
+
+### Unresolved questions (reviewer, round 4)
+
+1. Which landed S9 commit and consumer tests demonstrate exclusive admission, ordered or explicitly uncertain TX
+   retirement, comparable RX capture and TX handoff evidence, and restart and bus-off delivery? The prompt records
+   requirements, not a usable owner capability; only dependent work should stay blocked.
+2. Which specimen-specific evidence can establish communication settlement after a possibly applied write or
+   restore, rather than merely a current menu value or a current responder? Without a deciding boundary, ending
+   quarantine can restore access to an unsettled address or interface.
+3. Is V1.0.0 intended to remain reads-only, and what evidence will resolve the continuity policy for absolute motion?
+   Neither a dialect declaration nor a repeated 40H observation establishes the missing identity or origin
+   continuity.
+
+### Coverage gaps (reviewer, round 4)
+
+Not supplied as file contents: the MKS manifest, rendered manuals, extracts, schematics and original worked vectors
+(device claims compared with the review only; DLC cells, checksums, electrical limits and board revisions not
+checked); owner and adapter sources, TX retirement, RX timestamp semantics, self-echo conformance tests, seam commits
+and PROGRESS (the repository index was truncated); parent instructions, prompts 55, 57, 64, 65, 73, 74, 75 and 77,
+the experiment prerequisites, and console, build, package and CI definitions. No fixture record, CAN trace, latency
+bound, stop or service-gap measurement existed; no checker, build, test, CI job or hardware procedure ran.

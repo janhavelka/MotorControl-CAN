@@ -1,7 +1,8 @@
 # 08 — Settings and dangerous persistent settings
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Run after 03. MK-D10, D18, D21, D23, D27, D29 and D34 are central. Bus settings (8AH-8DH, 4CH),
+Status: NOT STARTED. Run after 03 and 04, whose step 4 motion record and admission barrier step 8 consumes. MK-D10,
+D18, D21, D23, D27, D29 and D34 are central. Bus settings (8AH-8DH, 4CH),
 restart and factory restore belong to [10](10_bus_settings_and_restart.md).
 
 ## Work
@@ -58,11 +59,18 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    | Source a bus mode with F1H 2-6, or F1H missing, stale or `possiblyLate` | None; refused |
    | Source a pulse-interface mode (CR_* other than V1_0_0's CR_CAN) or unknown, stationary declared together with the application's record that no pulse source drives STEP, DIR or EN, fresh F1H 0 or 1 (never taken as standstill) | 82H with the value, the result recording the source mode (or unknown) and naming the stationary declaration and pulse-source record it relied on |
    | Source a pulse-interface mode or unknown without that record, or F1H 2-6, missing, stale or `possiblyLate` | None; refused, naming the menu Mode item (MK109 p.23) as the operator's alternative |
-9. Invalidation, recorded per descriptor and tested: 84H invalidates pulse scales and speed and acceleration mappings;
-   82H invalidates enable, motion, completion and the work-mode gate; 95H invalidates completion qualification; 88H and
-   9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and invalidate the home reference
-   (07's block); a possibly applied 9FH direction change invalidates 34H input evidence, sets `limitHomingRequired`
-   and invalidates the home reference, also when its reply is lost.
+9. Invalidation, recorded per descriptor and tested, is effect-specific and fenced around the write. From its
+   admission until its TX disposition, work depending on the affected evidence is refused on the address and queued
+   dependent work is retired without TX. A disposition proving the write unsent (02b step 3) keeps the old evidence;
+   sent or possibly sent invalidates it before any dependent work is handed off, whether the reply is success,
+   failure or missing, and only a later readback or a new caller declaration re-establishes it. A preparation built
+   on the old evidence carries that evidence's generation and refuses at admission, so a stale native frame never
+   transmits; step 8 admits no write while dependent motion is admitted on the address, and any other result
+   completing across the write names the possibly changed setting. Effects: 84H invalidates pulse scales and speed
+   and acceleration mappings; 82H invalidates enable, motion, completion and the work-mode gate; 95H invalidates
+   completion qualification; 88H and 9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and
+   invalidate the home reference (07's block); a possibly applied 9FH direction change invalidates 34H input
+   evidence, sets `limitHomingRequired` and invalidates the home reference, also when its reply is lost.
 10. Restoration records: a typed snapshot of read values per code that an application can store and later apply
     explicitly, excluding every motion, homing, calibration, restart and never-written command. Restoration is never
     automatic and never replays a trigger; a snapshot with unreadable codes says which values it lacks.
@@ -79,10 +87,15 @@ Per block: exact frames, accepted and refused values, model and dialect refusals
 established, acknowledged-only result where not, the first emitted frame or none for every row of the 82H table
 (including a factory-default CR_vFOC source admitted with the pulse-source record and refused with zero TX without it,
 the fake drive's F1H reply in CR_* never standing as standstill), a write refused under 04 step 4's admission
-barrier, a
-prior read that meets its own timeout while the operation deadline arrives before the write (no write TX, contract
-02 "Operation admission"), status 0 rejection, lost reply with execution unknown and no repeat,
-invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
+barrier, 04's late-start scenario through the real owner and settings route (a start handed off without a final
+report while a stop is admitted, order unproved): 82H and 84H writes attempted after the stop's terminal and a fresh
+F1H 1, each refused with no TX until the start frame is proved and the obligation discharged; a prior read that
+meets its own timeout while the operation deadline arrives before the write (no write TX, contract 02 "Operation
+admission"), status 0 rejection, lost reply with execution unknown and no repeat; 82H and 84H writes acknowledged,
+possibly applied with no reply and proven unsent, each against the retained pulse-scale, speed-mapping, work-mode and
+completion evidence and a prepared or queued move: zero stale move TX after the acknowledged and the possibly applied
+write (its preparation refused at admission, queued work retired), the old evidence kept only after the proven
+unsent one; invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
 50H, 0FH and 8FH; board-dependent writes refused when the observed board code differs from the declared one; 9FH on a
 42D refused with IN_1 required as home or limit, admitted for a separately recorded remapped configuration, and its
 lost acknowledgement invalidating input, limit and reference evidence. No automatic save or restoration. The full

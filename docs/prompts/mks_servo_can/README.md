@@ -20,8 +20,8 @@ model `docs/prompts/lichuan_lc57bk_rs485/` at `eb0dbad` (dirty). Reconciled the 
 [audit application](../canopen_shared/audit_application.md); see "Relationship to the main sequence and shared seams".
 Revised the same day after an independent [audit](audit.md) of `139748e9` ([application](audit_application.md)),
 against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`), and again
-after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`, and after its round 3
-(`aud-20261119-190731-c18295`).
+after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`, after its round 3
+(`aud-20261119-190731-c18295`), and after its round 4 (`aud-20261119-192905-1c8982`) against prompt 63 at `c67e48dd`.
 
 ## Scope
 
@@ -48,10 +48,10 @@ after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at 
 | 02 | [Bounded codecs and dialect tables](02_codecs_and_dialects.md) | 01 ledger and checkers; host-only |
 | 02b | [Protocol domain and owner admission](02b_protocol_domain_and_owner.md) | 02; for owner admission, seam S9 with the MKS extension that main-sequence [prompt 63](../63_mixed_protocols.md) records, landed and passed; seams S1, S2, S6 claimed or extended; registration acceptance |
 | 03 | [Reads, identity and dialect selection](03_reads_identity_and_dialect.md) | 02b; MK-D01, D05, D10, D30 gate interpretations |
-| 04 | [Enable, stop and unknown completion](04_enable_stop_and_uncertainty.md) | 02b, 03; MK-D13, D17, D36 |
+| 04 | [Enable, stop and unknown completion](04_enable_stop_and_uncertainty.md) | 02b, 03; owns the per-address motion record and admission barrier that 05-10 consume; MK-D13, D17, D36 |
 | 05 | [Finite position](05_finite_position.md) | 03, 04; motion only with EndLimit established off until 07 lands; MK-D02, D14, D19, D29 |
 | 06 | [Speed mode](06_speed_mode.md) | 04, 05 unit helpers and its interim EndLimit gate; MK-D02, D14, D15 |
-| 08 | [Settings and dangerous persistent settings](08_settings_and_persistence.md) | 03; MK-D10, D18, D21, D23, D27, D29; runs before 07 |
+| 08 | [Settings and dangerous persistent settings](08_settings_and_persistence.md) | 03, 04's admission barrier; MK-D10, D18, D21, D23, D27, D29; runs before 07 |
 | 07 | [Homing and limits](07_homing_and_limits.md) | 03-05 and 08's settings context; MK-D16, D19, D25; [prompt 77](../77_switch_ready_homing_limits.md) vocabulary; replaces 05's interim EndLimit gate |
 | 09 | [Asynchronous reports and reply matching](09_async_reports_and_reply_matching.md) | 02b matcher, 04-05 phases; owns the participant validator; MK-D11, D12 |
 | 10 | [Bus settings, restart and factory restore](10_bus_settings_and_restart.md) | 03, 08, 09 (reuses its participant validator); MK-D08, D20, D22 |

@@ -60,14 +60,15 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
    - three outcomes stay separate. `endpointObserved`: a 31H reply to a read sent after B's latest trigger was
      acknowledged, attributed `QUALIFIED` or `QUIET_INTERVAL` (never `possiblyLate`; 31H's stream state `OFF`, 03 step
      8) and within the caller's tolerance of B's latest target. `completed`: the latest trigger's status 1 attributed
-     the same way (B's start, or after an F5H update the update's), then B's attributed native 2, or a standstill
+     the same way (B's start, or after an F5H update the update's), then B's attributed native 2 with no same-code
+     stop handed off since that trigger (04 step 3), or a standstill
      window: F1H 1 with 32H 0, then a 31H read giving `endpointObserved`, then F1H 1 with 32H 0 again, each read
      handed off after the previous reply, all attributed the same way, with no event between them that may start
      motion or invalidate evidence (a motion, stop or multi-target frame reaching the address, restart, bus-off,
      rebinding, a recorded power cycle). A 31H value sampled before the window's first standstill read completes
      nothing, because the shaft may have crossed the tolerance window and stopped elsewhere, after a stall trip or a
-     host-silence stop too. `stopObligationDischarged`: only by `completed` or by 04's stop with its own completion
-     evidence (04 step 4). `endpointObserved` alone discharges nothing: after a lost start reply, with a target already
+     host-silence stop too. `stopObligationDischarged`: only by `completed` or by 04's stop with its post-stop
+     observation (04 step 4). `endpointObserved` alone discharges nothing: after a lost start reply, with a target already
      within tolerance, or while the shaft crosses the tolerance window, execution stays `UNKNOWN` and the stop
      obligation and 04's stops apply. For pulse moves 33H is not an endpoint proof until MK-D30 is resolved. Each
      outcome carries the weakest correlation of its evidence.
@@ -75,7 +76,10 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
    calibration) is refused before start; the explicit native acknowledged-only path states its weaker outcome.
 8. F5H live update: a new F5H while running changes speed and target (MK109 p.100, p.104), since firmware 1.0.5
    (MK109 p.1). Offer it only in the V1.0.9 tables, never on `V1_0_0` (MK100 documents none), and only as an explicit
-   change operation on the admitted move (`MoveRelation`, prompt 52 vocabulary): after it, any 2 is attributed to
+   change operation on the admitted move (`MoveRelation`, prompt 52 vocabulary), admitted as that move's same-intent
+   transition under 04 step 4: the move still live, its latest trigger's status 1 attributed, no frame to the
+   address open TX, no uncertain execution or retained obligation and no request outstanding; an update whose
+   predecessor (the start or an earlier update) may still transmit refuses before TX. After it, any 2 is attributed to
    "latest or superseded target", F5H's shapes enter 02b's ambiguous set, and completion follows step 7's outcomes
    against the latest target, starting from the update's own acknowledgement. Do not count completions. Other codes
    have no documented live update; a second command
@@ -99,7 +103,11 @@ pulses; refused speed 0, over-limit speed and unscaled microsteps; absolute with
 drive reset with a changed origin and an unchanged 40H, then an absolute move refused without the continuity record;
 motion refused with EndLimit enabled or unestablished before 07 lands; restart
 invalidation; immediate, completion, limit and latched phases; completion withheld, late, after a stop and after an
-F5H update; F5H update refused on V1_0_0; an old same-code status 2 arriving during a new move B (after A's cancel,
+F5H update; F5H update refused on V1_0_0; an F5H update admitted on a live move whose start is acknowledged and
+proved transmitted, and the same update refused with zero TX while the start is held below the owner queue without a
+final report, after a lost start reply and after a stop; a `completed` move followed by a new move admitted, and a
+move ended at its deadline followed by a new move refused until 04's stop and post-stop observation; a status 2 after
+a same-code stop leaving `completed` unset; an old same-code status 2 arriving during a new move B (after A's cancel,
 timeout, same-code stop, supersession or completion): before the chosen quiet interval `possiblyLate` with B not
 ended, after it B ended with `QUIET_INTERVAL` correlation, never `QUALIFIED`; lost start reply with no resend;
 endpoint outcomes, where a target already within tolerance with a lost start reply, an in-motion crossing of the

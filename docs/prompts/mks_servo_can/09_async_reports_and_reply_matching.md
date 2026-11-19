@@ -35,9 +35,13 @@ code (review section 14 rule 2).
      which has no 01H) is `UNKNOWN` at
      first bind, rebind, a declaration change, controller restart or bus-off and host restart, because a used drive
      may run a stream another tool set and 01H persistence is unknown. A setup or stop with possible TX and no checked
-     reply leaves `UNKNOWN`; an acknowledged setup gives `ACTIVE`; an acknowledged period-0 stop gives `OFF` with
-     that code's shape entered in 02b's set, so a sample queued before the stop's reply is never taken for a poll's
-     reply; 03 step 8's caller declaration with its evidence reference gives `OFF` (application policy, recorded); an
+     reply leaves `UNKNOWN`; an acknowledged setup gives `ACTIVE`; a period-0 stop whose checked success reply is
+     attributed `QUALIFIED` gives `OFF` with that code's shape entered in 02b's set, so a sample queued before the
+     stop's reply is never taken for a poll's reply. A stop reply attributed only `QUIET_INTERVAL` leaves `UNKNOWN`
+     (its result reports that risk-accepted acknowledgement): the setup's reply has the same form (MK109 p.36), so a
+     delayed setup success can answer a stop that never applied, and the interval accepts timing risk in
+     attribution, not that a continuing stream stopped. 03 step 8's caller declaration with its evidence reference
+     gives `OFF` (application policy, recorded); an
      unsolicited `[c, value]` frame while `OFF` makes it `UNKNOWN`. The dialect declaration never sets a state;
    - while the state is `ACTIVE` or `UNKNOWN`, polled reads of c on that address are refused before TX (03); stream
      samples carry `unsolicited` provenance, host receive time and no sequence;
@@ -62,9 +66,10 @@ code (review section 14 rule 2).
      multi-target use by that dialect's reviewed `multi_target` row (01 step 3), so a code both V1.0.9 tables have does
      not admit a form only one documents (F7H 01, MK-D01); disjoint IDs; and authorization for the effect on each
      recipient. Anything missing, incomplete or stale, or 04 step 4's admission barrier on any possible recipient,
-     refuses before TX. 4BH is never sent through this path: only step
-     7's latch-aware operation sends it. After dispatch each recipient's execution is `UNKNOWN`, its pending phases and
-     references are invalidated and the code's shapes enter its ambiguous set, so a later 2 on its own ID never
+     refuses before TX. 4BH is never sent through this path: only step 7's latch-aware operation sends it. After
+     dispatch each recipient's execution is `UNKNOWN`, a motion frame leaves it a retained obligation (04 step 4),
+     its pending phases and references are invalidated and the code's shapes enter its ambiguous set, so a later 2
+     on its own ID never
      qualifies a completion; never used by discovery, probe, recovery or a common single-axis verb;
    - V1.0.0 and V1.0.1 still replied to broadcast and group frames (implied by the V1.0.2 note, MK109 p.1), on an
      undocumented identifier: refuse broadcast and group dispatch on `V1_0_0`.
@@ -85,17 +90,34 @@ code (review section 14 rule 2).
    - `POSSIBLY_ARMED`: a latched member after a 4BH that may have been sent, kept beside any later latch, because
      whether the latch clears or a further 4BH repeats the move is undocumented (MK-D12);
    - `UNKNOWN`: first bind, rebind, restart, a lost record or a latched request with a missing reply.
-   By default 4BH is admitted only when every possible recipient is `NONE` or `LATCHED_LIVE`, each live operation's
-   deadline still ahead at the 4BH handoff (the 4BH deadline is at most the earliest); `POSSIBLY_ARMED`,
-   `LATCHED_STALE` or `UNKNOWN` on any recipient refuses before TX. The caller's explicit, recorded per-drive
-   acceptance admits 4BH over such a recipient without a recorded power cycle (lead decision, round 3); that drive's
-   result then states that any latched move on it, an expired, cancelled or earlier one included, may execute.
-   After a possible 4BH TX each latched member's execution is `UNKNOWN` and its latch `POSSIBLY_ARMED`. A latched move has no status 1 (its staging reply is 5 and
-   4BH has none), so it completes only through 05 step 7's standstill window read after the 4BH handoff; a later status
-   2 on its ID, attributed by 02b step 6 (`QUIET_INTERVAL` at best, the latched exchange having entered the shape), is
-   a native observation that completes nothing and ends no phase alone. Members without a latched move are `UNKNOWN`
-   until their own observation. Native names only; never the CANopen `sync` verb, prompt 51's SYNC producer or any SYNC
-   counter.
+   Two separate gates apply to every 4BH. The TX-order barrier is 04 step 4's motion record: every possible
+   recipient's record holds nothing or only a live latched staging with its attributed status 5 (no open TX, uncertain
+   execution or retained obligation, no other live intent), each live deadline still ahead at the 4BH handoff (the
+   4BH deadline is at most the earliest); nothing overrides it. The latch-state gate: by default 4BH is admitted only
+   when every possible recipient is `NONE` or `LATCHED_LIVE`; `POSSIBLY_ARMED`, `LATCHED_STALE` or `UNKNOWN` on any
+   recipient refuses before TX. The caller's explicit, recorded per-drive acceptance admits 4BH over such a
+   recipient without a recorded power cycle (lead decision, round 3), answering this gate only; that drive's result
+   then states that any latched move on it, an expired, cancelled or earlier one included, may execute, and its
+   motion record gains a retained obligation (04 step 4).
+   After a possible 4BH TX each latched member's execution is `UNKNOWN` and its latch `POSSIBLY_ARMED`. A latched
+   move has no status 1 (its staging reply is 5 and 4BH has none), so its outcomes stay separate and none imports 05
+   step 7's status-1 predicate: `stagingAccepted` (the attributed status 5), `triggerPossiblySent` (the 4BH's TX
+   disposition sent or possibly sent, never "executed") and, per native form:
+   - F4H and F5H (encoder targets): `latchedCompleted`, its terminal evidence under 04 step 4, needs a pre-trigger
+     31H read handed off after the status 5 and before the 4BH handoff whose value lies outside the caller's
+     tolerance of the latched target (for F4H, that value plus the displacement), then 05 step 7's standstill window
+     with every read handed off after the 4BH's final TX report, all attributed with 31H's stream state `OFF`. The
+     pre-trigger read is what shows that the axis reached the target after the trigger. A target already within
+     tolerance, a 4BH that did not arrive or a window ending elsewhere leaves execution `UNKNOWN` and the obligation
+     for 04's stop; it is never claimed on a drive admitted under the per-drive acceptance, where another held move
+     may have run;
+   - FDH and FEH (pulse forms; 33H is no endpoint proof until MK-D30 is resolved) and F6H (no position target): no
+     reviewed completion route; execution stays `UNKNOWN` and only 04's stop with its post-stop observation
+     discharges the obligation.
+   A later status 2 on the member's ID, attributed by 02b step 6 (`QUIET_INTERVAL` at best, the latched exchange
+   having entered the shape), is a native observation that completes nothing and ends no phase alone. Members
+   without a latched move are `UNKNOWN` until their own observation. Native names only; never the CANopen `sync`
+   verb, prompt 51's SYNC producer or any SYNC counter.
 8. Silent mode (50H 02) is never sent; a drive left silent by another tool times out on everything and looks absent
    (MK-D32). Malformed frames are never sent deliberately outside an authorized 12A question (MK-D09).
 9. Evidence classes for health (prompt 55): reply timeout, unmatched frame, possibly-late reply, checked rejection
@@ -114,7 +136,9 @@ owner-backed app and console routes (`mks report`, `mks group`, `mks latch`, `mk
 Through the real owner and fake drive: stream frames interleaved with polled replies of other codes; polled read of a
 streamed code refused; a stream active before the host starts (state `UNKNOWN`, poll refused, sample observed); a
 lost setup acknowledgement leaving `UNKNOWN`; a sample queued after an acknowledged report stop not taken as a poll's
-reply; unsolicited 2/3 with and without a pending phase; an old status 2 arriving during a new same-code move, before
+reply; an applied setup, a stop the fake drive does not apply and a delayed setup success captured after the quiet
+interval answering the stop: state `UNKNOWN`, the stop's result `QUIET_INTERVAL`, a later polled read refused before
+TX and zero dependent changing TX; unsolicited 2/3 with and without a pending phase; an old status 2 arriving during a new same-code move, before
 and after the chosen quiet interval, never `QUALIFIED`, also when the old move had completed and its first delayed
 duplicate arrives; a duplicate terminal frame; late replies `possiblyLate` until a
 recorded power cycle; respond-off and active-off policies; broadcast and group operations invalidating every member;
@@ -123,8 +147,13 @@ member), a form the dialect has but its `multi_target` row does not allow (8BH t
 dispatch and a lost latch record refusing before TX; 4BH sent once
 with no reply and no repeat; a latched member whose operation was cancelled or expired (`LATCHED_STALE`), an
 `UNKNOWN` latch and a further 4BH after a possibly sent one each refusing before TX without the per-drive acceptance
-and admitted with it, the result stating that any latched move on that drive may execute; a latched member completing
-only through 05's standstill window after the 4BH handoff, its attributed status 2 alone completing nothing and no
-status 1 invented; V1_0_0 broadcast refused; a restart leaving
+and admitted with it, the result stating that any latched move on that drive may execute and its record gaining a
+retained obligation; 4BH refused before TX for a `LATCHED_LIVE` member whose staging frame is still open TX, and the
+per-drive acceptance never admitting 4BH over open TX, uncertain execution, a retained obligation or a non-latched
+live intent; a live F5H latch whose 4BH the fake drive drops (execution `UNKNOWN`, obligation kept for 04's stop), the
+same latch with a pre-trigger 31H outside tolerance and a real post-trigger standstill window at the target
+(`latchedCompleted`, then a new motion admitted), a target already within tolerance (no `latchedCompleted`), and FDH,
+FEH and F6H latches with no completion route; an attributed status 2 alone completing nothing and no status 1
+invented; V1_0_0 broadcast refused; a restart leaving
 previously active streams unknown until stopped or declared off. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push.

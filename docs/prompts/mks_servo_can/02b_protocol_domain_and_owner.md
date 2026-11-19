@@ -35,8 +35,15 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    MKS frame with proof that it cannot transmit later (a final TX report or a successful retirement, as `TxReport` and
    `Transport::retire` in [CanBusTypes.h](../../../adapters/owner/CanBusTypes.h) give), or a disposition saying that a
    later transmission is not excluded (04 step 4); each routed frame with its capture time or bounds
-   (`ReceivedFrame`); restart and bus-off notification to the MKS service. Rerun those consumer tests here. A need the landed artifacts do not cover keeps only its dependent
-   owner admission Blocked, recorded in the report and PROGRESS against prompt 63's request. S9 is implemented only
+   (`ReceivedFrame`); restart and bus-off notification to the MKS service. Rerun from the landed commit prompt 63's
+   exclusive-domain exit tests ("Verify and exit"): whole-space admission on an empty interface; refusal in both
+   admission orders (a CANopen binding on an MKS interface, an MKS domain on an interface with a CANopen binding)
+   with zero TX; stop ordering ahead of raw frames; a superseded frame retired before a stop and a frame held below
+   the owner queue reported as possibly transmitting after it; restart and bus-off delivered to the exclusive
+   service; per-frame TX hand-off times and RX capture times, with uncertain bounds where the adapter cannot give
+   exact ones. Owner admission and everything that transmits through the owner stay Blocked until they pass. A need
+   the landed artifacts do not cover keeps only its dependent owner admission Blocked, recorded in the report and
+   PROGRESS against prompt 63's request. S9 is implemented only
    by executing prompt 63: no family-local substitute, weakened check or bypassed admission.
 4. Seams S1 and S2 under contract 02 "Profile resolution": append `Manufacturer::MAKERBASE` and
    `DriveProfile::MKS_SERVO_CAN` (the next unused explicit nonzero value, never reused) to the inventory table with
@@ -69,7 +76,8 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
      setting's code (MK109 p.37), a 01H report carries the read code (p.36) and run and stop share codes (MK-D36);
    - at most one pending completion phase per address, bound to the admitted motion's generation (used by 04-07);
    - match by identifier, echoed code, accepted length, check byte and phase, and only a frame captured (owner
-     capture time) after the request's TX handoff whose disposition says sent or possibly sent; anything else is a
+     capture time) after the request's TX handoff whose disposition says sent or possibly sent, judged by the
+     capture's earliest bound against the handoff's latest bound (overlapping bounds are not after); anything else is a
      copied raw unsolicited observation through the owner's observe path, never silently consumed and never
      attributed;
    - one immutable deadline per request (`now >= deadlineUs` expires), at most the operation's deadline (contract 02
@@ -99,8 +107,9 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
      frame's owner capture time (`ReceivedFrame` time, or its earliest bound), not from when the service processes
      it, so a frame that waited in a host buffer is judged by its arrival; a frame without a capture time stays
      `possiblyLate`. `QUIET_INTERVAL` is a distinct risk-accepted outcome: it may end the exchange or phase it
-     matches, its result carries that correlation and the interval, and it is never reported, counted or consumed as
-     `QUALIFIED`. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9a
+     matches where the dependent stage gives the frame that meaning (never a same-code status 2 after a stop, 04
+     step 3, nor a 01H stop reply that would set a stream `OFF`, 09 step 3), its result carries that correlation and
+     the interval, and it is never reported, counted or consumed as `QUALIFIED`. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9a
      measures latency to inform that choice; the library invents no default;
    - restart and bus-off notification invalidate every MKS binding's evidence, pending phases and stream state.
 7. Self-echo (MK-D35): the request `001: F3 01 F5` equals the success reply, so once delivered as ordinary RX the

@@ -48,9 +48,15 @@ not broaden physical authorization. 05's interim EndLimit gate (05 status) appli
 6. Direction: dir 0 is CCW in the field table and "forward" in the example (MK109 p.82); 32H is CCW-positive in V1.0.9
    (p.32) and CW-positive in V1.0.0 (MK100 p.11). Common signed velocity needs `directionQualified` (03, MK-D02).
 7. Stops: 04's `MODE_RAMPED` and `MODE_IMMEDIATE` with F6H speed 0 (p.84) and the F7H forms the dialect has. A
-   run-time completion, limit stop or stop completion all end the context; the reply code is shared, so MK-D36 rules
-   apply: a `possiblyLate` status 2 ends nothing, and one attributed `QUIET_INTERVAL` ends the run with that
-   correlation (05 step 7); otherwise the host deadline and its stop decide.
+   run-time completion, limit stop or stop all end the context; the reply code is shared, so MK-D36 rules apply: a
+   `possiblyLate` status 2 ends nothing, and one attributed `QUIET_INTERVAL` ends the run with that correlation (05
+   step 7); otherwise the host deadline and its stop decide. Only the run-time form's status 2, after the run's
+   attributed status 1 and before any same-code stop is handed off, is run-time completion and discharges the run's
+   obligation (04 step 4 terminal evidence). After a same-code stop a status 2 is 04 step 3's observation, and a
+   host-bounded or continuous run has no terminal evidence of its own: each is discharged only by a 04 stop (one
+   already handed off after proof counts) and its post-stop observation. An attributed status 3 is a drive-side limit
+   stop: it ends the run and, once every changing frame to the address is proved, discharges the obligation through
+   the post-stop observation alone, with no host stop frame. Until then the address admits no other changing work.
 8. FFH power-on auto-run stores the last F6H command and runs it at every power-on (MK109 p.85); its enable write also
    stops the current run ("the motor will slow down and stop", p.87). The library never sends FFH; where 00H can read
    it, the state is reported as a startup motion hazard.
@@ -68,7 +74,9 @@ lost-start, lost-stop and missed-service cases, coverage rows, report and PROGRE
 Exact F6H 5- and 8-byte frames per dialect; speed and acc conversion boundaries with reported quantization; exact
 mapping refused at 8 microsteps (a documented example outside the qualified set) and at a non-power of two, native
 code still offered; refused over-limit speed, zero-speed run, missing duration and a duration that quantizes to run
-time 0; an old F6H status 2 during a new run not ending it before the quiet interval; run-time completion, host
+time 0; an old F6H status 2 during a new run not ending it before the quiet interval; run-time completion followed
+by a new run admitted; a status 2 after a same-code host stop, attributed `QUIET_INTERVAL` with the stop's reply
+withheld, leaving the obligation until 04's post-stop observation and a new run refused before it; host
 stop at stop due, the timed-run tests of contract 02 "Operation admission" (a duration that no longer fits with the
 stop budget, an observation in flight near stop due, service resuming after stop due, a queue-pressured stop), a
 lost start reply, lost stop reply, limit stop and deadline without service; no repeated start; native continuous run

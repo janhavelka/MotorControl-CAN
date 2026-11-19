@@ -30,7 +30,13 @@ available and authorized MKS fixture with the owner present. The CL86-C bench is
    supply, wiring, termination, bitrate, IDs, check mode, reply policy, host board and image, and authorization.
 7. Begin with non-changing reads and retained raw frames; establish reply shapes, readable settings, timing and error
    counters. No automatic writes, stall clears, mode changes or probing by motion.
-8. With explicit stop prerequisites and a restoration plan: enable and release; small finite encoder and pulse moves
+8. A physical case counts toward qualification only under a fixture-specific procedure written, independently
+   reviewed (DELEGATION) and approved by the lead under the applicable bench authorization before the run. It names,
+   per case: the permitted motion envelope (travel, speed, acceleration and duration for this fixture and load); the
+   stop and service timing criteria and how they are measured (step 9); the abort action and who or what takes it;
+   and the expected end and restoration state. A run without such a procedure, or one that leaves it, is retained as
+   an observation and its qualification row stays open. Under that procedure, with explicit stop prerequisites and a
+   restoration plan: enable and release; small finite encoder and pulse moves
    in each direction once direction is qualified; mode stops, F7H and F7H 01 where the dialect has it; finite speed
    runs with drive run time and with host-bounded expiry; homing on the actual fixture; settings through each
    persistence class; streams and latching. Retain before and after settings and every uncertain outcome.
@@ -57,7 +63,8 @@ state, and remaining qualification obligations transferred to the maintained bac
 ## Acceptance
 
 Every ledger row has a final disposition; every MK-D is closed with cited evidence for a named scope or kept open with
-the next measurement. CI is green on the exact final commit with the commands it ran listed. No claim extends one
-board, firmware edition, mode or motor to the family. If hardware is absent, the truthful software closeout is
+the next measurement. CI is green on the exact final commit with the commands it ran listed. Every hardware-tested
+entry cites its approved step 8 procedure and the measured criteria it met; a run without one is an observation and
+qualifies nothing. No claim extends one board, firmware edition, mode or motor to the family. If hardware is absent, the truthful software closeout is
 complete and physical qualification stays explicitly open. Archive completed implementation stages only after their
 remaining obligations are in the backlog. Commit and push the owned changes.
