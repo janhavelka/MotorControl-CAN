@@ -1,0 +1,78 @@
+# 06 — Velocity, profile torque and cyclic modes
+
+Execute this stage under the [execution contract](execution_contract.md).
+Status: NOT STARTED. Runs after 05 (06c also after 09 and 09b). Three blocks, each delivered, tested and committed alone. Torque
+and cyclic operation are extension scopes under the
+[multi-drive decision](../../multidrive_decision.md): native typed APIs only, no common
+effort or streaming API unless a separate assignment adds one with units,
+deadlines, watchdog and measured transport requirements.
+
+## Work
+
+### 06a Profile Velocity and Velocity mode
+
+1. PV (6060h = 3; N5 pp77-80) maps to the common finite `prepareVelocity`. Target
+   60FFh is I32 in 60A9h user units; ramps 6083h/6084h in acceleration units, never
+   milliseconds; jerk 60A4h; 607Eh bit 6 inverts the sign. Convert through
+   `prepareVelocityTarget` and the 05 relation; refuse an unrepresentable basis.
+2. Evidence: bit 10 with halt means target reached (606Dh window, 606Eh time) or
+   standstill; bit 12 means speed zero (606Fh/6070h); bit 13 is slippage (60F8h,
+   preset 400, over 203Fh; N5 p409). A speed-reached bit is not measured shaft speed.
+3. Finite duration is host intent: require nonzero `durationUs`, yield the stop at
+   expiry (HALT with 605Dh, or the caller's QUICK_STOP), and keep `needsStop` and
+   UNKNOWN execution when a lost reply or missed service prevents a confirmed stop.
+   A deadline never stops the drive by itself. No repeated start, no replayed stop.
+   Follow [prompt 59](../59_velocity_range_direction.md) for range and direction
+   facts, measured per profile.
+4. VL (6060h = 2; N5 pp76-77): 6042h is I16 rpm unless 604Ch changes it; ramps
+   6048h/6049h are delta speed over delta time; 6046h limits; 604Ah quick stop. A
+   native typed operation only; mapping it to common velocity needs its own
+   qualification of 604Ch and the gear relation.
+
+### 06b Profile Torque (closed loop only)
+
+5. PT (6060h = 4; N5 pp80-82): 6071h target, 6072h maximum torque, 6073h maximum
+   current, 6074h demand and 6087h slope, all in thousandths of the torque that
+   corresponds to the rated current 203Bh:01 (N5 p81, p367). The effective limit is
+   the lower of 6072h and 6073h, capped by 2031h. No N·m conversion exists in the
+   manuals or EDS, and 6076h is absent; report per-mille values only. The 6072h
+   preset 0064h is 10 % and limits PT by default (NT-D20): report it, never raise it
+   implicitly.
+6. Admission: declared closed loop with a completed auto setup or the PD4-C factory
+   record, `Capabilities.torque` true, exclusive control, finite duration with a
+   yielded stop as in 06a. 3202h bit 5 = 0 is torque-limited velocity with 6080h as
+   the speed limit; bit 5 = 1 is torque control without a speed limit (N5 p81, p298)
+   and is refused in this subset. Target reached is 6077h within 203Dh for 203Eh
+   (N5 p80). A current limit is not torque control.
+
+### 06c Cyclic synchronous and interpolated modes
+
+7. CSP, CSV, CST (6060h = 8, 9, 10; N5 pp90-94) and IP (7; N5 pp89-90) need a SYNC
+   period of whole milliseconds (60C2h:02 = -3, 60C2h:01 U8, preset 1; N5 p92,
+   pp394-395), RPDO setpoints in NMT Operational (09), the drive's statusword bit 12
+   "target followed" and a lease contract for refreshing current intent that never
+   retriggers a move (multi-drive decision). IP takes one buffered target in 60C1h:01
+   with 60C4h:06 = 1. CST needs closed loop; CSP, CSV and IP are not advisable in
+   open loop (N5 p46).
+8. Execute only with an explicit assignment that also delivers 09, 09b and the
+   [prompt 51](../51_sync_producer.md) SYNC producer integration under this family's
+   seam S13 entry (09), plus a measured
+   service budget ([prompt 56](../56_host_throughput.md)). Otherwise this block is
+   delivered as ledger and coverage rows with `UNSUPPORTED` capability reasons and
+   no API.
+
+## Deliver
+
+`profiles/nanotec_canopen/Velocity.h/.cpp` with `VelocityContext` (06a);
+`Torque.h/.cpp` with a native `TorqueContext` (06b); `test/nanotec_canopen_velocity_test.cpp`
+and `test/nanotec_canopen_torque_test.cpp`; console routes `nanotec velocity` and
+`nanotec torque` with parity tests; coverage rows for 06c.
+
+## Acceptance
+
+Tests cover start and stop frames, direction and range at I32 and I16 limits,
+ramps in acceleration units, lost start, lost poll and lost stop, expiry with a
+yielded stop, priority stop, unknown terminal motion, PT refusal in open loop or
+with 3202h bit 5 = 1, per-mille limits and the 10 % preset reported unchanged. Quick
+and full verification and CI on the exact final pushed commit pass per block.
+Hardware NOT RUN; no unbounded velocity or torque test is implied by any block.
