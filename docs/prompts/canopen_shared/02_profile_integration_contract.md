@@ -135,7 +135,10 @@ Commit tooling, core/profile and application/console changes separately, each te
   (its own enable, STO or power path, named in the result). The stop path must also hold on a
   resolved route whose state report is stale, missing or alarmed at stop due: a stop row admitted
   without a fresh report (State transitions) covers it, otherwise the declared independent stop
-  is needed. Without one the run is refused
+  is needed. The declared stop carries a caller-supplied fallback deadline: the application invokes
+  it when the urgent stop is not admitted, misses its dispatch window, or leaves the stop effect
+  unconfirmed at that deadline (an early homing interruption with an upload pending included);
+  admission, TX or an acknowledgement never retire that need. Without one the run is refused
   before its first changing TX. Homing is such a run: a caller-supplied latest interruption time
   takes the duration's place (a travel bound may interrupt earlier, from observations no older than
   a caller-supplied age), with the same stop budget, transfer cap and stop path. Tests: a duration that no
