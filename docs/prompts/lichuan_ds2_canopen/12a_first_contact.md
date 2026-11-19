@@ -57,11 +57,16 @@ wait for it.
      before the first frame. A question that needs a person (Q5, Q13, Q14, Q15) records "not observed" when nobody
      is present.
    - Bounded-move rule, the Q8 and Q10 bound applied to every question that commands motion (Q4 to Q10) and to 12's
-     regression move: the bound holds under every interpretation the run still depends on (the `pul` scale and
-     encoder relation, DS-D34; the `6081` rate unit, pul/s or rpm, DS-D16 and DS-D33; the ramp unit, DS-D16; the
-     relative basis, so only absolute targets), from a fresh `6064` read with the target within the bounded
-     displacement of it, without timely host service, and independently of the behavior under test (a stop's
-     reaction, a clamp or the unit being measured never counts). Without such a bound the question is NOT RUN.
+     regression and qualification runs. Every mode: a protective bound, written before the first frame, that holds
+     under every interpretation the run still depends on, without timely host service, and independently of the
+     behavior under test (a stop's reaction, a clamp or the unit being measured never counts). Position runs (Q4,
+     Q5, Q7, Q9, 12's moves) add: the bound covers the `pul` scale and encoder relation (DS-D34), the `6081` rate unit
+     (pul/s or rpm, DS-D16 and DS-D33) and the ramp unit (DS-D16); the target is absolute and within the bounded
+     displacement of a fresh `6064` read (Q8a's qualified drive-side limit is its own case); a relative move runs only
+     with 05's verified-basis declaration and its own separately justified displacement bound. Velocity, torque and
+     homing (Q8b, Q10) use the mode's own bound those rows name (speed and duration, torque and load, travel between
+     real switches or to a declared index), never a target displacement. Without the bound its mode needs the
+     question is NOT RUN.
    - Acquiring and wiring a DS2-family fixture is an owner action: while the owner is away it is a row in the
      [deferred table](../README.md#deferred-to-owner-return), with these questions as the cases it unlocks.
 

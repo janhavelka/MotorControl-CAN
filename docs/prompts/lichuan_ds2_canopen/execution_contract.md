@@ -126,11 +126,13 @@ declared model matches, the application supplies a MEASURED reference for its sp
 | UNCONFIRMED with a product field unread (abort, timeout or not announced by `1018:00`) | Allowed | Allowed | Refused; read the field again | Admitted | Refused |
 | CONTRADICTED | Allowed | Refused | Refused before TX by prompt 57's motion rule; nothing overrides it | Admitted under prompt 57's stop exemption; the result carries the contradicted identity and claims no standstill | Refused (prompt 57's vendor-object rule for downloads; DS2 refuses the upload too) |
 
-An explicitly requested stop still passes its own route, binding-generation and source-state checks (04; prompt 57's
-exemption removes only the identity refusal); refusing it on identity grounds could leave a moving drive running. An
-NMT command is never that stop. Firmware identity (`1009`, `100A`, `1018:03`) is reported and never refuses (prompt
-57). Every stage with a changing request (04 to 10) tests a correctly labelled DS2 binding on a foreign fake server
-(0x1000/0x0001): zero changing TX, while 04's `QUICK_STOP` stays admitted with the contradicted identity in its result.
+An explicitly requested stop still passes its own route, binding-generation and source-state checks (04, its halt
+classes included; prompt 57's exemption removes only the identity refusal); refusing it on identity grounds
+could leave a moving drive running. An NMT command is never that stop. Firmware identity (`1009`, `100A`, `1018:03`)
+is reported and never refuses (prompt 57). Every stage with a changing request (04 to 10) tests a correctly labelled
+DS2 binding on a foreign fake server (0x1000/0x0001): zero changing TX, while 04's `QUICK_STOP` stays admitted with
+the contradicted identity in its result (0x010B with the unknown halt state recorded when no acknowledged word of
+the reservation precedes it, 04 item 1).
 
 A collision that includes the declared model admits by the declaration (prompt 57 "Admission by outcome"; lead
 decision of 2026-11-19, [audit application](audit_application.md) round 2). The colliding siblings can differ: IBL60
@@ -138,15 +140,16 @@ and IBL80 share the IBLEDS pair but use different status dialects, and the DS2ED
 (review "Status-word dialects"). The application owns the declaration; the result names every matching model and
 nothing is decoded with a sibling's tables. 03 tests sibling servers under each colliding pair.
 
-Targeted NMT commands (09) are changing requests in the table above and never the stop exemption. DS2 documents no
-NMT effect on the drive (DS-D32), so each also needs the condition below before TX; a command without a row stays
-refused.
+Targeted NMT commands (09) are changing requests in the table above and never the stop exemption, with one
+exception: prompt 57's bootstrap command (Identity policy, "Admission by outcome"), the Enter Pre-operational row
+below. DS2 documents no NMT effect on the drive (DS-D32), so each also needs the condition below before TX; a command
+without a row stays refused.
 
 | NMT command to a DS2 node | Condition before TX, beyond the identity table | Effect to record |
 | --- | --- | --- |
 | Start Remote Node (01h) | A fresh report that 04's `released` predicate accepts and no pending or non-terminal operation on the binding | PDOs flow in Operational (CiA 301, principles pack section 3); drive reaction undocumented; the owner sends no RPDO (09 item 4) |
-| Stop Remote Node (02h) | Same | A Stopped node serves only NMT and error control (principles pack section 3), so 04's SDO stop route is lost until a Start |
-| Enter Pre-operational (80h) | Same | PDOs stop; drive reaction undocumented |
+| Stop Remote Node (02h) | Same | A Stopped node serves only NMT and error control (principles pack section 3), so 04's SDO stop route is lost until the bootstrap Enter Pre-operational below or a Start |
+| Enter Pre-operational (80h) | Same, except prompt 57's bootstrap: to a node whose fresh heartbeat (09 item 6) reports Stopped it is admitted under every identity outcome except CONTRADICTED, no outcome included, with no `released` report (a Stopped node answers no SDO) and no pending or non-terminal operation on the binding; DS2 has no node guarding, so a heartbeat is the only state report. Without a fresh Stopped heartbeat the ordinary conditions apply, and a node with none is reported stranded (recovery is the application's) | PDOs stop; SDO service returns (principles pack section 3); drive reaction undocumented; the result records the bootstrap reason |
 | Reset Node (81h), Reset Communication (82h) | Same | Reset and the following boot-up invalidate dependent evidence and queued work (canopen_shared 02, 10 item 7) |
 | Any command to node 0 | Refused by S13's default deny on every interface with a DS2 binding (owner bullet below) | No DS2-local guard |
 
@@ -154,7 +157,8 @@ refused.
 
 - One `CanBusOwner` per interface receives every frame; DS2 uses the existing services and never forks them.
 - DS2 shares an interface with Lichuan C nodes only as one CANopen domain: one bitrate, distinct node IDs, COB-IDs
-  read live and without overlap (DS-D06, DS-D07), reservations by bus and address whatever the profile label, and
+  read live and without overlap (DS-D06, DS-D07; 11 item 2's identifier evidence, read on the node's own interface
+  first), reservations by bus and address whatever the profile label, and
   only once canopen_shared seam S13 has landed: it admits SYNC and every NMT command to node 0 on a mixed interface
   only for reviewed effects on every declared node, so DS2's unknown effects refuse both (11). Until then each
   family has its own interface. S13's default deny lands earlier, in the S2 commit (02b): from DS2's first binding

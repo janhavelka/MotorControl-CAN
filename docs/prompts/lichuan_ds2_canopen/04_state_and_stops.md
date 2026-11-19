@@ -6,13 +6,26 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
 
 ## Work
 
-1. Source-state table (canopen_shared 02 "Operation admission", state transitions), delivered before any other
-   item exposes a route. Rows are keyed by dialect, the fresh report (bits 0..2 pattern, the dialect's alarm bit,
-   `6061` mode, freshness) and the requested intent (mode select, enable, each release action, `QUICK_STOP`); each
-   row gives the first permitted word, an already-satisfied result with no TX, or a refusal. Only the documented
-   projections 000, 001, 011 and 111 (DS2C p12) can admit anything; any other pattern, a set alarm bit, an unknown
-   mode and a stale or missing report refuse. No CiA 402 state is named or decoded. The table also defines the
-   `released` and `enabled` predicates; 05, 06, 06b, 07 and 08 consume them and test no low bits of their own.
+1. Source-state table (canopen_shared 02 "Operation admission", state transitions), delivered before any other item
+   exposes a route. Rows are keyed by dialect, the fresh report (bits 0..2 pattern, the dialect's alarm bit, `6061`
+   mode, freshness) and the requested intent (mode select, enable, each release action, `QUICK_STOP`); each row gives
+   the first permitted word, an already-satisfied result with no TX, or a refusal. Only the documented projections
+   000, 001, 011 and 111 (DS2C p12) can admit anything; any other pattern, a set alarm bit, an unknown mode and a
+   stale or missing report refuse. No CiA 402 state is named or decoded. The table also defines the `released` and
+   `enabled` predicates; 05, 06, 06b, 07 and 08 consume them and test no low bits of their own. Stop rows are also
+   keyed by halt class (canopen_shared 02 "Operation admission", state transitions). `6040` cannot be read (item 10),
+   so the class comes from history only; that DS2's words otherwise never set bit 8 is not evidence. Clear: item 10's
+   history holds an acknowledged whole-word `6040:00` download of this binding under one continuous reservation and
+   the current generations, so every later DS2 word, uncertain ones included, leaves bit 8 clear; boot-up, NMT reset,
+   an admitted NMT command, rebind, bus-off, owner invalidation and the end of the reservation end it, a trigger or
+   stop does not. Unknown: every other case (attachment without history, an already-enabled drive, first contact). A
+   clear row sends its reviewed word; an unknown row sends the same word with bit 8 set (0x010B for `QUICK_STOP`) and
+   the result records the unknown halt state, because setting the CiA 402 halt bit cannot start motion. A stop is
+   never refused merely because the halt state is unknown. DS2 evidence gives bit 8 no other meaning: the controlword
+   tables describe only bits 4 to 6 and the 0/6/7/15 example (DS2C p11-13; the same tables in MINI p13/p15, IBL60
+   p12/p14 and ISL60 p15/p16), and `605D` "halt control" names only the drive's reaction to the controlword halt
+   command, 0 normal stop or 1 quick stop (DS2C p27, MINI p29, IBL60 p28, IBL80 p28, ISL60 p31, ISL80 p30; DS2EDS
+   default 1, DS-D17).
 2. Mode select. `prepareModeSelect` writes `6060:00` (I8 in the manual, U8 in DS2EDS; identical bytes for 1, 3, 4, 6;
    DS-D08) and completes only on a fresh `6061` equal to the request, read once; a mismatch ends with its evidence.
    Accept 1, 3, 4 and 6 (DS2C p10, p27); refuse 0, negative and undocumented values before TX. Refuse unless the
@@ -35,33 +48,37 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    claims standstill or brake engagement. Follow [prompt 57](../57_regular_drive_operations.md)'s release-table shape
    with DS2's own rows; do not copy Lichuan C words or reports.
 5. Stops. A profile-local `StopKind` with one supported value: `QUICK_STOP` = 0x000B, documented as "emergency stop"
-   15 to 11 in the position-mode table (DS2C p11). Its reaction is undocumented: `605A` is absent, `6085` exists
-   (U32, pul/s², default 10000; DS2C p28) without a stated link, and the state after the stop is unknown. Use in modes
-   3, 4 and 6 is a project decision (`DS-DEC-2`) with its reason, scoped to DS2. Halt (controlword bit 8 with `605D`
-   0 normal or 1 quick stop; DS2C p27, DS2EDS default 1; DS-D17) stays UNSUPPORTED: bit 8 is undocumented. A zero
-   velocity target is not a stop (06).
+   15 to 11 in the position-mode table (DS2C p11). Its reaction is undocumented: `605A` is absent, `6085` exists (U32,
+   pul/s², default 10000; DS2C p28) without a stated link, and the state after the stop is unknown. Use in modes 3, 4
+   and 6 is a project decision (`DS-DEC-2`) with its reason, scoped to DS2. Halt (controlword bit 8 with `605D` 0
+   normal or 1 quick stop; DS2C p27, DS2EDS default 1; DS-D17) stays UNSUPPORTED as an operation: the controlword
+   tables do not describe bit 8; item 1's unknown-halt stop word sets it only under the shared rule, which is not a
+   halt operation. A zero velocity target is not a stop (06).
 6. Stop predecessors and completion. The only documented arrow starts at 15 in position mode (DS2C p11; the same table
    in MINI p13, IBL60 p12 and ISL60 p15). `DS-DEC-2` records one row per mode and predecessor it admits, keyed by item
    10's history (word 0x000B after 15, 31, 95 or 0x001F, and after each uncertain word, in modes 1, 3, 4 and 6), each
-   with its basis (DS2C p11 for 15 in mode 1, project decision otherwise) and the reaction as undocumented. 06 and 06b
-   refuse a run whose mode has no row (canopen_shared 02 "Operation admission", timed runs). DEC-8 does not transfer.
-   A stop ends `ACKNOWLEDGED` or `UNKNOWN`; `OBSERVED` needs a fresh post-stop report the stage names per dialect
-   (DS2C bit 10 "speed zero"; the IBL60 dialect has no zero-speed bit, so fresh zero `606C` samples are a fixture
-   hypothesis). Never enable to prepare a stop. Urgent admission uses `admitUrgent`; an in-flight request settles
-   first.
-7. Seam S3 opt-in, claimed in the canopen_shared table before the shared edit. Its default deny landed with S2
-   (02b), so until this item every DS2 binding gets `INVALID` from `admitBestEffortStop`. The best-effort stop on an
+   with its basis (DS2C p11 for 15 in mode 1, project decision otherwise) and the reaction as undocumented. Each row
+   gives its word for both halt classes of item 1 (0x000B when clear, 0x010B when unknown). 06, 06b and 07 refuse a
+   run whose mode has no row (canopen_shared 02 "Operation admission", timed runs). DEC-8 does not transfer. A stop
+   ends `ACKNOWLEDGED` or `UNKNOWN`; `OBSERVED` needs a fresh post-stop report the stage names per dialect (DS2C bit
+   10 "speed zero"; the IBL60 dialect has no zero-speed bit, so fresh zero `606C` samples are a fixture hypothesis).
+   Never enable to prepare a stop. Urgent admission uses `admitUrgent`; an in-flight request settles first.
+7. Seam S3 opt-in, claimed in the canopen_shared table before the shared edit. Its default deny landed with S2 (02b),
+   so until this item every DS2 binding gets `INVALID` from `admitBestEffortStop`. The best-effort stop on an
    unresolved route is opt-in per binding with a reviewed exact shape (object, size, data, ledger review ID;
-   canopen_shared 02). DS2 opts in `6040:00=000B` (DS2C p11) only when `DS-DEC-3` records the review the S3 bullet
-   requires: the word's reaction from every state a DS2 drive may be in after an uncertain write (modes 1, 3, 4 and 6
-   after any word of item 10's history, an uncertain mode select included) and how it treats bit 8 (DS2 never sets
-   it; halt is UNSUPPORTED). No DS2 source documents those reactions, so the review rests on the principles pack's
-   reading that a Quick stop command names no enabling transition (CP-D10) and says so; unless the lead or owner
-   accepts it, DS2 keeps the default deny. Once opted in, the attempt is eligible only on an unresolved route of the
-   exact current binding and channel generation and follows S3's unchanged rules (at most one transmission, never
-   success, never a qualified reply, `needsStop` kept); Lichuan C keeps DEC-2. No shape, another family's shape and a
-   stale binding or channel generation still return `INVALID` with no TX and no fallback word. If another family's
-   stop stage extended S3 first, add DS2's row and tests.
+   canopen_shared 02). DS2 opts in a `6040:00` quick-stop shape (15 to 11, DS2C p11) only when `DS-DEC-3` records the
+   review the S3 bullet requires: the word's reaction from every state a DS2 drive may be in after an uncertain write
+   (modes 1, 3, 4 and 6 after any word of item 10's history, an uncertain mode select included) and how it treats bit
+   8. The review decides the shape by item 1's rule: `admitBestEffortStop` checks the shape, binding and channel
+   generation, not the history, so the attempt cannot know the halt class and the shape is the unknown-class word
+   `6040:00=010B` (bit 8 set, which cannot start motion), its result recording the unknown halt state. No DS2 source
+   documents the word's reactions, so the review rests on the principles pack's reading that a Quick stop command
+   names no enabling transition (CP-D10) and says so; unless the lead or owner accepts it, DS2 keeps the default deny.
+   A fake server accepting the word is no evidence. Once opted in, the attempt is eligible only on an unresolved route
+   of the exact current binding and channel generation and follows S3's unchanged rules (at most one transmission,
+   never success, never a qualified reply, `needsStop` kept); Lichuan C keeps DEC-2. No shape, another family's shape
+   and a stale binding or channel generation still return `INVALID` with no TX and no fallback word. If another
+   family's stop stage extended S3 first, add DS2's row and tests.
 8. Fault clear and position set. `prepareClearAlarm` returns UNSUPPORTED with a CAPABILITY detail before TX: no
    controlword fault reset is documented; `P0D-01` and DI FunIN.2 (edge-triggered; some faults need servo-on off
    first) are unreachable or physical (DS2C p9, p23; DS-D21). `prepareSetDevicePosition` is UNSUPPORTED: DS2 has no
@@ -99,7 +116,10 @@ an enable that never shows 111, release refused without stationary evidence, sto
 a stop on an unresolved route that never succeeds, both dialects' completion evidence, a completion bit already high,
 UNSUPPORTED fault clear and halt with no TX, and no replay after a lost reply. The trigger predecessor exists after an
 acknowledged enable and is absent, with exact owner traffic, after an already-enabled attachment, a trigger, a stop,
-an uncertain or aborted word, an NMT command, boot-up and rebind. The best-effort stop returns `INVALID` with no TX
-before `DS-DEC-3`'s opt-in and sends one word after it; a fake server accepting 0x000B clears no gate. Lichuan C stop
-shapes and tests are unchanged. Quick and full verification and required CI on the exact final pushed commit pass.
+an uncertain or aborted word, an NMT command, boot-up and rebind. Halt-class cases through the real owner:
+`QUICK_STOP` sends 0x000B after an acknowledged word of the current reservation, also after a later uncertain word,
+and 0x010B with the unknown halt state recorded on an attachment without trustworthy history (an already-enabled
+drive, first contact, after boot-up, an NMT command and rebind); no stop is refused for an unknown halt state. The
+best-effort stop returns `INVALID` with no TX before `DS-DEC-3`'s opt-in and sends one 0x010B word after it; a fake
+server accepting either word clears no gate. Lichuan C stop shapes and tests are unchanged. Quick and full verification and required CI on the exact final pushed commit pass.
 Hardware NOT TESTED. Commit, push and hand off before any motion stage exposes a route.

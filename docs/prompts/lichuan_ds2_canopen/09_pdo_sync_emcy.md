@@ -27,8 +27,11 @@ RPDO.
    pre-operational and resets to a DS2 node are explicit operations through the existing `makeNmtRequest` admission,
    never implicit, each admitted only under the execution contract's NMT table: a changing request under prompt 57's
    motion rule, never its stop exemption (an NMT stop is not a quick stop), from a fresh report that 04's `released`
-   predicate accepts and with no pending operation on the binding. Node-0 commands are refused by S13's default deny
-   (item 7). A boot-up invalidates dependent evidence and work.
+   predicate accepts and with no pending operation on the binding. The one exception is the table's bootstrap row
+   (prompt 57 "Admission by outcome"): a targeted Enter Pre-operational to a node whose fresh heartbeat (item 6)
+   reports Stopped, admitted under every outcome except CONTRADICTED without a `released` report; DS2 adds no node
+   guarding for it. Node-0 commands are refused by S13's default deny (item 7). A boot-up invalidates dependent
+   evidence and work.
 6. Heartbeat. `1017` producer (U16 ms, RW/S, default 0; DS2C p24) is read here and written only by 10. There is no
    consumer heartbeat, guarding, `6007` or `1029`: host observation of a heartbeat establishes nothing about the
    drive's reaction to host loss, a host heartbeat (seam S11) has no documented DS2 consumer, and node guarding
@@ -51,8 +54,12 @@ RPDO.
    ([communication practice](../../communication_practice.md) C11, C14). No table maps Er codes to EMCY or `603F`
    values, so no meaning is decoded. `1001` and `1003` stay explicit single reads (03). An EMCY is a notification,
    not the drive state.
-9. SDO channel. `1200` lists one RO entry in the manual and two RW entries in DS2EDS (l.290/l.299; DS-D07). Use the
-   default 0x600/0x580 plus node identifiers and never write `1200`.
+9. SDO channel. `1200` lists one RO entry (`:01` 600h+node) in the manual (DS2C p24) and two RW entries with
+   $NODEID+0x600/0x580 in DS2EDS (l.290/l.299), IBLEDS and ISLEDS (l.271/l.279; DS-D07); CiA 301 makes the default
+   server channel not configurable (principles pack section 2, pre-defined identifiers). Use the predefined
+   0x600/0x580 plus the declared node and never write `1200`. Read `1200:01`, and `:02` where the scope's EDS sources
+   it, as part of the identifier evidence of 11 item 2; a value other than the route that answered is kept raw as a
+   contradiction and blocks shared-interface admission.
 10. Timing fields. Read `1800`-`1803:02/03/05` (transmission type, inhibit, event timer; RW/S in DS2C p24-26) as raw
    values. Accepted transmission types, the inhibit unit (100 us under CiA, CP-D01) and whether the event timer is
    honored are undocumented, and Lichuan C's measured "raw + 1 ms" periods do not transfer. Writing them belongs to a
@@ -77,6 +84,11 @@ same-ID sample left unqualified, no RPDO frame ever emitted, refused remap and S
 request. Each targeted NMT command sends zero NMT TX on CONTRADICTED, unmatched, unread-field, no-outcome and stale
 bindings, while the drive reports enabled, while a position, velocity, torque, homing, enable or settings operation is
 pending, and for node 0; an admitted command sends exactly one frame, and an NMT Stop never takes the stop exemption.
+The bootstrap Enter Pre-operational sends exactly one frame to a node with a fresh Stopped heartbeat under no
+outcome, UNCONFIRMED without a declared-model match and an unread product field, and zero frames on CONTRADICTED,
+with a stale or missing heartbeat (the node reported stranded), with a heartbeat in another state and the ordinary
+conditions unmet, and while an operation is pending; Start, Stop and both resets to that node keep the ordinary
+conditions (zero frames), and node 0 keeps S13's denial.
 Through the real producer and owner, `armSync`, `admitSync` and node-0 NMT send nothing on a DS2-only interface, also
 when the application arms the producer directly, and admitting a DS2 binding revokes a running schedule. Quick and
 full verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand

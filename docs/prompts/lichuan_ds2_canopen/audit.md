@@ -132,3 +132,63 @@ no owner, SDO or SYNC implementation, package or checker code, Git state or prog
 instructions, the communication practice, the conditional-experiment prerequisites, the Lichuan C extensions contract
 and several consumed main-sequence prompts were not supplied. The audit was text-only: no verifier, build, CI job or
 hardware test ran.
+
+## Round 3
+
+A condensed, faithful copy of the third reviewer report; dispositions are in
+[audit_application.md](audit_application.md) round 3. Line numbers refer to the files at the audited revision.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-192232-3e8d46` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~177504 tokens)") |
+| Date | 2026-11-19 19:22:32 (from the ID), 190.1 s, one attempt |
+| Revision | `main` at `6ff80ed1dd19026da4e970220fb947437abf87ba`; uncommitted changes recorded, none in this directory (the audited hashes equal the committed files) |
+| Cost | Estimated USD 0.37 (0.374068, configured pricing); 136,419 input and 10,123 output tokens (5,506 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-192232-3e8d46.json` (local) |
+| Location checks | 24 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 19 files of this directory, including rounds 1 and 2 of `audit.md` and
+`audit_application.md` (`README.md` 124 lines, sha256 `4424453d...`; `execution_contract.md` 205, `97df0f09...`).
+Context: canopen_shared `README.md`, `02_profile_integration_contract.md` and `01_existing_code_and_tooling.md`,
+`ADD_DRIVE.md`, `COMMON.md`, the reference pack `README.md` and `review.md`, prompt 57 (214 lines); project
+instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The stages incorporate several important earlier fixes: the S3 and S13 default denies precede DS2
+binding admission, disputed torque downloads stay withheld, and identity collisions follow the declared model as
+prompt 57 directs. Two newer shared rules did not reach the operative DS2 stages: a finite run needs a usable stop
+path after a lost start reply, and a node in NMT Stopped needs the narrow Enter Pre-operational exception. Homing
+also has conflicting instructions about who establishes its trigger predecessor. Evidence intake, tooling and
+independent read-only work can proceed; the affected changing routes and qualification cases are not ready as
+written. **Verdict:** blocking issues. An implementer following the acceptance criteria could admit a timed run with
+no dispatchable stop after a lost start reply, would have to reject the recovery command prompt 57 admits, and could
+not satisfy both homing's setup sequence and its no-TX refusal without a predecessor. These are specification
+defects, not findings about firmware or observed drive behavior.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *Timed-run admission checks stop rows but not whether a stop can leave after a lost start reply.* The shared rule separates a reviewed stop row from a usable stop path; with S10 `NONE` a lost start reply leaves the route unresolved. 06 requires `DS-DEC-2` rows, then specifies an unresolved-route case with no best-effort TX and `needsStop` kept, without requiring an independent stop; 06b inherits it. Consume the shared stop-path gate in both preparations before any changing TX, mode select included: the binding's reviewed S3 opt-in or a declared independent stop named in the result. Test that valid rows alone give zero changing TX without either path and that each admitted path stays available after a lost start reply; keep stop dispatch distinct from standstill. | contract 02:131-136; 06:37-43, 77-78; 06b:47-51 |
+| F2 | High, verified defect, high | *The NMT table and tests omit prompt 57's Stopped-node exception.* Prompt 57 admits a targeted Enter Pre-operational on a fresh Stopped report under every outcome except CONTRADICTED; the round-2 application says it was consumed, but the execution table still gives that command the ordinary released-report and identity conditions, and 09 demands zero NMT TX on no outcome, unmatched or unread fields. The table's "lost until a Start" does not help, because Start has the ordinary gates. Reference prompt 57's bootstrap branch in the table and 09; use a fresh Stopped heartbeat, add no node guarding and require no SDO-derived report; test one frame per permitted outcome and zero on CONTRADICTED or without a fresh Stopped report; keep the ordinary gates and S13's broadcast denial. | prompt 57:119-121; execution_contract:147-150; 09:77-79; audit_application:144-147 |
+| F3 | High, verified defect, high | *Homing both establishes and requires the enable predecessor.* 07 selects mode 6 and enables before writing parameters, while 04 says homing never writes 0x000F to make its predecessor and refuses before TX without one; a mode write also invalidates a predecessor and mode select needs a released report. Make mode select and enable explicit prerequisite operations outside `HomeContext`; `prepareHome` consumes the acknowledged 0x000F and a fresh enabled mode-6 report under the same reservation and generations, then writes the parameters and the trigger. Test the full composition and that homing alone emits no setup or trigger frame without the predecessor. | 07:18-20; 04:74-78, 81-82 |
+| F4 | High, probable defect, high | *The stop review treats "DS2 never sets Halt" as evidence about the drive's halt state.* The shared contract requires the stop review to address a set halt bit and a stop row to handle unknown halt; 04 answers that the profile never sets bit 8 while bit 8 is undocumented and the S3 attempt establishes no state. A drive keeping state from traffic outside the current reservation is not excluded by the profile's own write history, and CP-D10 does not show that clearing the bit in 0x000B cannot release a latch. In the stop table and the S3 review distinguish evidenced clear or inapplicable halt from unknown or set; document the evidence per class, otherwise refuse the row and keep S3's default deny; test unknown predecessor state and attachment without trustworthy history; a fake server's acceptance is no evidence. | 04:55-60; contract 02:144-148, 259-265; AGENTS.md:79 |
+| F5 | High, probable defect, high | *Mixed-bus admission lacks a safe way to obtain its live identifier evidence.* 11 requires live COB-IDs and overlap checks before sharing; 09 reads them by SDO over a route that assumes default identifiers while the EDS claims configurable channel identifiers. No path verifies the identifiers before using a possibly conflicting route or says when isolated readback carries into the shared domain. Separate isolated collection from admission; name the verified SDO bootstrap route and the complete identifier set and how it stays applicable; keep sharing blocked when the route is unknown or the evidence cannot carry; test non-default SDO identifiers, unavailable or stale readback, and service-route as well as PDO-to-PDO collisions. | 11:14-16; 09:54-55; contract 02:176-183 |
+| F6 | Medium, verified defect, high | *The scan cannot produce its promised identity outcome from a node list alone.* 11 scans caller-listed nodes and promises identity reads and an outcome without selecting a model, but 03 needs the declared model to choose sourced sub-indexes and prompt 57 needs it for the outcome; 11 does not say whether entries resolve to declarations. Define probe-only for an address without a declaration and 03's identity plan for a declared binding, or require a declaration per identity entry; test unbound addresses, MINI with an oversized count and bound siblings with ambiguous identity; never select a model or read outside the declared scope. | 11:37-40; 03:10-13; prompt 57:79-82 |
+| F7 | Medium, verified defect, high | *The physical bound requires an absolute target even for runs that have none.* 12a applies the bounded-move rule to Q4 through Q10, but the rule requires absolute targets and a displacement from fresh `6064`; Q8b and Q10 include velocity, torque and homing, and 12 asks for relative qualification under the same rule. Keep a universal bound independent of host service and of the behavior under test; put the fresh-position and absolute-displacement checks in a position branch; make relative cases conditional on a verified basis and a separately justified bound; point velocity, torque and homing to their own bounds; keep NOT RUN without the evidence. | 12a:59-64, 45; 12:41-43 |
+
+### Unresolved questions (reviewer)
+
+1. Which shared seams and main-sequence prerequisites have landed and passed at the execution HEAD, and who owns any
+   in-flight shared edits? (S4, S5 and full S13 decide which console, package-component and mixed-interface
+   deliverables can be accepted without parallel implementations.)
+2. What stop rows and stop paths can be justified for homing after its trigger, including when no completion arrives
+   and the SDO route is unresolved? (07 records a stop obligation on timeout, but no evidence documents a quick-stop
+   reaction after the homing trigger; the interrupt is explicitly not a stop, so it cannot be the fallback.)
+
+### Coverage gaps (reviewer)
+
+The DS2 rendered originals, EDS bodies, product-page snapshots and manifest were not supplied; stages were compared
+with the reference review only. The repository index was truncated: owner, SDO, SYNC, package, checker and workflow
+code were not supplied, so landed seam state and verification commands could not be confirmed. The parent Projects
+instructions, the communication practice, the conditional-experiment prerequisites and several consumed main-sequence
+prompts were not supplied. No DS2 fixture record or raw capture existed. The audit was text-only: no build, test, CI
+run or hardware behavior was verified.

@@ -36,9 +36,14 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    its own deadline, which the run's deadline, identity outcome and a missing acknowledgement never bar. DS2 adds:
    no velocity-mode stop is documented (the only stop arrow is in the position-mode table, DS2C p11), so the run is
    refused before its first changing TX, mode select included, unless `DS-DEC-2` (04 item 6) has a mode-3 row for
-   every state the run may leave (an acknowledged 0x000F and each uncertain enable word); neither a valid encoding
-   nor a fake server accepting 0x000B clears that gate. On an unresolved route the best-effort word exists only
-   after 04's S3 opt-in (item 7 there); before it `admitBestEffortStop` returns `INVALID` with no TX. `needsStop`
+   every state the run may leave (an acknowledged 0x000F and each uncertain enable word, in both halt classes of 04
+   item 1); neither a valid encoding nor a fake server accepting 0x000B clears that gate. A stop row is not a
+   stop path (same bullet): after a lost start reply the route stays unresolved (S10 `NONE`), so admission also
+   needs a stop that can still leave then, either the binding's S3 shape opted in by 04 item 7 under `DS-DEC-3` or an
+   independent stop the application declares for the run (its own enable, STO or power path), named in the
+   preparation's result. Without one the run is refused before its first changing TX, mode select included. Until
+   `DS-DEC-3` is accepted `admitBestEffortStop` returns `INVALID` with no TX, so every DS2 run needs the declared
+   independent stop. A dispatched stop is never standstill evidence. `needsStop`
    survives cancellation, failure, recovery, a lost start reply and acknowledgement-only completion while any enable
    word may have left; the result says whether a stop was never or possibly transmitted and never reports success
    while the drive may still run. Changing `60FF` while enabled is undocumented: a zero target is neither a stop nor
@@ -75,7 +80,10 @@ owner: a duration that no longer fits with the stop budget (refused at preparati
 enable word), an observation in flight near stop due (its deadline ends there), `now` equal to stop due (no run
 transfer, the urgent stop composed), a lost start reply (`needsStop` kept), service resuming after stop due (no run
 work, the separate stop still composed) and a queue-pressured stop. Also a run refused with zero TX while `DS-DEC-2`
-has no mode-3 row, an uncertain start on an unresolved route (no best-effort TX before 04's opt-in, `needsStop` kept),
+has no mode-3 row, a run with valid `DS-DEC-2` rows but neither stop path refused with
+zero changing TX (mode select included), and a lost start reply on an unresolved route for each admitted path: with a
+declared independent stop the result names it and no best-effort TX occurs before 04's opt-in; after the opt-in
+`admitBestEffortStop` sends exactly one word; `needsStop` is kept and no result claims standstill. Also
 a lost stop, a priority stop from another producer, deadline cutoff `now >= deadlineUs`, cancel that is not a stop and
 no repeat of any start. Tests drive the production sequence through the owner and fake server. Quick and full
 verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED; never substitute an unbounded

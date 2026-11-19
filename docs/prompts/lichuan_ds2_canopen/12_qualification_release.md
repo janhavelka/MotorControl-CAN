@@ -38,9 +38,10 @@ authorized DS2-family fixture; the CL86-C bench is not that fixture. MULTIDRIVE 
 2. Record the exact model, suffix, encoder, brake, supply, firmware identity and identity outcome, wiring and DI
    assignments, node, bitrate, termination, image revision and authorization. Model identity comes from the
    declaration and nameplate, never from a reply.
-3. Begin with non-changing reads and retained raw frames. Then explicit enable and release, finite position moves
-   bounded under 12a's bounded-move rule with prepared stops, relative and absolute policies, and only then bounded
-   velocity, torque and homing runs with their written plans. Negative encodings run only after 12a Q8a's or Q8b's
+3. Begin with non-changing reads and retained raw frames. Then explicit enable and release, finite absolute position
+   moves bounded under 12a's bounded-move rule with prepared stops, relative moves only under that rule's relative
+   branch (05's verified-basis declaration and a separately justified displacement bound), and only then velocity,
+   torque and homing runs under the rule's mode-specific bounds and their written plans. Negative encodings run only after 12a Q8a's or Q8b's
    conditions are met.
 4. Qualify each status dialect, unit, ramp, stop and completion rule per model and firmware. A DS2-10C result does not
    qualify IBL60-C or ISL80-C, and one free-shaft specimen does not qualify the family or a loaded axis.

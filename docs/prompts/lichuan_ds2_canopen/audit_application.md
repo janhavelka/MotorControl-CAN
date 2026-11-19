@@ -146,3 +146,91 @@ Nothing was compiled; no hardware or port was used.
    CONTRADICTED (canopen_shared `audit_application.md` round 4, theme 3). Stage 09's NMT table
    consumes that exception; without a state report the node is reported stranded.
 3. `DS-DEC-3`: the S3 default deny stays until the every-state review is accepted.
+
+## Round 3, 19 November 2026
+
+Each finding of [audit `aud-20261119-192232-3e8d46`](audit.md#round-3) was checked against this directory at
+`6ff80ed1` (`main`), the [reference review](../../reference/lichuan_ds2_canopen/review.md), the pack's DS2C extract
+and EDS files, and the [principles pack](../../reference/canopen_principles/principles.md). The lead's shared rules
+of `c4e5574f` were consumed by citation, not restated
+([round 4](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026)):
+the canopen_shared 02 timed-runs stop path and state-transitions halt rule (themes 1 and 2) and prompt 57's bootstrap
+Enter Pre-operational (theme 3). Only files of this directory changed; nothing was compiled and no hardware or port
+was used.
+
+Dispositions: 6 accepted (F1-F4 high; F6, F7 medium), 1 accepted in part (F5 high), none rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted, by citation | canopen_shared 02 timed-runs bullet at `c4e5574f` ("A stop row is not a stop path": the binding's opted-in S3 shape or an application-declared independent stop named in the result, otherwise refused before the first changing TX); S10 `NONE` (a timeout leaves the route unresolved); S3 default deny; old 06 item 5 and acceptance (no best-effort TX before the opt-in, no other stop required); 04 item 7 (`DS-DEC-3` not accepted, round-2 lead decision 3) | 06 item 5: admission also needs a stop that can leave after a lost start reply, the S3 shape opted in under `DS-DEC-3` or a declared independent stop named in the preparation's result, else refused before the first changing TX, mode select included; until `DS-DEC-3` is accepted every DS2 run needs the declared stop; a dispatched stop is not standstill. 06b item 6 consumes it. Acceptance in both: valid rows with neither path give zero changing TX; a lost start reply with each admitted path. README 06 and 06b rows |
+| F2 | Accepted, by citation | Prompt 57 "Admission by outcome" at `c4e5574f` (targeted Enter Pre-operational to a node whose fresh heartbeat or node-guarding state reports Stopped, under every outcome except CONTRADICTED; otherwise the node is reported stranded); principles pack section 3 (Stopped serves only NMT and error control); 09 item 6 (`1017` producer, no node guarding); the old NMT table row ("Same") and 09 acceptance (zero NMT TX on no outcome, unmatched, unread field); round-2 lead decision 2, which named the change but did not make it | Execution contract: the NMT paragraph names prompt 57's one exception; the Enter Pre-operational row admits it to a node with a fresh Stopped heartbeat under every outcome except CONTRADICTED, with no `released` report and no pending operation, no node guarding added, and reports a node without such a heartbeat stranded; the Stop row says SDO returns with that command or a Start. 09 item 5 consumes the row. 09 acceptance: one frame under no outcome, UNCONFIRMED without a declared-model match and an unread field; zero on CONTRADICTED, a stale, missing or other-state heartbeat and pending work; other commands keep their gates; node 0 keeps S13's denial. README 09 row |
+| F3 | Accepted | 04 item 2 (mode select needs a released report), item 3 (enable admitted in modes 1 and 6), item 10 (a later `6060` write ends the predecessor; homing never writes 0x000F); old 07 item 3 (homing selects mode 6 and enables); 05 item 5's position pattern; DS2C p13 and IBL60 p14 (parameters written after enabling, then bit 4) | 07 item 3: mode select to 6 and enable are separate prerequisite operations outside `HomeContext`; `prepareHome` admits only a fresh `enabled` mode-6 report and 04's predecessor under the same reservation and generations, after write preflight, then writes the parameters and 0x001F; the manual's order is kept. 07 acceptance: the full composition through the real owner and homing alone emitting no parameter write or trigger without the predecessor, outside mode 6 or on a stale report. README 07 row |
+| F4 | Accepted, by citation | canopen_shared 02 state-transitions bullet at `c4e5574f` (a stop word keeps a set halt bit unless evidence shows quick-stop precedence; with halt unknown, bit 8 stays set where admitted, else the row refuses; halted and unknown-halt tests) and S3 bullet (the review says how the word treats a set halt bit); DS2C p27 (`605D` halt option exists; review "Other controlword use": bit 8 not described); `[6040]` WO in DS2EDS l.1199, IBLEDS and ISLEDS l.1073 (DS-D08: bit 8 cannot be read); principles pack CP-D10 (Quick stop transitions only, nothing on halt); old 04 item 7 ("DS2 never sets it") | 04 item 1: stop rows keyed by halt class. The profile never setting bit 8 is not evidence; halt-clear needs an acknowledged whole-word `6040:00` download of the binding in the current continuous reservation and generations (every later DS2 word, uncertain ones included, keeps bit 8 clear), ended by boot-up, NMT reset or command, rebind, bus-off, invalidation or the reservation's end; everything else is unknown; no class is inapplicable (`605D` exists); no DS2 evidence admits 0x000B or 0x010B with halt unknown, so every stop row refuses there and says only the independent stop remains. Item 6: every `DS-DEC-2` row is halt-clear. Item 7: the S3 review must resolve the unknown class (`admitBestEffortStop` cannot see the history), else the default deny stays. 04 acceptance: halt-class cases through the real owner. Execution contract stop paragraph and foreign-server test; 06, 06b and 07 rows name the class; README 04 row |
+| F5 | Accepted in part | DS2C p24 (`1200:01` RO 600h+Node-ID; `1014` RW default 0x80; `1005` RW 0x80); `[1200sub1/2]` RW $NODEID+0x600/0x580 in DS2EDS l.290/l.299, IBLEDS and ISLEDS l.271/l.279; principles pack section 2 (the default server SDO pair in `1200h` is not configurable); execution contract boundary row (template EDS defaults are a reviewer alert); contract 02 multi-profile bullet | Rejected part: the premise that DS2's SDO identifiers are configurable. The manual and CiA say they are not, so a non-default `1200` is a contradiction to detect, not a configuration to support. Accepted: isolated collection, the complete identifier set and its carry-forward. 09 item 9 reads `1200:01` (and `:02` where the EDS sources it) and treats a value other than the answering route as a contradiction. 11 item 2: per node, the predefined SDO pair with live `1200`, NMT error control, `1005`, `1014` (the manual's 0x80 equals the SYNC identifier, a service-route collision) and every PDO COB-ID with its valid bit, read with the node alone on its own interface (no answer: bootstrap route unknown, no shared interface); on the shared interface only a read-back over a predefined route already checked against the other nodes' sets, and shared operation only when it equals the record; boot-up, reset, rebind or a configuration change require it again. 11 acceptance: PDO and service-route collisions, a contradictory `1200`, unavailable, stale and differing read-backs. Execution contract owner bullet |
+| F6 | Accepted | Prompt 57's outcome inputs (the binding's declared model); 03 item 1 (sub-indexes read only when announced and sourced by the declared model's scope); old 11 item 5 | 11 item 5: an entry with a current DS2 declaration runs 03's identity plan and reports prompt 57's outcome with every matching model; an address alone gets the probe only, no `1018` read and no outcome; no model selection or read outside the declared scope. 11 acceptance: an address without a declaration, MINI with an oversized `1018:00` and declared siblings under a colliding pair |
+| F7 | Accepted | Old 12a item 4 (every motion question needs an absolute target from fresh `6064`); Q8b and Q10 (velocity, torque, homing); old 12 physical item 3 ("relative and absolute policies"); 05 item 8 (relative basis undocumented, a caller declaration of the verified basis) | 12a item 4: a universal bound (written first, holding without host service and independent of the behavior under test); a position branch with the unit and scale interpretations, an absolute target within the bounded displacement of a fresh `6064` (Q8a's drive-side limit its own case) and relative moves only with 05's verified-basis declaration and a separately justified bound; velocity, torque and homing use the mode's own bound from Q8b and Q10. 12 physical item 3 cites the branches |
+
+### Reviewer's unresolved questions
+
+1. **Answered by the files at `6ff80ed1`, unchanged since round 2.** The canopen_shared README table records no
+   seam claimed or landed (S1-S3, S6-S8 and S10-S14 not landed, claimed by none; S4, S5 and S9 owned by prompts 64,
+   65 and 63). `PROGRESS.md` lists prompts 57, 63, 64, 65 and 77 as Pending and 51 as Partial. The in-flight shared
+   edits are the lead's (`c4e5574f`, `6ff80ed1`); no family owns one. Stage 01 re-records the table at the execution
+   HEAD.
+2. **Answered, with a change in 07.** No DS2 source documents a stop in mode 6 or after the homing trigger: 15 to 11
+   "emergency stop" appears only in the position-mode tables (DS2C p11, MINI p13, IBL60 p12, ISL60 p15), `605A` is
+   absent and `6085` has no stated link (review "Other controlword use"). So a homing stop row can only be a
+   `DS-DEC-2` project decision (04 item 6 already keys rows by 0x001F in mode 6), in the halt-clear class and marked
+   for the owner's review. Bit 4 falling (DS2C p13 "interrupt homing") is acknowledged-only, with an undocumented
+   effect on motion, and is never a stop or a stop path. On an unresolved route, including after a timeout with no
+   completion, only `DS-DEC-3`'s S3 opt-in (still the default deny) or an application-declared independent stop can
+   act. 07 item 10 now applies the timed-runs stop-path rule to homing: `prepareHome` refuses before its first
+   changing TX without a mode-6 row for an acknowledged and an uncertain 0x001F and one of those stop paths; its
+   acceptance tests both refusals and a lost trigger reply with each admitted path.
+
+### Open for the lead or owner
+
+- **Halt evidence (F4).** This application treats an acknowledged whole-word `6040:00` download in the current
+  continuous reservation as evidence that bit 8 is clear (the reviewer's "trustworthy prior history") and the
+  profile's never setting bit 8 as no evidence. Consequence: on attachment without that history, after boot-up, an
+  NMT command or a rebind, `QUICK_STOP` refuses and only the application's independent stop remains, until an
+  acknowledged release or enable re-establishes the history. The lead may confirm or narrow this reading.
+- **Homing under the timed-runs stop path.** Shared 02 names finite velocity and torque runs and "any run the host
+  ends"; DS2 applies the stop-path sentence to homing by analogy (MOONS' 07 item 6 likewise requires a caller-reviewed
+  stop path). A shared statement would make this uniform across families.
+- **Consequence of `DS-DEC-3`.** While the S3 default deny stays (round-2 lead decision 3; F4 adds the unknown halt
+  class to the review), every DS2 velocity, torque and homing run needs an application-declared independent stop.
+
+Checks: `python scripts/check_promptset.py` reports no error in this directory; `git diff --check` is clean for it.
+Nothing was compiled; no hardware or port was used.
+
+### Round 3 lead decisions
+
+The lead answered the open requests the same day and revised canopen_shared 02 in `328651b6`
+([round 4](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026)
+themes 6 and 7). Applied in this directory only; they supersede the F4 change and the answer to question 2 above
+where they differ.
+
+1. **Unknown halt state (F4).** Not refused. canopen_shared 02 "State transitions": with the halt state unknown (no
+   acknowledged controlword in the current reservation, attachment without history) a stop word sets bit 8, because
+   setting the CiA 402 halt bit cannot start motion; a row refuses only where the family's evidence gives bit 8
+   another meaning; a stop is never refused merely for an unknown halt state. 04 item 1: "clear" (an acknowledged
+   whole-word `6040:00` download in the current reservation, unchanged definition) keeps the reviewed word; "unknown"
+   sends it with bit 8 set (0x010B for `QUICK_STOP`) and records the unknown halt state. DS2 evidence gives bit 8 no
+   other meaning: the controlword tables describe only bits 4 to 6 and the 0/6/7/15 example (DS2C p11-13, MINI
+   p13/p15, IBL60 p12/p14, ISL60 p15/p16; every "Bit8" in the extracts is the statusword's homing-complete bit), and
+   `605D` "halt control" gives only the reaction to the controlword halt command, 0 normal stop or 1 quick stop (DS2C
+   p27, MINI p29, IBL60 p28, IBL80 p28, ISL60 p31, ISL80 p30). 04 item 5 keeps halt UNSUPPORTED as an operation;
+   item 6 gives each `DS-DEC-2` row both words; item 7: `DS-DEC-3` decides the S3 shape by the same rule, and because
+   `admitBestEffortStop` cannot see the history the reviewed shape is `6040:00=010B`; 04 acceptance expects 0x010B
+   with the unknown halt state recorded, never a refusal. The execution contract's foreign-server test expects
+   `QUICK_STOP` admitted (0x010B without an acknowledged word); 06, 06b and 07 require rows in both halt classes.
+2. **Homing as a host-ended run.** canopen_shared 02 "Timed runs" now says so: a caller-supplied latest
+   interruption time takes the duration's place (an optional travel bound from observations of bounded age), with
+   the same stop budget, transfer cap and stop path. 07 items 5 and 10 cite it instead of the analogy; 07 acceptance
+   adds the timed-run cases with the interruption time; README 07 row.
+3. **Stop path while S3 stays denied.** Confirmed: until `DS-DEC-3` is accepted, every DS2 velocity, torque and homing
+   run needs an application-declared independent stop named in its result (06 item 5, 06b item 6, 07 item 10).
+
+Checks after these changes: `python scripts/check_promptset.py` reports no error in this directory; `git diff
+--check` is clean for it. Nothing was compiled; no hardware or port was used.

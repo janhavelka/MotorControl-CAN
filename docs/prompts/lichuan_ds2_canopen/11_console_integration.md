@@ -15,9 +15,20 @@ rows 23, 24, 40-44, 53, 64, 68, 70 and 75 apply.
    `CanBusOwner`: one bitrate, distinct node IDs, COB-IDs taken from live reads (09) and checked for overlap before
    admission, one SDO client channel per node, reservations by bus and address whatever the profile label, separate
    caches and results, independent stops and urgent-stop capacity under cross-profile queue pressure. Claim fairness
-   only with per-family producer slots and tests. Prompt 63's identifier plan is not needed for two CANopen families;
-   the shared-interface positive tests wait for the same-domain analysis canopen_shared 02 requires, recorded in the
-   report: node IDs, configured COB-IDs, bitrate, and NMT-broadcast and SYNC effects on both families. DS2's NMT
+   only with per-family producer slots and tests. Identifier evidence, collected before any shared operation: per
+   node, every identifier it may send or receive, the predefined SDO pair (with live `1200`, 09 item 9), NMT error
+   control 0x700+node, `1005`, `1014` (the manual's 0x80 equals the SYNC identifier, DS-D07) and every RPDO and TPDO
+   COB-ID with its valid bit (`1400`-`1403:01`, `1800`-`1803:01`); a Lichuan C node supplies the same from its own
+   reads. The node is read alone on its own interface (the default topology); if its predefined SDO route does not
+   answer there, the bootstrap route is unknown and the node joins no shared interface. On the shared interface the
+   recorded sets admit only a read-back over each node's predefined SDO route, after that route is checked against
+   every other node's set; shared operation is admitted only when the read-back equals the record for the same node,
+   declared model and firmware identity. An overlap between any two entries (a PDO and a service route included), a
+   difference, an unanswered or stale read-back refuse with no further TX; a boot-up, NMT reset, rebind or
+   configuration change on any node requires the read-back again. Prompt 63's identifier plan is not needed for two
+   CANopen families; the shared-interface positive tests wait for the same-domain analysis canopen_shared 02
+   requires, recorded in the report: node IDs, configured COB-IDs, bitrate, and NMT-broadcast and SYNC effects on
+   both families. DS2's NMT
    effects are undocumented (DS-D32) and its SYNC effects unknown, so the analysis excludes NMT broadcasts and SYNC
    production on that interface until S13 and DS2 evidence admit them. A recorded exclusion is not enforcement; S13's
    default deny, landed with S2 (02b), already refuses both on every interface with a DS2 binding. Seam S13
@@ -34,9 +45,12 @@ rows 23, 24, 40-44, 53, 64, 68, 70 and 75 apply.
    entries, the expected product identity of a DS2 node is its model's claim set and identity outcome (execution
    contract), not one value. Extend their identity check with the shared comparison, through their owners, rather
    than adding a DS2-only startup path. Startup verifies and reports; it enables, homes or writes nothing by default.
-5. Discovery. Add a bounded, explicit DS2 scan over caller-listed nodes: probe (under 02b's read-effect row; without
-   it the scan refuses before TX) and identity reads only, profile-typed
-   findings with the identity outcome, no model selection from replies and no `2xxx` read. The `discover` parser and the
+5. Discovery. Add a bounded, explicit DS2 scan over caller-listed entries, probe (under 02b's read-effect row;
+   without it the scan refuses before TX) and identity reads only. An entry with a current DS2 declaration (the
+   execution contract's binding: model, encoder suffix, node, bitrate) runs 03's identity plan for the declared
+   model's scope and reports prompt 57's outcome with every matching model; an entry that is only an address gets
+   the probe alone, reads no `1018` sub-index and reports no declaration and no outcome. Profile-typed findings, no
+   model selection from replies, no read outside the declared scope and no `2xxx` read. The `discover` parser and the
    Python module report DS2 findings; unknown or unrouted profiles still reject before TX.
 6. Python and runners. `scripts/console_jsonl.py` validates `lichuan_ds2` records with DS2 fields and never accepts a
    Lichuan C check for a DS2 result. Finite scenarios select by declared capabilities and declarations; unavailable
@@ -66,8 +80,14 @@ the same-domain analysis, and updated `docs/api_cli_mapping.md`, `docs/cli_contr
 
 ## Acceptance
 
-Tests run a Lichuan C axis and a DS2 axis through one owner: overlapping COB-IDs refused before admission, same-address
-reservations conflicting across profile labels and profile changes while work is pending refused; once S13 has
+Tests run a Lichuan C axis and a DS2 axis through one owner: overlapping COB-IDs refused before admission (a PDO-to-PDO
+collision and a service-route collision, such as a `1014` of 0x80 against SYNC or a COB-ID equal to another node's
+SDO pair), a `1200` read-back other than the route in use, an unavailable or stale read-back and a read-back that
+differs from the isolated record, each with no TX beyond the read-back; same-address
+reservations conflicting across profile labels and profile changes while work is pending refused. Scan tests: an
+address without a declaration (probe only, no `1018` read, no outcome), MINI with an oversized `1018:00` (no
+`1018:04` read) and declared siblings under a colliding pair (UNCONFIRMED naming every matching model, nothing
+selected); once S13 has
 landed (item 2; otherwise BLOCKED, recorded in PROGRESS), wrong-node and late replies,
 an urgent stop under queue pressure and the forbidden-TX cases of item 2. Exact API/CLI parity holds for every `ds2`
 route. All Arduino and IDF
