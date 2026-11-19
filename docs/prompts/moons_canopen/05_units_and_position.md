@@ -50,8 +50,16 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
    changing step, the trigger included; a lost reply keeps `UNKNOWN` and is never replayed.
 8. Completion: native completion needs post-trigger evidence: an observed acknowledge (bit 12 high after the
    trigger) or bit 10 falling after the trigger, then bit 10 high with bit 12 low. A bit 10 already high before
-   the trigger never manufactures completion. Generic target arrival additionally compares 0x6064 with the
-   prepared target and stays "drive-reported" under item 5. A requested guarantee whose evidence cannot be
+   the trigger never manufactures completion. Only a sample that can show arrival advances it: a read set
+   taken after the trigger showing Operation enabled, 0x6061 = 1 and no fault (bits 10-13 decode by the mode
+   in 0x6061, stage 03 item 7), for the move that is still the binding's active operation, whose reply
+   arrived before any other controlword write to the binding (a halt, quick stop, release or disable
+   voltage) was admitted. From that admission the move stops advancing completion: bit 10 is also high at
+   halted standstill (UM21 p18, "Velocity of axis is 0"), so a later sample with bit 10 high and bit 12 low
+   completes nothing; the move is interrupted (stage 04 item 10), carries the stop result and gives
+   completion `NOT_OBSERVED`, and only item 10's halt-release rule can complete it afterwards. Generic
+   target arrival additionally compares 0x6064 with the prepared target and stays "drive-reported" under
+   item 5. A requested guarantee whose evidence cannot be
    obtained rejects before TX.
 9. Relative moves: UM21 does not state the basis of a relative target (previous target or actual position). A
    common relative move needs a caller `relativeBasisVerified` qualification for the named basis, otherwise
@@ -63,10 +71,15 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
     which reports only its acknowledgement and any continuation a later read shows. Resumed-target completion
     belongs here. The move retains its prepared target and native move record from the trigger until its
     completion is observed, a new move is admitted, stage 04's controlword record becomes unknown, the drive
-    leaves Operation enabled (the next enable's transition 4 clears set-points, UM21 p16) or stage 07 item 12
-    retires the reference. After an acknowledged halt release the resumed move completes by item 8's rule
-    anchored at the release instead of a trigger, since the release makes no new edge: bit 10 observed low
-    after the release, then high with halt clear and bit 12 low. Bit 10 is already high while halted at
+    leaves Operation enabled (the next enable's transition 4 clears set-points, UM21 p16) or the axis
+    reference it was prepared against is invalidated. That end belongs to this stage: the move record binds
+    the reference generation of its preparation, and an invalidation through the core's
+    `invalidateAxisReference` (`include/MotorControlCAN/Axis.h`, `ReferenceLoss::COORDINATES`) drops the
+    retained target and refuses later preparation against the old reference, tested here by a direct call.
+    Stage 07 item 12 invokes it for homing, 35, 37 and 0x200C and tests that; the stage 05 handoff names it.
+    After an acknowledged halt release the resumed move completes by item 8's rule, its sample rule
+    included, anchored at the release instead of a trigger, since the release makes no new edge: bit 10
+    observed low after the release, then high with halt clear and bit 12 low. Bit 10 is already high while halted at
     standstill (UM21 p18, "Velocity of axis is 0"), so a high read without that fall gives completion
     `NOT_OBSERVED`, with the 0x6064 comparison drive-reported. A
     quick stop is stage 04 item 9's stop: the move consumes its result (the word sent, 0x000B or 0x010B, the
@@ -78,7 +91,8 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
 
 ## Deliver
 
-Profile `Position.h/.cpp` with `MoveContext` and the native move record; any reviewed core unit addition with
+Profile `Position.h/.cpp` with `MoveContext` and the native move record bound to its reference generation
+(item 10's invalidation, which stage 07 consumes); any reviewed core unit addition with
 its tests; `test/moons_canopen_position_test.cpp`; console `prepare`, `moveto`, `moveby`, `move` routes for
 MOONS' bindings with API/CLI parity; units section in `docs/moons_canopen_coverage.md`; Doxygen; report.
 
@@ -89,9 +103,13 @@ resolution change invalidation, bit 12 high at admission, a halted pending move 
 rebinding and with the record lost) refused with no TX, stale bit 10, lost trigger reply, partial setup,
 cumulative delay in which every reply meets its own timeout but the operation deadline arrives before the
 trigger (no trigger TX, partial effects reported), halt and quick stop during the move (the move's result
-carries stage 04's stop result and no disabled state without a fresh read), completion of a move resumed by
+carries stage 04's stop result and no disabled state without a fresh read), item 8's sample rule (a valid
+post-trigger transition, then a halt and a halted-standstill sample with bit 10 high and bit 12 low, also
+a poll whose reply arrives after the halt was admitted, does not complete the move; a sample showing
+another mode, another state or a fault completes nothing), completion of a move resumed by
 stage 04's halt release (bit 10 falling after the release then high, a high bit 10 without the fall
-`NOT_OBSERVED`, the retained target dropped at each end of its lifetime), relative basis
+`NOT_OBSERVED`, the retained target dropped at each end of its lifetime, the reference end by a direct
+`invalidateAxisReference` call), relative basis
 refusal, angle move without a per-revolution scale refused, and no replay. Native
 units, the bit 12 meaning and measured feedback stay open with their MO-D IDs. Quick and full verify, firmware
 builds and exact-commit CI pass. Hardware: NOT RUN.

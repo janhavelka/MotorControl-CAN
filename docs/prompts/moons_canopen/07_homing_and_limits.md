@@ -40,6 +40,26 @@ writing the table. Never borrow another profile's method numbering, index or lim
    as CCW limit (STFHW p17). A method needing a switch is admitted only with the matching input function read
    and a caller wiring declaration, plus item 3's direction check; knowing which terminal is wired does not
    show that the method searches toward it. Never disable or reassign limits to make homing pass.
+
+   Initial inputs. A moving method is admitted only from a fresh 0x60FD read within the operation, taken
+   after preparation and before its first changing TX (bit 0 negative limit, bit 1 positive limit, bit 2 home
+   switch, logical levels, UM21 p63). Both limit bits must be clear for every moving method: UM21 describes
+   each start with its limit switch inactive (methods 1 and 2 p23, 7-10 p25, 11-14 p26, and 17, 18 and 23-30
+   as "similar" to them, p27-p30), draws no start on a limit (p23-p30), and methods 3-6, 19-22, 33 and 34
+   name no limit. The home switch bit may read either level for methods 3-14 and 19-30, whose initial direction
+   "shall be dependent on the state of the home switch" (p24) and whose figures draw starts on both sides
+   of and on the switch (p24-p30); it is not consulted for 1, 2, 17, 18, 33 and 34. This check is prompt
+   77's limit admission guard (rule 2) applied to the 0x60FD levels (lead decision of 2026-11-19), separate
+   from the direction guard: on by default and settable per axis, an active limit bit, a read without a
+   reply or a read from before this operation's preparation refuses before TX with the bit named; with the
+   guard off the start is admitted without the check and the result names the guard and any active bit the
+   read showed. As with item 3's direction check, until prompt 77's guard lands the check is on and no
+   second guard is built. Each completion poll (item 7) also reads 0x60FD: a limit
+   bit becoming active that the method's figure does not reach (either limit for 3-6, 19-22, 33 and 34; the
+   negative limit for 7-10 and 23-26; the positive limit for 11-14 and 27-30; for 1, 2, 17 and 18 the limit
+   other than the terminal item 3's qualification says the method approaches first) ends the polling, keeps
+   `needsStop` for item 6's stop path and records the sample; a limit the figure reaches is recorded only.
+   The drive's own reaction to either stays unknown (item 11).
 5. Objects and types: 0x6099 sub 1 switch-search and sub 2 zero-search speeds (UINT32 counts/s, UM21 p62);
    0x609A homing acceleration (INT32 on UM21 p22, UINT32 on p55/p62; MO-D07); 0x607C home offset INT32 in
    position units (UM21 p60); 0x2009 homing offset mode (UM21 p66). 0x2008 "Homing inner offset" (EDS only,
@@ -48,7 +68,8 @@ writing the table. Never borrow another profile's method numbering, index or lim
 6. Sequence for moving methods: mode 6 confirmed through 0x6061; Operation enabled observed; write method,
    speeds, acceleration, offset and offset mode, each confirmed; bit 4 low, then 0x001F to start (UM21 p23);
    the stop is stage 04 item 9's halt: 0x011F after an acknowledged start (UM21 p23), 0x010F after a lost start
-   reply, which never raises bit 4 (stage 04 item 8). One absolute operation deadline (canopen_shared 02
+   reply, which never raises bit 4 (stage 04 item 8); without that item's local-transition declaration it is
+   the quick stop after its own fresh read. One absolute operation deadline (canopen_shared 02
    "Operation admission") derived from caller travel and speed limits, not a copied short poll count. The
    drive's limit reaction is undocumented (item 11) and a host deadline bounds nothing physical after
    communication loss. Homing is a host-ended run under canopen_shared 02 "Timed runs" (its homing sentence),
@@ -99,7 +120,8 @@ writing the table. Never borrow another profile's method numbering, index or lim
 12. Coordinate retirement: a moving-homing trigger, a 35 or 37 trigger and a 0x200C write can rebase the
     drive's position from the moment their frame may have left. Before that frame is handed to the owner,
     retire the binding's host origin and reference generations, every prepared or queued position operation
-    built on them and the host soft limits bound to them (prompt 77). A lost reply, timeout, cancellation, halt
+    built on them and the host soft limits bound to them (prompt 77), through stage 05's tested reference
+    invalidation (core `invalidateAxisReference`, stage 05 item 10). A lost reply, timeout, cancellation, halt
     or unobserved completion never restores them, and a later preparation against a retired reference
     refuses before TX. A replacement comes only from item 8's qualified completion with a fresh 0x6064 read,
     or, for 35, 37 and 0x200C, from an acknowledged operation followed by fresh 0x6064, 0x607A and 0x607C
@@ -115,7 +137,11 @@ coverage rows per method; Doxygen; report.
 ## Acceptance
 
 Tests cover every method's admission per product, refused 15, 16, 31, 32, 36, 128 and negatives, index
-refusal on STF, an unknown or stale direction qualification (after a 0x607E,
+refusal on STF, item 4's initial inputs (with the limit guard on: each limit bit active at admission refused
+for every moving method, the home switch active admitted for 3-14 and 19-30, a missing or pre-preparation
+0x60FD read refused, also with the direction guard off; with the limit guard off: admitted, the guard and
+any active bit named; an unreached limit becoming active during polling ending the polling with
+`needsStop`, a reached one only recorded), an unknown or stale direction qualification (after a 0x607E,
 direction or input-function change) with the direction check on or before prompt 77's guard lands (no TX) and
 with the guard off (admitted, the guard named), a missing input function, wiring declaration, index
 declaration or stop and travel plan refused also with the guard off, item 6's host-ended run (an
@@ -124,7 +150,8 @@ interrupting earlier and a stale position observation not counted, no transfer a
 `needsStop` kept after a lost start reply, and a run without a declared independent stop refused with zero
 changing TX), stale completion patterns, fast
 completion between polls, timeout after start, halt interruption, both offset modes, methods 35 and 37
-through their own table (refused where the page leaves the sequence open), item 12's retirement (references
+through their own table (refused where the page leaves the sequence open), item 12's retirement (homing,
+35, 37 and 0x200C invoke stage 05's reference invalidation before the frame is handed to the owner; references
 held before a lost trigger reply, an interrupted or unobserved home and a possibly executed 0x200C write are
 unusable: a later position preparation against them sends nothing), item 10's stationary table for 0x200C
 (running, halted with a pending target, an unknown record, each 0x200B bit set and an operation in flight

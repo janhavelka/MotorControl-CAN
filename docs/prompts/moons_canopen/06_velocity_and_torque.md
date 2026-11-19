@@ -38,12 +38,17 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    `needsStop` and leaves the stop to the application's separate urgent stop, which the run's deadline, its
    identity outcome and a missing acknowledgement never bar. The MOONS' stop row for modes 3 and 4 is stage
    04 item 9's halt, 0x010F also after a lost start reply, since no velocity or torque word sets bit 4 (stage
-   04 item 8), sent after the halt's own fresh state read, which the caller's stop budget covers; the quick stop
-   is the alternative the application may compose. A stop row is not a stop path (the same bullet): after a
+   04 item 8), sent after the halt's own fresh state read, which the caller's stop budget covers. The halt
+   needs that item's local-transition declaration; without it the run's stop row is the quick stop, also sent
+   only after its own fresh read (stage 04 item 9), which is otherwise the alternative the application may
+   compose. The stop budget covers the stop row's reads and its one controlword download: one 0x6041 read
+   and one write for the quick stop, the 0x6041 and 0x6061 reads and one write for the halt; stage 07 item 6
+   and stage 10 item 9 size their budgets the same way. A stop row is not a stop path (the same bullet): after a
    lost start reply the route stays unresolved (`SdoReuse` `NONE`), and a MOONS' binding has no S3 shape, so
    neither stop leaves on that route (stage 04 item 10). Preparation therefore refuses the run before its
    first changing TX (mode select and enable included) unless the application declares an independent stop
-   for it (its own enable, STO or power path), which every result of the run names. The drive's enable input
+   for it (its own enable, STO or power path) with the bullet's caller-supplied fallback deadline, which
+   every result of the run names. The drive's enable input
    (0x2617/0x220D) is such a path only where the deployment wires and configures it, with an undocumented stop
    reaction (stage 04 item 9). Never success while running. A host deadline cannot stop
    the drive: on a lost start or stop reply or service loss retain `needsStop` and `UNKNOWN` execution, report

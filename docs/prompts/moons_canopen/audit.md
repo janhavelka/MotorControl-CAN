@@ -255,3 +255,67 @@ not supplied, and the shared inventory is a historical map, not evidence of seam
 project instructions, the conditional experiment prerequisites and main-sequence prompts other than 57 and 77
 were not supplied. No MOONS' fixture, wiring, authorization, measurement or trace existed; electrical behavior,
 physical stop effects, service latency and restoration were not verified.
+
+## Round 5
+
+A fifth audit of the set as revised by round 4, condensed the same way. Line numbers refer to the files at
+the audited revision, before round 5 was applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-201350-137e84` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard (large input, about 230,557 tokens) |
+| Date | 2026-11-19 20:13:50 (from the ID), 261.0 s, one attempt |
+| Revision | `main` at `570320bb4bd9db9cb1035d942b5b98177614cd8b` with uncommitted changes outside this set; the family and shared files' SHA-256 equal their blobs at `570320bb`, and `AGENTS.md`, `CLAUDE.md`, `COMMON.md` and `ADD_DRIVE.md` equal the working files (CRLF) |
+| Cost | Estimated USD 0.49 (0.489238, configured pricing); 175,179 input and 13,888 output tokens (8,616 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-201350-137e84.json` (local) |
+| Location checks | 32 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: this directory's 20 files (README, execution contract, stages, rounds 1 to 4 audit and
+application). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` and
+`01_existing_code_and_tooling.md`, prompts 57 and 77, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md` and
+`review.md`; project instructions `AGENTS.md`, `CLAUDE.md`. The shared contract was read as it stood at
+`570320bb` (themes 9-11 of `c138e959` included, theme 12 of `2d1c70c2` not yet).
+
+**Summary.** Evidence intake, object generation and the independently gated probe and read work can proceed.
+The revised stages keep whole-operation write preflight, refusal-only SYNC Q starts and an independent stop
+for velocity, torque and moving homing when the SDO route can become unusable. The stop, SYNC and Q paths are
+not ready as written: an unsent NMT command can appear to clear an earlier transition, a halt can re-enable
+the drive, and an opaque Q program can start without a usable interruption path. **Verdict:** blocking
+issues: correct the pending-transition fence and the stop admission rules before enabling the affected
+changing routes; specify Q interruption, motion completion and homing input admission before those paths are
+callable; close the sequencing and bench-acceptance gaps without opening any evidence gate. A document review;
+nothing was built, tested or run on hardware.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *A withdrawn NMT command can clear an older transition that is still pending.* 09 keeps SYNC approval revoked while an admitted NMT command can take effect, but settles an older command when a later admitted one settles and counts withdrawal before TX as settlement; a queued or possibly sent targeted Start followed by a later Enter Pre-operational withdrawn before TX would be cleared, and fresh Pre-operational reads would reapprove SYNC although the Start can still make the node Operational with a valid synchronous RPDO. Separate retirement of a command that never left from evidence that a later command superseded an earlier one: a withdrawn command retires only itself; older commands block until independently retired or an evidenced, ordered transition shows they can no longer act. Test a queued and a possibly sent Start followed by a later command withdrawn before TX: no reapproval from old-state reads | 09:112-118, 153-155; shared 02:300-305 |
+| F2 | High, probable defect, high | *The halt route can re-enable the drive after its source-state read.* 04 recognizes that the halt word is the Enable operation command from Ready to switch on or Switched on and that a local signal can reach those states; a transition after the read and before the download sends an enabling word. The stage tells applications with such signals to use the quick stop but neither requires them to declare the premise nor enforces it; recording the read and the word does not establish the state at receipt. Keep read-first halt but make it conditional on an explicit deployment premise excluding those autonomous transitions; recheck host-controlled state changes at controller hand-off; without the premise refuse the halt and name a separately admissible stop or the declared independent fallback; test a transition after the last read | 04:165-175; AGENTS.md:79; 57:105-110 |
+| F3 | High, verified defect, high | *Quick stop skips a fresh source-state check without the required review.* The shared contract admits a stop without a fresh report only after the family reviewed the word's reaction from every state; 04 sends the quick stop without a read, lists three reviewed states and says the all-state review has not passed. Under a refusing outcome it requires a source-state check without saying what happens when that evidence is missing. The halt paragraph justifies the quick-stop literals with the manual's disputed pattern (bit 1 clear) although both literals set bit 1. Keep the explicit quick-stop route and identity exemption, but name which current source-state reports admit each literal and what a missing, stale or unlisted state does; permit no-read dispatch only with the shared all-state review; cite the emitted pattern's evidence; test both halt-bit variants, missing and stale state and the read traffic separately from the controlword TX | 04:161, 172-173, 180-184; shared 02:155-157; 57:108-109 |
+| F4 | High, probable defect, high | *A qualified Q segment can start without a usable interruption path.* 10 admits opaque programs of unknown duration and end state, including ones waiting for input; the qualification names what the segment does but requires neither a bounded self-ending program nor a host-ended stop plan. Its lost-start acceptance says the quick stop is named and admitted, yet 04 says no stop frame leaves after an SDO timeout under `NONE`. Distinguish a caller-qualified bounded self-ending segment from one needing host interruption; for host-ended runs consume the shared timed-run rule and require the declared independent stop before any changing step while no reviewed unresolved-route stop exists; keep quick-stop eligibility apart from owner dispatchability in results and tests; exercise a possibly executed start, route timeout, zero stop frames, `UNKNOWN` and `needsStop` kept, and the named fallback | 10:10-12, 17-21, 80-81; 04:193-196; shared 02:131-135 |
+| F5 | High, probable defect, high | *Normal position completion does not exclude a halted or otherwise invalid sample.* 05 completes after a post-trigger acknowledgement or bit 10 fall, then bit 10 high with bit 12 low, but bit 10 is also high at halted standstill and the normal rule requires neither halt clear nor a current mode-1, Operation enabled, fault-free observation; a poll after a halt can satisfy it before the stop disposition. Define which observations advance completion (current mode-1 evidence, a valid active predecessor, a sample not taken after a halt or other interruption may have acted); keep paused or uncertain results apart from arrival; test a valid transition followed by halted standstill, with a poll racing the stop | 05:51-53, 67-70; 04:191-192 |
+| F6 | High, probable defect, high | *Moving homing has no admission rule for the initial switch levels.* 07 checks input function, wiring, direction and the stop and travel plan, but not whether a method may start with its search switch or another limit active, or what an absent or stale level report does; all prerequisites can hold in those cases, and the drive's limit reaction is undocumented. Add method-specific initial predicates from fresh UM21 logical-level observations: the starting conditions applicable evidence supports, conservative refusal for active or unknown conditions it does not cover, and in-run observations that request interruption; use prompt 77's rule shape, not its Lichuan masks; test active search and other-limit inputs and stale or missing observations separately from the direction-guard override | 07:37-42, 53-54; 77:134-137 |
+| F7 | Medium, verified defect, high | *Stage 05 acceptance depends on a retirement event delivered by stage 07.* 05 must drop the retained target at every end of its lifetime, one of which is 07's coordinate retirement, while 05 requires 03-04 and 07 requires 05; 05 has no reference-invalidation entry point it can test before 07 wires homing and zero position. Specify and test the reference-generation invalidation in 05, reusing the existing axis primitive where it matches; assign 07 the integration tests that homing and zero position invoke it before possible TX; name it in the 05-to-07 handoff | 05:4, 66-67, 93-95; 07:99-102 |
+| F8 | Medium, verified defect, high | *First-contact questions do not cover all stop words assigned to them.* 04 leaves the held-halt quick stop, release and disable-voltage words unqualified until Q8, which measures the quick stops and halt only, while Q4 names only the unmodified release and disable-voltage words. Q8 changes 0x605A, yet the production setter accepts only 1 or 2, so an initial 0 or other value cannot be restored through it. Name the held-halt release and disable-voltage cases in Q4 or leave them open with their own evidence requirement; before changing 0x605A verify an admitted restoration path for the original value, otherwise record the changing subcase NOT RUN | 04:93-95, 120-121; 14a:45, 49, 59-60 |
+
+### Unresolved questions (reviewer)
+
+1. What excludes or accounts for a second NMT master, an external PDO producer or RS-232 reconfiguration
+   while a MOONS' binding has live motion or SYNC approval? An observed heartbeat or a report that a tool was
+   attached revokes approval only after the owner receives it; the shared-interface analysis must establish
+   whether an outside producer can change the evaluated state before the owner learns of it.
+2. Which tested commits at the executing revision supply the prompt 51 producer, the S4 console session and
+   S13's default deny and effect gate? The documents name the right boundaries, but the historical seam
+   inventory does not establish which APIs, console routes or shared-bus tests are ready at that revision.
+
+### Coverage gaps (reviewer)
+
+The original PDFs, rendered pages, EDS bytes, extracts and `SOURCES.json` were not supplied, so device claims
+and discrepancy resolutions were checked against the review and the prompt text only. The repository index was
+truncated: the owner, CANopenNode and TWAI code, the adapter bitrate table, public headers, verifier, package
+rules, workflows and seam landings were not inspected. The parent AGENTS, the conditional experiment
+prerequisites, live progress rows and main-sequence prompts other than 57 and 77 were not supplied. No MOONS'
+fixture, authorization, traffic, timing, electrical or restoration evidence existed; physical stop, brake,
+watchdog, feedback and homing behavior remain unqualified.

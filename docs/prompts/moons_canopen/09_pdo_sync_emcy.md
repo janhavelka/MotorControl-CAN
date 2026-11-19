@@ -108,14 +108,21 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
      0x1400-0x1403, 0x1600-0x1603, 0x1800-0x1803 or 0x1A00-0x1A03 or an NMT command that can change the
      node's state (not after its reply), on the shared invalidators, on a heartbeat or boot-up reporting an
      NMT state other than the one evaluated (another NMT master) and on a report that an RS-232 tool was
-     attached; only fresh reads, with the NMT state the node then reports, requalify it.
+     attached; only fresh reads, with the NMT state the node then reports, requalify it. The owner is the only
+     NMT master and the only writer to its bound drives unless the application declares otherwise
+     (canopen_shared 02 "Ownership premise"); these revocations detect a breach of that premise only after
+     the owner observes it, and do not make another master or producer safe.
    - Settling: requalification also waits until every NMT command this owner admitted to the node or to node
      0 is settled. While one is queued, in flight or sent without a later state report, its transition can
      still take effect, so the approval stays revoked and reads taken meanwhile do not count. A command is
-     settled when the owner reports it withdrawn before TX, when a heartbeat received after its TX reports the
-     commanded state (5 Operational for Start, 4 Stopped for Stop, 0x7F Pre-operational for Enter
-     Pre-operational; UM21 p13), by the node's boot-up after a reset command (item 2), or when a later admitted
-     command to the node settles. NMT has no reply, so a heartbeat after TX that still reports the old state
+     settled in one of two ways. Retired before TX (the owner's hand-off recheck, canopen_shared 02 S13), it
+     settles only itself. Settled by a state report after its TX (a heartbeat reporting the commanded state:
+     5 Operational for Start, 4 Stopped for Stop, 0x7F Pre-operational for Enter Pre-operational, UM21 p13; or
+     the node's boot-up after a reset command, item 2), it also settles each earlier command to the node whose
+     final TX report the owner received before this command's hand-off, since the reported state follows
+     both. An earlier command still queued, or handed off without that final report (possibly sent), stays
+     unsettled: neither a later command retired before TX nor one settled by a report settles a Start that is
+     still queued or possibly sent. NMT has no reply, so a heartbeat after TX that still reports the old state
      leaves the command unsettled. Requalifying reads are taken after the settling report; with 0x1017 = 0 there
      is no report, and the node stays revoked until a boot-up.
    Until S13 has landed and passed, the MOONS' `sync` route stays Blocked and no MOONS' binding shares an
@@ -152,8 +159,9 @@ valid synchronous RPDO without an admitted producer and an enabled watchdog with
 the schedule; a 0x6060 write, remap, rebind and NMT reset during a running schedule followed by no SYNC TX
 until fresh reads; while a Pre-operational MOONS' node holds a valid synchronous RPDO, a targeted Start
 (approval revoked before it, no later SYNC TX, and reapproval from fresh Pre-operational reads refused while
-the Start is queued and after its TX before a heartbeat reports Operational) and a broadcast Start (zero NMT
-TX); a heartbeat reporting an unevaluated
+the Start is queued and after its TX before a heartbeat reports Operational, also when a later Enter
+Pre-operational to the node is retired before TX while the Start is queued and while it is possibly sent)
+and a broadcast Start (zero NMT TX); a heartbeat reporting an unevaluated
 NMT state during a schedule (no later SYNC TX); node-0 Stop, Enter Pre-operational and both resets on an
 interface with a MOONS' binding (zero NMT TX), also before item 9 lands (the S2-commit default deny); a mixed
 interface on which every UM21 node passes and a declared TSM/TXM-C node (monitored only, not the target) gives

@@ -18,7 +18,10 @@ review s5.6) and is not offered.
    and offers no SCL transport. A Q start requires a caller-supplied, generation-bound program qualification
    that names the binding, the segment number and the caller's evidence of what that segment does. Without it
    every Q operation rejects before TX. The qualification is invalidated by boot-up, rebinding, layout or
-   product change and any report that an RS-232 tool was attached.
+   product change and any report that an RS-232 tool was attached. It also states the segment's ending:
+   **self-ending**, when the caller's evidence shows the segment ends by itself within a stated duration and
+   travel bound, waiting for no input and not looping; otherwise **host-ended**, including a segment that
+   waits for an input (0x200B bit 7, UM21 p67) or whose end the caller cannot bound. Item 9 admits each kind.
 2. Segment number: 0x2007 Q segment, UINT8 RW (UM21 p66). UM21 gives no range; AMP10 p48 says 1-12 for the
    2010 object 0x7007, and UM21 p38 ("0x2-0x14: Q program with 1-12 segment") and p70 ("0x2-0x0E") disagree
    on the watchdog codes that start segments (MO-D18). Admit only segments named by the qualification; keep
@@ -30,9 +33,10 @@ review s5.6) and is not offered.
    whatever the enable result, and the 0x6060 = -1 write (stage 04 item 3), the 0x2007 write and the start are
    sent only while the record is known halted; halt clear in any candidate or an unknown record refuses before
    TX, also when the drive already reads mode -1. Stage 04's halt in mode -1 is 0x011F after an acknowledged
-   0x001F and 0x010F before any start; after a lost start reply or with the record unknown it is refused and
-   the result names the quick stop 0x010B, which stays admitted (stage 04 item 8). UM21 shows 0x011F as the
-   halt word and states nothing more; "runs to completion", "halts
+   0x001F and 0x010F before any start, both only with stage 04 item 9's local-transition declaration. Without
+   it, or after a lost start reply, or with the record unknown, the halt is refused and the result names the
+   quick stop 0x010B as the eligible stop row (stage 04 items 8 and 9), dispatched only as item 9 below states.
+   UM21 shows 0x011F as the halt word and states nothing more; "runs to completion", "halts
    immediately" and "the next start runs it from the beginning" are AMP10 p48 statements for the 2010 layout.
    For UM21 publish "halt commanded" and the observed 0x200B bits; the stopping behavior and the restart point
    stay unknown until fixture evidence (14a Q11). A later 0-to-1 edge of bit 4 may re-execute the program
@@ -65,10 +69,26 @@ review s5.6) and is not offered.
    and neither range has 12 values (MO-D18). Knowing what segment N does says nothing about which action byte
    starts N, so stage 11 refuses every action of 2 and above until vendor or fixture evidence resolves the
    action-to-segment mapping for the firmware **and** item 1's qualification covers that segment.
+9. Interruption, by item 1's ending. A self-ending segment runs as a finite operation, like stage 05's move:
+   its qualified duration bound, with the caller's stop budget, must fit before the operation deadline or
+   preparation refuses; if 0x200B bit 14 has not been seen clear when that bound passes, the result says the
+   qualification was not met and keeps `needsStop` for the application's urgent stop. A host-ended segment
+   is a host-ended run under canopen_shared 02 "Timed runs" (as stage 07 item 6 applies it to homing): a
+   caller-supplied latest interruption time in place of the duration, fitting with the stop budget before
+   the operation deadline or refused at preparation; every later transfer capped at that time, after which
+   the run issues no further work and keeps `needsStop`; and the bullet's stop path. A MOONS' binding has no
+   S3 shape and its route stays unresolved after a lost start reply (`SdoReuse` `NONE`, stage 04 item 10),
+   so no reviewed stop can leave then: preparation refuses a host-ended run before its first changing TX
+   (the enable, the 0x6060 = -1 and 0x2007 writes included) unless the application declares an independent
+   stop for it with the bullet's caller-supplied fallback deadline, named in every result. Every Q result
+   keeps stage 04 item 10's two facts apart: the eligible stop row (item 3's halt where admitted, otherwise
+   the quick stop 0x010B) and whether the owner can dispatch it; after a start-reply timeout it cannot, and
+   the result says "no software stop on the unresolved route" and names the declared stop (host-ended) or
+   stage 04 item 9's application-owned fallback (self-ending).
 
 ## Deliver
 
-Profile `QProgram.h/.cpp` with the program qualification, a Q run context and the user-register descriptors;
+Profile `QProgram.h/.cpp` with the program qualification and its ending, a Q run context and the user-register descriptors;
 `test/moons_canopen_q_program_test.cpp`; MOONS' family console routes for Q start, halt and registers with
 parity tests; coverage rows for Q start, SYNC Q (refused in this set) and registers; Doxygen; report.
 
@@ -77,8 +97,13 @@ parity tests; coverage rows for Q start, SYNC Q (refused in this set) and regist
 Tests cover refusal without qualification, wrong product or layout, segment outside the qualification, item
 3's halt admission on an already enabled binding with the record halt set, clear and unknown, through the
 mode -1 select and with the drive already in mode -1 (zero changing TX unless halt set), mode
-accept timeout, lost start reply without repeat (a halt then refused with zero TX and the quick stop 0x010B
-named and admitted), halt during a run publishing no stop or restart claim, bit 14
+accept timeout, item 9 by ending (a host-ended segment without a declared independent stop refused with zero
+changing TX, one whose interruption time no longer fits with the stop budget refused at preparation, no
+transfer after the interruption time; a self-ending segment whose bit 14 is still set at its bound keeping
+`needsStop`), a possibly executed start whose reply is lost (no repeat; the route timeout under `NONE`; a
+halt then refused with zero TX; the quick stop 0x010B named as the eligible row with no dispatch and zero
+stop frames; `UNKNOWN` and `needsStop` kept; the declared stop named for a host-ended segment and the
+application-owned fallback for a self-ending one), halt during a run publishing no stop or restart claim, bit 14
 observed and missed, blank segment alarm, origin retirement before the start TX (references unusable also
 after a lost start reply), register writes while running refused, and
 mode -2 refused before any TX in every path, including a stale console request. No Q run is reported as a

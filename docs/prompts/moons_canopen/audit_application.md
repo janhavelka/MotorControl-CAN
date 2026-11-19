@@ -317,3 +317,100 @@ The five questions above were decided by the lead and applied:
 
 Checks after these changes: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean
 for this directory.
+
+## Round 5
+
+Audit [`aud-20261119-201350-137e84`](audit.md#round-5) was checked finding by finding against this set's files
+(byte-identical to the audited ones at `570320bb`), canopen_shared 02 at `2d1c70c2` ("Timed runs" with the
+declared stop's fallback deadline, "State transitions" with the every-state stop rule, the S13 hand-off
+recheck), the shared [round 4 themes 9-12](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026),
+prompt 57's stop exemption, prompt 77 rule 6, the pack [review](../../reference/moons_canopen/review.md)
+(homing, limit and interlock entries), `include/MotorControlCAN/Axis.h` (`invalidateAxisReference`) and
+`adapters/owner/CanBusOwner.h` (one frame in flight; no SDO hand-off hook). Rendered UM21 pages opened this
+round: p16, p18 and p23-p30; extract pages used besides: p9, p13, p15, p37, p56, p58, p63 and p67. Only
+this directory's files changed; no pack, shared, main-sequence or source file was edited. MotorControl-RS
+was not consulted: no finding concerns a common motion name.
+
+Dispositions: 8 accepted; none accepted in part, rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 09 item 9 "Settling" bullet (withdrawal before TX settles; "a later admitted command to the node settles" settles earlier ones); shared 02 S13 (hand-off recheck retires a not-yet-sent command, a handed-off one is possibly sent); UM21 p13 (heartbeat states; NMT has no reply); owner header (the adapter keeps one frame in flight) | 09 item 9 "Settling": a command retired before TX (the S13 hand-off recheck) settles only itself. A state report after a command's TX (heartbeat in the commanded state, or boot-up after a reset) also settles each earlier command to the node whose final TX report preceded this command's hand-off; an earlier command still queued, or handed off without a final report, stays unsettled, so no later command, retired or reported, settles a queued or possibly sent Start. 09 acceptance adds a later Enter Pre-operational retired before TX while the Start is queued and while it is possibly sent: no reapproval |
+| F2 | Accepted | Old 04 item 9 "Halt source state" (read first; a local transition between read and TX recorded, not excluded; round 4 lead decision 2); rendered UM21 p16 (transitions 5 and 8 by local signal; Enable operation 0 1 1 1 1 makes transitions 3+4 and 4; 0x010F matches no row from Switch on disabled); p63 (interlock to Switch on disabled); prompt 57 (exemption removes only the identity refusal); the owner's 2026-11-17 direction (settable guards) | 04 item 9: the halt is admitted only with the caller's **local-transition declaration** (no local signal moves the drive from Operation enabled to Switched on or Ready to switch on), per binding and generation, absent by default, settable, named in every admitted halt result. Without it the halt is refused before any TX, its read included, naming the quick stop and the application-owned fallback (a timed run's declared independent stop). Host state changes are checked when the read reply arrives: a release, disable-voltage, quick-stop or fault-reset word of this host in flight at the read or admitted after it refuses the halt before its download. The recheck sits at download admission because the owner offers no SDO hand-off hook. The stop table, Deliver (the declaration) and acceptance (refusal without it, the host-word case, a fake drive leaving Operation enabled after the read with the declaration set) follow. 06 item 4, 07 item 6, 10 item 3 and 14a Q8 name the declaration; without it their stop row is the quick stop. This supersedes round 4 lead decision 2's unconditional read-first halt |
+| F3 | Accepted | Old 04 item 9 quick-stop row ("without waiting for a read", three reviewed states, MO-D34 keeps the S3 review open); shared 02 State transitions (no-read stop only after the every-state review; a stop never refused merely for an unknown halt state); rendered UM21 p16 (every enabling command sets bit 2; fault reset needs a rising bit 7; the "Quick stop" row 0 x x 0 x clears bit 1); p15 figure (transitions 7 and 10 to Switch on disabled); p37, p56 (bit 2 "Quick stop") | 04 item 9: new **quick-stop source state** table from a fresh urgent 0x6041 read requested after the stop request (no earlier or cached report): Operation enabled, Switched on and Ready to switch on send the bit 8 rule's literal (0x000B or 0x010B; unknown halt sends 0x010B, never refused); Quick stop active, Switch on disabled, the fault states and Not ready to switch on send nothing; no reply refuses before any controlword TX with "no software stop established" and the fallback named. The refusing-outcome column applies the same table. The evidence paragraph cites the emitted pattern 0 1 0 1 1 against the p16 enabling and reset rows and states that the 0 x x 0 x row is not the evidence; the halt paragraph no longer cites it. No-read dispatch stays unavailable until the S3 every-state review passes (MO-D34). Acceptance: the read as its own frame before any controlword TX, each row with both literals, no reply, a pre-request report not used |
+| F4 | Accepted | Old 10 items 1 and 3 and acceptance ("quick stop 0x010B named and admitted" after a lost start reply); 04 item 10 (no stop frame after a timeout under `NONE`); shared 02 "Timed runs" at `2d1c70c2` (theme 12: the declared stop's fallback deadline); UM21 p67 (0x200B bit 7 waiting for an input, bit 14 Q running) | 10 item 1: the qualification states the segment's ending, **self-ending** (ends by itself within a stated duration and travel bound, waits for no input, does not loop) or **host-ended**. New 10 item 9: a self-ending segment runs as a finite operation whose bound must fit before the deadline and keeps `needsStop` when bit 14 is not seen clear by then; a host-ended segment is a host-ended run under "Timed runs" (latest interruption time, stop budget, transfer cap, stop path) and is refused before its first changing TX unless the application declares an independent stop with its fallback deadline. Every Q result keeps the eligible stop row apart from owner dispatchability (also added to 04 item 10 for every stop result). 10 item 3 and acceptance: after a lost start reply the quick stop is the eligible row with no dispatch, zero stop frames, `UNKNOWN` and `needsStop` kept and the fallback named; 04 acceptance corrected the same way |
+| F5 | Accepted | Old 05 item 8 (bit 10 high with bit 12 low after post-trigger evidence); rendered UM21 p18 (bit 10 = 1 with halt = 1: "Velocity of axis is 0"); stage 03 item 7 (bits 10-13 decode by the mode in 0x6061); 04 item 10 (interrupted operation) | 05 item 8: only a post-trigger read set showing Operation enabled, 0x6061 = 1 and no fault, for the move that is still the active operation, whose reply arrived before any other controlword write to the binding was admitted, advances completion; from that admission a later sample completes nothing, the move is interrupted with completion `NOT_OBSERVED`, and only item 10's halt-release rule (its sample rule anchored at the release) can complete it afterwards. 05 acceptance: a halted-standstill sample after a valid transition, a poll replying after the halt was admitted, other mode, state or fault |
+| F6 | Accepted | Old 07 items 3, 4 and 6; rendered UM21 p23-p30 (each moving method's start described with its limit inactive; no start drawn on a limit; home-switch methods 3-14 and 19-30 drawn starting on both sides of and on the switch, p24 "dependent on the state of the home switch"; 7-10 and 23-26 reverse at the positive-end limit, 11-14 and 27-30 at the negative-end one; 33 and 34 use no switch); p63 (0x60FD bits 0-2 logical levels); prompt 77 rule 6 (shape only) | 07 item 4, **Initial inputs**: a fresh 0x60FD read within the operation before the first changing TX; both limit bits clear for every moving method; the home bit at either level for 3-14 and 19-30, not consulted for 1, 2, 17, 18, 33, 34; an active limit, no reply or a pre-preparation read refuses before TX, also with prompt 77's direction guard off. Each completion poll reads 0x60FD; a limit the method's figure does not reach (for 1, 2, 17 and 18 the one other than the terminal item 3's qualification names) ends polling with `needsStop` for item 6's stop path; a reached limit is recorded only. 07 acceptance |
+| F7 | Accepted | Old 05 header (requires 03-04), item 10 and acceptance (target dropped "at each end", one being 07 item 12); 07 item 12; `include/MotorControlCAN/Axis.h` `invalidateAxisReference` with `ReferenceLoss::COORDINATES`; canopen_shared 01 (Axis.h reused as is) | 05 item 10: the move record binds its reference generation and the core's `invalidateAxisReference` drops the retained target and refuses later preparation, tested in 05 by a direct call; 05 Deliver names it for the handoff. 07 item 12 retires through it, and 07 acceptance tests that homing, 35, 37 and 0x200C invoke it before the frame is handed to the owner |
+| F8 | Accepted | Old 04 item 8 (0x010B, 0x0106 and 0x0100 unqualified "until 14a Q8"); 14a Q4 (unmodified words only) and Q8 (quick stops and halt; 0x605A changed); 04 item 7 (setter for 1 or 2; 0x605A in no save list, UM21 p45-p46); UM21 p58 (option codes 1 and 2 only) | 14a Q4 runs the release and disable voltage once from a halted predecessor (0x0106, 0x0100 by the bit 8 rule) through the production routes; only those trials qualify them, never Q8's. 04 item 8 assigns the quick stop words to Q8 and 0x0106 and 0x0100 to Q4. 14a Q8: 0x605A changes only through stage 04's setter and only when Q3's snapshot read 1 or 2; with it unread, 0 or another value every changing subcase is NOT RUN. Q8's halt names the fixture's local-transition declaration (F2); the feed-back list adds Q4 into 04 |
+
+### Shared change after the audit (`2d1c70c2`)
+
+Theme 12, the declared independent stop's fallback deadline, is consumed in 10 item 9 (F4) and named in 06
+item 4, which restates the timed-run bullet. 07 item 6 already cites "the bullet's stop path" for homing and
+takes it by citation. Themes 9-11 (`c138e959`) were in the audited contract; F1 and F3 apply themes 11 and 9.
+
+### Unresolved questions
+
+1. **Partly answered by the files.** They assume this owner is the only NMT master and PDO producer on the
+   interface: one owner per physical interface (execution contract "Owner and bus rules"), a shared
+   interface only for families this owner drives with a recorded analysis (canopen_shared 02 "Multi-profile
+   consumers"), and 09 item 9 revoking on a heartbeat or boot-up in an unevaluated state (another master)
+   or a report of an RS-232 tool. Those revocations act only after the owner observes the event, so an
+   outside master or producer is an excluded deployment, not a handled case. For RS-232, UM21 p9 states only
+   the power-up hold (the node stays in Initialization while the tool answers, then boots up, which
+   invalidates the binding); what a tool attached later can change while CAN runs is not stated. Recording
+   the single-master, single-producer premise in the shared-interface analysis is shared-contract scope
+   (decision 5 below).
+2. **Answered by the files.** None exists yet: at this revision the seam table shows S2, S3 and S13 not landed
+   and S4 pending (prompt 64). Stage 09 item 9 and the execution contract "Shared seams" require each stage
+   to recheck the table and Git log before coding and to record the landing commit, tested interface and
+   consumer gate; until S13 passes the MOONS' `sync` route is Blocked, and until S4 lands every console
+   route and parity test is Blocked.
+
+The coverage gaps are the executing stages' intake work, as before.
+
+### Decisions for the lead or owner
+
+1. F2: the local-transition declaration is absent by default, so without it every MOONS' halt is refused and
+   the stop rows of stages 06, 07 and 10 fall back to the quick stop. Confirm the default, or prefer it
+   present by default with the guard pattern's naming.
+2. F3: the quick stop now costs a fresh 0x6041 read before TX, which the caller's stop budget must cover,
+   and refuses with no reply (the declared or application-owned stop then acts). No-read dispatch needs
+   MO-D34 resolved (vendor answer on the p16 table or 14a Q8) and the S3 every-state review.
+3. F4: a self-ending Q segment is admitted without a declared independent stop, like stage 05's finite move,
+   on the caller's qualification of its bound. Confirm, or require the declared stop for every Q run.
+4. F6: both limit bits must be clear at the start of every moving method, including a limit the method
+   would reach anyway; the home bit may read either level only where the figures draw it. Confirm this
+   conservative reading.
+5. Question 1: whether canopen_shared 02's shared-interface analysis should state the single-master,
+   single-producer premise explicitly is a shared-contract change, not made here.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this directory.
+Nothing was compiled; no hardware or port was used.
+
+### Round 5 lead decisions, 19 November 2026
+
+The five questions above were decided by the lead and applied:
+
+1. **Confirmed.** The local-transition declaration is absent by default, so a halt is refused until the
+   caller declares it, and the quick stop is the available stop (04 item 9, unchanged from the F2 row).
+2. **Confirmed.** The quick stop's fresh 0x6041 read is part of the stop and fits inside the caller's stop
+   budget, which covers one read and one controlword download. Recorded in 04 item 9 ("Quick-stop source
+   state") and in the timed-run admission of 06 item 4, which also sizes the halt (the 0x6041 and 0x6061 reads
+   and one write) and which 07 item 6 and 10 item 9 follow.
+3. **Confirmed.** A caller-qualified self-ending Q segment is admitted without a declared independent stop;
+   host-ended segments keep the shared timed-run rule (10 item 9, unchanged from the F4 row).
+4. **Changed.** The homing start check of both limit bits (with the missing or stale 0x60FD read) is prompt
+   77's limit admission guard (rule 2), not a fixed refusal: on by default and settable per axis, and with it
+   off the start is admitted and the result names the guard and any active bit. Until prompt 77's guard lands
+   the check stays on and no second guard is built, as for item 3's direction check. Recorded in 07 item 4
+   and 07 acceptance; this supersedes the fixed refusal in the F6 row above. The in-run limit observation is
+   unchanged.
+5. **Applied by the lead in the shared contract.** The owner is the only NMT master and the only writer to its
+   bound drives unless the application declares otherwise (canopen_shared 02 "Ownership premise"). 09 item 9's
+   revocation bullet cites it and states that its revocations detect a breach only after the owner observes
+   it. This answers reviewer question 1 together with the files cited there.
+
+Checks after these changes: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean
+for this directory.
