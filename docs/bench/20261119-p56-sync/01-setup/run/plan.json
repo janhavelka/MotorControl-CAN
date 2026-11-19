@@ -1,0 +1,119 @@
+{
+  "purpose": "Prompt 56 SYNC rerun setup on image d89fddd4 (240 MHz, 16 KB instruction cache, change C, event wake): heartbeat producer 1000 ms on both nodes (1017 exact 0 -> 1000, no save), then explicit temporary TPDO1 transmission type 1 on each in Pre-operational, then Operational. Both drives released in mode 1; no motion, RPDO or save. Restored afterwards with the tpdo-restore plan.",
+  "authorization": "Prompt 56's assigned SYNC 10 ms rerun (prompt 54 item 2); standing bench authorization in docs/prompts/COMMON.md. Copied from docs/bench/20261116-hil/12-hb-tpdo-setup without its c step (CAN already started).",
+  "steps": [
+    {
+      "send": "h",
+      "expect": "HEARTBEAT experiment admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 1: 1017 exact 0 -> 1000 -> readback (no save)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "j",
+      "expect": "HEARTBEAT experiment admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 2: 1017 exact 0 -> 1000 -> readback (no save)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3,
+      "note": "let both heartbeats arrive"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "note": "NMT state from the first heartbeats after the power cycle"
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "the Pre-operational heartbeat settles the transition"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 type 1, typed write and readback; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "the Pre-operational heartbeat settles the transition"
+    },
+    {
+      "send": "J2,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 type 1, typed write and readback; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "note": "NMT state after the setup"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

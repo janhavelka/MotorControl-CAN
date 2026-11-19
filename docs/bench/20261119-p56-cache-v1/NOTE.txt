@@ -1,0 +1,5 @@
+Prompt 56 cache experiment v1, 2026-11-19. Unmerged image: commit fd9c3eb7 (240 MHz, change C, no wake)
+built from a worktree with two uncommitted edits: examples/s2_bench/sdkconfig.defaults (CONFIG_ESP32S2_DATA_CACHE_0KB=y replaced by CONFIG_ESP32S2_DATA_CACHE_8KB=y (the IDF 5.5.5 default; resolved CONFIG_ESP32S2_DATA_CACHE_SIZE=0x2000), instruction cache 8 KB) and
+the matching S2_MEMORY_SAVINGS entry in scripts/check_firmware.py so that s2_flash.py accepted the build.
+00-upload records the dirty-file hashes. Measurements: 10 s idle, identity reads of nodes 1 and 2, a 60 s
+state-read soak on both nodes; drives released throughout, nothing but reads.

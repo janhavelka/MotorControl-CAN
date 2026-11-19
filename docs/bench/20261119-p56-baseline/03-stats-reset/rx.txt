@@ -1,0 +1,4 @@
+STATS running=1 inhibited=0 rx=0 tx=0 dropped=0 errors=0 flags=00000000 stackFree=13136 t=23531695 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=2000 conRej=0
+TIMING pass t=23531695 window=23526696 passes=23519 workMin=211 workMean=308 workMax=1799 periodMax=2004 h1=23512 h2=7 h3=0 h5=0 hLong=0 queuedHigh=0 activeHigh=0 retainedHigh=0
+TIMING phase cpuMhz=160 turns=3340 pollMean=8324 pollMax=8896 appMean=81872 appMax=126010 promoteMean=3951 promoteMax=3951 evidenceMean=2210 evidenceMax=2210
+TIMING twai txDone=0 submitMin=0 submitMean=0 submitMax=0 replies=0 replyMin=0 replyMean=0 replyMax=0 rxHigh=0

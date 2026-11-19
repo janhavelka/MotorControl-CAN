@@ -1,0 +1,132 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-19T10:58:29.600746+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261119-p56-sync/01-setup/plan.json",
+    "--output",
+    "docs/bench/20261119-p56-sync/01-setup/run",
+    "--tail-s",
+    "2"
+  ],
+  "plan_file": "docs/bench/20261119-p56-sync/01-setup/plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "14edb69fb3c7bdd3ecb6137b11517efb1820793ade00f952ce2da67dadf56651",
+    "s2_evidence.py": "064b0998de43cda74e5f686733128ea70726d3bac44f9c6ac1e3e2f4d9d8cb12"
+  },
+  "host_revision": "d89fddd456da61b7be73907e4baf474edde39880",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "d89fddd456da61b7be73907e4baf474edde39880",
+    "elf": "25868726c579c01315f3e354d491b6b6ddeb864ca55bd74daa09fe6989c0479c",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "389020036",
+    "routes": "16",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "8",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "refused",
+  "steps": [
+    {
+      "step": 1,
+      "note": "node 1: 1017 exact 0 -> 1000 -> readback (no save)",
+      "sent": "h",
+      "tx_hex": "68",
+      "utc": "2026-11-19T10:58:30.026737+00:00",
+      "monotonic": 645952.578,
+      "reply": "HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry",
+      "reply_line": 2,
+      "end": "END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 16,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-19T10:58:30.277540+00:00",
+      "monotonic": 645952.828,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 17,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "node 2: 1017 exact 0 -> 1000 -> readback (no save)",
+      "sent": "j",
+      "tx_hex": "6a",
+      "utc": "2026-11-19T10:58:30.287047+00:00",
+      "monotonic": 645952.843,
+      "reply": "HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry",
+      "reply_line": 18,
+      "end": "END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 32,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-19T10:58:30.536540+00:00",
+      "monotonic": 645953.093,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 33,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "let both heartbeats arrive",
+      "wait_s": 3,
+      "utc": "2026-11-19T10:58:30.546539+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 6,
+      "note": "NMT state from the first heartbeats after the power cycle",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-19T10:58:33.592122+00:00",
+      "monotonic": 645956.14,
+      "reply": "NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=392136130 hi=392136746 p=392136798 dropped=2",
+      "reply_line": 34,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-19T10:58:33.626138+00:00",
+      "monotonic": 645956.187,
+      "reply": "NMT refused; no work",
+      "reply_line": 39,
+      "outcome": "refused"
+    }
+  ],
+  "ended_utc": "2026-11-19T10:58:35.807005+00:00",
+  "bytes": 5358
+}

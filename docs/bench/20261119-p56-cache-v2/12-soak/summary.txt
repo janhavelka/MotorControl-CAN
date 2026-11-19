@@ -1,0 +1,16 @@
+2026-11-19T10:35:47.796117+00:00 trial=1 SOAK_SUM n=48 t=108723469 trial=1795084488 up=59003881 rx=7166 tx=7166 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-19T10:35:47.796117+00:00 trial=1 SOAK_GAP n=49 t=108726805 gapMax=3782 gapWin=3782 ownerGap=4204 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop=0 stack=12656 heap=73284 heapMin=73284 tec=0 rec=0
+2026-11-19T10:35:47.826117+00:00 trial=1 SOAK_CON n=50 t=108728725 lines=50 blocked=158 conRej=561 conHw=496 evFull=0 evLimit=0 evHw=39 anomalies=0 dumps=0 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=0 defDump=0 defBusy=11620 defTx=0 defInh=0 slips=893 sdkDefer=0 uartBytes=18589 queued=328
+2026-11-19T10:35:47.840633+00:00 trial=1 SOAK_NODE n=51 t=108738635 node=1 ops=894 opsOk=894 opsFail=0 refused=0 steps=3576 stepsOk=3576 min=4796 mean=4875 max=5901 retireMax=3782 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-19T10:35:47.841630+00:00 trial=1 SOAK_HIST n=52 t=108760635 node=1 b=0,3569,7,0,0,0,0,0
+2026-11-19T10:35:47.855632+00:00 trial=1 SOAK_OUT n=53 t=108768637 node=1 sdo=3576,0,0,0,0,0,0,0,0,0,0,0 reason=3576,0,0,0,0,0,0,0 read=0,894,0,0,0,0,0,0,0
+2026-11-19T10:35:47.885245+00:00 trial=1 SOAK_LINK n=54 t=108782637 node=1 reuse=marker timeouts=0 aborts=0 markers=0 explicit=0 explicitOk=0 reopened=0 failed=0 other=0 reuseStopped=0 waits=0 noResponse=0 bootUps=0 responded=1 lastResponse=108722020 accepted=0
+2026-11-19T10:35:47.901322+00:00 trial=1 SOAK_ABORT n=55 t=108810639 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-19T10:35:47.926828+00:00 trial=1 SOAK_NODE n=56 t=108822641 node=2 ops=893 opsOk=893 opsFail=0 refused=0 steps=3572 stepsOk=3572 min=4796 mean=4874 max=5901 retireMax=3782 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-19T10:35:47.927829+00:00 trial=1 SOAK_HIST n=57 t=108844633 node=2 b=0,3567,5,0,0,0,0,0
+2026-11-19T10:35:47.937828+00:00 trial=1 SOAK_OUT n=58 t=108850637 node=2 sdo=3572,0,0,0,0,0,0,0,0,0,0,0 reason=3572,0,0,0,0,0,0,0 read=0,893,0,0,0,0,0,0,0
+2026-11-19T10:35:47.958850+00:00 trial=1 SOAK_LINK n=59 t=108866639 node=2 reuse=marker timeouts=0 aborts=0 markers=0 explicit=0 explicitOk=0 reopened=0 failed=0 other=0 reuseStopped=0 waits=0 noResponse=0 bootUps=0 responded=1 lastResponse=108689020 accepted=0
+2026-11-19T10:35:47.968849+00:00 trial=1 SOAK_ABORT n=60 t=108892635 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-19T10:35:47.968849+00:00 trial=1 DIGEST ops=894/893 steps=3576/3572 anomalies=0 stopped=[] gaps=0 malformed=0 unknown=0
+2026-11-19T10:35:47.968849+00:00 trial=1 DIGEST ops=894/893 steps=3576/3572 anomalies=0 stopped=[] gaps=0 malformed=0 unknown=0
+2026-11-19T10:35:47.973076+00:00 trial=1 DIGEST ops=894/893 steps=3576/3572 anomalies=0 stopped=[] gaps=0 malformed=0 unknown=0

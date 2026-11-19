@@ -1,0 +1,7 @@
+2026-11-19T10:34:48.397491+00:00 trial_start {"number": 1, "trial": 1795084488, "remaining_s": 59, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}}
+2026-11-19T10:34:48.662090+00:00 send {"trial": 1795084488, "tx_hex": "70", "text": "p"}
+2026-11-19T10:34:48.694632+00:00 ping {"trial": 1795084488, "base": "fd9c3eb7e0b8581126c5d3eb68f9f63f0033a796", "elf": "9fe3ce732f330c9a86565f4305345d7cd2079bf58fbdcb77133ce7ee9e6f8013", "active": 1, "running": 1, "soak": 0}
+2026-11-19T10:34:48.696633+00:00 send {"trial": 1795084488, "tx_hex": "53313739353038343438382c35392c32302c36302c302c302c332c300a", "text": "S1795084488,59,20,60,0,0,3,0"}
+2026-11-19T10:35:47.973076+00:00 trial_end {"trial": 1795084488, "reason": "end:duration", "bytes": 6063}
+2026-11-19T10:35:47.984073+00:00 verdict {"trial": 1795084488, "verdict": "complete", "errors": 0, "soak": {"trial": 1795084488, "end": "duration", "lines": {"SOAK_BEGIN": 1, "SOAK_TR": 47, "SOAK_SUM": 1, "SOAK_GAP": 1, "SOAK_CON": 1, "SOAK_NODE": 2, "SOAK_HIST": 2, "SOAK_OUT": 2, "SOAK_LINK": 2, "SOAK_ABORT": 2, "SOAK_END": 1}, "anomalies": {}, "nodes_stopped": {}, "lost_lines": 0, "signals": 47, "note_counts": {}}, "sha256": "c9db4ad8cbd332640cdf7004d576812fa33391ee7d09904ea62da8579248f4ff"}
+Evidence: docs\bench\20261119-p56-cache-v2\12-soak

@@ -28,6 +28,8 @@ written; [host throughput report](../reports/2026-11-12_host_throughput.md)), so
 host frames today. [Prompt 56](56_host_throughput.md)'s shorter passes and event wake are a precondition for a 10 ms
 period with more than one axis.
 
+**Measured (2026-11-19, prompt 56).** On the S2 bench with both drives ([records](../bench/20261119-p56-baseline/)), the drive's reply came 0.16 to 0.26 ms after the TX-done callback (mean 0.20 ms). The owner task ran 1000 passes a second only when idle; during a two-node read soak at 160 MHz it ran 298 a second with a mean pass of 2.7 ms, so one SDO read took 5.76 ms from admission to completion and the host sent about 100 frames a second. With a 16 KB instruction cache, 240 MHz, change C and the event wake (image `d89fddd4`), the same soak ran 419 passes a second and a read took 4.22 ms. The limit is the owner pass, which is bound by instruction fetch from flash, not the drive and not the 1 ms tick; see [prompt 56's report](../reports/prompt_56.md).
+
 Lichuan facts from the SYNC audit (backlog M10, M13): the CANopen manuals only claim "multi-axis high-speed bus
 synchronization control" (EN86, ZH86 and ZH57 p3) and describe no SYNC object; the EDS declares `1005` SYNC COB-ID (RW
 U32, default `0x80`) and writable transmission types `1400:02`..`1403:02` and `1800:02`..`1803:02` (U8, default 255, no

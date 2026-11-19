@@ -1,0 +1,7 @@
+{
+  "capture": "docs\\bench\\20261119-p56-wake\\01-ping",
+  "artifact": "docs\\bench\\20261119T1050Z-s2-upload",
+  "verdict": "control",
+  "matches": true,
+  "problems": []
+}

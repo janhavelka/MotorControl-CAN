@@ -1,0 +1,69 @@
+{
+  "purpose": "Prompt 56 SYNC rerun setup, continued after 01 was refused at its first NMT request (sent while the network listing still printed): explicit temporary TPDO1 transmission type 1 on both nodes in Pre-operational, then NMT Start on both. Heartbeats already 1000 ms from 01. No motion, RPDO or save.",
+  "authorization": "Prompt 56's assigned SYNC 10 ms rerun (prompt 54 item 2); standing bench authorization in docs/prompts/COMMON.md. Steps as docs/bench/20261116-hil/13-tpdo1-type1, with each network listing awaited.",
+  "steps": [
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "both Pre-operational (127) with 1000 ms heartbeats after 01"
+    },
+    {
+      "send": "J1,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 type 1, typed write and readback; the record shows the prior type"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "J2,1",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 type 1"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "NMT state after the setup"
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

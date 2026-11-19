@@ -1,0 +1,7 @@
+{
+  "capture": "docs\\bench\\20261119-p56-cache-v1\\01-ping",
+  "artifact": ".build\\p56-v1-upload",
+  "verdict": "control",
+  "matches": true,
+  "problems": []
+}

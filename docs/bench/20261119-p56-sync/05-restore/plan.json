@@ -1,0 +1,78 @@
+{
+  "purpose": "After prompt 56's SYNC rerun: restore TPDO1 transmission type 255 (read before 02) on both nodes in Pre-operational, the state read before the setup. 1017 stays 1000 until the next power cycle (the h/j experiment has no reverse). No motion, RPDO or save.",
+  "authorization": "Prompt 56's assigned SYNC rerun cleanup; standing bench authorization in docs/prompts/COMMON.md. Steps as docs/bench/20261116-hil/plans/tpdo-restore.json without its c and identity binding steps (CAN running, routes configured).",
+  "steps": [
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "Pre-operational heartbeat"
+    },
+    {
+      "send": "J1,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 1 TPDO1 type back to 255, the value read after the power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3,
+      "note": "Pre-operational heartbeat"
+    },
+    {
+      "send": "J2,255",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 15,
+      "note": "node 2 TPDO1 type back to 255, the value read after the power cycle"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "s",
+      "expect": "STATS"
+    }
+  ]
+}

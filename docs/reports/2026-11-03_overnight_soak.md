@@ -31,6 +31,8 @@ Communication only, from 01:17Z to 08:00Z: no enable, motion, NMT, PDO or target
 
 **The run is bound by the drives' reply time, as intended.** Each step waits about 4.9 ms for the drive's reply, and an operation is 3 or 4 steps, so it lasts about 15 to 20 ms. A 20 ms interval across two nodes therefore cannot be met, and about 34 operations a second ran instead of 50. The scheduler records this rather than catching up: `slips` counts ticks already past when the next was set (about 775 a minute), and `defBusy` counts turns a due read waited for the previous one. Neither is a failure.
 
+**Correction (2026-11-19, prompt 56).** The paragraph above says the run was bound by the drives' reply time and that each step waited about 4.9 ms for the reply. Measured on the S2 bench on 2026-11-19 ([records](../bench/20261119-p56-baseline/)), the drive replied 0.16 to 0.26 ms after the TX-done callback; the rest of each step is the host's owner pass (2.7 ms mean during a read soak at 160 MHz), which is bound by instruction fetch from flash. The run was host-bound, not drive-bound. The counts above are unchanged; see [prompt 56's report](prompt_56.md).
+
 ## Status transitions
 
 Only first observations were recorded in every run, and no signal changed after them. At the start of night2 and of stress1, both nodes read:
