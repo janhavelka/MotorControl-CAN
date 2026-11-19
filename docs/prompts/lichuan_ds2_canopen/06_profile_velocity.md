@@ -10,7 +10,10 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    `6061`=3; write `60FF`, `6083`, `6084`; then 0x0006, 0x0007, 0x000F, after which "the motor is enabled and starts
    running". The enable words are the start. `prepareVelocity` therefore admits only a drive that 04's `released`
    predicate accepts on a fresh report, in mode 3 or a mode it selects first through 04's mode select, after write
-   preflight of every word it may send (canopen_shared 02). It owns the targets, the enable words and the run under
+   preflight of every word it may send (canopen_shared 02). It sends the enable words through 04's mode-3
+   embedded-enable rows (04 items 1 and 3): the first word from the fresh released report, each next word only after
+   its predecessor's acknowledgement and a fresh report with the expected projection; otherwise the run ends without
+   0x000F, keeping item 5's stop obligation. It owns the targets, the enable words and the run under
    the one operation deadline; the run's stop is the application's separate urgent stop (item 5).
 2. Target encoding (DS-D10). `60FF` is I32 "maximum speed in velocity mode" default 0 (DS2C p29), U32 0..2147483648 in
    the mode table (DS2C p12), a signed range with type U32 in DS2OP p6, IBL60 p13 and ISL80 p14, and I32 default 120
@@ -41,9 +44,12 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    stop path (same bullet): after a lost start reply the route stays unresolved (S10 `NONE`), so admission also
    needs a stop that can still leave then, either the binding's S3 shape opted in by 04 item 7 under `DS-DEC-3` or an
    independent stop the application declares for the run (its own enable, STO or power path), named in the
-   preparation's result. Without one the run is refused before its first changing TX, mode select included. Until
-   `DS-DEC-3` is accepted `admitBestEffortStop` returns `INVALID` with no TX, so every DS2 run needs the declared
-   independent stop. A dispatched stop is never standstill evidence. `needsStop`
+   preparation's result. The stop path must also hold on a resolved route whose report is stale, missing or alarmed
+   at stop due (same bullet), where 04's ordinary `QUICK_STOP` rows refuse: 04 item 1's every-state stop covers it
+   once `DS-DEC-3` is accepted, otherwise the declared independent stop is needed. Without a path for both route
+   states the run is refused before its first changing TX, mode select included. Until `DS-DEC-3` is accepted
+   `admitBestEffortStop` returns `INVALID` with no TX and the every-state stop is unavailable, so every DS2 run needs
+   the declared independent stop. A dispatched stop is never standstill evidence. `needsStop`
    survives cancellation, failure, recovery, a lost start reply and acknowledgement-only completion while any enable
    word may have left; the result says whether a stop was never or possibly transmitted and never reports success
    while the drive may still run. Changing `60FF` while enabled is undocumented: a zero target is neither a stop nor
@@ -73,7 +79,9 @@ map, Doxygen, CHANGELOG; the `RATE_BASIS` core review recorded in the report (la
 
 ## Acceptance
 
-Tests cover refusal from every report 04's `released` predicate rejects, the target-then-enable order, the range edges
+Tests cover refusal from every report 04's `released` predicate rejects, the target-then-enable order, exact enable
+traffic from every admitted starting report, no 0x000F after a missing, stale, alarmed or unexpected intermediate
+report or an uncertain intermediate word (stop obligation kept), the range edges
 2147483647 and 2147483648 and negative targets rejected without a declaration (zero changing TX), undeclared units and
 ramps, a lost enable word with retained stop obligation, and the timed-run cases of canopen_shared 02 through the real
 owner: a duration that no longer fits with the stop budget (refused at preparation), setup delay reaching stop due (no
@@ -83,7 +91,10 @@ work, the separate stop still composed) and a queue-pressured stop. Also a run r
 has no mode-3 row, a run with valid `DS-DEC-2` rows but neither stop path refused with
 zero changing TX (mode select included), and a lost start reply on an unresolved route for each admitted path: with a
 declared independent stop the result names it and no best-effort TX occurs before 04's opt-in; after the opt-in
-`admitBestEffortStop` sends exactly one word; `needsStop` is kept and no result claims standstill. Also
+`admitBestEffortStop` sends exactly one word; `needsStop` is kept and no result claims standstill. An acknowledged
+start followed at stop due by a stale or missing report and by a fresh alarmed report on a resolved route: before
+`DS-DEC-3`'s acceptance `QUICK_STOP` refuses with no TX and the result names the declared independent stop; after it
+`QUICK_STOP` sends 0x010B with the state recorded unknown; `needsStop` is kept and dispatch infers no standstill. Also
 a lost stop, a priority stop from another producer, deadline cutoff `now >= deadlineUs`, cancel that is not a stop and
 no repeat of any start. Tests drive the production sequence through the owner and fake server. Quick and full
 verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED; never substitute an unbounded

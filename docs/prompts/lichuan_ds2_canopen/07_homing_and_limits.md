@@ -41,7 +41,8 @@ prose.
    Assignments are P-parameters (factory DI4 = P-OT 14, DI5 = N-OT 15, DI6 = home switch 31, logic 0; DS2C p9) and
    unreachable, so the caller declares wiring and assignments per binding; a method needing a signal the declaration
    lacks is refused. An unconnected terminal still has its function. Z-pulse methods (1..14, 33, 34) need a caller
-   declaration that the encoder provides an index; the magnetic encoders' index is undocumented.
+   declaration that the encoder provides an index; the magnetic encoders' index is undocumented. A declared index or
+   switch only selects the method; it bounds no physical search, which needs 12a item 4's homing bound.
 7. Software limits (DS-D15). `607D` prints both rows as sub-index 01, positive first, with defaults 2147483647 and
    2147483648 (DS2C p28); DS2EDS, IBLEDS and ISLEDS have sub 1 MIN and sub 2 MAX. Read both raw where the scope's
    EDS sources `:02`; MINI (manual rows both `:01`, no EDS) reads `:01` only. Write neither until a fixture read of
@@ -60,7 +61,9 @@ prose.
    controlword use"), so `prepareHome` refuses before its first changing TX unless `DS-DEC-2` has a mode-6 row for an
    acknowledged and an uncertain 0x001F (both halt classes, 04 item 1) and a stop can still leave after a lost trigger
    reply on an unresolved route: the binding's S3 shape opted in under `DS-DEC-3` (04 item 7) or an
-   application-declared independent stop named in the result. Bit 4 falling (word 0x000F, DS2C p13 "interrupt homing")
+   application-declared independent stop named in the result, and on a resolved route whose report is stale, missing
+   or alarmed at the interruption time: 04 item 1's every-state stop once `DS-DEC-3` is accepted, otherwise the
+   declared stop (06 item 5). Bit 4 falling (word 0x000F, DS2C p13 "interrupt homing")
    is a separate native interrupt: offer it as an acknowledged-only homing interrupt, never as a stop and never as
    either stop path above, because its effect on motion is undocumented. It is admitted only in mode 6 when the latest
    acknowledged word is this binding's 0x001F; its acknowledged 0x000F is the predecessor of a later trigger (04 item
@@ -82,10 +85,11 @@ write or trigger without the predecessor, outside mode 6 or on a stale report, h
 without a mode-6 `DS-DEC-2` row or without either stop path, the timed-run cases of canopen_shared 02 with the
 latest interruption time in the duration's place (an interruption time that no longer fits with the stop budget,
 an observation in flight near it, service resuming after it), a lost trigger reply with each admitted stop path (the
-interrupt never counted as one), `6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
+interrupt never counted as one), a stale, missing or alarmed report at the interruption time on a resolved route
+(06's cases), `6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
 without `DS-DEC-1`, timeout with a stop obligation and no re-trigger, interruption by bit 4 falling and by an explicit stop, reference publication only after fresh evidence,
 a trigger refused with no TX without 04's predecessor (an already-enabled attachment, a second homing before the
 interrupt, an uncertain trigger, a stop, a reset or a rebind) and admitted after the interrupt's acknowledged 0x000F,
 and `607D` writes refused. Quick and full verification and required CI on the exact final pushed commit pass.
-Physical homing needs a DS2 fixture with real switches or a qualified index; hardware NOT TESTED. Commit, push and
-hand off.
+Physical homing needs a DS2 fixture with real switches or a qualified index and 12a item 4's homing bound, which holds
+if the index or a switch never acts; hardware NOT TESTED. Commit, push and hand off.

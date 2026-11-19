@@ -8,20 +8,29 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
 
 1. Source-state table (canopen_shared 02 "Operation admission", state transitions), delivered before any other item
    exposes a route. Rows are keyed by dialect, the fresh report (bits 0..2 pattern, the dialect's alarm bit, `6061`
-   mode, freshness) and the requested intent (mode select, enable, each release action, `QUICK_STOP`); each row gives
-   the first permitted word, an already-satisfied result with no TX, or a refusal. Only the documented projections
-   000, 001, 011 and 111 (DS2C p12) can admit anything; any other pattern, a set alarm bit, an unknown mode and a
-   stale or missing report refuse. No CiA 402 state is named or decoded. The table also defines the `released` and
+   mode, freshness) and the requested intent (mode select, enable, each release action, `QUICK_STOP`, and the
+   embedded enable of 06 and 06b in modes 3 and 4, reachable only from those operations and never a standalone route,
+   item 3); each row gives the first permitted word, an already-satisfied result with no TX, or a refusal. Only the
+   documented projections 000, 001, 011 and 111 (DS2C p12, IBL60 p13) can admit anything; any other pattern, a set
+   alarm bit, an unknown mode and a stale or missing report refuse, except the every-state stop below. No CiA 402
+   state is named or decoded. The table also defines the `released` and
    `enabled` predicates; 05, 06, 06b, 07 and 08 consume them and test no low bits of their own. Stop rows are also
    keyed by halt class (canopen_shared 02 "Operation admission", state transitions). `6040` cannot be read (item 10),
-   so the class comes from history only; that DS2's words otherwise never set bit 8 is not evidence. Clear: item 10's
-   history holds an acknowledged whole-word `6040:00` download of this binding under one continuous reservation and
-   the current generations, so every later DS2 word, uncertain ones included, leaves bit 8 clear; boot-up, NMT reset,
-   an admitted NMT command, rebind, bus-off, owner invalidation and the end of the reservation end it, a trigger or
-   stop does not. Unknown: every other case (attachment without history, an already-enabled drive, first contact). A
-   clear row sends its reviewed word; an unknown row sends the same word with bit 8 set (0x010B for `QUICK_STOP`) and
-   the result records the unknown halt state, because setting the CiA 402 halt bit cannot start motion. A stop is
-   never refused merely because the halt state is unknown. DS2 evidence gives bit 8 no other meaning: the controlword
+   so the class comes from the words actually sent (same bullet); that DS2's words otherwise never set bit 8 is not
+   evidence. The history records every possibly sent `6040:00` word of the binding in the reservation, item 7's S3
+   attempt included, apart from item 10's trigger predecessor. Clear: an acknowledged whole-word `6040:00` download
+   with bit 8 clear under one continuous reservation and the current generations, and no later possibly sent word
+   with bit 8 set; a later bit-8-clear word, uncertain or not, keeps it. Any possibly sent bit-8-set word (an
+   unknown-class 0x010B or the S3 attempt, acknowledged or not) ends it, as do boot-up, NMT reset, an admitted NMT
+   command, rebind, bus-off, owner invalidation and the end of the reservation; an acknowledged 0x010B never
+   establishes it. Unknown: every other case (attachment without history, an already-enabled drive, first contact,
+   after a bit-8-set word). A clear row sends its reviewed word; an unknown row sends the same word with bit 8 set
+   (0x010B for `QUICK_STOP`) and the result records the unknown halt state, because setting the CiA 402 halt bit
+   cannot start motion. A stop is never refused merely because the halt state is unknown. Every-state stop (same
+   bullet): once `DS-DEC-3` (item 7) is accepted, its reviewed word 0x010B is the `QUICK_STOP` row for a resolved
+   route whose report is stale, missing, alarmed, an undocumented pattern or an unknown mode, sent without a fresh
+   report and recording the drive and halt states as unknown; until then those reports refuse `QUICK_STOP` and only
+   the application's independent stop remains. DS2 evidence gives bit 8 no other meaning: the controlword
    tables describe only bits 4 to 6 and the 0/6/7/15 example (DS2C p11-13; the same tables in MINI p13/p15, IBL60
    p12/p14 and ISL60 p15/p16), and `605D` "halt control" names only the drive's reaction to the controlword halt
    command, 0 normal stop or 1 quick stop (DS2C p27, MINI p29, IBL60 p28, IBL80 p28, ISL60 p31, ISL80 p30; DS2EDS
@@ -35,9 +44,13 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    caller-supplied host spacing; the manual's "about 10 ms" (DS2C p11-13) is an example, not a minimum. The table row
    chooses the first word; a fresh 111 in mode 1 or 6 returns already enabled with no TX, never a shutdown first.
    That result carries no trigger predecessor (item 10).
-   Each word's documented bits 0..2 (001, 011, 111; DS2C p12) are checked on one fresh state read and recorded.
-   Admission: fresh `6061` is 1 or 6. In modes 3 and 4 enabling starts motion, so it belongs to 06 and 06b and is
-   refused here.
+   Each word's documented bits 0..2 (001, 011, 111; DS2C p12, IBL60 p13) are checked on one fresh state read and
+   recorded; the next word is admitted only after the previous word's acknowledgement and a report showing that
+   word's projection with the alarm bit clear and `6061` unchanged. An acknowledged word whose report is missing,
+   stale, alarmed or another pattern, and an uncertain word, end the operation with their evidence and no further
+   word, never a repeat. Admission: fresh `6061` is 1 or 6. In modes 3 and 4 enabling starts motion, so it belongs to
+   06 and 06b and is refused here. Their embedded-enable rows (item 1) use the same first-word choice and per-word
+   rule, the final 0x000F being the start, so an unexpected intermediate report never yields it.
    Bit 4 stays 0 in all three words, so no position or homing trigger is issued. Whether the factory `P02-00`
    default (1 in DS2C p15 and MINI p17, 9 in IBL60 p16; DS-D29) accepts bus control is unknown: an enable that does
    not reach 111 ends with its evidence, without retry, and 12a asks the question.
@@ -73,7 +86,8 @@ MULTIDRIVE rows 30, 31, 32 and 57 apply. Use strong independent review for the s
    generation, not the history, so the attempt cannot know the halt class and the shape is the unknown-class word
    `6040:00=010B` (bit 8 set, which cannot start motion), its result recording the unknown halt state. No DS2 source
    documents the word's reactions, so the review rests on the principles pack's reading that a Quick stop command
-   names no enabling transition (CP-D10) and says so; unless the lead or owner accepts it, DS2 keeps the default deny.
+   names no enabling transition (CP-D10) and says so; unless the lead or owner accepts it, DS2 keeps the default deny
+   and item 1's every-state stop stays unavailable.
    A fake server accepting the word is no evidence. Once opted in, the attempt is eligible only on an unresolved route
    of the exact current binding and channel generation and follows S3's unchanged rules (at most one transmission,
    never success, never a qualified reply, `needsStop` kept); Lichuan C keeps DEC-2. No shape, another family's shape
@@ -110,16 +124,22 @@ DS2 sections; coverage, operation map, Doxygen, CHANGELOG and the seam table.
 ## Acceptance
 
 Tests assert the first emitted frame, or none, for every row of the source-state table and both dialects, including an
-already enabled drive (no TX), undocumented patterns, a set alarm bit and a stale report. They also cover mode select
+already enabled drive (no TX), undocumented patterns, a set alarm bit and a stale report, and the embedded-enable rows
+of modes 3 and 4 through a test caller (no standalone route): after each acknowledged intermediate word a missing,
+stale, alarmed or unexpected report and an uncertain word give no further word. They also cover mode select
 refused unless released, mode mismatch in `6061`, enable refused in modes 3 and 4, each enable word lost or aborted,
 an enable that never shows 111, release refused without stationary evidence, stop while queued, in flight and waiting,
 a stop on an unresolved route that never succeeds, both dialects' completion evidence, a completion bit already high,
 UNSUPPORTED fault clear and halt with no TX, and no replay after a lost reply. The trigger predecessor exists after an
 acknowledged enable and is absent, with exact owner traffic, after an already-enabled attachment, a trigger, a stop,
 an uncertain or aborted word, an NMT command, boot-up and rebind. Halt-class cases through the real owner:
-`QUICK_STOP` sends 0x000B after an acknowledged word of the current reservation, also after a later uncertain word,
-and 0x010B with the unknown halt state recorded on an attachment without trustworthy history (an already-enabled
-drive, first contact, after boot-up, an NMT command and rebind); no stop is refused for an unknown halt state. The
+`QUICK_STOP` sends 0x000B after an acknowledged bit-8-clear word of the current reservation, also after a later
+uncertain bit-8-clear word, and 0x010B with the unknown halt state recorded on an attachment without trustworthy
+history (an already-enabled drive, first contact, after boot-up, an NMT command and rebind); two successive stops from
+an unknown attachment both send 0x010B, and after a prior clear word a possibly sent S3 0x010B or an acknowledged or
+uncertain 0x010B makes the next stop send 0x010B; no stop is refused for an unknown halt state. A stale, missing or
+alarmed report refuses `QUICK_STOP` with no TX before `DS-DEC-3`'s acceptance and sends 0x010B with the state
+recorded unknown after it. The
 best-effort stop returns `INVALID` with no TX before `DS-DEC-3`'s opt-in and sends one 0x010B word after it; a fake
 server accepting either word clears no gate. Lichuan C stop shapes and tests are unchanged. Quick and full verification and required CI on the exact final pushed commit pass.
 Hardware NOT TESTED. Commit, push and hand off before any motion stage exposes a route.

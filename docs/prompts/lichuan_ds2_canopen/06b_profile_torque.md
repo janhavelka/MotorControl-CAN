@@ -15,8 +15,9 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
    `6071` target torque, `6072` maximum torque, `6087` torque slope and the model's speed-limit object; then 0x0006,
    0x0007, 0x000F, after which the motor runs. As in 06, the enable words are the start and the operation owns the
    targets, enable and run under the one operation deadline, with the separate urgent stop of 06 item 5, admitted only
-   from a drive that 04's `released` predicate accepts. Write preflight (canopen_shared 02) covers every word of the
-   sequence, mode select included: if any row is withheld or unresolved for the bound model, the whole operation is
+   from a drive that 04's `released` predicate accepts; the enable words follow 04's mode-4 embedded-enable rows as in
+   06 item 1, so no unexpected intermediate report yields 0x000F. Write preflight (canopen_shared 02) covers every
+   word of the sequence, mode select included: if any row is withheld or unresolved for the bound model, the whole operation is
    refused with nothing sent.
 3. Units (DS-D12, DS-D13). `6071`, `6072` and `6077` are 0.1 % of a reference no source states (DS2C p27-28; `P00-12`
    rated torque is unreachable). `6087` is 0.1 % with no time base. Keep native integers; no newton-metre, current
@@ -50,7 +51,9 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
    before its first changing TX, mode select included, unless `DS-DEC-2` has a mode-4 row for every state the run may
    leave (both halt classes, 04 item 1) and one of 06 item 5's stop paths exists for an unresolved route after a lost
    start reply: the binding's S3 shape opted in under `DS-DEC-3` or an application-declared independent stop named in
-   the result (canopen_shared 02 timed runs). Torque on a free shaft accelerates until the speed limit acts, and
+   the result (canopen_shared 02 timed runs), and on a resolved route whose report is stale, missing or alarmed at
+   stop due: 04 item 1's every-state stop once `DS-DEC-3` is accepted, otherwise the declared stop. Torque on a free
+   shaft accelerates until the speed limit acts, and
    whether either limit object actually clamps is unqualified: the API documentation states this, and 12a qualifies it
    before any physical claim. Lost enable or stop words keep `UNKNOWN` execution and a stop obligation; nothing is
    repeated; local cancel is not a stop; host loss produces no documented drive action (DS-D32).
@@ -80,9 +83,11 @@ Tests cover each model's speed-limit object: zero changing TX (mode select inclu
 otherwise admissible outcome; the exact four-byte `607F` download for ISL; `2406h` refused outside IBL; CONTRADICTED
 (another group's pair and 0x1000/0x0001) and no current outcome refusing the whole operation;
 range and sign checks for every field, missing caller inputs rejected before TX, target-then-enable order,
+06's embedded-enable cases in mode 4 (no 0x000F after an unexpected intermediate report or an uncertain word),
 the timed-run cases of 06, a run refused with zero TX while `DS-DEC-2` has no mode-4 row, valid mode-4 rows with
 neither stop path refused with zero changing TX (mode select included), a lost start reply with each admitted stop
-path (06's cases), lost enable and lost stop, a priority stop, deadline cutoff and no replay. Lichuan C behavior and
+path and a stale, missing or alarmed report at stop due on a resolved route (06's cases), lost enable and lost stop,
+a priority stop, deadline cutoff and no replay. Lichuan C behavior and
 the common headers' meanings are
 unchanged. Quick and full verification and required CI on the exact
 final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off.

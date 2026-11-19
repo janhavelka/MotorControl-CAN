@@ -33,9 +33,11 @@ application/console changes separately, each tested.
    tests and DEC-2 behavior stay unchanged. If another family landed S2 and the deny, add these DS2 cases to its tests.
    The same commit carries S13's default deny if no family landed it: through the S2 lookup prompt 51's producer
    refuses `armSync` and `admitSync`, and the owner refuses node-0 NMT, on every interface with a DS2 binding, and
-   admitting a DS2 binding onto an owner with a running schedule revokes the schedule first. Test a DS2-only and a
-   mixed interface (zero SYNC and node-0 NMT TX, also when the application arms the producer directly) and admission
-   onto an armed schedule (no later SYNC TX); Lichuan-only interfaces keep their behavior. If another family landed
+   admitting a DS2 binding onto an owner with a running schedule revokes the schedule first and retires a node-0 NMT
+   command not yet handed to the controller (S13's hand-off recheck; one already handed off is reported as possibly
+   sent). Test a DS2-only and a mixed interface (zero SYNC and node-0 NMT TX, also when the application arms the
+   producer directly), admission onto an armed schedule (no later SYNC TX) and onto an admitted, unsent node-0
+   command (zero NMT TX); Lichuan-only interfaces keep their behavior. If another family landed
    it, add these DS2 cases; if S2 landed without it, no DS2 binding is admitted until it lands.
 4. Probe. `prepareProbe` performs one explicit upload of `1000:00` through the real owner and `SdoClient`. It proves a
    responding CANopen server only, never DS2, model or firmware. Before it runs, this stage adds the probe's

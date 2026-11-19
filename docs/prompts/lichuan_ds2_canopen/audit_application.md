@@ -234,3 +234,70 @@ where they differ.
 
 Checks after these changes: `python scripts/check_promptset.py` reports no error in this directory; `git diff
 --check` is clean for it. Nothing was compiled; no hardware or port was used.
+
+## Round 4, 19 November 2026
+
+Each finding of [audit `aud-20261119-195034-e90304`](audit.md#round-4) was checked against this directory at
+`f864cbb9` (unchanged at `c138e959`), the [reference review](../../reference/lichuan_ds2_canopen/review.md), the rendered
+DS2C p12 and IBL60 p13 pages, `adapters/owner/CanBusOwner.h` (`admitNmt`) and the
+[principles pack](../../reference/canopen_principles/principles.md). The lead's shared rules of `c138e959` were
+consumed by citation, not restated
+([round 4](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026)
+themes 9 to 11): canopen_shared 02 "State transitions" (halt evidence follows the words sent; a stop word reviewed
+from every reachable state is admitted without a fresh report), "Timed runs" (the stop path also holds on a resolved
+route with a stale, missing or alarmed report) and the S13 bullet (NMT admission rechecked at hand-off). Only files of
+this directory changed; nothing was compiled and no hardware or port was used.
+
+Dispositions: 7 accepted (F1-F6 high, F7 medium), none accepted in part, rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted, by citation | Old 04 item 1 (clear class: any acknowledged whole-word download, "a trigger or stop does not" end it) against canopen_shared 02 State transitions at `c138e959` (only an acknowledged bit-8-clear word with no later possibly sent bit-8-set word makes the halt state clear); 04 item 7 (the S3 shape is 0x010B); execution contract foreign-server sentence | 04 item 1: the class follows the words sent; the history records every possibly sent `6040:00` word of the reservation, the S3 attempt included, apart from item 10's trigger predecessor; clear needs an acknowledged bit-8-clear word with no later possibly sent bit-8-set word; any possibly sent 0x010B ends it and an acknowledged 0x010B never establishes it. 04 acceptance: two successive stops from an unknown attachment both send 0x010B; after a clear word a possibly sent S3 0x010B or an acknowledged or uncertain 0x010B makes the next stop 0x010B. Execution contract foreign-server sentence restates the class by reference. README 04 row |
+| F2 | Accepted, by citation | Old 04 item 1 (stale, missing or alarmed reports refuse every row, stops included); 04 item 7 (S3 eligible only on an unresolved route); old 06 item 5, 06b item 6 and 07 item 10 (stop path only for the unresolved route); canopen_shared 02 Timed runs and State transitions at `c138e959` | 04 item 1: every-state stop, once `DS-DEC-3` is accepted its reviewed 0x010B is the `QUICK_STOP` row for a resolved route with a stale, missing, alarmed, undocumented or unknown-mode report, sent without a fresh report and recording the states unknown; until then those reports refuse and only the independent stop remains; item 7 notes the dependency. 06 item 5: the stop path holds for both route states (S3 opt-in and every-state stop after `DS-DEC-3`, otherwise the declared independent stop); still, until `DS-DEC-3` is accepted every DS2 run needs the declared stop. 06b item 6 and 07 item 10 consume it. Acceptance in 04, 06, 06b and 07: an acknowledged start followed at stop due by a stale or missing report and by a fresh alarmed report on a resolved route, before and after `DS-DEC-3`, `needsStop` kept, no standstill from dispatch. README 04 and 06 rows |
+| F3 | Accepted | Rendered DS2C p12 (words 0/6/7/15 give bits 0..2 000/001/011/111; velocity steps "write 6, 7, 15 at about 10 ms intervals, then the motor is enabled and starts running", no intermediate check) and IBL60 p13 (same projections, alarm on bit 3, same steps); old 04 item 3 ("each word's bits checked on one fresh state read and recorded", not stated as a gate); old 06 item 1 and 06b item 2 (6, 7, 15 after the initial `released` check only) | 04 item 1: embedded-enable intents for modes 3 and 4, reachable only from 06 and 06b. 04 item 3: the next enable word only after the previous word's acknowledgement and a fresh report with its projection, alarm clear and `6061` unchanged; a missing, stale, alarmed or unexpected report, or an uncertain word, ends the operation with no further word; the embedded rows use the same rule, so no unexpected intermediate report yields the start word. 06 item 1 and 06b item 2 consume the rows; acceptance in 04, 06 and 06b (exact traffic per admitted starting report, no 0x000F after an unexpected report or uncertain word, stop obligation kept). Standalone enable in modes 3 and 4 stays refused |
+| F4 | Accepted, by citation | `CanBusOwner::admitNmt` (`adapters/owner/CanBusOwner.h`: "No TX occurs during admission"; `NmtTransfer` in `adapters/canopennode/Nmt.h` carries a `queueTimeoutUs` staging interval), so admission and TX are separate service steps; old 02b item 3 and 09 item 5 (admission-time checks only); canopen_shared 02 S13 at `c138e959` | 09 item 5: the row's conditions and the identity outcome are rechecked at hand-off; a rebind, a conflicting operation (an in-flight `1017` or settings write included) or stale evidence (the `released` report or the bootstrap row's Stopped heartbeat) retires an unsent command; one handed off is reported possibly sent; DS2 supplies conditions to the shared recheck, no local queue. 02b item 3: admitting a DS2 binding also retires an unsent node-0 command. Execution contract NMT paragraph cites the recheck. Acceptance in 09 (both orderings through the real owner) and 02b (admission onto an unsent node-0 command). README 09 row |
+| F5 | Accepted | Old 11 item 2 (isolated capture, then a read-back on the shared interface after checking routes against the isolated records; a later mismatch refuses further TX); 09 item 4 (an RPDO carrying `6040` or `60FF` is a motion command); review DS-D06 (PDO COB-IDs RO in the manual, RW in the EDS) and DS-D32 (no NMT effect documented); principles pack section 3 (PDOs only in Operational under CiA 301) | 11 item 2: the isolated record carries into the shared topology, before any shared-bus frame, only by evidence that every node's session and configuration stayed unchanged from capture to attachment (a node moved to another interface is a new binding and breaks it) or by a separately assigned, reviewed quiescent attachment procedure recorded in the same-domain analysis with model-scoped evidence (CiA 301's Pre-operational rule alone does not establish it for DS2); otherwise the nodes stay isolated and nothing is sent; a later boot-up, reset, rebind or configuration change needs a carry-over path again. 11 acceptance: a route change between capture and attachment gives zero frames on the shared interface, read-back included. README 11 row |
+| F6 | Accepted | Old 12a item 4 (homing bound "travel between real switches or to a declared index") and Q10 (the Z pulse is one of the questions); 07 item 6 (the index is a caller declaration; the magnetic encoders' index is undocumented, review model codes); review homing methods (33/34 search the next Z pulse) | 12a item 4: a declared index or wired switch selects the method and is never the protective bound; the bound holds if the index never appears, a switch is not detected or the drive does not stop on either, also for any switch under test; otherwise NOT RUN. Q10: homing under item 4's bound; whether the drive stops on the index or a switch is a question. 07 item 6 and acceptance: the declaration selects the method only; physical homing needs 12a's bound |
+| F7 | Accepted | Old 10 item 9 (restore records keyed by profile and node); canopen_shared 02 multi-profile bullet (separate interfaces by default, reservations by bus and address); 08 item 1 (settings records); prompt 57 Save parameters and Identity policy (firmware difference reported, not refused) | 10 item 9: records keyed by interface, node, resolved profile, declared model and encoder suffix, and the binding, session and configuration generations and identity outcome of their prior reads; an ordinary restore refuses before TX on any difference or stale generation; a restore across a restart or rebind (12a Q12) is a separate explicit intent naming the record, revalidated first (same keys, a fresh admitting outcome, both firmware identities reported, a fresh read of each object). 08 item 1 cites the keys. 10 acceptance: same node and profile on another interface, rebind, restart and a partially applied 08 write. README 10 row |
+
+### Reviewer's unresolved questions
+
+1. **Answered by the files at `c138e959`, unchanged since round 3.** The canopen_shared README table records no seam
+   claimed or landed (S1-S3, S6-S8 and S10-S14 not landed, claimed by none; S4, S5 and S9 pending with prompts 64,
+   65 and 63). `PROGRESS.md` lists prompts 57, 63, 64, 65 and 77 as Pending and 51 as Partial, so prompt 57's shared
+   identity comparison exists only as a specification. Stage 01 re-records the table at the execution HEAD; the
+   stages that consume S4, S5 or full S13 keep those items BLOCKED.
+2. **Answered in part by the files; the rest needs a fixture.** The only documented stop is the position-mode 15 to
+   11 "emergency stop" (DS2C p11, MINI p13, IBL60 p12, ISL60 p15); `605A` is absent and `6085` has no stated link
+   (04 item 5). Every other stop row is a `DS-DEC-2` project decision marked for the owner's review, and the S3 and
+   every-state reviews rest on the principles pack's CP-D10 reading until the lead or owner accepts `DS-DEC-3`. After
+   a partial enable (0x0006 or 0x0007 acknowledged, no 0x000F) the new 04 item 3 rule sends nothing further;
+   whether modes 3 and 4 can move before 0x000F is undocumented (DS2C p12 says the motor runs after 6, 7, 15), so
+   the stop obligation stays. Host tests establish admission and traffic only. The reaction and standstill are
+   fixture evidence for one model and firmware: 12a Q9 for a position-mode stop during a bounded move; velocity,
+   torque, halt and homing stops need their own bounded plans under 12a item 4.
+
+### Open for the lead or owner
+
+- **Mixed-bus carry-over (F5).** A node moved from its own interface is a new binding, so in practice only a reviewed
+  quiescent attachment procedure lets isolated identifier evidence carry. None exists, so DS2 mixed-interface
+  operation stays blocked beyond S13 until one is defined. The rule applies to any family that captures identifiers
+  in isolation; canopen_shared 02 "Multi-profile consumers" may want one statement.
+- **Per-word enable gate (F3).** 04 item 3 now gates every enable word, modes 1 and 6 included, on the previous word's
+  expected fresh report; this states the existing "checked on one fresh state read" sentence as a gate. A shared
+  statement under "State transitions" would make it uniform.
+- **Restore after restart (F7).** The planned restore reports a firmware difference instead of refusing it, following
+  prompt 57's identity policy; the lead may prefer refusal for restores.
+- **`DS-DEC-3`.** Both the S3 opt-in and the every-state stop rest on it; while it is not accepted every DS2 velocity,
+  torque and homing run needs an application-declared independent stop (unchanged).
+
+Checks: `python scripts/check_promptset.py` reports no error in this directory; `git diff --check` is clean for it.
+Nothing was compiled; no hardware or port was used.
+
+### Round 4 lead decisions
+
+1. Mixed bus (F5): DS2 mixed-interface work stays blocked until a reviewed quiet attachment procedure or an
+   evidenced unchanged session exists. No shared rule is added now; the gap is recorded as an open item for
+   the first family that needs a shared attachment procedure.
+2. Enable gate (F3): the per-word predecessor check also applying to modes 1 and 6 is confirmed.
+3. Restore after restart (F7): a firmware difference is reported, never refused (prompt 57, no firmware lock).

@@ -42,15 +42,15 @@ the next. Creating this promptset does not execute it. The family was
 | 02 | [Object ledger, checkers and generated tables](02_object_ledger.md) | 01; seam S7 with the first headers' package entries; tooling change under the CI policy; no hardware |
 | 02b | [Profile registration, probe and `ds2` console family](02b_profile_integration.md) | 02; seams S1, S2 with the S3 and S13 default denies, S6, S10; the probe's read-effect row; real owner, `SdoClient` and fake server |
 | 03 | [Typed reads, identity, status dialects and capabilities](03_reads_identity.md) | 02b; prompt 57's identity outcomes; prepares `DS-DEC-1`; DS-D01..D05, D14, D19, D30, D33, D34 gate interpretations only |
-| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; source-state table first, with its halt class; controlword history and trigger predecessor; `DS-DEC-2` stop rows; seam S3 opt-in after its every-state review, seam S8 review; DS-D17, D21, D29 |
+| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; source-state table first, with its halt class from the words sent and the embedded-enable rows of 06 and 06b; controlword history and trigger predecessor; `DS-DEC-2` stop rows; seam S3 opt-in and the every-state stop after its every-state review, seam S8 review; DS-D17, D21, D29 |
 | 05 | [Units and finite profile-position moves](05_finite_position.md) | 04; DS-D09, D16, D33, D34; negative encodings and ramp units stay declared or gated |
-| 06 | [Finite profile velocity](06_profile_velocity.md) | 04, 05 units; DS-D10, D16, D32; enable is the start; a `DS-DEC-2` mode-3 stop row and a stop path after a lost start reply (S3 opt-in or a declared independent stop) |
+| 06 | [Finite profile velocity](06_profile_velocity.md) | 04, 05 units; DS-D10, D16, D32; enable is the start; a `DS-DEC-2` mode-3 stop row and a stop path after a lost start reply and on a resolved route with a stale, missing or alarmed report (S3 opt-in and every-state stop, or a declared independent stop) |
 | 06b | [Finite profile torque](06b_profile_torque.md) | 04, 06 run pattern; DS-D11..D14; `607F` width per scope; `2406h` write withheld; a `DS-DEC-2` mode-4 stop row and 06's stop path |
 | 07 | [Homing and limits](07_homing_and_limits.md) | 04 (mode select and enable run first, as separate operations), 05; `DS-DEC-1` for completion; a host-ended run (latest interruption time) with a `DS-DEC-2` mode-6 stop row and 06's stop path; DS-D08, D15, D16, D18; prompt 77 vocabulary when landed |
 | 08 | [I/O, brake, encoder and drive settings](08_io_and_settings.md) | 03, 04 `released` predicate, 05; DS-D24..D28, D30, D31; most vendor functions unreachable |
-| 09 | [PDO, SYNC, EMCY and heartbeat observation](09_pdo_sync_emcy.md) | 03; DS-D06, D07, D19, D32; no remap, no RPDO; prompt 57's bootstrap Enter Pre-operational for a Stopped node |
-| 10 | [Communication settings and persistence](10_communication_persistence.md) | 03, 08 settings context, 09; DS-D20, D22, D23 |
-| 11 | [Console and mixed-profile integration](11_console_integration.md) | Implemented subsets of 02b..10; prompts 64 and 65 when landed; shared-interface positive tests after S13 (SYNC and node-0 NMT) |
+| 09 | [PDO, SYNC, EMCY and heartbeat observation](09_pdo_sync_emcy.md) | 03; DS-D06, D07, D19, D32; no remap, no RPDO; prompt 57's bootstrap Enter Pre-operational for a Stopped node; NMT admission rechecked at hand-off (S13) |
+| 10 | [Communication settings and persistence](10_communication_persistence.md) | 03, 08 settings context, 09; DS-D20, D22, D23; restore records keyed by interface, node, profile, model and generations |
+| 11 | [Console and mixed-profile integration](11_console_integration.md) | Implemented subsets of 02b..10; prompts 64 and 65 when landed; shared-interface positive tests after S13 (SYNC and node-0 NMT); isolated identifier evidence carries only by an unchanged session or a reviewed quiescent attachment |
 | 12a | [First-contact questions](12a_first_contact.md) | Optional when a DS2 fixture and authorization exist; each question after its route |
 | 12 | [Qualification and release reconciliation](12_qualification_release.md) | Software closeout after 11; physical work needs a DS2 fixture |
 
@@ -97,7 +97,7 @@ Each DS-D stays open until its owning stage closes it with cited new evidence or
 
 `python scripts/check_promptset.py` passed with no errors after these files were written; it checks links and table
 shapes and compiles nothing. No build, firmware gate, remote CI or hardware step ran, and no product file changed.
-Three independent audit rounds on 2026-11-19 ([audit](audit.md)) were verified and applied the same day
+Four independent audit rounds on 2026-11-19 ([audit](audit.md)) were verified and applied the same day
 ([application](audit_application.md)); the same checks passed again for this directory.
 
 ## Relationship to the main sequence and shared seams

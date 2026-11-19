@@ -192,3 +192,61 @@ code were not supplied, so landed seam state and verification commands could not
 instructions, the communication practice, the conditional-experiment prerequisites and several consumed main-sequence
 prompts were not supplied. No DS2 fixture record or raw capture existed. The audit was text-only: no build, test, CI
 run or hardware behavior was verified.
+
+## Round 4
+
+A condensed, faithful copy of the fourth reviewer report; dispositions are in
+[audit_application.md](audit_application.md) round 4. Line numbers refer to the files at the audited revision.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-195034-e90304` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~191973 tokens)") |
+| Date | 2026-11-19 19:50:34 (from the ID), 198.7 s, one attempt |
+| Revision | `main` at `f864cbb9a1f6f24876bb13d4911db20bd90a5454`; uncommitted changes recorded, none in this directory (the audited hashes equal the committed files) |
+| Cost | Estimated USD 0.40 (0.402052, configured pricing); 146,281 input and 10,949 output tokens (6,017 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-195034-e90304.json` (local) |
+| Location checks | 28 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 19 files of this directory, including rounds 1 to 3 of `audit.md` and
+`audit_application.md` (`README.md` 124 lines, sha256 `0da462f8...`; `execution_contract.md` 209, `201aca8e...`).
+Context: canopen_shared `README.md`, `02_profile_integration_contract.md` (346 lines, before `c138e959`) and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, the reference pack `README.md` and `review.md`, prompt
+57 (217 lines); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The stages incorporate the earlier fixes for default-deny registration, NMT Stopped recovery and homing's
+separate enable prerequisite. The remaining blockers are in stop handling: an acknowledged stop can make the next stop
+wrongly clear Halt, and a timed run can pass admission without a usable stop while its SDO route is still resolved.
+Evidence intake, tooling and independent read-only work can proceed; the affected changing routes and physical
+qualification cases stay gated until their failure paths are specified and tested. **Verdict:** blocking issues. The
+stop-history contradiction is explicit in 04; the timed-run rules do not cover a resolved route whose drive report
+fails normal stop admission; the network stages leave queued NMT dispatch and mixed-bus read-back dependent on unstated
+assumptions. These are promptset findings, not observations about firmware or hardware.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *An acknowledged stop that sets Halt can be recorded as clearing it.* 04 makes an acknowledged whole-word download enough for the halt-clear class without checking bit 8, and says a stop does not end the class. On an unknown attachment the stop sends 0x010B, which can be acknowledged and then meets the clear criterion, so the next stop sends 0x000B and may clear a set Halt, against the shared rule; the same fails when S3 possibly sends 0x010B after a clear word. Track halt evidence from the actual word and its transmission outcome: only an acknowledged bit-8-clear word with no later possibly sent bit-8-set word gives clear; keep the trigger predecessor separate. Test two successive stops from an unknown attachment and a possibly sent S3 stop after a clear word. | 04:18-20, 20-23, 72-74; contract 02:146-147 |
+| F2 | High, verified defect, high | *Timed-run admission can leave no stop path on a resolved SDO route.* 06, 06b and 07 accept an opted-in S3 shape as the stop path, but S3 runs only on an unresolved route and 04 refuses a normal stop on a stale, missing or alarmed report. A run with acknowledged start writes can lack fresh state at stop due: the route stays resolved, the normal stop refuses, S3 is ineligible and no independent stop was required. The transfer cap does not close this. Require a dispatchable stop for resolved and unresolved routes after any possibly effective start; where ordinary admission can fail and S3 cannot run, require the declared independent stop unless a reviewed route covers the case. Real-owner cases: an acknowledged start followed by missing or stale state at stop due and by a fresh alarmed report; assert the available path, keep `needsStop`, infer no standstill from dispatch. | 04:12-14, 77-78; 06:41-44; 06b:51-52; 07:61-63 |
+| F3 | High, verified defect, high | *Velocity and torque prescribe an enable script outside the source-state table.* 04 leaves standalone enable in modes 3 and 4 unsupported, but 06 and 06b consume only the initial `released` predicate and then prescribe 6, 7, 15 with no source-state rows or intermediate reports, so the final start word can follow an acknowledged word whose expected state was not reached; write preflight does not validate transitions. Define rows for the embedded mode-3 and mode-4 enable steps without exposing standalone enable: the first word, the evidence before each later word, and the handling of an acknowledged or uncertain intermediate word without it. Test exact traffic from every admitted starting report; an unexpected intermediate report never yields the start word. | 04:38-40; 06:9-13; 06b:14-18; contract 02:141-146; AGENTS.md:79 |
+| F4 | High, probable defect, medium | *NMT admission rules do not cover commands waiting to transmit.* S13's cases revoke a running SYNC schedule when DS2 is bound and refuse new node-0 NMT requests, but say nothing of a broadcast accepted before the binding change; 09 tests targeted NMT against already pending work, not the reverse order. If admission and transmission are separate service steps, a queued Start, Stop or Reset could leave after DS2 is bound or after a conflicting operation or state change. Specify the owner-side order: retire unsent broadcasts before a DS2 binding becomes active, reserve or revalidate a targeted command before hand-off, and distinguish a handed-off frame from a cancellable one. Test both orders through the real owner. | 02b:34-38; 09:27-30, 84-86; contract 02:276-282 |
+| F5 | High, probable defect, high | *Mixed-bus read-back detects identifier changes only after the bus is joined.* 11 checks each predefined SDO route against the other nodes' isolated records and then sends the read-back on the shared bus without establishing that the records still apply. A node restarted or reconfigured while being moved can make the first read-back use an identifier another node receives as an RPDO (an RPDO carrying `6040` or `60FF` is a motion command); refusing later traffic cannot recall that frame, and S13 does not cover this SDO-to-PDO collision. Define what lets isolated evidence carry into the shared topology before any shared-bus request (an evidenced unchanged session and configuration, or a separately established quiescent attachment procedure); otherwise keep the nodes isolated. Test a route change between capture and attachment: no potentially conflicting bootstrap frame is sent. | 11:22-25, 26-28; 09:22-23 |
+| F6 | High, probable defect, high | *The homing qualification rule lists an unverified index as a protective bound.* The general rule requires a bound independent of host service and of the behavior under test, yet the mode-specific rule offers travel to a declared index, while Q10 may be investigating whether the encoder provides an index at all. A declaration satisfies the method's input check but does not bound a search when the pulse or the drive's response to it is the question. Separate method prerequisites from fixture protection: the plan bounds the run if the index never appears or the drive does not stop on it; apply the same to any switch whose detection or stopping effect is under test; otherwise NOT RUN. | 12a:45, 60-62, 67-69; 07:43-44 |
+| F7 | Medium, probable defect, high | *Restore records do not distinguish the same profile and node on different interfaces.* 10 keys restore records by profile and node, although the bus is part of the address and separate interfaces are the default. Two DS2 bindings at one node ID on different interfaces are indistinguishable, the key survives replacement of the device at that address, and identity admission alone does not tie a snapshot to its binding when product references collide; the wrong record could change gear or heartbeat settings on the wrong drive. Bind each snapshot to interface, node, resolved profile and model, and the binding and configuration evidence of its capture; reject a different target or stale evidence; define the revalidation for a planned restore after restart; test same-node bindings on separate interfaces, rebinding and a partially applied settings write. | 10:42-44; 08:20-22; contract 02:181-184 |
+
+### Unresolved questions (reviewer)
+
+1. Which shared seams and main-sequence artifacts are landed and verified at the execution HEAD, especially S4, S5,
+   full S13 and prompt 57's shared comparison? (They decide whether console, component packaging and mixed-interface
+   acceptance can run without a parallel path.)
+2. Which model- and mode-scoped stop reactions can actually be established after a trigger or partial enable, and
+   under which fixture conditions? (A reviewed command shape and a synthetic acknowledgement test host admission but
+   establish neither the device's stop reaction nor physical standstill.)
+
+### Coverage gaps (reviewer)
+
+The DS2 rendered originals, EDS bodies, product-page snapshots and manifest were not supplied; device facts were
+compared with the reference review only. The repository index was truncated: owner, SDO and NMT implementation
+bodies, package and checker sources, workflows and Git state were not supplied, so queue behavior, landed seams and
+build gates could not be verified. The parent Projects instructions, the full conditional-experiment prerequisites and
+several consumed main-sequence prompts were not supplied. The audit was text-only: no script, build, CI job or hardware
+test ran, and no DS2 fixture capture existed.

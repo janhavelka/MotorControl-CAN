@@ -131,8 +131,8 @@ classes included; prompt 57's exemption removes only the identity refusal); refu
 could leave a moving drive running. An NMT command is never that stop. Firmware identity (`1009`, `100A`, `1018:03`)
 is reported and never refuses (prompt 57). Every stage with a changing request (04 to 10) tests a correctly labelled
 DS2 binding on a foreign fake server (0x1000/0x0001): zero changing TX, while 04's `QUICK_STOP` stays admitted with
-the contradicted identity in its result (0x010B with the unknown halt state recorded when no acknowledged word of
-the reservation precedes it, 04 item 1).
+the contradicted identity in its result (0x010B with the unknown halt state recorded unless 04 item 1's halt class
+is clear: an acknowledged bit-8-clear word of the reservation with no later possibly sent bit-8-set word).
 
 A collision that includes the declared model admits by the declaration (prompt 57 "Admission by outcome"; lead
 decision of 2026-11-19, [audit application](audit_application.md) round 2). The colliding siblings can differ: IBL60
@@ -143,7 +143,9 @@ nothing is decoded with a sibling's tables. 03 tests sibling servers under each 
 Targeted NMT commands (09) are changing requests in the table above and never the stop exemption, with one
 exception: prompt 57's bootstrap command (Identity policy, "Admission by outcome"), the Enter Pre-operational row
 below. DS2 documents no NMT effect on the drive (DS-D32), so each also needs the condition below before TX; a command
-without a row stays refused.
+without a row stays refused. The identity outcome and the condition are rechecked at hand-off to the controller
+(canopen_shared 02 S13; 09 item 5): a binding change, a conflicting operation or stale evidence retires a
+not-yet-sent command.
 
 | NMT command to a DS2 node | Condition before TX, beyond the identity table | Effect to record |
 | --- | --- | --- |

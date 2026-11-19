@@ -10,7 +10,8 @@ function as UNSUPPORTED with its evidence reason.
 
 1. One settings context. `SettingsContext` with `prepareDriverRead`, `prepareDriverSettings`, `nextDriver`,
    `advanceDriver`, `getDriver`: prior read, whole-candidate validation, ordered writes, readback, partial evidence and
-   a restore record. No automatic save exists (10). Admission requires a drive that 04's `released` predicate accepts
+   a restore record keyed as 10 item 9 states. No automatic save exists (10). Admission requires a drive that 04's
+   `released` predicate accepts
    on a fresh report; an enabled drive is refused even when it reports standstill, because the effect columns of the
    P tables do not cover 6000-group objects, so activation timing is unknown and a gear or window change may act on a
    holding servo loop.

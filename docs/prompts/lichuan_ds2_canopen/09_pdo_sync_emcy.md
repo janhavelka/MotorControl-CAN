@@ -30,8 +30,13 @@ RPDO.
    predicate accepts and with no pending operation on the binding. The one exception is the table's bootstrap row
    (prompt 57 "Admission by outcome"): a targeted Enter Pre-operational to a node whose fresh heartbeat (item 6)
    reports Stopped, admitted under every outcome except CONTRADICTED without a `released` report; DS2 adds no node
-   guarding for it. Node-0 commands are refused by S13's default deny (item 7). A boot-up invalidates dependent
-   evidence and work.
+   guarding for it. Node-0 commands are refused by S13's default deny (item 7). The owner admits an NMT command
+   without TX and sends it in a later service step (`CanBusOwner::admitNmt`), so the row's conditions and the identity
+   outcome are rechecked at hand-off to the controller (canopen_shared 02 S13): a rebind, a conflicting operation
+   admitted on the binding (a `1017` or settings write in flight included) or evidence gone stale (the `released`
+   report, or the Stopped heartbeat of the bootstrap row) retires a not-yet-sent command, and one already handed off
+   is reported as possibly sent. DS2 supplies these conditions to the shared recheck; no DS2-local queue or guard. A
+   boot-up invalidates dependent evidence and work.
 6. Heartbeat. `1017` producer (U16 ms, RW/S, default 0; DS2C p24) is read here and written only by 10. There is no
    consumer heartbeat, guarding, `6007` or `1029`: host observation of a heartbeat establishes nothing about the
    drive's reaction to host loss, a host heartbeat (seam S11) has no documented DS2 consumer, and node guarding
@@ -88,7 +93,10 @@ The bootstrap Enter Pre-operational sends exactly one frame to a node with a fre
 outcome, UNCONFIRMED without a declared-model match and an unread product field, and zero frames on CONTRADICTED,
 with a stale or missing heartbeat (the node reported stranded), with a heartbeat in another state and the ordinary
 conditions unmet, and while an operation is pending; Start, Stop and both resets to that node keep the ordinary
-conditions (zero frames), and node 0 keeps S13's denial.
+conditions (zero frames), and node 0 keeps S13's denial. Both orderings through the real owner: an admitted targeted
+command followed, before hand-off, by a conflicting operation, a stale report or heartbeat or a rebind sends zero NMT
+frames, while one already handed off is reported as possibly sent; an admitted node-0 command followed by DS2 binding
+admission sends zero NMT frames.
 Through the real producer and owner, `armSync`, `admitSync` and node-0 NMT send nothing on a DS2-only interface, also
 when the application arms the producer directly, and admitting a DS2 binding revokes a running schedule. Quick and
 full verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand

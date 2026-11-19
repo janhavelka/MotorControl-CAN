@@ -40,7 +40,14 @@ UNSUPPORTED results; the one write path is `1017`.
 8. Vendor tool. Node, bitrate, control mode, motor codes and saves are documented through the USB debug software
    (DS2OP p5-7, ISLMP). The library never runs, wraps or emulates it.
 9. Restore records. Settings written by 06b, 08 and this stage leave restore records in the shape of
-   [prompt 57](../57_regular_drive_operations.md)'s configuration restore, keyed by profile and node. A restore is its
+   [prompt 57](../57_regular_drive_operations.md)'s configuration restore, keyed by physical interface, node,
+   resolved profile, declared model and encoder suffix, and the binding, session and configuration generations and
+   identity outcome under which the prior values were read. An ordinary restore refuses before TX a record whose
+   interface, node, profile or model differs from the current binding or whose generations are not current. A
+   restore planned across a restart or rebind (12a Q12) is a separate explicit intent naming the record, admitted
+   only after revalidation: the same interface, node, profile and declared model, a fresh identity outcome the
+   execution contract's table admits for changing requests, both firmware identities reported (prompt 57) and a
+   fresh read of each object before its write. A restore is its
    own intent with uncertain effects and never replays a motion or enable word. The node, bitrate, PDO-map and save
    mechanics that [prompt 61](../61_drive_configuration.md) adds for Lichuan C are per-profile; DS2 refuses each of
    them before any work until DS2 evidence exists (MULTIDRIVE row 61).
@@ -55,7 +62,10 @@ reasons; `docs/commissioning.md` DS2 section, coverage, operation map, Doxygen a
 ## Acceptance
 
 Tests cover the `1017` prior read, write, readback and restore record, a lost write keeping execution unknown with no
-retry, freshness invalidation, and UNSUPPORTED results without TX for node, bitrate, COB-ID, save and restore. No DS2
+retry, freshness invalidation, and UNSUPPORTED results without TX for node, bitrate, COB-ID, save and restore. Restore
+records: a record refused with no TX on a binding with the same node and profile on another interface, after a
+rebind and after a restart until the planned restore's revalidation, and a partially applied 08 settings write whose
+record lists its confirmed and uncertain writes with their prior values. No DS2
 test or route writes `1010`, `1011` or any `2xxx` object; 06b's IBL `2406h` write stays withheld until its evidence exists. Quick and full verification and required CI on the exact
 final pushed commit pass. Restart-dependent facts need a DS2 fixture with restart control; hardware NOT TESTED.
 Commit, push and hand off.

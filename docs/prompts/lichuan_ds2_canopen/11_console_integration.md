@@ -20,12 +20,19 @@ rows 23, 24, 40-44, 53, 64, 68, 70 and 75 apply.
    control 0x700+node, `1005`, `1014` (the manual's 0x80 equals the SYNC identifier, DS-D07) and every RPDO and TPDO
    COB-ID with its valid bit (`1400`-`1403:01`, `1800`-`1803:01`); a Lichuan C node supplies the same from its own
    reads. The node is read alone on its own interface (the default topology); if its predefined SDO route does not
-   answer there, the bootstrap route is unknown and the node joins no shared interface. On the shared interface the
+   answer there, the bootstrap route is unknown and the node joins no shared interface. The isolated record carries
+   into the shared topology, before any shared-bus frame, only by one of two paths: evidence that every node's
+   session and configuration stayed unchanged from capture to attachment (no boot-up, reset, NMT command, rebind,
+   configuration change or unobserved interval; a node moved to another interface is a new binding and breaks it),
+   or a separately assigned, reviewed quiescent attachment procedure, recorded in the same-domain analysis with
+   model-scoped evidence that no node can act on or answer the verification traffic with a conflicting frame (DS2
+   documents no NMT effect, DS-D32, so CiA 301's Pre-operational rule alone does not establish it). Without either
+   the nodes stay on separate interfaces and nothing is sent on the shared one. Then the
    recorded sets admit only a read-back over each node's predefined SDO route, after that route is checked against
    every other node's set; shared operation is admitted only when the read-back equals the record for the same node,
    declared model and firmware identity. An overlap between any two entries (a PDO and a service route included), a
    difference, an unanswered or stale read-back refuse with no further TX; a boot-up, NMT reset, rebind or
-   configuration change on any node requires the read-back again. Prompt 63's identifier plan is not needed for two
+   configuration change on any node requires a carry-over path and the read-back again. Prompt 63's identifier plan is not needed for two
    CANopen families; the shared-interface positive tests wait for the same-domain analysis canopen_shared 02
    requires, recorded in the report: node IDs, configured COB-IDs, bitrate, and NMT-broadcast and SYNC effects on
    both families. DS2's NMT
@@ -83,7 +90,9 @@ the same-domain analysis, and updated `docs/api_cli_mapping.md`, `docs/cli_contr
 Tests run a Lichuan C axis and a DS2 axis through one owner: overlapping COB-IDs refused before admission (a PDO-to-PDO
 collision and a service-route collision, such as a `1014` of 0x80 against SYNC or a COB-ID equal to another node's
 SDO pair), a `1200` read-back other than the route in use, an unavailable or stale read-back and a read-back that
-differs from the isolated record, each with no TX beyond the read-back; same-address
+differs from the isolated record, each with no TX beyond the read-back, and a route change between isolated capture
+and shared attachment (a boot-up, reset, rebind or configuration change in between, or a node moved between
+interfaces without the reviewed procedure) with zero frames on the shared interface, read-back included; same-address
 reservations conflicting across profile labels and profile changes while work is pending refused. Scan tests: an
 address without a declaration (probe only, no `1018` read, no outcome), MINI with an oversized `1018:00` (no
 `1018:04` read) and declared siblings under a colliding pair (UNCONFIRMED naming every matching model, nothing
