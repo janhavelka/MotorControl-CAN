@@ -147,7 +147,10 @@ Commit tooling, core/profile and application/console changes separately, each te
   is needed. The declared stop carries a caller-supplied fallback deadline: the application invokes
   it when the urgent stop is not admitted, misses its dispatch window, or leaves the stop effect
   unconfirmed at that deadline (an early homing interruption with an upload pending included);
-  admission, TX or an acknowledgement never retire that need. Without one the run is refused
+  admission, TX or an acknowledgement never retire that need. Where the reviewed paths above cover
+  both route states (an opted-in S3 shape and a stop row admitted without a fresh report), a
+  declared stop is optional; the run's `needsStop` and uncertainty stay in its result, and an
+  application that declares one gets the fallback-deadline rule. Without one the run is refused
   before its first changing TX. Homing is such a run: a caller-supplied latest interruption time
   takes the duration's place (a travel bound may interrupt earlier, from observations no older than
   a caller-supplied age), with the same stop budget, transfer cap and stop path. Tests: a duration that no
