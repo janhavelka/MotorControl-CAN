@@ -98,7 +98,8 @@ public header. Stage 01 itself changes no source.
   where applicable, `docs/reference/<family>_generated.md`) and
   `scripts/check_<family>_operations.py`, each with a registered negative test: missing row,
   tampered hash, altered output, unclassified function, promoted gate. LF rules for
-  generated headers go in `.gitattributes`; extend `TYPE_CODES` only from the family EDS.
+  generated headers go in `.gitattributes`; extend `TYPE_CODES` only from the family EDS, or, where the vendor publishes no EDS, from the
+  vendor's firmware specification, recorded as such per entry until an EDS confirms it.
 - **Seam S7, before or in the same commit as the first new public header.** The stage that
   adds it claims S7 (README), scopes `check_lichuan_operations.py` to common and
   `lichuan_c` headers and the family checker to `profiles/<family>/`, and tests that the

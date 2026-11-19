@@ -21,6 +21,10 @@ Commit tooling, core/profile and application/console changes separately, each te
   `profileId`, the JSONL `profile` value and the family's files. Its upper case names
   `MotorControlCAN::<FAMILY>` and `DriveProfile::<FAMILY>`; `Manufacturer::<MANUFACTURER>`
   is added once per manufacturer. A landed name changes only with a migration entry.
+- The promptset directory `docs/prompts/<set>/` and its reference pack `docs/reference/<set>/` share one
+  set name (for example `nanotec_canopen`, `maxon_epos4_canopen`, `mks_servo_can`), which also names
+  `PROGRESS.md` and `docs/reports/<set>_<NN>.md`. The profile token `<family>` above is chosen and
+  recorded in the set's stage 01; set and token may differ.
 - Common operations keep the MotorControl-RS names and phases of CONVENTIONS section 3 where
   the meaning matches (`prepareIdentity`, `prepareEnable`, `prepareStop`, `prepareMoveAbsolute`,
   `prepareVelocity`, `prepareHome`, `prepareSave`, their `next...`/`advance...` calls and
