@@ -252,6 +252,10 @@ default as the restore value. An observation is that specimen's behavior.
   profile) gets `INVALID` and no TX from `admitBestEffortStop`, also after a timeout and a
   rebind. The family opts in its reviewed exact shape (object, size, data, ledger review ID)
   later, in its stop stage; a Lichuan binding keeps DEC-2's `6040:00=000B` and its terminal semantics.
+  The per-binding configuration also accepts an explicit no shape that overrides the profile
+  default, set before the binding's first traffic and kept across rebind: the Lichuan C
+  extension models (TL-C, CL2) use it until their own review admits a shape, so a direct
+  `admitBestEffortStop` returns `INVALID` with no TX for them while CL86-C and OL86-C keep DEC-2.
   `admitBestEffortStop` checks the transfer against the shape of its exact current binding
   and channel generation; it establishes no drive state or predecessor. A family opts in a
   shape only when its stop review shows the word's reaction from every state the drive may
