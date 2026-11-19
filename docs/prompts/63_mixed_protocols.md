@@ -30,6 +30,13 @@ sharing needs this explicit identifier, broadcast and format analysis; the owner
 is never remote acceptance; one fault domain: a controller restart or bus-off is notified to every protocol module, and
 each invalidates its own evidence.
 
+**Requests from family promptsets (2026-11-19).** The [MKS SERVO CAN set](mks_servo_can/README.md) needs, beyond
+this prompt's shared-interface plans: an exclusive non-CANopen protocol domain on its own interface using the whole
+standard-ID space (MKS uses `0x000` as broadcast, which collides with NMT); stop precedence within that domain; a
+per-frame TX disposition for each admitted frame; and restart and bus-off notification to the domain's service. Keep
+the restricted-range refusals for shared interfaces. Until a tested extension lands (seam S9 in
+[canopen_shared](canopen_shared/README.md)), only the dependent MKS owner work is blocked.
+
 ## Read and audit
 
 For this prompt, refresh MotorControl-RS HEAD and dirty state and read its multi-protocol owner seams; RS is

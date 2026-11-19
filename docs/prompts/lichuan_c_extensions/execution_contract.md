@@ -68,9 +68,10 @@ where those already say something, cite them instead of restating it.
 
 [Prompt 57](../57_regular_drive_operations.md)'s identity policy owns these outcomes: the declared binding
 selects the profile and model, the identity read only confirms it, and the Lichuan family sets add
-model-scoped checks on that one policy. This section is their only definition, for this set and for
-[DS2](../lichuan_ds2_canopen/execution_contract.md#identity-and-applicability-backlog-d18), until prompt 57's
-Identity policy bullet carries it; neither set restates it.
+model-scoped checks on that one policy. The outcomes (CONFIRMED, UNCONFIRMED, CONTRADICTED) and the vendor-object rule are defined once, in prompt 57's
+Identity policy bullet; this set and
+[DS2](../lichuan_ds2_canopen/execution_contract.md#identity-and-applicability-backlog-d18) consume that
+definition and do not restate it. The inputs below are what this set supplies to it.
 
 - Inputs: the binding's declared model as a profile-qualified key (`DriveProfile` and the profile's model
   value), a current identity observation for the binding's node generation and server session, the
@@ -78,21 +79,7 @@ Identity policy bullet carries it; neither set restates it.
   identity fields and its basis: DOCUMENTED (a ledger claim with its page or EDS line) or MEASURED (an
   application-supplied specimen record with firmware provenance). Each set's model-scoped rule names the
   references that represent its models.
-- Outcomes:
-  - CONFIRMED: a reference of the declared model matches, every other candidate has a reference and none
-    matches.
-  - CONTRADICTED: a reference of another candidate matches and none of the declared model does.
-  - UNCONFIRMED: everything else, including values shared by the declared model and another candidate, a
-    candidate without references, no match and fields that could not be read.
-  The result carries the outcome, the live fields, every matching model with its reference basis and whether
-  a reference of the declared model matched. An outcome exists only for a current observation; the
-  invalidators of canopen_shared 02 "Identity and device evidence" clear it. It never selects or changes a
-  declaration. Firmware identity (`1009`, `100A`, `1018:03`, `2001`) is reported and never refuses (prompt 57).
-- Vendor-object rule, the same for both sets: on CONTRADICTED every SDO download to the manufacturer area
-  `2000h..5FFFh` (principles pack section 1) on that binding is refused before TX. No acceptance, guard
-  setting or option overrides it; the application corrects the declaration, candidate set or references
-  instead. A model of either set also needs a current outcome before such a download; CL86-C and OL86-C keep
-  prompt 57's existing admission (stage 01 register).
+- Outcomes and the vendor-object rule: prompt 57's Identity policy bullet.
 - One comparison. It is pure, allocation-free and profile-neutral (no `LICHUAN_C` or `LICHUAN_DS2` type, so
   neither profile includes the other). The first of prompt 57, stage 01 here and DS2 stage 03 to land it
   implements it; the others extend it with their references and rules, and each records its location in its

@@ -76,6 +76,25 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
   `1000`, `1018:01` and `1018:02` with different vendor objects (backlog D18; TL-C `2402` is a bitrate object). The
   application's declared binding selects the profile and model, the identity read only confirms it, and the family
   promptsets `lichuan_c_extensions` and `lichuan_ds2_canopen` add their model-scoped checks on this one policy.
+  Identity outcomes, the one definition both Lichuan family sets use (inputs: the binding's declared model as a
+  profile-qualified key, a current identity observation for the binding's node generation and server session,
+  the application's candidate set for the interface, and identity references with their DOCUMENTED or MEASURED
+  basis):
+  - Outcomes:
+    - CONFIRMED: a reference of the declared model matches, every other candidate has a reference and none
+      matches.
+    - CONTRADICTED: a reference of another candidate matches and none of the declared model does.
+    - UNCONFIRMED: everything else, including values shared by the declared model and another candidate, a
+      candidate without references, no match and fields that could not be read.
+    The result carries the outcome, the live fields, every matching model with its reference basis and whether
+    a reference of the declared model matched. An outcome exists only for a current observation; the
+    invalidators of canopen_shared 02 "Identity and device evidence" clear it. It never selects or changes a
+    declaration. Firmware identity (`1009`, `100A`, `1018:03`, `2001`) is reported and never refuses (prompt 57).
+  - Vendor-object rule, the same for both sets: on CONTRADICTED every SDO download to the manufacturer area
+    `2000h..5FFFh` (principles pack section 1) on that binding is refused before TX. No acceptance, guard
+    setting or option overrides it; the application corrects the declaration, candidate set or references
+    instead. A model of either set also needs a current outcome before such a download; CL86-C and OL86-C keep
+    prompt 57's existing admission (stage 01 register).
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
