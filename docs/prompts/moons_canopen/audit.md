@@ -76,3 +76,63 @@ checked. Parent instructions, the convention documents, main-sequence prompts an
 MotorControl-RS and FieldCore-node sources were not supplied. No MOONS' fixture, firmware,
 timing, electrical or restoration evidence or live authorization existed; no checks ran; the
 CL86-C bench artifacts qualify no MOONS' drive.
+
+## Round 2
+
+A second audit of the revised set, condensed the same way. Line numbers refer to the files at
+the audited revision, before round 2 was applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-184315-2fffe2` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard (large input, about 170,842 tokens) |
+| Date | 2026-11-19 18:43:15 (from the ID), 230.9 s, one attempt |
+| Revision | `main` at `edcf9621a1f5f598ca77d5e9261f885b7946f601`, no uncommitted changes recorded; the family files' SHA-256 equal their blobs at `edcf9621` and `a7656efb` |
+| Cost | Estimated USD 0.38 (0.376326, configured pricing); 133,483 input and 10,936 output tokens (4,514 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-184315-2fffe2.json` (local) |
+| Location checks | 34 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: this directory's 20 files (README, execution contract, stages, round 1
+audit and application). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md`
+and `01_existing_code_and_tooling.md`, prompt 57, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md`
+and `review.md`; project instructions `AGENTS.md`, `CLAUDE.md`. The shared contract and prompt 57
+were read as they stood before `a7656efb`.
+
+**Summary.** Round 1 fixes hold: conflicted writes are withheld, Lichuan value-1 bindings stay
+valid and SYNC-triggered Q starts are refusal-only. Implementation-blocking gaps remain in
+broadcast admission, stop handling, finite-run timing and first-contact evidence paths.
+**Verdict:** blocking issues. Evidence intake, the read-only probe and independently gated work
+can proceed; the affected motion, network and bench paths are not ready. These are
+specification defects; no code or hardware was examined.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | Critical, verified defect, high | *Stage 09 does not carry S13 through NMT broadcasts and non-reset NMT state changes.* Shared S13 covers every node-0 NMT command on a mixed interface, but 09 admits NMT by explicit intent only, with no broadcast case; its revocation tests cover reset, not Start, Stop or Enter Pre-operational. A Start can make a synchronous RPDO hazardous in Operational after an approval obtained in Pre-operational. Consume the S13 gate for node-0 NMT or exclude it; revoke before admitting an NMT command that can change the evaluated state and on observed external state changes; requalify from fresh evidence. Test targeted and broadcast Start with a Pre-operational node holding a synchronous RPDO, and no SYNC after revocation. | shared 02:233-235; 09:13-14, 67-68, 106-107 |
+| F2 | High, verified defect, high | *The layout refusal also blocks explicit stops, contrary to the prompt 57 rule it cites.* 03 refuses every changing operation on CONTRADICTED and UNCONFIRMED, and 02b applies the identity cases to every changing operation from 04; prompt 57 exempts reviewed stops. MOONS' need not copy a Lichuan word, but must tell an ordinary refusal from a stop on an established running binding. Define a stop admission table per identity state (current, stale, unconfirmed, contradicted) for urgent and S3 stops; permit only stops whose device, binding and reaction premises hold; where no safe software stop exists, say so and name the application-owned fallback. Test invalidation during motion and a foreign server. | 03:30-31; 02b:33-34; 57:102-104 |
+| F3 | High, probable defect, high | *Standalone enable does not distinguish enabling from starting motion in halt-start modes.* 04 makes 0x000F the normal final word and enable-with-halt an option, while velocity, torque and Q start by clearing halt; 06 uses 0x000F as the velocity start. With a target present, the default enable can start motion without a run request. Make 04's table explicit per mode and predecessor; require a non-starting form or refuse in those modes, not opt-in; cover already enabled and halted, unknown predecessor and present target; exact frames or no TX. | 04:13-16; 06:20; AGENTS.md:79 |
+| F4 | High, probable defect, high | *Finite velocity can start without a remaining dispatch window for its mandatory halt.* 06 bounds dispatch and wire deadlines by the operation deadline but defines neither the duration's anchor nor a halt-dispatch cutoff, and does not check the duration and a stop budget before the start; a just-in-time start can leave no time for the halt that the shared rule then forbids. Anchor the duration, reserve stop dispatch and observation inside the deadline (or define the separate stop path), refuse the start edge without it. Test a barely timely setup, an uncertain start and a pressured halt. | 06:27-30; shared 02:108-109 |
+| F5 | High, verified defect, high | *The bootstrap and layout-confirmation rules allow more than their evidence establishes.* 03's bootstrap covers whole config and state plans with product-specific objects; wrong-server tests cover only typed 0x2100. Vendor ID plus an EDS-default series string admits changing work, while the review says to use series, version fields and vendor ID together, and prompt 57's CONFIRMED needs uniqueness over the candidate references. Enumerate bootstrap objects with reviewed read effects and gate the other product reads; define the candidate set and unique confirmation, reconcile with the review; test an indistinguishable reference and a candidate without a reference with exact bootstrap traffic and no dependent TX. | 03:20, 21; review:193-194; 57:84-85 |
+| F6 | High, probable defect, high | *The future watchdog arm path revokes its own required SYNC feed.* 11 requires an S13 approval naming the watchdog; 09 revokes approval before a 0x2060 write and needs fresh reads to resume. No stage defines the handoff to a verified armed state before the first timeout; Q9 has the same gap. Keep SYNC-fed arming and Q9 blocked until a reviewed transition defines pre-write approval, revocation, readback, reapproval and the first-feed deadline from a worst-case budget; test a lost arm reply and delayed reapproval. | 11:52-54; 09:73, 75; 14a:43 |
+| F7 | High, verified defect, high | *First-contact release and homing depend on the facts they are meant to establish.* Q4 compares three release words through 04, which delivers one; Q10 uses 07's API, which needs the direction qualification Q10 produces, and 35/37 are refused where the sequence is unknown. A guard override is no evidence path. Split Q4 (production word versus gated comparisons) and Q10 (qualified methods, first direction discovery, 35/37), each with vendor evidence, a reviewed isolated experiment with restoration boundary, or NOT RUN. | 14a:20-21, 38; 04:30-31; 07:27-28, 63-65 |
+| F8 | High, verified defect, high | *Stage 08 requires block-specific quiescence policies but does not define them.* Each write needs "the explicit quiescence policy of the block plus an idle drive", but no block gives the starting-state or readback predicates for motor data, current, brake, interlocks, direction or tuning; the alarm-mask setter is offered although its effect is unknown, against the contract's read-only rule. Add per-group criteria (drive state, fresh evidence, caller electrical limits, uncertain-write effect, inhibited dependents); keep unresolved protection settings read-only; test an energized idle drive and invalidation after a possible write. | 08:21-23, 48; contract:65; AGENTS.md:85 |
+| F9 | Medium, probable defect, high | *Stage 12 leaves the discovery scan's S4 dependency ambiguous.* The scan is listed as direct work, while the inventory says `DiscoveryScan` is Lichuan-typed and owned by prompt 64. Name the consumed artifact, block the scan and its test until it lands, keep 02b's API probe. | 12:39-40; shared 01:142-143; shared README:37-39 |
+
+### Unresolved questions (reviewer)
+
+1. What positive, applicable evidence distinguishes AMP10 from other MOONS'-vendor servers that
+   lack 0x2050? Stage 13 uses the absent-object abort as layout evidence, which is inferred and
+   not shown unique over the candidate set.
+2. Which 0x1010 sub-index writes, if any, will stage 02 admit despite the list versus sub-index
+   access conflict? Until then stage 11 should separate codec and signature checks, a production
+   admission test and restart-verified durability.
+
+### Coverage gaps (reviewer)
+
+The primary PDFs, rendered figures, EDS bytes, extracts and `SOURCES.json` were not supplied, so
+page claims, encodings, access and hashes were not verified independently. The repository index
+was truncated: owner and service code, adapter timing, packaging, verifier and workflows, seam
+landings and progress rows were not checked. Only prompt 57 of the main sequence was supplied.
+No MOONS' fixture, wiring, authorization, timing or restoration evidence existed; nothing was
+built, tested or run on hardware.

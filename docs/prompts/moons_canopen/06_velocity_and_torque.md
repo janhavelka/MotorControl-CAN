@@ -24,11 +24,17 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    (MO-D06). AMP10 p26 says halt and a zero target decelerate with the profile deceleration and keep torque
    applied, for the 2010 generation. Treat the UM21 halt ramp as unknown, claim "stop commanded" rather than
    "decelerated with 0x6084", and keep the AMP10 statement for stage 13.
-4. Finite run: `prepareVelocity` requires a nonzero finite `durationUs`; zero speed is a setting, not a run. At
-   expiry yield the halt stop, never success while running. A host deadline cannot stop the drive: on a lost
-   stop reply or service loss retain `needsStop` and `UNKNOWN` execution. Use distinct dispatch and wire
-   deadlines, each bounded by the one operation deadline (canopen_shared 02 "Operation admission"), and the
-   shared never-transmitted-stop policy; never repeat a start or an already-sent stop.
+4. Finite run: `prepareVelocity` requires a nonzero finite `durationUs`; zero speed is a setting, not a run.
+   The run follows canopen_shared 02 "Operation admission", timed-runs bullet (the Lichuan finite-velocity
+   design): the duration runs from successful preparation and includes setup and queue delay, preparation
+   refuses unless the duration plus the caller's stop budget fits before the operation deadline, every later
+   transfer is bounded by the stop due time, and at stop due the run issues no further work, keeps
+   `needsStop` and leaves the stop to the application's separate urgent stop, which the run's deadline, its
+   identity outcome and a missing acknowledgement never bar. The MOONS' stop row for modes 3 and 4 is stage
+   04 item 9's halt, 0x010F, whose word stays fixed after a lost start reply (stage 04 item 8); the quick stop
+   is the alternative the application may compose. Never success while running. A host deadline cannot stop
+   the drive: on a lost stop reply or service loss retain `needsStop` and `UNKNOWN` execution; never repeat a
+   start or an already-sent stop.
 5. Host loss: the communication watchdog 0x2060 is disabled by default, is fed only by RPDO1-4 or SYNC
    reception (UM21 p70), and is described as "a safety feature in Profile Velocity mode" (MO-D18). There is no
    heartbeat consumer (MO-D11), and no document states a default reaction to host loss (review section 7).
@@ -73,8 +79,11 @@ reaction, unsupported changes, torque refused on MO-D04); Doxygen; report.
 ## Acceptance
 
 Tests cover direction and range, a negative 0x60FF refused by the preflight, mode refusal on STF, halt
-start/stop frames, partial setup, lost start, lost poll and lost stop, expiry yielding the halt, cumulative
-delay reaching the operation deadline before the start (no start TX), missed service, urgent stop, unknown
+start/stop frames, partial setup, lost start, lost poll and lost stop, cumulative delay reaching the
+operation deadline before the start (no start TX), the shared timed-run cases (a duration that no longer fits
+with the stop budget refused at preparation, a barely timely setup, a lost start reply with the halt still
+composable, an observation in flight near stop due, service resuming after stop due, a halt under queue
+pressure; none reports the axis stopped without a fresh read), missed service, urgent stop, unknown
 terminal motion, the host-loss capability text, native torque values at INT16 limits, the withheld 0x6087
 write refusing the torque operation with zero changing TX, and the refused physical torque unit. No test
 claims a deceleration ramp, standstill, holding torque or a host-loss stop. Quick and full verify, firmware

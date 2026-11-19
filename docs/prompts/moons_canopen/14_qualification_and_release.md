@@ -8,7 +8,7 @@ an identified, available and authorized MOONS' fixture. The CL86-C bench is not 
 
 ### Software closeout
 
-1. Reconcile every ledger entry of both layouts, every `manual_only` function and MO-D01..MO-D33 (plus any later
+1. Reconcile every ledger entry of both layouts, every `manual_only` function and MO-D01..MO-D34 (plus any later
    IDs) against callable APIs, console routes and tests. Mark missing code separately from unresolved device
    behavior, unavailable fixtures, unsupported modes and the TSM/TXM-C Part B block.
 2. Check the coverage file: one row per common operation and per vendor operation, with native objects by

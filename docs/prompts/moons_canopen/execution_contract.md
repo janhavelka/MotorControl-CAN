@@ -45,8 +45,8 @@ AGENTS, [COMMON.md](../COMMON.md) (including the owner-absence section), [CONVEN
   PARTIAL until its console part lands, and records S4 in its inherited-gates column (COMMON).
 - A MOONS' binding starts with no best-effort stop shape (S3) and `SdoReuse` `NONE` (S10); stage 04 and the
   ledger's marker review may change them with evidence.
-- Seam S13, SYNC side-effect admission, gates prompt 51's SYNC producer on every interface with a MOONS'
-  binding. Stage 09 claims and lands it if the table shows it unclaimed, otherwise extends or waits for the
+- Seam S13, SYNC and NMT-broadcast effect admission, gates prompt 51's SYNC producer and node-0 NMT (at the
+  owner's NMT admission) on every interface with a MOONS' binding; its default deny lands with S2. Stage 09 claims and lands it if the table shows it unclaimed, otherwise extends or waits for the
   claiming family; stages 10 and 12 consume the landed artifact. S11 and S12 are not needed by MOONS' (no
   heartbeat consumer, no node guarding; see the [README](README.md)).
 
@@ -80,7 +80,8 @@ AGENTS, [COMMON.md](../COMMON.md) (including the owner-absence section), [CONVEN
   reply proves a responding MOONS'-branded CiA 402 server, not the product, layout or firmware.
 - The application declares the product row (STF-C, SSDC-C, TSM/TXM-C), node ID and bitrate per binding. The
   declared binding selects the profile and product; product identity only confirms it (MULTIDRIVE row 57).
-  Explicit identity reads (stage 03) confirm or refuse it; a mismatch refuses dependent work. This is the
+  Explicit identity reads (stage 03) give prompt 57's outcomes, and its admission by outcome decides
+  dependent work, stops exempt as stage 04 item 9 states. This is the
   intra-family form of backlog D18: no identity-based auto-selection, and no vendor-object write without the
   declared model and a confirmed layout.
 - Firmware is reported, not a lock ([prompt 57](../57_regular_drive_operations.md) identity policy and its
@@ -102,7 +103,7 @@ AGENTS, [COMMON.md](../COMMON.md) (including the owner-absence section), [CONVEN
   stop is not a quick stop. Host heartbeat observation proves no drive reaction to host loss.
 - A SYNC is a bus-wide motion trigger for any MOONS' node in mode -2 (UM21 p36). Until S13 has landed and its
   consumer gate passed, no test, example or console route configures a MOONS' binding and a SYNC schedule on
-  the same interface; every deliverable that needs both is Blocked, and no family code substitutes for S13.
+  the same interface or sends node-0 NMT there; every deliverable that needs both is Blocked, and no family code substitutes for S13.
 - Never send RTR, LSS or node-guarding frames to a MOONS' node (UM21 p53; EDS `LSS_Supported=0`; MO-D12).
 
 ## Verification commands

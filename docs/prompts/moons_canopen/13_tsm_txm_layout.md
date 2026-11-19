@@ -26,7 +26,11 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
 3. Identity, with stage 03's admission table and outcomes: the application declares the TSM/TXM-C row and the
    exact model. Layout evidence is vendor ID 0x000002D9 plus an abort of the absent 0x2050 with its raw code
    retained and its read effect reviewed; another abort code, a timeout or a 0x2050 value is UNCONFIRMED (a
-   value is evidence of UM21). 0x2200 FWName and 0x100A are recorded raw and identify no model: a value equal
+   value is evidence of UM21). The abort is negative evidence that any MOONS' server without 0x2050 shares
+   (the 2010 drives AMP10 describes, and possibly MDX+, M56S or SV200, whose dictionaries are not in the
+   pack), so it confirms only among the application's declared candidates: with another such candidate
+   declared, the outcome is UNCONFIRMED with the declared match, the result names both (prompt 57), and Part
+   A reads stay labelled inferred. 0x2200 FWName and 0x100A are recorded raw and identify no model: a value equal
    to an EDS default ("UNK", "2.12") or any other unreferenced string is not model evidence. The exact model
    stays the declaration; Part A reads are labelled inferred, and every model-specific Part B operation stays
    gated until the new manual and identification evidence for that model (a fixture-recorded string or object

@@ -51,7 +51,13 @@ refused whole with zero changing TX.
    withholds sub 1, 2 and 4 on STF-C and sub 2 and 5 on SSDC-C, so arming and re-arming are refused on both
    products until those writes resolve; only an SSDC-C disarm (sub 1 = 0) can pass. Each trigger must name an
    owner-admitted producer: a SYNC schedule admitted by S13 whose approval names this watchdog as its consumer
-   (stage 09), or an RPDO through seam S14, which has not landed, so RPDO triggers refuse. A declared period
+   (stage 09), or an RPDO through seam S14, which has not landed, so RPDO triggers refuse. A SYNC-fed arm stays
+   refused after those writes resolve too, until a reviewed transition exists: stage 09 revokes the node's
+   S13 approval before it admits the 0x2060 write, so the feed stops just as the watchdog starts counting. The
+   transition defines the approval held before the write, its revocation, the post-write readback, the
+   reapproval from fresh reads and a first-feed deadline inside the configured timeout, with the worst-case
+   service and queue delay taken from applicable measurements; tests then cover a lost arm reply and a delayed
+   reapproval (no stale SYNC TX, no automatic re-arm, an explicit unknown or triggered outcome). A declared period
    shorter than the timeout is a precondition, not proof of delivery or of a host-loss reaction. Report armed,
    triggered and disarmed states, and the host-loss reaction as "armed, action N, not observed"; outside mode 3
    add "outside the documented profile velocity applicability" (UM21 p70; MO-D18), never a stop as an
@@ -64,7 +70,11 @@ refused whole with zero changing TX.
    communication objects. Modes, targets, motion parameters and 0x605A are in no group; after restart they are
    re-read, never assumed. Completion evidence: the SDO response, then 0x200B bit 8 "Saving" and
    0x2217 bad-flash bits (UM21 p67, p79) as drive-reported facts; durability needs `verifyPersistence` after a
-   real restart. Write endurance is not stated: no repeated store for test coverage.
+   real restart. Write endurance is not stated: no repeated store for test coverage. 0x1010 is RO in UM21
+   p40's list but RW per sub-index on p45 and in the EDS (MO-D09); stage 02's access review decides. While
+   the write is withheld the store is refused by the preflight with zero changing TX and its tests are the
+   signature encoding and that refusal; a production store test exists only once stage 02 admits the
+   sub-index, and durability only through `verifyPersistence` after a real restart on a fixture.
 8. Restore (UM21 p47): 0x1011 sub 1 all, sub 2 communication, signature "load" (0x64616F6C). UM21 p47 lists
    both sub-indexes RO, the EDS files rw (MO-D09 as extended by stage 01); the write stays gated until that
    is resolved.
@@ -88,7 +98,8 @@ Tests cover old/new tuple routing, conflicting owners, lost write reply, readbac
 and store refused by the preflight with zero changing TX, refused bitrate setter, watchdog candidates (no
 owner-admitted feed, an RPDO trigger without S14, a SYNC feed not named by the S13 approval, action 2+ with a
 qualified segment but an unresolved action mapping, arm and re-arm refused by the withheld sub-index writes
-with zero changing TX, re-arm explicit only, triggered event invalidation, host-loss text without a stop
-claim), store and restore signatures, lost replies, restore invalidation and no automatic retry or save.
+with zero changing TX, a SYNC-fed arm refused without the reviewed transition, re-arm explicit only,
+triggered event invalidation, host-loss text without a stop claim), store and restore signatures, the store
+refused while 0x1010 is withheld, lost replies, restore invalidation and no automatic retry or save.
 Quick and full verify, firmware builds and exact-commit CI pass.
 Restart-dependent checks need restart control on an identified MOONS' fixture. Hardware: NOT RUN.

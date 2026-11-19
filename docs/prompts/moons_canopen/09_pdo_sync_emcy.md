@@ -10,9 +10,15 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
 
 1. NMT (UM21 p13-p14): start 0x01, stop 0x02, enter pre-operational 0x80, reset node 0x81, reset communication
    0x82; the node enters Pre-operational on its own; SDO, SYNC, TIME and EMCY work in Pre-operational and
-   Operational, PDO only in Operational. Admit the `nmt` route for MOONS' bindings only as explicit commands;
+   Operational, PDO only in Operational, and a Stopped node serves only node and error control (UM21 p14
+   table). Admit the `nmt` route for MOONS' bindings only as explicit commands;
    none is sent on startup, probe or recovery. An NMT stop is not a stop. What a transition to
-   Pre-operational does to an active motion is not documented; report it, claim no motion effect.
+   Pre-operational does to an active motion is not documented; report it, claim no motion effect. Every NMT
+   command, targeted or to node 0, passes the owner's NMT admission under S13 (canopen_shared 02 S13 bullet;
+   item 9): until item 9 lands, the S2-commit default deny refuses node-0 NMT on any interface with a MOONS'
+   binding, and admitting a command that can change an evaluated node's NMT state revokes the SYNC approval
+   before it is sent. An NMT command to a MOONS' binding is a changing request under prompt 57's identity
+   policy, never an exempt stop.
 2. Heartbeat and boot-up: the drive produces heartbeat on 0x700 + node, 0x1017 default 1000 ms (UM21 p48);
    states 0, 4, 5, 0x7F (UM21 p13). Boot-up invalidates every cached fact, qualification and queued work of the
    binding. The drive has no heartbeat consumer: 0x1016 is absent from UM21 p40 and all EDS files, although
@@ -47,15 +53,17 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
 8. SYNC objects: 0x1005 default 0x80; whether the drive can produce SYNC is not stated, and setting bit 30 on a
    non-producer is answered with abort 0x06090030 (UM21 p43). 0x1006/0x1007 are "in ms" on UM21 p44 against
    CiA microseconds (MO-D10): read raw, never write. 0x1019 is 0 or 2-240 (UM21 p48).
-9. Seam **S13, SYNC side-effect admission** ([seam table](../canopen_shared/README.md), row added at
+9. Seam **S13, SYNC and NMT-broadcast effect admission** ([seam table](../canopen_shared/README.md), row added at
    `25af57eb`; implemented by the first family whose devices act on SYNC; it gates prompt 51's producer
    without forking it). Before coding, recheck the table and the Git log. If S13 is unclaimed, the lead records
    the claim (lead, stage 09, date) before any shared edit and lands it in one focused tested commit, recording
    its commit ID, tested interface and consumer gate; if another family has claimed it, extend it with the
    MOONS' entry or wait, never build a parallel gate. Consume the S13 bullet of canopen_shared 02
    ("CANopen-only rules") as written: approval over the whole declared bus population, refusal of unknown,
-   stale, harmful or unauthorized effects, revocation during a schedule, zero further SYNC TX. The MOONS' entry
-   supplies each declared MOONS' node's effects and the reads that decide them, taken for the current binding,
+   stale, harmful or unauthorized effects, revocation during a schedule, zero further SYNC TX, node-0 NMT at
+   the owner's NMT admission under the same rule, revocation before an NMT command that can change an
+   evaluated node's state, and the default deny landed with S2 (stage 02b, if MOONS' lands S2). The MOONS' entry
+   supplies each declared MOONS' node's SYNC and NMT effects and the reads that decide them, taken for the current binding,
    server session and configuration generation (an unread item refuses):
    - Mode: 0x6061 read after the node's last boot-up and after this owner's last 0x6060 write. -2 is a program
      start on every SYNC (UM21 p36; AMP10 p48-p49): always refused, since stage 10 is refusal-only. 0x6060 is
@@ -70,13 +78,27 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
      is read back, and counted in the load analysis. The mode and watchdog effects are evaluated in every NMT
      state: UM21 p14 lists SYNC in Pre-operational and Operational, and does not say that a Stopped node
      ignores it for SYNC Q or the watchdog.
+   - NMT effects per command, for the owner's NMT admission of node 0 (UM21 p13-p14; an effect not stated
+     here is unknown and refuses node-0 NMT on the interface):
+     - Start 0x01: the node goes Operational and PDO exchange starts, so a valid RPDO applies received data
+       (types 0-240 at the next SYNC, UM21 p51) and a valid TPDO transmits per its type (UM21 p53); no drive
+       state or motion effect is stated. Known harmless only when this epoch's readback shows every RPDO of
+       the node invalid (COB-ID bit 31 set); a valid RPDO refuses it while S14 has not landed.
+     - Stop 0x02, Enter Pre-operational 0x80, Reset node 0x81 and Reset communication 0x82: the state change
+       is stated, its effect on running motion, a running Q program and an armed watchdog is not (a Stopped
+       node no longer receives the RPDO or SYNC feed, UM21 p14, p70): unknown, refused for node 0.
+     A targeted command to a MOONS' binding stays item 1's explicit command and revokes the node's approval
+     first, since each of the five can change its NMT state from some state.
    - Revocation: the node's approval is withdrawn before this owner admits a write to 0x6060, 0x2060, 0x1005,
-     0x1400-0x1403, 0x1600-0x1603, 0x1800-0x1803 or 0x1A00-0x1A03 (not after its reply), and on the shared
-     invalidators and a report that an RS-232 tool was attached; only fresh reads requalify it.
+     0x1400-0x1403, 0x1600-0x1603, 0x1800-0x1803 or 0x1A00-0x1A03 or an NMT command that can change the
+     node's state (not after its reply), on the shared invalidators, on a heartbeat or boot-up reporting an
+     NMT state other than the one evaluated (another NMT master) and on a report that an RS-232 tool was
+     attached; only fresh reads, with the NMT state the node then reports, requalify it.
    Until S13 has landed and passed, the MOONS' `sync` route stays Blocked and no MOONS' binding shares an
    interface with a SYNC schedule (execution contract). Record the shared-interface
    analysis that canopen_shared 02 requires for a second CANopen family in one domain (node IDs, configured
-   COB-IDs, bitrate, NMT broadcasts and SYNC effects on both families), with S13 as its SYNC part. The owner
+   COB-IDs, bitrate, NMT broadcasts and SYNC effects on both families), with S13 as its SYNC and node-0 NMT
+   part. The owner
    arms only SYNC COB-ID 0x80 ([SYNC contract](../../sync.md)), which is also MOONS' 0x1005 default (UM21
    p43), so a host SYNC schedule for Lichuan PDOs reaches every MOONS' node on that interface.
 10. EMCY: COB-ID 0x1014 = 0x80 + node, RO (UM21 p47); history 0x1003 with eight entries (UM21 p42). No MOONS'
@@ -104,6 +126,9 @@ MOONS' nodes: admitted only when every declared node's effects are known harmles
 on a node other than the target for mode -2, an unread mode, a non -2 node with an unread or unknown map, a
 valid synchronous RPDO without an admitted producer and an enabled watchdog with the SYNC trigger not owned by
 the schedule; a 0x6060 write, remap, rebind and NMT reset during a running schedule followed by no SYNC TX
-until fresh reads; both directions with a Lichuan axis on the same interface. Quick and full verify, firmware
-builds and
+until fresh reads; a targeted and a broadcast Start while a Pre-operational MOONS' node holds a valid
+synchronous RPDO (approval revoked before the Start, no later SYNC TX); a heartbeat reporting an unevaluated
+NMT state during a schedule (no later SYNC TX); node-0 Stop, Enter Pre-operational and both resets on an
+interface with a MOONS' binding (zero NMT TX), also before item 9 lands (the S2-commit default deny); both
+directions with a Lichuan axis on the same interface. Quick and full verify, firmware builds and
 exact-commit CI pass. Hardware: NOT RUN.

@@ -1,7 +1,7 @@
 # MOONS' / Applied Motion CANopen profile promptset (STF-C, SSDC-C, TSM/TXM-C)
 
-Prepared 2026-11-19; revised the same day after an independent [audit](audit.md)
-([application](audit_application.md)) and the shared contract's round 2 (`1043608b`). Source collection and
+Prepared 2026-11-19; revised the same day after two independent [audit](audit.md) rounds
+([application](audit_application.md)) and the shared contract's rounds 2 and 3 (`1043608b`, `a7656efb`). Source collection and
 prompt preparation complete. All implementation stages are NOT STARTED; MOONS' CANopen hardware is NOT TESTED.
 
 Add the Applied Motion Products / MOONS' CANopen drives as one independent concrete profile family,
@@ -9,7 +9,7 @@ Add the Applied Motion Products / MOONS' CANopen drives as one independent concr
 and plugs in through the [shared integration contract](../canopen_shared/02_profile_integration_contract.md).
 Every numbered stage runs under the [execution contract](execution_contract.md). The evidence is the
 [MOONS' reference pack](../../reference/moons_canopen/README.md) and its [review](../../reference/moons_canopen/review.md)
-with discrepancies MO-D01..MO-D30 (stage 01 corrects the review and adds MO-D31..MO-D33); generic CANopen facts come from the
+with discrepancies MO-D01..MO-D30 (stage 01 corrects the review and adds MO-D31..MO-D34); generic CANopen facts come from the
 [CANopen principles pack](../../reference/canopen_principles/principles.md). Dispatch one stage at a time and
 carry its handoff into the next. Creating this promptset does not execute it.
 
@@ -86,7 +86,7 @@ no other family has claimed: S1 inventory entry, S2 profile resolution on a bind
 best-effort stop shape (MOONS' starts with none), S6 console family and JSONL profile, S7 per-family checkers
 (claimed before stage 01's checker registration, completed with the first public header in stage 02), S10
 reviewed SDO reuse policy (MOONS' starts with `NONE`) and S13
-SYNC side-effect admission (stage 09). A claimed seam is extended or waited for, never rebuilt. S8 (shared
+SYNC and NMT-broadcast effect admission (stage 09; its default deny, like S3's, lands with S2). A claimed seam is extended or waited for, never rebuilt. S8 (shared
 CiA 402 helpers) is extracted only when MOONS' and the other caller need identical evidenced semantics. S4
 (prompt 64 common axis table), S5 (prompt 65 package components) and S9 (prompt 63 second protocol) are
 consumed only from their prompts. Until S4 lands, every MOONS' console entry, common-verb dispatch and API/CLI
@@ -101,7 +101,8 @@ mode select and firmware identity (04), 73 timeouts and freshness guards (04-06)
 77 switch-ready limits and homing (07). The declared binding selects the profile and product row; product
 identity only confirms it (MULTIDRIVE row 57, backlog D18). Seam S13 is the shared form of the SYNC hazard this
 family raised: a SYNC is a broadcast, and a MOONS' node in mode -2 starts a Q program on each one, so before
-the owner produces SYNC on an interface every bound device's reviewed SYNC effects must be known. S13 gates
+the owner produces SYNC on an interface every bound device's reviewed SYNC effects must be known; the same
+rule covers node-0 NMT, whose per-command MOONS' effects stage 09 supplies. S13 gates
 prompt 51's producer without forking it and is the SYNC part of canopen_shared 02's shared-interface analysis.
 Stage 09 claims it in the seam table if it is still unclaimed, or extends or waits for the claiming family;
 stage 10 keeps mode -2 refused and relies on S13's revocation for its 0x6060 writes.

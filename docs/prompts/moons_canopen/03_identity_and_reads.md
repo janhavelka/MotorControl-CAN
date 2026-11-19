@@ -17,21 +17,33 @@ Status: NOT STARTED. Requires 02b. MO-D01, MO-D09, MO-D11, MO-D19, MO-D20 and MO
 
    | Evidence | Established by | Admits |
    | --- | --- | --- |
-   | Bootstrap | Nothing | The probe and this stage's identity, config and state reads, kept raw where the layout decides the meaning (0x2100) |
-   | UM21 layout and series | Vendor ID 0x000002D9 and a complete 0x2050 upload equal to the declared row's reference, "STF-" or "SSDC" (basis: EDS default; UM21 p69 states no value) | Layout-typed reads (0x2100) and, with each stage's own gates, every changing operation |
+   | Bootstrap | Nothing | The probe, item 1's identity reads and the CiA 301 and CiA 402 objects (0x1000-0x1FFF, 0x6000-0x9FFF) of items 5-6, kept raw; the coverage file lists each by ledger key with the read effect stage 02 reviewed, and an object without that review is not bootstrap |
+   | UM21 layout and series | Prompt 57's outcome for the declared row over the application's candidate set, with the references below | Layout-typed reads: the manufacturer-area objects (0x2000-0x5FFF) of items 5-6, typed 0x2100 and every typed meaning of item 7; with each stage's own gates, every changing operation. Stops follow prompt 57's exemption (stage 04 item 9) |
    | Exact model (STF05-C, SSDC06-C, ...) | The declaration only; no object names the model | Nothing beyond the series row; model-dependent values stay caller-declared and are labelled so |
    | Firmware | Complete 0x100A and 0x2031 uploads plus a caller-supplied, generation-bound firmware qualification naming the recorded string and its fixture evidence | Hardware-qualified claims only (item 3) |
 
-   Layout outcomes use prompt 57's names and meanings (CONFIRMED is unique among the supplied references, not
-   physical proof): CONFIRMED (both values match), CONTRADICTED (another vendor ID; a complete 0x2050 equal to
-   the other UM21 row's reference; or stage 13's AMP10 evidence, a 0x2050 abort with the CiA 301
-   object-does-not-exist code 0x06020000, which no MOONS' document lists, so the raw code is retained) and
-   UNCONFIRMED (no answer, another abort, an incomplete or oversized string, any other value). CONTRADICTED
-   refuses every changing operation and layout-typed read before TX, as prompt 57's motion rule does.
-   UNCONFIRMED refuses them too, unlike prompt 57: MOONS' has two object layouts with different widths and
-   units under one vendor ID and device type, and 0x2050 is the only layout discriminator. Firmware never
-   produces either refusal (item 3). A stale observation has no outcome until it is read again. No typed read
-   of 0x2100 (user registers in UM21, error status bits in EDS-TSM) happens before CONFIRMED. An AMP10 declaration
+   References per row, the only layout discriminator under one vendor ID and device type: STF-C is vendor ID
+   0x000002D9 with a complete 0x2050 upload "STF-" (EDS-STF default), SSDC-C the same vendor ID with "SSDC"
+   (EDS-SSDC default; UM21 p69 states no value), TSM/TXM-C the vendor ID with a 0x2050 abort carrying the
+   CiA 301 object-does-not-exist code 0x06020000 (stage 13; inferred from EDS-TSM, which has no 0x2050, and
+   retained raw). 0x100A, 0x1009 and 0x2031 are firmware identity: recorded raw and never a discriminator
+   (item 3), although the pack review's section 4 lists them (stage 01 corrects it). When a real drive reports
+   another 0x2050 value, the application supplies a MEASURED reference for its specimen (prompt 57); no caller
+   acceptance replaces a reference.
+
+   The outcomes, their admission precedence and the stop exemption are prompt 57's Identity policy, which
+   canopen_shared 02 "Identity and device evidence" applies to every family: CONFIRMED (the declared row's
+   reference matches, every other candidate has a reference and none matches; unique among the supplied
+   references, not physical proof), CONTRADICTED (another candidate's reference matches and none of the
+   declared row's, for example the other UM21 row's 0x2050, or the TSM/TXM-C abort for a UM21 declaration)
+   and UNCONFIRMED (everything else). Admission by outcome: CONFIRMED, and UNCONFIRMED in which the declared
+   row's reference matches (a collision, or a candidate without references such as another MOONS' series the
+   application lists), admit, and the result names every matching row; UNCONFIRMED without that match (no
+   answer, another abort, an incomplete or oversized string, any other value), CONTRADICTED and no current
+   outcome refuse every layout-typed read and changing operation before TX, except the stops that stage 04
+   item 9 admits under prompt 57's exemption. Firmware never produces a refusal (item 3). A stale observation
+   has no outcome until it is read again. No typed read
+   of 0x2100 (user registers in UM21, error status bits in EDS-TSM) happens before an admitting outcome. An AMP10 declaration
    is refused for every operation except the probe until stage 13; do not probe 0x2200 or other AMP10 objects
    here. Host tests confirm through the fake drive's labelled EDS values, never through a production bypass.
 3. Firmware: record 0x100A and 0x2031 raw. Which object carries the "310A"/"310B" string of UM21 p6 is not
@@ -60,6 +72,8 @@ Status: NOT STARTED. Requires 02b. MO-D01, MO-D09, MO-D11, MO-D19, MO-D20 and MO
    bits error code, high 16 bits manufacturer-specific, UM21 p42); 0x6064, 0x606C, 0x60F4, 0x60FD; 0x2019
    temperatures in 0.1 °C and 0x2030 DC bus in 0.1 V (UM21 p67-p68); 0x6078 and 0x6074 on SSDC only.
    0x200F stays unread until its RO/WO conflict (UM21 p65 versus p67) is reviewed; reading it never clears it.
+   The manufacturer-area objects of items 5 and 6 are layout-typed reads (item 2): they stay unsent until an
+   admitting outcome, so a wrong dictionary receives only the listed bootstrap reads.
 7. Typed meanings: decode CiA 402 state from statusword bits 0-6 with the 0x004F/0x006F masks only after
    checking UM21 p16 and p57 against the principles pack s12; bits 10-13 by the mode shown in 0x6061 (UM21
    p37); bits 8, 14 and 15 stay raw (reserved in UM21 p57). 0x603F and 0x200B bits get UM21 names; which alarm
@@ -96,6 +110,8 @@ Tests cover exact read plans per product, each admission-table outcome (mismatch
 terminal result without refusal, width candidates for MO-D09 objects, strings at exact capacity, one byte over,
 without an indicated size, with interrupted segments and aborted, with the other fields preserved, malformed and
 partial sequences, deadlines, stale and wrong-generation events, unchanged outputs and that no step writes.
-The four identity cases of canopen_shared 02 refuse the layout-gated reads with nothing sent. No typed claim
+The shared identity cases: a Lichuan server under the MOONS' label, a missing, unmatched and stale identity
+send exactly the listed bootstrap reads and refuse the layout-typed reads with nothing more sent; a collision
+and a candidate without references admit them with every matching row named. No typed claim
 of measured position, firmware row or alarm severity is made without its gate. Quick and full verify, family
 checks and exact-commit CI pass. A good SDO reply closes no readiness, unit or completion gate. Hardware: NOT RUN.

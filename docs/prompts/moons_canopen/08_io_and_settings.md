@@ -18,9 +18,24 @@ are owned here; MO-D08 and MO-D09 apply to every object below.
    0x260C sub 1 60 versus 0). Never write a default, never treat one as the drive's value, and never "restore
    defaults" by writing EDS values.
 4. Settings change behavior, not only parameters: no setting is written as an incidental step of another
-   operation, nothing is saved automatically (saving is stage 11), and each changing write requires the
-   explicit quiescence policy of the block plus an idle drive (no set-point in process, no Q program running
-   per 0x200B bit 14).
+   operation and nothing is saved automatically (saving is stage 11). Each changing write runs the write
+   preflight and this admission, decided from reads taken within the operation:
+   - Configuration quiescence guard, for every write of 08a and 08c and of 08b's function, brake, filter and
+     analog settings: a fresh 0x6041 in Switch on disabled or Ready to switch on (not Switched on, whose
+     power-stage meaning differs between vendors, CP-D11), 0x200B bit 0 "Motor Enabled" and bit 14 "Q Program
+     is running" clear (UM21 p67). With the guard on, an idle but enabled or Switched on drive refuses before
+     TX. Following prompt 77's limit-guard pattern and the owner's 2026-11-17 direction (optional, settable
+     guards; the user's responsibility), the guard is on by default and settable per binding, and an admitted
+     result names a guard that was off.
+   - 08b output values (0x60FE) need only the block row's output-function check and no Q program running.
+   - A current write (0x2601, 0x2603, 0x2201, 0x2203, 0x2206, 0x6073) carries the caller's motor and drive
+     current limits and is refused above them; the profile invents no limit.
+   - A write without a confirmed reply leaves the setting `UNKNOWN`, applies item 5's invalidation at once,
+     and dependent motion, homing and output operations refuse until a fresh readback.
+   - The alarm masks 0x2610 and 0x221A (08c) admit an explicit write of their documented function, masking
+     the LED flashing of the named alarms (UM21 p85, bit layout there); whether masking also suppresses an
+     alarm's effect is not stated, so the stage 02 ledger row records that protection effect as open and every
+     result of the write states "protection effect unreviewed (UM21 p85)".
 5. Invalidation: a change of 0x2604, 0x2208, 0x260F sub 1, 0x607E, 0x260D or 0x2612 invalidates scales,
    origins and dependent qualifications; a change of an input function invalidates limit and homing
    admission; a change of an output function invalidates output ownership.
@@ -45,7 +60,7 @@ Deliver one tested, committed block at a time through the same context and the o
 | --- | --- | --- |
 | 08a motor, current and resolution | STF: 0x2601 idle and 0x2603 acceleration current ("Amps multiply 100", UM21 p82), 0x2604 steps/rev, 0x260D motor selection, 0x2612 custom motor sub 1-15, 0x260E open-winding velocity limit (counts/s), 0x2611 load ratio, 0x260A jerk delay. SSDC: 0x2201 peak current (mA), 0x2203 idle, 0x2206 acceleration current (absent from EDS-SSDC, MO-D08), RO 0x2207, 0x2218, 0x2216. Both: 0x6073 (0.01 A, UM21 p60) | Motor selection and custom motor data change the motor model and current: explicit commissioning intent only. 0x6073 is "maximum permissible torque creating current" in UM21 p60 but "Running Current" in AMP10 p16; its effect on an open-loop stepper is unknown (MO-D25), so its write stays unsupported on STF. Units stay native where a page gives none. `test/moons_canopen_motor_settings_test.cpp` |
 | 08b inputs, outputs, brake and input functions | 0x60FD bits 16-23 X1-X8, bits 0-3 limits, home, interlock (UM21 p63). 0x60FE sub 1 Y1-Y4 in bits 0-3 and sub 2 mask, edge-triggered: write sub 2 first, then sub 1 (UM21 p63-p64; MO-D21). Output functions 0x2615/0x2214 (one 4-bit code per output, UM21 p87) and 0x2616/0x2213 alarm output on Y1; brake 0x2607/0x220C sub 1 mode, sub 2 and 3 delays in ms (UM21 p75, p83); enable input 0x2617/0x220D and alarm-reset input 0x2609/0x220E; input filters 0x260C sub 3-8 and 0x2210 in 200 us units (UM21 p76); SSDC analog 0x2212 and 0x221C | An output write requires that output's function to be general purpose (code 3) in a fresh read; a function-assigned output does not follow 0x60FE. Never toggle a brake output through 0x60FE. Writing the mask then the outputs is one operation with partial-failure evidence; mask-before-value is the documented order, not a generic CiA 402 layout. Changing the enable or alarm-reset input function changes who can enable or reset the drive: explicit, named, read back. Physical loads need their fixture. `test/moons_canopen_io_test.cpp` |
-| 08c direction, filters and loop tuning | STF: 0x260F sub 1 reverse direction, sub 2 wave smoothing, sub 3 electronic damping (0 = enabled), sub 4 open-winding detect (UM21 p85), 0x2613 pulse noise filter, 0x2614 smooth filter, 0x2610 alarm mask. SSDC: 0x2208 rotation reverse, 0x220B smooth filter, 0x2211 notch filter (SSDC only), 0x2220-0x2227 gains and filters, 0x2204/0x2205 and 0x2252 in-position conditions (0x2205 in 200 us cycles), 0x221A alarm mask | 0x2610/0x221A "mask the LED flashing of the corresponding alarm" (UM21 p85); whether masking also suppresses the alarm's effect is not stated, so the setter is explicit and documents that gap. Gains have no documented units: native values only, no auto-tuning, no tuning as fault handling. Direction changes invalidate scales and origins. `test/moons_canopen_tuning_test.cpp` |
+| 08c direction, filters and loop tuning | STF: 0x260F sub 1 reverse direction, sub 2 wave smoothing, sub 3 electronic damping (0 = enabled), sub 4 open-winding detect (UM21 p85), 0x2613 pulse noise filter, 0x2614 smooth filter, 0x2610 alarm mask. SSDC: 0x2208 rotation reverse, 0x220B smooth filter, 0x2211 notch filter (SSDC only), 0x2220-0x2227 gains and filters, 0x2204/0x2205 and 0x2252 in-position conditions (0x2205 in 200 us cycles), 0x221A alarm mask | 0x2610/0x221A "mask the LED flashing of the corresponding alarm" (UM21 p85); whether masking also suppresses the alarm's effect is not stated, so an explicit write of the LED mask is admitted and its result states the protection effect as unreviewed (item 4). Gains have no documented units: native values only, no auto-tuning, no tuning as fault handling. Direction changes invalidate scales and origins. `test/moons_canopen_tuning_test.cpp` |
 
 ## Deliver
 
@@ -56,7 +71,10 @@ above with owner-backed API and console parity; console family settings routes; 
 ## Acceptance
 
 Each block tests accepted and rejected enumerations, product refusal, whole-candidate validation, readback
-mismatch, partial failure, stale cache, invalidation and no automatic save; 08b also tests the mask-then-value
+mismatch, partial failure, stale cache, invalidation and no automatic save, refusal on an enabled but idle
+and on a Switched on drive with the quiescence guard on, admission with the guard off and the result naming
+it, a current above the caller's limit, invalidation and dependent refusal after a possibly applied write,
+and an alarm-mask write whose result states the unreviewed protection effect; 08b also tests the mask-then-value
 order, a function-assigned output refusal and brake-output refusal. Every ledger row of the three groups has
 an explicit disposition. Quick and full verify, firmware builds and exact-commit CI pass for each behavior
 block. Physical I/O, brake and current validation needs fixtures. Hardware: NOT RUN.

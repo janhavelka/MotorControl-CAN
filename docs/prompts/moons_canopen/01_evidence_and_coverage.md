@@ -38,13 +38,23 @@ No device API, firmware or hardware claim comes from it.
    - Extend **MO-D09**: its "0x1010/0x1011 shown RO (UM21 p40) but RW subs (p45, EDS)" holds for 0x1010 only.
      UM21 p47 lists 0x1011 sub 1 (restore all) and sub 2 (restore communication) as RO, while EDS-STF,
      EDS-SSDC and EDS-TSM give both rw. Owner: stage 02 (access review), stage 11 (restore write gate).
+   - Add **MO-D34** (the ID freed by the first correction): UM21 p16's command table gives "Quick stop" the
+     controlword bits 0 x x 0 x (bits 7, 3, 2, 1, 0) with transitions 7, 9, 10 and 12, the CiA 402 disable
+     voltage pattern, and lists no command with bit 2 clear and bit 1 set, while UM21 p37 and p56 name bit 2
+     "Quick stop" and p16 gives transition 11 the event "Quick stop command"; no UM21 example sends 0x000B.
+     Check the rendered page. Owner: stage 04; it stays open for 14a Q8's observed transition and a vendor
+     question on the p16 table.
+   - Review section 4 says family discrimination must use 0x2050, 0x100A/0x2031 and the vendor ID together.
+     The version strings have only EDS defaults ("300F", "300E", "2.12"; 0x2031 none) that match no firmware
+     row (MO-D01), and firmware is reported, not a lock (prompt 57), so the layout outcome uses the vendor ID
+     and 0x2050 against the candidate references and records 0x100A and 0x2031 raw (stage 03 item 2).
    Further discrepancies found by later stages are added the same way with the next free ID.
 4. Fix the profile identity: family `moons_canopen`, namespace `MotorControlCAN::MOONS_CANOPEN`, product rows
    `STF_C`, `SSDC_C`, `TSM_TXM_C`, and object layouts `UM21` (STF-C, SSDC-C) and `AMP10` (TSM/TXM-C). Record the
    firmware rows: STF-C 310A and later, SSDC-C 310B and later; any other string is unqualified (MO-D01).
 5. Create `docs/reference/moons_canopen_objects.json` (schema 2, canopen_shared 02 "Object and operation
    ledger") with its evidence parts now: `sources` bound to the pack manifest hashes, `scopes`
-   (`um21_stf_c_310a`, `um21_ssdc_c_310b`, `amp10_tsm_txm_c`), `conflicts` for MO-D01..MO-D33 with every original
+   (`um21_stf_c_310a`, `um21_ssdc_c_310b`, `amp10_tsm_txm_c`), `conflicts` for MO-D01..MO-D34 with every original
    claim and its page or EDS line under a hash guard, and `manual_only` for prose-only functions. Stage 02
    adds the `objects` entries. Prose-only functions include at least: two-deep set-point buffering (UM21 p21),
    halt per mode (UM21 p21, p31; AMP10 p26, p45), RS-232 power-up hold in Initialization (UM21 p9), Q program
@@ -71,7 +81,7 @@ No device API, firmware or hardware claim comes from it.
 
 ## Deliver
 
-- The corrected review entries (MO-D24 reference, MO-D09 0x1011 extension, MO-D31, MO-D32, MO-D33) with their
+- The corrected review entries (MO-D24 reference, MO-D09 0x1011 extension, MO-D31 to MO-D34, section 4) with their
   evidence, applied in the pack under the intake rules (working tree, INDEX and HEAD checks).
 - `docs/reference/moons_canopen_objects.json` (evidence parts), `docs/reference/moons_canopen_operations.json`,
   `docs/moons_canopen_coverage.md` linked from `docs/coverage.md` and `docs/profile_contract.md`.
@@ -83,7 +93,7 @@ No device API, firmware or hardware claim comes from it.
 ## Acceptance
 
 Every documented native function in the review sections 3-11 has a row with page source, owning stage and
-gate; unresolved rows never become writable. All 33 MO-D items are in `conflicts` with an owner stage. The
+gate; unresolved rows never become writable. All 34 MO-D items are in `conflicts` with an owner stage. The
 checkers fail their negative tests as intended and pass on the real files. `python scripts/check_promptset.py`,
 `--check-git-ref INDEX` before the commit and `HEAD` after, `git diff --check` and `python scripts/verify.py
 --mode quick` pass. The checker registration is a build/check change: verify CI on the exact pushed commit.

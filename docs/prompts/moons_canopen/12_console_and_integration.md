@@ -38,6 +38,10 @@ the dependent items stay Blocked otherwise while the rest proceeds.
    The S2 bench scripts stay Lichuan-only and refuse a MOONS' target.
 9. Discovery: a bounded scan over caller-declared node IDs that runs the MOONS' probe only; no global CAN-ID
    sweep and no frames of another protocol. A probe finding is "MOONS' vendor ID at node n", never a product.
+   It consumes the scan and session that prompt 64 (S4) makes profile-neutral: `DiscoveryScan` in
+   `examples/common/` is Lichuan-typed until then (canopen_shared 01), so the integrated scan and
+   `test/moons_canopen_scan_test.cpp` are Blocked until that artifact has landed and passed; no parallel family
+   scanner and no edit of the S4-owned path. Stage 02b's bounded API probe stays available meanwhile.
 10. FieldCore-node: inspect read-only whether its owner and module boundaries admit a second CANopen profile;
     record the facts and required future changes; make no FieldCore edit.
 11. Platform parity: Arduino and native ESP-IDF compile the same application, owner and console; platform
@@ -49,8 +53,8 @@ the dependent items stay Blocked otherwise while the rest proceeds.
 
 ## Deliver
 
-Extended `MoonsCanopenConsole`, the MOONS' axis-table row, node-table support, discovery scan support and the
-Python profile handling; `test/moons_canopen_scan_test.cpp`; mixed-profile cases in
+Extended `MoonsCanopenConsole`, the MOONS' axis-table row, node-table support, discovery scan support and
+`test/moons_canopen_scan_test.cpp` (both after prompt 64, item 9), the Python profile handling; mixed-profile cases in
 `test/moons_canopen_owner_test.cpp` and `test/multidrive_contract_test.cpp`; API/CLI parity for every MOONS'
 route; `docs/api_cli_mapping.md`, `docs/cli_contract.md`, `docs/source_map.md`, `docs/coverage.md`; memory and
 stack measurements; report.

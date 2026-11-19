@@ -80,3 +80,74 @@ working tree, INDEX and HEAD before MO-D31 to MO-D33 and the 0x1011 extension en
 
 Checks: `python scripts/check_promptset.py` reports no error for this set; `git diff --check`
 is clean for this directory. Nothing was compiled; no hardware or port was used.
+
+## Round 2
+
+Audit [`aud-20261119-184315-2fffe2`](audit.md#round-2) was checked finding by finding against this
+set's files (byte-identical to the audited ones), the pack [review](../../reference/moons_canopen/review.md),
+the page-marked UM21 extract with the rendered UM21 p16, and the three EDS files parsed section by
+section. The cross-cutting part was applied once in `a7656efb`
+([shared round 3](../canopen_shared/audit_application.md#round-3-cross-cutting-findings-of-the-family-round-2-audits-19-november-2026)):
+prompt 57's Identity policy ("Admission by outcome", the stop exemption's scope, NMT never that
+stop) and canopen_shared 02 ("Identity and device evidence", the timed-runs bullet of "Operation
+admission", the S3 and S13 bullets, "Registration acceptance"). F1, F2 and F4 now consume those
+rules by citation and add only MOONS' facts. Only this directory's files changed; no pack, shared,
+main-sequence or source file was edited. MotorControl-RS was not consulted: no finding concerns a
+common motion name.
+
+Dispositions: 8 accepted, 1 accepted in part (F5), none rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Shared 02 S13 bullet after `a7656efb` (node-0 NMT at the owner's NMT admission, default deny in the S2 commit, per-command NMT effects, revocation before an NMT command that can change an evaluated node's state, the Start tests); UM21 p13 (commands 0x01, 0x02, 0x80, 0x81, 0x82), p14 (state diagram and service table: PDO in Operational only, Stopped serves node and error control only), p51 (synchronous RPDO applies at the next SYNC), p53, p70 (watchdog fed by RPDO or SYNC); prompt 57 (an NMT command is a changing request) | 09 item 1: every NMT command passes the owner's NMT admission under S13, the S2-commit default deny refuses node-0 NMT until item 9 lands, an NMT command to a MOONS' binding is a changing request. 09 item 9: the seam named "SYNC and NMT-broadcast effect admission"; a per-command NMT effect entry (Start harmless only with every RPDO of the node read back invalid; Stop, Enter Pre-operational and both resets unknown, refused for node 0); revocation before an NMT command and on a heartbeat or boot-up reporting an unevaluated state. 09 acceptance: targeted and broadcast Start with a Pre-operational node holding a synchronous RPDO, external state change, node-0 commands with zero NMT TX, also under the default deny. 02b item 2: S13's default deny lands with S2 and S3's. README and execution contract name node-0 NMT under S13 |
+| F2 | Accepted | Prompt 57 motion rule and stop exemption (removes only the identity refusal; route, generation and source-state checks stay; a prepared or queued stop is not withdrawn; other pending steps retire); shared 02 "Identity and device evidence" and S3 bullet (shape needs the word's reaction from every reachable state, a set halt bit included); rendered UM21 p16: the command table labels bits 7, 3, 2, 1, 0 = 0 x x 0 x with transitions 7, 9, 10, 12 "Quick stop" (the CiA 402 disable voltage pattern) and has no row with bit 2 clear and bit 1 set, while transition 11's event is "Quick stop command"; UM21 p37 and p56 name controlword bit 2 "Quick stop"; no UM21 example sends 0x000B; UM21 p21 (halt release continues the set-point), p32, p34, p23, p35 (halt words 0x010F, 0x011F), p75, p87 (enable input) | 04 item 9: a stop table per identity outcome. Quick stop 0x000B admitted under every outcome through `admitUrgent` (no ramp or standstill claim under a refusing outcome); halt admitted while the controlword record is known, its word fixed after a lost start or trigger reply (0x010F or 0x011F as documented), refused with an unknown record; disable voltage not exempt. S3 keeps the default deny: the reaction review fails on MO-D34 and on the unstated precedence of halt release in 0x000B; an opted-in shape exists only while its premises hold. "No software stop established" names the application-owned fallback (enable input or power removal). 04 item 8: a lost reply keeps two candidate words. 04 item 7 records MO-D34; 01 item 3 adds MO-D34 (the ID freed by the MO-D24 correction), with count updates in 01, 14 and the README. 03 item 2 and 02b item 3 cite the exemption. Tests in 04 for invalidation during motion and a Lichuan server under the MOONS' label |
+| F3 | Accepted | UM21 p19 and p88 (0x0006, 0x0007, 0x000F, then mode 1), p32 (velocity: 0x010F, mode 3, start 0x000F, stop 0x010F), p34 (torque), p35 (Q: 0x010F, start 0x001F, halt 0x011F), p16 (transition 4 clears all internal set-points; transition 16 only for option codes 5-8), p58 (codes 1 and 2 only), p22-p23 (homing starts on a bit 4 edge); shared 02 "State transitions" | 04 item 1: a source-state table from fresh 0x6041 and 0x6061; the final word is 0x010F, not optional, in modes 3, 4, -1 and any undocumented mode, 0x000F only in modes 1 and 6; already enabled sends nothing; Quick stop active, faults and Not ready to switch on refuse; -2 refuses. 04 item 3: a mode change into 3, 4 or -1 while enabled needs halt set in the record (same hazard, cheap). 04 acceptance: the first frame or no TX per row and mode, a present target not run |
+| F4 | Accepted | Shared 02 timed-runs bullet after `a7656efb` (Lichuan `FiniteVelocityRequest::durationUs`, `requiredStopBudgetUs`, `needsStop`, phase `STOPPING`); old 06 item 4; UM21 p32 (stop 0x010F) | 06 item 4 consumes the bullet by citation (duration from preparation, stop budget checked at preparation, transfers bounded by the stop due time, separate urgent stop) and names the MOONS' stop row: stage 04's halt 0x010F, composable after a lost start reply, quick stop as the alternative. 06 acceptance adds the shared timed-run cases |
+| F5 | Accepted in part | Review section 4 ("must use 0x2050, 0x100A/0x2031 and the vendor ID together"); EDS sections `[100A]` (300F, 300E, 2.12), `[2031]` (no default), `[2050]` (STF-, SSDC; absent in EDS-TSM), `[1018sub2/3]` (0); UM21 p69 (no 0x2050 value); prompt 57 outcome definitions and "Admission by outcome"; shared round 3 theme 2 (lead decision: DS2 F1's refusal of a colliding match rejected, the declaration selects) | Accepted: 03 item 2 lists references per row (vendor ID and 0x2050 "STF-", "SSDC" or the 0x06020000 abort), defines CONFIRMED as uniqueness over the application's candidate set, and makes the manufacturer-area config and state reads layout-typed: bootstrap is the probe, the identity plan and the CiA 301/402 objects, each listed with its reviewed read effect. 03 acceptance: wrong, missing, unmatched and stale identities send exactly the bootstrap reads. 01 item 3 corrects review section 4: the version strings have only EDS defaults matching no firmware row, and firmware is reported, not a lock. **Not adopted:** "no dependent TX" for an indistinguishable reference and a candidate without a reference. Prompt 57's admission by outcome admits both with every matching row named, and a family may refuse more only with recorded evidence; MOONS' has none specific to those cases, and the lead rejected the same refusal for DS2. This supersedes round 1's decision 2: its UNCONFIRMED cases (no answer, another abort, an incomplete or oversized string, another value) are refused by prompt 57 itself now |
+| F6 | Accepted | 11 item 6 (feed named by the S13 approval), 09 item 9 revocation before a 0x2060 write; UM21 p38 (arm: sub 1 then sub 2; re-arm), p70 (timeout default 500 ms, fed by RPDO or SYNC) | 11 item 6: a SYNC-fed arm stays refused after the write conflicts resolve, until a reviewed transition defines the approval before the write, revocation, readback, reapproval and a first-feed deadline from measured worst-case service and queue delay; its tests named. 11 acceptance. 14a Q9: the SYNC-fed path needs that transition; otherwise NOT RUN |
+| F7 | Accepted | 14a intro (no temporarily opened production refusal); shared 02 "First-contact questions"; `docs/device_conflicts.md` "Conditional experiment prerequisites" (no invented or competing recipes); 04 item 4 (one reviewed release word), item 9 (disable voltage stop kind); 07 items 3 and 9; UM21 p23 (0x001F trigger, which enables, so it cannot be the non-enabled 35/37 trigger) | 14a Q4: the reviewed release word and 0x0000 through stage 04's routes; the other words by vendor clarification or a reviewed isolated experiment, otherwise NOT RUN. 14a Q10: (a) qualified methods through 07; (b) first direction discovery by vendor clarification or a reviewed per-method experiment with snapshot and restoration boundary, never with prompt 77's guard switched off; (c) 35 and 37 by vendor clarification only. 14a evidence-path paragraph updated |
+| F8 | Accepted | 08 item 4 and block rows; execution contract ("a documented object without reviewed units, range and effect is read-only"); UM21 p85 (0x2610 masks "the LED flashing"; 0x221A the same), p67 (0x200B bit 0 Motor Enabled, bit 14 Q running); principles CP-D11 (Switched on power-stage meaning differs) | 08 item 4: configuration quiescence (fresh Switch on disabled or Ready to switch on, Motor Enabled and Q running clear) for every 08a and 08c write and 08b's function, brake, filter and analog settings; 0x60FE values need only the output-function check; current writes carry the caller's limits; an unconfirmed write leaves the setting `UNKNOWN`, invalidates at once and inhibits dependent operations until readback; the alarm masks are read-only. 08c row and acceptance updated. Lead decision 4 below then made the quiescence a settable guard and admitted the LED-mask write |
+| F9 | Accepted | Shared 01 "Shared code that still assumes Lichuan" (`DiscoveryScan` typed on `LICHUAN_C`, prompt 64 owns the change); 12 status line | 12 item 9: the integrated scan and its test consume prompt 64's artifact and are Blocked until it lands; no parallel scanner; 02b's API probe stays available. 12 Deliver |
+
+### Unresolved questions
+
+1. **Answered by the files.** No positive evidence exists. The abort is negative evidence that any
+   MOONS' server without 0x2050 shares (the AMP10 2010 drives, and possibly MDX+, M56S or SV200,
+   whose dictionaries are not in the pack). 13 item 3 now says so: it confirms only among the
+   declared candidates; with another such candidate declared, the outcome is UNCONFIRMED with the
+   declared match (admitted by prompt 57, both named), Part A reads stay labelled inferred, and
+   Part B keeps its manual and model-identification gates.
+2. **Answered in part.** The promptset does not pre-decide 0x1010; stage 02's access review does
+   (MO-D09: RO on UM21 p40, RW per sub-index on p45 and in the EDS). 11 item 7 now separates the
+   signature encoding and the preflight refusal while the write is withheld, a production store
+   test only once stage 02 admits the sub-index, and durability only through `verifyPersistence`
+   after a real restart on a fixture; 11 acceptance names the refusal. 14a Q12 was already
+   conditional on the preflight.
+
+The coverage gaps are the executing stages' intake work, as in round 1. For the device claims
+used here, the rendered UM21 p16 and the extract pages named above were reopened.
+
+### Lead decisions, 19 November 2026
+
+The four questions this application raised were decided by the lead and applied:
+
+1. **Agreed, kept.** MOONS' follows prompt 57's admission by outcome without a stricter
+   UNCONFIRMED rule: a collision or a candidate without a reference admits by the declaration
+   (F5). This supersedes round 1's decision 2 and matches the DS2 F1 decision.
+2. **MO-D34 confirmed by the lead on the rendered UM21 p16.** 0x000B stays the exempt quick stop
+   under a refused identity. The exemption rests on UM21 p37 and p56 (controlword bit 2 named
+   "Quick stop") and p16 transition 11 ("Quick stop command"), not on the p16 command table. MO-D34
+   stays open for 14a Q8's observed transition and a vendor question; no best-effort S3 shape.
+   Recorded in 04 items 7 and 9 and 01 item 3.
+3. **Agreed.** Disable voltage 0x0000 is not exempt under a refusing identity outcome (F2).
+4. **Changed.** F8's configuration quiescence is a guard, on by default and settable per binding;
+   an admitted result names a guard that was off (prompt 77's limit-guard pattern, item 2; the
+   owner's 2026-11-17 direction for optional, settable guards and user responsibility). The alarm
+   masks 0x2610 and 0x221A are no longer read-only: an explicit write of the documented LED-mask
+   function is admitted, the stage 02 ledger row records the protection effect as open, and every
+   result states "protection effect unreviewed (UM21 p85)". Caller current limits and the
+   `UNKNOWN` invalidation after an uncertain write are unchanged. Recorded in 08 item 4, the 08c
+   row and 08 acceptance.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used.
