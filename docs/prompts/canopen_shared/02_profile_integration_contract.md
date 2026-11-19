@@ -99,6 +99,15 @@ Commit tooling, core/profile and application/console changes separately, each te
 
 ### Operation admission
 
+- **Ownership premise.** The library assumes the application's owner is the only NMT master and the
+  only writer to its bound drives on that interface (no second master, configuration tool, external
+  PDO producer or other-port reconfiguration while bindings are live) unless the application
+  declares otherwise for the interface. A declared exception names what may act outside the owner;
+  evidence that depends on the excluded actors (S13 approvals, halt and controlword records, PDO
+  maps, persistence baselines) is then reported as unqualified for that interface. A family may add
+  a settable detection guard (on by default) for foreign NMT, SYNC or SDO traffic; an observed
+  foreign frame revokes the dependent evidence, but nothing proves its absence.
+
 - **Write preflight.** Before its first changing step (enable and partial setup included),
   an operation checks every download or native write it may issue against the ledger's
   `review.write_policy`: encoding (type, width, signedness), access, and applicability to
