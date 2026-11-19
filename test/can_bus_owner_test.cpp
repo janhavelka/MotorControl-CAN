@@ -74,6 +74,7 @@ struct Fake {
     unsigned receives = 0, transmits = 0, reportCalls = 0, observations = 0, guards = 0;
     uint64_t now = 0;
     bool autoConfirm = true, accept = true, reenter = false, rejectGuard = false;
+    unsigned refuseAt = CAPACITY; // The enqueue that would become sent[refuseAt] is refused.
     O::CanBusOwner* owner = nullptr;
     C::SdoClient* services = nullptr;
     O::RequestId retained;
@@ -101,15 +102,16 @@ struct Fake {
         ++f.transmits;
         f.recursiveCall();
         CHECK(f.sentCount < CAPACITY);
+        const bool accepted = f.accept && f.sentCount != f.refuseAt;
         f.sent[f.sentCount] = value;
         f.sentId[f.sentCount++] = id;
-        if (f.accept && f.autoConfirm) {
+        if (accepted && f.autoConfirm) {
             CHECK(f.reportWrite < CAPACITY);
             f.reports[f.reportWrite].id = id;
             f.reports[f.reportWrite].controllerEpoch = epoch;
             f.reports[f.reportWrite++].transmitted = true;
         }
-        return f.accept;
+        return accepted;
     }
     static bool report(void* p, O::TxReport& out) {
         Fake& f = *static_cast<Fake*>(p);
@@ -1131,6 +1133,104 @@ void staleNegativeReportDoesNotFailNewSegment() {
     retained.unchanged(r.done(id));
 }
 
+// Prompt 56 owner change C: the TX scan skips channels with nothing staged and expires once after
+// itself. A ten-byte download whose first segment is staged by the initiation reply before the
+// scan; that segment's enqueue is refused on the last channel the scan tries.
+O::BusRequest segmentedWrite(Rig& r, O::SequenceId s, const C::SdoChannel& channel) {
+    O::BusRequest write = r.request(s, 1, 0x2500, true);
+    write.transfer.channel = channel;
+    write.transfer.size = 10;
+    for (unsigned i = 0; i < 10; ++i)
+        write.transfer.data[i] = uint8_t(i + 1);
+    return write;
+}
+void expectInvalidatedThisTurn(const O::Completion& c, uint64_t now) {
+    CHECK(c.reason == O::CompletionReason::INVALIDATED &&
+          c.service.outcome == C::SdoOutcome::BINDING_INVALIDATED && c.service.completedUs == now);
+    CHECK(!c.adapterAdmitted && !c.controllerAccepted && !c.service.transmissionPossible &&
+          !c.service.effectPossible);
+}
+void scanRefusalEndsQueuedWorkThisTurn() {
+    // With the one- or two-channel set the last configured channel is the last the scan tries:
+    // no empty channel's transmit() follows the refusal, so only the post-scan expiry ends the
+    // queued step in this turn. Before change C it stayed live until the next turn's expiry.
+    const unsigned node = FIXTURE_NODES;
+    Rig r;
+    const auto s = r.sequence(node);
+    const auto active = r.admit(segmentedWrite(r, s, route(node)));
+    const auto queued = r.admit(r.request(s, 2));
+    r.turn(0);
+    CHECK(r.fake.sentCount == 1 && r.fake.sent[0].data[0] == 0x21);
+    r.fake.refuseAt = 1;
+    r.fake.push(response(node, 0x2500, 2, 0, true), 1);
+    r.turn(1, budget(1, 2, 8, 2));
+    CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x00 &&
+          r.fake.sent[1].id == 0x600 + node);
+    const O::Completion& failed = r.done(active);
+    CHECK(failed.service.outcome == C::SdoOutcome::TRANSPORT_ERROR && failed.controllerAccepted &&
+          failed.service.effectUncertain && failed.service.completedUs == 1);
+    expectInvalidatedThisTurn(r.done(queued), 1);
+    CHECK(!r.owner.sequence(s) && r.services.unresolved(uint8_t(node - 1)));
+    CHECK(!r.services.port(uint8_t(node - 1))->queueOccupied);
+    const Saved<O::Completion> immutable(r.done(queued));
+    for (unsigned t = 2; t < 40; ++t)
+        r.turn(t * 50);
+    immutable.unchanged(r.done(queued));
+    CHECK(r.fake.sentCount == 2); // Nothing of the invalidated reservation reaches the transport.
+    CHECK(r.owner.release(active) && r.owner.release(queued) && r.owner.releaseSequence(s));
+}
+void scanRefusalKeepsPeerStopEligibility() {
+    // The reservation is on the shared node's second channel; a best-effort stop for the node,
+    // admitted while that work is in flight, waits for it and then starts in the refusal's turn:
+    // the post-scan expiry changes neither its eligibility nor its outcome.
+    Rig r(0, true, true);
+    const C::SdoChannel alternate = *r.services.channel(1);
+    O::SequenceId s;
+    CHECK(r.owner.beginSequence(alternate.binding, 3, 0, s));
+    CHECK(r.owner.beginOperation(s, 1, 1000, 0));
+    const auto active = r.admit(segmentedWrite(r, s, alternate));
+    O::BusRequest read = r.request(s, 2);
+    read.transfer.channel = alternate;
+    const auto queued = r.admit(read);
+    r.turn(0);
+    CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x641 && r.fake.sent[0].data[0] == 0x21);
+    C::SdoTransfer stopWork;
+    stopWork.channel = route();
+    stopWork.operation = stopWork.request = stopWork.step = 901;
+    stopWork.index = 0x6040;
+    stopWork.size = 2;
+    stopWork.direction = C::SdoDirection::DOWNLOAD;
+    stopWork.data[0] = 0x0b;
+    stopWork.queueTimeoutUs = stopWork.responseTimeoutUs = 1000;
+    stopWork.deadlineUs = 5000;
+    O::RequestId stop;
+    CHECK(r.owner.admitBestEffortStop(stopWork, r.now, stop) == O::BusAdmission::ACCEPTED);
+    r.turn(0);
+    CHECK(r.fake.sentCount == 1 && !r.owner.result(stop)); // It waits for the peer's work.
+    r.fake.refuseAt = 1;
+    M::Frame ack = response(1, 0x2500, 2, 0, true);
+    ack.id = 0x5c1;
+    r.fake.push(ack, 1);
+    r.turn(1, budget(1, 2, 8, 2));
+    CHECK(r.fake.sentCount == 3 && r.fake.sent[1].id == 0x641 && r.fake.sent[1].data[0] == 0x00);
+    const uint8_t literal[8] = {0x2b, 0x40, 0x60, 0x00, 0x0b, 0x00, 0x00, 0x00};
+    CHECK(r.fake.sent[2].id == 0x601 && !std::memcmp(r.fake.sent[2].data, literal, 8));
+    CHECK(r.done(active).service.outcome == C::SdoOutcome::TRANSPORT_ERROR);
+    expectInvalidatedThisTurn(r.done(queued), 1);
+    CHECK(!r.owner.result(stop) && !r.owner.sequence(s) && r.services.unresolved(1));
+    r.turn(2, budget(0, 0, 8, 0));
+    const O::Completion& stopped = r.done(stop);
+    CHECK(stopped.service.outcome == C::SdoOutcome::UNCONFIRMED_SENT && stopped.adapterAdmitted &&
+          stopped.controllerAccepted && stopped.service.transmissionConfirmed &&
+          stopped.service.effectUncertain && !stopped.service.protocolAcknowledged);
+    CHECK(r.services.unresolved(0) && r.services.unresolved(1));
+    for (unsigned t = 3; t < 40; ++t)
+        r.turn(t * 50);
+    CHECK(r.fake.sentCount == 3);
+    CHECK(r.owner.release(stop) && r.owner.release(active) && r.owner.release(queued) &&
+          r.owner.releaseSequence(s));
+}
+
 void alternateChannelUsesConfiguredBindingAndSharesExclusion() {
     // Two distinct logical bindings on a synthetic physical peer share one
     // network anchor; service routing remains the selected channel's fact.
@@ -1518,8 +1618,11 @@ int main() {
     }
     oneShotTransportFailure();
     staleNegativeReportDoesNotFailNewSegment();
-    if (PAIRED_CHANNELS)
+    scanRefusalEndsQueuedWorkThisTurn();
+    if (PAIRED_CHANNELS) {
+        scanRefusalKeepsPeerStopEligibility();
         alternateChannelUsesConfiguredBindingAndSharesExclusion();
+    }
     rejectedIngressRemainsDiagnosticOnly();
     publicReadAndConfirmedControlSetting();
     actualControlUncertainDownloadAndFailedReadback();

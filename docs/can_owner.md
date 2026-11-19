@@ -120,12 +120,14 @@ count, not a timing qualification:
 
 - The TWAI adapter submits at most one SDK frame per service turn. Stopping N axes needs at
   least N turns to hand off, plus each channel's in-flight exchange.
-- Owner CPU per turn grows faster than N. On the host (x86-64, MinGW GCC 15.1, `-O3`,
-  2026-11-12), one `service()` turn with every ordinary and urgent slot queued and one
-  exchange in flight per channel took 0.5 us at N = 2, 4.7 us at N = 8 and 183 us at
-  N = 32; `capacity_n32` prints its own measurement. About 95 % of it is the expiry scan
-  that each channel's transmit attempt repeats. No target figure exists yet; measure
-  `maxServiceGapUs` on the board before relying on a large N.
+- Owner CPU per turn grows faster than N. On the host (x86-64, MinGW GCC 15.1, `-O3`),
+  one `service()` turn with every ordinary and urgent slot queued and one exchange in
+  flight per channel took 0.5 us at N = 2, 4.7 us at N = 8 and 183 us at N = 32 on
+  2026-11-12. About 95 % of that was the expiry scan each channel's transmit attempt
+  repeated. Since the TX scan skips empty channels (see the service turn below) the same
+  turn took 2.3 us at N = 8 and 27 to 36 us at N = 32 (2026-11-19); each remaining expiry
+  is still O(N²). `capacity_n32` prints its own measurement. No target figure exists yet;
+  measure `maxServiceGapUs` on the board before relying on a large N.
 - Bus time, CANopen node IDs 1..127 and the per-turn limits above stay real limits.
 
 ## Admission and lifetime
@@ -253,8 +255,24 @@ application supplies RX budget. Diagnostics never acquire another receiver.
 
 Each turn settles deadlines, progresses an explicitly requested recovery within
 its budget, takes controller reports, routes RX, retires invalid external
-handoffs, then services staged frames and eligible new requests. Producer
-selection cycles 1..PRODUCERS, skipping
+handoffs, then services staged frames and eligible new requests.
+
+The staged-frame scan tries only channels with a frame staged, then runs one expiry before
+the resync step, new-request selection and the adapter's later promote. Expiry never stages
+a frame, so a skipped channel could not have sent; every handoff still runs its own expiry
+first, and so does the transmit after each new admission. The post-scan expiry also sees a
+refusal on the last channel the scan tried. Work it invalidates therefore ends INVALIDATED
+in the same turn, with that turn's time, instead of at the next turn's first expiry. A frame
+already handed over for a reservation that refusal invalidated then fails the adapter's
+`canTransmit` recheck and is withdrawn before SDK submission. The current admission rules
+leave no such peer frame reachable: one physical node holds one reservation, a peer stop
+waits for live peer work, and markers and cleanup aborts exist only on unresolved routes,
+which already invalidate peer reservations. Best-effort stops keep their eligibility and
+outcome. Returning from `transmit()` before its expiry when nothing is
+staged was rejected: a refusal's effect on a peer would then wait for a later channel with
+a staged frame, a new admission or the next turn, up to one turn late.
+
+Producer selection cycles 1..PRODUCERS, skipping
 busy/ineligible channels; earlier nonterminal steps in the same sequence retain
 FIFO order. Reservations do not block other nodes or passive delivery. Sequence
 order is not a success dependency: dependent work is admitted only after its

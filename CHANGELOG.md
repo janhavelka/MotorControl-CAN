@@ -10,6 +10,12 @@
   (submission to TX done, TX done to the next reception, RX FIFO high-water mark). New optional
   `ProbeCallbacks::cycles`, `FirmwareProbe::takePhaseTiming` and `IdfTwaiDriver::takeTiming`; a null
   cycle callback records nothing. No traffic or timing behavior changed.
+- **Owner TX scan (change C):** the scan tries only channels with a staged frame and runs one expiry after
+  it, before the resync step, new-request selection and promote; `transmit()` is unchanged. A refused enqueue on
+  the last channel the scan tries now ends the invalidated reservation's queued work `INVALIDATED` in that same
+  turn, with that turn's time, instead of at the next turn. Best-effort stop eligibility and outcomes are
+  unchanged. On the host one `service()` turn at N = 32 fell from about 210 us to about 30 us. Rejected: an early
+  return in `transmit()` before its expiry, which delays a refusal's effect on peers by up to one turn.
 
 ### Communication practice and PSRAM-first placement (2026-11-18)
 

@@ -1100,11 +1100,23 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             deferred[c] = true;
             continue;
         }
+        // expire() never stages a frame, so a channel with nothing staged cannot send and
+        // skipping it withholds nothing. transmit() still runs expire() before every handoff.
+        const auto* port = services_.port(c);
+        if (!port || !port->queueOccupied)
+            continue;
         if (transmit(c, now)) {
             ++sent;
             nextChannel_ = uint8_t((c + 1) % C::SdoClient::CHANNELS);
         }
     }
+    // One expiry for the whole scan, in place of the one each empty channel's transmit() ran,
+    // and before resyncRoutes(), select() and the adapter's promote. It sees every change a
+    // handoff in the scan made, a refusal on the last channel tried included, so those see
+    // state at least as fresh as before: a frame handed over earlier in the scan for a
+    // reservation a later refusal invalidated is withdrawn before SDK submission. The start
+    // loop's transmit() is unchanged and still expires after each admission.
+    expire(now);
     // The resync step admits a marker only when it can start in this same turn.
     // Not in the turn a recovery retired: an application that sees the closure can admit a
     // held stop before the next turn, and stops keep priority over every repair step. Not
