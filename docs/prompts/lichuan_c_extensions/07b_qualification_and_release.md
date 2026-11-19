@@ -56,8 +56,10 @@ Hardware is NOT TESTED for every model.
 
 A matrix by exact model, firmware evidence, image and operation: documented, implemented, host-tested,
 firmware-built, hardware-tested, unsupported and unresolved; local and CI results; hardware reports with
-restoration outcomes; updated ledger gates (an X gate closes only for the model and firmware its evidence
-covers); backlog entries for every remaining obligation; `PROGRESS.md` and the stage report.
+restoration outcomes; updated ledger gates (an X gate closes, in this reviewed stage or a later one, only for
+the model its evidence covers and records the firmware measured; on other firmware the admitted operation
+reports "firmware unqualified" under prompt 57 rather than refusing); backlog entries for every remaining
+obligation; `PROGRESS.md` and the stage report.
 
 ## Acceptance
 

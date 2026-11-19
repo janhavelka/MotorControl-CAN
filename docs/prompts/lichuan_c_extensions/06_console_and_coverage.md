@@ -21,8 +21,9 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    candidate set and identity records come from the application's static configuration; the existing identity
    read also prints `checkModelIdentity`'s outcome for the node's declaration. Nothing selects a model.
 3. Existing verbs keep their grammar and meaning. On a node with a new model each verb calls the same public
-   API with the declared model and either runs the admitted row or prints the refusal with its X gate. `help`,
-   `caps` and `profile list` derive per-model admission from the generated model table (stage 02), not from a
+   API with the declared model and either runs the admitted row or prints the refusal with its disposition
+   (X gate, NOT_DOCUMENTED, NOT_IMPLEMENTED or MISSING_PREREQUISITE). `help`, `caps` and `profile list`
+   derive per-model admission from the generated model table and disposition map (stage 02), not from a
    hand-written list, and claim no detection. Model-specific native groups (TL-C raw bitrate candidates, CL2
    homing methods, CL2 loop codes, CL2 input codes) appear only for their models.
 4. JSONL. Every targeted record gains the declared `model` (null where S6's rule makes `profile` null) and,
@@ -31,19 +32,29 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    otherwise add the fields within the current envelope without taking S6's work. Extend
    `scripts/console_jsonl.py` validation and its tests; reject unknown model tokens.
 5. Bench tooling. `scripts/s2_bench.py` and the other `s2_*` scripts drive the CL86-C fixture: make them refuse
-   any declared model other than CL86-C and OL86-C before opening a port, with a test. They never send TL-C,
-   CL2 or 57C-declared frames to COM15.
+   any declared model other than CL86-C, the fixture's model, before opening a port, with a test. OL86-C stays
+   a supported API model with no fixture (prompt 48). They never send OL86-C, TL-C, CL2 or 57C-declared
+   frames to COM15.
 6. Mixed-model integration tests on one fake interface under one `CanBusOwner`: a CL86-C node
    (`test/support/BenchDrive.h`), a TL-C node (`LichuanTlcDrive.h`) and a CL2 node (`LichuanCl2Drive.h`).
+   These test library behavior on a synthetic configuration whose identifier, routing and broadcast analysis
+   (canopen_shared 02 "Multi-profile consumers and package scope") the test records as synthetic; they qualify
+   no physical shared bus, and a real one needs that analysis, which CL2's undocumented COB-IDs (X09) block.
+   SYNC: before S13 lands, the application route refuses to declare a TL-C or CL2 model on an interface with
+   an armed SYNC schedule and refuses to arm one on an interface with such a declaration; this only refuses
+   and admits no SYNC. After S13 lands these bindings enter its population-wide guard with unknown effects.
    Cover independent stops under queue pressure, reservations that conflict on the same bus and node whatever
    the declared model, a model change with pending work refused, results and caches routed by the admitted
-   model, separate identity outcomes, a TL-C save leaving the TL-C route marked uncertain while the others stay
-   current, and no TX for any refused route. `test/multidrive_contract_test.cpp` still passes.
+   model, separate identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
+   stay current, declaring a new model while a CL86-C-originated schedule is armed, a SYNC request aimed at the
+   CL86-C node, conflicting routes, and broadcast NMT admitted only when every declared model's row admits
+   that command; assert the interface's traffic (zero SYNC and no refused frame), not only a verb's return.
+   `test/multidrive_contract_test.cpp` still passes.
 7. Coverage. Create `docs/lichuan_c_models.md`: one row per common operation of canopen_shared 02 (reads, enable,
    release, mode select, absolute, relative and angle moves, finite velocity, homing, each stop kind, fault
    clear, position clear, save, restore, communication changes) and per model: ledger keys, staging and trigger
    order, acknowledgement and completion evidence, the identity it consumes with its holder and invalidators
-   (canopen_shared 02), X or Q gates, tests, and documented, implemented,
+   (canopen_shared 02), its disposition from stage 02's map with any X or Q gate, tests, and documented, implemented,
    host-tested, firmware-built and hardware-qualified columns. Link it from `docs/coverage.md`,
    `docs/profile_contract.md` and `docs/api_cli_mapping.md`; update `docs/cli_contract.md`, `docs/source_map.md`,
    README scope, backlog (D18 and the new X gates) and roadmap.
@@ -60,7 +71,7 @@ CHANGELOG, report and `PROGRESS.md`.
 ## Acceptance
 
 Every admitted model row has an API/CLI parity test through the real owner and fake server; every refused row
-prints its gate and sends nothing; help, caps and coverage come from one source; JSONL carries the model; the
+prints its disposition and sends nothing; help, caps and coverage come from one source; JSONL carries the model; the
 bench scripts refuse new models. Quick and full verification, all firmware targets in
 [verification.md](../../verification.md) and exact-commit CI pass. Flashing is not needed to prove compilation;
 no image goes to the CL86-C bench for this stage unless a separate regression is authorized, and then it runs

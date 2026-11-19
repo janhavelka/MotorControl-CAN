@@ -41,19 +41,28 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    in AMP10 p20 for the 2010 generation (MO-D19). Publish named bits and the CiA 402 fault bit; claim no
    severity or automatic disable for UM21. No 0x605E exists (MO-D33), so the fault reaction is unknown.
 7. Quick stop: the command clears controlword bit 2 (0x000B from Operation enabled; principles s12). Its
-   reaction follows 0x605A, which supports only option codes 1 and 2 "at this moment" (UM21 p58); both end in
-   Switch on disabled (UM21 p16 transition 12), so the drive does not hold position afterwards. The power-up
-   value of 0x605A is undocumented and its EDS default 0 (disable drive function) is not a supported value
-   (MO-D05; AMP10 p16's "2 & 6 only" applies to the 2010 layout, stage 13). Admit a quick stop with a ramp
+   reaction follows 0x605A, which supports only option codes 1 and 2 "at this moment" (UM21 p58); both are
+   documented to end in Switch on disabled (UM21 p16 transition 12). Publish three things separately: the word
+   sent, the state and flags observed in a fresh read, and the mechanical effect, which stays not observed:
+   whether the shaft holds or is released afterwards is not established (no 0x605B/0x605C, brake undocumented
+   against the state machine, MO-D33; 14a Q4/Q8). The power-up value of 0x605A is undocumented and its EDS
+   default 0 (disable drive function) is not a supported value (MO-D05; AMP10 p16's "2 & 6 only" applies to
+   the 2010 layout, stage 13). Admit a quick stop with a ramp
    claim only after a fresh 0x605A read of 1 or 2 in this node epoch. Provide an explicit setter for 1 or 2
    with readback; 0x605A is in no save list (UM21 p45-p46), so assume it is lost at reset and re-read it.
    0x6085 is the code-2 ramp in profile-acceleration units (UM21 p62; units per stage 05).
 8. Halt (controlword bit 8) has no option code: 0x605D is referenced but absent (MO-D06). Record the documented
    per-mode effects: profile position stops in position control and **continues the set-point when halt is
    released** (UM21 p21), so halt is a pause and a later halt release can restart motion; homing stops
-   (UM21 p22); profile velocity and torque per stage 06; Q programs stop immediately and restart from the
-   beginning (AMP10 p48). The halt ramp source on UM21 is unknown. A halt-based stop retains "pending set-point"
-   and is never released implicitly by any stop, recovery or reset path.
+   (UM21 p22); profile velocity and torque per stage 06. For Q programs UM21 shows only the halt word 0x011F
+   (UM21 p35, p89); "stops immediately and restarts from the beginning" is AMP10 p48 for the 2010 layout, so a
+   UM21 Q halt publishes "halt commanded" with the program's restart point unknown (stage 10). The halt ramp
+   source on UM21 is unknown. A halt-based stop retains "pending set-point" and is never released implicitly by
+   any stop, recovery or reset path. Keep a per-binding controlword record for the server session (0x6040 is
+   write-only, UM21 p55): the last confirmed word and whether a set-point may be pending (a halted, quick-stopped
+   or `UNKNOWN` start since the last confirmed enable transition 4, which UM21 p16 says clears all internal
+   set-points, unqualified until 14a). A lost reply, rebinding, a new session or a host restart makes the record
+   unknown. Releasing halt to resume a pending set-point is its own explicit operation, never a step of another.
 9. Stop kinds and seam S3: define the MOONS' stop kinds (quick stop, halt, disable voltage) as profile-local
    values with their documented reactions; do not reuse Lichuan's `StopKind`. Decide from items 7-8 whether an
    exact reviewed best-effort shape exists for a binding (object, size, data and ledger review ID under
@@ -74,6 +83,8 @@ for MOONS' bindings with parity tests; S3 registration update; coverage, ledger,
 Tests cover each documented transition word, refused transitions, enable blocked by the input function or
 interlock, mode-accept timeout, partial enable, reset with a remaining fault, both reset methods, quick stop
 with 0x605A unread, 0, 1, 2 and out-of-range, halt with a pending set-point, stop under queue pressure, late
-replies, stale generations and no replay. ACKNOWLEDGED never becomes OBSERVED without a fresh state read.
+replies, stale generations and no replay, and the controlword record across halt, quick stop, a lost reply and
+rebinding. ACKNOWLEDGED never becomes OBSERVED without a fresh state read; an acknowledged halt or quick stop
+publishes no shaft holding or release and no Q program restart point.
 Quick and full verify, firmware builds and exact-commit CI pass. Release, brake and quick-stop physical effects
 stay open for 14a. Hardware: NOT RUN.

@@ -28,26 +28,39 @@ the Nanotec facts below are this profile's own.
   the guard timer is suppressed without EMCY (N5 p132, p177).
 - 3700h (following/slippage) and 3701h (limits) also default to no reaction
   (N5 p337, p66); 07 and 08 report them. FIR-v1650 documents neither 1016h nor 6007h,
-  which is one more reason that row stays refused (NT-D01, NT-D31).
+  so there the setters refuse through stage 13's `FIR1650_HOST_LOSS` and
+  `FIR1650_ERROR_BEHAVIOR` gates (NT-D01, NT-D31) and the snapshot reports them absent.
 
 ## Work
 
-1. Typed `Supervision` snapshot from 03: 1016h:01, 1017h, 100Ch, 100Dh, 1007h,
+1. Typed read-only `Supervision` snapshot, delivered by 03 (so that 04's enable can
+   report it) and consumed here: 1016h:01, 1017h, 100Ch, 100Dh, 1007h,
    1029h:01/02, 6007h, 605Eh, 605Ah, 3700h, 3701h. Every axis status and the console
    `caps` output state "no host-loss supervision active" when that is what the
    snapshot shows, and never imply that the drive stops on host loss.
 2. Explicit RAM configuration operations, each `IDEMPOTENT_SETTING` with readback and
    never run at startup, selection, probe or recovery: 1016h:01 with the host's node
-   ID and a time greater than the host producer period; 6007h in {-1, 0, 1, 2, 3}; 1029h:01
-   in {0, 1, 2}. Refuse 100Ch/100Dh while 1016h:01 or 1017h is nonzero, and the
+   ID and a time admitted by item 3's runtime producer check; 6007h in
+   {-1, 0, 1, 2, 3}; 1029h:01 in {0, 1, 2}. Refuse 100Ch/100Dh while 1016h:01 or
+   1017h is nonzero, and the
    reverse. Persistence of these values is 10's explicit save.
 3. Host heartbeat production, seam S11. The owner produces NMT and SYNC only. A
    configured 1016h without a host producer either never arms or triggers the
    reaction, depending on the undocumented arming rule (NT-D24); neither is
    supervision. The 1016h setter therefore depends on S11's landed artifact
    (owner-produced `0x700+host` frames at an application period, with its own
-   deadline, TX-retirement and bus-off rules) and its passed consumer gate. If no family has
-   claimed S11, this stage claims it in the canopen_shared README table and lands it
+   deadline, missed-service and TX-retirement rules, the producer identifier reserved
+   on the interface, and bus-off or reconfiguration stopping and invalidating it) and
+   its passed consumer gate. Landing is not runtime evidence: a nonzero 1016h:01 is
+   admitted only with the producer's current owner status for the binding's interface
+   showing it scheduled and transmitting in the current owner generation (no bus-off,
+   recovery or reconfiguration since), its host node ID equal to the 1016h:01 producer
+   field (bits 16-23) and reserved, and the consumer time above the producer period
+   plus the application's measured worst service gap ([prompt 56](../56_host_throughput.md));
+   absent, wrong-node, stale or interrupted evidence refuses with nothing sent. The
+   result keeps configured, transmitting and physically demonstrated drive reaction
+   separate (only 12A Q10 can show the last); no motion requires supervision
+   (item 4). If no family has claimed S11, this stage claims it in the canopen_shared README table and lands it
    as one focused tested commit; if another family claimed it, the setter waits or
    extends it. Until it lands the setter is BLOCKED; no family-local transmitter.
    Node guarding would need owner-admitted RTR frames (S12), a seam meant for families
@@ -75,7 +88,10 @@ marking the 1016h setter BLOCKED on S11; guarding BLOCKED with S12 named.
 
 Tests cover the snapshot with factory values (reported as unsupervised), each 6007h
 and 1029h:01 value, refused out-of-range values, the heartbeat/guarding exclusion,
-refusal of the 1016h setter while S11 has not landed, no write at startup or
+refusal of the 1016h setter while S11 has not landed and, with S11 compiled in, for an
+absent producer, a producer with another host node ID or on another interface, one
+stale after bus-off or reconfiguration, one interrupted (missed service) and a consumer
+time not above period plus measured gap; no write at startup or
 recovery, and console text that never claims a stop on host loss. Quick verification
 and CI on the exact final pushed commit pass. Hardware NOT RUN; no reaction timing
 or order is claimed.

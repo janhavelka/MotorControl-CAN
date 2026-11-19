@@ -29,7 +29,16 @@ not of its units, range, effect or a safe write.
    0x2070 UINT32 versus UINT16; 0x2100 UNSIGNED32 versus INT32; 0x2020 UINT16 versus UINT8; 0x2060 sub widths,
    sub 0 = 4 versus five sub-indexes, sub 2 RW versus ro; 0x60FF UINT32 (p31) versus INT32. Where widths
    conflict, a read accepts exactly the documented candidate sizes and retains the observed size as evidence;
-   the write stays withheld until a fixture or vendor clarification names one.
+   the write stays withheld until a fixture or vendor clarification names one. Conflicting access is withheld
+   the same way. Where only signedness differs at one width (0x60FF; 0x609A, MO-D07), the write policy admits
+   only values whose bytes and meaning agree under every candidate (0 to 2^31-1 for INT32 against UINT32) and
+   withholds the rest; 0x2100's raw-word access (stage 10) writes the same four bytes under both candidates and
+   publishes no signed value. Record each policy per product scope: at this revision 0x2020 and the 0x1400
+   sub 1/2 writes are withheld on both products, the 0x2060 sub 1, 2 and 4 writes on STF-C (UINT8 in UM21 p38
+   and p70, UINT16 in EDS-STF) and the sub 2 and sub 5 writes on SSDC-C (sub 2 ro and sub 5 UINT8 in
+   EDS-SSDC), and 0x6087 on SSDC-C (INT8 WO on UM21 p33). The operations that need these writes consume the
+   policy through the execution contract's write preflight; a read of one candidate width or a fake server
+   resolves nothing.
 5. Record EDS defects in `source_anomalies` without repairing the original: EDS-SSDC [1403sub2] ObjectType 0x9
    on an UNSIGNED8 entry (MO-D08). Extend `TYPE_CODES` only from these EDS files (STRING 0x0009 for 0x2050,
    0x2031, 0x100A; OCTET_STRING 0x000A for EDS-TSM 0x2100).
@@ -45,7 +54,8 @@ not of its units, range, effect or a safe write.
    differences (for example 0x6071 SSDC only, 0x2604 STF, 0x2207/0x2218 SSDC) are per-product applicability
    bits, never a merged row.
 8. Seam S7, in or before the commit that adds the first generated header (canopen_shared 01 intake rules):
-   claim it in the seam table unless another family already landed it, then scope
+   extend the S7 claim stage 01 recorded before its checker registration (or another family's landed S7), then
+   scope
    `scripts/check_lichuan_operations.py` to common and `lichuan_c` headers and the MOONS' checker to
    `profiles/moons_canopen/`, and test that the header sets are disjoint, their union is every public header
    with public functions, and an unclassified common, Lichuan or MOONS' function still fails. Add the generated
@@ -69,7 +79,8 @@ not of its units, range, effect or a safe write.
 
 Accounting is lossless for all three EDS files; every UM21-listed object is matched or recorded as absent.
 No entry spans both layouts and the AMP10 table is not generated. Every conflicting access or width keeps both
-claims and a withheld write. `generate_moons_canopen_objects.py --check`, the ledger and operation checkers and
+claims and a withheld write; a signedness-only conflict keeps both claims and admits only the common range.
+`generate_moons_canopen_objects.py --check`, the ledger and operation checkers and
 their negative tests, `python scripts/check_promptset.py --check-git-ref INDEX` (then `HEAD`),
 `python scripts/verify.py --mode quick` and `--mode full` pass; CI passes on the exact pushed commit (new
 public headers and checker scope). No device behavior is claimed. Hardware: NOT RUN.

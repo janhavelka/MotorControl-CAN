@@ -8,7 +8,8 @@ are owned here; MO-D08 and MO-D09 apply to every object below.
 
 1. One settings context for the family: `prepareDriverRead`, `prepareDriverSettings`, `nextDriver`,
    `advanceDriver`, `getDriver` and `getIo` (CONVENTIONS section 3) with prior read, whole-candidate
-   validation, confirmed writes, readback and partial-failure evidence. Stages 07, 10 and 11 reuse it.
+   validation, confirmed writes, readback and partial-failure evidence, delivered and tested with the first
+   block. Stages 10 and 11 reuse it; stage 07 does not (its homing parameters are steps of `HomeContext`).
 2. Groups follow the product: stepper objects 0x2601-0x2617 for STF-C (UM21 p82-p87) and step-servo objects
    0x2201-0x2252 for SSDC-C (UM21 p72-p81). A STF object on an SSDC binding, or the reverse, rejects before TX.
    Where UM21's index table and its detail table disagree (for example 0x2601 UINT8 in the p82 list, UINT16 in

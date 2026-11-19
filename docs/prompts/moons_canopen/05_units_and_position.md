@@ -35,11 +35,19 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
    previous set-point is in process and overwriting is accepted, p21 says 1 means the two-deep buffer is full
    and a new set-point is ignored without error. Until resolved, admit a new set-point only with bit 12 = 0
    observed in a fresh read, and treat acceptance as unobserved unless a post-trigger transition is seen.
-7. First subset, `MoveSetup` write-all: one finite move from an idle, enabled drive in mode 1 (0x6061 = 1, no
-   fault, bit 12 = 0). Write 0x6081, 0x6083, 0x6084 and 0x607A, each confirmed; write the start word with bit 4
-   low (0x000F absolute or 0x004F relative) unless the last confirmed word already had it low; then 0x001F or
-   0x005F (UM21 p19); then clear bit 4. Bit 5 and bit 9 stay 0 in this subset. Every write has one immutable
-   deadline; a lost reply keeps `UNKNOWN` and is never replayed.
+7. First subset, `MoveSetup` write-all: one finite move from an idle, enabled drive in mode 1. Idle admission
+   is separate from buffer space: a fresh read shows Operation enabled, 0x6061 = 1, no fault and bit 12 = 0,
+   **and** stage 04's controlword record for this server session is known and shows no set-point that may be
+   pending (none triggered since the last confirmed enable transition 4 or observed boot-up, or each one
+   observed complete with halt clear). Bit 12 low does not exclude a halted set-point, and every start word
+   below clears halt (bit 8), which resumes a paused set-point (UM21 p21). A pending or unknown record (a
+   halted, quick-stopped or `UNKNOWN` earlier move, a lost reply, rebinding, a new session) refuses the move
+   with a typed reason and nothing sent; resuming is stage 04's separate halt-release operation. Then write
+   0x6081, 0x6083, 0x6084 and 0x607A, each confirmed; write the start word with bit 4 low (0x000F absolute or
+   0x004F relative) unless the last confirmed word already had it low; then 0x001F or 0x005F (UM21 p19); then
+   clear bit 4. Bit 5 and bit 9 stay 0 in this subset. One absolute operation deadline captured at preparation
+   bounds every write and poll (canopen_shared 02 "Operation admission"), and expiry is checked before each
+   changing step, the trigger included; a lost reply keeps `UNKNOWN` and is never replayed.
 8. Completion: native completion needs post-trigger evidence: an observed acknowledge (bit 12 high after the
    trigger) or bit 10 falling after the trigger, then bit 10 high with bit 12 low. A bit 10 already high before
    the trigger never manufactures completion. Generic target arrival additionally compares 0x6064 with the
@@ -48,6 +56,9 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
 9. Relative moves: UM21 does not state the basis of a relative target (previous target or actual position). A
    common relative move needs a caller `relativeBasisVerified` qualification for the named basis, otherwise
    it returns the unresolved-basis error before TX; the native bit-6 path stays explicit and acknowledged-only.
+   The common angle move row is owned here: it uses the core's reference, scale and angle-path policy
+   ([prompt 34](../34_angle_moves.md)) through item 3's scale qualification, which must name native units per
+   revolution; without it the row is `UNSUPPORTED` with the MO-D03 reason before TX.
 10. Interruption: halt pauses and resumes the set-point on release (stage 04 item 8); quick stop ends disabled;
     both are explicit with retained results. Replacement during motion with bit 5 = 1 (UM21 p19 single
     set-point) or buffered set-points with bit 9 waits for MO-D31 and prompt 52's change contract.
@@ -63,7 +74,10 @@ MOONS' bindings with API/CLI parity; units section in `docs/moons_canopen_covera
 ## Acceptance
 
 Tests cover unit and quantization boundaries, INT32 and UINT32 limits, missing or stale scale qualification,
-resolution change invalidation, bit 12 high at admission, stale bit 10, lost trigger reply, partial setup,
-deadline after each write, halt and quick stop during the move, relative basis refusal and no replay. Native
+resolution change invalidation, bit 12 high at admission, a halted pending move with bit 12 low (also after
+rebinding and with the record lost) refused with no TX, stale bit 10, lost trigger reply, partial setup,
+cumulative delay in which every reply meets its own timeout but the operation deadline arrives before the
+trigger (no trigger TX, partial effects reported), halt and quick stop during the move, relative basis
+refusal, angle move without a per-revolution scale refused, and no replay. Native
 units, the bit 12 meaning and measured feedback stay open with their MO-D IDs. Quick and full verify, firmware
 builds and exact-commit CI pass. Hardware: NOT RUN.

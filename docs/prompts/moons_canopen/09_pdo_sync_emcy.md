@@ -39,7 +39,11 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
 7. Remapping: invalidate with COB-ID bit 31, sub 0 = 0, entries, sub 0 = n, validate; allowed in
    Pre-operational and "if supported" in Operational (UM21 p52, p54). Admit remapping only in Pre-operational as
    host policy, through prompt 18's partial-effect evidence; never append the "save all parameters" step of
-   UM21 p90. A remap of a reused route keeps old-semantics samples unqualified (root AGENTS PDO rules).
+   UM21 p90. A remap of a reused route keeps old-semantics samples unqualified (root AGENTS PDO rules). Every
+   remap runs the write preflight first: a TPDO remap writes 0x1800-0x1803 sub 1/2 and 0x1A00-0x1A03, RW in
+   UM21 p53-p54 and the EDS; an RPDO remap or transmission-type change needs 0x1400-0x1403 sub 1/2, RO on
+   UM21 p50 (sub 2 UNSIGNED32) but rw (sub 2 UNSIGNED8) in the EDS (MO-D09), so it is refused with zero
+   changing TX until stage 02's write policy resolves them. RPDO data transmission needs seam S14 anyway.
 8. SYNC objects: 0x1005 default 0x80; whether the drive can produce SYNC is not stated, and setting bit 30 on a
    non-producer is answered with abort 0x06090030 (UM21 p43). 0x1006/0x1007 are "in ms" on UM21 p44 against
    CiA microseconds (MO-D10): read raw, never write. 0x1019 is 0 or 2-240 (UM21 p48).
@@ -48,15 +52,29 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
    without forking it). Before coding, recheck the table and the Git log. If S13 is unclaimed, the lead records
    the claim (lead, stage 09, date) before any shared edit and lands it in one focused tested commit, recording
    its commit ID, tested interface and consumer gate; if another family has claimed it, extend it with the
-   MOONS' entry or wait, never build a parallel gate. A SYNC is a broadcast. The MOONS' reviewed SYNC effects:
-   on a node in mode -2 every SYNC starts the selected Q segment (UM21 p36; AMP10 p48-p49); a SYNC feeds the
-   watchdog when 0x2060 sub 4 bit 4 is set (UM21 p70); PDOs with transmission types 0-240 act on SYNC (UM21
-   p51, p53), known only from this epoch's map readback (item 5). A MOONS' binding is SYNC-safe only when
-   0x6061 was read as a value other than -2 after the node's last boot-up and this owner has not written 0x6060
-   since; otherwise S13 refuses SYNC production on that interface with a typed reason. 0x6060 is in no save
-   list (UM21 p45-p46), but the power-up mode is not stated, so the read after each boot-up is required. Until
-   S13 has landed and passed, the MOONS' `sync` route stays Blocked and no MOONS' binding shares an interface
-   with a SYNC schedule (execution contract); S13's tests cover both directions. Record the shared-interface
+   MOONS' entry or wait, never build a parallel gate. Consume the S13 bullet of canopen_shared 02
+   ("CANopen-only rules") as written: approval over the whole declared bus population, refusal of unknown,
+   stale, harmful or unauthorized effects, revocation during a schedule, zero further SYNC TX. The MOONS' entry
+   supplies each declared MOONS' node's effects and the reads that decide them, taken for the current binding,
+   server session and configuration generation (an unread item refuses):
+   - Mode: 0x6061 read after the node's last boot-up and after this owner's last 0x6060 write. -2 is a program
+     start on every SYNC (UM21 p36; AMP10 p48-p49): always refused, since stage 10 is refusal-only. 0x6060 is
+     in no save list (UM21 p45-p46) and the power-up mode is not stated, so the read after each boot-up is
+     required.
+   - Watchdog: 0x2060 sub 1 and sub 4. Enabled with bit 4 set, the schedule feeds it (UM21 p70): refused
+     unless stage 11's armed-watchdog record names this schedule as its feed.
+   - PDOs: live NMT state and this epoch's communication and map readback of 0x1400-0x1403, 0x1600-0x1603,
+     0x1800-0x1803 and 0x1A00-0x1A03 (item 5). In Operational a valid RPDO of type 0-240 applies whatever was
+     received at the next SYNC (UM21 p51): refused unless its producer is admitted with this schedule through
+     S14, which has not landed. A valid TPDO of type 0-240 transmits on SYNC (UM21 p53): admitted once its map
+     is read back, and counted in the load analysis. The mode and watchdog effects are evaluated in every NMT
+     state: UM21 p14 lists SYNC in Pre-operational and Operational, and does not say that a Stopped node
+     ignores it for SYNC Q or the watchdog.
+   - Revocation: the node's approval is withdrawn before this owner admits a write to 0x6060, 0x2060, 0x1005,
+     0x1400-0x1403, 0x1600-0x1603, 0x1800-0x1803 or 0x1A00-0x1A03 (not after its reply), and on the shared
+     invalidators and a report that an RS-232 tool was attached; only fresh reads requalify it.
+   Until S13 has landed and passed, the MOONS' `sync` route stays Blocked and no MOONS' binding shares an
+   interface with a SYNC schedule (execution contract). Record the shared-interface
    analysis that canopen_shared 02 requires for a second CANopen family in one domain (node IDs, configured
    COB-IDs, bitrate, NMT broadcasts and SYNC effects on both families), with S13 as its SYNC part. The owner
    arms only SYNC COB-ID 0x80 ([SYNC contract](../../sync.md)), which is also MOONS' 0x1005 default (UM21
@@ -80,7 +98,12 @@ tested interface and consumer gate in the seam table; Doxygen; report.
 ## Acceptance
 
 Tests cover boot-up invalidation, NMT commands without motion claims, refused guarding/LSS/TIME/RTR, map
-readback before decode, remap in Operational refused, partial remap, EMCY raw decoding, and, through S13,
-SYNC production refused with a mode -2, unread or post-write MOONS' node and admitted after a fresh non -2
-read, both directions with a Lichuan axis on the same interface. Quick and full verify, firmware builds and
+readback before decode, remap in Operational refused, the RPDO remap refused by the preflight with zero
+changing TX, partial remap, EMCY raw decoding, and, through the real producer, S13's acceptance classes with
+MOONS' nodes: admitted only when every declared node's effects are known harmless; refused on the target and
+on a node other than the target for mode -2, an unread mode, a non -2 node with an unread or unknown map, a
+valid synchronous RPDO without an admitted producer and an enabled watchdog with the SYNC trigger not owned by
+the schedule; a 0x6060 write, remap, rebind and NMT reset during a running schedule followed by no SYNC TX
+until fresh reads; both directions with a Lichuan axis on the same interface. Quick and full verify, firmware
+builds and
 exact-commit CI pass. Hardware: NOT RUN.

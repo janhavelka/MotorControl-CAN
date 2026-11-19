@@ -23,10 +23,15 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
    0x2101/0x2102 node ID and bit rate, 0x2103/0x2104 SYNC counter and time, 0x2200 FWName and 0x2300 user
    watchdog (EDS-TSM). 0x2300 means user watchdog here, save/restore on the Lichuan CL86-C and NanoJ on N5:
    object numbers never carry meaning across profiles.
-3. Identity: the application declares the TSM/TXM-C row. Confirm it with vendor ID 0x000002D9, 0x2200 FWName
-   (EDS default "UNK") and 0x100A (EDS default "2.12"), and an abort for the absent 0x2050. An absent-object
-   abort is evidence only with its raw code retained and the read effect reviewed. Never read 0x2100 typed
-   before the layout is confirmed: it is 10 bytes here and 23 INT32 registers in UM21.
+3. Identity, with stage 03's admission table and outcomes: the application declares the TSM/TXM-C row and the
+   exact model. Layout evidence is vendor ID 0x000002D9 plus an abort of the absent 0x2050 with its raw code
+   retained and its read effect reviewed; another abort code, a timeout or a 0x2050 value is UNCONFIRMED (a
+   value is evidence of UM21). 0x2200 FWName and 0x100A are recorded raw and identify no model: a value equal
+   to an EDS default ("UNK", "2.12") or any other unreferenced string is not model evidence. The exact model
+   stays the declaration; Part A reads are labelled inferred, and every model-specific Part B operation stays
+   gated until the new manual and identification evidence for that model (a fixture-recorded string or object
+   tied to the model's label) both exist. Never read 0x2100 typed before the layout is confirmed: it is 10
+   bytes here and 23 INT32 registers in UM21.
 4. Units (MO-D03): AMP10 p19 gives current 0.01 A, velocity 0.0042 rps, acceleration 0.1667 rps/s and distance
    1 step, with an arithmetic error in its own example (550 x 0.1667 stated as 91.85). The exact values 1/240
    rev/s and 1/6 rev/s² come from HCR p285-p286 (J, U and V registers in 0.25 rpm) and p283 (A register in
@@ -41,8 +46,9 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
    calculated targets (AMP10 p16-p17). Keep commanded and encoder-derived values separate; 20000 counts/rev
    encoders (TSM24 p3, TSM34 p4) against 0x5017/0x5018 readings stay facts, not a scale.
 7. Modes (MO-D29): TSM24 p3 and TXM24 p3 list torque, velocity, position, homing and Q; TSM34 p4 lists torque
-   and velocity only; TXM34 p4 torque, velocity and position. Admit modes per declared model only from its own
-   hardware manual; homing on the 34-frame motors stays unsupported.
+   and velocity only; TXM34 p4 torque, velocity and position. Admit modes per declared model only in Part B,
+   from its own hardware manual and with item 3's identification evidence for that model; Part A admits no
+   mode. Homing on the 34-frame motors stays unsupported.
 8. Part B items, recorded now and implemented with the new manual: quick stop codes "2 & 6 only" (AMP10 p16;
    code 6 stays in Quick stop active, unlike UM21); halt keeps torque in velocity mode and frees the shaft in
    torque mode (AMP10 p26, p45); AMP10 p21's 0x001F single-step enable-and-start; home switch 0x7001 range 1-6
@@ -63,5 +69,7 @@ layout-typed descriptors and their own tests, only after the manual intake.
 
 No AMP10 constant, unit or fixture is reachable from a UM21 binding, and no UM21 one from an AMP10 binding;
 tests prove both. Width checks reject values above 16 bits; MO-D32 stays raw. Part B operations reject with
-their gate before TX while blocked. Generator check, family checkers, quick and full verify and exact-commit
+their gate before TX while blocked, and a declared model without identification evidence admits no
+model-specific operation; "UNK", "2.12" or an arbitrary abort never confirms a model. Generator check, family
+checkers, quick and full verify and exact-commit
 CI pass. Hardware: NOT RUN.

@@ -8,7 +8,8 @@ extending the seams.
 
 ## Work
 
-1. Audit the `nanotec` family delivered in 02b-10: each route calls its public API,
+1. Once S4 has landed and its consumer gate passed (item 2), audit the `nanotec`
+   family delivered in 02b-10: each route calls its public API,
    has a parity test and a `console` row in the operation map that the checker proves.
    Existing top-level verbs keep their Lichuan meaning. There is no selected-profile
    mode; family commands and, after [prompt 64](../64_common_axis_interface.md), common
@@ -16,9 +17,14 @@ extending the seams.
    grammar and units.
 2. Seam S4 (prompt 64). When it has landed, implement the Nanotec row of the common
    axis table and pass that prompt's session and owner tests; add no second session.
-   Until then the family routes remain the only Nanotec motion path. If prompt 64 is
-   still pending, record that Nanotec could be its real second profile instead of a
-   test-only one; the decision belongs to prompt 64's execution.
+   Until then only the native Nanotec API and its owner-backed tests exist: the family
+   console routes, common-verb dispatch and their API/CLI parity acceptance stay
+   Blocked (execution contract, "Owner and bus rules"), with no second session and no
+   temporary family-specific `ProbeApp`. Return work after S4's consumer gate passes,
+   in stage order: the console routes and parity tests of 02b item 6, 03, 04, 04b, 05,
+   06a-06b, 07, 08a-08d, 09, 09b and 10, then item 1's audit and items 6-7 here. If
+   prompt 64 is still pending, record that Nanotec could be its real second profile
+   instead of a test-only one; the decision belongs to prompt 64's execution.
 3. Node table ([prompt 75](../75_runtime_node_table.md)): a Nanotec entry records
    profile, declared model, expected identity row and role; a monitor-only entry is
    observed passively. No entry implies services the profile refused.
@@ -38,11 +44,12 @@ extending the seams.
    assumption replaces this check.
 5. Discovery. Bounded scans over caller-listed nodes only; the probe is the 02b upload
    of 1000h and the identity read of 03. A finding is profile-typed and never selects
-   a profile by itself (backlog D18). Unknown or refused rows are reported as such. No
+   a profile by itself (backlog D18). Unqualified rows with their gates and product
+   contradictions are reported as such. No
    global CAN-ID sweep, no LSS, no NMT broadcast.
 6. Status, `caps`, help and runtime debug output: decode copied traffic by the admitted
    profile; an unassociated frame stays raw. Show identity verdict, control paths
-   (04b), supervision state (09b) and refused rows explicitly. Passive observation
+   (04b), supervision state (09b), unqualified rows and their active gates explicitly. Passive observation
    copies owner data and never consumes frames or blocks protocol progress.
 7. Python: extend the S6 per-record `profile` validation of `scripts/console_jsonl.py`
    (from 02b) and add a Nanotec module
@@ -68,8 +75,12 @@ and console cases; updated `docs/cli_contract.md`, `docs/api_cli_mapping.md`,
 
 Two profiles and several nodes run through one owner: profile changes with work
 pending, wrong-node frames, fair scheduling where claimed, urgent stops, late replies,
-console saturation and exact API/CLI parity. All affected Arduino and IDF targets
-build with the pinned toolchains; quick and full verification and CI on the exact
-final pushed commit pass. Flashing is not needed to prove compilation; if an image
-reaches the CL86-C bench, run only its existing regression and send no Nanotec
-frame there. Hardware NOT RUN for Nanotec.
+console saturation and exact API/CLI parity (the console and parity parts once S4
+has landed; until then they are recorded Blocked and the stage is PARTIAL). All
+affected Arduino and IDF targets build with the pinned toolchains; quick and full
+verification and CI on the exact final pushed commit pass. Flashing is not needed to prove compilation, and this stage
+flashes nothing and opens no port (canopen_shared 02 "Bench steps and owner
+absence"). If an independently authorized Lichuan lead runs the CL86-C regression on
+an image containing this work, the report may cite that run as Lichuan-only evidence.
+Hardware NOT RUN for Nanotec; owner-dependent fixture steps follow the execution
+contract's deferred-table rule.

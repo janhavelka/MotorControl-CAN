@@ -1,7 +1,8 @@
 # Nanotec CANopen profile promptset (FIR-v2213 generation)
 
-Prepared 2026-11-19. Source collection and prompt preparation complete. All
-implementation stages are NOT STARTED; Nanotec hardware is NOT TESTED.
+Prepared 2026-11-19. Source collection and prompt preparation complete; revised the
+same day after an independent [audit](audit.md) ([application](audit_application.md)).
+All implementation stages are NOT STARTED; Nanotec hardware is NOT TESTED.
 
 Add the Nanotec CANopen family as an independent concrete profile of
 MotorControl-CAN, beside the implemented Lichuan C profile, without changing
@@ -18,10 +19,10 @@ promptset does not execute it, and no stage authorizes hardware work by itself.
 | --- | --- | --- | --- |
 | Primary | N5-1-2, N5-2-2 (CANopen, hardware W007 and later) | FIR-v2213, manual 3.3.0; EDS build B1031134 | Implementation target |
 | Same profile | C5-E-1-09, C5-E-2-09 (CANopen/USB, W006+) | FIR-v2213, manual 3.3.0 | Admitted where its own pages and EDS match |
-| Same profile | CL4-E-1-12, CL4-E-2-12 (CANopen/USB/Modbus RTU, W002+); -5VDI suffixes | FIR-v2213, manual 1.5.0 | Admitted where evidence matches; -5VDI EDS not stored (stage 02 decides) |
+| Same profile | CL4-E-1-12, CL4-E-2-12 (CANopen/USB/Modbus RTU, W002+); -5VDI suffixes | FIR-v2213, manual 1.5.0 | Admitted where evidence matches; -5VDI refused until [stage 13](13_firmware_and_model_rows.md) stores its EDS |
 | Same profile | PD4-C5918M4204-E-08 (stepper), PD4-CB59M024035-E-08 (BLDC); other PD4-C ...-E-08 steppers | FIR-v2213, manual 3.3.0 | Admitted where evidence matches; dual product codes (NT-D14) gated |
-| Identity-gated, refused | N5, C5-E, PD4-C (CL4-E history starts at FIR-v1825) | FIR-v1650 (stock firmware per the product pages; N5 2.0.3 manual: no 1016h, 1F80h, 3701h, 6007h) | Refused until a ledger scope exists ([stage 13](13_firmware_and_model_rows.md)) |
-| Identity-gated, refused | Every model above | FIR-v2538 (packaged EDS only, no manual) | Refused until reviewed evidence exists (stage 13) |
+| Unqualified, behavior-gated | N5, C5-E, PD4-C (CL4-E history starts at FIR-v1825) | FIR-v1650 (stock firmware per the product pages; N5 2.0.3 manual: no 1016h, 1F80h, 3701h, 6007h) | Runs reported as firmware unqualified; [stage 13](13_firmware_and_model_rows.md) gates refuse only what it lacks (host-loss setters, limit reaction, mode change when enabled and others) |
+| Unqualified, behavior-gated | Every model above | FIR-v2538 (packaged EDS only, no manual) | Runs unqualified; stage 13 gates refuse COB-ID writes (2007h:02) and the changed EDS entries |
 
 Both motor classes are configurations of the same controllers, not separate
 APIs: open-loop stepper, closed-loop stepper with encoder, BLDC with Hall sensors
@@ -40,22 +41,22 @@ drive modes (4015h), LSS and SDO block transfer.
 | Stage | Deliverable | Dependencies and gates |
 | --- | --- | --- |
 | 01 | [Evidence and coverage](01_evidence_and_coverage.md) | canopen_shared 01 inventory; NT-D dispositions including NT-D32; documentation only, no hardware |
-| 02 | [Object ledger, identity rows, generated tables and operation map](02_object_ledger.md) | 01; seam S7 with the first generated header; per-model and per-firmware scopes; RW grants no write |
-| 02b | [Profile registration, probe and console family](02b_profile_integration.md) | 02; seams S1, S2, S6, S10; real owner, `SdoClient` and fake server; console part Blocked until S4 |
-| 03 | [Typed reads, identity gate and capabilities](03_reads_identity_capabilities.md) | 02b; identity rows refuse FIR-v1650/v2538; no detection of motor class |
-| 04 | [CiA 402 state machine, enable, release, stops and fault reset](04_state_machine_and_stops.md) | 03; seams S3 and S8; edge rules on bits 2 and 7 |
-| 04b | [Vendor command paths: Plug & Drive interface, NanoJ, auto setup](04b_vendor_command_paths.md) | 03, 04; exclusive-control admission for every motion stage |
+| 02 | [Object ledger, identity rows, generated tables and operation map](02_object_ledger.md) | 01; seam S7 and the package entries with the first generated header; per-model and per-firmware scopes; RW grants no write |
+| 02b | [Profile registration, probe and console family](02b_profile_integration.md) | 02; seams S1, S2 (with S3's default deny), S6, S10; real owner, `SdoClient` and fake server; console part Blocked until S4 |
+| 03 | [Typed reads, identity gate and capabilities](03_reads_identity_capabilities.md) | 02b; product contradictions refuse; firmware and hardware reported unqualified with stage 13 gates (no firmware lock); read-only `Supervision` snapshot; no detection of motor class |
+| 04 | [CiA 402 state machine, enable, release, stops and fault reset](04_state_machine_and_stops.md) | 03, 04b item 1; source-state table; Nanotec S3 shape and S8; edge rules on bits 2 and 7 |
+| 04b | [Vendor command paths: Plug & Drive interface, NanoJ, auto setup](04b_vendor_command_paths.md) | Item 1 (exclusive-control admission for every motion stage) after 03 and before 04's enable; items 2-5 after 04 |
 | 05 | [Units and finite position (PP)](05_finite_position.md) | 03, 04, 04b; caller-qualified unit relation; NativeRateBasis gap |
-| 06 | [Velocity, profile torque and cyclic modes](06_velocity_torque_cyclic.md) | 05; 06a PV/VL, 06b PT closed loop only, 06c after 09 and 09b |
+| 06 | [Velocity, profile torque and cyclic modes](06_velocity_torque_cyclic.md) | 05; 06a PV/VL, 06b PT with active closed loop only, 06c after 09 and 09b and only with seams S13 and S14 |
 | 07 | [Homing, limit switches and software limits](07_homing_and_limits.md) | 05; NT-D11, NT-D18; prompt 77 vocabulary |
 | 08 | [I/O, brake, motor and protection settings](08_io_brake_settings.md) | 03; four blocks 08a..08d; NT-D12, NT-D25 |
 | 09 | [PDO, SYNC, EMCY and boot-up](09_pdo_sync_emcy.md) | 03; seam S13; 8 RPDO and 8 TPDO; NT-D07, NT-D09, NT-D16, NT-D30 |
-| 09b | [Host-loss supervision and reactions](09b_host_loss_supervision.md) | 09; off by default; NT-D08, NT-D24; the 1016h setter needs seam S11 |
+| 09b | [Host-loss supervision and reactions](09b_host_loss_supervision.md) | 09; off by default; NT-D08, NT-D24; the 1016h setter needs seam S11 and a live matching producer |
 | 10 | [Communication settings and persistence](10_communication_and_persistence.md) | 03, 04, 08, 09; NT-D04, NT-D05, NT-D06, NT-D09, NT-D28 |
 | 11 | [Console and mixed-profile integration](11_console_and_integration.md) | Implemented subsets of 02b-10; prompts 64, 75 when landed |
-| 12A | [First-contact questions](12a_first_contact.md) | Optional; needs an identified Nanotec fixture and authorization |
+| 12A | [First-contact questions](12a_first_contact.md) | Optional; needs an identified Nanotec fixture and authorization; one evidence path per question, never a production bypass |
 | 12B | [Qualification and release reconciliation](12_qualification_and_release.md) | Software closeout any time; HIL needs the exact fixture |
-| 13 | [Further firmware and model rows](13_firmware_and_model_rows.md) | New source evidence; never inferred from FIR-v2213 |
+| 13 | [Further firmware and model rows](13_firmware_and_model_rows.md) | Behavior-gate table now; qualifying a row needs new source evidence, never inferred from FIR-v2213 |
 
 The numbering follows the common family layout (01, 02, 02b, 03 to 12) so that
 stage N means the same topic in every family set. Nanotec adds 04b because the
@@ -82,8 +83,8 @@ coverage denominator whether or not it is implemented.
 - The [N5 3.3.0](../../reference/multidrive/vendor/nanotec_n5_canopen_v3.3.0.pdf)
   and [C5-E 3.3.0](../../reference/multidrive/vendor/nanotec_c5e_canopen_v3.3.0.pdf)
   manuals, kept with their hashes in the multidrive pack.
-- The CANopen principles pack (`docs/reference/canopen_principles/principles.md`,
-  present in the working tree, not yet committed) for CiA 301/402 facts and the
+- The [CANopen principles pack](../../reference/canopen_principles/README.md)
+  (`e02ab04f`; its Kollmorgen AKD manual is remote-only) for CiA 301/402 facts and the
   CP-D discrepancies where vendors differ. It is not device evidence.
 
 These are research inputs, not implemented tables or proof that a delivered
@@ -101,12 +102,14 @@ impact-based CI policy in the execution contract.
 ## Relationship to the main sequence and the shared seams
 
 This family most likely reaches the [canopen_shared](../canopen_shared/README.md)
-seams first, so its stages plan their implementation: S7 (per-family checkers) in
-02 with the first generated header; S1 (inventory), S2 (`Endpoint.profile` resolved
-to `DriveProfile`), S6 (console family and per-record JSONL `profile`) and S10 (SDO
-reuse policy per binding) in 02b; S3 (opt-in best-effort stop shape per binding) and
+seams first, so its stages plan their implementation: S7 (per-family checkers and the
+first header's package entries) in 02 with the first generated header; S1 (inventory),
+S2 (`Endpoint.profile` resolved to `DriveProfile`) with S3's default deny in the same
+commit, S6 (console family and per-record JSONL `profile`) and S10 (SDO reuse policy
+per binding) in 02b; the Nanotec S3 shape (opt-in best-effort stop per binding) and
 S8 (shared CiA 402 helpers, only for identical evidenced semantics) in 04; S13 (SYNC
-side-effect admission) in 09; S11 (host heartbeat producer) in 09b. Each is claimed
+side-effect admission) in 09; S11 (host heartbeat producer) in 09b. S14 (owner-admitted
+RPDO data) is needed only if 06c is assigned. Each is claimed
 in the seam table before the shared edit, following that README's claim, land and
 consume rules. If another family claimed or landed a seam first, the Nanotec stage
 waits for it or extends it and builds no copy. S12 (owner-admitted RTR) is not

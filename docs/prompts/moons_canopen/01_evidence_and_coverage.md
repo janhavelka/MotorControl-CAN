@@ -61,7 +61,10 @@ No device API, firmware or hardware claim comes from it.
    one layout) and `scripts/check_moons_canopen_operations.py` (family header scan of
    `include/MotorControlCAN/profiles/moons_canopen/`, bindings to ledger keys, tests, console rows), each with a
    registered negative test: missing row, tampered hash, entry in two layouts, unclassified function, promoted
-   gate. Register both in `scripts/verify.py`, `scripts/check_repository.py` (`CHECKS`, file lists) and CTest.
+   gate. That registration is an S7 edit (canopen_shared 01 S7 bullet): first claim S7 in the
+   [seam table](../canopen_shared/README.md) (lead, stage 01, date) or extend another family's claim, recording
+   that the header partition, install rule and package entries remain for stage 02's first-header commit; then
+   register both in `scripts/verify.py`, `scripts/check_repository.py` (`CHECKS`, file lists) and CTest.
 8. Decide the first implementable subset from the evidence: STF-C UM21 reads, enable/release, profile position
    with native units, profile velocity, quick stop with read-back option code, and the probe. Everything that
    depends on an open MO-D fact is named with its gate. Missing hardware blocks no software here.
@@ -72,7 +75,8 @@ No device API, firmware or hardware claim comes from it.
   evidence, applied in the pack under the intake rules (working tree, INDEX and HEAD checks).
 - `docs/reference/moons_canopen_objects.json` (evidence parts), `docs/reference/moons_canopen_operations.json`,
   `docs/moons_canopen_coverage.md` linked from `docs/coverage.md` and `docs/profile_contract.md`.
-- The two checkers with negative tests, registered once; `.gitattributes` LF rules for future generated headers.
+- The two checkers with negative tests, registered once under the recorded S7 claim; `.gitattributes` LF rules
+  for future generated headers.
 - `docs/prompts/moons_canopen/PROGRESS.md` with every stage and block (01, 02, 02b, 03-07, 08a-08c, 09-13, 14a,
   14), software state and a separate hardware column; `docs/reports/moons_canopen_01.md`.
 

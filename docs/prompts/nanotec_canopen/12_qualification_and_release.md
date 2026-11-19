@@ -12,11 +12,12 @@ Nanotec fixture. The CL86-C bench is not that fixture.
 1. Reconcile the object ledger, `manual_only` functions, NT-D01..NT-D32 (and any
    later numbers) and `docs/nanotec_canopen_coverage.md` against the callable APIs,
    console routes and tests. Mark missing code separately from unresolved device
-   behavior, refused firmware rows, unavailable fixtures and modes refused by host
+   behavior, unqualified firmware rows and their behavior gates, unavailable fixtures and modes refused by host
    policy (Plug & Drive commands, clock-direction, special drive modes, LSS, cyclic
    modes unless 06c was assigned).
 2. Record the canopen_shared seams this family claimed, landed or extended (S1, S2,
-   S3, S6, S7, S8, S10, S11, S13) and consumed (S4, S5), with commits, tested
+   S3, S6, S7, S8, S10, S11, S13, and S14 only if 06c was assigned) and consumed (S4,
+   S5), with commits, tested
    interfaces and consumer gates, in the canopen_shared README table; S12 stays
    unclaimed unless a later assignment needs guarding.
    Audit demonstrated reuse: one CiA 402 helper set only where identical, one settings

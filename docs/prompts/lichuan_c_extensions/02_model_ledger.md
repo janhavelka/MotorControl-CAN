@@ -33,10 +33,13 @@ C-family claims, conflicts C01..C24, gates Q01..Q28 and generated descriptor val
    default where printed, source page. Record CL286, ABZ57 and ABZ86 differences found by the
    page comparison (`2502` bounds; encoder faults Err7..Err10 absent in ABZ p20; motor-matching section absent
    in ABZ) with their pages. Absent objects stay absent: no CL2 row is inferred from C-EDS.
-5. Model applicability. Every object, entry and manual row gets `models` (the `SettingsModel` values it
-   documents) and a per-model `write_policy`. A model not listed for a row gets NOT_DOCUMENTED and refuses
-   every write; a C-EDS row never becomes a TL-C or CL2 row by the absence of contrary text. `coverage` keeps
-   `documented`, `implemented`, `host_tested` and `hardware_qualified` independently per model.
+5. Model applicability. Every object, entry and manual row gets `models`: the documentary designations it
+   documents (`CL86-C`, `TLC57-C`, `CL2-57C`, `CL57-C`, `OL57-C`, ...), each with an optional mapping to a
+   runtime `SettingsModel` value, and a per-designation `write_policy`. A designation without a runtime value
+   (CL57-C and OL57-C, stage 05) keeps its documentary coverage and admits nothing. A model not listed for a
+   row gets NOT_DOCUMENTED and refuses every write; a C-EDS row never becomes a TL-C or CL2 row by the absence
+   of contrary text. `coverage` keeps `documented`, `implemented`, `host_tested` and `hardware_qualified`
+   independently per designation.
 6. Conflicts. Add LX conflicts with the pack ID as `id`, each original claim with its `source_ref`: LX-D03,
    D04, D07, D08, D10, D11, D12, D13, D21, D22, D23, D24, D25, D26, D27, D28, D34. Discrepancies that are
    identity facts, absences, contrasts, typos or ratings (LX-D01, D02, D05, D06, D09, D14, D20, D29..D33, D35)
@@ -63,14 +66,24 @@ C-family claims, conflicts C01..C24, gates Q01..Q28 and generated descriptor val
 | X12 | CL2 I/O codes, `2100` and `2102` meanings | CL2 | LX-D24, D25, D28 | 04a, 04b |
 | X13 | CL2 faults and reset classes | CL2 | LX-D30 | 04a |
 | X14 | Ratings and current bounds of the fixture model | All new | LX-D09, D31 | 03b, 04b, 07a |
+| X15 | Enable, release and stop source states: predecessors other than 15, stop effect and completion | All new | None; DEC-2 and DEC-8 do not transfer | 03b, 04b, 07b |
+| X16 | Move and velocity start, acceptance and completion signals, relative basis and command scale | All new | LX-D23 (CL2 bit 10) | 03b, 04b, 07b |
+| X17 | TL-C homing per method: trajectory, signals and bit 8 completion | TL-C | None; C-family `HomingMethod` evidence does not transfer | 03b, 07b |
+| X18 | Save and factory restore: persistent set and route after restart | All new | LX-D03, D12, D13, D32 | 03b, 04b, 07b |
 
 8. Generation. `generate_lichuan_objects.py` emits a per-model applicability table (a generated header, for
-   example `Models.h`, or rows in `Objects.h`) giving, per model and entry, documented or not, write policy and
-   X-gate bits. Existing `ObjectDescriptor` layout, `gateMask` bit meanings (Q01 bit 0 through Q21 bit 20) and
+   example `Models.h`, or rows in `Objects.h`) giving, per runtime model and entry, documented or not, write
+   policy and X-gate bits; only rows mapped to a runtime model contribute. Existing `ObjectDescriptor` layout, `gateMask` bit meanings (Q01 bit 0 through Q21 bit 20) and
    values stay unchanged. Extend `lichuan_generated.md` with model sections and `.gitattributes` LF rules for
    a new generated header. Catalogue strings stay optional; codec-only consumers link no descriptions.
 9. Operation map. Add model columns to `lichuan_operations.json` bindings so the operation checker proves that
-   each public function's admitted models equal its ledger rows.
+   each public function's admitted models equal its ledger rows. Add a disposition map, total over the common
+   operations of canopen_shared 02's coverage list and the runtime models, before any operation stage: each
+   cell is ADMITTED (its row), GATED (an X or Q gate and its evidence owner), NOT_DOCUMENTED,
+   NOT_IMPLEMENTED (with the missing dependency, such as prompt 57) or MISSING_PREREQUISITE (the caller record
+   it needs); proposed names. This stage lands every new-model cell as something other than ADMITTED;
+   03b and 04b change their cells. Refusal details, console text (06) and coverage come from this one map,
+   and a documented entry alone never makes a cell ADMITTED.
 
 ## Deliver
 
@@ -78,7 +91,9 @@ Updated ledger, operation map, `check_lichuan_ledger.py`, `generate_lichuan_obje
 writes) and `check_lichuan_operations.py`; regenerated `Types.h`, `Objects.h`, `Catalogue.h`, `Pdo.h`, the
 model table and `lichuan_generated.md`; negative tests for a missing TLEDS section, a tampered LX hash, a model
 row without a source, a promoted X gate, a TL-C row inheriting a C-EDS default, an edited original C claim,
-a CL2 row citing an EDS line and a model admitted by code but not by the ledger. Report and `PROGRESS.md`.
+a CL2 row citing an EDS line, a model admitted by code but not by the ledger, a disposition map missing a
+cell, and an EN57 row naming CL57-C and OL57-C that counts as documentary coverage while generating no
+runtime selector and no write admission. Report and `PROGRESS.md`.
 
 ## Acceptance
 

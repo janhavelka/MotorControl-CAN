@@ -94,7 +94,9 @@ then rests on the declaration and the model rows (stage 01 item 6).
 ## Owner and bus
 
 - One application receive owner per physical interface and one CANopen protocol domain; mixed models share it
-  only at one bitrate with distinct node IDs, and node-number differences alone prove nothing more.
+  only at one bitrate with distinct node IDs, and node-number differences alone prove nothing more. A shared
+  interface also needs the recorded analysis of canopen_shared 02 "Multi-profile consumers and package scope"
+  (configured COB-IDs, NMT-broadcast and SYNC effects) and, before S13, no SYNC schedule (06 item 6).
 - No implicit enable, homing, fault clear, save, factory restore, NMT command, node or bitrate change, PDO
   reconfiguration or input reassignment on startup, selection, probe, identity read, recovery or cached read.
 - TL-C: no path writes `2401..2407` or `2203`; a TL-C save is communication-affecting (TL57OP p5). CL2: no

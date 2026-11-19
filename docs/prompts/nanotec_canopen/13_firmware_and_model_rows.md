@@ -1,9 +1,11 @@
 # 13 — Further firmware and model rows
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs when new source evidence for a refused row exists; every
-row below currently lacks it. A row is admitted by its own evidence, never by
-similarity to FIR-v2213 or to another model.
+Status: NOT STARTED. Runs when new source evidence for an unqualified row exists;
+every row below currently lacks it. A row is qualified by its own evidence, never by
+similarity to FIR-v2213 or to another model. Until then a firmware or hardware row is
+not refused by name (execution contract, "No firmware lock"); this stage owns the
+behavior gates below, and each stage that owns a gated operation implements its gate.
 
 ## Rows and what each needs
 
@@ -16,16 +18,39 @@ similarity to FIR-v2213 or to another model.
 | C5-E-x-09A | In the package, in no manual | A manual naming the variant |
 | PD6-E (FIR-v2538 and higher) | Separate online manual 1.2.0; STO in -ES- variants (PD6EOM) | The 1.2.0 manual stored and reviewed; a separate scope, likely its own stage set |
 
-## Behavior until a row is admitted
+## Behavior until a row is qualified
 
-- Stage 03 names the row in its identity verdict; reads stay available, and every
-  dependent operation (enable, motion, settings, PDO configuration, persistence,
-  supervision) is refused before TX with that row as the reason.
-- The console, `caps` and the node table show the refused row explicitly. No
-  caller declaration, flag or configuration value turns a refused row into an
-  admitted one.
-- A unit reporting an unlisted build of a known generation (for example 1018h:03 =
-  08A50000h with a 100Ah build string that no row names) is unknown, not FIR-v2213.
+- Stage 03 names the row in its identity verdict and reports it as firmware or
+  hardware unqualified with the declared and observed identities. Operations run under
+  the declared model's FIR-v2213 scope; objects the row's evidence says are absent are
+  not requested and read as "not in this generation". Only the behavior gates below
+  refuse, before TX, with the gate name as the reason. A product identity contradiction
+  still refuses as prompt 57 defines.
+- A unit reporting an unlisted build (for example 1018h:03 = 08A50000h with a 100Ah
+  build string that no row names), CL4-E FIR-v2315 and an out-of-range or missing
+  hardware declaration are unqualified with no gate, because no evidence names a
+  missing object or behavior. An inferred 1018h:03 high word never selects a gate.
+- The console, `caps` and the node table show the unqualified row and its active
+  gates explicitly. A gate is removed only by evidence recorded here, never by a
+  caller declaration, flag or configuration value.
+- Models without a stored EDS (CL4-E -5VDI, the other PD4-C steppers) stay outside the
+  scope until their EDS is stored; that is a model-scope question, not a firmware gate.
+
+| Behavior gate | Row | Refuses | Evidence |
+| --- | --- | --- | --- |
+| `FIR1650_HOST_LOSS` | FIR-v1650 | 09b's 1016h and 6007h setters and 10's 1F80h setter; the `Supervision` snapshot reports them absent | N5V2 pp5-8 index (no 1016h, 1F80h, 6007h); NT-D01 |
+| `FIR1650_ERROR_BEHAVIOR` | FIR-v1650 | 09b's 1029h:01 setter while NT-D31 is open | NT-D31 (N5V2 documents 1029h, FWUPD p11 disagrees) |
+| `FIR1650_LIMIT_REACTION` | FIR-v1650 | 07's limit-reaction report and discard (3701h) and every homing method whose prerequisite needs 3701h | N5V2 index (no 3701h) |
+| `FIR1650_FEEDBACK_SELECTION` | FIR-v1650 | Capability checks and settings that read or write 3203h | N5V2 index (no 3203h) |
+| `FIR1650_MODE_CHANGE_ENABLED` | FIR-v1650 | Mode select in Operation enabled (04 item 6) | FWUPD p6 |
+| `FIR1650_CLOSED_LOOP_ACTIVE` | FIR-v1650 | PT and homing on block, whose admission needs bit 15 "closed loop active" (06 item 6, 07 item 2); bit 15 meant "closed loop available" | FWUPD p13 |
+| `FIR1650_SLOW_SPEED` | FIR-v1650 | Setting 3202h bit 7 | FWUPD p9 |
+| `FIR1650_PLUG_AND_DRIVE` | FIR-v1650 | `preparePdiControl`; 04b's Plug & Drive row admits only on a 2290h read that aborts as nonexistent | N5 p280 (2290h from FIR-v1748) |
+| `FIR2538_AUTOMATIC_COB_ID` | FIR-v2538 | PDO COB-ID writes (1400h-1407h:01, 1800h-1807h:01) and every 2007h:02 write | EDS 2007h:02 "Automatic COB-ID", default 1, undocumented (NT-D02) |
+| `FIR2538_CHANGED_ENTRIES` | FIR-v2538 | Writes to the 3242h, 20A0h, 3390h and 4010h subentries whose EDS entry differs from FIR-v2213 | EDS comparison (NT-D02, NT-D25) |
+
+FIR-v1650's 2000 increments per revolution in 608Fh (FWUPD p5) is no gate: 05's unit
+relation uses the read 608Fh. NanoJ autostart (NT-D32) stays unknown for every row.
 
 ## Work
 
@@ -35,23 +60,26 @@ similarity to FIR-v2213 or to another model.
    unchanged. Never extract or run firmware or vendor tools.
 2. Ledger scope: load the row's EDS as its own scope and compare it with FIR-v2213
    object by object; every difference is reviewed against the row's manual. Objects
-   the row lacks are refused for it; objects whose meaning changed get scope-specific
-   entries. Update the identity table and the refused-identity list together.
+   the row lacks are gated for it; objects whose meaning changed get scope-specific
+   entries. Update the identity table and the gate table together.
 3. Code: each stage's behavior that depends on a differing object (for FIR-v1650:
-   supervision, limits, units, mode change, bit 15) gets row-specific admission and
-   tests. Where the row cannot support an operation, it is refused with that reason.
+   supervision, limits, units, mode change, bit 15) gets row-specific tests. A gate is
+   removed when the row's evidence resolves it; where the row cannot support an
+   operation, its gate stays with that reason.
 4. Rerun the affected stage acceptance tests for the new row and for FIR-v2213, the
    ledger, generator and operation checks, and CI on the exact final pushed commit.
 
 ## Deliver
 
-Updated pack and manifest, ledger scopes, identity rows, generated tables and tests
-for each admitted row; coverage and PROGRESS rows marking the row documented,
-implemented and host-tested separately; a stage report per admitted row.
+Updated pack and manifest, ledger scopes, identity rows, the gate table, generated
+tables and tests for each qualified row; coverage and PROGRESS rows marking the row documented,
+implemented and host-tested separately; a stage report per qualified row.
 
 ## Acceptance
 
-An admitted row has its own stored sources, ledger scope, identity row and tests,
-and no FIR-v2213 assumption leaks into it. Rows without evidence stay refused by
-name. Hardware qualification of a new row follows 12A and 12B on a unit that reports
+A qualified row has its own stored sources, ledger scope, identity row and tests,
+and no FIR-v2213 assumption leaks into it. Rows without evidence stay unqualified with
+their gates; tests show each gate refusing before TX with its name, the ungated
+operations running with the unqualified identities in their results, and a product
+contradiction still refusing. Hardware qualification of a new row follows 12A and 12B on a unit that reports
 that row; NOT RUN otherwise.

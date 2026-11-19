@@ -12,20 +12,26 @@ observations. Everything here can be verified on the host.
 1. Identity and probe. The `1000:00` probe and `prepareIdentity` run unchanged for a TL-C binding with these
    differences: TLEDS declares `1009`/`100A` U16 (l.212, l.220), so a TL-C read starts with
    `IdentityWidths::DECLARED_U16`, and a wrong-width failure is retained as evidence. `MEASURED_U8` is CL86-C
-   specimen evidence: `checkModelIdentity` accepts a TL-C observation read with it only when a TL-C identity
-   record measured one-byte widths (07a T1). TLEDS declares `1018:04` (l.107); add an optional serial field
+   specimen evidence, not a TL-C default. The widths used are recorded with the observation; like every
+   firmware field they are reported and never decide `checkModelIdentity`'s outcome (stage 01 item 6, prompt
+   57). TLEDS declares `1018:04` (l.107); add an optional serial field
    read only when the caller selects it, with an abort kept raw. The result feeds stage 01's
    `checkModelIdentity`; nothing is inferred from it (LX-D01, LX-D02, LX-D35).
 2. Read effects. DEC-1 is an owner risk acceptance for C-family rows and does not transfer. TL-C uploads are
    explicit single reads with `RetryClass::NOT_REPEATABLE`, never polled, until the owner records a TL-C read
    acceptance as a new decision row. The per-binding default `SdoReusePolicy::ACCEPTED_RISK_WITH_MARKER` and
    its markers (`1000:00`, `1018:01..03`, `adapters/owner/CanBusTypes.h`) rest on DEC-1, so a TL-C binding is
-   set to `SdoReusePolicy::NONE` through `setSdoReuse` until that decision exists; the example application
-   does this for every new model, with a test. canopen_shared seam S10, when landed, keeps Lichuan's marker
-   default for every `lichuan_c` binding, so this model-level setting stays this set's responsibility.
+   set to `SdoReusePolicy::NONE` through `setSdoReuse` until that decision exists, before its first transfer
+   and again after every rebinding (a new channel binding starts with the owner default). The example
+   application does this for every new model and checks it through the owner's reuse-setting copy, with a
+   test including a rebinding; the Doxygen of the new model values states the same obligation for other
+   applications. canopen_shared seam S10, when landed, keeps Lichuan's marker default for every `lichuan_c`
+   binding, so this model-level setting stays this set's responsibility.
 3. Model-aware typed observations. Group reads keep their wire plans; meaning comes from the declared model.
    A getter that attaches documentary labels takes the model binding; the existing getter keeps its C-family
-   meaning and says so in its Doxygen. For TL-C:
+   meaning and says so in its Doxygen. No TL-C operation (03b) consumes a sample from the existing getter or
+   from a binding of another model: its samples come from the model-taking getter, bound to the model, the
+   operation and trigger, the mode and the current generations, and a mismatch is refused. For TL-C:
    - INPUT_CONFIGURATION: `2400:01` bits 0..4 and `2400:02..06` codes 0..13 (TLCEN p17); `2400:07..08` raw,
      "no terminal" (TLCEN p6, LX-D04).
    - OUTPUT_CONFIGURATION: three layouts (TLCEN p8: `0B` polarity, `0C` DO0, `0D` DO1; TLCEN p17: `0B`
@@ -37,14 +43,19 @@ observations. Everything here can be verified on the host.
      (TLCEN p16) as a documentary claim only.
 4. TL-C status table: append a layout value (proposed `StatusLayout::TLC`) for TLCEN p11, identical in TL57ZH
    p10: bit3 alarm, bit8 homing complete, bit14 running, bit15 position complete; bits 0..2 as the 0/6/7/15
-   example; homing status TLCEN p14. It has ZH86's positions but its own value (LX-D06). When a model is
-   supplied, a pairing check refuses EN86, ZH86, ZH57 and OP86 for a TL-C model and `TLC` for a C-family model.
+   example; homing status TLCEN p14. It has ZH86's positions but its own value (LX-D06). The model-taking
+   interpretation always runs a pairing check: it refuses EN86, ZH86, ZH57 and OP86 for a TL-C model and
+   `TLC` for a C-family model. TL-C operations use only that form, so the pairing is never optional for them.
 5. The bitrate hazard (TLCEN p9, TL57OP p5, TLEDS l.1569; LX-D03, LX-D13):
    - No path writes `2401..2407` for a TL-C model: typed settings, configuration restore, console and examples.
      Test each through the real `CanBusOwner`, `SdoClient` and fake server: refusal before TX.
-   - The C-family side has no filter writer today (Q08). Add a ledger rule and a test that any future writer
-     of `2401..2407` must require a CONFIRMED identity whose candidate set includes the TL-C models, so a
-     mis-declared TL-C can never receive a CL86-C filter coefficient.
+   - The C-family side has no filter writer today (Q08), so nothing sends a filter coefficient now. Add a
+     ledger rule and a test: a future writer of `2401..2407` stays blocked until its own reviewed stage names
+     independent evidence of the model binding for the deployment (for example the node's nameplate record)
+     sufficient for that write, and it also requires a CONFIRMED identity whose candidate set includes the
+     TL-C models with their references. CONFIRMED narrows the risk and does not remove it: it means unique
+     among the supplied references (prompt 57), so a TL-C specimen whose identity matches no supplied TL-C
+     reference and equals the CL86-C one would be CONFIRMED as a CL86-C.
    - The TL-C bitrate change stays BLOCKED (X02): the selector index is unresolved (`2407` in TLCEN p9,
      `2402` in TLEDS; "decimal address 20" fits neither register `0x31` nor `0x36`, TLCEN p17..18), it acts only
      with SW5 ON, which no object reports, and it takes effect after a save and restart, after which the node
@@ -68,13 +79,17 @@ the `CL86_C` heartbeat and TPDO1 scopes. Each refusal is a test, not a comment.
 
 `State.h` layout value and pairing check; model-taking typed getters in `Reads.h`/`IoSettings.h` with Doxygen;
 `test/support/LichuanTlcDrive.h` (fake server answering only TLEDS-declared objects with documented values,
-labelled synthetic); `test/tlc_reads_test.cpp` (decode, unresolved filters, pairing refusal, widths, serial
-abort kept raw) and `test/tlc_hazard_test.cpp` (no TX to `2401..2407` or `2203` on any path, filter-writer
-rule, CL86-C regression unchanged); ledger, operation map, coverage, CHANGELOG, report and `PROGRESS.md`.
+labelled synthetic); `test/tlc_reads_test.cpp` (decode, unresolved filters, pairing refusal, a legacy-getter
+or other-model sample refused by a TL-C consumer, widths reported, serial abort kept raw) and
+`test/tlc_hazard_test.cpp` (no download to `2401..2407` or `2203` planned on any TL-C path; the reviewed
+explicit uploads of these indices and of PDO records emit exactly their request frames and nothing else; a
+refused setter, restore plan or map mutation emits no frame; filter-writer rule; CL86-C regression
+unchanged); ledger, operation map, coverage, CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance
 
 A TL-C binding reads identity, state and configuration through the real owner with model-correct labels and
-raw values preserved; no TL-C path can transmit to `2401..2407`, `2203`, a COB-ID or a PDO record; the bitrate
-change is listed BLOCKED with X02's missing evidence. Quick and full verification, firmware builds and
+raw values preserved; no TL-C path plans a download to `2401..2407`, `2203`, a COB-ID or a PDO record, and
+reads of them are the reviewed explicit uploads only; the bitrate change is listed BLOCKED with X02's
+missing evidence. Quick and full verification, firmware builds and
 exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and X06 stay open for 07a.

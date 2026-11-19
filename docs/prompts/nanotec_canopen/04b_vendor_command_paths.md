@@ -1,38 +1,64 @@
 # 04b — Vendor command paths: Plug & Drive interface, NanoJ and auto setup
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs after 03 and 04. Nanotec-specific: these paths move the motor or rewrite
+Status: NOT STARTED. Item 1 runs right after 03 and lands, tested, before 04 exposes
+enable (04 consumes it); items 2-5 run after 04. Nanotec-specific: these paths move the motor or rewrite
 CiA 402 objects outside the state machine, so every motion and settings stage
 applies the admission rule of item 1. Review section 6 (last item) and section 12.
 
 ## Work
 
-1. Exclusive-control admission, consumed by 04-10. A CiA 402 motion, enable or
-   settings operation is admitted only with fresh, generation-bound `ControlPaths`
-   from 03 showing all of:
-   - NanoJ not running: 2301h bit 0 (RUN) = 0. A program that maps 6040h rewrites it
-     every 1 ms and the fieldbus loses control (N5 pp154-155). No declaration
-     overrides a running program.
-   - Plug & Drive interface off (2290h bit 0 = 0), or a caller declaration, bound to
-     binding and boot generation, that nothing writes 2291h: no other master, no RPDO
-     mapping 2291h (checked from the 03 mapping readback) and no NanoJ program. The
-     interface is on ex works (PDI p5; EDS 2290h = 01h for every member), and a write
-     of 2291h:04 executes switch-off, clear error, quick stop, auto setup, homing, PP,
-     PV or PT immediately (PDI p6) and overwrites 6040h, 6060h, 607Ah, 6081h and
-     60FFh (PDI p14). Statusword bit 9 cannot show this (NT-D26).
-   - A caller declaration that no other path writes the object dictionary: N5
-     Ethernet REST (N5 pp35-36), C5-E/CL4-E USB with cfg.txt, CL4-E Modbus RTU on the
-     shared X1 connector (CL4E p19, NT-D28). The library cannot observe these.
-   Boot-up, rebinding and any change to the mapping invalidate the declaration.
+1. Exclusive-control admission, a pure predicate over 03's `ControlPaths`, consumed
+   by 04-10. A CiA 402 motion, enable or settings operation is admitted only when every
+   row below admits, from fresh observations bound to binding, boot and control-path
+   generations. Command objects are 6040h, 6060h, 2291h, 2300h and the setpoint and
+   output objects 607Ah, 6081h, 60FFh, 6071h, 6042h, 60C1h and 60FEh (the ledger's PDO
+   columns say which are RPDO-mappable). The single-master declaration is one caller
+   declaration, bound to binding and boot generation, that nothing but this owner's
+   application writes the node's object dictionary or sends its RPDO COB-IDs: no
+   other CANopen master, no N5 Ethernet REST (N5 pp35-36), no C5-E/CL4-E USB cfg.txt,
+   no CL4-E Modbus RTU on the shared X1 connector (CL4E p19, NT-D28). Requiring it is
+   the single-master guard, a settable guard (lead decision 2026-11-19, the owner's
+   engineering direction of 2026-11-17): on by default; the application may switch it
+   off per binding and then owns that responsibility. With the guard off, the rows
+   below that need the declaration admit on their observed conditions alone (Plug &
+   Drive: no valid RPDO mapping 2291h and the NanoJ row admitting; RPDOs: no S14 route
+   of this owner for that COB-ID; other writers: admitted). The observed rows (NanoJ,
+   vendor modes, unread maps) are not part of the guard. Every result that consumed
+   the predicate reports the guard setting and the declaration or its absence.
+
+   | Path | Observed (03) | Admits when | Refuses when | Invalidated by |
+   | --- | --- | --- | --- | --- |
+   | NanoJ | 2300h bit 0 (ON), 2301h bit 0 (RUN) | Both 0. A program that maps 6040h rewrites it every 1 ms (N5 pp154-155) | Either is 1 or unread, or a NanoJ start or stop of this library is unresolved; no declaration overrides | Boot-up (autostart unknown, NT-D32), this library's NanoJ start (before its TX), any 2300h write |
+   | Plug & Drive interface | 2290h bit 0; RPDOs mapping 2291h | 2290h = 0; or 2290h = 1 with the single-master declaration (or the guard off), no valid RPDO mapping 2291h and the NanoJ row admitting | Otherwise. It is on ex works (PDI p5; EDS 2290h = 01h for every member); 2291h:04 runs switch-off, clear error, quick stop, auto setup, homing, PP, PV or PT immediately (PDI p6) and overwrites 6040h, 6060h, 607Ah, 6081h and 60FFh (PDI p14); bit 9 cannot show it (NT-D26) | Boot-up, rebinding, a 2290h write, any map change |
+   | RPDOs | Valid bit, transmission type and mapped objects of 1400h-1407h and 1600h-1607h | No valid RPDO maps a command object; or the single-master declaration (or the guard off) and no S14 route of this owner for that COB-ID (the owner sends no RPDO data today) | A valid command map without the declaration while the guard is on, in every NMT state (another master's NMT start makes the node Operational; RPDO1 maps 6040h and 6060h by default, 09 item 3); an unread map. A pending synchronous RPDO is also S13's case (09) | Remap, COB-ID change, boot-up, rebinding |
+   | Vendor modes | 6061h; on PD4-C 4015h:01 | 6061h is 0 or a mode 6502h flags; 4015h:01 = 0 | 6061h -1, -2, another value or unread; 4015h:01 = 2: the state machine then follows digital input 1 only and 6040h state requests have no effect (PD4C p33, p327) | Boot-up, a 6060h or 4015h write |
+   | Other writers | Not observable | The single-master declaration, or the guard off | No declaration with the guard on | Boot-up, rebinding |
+
+   Handing authority away: `prepareNanojStart`, `preparePdiControl` with 1 and
+   `prepareAutoSetup` advance the binding's control-path generation before their first
+   TX. Ordinary work admitted under an older generation, queued work included, sends
+   no further changing step and ends with its confirmed and uncertain effects. A lost
+   reply leaves that path unknown. Only fresh `ControlPaths` read after the change admit
+   ordinary control again: after this library's NanoJ start that means an explicit
+   NanoJ stop and a read showing both NanoJ bits 0, because RUN = 0 while the program
+   loads (up to 200 ms, N5 p283) is not exclusion.
+   Gaining exclusive control: `prepareNanojStop` and `preparePdiControl` with 0 are the
+   narrow routes to a passing predicate. They need admitted identity, write preflight
+   (canopen_shared 02 "Operation admission") and an explicit request, not the
+   predicate itself; they never enable, move or save, and they report the drive state
+   the stopped path left, observed afterwards. No route clears 4015h or leaves an
+   external-signal mode; those stay refused with the reason.
 2. Plug & Drive control: `preparePdiControl` writes 2290h:00 = 0 or 1 in RAM with
    readback (`RetryClass::IDEMPOTENT_SETTING`); only on explicit request, never at
    startup, probe or recovery. 2290h is savable in category application (N5 p112,
-   p280); saving belongs to 10. 2290h exists from FIR-v1748 (N5 p280), which is one
-   more reason the FIR-v1650 row stays refused. The library never writes 2291h: Plug
+   p280); saving belongs to 10. 2290h exists from FIR-v1748 (N5 p280), so on FIR-v1650
+   this setter refuses through stage 13's `FIR1650_PLUG_AND_DRIVE` gate. The library never writes 2291h: Plug
    & Drive commands are ledger rows "unsupported by host policy: second command path".
 3. NanoJ control: typed reads of 2300h (bit 0 ON, bit 2 AutoYield), 2301h (bit 0 RUN,
    bit 2 ERR) and 2302h (error code) (N5 pp283-284). `prepareNanojStop` writes 2300h
-   bit 0 = 0 and observes RUN = 0; `prepareNanojStart` sets bit 0 with a rising edge,
+   bit 0 = 0 and observes both NanoJ bits 0 (item 1's narrow route); `prepareNanojStart`
+   sets bit 0 with a rising edge,
    which reloads the program and may take up to 200 ms (N5 p283); it is
    `MOTION_LIKE`, never repeated, and refused unless explicitly requested with the
    caller accepting that the program's behavior is unknown to the library. Program
@@ -56,23 +82,34 @@ applies the admission rule of item 1. Review section 6 (last item) and section 1
    until a boot-up is observed. PD4-C ran auto setup at the factory (4016h:01,
    PD4C p42, p85, p327): refuse unless the caller explicitly requests a re-run.
 5. Refused vendor modes: clock-direction 6060h = -1 (N5 pp94-96) and PD4-C special
-   drive modes 4015h (PD4C p326) switch command authority to external signals. Both
-   are ledger rows with a reason; mode select (04) refuses them.
+   drive modes 4015h (PD4C pp326-327, p33) switch command authority to external
+   signals. Both are ledger rows with a reason; mode select (04) refuses selecting
+   -1, and item 1 refuses ordinary control while either is active or unread.
 
 ## Deliver
 
-`profiles/nanotec_canopen/ControlPaths.h/.cpp` (admission check and the three
-operations), `test/nanotec_canopen_control_paths_test.cpp`, the admission check
+`profiles/nanotec_canopen/ControlPaths.h/.cpp` (admission check, delivered and
+committed first with its tests, then the three operations),
+`test/nanotec_canopen_control_paths_test.cpp`, the admission check
 called from every existing motion and settings preparation, console routes `nanotec
 pdi`, `nanotec nanoj` and `nanotec autosetup` with parity tests, and the coverage rows
 for every Plug & Drive command and NanoJ function.
 
 ## Acceptance
 
-Tests show that each motion preparation refuses before TX when NanoJ runs, when the
-interface is on without a valid declaration, after a boot-up or mapping change, and
-for a declaration of another binding; that 2290h writes are confirmed by readback;
-that NanoJ start is never repeated after a lost reply; and that auto setup's result
+Item 1's predicate is tested before 04 lands enable: each row admitting, active and
+unread; each motion preparation refuses before TX when NanoJ runs or 2300h bit 0 is
+set, when the interface is on without a valid declaration, when a valid RPDO maps a
+command object without the declaration (default RPDO1 included, in Pre-operational
+and Operational), when 6061h is -1 or PD4-C 4015h:01 = 2, after a boot-up or mapping
+change, and for a declaration of another binding. With the single-master guard off
+the same factory configuration is admitted without a declaration, the observed rows
+still refuse, and each result reports the guard setting and declaration. Further tests: queued ordinary work
+across this library's NanoJ start sends no further step; RUN still 0 after the start
+reply stays refused; lost start and stop replies leave the path unknown and refused;
+NanoJ stop and Plug & Drive off are admitted while the predicate refuses and never
+enable; 2290h writes are confirmed by readback;
+NanoJ start is never repeated after a lost reply; and auto setup's result
 carries the saved categories, the restart requirement and invalidated generations,
 with a timeout ending `UNKNOWN`. No test or example performs auto setup implicitly.
 Quick and full verification and CI on the exact final pushed commit pass. Hardware

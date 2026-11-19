@@ -18,8 +18,10 @@ polarity, methods and reactions below are Nanotec facts.
    text error. Negative methods mean something else for other vendors (CP-D14).
 2. Prerequisites per method: home and limit inputs enabled in 3240h, and 3701h = -1 so
    that a limit does not block the homing travel (N5 p82); an index needs an encoder
-   with index and pulses of at least 31.25 µs (N5 p387); block methods need closed loop
-   and 203Ah:01 (mA, or a percentage of 2031h if negative) and 203Ah:02 in ms (N5 p84,
+   with index and pulses of at least 31.25 µs (N5 p387); block methods need active
+   closed loop, established as for PT (06 item 6: a fresh, same-session bit 15 = 1 in
+   Operation enabled, not the configuration alone; refused before the trigger without
+   it), and 203Ah:01 (mA, or a percentage of 2031h if negative) and 203Ah:02 in ms (N5 p84,
    p268). Speeds 6099h:01 (preset 50) and 6099h:02 (preset 10) with :02 lower than :01;
    609Ah is used only when starting (N5 pp386-387); home offset 607Ch. Refuse a method
    whose prerequisites are not declared and observed; never disable a limit or
@@ -63,7 +65,8 @@ and `nanotec limits` with parity tests; prompt 77 rows for this profile.
 ## Acceptance
 
 Tests cover every method's admission row, refused methods without declared switches
-or index, block methods refused in open loop, speed ordering, a stale bit 12 from an
+or index, block methods refused in open loop and on a configured closed-loop axis
+without a fresh bit 15 = 1, speed ordering, a stale bit 12 from an
 earlier homing, interruption by clearing bit 4, both error patterns, stop during
 homing, method 35 never run implicitly, reference publication only after observed
 completion, and each 3701h value's reported reaction. Quick and full verification and

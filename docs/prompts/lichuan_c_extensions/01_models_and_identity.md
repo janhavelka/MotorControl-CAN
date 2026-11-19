@@ -40,10 +40,17 @@ which models, and adds identity confirmation that can only confirm or contradict
    source, or a decision of that README table has no row. Add the negative cases.
 5. Model binding, proposed `ModelBinding`: one application record per `ReadTarget` binding holding the
    declared model, a nonzero provenance record id and the current identity outcome with its node generation
-   and server session. No I/O. Only the application replaces the declaration. The identity outcome follows
-   canopen_shared 02 "Identity and device evidence": boot-up, NMT reset, bus-off or controller restart,
-   rebinding and a configuration-generation change clear it; a contradicting read sets CONTRADICTED. Every
-   preparation taking an `AxisReservation` refuses a reservation whose model differs from the binding's.
+   and server session. No I/O. Only the application replaces the declaration. The application owns this
+   record as the holder of canopen_shared 02 "Identity and device evidence": boot-up, NMT reset, bus-off or
+   controller restart, rebinding and a configuration-generation change clear the outcome; a contradicting
+   read sets CONTRADICTED. Every preparation taking an `AxisReservation` refuses a reservation whose model
+   differs from the binding's. Admission is rechecked at every changing step, not only at preparation: each
+   `next...` call and the owner transmit guard (the points that already take the live reservation and current
+   target, as `validateMoveAdmission` does) read the outcome from the live holder and compare its node
+   generation and server session with the current target. A cleared, stale or newly CONTRADICTED outcome
+   withdraws the pending download unsent and sends nothing further on that binding; other nodes' work is
+   untouched, and a frame already handed to the controller is reported as possibly sent. A copy taken at
+   preparation is an admission snapshot for the result, never permission to transmit.
 6. Identity confirmation: the one comparison of the execution contract's
    [identity outcomes](execution_contract.md#identity-outcomes-prompt-57s-policy) (CONFIRMED, UNCONFIRMED,
    CONTRADICTED), with this set's model-scoped rule. If prompt 57 or DS2 stage 03 landed it first, extend it;
@@ -55,18 +62,31 @@ which models, and adds identity confirmation that can only confirm or contradict
      application may copy.
    - Inputs and outcomes as the contract defines them, with a current `IdentityObservation` for the node
      generation. `IdentityObservation::modelMatched` keeps its meaning or changes only with a migration entry.
-   - Limit, stated in Doxygen: if two candidates' records are equal, both stay UNCONFIRMED and protection rests
-     on the declaration and the model rows alone. A TL-C node declared while only a CL86-C record exists and
-     its identity equals that record is CONTRADICTED, which forces a TL-C record (07a T1) before TL-C vendor
-     writes.
+   - Match fields. A reference matches when every product identity field of prompt 57 (`1000`, `1018:01`,
+     `1018:02`, `2000`) that the reference holds equals the observation's; a field the reference holds that
+     the observation lacks (not read, aborted, wrong width) leaves that reference undecided, so the outcome is
+     at most UNCONFIRMED. Firmware fields (`1009`, `100A` and their reply widths, `1018:03`, `2001`), the
+     `1018:00` count, the optional `1018:04` serial and the record's provenance are reported beside the
+     outcome and never decide it. Adding a field to the match (for example the count, LX-D02) is a later
+     reviewed change under X01.
+   - Limit, stated in Doxygen: CONFIRMED means unique among the supplied references, not physical proof of
+     the model (prompt 57): an unmeasured specimen can still equal another model's reference. If two
+     candidates' records are equal, both stay UNCONFIRMED and protection rests on the declaration and the
+     model rows alone. A TL-C node declared while only a CL86-C record exists and its identity equals that
+     record is CONTRADICTED, which refuses every changing request (prompt 57) and forces a TL-C record
+     (07a T1) first.
 7. Refusal, the contract's vendor-object rule: a central check in `ProfileEvidence.h` refuses every LICHUAN_C
    preparation that downloads to `2000h..5FFFh` when the binding's current outcome is CONTRADICTED. For the
    new models such a download also needs a current outcome for the node generation (any value but
    CONTRADICTED), so the check always runs. CL86-C and OL86-C keep today's admission when no identity check
-   exists; record that choice in the register. Results carry the outcome. Writes to `6040`, `6060`, `607A` and
-   other standard objects follow their own rows and prompt 57's product-identity refusal of motion. Prefer
-   carrying the binding's outcome in `AxisReservation` over new parameters; any changed public signature gets
-   a migration entry and updated callers in the same commit.
+   exists. Record that choice in the register as a compatibility choice with its residual risk, not as
+   evidence that a legacy declaration is right: a TL-C or DS-C node declared as CL86-C still receives CL86-C
+   vendor writes, `2300` save included, exactly as today; this stage does not change prompt 57's vendor-write
+   policy for those models. Results carry the outcome. Writes to `6040`, `6060`, `607A` and other standard
+   objects follow their own rows and prompt 57's motion rule (CONTRADICTED refuses enable, mode select,
+   motion and every other changing request). Pass the live holder of item 5 (in the live `AxisReservation`
+   or as a parameter) rather than a preparation copy; any changed public signature gets a migration entry
+   and updated callers in the same commit.
 8. Prompt 57 coordination. Prompt 57's Identity policy (Pending in the main PROGRESS) now states D18: a
    matching product identity does not prove a CL86-C (LX-D01, LX-D35), the declared binding selects the
    profile and model, and the Lichuan family sets add model-scoped checks on that one policy. Its
@@ -87,18 +107,23 @@ which models, and adds identity confirmation that can only confirm or contradict
   `ModelIdentityRecord` and `checkModelIdentity` in a profile-neutral header, or the extension of the
   comparison prompt 57 or DS2 stage 03 landed; their Doxygen; the central refusal in `ProfileEvidence.h`.
 - `test/model_applicability_test.cpp` (fail-closed table, binding mismatch, no TX) and
-  `test/model_identity_test.cpp` (all outcomes; a TL-C record equal to the CL86-C record gives UNCONFIRMED for
-  both; a TL-C declaration with only an equal CL86-C record gives CONTRADICTED; a DS-C record contradicting a
-  CL86-C declaration; stale node generation; missing `1018:04`; width
-  mismatch; CONTRADICTED blocks `2302` and `2500` downloads before TX in both declaration directions), each
-  registered in CTest and `lichuan_operations.json`.
+  `test/model_identity_test.cpp` (all outcomes, each with its exact reason: a candidate without a reference
+  and a TL-C record equal to the CL86-C record give UNCONFIRMED; an apparently unique reference gives
+  CONFIRMED and nothing stronger; a TL-C declaration with only an equal CL86-C record gives CONTRADICTED; a
+  DS-C record contradicting a CL86-C declaration; stale node generation; missing `1018:04`; a firmware-only or
+  width difference that leaves the outcome unchanged and is reported; CONTRADICTED blocks `2302` and `2500`
+  downloads before TX in both declaration directions; invalidation between preparation and dispatch and
+  between two changing steps, including a new CONTRADICTED outcome on the same model and a new server
+  session of the same node: no further changing TX, other nodes unchanged, a handed-off frame possibly
+  sent), each registered in CTest and `lichuan_operations.json`.
 - The register, its checker rule and negative tests; `docs/profile_contract.md` model section; backlog D18
   disposition; CHANGELOG `Unreleased`; `PROGRESS.md`; `docs/reports/lichuan_c_extensions_01.md`.
 
 ## Acceptance
 
 Every new model is refused by every existing operation with no TX. No code path selects or changes a model
-from identity. CONTRADICTED refuses manufacturer-area writes before TX; CONFIRMED is reachable only with
-records for every candidate. Existing CL86-C/OL86-C tests pass unchanged. Ledger, generator, operation, quick
+from identity. CONTRADICTED refuses manufacturer-area writes before TX, also when it arrives after
+preparation; CONFIRMED is reachable only with records for every candidate and claims
+only uniqueness among them. Existing CL86-C/OL86-C tests pass unchanged. Ledger, generator, operation, quick
 and full verification, the firmware builds and exact-commit CI pass (public API change). Hardware NOT RUN.
 TL-C and CL2 identities stay unmeasured (X01, stage 02) until 07a.

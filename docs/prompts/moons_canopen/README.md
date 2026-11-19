@@ -1,7 +1,8 @@
 # MOONS' / Applied Motion CANopen profile promptset (STF-C, SSDC-C, TSM/TXM-C)
 
-Prepared 2026-11-19. Source collection and prompt preparation complete.
-All implementation stages are NOT STARTED; MOONS' CANopen hardware is NOT TESTED.
+Prepared 2026-11-19; revised the same day after an independent [audit](audit.md)
+([application](audit_application.md)) and the shared contract's round 2 (`1043608b`). Source collection and
+prompt preparation complete. All implementation stages are NOT STARTED; MOONS' CANopen hardware is NOT TESTED.
 
 Add the Applied Motion Products / MOONS' CANopen drives as one independent concrete profile family,
 `moons_canopen`, inside MotorControl-CAN. It reuses the CANopen services, owner and common motion vocabulary
@@ -37,11 +38,11 @@ The two layouts are never merged: equal object numbers do not mean equal objects
 | 03 | [Identity, layout selection, typed reads and capabilities](03_identity_and_reads.md) | 02b; no universal probe; MO-D01/D27 |
 | 04 | [State machine, enable, release, fault reset and stops](04_state_machine_and_stops.md) | 02b-03; MO-D05/D06/D19/D24/D28/D33; prompt 57 for common enable/release names |
 | 05 | [Units and finite profile position](05_units_and_position.md) | 03-04; MO-D03/D20/D31; two-deep set-point buffer |
-| 06 | [Profile velocity and profile torque](06_velocity_and_torque.md) | 04-05; torque SSDC only; MO-D04 |
+| 06 | [Profile velocity and profile torque](06_velocity_and_torque.md) | 04-05; torque SSDC only, refused by the 0x6087 write preflight until MO-D04 resolves |
 | 07 | [Homing, coordinate changes and limits](07_homing_and_limits.md) | 03-05; MO-D07; prompt 77 for common limit facts |
 | 08 | [I/O and drive settings, blocks 08a..08c](08_io_and_settings.md) | 03; 08b needs 07 limits; MO-D21/D24/D25 |
 | 09 | [PDO, SYNC, EMCY and network events](09_pdo_sync_emcy.md) | 03-04; MO-D10/D12/D13/D14/D19/D26; seam S13 claimed and landed here unless another family holds it |
-| 10 | [Q program modes -1 and -2](10_q_programs.md) | 04, 09; mode -2 Blocked until S13 has landed and passed; MO-D20 register mapping |
+| 10 | [Q program modes -1 and -2](10_q_programs.md) | 04, 08's settings context, 09; mode -2 refused in this set; MO-D18 segments, MO-D20 register mapping |
 | 11 | [Commissioning, communication, watchdog and persistence](11_commissioning_and_persistence.md) | 03-04, 08, 09, 10; MO-D11/D16/D17/D18/D23 |
 | 12 | [Console and mixed-profile integration](12_console_and_integration.md) | Implemented subsets of 02b-11; prompts 64 and 65 when landed |
 | 13 | [TSM/TXM-C 2010 object layout](13_tsm_txm_layout.md) | 02-12 contexts; MO-D02/D29/D30/D32; Part B needs a current TSM/TXM manual |
@@ -51,7 +52,9 @@ The two layouts are never merged: equal object numbers do not mean equal objects
 The list follows the canopen_shared shape with three changes. Profile torque joins velocity in 06 because UM21
 documents both with the same halt start/stop pattern (UM21 p32, p34). Q program modes get their own stage 10:
 starting a stored program is opaque vendor motion, and mode -2 turns every SYNC on the bus into a motion trigger
-(UM21 p36; AMP10 p48-p49), so it needs seam S13 from 09 first. The 2010 layout gets stage 13 because its
+(UM21 p36; AMP10 p48-p49), so stage 10 refuses mode -2 and stage 09's S13 entry refuses SYNC while any MOONS'
+node may be in it. A positive SYNC Q start would need its own shared-contract change. The 2010 layout gets
+stage 13 because its
 objects, units and widths differ and its current manual is missing (MO-D02, MO-D30); it must not delay 12.
 Dependencies are semantic prerequisites, not a demand to guess missing behavior. A stage may finish an
 independently usable subset while named operations stay gated.
@@ -61,8 +64,9 @@ independently usable subset while named operations stay gated.
 - The reference pack: 10 manufacturer PDFs, 3 EDS files and 10 product-page snapshots with SHA-256 in
   [SOURCES.json](../../reference/moons_canopen/SOURCES.json), ten page-marked text extracts, and the review with
   MO-D01..MO-D30. Blocked or unstored sources (AMP10 Rev K, applied-motion.com listings) are `remote_only`.
-- The CANopen principles pack (present in the working tree, not yet committed) for CiA 301/402 facts and the
-  points where vendors differ (CP-D01..CP-D28).
+- The [CANopen principles pack](../../reference/canopen_principles/README.md) (committed at `e02ab04f`; its
+  Kollmorgen AKD manual is remote-only) for CiA 301/402 facts and the points where vendors differ
+  (CP-D01..CP-D28). It is secondary evidence and never establishes a MOONS' object, capability or sequence.
 - No ledger, generated header, profile code, console route or test exists for this family yet.
 
 These are research inputs, not an implementation allowlist. Do not reuse Lichuan objects, decisions (DEC-n),
@@ -80,7 +84,8 @@ The family is independent of the main-sequence prompts except where a seam is ow
 [claim, land, consume rules](../canopen_shared/README.md), MOONS' may claim and land any first-family seam that
 no other family has claimed: S1 inventory entry, S2 profile resolution on a binding, S3 per-binding
 best-effort stop shape (MOONS' starts with none), S6 console family and JSONL profile, S7 per-family checkers
-(with the first public header, stage 02), S10 reviewed SDO reuse policy (MOONS' starts with `NONE`) and S13
+(claimed before stage 01's checker registration, completed with the first public header in stage 02), S10
+reviewed SDO reuse policy (MOONS' starts with `NONE`) and S13
 SYNC side-effect admission (stage 09). A claimed seam is extended or waited for, never rebuilt. S8 (shared
 CiA 402 helpers) is extracted only when MOONS' and the other caller need identical evidenced semantics. S4
 (prompt 64 common axis table), S5 (prompt 65 package components) and S9 (prompt 63 second protocol) are
@@ -99,4 +104,4 @@ family raised: a SYNC is a broadcast, and a MOONS' node in mode -2 starts a Q pr
 the owner produces SYNC on an interface every bound device's reviewed SYNC effects must be known. S13 gates
 prompt 51's producer without forking it and is the SYNC part of canopen_shared 02's shared-interface analysis.
 Stage 09 claims it in the seam table if it is still unclaimed, or extends or waits for the claiming family;
-stage 10 consumes it.
+stage 10 keeps mode -2 refused and relies on S13's revocation for its 0x6060 writes.

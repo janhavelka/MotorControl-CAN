@@ -5,15 +5,25 @@ Status: NOT STARTED; hardware NOT TESTED.
 
 Run it only when an exact MOONS' fixture, its recorded identity and applicable authorization exist and the
 owner is present. This stage does not authorize hardware work, does not use the CL86-C bench (COM15) and does
-not run while COMMON records the owner as away. Results qualify the concrete fixture through ordinary API
-routes; they never resolve a discrepancy for every firmware.
+not run while COMMON records the owner as away. It follows canopen_shared 02 "First-contact questions": it
+qualifies a fixture and never opens a gate. Each question below names one executable evidence path: an
+ordinary API route that admits it at that point, applicable vendor evidence, or a separately assigned,
+independently reviewed isolated experiment under the
+[conditional experiment prerequisites](../../device_conflicts.md#conditional-experiment-prerequisites), with its
+permitted actions, observation, original-value snapshot and restoration boundary recorded before it runs.
+Without one the question is NOT RUN with the evidence it still needs. No raw console or frame bypass, no
+weakened or temporarily opened production refusal, no presumed default as the restore value. Results never
+resolve a discrepancy for every firmware.
 
 ## Work
 
-Each question runs only after its API route exists (and its console route where S4 has landed): Q1-Q3 after
-03, Q4 after 04, Q5-Q7 after 05, Q8 after 04 and 06, Q9 after 11, Q10 after 07, Q11 after 10, Q12-Q13 after
-11, Q14 after 09. Results feed back: Q3 into 04's quick-stop admission and 09's S13 entry, Q5-Q7 into 05's unit
-and set-point gates, Q8 into 04 and 06, Q9 into 11's watchdog, Q10 into 07's direction table, Q12-Q13 into 11.
+Each question runs only after its evidence path exists: its API route (and its console route where S4 has
+landed) for Q1-Q3 after 03, Q4 after 04, Q5-Q6 after 05, Q8 after 04 and 06, Q10 after 07, Q11 after 10,
+Q12's store after 11 and Q14 after 09; the vendor evidence or the review of its isolated experiment for Q7,
+Q9, Q12's node-ID part and Q13, which no production route admits. Results feed back: Q3 into 04's quick-stop
+admission and 09's S13 entry, Q5-Q7 into 05's unit and set-point gates, Q8 into 04 and 06, Q9 into 11's
+watchdog, Q10 into 07's direction table and its 35/37 sequence, Q11 into 10's halt and restart claims, Q12-Q13
+into 11.
 
 Before first power record: product label and part number, firmware strings once read, motor and encoder,
 supply, wiring and termination, node switch and bitrate switch positions, RS-232 port disconnected (UM21 p9),
@@ -28,13 +38,13 @@ bounds, service gaps and restoration results. No automatic replay follows an unc
 | Q4 release and current | With a bounded plan, compare 0x0006, 0x0007 and 0x0000 from Operation enabled: CiA 402 state and 0x200B bit 0 (MO-D28, MO-D33) | Shaft freedom needs a person; holding torque is not inferred from state bits |
 | Q5 units | Small native finite move; compare the 0x6064 delta with 0x2604 (STF) or 0x2207 and 0x2218 (SSDC) and an independently observed shaft displacement (MO-D03) | A unit result binds to that resolution setting; a later 0x2604 change invalidates it |
 | Q6 measured position on SSDC | With the drive disabled, have a person turn the shaft and read 0x6064 and 0x606C (MO-D20) | No stall, load or following-error provocation is authorized by this question |
-| Q7 set-point buffer | Two small finite set-points with bit 5 = 0 while the first runs; record bit 12 and bit 10 and which targets execute (MO-D31) | No automatic retry; a lost trigger stays unknown |
+| Q7 set-point buffer | Stage 05 admits one idle move and refuses a second set-point, so no production route exists. Path: vendor clarification of MO-D31, or a reviewed isolated experiment: two small finite set-points (0x607A, 0x6081, the controlword words in order) with bit 5 = 0 while the first runs, recording bit 12, bit 10 and which targets execute; snapshot 0x607A, 0x6081, 0x6083, 0x6084; nothing persistent changes. Otherwise NOT RUN | No automatic retry; a lost trigger stays unknown |
 | Q8 stops | On small finite moves compare quick stop with 0x605A = 1 and 2 (end state Switch on disabled), and halt in mode 1 (pause, then release) and mode 3, recording deceleration against 0x6084 and 0x6085 (MO-D05, MO-D06) | No moving link-loss test; host duration is not a physical bound after a link failure |
-| Q9 watchdog | Stationary and enabled: arm 0x2060 with a host RPDO feed, stop the feed under a bounded plan and record sub 2, the action and the state; then disarm and restore (MO-D18) | Running-motion watchdog tests need their own reviewed plan; action 2 and above need a Q program qualification |
+| Q9 watchdog | Stage 11's arm is refused while the 0x2060 sub-index writes are withheld (MO-D09), and its feed must be an S13-admitted SYNC schedule or an S14 RPDO (not landed). Path: stage 11's route once both resolve; vendor clarification; or, on SSDC-C only, where the arming widths agree, a reviewed isolated experiment: stationary and enabled, sub 5 left at its read value and run only if that is 0 or 1, sub 2 written as UM21 p38 documents, an S13-admitted SYNC feed, the feed stopped under a bounded plan, sub 2, the action and the state recorded, then disarm and read the snapshot values back. STF-C's conflicting widths admit no experiment, which may not choose between competing writes. Otherwise NOT RUN (MO-D18) | Running-motion watchdog tests need their own reviewed plan; action 2 and above also need the MO-D18 action-to-segment mapping |
 | Q10 homing | With actual switches, record the direction per method, the switch approached first, the final 0x6064 for 0x2009 = 0 and 1, and the bits 13/12/10 sequence (MO-D07) | No limit is disabled to make homing pass; index methods need an evidenced index |
-| Q11 Q programs | With a program whose content the owner supplies: mode -1 start, halt and restart; 0x200B bit 14 timing. Mode -2 only after S13 has landed and with an owned SYNC schedule (UM21 p35-p36) | Program behavior is the owner's evidence, not the library's |
-| Q12 persistence and node ID | With restart control: store once, restart and compare; write 0x2020, store, restart and record which of switch and stored value wins and whether a network reset activates it (MO-D16, MO-D23) | No repeated store campaign; restore communication settings afterwards and read them back |
-| Q13 bitrate list | With a host adapter and analyzer that support them, try switch code 7 against 12.5 and 10 kbit/s and record which the node accepts (MO-D17) | Code 8-9 reserved; never set them |
+| Q11 Q programs | Through stage 10's route, with a program whose content the owner supplies: mode -1 start, halt and restart, recording what halt stops and where the next start resumes, and 0x200B bit 14 timing (UM21 p35). Mode -2 is refused in this set and is not run | Program behavior is the owner's evidence, not the library's |
+| Q12 persistence and node ID | With restart control: store once through stage 11's route if its preflight admits 0x1010, restart and compare. The node-ID part has no production route (0x2020's width is withheld and its store sub-index unstated, MO-D09, MO-D16), and an experiment may not choose between the two widths or guess a store group. Path: vendor clarification naming the width and store sub-index; then a reviewed isolated experiment snapshotting 0x2020 and the switch positions and restoring by an explicit 0x2020 write, store and restart, with the next power cycle's node ID as what stays changed if that fails. Otherwise NOT RUN (MO-D23 likewise for restore) | No repeated store campaign and no guessed store group; restore communication settings afterwards and read them back |
+| Q13 bitrate list | Binding admission rejects 12.5 and 10 kbit/s (stage 02b), so no production route exists. Path: vendor clarification, or a reviewed isolated experiment: a person sets switch code 7, a listen-only analyzer records the boot-up frame at 12.5 and at 10 kbit/s, the host sends nothing, and the switch is restored and the node read back at its declared rate. Otherwise NOT RUN (MO-D17) | Code 8-9 reserved; never set them |
 | Q14 EMCY and LEDs | Record naturally occurring EMCY frames with 0x603F and 0x1003; a person records LED codes against STFHW p30 and STFHWC p44 (MO-D19) | No deliberate fault induction under this question |
 
 ### Rules for every question
@@ -50,8 +60,8 @@ bounds, service gaps and restoration results. No automatic replay follows an unc
    the [deferred table](../README.md) instead of a wait.
 5. A failed or surprising result is retained with revision, configuration, raw traffic and timing; it is
    reproduced deliberately within authorization, never hidden by a retry or a longer timeout.
-6. No question writes 0x1010, 0x1011, 0x2020 or 0x2021 except Q12 with restart control, and none writes 0x2060
-   except Q9; nothing is left armed, stored or changed at the end.
+6. No question writes 0x1010, 0x1011, 0x2020 or 0x2021 except Q12 on its named path with restart control, and
+   none writes 0x2060 except Q9 on its named path; nothing is left armed, stored or changed at the end.
 
 ## Deliver
 

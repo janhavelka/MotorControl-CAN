@@ -16,7 +16,7 @@ Follow [prompt 60](../60_user_units.md) for host-side user units and
    jerk times 60A2h. From one configuration generation, derive an exact rational
    relation between native units and motor turns, and publish it only when the caller
    qualifies it for that generation. FIR-v1650's 2000 increments per revolution
-   (FWUPD p5) never applies to an admitted row.
+   (FWUPD p5) is never assumed for any row; the relation uses the read 608Fh.
 2. Generation rules. Unit and scaling objects written in Operation enabled take
    effect only after leaving that state (N5 p62; 3203h likewise, p298), so a unit
    write observed while enabled makes the interpretation pending, and motion is

@@ -1,7 +1,8 @@
 # Lichuan C-family extensions promptset (TL-C integrated steppers, CL2 drives, 57C English manual)
 
 Prepared 2026-11-19. Source collection and prompt preparation complete. All implementation stages are NOT
-STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED.
+STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after an independent
+[audit](audit.md) of `1043608b` ([application](audit_application.md)) and prompt 57's identity policy of `0ab4e181`.
 
 This promptset **extends the implemented Lichuan C profile** (`lichuan_c`, `MotorControlCAN::LICHUAN_C`,
 CL86-C first). It is not a new profile: no `DriveProfile` value, no copied profile directory, no second
@@ -42,7 +43,7 @@ host-loss reactions, which no extension source documents.
 | 04b | [CL2 operations](04b_cl2_operations.md) | 04a; LX-D23/D25/D26/D27/D29; prompt 77 where landed |
 | 05 | [The 57C English manual: C01, C02, C17 and Q02](05_en57_conflicts.md) | 02; ledger-only; LX-D15..D19 |
 | 06 | [Console, capabilities and coverage for the model rows](06_console_and_coverage.md) | Implemented subsets of 03a..05; canopen_shared S6 if landed; prompt 64 after it lands |
-| 07a | [First contact per model](07a_first_contact.md) | An exact TL-C or CL2 fixture, owner return and authorization; reads after 03a/04a, motion after 03b/04b |
+| 07a | [First contact per model](07a_first_contact.md) | An exact TL-C or CL2 fixture, owner return and authorization; each question's evidence path: a production route (reads after 03a/04a, admitted operations after 03b/04b) or an assigned isolated experiment, otherwise NOT RUN |
 | 07b | [Qualification and release reconciliation](07b_qualification_and_release.md) | Software closeout after 06; physical part needs the 07a fixture |
 
 Why this split: TL-C and CL2 each get two stages. The rows (ledger, reads, status decoding, hazards) are
@@ -77,6 +78,7 @@ Stage 01 records each in a machine-checked applicability register; the owning st
 | Heartbeat `1017` 0 to 1000 and TPDO1 transitions (`CL86_C` scopes) | Measured on CL86-C; CL2 documents no communication records | 03a, 04a |
 | `prepareSave`/`prepareFactoryRestore` (2300) | On TL-C a save also activates a stored bitrate after restart | 03b |
 | S21 pulse-rate limit, velocity ladder, bench states S20/S21 | CL86-C fixture observations | 03b, 04b |
+| `MoveFirmware`, `VelocityFirmware`, `HomeFirmware` (evidence bound to the exact firmware tuple) | Prompt 57 removes the firmware lock: new models report a firmware difference and never refuse on it; a missing fact refuses with its own gate | 03b, 04b |
 
 ## Prepared artifacts
 
@@ -96,12 +98,17 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
 ## Relationship to the main sequence and the canopen_shared seams
 
 - [Prompt 57](../57_regular_drive_operations.md) (Pending) refuses motion on a differing product identity
-  (`1000`, `1018:01/02`, `2000`) and now records D18: those values are shared by CL86-C, TL-C and DS-C
-  (LX-D01, LX-D35), so a match does not prove a CL86-C; the declared binding selects the model and the
-  Lichuan family sets add model-scoped checks on that one policy. Its outcomes, the vendor-object rule and
-  the one comparison are defined once in the execution contract's
-  [identity outcomes](execution_contract.md#identity-outcomes-prompt-57s-policy), which the DS2 set also
-  uses. Prompt 57, stage 01 and DS2 stage 03 land one comparison; whichever lands later extends it.
+  (`1000`, `1018:01/02`, `2000`) and now records D18. CL86-C, TL-C and DS-C declare the same `1000` and
+  `1018:01/02` (LX-D01, LX-D35) and the same `2000` default 1 (C-EDS l.1229, TLEDS l.1324, DSCEDS l.1212;
+  declared defaults, not live values: both CL86-C specimens read `2000` = 0x0400, Q01), so a match does not
+  prove a CL86-C; the declared binding selects the
+  model and the Lichuan family sets add model-scoped checks on that one policy. Its outcomes (CONFIRMED means
+  unique among the supplied references, not physical proof), its vendor-object and motion rules for
+  CONTRADICTED and its firmware rule (reported, never refusing) are defined once in prompt 57's Identity
+  policy bullet; the execution contract's
+  [identity outcomes](execution_contract.md#identity-outcomes-prompt-57s-policy) list what this set supplies,
+  as the DS2 set's do. Prompt 57, stage 01 and DS2 stage 03 land one comparison; whichever lands later
+  extends it.
 - Prompt 64 (common axis table), 65 (package layout), 72 (enable-fault guards) and 77 (input facts) are
   consumed when landed, never replaced by family-local copies.
 - [canopen_shared](../canopen_shared/README.md) seams. This set claims none and may land before any family:
@@ -122,6 +129,8 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
     prompt 64; prompt 64 later absorbs them. S5, S8 and S9 are not applicable.
   - S11 (host heartbeat producer) and S12 (RTR node guarding) are not needed: TLEDS declares no `1016`, `100C`
     or `100D` and the CL2 manuals document neither, so no extension documents host-loss supervision.
-  - S13 (SYNC side-effect admission) is not claimed: no TL-C or CL2 source documents what a SYNC does, so once
-    S13 lands, TL-C and CL2 bindings enter it with unknown effects and prompt 51's producer refuses SYNC on
-    their interface. Until then no model row of this set admits `sync` (03a item 6, 04a item 1).
+  - S13 (SYNC side-effect admission) is not claimed: no TL-C or CL2 source documents what a SYNC does. No
+    model row of this set admits `sync` (03a item 6, 04a item 1), but a per-model refusal does not stop the
+    interface's producer, which reaches every node. Until S13 lands, TL-C and CL2 nodes therefore run only on
+    an interface without a SYNC schedule (06 item 6); once it lands they enter it with unknown effects and its
+    population-wide guard (canopen_shared 02, CANopen-only rules, S13) refuses SYNC on their interface.

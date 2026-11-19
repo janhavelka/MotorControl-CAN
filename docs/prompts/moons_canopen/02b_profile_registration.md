@@ -19,12 +19,19 @@ Commit tooling, core/profile and application/console changes separately.
    qualified support.
 2. Seam S2: `Endpoint.profile` holds the `DriveProfile` value, resolved by the one pure lookup in
    `Discovery.h` (inventory value and matching protocol). If MOONS' lands S2, it also performs the Lichuan
-   migration of that contract (old labels 41 and 1 refused, callers moved, CHANGELOG break entry). Every MOONS'
-   preparation, and every Lichuan one, refuses a binding of another profile before touching output or yielding
-   work. Test both directions, zero, unknown values, protocol mismatch and rebinding with a retained result.
+   migration of that contract and lands S3's default deny in the same commit (canopen_shared 02 S2 and S3
+   bullets): `LICHUAN_C` keeps the explicit value 1, so a Lichuan binding with value 1 still resolves with
+   unchanged traffic; the old test label 41, zero, unknown values, another family's value and a protocol
+   mismatch are refused; callers that spell 1 as a literal move to the named enum; CHANGELOG break entry. Every
+   MOONS' preparation, and every Lichuan one, refuses a binding of another profile before touching output or
+   yielding work. Test both directions, zero, 41, unknown values, protocol mismatch, an unchanged Lichuan value-1
+   binding and rebinding with a retained result.
 3. Identity tests (canopen_shared 02 "Identity and device evidence"): with the correct label but a Lichuan
-   server, a missing or stale identity (after boot-up or rebinding) and a colliding 0x1018 match, every
-   dependent MOONS' operation refuses with nothing sent; selection and cached queries send nothing.
+   server, a missing or stale identity (after boot-up or rebinding) and a colliding 0x1018 match, the probe
+   sends only its two reviewed reads and publishes no product, and selection and cached queries send nothing.
+   The probe is a bootstrap read and needs no identity; 02b delivers no identity-dependent MOONS' operation, so
+   the dependent-refusal cases land with the first one: stage 03's layout-gated reads, then every changing
+   operation from stage 04, each with these four identity cases and nothing sent.
 4. Probe: `prepareProbe`/`checkProbe` read 0x1000:00 and 0x1018:01 by expedited upload (UM21 p11, p41, p48).
    0x00060192 and 0x000002D9 publish only "responding CiA 402 server with the MOONS' vendor ID"; product,
    layout and firmware stay unknown (EDS product code and revision are 0 in all three files). Do not use

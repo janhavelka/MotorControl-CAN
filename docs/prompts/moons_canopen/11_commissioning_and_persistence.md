@@ -9,7 +9,10 @@ and `prepareSave`/`prepareFactoryRestore`/`nextPersistence`/`advancePersistence`
 families, and retains unknown activation after a lost reply. None runs on startup, after settings or motion.
 While COMMON records the owner as away, no communication change or persistent write runs on any bench. The
 MOONS' objects this covers are listed in the execution contract's "Hardware" section; COMMON's rule 2 numbers
-are the CL86-C fixture's.
+are the CL86-C fixture's. Every operation here runs the write preflight (execution contract, canopen_shared 02
+"Operation admission") against stage 02's per-product write policy before its first changing step; the
+MO-D09 rows of 0x1010, 0x1011, 0x2020 and 0x2060 are decided there, and an operation with a withheld write is
+refused whole with zero changing TX.
 
 ## Work
 
@@ -17,10 +20,12 @@ are the CL86-C fixture's.
    SSDCHW p12); 0x2020 values 0-7 select 0x00-0x0F ... 0x70-0x7F (UM21 p68), although its text says "high 4
    bit". Activation is stated four ways: power cycle or network reset (UM21 p9), next power cycle after storing
    with 0x1010 (UM21 p68, sub-index not stated), power cycle only (STFHW p13; SSDCHW p12) (MO-D16). Which of
-   switch and stored value wins is not stated. Offer an explicit upper-bits change with old/new tuple, endpoint
-   reservation, confirmed write and readback, ending "written, activation pending". Storing it and confirming
-   the new node ID stay gated until the store sub-index and activation are evidenced; never scan guessed node
-   IDs as recovery.
+   switch and stored value wins is not stated. The upper-bits change (old/new tuple, endpoint reservation,
+   confirmed write and readback, ending "written, activation pending") is implemented with its tests but
+   refused by the preflight on both products while 0x2020's width conflicts (UINT16 on UM21 p65 and in EDS-STF,
+   UINT8 on p68 and in EDS-SSDC; MO-D09), until vendor clarification or recorded fixture evidence names one
+   width per product. Storing it and confirming the new node ID stay gated until the store sub-index and
+   activation are evidenced; never scan guessed node IDs as recovery.
 2. Bitrate: switch codes 0-7 select 1000, 800, 500, 250, 125, 50, 20 and 12.5 kbit/s; 8-9 reserved (UM21 p9;
    STFHW p13; SSDCHW p12). 0x2021's value coding is not given (UM21 p68; EDS-TSM 0x2102 defaults to 250, a
    different coding) and HCR p52 says CB code 1 = 800 kbit/s but its example "CB1" sets 1 Mbps (MO-D17). All
@@ -40,9 +45,17 @@ are the CL86-C fixture's.
    sub 2 and sub 1 (UM21 p38). It is described as "a safety feature in Profile Velocity mode" that "can only be
    set with operation mode" (MO-D18). SDO traffic does not feed it.
 6. Implement an explicit `prepareWatchdog` arm/disarm with the whole candidate: timeout, triggers, action 0 or
-   1 (2 and above only with a stage 10 qualification for that segment). Refuse arming when no trigger names a
-   message the application declares it produces at a period shorter than the timeout. Report armed, triggered
-   and disarmed states; a triggered watchdog is a drive event that invalidates motion evidence. Re-arming is a
+   1. Every action of 2 and above refuses before TX until the MO-D18 action-to-segment mapping is resolved for
+   the firmware and a stage 10 qualification covers that segment (stage 10 item 8). The preflight covers every
+   sub-index written, the documented arming write of sub 2 included (UM21 p38): at this revision stage 02
+   withholds sub 1, 2 and 4 on STF-C and sub 2 and 5 on SSDC-C, so arming and re-arming are refused on both
+   products until those writes resolve; only an SSDC-C disarm (sub 1 = 0) can pass. Each trigger must name an
+   owner-admitted producer: a SYNC schedule admitted by S13 whose approval names this watchdog as its consumer
+   (stage 09), or an RPDO through seam S14, which has not landed, so RPDO triggers refuse. A declared period
+   shorter than the timeout is a precondition, not proof of delivery or of a host-loss reaction. Report armed,
+   triggered and disarmed states, and the host-loss reaction as "armed, action N, not observed"; outside mode 3
+   add "outside the documented profile velocity applicability" (UM21 p70; MO-D18), never a stop as an
+   established outcome. A triggered watchdog is a drive event that invalidates motion evidence. Re-arming is a
    new explicit operation, never automatic. Never disable the watchdog implicitly. Its behavior outside
    profile velocity and the meaning of "set with operation mode" stay open for 14a.
 7. Store (UM21 p45-p46): 0x1010 sub 1 config parameters and sub 2 communication parameters, signature "save"
@@ -71,8 +84,11 @@ for MOONS' (switches, tool hold, activation unknowns); coverage and ledger updat
 
 ## Acceptance
 
-Tests cover old/new tuple routing, conflicting owners, lost write reply, readback mismatch, refused store of
-0x2020, refused bitrate setter, watchdog candidates (no feeding source, action 2+ without qualification,
-re-arm explicit only, triggered event invalidation), store and restore signatures, lost replies, restore
-invalidation and no automatic retry or save. Quick and full verify, firmware builds and exact-commit CI pass.
+Tests cover old/new tuple routing, conflicting owners, lost write reply, readback mismatch, the 0x2020 change
+and store refused by the preflight with zero changing TX, refused bitrate setter, watchdog candidates (no
+owner-admitted feed, an RPDO trigger without S14, a SYNC feed not named by the S13 approval, action 2+ with a
+qualified segment but an unresolved action mapping, arm and re-arm refused by the withheld sub-index writes
+with zero changing TX, re-arm explicit only, triggered event invalidation, host-loss text without a stop
+claim), store and restore signatures, lost replies, restore invalidation and no automatic retry or save.
+Quick and full verify, firmware builds and exact-commit CI pass.
 Restart-dependent checks need restart control on an identified MOONS' fixture. Hardware: NOT RUN.

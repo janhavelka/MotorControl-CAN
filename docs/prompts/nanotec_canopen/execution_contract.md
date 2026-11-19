@@ -16,8 +16,8 @@ contract, they apply in addition to it; they never relax one.
    with the seam table's current claims and the [audit application](../canopen_shared/audit_application.md)
    (answered and open questions). Cite them; do not restate or fork them.
 4. The [pack README](../../reference/nanotec_canopen/README.md), [review](../../reference/nanotec_canopen/review.md)
-   and [SOURCES.json](../../reference/nanotec_canopen/SOURCES.json); the CANopen
-   principles pack (`docs/reference/canopen_principles/principles.md`).
+   and [SOURCES.json](../../reference/nanotec_canopen/SOURCES.json); the committed
+   [CANopen principles pack](../../reference/canopen_principles/README.md) (`e02ab04f`).
 5. This set's [README](README.md), `PROGRESS.md` (created by stage 01), the previous
    stage report and the selected stage.
 
@@ -85,15 +85,34 @@ contract, they apply in addition to it; they never relax one.
   selection); the identity read only confirms and refuses mismatches before any
   vendor-object write. Each coverage row names the identity it consumes, its holder
   and invalidators (canopen_shared 02 "Identity and device evidence").
-- An admitted row matches exactly: 1018h:01 = 0000026Ch, 1018h:02 in the declared
-  model's table, the full 32-bit 1018h:03 and the 100Ah build string in the row, and
-  1000h matching the model's motor class. The high word of 1018h:03 equalling the
+- A qualified row is one line of stage 02's admission table (exact model and suffix,
+  nameplate hardware revision range, stored EDS scope, firmware build, product codes,
+  1000h) and matches exactly: product identity 1018h:01 = 0000026Ch, 1018h:02 in the
+  declared model's table and 1000h matching the model's motor class; firmware identity,
+  the full 32-bit 1018h:03 and the 100Ah build string of the row; and the declared
+  hardware revision within the row's range. The high word of 1018h:03 equalling the
   firmware number is an inference (review section 4); report it, never gate on it.
-  FIR-v1650, FIR-v2538, CL4-E FIR-v2315 and unknown builds are refused for every
-  dependent operation while their reads stay available.
+- No firmware lock (lead decision 2026-11-19; the owner's product direction of
+  2026-11-12; [prompt 57](../57_regular_drive_operations.md) "Identity policy"). A
+  product identity that contradicts the declared model refuses dependent work with
+  nothing sent, as prompt 57 defines; reads stay limited to the identity read plan.
+  A firmware or hardware identity outside the qualified row (FIR-v1650, FIR-v2538,
+  CL4-E FIR-v2315, an unlisted build, a missing or out-of-range hardware declaration)
+  never refuses by name: operations run as firmware or hardware unqualified, every
+  result carries the declared and observed identities, and only an operation that
+  needs an object or behavior that generation's or revision's evidence shows it lacks
+  refuses, through a named behavior gate of [stage 13](13_firmware_and_model_rows.md)
+  (for example FIR-v1650 lacks 1016h, 1F80h, 3701h and 6007h, so the host-loss setters
+  and the limit-switch reaction refuse there). Objects that evidence says are absent
+  are not requested. Models without a stored EDS scope (CL4-E -5VDI, the other PD4-C
+  steppers) are a model-scope question, outside the scope until stage 13 stores their
+  EDS.
 - 1009h is "0" (NT-D29): hardware revision is a caller declaration from the
-  nameplate. Motor kind, feedback and closed/open loop are caller-supplied
-  `Capabilities`; the profile checks them against 1000h, 3202h and 3203h readback
+  nameplate, compared with the row's documented minimum (N5 W007, C5-E W006, CL4-E
+  W002, PD4-C W006; review section 1). A missing, unparseable or below-minimum
+  declaration is reported as hardware unqualified; no documented operation differs by
+  revision, so it gates nothing today. Motor kind, feedback and closed/open loop are
+  caller-supplied `Capabilities`; the profile checks them against 1000h, 3202h and 3203h readback
   and refuses contradictions, but infers nothing.
 - CiA 402 is not the only command path. The Plug & Drive interface (2290h, enabled
   ex works), a NanoJ program (2300h/2301h), N5 Ethernet REST, the C5-E/CL4-E USB
@@ -110,9 +129,11 @@ contract, they apply in addition to it; they never relax one.
   for stage 11's recorded same-domain analysis (canopen_shared 02 "Multi-profile
   consumers and package scope").
 - Per binding, a Nanotec route has SDO reuse policy `NONE` until its markers are
-  reviewed (S10, 02b) and no best-effort stop until its reviewed shape is set (S3,
-  04). Lichuan's DEC-1 markers and DEC-2 word never become Nanotec defaults.
-- Console routes and API/CLI parity tests named in 02b-10 are Blocked until S4 lands
+  reviewed (S10, 02b) and no best-effort stop until its reviewed shape is set: S3's
+  default deny lands in 02b's S2 commit, before the first Nanotec binding can be
+  admitted, and the Nanotec shape is opted in by 04. Lichuan's DEC-1 markers and DEC-2
+  word never become Nanotec defaults.
+- Console routes and API/CLI parity tests named in 02b-11 are Blocked until S4 lands
   (canopen_shared README, "Seams"; [open question](README.md#open-questions) 1). The
   stage delivers its API and owner tests, records the console part as Blocked, and is
   PARTIAL rather than SOFTWARE COMPLETE until that part lands.
@@ -161,11 +182,14 @@ Documentation-only stages and follow-ups need local checks only. Never cite an o
 
 ## Hardware
 
-No Nanotec fixture exists. Never send Nanotec frames to the CL86-C bench (COM15,
-S2 board, nodes 1 and 2) and never open COM15 from family work. While COMMON records
-the owner as away, no family bench step runs; deferred steps go to the
-[deferred table](../README.md#deferred-to-owner-return) only once a Nanotec fixture
-is part of the recorded setup. The standing bench authorization and the absence
+No Nanotec fixture exists. Never send any frame to the CL86-C bench (COM15, S2 board,
+nodes 1 and 2) and never open COM15 or flash that bench from family work. While COMMON
+records the owner as away, no family bench step runs. A stage whose hardware step
+needs the owner adds or extends one Nanotec row in the
+[deferred table](../README.md#deferred-to-owner-return) (the exact owner action, such
+as connecting and recording a Nanotec fixture, and the cases it unlocks) and records
+those cases NOT RUN with the reason "deferred: owner away" (COMMON). The row grants no
+port access and extends no waiver. The standing bench authorization and the absence
 waiver establish no Nanotec fixture. Before any later bench step, record board,
 transceiver, model, firmware build, motor and feedback configuration, wiring,
 switches, node ID, bitrate and the user's authorization, and derive the forbidden

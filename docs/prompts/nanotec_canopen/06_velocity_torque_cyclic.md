@@ -1,7 +1,7 @@
 # 06 — Velocity, profile torque and cyclic modes
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs after 05 (06c also after 09 and 09b). Three blocks, each delivered, tested and committed alone. Torque
+Status: NOT STARTED. Runs after 05 (06c also after 09 and 09b, and only with seams S13 and S14). Three blocks, each delivered, tested and committed alone. Torque
 and cyclic operation are extension scopes under the
 [multi-drive decision](../../multidrive_decision.md): native typed APIs only, no common
 effort or streaming API unless a separate assignment adds one with units,
@@ -40,7 +40,14 @@ deadlines, watchdog and measured transport requirements.
    implicitly.
 6. Admission: declared closed loop with a completed auto setup or the PD4-C factory
    record, `Capabilities.torque` true, exclusive control, finite duration with a
-   yielded stop as in 06a. 3202h bit 5 = 0 is torque-limited velocity with 6080h as
+   yielded stop as in 06a, and active closed loop: a fresh 6041h in Operation enabled
+   with bit 15 = 1 (N5 p348), sampled in the current server session after the last
+   boot-up and after the last write to the motor and feedback objects (3202h, 3203h
+   and 03's motor group), immediately before the mode change to 4 or the first nonzero
+   6071h. Configuration alone does not suffice: with encoder commutation and no auto
+   alignment the drive stays in open loop until the index passes (N5 p53), and bit 15
+   is meaningful only in Operation enabled. Absent, stale or contradictory evidence
+   refuses before TX. 3202h bit 5 = 0 is torque-limited velocity with 6080h as
    the speed limit; bit 5 = 1 is torque control without a speed limit (N5 p81, p298)
    and is refused in this subset. Target reached is 6077h within 203Dh for 203Eh
    (N5 p80). A current limit is not torque control.
@@ -49,15 +56,22 @@ deadlines, watchdog and measured transport requirements.
 
 7. CSP, CSV, CST (6060h = 8, 9, 10; N5 pp90-94) and IP (7; N5 pp89-90) need a SYNC
    period of whole milliseconds (60C2h:02 = -3, 60C2h:01 U8, preset 1; N5 p92,
-   pp394-395), RPDO setpoints in NMT Operational (09), the drive's statusword bit 12
-   "target followed" and a lease contract for refreshing current intent that never
-   retriggers a move (multi-drive decision). IP takes one buffered target in 60C1h:01
+   pp394-395), RPDO setpoints in NMT Operational (09) and a lease contract for
+   refreshing current intent that never retriggers a move (multi-drive decision). In
+   CSP, CSV and CST statusword bit 12 means "target followed" (N5 pp90-94). IP differs
+   (N5 p89): bit 4 activates interpolation, bit 12 means "IP mode active", bit 10 is
+   target reached or speed 0 under halt; no completion rule is shared with the cyclic
+   modes. IP takes one buffered target in 60C1h:01
    with 60C4h:06 = 1. CST needs closed loop; CSP, CSV and IP are not advisable in
    open loop (N5 p46).
-8. Execute only with an explicit assignment that also delivers 09, 09b and the
+8. Execute only with an explicit assignment that also delivers 09, 09b, the
    [prompt 51](../51_sync_producer.md) SYNC producer integration under this family's
-   seam S13 entry (09), plus a measured
-   service budget ([prompt 56](../56_host_throughput.md)). Otherwise this block is
+   seam S13 entry (09), the owner-admitted RPDO data transmission of seam S14
+   (canopen_shared 02 "CANopen-only rules": route, map and identity binding, SYNC
+   coordination, lease expiry, stale setpoint retirement, urgent stop by SDO, bus-off),
+   landed or consumed with its consumer gate passed, plus a measured
+   service budget ([prompt 56](../56_host_throughput.md)). No family-local raw
+   transmitter and no S9 raw transmit kind substitutes for S14. Otherwise this block is
    delivered as ledger and coverage rows with `UNSUPPORTED` capability reasons and
    no API.
 
@@ -73,6 +87,9 @@ and `test/nanotec_canopen_torque_test.cpp`; console routes `nanotec velocity` an
 Tests cover start and stop frames, direction and range at I32 and I16 limits,
 ramps in acceleration units, lost start, lost poll and lost stop, expiry with a
 yielded stop, priority stop, unknown terminal motion, PT refusal in open loop or
-with 3202h bit 5 = 1, per-mille limits and the 10 % preset reported unchanged. Quick
+with 3202h bit 5 = 1, PT on an enabled, configured closed-loop axis refused before
+and admitted after a fresh bit 15 = 1, and refused again with that evidence stale
+after a boot-up or a motor-settings write, per-mille limits and the 10 % preset
+reported unchanged. Quick
 and full verification and CI on the exact final pushed commit pass per block.
 Hardware NOT RUN; no unbounded velocity or torque test is implied by any block.

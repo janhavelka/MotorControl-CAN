@@ -50,8 +50,10 @@ applicability defect of that file, not a 57C witness for EN57's claims.
 ## Deliver
 
 Ledger rows (EN57 source under the `manual_57_en` scope, linked LX rows for LX-D15..D19, updated Q02/Q03/Q07/
-Q19 evidence text), regenerated documentation, review note, checker cases (an EN57 claim without a page, an
-edit to an original C01/C02/C17 claim, a 57C claim attached to an 86C gate), report and `PROGRESS.md`.
+Q19 evidence text), each naming the CL57-C and OL57-C designations without a runtime model (stage 02 item 5),
+regenerated documentation, review note, checker cases (an EN57 claim without a page, an edit to an original
+C01/C02/C17 claim, a 57C claim attached to an 86C gate, an EN57 row producing a runtime selector or write
+admission), report and `PROGRESS.md`.
 
 ## Acceptance
 
