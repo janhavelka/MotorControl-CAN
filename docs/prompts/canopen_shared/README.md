@@ -60,6 +60,7 @@ owner and adapters are repository builds; package tests cover the core and profi
 | S10 Reviewed SDO reuse policy per binding | Every channel starts with `SdoReuse()`: marker reads of 1000:00 and 1018:01-03 (Lichuan DEC-1) | First CANopen family to claim it | None | Not landed |
 | S11 Host heartbeat producer (owner-produced `0x700+host` frames at an application period, so a drive's heartbeat consumer `1016h` can supervise the host) | None: the owner produces NMT and SYNC only; drive-side host-loss supervision cannot be configured meaningfully without it | First CANopen family to claim it | None | Not landed |
 | S12 Owner-admitted RTR frames for node guarding, where a family documents guarding and no heartbeat | None: the owner admits no RTR work | First family whose evidence needs it | None | Not landed |
+| S13 SYNC side-effect admission: before the owner produces SYNC on an interface, each bound device's reviewed SYNC effects (synchronous PDO apply, program starts such as MOONS' mode -2) are known, and unknown or harmful effects refuse production | None: prompt 51's producer refuses only on a foreign SYNC producer | First family whose devices act on SYNC; it gates prompt 51's producer without forking it | None | Not landed |
 
 ## Rules for every family set
 
