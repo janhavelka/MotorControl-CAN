@@ -10,6 +10,21 @@
 
 namespace MotorControlCANExample {
 using MotorControlCANOwner::ReceivedFrame;
+/** TX and reply timing copied in the SDK callbacks, for pass-cost diagnostics (prompt 56).
+ * ESP timer microseconds, sampled in the callbacks, so ISR latency is included. Sums saturate.
+ * A "reply" is the first frame received after a successful TX done: the SDO reply on a bus
+ * with no other traffic, any frame otherwise. It measures no drive behavior by itself. */
+struct TwaiTiming {
+    uint32_t txDone = 0;                    ///< TX-done callbacks timed in this window.
+    uint64_t submitToDoneSumUs = 0;         ///< Submission to TX-done callback, summed.
+    uint32_t submitToDoneMinUs = UINT32_MAX; ///< Smallest; UINT32_MAX when txDone is 0.
+    uint32_t submitToDoneMaxUs = 0;         ///< Largest.
+    uint32_t replies = 0;                   ///< First receptions after a successful TX done.
+    uint64_t doneToReplySumUs = 0;          ///< TX done to that reception's callback, summed.
+    uint32_t doneToReplyMinUs = UINT32_MAX; ///< Smallest; UINT32_MAX when replies is 0.
+    uint32_t doneToReplyMaxUs = 0;          ///< Largest.
+    uint8_t rxHighWater = 0;                ///< Most frames held in the RX copy FIFO at once.
+};
 /** Stationary internal-RAM driver; construct on a pinned task's internal stack or
  * in static internal RAM. Construction has no I/O; explicit start occurs through
  * TwaiAdapter. The same pinned task owns all cooperative calls and destruction.
@@ -47,6 +62,9 @@ class IdfTwaiDriver {
      * @return True when the node exists and the SDK answered.
      */
     bool status(TwaiControllerStatus& output) const noexcept;
+    /** Copy the timing window and start a new one. On the pinned task only; diagnostics only.
+     * @param[out] output The window since the previous call. @return False off the pinned task. */
+    bool takeTiming(TwaiTiming& output) noexcept;
 
   private:
     twai_node_handle_t node_ = nullptr;
@@ -63,6 +81,9 @@ class IdfTwaiDriver {
     ReceivedFrame rx_[RX_CAPACITY];
     uint8_t head_ = 0, count_ = 0, capacity_ = 0;
     TwaiEvents events_;
+    TwaiTiming timing_;              // Guarded by mux_.
+    int64_t submittedUs_ = -1;       // The pending frame's submission time; -1 none.
+    int64_t awaitingReplyUs_ = -1;   // The last successful TX done awaiting a reception; -1 none.
     portMUX_TYPE mux_ = portMUX_INITIALIZER_UNLOCKED;
     bool taskValid() const noexcept;
     bool start(const TwaiConfig&, uint32_t) noexcept;

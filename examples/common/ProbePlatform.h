@@ -21,6 +21,9 @@ struct ProbeCallbacks {
     bool (*writeByte)(void*, uint8_t) = nullptr; ///< True accepts this byte; false accepts nothing.
     void (*idle)(void*) =
         nullptr; ///< Optional one bounded idle/diagnostic opportunity; never waits for I/O.
+    /** Optional free-running CPU cycle counter, read for pass-cost diagnostics only (prompt 56).
+     * It wraps modulo 2^32; callers use differences within one turn. Null records no phase costs. */
+    uint32_t (*cycles)(void*) = nullptr;
 };
 /** Cached platform pressure. Each total saturates at UINT32_MAX, except outputWritten, which
  * wraps so that a receiver can compare differences over any duration.
@@ -54,6 +57,14 @@ class ProbePlatform {
      * @return Clock callback result; no owner progress or hidden fallback clock.
      */
     bool nowUs(uint64_t& output) const noexcept;
+    /** @param[out] output The cycle counter, unchanged when the platform supplies none.
+     * @return True when the optional cycles callback exists. Diagnostics only. */
+    bool cycles(uint32_t& output) const noexcept {
+        if (!callbacks_.cycles)
+            return false;
+        output = callbacks_.cycles(callbacks_.context);
+        return true;
+    }
     /** Run bounded input/output then one optional idle callback; no CAN or parsing. */
     void service() noexcept;
     /** Drain only queued output, with at most OUTPUT_BUDGET nonblocking byte calls.

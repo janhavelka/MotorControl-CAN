@@ -17,10 +17,12 @@
 #include "SilentCapture.h"
 #include "Soak.h"
 #include "LinkWatch.h"
+#include "PassMeter.h"
 #include "driver/gpio.h"
 #include "esp_app_desc.h"
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "sdkconfig.h"
 #include <cstdarg>
 #include <cstdio>
@@ -996,6 +998,59 @@ template <class T> bool dumpLines(E::FirmwareProbe& firmware, const T& source, u
         ++cursor;
     return true;
 }
+// Prompt 56's pass-cost window, printed after `s` as three TIMING lines, one per turn. Cycles are
+// this core's counter at CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ; the TWAI times are ESP timer microseconds.
+struct TimingWindow {
+    E::PassMeter pass;
+    E::FirmwarePhaseTiming phase;
+    E::TwaiTiming twai;
+    uint64_t atUs = 0;
+};
+enum { TIMING_LINES = 3 };
+unsigned long mean(uint64_t sum, uint32_t count) {
+    return count ? static_cast<unsigned long>(sum / count) : 0ul;
+}
+unsigned long least(uint32_t value) {
+    return value == UINT32_MAX ? 0ul : static_cast<unsigned long>(value);
+}
+void formatTiming(const TimingWindow& w, unsigned index, char* out, size_t size) {
+    if (index == 0) {
+        const E::PassMeter& p = w.pass;
+        formatLine(out, size,
+                   "TIMING pass t=%llu window=%llu passes=%lu workMin=%lu workMean=%lu workMax=%lu "
+                   "periodMax=%lu h1=%lu h2=%lu h3=%lu h5=%lu hLong=%lu queuedHigh=%u activeHigh=%u "
+                   "retainedHigh=%u\n",
+                   static_cast<unsigned long long>(w.atUs),
+                   static_cast<unsigned long long>(p.passes ? p.lastStartUs - p.windowStartUs : 0),
+                   static_cast<unsigned long>(p.passes), least(p.workMinUs), mean(p.workSumUs, p.passes),
+                   static_cast<unsigned long>(p.workMaxUs), static_cast<unsigned long>(p.periodMaxUs),
+                   static_cast<unsigned long>(p.histogram[0]), static_cast<unsigned long>(p.histogram[1]),
+                   static_cast<unsigned long>(p.histogram[2]), static_cast<unsigned long>(p.histogram[3]),
+                   static_cast<unsigned long>(p.histogram[4]), unsigned(p.queuedHigh),
+                   unsigned(p.activeHigh), unsigned(p.retainedHigh));
+    } else if (index == 1) {
+        const E::FirmwarePhaseTiming& f = w.phase;
+        using F = E::FirmwarePhaseTiming;
+        formatLine(out, size,
+                   "TIMING phase cpuMhz=%u turns=%lu pollMean=%lu pollMax=%lu appMean=%lu appMax=%lu "
+                   "promoteMean=%lu promoteMax=%lu evidenceMean=%lu evidenceMax=%lu\n",
+                   unsigned(CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ), static_cast<unsigned long>(f.turns),
+                   mean(f.sum[F::POLL], f.turns), static_cast<unsigned long>(f.max[F::POLL]),
+                   mean(f.sum[F::APP], f.turns), static_cast<unsigned long>(f.max[F::APP]),
+                   mean(f.sum[F::PROMOTE], f.turns), static_cast<unsigned long>(f.max[F::PROMOTE]),
+                   mean(f.sum[F::EVIDENCE], f.turns), static_cast<unsigned long>(f.max[F::EVIDENCE]));
+    } else {
+        const E::TwaiTiming& d = w.twai;
+        formatLine(out, size,
+                   "TIMING twai txDone=%lu submitMin=%lu submitMean=%lu submitMax=%lu replies=%lu "
+                   "replyMin=%lu replyMean=%lu replyMax=%lu rxHigh=%u\n",
+                   static_cast<unsigned long>(d.txDone), least(d.submitToDoneMinUs),
+                   mean(d.submitToDoneSumUs, d.txDone), static_cast<unsigned long>(d.submitToDoneMaxUs),
+                   static_cast<unsigned long>(d.replies), least(d.doneToReplyMinUs),
+                   mean(d.doneToReplySumUs, d.replies), static_cast<unsigned long>(d.doneToReplyMaxUs),
+                   unsigned(d.rxHighWater));
+    }
+}
 void ownerTask(void*) {
     static DRAM_ATTR C::SdoClient services;
     static DRAM_ATTR E::IdfTwaiDriver driver;
@@ -1127,7 +1182,12 @@ void ownerTask(void*) {
     uint64_t lineDiscardUs = 0;
     // The report of an input loss, printed once the retained one-shot response has gone.
     const char* lossReport = nullptr;
+    // Prompt 56's pass-cost meter (static: the owner task's stack stays as it was).
+    static E::PassMeter passMeter;
+    static TimingWindow timing;
+    unsigned timingNext = TIMING_LINES;
     for (;;) {
+        const int64_t passStartUs = esp_timer_get_time();
         uint64_t now = 0;
         if (firmware.platform().nowUs(now)) {
             const L::ReadContext& read = firmware.app().readContext();
@@ -1186,6 +1246,9 @@ void ownerTask(void*) {
         } else if (!retainedSize && linkWatch.takeLine(linkLine, sizeof linkLine)) {
             line(firmware, linkLine);
         } else if (!retainedSize && markerCommand.service(firmware.owner().lastTimeUs(), linkLine, sizeof linkLine)) {
+            line(firmware, linkLine);
+        } else if (!retainedSize && timingNext < TIMING_LINES) {
+            formatTiming(timing, timingNext++, linkLine, sizeof linkLine);
             line(firmware, linkLine);
         }
         // The watch holds its lines while a one-shot response, a record dump, a network listing or
@@ -2158,9 +2221,22 @@ void ownerTask(void*) {
                            static_cast<unsigned long long>(stats.maxServiceGapUs),
                            static_cast<unsigned long>(firmware.platform().stats().outputRejected));
                 line(firmware, output);
+                // The TIMING lines follow, one per turn; the windows restart here.
+                timing.pass = passMeter;
+                passMeter = E::PassMeter();
+                timing.phase = firmware.takePhaseTiming();
+                timing.twai = E::TwaiTiming();
+                driver.takeTiming(timing.twai);
+                timing.atUs = firmware.owner().lastTimeUs();
+                timingNext = 0;
             } else if (command != '\r' && command != '\n') {
                 line(firmware, "UNKNOWN command; no action\n");
             }
+        }
+        {
+            const O::OwnerResources resources = firmware.owner().resources();
+            passMeter.sample(resources.queued, resources.active, resources.retained);
+            passMeter.record(uint64_t(passStartUs), uint64_t(esp_timer_get_time()));
         }
         console.idle();
     }

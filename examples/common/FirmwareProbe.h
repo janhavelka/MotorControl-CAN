@@ -146,6 +146,22 @@ enum class FirmwareBootStatus : uint8_t {
     PROGRESSION_FAILED ///< Clock/progression failure inhibited work and attempted retirement.
                        ///< Stays the status after a later stop; see faultRetired and retired.
 };
+/** CPU cycles spent in each phase of FirmwareProbe::service's running turns, for pass-cost
+ * diagnostics (prompt 56). Filled only when the platform supplies a cycle counter. Sums saturate;
+ * maxima are per turn. Reading it through takePhaseTiming starts a new window. */
+struct FirmwarePhaseTiming {
+    /** The measured phases, in turn order. */
+    enum Phase : uint8_t {
+        POLL,     ///< TwaiAdapter::pollEvents: ISR facts copied into the adapter.
+        APP,      ///< ProbeApp::service: the owner turn plus the application's sessions.
+        PROMOTE,  ///< TwaiAdapter::promote: at most one SDK submission.
+        EVIDENCE, ///< DeviceEvidence::service: the bench collector.
+        PHASES    ///< Number of phases; not a phase.
+    };
+    uint32_t turns = 0;                 ///< Running turns measured in this window, saturating.
+    uint64_t sum[PHASES] = {};          ///< Cycles per phase over the window.
+    uint32_t max[PHASES] = {};          ///< Largest single-turn cycles per phase.
+};
 /** One stationary assembly; the borrowed service store remains the sole node table.
  * Construction performs no I/O. prepare validates the board and requests a configured
  * transceiver silent; it never starts the controller. start is the explicit step that
@@ -259,6 +275,13 @@ class FirmwareProbe {
     CanBusOwner& owner() noexcept { return owner_; }
     /** @return Bounded byte buffers/counters; no command parser exists. */
     ProbePlatform& platform() noexcept { return platform_; }
+    /** @return The phase costs since the previous call, then a new empty window. Empty when the
+     * platform has no cycle counter. Diagnostics only; no effect on any turn. */
+    FirmwarePhaseTiming takePhaseTiming() noexcept {
+        const FirmwarePhaseTiming result = phase_;
+        phase_ = FirmwarePhaseTiming();
+        return result;
+    }
     /** @return Controller transport for diagnostics and explicit checked shutdown. */
     TwaiAdapter& transport() noexcept { return transport_; }
     /** Read the controller error counters as bus evidence (guide rule C5) through
@@ -303,6 +326,7 @@ class FirmwareProbe {
     DeviceEvidence evidence_;
     uint64_t lastUs_ = 0;
     uint64_t busReadUs_ = 0; // Time of the latest readBusCounters reading.
+    FirmwarePhaseTiming phase_; // Diagnostics only; see takePhaseTiming.
     bool callbacksValid_ = false, attempted_ = false, prepared_ = false, started_ = false;
     bool running_ = false, stopped_ = false, stopConfirmed_ = false, faultRetired_ = false;
     bool retired_ = true;      // No controller resources outstanding.

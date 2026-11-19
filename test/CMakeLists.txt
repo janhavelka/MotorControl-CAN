@@ -222,6 +222,12 @@ if(s2_bench_fixture)
     add_test(NAME pdo_experiment COMMAND pdo_experiment_test)
     set_tests_properties(pdo_experiment PROPERTIES TIMEOUT 10)
 endif()
+# Prompt 56's bench pass meter (examples/s2_bench/PassMeter.h).
+add_executable(pass_meter_test pass_meter_test.cpp)
+target_include_directories(pass_meter_test PRIVATE ../examples/s2_bench)
+strict_test(pass_meter_test)
+add_test(NAME pass_meter COMMAND pass_meter_test)
+set_tests_properties(pass_meter PROPERTIES TIMEOUT 10)
 # Prompt 55's unplug watch and link lines (examples/s2_bench/LinkWatch.h).
 add_executable(link_watch_test link_watch_test.cpp)
 target_sources(link_watch_test PRIVATE ../examples/s2_bench/LinkWatch.cpp)

@@ -936,8 +936,43 @@ void errorStateAndArbitrationLossAreRead() {
     CHECK(!driver.status(driver.context, status));
 }
 
+// Prompt 56: submission to TX done, and TX done to the first reception, from the callbacks' clock.
+void timingWindow() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 1));
+    E::TwaiTiming empty;
+    CHECK(instance.takeTiming(empty) && empty.txDone == 0 && empty.replies == 0 && empty.rxHighWater == 0);
+    sdk.nowUs = 1000;
+    CHECK(driver.submit(driver.context, frame(), 91) == E::TwaiSubmit::SENT);
+    sdk.nowUs = 1300;
+    sdk.done(true);
+    sdk.nowUs = 3500;
+    sdk.receive(0x581, 8); // The first reception after the TX done: the reply time.
+    sdk.nowUs = 3600;
+    sdk.receive(0x182, 8); // A later one is not a reply.
+    CHECK(driver.events(driver.context).txDone);
+    E::TwaiTiming t;
+    CHECK(instance.takeTiming(t));
+    CHECK(t.txDone == 1 && t.submitToDoneMinUs == 300 && t.submitToDoneMaxUs == 300 &&
+          t.submitToDoneSumUs == 300);
+    CHECK(t.replies == 1 && t.doneToReplyMinUs == 2200 && t.doneToReplyMaxUs == 2200);
+    CHECK(t.rxHighWater == 2);
+    // A failed TX done starts no reply time.
+    O::ReceivedFrame drained;
+    CHECK(driver.receive(driver.context, drained, UINT64_MAX) &&
+          driver.receive(driver.context, drained, UINT64_MAX));
+    CHECK(driver.submit(driver.context, frame(), 92) == E::TwaiSubmit::SENT);
+    sdk.nowUs = 4000;
+    sdk.done(false);
+    sdk.receive(0x581, 8);
+    CHECK(instance.takeTiming(t) && t.txDone == 1 && t.replies == 0 && t.rxHighWater == 1);
+    stop(driver);
+}
 int main() {
     initializationAndConfiguration();
+    timingWindow();
     gpioValidationMatchesPinnedS3();
     actualReceiveCallbacksValidateBeforePublishing();
     receiveIntervalsUseOnlyProvenEmptyIngress();

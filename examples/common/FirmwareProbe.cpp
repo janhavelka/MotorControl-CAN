@@ -202,14 +202,33 @@ bool FirmwareProbe::service() noexcept {
     if (!platform_.nowUs(now) || now < lastUs_) {
         failure = FirmwareFailure::CLOCK;
     } else {
+        // Phase costs for the diagnostics only; each sample is one counter read.
+        uint32_t mark[FirmwarePhaseTiming::PHASES + 1] = {};
+        const bool timed = platform_.cycles(mark[0]);
+        unsigned phases = 0;
         transport_.pollEvents(owner_, now);
+        phases += timed && platform_.cycles(mark[1]);
         if (!app_.service(now)) {
             failure = FirmwareFailure::APPLICATION;
         } else {
+            phases += timed && platform_.cycles(mark[2]);
             lastUs_ = now;
             transport_.promote(owner_, now);
+            phases += timed && platform_.cycles(mark[3]);
             if (!evidence_.service(now))
                 failure = FirmwareFailure::EVIDENCE;
+            phases += timed && platform_.cycles(mark[4]);
+        }
+        if (timed && phases == FirmwarePhaseTiming::PHASES) {
+            if (phase_.turns != UINT32_MAX)
+                ++phase_.turns;
+            for (unsigned p = 0; p < FirmwarePhaseTiming::PHASES; ++p) {
+                const uint32_t spent = mark[p + 1] - mark[p]; // Modulo 2^32 within one turn.
+                if (phase_.sum[p] <= UINT64_MAX - spent)
+                    phase_.sum[p] += spent;
+                if (spent > phase_.max[p])
+                    phase_.max[p] = spent;
+            }
         }
     }
     if (failure != FirmwareFailure::NONE) {

@@ -2,6 +2,7 @@
 #include "EspProbePlatform.h"
 #include "esp_idf_version.h"
 #include "esp_timer.h"
+#include "esp_cpu.h"
 #include "sdkconfig.h"
 #if CONFIG_IDF_TARGET_ESP32S2
 #include "driver/uart.h"
@@ -82,6 +83,8 @@ ProbeCallbacks EspProbePlatform::callbacks() noexcept {
     result.writeByte = [](void* p, uint8_t byte) {
         return static_cast<EspProbePlatform*>(p)->writeByte(byte);
     };
+    // This core's cycle counter, for the pass-cost diagnostics; the owner task is pinned.
+    result.cycles = [](void*) { return static_cast<uint32_t>(esp_cpu_get_cycle_count()); };
     return result;
 }
 bool EspProbePlatform::nowUs(uint64_t& output) noexcept {

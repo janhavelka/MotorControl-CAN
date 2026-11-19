@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Host throughput measurements (prompt 56, 2026-11-19)
+
+- Bench pass timing, example code only: the S2 bench `s` command now also prints `TIMING pass`
+  (passes, pass work histogram, longest period, owner queue maxima), `TIMING phase` (CPU cycles of
+  `pollEvents`, the app and owner turn, `promote` and the evidence collector) and `TIMING twai`
+  (submission to TX done, TX done to the next reception, RX FIFO high-water mark). New optional
+  `ProbeCallbacks::cycles`, `FirmwareProbe::takePhaseTiming` and `IdfTwaiDriver::takeTiming`; a null
+  cycle callback records nothing. No traffic or timing behavior changed.
+
 ### Communication practice and PSRAM-first placement (2026-11-18)
 
 - `docs/communication_practice.md`: rules for health, retries, statuses, queues and recovery, mapped to CANopen and

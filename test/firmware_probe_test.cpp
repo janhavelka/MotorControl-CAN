@@ -65,6 +65,8 @@ struct Bytes {
     bool clockOk = true, blocked = false;
     unsigned clocks = 0, reads = 0, writes = 0;
     unsigned remaining = 0;
+    uint32_t cycleCounter = UINT32_MAX - 10; // Wraps within the first turn: differences stay exact.
+    uint32_t cycleStep = 7;
     const char* script = nullptr; // Scripted console input, consumed after `remaining`.
     char out[4096] = {};          // Accepted console output, NUL-terminated.
     size_t used = 0;
@@ -101,6 +103,11 @@ struct Bytes {
         value.nowUs = clock;
         value.readByte = read;
         value.writeByte = write;
+        value.cycles = [](void* context) {
+            Bytes& b = *static_cast<Bytes*>(context);
+            b.cycleCounter += b.cycleStep;
+            return b.cycleCounter;
+        };
         return value;
     }
 };
@@ -1383,8 +1390,26 @@ void smokeFailures() {
               std::strstr(r.bytes.out, "SMOKE done; no further requests; ignored=0\n"));
     }
 }
+// Prompt 56: each running turn records the cycles of its four phases; reading starts a new window.
+void phaseTiming() {
+    Rig r;
+    CHECK(r.firmware.takePhaseTiming().turns == 0);
+    CHECK(!r.firmware.service()); // Not running: no phase is timed.
+    CHECK(r.firmware.takePhaseTiming().turns == 0);
+    CHECK(r.firmware.begin(config()) && r.firmware.app().select(target()));
+    r.turn(0);
+    r.bytes.cycleStep = 9;
+    r.turn(1);
+    const E::FirmwarePhaseTiming window = r.firmware.takePhaseTiming();
+    CHECK(window.turns == 2);
+    for (unsigned p = 0; p < E::FirmwarePhaseTiming::PHASES; ++p)
+        CHECK(window.sum[p] == 16 && window.max[p] == 9); // 7 then 9, across the counter's wrap.
+    const E::FirmwarePhaseTiming next = r.firmware.takePhaseTiming();
+    CHECK(next.turns == 0 && next.sum[0] == 0 && next.max[0] == 0);
+}
 int main() {
     startup();
+    phaseTiming();
     clockBoundariesAndRetirement();
     typedReadUnderPressure();
     saturationAndExplicitRecovery();

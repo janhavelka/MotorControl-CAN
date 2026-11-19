@@ -209,6 +209,7 @@ TwaiSubmit IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t s
         txBytes_[i] = frame.data[i];
     serial_ = serial;
     pending_ = true;
+    submittedUs_ = esp_timer_get_time(); // Diagnostics: submission to TX-done timing.
     lastError_ = twai_node_transmit(node_, &tx_, 0);
     if (lastError_ != ESP_OK)
         pending_ = false;
@@ -267,6 +268,7 @@ bool IdfTwaiDriver::receive(ReceivedFrame& frame, uint64_t cutoffUs) noexcept {
 }
 bool IdfTwaiDriver::txDone(twai_node_handle_t, const twai_tx_done_event_data_t* event, void* p) {
     auto& self = *static_cast<IdfTwaiDriver*>(p);
+    const int64_t done = esp_timer_get_time();
     portENTER_CRITICAL_ISR(&self.mux_);
     if (!self.pending_ || event->done_tx_frame != &self.tx_ || self.events_.txDone)
         self.events_.fault = true;
@@ -275,6 +277,21 @@ bool IdfTwaiDriver::txDone(twai_node_handle_t, const twai_tx_done_event_data_t* 
         self.events_.transmitted = event->is_tx_success;
         self.events_.serial = self.serial_;
         self.pending_ = false;
+        if (self.submittedUs_ >= 0 && done >= self.submittedUs_) {
+            const uint64_t spent = uint64_t(done - self.submittedUs_);
+            const uint32_t us = spent > UINT32_MAX ? UINT32_MAX : uint32_t(spent);
+            TwaiTiming& t = self.timing_;
+            if (t.txDone != UINT32_MAX)
+                ++t.txDone;
+            if (t.submitToDoneSumUs <= UINT64_MAX - us)
+                t.submitToDoneSumUs += us;
+            if (us < t.submitToDoneMinUs)
+                t.submitToDoneMinUs = us;
+            if (us > t.submitToDoneMaxUs)
+                t.submitToDoneMaxUs = us;
+        }
+        self.submittedUs_ = -1;
+        self.awaitingReplyUs_ = event->is_tx_success ? done : -1;
     }
     portEXIT_CRITICAL_ISR(&self.mux_);
     return false;
@@ -321,9 +338,34 @@ bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_dat
     else {
         self.rx_[(self.head_ + self.count_) % RX_CAPACITY] = received;
         ++self.count_;
+        if (self.count_ > self.timing_.rxHighWater)
+            self.timing_.rxHighWater = self.count_;
     }
+    if (self.awaitingReplyUs_ >= 0 && observed >= self.awaitingReplyUs_) {
+        const uint64_t spent = uint64_t(observed - self.awaitingReplyUs_);
+        const uint32_t us = spent > UINT32_MAX ? UINT32_MAX : uint32_t(spent);
+        TwaiTiming& t = self.timing_;
+        if (t.replies != UINT32_MAX)
+            ++t.replies;
+        if (t.doneToReplySumUs <= UINT64_MAX - us)
+            t.doneToReplySumUs += us;
+        if (us < t.doneToReplyMinUs)
+            t.doneToReplyMinUs = us;
+        if (us > t.doneToReplyMaxUs)
+            t.doneToReplyMaxUs = us;
+    }
+    self.awaitingReplyUs_ = -1;
     portEXIT_CRITICAL_ISR(&self.mux_);
     return false;
+}
+bool IdfTwaiDriver::takeTiming(TwaiTiming& output) noexcept {
+    if (!taskValid())
+        return false;
+    portENTER_CRITICAL(&mux_);
+    output = timing_;
+    timing_ = TwaiTiming();
+    portEXIT_CRITICAL(&mux_);
+    return true;
 }
 bool IdfTwaiDriver::stateChanged(twai_node_handle_t, const twai_state_change_event_data_t* event,
                                  void* p) {

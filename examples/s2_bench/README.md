@@ -43,7 +43,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | --- | --- |
 | `p` / runner `ping` | Cached image/base/SDK identity and local startup facts |
 | `c` / `start` | One local CAN initialization attempt; lower S18 on success, no device request |
-| `s` / `stats` | Cached controller/owner counters and task stack high-water mark |
+| `s` / `stats` | Cached controller/owner counters and task stack high-water mark, then three `TIMING` lines (below) |
 | `M` | PONG `pdo=4`: one `HEAP` line, internal heap totals and regions, the boot reservation and the record arena's occupant (heap plan, below); sends nothing |
 | `1`, `2` / `identity1`, `identity2` | Typed nine-field identity plan, selecting `MEASURED_U8` because `DECLARED_U16` fails on these specimens |
 | `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 26-field inventory below |
@@ -631,3 +631,22 @@ Explicit release precedes detachment and replacement; collector identities,
 control/fault history and per-axis arming copies remain stationary. Soak, capture
 and watch storage remains separate. See the [storage report](../../docs/reports/prompt_53_storage.md)
 for measured layouts and runtime checks still assigned to prompt54.
+
+## Pass timing (prompt 56)
+
+After the `STATS` line, `s` prints three `TIMING` lines, one per turn, for the window since the
+previous `s`; the window then restarts. They are diagnostics only and change no traffic.
+
+- `TIMING pass`: owner-task passes. `window` (us) and `passes` give passes per second. `workMin`,
+  `workMean` and `workMax` are a pass's work from the loop top to the idle call, in us; `periodMax` is
+  the longest time between two pass starts. `h1`, `h2`, `h3`, `h5` and `hLong` count passes under 1, 2,
+  3 and 5 ms and the rest. `queuedHigh`, `activeHigh` and `retainedHigh` are the owner's
+  `OwnerResources` maxima, sampled at each pass end.
+- `TIMING phase`: CPU cycles per running `FirmwareProbe::service` turn, mean and maximum, for
+  `poll` (TWAI events), `app` (the owner turn and the sessions), `promote` (one SDK submission) and
+  `evidence` (the bench collector), at `cpuMhz`. The collectors, soak and console after
+  `firmware.service()` are the rest of the pass work.
+- `TIMING twai`: from the driver callbacks' ESP timer, in us. `submit*` runs from the SDK submission
+  to the TX-done callback; `reply*` from a successful TX done to the next reception's callback, which
+  is the SDO reply only when no other frame arrives in between (no PDO, heartbeat or other node).
+  `rxHigh` is the most frames held in the driver's RX copy FIFO at once.
