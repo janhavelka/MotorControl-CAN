@@ -151,3 +151,74 @@ The four questions this application raised were decided by the lead and applied:
 
 Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
 directory. Nothing was compiled; no hardware or port was used.
+
+## Round 3
+
+Audit [`aud-20261119-191534-e56216`](audit.md#round-3) was checked finding by finding against this set's files
+(byte-identical to the audited ones at `94138cd7`), prompts 57 and 77, the pack
+[review](../../reference/moons_canopen/review.md), the page-marked UM21 extract, the rendered UM21 pages p16,
+p21, p32, p34, p35, p37 and p56, the three EDS files and the owner header `adapters/owner/CanBusOwner.h`. The
+cross-cutting part was applied once in `c4e5574f` and `6ff80ed1`
+([shared round 4](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026)):
+canopen_shared 02 "State transitions" (halt-bit rule) answers F1's shared part, "Timed runs" (a stop that can
+leave on an unresolved route) F2's, and prompt 57's bootstrap Enter Pre-operational most of F5. The family
+stages now consume those rules by citation and add only MOONS' facts. Only this directory's files changed; no
+pack, shared, main-sequence or source file was edited. MotorControl-RS was not consulted: no finding concerns a
+common motion name.
+
+Dispositions: 10 accepted, none accepted in part, rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 04 items 7-9 (0x000B fixed, the halt-release question left open for S3 only), 05 item 10; shared 02 "State transitions" after `c4e5574f` (a stop word keeps a set halt bit unless the family's evidence shows quick-stop precedence; unknown halt keeps bit 8 set where the evidence admits that word, else the row refuses); rendered UM21 p16 (every state command coded in bits 7, 3, 2, 1, 0 only; transition 11 "Quick stop command"), p21 (released halt continues the set-point), p37 (bit 8 Halt in all five mode columns), p56 ("All implemented bits of the controlword are valid independent of the PDS FSA state"; bit 8 Halt beside the state bits), p32, p34, p35 (state commands sent with bit 8 set, 0x010F; Q halt 0x011F). No page states quick-stop precedence over the halt release; no UM21 example sends 0x000B or 0x010B | The evidence admits the word with bit 8 kept set, on the same unqualified basis as 0x000B (MO-D34). 04 item 8: "halt possibly set" (a candidate with bit 8 set, or the record unknown) and a bit 8 rule for every word that leaves Operation enabled: quick stop 0x010B, release 0x0106, disable voltage 0x0100 in that case, unqualified until 14a Q8. 04 items 7 and 9: the quick-stop row chooses 0x000B with halt known clear and 0x010B otherwise, under every identity outcome; the S3 reason now rests on MO-D34 alone (a shape would have to be 0x010B). 05 item 10 consumes stage 04's stop result (word, fresh state, mechanical effect not observed) instead of "ends disabled". Tests in 04 (halt clear, set and unknown predecessors under each outcome) and 05. 14a Q8 records the transitions of both words |
+| F2 | Accepted | Shared 02 "Timed runs" after `c4e5574f` (admission needs the binding's S3 shape or an application-declared independent stop named in the result, else refusal before the first changing TX); shared 02 S10 (`NONE`: the route stays unresolved); `CanBusOwner.h` `admitUrgent` ("quarantined routes remain unavailable") and `admitBestEffortStop` (the only stop on an unresolved route, configured shape only); 02b items 5-6 (MOONS' `NONE`, no shape) | 04 item 10: after a timeout under `NONE` no stop frame leaves on the binding; the result says "no software stop on the unresolved route" and names the fallback. 06 item 4: a stop row is not a stop path; with no S3 shape the run is refused before its first changing TX (mode select and enable included) unless the application declares an independent stop, named in every result; the enable input counts only where wired and configured; at stop due after a lost start reply the run keeps `UNKNOWN` and `needsStop`. 06 acceptance: refusal without the declaration, and the owner disposition from start TX through lost reply, route timeout, stop due and the urgent attempt with zero stop frames |
+| F3 | Accepted | Shared 02 "State transitions" (tables for enable, release, stop, fault clear and mode change, already-reached results); old 04 items 4, 5, 8; UM21 p16 (transitions 5, 6, 8, 9, 12, 14, 15 with their actions; transition 4 clears set-points), p21, p22, p35, p66 (0x2006 clears 0x603F and 0x200F, no state effect stated); AGENTS manual-arrow rule | 04 item 4: the release word is 0x0006 (p16 transitions 6 and 8: high-level power off "if possible"; 0x0007 keeps it, 0x0000 is the disable-voltage stop) with a source-state table (Operation enabled 0x0006 or 0x0106, Switched on 0x0006, already released nothing sent, Quick stop active, fault and Not ready to switch on refused) and settlement by a fresh 0x6041. 04 item 5: a fault-reset table for both methods (no TX without a fault or alarm, since 0x0000 outside Fault is a state command; 0x2006 refused while enabled or stopping because p66 states no state effect). 04 item 8: `prepareHaltRelease` with a table: mode 1 only, the recorded word with only bit 8 cleared, refused with an unknown or two-candidate record, in modes 3 and 4 (the run start belongs to stage 06), 6 and -1 (continuation not stated) and outside Operation enabled; a changing request without stop exemption. Deliver adds the operation and a family `halt-release` route; acceptance names every row. 14a Q4 names 0x0006 as the production word; Q8's resume uses the new operation |
+| F4 | Accepted | Prompt 57 outcome definitions and admission by outcome; old 13 item 3 (a 0x2050 value UNCONFIRMED; typed 0x2100 only after "confirmed"); old contract identity bullet ("a confirmed layout"); 03 item 2 (references per row) | 13 item 3: the outcome is prompt 57's, never reclassified; a 0x2050 value matching a declared STF-C or SSDC-C reference with no TSM/TXM-C match is CONTRADICTED; another abort, a timeout or an unreferenced value is UNCONFIRMED without the declared match. Typed 0x2100 and every Part A read need an admitting outcome, not CONFIRMED alone; Part B's manual intake and model identification are named as separate gates. 13 acceptance: exact traffic for a matching UM21 candidate, an unreferenced string and a colliding declared match, with and without typed 0x2100. Execution contract: "an admitting outcome" replaces "a confirmed layout", and stage 13's further gates are named separately |
+| F5 | Accepted | Prompt 57 after `c4e5574f` (targeted Enter Pre-operational to a node whose fresh heartbeat or guarding state reports Stopped is a bootstrap command under every outcome except CONTRADICTED; otherwise the node is stranded and recovery is the application's); UM21 p13 (heartbeat state 4 Stopped; commands 0x01, 0x02, 0x80-0x82), p14 (Stopped serves node and error control only; transition 7 Stopped to Pre-operational), p48 (0x1017 default 1000 ms, "0 if it not used"); 09 items 3 and 9 (no node guarding; node-0 Enter Pre-operational refused) | 09 item 1 consumes the bootstrap command with MOONS' facts: the heartbeat is the only state report, 0x1017 = 0 turns it off; a targeted Stop's result names its recovery (that command while 0x1017 was read nonzero in the epoch, otherwise "application only (power cycle)", since node-0 0x80 is refused on a MOONS' interface); the command revokes the node's S13 approval first; a node with no SDO answer and no fresh heartbeat is reported stranded, never Stopped by assumption. 09 acceptance: Stopped after rebinding and after a host restart (admitted on a fresh Stopped heartbeat with no current outcome, refused under CONTRADICTED, stranded without a heartbeat), the Stop result with 0x1017 nonzero, zero and unread, and a possibly sent Stop. No precondition was added before a Stop: the result names a power-cycle-only recovery instead of refusing (the owner's 2026-11-17 direction for user responsibility) |
+| F6 | Accepted | Old 09 item 9 ("each declared MOONS' node"; 0x2060 watchdog); EDS-TSM `[2300]` UserWatchdog and no `[2060]`; AMP10 p48-p49 (SYNC Q in the 2010 layout); 13 items 1-2 (Part A read-only, no effect review); shared 02 S13 (approval covers the whole declared population; unknown effect refuses) | 09 item 9: the entry covers UM21 bindings only; a declared TSM/TXM-C node has unknown effects, so S13 refuses SYNC and node-0 NMT on its interface, also when it is only monitored or not the target, until stage 13 Part B supplies its entry; none of the entry's reads goes to its route. 09 acceptance: the mixed-layout case with zero SYNC and node-0 NMT TX. 13 item 3 says Part A supplies no S13 entry; item 8 lists the entry as Part B work |
+| F7 | Accepted | Old 07 items 3, 4 and acceptance; prompt 77 item 2 (the guard on by default, settable per axis, an admitted result names a guard that was off); 14a Q10 (b) | 07 item 3: one rule in two parts. The direction check is the qualification alone, refused before prompt 77's guard lands and that guard afterwards (no second guard; guard-off results name it and the missing qualification); the method table, index declaration, input function and wiring declaration and the stop and travel plan stay required whatever the setting; Q10 never uses the guard-off path as first evidence. 07 item 4 now requires only the switch facts plus item 3's check. 07 acceptance: unknown and stale direction with the guard on (or not landed) and off, and the other prerequisites refusing with it off |
+| F8 | Accepted | Old 07 items 6, 8, 9, 10; old 10 item 5 ("after every Q run"); UM21 p66 (0x2009 offset modes), p67 (0x200C zeroes position parameters); AGENTS invalidation rule | 07 item 12, coordinate retirement: before a moving-homing trigger, a 35 or 37 trigger or a 0x200C write is handed to the owner, the host origin and reference generations, prepared or queued position work built on them and bound host soft limits are retired; a lost reply, timeout, cancellation, halt or unobserved completion never restores them; a replacement only from item 8's qualified completion with a fresh 0x6064, or an acknowledged 35, 37 or 0x200C followed by fresh 0x6064, 0x607A and 0x607C reads. Items 9 and 10 cite it. 10 item 5 applies the same rule before the Q start word, with no replacement from a Q result. Tests in 07 and 10 |
+| F9 | Accepted | 08 item 4 and block 08a; review section 11 ("changes current and motor model"); UM21 p84 (0x260D "used to set the motor", a model list only) and p86 (0x2612 named sub-indices without current semantics) | 08 item 4: a 0x260D or 0x2612 write carries the caller's current limits, leaves the binding's current `UNKNOWN`, and enable and motion refuse until fresh 0x2601 and 0x2603 reads lie within the limits; the readback is the drive's reported setting, not a measured current; not part of the quiescence guard and not settable. 08a row and acceptance (missing, above and within limits, uncertain acknowledgement) |
+| F10 | Accepted | 14 items 3 and 4; 10 item 6 (no 0x6060 = -2 path); 14a Q11; 06 item 9, 11 item 6, 02 preflight, 13 Part B | 14 item 3: each operation is qualified only through its owning stage's production route or an approved 14a evidence path, otherwise NOT RUN with the gate named (torque, watchdog arming, withheld store or restore, Part B); qualification opens no gate. 14 item 4: mode -1 programs owner-supplied; mode -2 unsupported and NOT RUN |
+
+### Unresolved questions
+
+1. **Answered by the code and the shared contract.** Under `SdoReuse` `NONE` a timeout leaves the route
+   unresolved; `admitUrgent` keeps it unavailable ("quarantined routes remain unavailable",
+   `adapters/owner/CanBusOwner.h`), and the only frame that may leave on an unresolved route is
+   `admitBestEffortStop`'s configured shape, which a MOONS' binding does not have (S3 default deny). So no
+   ordinary urgent halt reaches the drive after a lost start reply. Shared round 4 makes the run require an
+   application-declared independent stop for that case; stages 04 item 10 and 06 item 4 now say so and test it.
+2. **Answered by the lead decision of round 2, which stands.** The explicit write of the documented LED-mask
+   function of 0x2610 and 0x221A is admitted with "protection effect unreviewed (UM21 p85)"; the execution
+   contract's reviewed-effects rule now states that one exception in one place and that no other object is
+   written on that basis. Stage 08 item 4 keeps the details.
+
+The coverage gaps are the executing stages' intake work, as before. For the device claims used here the rendered
+UM21 pages named above were reopened.
+
+### Decisions for the lead or owner
+
+1. The release word is now fixed as 0x0006 from UM21 p16's transition actions (F3); 0x0007 and the disable-voltage
+   stop stay separate. Confirm, or name another word for stage 04's review.
+2. 0x2006 (`DSP_CLEAR_ALARM`) is refused in Operation enabled and Quick stop active because UM21 p66 states no
+   state effect (F3). It could become a settable guard like stage 08's quiescence guard if the owner prefers.
+3. The bit 8 rule also covers release (0x0106) and disable voltage (0x0100), not only the quick stop (F1); it
+   follows the shared rule's reasoning for every word that leaves Operation enabled.
+
+### Round 3 lead decisions, 19 November 2026
+
+The three questions above were decided by the lead and applied:
+
+1. **Confirmed.** The release word is 0x0006 (UM21 p16 Shutdown, bits 7, 3, 2, 1, 0 = 0 x 1 1 0, transitions 2,
+   6 and 8), sent as 0x0106 under the bit 8 rule. Recorded in 04 item 4.
+2. **Changed.** 0x2006 while enabled (the Operation enabled and Quick stop active row of 04 item 5) is an
+   alarm-clear guard, on by default and settable per binding, following prompt 77's guard pattern (an admitted
+   result names a guard that was off) and the owner's 2026-11-17 direction. With the guard off, 0x2006 = 1 is
+   sent and the result states that a pending target may resume. Recorded in 04 item 5 and 04 acceptance;
+   this supersedes the refusal described in the F3 row above.
+3. **Confirmed.** The bit 8 rule covers release and disable voltage as well as the quick stop: keeping halt
+   set cannot start motion.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this directory.
+Nothing was compiled; no hardware or port was used.

@@ -32,9 +32,16 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    `needsStop` and leaves the stop to the application's separate urgent stop, which the run's deadline, its
    identity outcome and a missing acknowledgement never bar. The MOONS' stop row for modes 3 and 4 is stage
    04 item 9's halt, 0x010F, whose word stays fixed after a lost start reply (stage 04 item 8); the quick stop
-   is the alternative the application may compose. Never success while running. A host deadline cannot stop
-   the drive: on a lost stop reply or service loss retain `needsStop` and `UNKNOWN` execution; never repeat a
-   start or an already-sent stop.
+   is the alternative the application may compose. A stop row is not a stop path (the same bullet): after a
+   lost start reply the route stays unresolved (`SdoReuse` `NONE`), and a MOONS' binding has no S3 shape, so
+   neither stop leaves on that route (stage 04 item 10). Preparation therefore refuses the run before its
+   first changing TX (mode select and enable included) unless the application declares an independent stop
+   for it (its own enable, STO or power path), which every result of the run names. The drive's enable input
+   (0x2617/0x220D) is such a path only where the deployment wires and configures it, with an undocumented stop
+   reaction (stage 04 item 9). Never success while running. A host deadline cannot stop
+   the drive: on a lost start or stop reply or service loss retain `needsStop` and `UNKNOWN` execution, report
+   "no software stop on the unresolved route" with the declared stop at stop due, and never repeat a start or
+   an already-sent stop.
 5. Host loss: the communication watchdog 0x2060 is disabled by default, is fed only by RPDO1-4 or SYNC
    reception (UM21 p70), and is described as "a safety feature in Profile Velocity mode" (MO-D18). There is no
    heartbeat consumer (MO-D11), and no document states a default reaction to host loss (review section 7).
@@ -81,9 +88,12 @@ reaction, unsupported changes, torque refused on MO-D04); Doxygen; report.
 Tests cover direction and range, a negative 0x60FF refused by the preflight, mode refusal on STF, halt
 start/stop frames, partial setup, lost start, lost poll and lost stop, cumulative delay reaching the
 operation deadline before the start (no start TX), the shared timed-run cases (a duration that no longer fits
-with the stop budget refused at preparation, a barely timely setup, a lost start reply with the halt still
-composable, an observation in flight near stop due, service resuming after stop due, a halt under queue
-pressure; none reports the axis stopped without a fresh read), missed service, urgent stop, unknown
+with the stop budget refused at preparation, a barely timely setup, a lost start reply, an observation in
+flight near stop due, service resuming after stop due, a halt under queue pressure; none reports the axis
+stopped without a fresh read), a run without a declared independent stop refused with zero changing TX, and
+with one declared the owner disposition from start TX through the lost reply, the route timeout under
+`NONE`, stop due and the urgent halt attempt (zero stop frames, `UNKNOWN` and `needsStop` kept, the declared
+stop named), missed service, urgent stop, unknown
 terminal motion, the host-loss capability text, native torque values at INT16 limits, the withheld 0x6087
 write refusing the torque operation with zero changing TX, and the refused physical torque unit. No test
 claims a deceleration ramp, standstill, holding torque or a host-loss stop. Quick and full verify, firmware

@@ -25,17 +25,22 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
    object numbers never carry meaning across profiles.
 3. Identity, with stage 03's admission table and outcomes: the application declares the TSM/TXM-C row and the
    exact model. Layout evidence is vendor ID 0x000002D9 plus an abort of the absent 0x2050 with its raw code
-   retained and its read effect reviewed; another abort code, a timeout or a 0x2050 value is UNCONFIRMED (a
-   value is evidence of UM21). The abort is negative evidence that any MOONS' server without 0x2050 shares
-   (the 2010 drives AMP10 describes, and possibly MDX+, M56S or SV200, whose dictionaries are not in the
-   pack), so it confirms only among the application's declared candidates: with another such candidate
+   retained and its read effect reviewed. The outcome is prompt 57's over these and stage 03's references,
+   never reclassified here: a complete 0x2050 value matching a declared STF-C or SSDC-C reference, with no
+   TSM/TXM-C reference matching, is CONTRADICTED; another abort code, a timeout or an unreferenced value is
+   UNCONFIRMED without the declared match, which refuses (stage 03 item 2). The abort is negative evidence
+   that any MOONS' server without 0x2050 shares (the 2010 drives AMP10 describes, and possibly MDX+, M56S
+   or SV200, whose dictionaries are not in the pack), so it confirms only among the application's declared candidates: with another such candidate
    declared, the outcome is UNCONFIRMED with the declared match, the result names both (prompt 57), and Part
    A reads stay labelled inferred. 0x2200 FWName and 0x100A are recorded raw and identify no model: a value equal
    to an EDS default ("UNK", "2.12") or any other unreferenced string is not model evidence. The exact model
    stays the declaration; Part A reads are labelled inferred, and every model-specific Part B operation stays
    gated until the new manual and identification evidence for that model (a fixture-recorded string or object
-   tied to the model's label) both exist. Never read 0x2100 typed before the layout is confirmed: it is 10
-   bytes here and 23 INT32 registers in UM21.
+   tied to the model's label) both exist. Typed 0x2100 and every other Part A read need an admitting outcome
+   (CONFIRMED, or UNCONFIRMED with the declared match such as the collision above; stage 03 item 2): 0x2100 is 10
+   bytes here and 23 INT32 registers in UM21. Part B's manual intake (item 1) and model identification
+   evidence are gates of their own, separate from the outcome. Part A also supplies no S13 entry: stage 09
+   item 9 keeps SYNC and node-0 NMT refused on an interface with a declared TSM/TXM-C node.
 4. Units (MO-D03): AMP10 p19 gives current 0.01 A, velocity 0.0042 rps, acceleration 0.1667 rps/s and distance
    1 step, with an arithmetic error in its own example (550 x 0.1667 stated as 91.85). The exact values 1/240
    rev/s and 1/6 rev/s² come from HCR p285-p286 (J, U and V registers in 0.25 rpm) and p283 (A register in
@@ -60,7 +65,8 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
    user registers 0x4000-0x4016 with Q register names (AMP10 p18); watchdog 0x2300; TPDO masks 0x2014-0x2017;
    RTR and statusword-change triggering of AMP10 p51-p52, which stays unsupported (MO-D13); node ID and bitrate
    by switch on TSM24C and only by Quick Tuner on TXM24C, TSM34C, TXM34C (TSM24 p12; TXM24 p12; TSM34 p19;
-   TXM34 p20); 0x1011 sub 1 "(not yet)" (MO-D23) keeps restore unsupported.
+   TXM34 p20); 0x1011 sub 1 "(not yet)" (MO-D23) keeps restore unsupported; the SYNC and NMT effect entry
+   for S13 (stage 09 item 9).
 
 ## Deliver
 
@@ -74,6 +80,10 @@ layout-typed descriptors and their own tests, only after the manual intake.
 No AMP10 constant, unit or fixture is reachable from a UM21 binding, and no UM21 one from an AMP10 binding;
 tests prove both. Width checks reject values above 16 bits; MO-D32 stays raw. Part B operations reject with
 their gate before TX while blocked, and a declared model without identification evidence admits no
-model-specific operation; "UNK", "2.12" or an arbitrary abort never confirms a model. Generator check, family
+model-specific operation; "UNK", "2.12" or an arbitrary abort never confirms a model. Exact traffic for a
+TSM/TXM-C declaration with a declared UM21 candidate whose 0x2050 reference matches (CONTRADICTED: bootstrap
+reads only, no typed 0x2100), an unreferenced 0x2050 string (UNCONFIRMED without the declared match: the same
+traffic) and a colliding declared match (admitted: typed 0x2100 sent and labelled inferred, both rows named).
+Generator check, family
 checkers, quick and full verify and exact-commit
 CI pass. Hardware: NOT RUN.

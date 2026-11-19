@@ -39,10 +39,15 @@ not wait for software closeout and grant no authorization. This stage qualifies 
    release, mode select, small finite position moves, set-point buffering, halt and quick stop, finite velocity,
    SSDC profile torque at small native values, homing per method with its switch fixture, I/O with its loads,
    watchdog arming at standstill, store and restore with restart control. Retain before/after settings and
-   every uncertain outcome.
+   every uncertain outcome. Each operation is qualified only through its owning stage's production route as
+   that route admits it at the time, or through a 14a evidence path approved for it; an operation its stage
+   still refuses (SSDC profile torque on MO-D04, watchdog arming on MO-D09 and MO-D18, a store or restore that
+   stage 02's preflight withholds, TSM/TXM-C Part B) is recorded NOT RUN with that gate. Qualification never
+   opens a gate.
 4. Qualify STF-C and SSDC-C independently, and each firmware string separately. Measure units and feedback
    before claiming physical position or velocity accuracy. Software timestamps bound observations; electrical
-   timing needs measurement. Mode -2 and Q programs are qualified only with owner-supplied programs.
+   timing needs measurement. Mode -1 Q programs are qualified only with owner-supplied programs. Mode -2 is
+   unsupported in this set (stage 10 item 6) and recorded NOT RUN; an owner-supplied program does not change that.
 5. Deliberate wire faults and lost-reply scenarios keep no-replay and need an explicit bounded plan. No
    unbounded velocity run, moving link-loss or unattended soak is implied.
 6. If a scenario fails, retain the exact revision, configuration, intent, raw traffic and timing; reproduce

@@ -136,3 +136,64 @@ was truncated: owner and service code, adapter timing, packaging, verifier and w
 landings and progress rows were not checked. Only prompt 57 of the main sequence was supplied.
 No MOONS' fixture, wiring, authorization, timing or restoration evidence existed; nothing was
 built, tested or run on hardware.
+
+## Round 3
+
+A third audit of the set as revised by round 2, condensed the same way. Line numbers refer to the files at
+the audited revision, before round 3 was applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-191534-e56216` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard (large input, about 197,135 tokens) |
+| Date | 2026-11-19 19:15:34 (from the ID), 237.8 s, one attempt |
+| Revision | `main` at `94138cd7b88852de54261a2309b693f32636095e` with uncommitted changes outside this set; the family files' SHA-256 equal their blobs at `94138cd7` |
+| Cost | Estimated USD 0.43 (0.429276, configured pricing); 152,063 input and 12,515 output tokens (5,696 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-191534-e56216.json` (local) |
+| Location checks | 47 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: this directory's 20 files (README, execution contract, stages, rounds 1 and 2 audit and
+application). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` and
+`01_existing_code_and_tooling.md`, prompts 57 and 77, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md` and
+`review.md`; project instructions `AGENTS.md`, `CLAUDE.md`. The shared contract and prompt 57 were read as they
+stood before `c4e5574f`.
+
+**Summary.** Earlier fixes hold: conflicted downloads are preflighted, the Lichuan value-1 binding is preserved
+and moving homing no longer depends on the later settings context. The set is not ready for end-to-end
+implementation: an urgent stop can clear a halt with unresolved effects, a finite run has no demonstrated stop
+path after an SDO timeout, and identity, NMT recovery and qualification rules still diverge between stages.
+**Verdict:** blocking issues. Evidence intake, the read-only probe and independently gated work can proceed;
+resolve the stop contracts and their negative tests before admitting the affected motion or running physical
+qualification.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *Urgent quick-stop admission does not preserve the pending-halt invariant.* 04 says no stop releases a pending set-point, yet admits the fixed 0x000B from Operation enabled without excluding a known or possible set halt bit, while noting that 0x000B clears bit 8 and that whether a halted set-point resumes first is not stated. That blocks the S3 shape but not the ordinary urgent path; prompt 57's identity exemption does not remove the source-state check. 05 says quick stop ends disabled without 04's qualifications. Keep the identity exemption separate from command and predecessor admission; define the evidence for the quick-stop word when halt or a pending set-point is possible, leave unreviewed combinations unavailable and report the independent stop path; test TX or no TX for halted, unhalted and uncertain predecessors under each outcome; 05 consumes the stop result | 04:81-82, 95, 105-106; 57:105-106; 05:62 |
+| F2 | High, probable defect, high | *A finite run can have a constructible halt request but no usable stop route.* 06 fixes the halt word after a lost start reply and tests it is composable, but with `SdoReuse` `NONE` the route stays unresolved after a timeout and 04 keeps the best-effort path denied; if ordinary urgent SDO work needs a resolved route, neither priority nor the stop budget makes the halt transmissible, and no other owner path is established. Specify and test the owner disposition from start TX through lost reply, route timeout, stop due and the urgent attempt; assert whether a stop frame leaves, keep `UNKNOWN` and `needsStop`, report when no software stop exists; keep the run gated without the stop path the timed-run contract needs | 06:83-85; contract:46; shared 02:235-236, 130-131 |
+| F3 | High, verified defect, high | *Stage 04 leaves action admission tables and the explicit resume route unspecified.* The shared contract requires predecessor-to-command tables with already-reached and refused states; 04 has one for enable only. Release names one reviewed word without predecessor or already-released result; the two fault-clear methods give writes and some completion evidence but not where they are allowed or what happens with nothing to clear; the separate halt release has no admission or acceptance, though 05 refers to it and Q8 relies on it. Add MOONS' tables per action (state, mode, halt and fault evidence, first frame or no TX, settlement), refusal where the evidence is missing; deliver and test the resume route or mark it and Q8's resume subcase blocked | 04:45-46, 49, 86-87; 14a:43; shared 02:137-140; AGENTS.md:79 |
+| F4 | High, verified defect, high | *Stage 13 and the execution contract do not consistently use prompt 57's identity decision.* 13 calls a returned 0x2050 value UNCONFIRMED, where a complete match to another declared candidate with no TSM/TXM-C match is CONTRADICTED; it forbids typed 0x2100 before the layout is "confirmed" right after admitting Part A reads on a colliding declared match; the contract requires a "confirmed layout" for vendor writes while pointing to admission by outcome, which admits some UNCONFIRMED results. Use the shared decision rule for every layout, supply references, keys and any separate evidence-backed gate by name; test a TSM/TXM-C declaration with a matching UM21 candidate, a nonmatching string and a colliding declared match, including whether typed 0x2100 is sent | 13:28, 31-33, 37; contract:85-86; 57:87, 111-114 |
+| F5 | High, verified defect, high | *Targeted NMT Stop can leave no admitted CAN recovery path after identity invalidation.* 09 admits NMT Stop and says a Stopped node serves only node and error control. Across a host restart or rebind the identity observation needed for a targeted Start or Enter Pre-operational is lost and cannot be re-read while Stopped; broadcast is no general fallback. Define the recovery the application must have before sending Stop and how a Stopped, unconfirmed node is reported, without an implicit or broadcast bypass; test Stopped followed by rebinding or restart and an uncertain Stop with exact no-TX refusals | 09:13-14, 20-21, 85-86; 03:91-93; 57:117-118 |
+| F6 | High, verified defect, high | *The S13 review is written for every MOONS' node but supplies only UM21 evidence.* 09 assigns the same effect inputs to each declared MOONS' node, including the UM21 watchdog 0x2060, while 13 makes AMP10 a read-only binding with another watchdog object and no S13 review; acceptance never proves that a monitored AMP10 node blocks SYNC or node-0 NMT when every UM21 node passes. Scope 09's adapter to UM21, keep S13's default deny for a declared AMP10 node, also when only monitored or not the target; test a mixed layout with zero SYNC and node-0 NMT TX and no UM21-only reads on the AMP10 route | 09:66-67, 72; 13:23-24, 74-75; shared 02:266-267 |
+| F7 | High, verified defect, high | *Moving-homing admission both permits and forbids turning off the direction guard.* 07 says a missing approach qualification is prompt 77's settable direction guard once landed, then requires the same qualification unconditionally for switch methods, and its acceptance has refusal for an unknown direction but no guard-off case. Define one rule separating the optional direction check from the switch, wiring, index and stop and travel prerequisites; use the landed common guard; test unknown or stale direction with the guard on and off, naming the guard; keep Q10's first-evidence restriction | 07:30-32, 36-37, 83; 77:118-119 |
+| F8 | High, probable defect, high | *Possibly executed coordinate changes do not explicitly retire the old origin.* 07 says when to publish a new reference and assigns invalidation only to the stationary methods and zero position; nothing says when the old reference becomes unusable after a possibly sent moving-homing trigger without observed completion. 10 invalidates "after every Q run" without saying whether a lost reply, cancellation or interruption counts. Retire dependent origins, references, prepared work and coordinate-based limits at the earliest point the command can have reached the drive, state what evidence gives a replacement; test retained references after a lost trigger, an unobserved home and a possibly executed Q start or zero-position write | 07:49-50, 57-59, 65-66; 10:39-40; AGENTS.md:77 |
+| F9 | High, probable defect, high | *The settings current check does not cover commissioning writes that also change current.* 08 requires caller limits for its listed current writes, but motor selection and custom motor data, which also change current, need only commissioning intent; a whole-candidate check can pass them without establishing their effect on the limits, and quiescence does not address the current applied at the next enable. Make the indirect-current policy explicit; withhold the write or keep enable unavailable when it cannot be established; test unknown and out-of-limit results and an uncertain acknowledgement; keep it separate from the quiescence guard | 08:31-32, 61; review:457 |
+| F10 | Medium, verified defect, high | *Release qualification still lists mode -2 without an executable path.* 10 and Q11 make SYNC Q refusal-only, yet 14 groups mode -2 with Q programs qualified by owner-supplied programs; a program supplies no activation contract or admitted route. The checklist also names operations that may still be gated. Mark mode -2 unsupported and NOT RUN, distinct from mode -1; tie torque, watchdog, store and restore to their stage's production gate or an approved evidence path, NOT RUN otherwise | 14:40-41, 45; 10:44-46; 14a:46 |
+
+### Unresolved questions (reviewer)
+
+1. After the 02b S2, S3 and S10 changes, what does the real owner do with an ordinary urgent halt on the same
+   binding after a possibly transmitted start times out? The answer decides whether stage 06 can meet its
+   timed-run acceptance without assuming that a queued request reaches the drive.
+2. Does the reviewed-effect policy intentionally admit the alarm-mask writes on their documented LED effect
+   while their protection effect stays unknown? Stage 08 and the lead admit the write with a warning, while
+   the execution contract keeps objects without reviewed effects read-only; state the scope in one place.
+
+### Coverage gaps (reviewer)
+
+The original PDFs, rendered pages, EDS bytes, extracts and `SOURCES.json` were not supplied, so device claims
+were checked for consistency only. The repository index was truncated: owner and service code, adapter timing,
+packaging, workflows and seam landings were not verified at HEAD. The parent AGENTS, the conditional experiment
+prerequisites and the main-sequence prompts other than 57 and 77 were not supplied. No MOONS' fixture,
+authorization, trace, timing or restoration evidence existed; nothing was built, tested or run on hardware.

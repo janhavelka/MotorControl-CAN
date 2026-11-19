@@ -1,7 +1,7 @@
 # MOONS' / Applied Motion CANopen profile promptset (STF-C, SSDC-C, TSM/TXM-C)
 
-Prepared 2026-11-19; revised the same day after two independent [audit](audit.md) rounds
-([application](audit_application.md)) and the shared contract's rounds 2 and 3 (`1043608b`, `a7656efb`). Source collection and
+Prepared 2026-11-19; revised the same day after three independent [audit](audit.md) rounds
+([application](audit_application.md)) and the shared contract's rounds 2 to 4 (`1043608b`, `a7656efb`, `c4e5574f`). Source collection and
 prompt preparation complete. All implementation stages are NOT STARTED; MOONS' CANopen hardware is NOT TESTED.
 
 Add the Applied Motion Products / MOONS' CANopen drives as one independent concrete profile family,

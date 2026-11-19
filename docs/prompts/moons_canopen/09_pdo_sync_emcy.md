@@ -18,7 +18,15 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
    item 9): until item 9 lands, the S2-commit default deny refuses node-0 NMT on any interface with a MOONS'
    binding, and admitting a command that can change an evaluated node's NMT state revokes the SYNC approval
    before it is sent. An NMT command to a MOONS' binding is a changing request under prompt 57's identity
-   policy, never an exempt stop.
+   policy, never an exempt stop. A Stopped node answers no SDO (UM21 p14), so after a host restart or a
+   rebinding its identity cannot be re-read; prompt 57's bootstrap command applies: a targeted Enter
+   Pre-operational 0x80 to a node whose fresh heartbeat reports state 4 Stopped (UM21 p13), admitted under
+   every outcome except CONTRADICTED, revoking the node's S13 approval before it is sent. The heartbeat is
+   MOONS' only NMT state report (no node guarding, item 3), and 0x1017 = 0 turns it off (UM21 p48). A
+   targeted Stop's result therefore names its recovery: that bootstrap command when 0x1017 was read nonzero in
+   this epoch, otherwise "recovery: application only (power cycle)", since item 9 refuses node-0 Enter
+   Pre-operational on a MOONS' interface. A node that answers no SDO and has no fresh heartbeat is reported
+   stranded with the last state seen, never Stopped by assumption.
 2. Heartbeat and boot-up: the drive produces heartbeat on 0x700 + node, 0x1017 default 1000 ms (UM21 p48);
    states 0, 4, 5, 0x7F (UM21 p13). Boot-up invalidates every cached fact, qualification and queued work of the
    binding. The drive has no heartbeat consumer: 0x1016 is absent from UM21 p40 and all EDS files, although
@@ -64,7 +72,12 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
    the owner's NMT admission under the same rule, revocation before an NMT command that can change an
    evaluated node's state, and the default deny landed with S2 (stage 02b, if MOONS' lands S2). The MOONS' entry
    supplies each declared MOONS' node's SYNC and NMT effects and the reads that decide them, taken for the current binding,
-   server session and configuration generation (an unread item refuses):
+   server session and configuration generation (an unread item refuses). It covers UM21 bindings (STF-C,
+   SSDC-C) only. A declared TSM/TXM-C binding has no reviewed SYNC or NMT effects: stage 13 Part A supplies
+   none, its watchdog is 0x2300 with no 0x2060 (EDS-TSM), and AMP10 p48-p49 describe SYNC Q there. Its effects
+   are unknown, so S13 refuses SYNC and node-0 NMT on any interface where one is declared, also when it is
+   only monitored or not the request target, until stage 13 Part B supplies its entry; none of the reads
+   below is sent on its route.
    - Mode: 0x6061 read after the node's last boot-up and after this owner's last 0x6060 write. -2 is a program
      start on every SYNC (UM21 p36; AMP10 p48-p49): always refused, since stage 10 is refusal-only. 0x6060 is
      in no save list (UM21 p45-p46) and the power-up mode is not stated, so the read after each boot-up is
@@ -129,6 +142,12 @@ the schedule; a 0x6060 write, remap, rebind and NMT reset during a running sched
 until fresh reads; a targeted and a broadcast Start while a Pre-operational MOONS' node holds a valid
 synchronous RPDO (approval revoked before the Start, no later SYNC TX); a heartbeat reporting an unevaluated
 NMT state during a schedule (no later SYNC TX); node-0 Stop, Enter Pre-operational and both resets on an
-interface with a MOONS' binding (zero NMT TX), also before item 9 lands (the S2-commit default deny); both
-directions with a Lichuan axis on the same interface. Quick and full verify, firmware builds and
+interface with a MOONS' binding (zero NMT TX), also before item 9 lands (the S2-commit default deny); a mixed
+interface on which every UM21 node passes and a declared TSM/TXM-C node (monitored only, not the target) gives
+zero SYNC and zero node-0 NMT TX, with none of the entry's reads sent on its route; both directions with a
+Lichuan axis on the same interface. A Stopped node after rebinding and after a host restart: the targeted
+0x80 admitted on a fresh Stopped heartbeat with no current outcome, refused under CONTRADICTED, and with no
+fresh heartbeat no TX and the node reported stranded; a targeted Stop whose result names its recovery with
+0x1017 read nonzero, zero and unread, and a possibly sent Stop whose state is known only from the next
+heartbeat. Quick and full verify, firmware builds and
 exact-commit CI pass. Hardware: NOT RUN.

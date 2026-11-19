@@ -36,8 +36,11 @@ review s5.6) and is not offered.
    then clear; a program that ends between polls gives acknowledged execution with completion `NOT_OBSERVED`.
    A blank-segment alarm ends the operation failed with the raw alarm.
 5. Results: a Q run publishes no position, velocity or target-reached claim and no common motion completion.
-   Position reads afterwards are ordinary reads. Host origin and reference generations are invalidated after
-   every Q run, because the program may move the axis or rewrite positions.
+   Position reads afterwards are ordinary reads. Because the program may move the axis or rewrite positions,
+   the binding's host origin and reference generations, prepared or queued position work built on them and
+   host soft limits bound to them are retired before the start word is handed to the owner (the rule of stage
+   07 item 12); a lost start reply, cancellation, halt or unobserved end never restores them, and no Q result
+   supplies a replacement reference.
 6. Mode -2, SYNC Q (UM21 p36, p90; AMP10 p48-p49): after selecting the segment, every received SYNC starts it;
    by AMP10 p49 halt stops it and the next SYNC after halt is cleared restarts it from the beginning. This set
    is refusal-only (canopen_shared [round 2](../canopen_shared/audit_application.md#round-2-family-audits-19-november-2026)):
@@ -66,7 +69,8 @@ parity tests; coverage rows for Q start, SYNC Q (refused in this set) and regist
 
 Tests cover refusal without qualification, wrong product or layout, segment outside the qualification, mode
 accept timeout, lost start reply without repeat, halt during a run publishing no stop or restart claim, bit 14
-observed and missed, blank segment alarm, origin invalidation, register writes while running refused, and
+observed and missed, blank segment alarm, origin retirement before the start TX (references unusable also
+after a lost start reply), register writes while running refused, and
 mode -2 refused before any TX in every path, including a stale console request. No Q run is reported as a
 common move. Quick and full verify,
 firmware builds and exact-commit CI pass. Hardware: NOT RUN; a physical Q test needs a fixture with a program

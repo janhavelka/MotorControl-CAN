@@ -63,6 +63,10 @@ AGENTS, [COMMON.md](../COMMON.md) (including the owner-absence section), [CONVEN
   and 0x7001 are examples of equal or neighboring numbers with different meanings (MO-D02).
 - An RW flag, an EDS `PDOMapping=1` or a listed default grants no write. No EDS default is written at
   initialization. A documented object without reviewed units, range and effect is read-only until reviewed.
+  The one exception, by the lead's decision of 2026-11-19 ([audit application](audit_application.md), round 2
+  decision 4): an explicit write of the documented LED-mask function of 0x2610 and 0x221A is admitted while
+  its protection effect is unreviewed; the stage 02 ledger row records that effect as open and every result
+  states "protection effect unreviewed (UM21 p85)" (stage 08 item 4). No other object is written on that basis.
 - Every MOONS' operation follows canopen_shared 02 "Operation admission": the write preflight of every download
   it may issue against stage 02's `review.write_policy` before its first changing step (enable and partial setup
   included), one absolute operation deadline captured at preparation, and a source-state and intent table
@@ -83,7 +87,8 @@ AGENTS, [COMMON.md](../COMMON.md) (including the owner-absence section), [CONVEN
   Explicit identity reads (stage 03) give prompt 57's outcomes, and its admission by outcome decides
   dependent work, stops exempt as stage 04 item 9 states. This is the
   intra-family form of backlog D18: no identity-based auto-selection, and no vendor-object write without the
-  declared model and a confirmed layout.
+  declared model and an admitting outcome for it (prompt 57's admission by outcome, stage 03 item 2); stage
+  13 names its further layout gates separately.
 - Firmware is reported, not a lock ([prompt 57](../57_regular_drive_operations.md) identity policy and its
   2026-11-12 user requirement). Which object carries "310A"/"310B" is unknown (MO-D01), so an unknown or
   unqualified firmware string never refuses an operation: its terminal result carries "firmware unqualified"
