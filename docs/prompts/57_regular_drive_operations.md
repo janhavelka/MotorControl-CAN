@@ -72,6 +72,10 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
   product, `2000`), because another product is another profile. A different firmware identity (`1009`, `100A`,
   `1018:03`, `2001`) no longer refuses: the operation runs and its terminal result carries "firmware unqualified" with
   both identities, so qualification stays honest without locking the user out.
+  A matching product identity does not prove a CL86-C: the Lichuan DS-C and TL-C EDS files declare the same
+  `1000`, `1018:01` and `1018:02` with different vendor objects (backlog D18; TL-C `2402` is a bitrate object). The
+  application's declared binding selects the profile and model, the identity read only confirms it, and the family
+  promptsets `lichuan_c_extensions` and `lichuan_ds2_canopen` add their model-scoped checks on this one policy.
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
