@@ -65,20 +65,12 @@ The first implementation is Lichuan C over Classical CANopen. N5/EPOS4 are test-
 
 The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8 in [packet 10](../reports/handoff_19_33/packet_10.md). It stays the source of its decisions and findings for prompts 33-50, and its W10 and W11 order still applies, as [COMMON.md](COMMON.md) item 5 states.
 
-## Owner absence: period plan and deferred steps
+## Owner absence: deferred steps
 
 The owner is away from 20 November to about 4 December 2026; the binding rules and the waiver are in
-[COMMON](COMMON.md#owner-absence-20-november-to-about-4-december-2026). Work runs in this order, one executor at a
-time, respecting each prompt's prerequisites. Each prompt ends as usual: checks, report, commit, push and CI on the
-exact commit for major work. Physical-only remainders get a "deferred: owner away" record and a row below, not a wait.
-
-| Period | Work, in order | Notes |
-| --- | --- | --- |
-| A | 78; the small software remainders of 18, 31, 32, 33 and 35; 57; 58 | 78 first, at the owner's request (2026-11-19) |
-| B | 59, 60 and 72 (pulse-rate admission first, so later runs have the S21 guard); the unattended remainders of 52 and 54; 73 | Velocity below 2.5 MHz pulse rate only |
-| C | 77 (B1-B4); 61, 62 and 63, software only; 64; 65 | 77's switch trials are deferred (O1-O4) |
-| D | 68 and 70 with their unattended S2 bench; 74; 75; 76 | 74's unplug is deferred |
-| E | 66 items 1 and 2 (soak under the waiver); 69 and 51 software; "deferred: owner away" records for 19-22, 27-30, 36, 38, 39, 47, 48, 67 and 71 | End with a baseline read: both drives stopped, released, latch-free, settings as at the start |
+[COMMON](COMMON.md#owner-absence-20-november-to-about-4-december-2026). They set no execution order: the order
+comes from the instructions that start each run. Physical-only remainders get a "deferred: owner away" record and
+a row below, not a wait.
 
 ### Deferred to owner return
 

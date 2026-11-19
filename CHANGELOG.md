@@ -6,7 +6,7 @@
 
 - Promptset only, no code: the owner-absence rules for 2026-11-20 to about 2026-12-04 (COMMON), with the owner's
   unattended-motion waiver, forbidden and allowed writes, the states only a power cycle clears and how to avoid them;
-  a period plan and a deferred-to-owner table in the prompts README; AGENTS points to both. Modelled on
+  a deferred-to-owner table in the prompts README (no execution order); AGENTS points to both. Modelled on
   MotorControl-RS decision D15.
 - Prompt 77: switch-ready limits and homing (input facts, limit admission, soft-limit state; switch trials deferred).
 - Prompt 78: receive throughput up to the S2's practical limit, the owner's request of 2026-11-19.
