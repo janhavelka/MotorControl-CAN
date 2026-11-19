@@ -1,6 +1,8 @@
 # Shared by every target; the target itself is selected with -DIDF_TARGET.
 CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE=y
 CONFIG_FREERTOS_HZ=1000
+# Prompt 56: the owner pass is CPU bound (measured 2026-11-19 at 160 MHz); both targets run 240 MHz.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 CONFIG_ESP_CONSOLE_NONE=y
 CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
 CONFIG_LOG_DEFAULT_LEVEL_NONE=y

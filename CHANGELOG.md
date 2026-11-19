@@ -16,6 +16,11 @@
   turn, with that turn's time, instead of at the next turn. Best-effort stop eligibility and outcomes are
   unchanged. On the host one `service()` turn at N = 32 fell from about 210 us to about 30 us. Rejected: an early
   return in `transmit()` before its expiry, which delays a refusal's effect on peers by up to one turn.
+- **240 MHz:** the shared ESP-IDF images (S2 and S3) and the S2 bench image now run at 240 MHz
+  (`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240`; the IDF default was 160), and the firmware gates check the resolved
+  `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240`. On 2026-11-19 an idle owner pass on the S2 bench took about 0.9 ms at
+  160 MHz, half of it the owner-and-sessions turn. `-Os` stays: `-O2` conflicts with the S2 memory plan (B01)
+  and needs its own measured review.
 
 ### Communication practice and PSRAM-first placement (2026-11-18)
 
