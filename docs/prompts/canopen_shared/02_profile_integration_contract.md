@@ -133,7 +133,7 @@ Commit tooling, core/profile and application/console changes separately, each te
   every public declaration. Documented, implemented, host-tested, firmware-built and
   hardware-qualified stay separate.
 - Each stage writes `docs/reports/<family>_<NN>.md` and updates `docs/prompts/<family>/PROGRESS.md`
-  (NOT STARTED, IN PROGRESS, PARTIAL, BLOCKED or COMPLETE; hardware in its own column). The
+  (NOT STARTED, IN PROGRESS, SOFTWARE COMPLETE, PARTIAL or BLOCKED, as in MotorControl-RS; hardware in its own column). The
   handoff gives commits and push result; source and sibling revisions with adopted or rejected
   behavior; operations implemented versus gated, by ledger key; local checks and exact-commit
   CI, including those not run; hardware NOT RUN or exact fixture, firmware and raw evidence;

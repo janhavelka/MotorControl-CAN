@@ -58,6 +58,8 @@ owner and adapters are repository builds; package tests cover the core and profi
 | S8 Shared CiA 402 helpers | None; controlword/statusword handling is Lichuan-local | First family whose evidence needs the same semantics as Lichuan | None | Not landed |
 | S9 Second protocol on one interface (identifier plan, route, raw transmit) | Owner admits only SDO work (including best-effort stops and drain markers), NMT and SYNC | [Prompt 63](../63_mixed_protocols.md) | Prompt 63 | Pending |
 | S10 Reviewed SDO reuse policy per binding | Every channel starts with `SdoReuse()`: marker reads of 1000:00 and 1018:01-03 (Lichuan DEC-1) | First CANopen family to claim it | None | Not landed |
+| S11 Host heartbeat producer (owner-produced `0x700+host` frames at an application period, so a drive's heartbeat consumer `1016h` can supervise the host) | None: the owner produces NMT and SYNC only; drive-side host-loss supervision cannot be configured meaningfully without it | First CANopen family to claim it | None | Not landed |
+| S12 Owner-admitted RTR frames for node guarding, where a family documents guarding and no heartbeat | None: the owner admits no RTR work | First family whose evidence needs it | None | Not landed |
 
 ## Rules for every family set
 

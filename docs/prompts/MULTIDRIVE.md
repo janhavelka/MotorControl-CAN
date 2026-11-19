@@ -60,7 +60,7 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 54 | Qualify only the actual drives, firmware and configuration; another family's SYNC or multi-axis behavior is never inferred. |
 | 55 | Self-repair and retry classes are per-protocol services; other protocols get their own timeouts and never inherit SDO resync or NMT semantics. |
 | 56 | Throughput changes keep one owner per interface and the exact TX retirement proof for every protocol on it. |
-| 57 | Enable, release and mode select are per-profile operations with their own words and evidence; product identity selects the profile, firmware identity is reported. |
+| 57 | Enable, release and mode select are per-profile operations with their own words and evidence; the application's declared binding selects the profile and product identity only confirms it (backlog D18), firmware identity is reported. |
 | 58 | Records are keyed by profile and product identity and carry their own evidence; one family's record never qualifies another. |
 | 59 | Speed ranges, clamp behavior and direction rules are per-profile measured facts with exact native units. |
 | 60 | User units convert host-side to each profile's native units and refuse what a profile cannot represent. |

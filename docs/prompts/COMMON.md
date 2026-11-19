@@ -22,7 +22,8 @@ LEDs) are recorded as "not observed: owner away"; an enable uses the released st
    wiring, switch, DIP switch, instrument, observation) goes into the
    [deferred table](README.md#deferred-to-owner-return) with the exact action and the cases it unlocks; those cases are
    NOT RUN with the reason "deferred: owner away". Continue with the rest; the prompt stays Partial.
-2. **Nothing persistent, no communication changes.** No `2300:00` write in any value (1 factory restore, 2 save); CL86-C
+2. **Nothing persistent, no communication changes.** These object numbers are the CL86-C fixture's (other families
+   have no fixture during the absence; their promptsets list their own persistent objects). No `2300:00` write in any value (1 factory restore, 2 save); CL86-C
    has no `1010`/`1011`. No `2203` node ID write (bitrate is DIP-only). No COB-ID write (`1005`, `1014`, `1200:01/02`,
    `1400`-`1403:01`, `1800`-`1803:01`), no PDO map or inhibit write (`1600`-`1603`, `1A00`-`1A03`, `1400`-`1403:02/05`,
    `1800:03`), no RPDO frame on `0x200+node`, no NMT Reset Node or Reset Communication, no NMT Stop to a moving drive. No
