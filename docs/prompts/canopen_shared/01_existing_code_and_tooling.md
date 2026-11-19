@@ -3,7 +3,8 @@
 Execute this stage under the family's execution contract.
 Status: NOT STARTED. The inventory below was taken at `5045423d` on 2026-11-19, with
 prompt 56 complete and prompts 57 and 63-78 pending; the owner, source-manifest,
-packaging and `StopKind` rows were rechecked at `f3c3870a` ([audit application](audit_application.md)).
+packaging and `StopKind` rows were rechecked at `f3c3870a` ([audit application](audit_application.md)), and the
+PDO, SYNC, service engine, owner and packaging rows at `139748e9` (round 2).
 It is a starting map; the current checkout decides. Read [ADD_DRIVE.md](../ADD_DRIVE.md), [COMMON.md](../COMMON.md),
 [CONVENTIONS.md](../CONVENTIONS.md) sections 1-4 and 6, [MULTIDRIVE.md](../MULTIDRIVE.md),
 the [multi-drive decision](../../multidrive_decision.md), the [profile contract](../../profile_contract.md)
@@ -43,10 +44,10 @@ and [PROGRESS.md](../PROGRESS.md) first.
 | SDO codec | `include/MotorControlCAN/canopen/Sdo.h` | `SdoChannel`, `SdoExpectation`, `checkRequest`, `checkReply`, `readWord`, `readSignedWord`, `validateSdoChannel` | Checks requests and initiation replies; segment transfer runs in CANopenNode behind `SdoClient` |
 | SDO intent, evidence | `canopen/SdoTransfer.h` | `SdoTransfer`, `SdoCompletion`, `SdoReadEffect`, `SdoOutcome`, `repeatableReadEffect` | Each upload's `readEffect` comes from the family ledger; Lichuan DEC-1 does not transfer |
 | NMT, heartbeat, EMCY | `canopen/Network.h` | `makeNmtRequest`, `NmtCommand`, `NmtState`, `NetworkRoute`, `checkNetworkEvent` | NMT stop is not a quick stop; EMCY meaning is per family |
-| PDO | `canopen/Pdo.h`, `canopen/PdoState.h` | `PdoProfile`, `PdoObject`, `validatePdoMap`, `PdoRoute`, `decodePdo`, `pdoMapFromReadback`, `PdoRecord`, `pdoFreshness` | `PdoProfile` is call-only: the family supplies its set and slot counts and objects |
-| SYNC | `canopen/Sync.h` | `makeSyncRequest`, `checkSyncFrame`, `prepareSync`, `nextSync`, `advanceSync`, `cancelSync` | Synchronous PDO behavior is per-family evidence |
+| PDO | `canopen/Pdo.h`, `canopen/PdoState.h` | `PdoProfile`, `PdoObject`, `validatePdoMap`, `PdoRoute`, `decodePdo`, `pdoMapFromReadback`, `PdoRecord`, `pdoFreshness` | `PdoProfile` is call-only: the family supplies its set and slot counts and objects. Map review and decoding only; `PdoObject` grants no RPDO TX (seam S14) |
+| SYNC | `canopen/Sync.h` | `makeSyncRequest`, `checkSyncFrame`, `prepareSync`, `nextSync`, `advanceSync`, `cancelSync` | Synchronous PDO behavior is per-family evidence; the owner's `armSync` leaves the remote buffered RPDO hazard to the caller (seam S13) |
 | Service engine | `adapters/canopennode/SdoClient.h`, `Nmt.h`, `NetworkState.h`, `Capacity.h`; [stack decision](../../decisions/canopen_stack.md) | `SdoClient`, `MOTORCONTROLCAN_SDO_CHANNELS`, `MOTORCONTROLCAN_PDO_ROUTES` | One backend for every CANopen family, one capacity set per program; `validBestEffortStop` accepts `6040:00=000B` on every channel (seam S3) |
-| Owner | `adapters/owner/CanBusOwner.h`, `CanBusTypes.h` | `beginSequence`, `beginOperation`, `admit`, `admitUrgent`, `admitBestEffortStop`, `service`, `result`, `release`, `cancel`, `recover`, `invalidate`, `invalidateProducer`, `health`, `driverState`, `stats`, `setSdoReuse`; `Transport`, `ServiceBudget`, `BusRequest`, `Completion`, `Health`, `Stats`, `SdoReuse` | No profile code. `SdoReuse` is per configured channel binding; every channel starts with `SdoReuse()` (ACCEPTED_RISK_WITH_MARKER, markers 1000:00 and 1018:01-03 on Lichuan DEC-1), so `resyncRoutes` sends a marker after the route's first timeout, cancellation or bus-off with possible TX, without any application call (seam S10) |
+| Owner | `adapters/owner/CanBusOwner.h`, `CanBusTypes.h` | `beginSequence`, `beginOperation`, `admit`, `admitUrgent`, `admitBestEffortStop`, `service`, `result`, `release`, `cancel`, `recover`, `invalidate`, `invalidateProducer`, `health`, `driverState`, `stats`, `setSdoReuse`; `Transport`, `ServiceBudget`, `BusRequest`, `Completion`, `Health`, `Stats`, `SdoReuse` | No profile code. Admits SDO work (`BusRequest` carries an `SdoTransfer`), best-effort stops, drain markers, NMT and SYNC; no PDO data frame (seam S14). `SdoReuse` is per configured channel binding; every channel starts with `SdoReuse()` (ACCEPTED_RISK_WITH_MARKER, markers 1000:00 and 1018:01-03 on Lichuan DEC-1), so `resyncRoutes` sends a marker after the route's first timeout, cancellation or bus-off with possible TX, without any application call (seam S10) |
 | Transport | `adapters/twai/TwaiAdapter.h`, `IdfTwaiDriver.h` | Board adapter | Frame and controller facts only |
 | Test plumbing | `test/support/OwnerRig.h` | `OwnerRig::route`, `OwnerRig::frame` | Generic fake-owner plumbing |
 
@@ -59,7 +60,7 @@ and [PROGRESS.md](../PROGRESS.md) first.
 | Operation map | `docs/reference/lichuan_operations.json`, `scripts/check_lichuan_operations.py` | Family/function/test/console schema. `check` requires every `include/MotorControlCAN` header with public functions to be a mapped family, so the first new header fails it (seam S7) |
 | Source manifest | `docs/reference/SOURCES.json` and `docs/reference/<pack>/SOURCES.json`; `scripts/check_promptset.py` `check_records` | Shape and hash rules. Every immediate pack manifest is discovered by glob (`reference_manifests`); records may cite files anywhere in `docs/reference`; each artifact's size and SHA-256 are checked, and the Git blob with `--check-git-ref`. Only `multidrive`, `other_can` and `public_code` are required by name |
 | Registration | `test/CMakeLists.txt` `strict_test`/`add_test`; `scripts/check_repository.py`; `scripts/verify.py` steps `objects`, `operations` | Explicit `add_executable`/`add_test` per file; `check_repository.py` `registration_checks` fails an unregistered `test/*_test.cpp` or `*_test.py` |
-| Packaging | Root `CMakeLists.txt` `MOTORCONTROLCAN_SOURCES` and per-directory `install(FILES ...)`; `library.json` `export.include`; `test/package_test.py` `HEADERS` and exact archive set; `test/installed_consumer/`, `test/idf_consumer/` | `export.include` names `include/` and `src/` as directories that `scripts/export_package.py` walks recursively, and `check_repository.py` `EXPORTS` requires exactly that list: a family edits neither, and everything under `include/` and `src/` ships, so vendor files never go there. CMake sources, install rules and `package_test.py` sets are explicit per family |
+| Packaging | Root `CMakeLists.txt` `MOTORCONTROLCAN_SOURCES` and per-directory `install(FILES ...)`; `library.json` `export.include`; `test/package_test.py` `HEADERS` and exact archive set; `test/installed_consumer/`, `test/idf_consumer/` | `export.include` names `include/` and `src/` as directories that `scripts/export_package.py` walks recursively, and `check_repository.py` `EXPORTS` requires exactly that list: a family edits neither, and everything under `include/` and `src/` ships, so vendor files never go there. CMake sources, install rules and `package_test.py` sets are explicit per family, so a new header enters the archive at once and fails the exact archive set until `HEADERS` names it, then the install set until an install rule ships it. `test/installed_consumer/CMakeLists.txt` compiles each header alone (`headers_11`, `headers_17`) by glob, in the source and the installed consumer |
 | Documentation | `Doxyfile` (`include` recursive, strict warnings) | New public headers are covered automatically and must pass |
 
 ### Intake rules for the family's evidence and tooling stages
@@ -106,7 +107,12 @@ public header. Stage 01 itself changes no source.
   checkers' header sets are disjoint, their union is every public header with public
   functions, and an unclassified common, Lichuan or family function still fails. Register
   each checker in `scripts/verify.py`, `scripts/check_repository.py` (`CHECKS`, file
-  lists) and CTest. Registration later consumes the checked ledger, codec and partition.
+  lists) and CTest; that registration is itself an S7 edit, so a stage that registers a
+  checker before its first header claims S7 first. The commit that adds the first header
+  also adds its `install(FILES ...)` rule, its `test/package_test.py` `HEADERS` and exact
+  archive entries (with any new `src/` file) and passes the per-header consumer compile and
+  `test/package_test.py`; no commit ships a header that the package gates do not name.
+  Registration later consumes the checked ledger, codec, partition and package entries.
 
 ### Lichuan-specific: never reuse
 

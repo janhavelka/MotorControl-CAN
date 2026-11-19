@@ -71,3 +71,31 @@ and does not add a parameter to every preparation.
 Checks: `python scripts/check_promptset.py` reports no error in `docs/prompts/canopen_shared/`.
 Its remaining errors are missing stage links inside those untracked family promptsets.
 `git diff --check` is clean for this set. Nothing was compiled; no hardware was used.
+
+## Round 2: family audits, 19 November 2026
+
+Two family audits at `139748e9` raised cross-cutting findings: MOONS'
+`aud-20261119-175226-dd78d8` and Nanotec `aud-20261119-175227-c23b91` (reports kept by the
+auditor, outside the repository). Only the shared-contract part of each was applied here;
+the family sets take their own fixes. Each item was checked against the contract text and,
+where named, the code before it changed. Only this set's README, 01, 02 and this file
+changed.
+
+| Item | Source findings | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| 1 S13 SYNC admission | MOONS' F1; Nanotec F5 | README S13 row (unknown or harmful effects only); `CanBusOwner.h` `armSync` ("Caller ... resolves any remote buffered RPDO hazard first"), `admitSync`, `disarmSync` (never clears a remote RPDO buffer) | 02 CANopen-only S13 bullet: declared bus population, live NMT and PDO state, known-harmful effects (pending synchronous RPDO, watchdog fed for another application, program start), revocation during a schedule, zero SYNC TX on refusal, the three acceptance classes with a non-target node; README S13 row and 01 SYNC row |
+| 2 S14 RPDO data TX | Nanotec F12; MOONS' unresolved question 2 | `CanBusTypes.h` `BusRequest` (an `SdoTransfer` only); `CanBusOwner.h` admission surface (SDO, best-effort stop, drain marker, NMT, SYNC); `canopen/Pdo.h` `PdoObject` ("grants no ... RPDO TX"); prompt 51 item 6 and its report (no RPDO path enabled) | New README S14 row; 02 CANopen-only S14 bullet (binding, SYNC coordination, lease, stale setpoint retirement, urgent stop, bus-off; consume or stay unsupported; no family raw transmitter); 01 owner and PDO rows |
+| 3 S3 default deny with S2 | Nanotec F1 | `SdoClient.cpp` `validBestEffortStop` (fixed `6040:00`, `0B 00`, any configured channel); `CanBusOwner.cpp` `admitBestEffortStop`; `Sdo.cpp` `validateSdoChannel` (CANopen bindings only) | 02 S3 bullet: default deny lands in the S2 commit, tested after timeout and rebind; family shape later; README S3 row; 02 Deliver |
+| 4 S7 package entries | Nanotec F13; MOONS' F14 (claim timing) | `scripts/export_package.py` via `library.json` (recursive); `test/package_test.py` `HEADERS`, exact archive set and install set; root `CMakeLists.txt` explicit `install(FILES ...)`; `test/installed_consumer/CMakeLists.txt` per-header `headers_11`/`headers_17` | 01 S7 bullet: install rule, package-test entries and per-header compile in the first header's commit; shared registration is an S7 edit claimed first; 01 packaging row; 02 package bullet and status line; README S7 row and work table |
+| 5 First-contact questions | MOONS' F10; Nanotec F9 | `docs/device_conflicts.md` "Conditional experiment prerequisites"; 02 bench section (no first-contact rule) | New 02 subsection "First-contact questions": production route, vendor evidence or a reviewed isolated experiment with actions, observation, snapshot and restoration boundary, otherwise NOT RUN; no raw bypass or weakened refusal |
+| 6 Write preflight | MOONS' F2 | 01 ledger rule (`review.write_policy`; an RW flag grants no write); 02 had no preflight rule | 02 "Operation admission", write preflight bullet |
+| 7 One operation deadline | MOONS' F12 | 02 said only "one immutable deadline per operation"; `communication_practice.md` C10; `src/profiles/lichuan_c/Position.cpp` `download` copies the operation deadline into each transfer | 02 "Operation admission", deadline bullet: captured at preparation, bounds every inner deadline, checked before each changing step, family coverage rows and cumulative-delay test |
+| 8 State-transition table | Nanotec F3 | AGENTS (manual arrows are examples); 02 had only "never enable to prepare a stop" | 02 "Operation admission", state transitions bullet: source-state and intent table before the first TX, already-reached state, refusing states, first-frame tests |
+| 9 Principles pack | MOONS' and Nanotec unresolved questions on the principles input | `git show --stat e02ab04f`; `docs/reference/canopen_principles/README.md` (AKD remote-only). No shared text called the pack working-tree-only, and none cited it | 02 CANopen-only first bullet: link to the committed pack, its AKD remote-only status and its secondary role |
+
+Not applied here, as family matters: MOONS' F3-F9, F11, F13 and Nanotec F2, F4, F6-F11,
+F14, F15. MOONS' F5 (mode -2 positive path) stays refusal-only under S13 as written; a
+positive SYNC-triggered program start would need its own shared-contract change.
+
+Checks: `python scripts/check_promptset.py` passes; `git diff --check` is clean for this set.
+Nothing was compiled; no hardware or port was used.

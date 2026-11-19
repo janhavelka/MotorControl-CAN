@@ -1,7 +1,8 @@
 # Shared prerequisites for additional CAN drive profiles
 
 Prepared 2026-11-19 at `5045423d`; revised the same day at `f3c3870a` after an independent
-[audit](audit.md) ([application](audit_application.md)). **No additional profile, seam or
+[audit](audit.md) ([application](audit_application.md)) and at `139748e9` after two family
+audits ([round 2](audit_application.md#round-2-family-audits-19-november-2026)). **No additional profile, seam or
 command below is implemented.** Every further drive family gets its own promptset (README,
 execution contract, numbered stages, progress). Those sets keep their own evidence, object
 policy, units, sequences and qualification. This set holds what they share: the inventory
@@ -16,7 +17,7 @@ a family; this set says how the selected family lands in the code.
 | Work | When it applies | Completion evidence |
 | --- | --- | --- |
 | [01 Existing code and tooling](01_existing_code_and_tooling.md), inventory | Before the family's first code stage. Re-run its refresh step whenever a family stage starts after the main sequence has moved. | Confirmed inventory with recorded deltas and the list of seams the family needs, in the family's stage report |
-| 01 intake rules | Every family stage that adds sources, a ledger, generated output or the family's first public header | Pack hashes checked in working tree, INDEX and HEAD; ledger, generator and checker negative tests; header checkers disjoint and complete |
+| 01 intake rules | Every family stage that adds sources, a ledger, generated output or the family's first public header | Pack hashes checked in working tree, INDEX and HEAD; ledger, generator and checker negative tests; header checkers disjoint and complete; the first header's install rule and package-test entries in its own commit |
 | [02 Profile integration contract](02_profile_integration_contract.md), standing rules | Every family code stage, from the first | The common rules plus the CANopen-only or other-protocol rules for the family's established protocol |
 | 02 registration acceptance | Once, at the stage that registers the profile, and at each later major change | Real-owner probe, foreign-profile and identity refusals, multi-profile consumer tests; full matrix and exact-commit CI |
 
@@ -46,21 +47,22 @@ and API/CLI parity stay Blocked, because every console SDO read goes through the
 Lichuan-typed `ProbeApp` (`requestOrdinaryRead`, `LICHUAN_C::ReadTarget`). Before S5, the
 owner and adapters are repository builds; package tests cover the core and profile only.
 
-| Seam | State at `5045423d` (S1-S7 and S10 rechecked at `f3c3870a`) | Implemented by | Claim (lead, stage, date) | Landed (commit, tested interface, consumer gate) |
+| Seam | State at `5045423d` (S1-S7 and S10 rechecked at `f3c3870a`; S3, S7, S13 and S14 at `139748e9`) | Implemented by | Claim (lead, stage, date) | Landed (commit, tested interface, consumer gate) |
 | --- | --- | --- | --- | --- |
 | S1 Inventory entry (`Manufacturer`, `DriveProfile`, inventory table) | One hard-coded Lichuan entry in `src/Discovery.cpp`; `LICHUAN_C` is the implicit value 0 | First family to claim it | None | Not landed |
 | S2 Profile resolution on a binding (`Endpoint.profile` to `DriveProfile` and protocol) and foreign-profile refusal | No relation; Lichuan preparations accept any nonzero `Endpoint.profile` (Lichuan tests use 41, examples 1) | First family to claim it | None | Not landed |
-| S3 Per-binding best-effort stop shape | `SdoClient::validBestEffortStop` accepts only `6040:00=000B` (Lichuan DEC-2) on every channel | First CANopen family to claim it | None | Not landed |
+| S3 Per-binding best-effort stop shape | `SdoClient::validBestEffortStop` accepts only `6040:00=000B` (Lichuan DEC-2) on every channel | Default deny (no configured shape: `INVALID`, no TX) in the S2 commit, before any further family's first binding can be admitted; each CANopen family opts in its reviewed shape later, in its stop stage | None | Not landed |
 | S4 Common axis table and library session | `AxisSession`, `ProbeApp` and `ProbeMotion` are Lichuan-typed | [Prompt 64](../64_common_axis_interface.md) | Prompt 64 | Pending |
 | S5 Optional package components | Owner and adapters compiled from the repository only | [Prompt 65](../65_application_package.md) | Prompt 65 | Pending |
 | S6 Console family entry, per-record JSONL profile, runner validation | Envelope and `scripts/console_jsonl.py` fixed to `lichuan_c` | First family to claim it | None | Not landed |
-| S7 Per-family ledger, generator, operation checker and verifier registration | Lichuan checker scans every public header | Family stage that adds the first new public header (stage 01 intake rules) | None | Not landed |
+| S7 Per-family ledger, generator, operation checker and verifier registration, with the first header's package entries | Lichuan checker scans every public header; install rules and `test/package_test.py` sets name Lichuan and core files only | Family stage that adds the first new public header (stage 01 intake rules), claimed before its first shared registration edit | None | Not landed |
 | S8 Shared CiA 402 helpers | None; controlword/statusword handling is Lichuan-local | First family whose evidence needs the same semantics as Lichuan | None | Not landed |
 | S9 Second protocol on one interface (identifier plan, route, raw transmit) | Owner admits only SDO work (including best-effort stops and drain markers), NMT and SYNC | [Prompt 63](../63_mixed_protocols.md) | Prompt 63 | Pending |
 | S10 Reviewed SDO reuse policy per binding | Every channel starts with `SdoReuse()`: marker reads of 1000:00 and 1018:01-03 (Lichuan DEC-1) | First CANopen family to claim it | None | Not landed |
 | S11 Host heartbeat producer (owner-produced `0x700+host` frames at an application period, so a drive's heartbeat consumer `1016h` can supervise the host) | None: the owner produces NMT and SYNC only; drive-side host-loss supervision cannot be configured meaningfully without it | First CANopen family to claim it | None | Not landed |
 | S12 Owner-admitted RTR frames for node guarding, where a family documents guarding and no heartbeat | None: the owner admits no RTR work | First family whose evidence needs it | None | Not landed |
-| S13 SYNC side-effect admission: before the owner produces SYNC on an interface, each bound device's reviewed SYNC effects (synchronous PDO apply, program starts such as MOONS' mode -2) are known, and unknown or harmful effects refuse production | None: prompt 51's producer refuses only on a foreign SYNC producer | First family whose devices act on SYNC; it gates prompt 51's producer without forking it | None | Not landed |
+| S13 SYNC side-effect admission (contract 02): the owner produces SYNC on an interface only under a current approval covering every declared node's reviewed SYNC effects (synchronous RPDO apply, watchdog feed, program starts) from live PDO and NMT state; unknown, stale or harmful effects refuse with no SYNC TX; remap, rebind, reset and invalidation revoke it, also during a schedule | None: prompt 51's producer refuses only on a foreign SYNC producer; `armSync` leaves the remote buffered RPDO hazard to the caller | First family whose devices act on SYNC; it gates prompt 51's producer without forking it | None | Not landed |
+| S14 Owner-admitted CANopen RPDO data transmission (contract 02): route, map and identity binding, SYNC coordination, lease expiry, stale setpoint retirement, urgent stop and bus-off behavior | None: the owner admits no PDO data frame (`BusRequest` carries an `SdoTransfer`); `PdoObject` grants no RPDO TX; prompt 51 item 6 is experiment scope and enabled no RPDO path | First family with an operation fed by RPDO data; until it lands, cyclic modes and other RPDO-fed operations stay unsupported | None | Not landed |
 
 ## Rules for every family set
 

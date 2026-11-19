@@ -6,7 +6,8 @@ family's established protocol) bind every family code stage. Registration accept
 at the stage that registers the profile and at each later major change under AGENTS (public
 API or behavior, owner or protocol integration, persistence, build, toolchain or workflow);
 other stages run the affected local checks, keep required automatic checks and record checks
-not run. Stage 01's intake rules cover sources, ledgers and the S7 checker split; claim each
+not run. Stage 01's intake rules cover sources, ledgers, the S7 checker split and the first
+header's package entries; claim each
 seam in the [README](README.md) table before a shared edit. Read the family's
 [stage 01](01_existing_code_and_tooling.md) record, the [CLI contract](../../cli_contract.md),
 [owner guide](../../can_owner.md) and [communication practice](../../communication_practice.md).
@@ -84,10 +85,38 @@ Commit tooling, core/profile and application/console changes separately, each te
   acknowledgement and completion evidence, identity consumed, stop interaction,
   `RetryClass`, gates and tests, or the evidence-based reason it is unsupported.
 - Never enable to prepare a stop or reset. Release, stop, cancel and recovery stay distinct.
-  One immutable deadline per operation (`now >= deadlineUs` expires); no automatic repeat; an
-  unconfirmed write keeps `UNKNOWN` execution. Units go through `prepareVelocityTarget` and
-  `Native.h`; a missing rate basis is a reviewed core change. After prompt 64, implement the
-  family's axis-table row and pass that prompt's session and owner tests; no second session.
+  No automatic repeat; an unconfirmed write keeps `UNKNOWN` execution. Deadlines, write
+  preflight and state transitions follow "Operation admission" below. Units go through
+  `prepareVelocityTarget` and `Native.h`; a missing rate basis is a reviewed core change.
+  After prompt 64, implement the family's axis-table row and pass that prompt's session and
+  owner tests; no second session.
+
+### Operation admission
+
+- **Write preflight.** Before its first changing step (enable and partial setup included),
+  an operation checks every download or native write it may issue against the ledger's
+  `review.write_policy`: encoding (type, width, signedness), access, and applicability to
+  the bound model, firmware and mode. An unresolved encoding or access, or an inapplicable
+  row, blocks the whole operation with nothing sent. A narrower product-specific operation
+  is admitted only with recorded evidence that resolves that exact conflict; a read of one
+  candidate width or a fake server resolves nothing. Tests: each withheld write gives zero
+  changing TX.
+- **One deadline.** One absolute operation deadline, captured at preparation, bounds every
+  per-write, queue, dispatch and polling deadline inside the operation: each transfer's
+  `deadlineUs` is at most it and no step computes a later one (Lichuan's move copies it into
+  every transfer, `src/profiles/lichuan_c/Position.cpp` `download`). Expiry
+  (`now >= deadlineUs`) is checked before each changing step; an expired operation sends
+  nothing further and reports the confirmed and uncertain effects of earlier steps
+  ([communication practice](../../communication_practice.md) C10). Each family names the
+  deadline in its coverage rows and tests cumulative delay in which every reply meets its own
+  timeout but the deadline arrives before the trigger: no trigger TX.
+- **State transitions.** Before the first TX of enable, release, a stop, fault clear or a
+  mode change, the family defines from its own evidence a source-state and intent table:
+  which observed starting states (drive state, mode, fault, halt or quick-stop latch) admit
+  the sequence and with which first word, what a request for a state already reached returns
+  (without a shutdown or a power-stage or brake cycle), and which states refuse or need a
+  separate explicit operation. Not a fixed word script. Tests assert the first emitted frame,
+  or none, for every starting state and mode in the table.
 
 ### Console, help and JSONL (seam S6)
 
@@ -123,7 +152,8 @@ Commit tooling, core/profile and application/console changes separately, each te
   identifier plan, receive route and raw transmit kind, passed, with a plan admitting the
   family; for a CANopen family in the same domain, a recorded analysis of node IDs,
   configured COB-IDs, bitrate and NMT-broadcast and SYNC effects on both families.
-- Add sources to `MOTORCONTROLCAN_SOURCES` (the IDF component reuses it), an `install(FILES
+- From the first public header (stage 01, S7), in that same commit: add sources to
+  `MOTORCONTROLCAN_SOURCES` (the IDF component reuses it), an `install(FILES
   ...)` rule for `profiles/<family>/`, and headers and sources to `test/package_test.py`
   (`HEADERS`, exact archive set); `library.json` and `check_repository.py` `EXPORTS` stay
   unchanged. C++11 consumers of core only, Lichuan only, the family only and both. No
@@ -154,12 +184,30 @@ to the CL86-C nodes or opens COM15. Before a later bench step, derive the family
 forbidden-object and allowed-RAM lists from its ledger and establish board, transceiver,
 drive, firmware, wiring, node, bitrate and authorization.
 
+### First-contact questions
+
+A family's first-contact stage (its `12a` or `14a`, for example) qualifies a fixture; it never
+opens a gate. Each question records one executable evidence path: an existing production
+route that admits it at the stage where it runs (named, with its prerequisites); vendor or
+other applicable manufacturer evidence; or a separately assigned, isolated, independently
+reviewed experiment under the project's
+[conditional experiment prerequisites](../../device_conflicts.md#conditional-experiment-prerequisites).
+Such an experiment names its permitted actions (objects, widths, values, order), what is
+observed, the original-value snapshot taken before its first change, and its restoration
+boundary (what an explicit planned step restores, and what stays changed if that fails).
+Without such a path the question is NOT RUN, with the evidence it still needs. Never a raw
+console or frame bypass, a weakened or temporarily opened production refusal, or a presumed
+default as the restore value. An observation is that specimen's behavior.
+
 ## CANopen-only rules
 
 - Every SDO route runs through the real `CanBusOwner` and `SdoClient`. Native CANopen names
   stay native (`makeNmtRequest`, `checkNetworkEvent`, `validatePdoMap`, `prepareSync`,
   statusword and controlword fields). CiA 402 applies only where the family's own pages say
-  so; manual arrows are examples; an NMT stop is not a stop. Seam S8: a CiA 402 helper only
+  so; manual arrows are examples; an NMT stop is not a stop. General CANopen and CiA 402
+  background is the committed [principles pack](../../reference/canopen_principles/README.md)
+  (`e02ab04f`; its Kollmorgen AKD manual is remote-only, with no stored copy): secondary
+  evidence that never establishes a family object, capability or sequence. Seam S8: a CiA 402 helper only
   when both callers need identical, evidenced semantics. `nmt`, `heartbeat`, `network` and
   `sync` reach a family binding only when its evidence admits them.
 - Seam S10: a family route has a reviewed `SdoReuse` policy before its first admission;
@@ -169,9 +217,12 @@ drive, firmware, wiring, node, bitrate and authorization.
   Lichuan's. Tests on a two-family owner with no explicit configuration: a timeout, then a
   late reply on the family route send no marker, set no `acceptedCorrelation` and replay
   nothing; the Lichuan route keeps its default marker.
-- Seam S3, best-effort stop on an unresolved route, opt-in per binding: a non-Lichuan binding
-  has none until its family's reviewed exact shape (object, size, data, ledger review ID) is
-  set for it; a Lichuan binding keeps DEC-2's `6040:00=000B` and its terminal semantics.
+- Seam S3, best-effort stop on an unresolved route, opt-in per binding. Its default deny
+  lands in the S2 commit, before any further family's first binding can be admitted: through
+  the S2 lookup, a binding with no configured shape (every non-Lichuan family, an unresolved
+  profile) gets `INVALID` and no TX from `admitBestEffortStop`, also after a timeout and a
+  rebind. The family opts in its reviewed exact shape (object, size, data, ledger review ID)
+  later, in its stop stage; a Lichuan binding keeps DEC-2's `6040:00=000B` and its terminal semantics.
   `admitBestEffortStop` checks the transfer against the shape of its exact current binding
   and channel generation; another family's valid shape, no shape and a stale target return
   `INVALID` with no TX and no fallback word. Unchanged: one transmission at most; owner
@@ -179,6 +230,31 @@ drive, firmware, wiring, node, bitrate and authorization.
   matching-looking reply proves neither acknowledgement nor standstill; the route stays
   unresolved. Test each case and a matching late reply through `admitBestEffortStop`;
   Lichuan's existing best-effort tests stay unchanged.
+- Seam S13, SYNC effect admission, gates prompt 51's producer (`armSync` and each
+  `admitSync`) without forking it. Its approval covers the whole declared bus population, not
+  only the request target: per node, live NMT state and RPDO/TPDO communication and map state
+  (transmission type, COB-ID validity, mapped objects) read for the current binding, session
+  and configuration generation, and the family's reviewed SYNC effects. It refuses when an
+  effect is unknown or stale, and when a known effect is harmful or not authorized for the
+  requesting schedule: a pending synchronous RPDO that would apply staged command data at the
+  next SYNC, a watchdog or supervision fed on behalf of another application, a program start.
+  Remap, rebind, NMT reset or boot-up, a configuration generation change and owner
+  invalidation (bus-off and recovery included) revoke it, also while a schedule runs; only
+  fresh evidence requalifies. Refusal and revocation mean zero further SYNC TX; a frame already
+  handed to the controller is reported as possibly sent, never recalled, and disarming is not
+  a stop. Tests through the real producer with several nodes: known harmless (admitted);
+  unknown or stale (refused); known harmful on the target and on a node other than the target
+  (refused); remap, rebind and reset during a running schedule (no later SYNC TX). The landing
+  records this interface and these cases in the README table.
+- Seam S14, owner-admitted RPDO data transmission. The owner admits no PDO data frame today.
+  Cyclic modes and every operation fed by RPDO data consume S14 or stay `UNSUPPORTED`; no
+  family-local raw transmitter, and S9's raw transmit kind is not this service. The landing
+  defines and tests: binding to a route, a confirmed map and the target's identity and
+  generations, with the COB-ID reserved on the interface; coordination with S13 for
+  synchronous types; a lease after which a late setpoint is never sent; retirement of stale
+  queued setpoints on remap, rebind, reset and invalidation, with no replay; urgent stops
+  through SDO ahead of queued setpoints, never through an RPDO; bus-off and recovery with
+  possibly sent frames reported as uncertain. TX success is not drive acceptance.
 
 ## Other-protocol rules
 
@@ -193,8 +269,11 @@ drive, firmware, wiring, node, bitrate and authorization.
 
 ## Deliver
 
-S1, S2, S6 landed or extended, S7 landed under stage 01, S3 and S10 for a CANopen family; S4,
-S5, S9 consumed; README claims and commits updated. Inventory entry and guards; a real probe
+S1, S2, S6 landed or extended, with S3's default deny in the S2 commit; S7 landed under
+stage 01 with the first header's package entries; S10 and the family's S3 shape for a CANopen
+family; S13 and S14 landed or consumed where the family needs them, otherwise the dependent
+operations unsupported; S4, S5, S9 consumed; README claims and commits updated. Inventory
+entry and guards; a real probe
 (reviewed or explicitly accepted read effect, never a write) through API, application and
 console, the console part Blocked until S4; identity, refusal, multi-profile and package
 tests; documentation; report; PROGRESS row.
