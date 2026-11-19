@@ -1064,6 +1064,36 @@
         "14"
       ],
       "kind": "software"
+    },
+    {
+      "id": 77,
+      "file": "77_switch_ready_homing_limits.md",
+      "title": "Switch-ready limits and homing: input facts, limit admission, soft-limit state and deferred switch trials",
+      "depends_on": [
+        21,
+        36,
+        42
+      ],
+      "source_stages": [
+        "08",
+        "11"
+      ],
+      "kind": "software"
+    },
+    {
+      "id": 78,
+      "file": "78_receive_throughput.md",
+      "title": "Receive throughput up to the S2's practical limit",
+      "depends_on": [
+        54,
+        55,
+        56
+      ],
+      "source_stages": [
+        "12",
+        "14"
+      ],
+      "kind": "software"
     }
   ]
 }

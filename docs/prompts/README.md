@@ -1,4 +1,4 @@
-# MotorControl-CAN implementation prompts 1-76
+# MotorControl-CAN implementation prompts 1-78
 
 Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. A new implementation starts at [prompt 1](1_source_audit.md); this checkout resumes from [PROGRESS.md](PROGRESS.md), with the scoped software-candidate review at prompt50 and earlier Partial obligations retained. Names use `1_...md` through `76_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
@@ -64,6 +64,51 @@ The first implementation is Lichuan C over Classical CANopen. N5/EPOS4 are test-
 ## Repair audit
 
 The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8 in [packet 10](../reports/handoff_19_33/packet_10.md). It stays the source of its decisions and findings for prompts 33-50, and its W10 and W11 order still applies, as [COMMON.md](COMMON.md) item 5 states.
+
+## Owner absence: period plan and deferred steps
+
+The owner is away from 20 November to about 4 December 2026; the binding rules and the waiver are in
+[COMMON](COMMON.md#owner-absence-20-november-to-about-4-december-2026). Work runs in this order, one executor at a
+time, respecting each prompt's prerequisites. Each prompt ends as usual: checks, report, commit, push and CI on the
+exact commit for major work. Physical-only remainders get a "deferred: owner away" record and a row below, not a wait.
+
+| Period | Work, in order | Notes |
+| --- | --- | --- |
+| A | 78; the small software remainders of 18, 31, 32, 33 and 35; 57; 58 | 78 first, at the owner's request (2026-11-19) |
+| B | 59, 60 and 72 (pulse-rate admission first, so later runs have the S21 guard); the unattended remainders of 52 and 54; 73 | Velocity below 2.5 MHz pulse rate only |
+| C | 77 (B1-B4); 61, 62 and 63, software only; 64; 65 | 77's switch trials are deferred (O1-O4) |
+| D | 68 and 70 with their unattended S2 bench; 74; 75; 76 | 74's unplug is deferred |
+| E | 66 items 1 and 2 (soak under the waiver); 69 and 51 software; "deferred: owner away" records for 19-22, 27-30, 36, 38, 39, 47, 48, 67 and 71 | End with a baseline read: both drives stopped, released, latch-free, settings as at the start |
+
+### Deferred to owner return
+
+Executors add a row for each step that needs the owner and do not wait.
+
+| From | Owner action | Unlocks |
+| --- | --- | --- |
+| all | Power-cycle both drives, then a baseline read (identity, `2400`, `2201`, `2500`, `1017`, TPDO1) | Reverts RAM leftovers; clears any S20/S21 state; the post-absence baseline (77 O1) |
+| 19, 29 | Watch the fault LED around a `1003` read | H03/DEC-1 item, Q20 read effect |
+| 20, 33, 59, 60 | Shaft mark or tachometer over a +100,000-pulse move; watch the direction | Q04 scale, `2200`/Q03 direction, the 0.99 ratio, physical user units |
+| Prompt 21 | Meters on DO0..2 and DOCOM during one `2400:0E=4` write | P4, Q06 |
+| Prompt 22 | Phase-current probe and the motor's rated current | T1/T2, tuning writes |
+| 27, 47, 51, 54 | PCAN-USB on the bus as a listen-only observer | TWAI Q1/Q4, Q18, Q27, wire load and jitter, HM8 |
+| 27, 78 | PCAN-USB as a sender (DLC 9-15) and full-bus traffic generator | TWAI Q6; receive rate above about 2500 frames/s |
+| 28, 48 | Logic analyzer on GPIO17/18, the S pin and GPIO43 | Silent-start levels; cause of the console loss |
+| 30, 31, 35 | Independent torque, standstill and stop-distance observation | Release qualification, Q12, Q11 |
+| Prompt 32 | Count LED flashes on a natural alarm; shaft mark and cutoff for `2302` | Alarm identity, Q14 |
+| 36, 58, 77 | Emulated-switch trial (77 O2), then origin and limit switches on DI0..2 (77 O3) | Homing Q04/Q11/Q14/Q21, the homing record, limit trials (77 O4), `2202` Q05 |
+| 38, 61 | Node DIPs off and on with power cycles; DIP photos | Q16, `2203` precedence (N0-N3) |
+| Prompt 61 | Bitrate DIPs SW6/7 with a power cycle | Bitrate procedure B1 |
+| 39, 57, 61 | Attended `2300=2` save after a full backup, then a power cycle and torque check | Q15, 57's save proof, 61 S1-S4 |
+| Prompt 61 | `2300=1` with a recovery route or the vendor tool, at the owner's risk | 61 S5 |
+| 51, 54, 61 | RPDO map and start trials with a power cycle available afterwards | M09/Q28, trials a2/c, skew, M16, R1 |
+| 48, 54, 74 | Unplug one node, then return it | HM4, presence Degraded/Offline/Online, link loss |
+| Prompt 48 | OL86-C, CL57-C and OL57-C fixtures | Related-model baselines |
+| 62, 69, 71 | Wire the optocoupler stop line, watchdog IC, switches, relay, brake and LEDs; then the disconnect, MCU power-off and CAN-unplug trials | 62 item 5, 69 item 6, 71 item 3, 54 DI5/6 |
+| 67, 71, 76 | Deliver the ESP32-S3 (and other) boards with their facts | 67 items 1-5, 76 PSRAM, 71's S3 repeat |
+| Prompt 70 | Attended NMT Reset Node, or a natural power cycle | 70 item 3 |
+| Prompt 72 | Reproduce S21 deliberately, then power-cycle | 72 step 2 guard row |
+| Prompt 59 | Attend the probe above 3000 rpm, the position probe and the 25600 bisection | 59's attended remainder |
 
 ## Execution order
 
@@ -147,6 +192,8 @@ Prerequisites name the earlier results a prompt consumes, under the usable-prere
 | 74 | [Reference self-repair example: presence, retries, reconciliation and recovery](74_reference_self_repair_example.md) | 55, 57, 68, 73 |
 | 75 | [Runtime node table, monitor-only drives and a flexible bench](75_runtime_node_table.md) | 53, 70, 73 |
 | 76 | [PSRAM-aware storage placement, stacks and memory reporting](76_psram_storage_placement.md) | 53, 56, 75 |
+| 77 | [Switch-ready limits and homing: input facts, limit admission, soft-limit state and deferred switch trials](77_switch_ready_homing_limits.md) | 21, 36, 42 |
+| 78 | [Receive throughput up to the S2's practical limit](78_receive_throughput.md) | 54, 55, 56 |
 
 ## Completion and external blockers
 

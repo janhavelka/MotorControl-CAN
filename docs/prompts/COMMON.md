@@ -1,10 +1,56 @@
 # Common execution contract
 
-Every numbered prompt incorporates this contract and root [AGENTS.md](../../AGENTS.md). The active sequence is [SEQUENCE.json](SEQUENCE.json): work through its numbered prompts in numerical order within the assigned range, advancing to independent ready work when an earlier prompt is blocked as described below. Prompts 1-50 are the original sequence; 51-76 are explicit later additions, not prerequisites for claiming the original scoped software candidate. Historical 00-19 files in `archive/v1/` are traceability records, not additional assignments. Each current prompt is one complete work unit with its own tests, documentation and commit/sync gate.
+Every numbered prompt incorporates this contract and root [AGENTS.md](../../AGENTS.md). The active sequence is [SEQUENCE.json](SEQUENCE.json): work through its numbered prompts in numerical order within the assigned range, advancing to independent ready work when an earlier prompt is blocked as described below. Prompts 1-50 are the original sequence; 51-78 are explicit later additions, not prerequisites for claiming the original scoped software candidate. Historical 00-19 files in `archive/v1/` are traceability records, not additional assignments. Each current prompt is one complete work unit with its own tests, documentation and commit/sync gate.
 
 The prompt42 user instruction authorizes merging into `main` after its gates and
 continuing on `main` until version0 is finished, with no new branches. This takes
 precedence over the historical execution-branch instructions for that period.
+
+## Owner absence, 20 November to about 4 December 2026
+
+The owner is away and nobody can touch the bench. These rules follow MotorControl-RS decision D15
+(`docs/prompts/ess_wired_bench/COMMON.md` there) and override any text that asks for the owner, until the owner's return
+is recorded here. A drive that becomes unreachable or needs a power cycle stays lost for the rest of the absence.
+
+**Waiver.** On 2026-11-19 the owner chose this statement for the whole period: "Yes, unattended motion: Enables, moves, velocity runs and stops within the library's limits, with nobody at the bench; I accept the risk." Pass it verbatim with
+`s2_bench.py --unattended-waiver "<statement>" --waiver-covers-motion`. It is also the written waiver for unattended
+nights and soaks in this period (prompt 66). Observations only a person can make (shaft feel, direction against a mark,
+LEDs) are recorded as "not observed: owner away"; an enable uses the released start (`--released` or
+`--released-by-recorded-stop`), never a typed power-up shaft observation.
+
+1. **No waiting.** Ask the owner nothing and wait for nothing. A step that needs the owner (power cycle, cable pull,
+   wiring, switch, DIP switch, instrument, observation) goes into the
+   [deferred table](README.md#deferred-to-owner-return) with the exact action and the cases it unlocks; those cases are
+   NOT RUN with the reason "deferred: owner away". Continue with the rest; the prompt stays Partial.
+2. **Nothing persistent, no communication changes.** No `2300:00` write in any value (1 factory restore, 2 save); CL86-C
+   has no `1010`/`1011`. No `2203` node ID write (bitrate is DIP-only). No COB-ID write (`1005`, `1014`, `1200:01/02`,
+   `1400`-`1403:01`, `1800`-`1803:01`), no PDO map or inhibit write (`1600`-`1603`, `1A00`-`1A03`, `1400`-`1403:02/05`,
+   `1800:03`), no RPDO frame on `0x200+node`, no NMT Reset Node or Reset Communication, no NMT Stop to a moving drive. No
+   `250A`, `2500=0`, `2501`-`2520`, `605D`, `2202=1`, `60FE`, output functions `2400:0B`-`0F`, input filters
+   `2401`-`2407`, and no write to DI0..DI2 or of input codes 4 to 6 (prompt 77 rule 5). No mixed-protocol frames
+   (prompt 63 item 5). No eFuse burn.
+3. **Allowed in RAM, read back and restored in the same session:** `2201` below a 2.5 MHz command pulse rate
+   (rpm x `2201` / 60), `2500` 1 and 2 (no open-loop enable), `6060`, `6081`, `6083`, `6084`, `60FF`, `607A`, DI3..DI6
+   under prompt 77 rule 5, TPDO1 transmission type `1800:02` 1 and 255, the event timer `1800:05` 0 and 100, and the
+   heartbeat period `1017` (volatile, measured 2026-11-16; end at 1000 ms, the value at the start of the absence).
+4. **No state only a power cycle clears.**
+   - S21 enable-fault state: never run above about 2.5 MHz command pulse rate (never 3000 rpm at `2201=51200`; FF05
+     above about 2.6 MHz left every later enable faulting, [report](../reports/2026-11-13_enable_fault_state.md)).
+   - S20 enabled-and-halted state: read `2100` before every HALT run; clear the `0014`/`0015` latch a moving quick
+     stop leaves (mode 1 enable, then a stationary quick stop gives `0010`) before a HALT run.
+   - No synchronous RPDO start (it can inhibit every later SYNC), no TPDO1 remap, no mode 6 enable (no reviewed
+     quick-stop exit), no open-loop (`2500=1`) enable.
+   - Reset or flash the MCU only with both axes released and still.
+   If a drive still ends in such a state, stop motion on it, record it, leave it out of later cases and continue on the
+   other drive.
+5. **Snapshot discipline.** Before changing a setting, read it through its own route; restore it on the same node before
+   selecting the other node, flashing or ending the session, and read the restore back.
+6. **One lead at the bench.** One session alone holds COM15 and active CAN requests; workers do host work only.
+
+**Fixture at the start of the absence (2026-11-19).** S2 on COM15 (ESP-Prog2 `94A990398B40`) with image `d89fddd4`; both
+CL86-C drives powered, released and still, mode 1, NMT Pre-operational, TPDO1 type 255, heartbeat 1000 ms (RAM, until
+the next power cycle). The PC: sleep and hibernate off, USB selective suspend off, VS Code and extension updates manual,
+Windows Update paused until 2026-12-05.
 
 ## Read and prepare
 

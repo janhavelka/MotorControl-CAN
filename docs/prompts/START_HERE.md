@@ -1,6 +1,6 @@
 # Copyable execution assignments
 
-Use the [numbered index](README.md). Filenames use ordinary integers **1-76**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Resume the existing checkout from [PROGRESS.md](PROGRESS.md), not from prompt 1. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
+Use the [numbered index](README.md). Filenames use ordinary integers **1-78**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Resume the existing checkout from [PROGRESS.md](PROGRESS.md), not from prompt 1. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
 
 The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8. Read its decisions if an assignment touches prompt 33's finite lifecycle or prompts 34-50. COMMON item 5 applies to both assignments below.
 

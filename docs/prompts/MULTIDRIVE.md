@@ -80,6 +80,8 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 74 | The reference self-repair policy runs per node and per protocol; motion starts, enable, homing, save and NMT stay unretried for every profile, and retry classes come from each profile's operations. |
 | 75 | Each runtime node entry records its profile, role and expected product identity; a monitor-only node is observed passively, and no entry implies CANopen services for a protocol without them. |
 | 76 | Storage placement and capacity are profile-neutral; each profile's per-axis block reports its own size and placement, and no result transfers between chips or boards. |
+| 77 | Limit, origin and stop input functions, polarity, homing methods and soft-limit objects are per-profile facts; wiring declarations, limit admission and outcome names stay protocol-neutral, and no profile inherits another's limit reaction. |
+| 78 | Receive budgets, FIFO depth and per-frame owner cost are interface facts, independent of the drive profile; a projected rate names its measured per-frame cost and is not a profile capability. |
 
 ## Required contrasting test cases
 
