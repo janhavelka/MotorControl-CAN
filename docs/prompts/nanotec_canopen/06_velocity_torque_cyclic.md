@@ -18,10 +18,19 @@ deadlines, watchdog and measured transport requirements.
 2. Evidence: bit 10 with halt means target reached (606Dh window, 606Eh time) or
    standstill; bit 12 means speed zero (606Fh/6070h); bit 13 is slippage (60F8h,
    preset 400, over 203Fh; N5 p409). A speed-reached bit is not measured shaft speed.
-3. Finite duration is host intent: require nonzero `durationUs`, yield the stop at
-   expiry (HALT with 605Dh, or the caller's QUICK_STOP), and keep `needsStop` and
-   UNKNOWN execution when a lost reply or missed service prevents a confirmed stop.
-   A deadline never stops the drive by itself. No repeated start, no replayed stop.
+3. Finite duration is host intent, a timed run under canopen_shared 02 "Operation
+   admission" (the Lichuan finite-velocity design: nonzero `durationUs` from
+   successful preparation, refused at preparation unless duration plus the caller's
+   stop budget fits before the one operation deadline, every later transfer bounded
+   by the stop due time, `needsStop`, phase `STOPPING`). At stop due the run issues no
+   further work and the application composes its urgent stop: 04's `HALT` (010Fh
+   with 605Dh, 6061h 2-4) or `QUICK_STOP` (000Bh or 010Bh by the fresh bit 8,
+   605Ah), a separate `NOT_REPEATABLE` operation with its own deadline that the run's
+   deadline, identity outcome and a missing acknowledgement never bar. Both rows exist
+   for every state this run can reach (Operation enabled, halted or not, in 6061h
+   2-4); a run whose mode or state has no such row is refused before its first
+   changing TX. `needsStop` and UNKNOWN execution stay while any start word may have
+   left. A deadline never stops the drive by itself. No repeated start, no replayed stop.
    Follow [prompt 59](../59_velocity_range_direction.md) for range and direction
    facts, measured per profile.
 4. VL (6060h = 2; N5 pp76-77): 6042h is I16 rpm unless 604Ch changes it; ramps
@@ -39,12 +48,14 @@ deadlines, watchdog and measured transport requirements.
    preset 0064h is 10 % and limits PT by default (NT-D20): report it, never raise it
    implicitly.
 6. Admission: declared closed loop with a completed auto setup or the PD4-C factory
-   record, `Capabilities.torque` true, exclusive control, finite duration with a
-   yielded stop as in 06a, and active closed loop: a fresh 6041h in Operation enabled
+   record, `Capabilities.torque` true, exclusive control, a timed run with its urgent
+   stop as in 06a item 3, and active closed loop: a fresh 6041h in Operation enabled
    with bit 15 = 1 (N5 p348), sampled in the current server session after the last
    boot-up and after the last write to the motor and feedback objects (3202h, 3203h
    and 03's motor group), immediately before the mode change to 4 or the first nonzero
-   6071h. Configuration alone does not suffice: with encoder commutation and no auto
+   6071h. This check also governs the public mode transition: 04 item 6's host mode
+   table admits mode 4 only inside this operation and refuses enable with 6061h = 4,
+   so the generic mode select cannot bypass it. Configuration alone does not suffice: with encoder commutation and no auto
    alignment the drive stays in open loop until the index passes (N5 p53), and bit 15
    is meaningful only in Operation enabled. Absent, stale or contradictory evidence
    refuses before TX. 3202h bit 5 = 0 is torque-limited velocity with 6080h as
@@ -73,7 +84,8 @@ deadlines, watchdog and measured transport requirements.
    service budget ([prompt 56](../56_host_throughput.md)). No family-local raw
    transmitter and no S9 raw transmit kind substitutes for S14. Otherwise this block is
    delivered as ledger and coverage rows with `UNSUPPORTED` capability reasons and
-   no API.
+   no API, and 04 item 6's host mode table keeps modes 7-10 unavailable for mode
+   select and for enable with one of them active.
 
 ## Deliver
 
@@ -85,8 +97,12 @@ and `test/nanotec_canopen_torque_test.cpp`; console routes `nanotec velocity` an
 ## Acceptance
 
 Tests cover start and stop frames, direction and range at I32 and I16 limits,
-ramps in acceleration units, lost start, lost poll and lost stop, expiry with a
-yielded stop, priority stop, unknown terminal motion, PT refusal in open loop or
+ramps in acceleration units, lost start, lost poll and lost stop, the shared timed-run
+cases (a duration that no longer fits with the stop budget refused at preparation, a
+lost start reply, an observation in flight near stop due, service resuming after stop
+due, a queue-pressured urgent stop, the halted and unhalted stop words), priority
+stop, unknown terminal motion, PT selected through the generic mode select refused,
+PT refusal in open loop or
 with 3202h bit 5 = 1, PT on an enabled, configured closed-loop axis refused before
 and admitted after a fresh bit 15 = 1, and refused again with that evidence stale
 after a boot-up or a motor-settings write, per-mille limits and the 10 % preset

@@ -62,6 +62,24 @@ central. Follow the [commissioning guide](../../commissioning.md) and
      save's confirmed completion or its unknown terminal, the profile refuses every
      such start on the binding before TX; stops stay admitted and the save result
      records an overlapping stop.
+   - PDO persistence (NT-D09, item 7). Only whole categories are saved (N5 p110), and
+     the PDO objects belong to communication by the category list (N5 pp111-112) but
+     to application by the remapping procedure (p132), so a save of 1010h:01, :02 or
+     :03 persists whatever PDO configuration RAM holds. The PDO-persistence guard (on
+     by default, settable per binding, the pattern of [prompt 77](../77_switch_ready_homing_limits.md)
+     item 2; lead decision 2026-11-19 under the owner's engineering direction of
+     2026-11-17) admits such a save only when that configuration is the one loaded at
+     the last boot-up this owner observed on the binding (saved values reload at boot,
+     N5 p110): a boot-up observed in the current owner session, no PDO communication
+     or mapping write by this library since then and none unresolved, and no cfg.txt
+     (on C5-E and CL4-E a declared one, or no declaration, refuses, because cfg.txt
+     wins at boot, C5E p108, CL4E p106); otherwise these three saves refuse with
+     nothing sent. With the guard off the save is admitted on the rest of the gate,
+     and its result names the guard as off, states that a PDO map change may be
+     persisted (NT-D09) and carries the readback of 1400h-1407h, 1600h-1607h,
+     1800h-1807h and 1A00h-1A07h taken in the operation before the save. With the
+     single-master guard off the result says that another writer's PDO change is not
+     excluded. The other categories are unaffected.
    - One attempt; poll the subindex within the operation deadline. A timeout or lost
      reply leaves the stored state unknown and keeps the binding's conflicting work
      refused until a fresh read of that subindex returns 1 (no save running; the
@@ -79,9 +97,12 @@ central. Follow the [commissioning guide](../../commissioning.md) and
    refuses the save with nothing sent. The manuals do not say what a restored 6040h
    does at boot.
 7. PDO configuration belongs to communication 1010h:02 by the category list, while the
-   remapping procedure saves with 1010h:03 (NT-D09). Keep the PDO save gated until
-   vendor evidence or a separately assigned, reviewed experiment (12A Q11) shows which
-   category retains the map; the gate is never opened to run that experiment.
+   remapping procedure saves with 1010h:03 (NT-D09). No operation of this library
+   persists a PDO change until vendor evidence or a separately assigned, reviewed
+   experiment (12A Q11) shows which category retains the map. The gate is item 5's
+   PDO-persistence guard on the category write itself (1010h:01, :02 and :03), not a
+   request labelled as a PDO save; the guard is switched off only by the application,
+   which then owns that responsibility, and never to run that experiment.
 8. Restore and restart. 1011h:nn = 64616F6Ch discards saved data, effective after a
    restart; 1011h:01 keeps tuning, CANopen and Ethernet (N5 pp115-116). Restart with
    2800h:01 = 746F6F62h, optional delay 2800h:02 (N5 p115, p297), or NMT Reset Node;
@@ -117,7 +138,14 @@ replies with unknown activation, the save gate (refused for a coasting axis outs
 Operation enabled without the standstill declaration, for a measured nonzero 606Ch,
 for an operation in flight or unresolved, and for a start queued during the save),
 the application-category snapshot gate (an acceptance voided by a write, boot-up or
-generation change after it), the same gate on the 1010h:0Ah store, completion
+generation change after it), the PDO-persistence guard (on by default: 1010h:01, :02
+and :03 each refused with zero TX after a remap or COB-ID write, after an unresolved
+partial remap, with no boot-up observed in the owner session and with a declared or
+undeclared cfg.txt on C5-E or CL4-E; admitted after an observed boot-up with no PDO
+write; switched off for one binding: the same cases admitted, each result naming the
+guard as off, stating the possible PDO persistence with NT-D09 and carrying the map
+readback taken before the save, another binding still guarded; a 1010h:04-06 save
+unaffected), the same gate on the 1010h:0Ah store, completion
 by readback of 1, timeouts and a lost reply during a save (conflicting work refused
 until a read returns 1), post-save error checks, restore without
 restart, restart invalidation, 1020h interpretation (no baseline, zero, a matching

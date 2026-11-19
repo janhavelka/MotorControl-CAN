@@ -12,8 +12,9 @@ documentation only (canopen_shared 01: no source change). No hardware is needed.
    open every listed symbol with its callers and mark it confirmed, changed or absent.
    Classify each row for Nanotec. Expected needs, to confirm against the current
    seam table claims and Git log (this family may land them first): S7 with the first
-   header's package entries in 02; S1, S2 (with S3's default deny in the same commit),
-   S6 and S10 in 02b; the Nanotec S3 shape and S8 in 04; S13 in 09; S11 in 09b; S14
+   header's package entries in 02; S1, S2 (with S3's and S13's default deny in the same
+   commit), S6 and S10 in 02b; the Nanotec S3 shape and S8 in 04; S13's Nanotec SYNC and
+   NMT effects in 09; S11 in 09b; S14
    only if 06c is assigned. S12 is not needed (a
    heartbeat consumer is documented; guarding stays BLOCKED, 09b). S4 and S5 are
    consumed from prompts 64 and 65. S9 is not needed (same CANopen domain as

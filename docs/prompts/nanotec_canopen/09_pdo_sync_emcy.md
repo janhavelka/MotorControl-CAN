@@ -32,7 +32,9 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    count, valid bit 0, each step confirmed, in Pre-operational, with retained partial
    effects and no invented rollback. Saving is not part of remapping: the procedure
    says 1010h:03 while the category list puts PDO objects in communication 1010h:02
-   (N5 pp111-112, p132; NT-D09); stage 10 keeps the PDO save gated until resolved.
+   (N5 pp111-112, p132; NT-D09); until it is resolved, stage 10's PDO-persistence
+   guard (on by default) refuses every category save that could persist a PDO change
+   (10 items 5 and 7).
    FIR-v2538 adds 2007h:02 "Automatic COB-ID", default 1, undocumented (NT-D02): on
    that row COB-ID writes refuse through stage 13's `FIR2538_AUTOMATIC_COB_ID` gate,
    and maps and COB-IDs are always taken from readback.
@@ -59,6 +61,27 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    during a running schedule. 1006h, 1007h (synchronous window, late PDOs
    rejected with EMCY, N5 p166) and 1019h are read and reported. The manual's SYNC
    figure shows CAN-ID 80h + node (N5 p119) against 1005h = 80h (NT-D07): use 80h.
+
+   The NMT part of the same S13 rule replaces 02b's default deny for Nanotec nodes: a
+   node-0 NMT command on an interface with a Nanotec binding is admitted at the
+   owner's NMT admission only when every declared node's effect is known and admitted;
+   an unlisted effect or unread or stale evidence refuses with zero NMT TX. This
+   family's per-command effects, from fresh reads of the current binding, session and
+   configuration generation:
+
+   | Command (N5 p119) | Effect on a Nanotec node | Admitted on that node only when |
+   | --- | --- | --- |
+   | 01h Start | PDO becomes active (N5 p118): valid RPDOs apply received data, and RPDO1 maps 6040h and 6060h by default (N5 p131) | Fresh maps show no valid RPDO mapping a command object (04b item 1's list), or 04b item 1's RPDO row admits for that node |
+   | 80h Enter Pre-operational | PDO stops; SDO, SYNC and EMCY stay active (N5 p118); no page gives the drive's reaction to the lost RPDO data | Fresh maps show no valid RPDO mapping a command object |
+   | 02h Stop | Only NMT stays active (N5 p118): no SDO stop or EMCY can reach the node, and no page gives a motion reaction (an NMT Stop is not a quick stop) | A fresh CiA 402 state without torque at the motor (not Operation enabled, Quick stop active or Fault reaction active, N5 p57) |
+   | 82h Reset Communication | CANopen settings reset and communication restarts (N5 p119); boot-up and item 8's invalidation follow | A fresh state without torque, as for Stop |
+   | 81h Reset Node | Complete restart (N5 p119): saved values reload (N5 p110), a saved 6040h or 6060h included (N5 pp112-113); 1F80h = 8 enters Operational (N5 p250); whether a stored NanoJ program then starts is unknown (NT-D32) | Never while NT-D32 is open: the effect is unknown |
+
+   Admitting any NMT command that can change an evaluated node's NMT state revokes the
+   SYNC approval before the command is sent (canopen_shared 02 S13). A targeted NMT
+   command to a Nanotec binding remains its own changing request (prompt 57 "Identity
+   policy": never a stop; `MOTION_LIKE`) with its own admission and evidence; this
+   table governs node 0.
 7. EMCY (N5 pp120-121, pp161-165): 80h + node; error code, 1001h, manufacturer error
    number, padding; an error-cleared EMCY "00 00 E-REG E-Number" when no error
    remains. Decode with the N5 error-number table (watchdog reset 0, fieldbus 4,
@@ -96,6 +119,11 @@ readiness only from a later identity read. S13 through the real producer with se
 Nanotec nodes (canopen_shared 02 S13 cases): known harmless admitted; unknown or stale
 refused; a valid synchronous RPDO mapping a command object refused on the target and
 on a node other than the target; remap, rebind and reset during a running schedule
-with no later SYNC TX; the landing or extension recorded with its tested interface and
-these cases in the canopen_shared README table. Quick and full
+with no later SYNC TX; a targeted and a broadcast Start while a Pre-operational node
+holds a synchronous RPDO (approval revoked before the Start, no later SYNC TX). Node-0
+NMT through the real owner's NMT admission with several Nanotec nodes: each command
+admitted only under its row's condition on every node; an unlisted command, unread or
+stale evidence, Reset Node, and a harmful effect on a node other than the target each
+refused with zero NMT TX. The landing or extension is recorded with its tested
+interface and these cases in the canopen_shared README table. Quick and full
 verification and CI on the exact final pushed commit pass. Hardware NOT RUN.

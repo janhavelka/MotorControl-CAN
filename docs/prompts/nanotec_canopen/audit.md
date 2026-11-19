@@ -79,3 +79,77 @@ cannot run through an admitted production operation.
   prompts, progress reports, sibling revisions, scripts and workflows were not supplied.
 - No Nanotec fixture record, service budget or traffic evidence existed; no build,
   checker, test, CI job or hardware procedure was run.
+
+## Round 2: audit of the revised promptset, 19 November 2026
+
+A condensed, faithful copy of the second report; untrusted reviewer input like round 1.
+The verified dispositions are in [audit_application.md](audit_application.md), "Round 2".
+Line numbers refer to the files at the audited revision, before round 2 was applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-184316-126cde` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~175034 tokens)") |
+| Date | 2026-11-19 18:43:16 (from the ID), 224.1 s, one attempt |
+| Revision | `main` at `edcf9621a1f5f598ca77d5e9261f885b7946f601`, no uncommitted changes recorded; this set's files are byte-identical at `a7656efb` |
+| Cost | Estimated USD 0.38 (0.380494, configured pricing); 137,277 input and 10,594 output tokens (4,100 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-184316-126cde.json` (local) |
+| Location checks | 38 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 21 files of this set after round 1 (`README.md` 150 lines,
+sha256 `ee9492f7...`; `execution_contract.md` 224, `53c41303...`; `audit.md` and
+`audit_application.md`; stages 01 to 13). Context: canopen_shared `README.md` (81,
+`d7ca1b63...`), `02_profile_integration_contract.md` (289, `9afe3979...`) and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md`
+and `review.md` (380, `7deb2d9b...`), prompt 57 (194, `6190b377...`); project
+instructions `AGENTS.md`, `CLAUDE.md`. The cross-cutting revision `a7656efb` of the
+shared contract and prompt 57 came after this audit.
+
+**Summary.** Round 1's sequencing problems are fixed: S3 defaults to deny before the
+first binding, the exclusive-control predicate and supervision snapshot exist before
+enable, and the first generated headers carry their package entries. The set is still
+not ready to execute unchanged: some mode and stop paths bypass or conflict with their
+own admission rules, the firmware gates do not consistently reach the operations that
+depend on them, and a category save can persist PDO settings despite the stated gate.
+Independent ledger, packaging and read-only work can proceed.
+**Verdict:** blocking issues, localized to changing operations and their acceptance
+gates; resolve the contradictory stop rules, the auto-setup exceptions and the
+whole-category save, and test the actual owner admission paths before exposing them.
+
+### Round 2 findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The S13 work order covers SYNC but does not make mixed-bus NMT broadcast admission executable.* Shared S13 applies to every node-0 NMT command on a mixed interface; 09 specifies and tests only SYNC effects, and 11's written broadcast analysis does not gate the owner's NMT path or prove zero TX on refusal. Consume S13 at the owner's mixed-interface NMT entry point, supply Nanotec's per-command effects and evidence or refuse broadcasts until they exist; real-owner tests for unknown or stale evidence and an unauthorized effect on a non-target node, zero NMT TX on refusal; keep targeted NMT separate. | shared 02:233-234; 09:46-47; 11:33-35 |
+| F2 | High, verified defect, high | *Regular mode select and enable do not enforce the later mode-specific gates.* 04 selects a mode in Operation enabled on 6502h and capability checks alone (PT on configured closed loop) while 06b needs fresh active closed loop before the change to PT; enable needs only a known mode and does not separate advertised cyclic modes from those withheld pending 06c. A supported-mode bit is no host admission. Consume an explicit host admission table for mode select and enable in a selected mode, default undelivered modes to unavailable, enforce 06b's rule at the public mode transition, keep cyclic activation unavailable until 06c's gates pass; test the generic routes. | 04:26-27, 72-74; 06:45-47, 74-76 |
+| F3 | High, probable defect, high | *Auto setup has no specified transition path through its own mode and authority guards.* It selects -2 and enables, yet mode select refuses -2, the predicate refuses once -2 is active, and auto setup advances the control-path generation before its first TX. Reusing the public actions is refused; bypassing them has no operation-local admission, source-state table or handling of a partial mode change; a possible persistent change after a lost trigger reply is not distinguished from a confirmed save. Specify an auto-setup-only sequence or keep it blocked: admissible initial state, authorization scope after the generation change, stop, timeout and fault behavior per step, coordinate invalidation no later than the trigger, ordinary control inhibited across uncertainty; test a lost mode-change and a lost trigger reply. | 04b:35, 38-40, 74-78; 04:71-73 |
+| F4 | High, verified defect, high | *FIR-v1650's missing Plug & Drive object turns a feature gate into a broad control lockout.* 13 omits absent objects, yet its Plug & Drive row makes 04b's predicate depend on a 2290h read that aborts, so skipping it leaves the predicate without an admitting value and ordinary enable, motion and settings are refused on old firmware. Bit 15 is read as "active" in 03 although 13 records "available" on FIR-v1650. Use a firmware-scoped applicability state (evidence-backed absence versus unread, aborted or unsupported), decide absence explicitly in the predicate, block only the dependent operation otherwise, dispatch bit 15 the same way; test an ungated FIR-v1650 operation without a 2290h upload, refusal on a merely unread observation, the legacy bit 15. | 13:24-27, 46, 48; 04b:11-14; 03:55-56 |
+| F5 | High, verified defect, high | *The Nanotec identity rule does not reconcile its blanket refusal with prompt 57's explicit-stop exception.* The contract and 03 refuse dependent work and keep only identity reads, while prompt 57 keeps reviewed stops and state reads after contradiction; 04's "stops need no exclusive control" settles neither identity admission nor the fresh state its stop table needs. State which parts of prompt 57 are common, reconcile the exemption, enumerate the state reads and stop paths that stay admitted and their evidence, name any refusal and the need for an independent stop path; test both stop entry points under contradiction with no unrelated write. | contract:97-98; 03:87-88; prompt 57:101-104; 04:56-58 |
+| F6 | High, verified defect, high | *The stop rules leave both halted and unresolved source states underspecified.* No stop clears HALT bit 8, yet the table sends 000Bh (bit 8 clear) from Operation enabled, where HALT may be set, and the pages do not say how quick stop and halt removal are prioritized. The unresolved S3 path checks only shape, binding and channel generation, which establishes no predecessor. Add rows for a halted predecessor and an unresolved route; say whether quick stop may supersede HALT with device evidence or refuse; for S3 define sufficient current state evidence or keep the shape disabled; test halted, wrong-state and unknown-state paths. | 04:52-56, 86-90; shared 02:114-116 |
+| F7 | High, verified defect, high | *A whole-category save can bypass the unresolved PDO persistence gate.* 10 gates "the PDO save" because the sources disagree on the map's category, but exposes the implicated category saves and save-all; Q11 changes a non-PDO value and saves 1010h:02, which saves the whole category. A map changed before the session or left uncertain by a partial remap is not excluded. Gate the category write: require evidence that it cannot persist a PDO change or block it and Q11's route; zero-write tests for a changed map and an unknown persisted baseline, save-all included. | 10:45-47, 81-84; 12a:42; review:248 |
+| F8 | High, probable defect, high | *Finite velocity and torque do not reserve a dispatch interval for the stop.* 06 yields the stop at duration expiry while the shared contract forbids changing steps at the deadline; the duration anchor, its relation to the deadline and the yielded stop's admission are undefined, so a request can start with no legal opportunity to stop. Define the anchor, separate run expiry from the deadline, validate a stop budget and the stop's admissibility before the first changing step, or specify an independently admitted urgent stop; test delayed start, queue saturation, service resuming at the deadline and a lost start reply. | 06:21-24, 41-43; shared 02:107-109 |
+| F9 | Medium, verified defect, high | *First-contact Q2 and Q13 name read routes that do not deliver all their observations.* Q2 needs 2007h:01 and 2084h, absent from 03's plan, and 09 adds no typed uploads; Q13 names only 03 but needs the FIR-v2538-only 2007h:02 and the PDO COB-ID readback that 09 owns. Assign typed read plans in the owning stages and make Q2 and Q13 wait for them, or mark the observations NOT RUN; test omission where an entry is absent. | 12a:33, 44; 03:41; 09:82-83 |
+| F10 | Medium, verified defect, high | *Registration invokes identity-refusal acceptance before delivering the identity verdict.* 02b applies the shared registration acceptance but delivers a probe without identity conclusion; its cross-family tests check the binding, not a correct label with a wrong, missing, ambiguous or stale device. Deliver the minimum verdict with real-owner refusal tests, or split acceptance explicitly: 02b proves probe and binding with dependent writes unavailable, 03 closes the identity gate before any write is callable. | 02b:4-7, 48-50; shared 02:72-74, 284-285 |
+
+### Round 2 unresolved questions
+
+1. Can the Nanotec boot loader answer the identity read, and what positive observation
+   distinguishes firmware readiness when the later firmware boot-up is missed? Stage 09
+   no longer counts boot-ups, but an identity reply after the last observed boot-up
+   proves readiness only if it cannot come from the boot loader.
+2. What evidence bounds heartbeat delivery at the drive rather than owner service, and
+   does the producer check stay valid until the queued 1016h write is dispatched? The
+   period-plus-service-gap check suffices only if the measured bound covers TX and
+   delivery delay under load, and producer evidence can expire while the write waits.
+
+### Round 2 coverage gaps (reviewer's)
+
+- The rendered manuals, EDS and OD XML files, manifest and package index were not
+  supplied; device constants and cross-model applicability were not verified against
+  primary sources.
+- The repository index was truncated; owner, CANopenNode, TWAI, application, checker,
+  packaging, verifier and workflow sources and the Git state were not supplied.
+- The parent Projects instructions, the shared audit application, current progress and
+  prompts 51, 56, 64, 73 and 77 were not supplied.
+- No Nanotec fixture, raw capture, measured service budget or electrical timing
+  evidence existed; no build, checker, test, CI job or hardware procedure was run.

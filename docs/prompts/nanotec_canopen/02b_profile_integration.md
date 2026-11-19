@@ -5,9 +5,11 @@ Status: NOT STARTED. Runs after 02. This is the stage that registers the profile
 registration acceptance of the
 [profile integration contract](../canopen_shared/02_profile_integration_contract.md)
 applies here and at each later major change; its standing rules bind every code
-stage. Claim, then land or extend seams S1, S2 (with S3's default deny in the same
-commit), S6 and S10; commit tooling, core/profile and application/console changes
-separately, each tested.
+stage. This stage delivers no identity outcome (03 does), so it uses that
+acceptance's split for registration without one (see Acceptance). Claim, then land
+or extend seams S1, S2 (with S3's and S13's default deny in the same commit), S6 and
+S10; commit tooling, core/profile and application/console changes separately, each
+tested.
 
 ## Work
 
@@ -43,7 +45,14 @@ separately, each tested.
    route and after a rebind, each `INVALID` with zero TX; a Nanotec-looking
    `6040:00=000B` transfer on a Nanotec binding is still refused (the shape is
    checked per binding, not by bytes); Lichuan's DEC-2 best-effort tests unchanged.
-   The Nanotec shape is opted in by 04 item 8.
+   The Nanotec shape is opted in by 04 item 8. S13's default deny lands in the same
+   commit (canopen_shared 02 "CANopen-only rules", S13; claim or extend as for S3):
+   through the S2 lookup, on an interface with a Nanotec binding prompt 51's producer
+   refuses `armSync` and `admitSync` and the owner's NMT admission refuses node-0 NMT
+   until 09 lands the Nanotec SYNC and NMT effects. Tests: with a Nanotec binding on the
+   interface, `armSync`, `admitSync` and a node-0 NMT command each refused with zero
+   TX; a schedule already running when the binding is admitted revoked first, with no
+   later SYNC TX; a Lichuan-only interface unchanged.
 3. Probe. `prepareProbe`/`checkProbe` in `profiles/nanotec_canopen/Reads.h`: one
    expedited upload of 1000h:00, whose read effect stage 02 reviewed. It proves a
    responding CANopen server only. No write, no NMT, no identity conclusion; the
@@ -89,16 +98,21 @@ package entries landed in 02 item 10 extended in the same commit as `Reads.h`: i
 source in `MOTORCONTROLCAN_SOURCES`, the header and source in `test/package_test.py`
 `HEADERS` and archive set, the install rule covering it, and the four C++11 consumers
 using it (`library.json` and `check_repository.py` `EXPORTS` stay unchanged). Update
-the canopen_shared README claim and landed columns for S1, S2, S3 (default deny), S6
-and S10.
+the canopen_shared README claim and landed columns for S1, S2, S3 (default deny), S6,
+S10 and S13 (default deny).
 
 ## Acceptance
 
 The probe runs through the API and the application via the real `CanBusOwner`,
 `SdoClient` and the fake server, and through the console once S4 lands; TX frames and
-terminals are compared literally. Tests cover foreign-profile refusal without TX in
-both directions, the S3 default-deny cases of item 2 (no best-effort stop TX on any
-Nanotec binding at this stage), abort
+terminals are compared literally. Registration delivers no identity outcome, so
+under canopen_shared 02 "Registration acceptance" this stage shows instead that
+every identity-dependent write and motion route is unavailable on a Nanotec binding
+with zero changing TX (none is callable yet); the identity refusal tests land with
+03 before any such route becomes callable, and the probe runs only the 1000h:00 read
+whose effect 02 reviewed. Tests cover foreign-profile refusal without TX in
+both directions, the S3 and S13 default-deny cases of item 2 (no best-effort stop,
+SYNC or node-0 NMT TX on an interface with a Nanotec binding at this stage), abort
 versus malformed reply, timeout and late identical reply, stale generation, retained
 results, cancel that is not a stop and no replay after a lost reply. A Lichuan axis
 and a Nanotec axis run on separate fake interfaces (owner and transport each) with

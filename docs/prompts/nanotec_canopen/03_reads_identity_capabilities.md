@@ -9,15 +9,18 @@ interpretations. Reads change nothing; a successful read never qualifies a devic
 1. `prepareIdentity`: 1000h, 1008h, 1009h, 100Ah, 1018h:01-04 and 4040h (serial
    string). Use segmented upload for strings; if the selected backend path cannot,
    use the per-character subindex form only where N5 p123 documents it. Publish raw
-   values first, then the identity verdict of the execution contract: qualified row;
-   firmware or hardware unqualified (FIR-v1650 06720000h, FIR-v2538 09EA0000h, CL4-E
-   FIR-v2315 090B0000h, an unlisted build, a missing or out-of-range hardware
-   declaration), with the declared and observed identities and the row's behavior
-   gates (13); or product contradiction (1000h, 1018h:01 or 1018h:02 against the
-   declared model, prompt 57 "Identity policy"). Only a product contradiction blocks
-   every dependent operation, leaving the identity reads; an unqualified verdict
-   blocks only its gated operations, and objects its evidence says are absent are
-   not requested. Report the 1018h:03 high word as a decimal number labelled
+   values first, then the identity verdict of the execution contract. Its product
+   part is [prompt 57](../57_regular_drive_operations.md) "Identity policy"'s outcome
+   (CONFIRMED, UNCONFIRMED or CONTRADICTED over 1000h, 1018h:01 and 1018h:02, from the
+   declared model, the application's candidate set and this set's references in 02
+   item 5), and every Nanotec operation is admitted by prompt 57's "Admission by
+   outcome" with its stop exemption (04 item 4); this set adds no identity refusal.
+   Its firmware and hardware part names the row: qualified, or unqualified
+   (FIR-v1650 06720000h, FIR-v2538 09EA0000h, CL4-E FIR-v2315 090B0000h, an unlisted
+   build, a missing or out-of-range hardware declaration) with the declared and
+   observed identities and the row's behavior gates (13). An unqualified row refuses
+   only its gated operations, and objects its evidence says are absent are not
+   requested (13, applicability). Report the 1018h:03 high word as a decimal number labelled
    "inferred firmware number", never as a gate. The verdict is held in an
    application record keyed to binding, generation and server session, and is
    invalidated by boot-up, NMT reset, bus-off or controller restart, rebinding, a
@@ -45,15 +48,23 @@ interpretations. Reads change nothing; a successful read never qualifies a devic
    - Control paths: 2290h, 2292h, 2300h, 2301h, 2302h, 60F2h, 4015h:01/02 on PD4-C,
      and the RPDO valid bits, transmission types and mapping entries (1400h-1407h:01
      and :02, 1600h-1607h) as raw observations.
+   - Boot: 2007h:01 (boot-loader boot-up, N5 pp251-252) and 2084h (boot-up delay,
+     p275); 2007h:02 "Automatic COB-ID" only on the FIR-v2538 row, whose EDS defines it
+     (NT-D02), and never requested on another row. 12A Q2 and Q13 use this group.
    - Limits and modes: 607Dh, 607Bh, 3240h, 6502h, 6060h, 6098h; 1020h stamp.
    An object absent from the declared model's scope is not requested and reports
-   "not in model". 2005h is decoded per NT-D04: 81h-86h and 88h as documented,
+   "not in model"; one that the firmware row's evidence says is absent reports "not
+   in this generation" (13, for example 2290h and 2292h on FIR-v1650). An aborted or
+   failed upload of an object that should be present is unread, never absent. The
+   ledger (02) reviews every read effect of these groups. 2005h is decoded per NT-D04: 81h-86h and 88h as documented,
    78h and 87h raw with both source claims.
 4. `prepareState`: 6041h, 6061h, 6064h, 606Ch, 603Fh, 1001h, 60FDh and 2301h. Decode
    the CiA 402 state with the masks of N5 p58 (004Fh and 006Fh forms) and keep the
    raw word. Nanotec bit meanings stay profile-local: bit 9 "Remote" is always 1 and
    proves no control (NT-D26); bit 15 means closed loop active and is meaningful only
-   in Operation enabled (N5 p53, p348); bits 10-13 are mode specific and are decoded
+   in Operation enabled (N5 p53, p348), except on the FIR-v1650 row, where it meant
+   "closed loop available" (FWUPD p13) and is reported under that name, never as
+   active (13); bits 10-13 are mode specific and are decoded
    only with the mode that was active when the word was sampled.
 5. Capabilities. The caller supplies `Capabilities` (`MotorKind::STEPPER` or `BLDC`,
    `FeedbackKind::NONE`, `ENCODER` or `HALL`, position, velocity, torque, brake,
@@ -81,12 +92,20 @@ Lichuan `Reads` is a structural example only; no Lichuan field or decision is re
 
 ## Acceptance
 
-Tests cover exact read plans per model scope, absent-object handling, string
+Tests cover exact read plans per model and firmware scope (2007h:02 requested only on
+the FIR-v2538 row, 2290h and 2292h not requested on FIR-v1650), absent-object
+handling, an abort of a present object reported unread rather than absent, the
+FIR-v1650 bit 15 reported as "closed loop available", string
 uploads, every identity verdict including the three named unqualified rows with
 their gates, an unlisted build, missing and below-minimum hardware declarations with
-an otherwise matching electronic identity (reported unqualified, nothing refused), a
-product contradiction (dependent work refused, zero writes, identity reads only),
-both PD4-C codes, the
+an otherwise matching electronic identity (reported unqualified, nothing refused),
+both PD4-C codes, the identity cases of canopen_shared 02 "Identity and device
+evidence" on the admission check that every later write and motion route calls
+(another family's server, missing, unmatched and stale after boot-up or rebinding
+refuse; an ambiguous match that includes the declared model admits and names every
+matching model; bootstrap identity and state reads stay admitted). These close the
+identity gate that 02b left unavailable; each later stage adds the zero-TX refusal of
+its own routes, and 04 the stop exemption. Further cases: the
 `Supervision` snapshot with factory values reported as unsupervised, contradiction
 refusals for each capability rule,
 1003h-style empty aborts, malformed and partial sequences, deadlines, stale

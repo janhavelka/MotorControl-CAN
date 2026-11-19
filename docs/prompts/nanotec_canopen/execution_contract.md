@@ -92,10 +92,18 @@ contract, they apply in addition to it; they never relax one.
   the full 32-bit 1018h:03 and the 100Ah build string of the row; and the declared
   hardware revision within the row's range. The high word of 1018h:03 equalling the
   firmware number is an inference (review section 4); report it, never gate on it.
+- Product identity follows [prompt 57](../57_regular_drive_operations.md) "Identity
+  policy", the policy of every CANopen family (canopen_shared 02 "Identity and device
+  evidence"): its outcomes over 1000h, 1018h:01 and 1018h:02 with this set's
+  references, its "Admission by outcome" (no declared-model match, CONTRADICTED or no
+  current outcome refuses vendor-object downloads and every changing request with
+  nothing sent; bootstrap identity and state reads stay admitted) and its stop
+  exemption, which here covers 04's reviewed `HALT` and `QUICK_STOP` and, once opted
+  in, the S3 shape, each with its own checks (04 item 4). Release, fault reset, mode
+  select, NanoJ stop, Plug & Drive off and every NMT command are changing requests,
+  never that stop. This set refuses nothing more on identity.
 - No firmware lock (lead decision 2026-11-19; the owner's product direction of
-  2026-11-12; [prompt 57](../57_regular_drive_operations.md) "Identity policy"). A
-  product identity that contradicts the declared model refuses dependent work with
-  nothing sent, as prompt 57 defines; reads stay limited to the identity read plan.
+  2026-11-12; prompt 57 "Identity policy").
   A firmware or hardware identity outside the qualified row (FIR-v1650, FIR-v2538,
   CL4-E FIR-v2315, an unlisted build, a missing or out-of-range hardware declaration)
   never refuses by name: operations run as firmware or hardware unqualified, every
@@ -104,7 +112,8 @@ contract, they apply in addition to it; they never relax one.
   refuses, through a named behavior gate of [stage 13](13_firmware_and_model_rows.md)
   (for example FIR-v1650 lacks 1016h, 1F80h, 3701h and 6007h, so the host-loss setters
   and the limit-switch reaction refuse there). Objects that evidence says are absent
-  are not requested. Models without a stored EDS scope (CL4-E -5VDI, the other PD4-C
+  are not requested, and their consumers decide on that absence explicitly; an unread
+  or aborted object is never treated as absent (stage 13). Models without a stored EDS scope (CL4-E -5VDI, the other PD4-C
   steppers) are a model-scope question, outside the scope until stage 13 stores their
   EDS.
 - 1009h is "0" (NT-D29): hardware revision is a caller declaration from the
@@ -131,8 +140,10 @@ contract, they apply in addition to it; they never relax one.
 - Per binding, a Nanotec route has SDO reuse policy `NONE` until its markers are
   reviewed (S10, 02b) and no best-effort stop until its reviewed shape is set: S3's
   default deny lands in 02b's S2 commit, before the first Nanotec binding can be
-  admitted, and the Nanotec shape is opted in by 04. Lichuan's DEC-1 markers and DEC-2
-  word never become Nanotec defaults.
+  admitted, and the Nanotec shape is opted in by 04. S13's default deny (no SYNC
+  production and no node-0 NMT on an interface with a Nanotec binding) lands in the
+  same commit and holds until 09 supplies the Nanotec SYNC and NMT effects. Lichuan's
+  DEC-1 markers and DEC-2 word never become Nanotec defaults.
 - Console routes and API/CLI parity tests named in 02b-11 are Blocked until S4 lands
   (canopen_shared README, "Seams"; [open question](README.md#open-questions) 1). The
   stage delivers its API and owner tests, records the console part as Blocked, and is

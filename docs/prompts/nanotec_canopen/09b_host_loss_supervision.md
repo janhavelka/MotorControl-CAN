@@ -57,7 +57,11 @@ the Nanotec facts below are this profile's own.
    recovery or reconfiguration since), its host node ID equal to the 1016h:01 producer
    field (bits 16-23) and reserved, and the consumer time above the producer period
    plus the application's measured worst service gap ([prompt 56](../56_host_throughput.md));
-   absent, wrong-node, stale or interrupted evidence refuses with nothing sent. The
+   absent, wrong-node, stale or interrupted evidence refuses with nothing sent. A bound
+   on heartbeat delivery at the drive (TX queueing and arbitration under load, not
+   only owner service) and a recheck of the producer status at the 1016h TX rather than
+   only at admission are an open request on seam S11 (canopen_shared README, S11 row;
+   audit application round 2, question 2). The
    result keeps configured, transmitting and physically demonstrated drive reaction
    separate (only 12A Q10 can show the last); no motion requires supervision
    (item 4). If no family has claimed S11, this stage claims it in the canopen_shared README table and lands it

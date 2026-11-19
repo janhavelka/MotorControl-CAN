@@ -93,3 +93,77 @@ stored EDS (CL4-E -5VDI, the other PD4-C steppers) stay outside the scope until 
 
 `python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
 clean for it. Nothing was compiled; no hardware or port was used.
+
+## Round 2: application of audit `aud-20261119-184316-126cde`, 19 November 2026
+
+Each finding of the [round 2 audit](audit.md) was checked against this set's files
+(unchanged from the audited `edcf9621` to `a7656efb`), the
+[reference review](../../reference/nanotec_canopen/review.md), the original pages where a
+device claim is involved (the page-marked extracts of N5 3.3.0 in the multidrive pack and
+of the N5 2.0.3 (FIR-v1650), FIR-v2039 update and PD4-C 3.3.0 documents in this pack), and
+the shared contract and prompt 57 as revised in `a7656efb`
+([canopen_shared audit application](../canopen_shared/audit_application.md), "Round 3",
+themes 1 to 6). Findings F1, F5, F6 (S3 part), F8 and F10 are those themes: the Nanotec
+stages now consume the shared rule by citation and add only Nanotec facts. F2, F3, F4,
+F6 (halt part), F7 and F9 are family-specific. Only files in this directory changed;
+nothing was compiled and no port was opened.
+
+Dispositions: 10 accepted (F1-F10), none accepted in part, rejected or deferred.
+
+### Round 2 findings
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 S13 node-0 NMT | Accepted | canopen_shared 02 S13 bullet and README row as of `a7656efb` (gate at the owner's NMT admission; default deny in the S2 commit; per-command NMT effects; NMT-driven revocation; theme 5); 09 item 6 and 11 item 4 at the audited revision; N5 p118 (service activity per NMT state: PDO only in Operational, only NMT in Stopped), p119 (the five commands, node 0 is broadcast), p110 and pp112-113 (saved values, 6040h and 6060h included, reload at reset), p131 (RPDO1 maps 6040h and 6060h), p250 (1F80h) | 02b item 2, intro, Deliver and Acceptance: S13's default deny (no `armSync`, `admitSync` or node-0 NMT on an interface with a Nanotec binding) lands in the S2 commit, with tests; 09 item 6: per-command Nanotec effect table (Start, Enter Pre-operational, Stop, Reset Communication, Reset Node with its condition per node; Reset Node refused while NT-D32 is open), revocation of the SYNC approval before an admitted NMT command, targeted NMT kept as its own changing request; 09 Acceptance: the shared Start cases and node-0 cases with zero NMT TX; 11 item 4: the recorded analysis admits no broadcast; execution contract "Owner and bus rules"; README stage table and seam paragraph; 01 item 1 |
+| F2 Mode select and enable bypass later gates | Accepted | 04 items 2 and 6; 06 items 6 and 8; N5 p359 (6060h values, 0 = no mode assigned), p348 (bit 15 meaningful only in Operation enabled), p76 and p77 (VL and PV run toward the target speed when not halted), p82 (homing starts on bit 4) | 04 item 6: a host mode table for mode select and for enable with a mode active (0 enable only; 1, 2, 3 and 6 once their stage lands; 4 only inside 06b's operation, enable in 4 refused; 7-10 only with an assigned 06c; -1 and -2 refused; others refused); VL and PV enable needs a fresh zero target (host policy); item 2 uses the table; Acceptance tests the generic routes with zero TX; 06 item 6 states that 04's table routes mode 4 through its check; 06 item 8 keeps 7-10 unavailable; README stage table |
+| F3 Auto setup path | Accepted | 04b items 1 and 4; 04 item 6; N5 pp40-42 (prerequisites, steps, the p42 example 0006h, 6060h = FEh, 0007h, 000Fh, 6061h = FEh, 001Fh, wait for bit 12, 0000h; automatic save to 1010h:05/06; restart required), p96 (bit 4 rising starts, bit 12 aligned, bit 10 indexed) | 04b item 4 rewritten: its own sequence, not 04's mode select or enable; admission (declarations, identity, preflight, one deadline, predicate before the generation advance, admissible start states without Operation enabled); operation-local authority after the generation advance; steps with per-step confirmation; coordinate invalidation before the trigger; per-step failure (lost mode reply, lost enable word, lost trigger reply, deadline, fault, stop) ending `UNKNOWN` with ordinary control refused until a boot-up; observed completion distinguished from a possible persistent change. Correction: the old text ended the sequence with "bit 4 = 0"; the p42 example's final word is 0000h. 04b item 1 names the operation-local authorization; Acceptance cases |
+| F4 FIR-v1650 Plug & Drive lockout and bit 15 | Accepted | 13 behavior section and gate table; 04b item 1; 03 items 3-4; N5 pp280-282 (2290h, 2291h and 2292h all "FIR-v1748-B531667"); N5 2.0.3 extract (no 2290h, 2291h or 2292h anywhere); FWUPD p13 (6041h bit 15: FIR-v1650 "Closed Loop Available", FIR-v2039 "Closed Loop Active") | 13: three applicability states (present, absent by the row's evidence and decided on explicitly, unread, which never becomes absent) and per-row typed decoding; `FIR1650_PLUG_AND_DRIVE` refuses only `preparePdiControl`, the predicate decides on the documented absence without an upload; `FIR1650_CLOSED_LOOP_ACTIVE` notes the decoding; Acceptance. 04b item 1 Plug & Drive row admits on that absence and refuses an unread 2290h where it exists; Acceptance. 03 item 3 "not in this generation" and unread; item 4 bit 15 per row; Acceptance. Execution contract identity bullet |
+| F5 Identity refusal versus the stop exemption | Accepted | Prompt 57 "Identity policy" as of `a7656efb` (motion rule with the stop exemption and its own checks, an NMT command never that stop, "Admission by outcome", vendor-object rule); canopen_shared 02 "Identity and device evidence" (theme 1) | Execution contract: product identity is prompt 57's policy (outcomes, admission by outcome, stop exemption covering 04's `HALT`, `QUICK_STOP` and the opted-in S3 shape; release, fault reset, mode select, NanoJ stop, Plug & Drive off and NMT are changing requests); 03 item 1 computes prompt 57's outcome over 1000h, 1018h:01 and 1018h:02 and reports the firmware row beside it; 04 item 4: the exemption with the stop's own reads (6041h, 6061h, 6040h, 603Fh, 605Ah or 605Dh) and table, queued stops not withdrawn, other pending steps retired, a refused stop naming the independent stop path; 04b item 1: NanoJ stop and Plug & Drive off are vendor downloads, never exempt; 12A Q1; 13; Acceptance in 03 and 04 (both stop entry points under each refusing outcome) |
+| F6 Halted and unresolved predecessors | Accepted | N5 p57 (commands defined by bits 7, 3, 2, 1, 0; quick stop transition 11 only), p58 (fault reset by rising edge), p60 and p347 (bit 8 triggers a halt with 605Dh in PP, VL, PV, PT, IP), p68, p76, p77, p80 and p89 (clearing bit 8 restarts motion toward the target in those modes), p82, pp91-93 and p96 (no bit 8 function in homing, CSP, CSV, CST, auto setup); no page gives a precedence between halt removal and transition 11; principles pack CP-D10; canopen_shared 02 S3 bullet (theme 4) | Halt decision: the quick-stop word preserves bit 8 when the predecessor has it set (010Bh), because 000Bh would combine a documented restart with the stop. 04 item 1 (bit 8 kept in words sent from a halted Operation enabled), item 4, the table split into unhalted and halted Operation enabled rows (release words 0107h, 0106h, 0100h; HALT already reached; enable-after-quick-stop keeps bit 8); item 8 consumes the shared S3 rule with the per-state review from those pages, candidate shape 010Bh, 000Bh rejected; Acceptance; README stage table |
+| F7 Category save bypasses the PDO gate | Accepted | 10 items 5 and 7; 12A Q11; N5 p110 (only whole categories are saved; saved values reload at switch-on or reset), pp111-112 (PDO objects in communication), p132 (remap saves with application, NT-D09); C5E p108 and CL4E p106 (cfg.txt wins at boot); review section 10 | 10 item 5: a PDO-persistence condition on the category write for 1010h:01, :02 and :03 (the RAM PDO configuration must be the one loaded at the last boot-up this owner observed: boot-up seen in the owner session, no PDO write by this library since and none unresolved, no cfg.txt; guard-off reported), otherwise zero TX; item 7 says the gate is on the category write, not on a "PDO save" label; Acceptance (remap, unresolved partial remap, no observed boot-up, cfg.txt, save-all; 04-06 unaffected); 09 item 4; 12A Q11 |
+| F8 Timed runs and their stop | Accepted | canopen_shared 02 "Operation admission" timed-runs bullet as of `a7656efb` (theme 3); 06 items 3 and 6 | 06 item 3 consumes the shared timed-run design and names the Nanotec stop rows (04's `HALT` in 6061h 2-4 and `QUICK_STOP`, halted or not) that exist for every state the run reaches; the urgent stop is the application's separate operation; item 6 refers to it; Acceptance adds the shared cases |
+| F9 Q2 and Q13 routes | Accepted (medium, cheap) | 03 item 3 plan; 09 items 4 and 8, Deliver; 12A Q2 and Q13; N5 pp251-252 (2007h:01), p275 (2084h); review rows for 2007h:02 (EDS N5-1-2/2538 only, NT-D02) | 03 item 3: a Boot group (2007h:01, 2084h; 2007h:02 only on the FIR-v2538 row), read effects reviewed in 02; Acceptance tests omission per scope; 12A Q2 and Q13 name 03's groups and 09's observer and `PdoConfig` readback and run after 09 |
+| F10 Registration without an identity outcome | Accepted (medium, cheap) | canopen_shared 02 "Registration acceptance" as of `a7656efb` (theme 6); 02b intro, item 3 and Acceptance; 03 Acceptance | 02b intro and Acceptance: registration delivers no identity outcome, so every identity-dependent write and motion route is shown unavailable with zero changing TX and the probe runs only its reviewed read; 03 Acceptance closes the identity gate with the shared cases on the admission check every later route calls, before any such route is callable |
+
+### Round 2 unresolved questions
+
+1. **Boot-loader SDO and readiness.** Not answered by the files. N5 p132 and pp251-252
+   document only the boot loader's own boot-up message and its suppression by
+   2007h:01; no page documents whether the boot loader answers SDO or gives a positive
+   firmware-readiness marker, and the manuals give no boot duration (review section 11).
+   09 item 8's rule stands (readiness only from an identity read answered after the last
+   observed boot-up, each later boot-up invalidating it), with the residual risk that a
+   missed firmware boot-up and a boot-loader reply cannot be told apart from documents.
+   12A Q2 now records, as a fixture fact, whether an identity read between two boot-ups
+   is answered and with which values.
+2. **Heartbeat delivery bound and the queued 1016h write.** Not answered by the files.
+   09b item 3 checks the producer's owner status at admission and requires the consumer
+   time above the period plus the measured worst service gap (prompt 56); neither file
+   bounds TX queueing or arbitration delay to the drive, and the check is not repeated
+   at the 1016h TX. Both belong to the S11 landing and the prompt 56 measurement; lead
+   decision 2 below records them as an open request on seam S11.
+
+### Round 2 lead decisions (2026-11-19)
+
+1. **PDO-persistence check as a settable guard.** The F7 check (a boot-up observed in
+   the owner session, no PDO write since, no cfg.txt, for 1010h:01, :02 and :03) stays,
+   as a guard on by default and settable per binding, following prompt 77 item 2 (an
+   admitted result names a guard that was off) and the owner's engineering direction
+   of 2026-11-17 (explicit saves allowed, optional settable guards, user
+   responsibility). With the guard off the save result names the guard, states that a
+   PDO map change may be persisted (NT-D09) and carries the readback of 1400h-1407h,
+   1600h-1607h, 1800h-1807h and 1A00h-1A07h taken in the operation before the save.
+   Changed: 10 items 5 and 7 and Acceptance; 09 item 4; 12A Q11 (runs with the guard
+   on).
+2. **S11 delivery bound and producer recheck.** Recorded as an open request on seam
+   S11, which the lead adds to canopen_shared; no stage change beyond citing it. Changed:
+   09b item 3 cites the open request.
+3. **Halt bit and 000Bh.** The lead adds a shared state-transitions rule to canopen_shared
+   02 (a stop word never clears a set halt bit unless the family's evidence shows that
+   the quick stop takes precedence); the 010Bh row already satisfies it. Changed: 04
+   item 4, the halted table row and item 8 cite canopen_shared 02 "State transitions".
+
+### Round 2 checks
+
+`python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
+clean for it. Nothing was compiled; no hardware or port was used.

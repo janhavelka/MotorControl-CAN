@@ -32,7 +32,11 @@ extending the seams.
    interface under one owner needs a recorded same-domain analysis first
    (canopen_shared 02 "Multi-profile consumers and package scope"): node IDs,
    configured COB-IDs, bitrate, and NMT-broadcast and SYNC effects on both families
-   (S13 entries); record it in this stage's report. The user may instead require
+   (S13 entries); record it in this stage's report. The analysis does not admit a
+   broadcast: every node-0 NMT command on that interface still passes the owner's
+   S13 NMT admission (09 item 6), with zero NMT TX on refusal, tested through the real
+   owner with an unknown or stale effect and with an unadmitted effect on a node other
+   than the target. The user may instead require
    prompt 63 ([open question](README.md#open-questions) 2). With the analysis
    recorded, test with the fake transport: independent stops; reservations that conflict
    on the same bus and node whatever the profile label; separate caches, results and
