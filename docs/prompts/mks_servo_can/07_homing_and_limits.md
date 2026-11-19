@@ -45,8 +45,16 @@ p.65-77), not only the extracts.
    re-establish host references. It is distinct from homing and from 9AH's "set 0 point".
 6. End limits: enabled by 90H EndLimit; left limit (IN_1, or En) stops leftward motion, right limit (IN_2 on 57D only,
    or Dir) stops rightward motion, bus mode only (p.14, p.75). After first use or any limit-parameter change a homing is
-   required (p.14, p.67): record `limitHomingRequired` and refuse motion with EndLimit enabled until a homing completes
-   after the change. This admission replaces 05's interim EndLimit gate for 05 and 06. "Left" is defined only by
+   required (p.14, p.67): record `limitHomingRequired`. Limit admission replaces 05's interim EndLimit gate for 05 and
+   06 and fails closed, per binding generation and identity session (03 step 5). Ordinary motion is admitted only with
+   EndLimit established off (an attributed 00H 90 read where 03 established it readable, or a caller declaration with
+   its evidence reference), or established on with the input assignment and wiring of step 7 and a homing completed
+   under step 4 after the last possible limit-parameter change, in this binding generation or by the application's
+   commissioning record (evidence reference) that a homing (91H or the menu GoHome, p.14) followed the last change
+   with none since. Anything else refuses ordinary motion before TX: no established value, first attachment,
+   rebinding, a declaration change, restart or bus-off, 3FH, and `limitHomingRequired`, which a possibly applied 90H,
+   94H, 9EH or 9FH write sets, also with its reply lost (08 step 9). Stops and step 3's homing, the requalifying
+   route, stay admitted under their own gates. "Left" is defined only by
    examples (left with dir bit 1, p.77), so mapping to common limit directions needs `directionQualified`. Status 3 is a
    terminal limit stop; limit hits outside a move send no frame. MK106 says homing onto the left switch with EndLimit
    enabled releases the shaft (MK106 p.12, p.29); MK109 is silent (MK-D16): read 3AH after homing instead of assuming
@@ -72,7 +80,9 @@ rows, report and PROGRESS row.
 Method admission per hm_mode, firmware and dialect; exact 90H, 94H, 9EH and 91H frames; refused 9AH writes and
 single-turn homing without external configuration; completion only from new evidence; stale 3BH success rejected;
 reference publication and invalidation; zero set with and without stationary admission; `limitHomingRequired` after a
-limit change; stop during homing with F7H only and homing refused on V1_0_0; a 91H status 2 of an ambiguous shape not
+limit change; limit admission at first attachment, after a lost 90H or 9EH reply and after a possibly applied 9FH
+change, each with zero ordinary motion TX until a read or declaration and a homing or commissioning record requalify
+it; stop during homing with F7H only and homing refused on V1_0_0; a 91H status 2 of an ambiguous shape not
 completing a new homing; status 3 handling. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Physical homing needs the actual
 switch or mechanical fixture: hardware NOT RUN. Commit and push.

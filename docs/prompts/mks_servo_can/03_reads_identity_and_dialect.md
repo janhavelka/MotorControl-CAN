@@ -44,8 +44,11 @@ values stay available where an interpretation is gated.
    invalidated. Fresh means admission evidence, not a bootstrap observation: the probe and an identity read record
    any checked 40H frame, `possiblyLate` included, as an observation of a responder and its raw fields, but dependent
    work needs a 40H reply to a read handed off in the current binding generation and identity session, captured
-   after that handoff and attributed `QUALIFIED` or `QUIET_INTERVAL` (02b step 6). A `possiblyLate` or earlier-session
-   40H admits nothing. Stops (04) consume no identity: as [prompt 57](../57_regular_drive_operations.md) exempts
+   after that handoff and attributed `QUALIFIED` or `QUIET_INTERVAL` (02b step 6), with 40H's stream state `OFF`
+   (step 8) unless the ledger establishes 40H as not reportable: a stream sample has the reply's shape, so while the
+   state is `ACTIVE` or `UNKNOWN` such a frame stays a bootstrap observation, after the quiet interval too. A
+   `possiblyLate` or earlier-session 40H admits nothing. Stops (04) consume no identity: as
+   [prompt 57](../57_regular_drive_operations.md) exempts
    stops, an explicitly requested stop stays admitted on a missing, stale or contradicting identity (its route,
    generation and dialect stop-row checks stay), its result carrying that identity and claiming no standstill.
    40H cannot separate
@@ -68,10 +71,14 @@ values stay available where an interpretation is gated.
 7. Capabilities: fill `ReadCapabilities` and `DiscoveryCapabilities` per dialect from the ledger; `Capabilities` stay
    caller-supplied (stepper motor kind; encoder feedback present on the board, closed-loop control only in CLOSE and
    vFOC modes). Board revision (MK-D24) is a recorded fact, not a capability.
-8. Streams: a polled read of code c on an address with an active or unknown-state 01H stream for c is refused before TX
-   (09 implements streams; this stage adds the refusal check and its test). Every code the declared dialect can
-   report starts `UNKNOWN` at first bind, rebind and restart (09 step 3); the dialect declaration says which codes can
-   stream, never their state. The probe and the 40H identity read are not refused: a responder and the static 40H
+8. Streams: this stage lands the minimal stream-state record per address and code, bound to the binding generation,
+   so that 04-08 can read before 09 lands. Every code the declared dialect can report (any read-only code while the
+   reportable set is unconfirmed; none on `V1_0_0`) starts `UNKNOWN` at first bind, rebind, a declaration change,
+   controller restart or bus-off and host restart; a caller declaration with its evidence reference gives `OFF`
+   (application policy, recorded); an unsolicited `[c, value]` frame while `OFF` makes it `UNKNOWN`. The dialect
+   declaration says which codes can stream, never their state. 09 step 3 adds the 01H setup and stop operations and
+   their transitions. A polled read of code c while its state is `ACTIVE` or `UNKNOWN` is refused before TX. The probe
+   and the 40H identity read are not refused: a responder and the static 40H
    fields hold as observations whether the frame is a reply or a sample, and the result records which it may be;
    admission evidence follows step 5.
 9. Retry class per read from 01's decision; without the owner decision reads are `NOT_REPEATABLE`.
@@ -79,7 +86,8 @@ values stay available where an interpretation is gated.
 ## Deliver
 
 `Reads.h/.cpp`, `ReadContext`, `DialectDeclaration`, typed observations (`EncoderObservation`, `StateObservation`,
-`IdentityObservation`, `ConfigObservation`), `test/mks_servo_can_reads_test.cpp`, owner-backed app and console cases
+`IdentityObservation`, `ConfigObservation`), the stream-state record with its `OFF` declaration,
+`test/mks_servo_can_reads_test.cpp`, owner-backed app and console cases
 (`mks read identity|config|state`, `mks dialect`), API/CLI parity (console routes and parity once S4 lands), coverage
 rows, report and PROGRESS row.
 
@@ -93,8 +101,11 @@ streams, including a stream left active before the host started; with the correc
 board code, bootloader 0x10), swapped (board 2 observed with 4 declared and the reverse: no TX, unchanged output,
 model-dependent qualifications invalidated), missing and stale (after restart notification, rebinding or a recorded
 power cycle) identity refusing dependent work with nothing sent; a delayed (`possiblyLate`) 40H at attachment and
-after rebinding recorded as an observation that admits no model-dependent write; a stop admitted on contradicting
-identity; a 00H bootstrap query of an unestablished code published raw and refused as 08 readback evidence; stale
+after rebinding recorded as an observation that admits no model-dependent write; a matching 40H stream sample
+captured after the read's handoff with 40H's stream state `ACTIVE` or `UNKNOWN`, before and after the quiet interval,
+admitting no model-dependent write (zero changing TX); a caller `OFF` declaration admitting a polled read and a sample
+while `OFF` returning the state to `UNKNOWN`; the identity gate tested without a stop stub (the stop exemption's test
+is 04's); a 00H bootstrap query of an unestablished code published raw and refused as 08 readback evidence; stale
 generation, cancellation and deadline cases;
 unchanged outputs on failure. A good reply never proves model, firmware edition, readiness or direction. The full
 matrix of contract 02 "Registration acceptance" for this major change and CI on the exact final pushed commit pass.

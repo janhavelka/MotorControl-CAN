@@ -105,7 +105,7 @@ implemented profile. No hardware is needed.
 | MK-D13 | Enable state after power-on or restart | 04, 10; 12A Q8 |
 | MK-D14, D15 | Speed scaling outside 16/32/64 microsteps; MK106 600 rpm example | 05, 06 |
 | MK-D16, D25, D37 | Left-switch release, Hm_Ma defaults, single-turn zero arming power-on homing | 07; 12A Q13 |
-| MK-D17, D36 | Replies after stall, silence or F7H; shared run/stop codes | 04, 09; 12A Q9 |
+| MK-D17, D36 | Replies after stall, silence or F7H; shared run/stop codes | 04, 09; 12A Q9a |
 | MK-D18 | 98H feeding frames, stop type, enable, persistence, signedness | 08; 12A Q7 |
 | MK-D19, D30 | Absolute-move zeroing; 31H, 35H and 33H relation | 05, 07; 12A Q8 |
 | MK-D20, D22 | CAN ID menu range; 3FH restored scope | 10; 12A Q10, Q11 |

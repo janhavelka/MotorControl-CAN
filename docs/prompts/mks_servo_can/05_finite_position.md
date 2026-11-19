@@ -46,7 +46,8 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
    and examples disagree (MK109 p.31-32, p.82, p.88, p.91; MK100 p.11-12). Common positive direction needs 03's
    `directionQualified` declaration; without it only native signed requests are accepted, labelled unqualified.
 7. Completion phases (MK109 p.47, p.89):
-   - immediate 1 is `ACKNOWLEDGED` (start), 0 `REJECTED`, 5 latched (09 owns synchronization), no reply `UNKNOWN`;
+   - immediate 1 is `ACKNOWLEDGED` (start), 0 `REJECTED`, 5 latched (09 step 7 owns synchronization and a latched
+     move's completion, which has no status 1), no reply `UNKNOWN`;
    - an unsolicited 2 ends this motion's pending phase only when the declared reply policy has the active byte set,
      the phase belongs to this motion and 02b step 6 attributes the frame: `QUALIFIED` (shape outside the ambiguous
      set) or `QUIET_INTERVAL` (the application's accepted interval has passed; reported as that risk, never as
@@ -59,12 +60,17 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
    - three outcomes stay separate. `endpointObserved`: a 31H reply to a read sent after B's latest trigger was
      acknowledged, attributed `QUALIFIED` or `QUIET_INTERVAL` (never `possiblyLate`; 31H's stream state `OFF`, 03 step
      8) and within the caller's tolerance of B's latest target. `completed`: the latest trigger's status 1 attributed
-     the same way (B's start, or after an F5H update the update's), then B's attributed native 2, or `endpointObserved`
-     followed by a standstill observation (F1H 1 with 32H 0) read after it. `stopObligationDischarged`: only by
-     `completed` or by 04's stop with its own completion evidence. `endpointObserved` alone discharges nothing: after a
-     lost start reply, with a target already within tolerance, or while the shaft crosses the tolerance window,
-     execution stays `UNKNOWN` and the stop obligation and 04's stops apply. For pulse moves 33H is not an endpoint
-     proof until MK-D30 is resolved. Each outcome carries the weakest correlation of its evidence.
+     the same way (B's start, or after an F5H update the update's), then B's attributed native 2, or a standstill
+     window: F1H 1 with 32H 0, then a 31H read giving `endpointObserved`, then F1H 1 with 32H 0 again, each read
+     handed off after the previous reply, all attributed the same way, with no event between them that may start
+     motion or invalidate evidence (a motion, stop or multi-target frame reaching the address, restart, bus-off,
+     rebinding, a recorded power cycle). A 31H value sampled before the window's first standstill read completes
+     nothing, because the shaft may have crossed the tolerance window and stopped elsewhere, after a stall trip or a
+     host-silence stop too. `stopObligationDischarged`: only by `completed` or by 04's stop with its own completion
+     evidence (04 step 4). `endpointObserved` alone discharges nothing: after a lost start reply, with a target already
+     within tolerance, or while the shaft crosses the tolerance window, execution stays `UNKNOWN` and the stop
+     obligation and 04's stops apply. For pulse moves 33H is not an endpoint proof until MK-D30 is resolved. Each
+     outcome carries the weakest correlation of its evidence.
    A common completion contract that the binding cannot satisfy (respond-off, OPEN mode with 95H disabled, unknown
    calibration) is refused before start; the explicit native acknowledged-only path states its weaker outcome.
 8. F5H live update: a new F5H while running changes speed and target (MK109 p.100, p.104), since firmware 1.0.5
@@ -98,7 +104,10 @@ timeout, same-code stop, supersession or completion): before the chosen quiet in
 ended, after it B ended with `QUIET_INTERVAL` correlation, never `QUALIFIED`; lost start reply with no resend;
 endpoint outcomes, where a target already within tolerance with a lost start reply, an in-motion crossing of the
 tolerance window, a delayed (`possiblyLate`) 31H value and an F5H update without its own acknowledgement each leave
-`completed` and `stopObligationDischarged` unset; a 31H reachability read that meets its own timeout while the
+`completed` and `stopObligationDischarged` unset; an acknowledged start, a 31H read within tolerance while the shaft
+crosses the window and fresh F1H 1 and 32H 0 reports after it stopped outside the window (`completed` unset, stop
+obligation retained), and a standstill window interrupted by a stop or a restart; a 31H reachability read that meets
+its own timeout while the
 operation deadline arrives before the trigger (no trigger TX). The full matrix of contract 02 "Registration acceptance"
 for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push with the API and
 coverage updates.

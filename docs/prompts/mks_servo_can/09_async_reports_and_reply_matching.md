@@ -21,7 +21,7 @@ code (review section 14 rule 2).
    rebinding, restart and first attachment; `possiblyLate` publication also while a later same-shape exchange is
    pending; retirement only by a recorded drive power cycle; a quiet interval, judged by the owner capture time,
    gives `QUIET_INTERVAL` correlation, never reported or consumed as `QUALIFIED`. A host controller restart or
-   a new host generation retires nothing, because the drive may still send. 12A Q9 measures reply latency to inform
+   a new host generation retires nothing, because the drive may still send. 12A Q9a measures reply latency to inform
    the application's choice; the library invents no default. This stage adds the stream (step 3) and multi-target
    (step 6) entries and writes the whole rule into the header, coverage file and user guide.
 3. Periodic reports 01H (V1.0.9 tables only): `[01, code, period ms]`, period 0 stops; setup reply `[01, code, status]`;
@@ -29,13 +29,15 @@ code (review section 14 rule 2).
    `prepareReport` and `prepareReportStop` as settings operations (persistence unknown, treated as possibly retained):
    - only codes the ledger marks read-only and reportable; the manual's example is 31H, any other code stays unknown
      until 12A Q12 or a document confirms it;
-   - stream state per address and code is `OFF`, `ACTIVE` or `UNKNOWN`. Every code the declared dialect could report
-     (any read-only code while the reportable set is unconfirmed; none on `V1_0_0`, which has no 01H) is `UNKNOWN` at
+   - stream state per address and code is `OFF`, `ACTIVE` or `UNKNOWN` on the record 03 step 8 lands (initial
+     `UNKNOWN`, the caller's `OFF` declaration, a sample while `OFF`); this stage adds the 01H transitions. Every code
+     the declared dialect could report (any read-only code while the reportable set is unconfirmed; none on `V1_0_0`,
+     which has no 01H) is `UNKNOWN` at
      first bind, rebind, a declaration change, controller restart or bus-off and host restart, because a used drive
      may run a stream another tool set and 01H persistence is unknown. A setup or stop with possible TX and no checked
      reply leaves `UNKNOWN`; an acknowledged setup gives `ACTIVE`; an acknowledged period-0 stop gives `OFF` with
      that code's shape entered in 02b's set, so a sample queued before the stop's reply is never taken for a poll's
-     reply; a caller declaration with its evidence reference gives `OFF` (application policy, recorded); an
+     reply; 03 step 8's caller declaration with its evidence reference gives `OFF` (application policy, recorded); an
      unsolicited `[c, value]` frame while `OFF` makes it `UNKNOWN`. The dialect declaration never sets a state;
    - while the state is `ACTIVE` or `UNKNOWN`, polled reads of c on that address are refused before TX (03); stream
      samples carry `unsolicited` provenance, host receive time and no sequence;
@@ -59,7 +61,8 @@ code (review section 14 rule 2).
      review establishes the same form and effect across them); the exact frame (code, form, payload, DLC) allowed for
      multi-target use by that dialect's reviewed `multi_target` row (01 step 3), so a code both V1.0.9 tables have does
      not admit a form only one documents (F7H 01, MK-D01); disjoint IDs; and authorization for the effect on each
-     recipient. Anything missing, incomplete or stale refuses before TX. 4BH is never sent through this path: only step
+     recipient. Anything missing, incomplete or stale, or 04 step 4's admission barrier on any possible recipient,
+     refuses before TX. 4BH is never sent through this path: only step
      7's latch-aware operation sends it. After dispatch each recipient's execution is `UNKNOWN`, its pending phases and
      references are invalidated and the code's shapes enter its ambiguous set, so a later 2 on its own ID never
      qualifies a completion; never used by discovery, probe, recovery or a common single-axis verb;
@@ -69,13 +72,28 @@ code (review section 14 rule 2).
    motion command answers 5 and waits for 4BH, sent once to ID 0 without reply (MK109 p.106-107). The library sends 4BH
    once per explicit request; the manual's repeat about every 1 ms is an application choice, and whether a second 4BH
    restarts or repeats a latched move is undocumented (MK-D12), so the operation records each 4BH as new intent. 4BH
-   goes to ID 0, so it needs step 6's exhaustive participant record and, for every possible recipient, a known latch
-   state: its 4AH setting and every motion command this host sent it since a recorded power cycle (02b step 6) while 4AH
-   was or may have been enabled, with each command's reply (5, other or missing). A recipient whose latch state is
-   unknown (first bind, rebind, restart, a lost record, a latched request with a missing reply) refuses 4BH before TX.
-   After 4BH, a member's motion latched with a checked status 5 on its own ID keeps its pending phase, moved to
-   execution `UNKNOWN`; a later status 2 on that ID ends the phase under 05's rule only when 02b step 6 attributes it
-   (the latched exchange entered the shape, so `QUIET_INTERVAL` at best). Members without such a phase are `UNKNOWN`
+   goes to ID 0, so it needs step 6's exhaustive participant record and a latch state for every possible recipient,
+   kept from its 4AH setting and every motion command this host sent it since a recorded power cycle (02b step 6)
+   while 4AH was or may have been enabled, with each command's reply (5, other or missing). No page says that a local
+   cancel, a stop or 4AH 00 discards a held command (MK109 p.106-107), so only a recorded power cycle clears a latch
+   state:
+   - `NONE`: 4AH established off, or no motion command sent while it may have been on;
+   - `LATCHED_LIVE`: a motion with a checked status 5 whose admitted operation is still pending (not cancelled,
+     superseded, stopped or failed) and before its deadline;
+   - `LATCHED_STALE`: such a latch after its operation ended locally without a 4BH; the drive may still hold the
+     command, and the next 4BH would start an expired or cancelled motion;
+   - `POSSIBLY_ARMED`: a latched member after a 4BH that may have been sent, kept beside any later latch, because
+     whether the latch clears or a further 4BH repeats the move is undocumented (MK-D12);
+   - `UNKNOWN`: first bind, rebind, restart, a lost record or a latched request with a missing reply.
+   By default 4BH is admitted only when every possible recipient is `NONE` or `LATCHED_LIVE`, each live operation's
+   deadline still ahead at the 4BH handoff (the 4BH deadline is at most the earliest); `POSSIBLY_ARMED`,
+   `LATCHED_STALE` or `UNKNOWN` on any recipient refuses before TX. The caller's explicit, recorded per-drive
+   acceptance admits 4BH over such a recipient without a recorded power cycle (lead decision, round 3); that drive's
+   result then states that any latched move on it, an expired, cancelled or earlier one included, may execute.
+   After a possible 4BH TX each latched member's execution is `UNKNOWN` and its latch `POSSIBLY_ARMED`. A latched move has no status 1 (its staging reply is 5 and
+   4BH has none), so it completes only through 05 step 7's standstill window read after the 4BH handoff; a later status
+   2 on its ID, attributed by 02b step 6 (`QUIET_INTERVAL` at best, the latched exchange having entered the shape), is
+   a native observation that completes nothing and ends no phase alone. Members without a latched move are `UNKNOWN`
    until their own observation. Native names only; never the CANopen `sync` verb, prompt 51's SYNC producer or any SYNC
    counter.
 8. Silent mode (50H 02) is never sent; a drive left silent by another tool times out on everything and looks absent
@@ -103,6 +121,10 @@ recorded power cycle; respond-off and active-off policies; broadcast and group o
 an incomplete participant record, a mixed-dialect or mixed-check-mode recipient (F7H 01 to a group with one MK109A
 member), a form the dialect has but its `multi_target` row does not allow (8BH to a group), 4BH through the generic
 dispatch and a lost latch record refusing before TX; 4BH sent once
-with no reply and no repeat, and a latched member's later completion; V1_0_0 broadcast refused; a restart leaving
+with no reply and no repeat; a latched member whose operation was cancelled or expired (`LATCHED_STALE`), an
+`UNKNOWN` latch and a further 4BH after a possibly sent one each refusing before TX without the per-drive acceptance
+and admitted with it, the result stating that any latched move on that drive may execute; a latched member completing
+only through 05's standstill window after the 4BH handoff, its attributed status 2 alone completing nothing and no
+status 1 invented; V1_0_0 broadcast refused; a restart leaving
 previously active streams unknown until stopped or declared off. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push.

@@ -41,17 +41,23 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
 7. Model applicability: refuse 99H on board 2, 9FH on board 4, currents above the board maximum, and any code the
    declared dialect lacks. Keep raw unknown observed values inspectable without making them setters.
 8. Quiescence: whether a setting applies during motion is undocumented, except the unsaved 83H form described for use
-   "during operation" (MK109 p.42). Other writes require no admitted motion, homing or calibration on that address and
-   a caller-declared stationary state recorded in the evidence; a fresh 32H of 0 alone is not proof. Mode change
-   (82H) source states and first frames, under contract 02 "Operation admission":
+   "during operation" (MK109 p.42). Other writes require no admitted motion, homing or calibration on that address, no
+   admission barrier (04 step 4) and a caller-declared stationary state recorded in the evidence; a fresh 32H of 0
+   alone is not proof. Mode change (82H) source states and first frames, under contract 02 "Operation admission". The
+   source mode comes from a fresh 00H 82 read (where 03 established it readable) or a caller declaration. 82H has no
+   bus-mode restriction (MK109 p.41) and the speed example starts with it (p.86), but the factory default is CR_vFOC
+   (MK109 p.23, p.41; MK109A p.20) and in the CR_* modes F1H reports only calibration (MK109 p.80, MK109A p.70), so
+   there F1H is no standstill evidence and the pulse interface may still drive the motor:
 
    | Starting state | First changing TX |
    | --- | --- |
    | Requested mode absent from the declared dialect | None; `UNSUPPORTED` |
-   | A fresh 00H 82 read (where 03 established it readable) equals the requested mode | None; already reached |
-   | Stationary declared, no admitted motion, homing, calibration or pending phase, F1H 1 | 82H with the value |
-   | As above but the current mode neither readable nor declared | 82H, the result recording the prior mode as unknown |
-   | Motion, homing, calibration or a pending phase admitted, or F1H 2-6, or F1H missing, stale or `possiblyLate` | None; refused |
+   | Source mode equals the requested mode | None; already reached |
+   | Motion, homing, calibration or a pending phase admitted, or 04 step 4's admission barrier | None; refused |
+   | Source a bus mode of the dialect, stationary declared, fresh F1H 1 | 82H with the value |
+   | Source a bus mode with F1H 2-6, or F1H missing, stale or `possiblyLate` | None; refused |
+   | Source a pulse-interface mode (CR_* other than V1_0_0's CR_CAN) or unknown, stationary declared together with the application's record that no pulse source drives STEP, DIR or EN, fresh F1H 0 or 1 (never taken as standstill) | 82H with the value, the result recording the source mode (or unknown) and naming the stationary declaration and pulse-source record it relied on |
+   | Source a pulse-interface mode or unknown without that record, or F1H 2-6, missing, stale or `possiblyLate` | None; refused, naming the menu Mode item (MK109 p.23) as the operator's alternative |
 9. Invalidation, recorded per descriptor and tested: 84H invalidates pulse scales and speed and acceleration mappings;
    82H invalidates enable, motion, completion and the work-mode gate; 95H invalidates completion qualification; 88H and
    9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and invalidate the home reference
@@ -70,7 +76,10 @@ routes and parity once S4 lands), coverage rows per code with its persistence cl
 ## Acceptance
 
 Per block: exact frames, accepted and refused values, model and dialect refusals, prior read and readback where
-established, acknowledged-only result where not, the first emitted frame or none for every row of the 82H table, a
+established, acknowledged-only result where not, the first emitted frame or none for every row of the 82H table
+(including a factory-default CR_vFOC source admitted with the pulse-source record and refused with zero TX without it,
+the fake drive's F1H reply in CR_* never standing as standstill), a write refused under 04 step 4's admission
+barrier, a
 prior read that meets its own timeout while the operation deadline arrives before the write (no write TX, contract
 02 "Operation admission"), status 0 rejection, lost reply with execution unknown and no repeat,
 invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,

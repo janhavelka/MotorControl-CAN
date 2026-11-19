@@ -159,3 +159,72 @@ tests (the repository index was truncated); PROGRESS, landed seam evidence, prom
 conditional experiment prerequisites and several referenced contracts. The first round's audit and application were
 read as summaries, not as the earlier file set and a diff. No fixture records, authorized session, CAN traffic,
 latency, memory or service-gap measurements, compile results or exact-commit CI existed.
+
+## Round 3
+
+A condensed, faithful copy of the third report. It is untrusted reviewer input; the verified dispositions are in
+[audit_application.md](audit_application.md) "Round 3". Line numbers refer to the files as revised by round 2
+(committed in `c2a2882a`; the family files' hashes in the report equal those of that commit).
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-190731-c18295` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~182969 tokens)") |
+| Date | 2026-11-19 19:07:31 (from the ID), 215.8 s, one attempt |
+| Revision | `main` at `c2a2882a8c7f950f07cfc18ff17c4870270f26b0`, uncommitted changes recorded (none in the audited files) |
+| Cost | Estimated USD 0.38 (0.378422, configured pricing); 138,081 input and 10,226 output tokens (4,181 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-190731-c18295.json` (local) |
+| Location checks | 33 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_evidence_and_command_ledger.md` (142, `bf3070a4`),
+`02_codecs_and_dialects.md` (85, `5d873cf8`), `02b_protocol_domain_and_owner.md` (142, `e88aaeae`),
+`03_reads_identity_and_dialect.md` (101, `eb61cd90`), `04_enable_stop_and_uncertainty.md` (110, `a8984a37`),
+`05_finite_position.md` (104, `1699a7af`), `06_speed_mode.md` (77, `3cb874a1`), `07_homing_and_limits.md` (78,
+`d62c299e`), `08_settings_and_persistence.md` (82, `a8cea1d5`), `09_async_reports_and_reply_matching.md` (108,
+`692b73df`), `10_bus_settings_and_restart.md` (100, `3709993d`), `11_console_and_integration.md` (65, `bba026b6`),
+`12_qualification_and_release.md` (63, `67d33c83`), `12a_first_contact.md` (75, `9587a1ef`), `README.md` (169,
+`00e96db7`), `audit.md` (161, `c8e68451`), `audit_application.md` (155, `2b3909e9`), `execution_contract.md` (156,
+`7cb489b9`). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, `docs/reference/mks_servo_can/README.md` and
+`review.md`, `63_mixed_protocols.md`; project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The prompts correctly separate MKS from CANopen, keep owner traffic blocked on tested S9 artifacts and
+distinguish software verification from hardware qualification, and several earlier fixes are present. The revised
+rules can still discharge a motion obligation on mismatched observations, execute a latch without checking that its
+original motion intent is still valid, or restore admission on evidence that proves only a responder; some early-stage
+acceptance tests require artifacts assigned to later stages. Independent ledger, codec and host-only work can proceed;
+the affected device-facing paths need corrected contracts and tests before admission. **Verdict:** blocking issues.
+The defects decide whether motion may start, whether a stop is still owed and whether a changed binding may transmit
+again; they are specification defects, not observed device failures. A recorded S9 request is not a landed owner
+capability, and nothing supplied establishes implementation or hardware qualification.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *A position sampled in motion can still discharge the stop obligation.* 05's fallback combines an earlier in-tolerance 31H sample with later F1H and 32H observations; an acknowledged move can cross the window and stop elsewhere (also after a stall or host-silence event, which send no frame), so every predicate passes without the drive shown stopped at the target, defeating the in-motion-crossing test. Require the latest target within tolerance in the same standstill observation window, with ordering, freshness and invalidators for the position and stop-state samples; otherwise leave completion unknown and keep the stop obligation; test an acknowledged start, an in-tolerance crossing and fresh stopped reports after the axis left the window. | 05:62-64, 99-101; 04:77-79 |
+| F2 | High, verified defect, high | *The latch trigger has no live-intent gate and no consistent completion rule.* 09 checks participant exhaustiveness and latch history, but a known status-5 latch can outlive local cancellation or its deadline with no evidence that either clears it, so a new 4BH could start an expired or cancelled motion. 09 also requires a latched member's later completion under 05, which needs an attributed status 1 that the staging reply 5 and the reply-less 4BH never supply. Define per-member latch states separating a known remote latch from a live, authorized intent; verify every affected intent and deadline before 4BH or refuse; define the state after possible TX, cancellation, a stop and a second 4BH without assuming the latch cleared; say whether an attributed 2 is only an observation or completes through a distinct rule; test a known but expired or cancelled latch, an uncertain first 4BH and completion without an invented status 1. | 09:68-69, 73-75, 106; 05:61-62 |
+| F3 | High, probable defect, high | *A retained stop obligation does not explicitly bar conflicting new work.* 04 admits an urgent stop without retirement proof and frees the start's slot, but the release row checks only for an admitted motion or pending phase, so a stopped F1H taken before a late start can satisfy it; 08's stationary declaration and no-admitted-motion check have the same gap for settings. Make a retained motion obligation or unretired start a per-address barrier for release, conflicting writes and unrelated new motion, keeping urgent stops and observations; define when it clears from final TX or retirement evidence and the motion or stop outcome, across recovery; extend the late-start test with a release and a mode or scale change after the first stop returned. | 04:24, 63-65; 08:44-45 |
+| F4 | High, verified defect, high | *Communication quarantine can be lifted on probe evidence that expressly grants no admission.* 10 accepts a probe-grade responder to confirm a new ID, bitrate or check mode, while 02b lets a `possiblyLate` frame meet that standard and says it never stands as admission evidence; even a current probe reply shows a responder, not the commissioned drive or the applied change, and only the group-ID row requires attributed readback. Separate discovery from reconciliation evidence: a deciding attributed readback or specimen-specific operator evidence distinguishing old and new configuration, with continuity to the intended drive when the tuple changes; otherwise keep quarantine or record the node lost; test a `possiblyLate` probe, an unrelated responder on the new tuple and a reply compatible with both check modes. | 10:40, 43; 02b:59-60 |
+| F5 | High, probable defect, high | *The identity-read exception can qualify an indistinguishable stream sample.* 03 allows 40H as a bootstrap observation with stream state unknown, but its admission rule only adds a handoff and `QUALIFIED` or `QUIET_INTERVAL` correlation, while 09 treats any read-only code as possibly reportable and samples share the polled shape; a sample captured after handoff can satisfy the matcher without answering the read, and a quiet interval does not show that a stream stopped, so model-dependent current or I/O work could be authorized. Keep the exception for raw bootstrap observations; before 40H is admission evidence require it established non-reportable, its stream established off with residual traffic accounted for, or another discriminator; test a matching sample with `ACTIVE` and `UNKNOWN` state after handoff, also after the interval, with no dependent changing TX. | 03:46-47, 74-75; 09:32-33; AGENTS.md:79 |
+| F6 | High, verified defect, high | *The mode-change table cannot commission a V1.0.9 drive from its documented default mode.* 08 requires F1H 1 for every changing 82H row, including an unknown prior mode, while 03 says F1H reports only calibration in the V1.0.9 CR_* modes and the review gives CR_vFOC as the default, so the typed route cannot establish its stopped state on a factory-default drive and the table neither marks that source as an intended refusal nor offers another route. Make the table explicit by source mode; without reviewed non-bus-mode evidence specify zero changing TX and an operator-established bus mode before software commissioning, documented and tested; never let a fake drive supply F1H 1 in CR_* to exercise the positive row. | 08:52; 03:35-36; review.md:185 |
+| F7 | High, probable defect, high | *The replacement limit gate does not say what happens when limit configuration is unknown.* Before 07, 05 and 06 refuse on enabled or unestablished EndLimit; 07 replaces that gate but refuses only known-enabled limits awaiting homing, and defines neither admission for an unknown or possibly changed setting nor what credits a newly attached binding with earlier limit homing, so an implementation could admit motion the interim rule refused; 08 already treats a possibly applied I/O direction change as invalidating. Make it a fail-closed per-binding decision (established off; on with current wiring, configuration and homing evidence; unknown or invalidated), define when a possibly applied change invalidates it and which homing route satisfies it; test first attachment, a lost homing or limit write reply and an invalidated input assignment with zero ordinary motion TX until requalified. | 05:6-7; 07:48-49; 08:58-59 |
+| F8 | High, verified defect, high | *Early-stage acceptance still depends on later stop, stream and settings work.* 03 requires a stop admitted on contradicting identity before 04 creates stops; 03 starts potentially reportable reads `UNKNOWN` and only adds the refusal, while 09 first defines how to establish `OFF`, so 04's fresh 3AH, 3EH and F1H reads and 05's 31H reachability read have no delivered path (injecting `OFF` into the fake proves nothing); Q9 names 05 as its minimum stage though its 95H configuration comes from 08 with a snapshot and restore. Land the minimal generation-bound stream-state record and its evidence-backed `OFF` declaration with 03, leaving report writes in 09; put the real stop-under-identity-refusal test in 04 and test 03's gate without a stop stub; split Q9's read-only cases from the 95H-changing ones, naming 08, the snapshot and the restore route. | 03:71-72, 96-97; 04:90; 09:38; 12a:51; 08:28 |
+| F9 | Medium, verified defect, high | *The family excludes S3 wholesale even if it owns the first S2 migration.* MKS rightly neither supplies nor uses a CANopen best-effort stop shape, but the shared README and contract require a default-deny change in the common owner in the S2 commit, before any further family's first binding; the MKS README calls S3 not applicable and 02b's first-S2 migration omits that owner-side change, and the absence of an SDO route is no test of the owner's default. Separate the common S2 default-deny prerequisite from an MKS opt-in, which stays absent; if MKS lands S2 first, name the owner change and its no-TX regression in the S2 handoff; if tested S9 isolation should satisfy it for proprietary profiles, the shared contract, callers and tests change together. | README:119; 02b:47; shared README:54; shared 02:309 |
+
+### Unresolved questions (reviewer, round 3)
+
+1. Which approved, landed S9 commit and consumer tests deliver exclusive MKS admission, per-frame TX disposition,
+   retirement evidence, capture-time bounds and invalidation notifications? Prompt 63 records the request and some
+   exclusive-domain tests, which is no evidence that the extension is approved or usable; 02b rightly keeps dependent
+   owner work blocked.
+2. Which fixture-specific motion and timing limits will distinguish a passed physical qualification from a retained
+   observation in 12B? The stage names operations and evidence, but a procedure must define the motion envelope, stop
+   and service timing criteria and abort conditions before observations can support a named qualification claim.
+
+### Coverage gaps (reviewer, round 3)
+
+Not supplied as file contents: the MKS manifest, rendered pages, extracts and schematics (device claims were compared
+with the review only); owner and transport source, TX retirement and RX timestamp contracts, TWAI tests, landed seam
+records, checker and package source and CI workflows (the repository index was truncated); main-sequence prompts other
+than 63, the conditional experiment prerequisites, parent project instructions and several interface and bench
+contracts. No fixture record, raw trace, reply-latency bound, stop measurement or service-gap data existed; the audit
+was text-only, and no checker, build, CI job or hardware test ran.

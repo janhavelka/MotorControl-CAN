@@ -45,7 +45,11 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    `nonChanging`, `exactModel` and `firmware` stay false without evidence. `Endpoint.profile` holds that value, and the
    one pure `Discovery.h` lookup accepts an MKS binding only with `Endpoint.protocol` equal to `PROPRIETARY`. If MKS
    lands S2 first, the same commit carries the contract's Lichuan migration, after a read-only check of FieldCore-node's
-   `Endpoint.profile` values ([audit application](../canopen_shared/audit_application.md), remaining items). Every MKS
+   `Endpoint.profile` values ([audit application](../canopen_shared/audit_application.md), remaining items), and the
+   owner-side default denies that contract 02 places in the S2 commit (its S3 and S13 bullets): `admitBestEffortStop`
+   returns `INVALID` with no TX for a binding without a configured shape, every MKS binding included, and the owner
+   refuses SYNC production and node-0 NMT on an interface with a non-Lichuan binding, each with the contract's no-TX
+   regression tests. These are common owner changes; MKS opts in no S3 shape and supplies no S13 effects. Every MKS
    preparation refuses another family's binding and every Lichuan (and later family) preparation refuses an MKS
    binding, before touching output. Tests: the contract's list (migrated Lichuan binding with unchanged traffic, label
    41, unknown value and protocol mismatch refused, both cross-family directions, rebinding with a retained result),
@@ -96,7 +100,7 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
      it, so a frame that waited in a host buffer is judged by its arrival; a frame without a capture time stays
      `possiblyLate`. `QUIET_INTERVAL` is a distinct risk-accepted outcome: it may end the exchange or phase it
      matches, its result carries that correlation and the interval, and it is never reported, counted or consumed as
-     `QUALIFIED`. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9
+     `QUALIFIED`. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9a
      measures latency to inform that choice; the library invents no default;
    - restart and bus-off notification invalidate every MKS binding's evidence, pending phases and stream state.
 7. Self-echo (MK-D35): the request `001: F3 01 F5` equals the success reply, so once delivered as ordinary RX the
@@ -137,6 +141,7 @@ by a same-shape request and the first delayed duplicate of the earlier reply (`p
 every shape in the set at first attachment and emptied only by a recorded power cycle, a frame captured before the
 request's handoff never matched, the fake transport never delivering its own TX, restart
 notification invalidating evidence, and a CANopen node on the same interface refused in both directions. The S2 tests
-pass; JSONL records follow S6 (console cases once S4 lands); checker negative tests fail as intended; all consumers
+pass, with the S3 and S13 default-deny no-TX regressions when MKS lands S2 first; JSONL records follow S6 (console
+cases once S4 lands); checker negative tests fail as intended; all consumers
 build in C++11. Quick and full verification, firmware builds, the family checks and CI on the exact final pushed
 commit pass. Hardware NOT RUN. Commit and push.

@@ -153,3 +153,79 @@ No canopen_shared change is needed: F9 consumes "Operation admission" as revised
 
 Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this set. Nothing was
 compiled; no hardware or port was used.
+
+## Round 3
+
+Each finding of [audit `aud-20261119-190731-c18295`](audit.md#round-3) was checked against the family files (unchanged
+since `c2a2882a`; their hashes match the report), the [reference review](../../reference/mks_servo_can/review.md), the
+original pages through the pack's page-marked extracts where a device claim is involved, the owner types in
+[CanBusTypes.h](../../../adapters/owner/CanBusTypes.h), the shared contract as audited ([canopen_shared
+README](../canopen_shared/README.md) and [02](../canopen_shared/02_profile_integration_contract.md), hashes equal to
+the report's) and prompt 63's "Requests from family promptsets (2026-11-19)" paragraph. Under the user's direction of
+2026-11-19 every verified high finding is fixed; the medium F9 was cheap and clearly right and is fixed too. Only this
+set's files changed: stages 01 (one cross-reference), 02b, 03, 04, 05, 07, 08, 09, 10, 11 and 12A, the README and
+these two audit files. No shared contract, main prompt, reference pack or source changed. Nothing was compiled and no
+hardware or port was used.
+
+Counts: 9 accepted, 0 accepted in part, 0 rejected, 0 deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 05 step 7 (`completed` by `endpointObserved` followed by a later standstill read, which an in-tolerance sample taken while crossing the window satisfies); MK109 p.80 (F1H 1 stop, 2-4 running); 04 step 7 and MK-D17/MK-D18 (no frame for a stall trip or host-silence stop) | 05 step 7: the fallback is a standstill window, F1H 1 with 32H 0, then the 31H read giving `endpointObserved`, then F1H 1 with 32H 0 again, each handed off after the previous reply, all after the latest trigger's acknowledgement and attributed, with no motion, stop or multi-target frame, restart, bus-off, rebinding or recorded power cycle between; a 31H sampled before the window's first standstill read completes nothing. Acceptance: acknowledged start, in-tolerance crossing, stopped reports after leaving the window (`completed` unset, obligation retained), and a window interrupted by a stop or restart |
+| F2 | Accepted | MK109 p.106-107 (a latched command waits for 4BH; 4BH has no reply; repeat about every 1 ms suggested; no page says a local cancel, a stop or 4AH 00 discards a held command); review MK-D12; old 09 step 7 and acceptance against 05 step 7 (completion needs the latest trigger's status 1) | 09 step 7: per-recipient latch states `NONE`, `LATCHED_LIVE` (checked 5, operation still pending and before its deadline), `LATCHED_STALE` (operation ended locally without a 4BH; cleared only by a recorded power cycle), `POSSIBLY_ARMED` (after a possible 4BH, MK-D12) and `UNKNOWN`. 4BH admits only `NONE`, `LATCHED_LIVE` and `POSSIBLY_ARMED` with the caller's recorded per-member acceptance that the earlier move may run again, every live deadline checked at the handoff; `LATCHED_STALE` or `UNKNOWN` refuses before TX. A latched move has no status 1, so it completes only through 05's standstill window after the 4BH handoff; its attributed 2 is a native observation that completes nothing alone. 05 step 7 bullet cross-references this; 09 acceptance (stale latch, uncertain first 4BH, completion without an invented status 1); 12A Q12 needs that acceptance for its second 4BH |
+| F3 | Accepted | Old 04 step 1 Release row and step 4 (order unproved, the start may transmit after the stop); old 08 step 8 (stationary declaration and no admitted motion only); `TxReport`, `Transport::retire`, `TX_EXPIRED` (stays possibly sent) and recovery `RETIRED` in `CanBusTypes.h` | 04 step 4 **Admission barrier**: while a start frame on the address may still transmit or a stop obligation is not discharged, every changing operation there except a stop refuses before TX (enable, release, stall clear, 05-07 motion, 08 and 10 writes, 09 dispatch reaching it); reads stay available; kept per interface and address across rebinding, bus-off and recovery; cleared only when every such frame is proved unable to transmit and the obligation is discharged by 05's `completed` or by a stop handed off after that proof with its own completion evidence (its attributed stop-complete reply, or F1H 1 with 32H 0 read twice after the stop's handoff). 04 step 1 table row; 08 step 8 text and 82H table; 09 step 6; acceptance in 04 (release and a mode or microstep write after the first stop's terminal and a fresh F1H 1, refused) and 08 |
+| F4 | Accepted | Old 10 table (8BH, 8AH and 4CH ended by a probe-grade responder); 02b step 5 (probe claim holds for a `possiblyLate` frame and never admits) and step 6 (every shape of a newly attached address starts in the ambiguous set, so a new tuple's first reply is `possiblyLate` unless an interval applies); MK109 p.48 (4CH 00 8-bit checksum default, 01 fixed 0x6B); MK-D08 (uplink check in fixed mode undocumented); MK109 p.39-40 (42H user ID) and 08's User ID row; MK109 p.25-26 (menu CanID, CanRate, CanCRC) | 10 table: 8BH and 8AH new tuple needs an attributed (`QUALIFIED` or `QUIET_INTERVAL`) read plus continuity with the intended drive, a 42H equal to the user ID read before the write and unique in the participant record, or the operator's reading on this specimen; old-tuple readback attributed too. 4CH: the operator's CanCRC reading, or an attributed reply valid under one mode only once 12A Q5 has established the fixed mode's uplink check; a reply valid under both (sum 0x6B) or a probe-grade responder decides nothing. Step 2 lets the table's confirmation reads run in quarantine. Acceptance: `possiblyLate` probe, unrelated responder (42H mismatch), 4CH reply valid under both modes, each leaving quarantine |
+| F5 | Accepted | MK109 p.36 (01H returns "a certain read-only parameter" periodically as `[code, value]`, the polled reply's form); 09 step 3 (any read-only code `UNKNOWN` while the reportable set is unconfirmed); old 03 steps 5 and 8; AGENTS reused-route rule (ambiguous samples stay unqualified). The 40H fields are mostly static, but a sample is not an answer to the read and the calibration flag changes with 80H, so the strict reading applies | 03 step 5: admission evidence also needs 40H's stream state `OFF` (step 8) unless the ledger establishes 40H as not reportable; with `ACTIVE` or `UNKNOWN` the frame stays a bootstrap observation, after the quiet interval too. Acceptance: a matching 40H sample after the handoff with `ACTIVE` and `UNKNOWN` state, before and after the interval, with zero changing TX |
+| F6 | Accepted | MK109 p.80 notes 1 and 2 and MK109A p.70 (F1H valid in SR_* modes; in CR_* it can only query calibration); default CR_vFOC: MK109 p.23 (menu Mode) and p.41 (82H table, 02H default), MK109A p.20, MK100 p.2; MK109 p.41 (82H, a Part 5 setting with no bus-mode restriction, "same as the Mode option on screen") and p.86 (the speed example starts with `82 05`) | 08 step 8: the 82H table is split by source mode (fresh 00H 82 read or caller declaration). A bus-mode source keeps the stationary declaration and a fresh F1H 1. A pulse-interface (CR_*, not V1_0_0's CR_CAN) or unknown source is admitted only with the stationary declaration plus the application's record that no pulse source drives STEP, DIR or EN and a fresh F1H 0 or 1 that is never taken as standstill, the result recording that standstill rests on the declaration; without that record it refuses with zero TX and names the menu Mode item as the operator's route. Since the transition itself is documented, a zero-TX rule for every factory-default drive was not needed. Acceptance: a CR_vFOC source admitted with the record, refused without it, the fake drive's CR_* F1H never standing as standstill |
+| F7 | Accepted | MK109 p.14 item 2 and p.67 note 1 (after first use of the limit function or a limit-parameter change, one limit reset by menu GoHome or 91H); old 05 status (interim gate refuses enabled or unestablished EndLimit) and old 07 step 6 (only known-enabled awaiting homing refused); 08 step 9 | 07 step 6: limit admission fails closed per binding generation and identity session. Motion only with EndLimit established off (attributed 00H 90 read or caller declaration), or on with step 7's input assignment and wiring and a homing after the last possible change, in this generation or by the application's commissioning record (91H or menu GoHome). No established value, first attachment, rebinding, a declaration change, restart or bus-off, 3FH, and `limitHomingRequired` (set by a possibly applied 90H, 94H, 9EH or 9FH write, reply lost included) refuse ordinary motion before TX; stops and step 3's homing stay admitted. Acceptance: first attachment, lost 90H or 9EH reply, possibly applied 9FH, each with zero motion TX until requalified |
+| F8 | Accepted | Old 03 acceptance (stop on contradicting identity) against 04's deliverables (stops); old 03 step 8 and 09 step 3 (`OFF` only by 09's declaration, so every read from 03 to 09 was refused as `UNKNOWN`); old 12A Q9 (after 05, yet 95H disabled needs 08's write, snapshot and restore; MK109 p.50) | 03 step 8 lands the minimal generation-bound stream-state record with the caller's evidence-backed `OFF` declaration; 09 step 3 builds on it and adds the 01H transitions; 11 step 11 cites 03. 03 acceptance tests the identity gate without a stop stub and adds the `OFF` declaration cases; 04 acceptance holds the stop on missing, stale and contradicting identity. 12A Q9 split into Q9a (after 05, existing 95H, no 95H write) and Q9b (after 08, 95H disabled with a read snapshot and restoration); references in 01, 02b and 09 now name Q9a |
+| F9 | Accepted | Shared README S3 row and contract 02 S3 and S13 bullets and "Deliver" (both default denies land in the S2 commit, before any further family's first binding); old MKS README S3 row ("Not applicable") and 02b step 4 (first-S2 commit carries only the Lichuan migration) | 02b step 4: if MKS lands S2 first, that commit also carries the owner-side default denies of contract 02's S3 and S13 bullets (`admitBestEffortStop` `INVALID` with no TX for a binding without a shape, MKS included; no SYNC production or node-0 NMT on an interface with a non-Lichuan binding) with the contract's no-TX regressions; MKS opts in no S3 shape and supplies no S13 effects. 02b acceptance and the README S3 row ("No opt-in") follow. The shared contract is unchanged |
+
+### Unresolved questions, round 3
+
+1. **S9 extension. Not answered.** Prompt 63 now records the whole request, including retirement of a handed-off
+   frame and capture times (round 2 proposal 1), but the shared README's S9 row is still Pending and no extension has
+   landed. 02b keeps owner admission and everything that transmits through the owner Blocked; approval and scheduling
+   stay with the prompt 63 lead or the user.
+2. **12B qualification limits. Not answered by the files.** 12B requires explicit stop prerequisites and a restoration
+   plan (step 8), an explicit bounded plan for wire-fault and lost-reply cases (step 10) and scoped claims
+   (acceptance), but no file defines a motion envelope, stop and service timing criteria or abort conditions. They are
+   fixture-specific and can only be written once a fixture is identified; until such a procedure exists a physical
+   run is a retained observation, not a qualification. This is for the 12B lead when a fixture exists; no stage was
+   changed for it.
+
+No change outside this directory is needed; F9 consumes contract 02's S3 and S13 bullets as written.
+
+### Decisions for a lead or owner, round 3
+
+- Prompt 63 lead or user: the S9 extension's approval and schedule (unchanged).
+- Implementing lead or user, F6: an 82H change from a pulse-interface or unknown mode is admitted on the caller's
+  stationary declaration plus a pulse-source record, the user owning that responsibility. If the stricter form is
+  wanted (operator menu only, zero TX from CR_*), drop that positive row of the 08 table.
+- Implementing lead or user, F2 and F3: a latched move whose operation ended without a 4BH blocks every 4BH on that
+  interface until a recorded power cycle, and a stop with unproved order or an undischarged obligation blocks other
+  changing work on the address until a stop with its own completion evidence. Both are the strict reading of the
+  undocumented latch clearing (MK109 p.106-107) and of the transport's retirement evidence.
+- Application configuration, F5 and F8: model-dependent work needs a stream-`OFF` declaration for 40H (or, after 09,
+  an acknowledged 01H stop), and every polled read needs one for its code, as 11's startup example already states.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this set. Nothing was
+compiled; no hardware or port was used.
+
+### Round 3 lead decisions
+
+The coordinating lead decided the round 3 questions on 2026-11-19; they supersede the matching items above.
+
+1. **F6.** The caller-declaration route stays beside the menu route, per the owner's 2026-11-17 direction (user
+   responsibility, settable guards): an 82H change from a pulse-interface or unknown source needs the stationary
+   declaration plus the record that no pulse source is connected, and its result names the declaration and record it
+   relied on (08 step 8 table).
+2. **F2 and F3.** A `LATCHED_STALE`, `UNKNOWN` or `POSSIBLY_ARMED` latch refuses 4BH by default; the caller's
+   explicit, recorded per-drive acceptance admits 4BH over it without a recorded power cycle, and that drive's result
+   states that any latched move on it may execute (09 step 7, its acceptance, 12A Q12). F3's per-address admission
+   barrier (04 step 4) stays unchanged; stops are always admitted.
+3. **S9.** No separate approval step: prompt 63 is a main-sequence prompt whose "Requests from family promptsets"
+   paragraph carries the MKS needs, and its executor implements S9 under the promptset's existing authorization. MKS
+   owner work stays Blocked until that extension lands and its tests pass, as 02b says (README open question 1).
+
+Checks after these edits: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean.

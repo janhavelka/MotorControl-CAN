@@ -25,6 +25,7 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    | Release | An admitted motion or pending phase, or F1H 2-6 | None; refused, release is not a stop |
    | Release | 3AH disabled | None; already reached |
    | Enable or release | Mode outside the dialect's bus modes or unknown; a needed read missing, stale or `possiblyLate` | None; refused, naming the missing evidence |
+   | Enable, release or stall clear | Step 4's admission barrier on the address | None; refused (stops stay admitted) |
    | Stall clear (step 5) | 3EH stalled | 3DH |
    | Stall clear | 3EH clear | None; already reached |
    | Stall clear | 3EH missing, stale or `possiblyLate` | None; refused |
@@ -63,10 +64,18 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    the stop never waits for it. If neither proof precedes the stop's handoff, the start may still leave the
    controller after the stop: the result records the order as unproved and the start's stop obligation survives the
    stop's own terminal, also across bus-off and recovery, until a stop is handed off after such a proof (a final
-   report, a retirement or a recovery that closes `RETIRED`), as new intent and never automatically. Prefer an F7H
-   form where the dialect has one: its code differs from the start's, so a late start reply is never taken for the
-   stop's. A same-code mode stop leaves both immediate outcomes ambiguous. Record which was
-   chosen. During a pending completion phase the slot is free and the phase stays bound.
+   report, a retirement or a recovery that closes `RETIRED`), as new intent and never automatically.
+   Prefer an F7H form where the dialect has one: its code differs from the start's, so a late start reply is never
+   taken for the stop's. A same-code mode stop leaves both immediate outcomes ambiguous. Record which was chosen.
+   During a pending completion phase the slot is free and the phase stays bound.
+   **Admission barrier.** While a start frame on the address may still transmit (no such proof yet) or a stop
+   obligation on it is not discharged, every changing operation on that address except a stop refuses before TX:
+   enable, release, stall clear, 05-07 motion, 08 and 10 writes and 09 dispatch that reaches it. Reads stay
+   available, but a stopped report taken before a late start proves nothing about it. The barrier is kept per
+   interface and address across rebinding, bus-off and recovery, and clears only when every such start frame is
+   proved unable to transmit and the obligation is discharged: by 05 step 7's `completed`, or by a stop handed off
+   after that proof with its own completion evidence (its documented stop-complete reply attributed by 02b step 6, or
+   F1H 1 with 32H 0 read twice after the stop's handoff with no motion frame between).
 5. `prepareClearAlarm` maps to 3DH "release stall state" with fresh 3EH reads before and after (MK109 p.55). It is
    never part of recovery, probe or startup; a new stall trips again; the drive released the shaft when protection
    tripped (p.53), and the enable state after 3DH is read, not assumed. Shaft loosening and the Enter key also clear the
@@ -101,7 +110,10 @@ before the request's handoff not matched; stop while the start is queued unsent 
 after the stop, also under queue pressure), possibly sent (start `UNKNOWN` with its stop obligation, late start reply
 `possiblyLate`), handed to the controller without a final report while the stop is admitted (the fake controller
 sends the start after the stop; order unproved and the stop obligation retained, under queue pressure and across
-bus-off and recovery) and during a pending completion phase; same-code stop ambiguity and a second status 2 never
+bus-off and recovery, then a release and a mode or microstep write attempted after the first stop's terminal and a
+fresh F1H 1, each refused with no TX until the start frame is proved and the obligation discharged) and during a
+pending completion phase; a stop admitted on missing, stale and contradicting identity (03 step 5), its result
+carrying that identity and claiming no standstill; same-code stop ambiguity and a second status 2 never
 taken by a later same-code motion; a status 3 or other undocumented status after an F6H stop, and any frame of the
 interrupted move after F7H, kept raw and never a definitive stop or completion; F7H plain versus 01 per dialect (both
 refused on V1_0_0, 01 refused on MK109A); cross-mode stop refused; stall clear with stale and

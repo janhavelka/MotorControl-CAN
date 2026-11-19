@@ -25,7 +25,8 @@ forbidden on any bench.
    and 8CH; the whole interface for 8AH and 4CH. On entry, queued ordinary work on that scope is retired without TX
    and the scope's identity, read, enable, reference, stream, latch and completion qualifications are invalidated
    (AGENTS: configuration changes invalidate dependent evidence and queued work); a TX disposition of not sent leaves
-   everything as it was. Only the confirmation read on the new tuple, a 00H read of the changed code on the old tuple
+   everything as it was. Only the table's confirmation reads on the new tuple, a 00H read of the changed code on the
+   old tuple
    where 03 established it readable, and an explicit operator reconciliation record (menu reading or node lost, step
    11) run in quarantine. It ends, and the reservations with it, only when the caller accepts one outcome that the
    evidence below supports: new tuple confirmed (new binding generation), old tuple confirmed unchanged (old binding
@@ -37,10 +38,10 @@ forbidden on any bench.
 
    | Write | Qualifying evidence | Unknown outcome |
    | --- | --- | --- |
-   | 8BH slave ID, 8AH bitrate | New: a probe-grade responder (02b step 5) on the new tuple. Old: a 00H read of the code on the old tuple returning the old value (where 03 established it readable), or the operator's CanID or CanRate reading | None: unresolved means quarantine or node lost |
+   | 8BH slave ID, 8AH bitrate | New: a read on the new tuple attributed `QUALIFIED` or `QUIET_INTERVAL` (02b step 6; a probe-grade or `possiblyLate` responder only shows that something answers), plus continuity with the intended drive: a 42H read equal to the user ID read from this drive before the write and unique in the participant record, or the operator's CanID or CanRate reading on this specimen. Old: a 00H read of the code on the old tuple, attributed the same way, returning the old value (where 03 established it readable), or the operator's CanID or CanRate reading | None: unresolved means quarantine or node lost |
    | 8DH group ID | A 00H 8D read (where established readable) attributed `QUALIFIED` or `QUIET_INTERVAL` whose value is the old or the new ID; a response on the unchanged slave ID proves nothing about the group | "Group unknown": ordinary work on the slave ID resumes in a new binding generation, and the participant record holds both candidate group IDs, so group dispatch to either refuses until a deciding read |
    | 8CH reply policy | A deciding 00H 8C read where readable and answered; the operator's CanRSP reading settles the respond byte only | "Policy unknown": the binding runs under the weakest candidate, every command `AcknowledgementSupport::NONE` and ordinary reads unavailable (09 step 5), until a deciding read |
-   | 4CH check mode | A probe-grade responder under the new mode, or the operator's CanCRC reading | None |
+   | 4CH check mode | The operator's CanCRC reading, or a reply on the unchanged slave ID attributed `QUALIFIED` or `QUIET_INTERVAL` whose check byte is valid under one mode only, once 12A Q5 has established the fixed mode's uplink check (MK-D08); a reply valid under both (its 8-bit sum is 0x6B) or a probe-grade responder decides nothing | None |
 3. A bitrate change affects the whole interface: the host controller is reconfigured by the application at an idle,
    settled boundary, and every drive on that interface must share the new bitrate. Refuse the operation while other
    work on the interface is admitted.
@@ -91,7 +92,9 @@ Old/new tuple handling; reply on old tuple, missing reply and reply on an unexpe
 separate read; a lost reply where the fake drive applied the change and where it did not, each followed by an ordinary
 operation on both tuples (refused in quarantine), then each reconciliation outcome; an applied and an unapplied 8DH
 write with identical probe results, both ending "group unknown" without a deciding read; an 8CH write whose confirmation
-is unavailable ending "policy unknown"; a declaration change alone refused as an outcome; a responder on the old tuple
+is unavailable ending "policy unknown"; a `possiblyLate` probe reply on the new tuple, an unrelated responder there
+(42H differing from the pre-write read) and a 4CH reply valid under both check modes each leaving quarantine in place;
+a declaration change alone refused as an outcome; a responder on the old tuple
 not accepted as "old unchanged"; a proven unsent write keeping the binding; refused ID 0, duplicate IDs, overlapping
 group IDs, 0x6B switch and admitted-work conflicts; restart and restore invalidating all evidence; 41H power-on motion
 refusal unless accepted; 3FH refused with FFH and 9AH read off but without the explicit acceptance, safe-fixture record

@@ -20,7 +20,8 @@ model `docs/prompts/lichuan_lc57bk_rs485/` at `eb0dbad` (dirty). Reconciled the 
 [audit application](../canopen_shared/audit_application.md); see "Relationship to the main sequence and shared seams".
 Revised the same day after an independent [audit](audit.md) of `139748e9` ([application](audit_application.md)),
 against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`), and again
-after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`.
+after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`, and after its round 3
+(`aud-20261119-190731-c18295`).
 
 ## Scope
 
@@ -116,7 +117,7 @@ whatever their prompt's overall state; a missing one blocks only the named depen
 | --- | --- | --- |
 | S1 inventory entry | Claim or extend at 02b | `Manufacturer::MAKERBASE`, `DriveProfile::MKS_SERVO_CAN` with the next unused explicit nonzero value, `Protocol::PROPRIETARY` |
 | S2 profile resolution and foreign refusal | Claim or extend at 02b | `Endpoint.profile` holds the `DriveProfile` value; the one `Discovery.h` lookup also checks `Endpoint.protocol`; if MKS lands S2 first, its commit carries the Lichuan migration (contract 02 "Profile resolution") |
-| S3 best-effort stop shape | Not applicable | Opt-in per CANopen binding; an MKS binding has no SDO channel or shape. MKS stops are 04's native frames |
+| S3 best-effort stop shape | No opt-in | Opt-in per CANopen binding; an MKS binding has no SDO channel or shape, and MKS stops are 04's native frames. The owner's S3 default deny (and S13's) still lands in the S2 commit, so if MKS lands S2 first that commit carries it with its no-TX tests (02b step 4) |
 | S4 common axis table | Consume prompt 64 at 11 | No second session; console routes and API/CLI parity Blocked until it lands |
 | S5 package components | Consume prompt 65 at 11 | Vendor material never packaged |
 | S6 console entry and per-record JSONL profile | Claim or extend at 02b; entry Blocked until S4 | `profile` is `"mks_servo_can"`, `null` or the admission value per record type (contract 02 "Console, help and JSONL") |
@@ -144,7 +145,8 @@ Points of the earlier contract that the revision settles, and where this set now
    restart and bus-off notification to the domain's service, with the restricted-range refusals kept for shared
    interfaces. Stage 02b consumes it once it lands and its tests pass; until then only the dependent owner work is
    Blocked, and no family-local owner path, weakened check or second admission substitutes (shared README "Claim
-   before editing"). Approving and scheduling the extension is the prompt 63 lead's or the user's decision.
+   before editing"). No separate approval step is needed (lead decision, round 3): prompt 63 is a main-sequence
+   prompt and its executor implements the extension under the promptset's existing authorization.
 2. **Tool names (01 "Intake rules", operation map and tools).** The rule names `generate_<family>_objects.py` with
    `Objects.h` and `Pdo.h`. A command ledger has neither; this set plans `generate_mks_servo_can_commands.py` and a
    private `Commands.h`. Stage 01 confirms the names with the shared set's owner or renames before the first commit.
