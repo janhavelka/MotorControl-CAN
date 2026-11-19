@@ -150,8 +150,8 @@ Commit tooling, core/profile and application/console changes separately, each te
   admission, TX or an acknowledgement never retire that need. A fallback deadline already elapsed at
   dispatch of the first possibly starting write refuses that write; when service resumes after the
   deadline with the stop still owed, the application invokes the declared stop at once and the
-  result reports the missed deadline and unknown motion; an outstanding obligation also blocks
-  re-declaration or rebinding of that node. A stop path means a selected stop usable from every
+  result reports the missed deadline and unknown motion. Any outstanding stop obligation on a node
+  (a timed run's or another operation's `needsStop`) blocks re-declaration or rebinding of that node. A stop path means a selected stop usable from every
   reachable state of the run, not only a valid encoding. Where the reviewed paths above cover
   both route states (an opted-in S3 shape and a stop row admitted without a fresh report), a
   declared stop is optional; the run's `needsStop` and uncertainty stay in its result, and an

@@ -79,8 +79,11 @@ forbidden on any bench.
    settled boundary, and every drive on that interface must share the new bitrate. Refuse the operation while other
    work on the interface is admitted (step 2's interface-scope check). One 8AH changes one drive, and an idle host
    queue does not change the other drives' bitrate: admit it only when the exhaustive participant record (09 step 6)
-   lists no other powered participant on the interface, or the application's recorded plan names how every other
-   participant changes (each by its own 8AH under this quarantine) and accepts the mixed-bitrate interval.
+   lists no other powered participant on the interface (round 6). The interface quarantine admits no second 8AH, so
+   a multi-participant migration (the series of writes, the active bitrate and reachable recipients at each step,
+   host reconfiguration boundaries, settlement, interruption and operator recovery) needs its own defined operation,
+   outside this promptset's scope; until one exists the application changes one drive at a time with only that
+   drive powered, or the operator uses the CanRate menu item (MK109 p.25).
 4. Check mode: after 4CH the host builds with the new mode, but the uplink check in fixed-0x6B mode is undocumented
    (MK-D08), so switching to 0x6B is refused until 12A Q5 resolves it. MK109A's 0FH is never sent.
 5. Reply policy: setting respond 0 makes later commands unacknowledged and possibly reads unavailable (MK-D11), so the
@@ -92,7 +95,10 @@ forbidden on any bench.
    status reply may or may not precede the restart (undocumented). Afterwards enable state (MK-D13), coordinate origin
    (inference: volatile), streams, latches and completion phases are unknown, and power-on behaviors may run: FFH
    auto-run and 9AH homing move the shaft at power-on (p.27, p.85); whether a 41H restart triggers them is
-   undocumented. Refuse 41H unless FFH and 9AH are read as off or the caller explicitly accepts power-on motion.
+   undocumented. Refuse 41H unless FFH and 9AH are read as off or the caller explicitly accepts power-on motion. The
+   acceptance authorizes the restart, not new work beside its startup motion: a possibly applied 41H accepted that
+   way enters 04 step 4's Lost history on the address, which a fresh 40H identity never ends; only a stop with its
+   post-stop observation or the caller's reconciliation record does.
 7. Factory restore 3FH restarts the drive; since 1.0.8 no recalibration is needed (MK109 p.1, p.56; MK106 p.33 required
    it). The restored scope (CAN ID, bitrate, check mode, group ID, reply policy, FFH, 9AH) is not listed (MK-D22), so
    communication after restore is `UNKNOWN` and every binding fact is invalidated: `prepareFactoryRestore` with an
@@ -108,7 +114,9 @@ forbidden on any bench.
    with the group ID and the 8CH active byte unknown, so multi-target dispatch and 4BH on the interface refuse until
    reconciliation, and frames to any other address need step 2's recipient isolation. Quarantine ends only through step 2's settlements and table rows for each field the restore may
    have changed (8BH and 8AH on one candidate tuple, 4CH, 8CH, 8DH or their unknown outcomes) or node lost; a reply on
-   a candidate or unexpected tuple admits nothing by itself.
+   a candidate or unexpected tuple admits nothing by itself. A possibly applied 3FH also enters 04 step 4's Lost
+   history on the address (its restored FFH and 9AH are unknown); ending the quarantine confirms communication, not
+   motion, so it never ends that condition.
 8. 50H IAP (boot, silent, exit silent) and its RS485-framed broadcast examples (MK109 p.57-58, MK-D26) are never built.
 9. Address planning helpers are host-side only: validate a proposed node table against the physical participant
    list (02b step 5; unique slave IDs, disjoint group IDs, one bitrate and check mode per interface), reusing 09 step 6's participant validator for the exhaustive record it
@@ -148,13 +156,17 @@ another address stays admitted and a read there is admitted with its reply repor
 isolation established; a restored drive whose group ID may equal another slave ID, and a 42H or 00H read to that
 slave refused before TX without isolation (no frame that the lost drive could take as a write); a timed run on
 address B with a 4CH or 3FH request on A just before B's stop due refused before TX, and with B idle the write
-admitted while a stop to B stays admitted during the fence; an 8AH refused with another powered participant and no
-recorded plan; a "group unknown" and a "policy unknown" outcome expressed by the new declaration's candidate set or
+admitted while a stop to B stays admitted during the fence; an 8AH refused with another powered participant, also
+when the application records a migration plan; a "group unknown" and a "policy unknown" outcome expressed by the new
+declaration's candidate set or
 `UNKNOWN` values; 3FH entering interface quarantine
 with the default candidate tuples, refused while another participant uses ID 01, and a restore answering on an
 unexpected tuple admitting no ordinary or multi-target TX; refused ID 0, duplicate IDs, overlapping
 group IDs, 0x6B switch and admitted-work conflicts; restart and restore invalidating all evidence; 41H power-on motion
-refusal unless accepted; 3FH refused with FFH and 9AH read off but without the explicit acceptance, safe-fixture record
+refusal unless accepted; a 41H accepted with power-on motion while the fake drive returns valid identity and runs a
+startup F6H run: the new 40H read re-establishing identity while enable, a move and an 82H write stay refused with no
+TX until a stop with its post-stop observation or the caller's reconciliation record, and the same after 3FH once a
+tuple is confirmed; 3FH refused with FFH and 9AH read off but without the explicit acceptance, safe-fixture record
 and restore plan; no scan, retry or replay. The full matrix of contract 02 "Registration acceptance" for this major
 change and CI on the exact final pushed commit pass. Restart-dependent hardware checks need actual restart control:
 hardware NOT RUN. Commit and push.

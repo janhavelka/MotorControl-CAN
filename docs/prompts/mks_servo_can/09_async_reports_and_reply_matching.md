@@ -66,7 +66,16 @@ code (review section 14 rule 2).
      multi-target use by that dialect's reviewed `multi_target` row (01 step 3), so a code both V1.0.9 tables have does
      not admit a form only one documents (F7H 01, MK-D01); disjoint IDs; and authorization for the effect on each
      recipient. Anything missing, incomplete or stale, or 04 step 4's admission barrier on any possible recipient,
-     refuses before TX. 4BH is never sent through this path: only step 7's latch-aware operation sends it. After
+     refuses before TX. **One operation over all recipients** (round 6, step 7's 4BH rule extended to every
+     changing multi-target frame): the frame is reserved over every possible recipient and submitted to the owner
+     only while each recipient's participant generation, dialect, check mode, reviewed form, authorization,
+     deadlines and 04 step 4 barrier still hold. A stop, cancel, rebind or lost prerequisite on any member before
+     the frame's handoff makes the context request retirement of the queued frame, one frame for every member,
+     before that member's stop is handed off (the stop never waits, 04 step 4). A handed-off frame not yet settled
+     is an earlier changing frame to every possible recipient under 04 step 4's discharge ordering (open TX on
+     each), so a member's stop discharges nothing until it is settled, and unless the frame is proved unable to
+     transmit later every recipient records possible execution as below. 4BH is never sent through this path: only
+     step 7's latch-aware operation sends it. After
      dispatch each recipient's execution is `UNKNOWN`, a motion frame leaves it a retained obligation (04 step 4),
      its pending phases and references are invalidated and the code's shapes enter its ambiguous set, so a later 2
      on its own ID never
@@ -82,34 +91,42 @@ code (review section 14 rule 2).
    power cycle (4AH persistence is unknown, review section 11) and after a 4AH write with possible TX until it is
    read back; established only by an attributed 00H 4A read where 03 established it readable (review section 6: not
    confirmed) or by the caller's declaration with its evidence reference. The **latch history** is kept from every
-   motion command this host sent it since a recorded power cycle (02b step 6, which counts only frames settled before
-   the cycle) while the flag was or may have been `ON`, with each command's reply (5, other or missing). No page says
-   that a local cancel, a stop or 4AH 00 discards a held command (MK109 p.106-107), so only a recorded power cycle
-   clears the latch history (inference: the pages say nothing about power-off; 12A Q8 and Q12 measure it), and it
-   never establishes the flag. A motion command meant only to stage is admitted with the flag established `ON`, the
+   motion command this host sent it while the flag was or may have been `ON`, with each command's reply (5, other or
+   missing). No page says that a local cancel, a stop, 4AH 00 or a power cycle discards a held command (MK109
+   p.106-107 say nothing about power-off; review section 11), so a recorded power cycle sets the latch history
+   `UNKNOWN`, not `NONE`, and the next 4BH needs the per-drive acceptance below (round 6, superseding round 5 lead
+   decision 3). Only where the application records specimen-scoped evidence (board, firmware and edition: 12A Q8
+   or a manufacturer statement) that a power cycle discards a held command does a recorded cycle set `NONE`,
+   counting only frames settled before it (02b step 6). A recorded cycle never establishes the flag. A motion
+   command meant only to stage is admitted with the flag established `ON`, the
    caller's explicit declaration of it, or the caller's separate authorization that the command may execute at once
    (then also under 05's or 06's gates); the status 5 that follows is evidence after TX, never preflight. Latch
    history states:
-   - `NONE`: no motion command sent since the last recorded power cycle while the flag was or may have been `ON`.
-     Establishing the flag `OFF` never erases an earlier `LATCHED_STALE`, `POSSIBLY_ARMED` or `UNKNOWN`;
+   - `NONE`: no motion command sent while the flag was or may have been `ON` since a recorded power cycle that the
+     application's specimen evidence lets discard held commands (above). Establishing the flag `OFF` never erases
+     an earlier `LATCHED_STALE`, `POSSIBLY_ARMED` or `UNKNOWN`;
    - `LATCHED_LIVE`: a motion with a checked status 5 whose admitted operation is still pending (not cancelled,
      superseded, stopped or failed) and before its deadline;
    - `LATCHED_STALE`: such a latch after its operation ended locally without a 4BH; the drive may still hold the
      command, and the next 4BH would start an expired or cancelled motion;
    - `POSSIBLY_ARMED`: a latched member after a 4BH that may have been sent, kept beside any later latch, because
      whether the latch clears or a further 4BH repeats the move is undocumented (MK-D12);
-   - `UNKNOWN`: first bind, rebind, restart, a lost record or a latched request with a missing reply.
-   Two separate gates apply to every 4BH. The TX-order barrier is 04 step 4's motion record: every possible
+   - `UNKNOWN`: first bind, rebind, restart, a recorded power cycle without that evidence, a lost record or a
+     latched request with a missing reply.
+   An earlier `LATCHED_STALE`, `POSSIBLY_ARMED` or `UNKNOWN` stays beside a later live latch, because whether a new
+   staged command replaces a held one is undocumented (MK109 p.106-107), so the latch-state gate reads every state a
+   recipient holds. Two separate gates apply to every 4BH. The TX-order barrier is 04 step 4's motion record: every possible
    recipient's record holds nothing or only a live latched staging with its attributed status 5 (no open TX, uncertain
    execution or retained obligation, no other live intent), each live deadline still ahead at the 4BH handoff (the
    4BH deadline is at most the earliest); nothing overrides it. The latch-state gate: by default 4BH is admitted only
    when every possible recipient is `NONE` or `LATCHED_LIVE`; `POSSIBLY_ARMED`, `LATCHED_STALE` or `UNKNOWN` on any
    recipient refuses before TX. The caller's explicit, recorded per-drive acceptance admits 4BH over such a
-   recipient without a recorded power cycle (lead decision, round 3), answering this gate only; that drive's result
+   recipient (lead decision, round 3), answering this gate only; that drive's result
    then states that any latched move on it, an expired, cancelled or earlier one included, may execute, and its
    motion record gains a retained obligation (04 step 4).
-   **One operation over all recipients.** A 4BH is reserved as one operation over every possible recipient and is
-   submitted to the owner only while each recipient's participant generation, dialect, check mode, reviewed 4BH
+   **One operation over all recipients** (step 6's rule, with these 4BH prerequisites). A 4BH is reserved as one
+   operation over every possible recipient and is submitted to the owner only while each recipient's participant
+   generation, dialect, check mode, reviewed 4BH
    form, both gates (or the per-drive acceptance), deadlines and any required baseline reply still hold. A stop,
    cancel, rebind or lost prerequisite on any member before the 4BH's handoff makes the context request retirement of
    the queued 4BH, one frame for every member, before that member's stop is handed off (the stop never waits, 04
@@ -122,8 +139,10 @@ code (review section 14 rule 2).
    - F4H and F5H (encoder targets): `latchedCompleted`, its terminal evidence under 04 step 4, needs a pre-trigger
      31H read handed off after the status 5 whose attributed reply is captured (latest bound) before the 4BH's
      handoff (earliest bound), the 4BH being submitted only after that reply, and whose value lies outside the
-     caller's tolerance of the latched target (for F4H, that value plus the displacement), then 05 step 7's standstill window
-     with every read handed off after the 4BH's final TX report, all attributed with 31H's stream state `OFF`. The
+     caller's tolerance of the latched target (for F4H, that value plus the displacement), then 05 step 7's
+     standstill window anchored at the 4BH's final TX report (every read handed off after it; the window carries no
+     acknowledgement prerequisite, and 04 step 4's settlement first holds), all attributed with 31H's stream state
+     `OFF`. The
      pre-trigger read is what shows that the axis reached the target after the trigger. A target already within
      tolerance, a 4BH that did not arrive or a window ending elsewhere leaves execution `UNKNOWN` and the obligation
      for 04's stop; it is never claimed on a drive admitted under the per-drive acceptance, where another held move
@@ -168,13 +187,22 @@ and admitted with it, the result stating that any latched move on that drive may
 retained obligation; 4BH refused before TX for a `LATCHED_LIVE` member whose staging frame is still open TX, and the
 per-drive acceptance never admitting 4BH over open TX, uncertain execution, a retained obligation or a non-latched
 live intent; a live F5H latch whose 4BH the fake drive drops (execution `UNKNOWN`, obligation kept for 04's stop), the
-same latch with a pre-trigger 31H outside tolerance and a real post-trigger standstill window at the target
+same latch, its history `NONE` through a recorded cycle with the application's specimen evidence, with a
+pre-trigger 31H outside tolerance and a real post-trigger standstill window at the target
 (`latchedCompleted`, then a new motion admitted), a target already within tolerance (no `latchedCompleted`), and FDH,
 FEH and F6H latches with no completion route; an attributed status 2 alone completing nothing and no status 1
 invented; a staging frame refused before TX after a 4AH enable whose reply was lost (flag not established `ON`),
 admitted with the caller's declaration; a `LATCHED_STALE` member followed by an acknowledged 4AH 00 and a 4BH without
 the per-drive acceptance, refused; a pre-cycle staging frame held below the owner queue and released after the
-recorded power cycle, the latch history keeping it; a two-member 4BH queued behind other work, then one member
+recorded power cycle, the latch history keeping it; a recorded power cycle after a settled staging leaving the
+latch history `UNKNOWN`, a 4BH over a new live staging (the `UNKNOWN` kept beside it) refused before TX without the
+per-drive acceptance and admitted with it,
+with the fake drive both retaining and discarding the held command across the cycle (the gate and the result's
+"any latched move may execute" statement identical in both), and with the application's specimen evidence that a
+cycle discards held commands the cycle setting `NONE`; a two-member group motion frame queued behind other work with
+one member stopped before its handoff (retired for both, never transmitted after the stop), and the same frame
+handed off without a final report before that stop, the fake controller sending it after the stop (open TX and the
+obligation on both members, the stop discharging nothing until the frame is settled); a two-member 4BH queued behind other work, then one member
 stopped before the 4BH's handoff (4BH retired for both, or, if not retirable, every latched member `POSSIBLY_ARMED`),
 and a delayed baseline 31H reply holding the 4BH back (no `latchedCompleted` from a baseline captured after the
 handoff); V1_0_0 broadcast refused; a restart leaving

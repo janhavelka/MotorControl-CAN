@@ -35,10 +35,14 @@ not broaden physical authorization. 05's interim EndLimit gate (05 status) appli
    - the host side is contract 02 "Operation admission", timed runs, which reuses Lichuan's finite-velocity design
      (preparation-anchored duration, caller stop budget fitting before the operation deadline, transfers bounded by
      stop due, `needsStop`). At stop due without step 7's run-time completion (the run-time form's status 2 after the
-     run's attributed status 1, no same-code stop handed off since; an attributed 2 alone is not it) the application
-     composes its separate urgent stop from 04 (`MODE_RAMPED`, `MODE_IMMEDIATE` or an F7H form the dialect has, per caller policy), never a repeated
-     start and never barred by the run's deadline; the drive's own run time does not replace it. A run whose dialect
-     and mode have no reviewed stop row (04 step 2) is refused before its first changing TX;
+     run's attributed status 1, captured after the start is settled, no same-code stop handed off since; an
+     attributed 2 alone, or one captured while the start may still transmit, is not it, 04 step 4 settlement first)
+     the application composes its separate urgent stop from 04 (`MODE_RAMPED`, `MODE_IMMEDIATE` or an F7H form the
+     dialect has, per caller policy), never a repeated start and never barred by the run's deadline; the drive's own
+     run time does not replace it. The selected stop must be a stop path under 04 step 2 (usable from every
+     reachable state of the run; plain F7H only with specimen evidence). A run whose dialect and mode have no
+     reviewed stop row (04 step 2), or whose selected stop is no stop path and which has no declared independent
+     stop, is refused before its first changing TX;
    - without the run-time form (`V1_0_0`) that host stop is the run's only bound;
    - zero speed is the stop form and is refused as a run; nonzero finite duration is required.
 5. Native continuous F6H (no run time) is exposed only as an explicit native operation whose context retains the stop
@@ -52,8 +56,8 @@ not broaden physical authorization. 05's interim EndLimit gate (05 status) appli
    run-time completion, limit stop or stop all end the context; the reply code is shared, so MK-D36 rules apply: a
    `possiblyLate` status 2 ends nothing, and one attributed `QUIET_INTERVAL` ends the run with that correlation (05
    step 7); otherwise the host deadline and its stop decide. Only the run-time form's status 2, after the run's
-   attributed status 1 and before any same-code stop is handed off, is run-time completion and discharges the run's
-   obligation (04 step 4 terminal evidence). After a same-code stop a status 2 is 04 step 3's observation, and a
+   attributed status 1, captured after the start is settled and before any same-code stop is handed off, is
+   run-time completion and discharges the run's obligation (04 step 4 terminal evidence, settlement first). After a same-code stop a status 2 is 04 step 3's observation, and a
    host-bounded or continuous run has no terminal evidence of its own: each is discharged only by a 04 stop that meets
    04 step 4's discharge ordering (one already handed off counts if it does) and its post-stop observation. An
    attributed status 3 is a drive-side limit stop: it ends the run, and it discharges the obligation through the
@@ -82,7 +86,15 @@ withheld, leaving the obligation until 04's post-stop observation and a new run 
 stop at stop due, the timed-run tests of contract 02 "Operation admission" (a duration that no longer fits with the
 stop budget, an observation in flight near stop due, service resuming after stop due, a queue-pressured stop), a
 lost start reply, lost stop reply, limit stop and deadline without service; with the start reply withheld, an
-attributed run-time status 2 not suppressing the urgent stop at stop due; a limit status 3 captured before a held
+attributed run-time status 2 not suppressing the urgent stop at stop due; a start held below the owner queue while
+a status 1 and a run-time status 2 attributed `QUIET_INTERVAL` are captured, then transmitting late: the urgent stop
+still composed at stop due and the obligation retained; stop path (04 step 2): a run selecting plain F7H on either
+V1.0.9 table refused before TX without specimen evidence, a mode stop or F7H 01, or a declared independent stop, and
+admitted with each; with a declared independent stop, the owner-backed application test asserting its fallback
+invocation when the urgent native stop is not admitted, misses its dispatch window or leaves its effect unconfirmed
+at the fallback deadline, a fallback deadline already elapsed at dispatch of the start refusing it, and service
+resuming after that deadline invoking the declared stop at once with the missed deadline and unknown motion in the
+result (contract 02 timed runs); a limit status 3 captured before a held
 earlier frame's final TX report, that frame then transmitting, discharging nothing; no repeated start; native
 continuous run keeps its stop obligation. The full matrix of contract 02 "Registration acceptance" for this major change and CI on
 the exact final pushed commit pass. Hardware NOT RUN: no unbounded run or moving link-loss test substitutes for a

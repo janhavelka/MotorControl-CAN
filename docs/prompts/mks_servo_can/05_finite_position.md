@@ -58,16 +58,20 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
      nothing in 04 step 4's motion record; the 2 is never an outcome of A or of A's stop (04 step 3);
    - 3 is a terminal limit stop, never completion; a status 2 after a same-code stop is "ended, cause
      indistinguishable" (04);
-   - three outcomes stay separate. `endpointObserved`: a 31H reply to a read sent after B's latest trigger was
-     acknowledged, attributed `QUALIFIED` or `QUIET_INTERVAL` (never `possiblyLate`; 31H's stream state `OFF`, 03 step
-     8) and within the caller's tolerance of B's latest target. `completed`: the latest trigger's status 1 attributed
-     the same way (B's start, or after an F5H update the update's), then B's attributed native 2 with no same-code
-     stop handed off since that trigger (04 step 3) and no F5H update since B's start (after an update a 2 may report
-     the superseded target, step 8, so only the window below completes), or a standstill
-     window: F1H 1 with 32H 0, then a 31H read giving `endpointObserved`, then F1H 1 with 32H 0 again, each read
-     handed off after the previous reply, all attributed the same way, with no event between them that may start
-     motion or invalidate evidence (a motion, stop or multi-target frame reaching the address, restart, bus-off,
-     rebinding, a recorded power cycle). A 31H value sampled before the window's first standstill read completes
+   - three outcomes stay separate. The **standstill window** is a sequence of observations with no acknowledgement
+     prerequisite of its own, after an anchor that the consuming predicate names: F1H 1 with 32H 0, then a 31H read
+     within the caller's tolerance of the latest target, then F1H 1 with 32H 0 again, the first read handed off
+     after the anchor and each later one after the previous reply, all attributed `QUALIFIED` or `QUIET_INTERVAL`
+     (never `possiblyLate`; 31H's stream state `OFF`, 03 step 8), with no event between them that may start motion
+     or invalidate evidence (a motion, stop or multi-target frame reaching the address, restart, bus-off, rebinding,
+     a recorded power cycle). For an ordinary move the anchor is the latest trigger's attributed status 1 once that
+     trigger is settled (04 step 4 terminal evidence, settlement first); 09 step 7 names a latched move's.
+     `endpointObserved`: a 31H reply to a read handed off after that anchor, attributed the same way and within the
+     caller's tolerance of B's latest target. `completed`: the latest trigger's status 1 attributed the same way
+     (B's start, or after an F5H update the update's), then B's attributed native 2, captured after that trigger is
+     settled, with no same-code stop handed off since that trigger (04 step 3) and no F5H update since B's start
+     (after an update a 2 may report the superseded target, step 8, so only the window completes), or the
+     standstill window from that anchor. A 31H value sampled before the window's first standstill read completes
      nothing, because the shaft may have crossed the tolerance window and stopped elsewhere, after a stall trip or a
      host-silence stop too. `stopObligationDischarged`: only by `completed` or by 04's stop with its post-stop
      observation under 04 step 4's discharge ordering. `endpointObserved` alone discharges nothing: after a lost
@@ -84,7 +88,7 @@ evidence reference); enabled or unestablished EndLimit refuses before TX.
    predecessor (the start or an earlier update) may still transmit refuses before TX. After it, any 2 is attributed to
    "latest or superseded target" and recorded as that observation, F5H's shapes enter 02b's ambiguous set, and only
    step 7's standstill window, whose 31H read tells the latest target apart, gives `completed` against the latest
-   target, starting from the update's own acknowledgement. Do not count completions. Other codes
+   target, anchored at the update's own acknowledgement once the update is settled. Do not count completions. Other codes
    have no documented live update; a second command
    while moving is refused.
 9. Open loop: SR_OPEN runs without encoder control (MK109 p.23); completion and endpoint semantics there are unqualified
@@ -118,7 +122,10 @@ endpoint outcomes, where a target already within tolerance with a lost start rep
 tolerance window, a delayed (`possiblyLate`) 31H value and an F5H update without its own acknowledgement each leave
 `completed` and `stopObligationDischarged` unset; an acknowledged start, a 31H read within tolerance while the shaft
 crosses the window and fresh F1H 1 and 32H 0 reports after it stopped outside the window (`completed` unset, stop
-obligation retained), and a standstill window interrupted by a stop or a restart; a 31H reachability read that meets
+obligation retained), and a standstill window interrupted by a stop or a restart; settlement first (04 step 4): a
+start held below the owner queue while a status 1 and a native 2 attributed `QUIET_INTERVAL`, or a whole standstill
+window at a target already within tolerance, are captured, then transmitting (no `completed`, obligation retained),
+and a start retired unsent after such a status 1 completing nothing; a 31H reachability read that meets
 its own timeout while the
 operation deadline arrives before the trigger (no trigger TX). The full matrix of contract 02 "Registration acceptance"
 for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push with the API and

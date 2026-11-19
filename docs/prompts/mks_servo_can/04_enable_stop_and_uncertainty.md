@@ -36,14 +36,28 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
      F5H p.102);
    - `MODE_IMMEDIATE`: the same with acc 0; the manual advises against it above 1000 rpm (p.84, p.90);
    - `EMERGENCY`: F7H, added in firmware 1.0.4 (MK109 p.1) and therefore absent from `V1_0_0` (MK100 documents
-     none); "may fail to stop the unit if the current is too low" (p.81), fixed only in the Sep-2026 build (MK109
-     p.2), so on `V1_0_9_NOV2025` its evidence keeps that limit;
+     none). MK109 p.81 says plain F7H "may fail to stop the unit if the current is too low" and offers F7H 01 as
+     the form that stops "regardless of current magnitude"; the Sep-2026 notes say F7 was modified to stop "even
+     when the current is set to a low value" (p.2 item 8), which may describe F7H 01's addition (inference), and
+     MK109A p.71 prints no caveat although the later fix note implies the Nov-2025 build had the limit
+     (inference). The claims stay side by side, so plain F7H's stopping at low current is established on neither
+     V1.0.9 table (round 6 correction of the earlier reading "fixed only in the Sep-2026 build");
    - `EMERGENCY_PRIORITY`: F7H 01, `V1_0_9_SEP2026` only (MK109 p.81).
    Each stop kind is admitted per dialect from its ledger row; both F7H forms are refused on `V1_0_0`. A mode stop
    needs the code of a motion this context or the application's retained record admitted. Whether one mode's stop
    code stops another mode's motion is undocumented: refuse it. With no known active motion only the F7H forms the
    dialect has are offered (none on `V1_0_0`). A motion whose interruption needs a stop the dialect lacks is not
    offered (07 step 8). None of these is a documented disable, and F7H's resulting enable state is not stated.
+   **Stop path.** A run's stop path is a selected stop usable from every reachable state of the run, not only a
+   valid encoding (contract 02 "Operation admission", timed runs; theme 19 of the shared
+   [audit application](../canopen_shared/audit_application.md)). The mode stops document no current limit (p.84,
+   p.90, p.94, p.98, p.102). Plain F7H counts as a stop path only with the application's specimen-scoped evidence
+   (board, firmware, edition and the run's current, such as 12A Q13) named in the result; the library invents no
+   current threshold. Otherwise a run of any kind, homing included, whose selected stop is plain F7H needs another
+   stop it admits (F7H 01 on `V1_0_9_SEP2026`, or its own mode stop) or the application's declared independent stop
+   with its fallback deadline, which follows contract 02 timed runs as cited (an elapsed fallback deadline refuses
+   the first possibly starting write; late service invokes the declared stop at once); without one it is refused
+   before its first changing TX.
 3. Stop replies, per stop form and phase from its ledger row, on the same code as the run (MK-D36): the position-mode
    speed-0 stops (FDH, FEH, F4H, F5H) answer 0 fail, 1 stop starting, 2 stop complete, 3 stopped by limit (MK109
    p.90, p.94, p.98, p.102); the F6H speed-0 stop documents only 0, 1 and 2 (p.84). A status the form does not
@@ -83,7 +97,7 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
 
    | Condition | Holds while | Changing TX admitted besides stops | Ends by |
    | --- | --- | --- | --- |
-   | Lost history | From first attachment of the address, and from a host restart unless the application restores this record from its own storage: the drive may still run or hold work this host has no record of (02b step 6) | None | A stop under the discharge ordering with its post-stop observation, or the caller's explicit reconciliation record, a caller declaration under the owner's 2026-11-17 direction (an evidence reference such as a recorded power cycle with FFH and 9AH read off, or an operator record), named in later results as accepted risk (round 5 lead decision 1) |
+   | Lost history | From first attachment of the address, and from a host restart unless the application restores this record from its own storage: the drive may still run or hold work this host has no record of (02b step 6). Also from a possibly applied 41H or 3FH (10 steps 6-7) or a recorded drive power cycle (02b step 6) while startup motion is possible: FFH or 9AH not read off before it, the caller's acceptance of power-on motion, or any 3FH, whose restored values are undocumented (MK109 p.27, p.85; round 6). A fresh 40H identity or a confirmed tuple never ends it | None | A stop under the discharge ordering with its post-stop observation, or the caller's explicit reconciliation record, a caller declaration under the owner's 2026-11-17 direction (an evidence reference such as a recorded power cycle with FFH and 9AH read off, or an operator record), named in later results as accepted risk (round 5 lead decision 1) |
    | Calibration | An 80H (08 step 4) is admitted and has not ended here; its deadline, a local cancel, a lost reply, rebinding, bus-off and recovery do not end it. This row, not uncertain execution or a retained obligation, covers 80H | None. Stops stay admitted, but no page says a stop interrupts calibration, so a stop ends nothing here | A disposition proving the 80H unsent; its terminal status 1 or 2 (MK109 p.41) attributed after its handoff; or, once the 80H is settled, two sequential attributed F1H reads (stream state `OFF`) reporting neither 6 (calibrating) nor 0 (query failed), the firmware's documented calibration report (MK109 p.80); then 08 step 4's 40H read |
    | Live intent | One admitted motion operation (05, 06, 07 homing or zeroing, a 09 step 7 latched staging) is pending: not cancelled, superseded, stopped, failed or past its deadline, in the binding generation and identity session that admitted it | Only that operation's same-intent transitions below | Its type's terminal evidence below (nothing remains). Any other end (local cancel, deadline, failure, a status 3 limit stop, an admitted stop, restart, bus-off, rebinding) leaves a retained obligation, except that an attributed status 0 rejecting a start with no earlier trigger of the operation leaves nothing, and a latched staging with its attributed status 5 and no 4BH since leaves `LATCHED_STALE` instead (09 step 7) |
    | Open TX | A changing frame to the address (start, update, latched staging, mode stop, 4BH or multi-target frame) may still transmit: handed to the owner without a final TX report, a successful retirement or a recovery closing `RETIRED` (02b step 3) | None | That proof for every such frame |
@@ -93,7 +107,8 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    **Discharge ordering**, defined here once; 02b, 05-10 consume it by reference.
    - *Settled*: a changing frame is settled once proved unable to transmit later (a final TX report, a successful
      retirement or a recovery closing `RETIRED`, 02b step 3). Until then it may still reach the drive after any
-     observation.
+     observation. A changing frame "to the address" includes every broadcast, group or 4BH frame that may reach it
+     (09 steps 6-7).
    - *Stop*: it counts only when handed off after every earlier changing frame to the address is settled, and when its
      own TX is then settled as one that could have reached the drive (a final TX report, or possibly sent and then
      closed `RETIRED` by recovery). A stop proved unsent (retired before transmission) discharges nothing; the
@@ -103,7 +118,11 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
      proof arrives later, because an earlier frame could have transmitted after the limit hit and started motion.
    - *Post-stop observation*: F1H 1 with 32H 0 on two reads, the first handed off after the stop's settlement (or the
      status 3's capture), the second after the first's reply, both attributed with their codes' stream state `OFF`
-     (03 step 8), with no changing frame to the address, restart, bus-off, rebinding or recorded power cycle between.
+     (03 step 8), with no changing frame to the address, restart, bus-off, rebinding or recorded power cycle between,
+     and while 03 step 6's gate establishes a bus mode of the declared dialect (readback or caller declaration in
+     the binding generation, no 82H possibly applied since). In a CR_* mode F1H reports only calibration (MK109
+     p.80, 03 step 4), so in a pulse or unknown mode the pair stays an observation and the condition holds; stops
+     stay admitted without mode evidence, and Lost history keeps its caller reconciliation.
    - *Deciding reads*: any read that decides about a changing frame (08 step 9's readback, 10 step 2's deciding reads,
      02b step 6's recorded power cycle as a boundary) counts only when taken after that frame is settled; a reading
      taken while it may still transmit stays an observation.
@@ -118,13 +137,26 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    (`LATCHED_STALE`, `UNKNOWN`, `POSSIBLY_ARMED`); it never admits a 4BH over a recipient with open TX, uncertain
    execution, a retained obligation or a live intent other than a latched staging.
 
-   Terminal evidence that discharges each admitted motion type, the latest trigger's acceptance and the terminal frame
-   attributed and no same-code stop handed off since that trigger (a status 2 after one is step 3's observation; one
-   decision per form, never a bare status): finite position, 05 step 7's
-   `completed`; a finite F6H run with drive run time, its status 2 after its attributed status 1 (06 step 7); homing
-   and 91H 01 zeroing, 07 step 4's completion; a latched move, 09 step 7's form-specific rule. A host-bounded run, a
-   native continuous F6H run and a form without such evidence are discharged only by a stop and the post-stop
-   observation. A stop's own reply discharges nothing: a mode stop shares its code with the motion it stops (MK-D36),
+   **Terminal evidence** that discharges an admitted motion is one predicate per form, never a bare status, each with
+   no same-code stop handed off since the latest trigger (a status 2 after one is step 3's observation):
+   - non-latched finite position (F4H, F5H, FDH, FEH): the latest trigger's attributed status 1, then 05 step 7's
+     `completed` (its native 2, or its standstill window anchored after that status 1);
+   - a finite F6H run with drive run time: its status 2 after its attributed status 1 (06 step 7);
+   - homing and 91H 01 zeroing: 07 step 4's completion;
+   - a latched F4H or F5H move, which has no status 1: the attributed staging status 5, the pre-trigger 31H
+     baseline, the 4BH settled as transmitted and 05 step 7's standstill window anchored at the 4BH's final TX
+     report (09 step 7); other latched forms have none.
+
+   **Settlement first** (round 6). A terminal decision that ends a live intent, clears an obligation or suppresses
+   a due stop is taken only once the latest trigger and every earlier changing frame to the address are settled. A
+   trigger proved unsent completes nothing; its operation ends with what earlier triggers left. The terminal frame
+   (the native 2, or 07's 3BH transition reads) counts only when captured, or handed off, after that settlement (its
+   earliest bound after the processing time of the final report), and a standstill window's first read only when
+   handed off after it; an acceptance attributed after the trigger's handoff may precede it. Anything captured
+   earlier stays a recorded observation and discharges nothing, also when attributed `QUIET_INTERVAL`, because a
+   handed-off trigger may still transmit after it (02b step 3).
+   A host-bounded run, a native continuous F6H run and a form without such evidence are discharged only by a stop
+   and the post-stop observation. A stop's own reply discharges nothing: a mode stop shares its code with the motion it stops (MK-D36),
    so its status 2 is cause-indistinguishable even when attributed `QUIET_INTERVAL`, and F7H documents only
    acceptance (step 3).
 5. `prepareClearAlarm` maps to 3DH "release stall state" with fresh 3EH reads before and after (MK109 p.55). It is
@@ -167,7 +199,14 @@ the same scenario are 08's, through its real settings route) and during a pendin
 of the step 4 motion record refusing enable, release and stall clear with no TX while a stop stays admitted, and
 ending only by its own "Ends by" column (a lost start reply staying uncertain after fresh stopped reads; a retained
 obligation discharged by a stop after proof and the post-stop observation, not by the stop's reply, a single read or
-reads with a changing frame between); the discharge ordering: a stop held below the owner queue while both
+reads with a changing frame between). A condition entered through a later stage's route (Calibration by 08's 80H,
+live intents by 05-07 and 09's staging) is tested here as a unit test of the record's predicates with its state
+injected, never through a stub of the later API; the landing stage reruns it through its real route (08 for
+Calibration) and this stage's report lists those cases as pending. Settlement first: a start held below the owner
+queue while a status 1 and a status 2 attributed `QUIET_INTERVAL` are captured, then transmitting, leaving no
+terminal decision and the obligation retained, and the same start retired unsent after such a status 1 completing
+nothing; a fresh F1H 1 and 32H 0 after an ordered stop with the work mode a CR_* mode (read or declared) or unknown,
+both kept as observations with the barrier kept and a release refused with no TX; the discharge ordering: a stop held below the owner queue while both
 post-stop reads complete, then retired unsent (obligation retained, a following release refused with no TX), and an
 attributed status 3 captured before a held start frame's final TX report, the start then transmitting (no
 discharge); lost history: first attachment, and a host restart during a continuous F6H run, each refusing enable,

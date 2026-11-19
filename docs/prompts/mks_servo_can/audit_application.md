@@ -392,3 +392,114 @@ The coordinating lead decided the round 5 questions on 2026-11-19; they supersed
    the chosen Hm_ma).
 
 Checks after these edits: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean.
+
+## Round 6
+
+Each finding of [audit `aud-20261119-205719-eb4f99`](audit.md#round-6) was checked against the family files (unchanged
+since `6ead6673`; their hashes match the report), the [reference review](../../reference/mks_servo_can/review.md)
+sections 5, 6, 8 and 11, the original pages through the pack's page-marked extracts where a device claim is involved
+(MK109 p.2, p.25, p.27, p.56, p.68, p.80-81, p.84-85, p.90, p.94, p.98, p.102, p.106-107; MK109A p.71),
+`TxReport` and `Transport` in [CanBusTypes.h](../../../adapters/owner/CanBusTypes.h), canopen_shared 02 "Operation
+admission" timed runs as revised in `d2be8211` (theme 19 of its
+[audit application](../canopen_shared/audit_application.md)) and [prompt 63](../63_mixed_protocols.md) Implement 5
+and "Verify and exit". Under the user's direction of 2026-11-19 every verified high finding is fixed, and the cheap
+medium one too. The lead's brief for this round fixed F4 (below), cited theme 19 for F5, chose the one-participant
+branch for F6, made F7 a prompt 63 change with a consumer gate here, and asked for F1-F3 and F8-F10 to reuse the
+round 5 discharge ordering and the 4BH all-recipient reservation; each was checked against the files before it was
+applied. Only this set's files changed: stages 02b, 04, 05, 06, 07, 08, 09, 10 and 12A, the README and these two
+audit files. No shared contract, main prompt (prompt 63 included), reference pack or source changed. Nothing was
+compiled and no hardware or port was used.
+
+Counts: 10 accepted, 0 accepted in part, 0 rejected, 0 deferred. F7's producer wording waits for the lead (below).
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | 02b step 6 (a frame captured after the request's handoff whose disposition says sent or possibly sent is matched); old 04 step 4 Live intent row (ends by its terminal evidence) and old terminal evidence (acceptance and terminal frame attributed, no settlement condition); Open TX row (ends at the final report); old 06 steps 4 and 7, 05 step 7, 07 step 4; `TxReport` carries `transmitted`, `provedUnsent` and an epoch but no transmission time, and prompt 63 Implement 5 asks for the hand-off time only, so a capture time cannot be ordered against the actual TX, only against the processing of the final report | 04 step 4 **Settlement first**: a terminal decision that ends a live intent, clears an obligation or suppresses a due stop is taken only once the latest trigger and every earlier changing frame to the address are settled; a trigger proved unsent completes nothing; the terminal frame (native 2, or 07's 3BH reads) counts only when captured or handed off after that settlement (earliest bound after the final report's processing time), a standstill window's first read only when handed off after it; an acceptance attributed after the handoff may precede it; anything captured earlier stays an observation, also when `QUIET_INTERVAL`. 05 step 7 (the window's anchor and `completed` need the trigger settled), step 8 (the update's window anchored after its settlement), 06 steps 4 and 7 (run-time completion needs the 2 captured after the start is settled, so an earlier one never suppresses the urgent stop) and 07 step 4 consume it. Acceptance: 04 (held start, `QUIET_INTERVAL` 1 and 2, late TX; a start retired unsent after such a 1), 05 (the same, and a whole window at a target already within tolerance), 06 (urgent stop still composed at stop due) and 07 (held 91H) |
+| F2 | Accepted | Old 09 step 6 (participant record, recipient barrier and post-dispatch obligations, no reservation or retirement rule) and old step 7 (the all-recipient reservation for 4BH only); 04 step 4 (one request slot per slave address; the stop takes it only from the request on its own ID; Open TX row already lists multi-target frames) | 09 step 6 **One operation over all recipients**, step 7's 4BH rule extended to every changing multi-target frame: reserved over every possible recipient and submitted only while each recipient's generation, dialect, check mode, reviewed form, authorization, deadlines and 04 barrier hold; a stop, cancel, rebind or lost prerequisite on any member before handoff requests retirement of the queued frame for all members before that member's stop is handed off (the stop never waits); a handed-off unsettled frame is an earlier changing frame to every possible recipient (open TX on each), so a member's stop discharges nothing until it is settled, and unless proved unable to transmit later every recipient records possible execution. Step 7 now cites step 6's rule with its 4BH prerequisites. 04 step 4 *Settled*: a frame "to the address" includes every broadcast, group or 4BH frame that may reach it. Acceptance (09): a two-member group motion frame retired when one member is stopped before its handoff, and the same frame handed off before that stop and sent after it by the fake controller (open TX and the obligation on both, the stop discharging nothing until settlement) |
+| F3 | Accepted | Old 04 terminal evidence ("the latest trigger's acceptance and the terminal frame attributed" for every type); old 05 step 7 (`endpointObserved` defined after the latest trigger "was acknowledged"; the window uses it); old 09 step 7 (no status 1; window "with every read handed off after the 4BH's final TX report"); MK109 p.106-107 (4BH has no reply; the staging command answers 5) | 04 step 4 terminal evidence now selects one predicate per form: non-latched position (the latest trigger's attributed status 1, then 05's `completed`), finite F6H run time (06 step 7), homing and 91H 01 (07 step 4), latched F4H or F5H (attributed staging 5, the pre-trigger baseline, the 4BH settled as transmitted and the window anchored at its final TX report; other latched forms have none). 05 step 7 defines the **standstill window** as a sequence of observations with no acknowledgement prerequisite, after an anchor the consuming predicate names; `endpointObserved` is a 31H reply to a read handed off after that anchor; the ordinary move's anchor is the latest trigger's attributed status 1 once settled. 09 step 7 names the latched anchor. The dropped-trigger, initially-in-tolerance and per-drive-acceptance negatives in 09's acceptance stay unchanged |
+| F4 | Accepted (lead direction) | Old 09 step 7 ("only a recorded power cycle clears the latch history", labelled inference) and round 5 lead decision 3; MK109 p.106-107 (nothing about power-off or discarding a held command); review section 11 (4AH persistence not stated) and section 6 (00H 4A not confirmed readable); old 12A Q8 (names the question, no distinguishing observation) | 09 step 7: no page says a local cancel, a stop, 4AH 00 or a power cycle discards a held command, so a recorded power cycle sets the latch history `UNKNOWN`, not `NONE`, and the next 4BH needs round 3's per-drive acceptance; only the application's specimen-scoped evidence (board, firmware, edition: 12A Q8 or a manufacturer statement) that a cycle discards held commands lets a recorded cycle set `NONE`, counting only frames settled before it; `NONE` and `UNKNOWN` redefined to match; an earlier `LATCHED_STALE`, `POSSIBLY_ARMED` or `UNKNOWN` stays beside a later live latch (whether a new staging replaces a held command is undocumented), so the gate reads every state a recipient holds, without which a new staging would turn `UNKNOWN` into `LATCHED_LIVE` and bypass the acceptance; "without a recorded power cycle" dropped from the acceptance sentence. 12A Q8: a held-command evidence path through 09's staging and 4BH under the per-drive acceptance (stage one small latched F4H move, owner's power cycle, flag read by 00H 4A where Q3 established it, one 4BH, fresh 31H and F1H): motion shows survival; no motion with a transmitted 4BH, the flag read `ON` and Q12's no-cycle control moving shows discard on that specimen; otherwise that part is NOT RUN and the history stays `UNKNOWN`. Acceptance (09): a cycle leaving `UNKNOWN`, a 4BH over a new live staging refused without and admitted with the acceptance, the fake drive retaining and discarding the command, and the evidence case setting `NONE`; the positive `latchedCompleted` case now names its `NONE` precondition. Supersedes round 5 lead decision 3 |
+| F5 | Accepted | Old 06 step 4 (caller chooses a mode stop or an F7H form; refusal only without a reviewed stop row); old 07 step 8 (independent stop for Nov-2025 mechanical homing only) and its acceptance (composed F7H intent, declaration presence); shared 02 timed runs at `d2be8211` (a stop path is a stop usable from every reachable state, not only an encoding; an elapsed fallback deadline refuses the first possibly starting write; late service invokes the declared stop at once and reports the miss); MK109 p.81 (plain F7H "may fail to stop the unit if the current is too low", F7H 01 "regardless of current magnitude"), p.2 item 8 (Sep-2026 notes: F7 modified to stop at low current), MK109A p.71 (no caveat printed), p.68 (Hm_ma applies to mechanical homing only), p.84, p.90, p.94, p.98, p.102 (mode stops, no current caveat) | 04 step 2: the plain-F7H claims are kept side by side, correcting the old reading "fixed only in the Sep-2026 build" (p.81 of the Sep-2026 edition still prints the caveat; p.2 item 8 may describe F7H 01's addition, inference), so plain F7H's low-current stopping is established on neither V1.0.9 table; new **Stop path** paragraph citing shared timed runs and theme 19: plain F7H counts only with the application's specimen-scoped evidence at the run's current (12A Q13), no invented threshold; otherwise another stop the run admits (F7H 01 on Sep-2026, its own mode stop) or the declared independent stop with its fallback deadline, else refused before the first changing TX. 06 step 4 and 07 step 8 consume it; 07 extends round 5's rule to every Nov-2025 homing method, since the limit concerns current. 12A Q13 measures plain F7H at the chosen current per method. Acceptance: 06 and 07 (plain F7H refused without evidence or an alternative; Sep-2026 homing with F7H 01; owner-backed application tests asserting fallback invocation when the urgent stop is not admitted, misses its window or stays unconfirmed, an elapsed fallback deadline refusing the start, and late service invoking the declared stop at once). The theme 19 rule that an outstanding obligation blocks re-declaration or rebinding reaches 06 and 07 through their citation of the timed-run rule |
+| F6 | Accepted (lead direction) | Old 10 step 2 (the interface quarantine admits only confirmation reads, the old-tuple 00H read and operator records, plus stops) and step 3 (a recorded plan with each participant's own 8AH under that quarantine); MK109 p.25 (CanRate menu item) | 10 step 3: an 8AH is admitted only when the exhaustive participant record lists no other powered participant; the quarantine admits no second 8AH, so a multi-participant migration needs its own defined operation, outside this promptset's scope; until then one drive at a time with only it powered, or the CanRate menu. Acceptance: an 8AH refused with another powered participant, also with a recorded migration plan |
+| F7 | Accepted (producer wording proposed for the lead) | Prompt 63's request paragraph, Implement 5 (whole space "of an interface that has no CANopen binding", refusal in both admission orders) and "Verify and exit" (refusal in both admission orders with zero TX); old 02b steps 2-3 (refusal for a CANopen node, route or COB-ID; consumer reruns limited to prompt 63's listed tests); shared 02 S2/S13 default deny (applies on an interface with a non-Lichuan binding) | 02b step 2: refusal also for a CANopen producer or unsettled CANopen TX, bound or not, and CANopen configuration and TX refused from activation, before the first MKS binding. 02b step 3: the **exclusive-domain activation invariant** joins the provisions the landed extension must give, and its tests join the consumer reruns (activation refused with a configured but unbound CANopen route or COB-ID, an armed producer and a queued or handed-off CANopen frame without a final report; on an active domain with no MKS binding, CANopen binding, route, COB-ID or producer configuration and a CANopen TX request refused; zero TX). 02b acceptance reruns them through the MKS service. README open question 1 records the request. Until prompt 63 carries and passes these tests, only the dependent owner admission stays Blocked (02b step 3, unchanged). The prompt 63 wording is below |
+| F8 | Accepted | README execution order (08 before 07); 07 step 1 (90H descriptor owned and tested in 07); old 08 acceptance ("the same ordering for 82H and 90H"); old 04 acceptance (every motion-record condition and its exit through the real owner); 08 step 4 (80H lands in 08) | 04 acceptance: a condition entered through a later stage's route (Calibration by 08's 80H, live intents by 05-07 and 09's staging) is a unit test of the record's predicates with injected state, never a stub of the later API; the landing stage reruns it through its real route and 04's report lists the pending cases. 08 acceptance: the delayed-write ordering for 82H only (90H's case is 07's); 08 owns the Calibration row's real-route entry, refusals and each ending (unsent disposition, attributed terminal 1 or 2, two F1H reads after settlement, then 40H). 07 acceptance: the delayed 90H write with its descriptor (held below the owner queue, old-value readback, late TX and final report, ordinary motion refused at admission) |
+| F9 | Accepted | Old 04 step 4 post-stop observation (F1H 1 with 32H 0 on two reads, no mode condition); 03 step 4 and 08 step 8 (in the V1.0.9 CR_* modes F1H reports only calibration, never standstill); MK109 p.80 notes 1 and 2 (F1H valid in SR_* modes; in CR_* modes it can only query calibration) | 04 step 4 post-stop observation: counts only while 03 step 6's gate establishes a bus mode of the declared dialect (readback or caller declaration in the binding generation, no 82H possibly applied since); in a pulse or unknown mode the pair stays an observation and the condition holds; stops stay admitted without mode evidence and Lost history keeps its caller reconciliation. The Calibration row's F1H route is unchanged, because p.80 note 2 keeps F1H's calibration report valid in the CR_* modes. Acceptance (04): a fresh F1H 1 and 32H 0 after an ordered stop in a read or declared CR_* mode and in an unknown mode, both observations, barrier kept, release refused with no TX |
+| F10 | Accepted | Old 10 step 6 (41H admitted with FFH and 9AH read off or the caller's acceptance of power-on motion) and step 7 (3FH quarantine ends on communication outcomes); old 04 Lost history row (first attachment and host restart only); 03 step 5 (a new 40H re-establishes identity after 41H, 3FH or a recorded power cycle); MK109 p.27 (0_Mode homes at power-on), p.56 (41H restarts without changing parameters; 3FH restarts the board), p.85 (FFH runs the stored F6H at every power-on) | 04 step 4 Lost history row: also from a possibly applied 41H or 3FH or a recorded drive power cycle while startup motion is possible (FFH or 9AH not read off before it, the caller's acceptance of power-on motion, or any 3FH, whose restored values are undocumented); a fresh 40H or a confirmed tuple never ends it; it ends only by the row's stop with post-stop observation or the caller's reconciliation record. 10 step 6: the acceptance authorizes the restart, not new work, and enters that row; 10 step 7: a possibly applied 3FH enters it, and ending the quarantine confirms communication, not motion. Acceptance (10): a 41H accepted with power-on motion while the fake drive returns valid identity and runs a startup F6H run, enable, a move and an 82H write refused with no TX until the row ends, and the same after 3FH once a tuple is confirmed |
+
+### Unresolved questions, round 6
+
+1. **Landed S9 evidence. Not answered: nothing has landed.** The canopen_shared README S9 row is still "Pending" and
+   no prompt 63 report exists. The current `TxReport` gives no transmission time, and prompt 63 Implement 5 asks for
+   the hand-off time and a final report, so 04's settlement-first rule compares capture times with the processing
+   time of the final report, the conservative bound available. 02b step 3 keeps owner admission Blocked until the
+   extension, the round 6 activation invariant included, lands and its consumer tests pass.
+2. **Held command after a power cycle, and the stop at the intended current. Not answered by evidence.** MK109
+   p.106-107 say nothing about power-off; 09 step 7 now sets the latch history `UNKNOWN` after a recorded cycle,
+   and 12A Q8 gives the distinguishing path or NOT RUN. MK109 p.81 keeps plain F7H's low-current caveat beside p.2
+   item 8's fix note; 04 step 2's stop path needs the application's specimen evidence at the run's current (12A
+   Q13) or another usable stop, and the declared independent stop's fallback deadline covers an unconfirmed effect.
+   No page gives an interruption time at a given current and load; it stays a fixture measurement.
+
+### Proposed change outside this directory (for the lead): prompt 63, F7
+
+Exact wording for [prompt 63](../63_mixed_protocols.md); 02b step 3 names these tests in its consumer gate.
+
+- "Requests from family promptsets (2026-11-19)", after "and restart and bus-off notification to the domain's
+  service.": "Activation of the exclusive domain also needs, checked atomically at the owner boundary, an interface
+  with no CANopen binding, no configured CANopen route or COB-ID (bound or not), no armed CANopen producer and no
+  CANopen frame queued or handed off without a final `TxReport` or a true `Transport::retire`; once the domain is
+  active, also before its first binding, the owner refuses new CANopen configuration and every CANopen TX on that
+  interface (MKS round 6 F7)."
+- Implement 5, after "(a CANopen binding on an exclusive interface, an exclusive domain on an interface with a
+  CANopen binding).": "Activation is checked atomically at the owner boundary and refused while the interface has a
+  CANopen binding, a configured CANopen route or COB-ID (bound or not), an armed CANopen producer (prompt 51's SYNC
+  schedule or another periodic CANopen TX) or a CANopen frame queued or handed off without a final `TxReport` or a
+  true `Transport::retire`. From activation, before its first binding too, an active exclusive domain refuses new
+  CANopen configuration (binding, route, COB-ID, producer) and every CANopen TX on its interface, with zero TX."
+- "Verify and exit", after "refusal in both admission orders with zero TX;": "exclusive-domain activation refused
+  with a configured but unbound CANopen route or COB-ID, with an armed CANopen producer, and with a CANopen frame
+  queued or handed off without a final report; on an active exclusive domain with no binding yet, a CANopen binding,
+  route, COB-ID or producer configuration and a CANopen TX request each refused; all with zero TX;"
+
+### Lead direction for round 6
+
+Recorded from the coordinating lead's brief of 2026-11-19, which supersedes round 5 lead decision 3: until
+specimen evidence shows that the drive discards a held command on power cycle, a recorded cycle sets the latch state
+to `UNKNOWN`, not `NONE`, so the existing per-drive acceptance applies (09 step 7); 12A Q8 gets an evidence path
+that tells retained work from the 4AH flag, or that part is NOT RUN. Also from the brief: F6 takes the
+one-powered-participant branch (the migration operation stays out of scope), F5 consumes shared theme 19 by
+citation, and F7's producer change is the lead's.
+
+### Decisions for a lead or owner, round 6
+
+- Lead, F7: apply the prompt 63 wording above (outside this directory) before 02b's owner admission can consume S9.
+- Implementing lead or user, F4 consequence: a recipient's history now reaches `NONE` only through a recorded cycle
+  backed by the application's specimen evidence, and an earlier `UNKNOWN` stays beside a new live latch. Without that
+  evidence every 4BH needs the per-drive acceptance and `latchedCompleted` is never claimed (09 step 7), so a latched
+  move ends only through 04's stop and post-stop observation; 09's positive `latchedCompleted` test states that
+  precondition.
+- Implementing lead or user, F5: plain F7H on `V1_0_9_SEP2026` is now also unestablished at low current, because the
+  same edition's p.81 still prints the caveat beside p.2 item 8. If the lead reads item 8 as fixing plain F7H in the
+  Sep-2026 build, drop Sep-2026 from 04 step 2's plain-F7H restriction; the effect is small, since F7H 01 exists
+  there. Every `V1_0_9_NOV2025` homing method, not only mechanical, now needs specimen evidence or a declared stop.
+- Implementing lead, F1: a terminal 2 captured before the final TX report is processed is excluded, so a short move
+  or run whose 2 arrives first falls back to the stop and post-stop observation. A TX completion bound in prompt 63's
+  disposition would let the rule compare capture times with transmission instead.
+- Implementing lead or user, F10: a 41H or recorded power cycle with FFH and 9AH read off before it adds no Lost
+  history (the documented power-on motions are off); the stricter alternative enters Lost history on every restart.
+- Lead, shared theme 19: its rule that an outstanding obligation blocks re-declaration or rebinding reaches the timed
+  runs of 06 and 07 by citation; whether 02b's declaration change and 04's record "kept across rebinding" should also
+  refuse a re-declaration while any 04 step 4 obligation holds is not part of these findings and stays open.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this set. Nothing was
+compiled; no hardware or port was used.
+
+### Round 6 lead decisions
+
+1. F7: the proposed exclusive-domain activation invariant and its exit tests are in prompt 63 (Implement 5 and
+   Verify and exit), and the final `TxReport` now carries its completion time or bounds (F1's finer check).
+2. F4 side effect accepted: without specimen evidence every 4BH needs the per-drive acceptance and
+   `latchedCompleted` is never claimed.
+3. F5: the stricter plain-F7H reading stays (MK109 p.81's low-current warning stands beside the p.2 fix note);
+   the caller's declared independent stop is the alternative.
+4. Theme 19: canopen_shared 02 now says any outstanding stop obligation on a node blocks re-declaration or
+   rebinding, not only a timed run's.

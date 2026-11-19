@@ -64,7 +64,13 @@ vendor evidence, safety, uncertainty or verification rules. Read the report, `Ca
    of an interface that has no CANopen binding, and the plan validator refuses it in both admission orders (a
    CANopen binding on an exclusive interface, an exclusive domain on an interface with a CANopen binding). Its raw
    frames carry a per-frame TX disposition with the controller hand-off time (or its bounds) and a final `TxReport`
-   or true `Transport::retire` when one exists; routed frames carry their `ReceivedFrame` capture time.
+   (with its completion time or bounds) or true `Transport::retire` when one exists; routed frames carry their
+   `ReceivedFrame` capture time. Activation is checked atomically at the owner boundary and refused while the
+   interface has a CANopen binding, a configured CANopen route or COB-ID (bound or not), an armed CANopen producer
+   (prompt 51's SYNC schedule or another periodic CANopen TX) or a CANopen frame queued or handed off without a final
+   `TxReport` or a true `Transport::retire`. From activation, before its first binding too, an active exclusive
+   domain refuses new CANopen configuration (binding, route, COB-ID, producer) and every CANopen TX on its interface,
+   with zero TX.
 6. Bench, drives released: a 29-bit frame whose low bits look like `0x601` with a read payload (expect no `0x581`
    reply), and, after reading both drives' PDO, SYNC, EMCY and SDO server (`1200:01/02`) COB-IDs, 11-bit frames in `0x680`-`0x6DF` (expect no
    EMCY, statusword change or error counts); never an NMT-looking payload.
@@ -77,7 +83,10 @@ frames routed separately; stop ordering ahead of raw frames; restart notificatio
 superseded frame retired before a stop, a frame held below the owner queue reported as possibly transmitting after
 the stop, and routed frames carrying capture times; whole-space admission on an empty interface; refusal in both
 admission orders with zero TX; restart and bus-off delivered to the exclusive service; TX hand-off times and RX
-capture times reported with uncertain bounds where the adapter cannot give exact ones. Run the native, firmware, stack and
+capture times reported with uncertain bounds where the adapter cannot give exact ones; exclusive-domain activation
+refused with a configured but unbound CANopen route or COB-ID, with an armed CANopen producer, and with a CANopen frame
+queued or handed off without a final report; on an active exclusive domain with no binding yet, a CANopen binding,
+route, COB-ID or producer configuration and a CANopen TX request each refused; all with zero TX. Run the native, firmware, stack and
 documentation gates and CI on the actual final commit.
 
 ## Documentation and delegation

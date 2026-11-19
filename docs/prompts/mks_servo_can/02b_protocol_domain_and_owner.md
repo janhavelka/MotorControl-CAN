@@ -20,7 +20,9 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    loop or a direct controller path from the profile.
 2. **Exclusive domain.** Declare the MKS interface as one domain owning every standard data identifier 0x000-0x7FF:
    slave IDs 1..2047, broadcast 0 and group IDs, with replies on the request identifier (MK109 p.30-31, p.49). Refuse
-   it when any CANopen node, route or COB-ID exists on that interface, and refuse CANopen admission on an MKS interface.
+   it when any CANopen node, route, COB-ID or producer exists on that interface, bound or not, or CANopen TX there is
+   not settled, and refuse CANopen configuration and TX on an MKS interface from the domain's activation, before its
+   first MKS binding too (step 3's activation invariant).
    Evidence for the refusal: 0x000 is CANopen NMT and MKS broadcast; 0x080 SYNC, 0x081-0x0FF EMCY, 0x181-0x57F PDOs,
    0x581-0x67F SDO and 0x701-0x77F heartbeat are valid MKS IDs ([principles pack](../../reference/canopen_principles/principles.md)
    section 2). Example (inference): an NMT Reset Communication `000: 82 00` reaches every MKS drive as a broadcast with
@@ -29,7 +31,12 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
 3. Prompt 63's base plan serves a second protocol beside CANopen and refuses restricted-range plans (Implement 1 and
    3); the MKS extension it records ([README](README.md) open question 1) is what this stage consumes. Check that the
    landed extension provides, with its own tests: a whole-space MKS plan admitted only on an interface with no CANopen
-   node, route or COB-ID, while shared-interface plans keep the restricted-range and overlap refusals; MKS stops
+   node, route or COB-ID, while shared-interface plans keep the restricted-range and overlap refusals; the
+   **exclusive-domain activation invariant** at the owner boundary (round 6; the wording requested for prompt 63 is
+   in [audit application](audit_application.md#round-6) F7): activation only with no CANopen binding, configured route
+   or COB-ID (bound or not), no armed CANopen producer and no CANopen frame queued or handed off without a final
+   report, and an active domain refusing new CANopen configuration and every CANopen TX on its interface even
+   before its first MKS binding; MKS stops
    (F7H forms, mode speed-0 stops) ahead of queued MKS ordinary frames; a per-frame TX disposition (not sent, sent,
    possibly sent) delivered for each admitted frame to the matcher of step 6; retirement of a queued or handed-off
    MKS frame with proof that it cannot transmit later (a final TX report or a successful retirement, as `TxReport` and
@@ -38,7 +45,11 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    (`ReceivedFrame`); restart and bus-off notification to the MKS service. Rerun from the landed commit prompt 63's
    exclusive-domain exit tests ("Verify and exit"): whole-space admission on an empty interface; refusal in both
    admission orders (a CANopen binding on an MKS interface, an MKS domain on an interface with a CANopen binding)
-   with zero TX; stop ordering ahead of raw frames; a superseded frame retired before a stop and a frame held below
+   with zero TX; the activation-invariant tests (activation refused with a configured but unbound CANopen route or
+   COB-ID, with an armed CANopen producer, and with a CANopen frame queued or handed off without a final report; on an
+   active domain with no MKS binding, a CANopen binding, route, COB-ID or producer configuration and a CANopen TX
+   request each refused; all with zero TX); stop ordering ahead of raw frames; a superseded frame retired before a
+   stop and a frame held below
    the owner queue reported as possibly transmitting after it; restart and bus-off delivered to the exclusive
    service; per-frame TX hand-off times and RX capture times, with uncertain bounds where the adapter cannot give
    exact ones. Owner admission and everything that transmits through the owner stay Blocked until they pass. A need
@@ -176,7 +187,9 @@ a declaration with an `UNKNOWN` group ID admitting the probe and refusing group 
 unisolated address, a declared participant whose group ID equals another participant's slave ID refused by the
 disjointness check with zero TX (also when that participant has no binding), a frame captured before the
 request's handoff never matched, the fake transport never delivering its own TX, restart
-notification invalidating evidence, and a CANopen node on the same interface refused in both directions. The S2 tests
+notification invalidating evidence, a CANopen node on the same interface refused in both directions, and the step 3
+activation-invariant cases rerun through the MKS service (an unbound CANopen route or unsettled CANopen frame
+refusing activation; CANopen configuration refused on an active domain before the first MKS binding). The S2 tests
 pass, with the S3 and S13 default-deny no-TX regressions when MKS lands S2 first; JSONL records follow S6 (console
 cases once S4 lands); checker negative tests fail as intended; all consumers
 build in C++11. Quick and full verification, firmware builds, the family checks and CI on the exact final pushed

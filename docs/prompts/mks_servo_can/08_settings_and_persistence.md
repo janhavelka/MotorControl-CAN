@@ -101,8 +101,11 @@ completion evidence and a prepared or queued move: zero stale move TX after the 
 write (its preparation refused at admission, queued work retired), the old evidence kept only after the proven
 unsent one; a possibly sent 84H held below the owner queue, an old-value readback before its settlement, the late
 TX applying the change and then its final TX report: a newly prepared pulse move refused at admission because that
-readback requalified nothing, and the same ordering for 82H and 90H; a lost 80H terminal reply followed by a move, a
-release and an 82H change, each refused with no TX until 04's Calibration row ends; invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
+readback requalified nothing, and the same ordering for 82H (90H's case is 07's, with its descriptor); 04's
+Calibration row through the real 80H route, which this stage owns: entry at 80H's possible TX, a lost 80H terminal
+reply followed by a move, a release and an 82H change, each refused with no TX while a stop stays admitted, and each
+ending of the row (a disposition proving 80H unsent, an attributed terminal 1 or 2, two F1H reads after 80H is
+settled, then the 40H read); invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
 50H, 0FH and 8FH; board-dependent writes refused when the observed board code differs from the declared one; 9FH on a
 42D refused with IN_1 required as home or limit, admitted for a separately recorded remapped configuration, and its
 lost acknowledgement invalidating input, limit and reference evidence. No automatic save or restoration. The full

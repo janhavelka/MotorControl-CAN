@@ -373,3 +373,75 @@ existed (prompt 63 specifies the producer contract, not that it landed). The ful
 communication-practice and experiment contracts, parent instructions and sibling implementations were not supplied.
 No MKS fixture record, captured traffic, stop measurement, service-gap bound, build result or exact-commit CI result
 existed; no check, build or hardware procedure ran.
+
+## Round 6
+
+A condensed, faithful copy of the sixth report. It is untrusted reviewer input; the verified dispositions are in
+[audit_application.md](audit_application.md) "Round 6". Line numbers refer to the files as revised by round 5
+(committed in `6ead6673` and unchanged at the audited `08040865`; the family files' hashes in the report equal those
+of that tree).
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-205719-eb4f99` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~240360 tokens)") |
+| Date | 2026-11-19 20:57:19 (from the ID), 234.9 s, one attempt |
+| Revision | `main` at `080408659d66d549c9eb869f3724ff38167e10ab`, no uncommitted changes recorded |
+| Cost | Estimated USD 0.48 (0.4827, configured pricing); 175,535 input and 13,163 output tokens (6,657 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-205719-eb4f99.json` (local) |
+| Location checks | 36 verified, 0 relocated, 1 unverified (F4's quote "clear the latch history"), 0 invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_evidence_and_command_ledger.md` (142, `a357bac7`),
+`02_codecs_and_dialects.md` (89, `8a0942ae`), `02b_protocol_domain_and_owner.md` (183, `de4f0c12`),
+`03_reads_identity_and_dialect.md` (112, `7b777885`), `04_enable_stop_and_uncertainty.md` (186, `49158223`),
+`05_finite_position.md` (125, `6a5b8a2f`), `06_speed_mode.md` (89, `5fc38ebd`), `07_homing_and_limits.md` (112,
+`dddb0893`), `08_settings_and_persistence.md` (111, `b07dc60e`), `09_async_reports_and_reply_matching.md` (182,
+`91716890`), `10_bus_settings_and_restart.md` (160, `adeb3f50`), `11_console_and_integration.md` (66, `0f4977e1`),
+`12_qualification_and_release.md` (70, `2e670677`), `12a_first_contact.md` (76, `8883733f`), `README.md` (172,
+`b5f5d696`), `audit.md` (375, `638867e0`), `audit_application.md` (394, `1ca2dffb`), `execution_contract.md` (157,
+`c6c43d36`). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` (379 lines) and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, `docs/reference/mks_servo_can/README.md` and
+`review.md`, `63_mixed_protocols.md` (87 lines); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The revision separates stops from the requests they preempt, orders deciding reads after TX
+settlement for stops and settings, and keeps owner-backed work blocked until the S9 extension lands and passes its
+tests. It is not yet safe to execute the device-facing stages as written: a motion can be marked complete while its
+trigger can still transmit, ordinary broadcast or group dispatch lacks the revocation rules added for 4BH, and
+several stop, restart and latch rules still conflict or lack executable acceptance criteria. Text-only review; no
+build, test or device behavior was verified. **Verdict:** blocking issues. The defects affect whether a command can
+still start motion, whether an urgent stop remains owed and whether the next operation may be admitted; correct
+them and their regressions before enabling the affected routes. Ledger, codec and host-only work can proceed; a
+written prompt 63 extension is not evidence that the owner capability has landed.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *A motion can complete before its trigger is settled.* The matcher accepts a reply after handoff on a possibly-sent disposition, so under a quiet interval delayed status 1 and 2 frames can be attributed to a finite F6H run whose start is still held below the owner queue; run-time completion discharges the run and suppresses its due stop, and open TX clears when the held start transmits. Accepting attribution risk does not mean accepting completion while the trigger can still transmit; position and homing terminal rules do not make settlement a prerequisite either. In 04 make settlement of the latest trigger and every earlier motion-changing frame a prerequisite for any terminal decision that clears an obligation or suppresses a due stop; say which observations captured before settlement are retained but cannot discharge; never complete a trigger proved unsent. Test a held F6H start with quiet-interval 1 and 2 then late TX (urgent stop still owed); apply the same to position and homing. | 02b:98-100; 04:88-89; 06:37-40, 54-56 |
+| F2 | High, probable defect, high | *A queued ordinary broadcast or group move can outlive a recipient's authorization.* 09 checks every physical recipient before ordinary multi-target dispatch and records obligations after it, but gives the all-recipient reservation and stop-triggered retirement only to 4BH. A group frame is not the outstanding request on member B's slave ID, so B's stop can take priority and the group move still reach B afterwards. Reserve every possible recipient for each changing multi-target frame; recheck generation, authorization, deadlines and barriers at handoff; revoke the shared frame on a member stop or other invalidator; include a handed-off unsettled group frame in each member's stop ordering and keep obligations when retirement is unproved. Test retirement before a member stop and a possible late group TX after it. | 09:67-71, 111-115; 04:62-65 |
+| F3 | High, verified defect, high | *The shared terminal rule still requires evidence a latched move cannot produce.* 04 requires the latest trigger's attributed acceptance and an attributed terminal frame; 09 says 4BH has no reply and a later status 2 is only an observation, and its F4H/F5H path uses a baseline plus 05's standstill window, whose endpoint predicate starts after trigger acknowledgement. The carve-out does not remove either prerequisite, so the positive latch-completion test is impossible or invites a fabricated acknowledgement. Define the standstill window as a sequence of observations with no implicit acknowledgement; in 04 select the terminal predicate by form (ordinary position adds the latest trigger's attributed status 1; latched encoder motion uses attributed staging 5, the pre-trigger baseline, settled 4BH TX and the post-trigger window); keep the dropped-trigger, initially-in-tolerance and per-drive-acceptance negatives. | 04:121-125; 05:61-63; 09:118-121, 125-126 |
+| F4 | High, verified defect, high | *An inferred power-cycle effect bypasses the per-drive latch acceptance gate.* Round 5 preserves effects of a pre-cycle frame that can still transmit, but still clears the drive-side latch history on a recorded cycle without evidence that a held command is lost; if the drive keeps it, a recipient classified `NONE` can execute old motion on the next 4BH without the acceptance a stale or unknown latch needs. This is an admission-rule gap, not a claim that hardware retains commands. Q8 names the question but gives no observation that separates a retained command from the effective 4AH flag. Separate host TX settlement from proof of discard; until specimen-scoped evidence exists keep `UNKNOWN` or the prior possible-latch state and use the per-drive acceptance; give Q8 a distinguishing evidence path or mark that part NOT RUN; test a retained and a cleared latch after cycling. | 09:86-89 (quote unverified), 105-109; audit_application:381-382; 12a:50; AGENTS.md:71 |
+| F5 | High, probable defect, high | *Timed-run admission does not consistently distinguish a stop encoding from a usable stop path.* 06 lets the caller choose an F7H form and checks for a reviewed stop row; 07 identifies the Nov-2025 plain-F7H low-current limit but requires the independent path only for mechanical homing. The limit concerns current, not homing method, so another admitted run with plain F7H as sole stop and unestablished current adequacy is not excluded; 07's acceptance checks the composed F7H intent and the declaration's presence, not that the application invokes it when the native effect stays unconfirmed. Apply the shared usable-path predicate to the selected stop and every reachable state; where the limit is not ruled out by scoped evidence require a usable alternative or the declared independent stop and fallback deadline, inventing no current threshold; in owner-backed application tests assert fallback invocation when the urgent stop cannot leave or stays unconfirmed at that deadline. | 06:39-41; 07:80-84, 108-110; shared 02:147-150 |
+| F6 | High, verified defect, high | *The admitted multi-drive bitrate plan cannot execute under its own quarantine.* 10 allows 8AH with several powered participants if a plan changes each by its own 8AH under the quarantine, but the quarantine covers the whole interface and admits only confirmation reads, records and stops, not another 8AH; no transaction owns the series and no safe intermediate state is specified; the missing-plan negative test does not exercise the permitted path. Restrict 8AH to one powered participant until a multi-participant migration operation exists, or specify that operation's transitions (active bitrate and reachable recipients per step, host reconfiguration, settlement, interruption, recovery) with a two-participant positive and a partial-application case. | 10:24-26, 80-83, 150-152 |
+| F7 | High, verified defect, high | *Prompt 63 does not fully specify the exclusive-interface exclusion that 02b consumes.* Prompt 63 specifies whole-space admission, TX disposition, retirement, timestamps and fault notification, but frames its exclusion test around a CANopen binding in either order, while 02b also refuses a configured CANopen route or COB-ID; neither addresses residual CANopen TX or a producer on an interface with no CANopen binding, and shared S2 default deny applies only when a non-Lichuan binding is present. Specify in prompt 63 that activation requires no conflicting CANopen routes, producers or unsettled TX and that an active exclusive domain excludes new CANopen configuration and TX before the first MKS binding; add producer tests for configured-but-unbound resources and queued or handed-off traffic, name them in 02b's consumer gate, and keep dependent admission blocked until they pass. | 63:63-65, 78-79; 02b:22-23; shared 02:305-309 |
+| F8 | Medium, verified defect, high | *Two required owner-backed regressions still precede the routes they exercise.* 08 requires the delayed-write regression for 90H, whose descriptor and tests are 07's, and 07 runs after 08; 04 requires exercising every motion-record condition and its exit through the real owner, including Calibration, whose 80H route lands in 08. Keep early unit tests of the shared predicates; assign real-route calibration entry, exit and barrier tests to 08 and the delayed 90H test to 07; update both acceptance lists and the handoff so no stage stubs a later API or claims an unrun regression. | README:63; 04:166-168; 08:103-105; 07:12-15 |
+| F9 | High, verified defect, high | *Post-stop reconciliation can use an F1H value in a mode where it does not report standstill.* 04 lets F1H 1 with 32H 0 clear lost history or a retained obligation without checking the mode; 03 and 08 say that in the V1.0.9 pulse modes F1H reports only calibration, and 08 forbids treating a fresh F1H 1 there as standstill. This matters at attachment and recovery, where the mode may be unknown. Keep stop admission independent of mode evidence, but require a mode in which the ledger establishes F1H as a motion report before the pair discharges; in an unknown or pulse mode retain the obligation or use the permitted caller reconciliation; test a fresh CR_* F1H 1 and 32H 0 after an ordered stop (both observations, barrier kept). | 04:104-106; 03:35-37; 08:62 |
+| F10 | High, probable defect, high | *A restart can requalify identity without restoring the motion-history barrier.* 10 admits some 41H restarts on acceptance that FFH or 9AH may cause motion, which authorizes the restart, not overlapping new work; 04 starts Lost history only at first attachment or host restart, and 10 creates no motion-record condition for possible startup motion, so a re-established 40H can satisfy the identity gate without showing that the startup motion ended; lifting 3FH quarantine confirms a tuple, not motion. Specify a motion-record transition for a possibly applied 41H, 3FH or recorded power cycle where startup motion is possible; keep observations and stops available; let neither identity nor communication confirmation clear it; name the allowed evidence or caller reconciliation; test a fake drive returning valid identity while running a startup move, with no enable, motion or conflicting write admitted. | 10:91-95, 109-111; 04:86 |
+
+### Unresolved questions (reviewer, round 6)
+
+1. Which landed S9 revision and adapter tests demonstrate the exclusive-domain guard, comparable TX and RX timing
+   bounds, and retirement semantics for frames below the owner queue? The producer prompt defines planned work, not
+   a capability the MKS stages can use; owner-backed delivery stays gated on that evidence.
+2. What specimen-scoped evidence establishes that a drive power cycle discards held motion independently of the 4AH
+   flag, and that the selected stop works within the interruption budget for the intended current and load?
+   Neither the latch-clearing inference nor an accepted stop encoding establishes the physical behavior; the default
+   latch gate and the timed-run fallback depend on those distinctions.
+
+### Coverage gaps (reviewer, round 6)
+
+The MKS pack inventory and engineering review were secondary evidence: manifest contents, rendered originals,
+schematics and worked-vector bytes were not supplied, so hashes, printed layouts, electrical limits and
+edition-specific device claims were not independently checked. The repository index was truncated: owner,
+transport, adapter, checker, package and workflow sources, current PROGRESS and landed seam commits were not
+supplied. Several referenced main-sequence prompts, parent instructions and the conditional experiment prerequisites
+were not supplied. No fixture record, captured traffic, reply-latency bound, stop or service-gap measurement, or
+exact-commit verification result existed; no checker, build, CI job or hardware procedure ran.

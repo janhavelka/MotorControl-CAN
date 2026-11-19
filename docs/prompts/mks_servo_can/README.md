@@ -22,7 +22,8 @@ Revised the same day after an independent [audit](audit.md) of `139748e9` ([appl
 against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`), and again
 after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`, after its round 3
 (`aud-20261119-190731-c18295`), after its round 4 (`aud-20261119-192905-1c8982`) against prompt 63 at `c67e48dd`,
-and after its round 5 (`aud-20261119-195548-b9573d`).
+after its round 5 (`aud-20261119-195548-b9573d`), and after its round 6 (`aud-20261119-205719-eb4f99`) against the
+shared contract at `d2be8211`.
 
 ## Scope
 
@@ -144,7 +145,11 @@ Points of the earlier contract that the revision settles, and where this set now
    promptsets (2026-11-19)" paragraph (`6786fde1`) records the MKS extension: an exclusive non-CANopen domain on its
    own interface over the whole standard-ID space, stop precedence within that domain, a per-frame TX disposition and
    restart and bus-off notification to the domain's service, with the restricted-range refusals kept for shared
-   interfaces. Stage 02b consumes it once it lands and its tests pass; until then only the dependent owner work is
+   interfaces. Round 6 adds one producer invariant, exclusive-domain activation with no CANopen route, producer or
+   unsettled TX and no CANopen configuration or TX once active, whose wording for prompt 63 is in the
+   [audit application](audit_application.md#round-6) (F7); 02b's consumer gate names its tests, and until prompt 63
+   carries them only the dependent owner admission stays Blocked. Stage 02b consumes the extension once it lands and
+   its tests pass; until then only the dependent owner work is
    Blocked, and no family-local owner path, weakened check or second admission substitutes (shared README "Claim
    before editing"). No separate approval step is needed (lead decision, round 3): prompt 63 is a main-sequence
    prompt and its executor implements the extension under the promptset's existing authorization.
