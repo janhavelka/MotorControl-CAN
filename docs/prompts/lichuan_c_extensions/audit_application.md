@@ -329,3 +329,94 @@ directory. Nothing was compiled; no hardware or port was used; nothing was commi
    transitions" (setting the CiA 402 halt bit cannot start motion; no LX page gives bit 8 another meaning).
 4. No-shape landing (F1): moving it to the first reads stage (03a or 04a) supersedes round-3 decision 1's
    landing point; the reasoning of that decision stands.
+
+## Round 5: audit `aud-20261119-201350-68dc0f`, 19 November 2026
+
+Each finding of the [fifth report](audit.md) was checked against this set's files at `570320bb` (unchanged
+from `b661fba7` and at `2d1c70c2`), the [LX review](../../reference/lichuan_c_extensions/review.md), the
+extract pages and code named below, and the shared change made after the audit in `2d1c70c2`, recorded in
+[canopen_shared audit_application](../canopen_shared/audit_application.md) theme 12: in canopen_shared 02
+"Timed runs" the declared independent stop carries a caller-supplied fallback deadline, and the application
+invokes it when the urgent stop is not admitted, misses its dispatch window or leaves the stop effect
+unconfirmed at that deadline (an early homing interruption with an upload pending included); admission, TX or
+an acknowledgement never retire that need. F1 is applied by citing that rule. Following the user's direction
+of 2026-11-19, every high finding was verified and fixed, and the three medium ones were cheap and clearly
+right. Only files in this directory changed; the shared contract, prompt 57, the LX pack, code and tests were
+not edited. No hardware, port or build was used.
+
+Dispositions: 7 accepted, none accepted in part, rejected or deferred. F6's prompt 57 line is outside this
+directory and is listed for the lead below.
+
+| Finding | Disposition | Evidence checked | Change |
+| --- | --- | --- | --- |
+| F1 deadline for the declared stop | Accepted, by citation | Old 03b lines 102-105 and 119-126, 04b lines 76-81; canopen_shared 02 "Timed runs" after `2d1c70c2`; 03b item 3 and 04b item 3 (stop completion `UNKNOWN` without X15's record); 03b item 1 (polling needs the read acceptance) | 03b item 5: the declared stop carries the caller's fallback deadline and preparation refuses without it; the application invokes it under the shared rule, which admission, TX or acknowledgement never retire. Consequence written there: until X15's record and the read acceptance exist, no stop effect is confirmed, so every run that reaches stop due ends with the declared stop invoked by its fallback deadline; the result names the stop and the deadline, and the application records its invocation. 03b item 6: the same for homing, with the early interruption behind a pending upload (capped only at the latest interruption time) named as a case. 04b items 5 and 6 cite both; the 03b and 04b intros list the fallback deadline among the shared rules. Tests in 03b Deliver, consumed by 04b: a declared stop without a fallback deadline (refused at preparation) and service-level fallback tests through the example application with a recording declared-stop hook and a fake clock (urgent stop not admitted, not dispatched in its window under queue pressure, acknowledged with no confirming observation, early homing interruption with an upload pending), each asserting the invocation by the deadline, no cancellation by admission, TX or acknowledgement, and `needsStop` with motion unknown kept. 07b physical items 4 and 6 put the deadline in the envelope; README S3 bullet |
+| F2 TLO actual position | Accepted | Old 03b lines 46-55, 04b lines 24-33, 07a T5 and K5; TLCEN p3 extract (encoder row: TLC "1000 lines", TLO "None"); LX review lines 300-301 ("TLO reported position is not measured feedback"); CL257 p4 and p10 (17- and 23-bit encoders) and ABZ57 p4 as the README cites them; `Actions.h` `EnableEvidence` (the C path compares re-uploaded reviewed values and never `607A` with `6064`) | 03b item 2: the basis record makes the values comparable and does not make `6064` the shaft position; on TLO the attended route also needs the caller's actual-position record for this admission (an independent fixture measurement on the basis record's coordinates, with no motion write since), otherwise the equality is a controller-coordinate screen and the route refuses with MISSING_PREREQUISITE and zero TX, a valid basis record and equal raw values notwithstanding. The same applies on TLC, and in 04b item 2 on CL2, unless the basis record shows that `6064` reports the encoder, which no TL-C or CL2 page states: the gap is the same wherever that is unstated, and the extension is one clause. 07a T5 and K5: production route only with these records, otherwise the bounded experiment or NOT RUN. Tests in 03b and 04b Deliver: equal raw values with a valid basis record and no actual-position record (TLO), and a basis record without the encoder statement (TLC, CL2), each MISSING_PREREQUISITE with zero TX |
+| F3 queued targeted NMT | Accepted | Old 03a lines 90-97 and 103-107, 06 lines 18-21, execution contract route table; round 4's F5 change ("no targeted NMT command reaches the owner, so no hand-off case remains"), which held only for commands admitted after the declaration; canopen_shared 02 S13 (NMT admission rechecked at hand-off; a binding change retires a not-yet-sent command), shared contract text whose landing is not established here; `CanBusOwner.h` `admitNmt` and `cancelNmt` as round 3 read them | 03a item 6: the population-change check also refuses a TL-C or CL2 declaration or rebinding on a node holding a pending targeted NMT request admitted under its earlier declaration or binding, until terminal or cancelled (a handed-off frame reported possibly sent, recorded with the declaration); targeted NMT to other nodes untouched. Where S13's hand-off recheck has landed it retires the command on a rebinding and the application consumes that terminal; the application check stays for a declaration, which the owner does not see. Tests: a targeted command admitted under the CL86-C binding with hand-off held, then the declaration and separately a rebinding (refused, no later NMT TX to that node), then cancellation and the declaration (admitted, zero NMT TX), with another node's targeted command handed off unchanged. 03a acceptance, a note after the execution contract's route table, 06 items 2 and 6; 04a item 1 applies 03a item 6 with the same tests. Round 4's wording above is superseded by this row |
+| F4 TL-C homing signals | Accepted | Old 03b lines 106-110, 04b lines 66-69, 07a T8; TLCEN p7 extract (`2400:01` "DI Terminal Active Level", DI0..DI2 defaults 1, 2, 3), p8 (DI command table: 1 homing signal, 2 positive limit, 3 negative limit), p12..13 (17 and 18 run to the negative and positive limit switch, 24 and 29 to the home switch, start directions positive for 18 and 24, negative for 17 and 29); CL257 p10 codes as 04a item 8 records them; AGENTS external I/O rule | 03b item 6 "Fixture signals", defined once: beside the X17 record, each method needs the caller's fixture signal record for this binding, model and fixture (from 07a's wiring record): the input wired to each signal the method uses and the polarity it was reviewed with; before setup or trigger one fresh read of `2400:01..06` and `2101` in the current node generation must match it and any starting condition the X17 record states; a missing record, one for another binding, model or fixture, a signal on another input or none, another polarity or an unmet starting condition refuses with MISSING_PREREQUISITE and zero TX. 04b item 6 checks its switch and start-direction prerequisites against the same record and a fresh `2400:01..08` and `2101` read. Tests in 03b and 04b Deliver (correct assignment bytes with no record, another binding's record, another input, another polarity, an unmet starting condition). 07a T8 and K7, 07b physical item 6 |
+| F5 re-declaration to a legacy model | Accepted | Old 06 lines 18-22; canopen_shared 02 S3 (explicit no shape set before first traffic and kept across rebind; Lichuan keeps DEC-2) and "Timed runs" (a run's stop path on an unresolved route is the binding's opted-in shape or a declared stop); `CanBusOwner.h` `setSdoReuse` (default `SdoReuse()`; a change "does not reopen, re-quarantine or cancel anything") and the `sdoReuse` copy getter | 06 item 2 defines both directions in the owner's service context. A re-declaration is refused while work is admitted (a pending targeted NMT command included), a result is retained, the route is unresolved or an owner resync step is pending. To a TL-C or CL2 model: `NONE` and the explicit no shape, as before. To CL86-C or OL86-C: the new-model attestation cleared, the owner default `SdoReuse()` of DEC-1 and S3's Lichuan profile default (DEC-2's shape) restored and both read back; until both match the application admits no work there, so no CL86-C run counts on a DEC-2 stop path the binding lacks. 03a item 2's landing of the explicit no shape also lands the return to the profile default. Tests in 06 item 6 and Deliver: both directions on a reused channel, refused with an unresolved previous transfer, then the effective reuse policy and shape (CL86-C best-effort sends `000B`, TL-C or CL2 returns `INVALID` with zero TX). README S3 bullet |
+| F6 prompt 57 between stages 02 and 06 | Accepted | Old 02 lines 86-90, prompt 57 lines 201-203 (update only "if the set has closed out first"), 03b item 12, 04b item 13, 06 item 7, 07b item 1 | 02 item 9: the commit that lands a dependency updates the cells whenever the map exists, to the owning stage's disposition, GATED under X15 for a model whose operation stage has not landed its source-state table; console tests and coverage rows only where those routes and files exist, otherwise 03b, 04b and 06 create them from the map's cells; the stage-02 handoff states the rule. 02 Deliver adds the checker case (the dependency landed before 03b, 04b and 06: re-decided GATED cells pass with no console test or coverage row). 03b item 12 and 07b item 1 follow. Prompt 57's sentence needs the matching change (lead decision 1) |
+| F7 TL-C-only ordinary reads | Accepted | Old execution contract line 109, 03a lines 95-97, 04a lines 81-82 and 113-116; execution contract "Evidence and supported behavior" (a model without a row refuses before TX); LX review line 193 (CL2 documents only `2401`; `2402..2407` undocumented) | Execution contract: the route table is an identity filter applied after model and object eligibility, TL-C's raw bitrate candidates and error history refused on CL2 under every outcome, CL2's `1018` option the one undocumented read; the ordinary-reads row names reads "the declared model has rows for" and TL-C bitrate candidates. 03a item 6 states the filter and its test asks for frames of the reads "the model admits". 04a item 1 states it; 04a Deliver pairs the zero-frame CL2 request with 03a's TL-C test under the same declared-model match |
+
+### Unresolved question
+
+1. **Answered by the pages, now written in 03b item 2, 04b item 2 and 07a T5.** TLCEN p11 (TL57ZH p10) and
+   CL257 p12 only pair each controlword with low bits (6040=0 with 000, 6 with 001, 7 with 011, 15 with 111)
+   and document no other starting state (extract pages, which round 4 rendered). 03b item 2's table therefore
+   admits one starting row, low bits 000 with bit3 and bit14 clear in the gate's mode, first word `0x0006`,
+   then `0x0007` and `0x000F` each after the previous acknowledgement and a fresh report with its paired low
+   bits; low bits 111 are reported as already enabled with nothing sent; 001, 011 and other patterns are GATED
+   under X15; alarm or running refuses; another mode or a stale, missing or other-model report refuses
+   before TX. After an acknowledged `0x000F`, a fresh low-bits-111 report is predecessor 15; any other fresh
+   report admits no stop row, so nothing further is sent, no stop is prepared, the result keeps the enable
+   state unknown and the attendant uses the power cutoff (T5's fourth branch, which K5 takes). 04b item 2
+   applies the table with 04a item 4's bracketed acquisition and `2100` bit2 for bit14.
+
+### Reviewer coverage gaps
+
+- Original pages: this application read the PyMuPDF extracts of TLCEN PDF pages 3, 7, 8, 11, 12 and 13 and
+  CL257 PDF pages 4, 10 and 12; no page was rendered as an image this round. Other device claims stay as
+  earlier rounds checked them.
+- Code: `Actions.h` `EnableGate` and `EnableEvidence`, `CanBusOwner.h` `setSdoReuse` and `sdoReuse`; whether
+  S13's hand-off recheck has landed in code was not established; builds and hardware are unchanged.
+
+### Decisions for the lead or owner
+
+1. Prompt 57 (F6), outside this directory. In its "Verify and exit" text, replace the sentence that begins "If
+   the Lichuan C extensions set has closed out first" with this text, keeping prompt 57's existing link on
+   "Lichuan C extensions":
+
+   ```text
+   If the Lichuan C extensions set's stage 02 disposition map exists, this
+   landing commit also updates its release and mode-select cells for TL-C and CL2 to the dispositions of its
+   stages 03b item 12 and 04b item 13 (GATED under X15 for a model whose operation stage has not landed), and
+   updates their console tests and coverage rows only where those routes and files already exist (its stage
+   02 item 9), so no cell stays NOT_IMPLEMENTED on a landed dependency.
+   ```
+2. F1 consequence: until X15's stop record and the read acceptance exist for a model, every TL-C or CL2 finite
+   run that reaches stop due, and every interrupted home, ends with the declared independent stop (enable,
+   STO or drive-power path) invoked by its fallback deadline. Confirm.
+3. F2: the actual-position record is a new MISSING_PREREQUISITE input (proposal), extended to TLC and CL2
+   unless the basis record shows that `6064` reports the encoder. On an open-loop TLO the controller's own
+   coordinate decides commanded motion; restating the prerequisite in controller coordinates, with the
+   unexpected-motion bound kept, would be a separate reviewed change.
+4. F5: canopen_shared 02 S3 defines the explicit no shape but no return to the profile default. 03a item 2
+   lands the return with the no shape; if S2 lands S3 first without it, adding it is a shared-contract change,
+   and the canopen_shared README S3 row could name it.
+5. F3: the application's declaration check stays after S13's hand-off recheck lands, because the owner does
+   not see a model declaration. Confirm.
+6. Proposals to confirm: the fixture signal record (F4) and the already-enabled report answered with no TX in
+   the enable source-state table.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+### Round 5 lead decisions
+
+1. Prompt 57's handoff sentence now covers a landing whenever this set's stage 02 map exists (F6).
+2. F1 consequence confirmed: until X15 and read acceptance give TL-C and CL2 stop evidence, a run reaching
+   stop due and an interrupted home end with the declared independent stop invoked at its fallback
+   deadline, because the urgent stop's effect cannot be confirmed. This relaxes model by model as that
+   evidence lands.
+3. F5: canopen_shared 02 S3 now defines the way back from the explicit no shape (restore the profile
+   default after reconciling the route and previous work, before first traffic, with a readback); 03a's
+   path consumes it whichever commit lands S3 first.

@@ -17,10 +17,20 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    each route already delivered by 03b and 04b.
 2. Model declaration route. One explicit console input per bound node declares the model by exact designation
    (`TLC57-C`, `TLO86-C`, `CL2-57C`, `CL257C-ABZ`, `CL86-C`, ...). It performs no I/O, is refused while work is
-   admitted or a result is retained on that node, and replaces the node's `ModelBinding`; for a TL-C or CL2
-   model it sets the owner's `SdoReusePolicy::NONE` and S3's explicit no shape before any further work on
-   that binding (03a item 2). The identity
-   candidate set and identity records come from the application's static configuration, the one loading
+   admitted on that node (a pending targeted NMT command included, 03a item 6), a result is retained there,
+   its route is unresolved or an owner resync step is pending on it, and replaces the node's `ModelBinding`
+   in the owner's service context. Both directions are defined, so owner settings never outlive the model
+   they were set for:
+   - To a TL-C or CL2 model it sets the owner's `SdoReusePolicy::NONE` and S3's explicit no shape before any
+     further work on that binding (03a item 2).
+   - From a TL-C or CL2 model to CL86-C or OL86-C it clears the new-model attestation, restores the reviewed
+     legacy owner settings (the owner default `SdoReuse()` of DEC-1, and S3's Lichuan profile default, DEC-2's
+     shape, in place of the explicit no shape, which otherwise survives rebind) and reads both back through
+     the owner's copy getters. Until both match, the application admits no work on that binding, so no CL86-C
+     run counts on a DEC-2 stop path the binding lacks. The return to the profile default lands with the
+     explicit no shape (03a item 2).
+
+   The identity candidate set and identity records come from the application's static configuration, the one loading
    path for a MEASURED record (07a T1, K2): a record is entered there with its provenance id, checked against
    stage 01 item 6's minimum content when loaded, and takes effect when the application starts with that
    configuration; no console route writes or edits a record. The existing identity read also prints
@@ -50,8 +60,11 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    under queue pressure, reservations that conflict on the same bus and node whatever the declared model,
    a model change with pending work refused, results and caches routed by the admitted model, separate
    identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
-   stay current, declaring a new model while a CL86-C-originated schedule is armed or a SYNC or node-0 NMT
-   request admitted earlier is still pending (03a item 6), a SYNC request aimed at the
+   stay current, declaring a new model while a CL86-C-originated schedule is armed or a SYNC, node-0 NMT
+   or targeted NMT request to that node admitted earlier is still pending (03a item 6), re-declarations
+   in both directions on a reused channel (refused with an unresolved previous transfer; afterwards the
+   effective reuse policy and best-effort shape: a CL86-C best-effort stop sends DEC-2's `000B`, a TL-C
+   or CL2 one returns `INVALID` with zero TX), a SYNC request aimed at the
    CL86-C node, conflicting routes, and a broadcast NMT command refused while a TL-C or CL2 binding is
    present (a per-model row admitting the command is not S13's population-wide approval); assert the
    interface's traffic (zero SYNC, zero NMT and no refused frame), not only a verb's return.
@@ -70,8 +83,9 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 ## Deliver
 
 Console and application changes, `console_jsonl.py` and bench-script guards, `test/model_console_test.cpp`
-(API/CLI parity per admitted row, refusals, declaration route, a record loaded from static configuration
-changing the printed outcome, a record below the minimum content rejected at load) and
+(API/CLI parity per admitted row, refusals, declaration route with legacy-to-new and new-to-legacy
+re-declarations and their owner-setting readbacks, a record loaded from static configuration changing the
+printed outcome, a record below the minimum content rejected at load) and
 `test/mixed_model_owner_test.cpp`, both registered; coverage and documentation files above; operation-map
 `console` rows proving each route; CHANGELOG, report and `PROGRESS.md`.
 

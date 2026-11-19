@@ -35,7 +35,9 @@ observations. Everything here can be verified on the host.
    shape a direct `admitBestEffortStop` would still send DEC-2's `000B` there. This is a checked
    prerequisite of the first TL-C or CL2 traffic: if S3's explicit no shape has not landed, whichever of
    03a and 04a runs first lands that part (the per-binding override of the profile default, its retention
-   across rebind, the `INVALID` no-TX return of `admitBestEffortStop` and their tests; S3's default deny for
+   across rebind, its return to the profile default on an idle binding with a resolved route for 06 item
+   2's re-declaration as CL86-C or OL86-C, the `INVALID` no-TX return of `admitBestEffortStop` and their
+   tests; S3's default deny for
    other profiles stays with S2) and records the claim in the canopen_shared README; until then no TL-C or
    CL2 binding carries traffic. 03b and 04b item 3 consume it. Tests cover
    a missing attestation and a rebinding (stale attestation refused, no TX), and a same-binding policy
@@ -91,10 +93,13 @@ observations. Everything here can be verified on the host.
    [route table](execution_contract.md#routes-by-outcome-tl-c-and-cl2), checked by the example application
    before owner admission: bootstrap reads under every outcome, ordinary reads refused on CONTRADICTED, and
    every targeted NMT command to a TL-C or CL2 binding refused before `admitNmt`, prompt 57's bootstrap
-   Enter Pre-operational included (withheld, the node reported stranded). Tests per outcome (a
+   Enter Pre-operational included (withheld, the node reported stranded). The table filters by outcome
+   only after the declared model's own row admits the read: an ordinary read of an object without a row
+   for that model (TL-C's raw bitrate candidates and error history on a CL2 binding) is refused before TX
+   under every outcome (04a item 1). Tests per outcome (a
    declared-model match, none, no outcome, CONTRADICTED): bootstrap reads emit exactly their request
-   frames, ordinary reads theirs or, on CONTRADICTED, none, and every targeted NMT command zero NMT TX, also
-   with a fresh synthetic Stopped heartbeat, which reports the node stranded.
+   frames, ordinary reads the model admits theirs or, on CONTRADICTED, none, and every targeted NMT command
+   zero NMT TX, also with a fresh synthetic Stopped heartbeat, which reports the node stranded.
    Interface isolation until S13's full gate lands. A per-model refusal does not stop the interface's SYNC
    producer or a node-0 NMT command, and S13's default deny keys on non-Lichuan bindings (canopen_shared 02
    S13), so it does not see a TL-C or CL2 binding, which carries `LICHUAN_C`. From this stage, the first in
@@ -102,12 +107,18 @@ observations. Everything here can be verified on the host.
    interface holding a TL-C or CL2 binding, `armSync`, every individual `admitSync` whatever node it names,
    and every node-0 NMT command, with zero SYNC or NMT TX. It also refuses a TL-C or CL2 declaration or
    rebinding on an interface whose SYNC schedule is armed or that holds a pending SYNC or node-0 NMT request
-   (admitted and not yet terminal). Admission and hand-off are separate owner steps (`admitSync` before
+   (admitted and not yet terminal), and on a node that holds a pending targeted NMT request admitted under
+   its earlier declaration or binding: the route table refuses only new targeted commands, so one admitted
+   while the address was a CL86-C binding could otherwise reach hand-off after the change. Targeted NMT to
+   other nodes is untouched. Admission and hand-off are separate owner steps (`admitSync` before
    `canTransmitSync` and `noteSyncSubmitted`, `admitNmt` before its transmit), so the population change is
    serialized with them: the application makes it in the owner's one service context after checking the
    live schedule and pending requests there. It may first cancel a pending request (`cancelSync`,
    `cancelNmt`, which keep possible earlier effects) or wait for its terminal; a frame already handed to the
-   controller is reported as possibly sent, recorded with the declaration and never recalled. It admits
+   controller is reported as possibly sent, recorded with the declaration and never recalled. Where
+   canopen_shared 02 S13's hand-off recheck has landed, it retires a not-yet-sent targeted command on a
+   rebinding and the application consumes that terminal; the application check still covers a
+   declaration, which the owner does not see. It admits
    nothing; the Doxygen of the new model values states the same obligation for other applications. When
    S13's full gate lands, this set supplies TL-C and CL2 SYNC and NMT effects as unknown, its
    population-wide guard then refuses on their interface, and only then is the application rule retired.
@@ -116,7 +127,10 @@ observations. Everything here can be verified on the host.
    command, each with zero SYNC and NMT TX on the interface; a one-shot SYNC and a broadcast NMT admitted
    before the declaration with hand-off held, then the declaration or a rebinding attempted (refused, no
    later SYNC or NMT TX), and after explicit cancellation the declaration admitted with zero SYNC and NMT
-   TX.
+   TX; and a targeted NMT command admitted to the node under its CL86-C binding with hand-off held, then the
+   TL-C declaration and, separately, a rebinding (each refused, no later NMT TX to that node), then
+   cancellation and the declaration (admitted, zero NMT TX), while a targeted command to another node
+   admitted beside it is handed off unchanged.
 7. Ledger: mark each delivered TL-C row implemented and host-tested per model; X02, X03, X04 and X06 open.
 
 ## Decisions that do not transfer here
@@ -143,7 +157,8 @@ A TL-C binding reads identity, state and configuration through the real owner wi
 raw values preserved; no TL-C path plans a download to `2401..2407`, `2203`, a COB-ID or a PDO record, and
 reads of them are the reviewed explicit uploads only; no TL-C traffic leaves before the binding carries
 `NONE` and S3's explicit no shape; the example application emits no SYNC and no node-0 NMT on an interface
-holding a TL-C binding and no targeted NMT to a TL-C binding; the bitrate change is listed BLOCKED with
+holding a TL-C binding and no targeted NMT to a TL-C binding, one admitted under the node's earlier
+declaration included; the bitrate change is listed BLOCKED with
 X02's missing evidence.
 Quick and full verification, firmware builds and exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and
 X06 stay open for 07a.

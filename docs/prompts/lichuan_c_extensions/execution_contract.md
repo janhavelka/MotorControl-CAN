@@ -101,12 +101,16 @@ Prompt 57 keeps the bootstrap identity and state reads admitted under every outc
 request without a declared-model match and admits one bootstrap NMT command. For a TL-C or CL2 binding the
 routes that take no model follow this table at the example application's route check before owner admission
 (03a items 2 and 6, consumed by 04a); preparations that take a model follow stage 01 item 7. Every row also
-needs the binding's `NONE` attestation and S3's explicit no shape (03a item 2).
+needs the binding's `NONE` attestation and S3's explicit no shape (03a item 2). The table is an identity
+filter applied after model and object eligibility: a read is planned only for objects with a row for the
+declared model ("Evidence and supported behavior"), so TL-C's raw bitrate candidates and error history are
+refused before TX on a CL2 binding under every outcome, and CL2's caller-selected `1018` identity option
+is its one undocumented read (04a items 1 and 2).
 
 | Route | A declared-model match (CONFIRMED, or UNCONFIRMED with that match) | UNCONFIRMED without that match, or no current outcome | CONTRADICTED |
 | --- | --- | --- | --- |
 | Bootstrap reads: the `1000:00` probe, the identity read with its options (03a item 1, 04a item 2) and the state read (STATUS, MONITORS, FEEDBACK, ERRORS; CL2 without `1001`, 04a items 1 and 4) | Admitted | Admitted | Admitted (prompt 57) |
-| Ordinary reads: configuration, I/O, tuning, raw filter and bitrate candidates, `2203`, PDO map readback, TL-C error history | Admitted, explicit single reads | Admitted; the result carries the outcome | Refused before TX: only the bootstrap reads remain (prompt 57), and another product's read effects are unreviewed |
+| Ordinary reads the declared model has rows for: configuration, I/O, tuning, raw filter candidates, TL-C bitrate candidates, `2203`, PDO map readback, TL-C error history | Admitted, explicit single reads | Admitted; the result carries the outcome | Refused before TX: only the bootstrap reads remain (prompt 57), and another product's read effects are unreviewed |
 | Targeted NMT Enter Pre-operational to a node reported Stopped (prompt 57's bootstrap command) | Withheld (below) | Withheld | Refused (prompt 57) |
 | Other targeted NMT commands (Start, Stop, Reset node, Reset communication) | Refused, NOT_DOCUMENTED | Refused (prompt 57) | Refused (prompt 57) |
 | Node-0 NMT and SYNC on the interface | Refused by 03a item 6 until S13's full gate lands | Same | Same |
@@ -119,7 +123,9 @@ exists for either model. A node that answers no SDO is reported stranded with th
 Stopped by assumption; its recovery is the application's (an owner power cycle), with no other NMT command
 and no broadcast as a fallback. A later reviewed change scoped to the model may admit the command on a
 measured heartbeat record of that model. A read admitted before the outcome changes completes; its result
-carries the outcome current at completion and admits nothing.
+carries the outcome current at completion and admits nothing. A targeted NMT command admitted while the
+node was declared or bound as another model is not covered by these refusals; 03a item 6's
+population-change check refuses the declaration or rebinding until it is terminal or cancelled.
 
 ## Owner and bus
 

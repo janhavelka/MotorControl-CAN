@@ -85,9 +85,13 @@ C-family claims, conflicts C01..C24, gates Q01..Q28 and generated descriptor val
    03b and 04b change their cells. Refusal details, console text (06) and coverage come from this one map,
    and a documented entry alone never makes a cell ADMITTED. A NOT_IMPLEMENTED cell names its dependency by
    public function; once that function is in the operation map, the checker fails until the cell is
-   decided again, so the commit that lands the dependency (for example prompt 57's `prepareRelease` and
-   `prepareModeSelect`, also after this set's closeout) updates the TL-C and CL2 cells, their console tests
-   and coverage rows (03b item 12, 04b item 13).
+   decided again. So the commit that lands the dependency (for example prompt 57's `prepareRelease` and
+   `prepareModeSelect`) updates the TL-C and CL2 cells whenever this map exists, whichever later stages
+   have run: to the disposition the owning stage gives (03b item 12, 04b item 13), which is GATED under
+   X15 for a model whose operation stage has not landed its source-state table. It updates console tests
+   and coverage rows only where those routes and files already exist; otherwise 03b and 04b (operation
+   tests) and 06 (console tests and `docs/lichuan_c_models.md`) create them from the map's cells when they
+   run. This stage's handoff states that rule for a prompt 57 landing between this stage and stage 06.
 
 ## Deliver
 
@@ -96,7 +100,9 @@ writes) and `check_lichuan_operations.py`; regenerated `Types.h`, `Objects.h`, `
 model table and `lichuan_generated.md`; negative tests for a missing TLEDS section, a tampered LX hash, a model
 row without a source, a promoted X gate, a TL-C row inheriting a C-EDS default, an edited original C claim,
 a CL2 row citing an EDS line, a model admitted by code but not by the ledger, a disposition map missing a
-cell, a NOT_IMPLEMENTED cell whose dependency has landed, and an EN57 row naming CL57-C and OL57-C that
+cell, a NOT_IMPLEMENTED cell whose dependency has landed, the same dependency landed before 03b, 04b and
+06 (the cells re-decided as GATED pass with no console test or coverage row present), and an EN57 row
+naming CL57-C and OL57-C that
 counts as documentary coverage while generating no runtime selector and no write admission. Report and
 `PROGRESS.md`.
 

@@ -1,9 +1,10 @@
 # Lichuan C-family extensions promptset (TL-C integrated steppers, CL2 drives, 57C English manual)
 
 Prepared 2026-11-19. Source collection and prompt preparation complete. All implementation stages are NOT
-STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after four independent
+STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after five independent
 [audit](audit.md) rounds ([application](audit_application.md)), prompt 57's identity policy as of `a7656efb`
-and `328651b6`, and the shared S3, timed-run and halt-bit rules of `6ff80ed1`, `c4e5574f` and `328651b6`.
+and `328651b6`, and the shared S3, timed-run, halt-bit and fallback-deadline rules of `6ff80ed1`,
+`c4e5574f`, `328651b6` and `2d1c70c2`.
 
 This promptset **extends the implemented Lichuan C profile** (`lichuan_c`, `MotorControlCAN::LICHUAN_C`,
 CL86-C first). It is not a new profile: no `DriveProfile` value, no copied profile directory, no second
@@ -126,7 +127,8 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
     refuses these models. The explicit no shape is a checked prerequisite of the first TL-C or CL2
     traffic, reads included; whichever of 03a and 04a runs first lands it if S2 has not (03a item 2, 04a
     item 3). With no shape, a finite run or a home also needs an application-declared independent stop
-    (03b items 5 and 6). CL86-C keeps DEC-2.
+    with a fallback deadline (03b items 5 and 6). CL86-C keeps DEC-2; a re-declaration back to CL86-C or
+    OL86-C restores it (06 item 2).
   - S10 keeps Lichuan's marker default for every `lichuan_c` binding, but the markers read `1018`, which CL2
     does not document and DEC-1 does not cover for any new model. New-model bindings are set to
     `SdoReusePolicy::NONE` through the existing `setSdoReuse` (03a, 04a), and new-model preparations

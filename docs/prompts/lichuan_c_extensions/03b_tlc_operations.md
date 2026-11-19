@@ -7,7 +7,8 @@ Admit TL-C models to the existing operations only where TL-C pages document the 
 evidence records where the C-family path relies on CL86-C measurements. Uses [03a](03a_tlc_rows.md)'s reads and
 status table and stage 01's model binding and identity outcome. Prompts 57, 72 and 77 are consumed if landed.
 Items 1, 3, 5, 6, 8, 10 and 12 define rules that 04b consumes for CL2 (common admission, evidence records and
-observation source; the best-effort denial; the timed-run stop path; homing interruption; position clear's
+observation source; the best-effort denial; the timed-run stop path and its fallback deadline; homing
+fixture signals and interruption; position clear's
 retained last-motion terminal input and its rechecks before each write; the caller's peak-current record and
 its refusals; the release and mode-select dispositions). Whichever of 03b and 04b runs first lands their
 shared parts for both groups with their tests, and the other consumes them.
@@ -41,8 +42,24 @@ shared parts for both groups with their tests, and the other consumes them.
    frames. `EnableGate` stays `CLOSED` by default; the CL86-C attended trials qualify nothing for TL-C. The
    C-family scope rule (`enableScopeHolds`: bit 10 mask, 2100 released bit, released latch) is replaced for
    TL-C by a rule over the TL-C table (bit3 alarm, bit14 running) and TL-C monitor text, with a TL-C
-   source-state table (canopen_shared 02 "Operation admission", state transitions) giving the admitted
-   starting states and first word. Two gate values admit it: `ATTENDED_EXPERIMENT` under that gate's existing
+   source-state table (canopen_shared 02 "Operation admission", state transitions). TLCEN p11 (TL57ZH p10
+   the same) only pairs each controlword with low bits (6040=0 with 000, 6 with 001, 7 with 011, 15 with
+   111) and documents no other starting state, so the rows, read from one fresh model-taking state read
+   under the reservation, are:
+
+   | Fresh report | First word, or none | Disposition |
+   | --- | --- | --- |
+   | Low bits 000, bit3 alarm and bit14 running clear, a mode the gate admits | `0x0006`; `0x0007` and `0x000F` each only after the previous word's acknowledgement and a fresh report with its paired low bits (001, then 011) and bits 3 and 14 clear | Admitted on a gate below |
+   | Low bits 111 | None | Reported as already enabled, nothing sent; it admits nothing else |
+   | Low bits 001, 011 or another pattern | None | GATED under X15: no TL-C page documents a start from a partial sequence |
+   | Bit3 alarm or bit14 running set | None | Refused: an alarm needs item 7 first, a running drive a stop |
+   | Another mode, or a stale, missing or other-model report | None | Refused before TX |
+
+   A report during the sequence without the word's paired low bits, or with bit3 or bit14 set, ends it with
+   no further word. After an acknowledged `0x000F`, a fresh report with low bits 111 is predecessor 15 for
+   item 3's stop table; any other fresh report admits no stop row, so nothing further is sent, no stop is
+   prepared, and the result reports that report with the enable state unknown (07a T5).
+   Two gate values admit the first row: `ATTENDED_EXPERIMENT` under that gate's existing
    terms (one attended trial with an independent drive-power cutoff, qualifying nothing), which is 07a T5's
    route, in mode 1 with the target at the actual position, observed and never established by a write; and
    prompt 57's measured gate, where landed, with a TL-C enable record (X05). Raw `607A` equal to `6064` in
@@ -51,8 +68,17 @@ shared parts for both groups with their tests, and the other consumes them.
    needs the caller's basis record for the fixture: evidence for that fixture, model and firmware that
    `607A` and `6064` share one coordinate basis, scale and origin (a vendor clarification or an assigned
    experiment's retained result; X16 stays open). Without it the route refuses with MISSING_PREREQUISITE
-   and zero TX, also when the raw values are equal. TL57OP p7's third word `0x010F` is not an enable word
-   here; it stays an X05 claim (LX-D08), and no path sends it as part of an enable.
+   and zero TX, also when the raw values are equal. The basis record makes the two values comparable; it
+   does not make `6064` the shaft position. TLO models have no encoder (TLCEN p3; LX review "Units and
+   scaling"), so on TLO the attended route also needs the caller's actual-position record for this
+   admission: an independent fixture measurement of the shaft (an external encoder or a reviewed
+   mechanical reference) on the basis record's coordinates, with no motion write since it was taken.
+   Without it the equality is a controller-coordinate screen only and the route refuses with
+   MISSING_PREREQUISITE and zero TX, a valid basis record and equal raw values notwithstanding; 07a T5
+   then uses its bounded experiment or is NOT RUN. On TLC the same applies unless the basis record also
+   shows that `6064` reports the encoder in the configured loop mode, which no TL-C page states. TL57OP
+   p7's third word `0x010F` is not an enable word here; it stays an X05 claim (LX-D08), and no path sends
+   it as part of an enable.
 3. Stops. TLCEN p11 lists 15 to 271 stop and 15 to 11 emergency stop, so `StopKind::HALT` in modes 1/3
    (`010F`) and `QUICK_STOP` (`000B`) are documented for predecessor 15 only; HALT's mode-6 form, bit 4
    falling from an acknowledged `001F`, rests on TLCEN p14 "1 -> 0: interrupt homing". DEC-8's other
@@ -101,19 +127,36 @@ shared parts for both groups with their tests, and the other consumes them.
    a lost start reply under `NONE` the route stays unresolved, and TL-C has neither an S3 shape nor a native
    equivalent (item 3). So preparation also refuses, before the first changing TX, unless the application
    declares an independent stop for the run (its own enable, STO or drive-power path), which the result
-   names (canopen_shared 02 timed runs). If the urgent stop cannot be admitted at stop due, the result keeps
-   `needsStop`, reports motion unknown and names that declared stop.
+   names (canopen_shared 02 timed runs). That declared stop carries the caller's fallback deadline, without
+   which preparation refuses the same way, and the shared rule says when it is used: the application
+   invokes it when the urgent stop is not admitted at stop due, misses its dispatch window, or leaves the
+   stop effect unconfirmed at the fallback deadline; admission, TX or an acknowledgement of the urgent stop
+   never retire that need. TL-C stop completion stays `UNKNOWN` without X15's record and item 1's read
+   acceptance (item 3), so until both exist every run that reaches stop due ends with the declared stop
+   invoked by its fallback deadline. The result keeps `needsStop`, reports motion unknown and names the
+   declared stop and its fallback deadline; the application records when it invoked it.
 6. Homing. Methods 17, 18, 24 and 29 with the EN86 descriptions (TLCEN p12..13). Method 28 (TL57OP p7, written
    with a stray byte `0x1E`) is refused. Each method needs a TL-C homing record for that method (X17);
    completion uses TL-C bit 8 (TLCEN p14) from item 1's observation source.
    DI0 origin, DI1 positive and DI2 negative limit (TLCEN p7..8) are factory claims: read the actual
    `2400:02..06` assignment (prompt 77's input facts where landed); never disable a limit to run a method.
+   Fixture signals, defined here once (04b item 6 uses it). An assignment shows a function, not a wired
+   switch, so each method also needs the caller's fixture signal record for this binding, model and
+   fixture (from 07a's wiring record): for each signal the method uses (TLCEN p12..13: 17 the negative
+   limit switch, 18 the positive limit switch, 24 and 29 the home switch; function codes 3, 2 and 1, TLCEN
+   p8), the input wired to it and the polarity it was reviewed with. Before setup or trigger, one fresh
+   read of `2400:01..06` and `2101` in the current node generation must assign that code to that input with
+   that polarity bit and meet any starting condition the method's X17 record states; the start direction
+   is the method's own (17 and 29 negative, 18 and 24 positive). A missing record, one for another
+   binding, model or fixture, a signal assigned to another input or none, another polarity or an unmet
+   starting condition refuses with MISSING_PREREQUISITE and zero TX.
    Interruption, defined here once (04b item 6 uses it). A home whose signal or completion never arrives
    ends only when the host interrupts it, so it is a host-ended run under canopen_shared 02 "Timed runs"
    with item 5's stop-path rule. Preparation refuses before TX without the model's read acceptance (without
    polling no completion can be established), without the caller-supplied latest interruption time that
    takes the duration's place (the caller's stop budget must fit between it and the one operation
-   deadline), and without an application-declared independent stop named in the result. A travel bound,
+   deadline), and without an application-declared independent stop named in the result with item 5's
+   fallback deadline. A travel bound,
    from the method's record or the caller, may interrupt earlier, but only on observations no older than a
    caller-supplied age; an older or missing observation neither triggers nor extends anything, and the
    latest interruption time still applies. Every later transfer of the home has `deadlineUs` at most the
@@ -123,7 +166,11 @@ shared parts for both groups with their tests, and the other consumes them.
    falling from an acknowledged `001F`) as the separate urgent stop with its own deadline. Where that HALT
    cannot be admitted (no fresh predecessor, an unresolved route, no best-effort shape), only the declared
    stop remains: the result keeps `needsStop` and reports motion and reference unknown until fresh evidence
-   resolves them.
+   resolves them. The declared stop's fallback deadline applies as in item 5: the application invokes it
+   when the HALT is not admitted, misses its dispatch window or leaves the stop unconfirmed at that
+   deadline. An early interruption while an observation upload is pending is such a case: that upload's
+   `deadlineUs` is capped only at the latest interruption time, so the HALT can wait behind it. HALT
+   admission, TX or acknowledgement never retire the need.
 7. Alarm clear, with a TL-C source-state table (canopen_shared 02 "State transitions"). TL-C callers name
    the method; the C default and the C admission (`2100` alarm with `603F` FF05 in mode 1 or 3) are CL86-C
    bench decisions. The row comes from one fresh state read through the model-taking getter under the
@@ -191,8 +238,9 @@ shared parts for both groups with their tests, and the other consumes them.
     CL86-C-only). After it lands, `prepareRelease` stays GATED under X15 for TL-C, because every release-table
     row is a CL86-C measurement, and `prepareModeSelect` admits TL-C only for the modes TLCEN documents (1,
     3 and 6, TLCEN p10..14) with a TL-C source-state table for its not-enabled check; without that table it is GATED under
-    X15. Stage 02's disposition map records both states; if prompt 57 lands after this set's closeout, its
-    landing commit applies them, as stage 02 item 9's checker rule requires.
+    X15. Stage 02's disposition map records both states. Whenever prompt 57 lands after stage 02's map
+    exists, before this stage or after closeout, its landing commit applies them as stage 02 item 9 says:
+    GATED under X15 for both while this stage's source-state table has not landed.
 
 ## Decisions that do not transfer here
 
@@ -208,7 +256,12 @@ Doxygen naming pages and gates; `test/tlc_operations_test.cpp` through the real 
 `LichuanTlcDrive.h`: documented words and frames, refusals of `0x010F` enable, `0x011F` start, method 28,
 `2301`, closed loop on TLO, `2502` without a rating, `2400:07..08`, save without the bitrate acknowledgement,
 CL86-C evidence on a TL-C binding, an attended enable with raw `607A` equal to `6064` and no basis record
-(MISSING_PREREQUISITE, zero TX), and a stop admitted before every admitted motion. Identity tests: a
+(MISSING_PREREQUISITE, zero TX), a TLO attended enable with equal raw values and a valid basis record but no
+actual-position record, and a TLC one whose basis record does not show encoder-reported `6064` (each
+MISSING_PREREQUISITE, zero TX), and a stop admitted before every admitted motion. Enable source-state tests:
+the first frame or none for every row of item 2, a report without the paired low bits during the sequence
+(no further word), and an acknowledged `0x000F` followed by a fresh report other than low bits 111 (nothing
+further, no stop prepared, enable state unknown). Identity tests: a
 contradiction before preparation and after the stop was queued, each leaving the reviewed stop admitted (no
 refusal for identity alone, its result carrying the outcome and claiming no standstill) while every other
 pending changing step is retired. Best-effort tests: an unresolved route after a possibly sent controlword
@@ -220,8 +273,17 @@ a synthetic TL-C velocity record: canopen_shared 02's cases (duration plus budge
 reply, observation in flight near stop due, service resuming after stop due, queue-pressured stop); a run
 without a declared independent stop, refused at preparation with no changing TX; and with one, a possibly
 sent start followed by a timeout under `NONE` (`needsStop` kept, motion unknown, the declared stop named,
-no CANopen stop TX). Homing interruption tests: no read acceptance, no latest interruption time, one that
-leaves no room for the stop budget, or no declared stop (refused before TX); an absent or stuck signal; an
+no CANopen stop TX); a declared stop without a fallback deadline (refused at preparation). Fallback tests
+at the service level, through the example application with a recording declared-stop hook and a fake
+clock, for a run and a home: the urgent stop not admitted at stop due, admitted but not dispatched in its
+window under queue pressure, acknowledged with no confirming observation at the fallback deadline, and an
+early homing interruption while an observation upload is pending; each asserts that the hook was invoked
+by the fallback deadline, that admission, TX or acknowledgement of the urgent stop did not cancel it, and
+that `needsStop` and motion unknown are kept. Homing signal tests: correct assignment bytes with no fixture
+signal record, a record for another binding, the signal on another input, another polarity bit and an
+unmet starting condition, each refused before setup or trigger with zero TX. Homing interruption tests: no
+read acceptance, no latest interruption time, one that leaves no room for the stop budget, or no declared
+stop (refused before TX); an absent or stuck signal; an
 upload in flight at the latest interruption time (capped there, the HALT not delayed by it); a service cycle
 resuming after it; a travel bound seen only in a sample older than the age limit (no interruption from it,
 the latest time still applies); and observation loss or expiry after a possibly sent trigger (HALT requested

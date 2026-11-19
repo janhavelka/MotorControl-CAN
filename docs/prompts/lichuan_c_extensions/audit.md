@@ -288,3 +288,70 @@ the affected routes or running first-contact motion. Ledger, decoder and host-on
 - Main PROGRESS, the shared intake inventory, the DS2 identity stage and the parent instructions were not
   supplied.
 - A text audit: no checker, build, test, CI job, port access or hardware procedure ran.
+
+## Round 5
+
+A condensed, faithful copy of the fifth report. It is untrusted reviewer input; the verified dispositions are
+in [audit_application.md](audit_application.md) "Round 5". Line numbers refer to the files as revised by round
+4 (committed in `b661fba7`, unchanged at `570320bb`; the family files' hashes in the report equal those of that
+revision). The shared contract was audited before `2d1c70c2`.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-201350-68dc0f` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~207888 tokens)") |
+| Date | 2026-11-19 20:13:50 (from the ID), 209.8 s, one attempt |
+| Revision | `main` at `570320bb4bd9db9cb1035d942b5b98177614cd8b`, uncommitted changes recorded (outside this directory) |
+| Cost | Estimated USD 0.43 (0.427022, configured pricing); 156,846 input and 11,333 output tokens (6,645 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-201350-68dc0f.json` (local) |
+| Location checks | 26 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_models_and_identity.md` (167, `7c36b431`),
+`02_model_ledger.md` (108, `028b4bf6`), `03a_tlc_rows.md` (149, `50193cc1`), `03b_tlc_operations.md` (252,
+`7dd730ca`), `04a_cl2_rows.md` (118, `2192fed2`), `04b_cl2_operations.md` (172, `b9ff0d03`),
+`05_en57_conflicts.md` (64, `2256a5fb`), `06_console_and_coverage.md` (85, `4697a61f`), `07a_first_contact.md`
+(100, `4a541425`), `07b_qualification_and_release.md` (85, `14d73f79`), `README.md` (150, `6696145c`), `audit.md`
+(290, `5566cb7a`), `audit_application.md` (331, `71662bc8`), `execution_contract.md` (177, `b7f63921`).
+Context: `canopen_shared/README.md` (81 lines) and `02_profile_integration_contract.md` (356), `ADD_DRIVE.md`,
+`COMMON.md`, the LX pack `README.md` and `review.md`, `57_regular_drive_operations.md` (217),
+`docs/reference/lichuan_review.md`; project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** Documentary and fail-closed scaffolding can proceed, but the device-facing stages need corrections
+first. The reviewed-stop identity exemption and the best-effort denial before first traffic are present. The
+remaining issues: when the application must use the independent stop, what attended enable proves on a TLO
+drive, and what happens to queued traffic and owner settings when a model declaration changes. **Verdict:**
+significant issues. The single-profile architecture and the lead's caller-responsibility decisions need not
+change; the affected motion and declaration paths need explicit failure behavior and traffic-level tests
+before use. The prompt 57 sequencing gap is repairable without delaying ledger, decoder and host-only work.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, probable defect, high | *The independent stop is named, but the application has no explicit deadline for using it.* The velocity rule covers an urgent stop that cannot be admitted, and homing keeps the declared stop when HALT cannot be admitted, but neither says what the application does when the urgent stop is admitted and misses its dispatch window, loses its acknowledgement or leaves motion unresolved. Homing can interrupt before the latest interruption time while an observation upload is pending; capping that upload at the latest time does not free the route at the earlier interruption. An implementation could pass the stated checks while leaving the drive running and only reporting `needsStop`. Keep actuation application-owned; define when the application must invoke the declared stop (an early homing interruption with an upload pending, a missed urgent-stop deadline, an effect unconfirmed at the fallback deadline); admission, TX or acknowledgement are no evidence that the fallback is unneeded; add service-level tests that the fallback is requested by the specified time, keeping `needsStop` and uncertainty. | 03b:102-105, 119-122, 123-126; 04b:76-81; canopen_shared 02:119-143; AGENTS.md:75 |
+| F2 | High, verified defect, high | *The attended TLO enable still cannot establish its target-at-actual-position prerequisite.* The basis record makes `607A` and `6064` comparable but does not make `6064` the shaft's physical position on an encoderless TLO; the stages acknowledge `6064` is a controller report yet let the production attended route meet the prerequisite with it. Rereading the target does not close the gap. Require fixture evidence of the actual position at admission, or treat the equality as a controller-coordinate screen and use the separately reviewed experiment that bounds unexpected motion; add a negative test with equal raw values and a valid basis record but no actual-position evidence; keep the cutoff. | 03b:46-51, 51-53; 07a:66; LX review:300-301 |
+| F3 | High, probable defect, high | *The first-traffic guard does not cover an already-queued targeted NMT command.* The read stages refuse new targeted NMT before owner admission, but the pre-S13 population-change check names only pending SYNC and node-0 NMT. A targeted command admitted while the address was legacy can reach hand-off after it becomes a TL-C or CL2 binding; stage 06's refusal while work is admitted is not required and tested for declaration and rebinding at the first-traffic stage, and round 4's "no hand-off case remains" does not follow. Apply the serialized check to pending targeted NMT for the affected address: refuse until terminal, or retire it and account for a possibly sent frame; held-hand-off tests for declaration and rebinding, unrelated targeted NMT untouched; consume the shared hand-off guard where landed. | 03a:90-97, 103-107; 06:18-21; canopen_shared 02:300-303 |
+| F4 | High, probable defect, high | *TL-C homing checks configured input assignments but not the current fixture's usable signals.* 03b reads the DI assignments, which do not show that the method's home or limit switch is wired and usable here; 07a needs actual switches for its experiment, but the callable TL-C operation lacks the CL2 prerequisite pattern, so a record from one installation could admit a search on another with equal assignment bytes and a missing signal. The interruption deadline bounds the wait, not the signal. Per method, require current fixture evidence for the signals and starting conditions it needs beside the behavioral record; refuse before setup or trigger if a signal is missing, assigned differently or backed only by stale fixture evidence; test correct assignment bytes with a missing physical signal declaration. | 03b:106-110; 04b:66-69; 07a:69; AGENTS.md:85 |
+| F5 | Medium, probable defect, high | *Re-declaring a legacy model has no defined transition out of the new-model owner settings.* Stage 06 sets `NONE` and the explicit no shape for a TL-C or CL2 declaration but gives no inverse when an idle node is re-declared CL86-C or OL86-C; the explicit no shape survives rebind, so the legacy declaration can look valid while its DEC-2 best-effort stop stays disabled. Blindly restoring legacy settings is wrong too while the previous channel has unresolved work. Require a fresh validated legacy binding, or restore the reviewed legacy settings only after route and work are reconciled; test both transitions on a reused channel, an unresolved previous transfer included, with the effective shape and reuse policy. | 06:18-22; canopen_shared 02:267-270; 03b:82-85 |
+| F6 | Medium, verified defect, high | *Prompt 57's handoff omits the interval between the model ledger and extension closeout.* After stage 02 the checker rejects a NOT_IMPLEMENTED cell once its function is in the map, but prompt 57 assigns the update only after closeout; a prompt 57 landing between stage 02 and 03b, 04b or 06 meets the checker while the console tests and coverage it should update may not exist. Make prompt 57 update the cells whenever the stage-02 map exists, with the gated disposition where prerequisites are missing; update console tests and coverage only where they exist, otherwise name the owning stage; add a checker or handoff case for that order. | 02:86-90; prompt 57:201-203; 06:59-64 |
+| F7 | Medium, verified defect, high | *The shared read-route table does not distinguish TL-C-only uploads from CL2 reads.* The table admits ordinary reads, raw bitrate candidates included, for both groups, and 03a tests ordinary request frames on an admitting outcome, while 04a imports those tests and forbids undocumented CL2 reads except `1018`; `2402` and `2407` are undocumented on CL2. Make the table an identity filter after model-and-object eligibility, or split common and model-specific rows; test the TL-C candidate read emitting its uploads and the equivalent CL2 request emitting none under the same outcome; keep the CL2 identity uploads a separate exception. | execution contract:109; 03a:95-97; 04a:81-82, 113-116 |
+
+### Unresolved question
+
+1. What are the evidence-backed starting rows for the first TL-C and CL2 attended enable, including the outcome
+   when word 15 is acknowledged but the fresh report shows no admitted stop predecessor? The stages require a
+   source-state table without its initial rows or the handling of an already-enabled or ambiguous report; T5
+   and K5 cover a missing or unacknowledged report and a confirmed predecessor 15, not an acknowledged write
+   followed by a fresh, different report. A bench handoff needs the first frame or no TX and the cutoff branch,
+   or the case stays experimental or NOT RUN.
+
+### Coverage gaps stated by the reviewer
+
+- LX originals, EDS bytes, rendered pages, manifests, the normalized delta and Q01 raw specimen evidence were not
+  supplied: vendor encodings, electrical limits, hashes and live identities were not independently verified.
+- The repository index was truncated; owner, service, profile, example, ledger, generator, checker, test and
+  workflow sources were not supplied, so queue retirement, binding-setting lifetimes, signatures and build
+  integration are unverified.
+- Main PROGRESS, the shared intake inventory, the DS2 identity stage, the parent instructions and prompts 64,
+  65, 72 and 77 were not supplied.
+- A text audit: no checks, builds, CI jobs, port activity or hardware tests ran.

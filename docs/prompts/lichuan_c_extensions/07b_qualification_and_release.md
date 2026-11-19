@@ -17,7 +17,8 @@ Hardware is NOT TESTED for every model.
    callable API, console routes and tests. Mark missing code separately from unresolved device behavior,
    unavailable fixtures and undocumented functions, per model. A row that is only documented stays in the
    coverage denominator. A NOT_IMPLEMENTED cell whose dependency has not landed (release and mode select
-   before prompt 57) stays open with its owner: the commit that lands the dependency (stage 02 item 9).
+   before prompt 57) stays open with its owner: the commit that lands the dependency, whenever stage 02's
+   map exists (stage 02 item 9).
 2. Re-run the applicability register of stage 01: every decision row names the models it now applies to, each
    refusal still has a test, and no new model gained admission without a ledger row and its evidence input.
 3. Packages and consumers: clean source, install and PlatformIO packages; standalone public headers; C++11 and
@@ -51,14 +52,15 @@ Hardware is NOT TESTED for every model.
    CL2, bit 10 transitions in modes 1 and 6. Retain before/after settings and every uncertain outcome.
    Finite velocity: the envelope gives the latest acceptable urgent-stop TX after the stop due time, within
    the caller's stop budget, and the permitted stopping time or travel, measured by an independent
-   observation such as a shaft or encoder measurement. The run records the stop due time, the urgent
-   stop's TX time and the first fresh report after it. A run outside its envelope, or whose stop is not
+   observation such as a shaft or encoder measurement, and the declared independent stop with its
+   fallback deadline (03b item 5). The run records the stop due time, the urgent stop's TX time, the first
+   fresh report after it and whether and when the declared stop was invoked. A run outside its envelope, or whose stop is not
    confirmed, fails and reports motion unknown; a report alone never establishes a physical stop.
 5. Qualify TLC against TLO, and CL2 absolute-encoder against ABZ, independently; measure shaft displacement
    before any physical-scale claim. Software timestamps bound observations; electrical timing needs measurement.
-6. Homing per method only with its actual switches and, for index methods, its actual Z source, with the
-   latest interruption time, any travel bound with its observation age, and the declared independent stop
-   (03b item 6) in its envelope. Output, brake
+6. Homing per method only with its actual switches, its fixture signal record and, for index methods, its
+   actual Z source, with the latest interruption time, any travel bound with its observation age, and the
+   declared independent stop with its fallback deadline (03b item 6) in its envelope. Output, brake
    and input-code tests only with their fixtures. Save and restart cases only with restart control; a TL-C
    bitrate change only under 07a T2's reviewed plan with SW5 as the way back.
 7. On a failure: preserve the scenario, reproduce deliberately within authorization, establish the cause, fix

@@ -198,9 +198,11 @@ released report. With an axis and a retained operation sharing one numeric ID, `
 emits no CAN frame, and `motor-release ID` acts only on the axis through `prepareRelease`. Factory restore is refused
 before TX with the backup guard set and no record, admitted with the guard clear, and in both cases keeps its
 separate intent and uncertain effects without replay.
-If the [Lichuan C extensions](lichuan_c_extensions/README.md) set has closed out first, this landing commit also
-updates its disposition map's release and mode-select cells for TL-C and CL2 (its stage 03b item 12 and stage 02
-checker rule), so no cell stays NOT_IMPLEMENTED on a landed dependency.
+If the [Lichuan C extensions](lichuan_c_extensions/README.md) set's stage 02 disposition map exists, this landing
+commit also updates its release and mode-select cells for TL-C and CL2 to the dispositions of its stages 03b item 12
+and 04b item 13 (GATED under X15 for a model whose operation stage has not landed), and updates their console tests
+and coverage rows only where those routes and files already exist (its stage 02 item 9), so no cell stays
+NOT_IMPLEMENTED on a landed dependency.
 Run the native, firmware, stack and documentation gates and CI on the actual final commit. Bench, on both nodes:
 release from mode 1 idle (the table's first row); through the experiment option, release from the halted mode 3 state
 and `0x0000` from the mode 1 switched-on report (`8033`/`0001`, `606C` zero) that an enable cancelled after word 7

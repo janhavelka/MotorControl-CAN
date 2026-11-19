@@ -25,7 +25,10 @@ them; the CL2 rows and decoders are otherwise independent of 03a/03b.
    Enter Pre-operational withheld, ordinary reads refused on CONTRADICTED) apply from this stage to every
    CL2 binding and every interface holding one, with the same tests. Every CL2
    read plan holds only objects with a CL2 row: the state read's error block plans `603F` without `1001`, and
-   the error-history block (`1003`) is refused, since neither is listed (CL257 p14..15).
+   the error-history block (`1003`) is refused, since neither is listed (CL257 p14..15). The route table's
+   ordinary reads apply only after that row check, so TL-C's raw bitrate candidates (`2402..2407`) and
+   error history are refused on a CL2 binding before TX under every outcome, a declared-model match
+   included; the `1018` identity option (item 2) stays the one exception.
 2. Identity. A CL2 identity read plans the documented `1000`, `1009`, `100A` (CL257 p14), `2000` "drive model
    code" and `2001` "drive version" (RO U16, CL257 p15, P0B-00/P0B-01, no code table). `1018:00..03` is
    undocumented, and this is the one undocumented read the set admits: a caller-selected option of the
@@ -106,7 +109,10 @@ sampled while the first `6061` showed another mode and the second the commanded 
 unchanged, giving `UNKNOWN`; mode-less refusal, `2500`=2 unknown, `2501` raw, code 4; the identity read
 with the `1018` option off (no `1018` frame) and on (exactly one upload per subindex, abort and reply kept
 raw, no marker, no retry, no download, no model inferred from an abort); state reads without `1001` or
-`1003`; `2402..2407` never planned); ledger, coverage, CHANGELOG, report and `PROGRESS.md`.
+`1003`; `2402..2407` never planned, also when a TL-C bitrate-candidate or error-history read is requested on
+a CL2 binding under a declared-model match: zero frames, while 03a's test of the same request on a TL-C
+binding under the same outcome emits exactly its uploads); ledger, coverage, CHANGELOG, report and
+`PROGRESS.md`.
 
 ## Acceptance
 
