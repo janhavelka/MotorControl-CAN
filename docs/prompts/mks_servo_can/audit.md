@@ -80,3 +80,82 @@ not checked); the owner, transport, core headers, CMake and package rules, verif
 commits, prompts 55/57/64/65/73/74/75/77 and several convention, communication, architecture and CLI documents. No MKS
 fixture, firmware observation, raw trace, timing bound or live-session authorization existed. The audit was text-only:
 no checker, generator, build, CI job, package consumer or hardware test ran.
+
+## Round 2
+
+A condensed, faithful copy of the second report. It is untrusted reviewer input; the verified dispositions are in
+[audit_application.md](audit_application.md) "Round 2". Line numbers refer to the files as revised by round 1
+(committed in `e343591b`; the family files' hashes in the report equal those of that commit).
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-183325-8b7343` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~161957 tokens)") |
+| Date | 2026-11-19 18:33:25 (from the ID), 204.4 s, one attempt |
+| Revision | `main` at `e343591bea01248818afee909443a93f2a500563`, uncommitted changes recorded (none in the audited files) |
+| Cost | Estimated USD 0.35 (0.352848, configured pricing); 123,569 input and 10,571 output tokens (2,293 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-183325-8b7343.json` (local) |
+| Location checks | 59 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_evidence_and_command_ledger.md` (131, `db9b188e`),
+`02_codecs_and_dialects.md` (81, `498bf69e`), `02b_protocol_domain_and_owner.md` (128, `2fdbed8e`),
+`03_reads_identity_and_dialect.md` (85, `62ab02e6`), `04_enable_stop_and_uncertainty.md` (73, `d231c1e2`),
+`05_finite_position.md` (83, `a33f6970`), `06_speed_mode.md` (70, `f43508d9`), `07_homing_and_limits.md` (76,
+`88a6ac07`), `08_settings_and_persistence.md` (71, `4642ceb5`), `09_async_reports_and_reply_matching.md` (99,
+`94e07ea4`), `10_bus_settings_and_restart.md` (84, `11dc15bd`), `11_console_and_integration.md` (65, `bba026b6`),
+`12_qualification_and_release.md` (63, `67d33c83`), `12a_first_contact.md` (72, `ccdf0a6b`), `README.md` (161,
+`f9cfcdd2`), `audit.md` (82, `6f3db0a8`), `audit_application.md` (79, `f367fb61`), `execution_contract.md` (153,
+`7ce68a22`). Requirements: `canopen_shared/README.md` and `02_profile_integration_contract.md` (before `d0108871`),
+`ADD_DRIVE.md`, `COMMON.md`. Context: `docs/reference/mks_servo_can/README.md` and `review.md`,
+`63_mixed_protocols.md`, `canopen_shared/01_existing_code_and_tooling.md`; project instructions `AGENTS.md`,
+`CLAUDE.md`.
+
+**Summary.** The revision makes sound corrections: owner traffic stays blocked on the tested S9 extension, the V1.0.0
+mode and identity gates are separate, declared and observed board codes must agree, persistence policy is separate
+from evidence, and factory restore has its own power-on-motion gate. The claim that every first-round finding is fully
+resolved does not hold: reply attribution, stop ordering, multi-target admission and communication reconciliation
+still leave consequential behavior unspecified or contradictory. Ledger, codec and host-only work can proceed after
+the specification corrections; the affected device-facing paths should stay blocked. Text-only audit: no check,
+build or hardware test ran. **Verdict:** blocking issues. The architecture (a separate proprietary backend beneath
+common motion, prompt 63 recorded as an upstream dependency) is consistent; the blockers are in indistinguishable
+replies, urgent stops, retained coordinate references, broadcast effects and uncertain configuration changes, which
+decide whether the application can safely admit a command or claim its outcome.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The quiet-interval rule gives the same late completion two outcomes.* 05 lets a status 2 in the ambiguous set complete a move under `QUIET_INTERVAL` and 09 lets that correlation end a phase, but 05's acceptance requires the old 2 not to complete B even after the interval; with no transaction ID a matcher cannot do both. Before the first observed duplicate there is no fence: waiting for a duplicate to fence its shape cannot protect a new request from it. Decide whether `QUIET_INTERVAL` is diagnostic only or a distinct risk-accepted terminal never treated as qualified; align 02b, 04-07 and 09 and their tests; define when a successfully completed exchange fences its shape and test A succeeding, B starting and A's first delayed duplicate during B on both sides of the interval; let a retirement boundary cover host-buffered RX as well as drive replies. | 05:42-44, 78-80; 09:16-18; 02b:71-75; AGENTS.md:79 |
+| F2 | High, probable defect, high | *Bootstrap observations can be mistaken for fresh identity or a valid origin.* A possibly late or streamed 40H may show a responder, but 03 does not say which provenance makes identity "fresh" for the current binding and session, so a buffered frame from another binding could satisfy the board comparison. The README admits an uncommanded power cycle leaves the reference stale undetected, while 05 admits absolute moves on a host reference generation; an agreeing 40H does not prove the origin survived. Separate bootstrap observations from admission evidence, refuse dependent writes when only stale or possibly late evidence exists, default origin-dependent motion to blocked without established continuity pending an approved policy; test attachment or rebinding with a delayed 40H and an unchanged identity across a simulated reset with a changed origin. | 02b:54-56; 03:37-39, 63-64; 05:32-34; README:152-153; shared 02:65-70 |
+| F3 | High, probable defect, high | *Freeing the matcher slot does not make the stop the last command transmitted.* In the possibly sent case 04 ends the start locally and admits the stop, but neither the S9 consumer gate nor prompt 63's request says whether a frame handed to the controller can still transmit after the stop; software queue precedence does not settle wire order, and no acceptance case asserts "no later start". Make retirement or ordering of every superseded changing frame an explicit S9 producer and consumer contract, including a handed-off frame of uncertain disposition; where the transport cannot prove it, keep the stop obligation and report the limitation; test a start held below the owner queue while a stop is admitted, under pressure and across bus-off or recovery. | 04:35-38, 66-68; 02b:32-34; 63:35-38 |
+| F4 | High, verified defect, high | *Multi-target admission checks the code, not the frame's effect on every recipient.* 09 requires each recipient's dialect to document the code, but both V1.0.9 tables have F7H while only one has F7H 01; the acceptance refuses a mixed-dialect recipient that the work never defines; the generic dispatch does not exclude 4BH. Use a reviewed multi-target allowlist validating exact form, payload, check mode and authorized effect for every recipient before TX; state any outright mixed-dialect refusal in admission too; route 4BH only through its latch-aware operation; test a shared code with a one-dialect form and 4BH through the generic path. | 09:55-57, 67-70, 96-97; 02:38-39 |
+| F5 | High, verified defect, high | *Communication quarantine can end without evidence of the active policy.* 10 step 2 allows three outcomes, but step 5 lets a declaration change end respond-off quarantine when confirmation is impossible, and a declaration does not distinguish an applied from an unapplied write; a response on the same slave ID cannot confirm an 8DH group change unless the read distinguishes old and new group values, on which group dispatch relies. Define qualifying evidence and permitted outcomes per setting (including what the menu can establish and what stays unknown); a declaration alone never restores admission or group membership; test applied and unapplied 8DH writes with identical probe results and an 8CH write without available confirmation. | 10:20-22, 30-32, 39-41; AGENTS.md:77 |
+| F6 | High, probable defect, high | *Position at the target does not discharge a pending motion.* 05 uses a post-start 31H within tolerance as fallback completion with no minimum correlation, no proof that the latest trigger started and no rule for clearing the stop obligation; the shaft may be at the target without the intent executing (lost start reply, already in tolerance) or crossing the window while moving, and a streamed or delayed 31H weakens it further. Separate endpoint observed, latest intent completed and stop obligation discharged; require qualified evidence for the latter two, otherwise keep uncertainty and the bounded stop policy; test an in-tolerance target with a lost start, an in-motion crossing, a delayed 31H and an update whose latest target is not established. | 05:46-48, 51-53, 64-65; review.md:174 |
+| F7 | Medium, verified defect, high | *The declared order still puts consumers before required artifacts.* 07 precedes 08 in the order and README table though it needs 08's `SettingsContext`; 05 and 06 can deliver motion before 07 defines limit admission and the homing-required flag; 09 needs participant validation that 10 is assigned. Put the settings context before 07, land a minimal limit-admission contract before motion or block earlier motion for enabled or unestablished limits, move participant validation to 09 with 10 reusing it, and update the table, handoffs and acceptance. | README:52-53; 08:9-11; 07:47-49; 10:57-58; COMMON.md:90 |
+| F8 | High, verified defect, high | *The first-contact table promises routes before they exist or on dialects without them.* Q1 hardcodes 40H although V1.0.0 has another probe; Q2 and Q3 do not delimit reads per dialect; Q4 is scheduled after 05 but includes F6H work delivered by 06; Q7 needs 06's run-time route and, for the retained value, 10's restart; Q3 mixes reviewed bootstrap 00H queries with ordinary readback. Split questions into executable steps naming production operation, minimum stage, dialect and form, admission evidence and snapshot and restoration route; branch Q1 by the per-dialect probe, mark absent reads not applicable, separate Q4's F6H and Q7's restart parts; exploratory 00H without a reviewed route needs manufacturer evidence, the reviewed experiment path or NOT RUN. | 12a:8-9, 40, 42-43, 46; 02b:53-54; shared 02:189-192 |
+| F9 | High, verified defect, high | *State-transition and deadline requirements lack executable acceptance.* The shared contract requires a source-state and intent table with exact first-frame or no-frame tests for enable, release, stop, fault clear and mode change, and a cumulative-delay test; 04 and 08 give encodings and some gates but not already-reached, unknown, mode and fault cases before the first TX, nor the cumulative-delay test. 06 calls its expiry stop new intent but never gives that stop's deadline or what remains pending if it cannot be admitted. Add the family tables and exact traffic tests with explicit refusal or uncertainty where evidence is missing, a multi-step case whose timely replies exhaust the deadline before the trigger, and for finite velocity the separate expiry stop's intent, deadline, admission failure and retained obligation without extending the expired run. | shared 02:111-119; 04:9-13; 08:25; 06:33-35 |
+| F10 | Medium, verified defect, high | *Stop and interruption reply claims exceed the evidence.* 04 gives status 3 to every mode stop, but the review's F6H speed-0 row lists only 0, 1 and 2 (the position-stop row lists 3); 04 also says no frame reports an F7H interruption, while the review says the active move's reply after an emergency stop is undocumented. Interpret stop replies per code, form and phase from ledger rows; leave F6H stop status 3 unqualified; describe the interrupted move's response as undocumented, apart from F7H's own acknowledgement; test that an unexpected native status is retained without becoming a definitive stop or completion. | 04:27-28, 49-50; review.md:155, 313; AGENTS.md:71 |
+| F11 | Medium, probable defect, high | *The fixture schema does not separate literal source errors from computed expectations.* 01 and 02 require every vendor vector's checksum to recompute, including malformed examples, RS485 bytes and wrong-DLC fixtures, but the review validated a set of MK109 examples only; a literal vector with a different or inapplicable checksum would be omitted or altered. Store original bytes, printed DLC and check byte apart from any derived expectation, give each a checksum domain and expected result (match, mismatch, not applicable) with discrepancy and source, keep vendor bytes and derived repairs as separate fixtures; replace "each motion code" in the stop inventory with the exact reviewed speed-zero forms so 91H and 4BH get no invented stop rows. | 01:47-48, 54-58; 02:58-60; review.md:62; execution_contract:45-46 |
+| F12 | Medium, verified defect, high | *The pre-S4 console exception conflicts with the binding shared contract.* The execution contract blocks every console route and parity test until S4, but the README permits earlier delivery on a lead or user decision without a shared-contract change, though S4 is mandatory and a changed seam contract needs its callers and tests updated together; the README also calls an earlier shared revision binding while revising against round 2. Name the round-2 contract as the minimum baseline; keep every console route and parity case blocked before S4 unless an authorized shared-contract change lands with callers and tests; mark console parts of each stage's delivery and acceptance conditional. | README:100, 155-157; execution_contract:38-40; shared 02:123-124; shared README:40-42 |
+
+### Unresolved questions (reviewer, round 2)
+
+1. Which S9 extension work is approved and scheduled, and which landed owner and transport tests will prove
+   retirement or ordering below the software queue? A recorded request is not a usable extension.
+2. What session-continuity evidence or explicitly accepted residual risk may authorize origin-dependent motion, and
+   will V1.0.0 stay reads-only?
+3. What does a zero run-time field mean on the wire, and how is a positive finite duration that quantizes to zero
+   handled?
+4. How does the V1.0.0 39H observation represent the review's simultaneous signed int16 and 0..0xFFFF-per-turn
+   descriptions, and how does its declaration represent a group setting that dialect lacks?
+5. Which first-power facts must be established before energizing a used drive, and which may be learned from its menu
+   after isolated power-up?
+6. Which generator naming and output layout has the S7 owner approved for a command ledger?
+
+### Coverage gaps (reviewer, round 2)
+
+Not supplied as file contents: the pack manifest, rendered originals, extracts and schematics (hashes, printed DLC
+cells, worked frames, electrical details and board-revision applicability not checked); owner and transport code,
+receive timestamps, TX disposition, self-echo exclusion, core headers, checkers, CMake and package rules, workflows and
+tests (the repository index was truncated); PROGRESS, landed seam evidence, prompts 55/57/64/65/73/74/75/77, the
+conditional experiment prerequisites and several referenced contracts. The first round's audit and application were
+read as summaries, not as the earlier file set and a diff. No fixture records, authorized session, CAN traffic,
+latency, memory or service-gap measurements, compile results or exact-commit CI existed.

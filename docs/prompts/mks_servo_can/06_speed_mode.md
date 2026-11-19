@@ -2,7 +2,7 @@
 
 Execute this stage under the [execution contract](execution_contract.md).
 Status: NOT STARTED. Run after 04 and 05's unit helpers. MK-D02, D14 and D15 gate the unit mapping; this stage does
-not broaden physical authorization.
+not broaden physical authorization. 05's interim EndLimit gate (05 status) applies here until 07 lands.
 
 ## Work
 
@@ -29,12 +29,16 @@ not broaden physical authorization.
    the 1 rpm step scales with microsteps is unstated: outside 16/32/64 refuse exact acceleration mapping.
 4. `prepareVelocity` (finite only) with `nextVelocity`/`advanceVelocity`/`serviceVelocity`:
    - when the dialect has the run-time form, the duration becomes F6H run time, quantized to 10 ms with explicit
-     rounding and refused above 0xFFFFFF × 10 ms; the drive bounds the run itself, and status 2 is its report;
-   - the host keeps its own immutable deadline (run time plus the caller's margin). Reaching it without status 2
-     yields a stop (`MODE_RAMPED`, `MODE_IMMEDIATE` or an F7H form the dialect has, per caller policy; 04) as new
-     intent, never a repeated start;
-   - without the run-time form (`V1_0_0`) the host bounds the run: the context yields the stop at expiry and keeps
-     `needsStop` with execution unknown when transport or service loss prevents a confirmed stop;
+     rounding and refused above 0xFFFFFF × 10 ms; the drive bounds the run itself, and status 2 is its report. The
+     page gives the range 0..0xFFFFFF and no meaning for 0 (MK109 p.82), so a duration that quantizes to 0 is refused
+     rather than sent as a possibly unbounded run;
+   - the host side is contract 02 "Operation admission", timed runs, which reuses Lichuan's finite-velocity design
+     (preparation-anchored duration, caller stop budget fitting before the operation deadline, transfers bounded by
+     stop due, `needsStop`). At stop due without an attributed status 2 the application composes its separate urgent
+     stop from 04 (`MODE_RAMPED`, `MODE_IMMEDIATE` or an F7H form the dialect has, per caller policy), never a repeated
+     start and never barred by the run's deadline; the drive's own run time does not replace it. A run whose dialect
+     and mode have no reviewed stop row (04 step 2) is refused before its first changing TX;
+   - without the run-time form (`V1_0_0`) that host stop is the run's only bound;
    - zero speed is the stop form and is refused as a run; nonzero finite duration is required.
 5. Native continuous F6H (no run time) is exposed only as an explicit native operation whose context retains the stop
    obligation; the common finite API never reaches it. Re-sending F6H while running has no documented live-update
@@ -45,7 +49,8 @@ not broaden physical authorization.
    (p.32) and CW-positive in V1.0.0 (MK100 p.11). Common signed velocity needs `directionQualified` (03, MK-D02).
 7. Stops: 04's `MODE_RAMPED` and `MODE_IMMEDIATE` with F6H speed 0 (p.84) and the F7H forms the dialect has. A
    run-time completion, limit stop or stop completion all end the context; the reply code is shared, so MK-D36 rules
-   apply, and a status 2 of an F6H shape in 02b's ambiguous set ends nothing: the host deadline and its stop decide.
+   apply: a `possiblyLate` status 2 ends nothing, and one attributed `QUIET_INTERVAL` ends the run with that
+   correlation (05 step 7); otherwise the host deadline and its stop decide.
 8. FFH power-on auto-run stores the last F6H command and runs it at every power-on (MK109 p.85); its enable write also
    stops the current run ("the motor will slow down and stop", p.87). The library never sends FFH; where 00H can read
    it, the state is reported as a startup motion hazard.
@@ -54,16 +59,18 @@ not broaden physical authorization.
 
 ## Deliver
 
-`Velocity.h/.cpp`, `VelocityContext`, shared unit and ramp helpers, `test/mks_servo_can_velocity_test.cpp`,
-owner-backed app and console routes (`mks velocity`, native `mks run`), API/CLI parity, lost-start, lost-stop and
-missed-service cases, coverage rows, report and PROGRESS row.
+`Velocity.h/.cpp`, `VelocityContext`, shared unit and ramp helpers, `test/mks_servo_can_velocity_test.cpp`, owner-backed
+app and console routes (`mks velocity`, native `mks run`), API/CLI parity (console routes and parity once S4 lands),
+lost-start, lost-stop and missed-service cases, coverage rows, report and PROGRESS row.
 
 ## Acceptance
 
 Exact F6H 5- and 8-byte frames per dialect; speed and acc conversion boundaries with reported quantization; exact
 mapping refused at 8 microsteps (a documented example outside the qualified set) and at a non-power of two, native
-code still offered; refused over-limit speed, zero-speed run and missing duration; an old F6H status 2 during a new
-run not ending it; run-time completion, host deadline stop,
+code still offered; refused over-limit speed, zero-speed run, missing duration and a duration that quantizes to run
+time 0; an old F6H status 2 during a new run not ending it before the quiet interval; run-time completion, host
+stop at stop due, the timed-run tests of contract 02 "Operation admission" (a duration that no longer fits with the
+stop budget, an observation in flight near stop due, service resuming after stop due, a queue-pressured stop), a
 lost start reply, lost stop reply, limit stop and deadline without service; no repeated start; native continuous run
 keeps its stop obligation. The full matrix of contract 02 "Registration acceptance" for this major change and CI on
 the exact final pushed commit pass. Hardware NOT RUN: no unbounded run or moving link-loss test substitutes for a

@@ -77,3 +77,79 @@ uncommitted; it links them with their commits (`e02ab04f`, `b5f44b64`).
 
 Checks: `python scripts/check_promptset.py` reports no error in `docs/prompts/mks_servo_can/`; `git diff --check` is
 clean for this set. Nothing was compiled; no hardware or port was used.
+
+## Round 2
+
+Each finding of [audit `aud-20261119-183325-8b7343`](audit.md#round-2) was checked against the family files (unchanged
+since `e343591b`; their hashes match the report), the [reference review](../../reference/mks_servo_can/review.md), the
+original pages through the pack's page-marked extracts where a device claim is involved, the owner types in
+[CanBusTypes.h](../../../adapters/owner/CanBusTypes.h), and the shared contract at `a7656efb` (round 2 `1043608b`, S13
+and prompt 57's stop exemption from `d0108871`, timed runs from `a7656efb`) with prompt 63 as of `6786fde1`. Under the
+user's direction of 2026-11-19 every verified high finding is fixed; the medium ones were cheap and clearly right and
+are fixed too. Only this set's files changed. Nothing was compiled and no hardware or port was used.
+
+Counts: 12 accepted, 0 accepted in part, 0 rejected, 0 deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 05 step 7 (a `QUIET_INTERVAL` 2 completes B) against old 05 acceptance (the old 2 never completes B after the interval); 09 step 1; 02b step 6 entry list (a duplicate fenced only after it was seen); review section 14 rule 2 (no transaction ID, a reply is matched only by ID and code); `ReceivedFrame` capture time and bounds in `CanBusTypes.h` | Decision: `QUIET_INTERVAL` is a distinct risk-accepted outcome that may end the exchange or phase it matches, carries that correlation and the interval, and is never reported, counted or consumed as `QUALIFIED`. 02b step 6: every exchange's shape enters the set when it ends, a completed one too, so `QUALIFIED` exists only for the first exchange of a shape after a recorded power cycle; the interval is judged by the owner capture time, a frame without one stays `possiblyLate`, and only frames captured after the request's handoff match. 05 step 7, 06 step 7, 07 step 4 and 09 steps 1, 2 and 7 follow; acceptance in 02b, 05, 06 and 09 covers A completed, B started and A's first delayed duplicate on both sides of the interval, and a frame held in a host buffer |
+| F2 | Accepted | Old 02b step 5 and 03 steps 5 and 8 (a `possiblyLate` 40H recorded, "fresh" undefined); review section 14 rule 10 (no boot-up report; origin lost on restart); old 05 step 4; README open question 3; prompt 57 stop exemption (`d0108871`, refined in `a7656efb`) | 03 step 5: a bootstrap observation (any checked 40H, `possiblyLate` included) records a responder and raw fields; admission evidence for model-dependent work is a 40H reply to a read handed off in the current binding generation and identity session, captured after the handoff and attributed `QUALIFIED` or `QUIET_INTERVAL`; stops consume no identity (route, generation and stop-row checks stay). 02b step 5 and 03 step 8 cite it. 05 step 4: until open question 3 is answered, an absolute move also needs the application's continuity record (accepted risk, recorded), otherwise it refuses; relative moves stay. README open question 3 states the interim rule. Tests: delayed 40H at attachment and rebinding (03), simulated reset with changed origin and unchanged 40H (05) |
+| F3 | Accepted | Old 04 step 4 and acceptance; old 02b step 3 consumer list; prompt 63 request paragraph (no retirement or ordering of a handed-off frame); `TxReport` ("Both results prove no later TX of this frame"), `Transport::retire` (proves the exact frame cannot leave a local queue later), `TX_EXPIRED` (stays possibly sent), recovery `RETIRED` (all prior local TX retired) in `CanBusTypes.h` | 02b step 3 checks that the landed S9 extension retires a queued or handed-off MKS frame with that proof, or reports that a later TX is not excluded, and delivers capture times. 04 step 4: wire order is proved only by a final report or retirement of the start frame before the stop's handoff; the stop never waits; otherwise the order is recorded unproved and the start's stop obligation survives the stop's terminal, across bus-off and recovery, until a stop handed off after such a proof (new intent). 04 acceptance: a start held below the owner queue transmitting after the stop, under pressure and across bus-off and recovery. The producer side needs prompt 63's request extended (proposal 1 below) |
+| F4 | Accepted | MK109 p.81 (F7H and F7H 01) against the MK109A extract (F7H 9.2.3 without the priority form); MK109 p.105 (broadcast and group examples, FDH) and p.107 (4BH to ID 0, no reply); old 09 steps 6 and 7 and acceptance | 01 step 3: a reviewed `multi_target` row per form and dialect, default not allowed, 4BH reviewed only for 09 step 7; checker negative test for an allowance without a page. 09 step 6: participant record with check mode, this stage's validator, one dialect and check mode for every possible recipient (mixed refused outright until a ledger review), the exact frame on that dialect's `multi_target` row, 4BH never through this path. Acceptance: mixed dialect or check mode (F7H 01 with an MK109A member), a dialect form not allowed (8BH to a group), 4BH through the generic dispatch |
+| F5 | Accepted | Old 10 steps 2 and 5 (a declaration change ends respond-off quarantine); MK109 p.25-26 (menu items CanRate, CanID, CanRSP with respond Enable or Disable only, CanCRC; no group ID or active byte), p.47 (8CH respond and active bytes), p.49 (8DH status reply only); review section 14 rule 15 (activation undocumented) | 10 step 2: outcomes need the evidence of a per-setting table; a declaration change alone never ends quarantine, restores admission or sets group membership; a responder on the old tuple is not "old unchanged". 8DH: only a deciding 00H 8D read, else "group unknown" (ordinary work resumes in a new generation, group dispatch to either ID refused). 8CH: a deciding read; CanRSP settles the respond byte only; else "policy unknown" (run as the weakest candidate). 10 step 5 follows. 12A Q6 no longer claims a menu snapshot of both 8CH bytes. Acceptance: applied and unapplied 8DH with identical probe results, 8CH without confirmation, declaration alone refused |
+| F6 | Accepted | Old 05 step 7 endpoint bullet and step 10; MK109 p.80 (F1H statuses: 1 stop, 2-4 running, 5 homing, 6 calibrating); review section 5 (01H samples identical in form to polled replies) | 05 step 7: `endpointObserved` (31H read after the latest trigger's acknowledgement, attributed, stream `OFF`, within tolerance), `completed` (latest trigger's attributed status 1, then an attributed native 2 or endpoint plus a later standstill read) and `stopObligationDischarged` (only by `completed` or 04's stop with its own evidence) stay separate; the endpoint alone discharges nothing. Step 8 starts an update's completion from its own acknowledgement. Acceptance: in-tolerance target with a lost start, in-motion crossing, delayed 31H, update without its acknowledgement |
+| F7 | Accepted | README stage table (07 before 08); 07 status and 08 step 1; 07 step 6 (`limitHomingRequired`, MK109 p.14, p.67); old 10 step 9 (participant validation) | README: stage table lists 08 before 07 and an explicit execution order (01, 02, 02b, 03, 04, 05, 06, 08, 07, 09, 10, 11); 05 status: until 07 lands, motion in 05 and 06 needs EndLimit established off (readable 00H 90 or a caller declaration), else refused; 06 status and 07 step 6 (replaces the interim gate) cite it; 09 owns the participant validator and 10 step 9 reuses it; README rows and 05 acceptance follow |
+| F8 | Accepted | Old 12A intro and table (Q1 40H only, Q4 F6H after 05, Q7 restart); 02b step 5 (per-dialect probe); 03 step 2; contract 02 "First-contact questions" | 12A table gains a "Route, minimum stage and dialects" column: Q1 the per-dialect probe after 02b; Q2 V1.0.9 tables only; Q3 per dialect with absent codes not applicable and 00H only through 03's reviewed bootstrap query, else manufacturer evidence, experiment or NOT RUN; Q4 split into Q4a (F4H, FDH after 05) and Q4b (F6H after 06); Q7 after 06 and 08 with the retained value moved to Q11 (after 10); other rows name their stage. 03 step 2 defines the bootstrap 00H query (read effect reviewed in 01, raw, never readback evidence) with a test |
+| F9 | Accepted | Contract 02 "Operation admission" (state transitions, one deadline, timed runs from `a7656efb`); old 04 step 1, 08 work-mode row and step 8, 06 step 4 | 04 step 1: source-state table for enable, release and stall clear over fresh 3AH, 3EH and F1H reads and the work-mode gate (already reached, refused, missing evidence); stops need no state read. 08 step 8: 82H table. 06 step 4 consumes the shared timed-runs bullet by citation (the coordinator's update), the expiry stop being the application's separate urgent stop, never barred by the run's deadline, and a run without a reviewed stop row refused before its first changing TX. Acceptance: first frame or none per row (04, 08) and a cumulative-delay case in 04 (enable), 05 (reachability read) and 08 (prior read); 06 the shared timed-run tests |
+| F10 | Accepted | MK109 p.84 (F6H speed-0 stop: 0 failure, 1 stop starting, 2 stopped completing, no 3), p.90, p.94, p.98, p.102 (position-mode stops add 3 "stop by endstop"), p.83 (F6H run's 3 limit stop), p.81 (F7H status 0/1 only); review MK-D17 | 04 step 3: stop statuses per form and phase from the ledger; an undocumented status stays raw with execution unknown; a 3 after an F6H stop claims no stop outcome. 04 step 7: the interrupted move's response after a stall trip, host-silence stop or F7H is undocumented; a frame that arrives is neither completion nor the stop's outcome. 01 step 3 records the per-form statuses. Acceptance case added |
+| F11 | Accepted | Old 01 step 4 and 02 step 8 (checksums recompute for every vector); review section 3.2 (MK109 examples recomputed); MK-D26 (RS485 frames); execution contract (derived frames labelled) | 01 step 4: vectors keep bytes, printed DLC and check byte as printed, a repair is a separate `derived` vector, and each has `checksum_domain` and `checksum_expected` (`match`, `mismatch` with discrepancy and source, `not_applicable`); 01 deliver and acceptance negative tests follow; 02 step 8 compares against that record and never gives an RS485 frame an MKS checksum. 01 step 3 lists only the documented speed-0 stop forms of F6H, FDH, FEH, F4H and F5H |
+| F12 | Accepted | README "Relationship" (`b5f44b64` binding) and open question 4 ("or that decision allows an earlier extension"); shared README "Extend"; contract 02 "Console, help and JSONL" | README and execution contract name `a7656efb` or later as the minimum baseline; open question 4: Blocked until S4 unless an authorized shared-contract change lands with its callers and tests, never by decision alone; the Deliver lists of 03-10 mark console routes and parity as "once S4 lands" |
+
+Related corrections found while checking: 12A Q6 claimed a CanRSP menu snapshot of both 8CH bytes, but the menu shows
+the respond byte only (MK109 p.26), so Q6 now needs a read snapshot (F5). 12A step 2 and the execution contract note
+that FFH has no menu item (MK109 p.21-29).
+
+### Unresolved questions, round 2
+
+1. **S9 extension. Not answered.** Prompt 63 still only records the request. 02b step 3 now names the consumer checks,
+   including retirement of a handed-off frame and capture times; proposal 1 gives the producer side. Approval and
+   scheduling stay with the prompt 63 lead or the user.
+2. **Session continuity. Answered in part.** No file establishes continuity across an uncommanded power cycle. Until
+   README open question 3 is decided, absolute moves need the application's continuity record (05 step 4), relative
+   moves stay available, and `V1_0_0` stays probe and reads only (03 step 5, open question 3).
+3. **Run time 0. Answered by the manual.** MK109 p.82 gives runTime in 10 ms units with range 0..0xFFFFFF and no
+   meaning for 0; 06 step 4 refuses a duration that quantizes to 0, with a test.
+4. **V1.0.0 39H and group. Answered by the manual.** MK100 p.13 prints `error(int16_t)` while the text maps 0..FFFF
+   to 0..360° (1° = 65536/360); recorded as MK-D38 (README, 01 owner table), and 02 step 5 and 03 step 3 keep the raw
+   16 bits and the signed reading apart, the signed reading unqualified. MK100 documents no 8DH: 02 step 1 declares
+   the group field not applicable and refuses a value.
+5. **First-power facts. Answered by 12A and the manual.** Before power: the physical items of 12A step 1. After the
+   isolated power-up of 12A step 2: the menu items (MK109 p.21-29). FFH, the group ID and the 8CH active byte have no
+   menu item and stay unknown until an established 00H read. The execution contract's bench paragraph now states
+   this boundary.
+6. **Generator naming. Not answered.** README open question 2 stays with the shared set's owner.
+
+### Proposed changes outside this directory (for the lead)
+
+1. [Prompt 63](../63_mixed_protocols.md), paragraph "Requests from family promptsets (2026-11-19)": after "a per-frame
+   TX disposition for each admitted frame;" insert "retirement of a queued or handed-off frame with proof that it
+   cannot transmit later (a final `TxReport` or `Transport::retire`), or a disposition saying that a later
+   transmission is not excluded, so a superseded MKS start cannot follow an MKS stop unreported; each routed frame
+   with its capture time or bounds (`ReceivedFrame`);". In "Verify and exit", host tests, add: "for the exclusive
+   MKS domain, a superseded frame retired before a stop, a frame held below the owner queue reported as possibly
+   transmitting after the stop, and routed frames carrying capture times".
+
+No canopen_shared change is needed: F9 consumes "Operation admission" as revised in `a7656efb`.
+
+### Decisions for a lead or owner, round 2
+
+- Prompt 63 lead or user: proposal 1 and the S9 extension schedule.
+- Shared contract owner or user: README open question 3 (continuity policy); until then absolute moves need the
+  application's continuity record.
+- Implementing lead or user: the strict attribution of 02b step 6. Every exchange fences its shape, so after the first
+  exchange of a shape only an application quiet interval (risk accepted, `QUIET_INTERVAL`) attributes replies, and the
+  application paces same-shape exchanges by that interval. Multi-target dispatch refuses mixed dialects and check
+  modes outright until a ledger review establishes identical forms.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this set. Nothing was
+compiled; no hardware or port was used.

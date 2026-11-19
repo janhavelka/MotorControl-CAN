@@ -6,7 +6,7 @@ Read root [AGENTS.md](../../../AGENTS.md), [COMMON.md](../COMMON.md) (including 
 protocol", the [multi-drive decision](../../multidrive_decision.md), [other CAN protocols](../../audit/OTHER_CAN_PROTOCOLS.md)
 "Required architecture consequences", [prompt 63](../63_mixed_protocols.md), the [promptset index](README.md), the
 [reference pack](../../reference/mks_servo_can/README.md) and [review](../../reference/mks_servo_can/review.md), then
-the selected stage. Apply the [canopen_shared](../canopen_shared/README.md) set at `b5f44b64` or later: its README
+the selected stage. Apply the [canopen_shared](../canopen_shared/README.md) set at `a7656efb` or later: its README
 "Seams: claim, land, consume", [01](../canopen_shared/01_existing_code_and_tooling.md) "Intake rules" and "A non-CANopen
 CAN protocol instead", and [02](../canopen_shared/02_profile_integration_contract.md) "Common rules" and "Other-protocol
 rules"; its "CANopen-only rules" do not apply. Cite them, do not restate them. The README lists this set's open
@@ -45,7 +45,7 @@ independent.
   example used as code; vendor DLC columns and several worked examples are wrong (MK-D04..D07). Vendor examples are
   fixtures; a corrected frame is labelled derived, never a repaired snapshot. Keep originals and hashes unchanged.
 - The command ledger created in stage 01 is the single source for codes, layouts, dialect rows, persistence, side
-  effects and gates. Carry MK-D01..MK-D33 and the README's MK-D34..D37 into it. Close a discrepancy only with cited new
+  effects and gates. Carry MK-D01..MK-D33 and the README's MK-D34..D38 into it. Close a discrepancy only with cited new
   evidence: a document, or a retained trace from an identified board and firmware.
 - No generic assumption: no CiA 402 or CANopen meaning, no SERVO42C/RS485/Modbus behavior, no ODrive or VESC rule.
   Third-party MKS libraries corroborate frame mechanics only, never firmware behavior.
@@ -132,10 +132,13 @@ automatic checks and record checks not run.
 
 **No MKS SERVO42D/57D CAN fixture exists; never send family frames to the CL86-C bench (COM15).** While COMMON records
 the owner as away, family hardware work does not start; a deferred-table row records it instead (contract 02 "Bench
-steps and owner absence"; 12A derives the forbidden-command and allowed-write lists from the ledger). Before any later
-bench step establish board and revision, firmware and edition, motor, wiring and termination (42D jumper R13, 57D SW1
-pin 1), bitrate, slave and group ID, check mode, reply policy, work mode, FFH and 9AH state, a dedicated CAN interface
-with no CANopen node, restart control and authorization. Host tests and fake drives establish no hardware support.
+steps and owner absence"; 12A derives the forbidden-command and allowed-write lists from the ledger). Before first power
+establish board and revision, motor, wiring and termination (42D jumper R13, 57D SW1 pin 1), a free shaft and
+authorization (12A step 1); first power assumes FFH or 9AH may move the shaft (12A step 2). Before any CAN step
+establish from the menu the firmware (About), bitrate, slave ID, check mode, respond byte, work mode and 0_Mode (MK109
+p.21-29); the group ID, the 8CH active byte and FFH's state, which have no menu item, by an established 00H read or as
+recorded unknowns; a dedicated CAN interface with no CANopen node; and restart control. Host tests and fake drives
+establish no hardware support.
 
 ## Handoff and progress
 

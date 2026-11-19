@@ -41,21 +41,29 @@ implemented profile. No hardware is needed.
    - availability rows `MK109`, `MK109A`, `MK106`, `MK100` (documented, absent, differs) and `since` from the version
      notes (MK109 p.1-3, MKNOTES), recording MK-D03 dates side by side;
    - `source_refs` (source ID and page), `conflict_ids`, `retry_class` and `write_policy` (`never`, `explicit`,
-     `explicit_persistent`, `explicit_motion`, `explicit_restart`).
+     `explicit_persistent`, `explicit_motion`, `explicit_restart`);
+   - `multi_target` per form and dialect: whether that exact form may go to ID 0 or a group ID (09 step 6), with the
+     reason and pages; default not allowed. 4BH is reviewed only for 09 step 7.
    Cover every code in review section 4: reads 00H, 01H, 30H-35H, 38H-3BH, 3EH, 40H, 42H, F1H; settings 80H, 82H-89H,
    8AH-8DH, 8FH, 4CH, 0FH, 95H-98H, 9BH, 9DH, 3DH, 3FH, 41H, 42H write, 50H, 36H, 9FH, 99H, 9EH, 90H, 94H, 9AH, 92H, 4AH;
-   motion F3H, F7H (both forms), F6H (5- and 8-byte), FFH, FDH, FEH, F4H, F5H, 91H (both forms), 4BH; the speed-0 stop
-   form of each motion code as its own operation; the PID read shape `00 96 00` (MK109 p.51). Menu-only functions
+   motion F3H, F7H (both forms), F6H (5- and 8-byte), FFH, FDH, FEH, F4H, F5H, 91H (both forms), 4BH; the documented
+   speed-0 stop forms of F6H, FDH, FEH, F4H and F5H (MK109 p.84, p.90, p.94, p.98, p.102), each as its own operation
+   with its own statuses (0-2 for F6H, 0-3 for the others), and no invented stop row for any other code; the PID
+   read shape `00 96 00` (MK109 p.51). Menu-only functions
    (GoHome, Restore key, About, Next-key restore) and MK106-only behavior (En-triggered homing and stall release, MK106
    p.10, p.33-34) go in `manual_only`.
 4. Create `docs/reference/mks_servo_can_operations.json` (schema 2 with Lichuan's keys `families` with `header`,
    `functions`, `tests` and `console`, `ledger_bindings` and `python_plans`; canopen_shared 01 "Intake rules", operation
    map and tools) referencing ledger keys only and copying no device facts, and
-   `docs/reference/mks_servo_can_vectors.json` with every worked example frame per manual: page, ID, bytes,
-   `vendor` or `derived`, expected checksum, `dialect`, `direction` (request or reply) and `use`: `build_parse` (a
+   `docs/reference/mks_servo_can_vectors.json` with every worked example frame per manual: page, ID, the bytes,
+   printed DLC and check byte exactly as printed (`vendor`, never repaired; a labelled repair is a separate `derived`
+   vector), `dialect`, `direction` (request or reply), `use`: `build_parse` (a
    supported transmissible form in that dialect), `parse_only` (replies and observations), `not_built` (documented
    but never written or outside an implemented table: 0FH, 50H, MK106-only layouts) or `malformed` (MK-D07 nine-byte
-   frames, MK-D26 RS485 frames). Checksums recompute for every vector whatever its use.
+   frames, MK-D26 RS485 frames), and a check-byte record: `checksum_domain` (`sum8`, `fixed_6b`, or `not_applicable`
+   with the reason, as for RS485 frames) and `checksum_expected` (`match`, `mismatch` with its discrepancy ID and
+   source, or `not_applicable`). The checker recomputes each vector's check byte in its domain and compares it with
+   that record, whatever its use.
 5. Seam S7, before the first MKS public header (stage 02), under canopen_shared 01 "Intake rules" (seam S7): claim it
    in the shared README table, or extend the split another family landed. Tools:
    `scripts/check_mks_servo_can_ledger.py`, `scripts/generate_mks_servo_can_commands.py` (`--check` never writes;
@@ -103,14 +111,16 @@ implemented profile. No hardware is needed.
 | MK-D20, D22 | CAN ID menu range; 3FH restored scope | 10; 12A Q10, Q11 |
 | MK-D21, D23, D27, D28, D29 | Persistence scope, 8FH values, 9DH bit 1, angle scales, 84H value 256 | 08; 12A Q11 |
 | MK-D24 | Board revisions and MOSFET ratings | 03, 12B |
+| MK-D38 | V1.0.0 39H printed `int16_t` with a 0..FFFF per turn text | 02, 03 |
 | MK-D26, D32, D35 | RS485 frames in CAN manuals, silent mode, identical request and reply | 02, 02b, 10 |
 
 ## Deliver
 
 - The command ledger, operation map and vector file; the three checkers with registered negative tests in
   `test/mks_servo_can_inventory_test.py`: missing code, tampered conflict hash, altered generated output, unclassified
-  public function, promoted gate, a dialect row with no page source, a vendor vector whose checksum does not recompute,
-  a `build_parse` vector for a never-written or absent form, a persistence class promoted from `unknown` or
+  public function, promoted gate, a dialect row with no page source, a vector whose recomputed check byte disagrees
+  with its recorded expectation, a `mismatch` without a discrepancy ID, a `build_parse` vector for a never-written or
+  absent form, a `multi_target` allowance without a page, a persistence class promoted from `unknown` or
   `presumed_persistent` to a documented class without a page, and a public header claimed by two checkers or by none.
   The S7 claim and landed commit, tested interface and consumer gate in the shared README table.
 - `docs/mks_servo_can_coverage.md` with one planned row per common operation of contract 02 "Capabilities and the
@@ -126,6 +136,7 @@ implemented profile. No hardware is needed.
 
 Every documented code and form of all four manuals has a ledger row with pages and dialect rows; prose-only functions
 are in `manual_only`; every MK-D has an owner stage; no unresolved row is writable merely because a manual lists it.
-The vectors recompute. Checker negative tests fail as intended; promptset, ledger and quick verification pass. The check
-registration is a major change: verify CI on the exact final pushed commit. No device API, firmware or physical
-support is claimed. Commit and push the owned files and record the handoff.
+Every vector's recomputed check byte matches its recorded expectation. Checker negative tests fail as intended;
+promptset, ledger and quick verification pass. The check registration is a major change: verify CI on the exact final
+pushed commit. No device API, firmware or physical support is claimed. Commit and push the owned files and record the
+handoff.

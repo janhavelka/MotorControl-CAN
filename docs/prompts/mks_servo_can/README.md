@@ -19,7 +19,8 @@ model `docs/prompts/lichuan_lc57bk_rs485/` at `eb0dbad` (dirty). Reconciled the 
 [canopen_shared](../canopen_shared/README.md) contract at `b5f44b64` and its
 [audit application](../canopen_shared/audit_application.md); see "Relationship to the main sequence and shared seams".
 Revised the same day after an independent [audit](audit.md) of `139748e9` ([application](audit_application.md)),
-against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`).
+against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`), and again
+after its round 2 (`aud-20261119-183325-8b7343`) against the shared contract at `a7656efb`.
 
 ## Scope
 
@@ -47,15 +48,17 @@ against the shared contract's round 2 (`1043608b`) and the MKS request recorded 
 | 02b | [Protocol domain and owner admission](02b_protocol_domain_and_owner.md) | 02; for owner admission, seam S9 with the MKS extension that main-sequence [prompt 63](../63_mixed_protocols.md) records, landed and passed; seams S1, S2, S6 claimed or extended; registration acceptance |
 | 03 | [Reads, identity and dialect selection](03_reads_identity_and_dialect.md) | 02b; MK-D01, D05, D10, D30 gate interpretations |
 | 04 | [Enable, stop and unknown completion](04_enable_stop_and_uncertainty.md) | 02b, 03; MK-D13, D17, D36 |
-| 05 | [Finite position](05_finite_position.md) | 03, 04; MK-D02, D14, D19, D29 |
-| 06 | [Speed mode](06_speed_mode.md) | 04, 05 unit helpers; MK-D02, D14, D15 |
-| 07 | [Homing and limits](07_homing_and_limits.md) | 03-05 and 08's settings context; MK-D16, D19, D25; [prompt 77](../77_switch_ready_homing_limits.md) vocabulary |
-| 08 | [Settings and dangerous persistent settings](08_settings_and_persistence.md) | 03; MK-D10, D18, D21, D23, D27, D29 |
-| 09 | [Asynchronous reports and reply matching](09_async_reports_and_reply_matching.md) | 02b matcher, 04-05 phases; MK-D11, D12 |
-| 10 | [Bus settings, restart and factory restore](10_bus_settings_and_restart.md) | 03, 08, 09; MK-D08, D20, D22 |
+| 05 | [Finite position](05_finite_position.md) | 03, 04; motion only with EndLimit established off until 07 lands; MK-D02, D14, D19, D29 |
+| 06 | [Speed mode](06_speed_mode.md) | 04, 05 unit helpers and its interim EndLimit gate; MK-D02, D14, D15 |
+| 08 | [Settings and dangerous persistent settings](08_settings_and_persistence.md) | 03; MK-D10, D18, D21, D23, D27, D29; runs before 07 |
+| 07 | [Homing and limits](07_homing_and_limits.md) | 03-05 and 08's settings context; MK-D16, D19, D25; [prompt 77](../77_switch_ready_homing_limits.md) vocabulary; replaces 05's interim EndLimit gate |
+| 09 | [Asynchronous reports and reply matching](09_async_reports_and_reply_matching.md) | 02b matcher, 04-05 phases; owns the participant validator; MK-D11, D12 |
+| 10 | [Bus settings, restart and factory restore](10_bus_settings_and_restart.md) | 03, 08, 09 (reuses its participant validator); MK-D08, D20, D22 |
 | 11 | [Console and multi-protocol integration](11_console_and_integration.md) | Implemented subsets of 02b-10; prompts 64, 65 |
 | 12A | [First-contact questions](12a_first_contact.md) | Identified MKS fixture and authorization; owner present |
 | 12B | [Qualification and release reconciliation](12_qualification_and_release.md) | Software closeout any time; HIL needs 12A's fixture |
+
+Execution order: 01, 02, 02b, 03, 04, 05, 06, 08, 07, 09, 10, 11; 12A questions as their routes land, 12B last.
 
 Dependencies are semantic prerequisites, not a demand to guess missing behavior or leave independent software idle. A
 stage may finish a usable subset while named operations stay gated. Codec, ledger and host-test work (01, 02, parts of
@@ -86,6 +89,7 @@ Checked against original pages while writing this set; stage 01 enters them into
 | MK-D35 | A request and its status reply can be byte-identical on the same ID: `F3 01 F5` is both the enable request and its success reply to ID 1; any one-byte write of 0 or 1 equals the fail or success reply (inference from the layout) | MK109 p.30, p.81 | 02b |
 | MK-D36 | Run and stop commands of one mode share the function code and status values 1 and 2, so "run complete" and "stop complete" are indistinguishable | MK109 p.83-84, p.89-90, p.93-94 | 04, 09 |
 | MK-D37 | Single-turn homing needs the 9AH zero point, which the menu allows only with 0_Mode not Disable, which arms homing at every power-on (inference from the menu rule) | MK109 p.27, p.65, p.69 | 07 |
+| MK-D38 | V1.0.0's 39H angle error is printed `int16_t` while its text maps 0..FFFF to 0..360° | MK100 p.13 | 02, 03 |
 
 ## Preparation verification
 
@@ -97,7 +101,8 @@ preparation.
 
 ## Relationship to the main sequence and shared seams
 
-The [canopen_shared set](../canopen_shared/README.md) at `b5f44b64` is binding. This family uses its
+The [canopen_shared set](../canopen_shared/README.md) at `a7656efb` or later is the minimum binding baseline (round 2
+at `1043608b`, S13 revised in `d0108871`, timed runs added in `a7656efb`). This family uses its
 [01 inventory](../canopen_shared/01_existing_code_and_tooling.md) section "A non-CANopen CAN protocol instead" and
 "Intake rules" (pack, other-protocol ledger, operation map and tools, seam S7), and its
 [02 contract](../canopen_shared/02_profile_integration_contract.md) "Common rules" plus "Other-protocol rules". Its
@@ -150,11 +155,14 @@ Points of the earlier contract that the revision settles, and where this set now
    section 14 rule 10), so the holder's server session can end only on host-observed events (restart or bus-off
    notification, rebinding, 41H, 3FH, a confirmed ID or bitrate change, a power cycle the caller records); an
    uncommanded drive power cycle leaves the identity and the coordinate origin stale without detection. Stage 03
-   records this limit; the shared set's owner decides whether it is accepted.
+   records this limit. Until the shared set's owner or the user decides a continuity policy, absolute moves also
+   need the application's continuity record (05 step 4) and are refused without it.
 4. **Console before S4 (inherited, [audit application](../canopen_shared/audit_application.md) question 2).**
    Whether a family read may extend the Lichuan-typed `ProbeApp` before prompt 64 is a decision for the prompt 64 lead
-   or the user. Until S4 lands, or that decision allows an earlier extension, every `mks` console route and API/CLI
-   parity check is Blocked (contract 02 "Console, help and JSONL"); API, application and owner tests proceed.
+   or the user. Every `mks` console route and API/CLI parity check stays Blocked until S4 lands (contract 02
+   "Console, help and JSONL"), unless an authorized change lands in the shared contract with its callers and tests
+   (shared README "Extend"); a lead or user decision alone does not open it. API, application and owner tests
+   proceed.
 
 Main-sequence prompts 55 and 74 (per-protocol retry classes), 57 (enable and identity policy), 73 (per-protocol
 timeouts), 75 (runtime node table) and 77 (limit and origin vocabulary) are consumed where the stages name them, never

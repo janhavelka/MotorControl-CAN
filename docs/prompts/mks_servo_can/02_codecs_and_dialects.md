@@ -12,7 +12,8 @@ owner, transport or hardware is involved.
    `SlaveAddress` (1..2047), `GroupAddress` (1..0x7FF), `FunctionCode`, `ReplyPhase`, `StatusCode` with raw value
    retention, and the `DialectDeclaration` value (dialect, check mode, uplink check, reply policy as 8CH respond and
    active bytes or V1_0_0's one byte, group ID, expected board code 2 or 4) with a pure validator: no default, no I/O,
-   values outside the dialect refused. 02b binds it to a binding generation before the first probe. No catalogue
+   values outside the dialect refused. A field the dialect lacks is declared not applicable and a value for it is
+   refused: MK100 documents no 8DH group ID, and V1_0_0's 8CH has one byte (MK100 p.19). 02b binds it to a binding generation before the first probe. No catalogue
    strings in the codec link; keep descriptive names in the optional catalogue.
 2. Frame shape: standard 11-bit data frames only, `extended`, `rtr` and `fd` false, DLC 2..8 (code plus check byte at
    minimum), built through `can/Frame.h` and `validateFrame` (MK109 p.30). Any other frame is refused before parsing.
@@ -37,8 +38,9 @@ owner, transport or hardware is involved.
 5. Dialect tables, generated from the ledger and selected only by an explicit `Dialect` argument:
    - `V1_0_9_SEP2026` (MK109): 4CH, 38H, F7H 01, 50H documented (50H still never built); 0FH absent.
    - `V1_0_9_NOV2025` (MK109A): 0FH documented (never built); no 4CH, 38H, F7H 01 or 50H (MK-D01).
-   - `V1_0_0` (MK100): work mode 3 is CR_CAN, speed 0..1600, acc 0..32, 8CH one byte, 39H int16 with 0..0xFFFF per
-     turn, CW-positive speed and encoder (MK100 p.7, p.11-13, p.15, p.19, p.22-23); F6H, FDH, F4H, F5H and 91H exist,
+   - `V1_0_0` (MK100): work mode 3 is CR_CAN, speed 0..1600, acc 0..32, 8CH one byte, 39H printed `int16_t` while
+     its text maps 0..FFFF to one turn (MK-D38: raw 16 bits kept, signed reading unqualified), CW-positive speed and
+     encoder (MK100 p.7, p.11-13, p.15, p.19, p.22-23); F6H, FDH, F4H, F5H and 91H exist,
      while FEH (1.0.4), 40H and other later commands are absent. The same example bytes `F6 01 40 02` mean code 320,
      600 rpm at 16 microsteps, under V1_0_0 and 320 rpm under the V1.0.9 tables (MK100 p.22, p.25; MK109 p.82).
    A builder for a code or form absent from the selected table returns `UNSUPPORTED` with no output change. Never
@@ -56,8 +58,10 @@ owner, transport or hardware is involved.
    including group 0x50, broadcast 0 and the 83H checksum example (MK109 p.16, p.49, p.105); `parse_only` vectors
    parse byte-exact; for a `not_built` vector (0FH, 50H, MK106-only layouts) the builder returns `UNSUPPORTED` with no
    output change; `malformed` vectors are rejected: nine-byte 8CH and F5H stop frames (MK109 p.47, p.103-104), F7H 01
-   printed with DLC 2 (p.81), RS485 frames with 0xFA/0xFB headers (MK109 p.58; MK106 p.19, p.26). Recompute every
-   vector's checksum by a separate method in the Python cross-check, whatever its use.
+   printed with DLC 2 (p.81), RS485 frames with 0xFA/0xFB headers (MK109 p.58; MK106 p.19, p.26). In the Python
+   cross-check, recompute each vector's check byte in its recorded domain by a separate method and compare it with
+   the vector's expectation (`match`, `mismatch` with its discrepancy, `not_applicable`), whatever its use; an RS485
+   frame is never given an MKS CAN checksum.
 
 ## Deliver
 

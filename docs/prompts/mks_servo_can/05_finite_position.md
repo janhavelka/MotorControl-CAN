@@ -2,7 +2,9 @@
 
 Execute this stage under the [execution contract](execution_contract.md).
 Status: NOT STARTED. Run after 03 and 04. MK-D02, D14, D19, D29 and D30 directly affect this stage; MK-D36 affects
-stop interaction.
+stop interaction. Until 07 lands its limit admission (07 step 6), motion here and in 06 is admitted only when 90H
+EndLimit is established off (a 00H 90 read where 03 established it readable, or a caller declaration with its
+evidence reference); enabled or unestablished EndLimit refuses before TX.
 
 ## Work
 
@@ -31,7 +33,13 @@ stop interaction.
 4. Absolute reference (MK-D19): absolute moves "must" follow a zeroing (MK109 p.92, p.100) while examples say the
    power-on position is zero (p.95, p.103). Admit an absolute common move only with a host reference generation
    established after the last restart by 07's homing or zero set, or by an explicit caller declaration recorded in the
-   evidence. Restart, bus-off, rebinding and 92H/91H/3FH invalidate it.
+   evidence. Restart, bus-off, rebinding and 92H/91H/3FH invalidate it. The protocol reports no boot-up (review
+   section 14 rule 10), so an uncommanded power cycle resets the origin unseen, and a 40H read that agrees with the
+   earlier one establishes no continuity ([README](README.md) open question 3). Until that question is answered, an
+   absolute common move also needs the application's continuity record for that reference (an evidence reference,
+   such as supply monitoring or an operator record, that no power cycle occurred since the reference was
+   established), recorded in the result as accepted risk; without it absolute moves refuse before TX. Relative
+   moves do not depend on the origin and stay available.
 5. Relative moves are relative to the drive's current position (MK109 p.17); `MoveRelation` names that native basis.
    Never convert a relative intent into an absolute target or the reverse.
 6. Direction (MK-D02): dir 0 is called CCW in the field table and "forward" or "clockwise" in examples, and 31H text
@@ -39,25 +47,32 @@ stop interaction.
    `directionQualified` declaration; without it only native signed requests are accepted, labelled unqualified.
 7. Completion phases (MK109 p.47, p.89):
    - immediate 1 is `ACKNOWLEDGED` (start), 0 `REJECTED`, 5 latched (09 owns synchronization), no reply `UNKNOWN`;
-   - an unsolicited 2 is native completion only when the declared reply policy has the active byte set, the pending
-     phase belongs to this motion and the code's completion shape is outside 02b's ambiguous set (correlation
-     `QUALIFIED`), or after the application's quiet interval with correlation `QUIET_INTERVAL` reported as such; it
-     reflects the 95H threshold and "may not" arrive (p.50, p.89). Otherwise the 2 is published `possiblyLate` and
-     does not end the phase: after a cancelled, timed-out, stopped or superseded same-code move A, A's delayed 2
-     arriving during this move B is never B's completion, and B completes only through the endpoint check below,
-     read after B's start, or ends at its deadline;
+   - an unsolicited 2 ends this motion's pending phase only when the declared reply policy has the active byte set,
+     the phase belongs to this motion and 02b step 6 attributes the frame: `QUALIFIED` (shape outside the ambiguous
+     set) or `QUIET_INTERVAL` (the application's accepted interval has passed; reported as that risk, never as
+     `QUALIFIED`). It reflects the 95H threshold and "may not" arrive (p.50, p.89). Otherwise the 2 is `possiblyLate`
+     and ends nothing. So a delayed 2 of an earlier same-code move A, whether A was cancelled, timed out, stopped,
+     superseded or had completed, ends this move B only after the interval and only with `QUIET_INTERVAL`
+     correlation: that is the risk the interval accepts;
    - 3 is a terminal limit stop, never completion; a status 2 after a same-code stop is "ended, cause
      indistinguishable" (04);
-   - endpoint evidence for encoder moves is a fresh 31H within a caller tolerance of this move's target; for pulse
-     moves 33H is not an endpoint proof until MK-D30 is resolved; standstill is a separate F1H/32H observation; both
-     reads carry their own correlation (02b step 6) into the result.
+   - three outcomes stay separate. `endpointObserved`: a 31H reply to a read sent after B's latest trigger was
+     acknowledged, attributed `QUALIFIED` or `QUIET_INTERVAL` (never `possiblyLate`; 31H's stream state `OFF`, 03 step
+     8) and within the caller's tolerance of B's latest target. `completed`: the latest trigger's status 1 attributed
+     the same way (B's start, or after an F5H update the update's), then B's attributed native 2, or `endpointObserved`
+     followed by a standstill observation (F1H 1 with 32H 0) read after it. `stopObligationDischarged`: only by
+     `completed` or by 04's stop with its own completion evidence. `endpointObserved` alone discharges nothing: after a
+     lost start reply, with a target already within tolerance, or while the shaft crosses the tolerance window,
+     execution stays `UNKNOWN` and the stop obligation and 04's stops apply. For pulse moves 33H is not an endpoint
+     proof until MK-D30 is resolved. Each outcome carries the weakest correlation of its evidence.
    A common completion contract that the binding cannot satisfy (respond-off, OPEN mode with 95H disabled, unknown
    calibration) is refused before start; the explicit native acknowledged-only path states its weaker outcome.
 8. F5H live update: a new F5H while running changes speed and target (MK109 p.100, p.104), since firmware 1.0.5
    (MK109 p.1). Offer it only in the V1.0.9 tables, never on `V1_0_0` (MK100 documents none), and only as an explicit
    change operation on the admitted move (`MoveRelation`, prompt 52 vocabulary): after it, any 2 is attributed to
-   "latest or superseded target", F5H's shapes enter 02b's ambiguous set, and completion requires the endpoint check
-   against the latest target. Do not count completions. Other codes have no documented live update; a second command
+   "latest or superseded target", F5H's shapes enter 02b's ambiguous set, and completion follows step 7's outcomes
+   against the latest target, starting from the update's own acknowledgement. Do not count completions. Other codes
+   have no documented live update; a second command
    while moving is refused.
 9. Open loop: SR_OPEN runs without encoder control (MK109 p.23); completion and endpoint semantics there are unqualified
    and the manual's open-loop workaround for magnetless motors disables 95H (p.80, p.88). Report this per binding.
@@ -67,17 +82,23 @@ stop interaction.
 ## Deliver
 
 `Position.h/.cpp`, `MoveContext`, native move records, `test/mks_servo_can_position_test.cpp`, owner-backed app and
-console routes (`mks moveby`, `mks moveto`, native `mks move CODE ...`), API/CLI parity, coverage rows, report and
-PROGRESS row. Use the existing axis and move tests as structural examples; extract no generic engine.
+console routes (`mks moveby`, `mks moveto`, native `mks move CODE ...`), API/CLI parity (console routes and parity once
+S4 lands), coverage rows, report and PROGRESS row. Use the existing axis and move tests as structural examples; extract
+no generic engine.
 
 ## Acceptance
 
 Exact frames for each command and dialect; range boundaries on native values; unit and rounding cases for counts and
-pulses; refused speed 0, over-limit speed and unscaled microsteps; absolute without reference refused; restart
+pulses; refused speed 0, over-limit speed and unscaled microsteps; absolute without reference refused; a simulated
+drive reset with a changed origin and an unchanged 40H, then an absolute move refused without the continuity record;
+motion refused with EndLimit enabled or unestablished before 07 lands; restart
 invalidation; immediate, completion, limit and latched phases; completion withheld, late, after a stop and after an
 F5H update; F5H update refused on V1_0_0; an old same-code status 2 arriving during a new move B (after A's cancel,
-timeout, same-code stop or supersession) not completing B, before and after the chosen quiet interval (`possiblyLate`,
-then `QUIET_INTERVAL`, never `QUALIFIED`), with B completing by endpoint check; lost start reply with no resend;
-endpoint check. The full matrix of contract 02 "Registration acceptance"
+timeout, same-code stop, supersession or completion): before the chosen quiet interval `possiblyLate` with B not
+ended, after it B ended with `QUIET_INTERVAL` correlation, never `QUALIFIED`; lost start reply with no resend;
+endpoint outcomes, where a target already within tolerance with a lost start reply, an in-motion crossing of the
+tolerance window, a delayed (`possiblyLate`) 31H value and an F5H update without its own acknowledgement each leave
+`completed` and `stopObligationDischarged` unset; a 31H reachability read that meets its own timeout while the
+operation deadline arrives before the trigger (no trigger TX). The full matrix of contract 02 "Registration acceptance"
 for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push with the API and
 coverage updates.

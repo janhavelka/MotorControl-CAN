@@ -15,11 +15,12 @@ code (review section 14 rule 2).
      path, counted in profile evidence, never attributed to a later request;
    - an unsolicited 2 or 3 with no pending phase (cancelled, superseded, timed-out or pre-restart motion) is never
      attributed and its shape enters the set; with a pending phase it ends that phase under 04's and 05's rules only
-     when its shape is outside the set or the application's quiet interval applies.
-2. Late and ambiguous replies follow 02b step 6 and nothing weaker: entry on cancellation, timeout, possibly sent
-   without reply, duplicate, same-code stop, supersession, rebinding, restart and first attachment; `possiblyLate`
-   publication also while a later same-shape exchange is pending; retirement only by a recorded drive power cycle;
-   a quiet interval gives `QUIET_INTERVAL` correlation, reported apart from `QUALIFIED`. A host controller restart or
+     when 02b step 6 attributes it (`QUALIFIED`, or `QUIET_INTERVAL` reported as that risk).
+2. Late and ambiguous replies follow 02b step 6 and nothing weaker: entry at the end of every exchange, also a
+   completed one, and on cancellation, timeout, possibly sent without reply, duplicate, same-code stop, supersession,
+   rebinding, restart and first attachment; `possiblyLate` publication also while a later same-shape exchange is
+   pending; retirement only by a recorded drive power cycle; a quiet interval, judged by the owner capture time,
+   gives `QUIET_INTERVAL` correlation, never reported or consumed as `QUALIFIED`. A host controller restart or
    a new host generation retires nothing, because the drive may still send. 12A Q9 measures reply latency to inform
    the application's choice; the library invents no default. This stage adds the stream (step 3) and multi-target
    (step 6) entries and writes the whole rule into the header, coverage file and user guide.
@@ -50,14 +51,18 @@ code (review section 14 rule 2).
 6. Unacknowledged dispatch, explicit native multi-target operations only:
    - broadcast ID 0 and group IDs (8DH) execute on every matching drive without reply (MK109 p.30-31, p.49, p.105):
      every powered drive on the bus for ID 0, every drive configured with the group ID otherwise, listed or not. An
-     unlisted drive, an old-dialect drive or a latch whose host record was lost is reached all the same, and the
-     library cannot detect an unknown drive (10 step 9). Dispatch therefore requires the application's commissioned,
-     exhaustive participant record for the interface (every drive physically on it with slave ID, group ID, dialect
-     and the evidence reference), a declared dialect on every possible recipient that documents the code, disjoint
-     IDs and authorization for the effect on each recipient; a missing, incomplete or stale record refuses before
-     TX. After dispatch each recipient's execution is `UNKNOWN`, its pending phases and references are invalidated
-     and the code's shapes enter its ambiguous set, so a later 2 on its own ID never qualifies a completion; never
-     used by discovery, probe, recovery or a common single-axis verb;
+     unlisted drive, an old-dialect drive or a latch whose host record was lost is reached all the same, and the library
+     cannot detect an unknown drive (10 step 9). Dispatch therefore requires the application's commissioned, exhaustive
+     participant record for the interface (every drive physically on it with slave ID, group ID, dialect, check mode and
+     the evidence reference), checked by this stage's participant validator (10 step 9 reuses it); one declared dialect
+     and check mode shared by every possible recipient (mixed dialects or check modes refuse outright until a ledger
+     review establishes the same form and effect across them); the exact frame (code, form, payload, DLC) allowed for
+     multi-target use by that dialect's reviewed `multi_target` row (01 step 3), so a code both V1.0.9 tables have does
+     not admit a form only one documents (F7H 01, MK-D01); disjoint IDs; and authorization for the effect on each
+     recipient. Anything missing, incomplete or stale refuses before TX. 4BH is never sent through this path: only step
+     7's latch-aware operation sends it. After dispatch each recipient's execution is `UNKNOWN`, its pending phases and
+     references are invalidated and the code's shapes enter its ambiguous set, so a later 2 on its own ID never
+     qualifies a completion; never used by discovery, probe, recovery or a common single-axis verb;
    - V1.0.0 and V1.0.1 still replied to broadcast and group frames (implied by the V1.0.2 note, MK109 p.1), on an
      undocumented identifier: refuse broadcast and group dispatch on `V1_0_0`.
 7. Synchronization flag (V1.0.9 tables; since 1.0.8): 4AH enables latching (a setting through 08's context); a latched
@@ -65,13 +70,14 @@ code (review section 14 rule 2).
    once per explicit request; the manual's repeat about every 1 ms is an application choice, and whether a second 4BH
    restarts or repeats a latched move is undocumented (MK-D12), so the operation records each 4BH as new intent. 4BH
    goes to ID 0, so it needs step 6's exhaustive participant record and, for every possible recipient, a known latch
-   state: its 4AH setting and every motion command this host sent it since a recorded power cycle (02b step 6) while
-   4AH was or may have been enabled, with each command's reply (5, other or missing). A recipient whose latch state is
-   unknown (first bind, rebind, restart, a lost record, a latched request with a missing reply) refuses 4BH before
-   TX. After 4BH, a member's motion latched with a checked status 5 on its own ID keeps its pending phase, moved to
-   execution `UNKNOWN`; a later status 2 on that ID ends the phase under 05's rule, and only while the code's shape is
-   outside the set. Members without such a phase are `UNKNOWN` until their own observation. Native names only; never
-   the CANopen `sync` verb, prompt 51's SYNC producer or any SYNC counter.
+   state: its 4AH setting and every motion command this host sent it since a recorded power cycle (02b step 6) while 4AH
+   was or may have been enabled, with each command's reply (5, other or missing). A recipient whose latch state is
+   unknown (first bind, rebind, restart, a lost record, a latched request with a missing reply) refuses 4BH before TX.
+   After 4BH, a member's motion latched with a checked status 5 on its own ID keeps its pending phase, moved to
+   execution `UNKNOWN`; a later status 2 on that ID ends the phase under 05's rule only when 02b step 6 attributes it
+   (the latched exchange entered the shape, so `QUIET_INTERVAL` at best). Members without such a phase are `UNKNOWN`
+   until their own observation. Native names only; never the CANopen `sync` verb, prompt 51's SYNC producer or any SYNC
+   counter.
 8. Silent mode (50H 02) is never sent; a drive left silent by another tool times out on everything and looks absent
    (MK-D32). Malformed frames are never sent deliberately outside an authorized 12A question (MK-D09).
 9. Evidence classes for health (prompt 55): reply timeout, unmatched frame, possibly-late reply, checked rejection
@@ -80,10 +86,10 @@ code (review section 14 rule 2).
 
 ## Deliver
 
-Extended matcher and stream table, `Reports.h/.cpp` with `ReportContext`, `Group.h/.cpp` (or the profile's
-multi-target module) for broadcast, group and 4AH/4BH operations, `test/mks_servo_can_async_test.cpp`, owner-backed
-app and console routes (`mks report`, `mks group`, `mks latch`, `mks execute-latched`), API/CLI parity, coverage and
-user-guide sections on matching limits, report and PROGRESS row.
+Extended matcher and stream table, `Reports.h/.cpp` with `ReportContext`, `Group.h/.cpp` (or the profile's multi-target
+module) for broadcast, group and 4AH/4BH operations and the participant validator, `test/mks_servo_can_async_test.cpp`,
+owner-backed app and console routes (`mks report`, `mks group`, `mks latch`, `mks execute-latched`), API/CLI parity
+(console routes and parity once S4 lands), coverage and user-guide sections on matching limits, report and PROGRESS row.
 
 ## Acceptance
 
@@ -91,9 +97,12 @@ Through the real owner and fake drive: stream frames interleaved with polled rep
 streamed code refused; a stream active before the host starts (state `UNKNOWN`, poll refused, sample observed); a
 lost setup acknowledgement leaving `UNKNOWN`; a sample queued after an acknowledged report stop not taken as a poll's
 reply; unsolicited 2/3 with and without a pending phase; an old status 2 arriving during a new same-code move, before
-and after the chosen quiet interval, never `QUALIFIED`; a duplicate terminal frame; late replies `possiblyLate` until a
+and after the chosen quiet interval, never `QUALIFIED`, also when the old move had completed and its first delayed
+duplicate arrives; a duplicate terminal frame; late replies `possiblyLate` until a
 recorded power cycle; respond-off and active-off policies; broadcast and group operations invalidating every member;
-an incomplete participant record, a mixed-dialect recipient and a lost latch record refusing before TX; 4BH sent once
+an incomplete participant record, a mixed-dialect or mixed-check-mode recipient (F7H 01 to a group with one MK109A
+member), a form the dialect has but its `multi_target` row does not allow (8BH to a group), 4BH through the generic
+dispatch and a lost latch record refusing before TX; 4BH sent once
 with no reply and no repeat, and a latched member's later completion; V1_0_0 broadcast refused; a restart leaving
 previously active streams unknown until stopped or declared off. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push.

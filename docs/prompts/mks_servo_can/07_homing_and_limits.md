@@ -2,8 +2,8 @@
 
 Execute this stage under the [execution contract](execution_contract.md).
 Status: NOT STARTED. Run after 03-05 and after 08 has landed its `SettingsContext`. MK-D16, D19, D25 and D37 are
-central. Use
-[prompt 77](../77_switch_ready_homing_limits.md)'s protocol-neutral limit, origin and outcome vocabulary where it has landed;
+central. Use [prompt 77](../77_switch_ready_homing_limits.md)'s protocol-neutral limit, origin and outcome vocabulary
+where it has landed;
 the MKS input functions and reactions stay in this profile. Review the original homing pages (MK109 p.14-15, p.27-28,
 p.65-77), not only the extracts.
 
@@ -35,8 +35,8 @@ p.65-77), not only the extracts.
    MK109 p.70) and 91H 01 coordinate zeroing (move to the stored zero; motor enabled first, p.66, p.74; V1.0.9 tables
    only). Replies 0 fail, 1 start, 2 complete; 3BH status1 (single-turn) and status2 (other homing) with 0 running,
    1 success, 2 fail, one byte before 1.0.7 (p.35; MK106 p.19); F1H 5 while homing (p.80).
-4. Completion: a new status 2 for this pending phase whose 91H shape is outside 02b's ambiguous set (or with
-   `QUIET_INTERVAL` correlation, reported as such), or a fresh 3BH transition to success observed after the trigger.
+4. Completion: a new status 2 for this pending phase that 02b step 6 attributes (`QUALIFIED`, or `QUIET_INTERVAL`
+   reported as that risk), or a fresh 3BH transition to success observed after the trigger.
    A pre-existing 3BH success, F1H 1 or an elapsed deadline is never completion. Only after qualified completion does
    `getHomeReference` publish a host origin generation, with a fresh 31H read recorded; the manual says the marked
    position becomes coordinate zero, but no source establishes the residual reading, so do not require exact zero.
@@ -46,10 +46,11 @@ p.65-77), not only the extracts.
 6. End limits: enabled by 90H EndLimit; left limit (IN_1, or En) stops leftward motion, right limit (IN_2 on 57D only,
    or Dir) stops rightward motion, bus mode only (p.14, p.75). After first use or any limit-parameter change a homing is
    required (p.14, p.67): record `limitHomingRequired` and refuse motion with EndLimit enabled until a homing completes
-   after the change. "Left" is defined only by examples (left with dir bit 1, p.77), so mapping to common limit
-   directions needs `directionQualified`. Status 3 is a terminal limit stop; limit hits outside a move send no frame.
-   MK106 says homing onto the left switch with EndLimit enabled releases the shaft (MK106 p.12, p.29); MK109 is silent
-   (MK-D16): read 3AH after homing instead of assuming the hold.
+   after the change. This admission replaces 05's interim EndLimit gate for 05 and 06. "Left" is defined only by
+   examples (left with dir bit 1, p.77), so mapping to common limit directions needs `directionQualified`. Status 3 is a
+   terminal limit stop; limit hits outside a move send no frame. MK106 says homing onto the left switch with EndLimit
+   enabled releases the shaft (MK106 p.12, p.29); MK109 is silent (MK-D16): read 3AH after homing instead of assuming
+   the hold.
 7. Inputs: 34H levels, configured function and physical wiring are three separate facts (MULTIDRIVE row 21). An
    unconnected input does not disable its function. Never disable limits or remap ports to make a test run. On a 42D,
    08's 9FH can turn IN_1 into an output; method 0 and the left limit on IN_1 are admitted only while the ledger and
@@ -63,7 +64,8 @@ p.65-77), not only the extracts.
 ## Deliver
 
 `Homing.h/.cpp`, `HomeContext`, method table, `test/mks_servo_can_homing_test.cpp`, owner-backed app and console routes
-(`mks home METHOD`, `mks zero-set`, `mks limits`), API/CLI parity, coverage rows, report and PROGRESS row.
+(`mks home METHOD`, `mks zero-set`, `mks limits`), API/CLI parity (console routes and parity once S4 lands), coverage
+rows, report and PROGRESS row.
 
 ## Acceptance
 

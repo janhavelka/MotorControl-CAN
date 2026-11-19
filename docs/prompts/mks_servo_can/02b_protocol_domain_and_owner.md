@@ -31,8 +31,11 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    landed extension provides, with its own tests: a whole-space MKS plan admitted only on an interface with no CANopen
    node, route or COB-ID, while shared-interface plans keep the restricted-range and overlap refusals; MKS stops
    (F7H forms, mode speed-0 stops) ahead of queued MKS ordinary frames; a per-frame TX disposition (not sent, sent,
-   possibly sent) delivered for each admitted frame to the matcher of step 6; restart and bus-off notification to the
-   MKS service. Rerun those consumer tests here. A need the landed artifacts do not cover keeps only its dependent
+   possibly sent) delivered for each admitted frame to the matcher of step 6; retirement of a queued or handed-off
+   MKS frame with proof that it cannot transmit later (a final TX report or a successful retirement, as `TxReport` and
+   `Transport::retire` in [CanBusTypes.h](../../../adapters/owner/CanBusTypes.h) give), or a disposition saying that a
+   later transmission is not excluded (04 step 4); each routed frame with its capture time or bounds
+   (`ReceivedFrame`); restart and bus-off notification to the MKS service. Rerun those consumer tests here. A need the landed artifacts do not cover keeps only its dependent
    owner admission Blocked, recorded in the report and PROGRESS against prompt 63's request. S9 is implemented only
    by executing prompt 63: no family-local substitute, weakened check or bypassed admission.
 4. Seams S1 and S2 under contract 02 "Profile resolution": append `Manufacturer::MAKERBASE` and
@@ -53,26 +56,31 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    per-dialect probe read through the API, application, console (Blocked until S4) and fake drive: 40H for the V1.0.9
    tables, 01's chosen read for `V1_0_0`, which has no 40H. It proves a responder on that ID whose frame has the
    probe's code, an accepted length and a valid check byte under the declared dialect; not an MKS drive, model or
-   firmware. That claim holds for a frame published `possiblyLate` (step 6), whose correlation it records. Keep the
+   firmware. That claim holds for a frame published `possiblyLate` (step 6), whose correlation it records, as a
+   bootstrap observation that never stands as admission evidence for dependent work (03 step 5). Keep the
    raw bytes (MK-D05). Reads carry the read effect decided in 01; the probe never writes and, as a
    bootstrap read, consumes no identity (contract 02 "Identity and device evidence").
 6. Matcher, owned by the MKS service context and fed by the S9 route:
    - key = interface and slave address; **one outstanding request per address**, because a 00H read reply carries the
      setting's code (MK109 p.37), a 01H report carries the read code (p.36) and run and stop share codes (MK-D36);
    - at most one pending completion phase per address, bound to the admitted motion's generation (used by 04-07);
-   - match by identifier, echoed code, accepted length, check byte and phase, and only after the request's TX
-     disposition says sent or possibly sent; anything else is a copied raw unsolicited observation through the owner's
-     observe path, never silently consumed and never attributed;
+   - match by identifier, echoed code, accepted length, check byte and phase, and only a frame captured (owner
+     capture time) after the request's TX handoff whose disposition says sent or possibly sent; anything else is a
+     copied raw unsolicited observation through the owner's observe path, never silently consumed and never
+     attributed;
    - one immutable deadline per request (`now >= deadlineUs` expires), at most the operation's deadline (contract 02
      "Operation admission"); a missing write reply is execution UNKNOWN; a reply after the deadline is unattributable;
    - **ambiguous shapes.** The protocol has no transaction ID (review section 14 rule 2), so per address the matcher
      keeps the set of reply shapes an earlier exchange may still produce. A shape is the first data byte (echoed or
      reported code) with an accepted length, whatever request produced it: a write of setting x, a 00H read of x and
-     a 01H sample of x can share one. A shape enters the set when a possibly sent exchange ends without its terminal
-     frame or may produce another: deadline or timeout, local cancel, TX disposition possibly sent without a reply,
-     a same-code stop (MK-D36, 04), an F5H update (05), a duplicate terminal frame, rebinding, controller restart or
-     bus-off (the drive keeps running and may still send). At first attachment and after a host restart every shape
-     of the address starts in the set, because a used drive may still complete work this host has no record of;
+     a 01H sample of x can share one. A shape enters the set when an exchange that may have produced it ends, also
+     one whose terminal frame arrived, because no reply is documented as unique and nothing excludes a delayed
+     duplicate (review section 14 rule 2); and when a possibly sent exchange may produce another: deadline or
+     timeout, local cancel, TX disposition possibly sent without a reply, a same-code stop (MK-D36, 04), an F5H update
+     (05), a duplicate terminal frame, rebinding, controller restart or bus-off (the drive keeps running and may still
+     send). At first attachment and after a host restart every shape of the address starts in the set, because a used
+     drive may still complete work this host has no record of. So `QUALIFIED` correlation exists only for the first
+     exchange of a shape after a recorded power cycle (below);
    - a frame of a shape in the set is published `possiblyLate`, never a fresh acknowledgement or completion, also
      while a later same-shape exchange is pending: an old status 2 arriving during a new same-code move ends nothing.
      The dependent stage then uses evidence that does not depend on attribution (05's endpoint check) or leaves the
@@ -81,10 +89,14 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
      neither a host generation nor a restart retires a shape. The one evidenced boundary is a drive power cycle the
      caller records with its evidence reference, which empties the address's set and ends its identity session (03);
      shapes of power-on behaviors that may run afterwards (FFH's F6H, 9AH's homing) stay in the set. An application
-     may declare a quiet interval as accepted residual timing risk: a same-shape frame received once that interval
+     may declare a quiet interval as accepted residual timing risk: a same-shape frame captured once that interval
      has passed since the latest event that put the shape in the set is attributed with correlation
-     `QUIET_INTERVAL` and the interval recorded, reported separately from `QUALIFIED` correlation, and the shape stays
-     in the set. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9
+     `QUIET_INTERVAL` and the interval recorded, and the shape stays in the set. The interval is measured from the
+     frame's owner capture time (`ReceivedFrame` time, or its earliest bound), not from when the service processes
+     it, so a frame that waited in a host buffer is judged by its arrival; a frame without a capture time stays
+     `possiblyLate`. `QUIET_INTERVAL` is a distinct risk-accepted outcome: it may end the exchange or phase it
+     matches, its result carries that correlation and the interval, and it is never reported, counted or consumed as
+     `QUALIFIED`. At attachment the application records one of the two, or every result stays `possiblyLate`. 12A Q9
      measures latency to inform that choice; the library invents no default;
    - restart and bus-off notification invalidate every MKS binding's evidence, pending phases and stream state.
 7. Self-echo (MK-D35): the request `001: F3 01 F5` equals the success reply, so once delivered as ordinary RX the
@@ -119,9 +131,11 @@ Contract 02 "Registration acceptance" and "Other-protocol rules". The S9 consume
 real owner, S9 route, MKS service context and fake drive: probe success per dialect, missing declaration refused
 before admission, wrong check byte, wrong length, wrong code, foreign profile both directions with no TX, reply on
 broadcast or group ID ignored, timeout then late identical reply `possiblyLate`, a late reply arriving while a new
-same-shape request is pending published `possiblyLate` and not as that request's reply, `QUIET_INTERVAL` attribution
-reported apart from `QUALIFIED`, every shape in the set at first attachment and emptied only by a recorded power
-cycle, a frame before the request's handoff never matched, the fake transport never delivering its own TX, restart
+same-shape request is pending published `possiblyLate` and not as that request's reply, a completed exchange followed
+by a same-shape request and the first delayed duplicate of the earlier reply (`possiblyLate` before the interval,
+`QUIET_INTERVAL` after it, never `QUALIFIED`), the interval judged by capture time for a frame held in a host buffer,
+every shape in the set at first attachment and emptied only by a recorded power cycle, a frame captured before the
+request's handoff never matched, the fake transport never delivering its own TX, restart
 notification invalidating evidence, and a CANopen node on the same interface refused in both directions. The S2 tests
 pass; JSONL records follow S6 (console cases once S4 lands); checker negative tests fail as intended; all consumers
 build in C++11. Quick and full verification, firmware builds, the family checks and CI on the exact final pushed

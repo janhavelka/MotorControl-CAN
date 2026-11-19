@@ -33,7 +33,10 @@ each invalidates its own evidence.
 **Requests from family promptsets (2026-11-19).** The [MKS SERVO CAN set](mks_servo_can/README.md) needs, beyond
 this prompt's shared-interface plans: an exclusive non-CANopen protocol domain on its own interface using the whole
 standard-ID space (MKS uses `0x000` as broadcast, which collides with NMT); stop precedence within that domain; a
-per-frame TX disposition for each admitted frame; and restart and bus-off notification to the domain's service. Keep
+per-frame TX disposition for each admitted frame; retirement of a queued or handed-off frame with proof that it
+cannot transmit later (a final `TxReport` or a true `Transport::retire`), or a disposition saying that a later
+transmission is not excluded, so a superseded MKS start cannot follow an MKS stop unreported; each routed frame
+with its capture time or bounds (`ReceivedFrame`); and restart and bus-off notification to the domain's service. Keep
 the restricted-range refusals for shared interfaces. Until a tested extension lands (seam S9 in
 [canopen_shared](canopen_shared/README.md)), only the dependent MKS owner work is blocked.
 
@@ -65,7 +68,9 @@ vendor evidence, safety, uncertainty or verification rules. Read the report, `Ca
 
 Host tests: overlapping, restricted-range and format-blind plans refused; a `0x680`-`0x6DF` plan refused when a
 configured PDO uses `0x680` (default-range separation alone never passes); a 29-bit plan accepted; plan and CANopen
-frames routed separately; stop ordering ahead of raw frames; restart notification. Run the native, firmware, stack and
+frames routed separately; stop ordering ahead of raw frames; restart notification; for the exclusive MKS domain, a
+superseded frame retired before a stop, a frame held below the owner queue reported as possibly transmitting after
+the stop, and routed frames carrying capture times. Run the native, firmware, stack and
 documentation gates and CI on the actual final commit.
 
 ## Documentation and delegation

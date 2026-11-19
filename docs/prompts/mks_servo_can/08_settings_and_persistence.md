@@ -42,7 +42,16 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    declared dialect lacks. Keep raw unknown observed values inspectable without making them setters.
 8. Quiescence: whether a setting applies during motion is undocumented, except the unsaved 83H form described for use
    "during operation" (MK109 p.42). Other writes require no admitted motion, homing or calibration on that address and
-   a caller-declared stationary state recorded in the evidence; a fresh 32H of 0 alone is not proof.
+   a caller-declared stationary state recorded in the evidence; a fresh 32H of 0 alone is not proof. Mode change
+   (82H) source states and first frames, under contract 02 "Operation admission":
+
+   | Starting state | First changing TX |
+   | --- | --- |
+   | Requested mode absent from the declared dialect | None; `UNSUPPORTED` |
+   | A fresh 00H 82 read (where 03 established it readable) equals the requested mode | None; already reached |
+   | Stationary declared, no admitted motion, homing, calibration or pending phase, F1H 1 | 82H with the value |
+   | As above but the current mode neither readable nor declared | 82H, the result recording the prior mode as unknown |
+   | Motion, homing, calibration or a pending phase admitted, or F1H 2-6, or F1H missing, stale or `possiblyLate` | None; refused |
 9. Invalidation, recorded per descriptor and tested: 84H invalidates pulse scales and speed and acceleration mappings;
    82H invalidates enable, motion, completion and the work-mode gate; 95H invalidates completion qualification; 88H and
    9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and invalidate the home reference
@@ -55,13 +64,15 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
 ## Deliver
 
 `Settings.h/.cpp`, `SettingsContext`, typed descriptors per block, `test/mks_servo_can_settings_test.cpp` (one section
-per block), owner-backed app and console routes (`mks set ...`, `mks get ...`, `mks calibrate`), API/CLI parity,
-coverage rows per code with its persistence class, report and PROGRESS row.
+per block), owner-backed app and console routes (`mks set ...`, `mks get ...`, `mks calibrate`), API/CLI parity (console
+routes and parity once S4 lands), coverage rows per code with its persistence class, report and PROGRESS row.
 
 ## Acceptance
 
 Per block: exact frames, accepted and refused values, model and dialect refusals, prior read and readback where
-established, acknowledged-only result where not, status 0 rejection, lost reply with execution unknown and no repeat,
+established, acknowledged-only result where not, the first emitted frame or none for every row of the 82H table, a
+prior read that meets its own timeout while the operation deadline arrives before the write (no write TX, contract
+02 "Operation admission"), status 0 rejection, lost reply with execution unknown and no repeat,
 invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
 50H, 0FH and 8FH; board-dependent writes refused when the observed board code differs from the declared one; 9FH on a
 42D refused with IN_1 required as home or limit, admitted for a separately recorded remapped configuration, and its
