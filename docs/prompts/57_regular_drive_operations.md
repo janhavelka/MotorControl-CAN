@@ -116,7 +116,11 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
     product field) and CONTRADICTED both refuse vendor-object downloads and every changing request of the motion
     rule, stops exempt, until a current observation matches a reference of the declared model. No current
     outcome (none read, or invalidated) refuses the same work. Bootstrap identity and state reads stay admitted
-    in every case.
+    in every case. So does one bootstrap command: a targeted NMT Enter Pre-operational to a node whose fresh
+    heartbeat or node-guarding state reports Stopped, under every outcome except CONTRADICTED, because SDO
+    identity reads need it and it starts no PDO; its result records the reason. Without such a state report the
+    stranded node is reported, and its recovery is the application's (a power cycle or an explicit broadcast
+    under seam S13).
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never

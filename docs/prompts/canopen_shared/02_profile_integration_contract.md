@@ -128,7 +128,12 @@ Commit tooling, core/profile and application/console changes separately, each te
   and a missing acknowledgement never bar. `needsStop` survives cancellation, failure, recovery,
   a lost start reply and acknowledgement-only completion while any start word may have left;
   no result claims standstill without fresh evidence. A run whose mode and reachable states
-  have no reviewed stop row is refused before its first changing TX. Tests: a duration that no
+  have no reviewed stop row is refused before its first changing TX. A stop row is not a stop
+  path: after a lost start reply the route can stay unresolved (S10 `NONE`), so admission also
+  needs a stop that can still leave then, either the binding's opted-in S3 shape (CANopen) or the
+  family's equivalent native stop, or an independent stop the application declares for the run
+  (its own enable, STO or power path, named in the result). Without one the run is refused
+  before its first changing TX. Tests: a duration that no
   longer fits with the budget (refused at preparation), a lost start reply, an observation in
   flight near stop due, service resuming after stop due, a queue-pressured stop.
 - **State transitions.** Before the first TX of enable, release, a stop, fault clear or a
@@ -136,8 +141,11 @@ Commit tooling, core/profile and application/console changes separately, each te
   which observed starting states (drive state, mode, fault, halt or quick-stop latch) admit
   the sequence and with which first word, what a request for a state already reached returns
   (without a shutdown or a power-stage or brake cycle), and which states refuse or need a
-  separate explicit operation. Not a fixed word script. Tests assert the first emitted frame,
-  or none, for every starting state and mode in the table.
+  separate explicit operation. Not a fixed word script. A stop word keeps a set halt bit (bit
+  8) set unless the family's evidence shows its quick stop takes precedence over the halt
+  release; with the halt state unknown it keeps bit 8 set when the evidence admits that word,
+  otherwise the row refuses. Tests assert the first emitted frame, or none, for every
+  starting state and mode in the table, halted and unknown-halt predecessors included.
 
 ### Console, help and JSONL (seam S6)
 

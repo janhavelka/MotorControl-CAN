@@ -118,3 +118,15 @@ families once here and in prompt 57; each family's own round-2 application consu
 
 Family-specific findings of these audits are applied in each family's `audit_application.md`
 round 2.
+
+## Round 4: cross-cutting findings of the round-2 applications and round-3 audits, 19 November 2026
+
+Sources: MOONS' round 3 `aud-20261119-191534-e56216` (F1, F2, F5), C extensions round 3
+`aud-20261119-191534-a7642a` (F3), and the Nanotec and DS2 round-2 applications' requests.
+
+| Theme | Findings | Evidence checked | Change |
+| --- | --- | --- | --- |
+| 1 Stop path after a lost start reply | MOONS' F2; C extensions F3 | 02 S10 (`NONE`: a timeout leaves the route unresolved); 02 S3 (default deny); 02 timed runs (a stop row only) | 02 timed runs: admission also needs a stop that can leave on an unresolved route, the binding's opted-in S3 shape or the family's native equivalent, or an application-declared independent stop named in the result; otherwise refused before the first changing TX |
+| 2 Halt bit in stop words | MOONS' F1; Nanotec round-2 F6 (N5 pp68/76/77/80/89: clearing bit 8 restarts motion; p57 gives no priority) | 02 State transitions; principles pack CP-D10 | 02 State transitions: a stop word keeps a set halt bit unless the family's evidence shows quick-stop precedence; unknown halt keeps bit 8 set where admitted, else the row refuses; tests include halted and unknown-halt predecessors |
+| 3 Stranded NMT-Stopped node | MOONS' F5; DS2 round-2 request | Prompt 57 admission by outcome (no current outcome refuses changing work); a Stopped node answers no SDO | Prompt 57: targeted NMT Enter Pre-operational to a node whose fresh heartbeat or node-guarding state reports Stopped is a bootstrap command, admitted under every outcome except CONTRADICTED; without such a report the node is reported stranded and recovery is the application's |
+| 4 Heartbeat producer bound | Nanotec round-2 open question 2 | README S11 row | S11 row: the period check counts TX delay under load and the producer is rechecked when a `1016h` write is handed to the controller |
