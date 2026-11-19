@@ -14,6 +14,10 @@ CONFIG_LOG_DEFAULT_LEVEL_NONE=y
 # CONFIG_SPIRAM is not set
 # B01: S2 has no PSRAM; conserve internal RAM without changing the owner task stack.
 CONFIG_ESP32S2_DATA_CACHE_0KB=y
+# Prompt 56: the owner pass is bound by instruction fetch from flash. A 16 KB instruction cache
+# (8 KB more internal RAM) cut the idle pass from 833 to 356 us at 240 MHz on 2026-11-19; an 8 KB
+# data cache changed nothing. Free heap after boot 73284 bytes with it.
+CONFIG_ESP32S2_INSTRUCTION_CACHE_16KB=y
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
 CONFIG_HEAP_PLACE_FUNCTION_INTO_FLASH=y

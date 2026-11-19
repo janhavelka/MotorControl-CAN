@@ -254,7 +254,10 @@ SHARED_IDF_BUILDS = {
 }
 # The special bench image's examples/s2_bench/sdkconfig.defaults, reviewed as for the shared S2 image,
 # with prompt 55's third SDO channel (the absent node 3); the library default stays 2.
-BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **dict(S2_FLASH, CONFIG_MOTORCONTROLCAN_SDO_CHANNELS="3"))
+BENCH_SDKCONFIG = dict(COMMON_SDKCONFIG, **dict(S2_FLASH, CONFIG_MOTORCONTROLCAN_SDO_CHANNELS="3",
+                                               # Prompt 56: the bench image's 16 KB instruction cache.
+                                               CONFIG_ESP32S2_INSTRUCTION_CACHE_16KB="y",
+                                               CONFIG_ESP32S2_INSTRUCTION_CACHE_SIZE="0x4000"))
 STORAGE_PROJECT = "examples/storage_placement"
 STORAGE_IDF_BUILDS = {
     "storage-s2": {"target": "esp32s2", "psram": False},

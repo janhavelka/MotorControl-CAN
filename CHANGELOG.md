@@ -21,6 +21,11 @@
   `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240`. On 2026-11-19 an idle owner pass on the S2 bench took about 0.9 ms at
   160 MHz, half of it the owner-and-sessions turn. `-Os` stays: `-O2` conflicts with the S2 memory plan (B01)
   and needs its own measured review.
+- **S2 bench instruction cache 16 KB:** the bench image's owner pass is bound by instruction fetch from flash, not
+  the clock: at 240 MHz the idle owner turn took 110k cycles against 82k at 160 MHz. A 16 KB instruction cache cut the
+  idle pass from 833 to 356 us and the soak read from 5.77 to 4.87 ms; the IDF's 8 KB data cache changed nothing.
+  It costs 8 KB of internal RAM (free heap after boot 73284 bytes). The shared S2 image keeps 8 KB until its own
+  RAM is measured. `-O2` is not used: it enlarges code on a fetch-bound pass.
 
 ### Communication practice and PSRAM-first placement (2026-11-18)
 

@@ -745,7 +745,8 @@ class FirmwareBuildTests(unittest.TestCase):
         bench = checker.sdkconfig_values(ROOT / "examples/s2_bench/sdkconfig.defaults")
         for key, value in checker.BENCH_SDKCONFIG.items():
             if key not in ("CONFIG_ESPTOOLPY_FLASHSIZE", "CONFIG_IDF_TARGET", "CONFIG_ESP32S2_DATA_CACHE_SIZE",
-                           "CONFIG_UART_ISR_IN_IRAM", "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ"):
+                           "CONFIG_UART_ISR_IN_IRAM", "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ",
+                           "CONFIG_ESP32S2_INSTRUCTION_CACHE_SIZE"):
                 with self.subTest(bench=key):
                     self.assertEqual(bench.get(key, "absent"), value)
         self.assertEqual(bench["CONFIG_IDF_TARGET"], '"esp32s2"')

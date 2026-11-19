@@ -84,6 +84,8 @@ def resolved_sdkconfig(app):
     # Kconfig derives the numeric CPU frequency from the selected choice (prompt 56: 240 MHz).
     if values.get("CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240") == "y":
         values["CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ"] = "240"
+    if values.get("CONFIG_ESP32S2_INSTRUCTION_CACHE_16KB") == "y":  # The bench image (prompt 56).
+        values["CONFIG_ESP32S2_INSTRUCTION_CACHE_SIZE"] = "0x4000"
     if values.get("CONFIG_RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH") == "y":
         values.pop("CONFIG_UART_ISR_IN_IRAM", None)  # Its Kconfig dependency is false.
     # Kconfig writes the bool's default when no defaults file sets it; the options that depend
