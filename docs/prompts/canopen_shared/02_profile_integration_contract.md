@@ -230,7 +230,8 @@ default as the restore value. An observation is that specimen's behavior.
   matching-looking reply proves neither acknowledgement nor standstill; the route stays
   unresolved. Test each case and a matching late reply through `admitBestEffortStop`;
   Lichuan's existing best-effort tests stay unchanged.
-- Seam S13, SYNC effect admission, gates prompt 51's producer (`armSync` and each
+- Seam S13, SYNC and NMT-broadcast effect admission (the same rule applies to every NMT command to
+  node 0 on a mixed interface), gates prompt 51's producer (`armSync` and each
   `admitSync`) without forking it. Its approval covers the whole declared bus population, not
   only the request target: per node, live NMT state and RPDO/TPDO communication and map state
   (transmission type, COB-ID validity, mapped objects) read for the current binding, session

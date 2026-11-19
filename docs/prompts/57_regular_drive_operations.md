@@ -99,7 +99,11 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
   - Motion rule (this prompt's product-identity refusal, the same for both sets): CONTRADICTED also refuses enable,
     mode select, every motion preparation and every other changing request on that binding before TX; only the
     bootstrap identity and state reads remain. No acceptance, guard setting or option overrides it. A differing
-    firmware identity never produces CONTRADICTED.
+    firmware identity never produces CONTRADICTED. Stops are exempt: an explicitly requested stop (the profile's
+    reviewed quick stop or halt, whose CiA 402 command bits are standard) stays admitted, because refusing it could
+    leave a moving drive running; its result carries the contradicted identity and claims no standstill.
+  - No caller acceptance replaces a reference: when no reference of the declared model matches (for example because
+    the documented values conflict), the application supplies a MEASURED reference for its specimen.
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
