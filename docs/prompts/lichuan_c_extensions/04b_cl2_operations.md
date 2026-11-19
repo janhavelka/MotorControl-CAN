@@ -7,8 +7,10 @@ Admit the four CL2 models to existing operations where CL2 pages document the be
 [04a](04a_cl2_rows.md)'s mode-aware status decoder and CL2 observations and stage 01's model binding and
 identity outcome. CL2 uses the C-family controlword list but a different statusword, homing table, loop-mode
 code and input codes, so most C-family evidence does not transfer. Prompt 77 is consumed if landed. Items
-1, 3, 5, 6 and 13 consume rules that 03b items 1, 3, 5, 6 and 12 define; whichever of 03b and 04b runs
-first lands them for both groups with their tests (03b introduction).
+1, 3, 5, 6, 8, 10 and 13 consume rules that 03b items 1, 3, 5, 6, 8, 10 and 12 define (item 8's retained
+last-motion terminal input and rechecks before each write, item 10's caller peak-current record and its
+refusals among them); whichever of 03b and 04b runs first lands their shared parts for both groups with
+their tests (03b introduction).
 
 ## Work
 
@@ -24,19 +26,22 @@ first lands them for both groups with their tests (03b introduction).
    (LX-D28). A CL2 scope rule uses bit3 alarm, the mode-aware bit 10 and `2100` bits 2 and 3, keeps bit4 raw,
    with a CL2 source-state table (canopen_shared 02 "Operation admission", state transitions). `EnableGate`
    stays `CLOSED` by default; as in 03b item 2, `ATTENDED_EXPERIMENT` under its existing terms (07a K5's
-   route, mode 1, targets equal to the actual position, observed and never written) and prompt 57's measured
-   gate with a CL2 enable
-   record (X15) admit it.
+   route, mode 1, the target at the actual position, observed and never written) and prompt 57's measured
+   gate with a CL2 enable record (X15) admit it. Raw `607A` equal to `6064` is a screen only (CL257 p11 and
+   p19 give `6064` no unit, so command pulses or encoder counts are undocumented): the attended route also
+   needs 03b item 2's caller basis record for the CL2 fixture, otherwise it refuses with
+   MISSING_PREREQUISITE and zero TX.
 3. Stops. 15 to 271 stop, 15 to 11 emergency stop (CL257 p12): `StopKind::HALT` (modes 1/3) and
    `QUICK_STOP` for predecessor 15 only, HALT's mode-6 form on CL257 p13's bit 4 "1 to 0: interrupt homing".
    Other predecessors only from CL2 records (X15); no CL2 motion without an admitted stop for its
-   predecessors, with no first-measurement exception; halted and unknown-halt predecessors refuse as in 03b
-   item 3. CL257 p12 documents 15 to 11 only, so the best-effort `000B` is denied for CL2 exactly as 03b
-   item 3 denies it for TL-C, until a reviewed CL2 decision covers an unknown predecessor (X15), at both
-   levels: S3's explicit no shape on every CL2 binding before its first traffic, kept across rebind, so a
-   direct `admitBestEffortStop` returns `INVALID` with no TX, and the `prepareBestEffortStop` refusal. No
-   CL2 changing operation other than a reviewed stop is admitted before the explicit no shape has landed (03b
-   item 3 lands it if S2 has not). The same tests apply. The
+   predecessors, with no first-measurement exception. Halted and unknown-halt predecessors follow 03b item
+   3: CL257 p12 gives controlword bit 8 no meaning other than the 271 stop, so HALT stays `010F`, the quick
+   stop goes out as `010B` with its undocumented status recorded, and no stop is refused merely for an
+   unknown halt state. CL257 p12 documents 15 to 11 only, so the best-effort `000B` is denied for CL2 exactly
+   as 03b item 3 denies it for TL-C, until a reviewed CL2 decision covers an unknown predecessor (X15), at
+   both levels: S3's explicit no shape on every CL2 binding before its first traffic, kept across rebind
+   (04a item 3, landed by 03a item 2 or 04a), so a direct `admitBestEffortStop` returns `INVALID` with no
+   TX, and the `prepareBestEffortStop` refusal. The same tests apply. The
    statusword has no running bit, so stop completion stays `UNKNOWN` without CL2 stop evidence (X15); `2100` bit2 is a
    controller report. `605D` (RW I16, CL257 p19) has no documented values and is never written.
 4. Position. `6060`=1, `607A` -1000000..1000000 command pulses, `6081` 0..3000 rpm, `6083`/`6084` 0..2000 ms
@@ -68,15 +73,32 @@ first lands them for both groups with their tests (03b introduction).
    Each admitted method also needs a CL2 homing record for that model and method (X11), as TL-C needs X17's:
    its validated signal sequence, its search bound and the predecessors its interrupt admits. A page
    description and the prerequisite checks are not that record, and without it the method is GATED.
-   Interruption follows 03b item 6 (read acceptance, a search bound and a declared independent stop before
-   TX; the application requests the bit-4-falling HALT when the bound or deadline passes without the
-   expected signal or bit 10 transition, or when observation is lost or expires after a possibly sent
-   trigger; otherwise `needsStop`, motion and reference stay unknown). No CL2 source documents a host-loss
+   Interruption follows 03b item 6 (read acceptance, the caller's latest interruption time with the stop
+   budget before the deadline, an optional travel bound acted on only from observations of bounded age, the
+   transfer cap at stop due and a declared independent stop, all before TX; at the latest interruption
+   time, on a fresh observation past the travel bound, or when observation is lost or expires after a
+   possibly sent trigger, the application requests the bit-4-falling HALT as the separate urgent stop;
+   otherwise `needsStop`, motion and reference stay unknown). No CL2 source documents a host-loss
    reaction (LX review, "Limits and protection"), so the drive is not assumed to stop by itself.
-7. Alarm clear. Both routes are documented: `2301` (P0D-03, 0 none, 1 effective; CL257 p16) and `6040` bit 7
-   then manual 0 (CL257 p14). The caller names the method; the C default does not transfer. A clear never
-   claims the fault is gone: Err2/Err3 recover by themselves, Err5 needs power-off or manual reset, Err8/Err9
-   concern the battery and Err9 is reset by P0D.07 without a CANopen index (CL257 p20; LX-D30, X13).
+7. Alarm clear, with a CL2 source-state table (canopen_shared 02 "State transitions"). Both routes are
+   documented: `2301` (P0D-03, 0 none, 1 effective; CL257 p16) and `6040` bit 7 then manual 0 (CL257 p14;
+   15 to 128 on p12). The caller names the method; the C default does not transfer. CL257 p20 gives each
+   fault its reset: only Err5 (motor position deviation) lists a manual reset, Err2/Err3 recover by
+   themselves, the others need a power-off, and Err9 also needs P0D.07, which has no CANopen index. `603F`
+   has no code list (CL257 p19; LX-D30), so no CANopen report identifies Err5. The row comes from one fresh
+   04a item 4 bracketed acquisition with MONITORS and raw `603F`, never from retained history:
+
+   | Method | Fresh report | First word, or none | Disposition |
+   | --- | --- | --- | --- |
+   | `CONTROLWORD_BIT7` | Bit3 alarm set, both `6061` replies 1, low bits 111 (p12 pairs them with 6040=15), `2100` bit2 running clear | `0x0080`, then `0x0000` only after its acknowledgement | GATED under X13 until a CL2 fault record of that model links the CANopen report (raw `603F`, bit3, `2100` bit3) to a fault p20 lists as manually resettable; then admitted from this report only |
+   | `OBJECT_2301` | The same report | `2301` = 1, then 0 after its acknowledgement (the 0 is library policy, as D-27) | GATED under X13 as above; the record also gives the report after the write, since p16 states no starting state and the C-family `2301` results are CL86-C measurements |
+   | Either | Bit3 alarm set in mode 3 or 6, or with other low bits | None | GATED under X13 and X15: p12 prints 15 to 128 only for position mode |
+   | Either | `2100` bit2 running set | None | Refused: a running drive needs a stop first |
+   | Either | Bit3 clear | None | Reported as no alarm; nothing sent |
+
+   Uncertain writes, completion and wording follow 03b item 7: a possibly sent first value without an
+   acknowledgement sends nothing further and reports the reset possibly asserted; nothing is repeated;
+   completion needs a fresh bracketed read with bit3 clear; a clear never claims the fault is gone.
 8. Position clear. `2302` (P0D-04; CL257 p14, p16) follows 03b item 8's admission over CL2 observations.
    It is GATED under X12 until a CL2 monitor record of that model qualifies `2100` bit2 running and bit3
    alarm. With it, one explicit fresh state read through the model-taking getter must show mode 1 (`6061`
@@ -129,7 +151,10 @@ acceptance (completion `UNKNOWN`) and expiry of the one operation deadline, each
 and no later trigger; method refusals before setup or trigger with no TX (index on CL2-57C/86C with and
 without a declared Z, index on ABZ without the Z fixture record, a missing switch or start-direction
 prerequisite, 35, C-family meaning of 17, a method without its X11 record); code 4 release, `2500`=2
-refused, `2501` never written, `605D` never written, both alarm-clear routes; `2502` with no motor limit, a
+refused, `2501` never written, `605D` never written; the alarm-clear table (every row GATED with zero TX
+without the X13 record; with a synthetic record, the first frame or none for every row, a lost first and a
+lost second acknowledgement, an already clear request, mode 3 and running set); the attended enable with
+raw `607A` equal to `6064` and no basis record (MISSING_PREREQUISITE, zero TX); `2502` with no motor limit, a
 zero limit and a value inside the drive range above the motor limit (zero TX); save and restore sending no
 node or bitrate write and keeping the route-after-restart obligation on success and on a lost
 acknowledgement; CL86-C evidence refused; the paired firmware-only and missing-fact evidence tests, the
@@ -142,6 +167,6 @@ CHANGELOG, report and `PROGRESS.md`.
 
 Each CL2 operation is admitted with cited CL2 pages and a CL2 evidence input, or refused before TX with its
 disposition from stage 02's map. No C-family meaning of bit 10, method numbers or input code 4 reaches a CL2
-binding, and no firmware difference refuses one. No CL2 changing operation other than a reviewed stop is
-admitted before S3's explicit no shape is set on its binding. Quick and full verification, firmware builds and
-exact-commit CI pass. Hardware NOT RUN; X08, X11, X12, X14, X15, X16 and X18 stay open.
+binding, and no firmware difference refuses one. Every CL2 operation, reviewed stops included, runs on a
+binding that already carries S3's explicit no shape (04a item 3). Quick and full verification, firmware
+builds and exact-commit CI pass. Hardware NOT RUN; X08, X11, X12, X13, X14, X15, X16 and X18 stay open.

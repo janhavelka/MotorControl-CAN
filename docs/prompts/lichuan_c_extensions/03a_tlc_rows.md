@@ -29,11 +29,20 @@ observations. Everything here can be verified on the host.
    the same for a declared new model. The attestation holds only while the policy stays `NONE`: the
    example application refuses any other `setSdoReuse` call on a channel holding a new-model binding, and a
    policy change it does make there clears the attestation first and retires that binding's unsent work
-   (stage 01 item 5). Where canopen_shared S3 has landed, the same setup point also sets S3's explicit no
-   shape (03b item 3) before the first transfer. Tests cover
+   (stage 01 item 5). The same setup point also sets canopen_shared 02 S3's explicit per-binding no shape
+   before the first transfer, and the example application's routes check it beside `NONE` before any TL-C
+   traffic, reads included: a timed-out upload under `NONE` leaves the route unresolved, and without the no
+   shape a direct `admitBestEffortStop` would still send DEC-2's `000B` there. This is a checked
+   prerequisite of the first TL-C or CL2 traffic: if S3's explicit no shape has not landed, whichever of
+   03a and 04a runs first lands that part (the per-binding override of the profile default, its retention
+   across rebind, the `INVALID` no-TX return of `admitBestEffortStop` and their tests; S3's default deny for
+   other profiles stays with S2) and records the claim in the canopen_shared README; until then no TL-C or
+   CL2 binding carries traffic. 03b and 04b item 3 consume it. Tests cover
    a missing attestation and a rebinding (stale attestation refused, no TX), and a same-binding policy
    change around a queued request (refused, or the attestation cleared and the request retired unsent),
-   followed by a timeout and a late reply: no marker, no `acceptedCorrelation`, no replay. The Doxygen of
+   followed by a timeout and a late reply: no marker, no `acceptedCorrelation`, no replay; and a timed-out
+   identity upload followed by a direct `admitBestEffortStop` on that binding, also after a rebind
+   (`INVALID`, zero TX). The Doxygen of
    the new model values states the obligation for other applications. canopen_shared seam S10, when landed, keeps
    Lichuan's marker default for every `lichuan_c` binding, so this model-level setting stays this set's
    responsibility; an owner-enforced boundary keyed by the declared model would be a shared S10 change and
@@ -78,6 +87,14 @@ observations. Everything here can be verified on the host.
    documentary-unqualified. The `1017` setter (`CL86_C` scope), TPDO1 transitions and every COB-ID, map or
    inhibit write refuse a TL-C binding, and no TL-C row admits `sync` (TL-C SYNC effects are unreviewed;
    README, seam S13). `CompactPDO=31` (LX-D05) stays a raw metadata fact.
+   Routes by outcome. Read and NMT routes that take no model follow the execution contract's
+   [route table](execution_contract.md#routes-by-outcome-tl-c-and-cl2), checked by the example application
+   before owner admission: bootstrap reads under every outcome, ordinary reads refused on CONTRADICTED, and
+   every targeted NMT command to a TL-C or CL2 binding refused before `admitNmt`, prompt 57's bootstrap
+   Enter Pre-operational included (withheld, the node reported stranded). Tests per outcome (a
+   declared-model match, none, no outcome, CONTRADICTED): bootstrap reads emit exactly their request
+   frames, ordinary reads theirs or, on CONTRADICTED, none, and every targeted NMT command zero NMT TX, also
+   with a fresh synthetic Stopped heartbeat, which reports the node stranded.
    Interface isolation until S13's full gate lands. A per-model refusal does not stop the interface's SYNC
    producer or a node-0 NMT command, and S13's default deny keys on non-Lichuan bindings (canopen_shared 02
    S13), so it does not see a TL-C or CL2 binding, which carries `LICHUAN_C`. From this stage, the first in
@@ -117,14 +134,16 @@ or other-model sample refused by a TL-C consumer, widths reported, serial abort 
 `test/tlc_hazard_test.cpp` (no download to `2401..2407` or `2203` planned on any TL-C path; the reviewed
 explicit uploads of these indices and of PDO records emit exactly their request frames and nothing else; a
 refused setter, restore plan or map mutation emits no frame; filter-writer rule; CL86-C regression
-unchanged); the item 2 attestation and item 6 isolation tests; ledger, operation map, coverage, CHANGELOG,
-report and `PROGRESS.md`.
+unchanged); the item 2 attestation and no-shape tests and the item 6 isolation and route-table tests;
+ledger, operation map, coverage, CHANGELOG, report and `PROGRESS.md`.
 
 ## Acceptance
 
 A TL-C binding reads identity, state and configuration through the real owner with model-correct labels and
 raw values preserved; no TL-C path plans a download to `2401..2407`, `2203`, a COB-ID or a PDO record, and
-reads of them are the reviewed explicit uploads only; the example application emits no SYNC and no node-0
-NMT on an interface holding a TL-C binding; the bitrate change is listed BLOCKED with X02's missing evidence.
+reads of them are the reviewed explicit uploads only; no TL-C traffic leaves before the binding carries
+`NONE` and S3's explicit no shape; the example application emits no SYNC and no node-0 NMT on an interface
+holding a TL-C binding and no targeted NMT to a TL-C binding; the bitrate change is listed BLOCKED with
+X02's missing evidence.
 Quick and full verification, firmware builds and exact-commit CI pass. Hardware NOT RUN; X02, X03, X04 and
 X06 stay open for 07a.

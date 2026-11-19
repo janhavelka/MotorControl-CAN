@@ -248,3 +248,84 @@ Dispositions: 9 accepted, 1 accepted in part (F5), none rejected or deferred.
 
 Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
 directory. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+## Round 4: audit `aud-20261119-193919-6d6362`, 19 November 2026
+
+Each finding of the [fourth report](audit.md) was checked against this set's files at `a6b58cf1` (unchanged at
+`85e54d01` and `c138e959`), the [LX review](../../reference/lichuan_c_extensions/review.md), the original pages,
+extracts, EDS lines and code named below, and the shared changes made since the audit in `328651b6`, recorded in
+[canopen_shared audit_application](../canopen_shared/audit_application.md) "Round 4" themes 6 to 8: with the
+halt state unknown a stop word sets bit 8; homing is a host-ended run under canopen_shared 02 "Timed runs"; and
+prompt 57's undecided-reference rule. F2 and the unresolved question are applied by citing those rules.
+Following the user's direction of 2026-11-19, every high finding was verified and fixed, and the two medium
+ones were cheap and clearly right. Only files in this directory changed; the shared contract, prompt 57, the LX
+pack, code and tests were not edited. No hardware, port or build was used.
+
+Dispositions: 6 accepted, none accepted in part, rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change |
+| --- | --- | --- | --- |
+| F1 no shape before first traffic | Accepted | Old 03a lines 32-33 ("Where canopen_shared S3 has landed"), 04a lines 10-11, 03b lines 72-78; canopen_shared 02 S3 (explicit no shape set before the binding's first traffic, kept across rebind); canopen_shared README S3 row (`validBestEffortStop` accepts `000B` on every channel; the extensions set may land the no shape first); S10 `NONE` (a timeout leaves the route unresolved) | 03a item 2 sets and checks S3's explicit no shape beside `NONE` before the first transfer, reads included, as a checked prerequisite of the first TL-C or CL2 traffic; if it has not landed, whichever of 03a and 04a runs first lands that part (override, retention across rebind, `INVALID` no-TX return, tests; S3's default deny stays with S2) and records the claim; until then no TL-C or CL2 binding carries traffic. New test: a timed-out identity upload, then a direct `admitBestEffortStop`, also after a rebind (`INVALID`, zero TX). 03b item 3 drops its own landing paragraph and the interval in which only reviewed stops were admitted; 04b item 3 cites 04a item 3. 04a intro and item 3, 06 item 2, README S3 bullet and stage rows, and the 03a, 03b, 04a and 04b acceptance follow. This moves round-3 lead decision 1's landing point from 03b to the reads stages |
+| F2 homing stop budget and cutoff | Accepted, by citation | Old 03b lines 106-115, 04b lines 71-74, 07b physical item 6; canopen_shared 02 "Timed runs" after `328651b6` (homing: a caller-supplied latest interruption time takes the duration's place, a travel bound may interrupt earlier from observations no older than a caller-supplied age, the same stop budget, transfer cap and stop path) | 03b item 6 consumes it: preparation refuses without read acceptance, without a latest interruption time whose stop budget fits before the one deadline, or without the declared stop; a travel bound acts only on observations within the caller's age, and an older or missing one neither triggers nor extends anything; every later transfer is capped at stop due; the mode-6 HALT goes out as the separate urgent stop with its own deadline; where it cannot, `needsStop`, motion and reference stay unknown until fresh evidence resolves them. 04b item 6 cites it; 07b item 6 puts the time, travel bound and observation age in the envelope. Tests: no time or no room for the budget, an upload in flight at the time, a service cycle resuming after it, a travel bound seen only in a stale sample |
+| F3 raw target-at-actual equality | Accepted | Old 03b lines 44-46, 04b lines 26-27, 07a T5 and K5; rendered TLCEN p15 (`6064` "actual position" I32, no unit), TLCEN p10 and CL257 p11 and p19 as round 3 read them; `Actions.h` `EnableEvidence` (`reviewedPositionTarget` "History, not intent"; the C path compares re-uploaded reviewed values, never `607A` with `6064`); LX review "Units and scaling" (TLO has no encoder) | 03b item 2: raw equality is a screen; the attended route also needs the caller's basis record for the fixture (both values on one coordinate basis, scale and origin, from a vendor clarification or an assigned experiment's retained result; X16 stays open), otherwise MISSING_PREREQUISITE with zero TX, also when the raw values are equal. 04b item 2 the same for CL2. 07a T5 and K5: the production route only with that record, otherwise a separately assigned experiment whose plan allows and bounds unexpected motion, or NOT RUN. Tests in 03b and 04b Deliver |
+| F4 alarm-clear source states | Accepted | Rendered TLCEN p11 ("15->128 Alarm reset" only in the position-mode table; low bits 111 paired with 6040=15), p15 (`603F` FF01 overcurrent, FF05 excessive position deviation) and p19 (overcurrent, overvoltage and undervoltage "Restart to reset"; memory read/write and position error "Can be reset"); TLCEN p12 extract (no reset row in velocity mode) and p14 (bit 7, "set it back to 0"); TL57ZH p10, p13, p14 and p18 extracts agree; rendered CL257 p12 (15->128, the same low-bit pairing) and p20 (only Err5 "掉电、手动复位"; Err2/Err3 自动恢复; the rest 掉电复位; Err9 also P0D.07); CL257 p14 and p16 extracts (bit 7 then manual 0; P0D-03 0/1) and p19 (`603F` without codes); `Actions.h` `AlarmClearMethod` and `prepareClearAlarm` (C admission `2100` alarm with `603F` FF05 in modes 1 or 3, CL86-C measurements) | 03b item 7: a TL-C table chosen from one fresh model-taking read. Admitted: bit3, FF05, mode 1, low bits 111, bit14 clear, `0x0080` then `0x0000` after its acknowledgement (the FF05-to-p19 link recorded as inference). Refused: FF01 (restart), running set, `OBJECT_2301` (X07). GATED under X07: any other code, mode 3 or 6, other low bits. Already clear: reported, nothing sent. A first or second word possibly sent without acknowledgement sends nothing further and reports bit 7 possibly asserted; no repeat; completion needs a fresh bit3 clear and never claims the cause is gone. 04b item 7: a CL2 table in which both methods are GATED under X13 until a CL2 fault record links the CANopen report to a fault p20 lists as manually resettable (`603F` has no code list), then admitted only from mode 1, low bits 111, running clear; other modes GATED (X13, X15); running refused; already clear reported. X07 and X13 rows in 02. 07a T9 names the admitted row; K9 leaves an alarm clear NOT RUN until its observations give that record. Row tests in 03b and 04b |
+| F5 bootstrap reads and NMT | Accepted | Prompt 57 motion rule ("only the bootstrap identity and state reads remain") and "Admission by outcome" (targeted Enter Pre-operational on a fresh Stopped report under every outcome except CONTRADICTED); LX review "Interface and protocol" (TL-C NMT: TLEDS `SimpleBootUpSlave=1`, no manual text; heartbeat: TLEDS `1017` default 0, no `1016`, `100C` or `100D`; CL2: neither documented); TLEDS l.27 and l.236; 03a item 6 and 04a item 1 (heartbeat observations documentary-unqualified or raw; no `1017` setter); `ProbeDevice::requestNmt` (the example's NMT route takes no model and passes any targeted or broadcast command to `admitNmt`) | Execution contract "Routes by outcome (TL-C and CL2)": bootstrap reads (probe, identity with options, state read) under every outcome; ordinary reads admitted except on CONTRADICTED; prompt 57's bootstrap Enter Pre-operational withheld for both models, with the reason (no documented NMT or heartbeat behavior, no reviewed Stopped report), the node reported stranded and its recovery the application's (an owner power cycle), with no other NMT command or broadcast as fallback; every other targeted NMT command refused (NOT_DOCUMENTED); node-0 NMT and SYNC by 03a item 6. A read admitted before the outcome changes completes and admits nothing; no targeted NMT command reaches the owner, so no hand-off case remains. 03a item 6 implements and tests it per outcome, including a fresh synthetic Stopped heartbeat; 04a item 1 applies it; 01 item 7 and the README prompt-57 bullet point to it; 07a "Evidence paths" notes that ordinary reads wait for T1's or K2's record on a CONTRADICTED binding |
+| F6 CL2-first ownership | Accepted | Old 03b intro (items 1, 3, 5, 6), 04b intro (items 1, 3, 5, 6 and 13 from 03b 1, 3, 5, 6 and 12), README 03b and 04b rows; 04b item 8 (imports 03b item 8's last-motion terminal and rechecks) and item 10 (imports 03b item 10's record) | 03b and 04b intros and the README rows list 03b items 1, 3, 5, 6, 8, 10 and 12 (04b items 1, 3, 5, 6, 8, 10 and 13), naming item 8's retained last-motion terminal input and rechecks before each write and item 10's caller peak-current record and refusals; whichever of 03b and 04b runs first lands their shared parts with tests. This also fixes 03b's list, which omitted item 12 |
+
+### Shared rules consumed beyond the findings
+
+- Unknown halt state (`328651b6`, theme 6). 03b item 3 refused halted and unknown-halt predecessors because no
+  TL-C page documents a quick stop keeping bit 8; canopen_shared 02 "State transitions" now says a stop word sets
+  bit 8 when the halt state is unknown and is never refused merely for that. TLCEN p11 and CL257 p12 give
+  controlword bit 8 no meaning other than the 271 stop, so 03b and 04b item 3 now send HALT `010F` and the quick
+  stop as `010B` from a fresh low-bits-111 report whose halt state is set or unknown, record the halt state and
+  that `010B` is undocumented for the model (X15), and the stop-table test asserts those first frames. Round 3's
+  "those rows refuse with X15" is superseded.
+- `c138e959` landed after the brief and needs no change here: no TL-C or CL2 stop row is admitted without a
+  fresh report, so every run and home already needs the declared independent stop (03b item 5), which covers a
+  stale, missing or alarmed report at stop due; and no targeted or node-0 NMT command to these models reaches
+  the owner's hand-off.
+
+### Unresolved question
+
+1. **Answered by prompt 57 after `328651b6`, now cited in stage 01 item 6.** A reference with a required
+   field unread, of the wrong width or aborted is undecided; CONTRADICTED needs every declared-model reference
+   decided as non-matching. A competing definite match beside an undecided declared-model reference therefore
+   gives UNCONFIRMED without a declared match, which refuses the same changing work; 01 Deliver adds that
+   regression. The Stopped-node bootstrap difference does not arise for these models: the route table
+   withholds that command under every outcome.
+
+### Reviewer coverage gaps
+
+- Original pages: this application rendered TLCEN p11, p15 and p19 and CL257 p12 and p20 (PyMuPDF, scratch
+  images not retained) and read TLCEN p12 and p14, TL57ZH p10, p13, p14 and p18 and CL257 p14, p16 and p19 in
+  the extracts, and TLEDS l.27 and l.236; other device claims stay as earlier rounds checked them.
+- Code: read only for the symbols named above; landing state, builds and hardware are unchanged.
+
+### Decisions for the lead or owner
+
+- F5: withholding prompt 57's bootstrap Enter Pre-operational for TL-C and CL2, refusing every other
+  targeted NMT command for them, and refusing ordinary reads on CONTRADICTED (so first-contact ordinary reads
+  wait for T1's or K2's record when only the equal CL86-C record is a candidate). Consuming the bootstrap
+  command instead would need a reviewed heartbeat record per model.
+- F4: CL2 alarm clear, admitted on documentation before, is now GATED under X13 for both methods; TL-C admits
+  only the FF05 mode-1 row with fresh low bits 111, which never applies if the drive drops those bits on an
+  alarm, until T9 or a vendor clarification shows otherwise.
+- F3: the caller's fixture basis record is a new MISSING_PREREQUISITE input (proposal).
+- Halt bit: the undocumented `010B` quick stop is now admitted for TL-C and CL2 under the shared rule; confirm.
+- F1 moves the S3 no-shape landing point from 03b to whichever reads stage runs first (round-3 decision 1).
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used; nothing was committed.
+
+### Round 4 lead decisions
+
+1. NMT (F5): withholding prompt 57's bootstrap Enter Pre-operational for TL-C and CL2 is confirmed while no
+   model evidence covers their NMT behavior; a Stopped node is reported stranded and its recovery is the
+   application's. Ordinary reads refused on CONTRADICTED; first-contact reads wait for the T1/K2 record.
+2. Alarm clear (F4): CL2 GATED under X13 for both methods and TL-C's single admitted row (FF05 in mode 1)
+   are confirmed.
+3. Quick stop with unknown halt: `010B` for TL-C and CL2 is confirmed under canopen_shared 02 "State
+   transitions" (setting the CiA 402 halt bit cannot start motion; no LX page gives bit 8 another meaning).
+4. No-shape landing (F1): moving it to the first reads stage (03a or 04a) supersedes round-3 decision 1's
+   landing point; the reasoning of that decision stands.

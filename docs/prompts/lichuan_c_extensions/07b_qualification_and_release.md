@@ -57,7 +57,8 @@ Hardware is NOT TESTED for every model.
 5. Qualify TLC against TLO, and CL2 absolute-encoder against ABZ, independently; measure shaft displacement
    before any physical-scale claim. Software timestamps bound observations; electrical timing needs measurement.
 6. Homing per method only with its actual switches and, for index methods, its actual Z source, with the
-   method's search bound and declared independent stop (03b item 6) in its envelope. Output, brake
+   latest interruption time, any travel bound with its observation age, and the declared independent stop
+   (03b item 6) in its envelope. Output, brake
    and input-code tests only with their fixtures. Save and restart cases only with restart control; a TL-C
    bitrate change only under 07a T2's reviewed plan with SW5 as the way back.
 7. On a failure: preserve the scenario, reproduce deliberately within authorization, establish the cause, fix

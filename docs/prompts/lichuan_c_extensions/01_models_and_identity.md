@@ -78,7 +78,9 @@ which models, and adds identity confirmation that can only confirm or contradict
      the observation lacks (not read, aborted, wrong width) leaves that reference undecided, so the outcome is
      at most UNCONFIRMED. An undecided reference is neither a match nor a non-match. If it belongs to the
      declared model and no other declared-model reference matches, the outcome is UNCONFIRMED without a
-     declared match and refuses. If it belongs to another candidate while a declared-model reference
+     declared match and refuses, also when another candidate's reference matches: prompt 57's
+     undecided-reference rule makes CONTRADICTED need every declared-model reference decided as
+     non-matching. If it belongs to another candidate while a declared-model reference
      matches, the outcome is UNCONFIRMED with a declared match, admitted under prompt 57's precedence, and
      the result names the undecided reference and its missing field. CONFIRMED needs every other
      candidate's reference decided and none matching. Firmware fields (`1009`, `100A` and their reply widths, `1018:03`, `2001`), the
@@ -110,7 +112,9 @@ which models, and adds identity confirmation that can only confirm or contradict
    policy for those models. Results carry the outcome. Writes to `6040`, `6060`, `607A` and other standard
    objects follow their own rows and prompt 57's motion rule under the same precedence. Pass the live
    holder of item 5 (in the live `AxisReservation` or as a parameter) rather than a preparation copy; any
-   changed public signature gets a migration entry and updated callers in the same commit.
+   changed public signature gets a migration entry and updated callers in the same commit. Routes that take
+   no model (probe, identity, state and ordinary reads, NMT) follow the execution contract's
+   [route table](execution_contract.md#routes-by-outcome-tl-c-and-cl2), checked by the application from 03a.
 8. Prompt 57 coordination. Prompt 57's Identity policy (Pending in the main PROGRESS) now states D18: a
    matching product identity does not prove a CL86-C (LX-D01, LX-D35), the declared binding selects the
    profile and model, and the Lichuan family sets add model-scoped checks on that one policy. Its
@@ -135,7 +139,9 @@ which models, and adds identity confirmation that can only confirm or contradict
   admission: a candidate without a reference and a TL-C record equal to the CL86-C record give UNCONFIRMED
   with a declared match, admitted with every matching model named; a definite product mismatch with no
   other match, a declared model without a reference and an unread product field give UNCONFIRMED without a
-  declared match, refused; a declared-model match beside another candidate's reference left undecided by an
+  declared match, refused; another candidate's definite match beside a declared-model reference left
+  undecided by an unread field gives UNCONFIRMED without a declared match, refused, not CONTRADICTED; a
+  declared-model match beside another candidate's reference left undecided by an
   unread or wrong-width product field gives UNCONFIRMED with a declared match, admitted, the undecided
   reference named; no current outcome, refused; an apparently unique reference gives CONFIRMED and
   nothing stronger; a TL-C declaration with only an equal CL86-C record gives CONTRADICTED; a DS-C record

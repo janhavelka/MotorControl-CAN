@@ -222,3 +222,69 @@ scaffolding can proceed.
 - Main PROGRESS, the shared intake inventory, the DS2 identity stage and contract, parent instructions and the
   Q01 raw specimen records were not supplied.
 - A text audit: no checker, compilation, test, CI job, port access or hardware procedure ran.
+
+## Round 4
+
+A condensed, faithful copy of the fourth report. It is untrusted reviewer input; the verified dispositions are
+in [audit_application.md](audit_application.md) "Round 4". Line numbers refer to the files as revised by round
+3 (committed in `a6b58cf1`; the family files' hashes in the report equal those of that commit). Prompt 57 and
+the shared contract were audited before `328651b6`.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-193919-6d6362` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~192448 tokens)") |
+| Date | 2026-11-19 19:39:19 (from the ID), 176.8 s, one attempt |
+| Revision | `main` at `a6b58cf12e7d71e24b7c95ddfce40bd5da173a0d`, uncommitted changes recorded (outside this directory) |
+| Cost | Estimated USD 0.39 (0.38707, configured pricing); 146,115 input and 9,484 output tokens (5,185 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-193919-6d6362.json` (local) |
+| Location checks | 25 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_models_and_identity.md` (161, `76d4414a`),
+`02_model_ledger.md` (108, `ec4fdc84`), `03a_tlc_rows.md` (130, `7fc42f4b`), `03b_tlc_operations.md` (214,
+`d657286c`), `04a_cl2_rows.md` (113, `ee89d7f1`), `04b_cl2_operations.md` (147, `d398e646`),
+`05_en57_conflicts.md` (64, `2256a5fb`), `06_console_and_coverage.md` (85, `b77ef7c1`), `07a_first_contact.md`
+(98, `ff171fb9`), `07b_qualification_and_release.md` (84, `37851cb0`), `README.md` (147, `ce72b794`), `audit.md`
+(224, `9600ef06`), `audit_application.md` (250, `86674d30`), `execution_contract.md` (151, `ccfb8db5`).
+Context: `canopen_shared/README.md` (81 lines) and `02_profile_integration_contract.md` (341), `ADD_DRIVE.md`,
+`COMMON.md`, the LX pack `README.md` and `review.md`, `57_regular_drive_operations.md` (214),
+`docs/reference/lichuan_review.md`; project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The revision keeps the reviewed-stop identity exemption, reports firmware differences without an
+exact-firmware lock, and extends the pre-S13 rule to queued interface-wide traffic. Documentary and fail-closed
+scaffolding can proceed, but the device-facing stages leave gaps in first-traffic stop protection, homing
+interruption timing, first-contact enable admission and fault-clear transitions, and prompt 57's bootstrap
+rules need explicit model-level dispositions. **Verdict:** significant issues. The gaps can be fixed without
+changing the architecture or reversing the lead's caller-responsibility decisions; resolve them before enabling
+the affected routes or running first-contact motion. Ledger, decoder and host-only refusal work can continue.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The explicit best-effort stop denial can land after a new model's first traffic.* 03a permits TL-C reads before S3's explicit override exists and 04a inherits that setup; if S3 has not landed, the override waits for an operations stage, contradicting the shared rule to set the no shape before first traffic. A timed-out upload in a read-only stage can leave the route unresolved, and the existing service accepts the legacy shape on every channel; a profile-level refusal does not cover a direct owner call. Make the separable override a checked prerequisite of the first new-model traffic; the reads stage that runs first consumes or lands it before either group has traffic. Test the reads-stage checkout: after a timed-out identity upload, direct best-effort admission returns `INVALID` with zero TX, also after rebind. | 03a:32-33; 04a:10-11; 03b:72-73; canopen_shared 02:255-257; canopen_shared README:54 |
+| F2 | High, probable defect, high | *Homing has a search bound but no explicit stop budget or transfer cutoff at that bound.* The shared timed-run rule reserves a stop budget, caps transfers at stop due and gives the urgent stop its own deadline; homing imports only the stop-path prerequisite and a bound (travel or time) ending before the operation deadline. An observation SDO can stay in flight past the bound, a travel overrun can be seen only at the next sample, and no time is left for the ordinary HALT; a declared independent stop does not say when to use it. Specify a caller-supplied latest interruption time and stop budget even with a travel bound; define the evidence and maximum observation age for a travel bound; cap transfers at the stop cutoff; handle the separate HALT and the declared fallback when service resumes late or the channel is unresolved. Test an upload in flight at the bound and a delayed service cycle; keep `needsStop` and unknown motion/reference without fresh evidence. | 03b:108-110; 04b:71-72; canopen_shared 02:123-125; audit_application:239-240 |
+| F3 | High, verified defect, high | *First-contact enable substitutes raw equality for its target-at-actual prerequisite.* 03b and 04b require the attended enable to start in mode 1 with the target equal to the actual position; T5 and K5 accept raw `607A` equal to `6064` as a screen while leaving their basis unestablished. The same integer can mean different positions, and on TLO the report is not measured feedback; rereading the target and attending a cutoff do not establish the prerequisite. Require fixture-specific evidence that both values are comparable before the production route; otherwise keep the comparison as a screen and use a separately assigned experiment that explicitly allows and bounds unexpected motion, or NOT RUN. Test that raw equality without the basis does not admit the production route. | 03b:44-46; 04b:26-27; 07a:64, 79; AGENTS.md:60 |
+| F4 | High, verified defect, high | *Neither alarm-clear stage defines the required source-state table.* The shared contract requires a source-state and intent table before fault-clear TX and a first-frame-or-none test per row. TL-C names a method and cites a controlword example; CL2 lists two methods and cautions that reset behavior varies by fault. Neither says which fresh states admit each method, what an already-clear request does or which states refuse; choosing a method is not an evidenced transition, and T9's naturally occurring alarm is not a sufficient production prerequisite. Define and test per-model, per-method reset transitions with fresh fault and mode evidence, already-clear behavior and uncertain assertion or deassertion; keep rows without evidence gated; make T9 name the admitted row it consumes. | 03b:116; 04b:76-77; canopen_shared 02:139-140; 07a:68 |
+| F5 | Medium, probable defect, high | *Prompt 57's bootstrap exceptions are not reflected in the model admission rules.* Prompt 57 separates bootstrap identity and state reads from ordinary work on a contradicted binding and admits a targeted Enter Pre-operational from a fresh Stopped report under every outcome but CONTRADICTED. Stage 01 guards changing work with only the stop exemption, and 03a exposes configuration and PDO-map uploads without saying how contradiction restricts them. The family may withhold the NMT command, but the text neither records that nor distinguishes it from an omission. Add a model-level admission table for bootstrap reads, ordinary reads, targeted NMT and broadcast NMT, tested at the application route and owner hand-off where applicable; name the reads that remain on contradiction; for targeted Enter Pre-operational either name the reviewed fresh Stopped observation that admits it or record why the model withholds it and report the stranded node without an automatic fallback. | prompt 57:99-101, 119-121; 01:156-157; 03a:77-78 |
+| F6 | Medium, verified defect, high | *The CL2-first schedule omits two shared safety prerequisites from its ownership rule.* The README allows 04b to run first and lists the common artifacts it must land, but omits 03b items 8 and 10, while 04b imports item 8's retained last-motion terminal and pre-write rechecks and item 10's current-limit record. Add their shared parts, with tests, to the first-run ownership rule in both stages and the dependency table, or make them explicit prerequisites of only the affected 04b deliverables. | 04b:9-11, 83-84, 95-97 |
+
+### Unresolved question
+
+1. Which outcome does the one comparison return when a competing model definitely matches but the declared
+   model's reference is undecided because a required field was unread? Stage 01 gives UNCONFIRMED without a
+   declared match for an undecided declared reference with no other declared match, while prompt 57 gives
+   CONTRADICTED for a competing match with no declared match and lists unread fields under UNCONFIRMED. Both
+   refuse normal changes, but the diagnostics differ, and so can the targeted Stopped-node bootstrap; the
+   comparison needs one precedence and a regression for this combination.
+
+### Coverage gaps stated by the reviewer
+
+- LX originals, rendered pages, EDS bytes, the normalized delta and manifests were not supplied: object
+  metadata, translations, electrical limits, hashes and the CL86-C specimen-count correction were not checked.
+- The repository index was truncated; owner, service, profile, example, ledger, generator, checker, workflow
+  and test sources were not supplied, so call paths, guard lifetimes, package registration and resource effects
+  are unverified.
+- Main PROGRESS, the shared intake inventory, the DS2 identity stage and the parent instructions were not
+  supplied.
+- A text audit: no checker, build, test, CI job, port access or hardware procedure ran.

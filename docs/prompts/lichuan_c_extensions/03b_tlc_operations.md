@@ -6,9 +6,11 @@ Status: NOT STARTED.
 Admit TL-C models to the existing operations only where TL-C pages document the behavior, and only with TL-C
 evidence records where the C-family path relies on CL86-C measurements. Uses [03a](03a_tlc_rows.md)'s reads and
 status table and stage 01's model binding and identity outcome. Prompts 57, 72 and 77 are consumed if landed.
-Items 1, 3, 5 and 6 define rules that 04b consumes for CL2 (common admission, evidence records and
-observation source; the best-effort denial; the timed-run stop path; homing interruption). Whichever of 03b
-and 04b runs first lands them for both groups with their tests, and the other consumes them.
+Items 1, 3, 5, 6, 8, 10 and 12 define rules that 04b consumes for CL2 (common admission, evidence records and
+observation source; the best-effort denial; the timed-run stop path; homing interruption; position clear's
+retained last-motion terminal input and its rechecks before each write; the caller's peak-current record and
+its refusals; the release and mode-select dispositions). Whichever of 03b and 04b runs first lands their
+shared parts for both groups with their tests, and the other consumes them.
 
 ## Work
 
@@ -42,10 +44,15 @@ and 04b runs first lands them for both groups with their tests, and the other co
    source-state table (canopen_shared 02 "Operation admission", state transitions) giving the admitted
    starting states and first word. Two gate values admit it: `ATTENDED_EXPERIMENT` under that gate's existing
    terms (one attended trial with an independent drive-power cutoff, qualifying nothing), which is 07a T5's
-   route, in mode 1 with targets equal to the actual position, both observed in the fresh state read and
-   never established by a write (07a T5); and prompt 57's measured gate, where landed,
-   with a TL-C enable record (X05). TL57OP p7's third word `0x010F` is not an enable word here; it stays an
-   X05 claim (LX-D08), and no path sends it as part of an enable.
+   route, in mode 1 with the target at the actual position, observed and never established by a write; and
+   prompt 57's measured gate, where landed, with a TL-C enable record (X05). Raw `607A` equal to `6064` in
+   the fresh state read is a screen, not that prerequisite: the same integer can name different positions,
+   TLCEN p10 and p15 give `6064` no unit, and on TLO it is a controller report. The attended route also
+   needs the caller's basis record for the fixture: evidence for that fixture, model and firmware that
+   `607A` and `6064` share one coordinate basis, scale and origin (a vendor clarification or an assigned
+   experiment's retained result; X16 stays open). Without it the route refuses with MISSING_PREREQUISITE
+   and zero TX, also when the raw values are equal. TL57OP p7's third word `0x010F` is not an enable word
+   here; it stays an X05 claim (LX-D08), and no path sends it as part of an enable.
 3. Stops. TLCEN p11 lists 15 to 271 stop and 15 to 11 emergency stop, so `StopKind::HALT` in modes 1/3
    (`010F`) and `QUICK_STOP` (`000B`) are documented for predecessor 15 only; HALT's mode-6 form, bit 4
    falling from an acknowledged `001F`, rests on TLCEN p14 "1 -> 0: interrupt homing". DEC-8's other
@@ -53,31 +60,29 @@ and 04b runs first lands them for both groups with their tests, and the other co
    (X15). A TL-C motion operation is admitted only when the stop table admits the predecessors that motion
    leaves; no TL-C motion starts without an admitted stop, and production admission has no first-measurement
    exception (07a runs such measurements only as assigned experiments). The stop table follows canopen_shared
-   02 "State transitions": a halted predecessor (`010F`) or one whose halt state is unknown is not
-   predecessor 15, and no TL-C page documents a quick stop that keeps bit 8 set, so those rows refuse with
-   X15. Ordinary stop admission (a fresh
+   02 "State transitions": a stop word keeps a set halt bit and, with the halt state unknown, sets bit 8.
+   TLCEN p11 gives controlword bit 8 no meaning other than the 271 stop, so from a fresh report with low
+   bits 111 whose halt state is set or unknown, HALT stays `010F` and the quick stop goes out as `010B`; no
+   stop is refused merely for an unknown halt state. No TL-C page documents `010B` (p11 lists 15 to 11), so
+   its effect stays X15's question, and the result records the halt state and that the word is
+   undocumented. Ordinary stop admission (a fresh
    predecessor the table admits) is separate from the best-effort `000B` of DEC-2, which goes out after an
    uncertain write with the predecessor unknown. TLCEN p11 documents 15 to 11 only and DEC-2's premise is a
    CL86-C measurement, so TL-C has no best-effort shape until a reviewed TL-C decision covers that case
    (X15), refused at two levels:
    - Owner. Every TL-C binding carries canopen_shared 02 S3's explicit per-binding no shape, which overrides
-     the Lichuan default. The application sets it where it binds a node with a declared TL-C model, before
-     the binding's first traffic, beside 03a item 2's `SdoReusePolicy::NONE`; the owner keeps it across
-     rebind. The example application's model-aware routes (binding, and 06 item 2's declaration) set it and
-     check it, so a direct `admitBestEffortStop` returns `INVALID` with no TX, also after a timeout and a
-     rebind.
+     the Lichuan default. 03a item 2 sets and checks it where the application binds a node with a declared
+     TL-C model, before the binding's first traffic, beside `SdoReusePolicy::NONE`, and lands it first if
+     needed; the owner keeps it across rebind. The example application's model-aware routes (binding, and
+     06 item 2's declaration) set it and check it, so a direct `admitBestEffortStop` returns `INVALID` with
+     no TX, also after an operation's timeout and a rebind.
    - Profile. `prepareBestEffortStop` takes the live `ModelBinding` (stage 01 item 7's migration rule) and
      refuses a TL-C binding before TX, and the example application's best-effort path does the same.
 
-   S3's explicit no shape does not wait for S2: if it has not landed, this stage lands that part itself (the
-   per-binding override of the profile default, its retention across rebind, the `INVALID` no-TX return of
-   `admitBestEffortStop` and their tests; S3's default deny for other profiles stays with S2) and records the
-   claim in the canopen_shared README. Until it has landed and the no shape is set, no TL-C changing operation
-   other than this item's reviewed stops is admitted: those cells stay NOT_IMPLEMENTED with S3 as the missing
-   dependency (stage 02 item 9). The reviewed stops stay admissible
-   then, since refusing one could leave a running drive running. No parallel transmitter; CL86-C and OL86-C keep DEC-2 and its tests
-   unchanged. Stop completion stays `UNKNOWN` without TL-C stop evidence (X15) and the observation source of
-   item 1.
+   S3's explicit no shape is a prerequisite of the first TL-C traffic, landed or consumed by 03a item 2 (or
+   04a), so every operation of this stage runs on a binding that already carries it. No parallel
+   transmitter; CL86-C and OL86-C keep DEC-2 and its tests unchanged. Stop completion stays `UNKNOWN`
+   without TL-C stop evidence (X15) and the observation source of item 1.
 4. Position. Documentary objects and ranges match the C family (TLCEN p10): `6060`=1, `607A` I32
    -1000000..1000000 command pulses, `6081` 0..3000 rpm, `6083`/`6084` 0..2000 ms. Triggers are 15 to 31, 95, 63
    and 127 (TLCEN p11); TL57OP p7's `0x011F` start is refused (LX-D08). `preparePositionParameters` admits TL-C
@@ -104,18 +109,43 @@ and 04b runs first lands them for both groups with their tests, and the other co
    DI0 origin, DI1 positive and DI2 negative limit (TLCEN p7..8) are factory claims: read the actual
    `2400:02..06` assignment (prompt 77's input facts where landed); never disable a limit to run a method.
    Interruption, defined here once (04b item 6 uses it). A home whose signal or completion never arrives
-   ends only when the host interrupts it, so it follows item 5's stop-path rule. Preparation refuses before
-   TX without the model's read acceptance (without polling no completion can be established), without a
-   search bound in the method's record (travel or time, the caller's value) that ends before the one
-   operation deadline, and without an application-declared independent stop named in the result. The
-   application requests item 3's mode-6 HALT (bit 4 falling from an acknowledged `001F`) when that bound or
-   the deadline passes without the expected signal or completion transition, or when observation is lost
-   or expires after a possibly sent trigger. Where that HALT cannot be admitted (no fresh predecessor, an
-   unresolved route, no best-effort shape), only the declared stop remains: the result keeps `needsStop`
-   and reports motion and reference unknown.
-7. Alarm clear. `CONTROLWORD_BIT7` is documented (TLCEN p14; 15 to 128 on p11). `OBJECT_2301` is refused for
-   TL-C: `2301` is declared by TLEDS l.1404 but absent from TLCEN p17 and TL57ZH p16 (LX-D11, X07). The C
-   default choice is a CL86-C bench decision; TL-C callers name the method.
+   ends only when the host interrupts it, so it is a host-ended run under canopen_shared 02 "Timed runs"
+   with item 5's stop-path rule. Preparation refuses before TX without the model's read acceptance (without
+   polling no completion can be established), without the caller-supplied latest interruption time that
+   takes the duration's place (the caller's stop budget must fit between it and the one operation
+   deadline), and without an application-declared independent stop named in the result. A travel bound,
+   from the method's record or the caller, may interrupt earlier, but only on observations no older than a
+   caller-supplied age; an older or missing observation neither triggers nor extends anything, and the
+   latest interruption time still applies. Every later transfer of the home has `deadlineUs` at most the
+   stop due time, so the channel is free then. At the latest interruption time, or earlier on a fresh
+   observation past the travel bound, or when observation is lost or expires after a possibly sent
+   trigger, the home issues no further work and the application requests item 3's mode-6 HALT (bit 4
+   falling from an acknowledged `001F`) as the separate urgent stop with its own deadline. Where that HALT
+   cannot be admitted (no fresh predecessor, an unresolved route, no best-effort shape), only the declared
+   stop remains: the result keeps `needsStop` and reports motion and reference unknown until fresh evidence
+   resolves them.
+7. Alarm clear, with a TL-C source-state table (canopen_shared 02 "State transitions"). TL-C callers name
+   the method; the C default and the C admission (`2100` alarm with `603F` FF05 in mode 1 or 3) are CL86-C
+   bench decisions. The row comes from one fresh state read through the model-taking getter under the
+   reservation (STATUS, MONITORS, ERRORS with `603F` raw), never from retained history:
+
+   | Method | Fresh report | First word, or none | Disposition |
+   | --- | --- | --- | --- |
+   | `CONTROLWORD_BIT7` | Bit3 alarm set, `603F` FF05 ("excessive position deviation", TLCEN p15), mode 1, low bits 111 (p11 pairs them with 6040=15), bit14 running clear | `0x0080`, then `0x0000` only after its acknowledgement (p11 "15->128 Alarm reset"; p14 "set it back to 0") | Admitted. That FF05 is p19's position error alarm ("Can be reset") is an inference the result records |
+   | `CONTROLWORD_BIT7` | Bit3 alarm set with `603F` FF01 (overcurrent, "Restart to reset", p19) | None | Refused: the documented reset is a restart |
+   | `CONTROLWORD_BIT7` | Bit3 alarm set with any other `603F`, in mode 3 or 6, or with low bits other than 111 | None | GATED under X07: p11 prints 15 to 128 only in the position-mode table, and p19's overvoltage, undervoltage and memory alarms have no documented code |
+   | `CONTROLWORD_BIT7` | Bit14 running set | None | Refused: a running drive needs a stop first |
+   | `CONTROLWORD_BIT7` | Bit3 clear | None | Reported as no alarm; nothing sent |
+   | `OBJECT_2301` | Any | None | Refused under X07: `2301` is declared by TLEDS l.1404 but absent from TLCEN p17 and TL57ZH p16 (LX-D11) |
+
+   A `0x0080` possibly sent without an acknowledgement sends nothing further: the result reports bit 7
+   possibly asserted and the alarm and drive state unknown. A `0x0000` possibly sent without one reports bit
+   7 possibly still asserted. Neither word is repeated or a stop predecessor, so the next changing operation
+   starts from a fresh read and its own table. Completion needs a fresh read after the second
+   acknowledgement with bit3 clear (polling needs item 1's read acceptance, otherwise `UNKNOWN`); a
+   persisting alarm repolls until the one deadline, and no result claims the cause is gone. Both words have
+   bits 0..3 clear, which p11 pairs with low bits 000, so the clear may also release the drive (inference,
+   as the C path states); the result reports the observed low bits.
 8. Position clear. `prepareSetDevicePosition` (`2302` 0 to 1, then manual 0; TLCEN p14, p17; TL57OP p7)
    changes the device reference, so its admission is defined apart from its result wording. It is GATED
    under X04 until a TL-C status record of that model qualifies the freshness of bits 3 and 14 after
@@ -177,20 +207,28 @@ TL-C admission in `Actions`, `Position`, `Velocity`, `Homing`, `Settings`, `Tuni
 Doxygen naming pages and gates; `test/tlc_operations_test.cpp` through the real owner, `SdoClient` and
 `LichuanTlcDrive.h`: documented words and frames, refusals of `0x010F` enable, `0x011F` start, method 28,
 `2301`, closed loop on TLO, `2502` without a rating, `2400:07..08`, save without the bitrate acknowledgement,
-CL86-C evidence on a TL-C binding, and a stop admitted before every admitted motion. Identity tests: a
+CL86-C evidence on a TL-C binding, an attended enable with raw `607A` equal to `6064` and no basis record
+(MISSING_PREREQUISITE, zero TX), and a stop admitted before every admitted motion. Identity tests: a
 contradiction before preparation and after the stop was queued, each leaving the reviewed stop admitted (no
 refusal for identity alone, its result carrying the outcome and claiming no standstill) while every other
 pending changing step is retired. Best-effort tests: an unresolved route after a possibly sent controlword
 and a stale binding, each refused with no TX; a direct `admitBestEffortStop` on a TL-C binding carrying the
 explicit no shape, after a timeout and after a rebind (`INVALID`, zero TX); CL86-C best-effort tests
-unchanged. Stop-table tests with halted and unknown-halt predecessors (refused, no TX). Timed-run tests with
+unchanged. Stop-table tests with halted and unknown-halt predecessors (first frame `010F` or `010B`, bit 8
+set, the halt state and the undocumented `010B` recorded). Timed-run tests with
 a synthetic TL-C velocity record: canopen_shared 02's cases (duration plus budget not fitting, lost start
 reply, observation in flight near stop due, service resuming after stop due, queue-pressured stop); a run
 without a declared independent stop, refused at preparation with no changing TX; and with one, a possibly
 sent start followed by a timeout under `NONE` (`needsStop` kept, motion unknown, the declared stop named,
-no CANopen stop TX). Homing interruption tests: no read acceptance, no search bound or no declared stop
-(refused before TX), an absent or stuck signal, and observation loss or expiry after a possibly sent
-trigger (HALT requested where admissible, otherwise `needsStop` kept and the declared stop named). Position
+no CANopen stop TX). Homing interruption tests: no read acceptance, no latest interruption time, one that
+leaves no room for the stop budget, or no declared stop (refused before TX); an absent or stuck signal; an
+upload in flight at the latest interruption time (capped there, the HALT not delayed by it); a service cycle
+resuming after it; a travel bound seen only in a sample older than the age limit (no interruption from it,
+the latest time still applies); and observation loss or expiry after a possibly sent trigger (HALT requested
+where admissible, otherwise `needsStop` kept, motion and reference unknown and the declared stop named).
+Alarm-clear tests: the first frame or none for every row of item 7, a lost first and a lost second
+acknowledgement (no further word, bit 7 possibly asserted), an already clear request, FF01, an unmapped
+code, mode 3 and running set. Position
 clear tests: GATED with zero TX without the X04 record; with a synthetic record, a stale zero or
 running-clear report, an earlier move left `UNKNOWN`, an unresolved route, and a mode or generation change
 before dispatch, each refused or withdrawn with no `2302` TX. `2502` tests: no limit, a zero limit and a
@@ -208,7 +246,7 @@ restore keep the route-after-restart obligation on success and on a lost acknowl
 Each TL-C operation is either admitted with cited pages and a TL-C evidence input, or refused before TX with
 its disposition from stage 02's map: an X gate, NOT_DOCUMENTED, NOT_IMPLEMENTED or MISSING_PREREQUISITE. No
 CL86-C measurement admits a TL-C binding, and no firmware difference refuses one. Existing CL86-C tests are
-unchanged. No TL-C changing operation other than a reviewed stop is admitted before S3's explicit no shape
-is set on its binding.
+unchanged. Every TL-C operation, reviewed stops included, runs on a binding that already carries S3's
+explicit no shape (03a item 2).
 Quick and full verification, firmware builds and exact-commit CI pass. Hardware NOT RUN; X04, X05, X06,
 X07, X14, X15, X16, X17 and X18 stay open.

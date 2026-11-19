@@ -18,8 +18,8 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
 2. Model declaration route. One explicit console input per bound node declares the model by exact designation
    (`TLC57-C`, `TLO86-C`, `CL2-57C`, `CL257C-ABZ`, `CL86-C`, ...). It performs no I/O, is refused while work is
    admitted or a result is retained on that node, and replaces the node's `ModelBinding`; for a TL-C or CL2
-   model it sets the owner's `SdoReusePolicy::NONE` and, where landed, S3's explicit no shape before any
-   further work on that binding (03a item 2, 03b item 3). The identity
+   model it sets the owner's `SdoReusePolicy::NONE` and S3's explicit no shape before any further work on
+   that binding (03a item 2). The identity
    candidate set and identity records come from the application's static configuration, the one loading
    path for a MEASURED record (07a T1, K2): a record is entered there with its provenance id, checked against
    stage 01 item 6's minimum content when loaded, and takes effect when the application starts with that

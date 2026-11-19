@@ -58,13 +58,13 @@ C-family claims, conflicts C01..C24, gates Q01..Q28 and generated descriptor val
 | X04 | TL-C status table and freshness (also gates position clear, 03b item 8) | TL-C | LX-D06 | 03a, 03b, 07a |
 | X05 | TL-C enable, start words and velocity start order | TL-C | LX-D07, D08 | 03b, 07a |
 | X06 | TL-C terminal layout: inputs, outputs, `2400`, `60FE` | TL-C | LX-D04, D10 | 03a, 03b |
-| X07 | TL-C alarm reset route (`2301` EDS-only) | TL-C | LX-D11 | 03b |
+| X07 | TL-C alarm reset: `2301` EDS-only; rows other than FF05 in mode 1 (03b item 7) | TL-C | LX-D11 | 03b, 07a |
 | X08 | CL2 statusword bit 10 per mode; absent bits | CL2 | LX-D23 | 04a, 07a |
 | X09 | CL2 communication objects, identity, PDO and heartbeat | CL2 | LX-D20 | 04a, 07a |
 | X10 | CL2 loop mode and encoder resolution | CL2 | LX-D21, D22, D29, D34 | 04a |
 | X11 | CL2 homing per model and method: method table, signals, search bound and Z source | CL2 | LX-D26, D27 | 04b, 07a |
 | X12 | CL2 I/O codes, `2100` and `2102` meanings (`2100` bits also gate position clear, 04b item 8) | CL2 | LX-D24, D25, D28 | 04a, 04b |
-| X13 | CL2 faults and reset classes | CL2 | LX-D30 | 04a |
+| X13 | CL2 faults and reset classes (also gates alarm clear, 04b item 7) | CL2 | LX-D30 | 04a, 04b, 07a |
 | X14 | Ratings and current bounds of the fixture model and motor (the `2502` setters' peak-current record) | All new | LX-D09, D31 | 03b, 04b, 07a |
 | X15 | Enable, release and stop source states: predecessors other than 15, stop effect and completion | All new | None; DEC-2 and DEC-8 do not transfer | 03b, 04b, 07b |
 | X16 | Move and velocity start, acceptance and completion signals, relative basis and command scale | All new | LX-D23 (CL2 bit 10) | 03b, 04b, 07b |

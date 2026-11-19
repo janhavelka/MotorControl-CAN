@@ -7,10 +7,11 @@ Scope: CL2-57C, CL2-86C, CL257C-ABZ and CL286C-ABZ. No EDS exists; every row com
 (CL257, CL286, ABZ57, ABZ86), which give a P-parameter beside each vendor object (CL257 p14..19). The
 statusword, loop-mode codes, encoder field, input codes, monitor bits and homing table differ from the C
 family. This stage delivers the reads and decoders; [04b](04b_cl2_operations.md) admits operations. It
-consumes three common artifacts that [03a](03a_tlc_rows.md) defines: item 2's reuse setup and `ModelBinding`
-attestation check (with S3's no shape where landed), item 3's model-taking getter rule and item 6's
-interface isolation. Whichever of 03a and 04a runs first lands them for both groups with their tests, and
-the other consumes them; the CL2 rows and decoders are otherwise independent of 03a/03b.
+consumes three common artifacts that [03a](03a_tlc_rows.md) defines: item 2's reuse setup, S3's explicit no
+shape (a checked prerequisite of the first CL2 traffic, landed with it if S2 has not) and `ModelBinding`
+attestation check, item 3's model-taking getter rule, and item 6's interface isolation and route table.
+Whichever of 03a and 04a runs first lands them for both groups with their tests, and the other consumes
+them; the CL2 rows and decoders are otherwise independent of 03a/03b.
 
 ## Work
 
@@ -20,8 +21,9 @@ the other consumes them; the CL2 rows and decoders are otherwise independent of 
    `1000` row's text "supports CiA301 and CiA402" (CL257 p14): a protocol claim, not CL2 behavior; 07a verifies.
    Passive heartbeat, boot-up and EMCY observations stay raw and unqualified ("EMCY" is a feature claim on
    CL257 p4). No PDO map, COB-ID, heartbeat, SYNC or NMT configuration path admits a CL2 binding, and 03a
-   item 6's interface isolation (no SYNC, no node-0 NMT) applies from this stage to every interface holding
-   a CL2 binding, with the same tests. Every CL2
+   item 6's interface isolation (no SYNC, no node-0 NMT) and route table (no targeted NMT, the bootstrap
+   Enter Pre-operational withheld, ordinary reads refused on CONTRADICTED) apply from this stage to every
+   CL2 binding and every interface holding one, with the same tests. Every CL2
    read plan holds only objects with a CL2 row: the state read's error block plans `603F` without `1001`, and
    the error-history block (`1003`) is refused, since neither is listed (CL257 p14..15).
 2. Identity. A CL2 identity read plans the documented `1000`, `1009`, `100A` (CL257 p14), `2000` "drive model
@@ -36,9 +38,11 @@ the other consumes them; the CL2 rows and decoders are otherwise independent of 
 3. Read effects. DEC-1 does not transfer; CL2 uploads are explicit single reads, `NOT_REPEATABLE`, never
    polled, until the owner records a CL2 read acceptance. Because `1018` is undocumented, the default
    `SdoReuse` markers (`1018:01..03`) do not apply: a CL2 binding is set to `SdoReusePolicy::NONE` through
-   `setSdoReuse` before its first admission and again after every rebinding, with the `ModelBinding`
-   attestation and tests of 03a item 2, so the owner's automatic marker never reads `1018`, until a reviewed
-   marker object exists. Seam S10 keeps Lichuan's default for `lichuan_c` bindings, so this stays here.
+   `setSdoReuse` before its first admission and again after every rebinding, beside S3's explicit no
+   shape, with the `ModelBinding` attestation and tests of 03a item 2 (the timed-out identity upload and
+   direct `admitBestEffortStop` case included), so the owner's automatic marker never reads `1018`, until a
+   reviewed marker object exists. Seam S10 keeps Lichuan's default for `lichuan_c` bindings, so this stays
+   here.
 4. Mode-dependent statusword (X08, LX-D23). CL257 p12 and p14: bit3 alarm; bit10 "position complete" when
    `6060`=1 and "homing complete" when `6060`=6; no meaning for bits 8, 14 or 15; nothing for bit 10 in mode 3.
    Add a CL2 layout value and a mode-aware interpretation (proposed `interpretStatuswordInMode`) taking the
@@ -109,5 +113,6 @@ raw, no marker, no retry, no download, no model inferred from an abort); state r
 A CL2 binding reads identity, state and configuration through the real owner with CL2 meanings; no decoder
 reads bit 10 as zero speed or without a mode; no path plans a write to an undocumented object, and no path
 plans a read of one except the caller-selected `1018:00..03` identity option; communication configuration
-refuses CL2. Quick and full verification, firmware builds and exact-commit CI
+and targeted NMT refuse CL2; no CL2 traffic leaves before the binding carries `NONE` and S3's explicit no
+shape. Quick and full verification, firmware builds and exact-commit CI
 pass. Hardware NOT RUN; X08, X09, X10, X12 and X13 stay open.
