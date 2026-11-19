@@ -129,8 +129,20 @@ bool EspProbePlatform::writeByte(uint8_t byte) noexcept {
     return false;
 }
 void EspProbePlatform::idle() noexcept {
-    if (ownsDriver_ && taskValid())
+    if (!ownsDriver_ || !taskValid())
+        return;
+    // An event during the pass: run again at once, but never more than UNBLOCKED_PASSES passes
+    // without blocking. A pass is often longer than a tick, so the bound counts passes, not ticks.
+    if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
+        if (++unblocked_ < UNBLOCKED_PASSES)
+            return;
+        unblocked_ = 0;
         vTaskDelay(1);
+        return;
+    }
+    // Block until the next TWAI event or the next tick.
+    unblocked_ = 0;
+    ulTaskNotifyTake(pdTRUE, 1);
 }
 bool EspProbePlatform::stop() noexcept {
     if (!ownsDriver_)

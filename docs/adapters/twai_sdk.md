@@ -140,6 +140,20 @@ physical throughput or service-gap guarantee.
 RX and TX callbacks copy bounded values into application-owned internal RAM;
 state/error callbacks retain sticky bounded evidence.
 They do not route protocol traffic, print, sleep or call the owner recursively.
+
+**Event wake (prompt 56).** With `IdfTwaiDriver::setOwnerWake(true)`, which both ESP-IDF mains set,
+the TX-done and RX callbacks also give the task that started the driver one task notification
+(`vTaskNotifyGiveFromISR`, index 0), after their critical section, and return the SDK's yield request;
+the pinned SDK ORs the callbacks' results into its `portYIELD_FROM_ISR` (`esp_twai_onchip.c`). The
+error and state callbacks never notify: a no-ACK storm raises thousands of error callbacks per second.
+`EspProbePlatform::idle` waits with `ulTaskNotifyTake(pdTRUE, 1)`, so a pass starts on the next event
+or tick. An event given during the pass is taken at once and the next pass starts without blocking, but
+after `UNBLOCKED_PASSES` (4) such passes in a row it sleeps to the next tick, so the idle task (and the
+task watchdog's idle check) and lower-priority work keep running under any traffic. The bound counts
+passes, not ticks: measured passes are often longer than a tick. The wake changes only when the owner runs.
+The proof premises above are unchanged: one SDK frame in flight, callbacks that copy bounded values and
+never call the owner, TX reports consumed by the owner before the next submission, and the RX-first
+submission guard. Nothing else on the owner task may take notifications while the wake is on.
 Ring or mailbox overflow faults the adapter and prevents silent success. Pending
 work remains unavailable for fresh execution until explicit retirement succeeds.
 Raw diagnostic tracing must not consume frames from normal dispatch.

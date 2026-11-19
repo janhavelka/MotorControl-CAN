@@ -1055,6 +1055,9 @@ void ownerTask(void*) {
     static DRAM_ATTR C::SdoClient services;
     static DRAM_ATTR E::IdfTwaiDriver driver;
     static DRAM_ATTR E::EspProbePlatform console;
+    // Prompt 56: TX done and RX end console.idle()'s wait early; nothing else on this task takes
+    // notifications.
+    driver.setOwnerWake(true);
     static DRAM_ATTR E::SoakTwaiTap tap(driver.driver());
     static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks(), nullptr);
     // Prompt 55's unplug check (`U`): one restart on TX lifetime expiry, in a bounded window.

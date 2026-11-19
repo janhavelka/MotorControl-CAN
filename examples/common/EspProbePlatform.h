@@ -50,11 +50,18 @@ class EspProbePlatform {
      * Callbacks require successful begin and the same pinned task/core.
      */
     ProbeCallbacks callbacks() noexcept;
-    /** Yield exactly one scheduler tick on the owning task after application and
-     * TWAI service; no console read/write/flush or CAN access. Before successful
-     * begin or on a different task/core this is a no-op. Not an elapsed-time bound.
+    /** Wait on the owning task after application and TWAI service, at most until the next
+     * scheduler tick: a task notification (IdfTwaiDriver::setOwnerWake: TX done or RX) ends the
+     * wait early (prompt 56). A notification given during the pass is taken at once and the next
+     * pass starts without blocking, but after UNBLOCKED_PASSES such passes in a row the task
+     * sleeps until the next tick, so the idle task and lower-priority work run under any traffic.
+     * No console read/write/flush or CAN access. Before successful begin or on a different
+     * task/core this is a no-op. Not an elapsed-time bound.
      */
     void idle() noexcept;
+    enum {
+        UNBLOCKED_PASSES = 4 ///< Passes in a row that may start without blocking before idle sleeps to the next tick.
+    };
     /** Explicitly uninstall on the same pinned task/core.
      * @return True after successful uninstall or when nothing is owned. False
      * preserves driver ownership/storage; do not destroy the object or callbacks.
@@ -69,6 +76,7 @@ class EspProbePlatform {
     int core_ = -1;
     bool attempted_ = false, ownsDriver_ = false, haveTime_ = false;
     uint64_t lastTimeUs_ = 0;
+    unsigned unblocked_ = 0; // Passes in a row that started without blocking.
     EspProbeDiagnostics diagnostics_;
     bool taskValid() const noexcept;
     bool nowUs(uint64_t&) noexcept;

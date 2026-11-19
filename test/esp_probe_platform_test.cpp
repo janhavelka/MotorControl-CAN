@@ -25,6 +25,8 @@ struct FakeSdk {
     int64_t time = 0;
     unsigned installs = 0, uninstalls = 0, reads = 0, writes = 0, clocks = 0, idles = 0;
     unsigned queries = 0, masks = 0;
+    unsigned polls = 0, takes = 0, delays = 0; // idles counts the two blocking waits.
+    uint32_t notified = 0;                     // ulTaskNotifyTake's result: a pending notification.
     uint8_t inputByte = 0, outputByte = 0;
     uint32_t mask = 0;
     usb_serial_jtag_driver_config_t config = {};
@@ -188,6 +190,17 @@ int xPortGetCoreID() {
 void vTaskDelay(TickType_t ticks) {
     CHECK(ticks == 1);
     ++sdk.idles;
+    ++sdk.delays;
+}
+uint32_t ulTaskNotifyTake(BaseType_t clear, TickType_t ticks) {
+    CHECK(clear == pdTRUE && ticks <= 1); // A poll, or at most one tick; the count is consumed.
+    if (ticks == 0) {
+        ++sdk.polls;
+        return sdk.notified;
+    }
+    ++sdk.idles;
+    ++sdk.takes;
+    return sdk.notified;
 }
 int64_t esp_timer_get_time() {
     ++sdk.clocks;
@@ -233,8 +246,44 @@ int usb_serial_jtag_write_bytes(const void* bytes, size_t length, TickType_t tic
     sdk.outputByte = *static_cast<const uint8_t*>(bytes);
     return 1;
 }
+// Prompt 56: with nothing pending idle blocks at most one tick. A notification pending after a
+// pass starts the next pass at once, but every UNBLOCKED_PASSES passes without blocking end in a
+// one-tick sleep. The bound uses no tick count, so it holds however long a pass is.
+void idleWakeIsBounded() {
+    reset();
+    E::EspProbePlatform platform;
+    CHECK(platform.begin());
+    const unsigned limit = E::EspProbePlatform::UNBLOCKED_PASSES;
+    sdk.notified = 0;
+    platform.idle();
+    CHECK(sdk.polls == 1 && sdk.takes == 1 && sdk.delays == 0 && sdk.idles == 1);
+    sdk.notified = 1; // An event during every pass.
+    unsigned blocked = 0;
+    for (unsigned pass = 1; pass <= 3 * limit; ++pass) {
+        const unsigned before = sdk.idles;
+        platform.idle();
+        if (sdk.idles != before)
+            ++blocked;
+        CHECK(blocked == pass / limit); // A sleep exactly every limit passes.
+    }
+    CHECK(sdk.delays == 3 && sdk.takes == 1);
+    // A blocking wait restarts the count.
+    platform.idle();
+    platform.idle();
+    sdk.notified = 0;
+    platform.idle(); // Blocks: nothing pending.
+    sdk.notified = 1;
+    const unsigned delays = sdk.delays;
+    for (unsigned i = 0; i + 1 < limit; ++i)
+        platform.idle();
+    CHECK(sdk.delays == delays);
+    platform.idle();
+    CHECK(sdk.delays == delays + 1);
+    CHECK(platform.stop());
+}
 int main() {
     startupAndLifecycle();
+    idleWakeIsBounded();
     initializationFailures();
     clockEvidence();
     bytesUnderPressure();

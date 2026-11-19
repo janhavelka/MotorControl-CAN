@@ -3,6 +3,9 @@
 typedef int portMUX_TYPE;
 #define portMUX_INITIALIZER_UNLOCKED 0
 #define portNUM_PROCESSORS 2
+typedef int BaseType_t;
+#define pdFALSE 0
+#define pdTRUE 1
 // Single-core interrupt masking is nesting-aware; pending fake interrupts run
 // only when the outermost critical section exits. No host threads are created.
 void fakeEnterCritical(portMUX_TYPE*);

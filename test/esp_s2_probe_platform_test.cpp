@@ -194,6 +194,13 @@ void vTaskDelay(TickType_t ticks) {
     CHECK(ticks == 1);
     ++sdk.idles;
 }
+// Prompt 56's idle wait; the bound itself is tested in esp_probe_platform_test.
+uint32_t ulTaskNotifyTake(BaseType_t clear, TickType_t ticks) {
+    CHECK(clear == pdTRUE && ticks <= 1);
+    if (ticks)
+        ++sdk.idles; // Only the blocking wait; the poll before it finds nothing pending.
+    return 0;
+}
 int64_t esp_timer_get_time() {
     return sdk.time;
 }

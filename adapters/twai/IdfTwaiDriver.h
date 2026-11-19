@@ -65,6 +65,15 @@ class IdfTwaiDriver {
     /** Copy the timing window and start a new one. On the pinned task only; diagnostics only.
      * @param[out] output The window since the previous call. @return False off the pinned task. */
     bool takeTiming(TwaiTiming& output) noexcept;
+    /** Prompt 56 event wake, off by default. When on, the TX-done and RX callbacks give the
+     * task that started the driver one task notification (index 0) after their critical
+     * section, and return the SDK's yield request; the error and state callbacks never do.
+     * The owner's idle wait (EspProbePlatform::idle) then ends early. Only the time the owner
+     * runs changes: one frame in flight, callback copies and every proof premise stay as they
+     * are (docs/adapters/twai_sdk.md). Use it only when no other code takes notifications on
+     * that task. On the pinned task, before or after start.
+     * @param enabled True to notify the starting task from TX done and RX; false to stop. */
+    void setOwnerWake(bool enabled) noexcept { wake_ = enabled; }
 
   private:
     twai_node_handle_t node_ = nullptr;
@@ -72,6 +81,7 @@ class IdfTwaiDriver {
     int core_ = -1, lastError_ = 0;
     uint32_t epoch_ = 0, serial_ = 0;
     bool enabled_ = false, retiring_ = false, pending_ = false, busOff_ = false;
+    volatile bool wake_ = false; // Read by the TX-done and RX callbacks.
     bool receiveBoundaryKnown_ = false;
     uint64_t receiveBoundaryUs_ = 0;
     bool clockKnown_ = false;
@@ -92,6 +102,7 @@ class IdfTwaiDriver {
     TwaiEvents events() noexcept;
     bool receive(ReceivedFrame&, uint64_t cutoffUs) noexcept;
     void refreshReceiveBoundary() noexcept; // Caller holds mux_; reads time before empty FIFO proof.
+    bool wakeOwner() noexcept; // From the TX-done and RX callbacks, outside the critical section.
     static bool txDone(twai_node_handle_t, const twai_tx_done_event_data_t*, void*);
     static bool rxDone(twai_node_handle_t, const twai_rx_done_event_data_t*, void*);
     static bool stateChanged(twai_node_handle_t, const twai_state_change_event_data_t*, void*);

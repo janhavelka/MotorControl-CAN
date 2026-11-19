@@ -25,6 +25,9 @@ enum class Call { CREATE, REGISTER, FILTER, ENABLE, INFO, DISABLE, DELETE, SUBMI
 struct FakeSdk {
     Call calls[128] = {};
     unsigned count = 0, transmissions = 0, receives = 0;
+    unsigned notifies = 0;            // vTaskNotifyGiveFromISR calls (prompt 56 event wake).
+    TaskHandle_t notified = nullptr;  // The task last notified.
+    bool yieldRequest = false;        // What the fake reports through the woken flag.
     unsigned criticalDepth = 0, bootAfterTransmissions = 0;
     int64_t nowUs = 0;
     uint32_t hardwareRxCount = 0;
@@ -137,6 +140,13 @@ void stop(E::TwaiDriver& driver) {
 } // namespace
 
 twai_dev_t fakeTwaiHardware;
+void vTaskNotifyGiveFromISR(TaskHandle_t task, BaseType_t* woken) {
+    CHECK(sdk.criticalDepth == 0 && woken); // Outside the critical section, with a flag to set.
+    ++sdk.notifies;
+    sdk.notified = task;
+    if (sdk.yieldRequest)
+        *woken = pdTRUE;
+}
 int64_t esp_timer_get_time() {
     if (sdk.frameDuringClockSample) {
         CHECK(sdk.criticalDepth != 0);
@@ -970,8 +980,42 @@ void timingWindow() {
     CHECK(instance.takeTiming(t) && t.txDone == 1 && t.replies == 0 && t.rxHighWater == 1);
     stop(driver);
 }
+// Prompt 56: with the owner wake on, TX done and RX notify the starting task once each, never an
+// error or state change, and the callback returns the SDK's yield request. Off by default.
+void ownerWake() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 1));
+    O::ReceivedFrame drained;
+    CHECK(driver.submit(driver.context, frame(), 91) == E::TwaiSubmit::SENT);
+    sdk.done(true);
+    sdk.receive(0x581, 8);
+    CHECK(sdk.notifies == 0); // Off by default.
+    CHECK(driver.events(driver.context).txDone && driver.receive(driver.context, drained, UINT64_MAX));
+    instance.setOwnerWake(true);
+    CHECK(driver.submit(driver.context, frame(), 92) == E::TwaiSubmit::SENT);
+    sdk.done(true);
+    CHECK(sdk.notifies == 1 && sdk.notified == sdk.task);
+    sdk.receive(0x581, 8);
+    CHECK(sdk.notifies == 2);
+    sdk.error();
+    CHECK(sdk.notifies == 2); // An error never wakes: a no-ACK storm raises thousands per second.
+    CHECK(driver.events(driver.context).txDone && driver.receive(driver.context, drained, UINT64_MAX));
+    sdk.yieldRequest = true;
+    CHECK(driver.submit(driver.context, frame(), 93) == E::TwaiSubmit::SENT);
+    twai_tx_done_event_data_t event = {true, sdk.pending};
+    CHECK(sdk.callbacks.on_tx_done(sdk.node(), &event, sdk.context)); // The yield request passes through.
+    CHECK(sdk.notifies == 3);
+    instance.setOwnerWake(false);
+    sdk.yieldRequest = false;
+    sdk.receive(0x581, 8);
+    CHECK(sdk.notifies == 3);
+    stop(driver);
+}
 int main() {
     initializationAndConfiguration();
+    ownerWake();
     timingWindow();
     gpioValidationMatchesPinnedS3();
     actualReceiveCallbacksValidateBeforePublishing();

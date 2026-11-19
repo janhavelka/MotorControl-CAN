@@ -294,7 +294,7 @@ bool IdfTwaiDriver::txDone(twai_node_handle_t, const twai_tx_done_event_data_t* 
         self.awaitingReplyUs_ = event->is_tx_success ? done : -1;
     }
     portEXIT_CRITICAL_ISR(&self.mux_);
-    return false;
+    return self.wakeOwner();
 }
 bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_data_t*, void* p) {
     auto& self = *static_cast<IdfTwaiDriver*>(p);
@@ -356,7 +356,15 @@ bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_dat
     }
     self.awaitingReplyUs_ = -1;
     portEXIT_CRITICAL_ISR(&self.mux_);
-    return false;
+    return self.wakeOwner();
+}
+bool IdfTwaiDriver::wakeOwner() noexcept {
+    // The SDK ORs every callback's result into its yield request (esp_twai_onchip.c, 5.5.5).
+    if (!wake_ || !task_)
+        return false;
+    BaseType_t woken = pdFALSE;
+    vTaskNotifyGiveFromISR(task_, &woken);
+    return woken == pdTRUE;
 }
 bool IdfTwaiDriver::takeTiming(TwaiTiming& output) noexcept {
     if (!taskValid())

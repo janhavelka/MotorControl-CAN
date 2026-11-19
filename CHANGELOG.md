@@ -26,6 +26,11 @@
   idle pass from 833 to 356 us and the soak read from 5.77 to 4.87 ms; the IDF's 8 KB data cache changed nothing.
   It costs 8 KB of internal RAM (free heap after boot 73284 bytes). The shared S2 image keeps 8 KB until its own
   RAM is measured. `-O2` is not used: it enlarges code on a fetch-bound pass.
+- **Event wake:** `IdfTwaiDriver::setOwnerWake(true)` (set by both ESP-IDF mains) makes the TX-done and RX callbacks
+  notify the owner task and return the SDK's yield request; errors and state changes never notify.
+  `EspProbePlatform::idle` now waits with `ulTaskNotifyTake(pdTRUE, 1)` instead of `vTaskDelay(1)`, and after
+  `UNBLOCKED_PASSES` (4) passes in a row without blocking it sleeps one tick, so the idle task still runs. One frame
+  in flight and the TWAI proof premises are unchanged.
 
 ### Communication practice and PSRAM-first placement (2026-11-18)
 

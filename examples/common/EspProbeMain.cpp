@@ -39,6 +39,9 @@ void ownerTask(void*) {
     static DRAM_ATTR IdfTwaiDriver driver;
     static DRAM_ATTR EspProbePlatform console;
     static DRAM_ATTR AcquisitionRecord acquisitionStorage;
+    // Prompt 56: TX done and RX end console.idle()'s wait early; nothing else on this task takes
+    // notifications.
+    driver.setOwnerWake(true);
     static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks(),
                                             &acquisitionStorage, espSilentPin());
     static DRAM_ATTR ProbeConsole commands(firmware.app(), firmware.owner(), firmware.platform());
