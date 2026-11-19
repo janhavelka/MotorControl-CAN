@@ -60,7 +60,12 @@ vendor evidence, safety, uncertainty or verification rules. Read the report, `Ca
    without delaying CANopen dispatch.
 3. A raw transmit kind with its own admission class below stops and above ordinary SDO, with local TX evidence only.
 4. Restart and bus-off notification to every module.
-5. Bench, drives released: a 29-bit frame whose low bits look like `0x601` with a read payload (expect no `0x581`
+5. The exclusive protocol domain (the MKS request above): one non-CANopen domain owns the whole standard-ID space
+   of an interface that has no CANopen binding, and the plan validator refuses it in both admission orders (a
+   CANopen binding on an exclusive interface, an exclusive domain on an interface with a CANopen binding). Its raw
+   frames carry a per-frame TX disposition with the controller hand-off time (or its bounds) and a final `TxReport`
+   or true `Transport::retire` when one exists; routed frames carry their `ReceivedFrame` capture time.
+6. Bench, drives released: a 29-bit frame whose low bits look like `0x601` with a read payload (expect no `0x581`
    reply), and, after reading both drives' PDO, SYNC, EMCY and SDO server (`1200:01/02`) COB-IDs, 11-bit frames in `0x680`-`0x6DF` (expect no
    EMCY, statusword change or error counts); never an NMT-looking payload.
 
@@ -70,7 +75,9 @@ Host tests: overlapping, restricted-range and format-blind plans refused; a `0x6
 configured PDO uses `0x680` (default-range separation alone never passes); a 29-bit plan accepted; plan and CANopen
 frames routed separately; stop ordering ahead of raw frames; restart notification; for the exclusive MKS domain, a
 superseded frame retired before a stop, a frame held below the owner queue reported as possibly transmitting after
-the stop, and routed frames carrying capture times. Run the native, firmware, stack and
+the stop, and routed frames carrying capture times; whole-space admission on an empty interface; refusal in both
+admission orders with zero TX; restart and bus-off delivered to the exclusive service; TX hand-off times and RX
+capture times reported with uncertain bounds where the adapter cannot give exact ones. Run the native, firmware, stack and
 documentation gates and CI on the actual final commit.
 
 ## Documentation and delegation
