@@ -99,3 +99,22 @@ positive SYNC-triggered program start would need its own shared-contract change.
 
 Checks: `python scripts/check_promptset.py` passes; `git diff --check` is clean for this set.
 Nothing was compiled; no hardware or port was used.
+
+## Round 3: cross-cutting findings of the family round-2 audits, 19 November 2026
+
+Audits at `edcf9621` (gpt-6.2-sol, standard depth): MOONS' `aud-20261119-184315-2fffe2`,
+Nanotec `aud-20261119-184316-126cde`, C extensions `aud-20261119-184724-01623c`, DS2
+`aud-20261119-184724-17daf9`. The lead verified and applied the findings that recur across
+families once here and in prompt 57; each family's own round-2 application consumes them.
+
+| Theme | Findings | Evidence checked | Change |
+| --- | --- | --- | --- |
+| 1 Stops on a refused identity | MOONS' F2; Nanotec F5; C extensions F1 | Prompt 57 Identity policy (stop exemption from `d0108871`); C extensions 01 withdraws all traffic on CONTRADICTED | Prompt 57: the exemption removes only the identity refusal (route, generation and source-state checks stay), a later outcome change does not withdraw a prepared or queued stop, other pending changing steps retire, an NMT command is a changing request and never this stop. 02 "Identity and device evidence" makes prompt 57's outcomes, precedence and stop exemption the policy of every CANopen family (a family may refuse more, never admit more) |
+| 2 Identity precedence | C extensions F3; DS2 F1 | Prompt 57 outcome definitions; 02 test bullet refused "ambiguous" identity, which contradicted prompt 57's "the declaration selects" | Prompt 57 "Admission by outcome": CONFIRMED and UNCONFIRMED with a declared-model match admit (the result names every matching model); UNCONFIRMED without such a match, CONTRADICTED and no current outcome refuse vendor downloads and changing requests, stops exempt. 02 tests aligned. DS2 F1's refusal of a colliding sibling match is rejected as policy: the declaration selects (engineering direction 2026-11-17, no lock-out); the family records the ambiguity in the result |
+| 3 Timed runs and their stop | MOONS' F4; Nanotec F8; C extensions F6; DS2 F3, F4 | `include/MotorControlCAN/VelocityOperation.h` `durationUs` (preparation-anchored); `src/profiles/lichuan_c/Velocity.cpp` (`requiredStopBudgetUs` must fit before the deadline, transfers bounded by `stopDueUs`, `needsStop`, phase `STOPPING`) | 02 "Operation admission", new timed-runs bullet: families reuse that design; the run's stop is the application's separate urgent stop, never barred by the run's deadline, identity or a missing acknowledgement; a run without a reviewed stop row for its mode is refused before its first changing TX |
+| 4 S3 shape and an unknown predecessor | Nanotec F6; C extensions F2; DS2 F3 | Principles pack controlword table and CP-D10 (Quick stop command: transitions 7, 10, 11, or 11 only; no enabling transition) | 02 S3 bullet and README row: the shape establishes no state; a family opts in only with a review of the word's reaction from every state reachable after an uncertain write, including a set halt bit |
+| 5 S13 and NMT | MOONS' F1; Nanotec F1; C extensions F4; DS2 F5, F6 | 02 S13 bullet (node-0 NMT named but no entry point, no default deny, no NMT-driven revocation) | 02 S13 and README row: gate at the owner's NMT admission; default deny in the S2 commit (no SYNC production and no node-0 NMT on an interface with a non-Lichuan binding); families supply per-command NMT effects; admitting an NMT command that can change an evaluated node's state revokes the approval first; new tests |
+| 6 Registration acceptance without an identity outcome | Nanotec F10; DS2 F7 | 02 "Registration acceptance" and "Deliver" | 02 "Registration acceptance": when registration delivers no outcome it shows every identity-dependent route unavailable; the identity refusal tests land with the identity stage; the probe's read effect is reviewed in the family ledger before it runs |
+
+Family-specific findings of these audits are applied in each family's `audit_application.md`
+round 2.

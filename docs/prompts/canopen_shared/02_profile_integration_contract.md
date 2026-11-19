@@ -68,10 +68,16 @@ Commit tooling, core/profile and application/console changes separately, each te
   invalidators: boot-up, NMT reset, bus-off or controller restart, rebinding, a configuration
   generation change, a contradicting identity read. A permitted bootstrap read (probe,
   identity) needs none; a later write or motion needs the identity its row names. The label,
-  `Capabilities` and `DiscoveryCapabilities` grant nothing. Lichuan's policy is [prompt 57](../57_regular_drive_operations.md)'s.
-- Tests with the correct label and wrong (another family's server), missing, ambiguous (a
-  colliding `1018` match) or stale (after boot-up or rebinding) identity refuse dependent
-  work with nothing sent. Assert exact traffic: selection and cached queries send nothing;
+  `Capabilities` and `DiscoveryCapabilities` grant nothing. The outcomes (CONFIRMED,
+  UNCONFIRMED, CONTRADICTED), their admission precedence and the stop exemption are
+  [prompt 57](../57_regular_drive_operations.md)'s Identity policy for every CANopen family;
+  the family supplies its references, candidate keys and model-scoped rules, and may refuse
+  more with recorded evidence, never admit more.
+- Tests with the correct label and wrong (another family's server), missing, unmatched or
+  stale (after boot-up or rebinding) identity refuse dependent work with nothing sent; an
+  ambiguous match that includes the declared model (a colliding `1018`) admits by the
+  declaration and the result names every matching model; the reviewed stop stays admitted
+  under each refusal. Assert exact traffic: selection and cached queries send nothing;
   a probe only its reviewed reads; recovery never appends enable, save, NMT, a stop or a write.
 
 ### Capabilities and the common operation mapping
@@ -110,6 +116,21 @@ Commit tooling, core/profile and application/console changes separately, each te
   ([communication practice](../../communication_practice.md) C10). Each family names the
   deadline in its coverage rows and tests cumulative delay in which every reply meets its own
   timeout but the deadline arrives before the trigger: no trigger TX.
+- **Timed runs.** A finite velocity or torque run, or any run the host ends, reuses the
+  existing Lichuan finite-velocity design (`include/MotorControlCAN/VelocityOperation.h`
+  `FiniteVelocityRequest::durationUs`; `profiles/lichuan_c/Velocity.h` `requiredStopBudgetUs`,
+  `needsStop` and phase `STOPPING`) rather than a new timer: the duration runs from successful
+  preparation and includes setup and queue delay; preparation refuses unless the duration plus
+  the caller's stop budget fits before the operation deadline; every later transfer of the run
+  has `deadlineUs` at most the stop due time, so the channel is free then. At stop due the run
+  stops issuing work and the application composes its existing urgent stop, a separate
+  `NOT_REPEATABLE` operation with its own deadline that the run's deadline, its identity outcome
+  and a missing acknowledgement never bar. `needsStop` survives cancellation, failure, recovery,
+  a lost start reply and acknowledgement-only completion while any start word may have left;
+  no result claims standstill without fresh evidence. A run whose mode and reachable states
+  have no reviewed stop row is refused before its first changing TX. Tests: a duration that no
+  longer fits with the budget (refused at preparation), a lost start reply, an observation in
+  flight near stop due, service resuming after stop due, a queue-pressured stop.
 - **State transitions.** Before the first TX of enable, release, a stop, fault clear or a
   mode change, the family defines from its own evidence a source-state and intent table:
   which observed starting states (drive state, mode, fault, halt or quick-stop latch) admit
@@ -224,15 +245,25 @@ default as the restore value. An observation is that specimen's behavior.
   rebind. The family opts in its reviewed exact shape (object, size, data, ledger review ID)
   later, in its stop stage; a Lichuan binding keeps DEC-2's `6040:00=000B` and its terminal semantics.
   `admitBestEffortStop` checks the transfer against the shape of its exact current binding
-  and channel generation; another family's valid shape, no shape and a stale target return
+  and channel generation; it establishes no drive state or predecessor. A family opts in a
+  shape only when its stop review shows the word's reaction from every state the drive may
+  be in after an uncertain write (a CiA 402 Quick stop command, bit 1 set and bits 2 and 7
+  clear, names no enabling transition in either listed variant, principles pack CP-D10; the
+  review also says how the word treats a set halt bit), otherwise the family keeps the default
+  deny. Another family's valid shape, no shape and a stale target return
   `INVALID` with no TX and no fallback word. Unchanged: one transmission at most; owner
   markers and resync steps on the node retired as today; never `SUCCEEDED`; local TX or a
   matching-looking reply proves neither acknowledgement nor standstill; the route stays
   unresolved. Test each case and a matching late reply through `admitBestEffortStop`;
   Lichuan's existing best-effort tests stay unchanged.
 - Seam S13, SYNC and NMT-broadcast effect admission (the same rule applies to every NMT command to
-  node 0 on a mixed interface), gates prompt 51's producer (`armSync` and each
-  `admitSync`) without forking it. Its approval covers the whole declared bus population, not
+  node 0 on a mixed interface, at the owner's NMT admission), gates prompt 51's producer
+  (`armSync` and each `admitSync`) without forking it. Its default deny lands in the S2 commit,
+  like S3's: through the S2 lookup the producer refuses `armSync` and `admitSync`, and the owner
+  refuses node-0 NMT, on an interface with any non-Lichuan binding until that family's reviewed
+  SYNC and NMT effects land with S13; a schedule already running when such a binding is
+  admitted is revoked first. Each family supplies its per-command NMT effects with its SYNC
+  effects; an unknown effect refuses. Its approval covers the whole declared bus population, not
   only the request target: per node, live NMT state and RPDO/TPDO communication and map state
   (transmission type, COB-ID validity, mapped objects) read for the current binding, session
   and configuration generation, and the family's reviewed SYNC effects. It refuses when an
@@ -240,12 +271,17 @@ default as the restore value. An observation is that specimen's behavior.
   requesting schedule: a pending synchronous RPDO that would apply staged command data at the
   next SYNC, a watchdog or supervision fed on behalf of another application, a program start.
   Remap, rebind, NMT reset or boot-up, a configuration generation change and owner
-  invalidation (bus-off and recovery included) revoke it, also while a schedule runs; only
+  invalidation (bus-off and recovery included) revoke it, also while a schedule runs; so does
+  admitting any NMT command, targeted or broadcast, that can change an evaluated node's NMT
+  state (Start, Stop, Enter Pre-operational, either reset), before it is sent; only
   fresh evidence requalifies. Refusal and revocation mean zero further SYNC TX; a frame already
   handed to the controller is reported as possibly sent, never recalled, and disarming is not
   a stop. Tests through the real producer with several nodes: known harmless (admitted);
   unknown or stale (refused); known harmful on the target and on a node other than the target
-  (refused); remap, rebind and reset during a running schedule (no later SYNC TX). The landing
+  (refused); remap, rebind and reset during a running schedule (no later SYNC TX); a targeted
+  and a broadcast Start while a Pre-operational node holds a synchronous RPDO (revoked before
+  the Start, no later SYNC TX); node-0 NMT on a mixed interface with an unknown effect (zero NMT
+  TX). The landing
   records this interface and these cases in the README table.
 - Seam S14, owner-admitted RPDO data transmission. The owner admits no PDO data frame today.
   Cyclic modes and every operation fed by RPDO data consume S14 or stay `UNSUPPORTED`; no
@@ -282,7 +318,11 @@ tests; documentation; report; PROGRESS row.
 ## Registration acceptance
 
 The probe and each delivered route run through the real owner, the family's real protocol
-service and a fake device; foreign-profile and identity refusals send nothing; JSONL records
+service and a fake device; foreign-profile and identity refusals send nothing (when registration
+delivers no identity outcome, it shows instead that every identity-dependent write and motion
+route is unavailable with zero changing TX, and the identity refusal tests land with the
+family's identity stage before any such route becomes callable; the probe's read effect is
+reviewed in the family ledger, by object, access and evidence, before it runs); JSONL records
 follow S6; checker negative tests fail as intended; all consumers build in C++11.
 `python scripts/verify.py --mode quick` and `--mode full`, the firmware builds in
 [verification.md](../../verification.md) and the family checks pass, and CI passes on the

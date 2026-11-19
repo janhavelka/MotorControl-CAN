@@ -101,9 +101,22 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
     bootstrap identity and state reads remain. No acceptance, guard setting or option overrides it. A differing
     firmware identity never produces CONTRADICTED. Stops are exempt: an explicitly requested stop (the profile's
     reviewed quick stop or halt, whose CiA 402 command bits are standard) stays admitted, because refusing it could
-    leave a moving drive running; its result carries the contradicted identity and claims no standstill.
+    leave a moving drive running; its result carries the contradicted identity and claims no standstill. The
+    exemption removes only the identity refusal: the stop still passes its own route, binding-generation and
+    source-state checks, and an outcome that changes after the stop was prepared or queued does not withdraw it,
+    while every other pending changing step on the binding is retired. An NMT command to the binding is a changing
+    request, never a stop for this exemption (an NMT Stop is not a drive stop).
   - No caller acceptance replaces a reference: when no reference of the declared model matches (for example because
     the documented values conflict), the application supplies a MEASURED reference for its specimen.
+  - Admission by outcome, the one precedence every family uses (a family may refuse more with recorded evidence,
+    never admit more): CONFIRMED admits; UNCONFIRMED in which a reference of the declared model matches (a
+    collision with another candidate, or a candidate without references) admits, because the declaration
+    selects, and the result names every matching model; UNCONFIRMED in which no reference of the declared model
+    matches (a definite product mismatch with no other match, no reference of the declared model, an unread
+    product field) and CONTRADICTED both refuse vendor-object downloads and every changing request of the motion
+    rule, stops exempt, until a current observation matches a reference of the declared model. No current
+    outcome (none read, or invalidated) refuses the same work. Bootstrap identity and state reads stay admitted
+    in every case.
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
