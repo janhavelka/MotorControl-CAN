@@ -168,7 +168,9 @@ Commit tooling, core/profile and application/console changes separately, each te
   may be in (the review an S3 opt-in needs) is admitted without a fresh report and records the
   state as unknown; other stop rows need their fresh source state. Halt evidence follows the
   words actually sent: only an acknowledged bit-8-clear word with no later possibly sent
-  bit-8-set word makes the halt state clear. Tests assert the first emitted frame, or none, for every
+  bit-8-set word makes the halt state clear, or, where the family's ledger shows `6040h` readable
+  with the received value, a fresh controlword readback handed off after the last possibly sent
+  word (under the ownership premise; a declared external writer makes it unqualified). Tests assert the first emitted frame, or none, for every
   starting state and mode in the table, halted and unknown-halt predecessors included.
 
 ### Console, help and JSONL (seam S6)
@@ -300,9 +302,12 @@ default as the restore value. An observation is that specimen's behavior.
   (`armSync` and each `admitSync`) without forking it. Its default deny lands in the S2 commit,
   like S3's: through the S2 lookup the producer refuses `armSync` and `admitSync`, and the owner
   refuses node-0 NMT, on an interface with any non-Lichuan binding until that family's reviewed
-  SYNC and NMT effects land with S13; a schedule already running when such a binding is
+  SYNC and NMT effects land with S13, and refuses targeted NMT to a non-Lichuan binding at its own
+  entry point (not only in the console) until that family's NMT stage lands; a schedule already running when such a binding is
   admitted is revoked first. Each family supplies its per-command NMT effects with its SYNC
-  effects; an unknown effect refuses. Its approval covers the whole declared bus population, not
+  effects; an unknown effect refuses. A declared ownership exception ("Ownership premise") that
+  covers PDO, NMT or SYNC actors makes the evidence it touches unqualified, so S13 refuses what
+  depends on it, and declaring such an exception revokes current approvals. Its approval covers the whole declared bus population, not
   only the request target: per node, live NMT state and RPDO/TPDO communication and map state
   (transmission type, COB-ID validity, mapped objects) read for the current binding, session
   and configuration generation, and the family's reviewed SYNC effects. It refuses when an
