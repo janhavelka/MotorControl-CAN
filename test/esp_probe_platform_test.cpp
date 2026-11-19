@@ -39,6 +39,10 @@ void startupAndLifecycle() {
     CHECK(ioCalls() == 0 && sdk.installs == 0 && sdk.masks == 0);
     CHECK(callbacks.context == &platform && callbacks.nowUs && callbacks.readByte &&
           callbacks.writeByte && callbacks.idle == nullptr);
+    // Prompt 56: the cycle counter for the pass-cost diagnostics advances between two reads.
+    CHECK(callbacks.cycles);
+    const uint32_t firstCycles = callbacks.cycles(callbacks.context);
+    CHECK(callbacks.cycles(callbacks.context) - firstCycles == 3);
     uint64_t time = 91;
     uint8_t byte = 92;
     CHECK(!callbacks.nowUs(callbacks.context, time) && time == 91);
