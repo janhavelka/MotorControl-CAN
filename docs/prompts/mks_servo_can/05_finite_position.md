@@ -39,18 +39,26 @@ stop interaction.
    `directionQualified` declaration; without it only native signed requests are accepted, labelled unqualified.
 7. Completion phases (MK109 p.47, p.89):
    - immediate 1 is `ACKNOWLEDGED` (start), 0 `REJECTED`, 5 latched (09 owns synchronization), no reply `UNKNOWN`;
-   - an unsolicited 2 is native completion only when the declared reply policy has the active byte set and the
-     pending phase belongs to this motion; it reflects the 95H threshold and "may not" arrive (p.50, p.89);
+   - an unsolicited 2 is native completion only when the declared reply policy has the active byte set, the pending
+     phase belongs to this motion and the code's completion shape is outside 02b's ambiguous set (correlation
+     `QUALIFIED`), or after the application's quiet interval with correlation `QUIET_INTERVAL` reported as such; it
+     reflects the 95H threshold and "may not" arrive (p.50, p.89). Otherwise the 2 is published `possiblyLate` and
+     does not end the phase: after a cancelled, timed-out, stopped or superseded same-code move A, A's delayed 2
+     arriving during this move B is never B's completion, and B completes only through the endpoint check below,
+     read after B's start, or ends at its deadline;
    - 3 is a terminal limit stop, never completion; a status 2 after a same-code stop is "ended, cause
      indistinguishable" (04);
-   - endpoint evidence for encoder moves is a fresh 31H within a caller tolerance; for pulse moves 33H is not an
-     endpoint proof until MK-D30 is resolved; standstill is a separate F1H/32H observation.
+   - endpoint evidence for encoder moves is a fresh 31H within a caller tolerance of this move's target; for pulse
+     moves 33H is not an endpoint proof until MK-D30 is resolved; standstill is a separate F1H/32H observation; both
+     reads carry their own correlation (02b step 6) into the result.
    A common completion contract that the binding cannot satisfy (respond-off, OPEN mode with 95H disabled, unknown
    calibration) is refused before start; the explicit native acknowledged-only path states its weaker outcome.
-8. F5H live update: a new F5H while running changes speed and target (MK109 p.100, p.104). Offer it only as an explicit
+8. F5H live update: a new F5H while running changes speed and target (MK109 p.100, p.104), since firmware 1.0.5
+   (MK109 p.1). Offer it only in the V1.0.9 tables, never on `V1_0_0` (MK100 documents none), and only as an explicit
    change operation on the admitted move (`MoveRelation`, prompt 52 vocabulary): after it, any 2 is attributed to
-   "latest or superseded target" and completion requires the endpoint check against the latest target. Do not count
-   completions. Other codes have no documented live update; a second command while moving is refused.
+   "latest or superseded target", F5H's shapes enter 02b's ambiguous set, and completion requires the endpoint check
+   against the latest target. Do not count completions. Other codes have no documented live update; a second command
+   while moving is refused.
 9. Open loop: SR_OPEN runs without encoder control (MK109 p.23); completion and endpoint semantics there are unqualified
    and the manual's open-loop workaround for magnetless motors disables 95H (p.80, p.88). Report this per binding.
 10. Interruption and failure: 04's stops; lost immediate reply leaves execution `UNKNOWN` with a stop obligation; never
@@ -67,6 +75,9 @@ PROGRESS row. Use the existing axis and move tests as structural examples; extra
 Exact frames for each command and dialect; range boundaries on native values; unit and rounding cases for counts and
 pulses; refused speed 0, over-limit speed and unscaled microsteps; absolute without reference refused; restart
 invalidation; immediate, completion, limit and latched phases; completion withheld, late, after a stop and after an
-F5H update; lost start reply with no resend; endpoint check. The full matrix of contract 02 "Registration acceptance"
+F5H update; F5H update refused on V1_0_0; an old same-code status 2 arriving during a new move B (after A's cancel,
+timeout, same-code stop or supersession) not completing B, before and after the chosen quiet interval (`possiblyLate`,
+then `QUIET_INTERVAL`, never `QUALIFIED`), with B completing by endpoint check; lost start reply with no resend;
+endpoint check. The full matrix of contract 02 "Registration acceptance"
 for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push with the API and
 coverage updates.

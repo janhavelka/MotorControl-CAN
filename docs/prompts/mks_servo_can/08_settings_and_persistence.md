@@ -7,7 +7,8 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
 ## Work
 
 1. One `SettingsContext` (`prepareDriverRead`, `prepareDriverSettings`, `nextDriver`, `advanceDriver`, `getDriver`) for
-   prior read, whole-candidate validation, write, readback and partial evidence. Stages 07, 09 and 10 reuse it. Prior
+   prior read, whole-candidate validation, write, readback and partial evidence. Stages 07, 09 and 10 reuse it; 07
+   adds the homing block (90H, 94H, 9EH) with its tests, so land the context before 07. Prior
    read and readback use 00H only for codes 03 or 12A established as readable (MK-D10); a two-byte `FF FF` reply is
    ambiguous (MK-D34). Without readback a write ends acknowledged-only, never verified.
 2. Persistence: menu settings save automatically and take effect immediately (MK109 p.9); there is no save command
@@ -15,7 +16,8 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    a volatile form. Flash endurance is undocumented: no cyclic writes, no write-for-coverage loops, no automatic
    restoration. Retry class is `IDEMPOTENT_SETTING` only for a side-effect-free absolute value with established
    readback; otherwise `NOT_REPEATABLE`.
-3. Groups, each one tested and committed block, validated against the declared board (2 = 42D, 4 = 57D) and dialect:
+3. Groups, each one tested and committed block, validated against the declared board (2 = 42D, 4 = 57D), which must
+   equal the fresh observed 40H board code (03 step 5), and the dialect:
 
    | Block | Codes | Policy |
    | --- | --- | --- |
@@ -26,8 +28,8 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    | Protection | 88H, 9DH, 95H | 88H stall protection default off (p.53). 9DH enable, Tim (about 15 ms units) and Errors (28000 per turn) (p.54); MK106 bit 1 triggered En homing (MK-D27), so bit 1 is always written 0. 95H enable and threshold (65535 per turn, default 200) decides when "complete" is sent (p.50): a change invalidates 05's completion qualification. |
    | Host-silence protection | 98H | Four-byte ms, 0 off (default) (p.50). Only an explicit application request writes it; the library never sets a default, never enables it implicitly and never feeds it. Feeding frames, stop type, enable after trip, reporting, persistence and signedness are unknown (MK-D18); bit 31 set is refused. A binding with nonzero 98H records `hostSilenceConfigured`. |
    | Tuning | 96H, 97H | Sub 00 Kp/Ki, sub 01 Kd/Kv, uint16 0..1024 (p.51-52); read with `00 96 00` (p.51). Native values, no unit conversion. |
-   | I/O | 36H, 9FH, 99H | 36H mask/value bits (p.63). 9FH turns IN_1 into an output on 28D/35D/42D (p.62); 99H OUT_2 divider on 57D only (p.64). Physical load scope is the application's. |
-   | User ID | 42H | Four bytes, persistent (p.39). The only host-assignable identity mark; an application may use it to confirm a binding, explicitly. |
+   | I/O | 36H, 9FH, 99H | 36H mask/value bits (p.63). 9FH turns IN_1 into an output on 28D/35D/42D (p.62), and IN_1 is the home or left-limit input unless 9EH remaps it (p.14): refuse 9FH output when the established configuration uses IN_1 for homing or a limit (90H EndLimit or hm_mode 0 without 9EH remap), when that use is unknown, or without the application's wiring record for IN_1. 99H OUT_2 divider on 57D only (p.64). Physical load scope is the application's. |
+   | User ID | 42H | Four bytes (p.39); persistence not stated (review section 11), handled as persistent for admission. The only host-assignable identity mark; an application may use it to confirm a binding, explicitly, but a stored 42H value is no evidence that identity or session survived a restart. |
 
 4. Calibration 80H rotates the motor and requires no load (MK109 p.41, p.115): an explicit `MOTION_LIKE` commissioning
    action, never automatic; replies 0 calibrating, 1 success, 2 fail; F1H 6 while calibrating; afterwards 40H's
@@ -43,7 +45,9 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    a caller-declared stationary state recorded in the evidence; a fresh 32H of 0 alone is not proof.
 9. Invalidation, recorded per descriptor and tested: 84H invalidates pulse scales and speed and acceleration mappings;
    82H invalidates enable, motion, completion and the work-mode gate; 95H invalidates completion qualification; 88H and
-   9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and invalidate the home reference.
+   9DH change stall semantics; 90H, 94H and 9EH set 07's `limitHomingRequired` and invalidate the home reference
+   (07's block); a possibly applied 9FH direction change invalidates 34H input evidence, sets `limitHomingRequired`
+   and invalidates the home reference, also when its reply is lost.
 10. Restoration records: a typed snapshot of read values per code that an application can store and later apply
     explicitly, excluding every motion, homing, calibration, restart and never-written command. Restoration is never
     automatic and never replays a trigger; a snapshot with unreadable codes says which values it lacks.
@@ -59,6 +63,9 @@ coverage rows per code with its persistence class, report and PROGRESS row.
 Per block: exact frames, accepted and refused values, model and dialect refusals, prior read and readback where
 established, acknowledged-only result where not, status 0 rejection, lost reply with execution unknown and no repeat,
 invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
-50H, 0FH and 8FH. No automatic save or restoration. The full matrix of contract 02 "Registration acceptance" for this
-major change and CI on the exact final pushed commit pass for each committed block. Physical current, I/O and
-calibration checks need actual fixtures: hardware NOT RUN. Commit and push each block.
+50H, 0FH and 8FH; board-dependent writes refused when the observed board code differs from the declared one; 9FH on a
+42D refused with IN_1 required as home or limit, admitted for a separately recorded remapped configuration, and its
+lost acknowledgement invalidating input, limit and reference evidence. No automatic save or restoration. The full
+matrix of contract 02 "Registration acceptance" for this major change and CI on the exact final pushed commit pass for
+each committed block. Physical current, I/O and calibration checks need actual fixtures: hardware NOT RUN. Commit and
+push each block.

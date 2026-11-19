@@ -31,8 +31,11 @@ implemented profile. No hardware is needed.
      layout-derived DLC and the printed DLC where they differ (MK-D04..D07);
    - acknowledgement or no-ack and reply suppression: broadcast, group, 8CH, silent mode, 4BH (MK109 p.30-31, p.47,
      p.58, p.107); watchdog and periodic reports where they exist: 98H host-silence time, 01H period (p.50, p.36);
-   - persistence: `documented_saved`, `documented_volatile`, `presumed_persistent` (menu equivalents, MK109 p.9) or
-     `unknown`, the last two treated as persistent;
+   - persistence evidence: `documented_saved`, `documented_volatile` (only 83H's trailing-00 form, MK109 p.42, and
+     MK109A's 0FH, MK109A p.45), `presumed_persistent` (menu equivalents, MK109 p.9) or `unknown` (42H, 98H, 01H, 4AH,
+     8CH, 95H, 9DH, 96H/97H and F3H, review section 11); a separate `persistence_policy` handles the last two as
+     persistent, and the policy never becomes evidence (42H is `unknown`, handled as persistent; 0FH is
+     `documented_volatile` with write policy `never`);
    - `effect` (side effects): motion, shaft release, enable change, coordinate change, restart, communication loss,
      power-on behavior; bus-mode-only flag (MK109 p.78);
    - availability rows `MK109`, `MK109A`, `MK106`, `MK100` (documented, absent, differs) and `since` from the version
@@ -49,8 +52,10 @@ implemented profile. No hardware is needed.
    `functions`, `tests` and `console`, `ledger_bindings` and `python_plans`; canopen_shared 01 "Intake rules", operation
    map and tools) referencing ledger keys only and copying no device facts, and
    `docs/reference/mks_servo_can_vectors.json` with every worked example frame per manual: page, ID, bytes,
-   `vendor` or `derived`, expected checksum, and the malformed ones (MK-D07 nine-byte frames, MK-D26 RS485 frames) as
-   negative fixtures.
+   `vendor` or `derived`, expected checksum, `dialect`, `direction` (request or reply) and `use`: `build_parse` (a
+   supported transmissible form in that dialect), `parse_only` (replies and observations), `not_built` (documented
+   but never written or outside an implemented table: 0FH, 50H, MK106-only layouts) or `malformed` (MK-D07 nine-byte
+   frames, MK-D26 RS485 frames). Checksums recompute for every vector whatever its use.
 5. Seam S7, before the first MKS public header (stage 02), under canopen_shared 01 "Intake rules" (seam S7): claim it
    in the shared README table, or extend the split another family landed. Tools:
    `scripts/check_mks_servo_can_ledger.py`, `scripts/generate_mks_servo_can_commands.py` (`--check` never writes;
@@ -62,13 +67,18 @@ implemented profile. No hardware is needed.
    `scripts/check_repository.py` (`CHECKS`, file lists) and CTest; add LF rules for generated headers to
    `.gitattributes`.
 6. Record the unit derivations as inferences with pages, for 05 and 06 to confirm: 1.0.1+ speed code is motor rpm at
-   16/32/64 microsteps scaled by 16/MStep otherwise (MK109 p.78), a `MOTOR_TURNS` rate basis; V1.0.0 speed code times
+   16/32/64 microsteps, a `MOTOR_TURNS` rate basis; MK109 p.78 gives 8 (×2) and 128 (÷8) as examples of the 16/MStep
+   rule for other settings, its extension to other powers of two is an inference and non-powers of two are unstated
+   (MK-D14), so exact common-unit mapping stays limited to 16/32/64 (review section 16) until a scoped ledger
+   resolution; V1.0.0 speed code times
    100 is command pulses per second (from rpm = code × 6000/(MStep × 200), MK100 p.22), a `COMMAND_INCREMENTS` basis;
    1.0.1+ acc gives 1 rpm per (256 − acc) × 50 µs (MK109 p.79); V1.0.0 acc adds acc codes per 10 ms (MK100 p.23); pulses
    are MStep × 200 per turn and encoder counts 16384 per turn (MK109 p.17); angle-error scales 51200, 65535 and 28000
    per turn (MK-D28).
 7. Record decisions: profile names; dialect identifiers `V1_0_9_SEP2026`, `V1_0_9_NOV2025`, `V1_0_0` and the declaration
-   contract; whether MK106 becomes a fourth table (default: ledger rows only); supported board codes 2 and 4; the
+   contract (02 lands the type, 02b binds it); the probe read per dialect with its read effect (40H for the V1.0.9
+   tables; for `V1_0_0`, which has no 40H, one documented read such as 30H), which 02b implements; whether MK106
+   becomes a fourth table (default: ledger rows only); supported board codes 2 and 4; the
    never-written list; the initial implementable subset; and whether MKS reads may be `REPEATABLE_READ` by a recorded
    risk acceptance (Lichuan DEC-1 does not transfer). Without that owner decision, reads stay `NOT_REPEATABLE`.
 
@@ -100,8 +110,9 @@ implemented profile. No hardware is needed.
 - The command ledger, operation map and vector file; the three checkers with registered negative tests in
   `test/mks_servo_can_inventory_test.py`: missing code, tampered conflict hash, altered generated output, unclassified
   public function, promoted gate, a dialect row with no page source, a vendor vector whose checksum does not recompute,
-  and a public header claimed by two checkers or by none. The S7 claim and landed commit, tested interface and consumer
-  gate in the shared README table.
+  a `build_parse` vector for a never-written or absent form, a persistence class promoted from `unknown` or
+  `presumed_persistent` to a documented class without a page, and a public header claimed by two checkers or by none.
+  The S7 claim and landed commit, tested interface and consumer gate in the shared README table.
 - `docs/mks_servo_can_coverage.md` with one planned row per common operation of contract 02 "Capabilities and the
   common operation mapping" (reads, enable, release, mode select, absolute, relative and angle move, finite velocity,
   homing, each stop kind, fault clear, save, restore): native items by ledger key, staging and trigger order,

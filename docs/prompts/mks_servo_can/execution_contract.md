@@ -30,9 +30,10 @@ independent.
   `Protocol::PROPRIETARY`, `Capabilities`, units and axis preparation, `Native.h`, the operation vocabularies
   (`checkServiceEvidence` with `AcknowledgementSupport::NONE` where no reply exists), `can/Frame.h` and the owner
   `Transport`. Under contract 02 "Other-protocol rules" the family's own codecs and service context run beneath common
-  motion through the real `CanBusOwner` once prompt 63's route and raw transmit kind (S9) have landed and passed; never
-  `canopen/`, `SdoClient`, `SdoReuse`, NMT, heartbeat, PDO, SYNC, a statusword projection or the CANopen console verbs.
-  A missing native service, owner route or probe is Blocked, never routed through SDO.
+  motion through the real `CanBusOwner` once S9 with the MKS extension prompt 63 records ([README](README.md) open
+  question 1) has landed and passed; never `canopen/`, `SdoClient`, `SdoReuse`, NMT, heartbeat, PDO, SYNC, a
+  statusword projection or the CANopen console verbs. A missing native service, owner route or probe is Blocked, never
+  routed through SDO.
 - Seams: claim S1, S2, S6 or S7 in the canopen_shared README table before a shared edit, or extend the one already
   claimed or landed; consume S4, S5 and S9 as landed artifacts whose checks passed. Every `mks` console route and
   API/CLI parity check named in 02b-10 is Blocked until S4 lands (contract 02 "Console, help and JSONL"; README open
@@ -50,8 +51,11 @@ independent.
   Third-party MKS libraries corroborate frame mechanics only, never firmware behavior.
 - A command absent from the declared dialect, a reserved bit pattern, an out-of-range field or a capability the
   evidence does not support returns `UNSUPPORTED` or `ILLEGAL_VALUE` before admission, with no output change.
-- **Treat every configuration write as persistent** until a stage measures otherwise; only 83H documents a volatile
-  form (MK109 p.42) and the menu says settings save automatically (MK109 p.9, MK-D21). No cyclic or test-loop writes.
+- **Treat every configuration write as persistent** until a stage measures otherwise; only 83H's trailing-00 form
+  (MK109 p.42) and MK109A's never-written 0FH (MK109A p.45) document a volatile form, and the menu says settings save
+  automatically (MK109 p.9, MK-D21). That handling is policy: a command whose persistence is not stated (42H, 98H,
+  01H, 4AH, 8CH and others, review section 11) stays `unknown` in the ledger, never documented. No cyclic or
+  test-loop writes.
 - **Never written by the library:** FFH power-on auto-run, 9AH power-on single-turn homing, 50H IAP/silent, MK109A's 0FH
   no-verification mode. Their state is read and reported where 00H allows. A later disabling write needs an explicit
   owner decision and its own stage amendment.
@@ -86,7 +90,10 @@ independent.
 - Exactly one host on the bus, with the transport's self-echo exclusion (`Transport::receive` in
   [CanBusTypes.h](../../../adapters/owner/CanBusTypes.h)); an echoed request can equal a success reply (MK-D35).
 - One outstanding request per drive address, plus at most one pending completion phase bound to the admitted motion.
-  Group IDs stay disjoint from every slave ID (review section 14 rule 5).
+  A stop takes that slot only after the outstanding request is retired or ended ([04](04_enable_stop_and_uncertainty.md)
+  step 4). A frame whose shape an earlier exchange may still produce is never a fresh acknowledgement or completion
+  ([02b](02b_protocol_domain_and_owner.md) step 6). Group IDs stay disjoint from every slave ID (review section 14
+  rule 5).
 - No implicit enable, motion, homing, stall release, zero set, mode change, current change, ID/bitrate/check/reply
   change, synchronization flag, host-silence protection, restart or restore on startup, selection, probe, recovery or
   cached reads. Local cancel is not a stop. Controller TX, CAN ACK (every powered drive ACKs, MKSCH42/MKSCH57) and an
@@ -141,6 +148,6 @@ Each stage writes `docs/reports/mks_servo_can_<NN>.md` and updates `docs/prompts
 5. Public API/CLI, coverage, backlog and roadmap changes; the DOCUMENTATION and MAINTAINABILITY records; seams
    claimed, landed or extended; next prerequisites.
 
-Software states are NOT STARTED, IN PROGRESS, PARTIAL, BLOCKED or COMPLETE (contract 02 "Documentation and stage
-handoff"); COMPLETE describes software only and hardware evidence is a separate column. A usable artifact does not
-make its producer complete, and an inherited gate still blocks its dependent feature.
+Software states are NOT STARTED, IN PROGRESS, SOFTWARE COMPLETE, PARTIAL or BLOCKED (contract 02 "Documentation and
+stage handoff"); SOFTWARE COMPLETE describes software only and hardware evidence is a separate column. A usable
+artifact does not make its producer complete, and an inherited gate still blocks its dependent feature.

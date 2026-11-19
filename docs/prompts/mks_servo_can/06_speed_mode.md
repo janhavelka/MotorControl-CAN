@@ -11,9 +11,12 @@ not broaden physical authorization.
    page). Status replies 0 fail,
    1 start, 2 complete, 3 limit stop, 5 latched (p.83). Bus mode only.
 2. Speed conversion helper, shared with 05 (inferences recorded in 01, confirmed against the pages here):
-   - V1.0.9 tables: the code is motor rpm at 16, 32 or 64 microsteps; other settings scale by 16/MStep (MK109 p.78:
-     8 gives ×2, 128 gives ÷8). Use `NativeRateBasis::MOTOR_TURNS`. The rule for non-power-of-two microsteps is unstated
-     (MK-D14): refuse exact mapping there.
+   - V1.0.9 tables: the code is motor rpm at 16, 32 or 64 microsteps (MK109 p.78). Use
+     `NativeRateBasis::MOTOR_TURNS`. The page's 8 (×2) and 128 (÷8) are documented examples of a 16/MStep rule, other
+     powers of two an inferred extension, non-powers of two unstated (MK-D14); keep the three apart in the ledger.
+     Exact common-unit mapping is admitted only at 16, 32 and 64 (review section 16) until 01's ledger records a scoped
+     resolution; at any other setting, 8 and 128 included, only an explicit native code with unscaled units is offered
+     (as 05 step 3).
    - `V1_0_0`: rpm = code × 6000/(MStep × 200) (MK100 p.22), so one code unit is 100 command pulses per second; use
      `NativeRateBasis::COMMAND_INCREMENTS` with range 0..1600. MK106 p.55's "0x140 = 600 rpm" is this V1.0.0 formula,
      while MK106 p.40 and MK109 p.82 give 320 rpm for 1.0.1+ (MK-D15); never mix the two.
@@ -28,7 +31,8 @@ not broaden physical authorization.
    - when the dialect has the run-time form, the duration becomes F6H run time, quantized to 10 ms with explicit
      rounding and refused above 0xFFFFFF × 10 ms; the drive bounds the run itself, and status 2 is its report;
    - the host keeps its own immutable deadline (run time plus the caller's margin). Reaching it without status 2
-     yields a stop (`MODE_RAMPED`, `MODE_IMMEDIATE` or F7H per caller policy) as new intent, never a repeated start;
+     yields a stop (`MODE_RAMPED`, `MODE_IMMEDIATE` or an F7H form the dialect has, per caller policy; 04) as new
+     intent, never a repeated start;
    - without the run-time form (`V1_0_0`) the host bounds the run: the context yields the stop at expiry and keeps
      `needsStop` with execution unknown when transport or service loss prevents a confirmed stop;
    - zero speed is the stop form and is refused as a run; nonzero finite duration is required.
@@ -39,8 +43,9 @@ not broaden physical authorization.
    a start with EndLimit enabled may not take effect, and never resend automatically.
 6. Direction: dir 0 is CCW in the field table and "forward" in the example (MK109 p.82); 32H is CCW-positive in V1.0.9
    (p.32) and CW-positive in V1.0.0 (MK100 p.11). Common signed velocity needs `directionQualified` (03, MK-D02).
-7. Stops: 04's `MODE_RAMPED` and `MODE_IMMEDIATE` with F6H speed 0 (p.84) and the F7H forms. A run-time completion,
-   limit stop or stop completion all end the context; the reply code is shared, so MK-D36 rules apply.
+7. Stops: 04's `MODE_RAMPED` and `MODE_IMMEDIATE` with F6H speed 0 (p.84) and the F7H forms the dialect has. A
+   run-time completion, limit stop or stop completion all end the context; the reply code is shared, so MK-D36 rules
+   apply, and a status 2 of an F6H shape in 02b's ambiguous set ends nothing: the host deadline and its stop decide.
 8. FFH power-on auto-run stores the last F6H command and runs it at every power-on (MK109 p.85); its enable write also
    stops the current run ("the motor will slow down and stop", p.87). The library never sends FFH; where 00H can read
    it, the state is reported as a startup motion hazard.
@@ -55,8 +60,10 @@ missed-service cases, coverage rows, report and PROGRESS row.
 
 ## Acceptance
 
-Exact F6H 5- and 8-byte frames per dialect; speed and acc conversion boundaries with reported quantization; refused
-unscaled microsteps, over-limit speed, zero-speed run and missing duration; run-time completion, host deadline stop,
+Exact F6H 5- and 8-byte frames per dialect; speed and acc conversion boundaries with reported quantization; exact
+mapping refused at 8 microsteps (a documented example outside the qualified set) and at a non-power of two, native
+code still offered; refused over-limit speed, zero-speed run and missing duration; an old F6H status 2 during a new
+run not ending it; run-time completion, host deadline stop,
 lost start reply, lost stop reply, limit stop and deadline without service; no repeated start; native continuous run
 keeps its stop obligation. The full matrix of contract 02 "Registration acceptance" for this major change and CI on
 the exact final pushed commit pass. Hardware NOT RUN: no unbounded run or moving link-loss test substitutes for a

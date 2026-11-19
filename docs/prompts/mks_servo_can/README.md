@@ -12,18 +12,23 @@ those services. Start from the [reference pack](../../reference/mks_servo_can/RE
 [execution contract](execution_contract.md); they are required context for every stage. Dispatch one stage at a time
 and carry its handoff into the next. Creating this promptset does not execute it.
 
-Prepared against MotorControl-CAN `f3c3870a` (the CANopen principles pack and the family-selection audit were in the
-working tree, uncommitted) and the MotorControl-RS model `docs/prompts/lichuan_lc57bk_rs485/` at `eb0dbad` (dirty).
-Reconciled the same day with the revised [canopen_shared](../canopen_shared/README.md) contract at `b5f44b64` and its
+Prepared against MotorControl-CAN `f3c3870a` with the
+[CANopen principles pack](../../reference/canopen_principles/README.md) (committed in `e02ab04f`) and the
+[family-selection audit](../../audit/2026-11-19_family_selection.md) (committed in `b5f44b64`), and the MotorControl-RS
+model `docs/prompts/lichuan_lc57bk_rs485/` at `eb0dbad` (dirty). Reconciled the same day with the revised
+[canopen_shared](../canopen_shared/README.md) contract at `b5f44b64` and its
 [audit application](../canopen_shared/audit_application.md); see "Relationship to the main sequence and shared seams".
+Revised the same day after an independent [audit](audit.md) of `139748e9` ([application](audit_application.md)),
+against the shared contract's round 2 (`1043608b`) and the MKS request recorded in prompt 63 (`6786fde1`).
 
 ## Scope
 
 - **Products:** SERVO42D_CAN (NEMA17, 40H board code 2) and SERVO57D_CAN (NEMA23, board code 4) with a 1.8° motor
   (MK109 p.10, p.38, p.115). The manual's board revisions (42D V1.1, 57D V1.3) and the retained schematics
   (42D_CAN V1.0_003, 57D_CAN V1.1_001) differ (MK-D24); revision is a recorded fact, not a support claim.
-- **Bus control only:** motion through the work modes SR_OPEN, SR_CLOSE and SR_vFOC (MK109 p.23, p.78). The pulse
-  modes CR_* are settings states; STEP/DIR/EN motion is outside the library.
+- **Bus control only:** motion through the work modes SR_OPEN, SR_CLOSE and SR_vFOC (MK109 p.23, p.78), and on
+  firmware V1.0.0 through its only bus mode CR_CAN (mode 3, MK100 p.7, p.15). The pulse modes are settings states;
+  STEP/DIR/EN motion is outside the library.
 - **Dialect tables:** three separate tables, each selected by an explicit declaration and never from a version label
   alone: V1.0.9 edition of Sep-2026 (MK109), V1.0.9 edition of Nov-2025 (MK109A) and V1.0.0 (MK100). The two V1.0.9
   manuals document different command sets under the same label (MK-D01).
@@ -39,12 +44,12 @@ Reconciled the same day with the revised [canopen_shared](../canopen_shared/READ
 | --- | --- | --- |
 | 01 | [Evidence and command ledger](01_evidence_and_command_ledger.md) | Pack and canopen_shared 01 inventory; no hardware |
 | 02 | [Bounded codecs and dialect tables](02_codecs_and_dialects.md) | 01 ledger and checkers; host-only |
-| 02b | [Protocol domain and owner admission](02b_protocol_domain_and_owner.md) | 02; landed and passed artifacts of main-sequence [prompt 63](../63_mixed_protocols.md) (seam S9) for owner admission; seams S1, S2, S6 claimed or extended; registration acceptance |
+| 02b | [Protocol domain and owner admission](02b_protocol_domain_and_owner.md) | 02; for owner admission, seam S9 with the MKS extension that main-sequence [prompt 63](../63_mixed_protocols.md) records, landed and passed; seams S1, S2, S6 claimed or extended; registration acceptance |
 | 03 | [Reads, identity and dialect selection](03_reads_identity_and_dialect.md) | 02b; MK-D01, D05, D10, D30 gate interpretations |
 | 04 | [Enable, stop and unknown completion](04_enable_stop_and_uncertainty.md) | 02b, 03; MK-D13, D17, D36 |
 | 05 | [Finite position](05_finite_position.md) | 03, 04; MK-D02, D14, D19, D29 |
 | 06 | [Speed mode](06_speed_mode.md) | 04, 05 unit helpers; MK-D02, D14, D15 |
-| 07 | [Homing and limits](07_homing_and_limits.md) | 03-05; MK-D16, D19, D25; [prompt 77](../77_switch_ready_homing_limits.md) vocabulary |
+| 07 | [Homing and limits](07_homing_and_limits.md) | 03-05 and 08's settings context; MK-D16, D19, D25; [prompt 77](../77_switch_ready_homing_limits.md) vocabulary |
 | 08 | [Settings and dangerous persistent settings](08_settings_and_persistence.md) | 03; MK-D10, D18, D21, D23, D27, D29 |
 | 09 | [Asynchronous reports and reply matching](09_async_reports_and_reply_matching.md) | 02b matcher, 04-05 phases; MK-D11, D12 |
 | 10 | [Bus settings, restart and factory restore](10_bus_settings_and_restart.md) | 03, 08, 09; MK-D08, D20, D22 |
@@ -54,8 +59,9 @@ Reconciled the same day with the revised [canopen_shared](../canopen_shared/READ
 
 Dependencies are semantic prerequisites, not a demand to guess missing behavior or leave independent software idle. A
 stage may finish a usable subset while named operations stay gated. Codec, ledger and host-test work (01, 02, parts of
-03-10) proceeds without prompt 63; everything that sends a frame through the owner waits for prompt 63's artifacts to
-land and pass, and every console route and API/CLI parity check waits for seam S4. Implementation, host tests,
+03-10) proceeds without prompt 63; everything that sends a frame through the owner waits for seam S9 with the MKS
+extension prompt 63 records to land and pass, and every console route and API/CLI parity check waits for seam S4.
+Implementation, host tests,
 firmware builds and physical qualification are separate columns, and every documented native command stays in the
 coverage denominator.
 
@@ -111,7 +117,7 @@ whatever their prompt's overall state; a missing one blocks only the named depen
 | S6 console entry and per-record JSONL profile | Claim or extend at 02b; entry Blocked until S4 | `profile` is `"mks_servo_can"`, `null` or the admission value per record type (contract 02 "Console, help and JSONL") |
 | S7 ledger, generator, checker split, registration | Claim or extend at 01, before the first MKS public header (02) | Other-protocol command ledger of canopen_shared 01 "Intake rules"; no EDS, PDO or object fields |
 | S8 CiA 402 helpers | Not applicable | No controlword or statusword |
-| S9 second protocol, route, raw transmit | Consume prompt 63's artifacts at 02b | Blocks owner admission only; MKS needs go to prompt 63's owner (open question 1) |
+| S9 second protocol, route, raw transmit | Consume prompt 63's artifacts and its recorded MKS extension at 02b | Blocks owner admission only (open question 1) |
 | S10 SDO reuse policy | Not applicable | No SDO route; `SdoReuse` is excluded by contract 02 "Other-protocol rules" |
 
 Points of the earlier contract that the revision settles, and where this set now follows it:
@@ -126,14 +132,14 @@ Points of the earlier contract that the revision settles, and where this set now
 
 ## Open questions against the shared contract
 
-1. **Prompt 63 request (S9).** [Prompt 63](../63_mixed_protocols.md) plans a second protocol beside CANopen: plans
-   are checked against configured CANopen identifiers and restricted ranges, and its raw kind has one admission class
-   below stops with local TX evidence only (Implement 1 and 3). MKS needs a whole 11-bit plan on an interface with no
-   CANopen node, an urgent class for MKS stops above MKS ordinary requests, and per-frame TX evidence (sent, not sent,
-   possibly sent) for its own reply correlation. Stage 02b records these in its report as a request to prompt 63's
-   owner (the lead executing it, or the user). Until the landed artifacts provide them, MKS owner admission stays
-   Blocked; no family-local owner path, weakened check or second admission substitutes (shared README "Claim before
-   editing").
+1. **Prompt 63 extension (S9).** [Prompt 63](../63_mixed_protocols.md) plans a second protocol beside CANopen
+   (Implement 1 and 3), and its tests refuse the restricted-range plans MKS needs. Its "Requests from family
+   promptsets (2026-11-19)" paragraph (`6786fde1`) records the MKS extension: an exclusive non-CANopen domain on its
+   own interface over the whole standard-ID space, stop precedence within that domain, a per-frame TX disposition and
+   restart and bus-off notification to the domain's service, with the restricted-range refusals kept for shared
+   interfaces. Stage 02b consumes it once it lands and its tests pass; until then only the dependent owner work is
+   Blocked, and no family-local owner path, weakened check or second admission substitutes (shared README "Claim
+   before editing"). Approving and scheduling the extension is the prompt 63 lead's or the user's decision.
 2. **Tool names (01 "Intake rules", operation map and tools).** The rule names `generate_<family>_objects.py` with
    `Objects.h` and `Pdo.h`. A command ledger has neither; this set plans `generate_mks_servo_can_commands.py` and a
    private `Commands.h`. Stage 01 confirms the names with the shared set's owner or renames before the first commit.
@@ -142,8 +148,9 @@ Points of the earlier contract that the revision settles, and where this set now
    whether a caller's `DialectDeclaration` may stand as its consumed identity is open, and until it is answered
    `V1_0_0` bindings admit the probe and reads only. For every dialect, the protocol reports no boot-up (review
    section 14 rule 10), so the holder's server session can end only on host-observed events (restart or bus-off
-   notification, rebinding, 41H, 3FH, a confirmed ID or bitrate change); an uncommanded drive power cycle leaves the
-   identity stale without detection. Stage 03 records this limit; the shared set's owner decides whether it is accepted.
+   notification, rebinding, 41H, 3FH, a confirmed ID or bitrate change, a power cycle the caller records); an
+   uncommanded drive power cycle leaves the identity and the coordinate origin stale without detection. Stage 03
+   records this limit; the shared set's owner decides whether it is accepted.
 4. **Console before S4 (inherited, [audit application](../canopen_shared/audit_application.md) question 2).**
    Whether a family read may extend the Lichuan-typed `ProbeApp` before prompt 64 is a decision for the prompt 64 lead
    or the user. Until S4 lands, or that decision allows an earlier extension, every `mks` console route and API/CLI

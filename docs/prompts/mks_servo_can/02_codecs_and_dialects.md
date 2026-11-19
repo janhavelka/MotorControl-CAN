@@ -10,7 +10,10 @@ owner, transport or hardware is involved.
 1. Add `Types.h` and `Codec.h` under `include/MotorControlCAN/profiles/mks_servo_can/` with sources, and the generated
    private `Commands.h` from 01's generator. Types: `Dialect`, `CheckMode` (`SUM8`, `FIXED_6B`), `UplinkCheck`,
    `SlaveAddress` (1..2047), `GroupAddress` (1..0x7FF), `FunctionCode`, `ReplyPhase`, `StatusCode` with raw value
-   retention. No catalogue strings in the codec link; keep descriptive names in the optional catalogue.
+   retention, and the `DialectDeclaration` value (dialect, check mode, uplink check, reply policy as 8CH respond and
+   active bytes or V1_0_0's one byte, group ID, expected board code 2 or 4) with a pure validator: no default, no I/O,
+   values outside the dialect refused. 02b binds it to a binding generation before the first probe. No catalogue
+   strings in the codec link; keep descriptive names in the optional catalogue.
 2. Frame shape: standard 11-bit data frames only, `extended`, `rtr` and `fd` false, DLC 2..8 (code plus check byte at
    minimum), built through `can/Frame.h` and `validateFrame` (MK109 p.30). Any other frame is refused before parsing.
    Broadcast ID 0 and group IDs are transmit destinations only; no reply is expected on them after V1.0.2 (MK109 p.1,
@@ -49,10 +52,12 @@ owner, transport or hardware is involved.
    3 stopped by limit, 5 latched for synchronization (MK109 p.83, p.89, p.93, p.97), 83H's 1 saved and 2 not saved
    (p.42), 80H's 0 calibrating, 1 success, 2 fail (p.41). An undocumented status value stays raw with execution
    unknown, never mapped to rejection or success.
-8. Vectors: every vendor example in `mks_servo_can_vectors.json` builds and parses byte-exact, including group 0x50,
-   broadcast 0 and the 83H checksum example (MK109 p.16, p.49, p.105). Malformed examples stay negative fixtures:
-   nine-byte 8CH and F5H stop frames (MK109 p.47, p.103-104), F7H 01 printed with DLC 2 (p.81), RS485 frames with
-   0xFA/0xFB headers (MK109 p.58; MK106 p.19, p.26). Recompute checksums by a separate method in the Python cross-check.
+8. Vectors, by the `use` 01 assigns: every `build_parse` vector builds and parses byte-exact under its dialect,
+   including group 0x50, broadcast 0 and the 83H checksum example (MK109 p.16, p.49, p.105); `parse_only` vectors
+   parse byte-exact; for a `not_built` vector (0FH, 50H, MK106-only layouts) the builder returns `UNSUPPORTED` with no
+   output change; `malformed` vectors are rejected: nine-byte 8CH and F5H stop frames (MK109 p.47, p.103-104), F7H 01
+   printed with DLC 2 (p.81), RS485 frames with 0xFA/0xFB headers (MK109 p.58; MK106 p.19, p.26). Recompute every
+   vector's checksum by a separate method in the Python cross-check, whatever its use.
 
 ## Deliver
 
@@ -68,7 +73,9 @@ owner, transport or hardware is involved.
 
 ## Acceptance
 
-All vendor vectors pass, negative fixtures are rejected, every field boundary (minimum, maximum, one beyond, reserved
+Every vector passes for its `use` (byte-exact build only for `build_parse`), `not_built` forms refuse without output
+change, malformed fixtures are rejected, the declaration validator refuses missing and out-of-dialect values, every
+field boundary (minimum, maximum, one beyond, reserved
 bits, sign extension) is tested, wrong-dialect builders refuse without output change, and parsing is atomic with raw
 bytes retained on failure. No owner, admission or device claim exists yet. Quick and full verification, the family
 checks and CI on the exact final pushed commit pass (new public API is major). Hardware NOT RUN. Commit and push.
