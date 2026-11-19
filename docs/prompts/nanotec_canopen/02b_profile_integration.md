@@ -116,7 +116,10 @@ SYNC or node-0 NMT TX on an interface with a Nanotec binding at this stage), abo
 versus malformed reply, timeout and late identical reply, stale generation, retained
 results, cancel that is not a stop and no replay after a lost reply. A Lichuan axis
 and a Nanotec axis run on separate fake interfaces (owner and transport each) with
-independent stops, caches and results; on one interface, reservations conflict on
+isolated profiles, caches and results; the Lichuan stop keeps its frames and
+outcomes, and a Nanotec stop request (the S3 entry point; no ordinary Nanotec stop
+exists before 04) is refused with zero TX; the positive two-family stop-independence
+case belongs to 04's acceptance. On one interface, reservations conflict on
 the same bus and node whatever the label and an unanalysed second domain is refused
 (negative tests); `test/multidrive_contract_test.cpp` still passes. JSONL records
 follow S6, tested with two families interleaved, a retained result after rebind,

@@ -55,13 +55,25 @@ central. Follow the [commissioning guide](../../commissioning.md) and
      cannot establish physical standstill from documented objects (606Ch reflects a
      sensor only where 3203h assigns one for velocity, N5 p300), so the save also needs
      a caller standstill declaration bound to binding and generation; where 3203h
-     assigns a velocity sensor, a fresh nonzero 606Ch refuses.
+     assigns a velocity sensor, a fresh nonzero 606Ch refuses. 3203h follows stage
+     13's applicability: on a row whose evidence lacks it (FIR-v1650, absent from the
+     N5V2 index) it is not requested, so `FIR1650_FEEDBACK_SELECTION` does not refuse
+     the save, no 606Ch veto applies and the result says the row documents no velocity
+     sensor; on a row that has it, an unread 3203h refuses the save, naming it.
    - Exclusive ownership: exclusive control (04b item 1) and no motion, enable,
-     homing, auto setup, NanoJ, settings, mode or PDO operation of this library
-     admitted, in flight or unresolved on the binding. From admission until the
-     save's confirmed completion or its unknown terminal, the profile refuses every
-     such start on the binding before TX; stops stay admitted and the save result
-     records an overlapping stop.
+     homing, auto setup, NanoJ, settings, mode, PDO, persistence or NMT operation of
+     this library admitted, in flight or unresolved on the binding. From admission
+     until the save's confirmed completion or its unknown terminal, the profile refuses
+     every such start on the binding before TX, its restart (2800h:01), restore
+     (1011h) and other saves included, and the reservation is visible at the owner's
+     NMT admission: a targeted or node-0 NMT command addressing or including the node
+     is refused, and one admitted earlier but not yet handed off is retired at hand-off
+     (09 item 6; canopen_shared 02 S13, an in-flight save is a conflicting operation).
+     Stops stay admitted and the save result records an overlapping stop. A boot-up
+     observed while the save is in flight or unresolved (another master's reset, a
+     power cycle) ends it with the stored state UNKNOWN, never success; item 8's
+     invalidation follows, and the post-save error reads below become a separate
+     read the result names.
    - PDO persistence (NT-D09, item 7). Only whole categories are saved (N5 p110), and
      the PDO objects belong to communication by the category list (N5 pp111-112) but
      to application by the remapping procedure (p132), so a save of 1010h:01, :02 or
@@ -94,7 +106,14 @@ central. Follow the [commissioning guide](../../commissioning.md) and
    memory, and 16 resets all saved objects to defaults (N5 p163).
 6. The application category stores command objects: 6040h, 6060h, 607Ah, 60FFh, 6071h,
    6042h, 60FEh, 2290h, 2300h, 6007h, 3700h, 3701h and 2800h (N5 pp112-113, rendered).
-   A save of 1010h:03 or :01 therefore persists whatever those hold. Before such a save,
+   A save of 1010h:03 or :01 therefore persists whatever those hold. The snapshot is
+   scoped to the row (stage 13 applicability): an object absent by the row's evidence
+   is listed as "not in this generation" and never requested (on FIR-v1650, 2290h,
+   3701h and 6007h, absent from the N5V2 index and from its application-category list,
+   N5V2 pp101-102); an aborted, malformed or failed read of a present one refuses the
+   save with nothing sent, naming it; on an unqualified row the result states that the
+   category membership is unverified for that model and firmware (for FIR-v1650 only
+   the N5 list of N5V2 pp101-102 is stored). Before such a save,
    read and present them, require 6040h with bit 4 = 0, 2300h bit 0 as the caller
    intends, 60FEh outputs and brake bit as intended, and explicit caller acceptance of
    the persisted values. The acceptance names that snapshot, the category, the binding
@@ -143,9 +162,17 @@ Tests cover switch-governed refusals, every 2005h code, old/new tuple routing, l
 replies with unknown activation, the save gate (refused for a coasting axis outside
 Operation enabled without the standstill declaration, for a measured nonzero 606Ch,
 for an operation in flight or unresolved, and for a start queued during the save),
+the save reservation against other routes (an in-progress save and a lost save reply
+each refusing the 2800h restart, a 1011h restore, a targeted NMT command and a node-0
+Reset Communication with zero TX; an externally observed boot-up during a save ending
+it UNKNOWN, never success; stops still admitted), the row-scoped preflight (FIR-v1650:
+2290h, 3701h, 6007h and 3203h never requested and the result naming them absent, no
+606Ch veto and the result saying so; an aborted read of a present application object
+or of a present 3203h refusing with zero TX),
 the application-category snapshot gate (an acceptance voided by a write, boot-up or
 generation change after it), the PDO-persistence guard (on by default: 1010h:01, :02
-and :03 each refused with zero TX after a remap or COB-ID write, after an unresolved
+and :03 each refused with zero TX after a remap (or a COB-ID write once 11 item 4
+unblocks it), after an unresolved
 partial remap, with no boot-up observed in the owner session and with a declared or
 undeclared cfg.txt on C5-E or CL4-E; admitted after an observed boot-up with no PDO
 write; switched off for one binding: the same cases admitted, each result naming the

@@ -55,7 +55,7 @@ below are Nanotec's own.
    with bit 8 and bits 4-6 = 0, never the current word modified; 605Dh 1 or 2, stays
    in Operation enabled) only where N5 p347 lists halt and this set has a mode
    operation: PP, VL, PV and PT (6061h 1-4). IP's halt belongs to 06c; homing stops by
-   clearing bit 4 (07); CSP, CSV, CST and the vendor modes refuse `HALT` with the
+   clearing bit 4 (07 item 4, `prepareHomeInterrupt`); CSP, CSV, CST and the vendor modes refuse `HALT` with the
    reason. Clearing bit 8 resumes motion toward the target in PP, VL, PV, PT and IP
    (N5 p68, p76, p77, p80, p89), so no stop, release or recovery clears it; the next
    motion start writes its own word. `QUICK_STOP` is transition 11, 605Ah: 000Bh, or
@@ -76,9 +76,9 @@ below are Nanotec's own.
    non-changing read of the 605Ah or 605Dh reaction it reports, this table, route and
    binding generation; a stop prepared or queued before the outcome
    changed is not withdrawn, while every other pending changing step is retired. When
-   the table itself refuses (an undecodable or failed read), the result says that no
-   CAN stop was admitted and names the application's independent stop path as the
-   remaining means. A halt or quick stop ends ACKNOWLEDGED
+   a stop is refused (`HALT` without a fresh mode, or a route that is unresolved and
+   has no opted-in S3 shape), the result says that no CAN stop was admitted and names
+   the application's independent stop path as the remaining means. A halt or quick stop ends ACKNOWLEDGED
    or with the observed state; standstill needs separate evidence. Leaving Quick stop
    active (5, 6) is an explicit enable-after-quick-stop with the bit 2 edge, never
    part of the stop.
@@ -160,8 +160,26 @@ transitions 2-16, state masks; the figure places torque at the motor only in Ope
 enabled, Quick stop active and Fault reaction active). A row is chosen by a fresh 6041h
 (with 6061h, 603Fh and, for an edge or the halt bit, 6040h), never by the last written word. The first
 listed word is the first TX; "nothing sent" reports the observed state as the result.
-An undecodable or failed read refuses every column (an unresolved route is the
-best-effort stop's case, item 8).
+The halt state is set or clear only from a fresh 6040h read taken after the last
+controlword this library may have sent (canopen_shared 02 "State transitions": halt
+evidence follows the words sent); otherwise it is unknown. Two stop branches do not
+refuse for missing evidence (canopen_shared 02 "State transitions"):
+
+- Unknown halt state with a fresh 6041h and 6061h (6040h aborted, malformed or
+  older than a word possibly sent): in Operation enabled `HALT` sends 010Fh in 6061h
+  1-4 (refused in other modes, as in the table) and `QUICK_STOP` sends 010Bh; the
+  other states' stop cells are unchanged. Setting bit 8 cannot start motion and has no
+  other meaning in any Nanotec mode (item 8's review: N5 p60, p347, p82, pp91-93,
+  p96). The result
+  records the halt state as unknown; a stop is never refused merely because of it.
+- An aborted, malformed or stale 6041h or 6061h on a usable (resolved) route:
+  `QUICK_STOP` sends 010Bh, the word item 8 reviews from every reachable state, and
+  records the drive state as unknown; `HALT` refuses (it needs the mode) and names
+  `QUICK_STOP`.
+
+In both, a failed 605Ah or 605Dh read records the reaction as unknown and refuses
+neither branch. Every non-stop column refuses without its fresh reads. An
+unresolved route is the best-effort stop's case (item 8).
 
 | Fresh state | Enable | Release (`DISABLE_OPERATION`, `SHUTDOWN`, `DISABLE_VOLTAGE`) | `HALT` | `QUICK_STOP` | Fault reset | Mode select |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -192,6 +210,16 @@ enabled with bit 8 set `QUICK_STOP` sends 010Bh, each release keeps bit 8, and `
 sends nothing with a "requested, not attained" result in 6061h 1-4 and is refused in
 every other mode; from Quick stop active `DISABLE_VOLTAGE` sends
 0000h or, with bit 8 set, 0100h), each asserting the result as well as the frame;
+the unknown-halt branch on a usable route with no S3 shape opted in, separately from
+the lost-transfer S3 case (6040h aborted or malformed: `QUICK_STOP` sends 010Bh and
+`HALT` 010Fh in 6061h 1-4, each result recording the halt state unknown, while
+release, mode select and enable after quick stop send nothing); an aborted or
+malformed 6041h on a usable route (`QUICK_STOP` sends 010Bh with the drive state
+unknown, `HALT` refused); a failed 605Ah read not refusing either branch;
+a Lichuan axis and a Nanotec axis on separate fake interfaces, each stopped by its own
+family's stop with Lichuan's frames and outcomes unchanged (the positive
+stop-independence case 02b leaves to this stage; the per-binding S3 opt-in tested
+separately);
 mode select into VL and PV from Operation enabled, halted or not, with a nonzero or
 unread destination target (zero TX) and with a zero one (6060h the only changing
 frame; PT's entry is tested in 06b),

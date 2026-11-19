@@ -99,8 +99,8 @@ contract, they apply in addition to it; they never relax one.
   (its bootstrap reads and its one bootstrap command, the targeted NMT Enter
   Pre-operational on a fresh Stopped report, included; 09 item 6 assigns that command
   to the owner's targeted NMT route), and its stop exemption, which here covers 04's
-  reviewed `HALT` and `QUICK_STOP` and, once opted in, the S3 shape, each with its own
-  checks (04 item 4). Release, fault reset, mode select, NanoJ stop, Plug & Drive off
+  reviewed `HALT` and `QUICK_STOP`, 07's homing interruption and, once opted in, the
+  S3 shape, each with its own checks (04 item 4, 07 item 4). Release, fault reset, mode select, NanoJ stop, Plug & Drive off
   and every NMT command are changing requests, never that stop. This set refuses
   nothing more on identity.
 - No firmware lock (lead decision 2026-11-19; the owner's product direction of

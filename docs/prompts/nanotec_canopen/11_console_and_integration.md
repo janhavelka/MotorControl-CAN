@@ -46,7 +46,11 @@ extending the seams.
    any Lichuan or other node identifier, both boot-up messages of a Nanotec node
    routed to that node, and SYNC and EMCY identifiers unchanged; the same check runs
    again at the admission of each COB-ID change, with the old and candidate IDs both
-   reserved until activation is evidenced (09 item 4). No different-node
+   reserved until activation is evidenced (09 item 4). Land this check first, in its
+   own tested commit: a reusable per-interface check with atomic reservation of the
+   old and candidate IDs. That commit unblocks 09 item 4's COB-ID change and runs 09's
+   COB-ID acceptance cases; the topology analysis and coexistence tests above stay
+   with the rest of this item. No different-node
    assumption replaces this check.
 5. Discovery. Bounded scans over caller-listed nodes only; the probe is the 02b upload
    of 1000h and the identity read of 03. A finding is profile-typed and never selects

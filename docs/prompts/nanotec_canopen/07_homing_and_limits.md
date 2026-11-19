@@ -39,7 +39,35 @@ polarity, methods and reactions below are Nanotec facts.
    during a later homing (N5 p83), so completion needs a post-trigger observation that
    left the pre-trigger pattern and then shows 011. A fast method that completes
    between samples ends ACKNOWLEDGED with unobserved completion, never COMPLETE.
-   Clearing bit 4 interrupts homing. Errors keep the motion state they report.
+   Clearing bit 4 interrupts homing ("performed until either the reference position
+   is reached or bit 4 is reset", N5 p82). Errors keep the motion state they report.
+   Every method except 35 moves the motor and is a host-ended run under
+   canopen_shared 02 "Operation admission" (timed runs, homing): the caller supplies
+   the latest interruption time in place of a duration and may supply a travel bound
+   checked against 6064h observations no older than a caller-supplied age;
+   preparation refuses unless the caller's stop budget fits between that time and the
+   operation deadline; every transfer after the trigger has `deadlineUs` at most the
+   interruption due time; at that time, or when a fresh observation crosses the
+   travel bound, the run issues no further work and the application composes the
+   interruption. `prepareHomeInterrupt` is that interruption: a separate
+   `NOT_REPEATABLE` operation with its own deadline, which the run's deadline, its
+   identity outcome (an explicitly requested stop under prompt 57's exemption, since
+   it is reviewed and cannot enable or start motion; it keeps its own route,
+   generation and source-state checks, as 04 item 4)
+   and a missing acknowledgement never bar. From a fresh 6041h in Operation enabled
+   with 6061h = 6 it sends one word, 000Fh, or 010Fh when the fresh 6040h has bit 8
+   set or the halt state is unknown (04's halt-evidence rule; bit 8 has no special
+   function in homing, N5 p82, so the word neither halts nor restarts); in any other
+   state it sends nothing and reports the state. 04's `QUICK_STOP` also ends homing
+   (bits 4-6 = 0, 04 item 8). The run's stop path is checked before the trigger: on
+   an unresolved route (a lost trigger reply, S10 `NONE`) the binding's opted-in S3
+   shape 010Bh, which ends a running homing (04 item 8), or an independent stop the
+   application declares, named in the result; on a resolved route with a stale,
+   missing or alarmed report, 04's `QUICK_STOP` branch without a fresh report. Without
+   one the method is refused before the trigger. `needsStop` and UNKNOWN execution
+   are set before the trigger's possible TX and stay after a lost trigger reply,
+   cancellation, failure or recovery; no result claims standstill without fresh
+   evidence. Method 35 (item 3) is not a run and needs none of this.
 5. Reference publication: 6062h and 6064h are zeroed by homing and 6063h is not
    (N5 p360); 3243h captures the home-switch position (N5 p321). `getHomeReference`
    publishes only after observed completion of the same trigger generation. Auto setup
@@ -80,7 +108,7 @@ polarity, methods and reactions below are Nanotec facts.
 First, in its own commit before 05's move: item 8's predicate and guard setting in
 `profiles/nanotec_canopen/Limits.h/.cpp` with `test/nanotec_canopen_limits_test.cpp`.
 Then `profiles/nanotec_canopen/Homing.h/.cpp` with the method table, `HomePrerequisites`,
-`HomeContext`, method-35 coordinate operation and limit reaction reads and the
+`HomeContext`, `prepareHomeInterrupt`, method-35 coordinate operation and limit reaction reads and the
 discard operation; `test/nanotec_canopen_homing_test.cpp`; console routes `nanotec home`
 and `nanotec limits` with parity tests; prompt 77 rows for this profile.
 
@@ -90,7 +118,16 @@ Tests cover every method's admission row, refused methods without declared switc
 or index, block methods refused in open loop and on a configured closed-loop axis
 without a fresh bit 15 = 1, speed ordering, a stale bit 12 from an
 earlier homing, interruption by clearing bit 4, both error patterns, stop during
-homing, method 35 never run implicitly, reference publication only after observed
+homing, the shared host-ended run cases (an interruption time that no longer fits
+with the stop budget refused at preparation; a lost trigger reply keeping `needsStop`
+and UNKNOWN with no replay and at most the one S3 frame or the declared stop named; a
+poll in flight near interruption due with its deadline capped there; service resuming
+after interruption due sending no further step; a queue-pressured interruption;
+refusal before the trigger without an unresolved-route stop path), the interruption
+word (000Fh, 010Fh with bit 8 set or unknown, nothing outside Operation enabled in
+mode 6, admitted under a refusing identity outcome), a travel bound crossed by a fresh
+6064h interrupting early and an older observation never used,
+method 35 admitted without an interruption time and never run implicitly, reference publication only after observed
 completion, and each 3701h value's reported reaction. Item 8's own commit: an enabled
 limit reading active, a stale, missing or undecodable 60FDh or 3240h:01 and a failed
 read each refused with the input named; a function left off reported, not enabled;

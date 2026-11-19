@@ -227,3 +227,80 @@ routes only, not grounds for a firmware lock or for delaying independent work.
   and 73 were not supplied.
 - No fixture record, wire capture or measured service or heartbeat-delivery budget
   existed; no build, test, CI job or hardware procedure was run.
+
+## Round 4: audit of the round-3 promptset, 19 November 2026
+
+A condensed, faithful copy of the fourth report; untrusted reviewer input like rounds 1
+to 3. The verified dispositions are in [audit_application.md](audit_application.md),
+"Round 4". Line numbers refer to the files at the audited revision, before round 4 was
+applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-195033-e8234b` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~219066 tokens)") |
+| Date | 2026-11-19 19:50:33 (from the ID), 224.7 s, one attempt |
+| Revision | `main` at `f864cbb9a1f6f24876bb13d4911db20bd90a5454`, uncommitted changes recorded in other sets; this set's files are byte-identical at `c138e959`, and the shared contract audited is the `328651b6` text (346 lines), before `c138e959` |
+| Cost | Estimated USD 0.46 (0.46014, configured pricing); 168,255 input and 12,363 output tokens (5,769 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-195033-e8234b.json` (local) |
+| Location checks | 41 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 21 files of this set after round 3 (`README.md` 150 lines,
+sha256 `2b0d1d2f...`; `execution_contract.md` 236, `0f488c64...`; `audit.md` and
+`audit_application.md`; stages 01 to 13). Context: canopen_shared `README.md` (81,
+`f0df1f65...`), `02_profile_integration_contract.md` (346, `71eb4cf3...`) and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md` and
+`review.md` (380, `7deb2d9b...`), prompt 57 (217, `b5a5c3cd...`), prompt 77 (207,
+`bbb697d7...`); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The S3 and S13 default denials land with registration, the
+exclusive-control and limit predicates precede their first consumers, and both S11
+checks are prerequisites of a nonzero heartbeat-consumer write. Two claimed resolutions
+do not hold in the stage files: ordinary stops can still refuse solely because the halt
+state is unknown, and homing does not specify the shared host-ended run contract.
+Evidence, ledger, packaging and read-only work can proceed; the affected motion, NMT,
+PDO and persistence routes need corrections before their acceptance tests can establish
+the required behavior. **Verdict:** blocking issues: the first stop and homing
+implementations would not meet binding shared safety requirements, and later stages
+expose changing operations without a complete prerequisite, admission rule or recovery
+boundary. These are route-specific blockers, not grounds for a firmware lock, for
+removing the settable guards or for delaying independent work.
+
+### Round 4 findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The ordinary stop table still refuses an unknown halt state.* 04 chooses the halt-bit row from 6040h and refuses every column after an undecodable or failed read, so a drive with a fresh, admissible state and mode can be denied a stop only because bit 8 is unknown; the shared contract requires a halt-setting stop word then unless bit 8 has another meaning. S3 does not close the gap (unresolved routes only, opt-in). The round-3 application says the stage already agrees. Add an unknown-halt branch: on a usable route with the other checks passing, send the reviewed halt-setting word and report the halt state unknown; keep refusal for independent failures; test unknown halt on a usable route with S3 disabled, apart from the lost-transfer S3 case. | 04:160-164; shared 02:150-153; audit_application:233-236 |
+| F2 | High, verified defect (safety), high | *Homing names an interruption mechanism but no bounded interruption path.* 07 says clearing bit 4 interrupts homing and tests an interruption, but specifies no caller latest interruption time, reserved stop budget, transfer deadlines capped at interruption due, or admissible fallback after a lost trigger reply leaves SDO unresolved; the shared contract requires these for homing. 04 excludes homing from ordinary HALT, so a generic HALT case proves nothing here. Specify the bounded lifecycle for moving methods (interruption time, budget, transfer cap, the reviewed bit-4-clear operation with its route and state checks), require an unresolved-route fallback before the trigger, keep stop-needed and uncertainty after a possibly sent trigger; test lost trigger reply, a poll in flight near due, late service, queue pressure; keep method 35 a non-motion coordinate operation. | 07:35-42, 91-94; 04:57-59; shared 02:135-138; audit_application:233-236 |
+| F3 | High, verified defect (sequencing), high | *Stage 09 requires an identifier-plan check assigned to its downstream integration stage.* A free PDO COB-ID write needs 11 item 4's binding check and 09's acceptance needs a collision refusal, but 11 runs after 02b-10 and places the check in mixed-bus integration, with no separately scheduled artifact and no blocked disposition meanwhile. Assign the reusable per-interface check and atomic old/candidate reservation to an independently tested block before 09 exposes COB-ID writes, or keep those writes and their positive acceptance blocked until it lands; keep the topology analysis and coexistence tests in 11. | 09:42-47, 164-165; 11:4, 44-49 |
+| F4 | High, verified defect (completeness), high | *Targeted NMT has no device-effect admission rule beyond the bootstrap case.* 09's source conditions cover node 0 only; for targeted commands only the prompt 57 identity gate and the bootstrap Enter Pre-operational are specified. Identity does not show the axis is torque-free: an identity-only targeted Stop could remove SDO stop access while torque is possible, and a targeted Reset Node would bypass the unresolved restart effect; the targeted Start test checks SYNC revocation, not drive-side admission. Define per-command targeted admission at the owner or keep unreviewed commands unavailable; state the evidence or restart workflow per command; test refusal on unsafe or unknown predecessors; keep prompt 57's bootstrap exception and NMT distinct from stops. | 09:95-98, 100-107, 168-176; prompt 57:109-111 |
+| F5 | High, verified defect (correctness), high | *The readiness rules can report READY without excluding the boot loader.* Saved values reload at boot, so a prior 2007h:01 = 1 read and no later write by this library do not show the value was persisted, in force at the next boot or untouched by another writer. 12A Q2 treats one unanswered identity request between boot-ups as evidence that the loader does not answer, though a single nonresponse cannot tell lack of support from timing or loss. An ambiguous boot event must also not promote a pending PDO identifier to active. Keep UNKNOWN reported and nonblocking; require evidence that suppression was effective at the relevant boot or a positive observation distinguishing the firmware session; keep a solitary unanswered request as fixture evidence only; test a RAM-only suppression value lost at reboot and a missed loader request; keep pending PDO routes unqualified until their activation boundary is evidenced independently. | 09:48-59, 129-137; 12a:33; AGENTS:73, 79 |
+| F6 | High, probable defect (timing), high | *A restart or network state change can bypass the save's exclusion window.* 10 excludes listed operations during a save and after a lost reply, but not the owner's NMT admission or the restart and restore routes; 09's broadcast Reset Communication needs only a fresh no-torque state, which a save also requires, so communications could restart during a save or while its completion is unresolved. Make the save reservation visible at the final admission point of targeted and broadcast NMT, restart, restore and other persistence operations; define how an externally observed reset ends or quarantines the unresolved save without success; test an in-progress save and a lost save reply against SDO restart and node-0 Reset Communication; keep reviewed drive stops exempt. | 10:59-64, 89-92, 112-115; 09:97 |
+| F7 | High, verified defect (completeness), high | *Finite velocity defines when to stop but not which write may start the run.* 06a gives VL and PV objects, conversions and stop timing but no first-write table or staging order for an enabled drive with halt clear versus set; a target download can be the start in one predecessor and clearing halt in another, so lost-start and stop-budget tests can test the wrong write. Per exposed start, specify source state, mode and halt evidence, settings confirmed before the start-capable write, and how the target is established before any halt release; mark stop-needed at the first start-capable write; test literal order and lost replies, halted and unhalted, a retained nonzero target and expiry during staging; keep unevidenced predecessors unsupported. | 06:14-17, 37-42; 04:59-61, 118 |
+| F8 | Medium, verified defect (test coverage), high | *Registration requires a positive Nanotec stop test before any Nanotec stop exists.* 02b acceptance runs the two fake axes with independent stops, but at that point Nanotec has only a probe, the ordinary stop is 04's and the S3 entry point refuses the binding. Assert isolated profiles, caches and results, unchanged Lichuan stops and zero-TX Nanotec stop refusal in 02b; move the positive two-family stop test to 04, keeping the S3 opt-in test separate. | 02b:43-48, 118-120; 04:54 |
+| F9 | Medium, verified defect (consistency), high | *Save preflight does not reconcile its required reads with known object absence.* 10 needs a pre-save snapshot of the application objects and uses 3203h to decide the 606Ch veto, but FIR-v1650 says not to request known-absent objects, several of them and 3203h included; a literal implementation either issues forbidden uploads or refuses a usable save for observations the row cannot supply. Define a scope-specific snapshot and velocity-source decision; represent evidenced absence explicitly and never upload it; handle unread required objects separately; test known absence, an abort of a present command object and a legacy row without a velocity-sensor witness. | 10:55-58, 95-100; 13:14, 29-34 |
+| F10 | Medium, verified defect (test coverage), high | *First-contact restoration promises more than its named APIs can restore.* 12A restores every changed object to its original value through production routes, but Q9's method 35 changes the coordinate reference (07 invalidates origin and reference generations) with no inverse, and Q6 and Q7 use stateful controlword operations, not controlword restoration. Give each changing question a restoration boundary before it runs; separate settings with an admitted restore route from state, position and references that replay cannot restore; for Q9 require an accepted new reference or a defined re-reference procedure, else NOT RUN; never restore a raw command word to match the snapshot. | 12a:13-15, 23-26, 40; 07:31-34 |
+
+### Round 4 unresolved questions
+
+1. What positive observation, scoped to model and firmware, distinguishes the
+   application firmware from the boot loader, and what separately establishes that a
+   pending PDO identifier is active on the wire? The two support different
+   conclusions; neither should follow from one silent request or an ambiguous boot-up,
+   and neither requires turning readiness UNKNOWN into a firmware lock.
+2. Which legacy object-absence claims have model-specific support outside the N5
+   FIR-v1650 manual, especially for C5-E and PD4-C? Known absence changes read plans and
+   can admit a control-path predicate without an observation; the stock C5-E and PD4-C
+   manuals are remote-only.
+
+### Round 4 coverage gaps (reviewer's)
+
+- The rendered manuals, EDS and OD XML contents, manifest and firmware package index
+  were not supplied; device claims were checked against the review and stage text only.
+- The repository index was truncated; owner, CANopenNode, application, build, package,
+  verifier and workflow sources, live PROGRESS records and Git history were not
+  supplied.
+- The parent Projects instructions, the shared audit application and prompts 51, 56,
+  64, 65 and 73 were not supplied.
+- No Nanotec fixture record, wire capture, service or heartbeat-delivery measurement,
+  build or CI result existed; no code, test or hardware was exercised.

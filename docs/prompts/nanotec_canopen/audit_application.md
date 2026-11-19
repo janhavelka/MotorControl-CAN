@@ -234,3 +234,87 @@ clean for it. Nothing was compiled; no hardware or port was used.
    sets bit 8 and is never refused for that reason alone; homing is a host-ended run with a caller-supplied
    latest interruption time. Stage 04's 010Bh rows and 07's homing already agree; the next round checks the
    wording.
+
+## Round 4: application of audit `aud-20261119-195033-e8234b`, 19 November 2026
+
+Each finding of the [round 4 audit](audit.md) was checked against this set's files
+(unchanged from the audited `f864cbb9` to `c138e959`), the
+[reference review](../../reference/nanotec_canopen/review.md), the page-marked extracts
+of N5 3.3.0 (multidrive pack), N5 2.0.3 (FIR-v1650) and the FIR-v2039 update
+instructions (this pack) where a device claim is involved, prompt 57, and the shared
+contract as revised in `328651b6` and `c138e959`
+([canopen_shared audit application](../canopen_shared/audit_application.md), "Round 4",
+themes 6-11). F1 falls under themes 6, 9 and 10, F2 under theme 7 and F6 in part
+under theme 11: the stages consume those rules by citation and add only Nanotec facts. Round 3
+lead decision 2 said that 04's 010Bh rows and 07's homing already agreed with the
+amended rules; F1 and F2 show they did not, and that claim is withdrawn. Only files in
+this directory changed; nothing was compiled and no port was opened. The owner's
+direction holds: the settable guards stay settable, readiness UNKNOWN stays a reported,
+nonblocking fact (round 3 lead decision 1), and no firmware row is refused by name.
+
+Dispositions: 10 accepted (F1-F10), none accepted in part, rejected or deferred.
+
+### Round 4 findings
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 Unknown halt refuses a stop | Accepted | 04 table paragraph at the audited revision ("an undecodable or failed read refuses every column"); canopen_shared 02 "State transitions" as of `c138e959` (unknown halt: a stop word sets bit 8, never refused for that reason; a stop word reviewed from every reachable state is admitted without a fresh report; halt evidence follows the words sent); 04 item 8's review of 010Bh (N5 p57, p58; bit 8 halts only in PP, VL, PV, PT, IP, N5 p60, p347, no special function in homing, CSP, CSV, CST, auto setup, N5 p82, pp91-93, p96) | 04 table paragraph: halt state only from a fresh 6040h read after the last possibly sent word; unknown-halt branch with fresh 6041h and 6061h (`HALT` 010Fh in 6061h 1-4, `QUICK_STOP` 010Bh, result records halt unknown); every-state branch on a usable route with an aborted, malformed or stale 6041h or 6061h (`QUICK_STOP` 010Bh, drive state unknown; `HALT` refused); a failed 605Ah or 605Dh read refuses neither; non-stop columns still refuse; item 4's refusal sentence narrowed to `HALT` without a mode and an unresolved route without S3; Acceptance tests both branches on a usable route with no S3 shape, apart from the S3 case. 06 item 3: 010Bh with unknown halt, and 04's every-state branch as the stop path on a resolved route with a stale, missing or alarmed report |
+| F2 Homing interruption unbounded | Accepted | 07 items 3-4 and Acceptance; N5 p82 (homing: only bit 4 special, "performed until either the reference position is reached or bit 4 is reset"), p347; 04 item 4 (homing excluded from `HALT`) and item 8 (bits 4-6 = 0 end a running homing); canopen_shared 02 "Operation admission" timed runs as of `c138e959` (homing clause, stop path on unresolved and on stale-report resolved routes) | 07 item 4: every moving method is a host-ended run (caller latest interruption time, optional travel bound from fresh 6064h, stop budget checked at preparation, transfers capped at interruption due); `prepareHomeInterrupt`, a separate `NOT_REPEATABLE` operation sending 000Fh, or 010Fh with bit 8 set or unknown, only from Operation enabled in mode 6; 04's `QUICK_STOP` also ends homing; stop path checked before the trigger (S3 shape or declared stop for an unresolved route, 04's every-state branch for a stale report), otherwise refused; `needsStop` and UNKNOWN from the trigger's possible TX; method 35 not a run. Deliver and Acceptance (the shared cases, the interruption word, travel bound). 04 item 4 names the operation; execution contract: the prompt 57 stop exemption covers 07's homing interruption. README row 07 |
+| F3 Identifier check scheduled late | Accepted (the second alternative) | 09 item 4 and Acceptance; 11 status ("runs after the implemented subsets of 02b-10") and item 4; COMMON usable-prerequisite rule | 09 item 4: the COB-ID change is BLOCKED (zero TX, reason named) until 11 item 4's check and atomic reservation have landed with their tests; valid-bit steps, remapping and readback stay available; Acceptance: BLOCKED refusal now, the COB-ID cases in the commit that lands the check. 11 item 4: the reusable per-interface check with atomic old and candidate reservation lands first in its own tested commit, unblocks 09 and runs 09's COB-ID cases; topology analysis and coexistence tests stay in 11. 10 Acceptance: the COB-ID-write case once unblocked. README rows 09 and 11 |
+| F4 Targeted NMT admission | Accepted | 09 item 6 table and text, Acceptance; prompt 57 (an NMT command to the binding is a changing request, never a stop; "Admission by outcome" with the bootstrap command); N5 p118 (Stopped: only NMT; PDO only in Operational), p119; NT-D32 | 09 item 6: a targeted command is admitted only under prompt 57 and the same table row evaluated on the addressed node from fresh reads (Stop and Reset Communication need a fresh state without torque, Start and Enter Pre-operational the map condition, Reset Node refused while NT-D32 is open, a command without a row refused); the bootstrap Enter Pre-operational stays the one exception, needing no map condition because leaving Stopped for Pre-operational activates no PDO (N5 p118); Acceptance: targeted refusals on torque, unread or stale states, Reset Node and an unadmitted command RPDO, each with zero NMT TX. README row 09 |
+| F5 Readiness and activation evidence | Accepted | 09 items 4 and 8, Acceptance; 12A Q2; N5 p110 (saved values reload at switch-on or reset), p132 and pp251-252 (2007h:01 savable in category CANopen, preset 0; with 1 only the firmware sends a boot-up), p127 and p129 (COB-ID change active after a restart); AGENTS.md lines 73 and 79; round 3 lead decision 1 | 09 item 8: READY needs 2007h:01 = 1 in force at that boot-up, shown by a read after the preceding boot-up with no 2007h write, CANopen save or 1011h restore by this library across both, under the single-master declaration; a RAM-only 1, or the guard off, is not that evidence; a single unanswered identity request is fixture evidence only; UNKNOWN still refuses nothing. Item 4: a readback after a boot-up activates a pending COB-ID only with READY for that boot-up, or for one TPDO route with a frame on the new identifier with the confirmed length; otherwise pending, both IDs reserved, nothing else refused. Acceptance: RAM-only suppression lost at reboot, guard off, a silent request, a pending change after an UNKNOWN boot-up, TPDO activation by frame. 12A Q2: fixture evidence only |
+| F6 Save exclusion and NMT | Accepted (verified, not only probable: 10 item 5 named no NMT, restart or restore route) | 10 items 5 and 8 (2800h:01 restart, 1011h restore); 09 item 6 Reset Communication row (fresh state without torque, which a save also needs); N5 pp114-115 (standstill, fieldbus may be disturbed, a few seconds); canopen_shared 02 S13 as of `c138e959` (NMT rechecked at hand-off; an in-flight save is a conflicting operation) | 10 item 5: the reservation also covers persistence and NMT operations; it refuses the restart, restore and other saves and is visible at the owner's NMT admission (targeted or node-0 commands including the node refused; one admitted earlier retired at hand-off); an externally observed boot-up during an in-flight or unresolved save ends it UNKNOWN, never success; stops stay admitted; Acceptance cases. 09 item 6: both NMT admissions rechecked at hand-off, the save reservation named. README row 10 |
+| F7 VL and PV start write | Accepted | 06 items 1, 3, 4; 04 item 4 and the host mode table rows 2 and 3; N5 pp76-77 (VL and PV: bit 8 = 1 stops the motor, a 1-to-0 transition accelerates to the target; the VL ramp generator follows the target), p60, p347 | 06a: start rows after item 4 (start only from Operation enabled with 6061h already 2 or 3; fresh 6041h, 6061h, 6040h and target; settings confirmed before the start-capable write; unhalted with a zero target: the target write starts; halted: target, matching readback, then 000Fh; unhalted nonzero target, unknown halt, unread target and other predecessors refused; `needsStop` from the target write's possible TX; stop due in staging, lost replies); Acceptance. README row 06 |
+| F8 Positive stop test at registration | Accepted (medium, cheap) | 02b item 2 and Acceptance; 04 items 4 and 8; canopen_shared 02 "Registration acceptance" | 02b Acceptance: isolated profiles, caches and results, Lichuan stops unchanged and a Nanotec stop request refused with zero TX; the positive case moves to 04. 04 Acceptance: a Lichuan and a Nanotec axis each stopped by its own family's stop, the S3 opt-in tested separately. README row 04 |
+| F9 Save preflight and absent objects | Accepted (medium, cheap) | 10 items 5-6; 13 FIR-v1650 row, applicability states and `FIR1650_FEEDBACK_SELECTION`; N5V2 extract (no 2290h, 3203h, 3701h or 6007h anywhere in the text) and its application-category list (N5V2 pp101-102: 6040h, 6042h, 6060h, 6071h, 607Ah, 60FEh, 60FFh, 2300h, 2800h, 3700h, none of 2290h, 3701h, 6007h); N5 p300 | 10 item 5: 3203h follows stage 13 applicability (not requested where absent, so the gate does not refuse the save and no 606Ch veto applies, the result saying so; unread where present refuses, naming it). Item 6: the snapshot is row-scoped (absent objects listed "not in this generation" and never requested; a failed read of a present one refuses; an unqualified row's category membership reported unverified). Acceptance cases |
+| F10 First-contact restoration | Accepted (medium, cheap) | 12A Work paragraph, Q6, Q7, Q9 and Acceptance; 07 item 3 (method 35 invalidates origin and reference generations); canopen_shared 02 "First-contact questions" | 12A Work: a restoration boundary per changing question; settings with an admitted write route restored to the snapshot through it and read back; drive state, mode, controlword, position and coordinate references not replayed (no-torque state only through 04's release); a change no route undoes runs only with prior acceptance in the fixture record, otherwise NOT RUN; never a raw controlword. Q9: an accepted new reference or a defined re-reference procedure, otherwise NOT RUN, and 07 item 4's interruption time and stop path. Acceptance |
+
+### Round 4 unresolved questions
+
+1. **Loader versus firmware, and COB-ID activation.** Answered in part. The only
+   documented observation that excludes the boot loader's boot-up is 2007h:01 = 1 in
+   force at that boot-up (N5 p252); N5 p132, pp246-249 (1F50h, 1F51h, 1F57h) and p344
+   (4042h) give no marker, and no page says whether the loader answers SDO. 09 item 8
+   now requires the persisted value (read after the preceding boot-up, no write, save
+   or restore across, single-master declaration in force), so a RAM-only value does
+   not count. COB-ID activation: N5 p127 and p129 put it at a restart, and no object
+   reports the active identifier apart from the configured one. 09 item 4 accepts a
+   readback in a session that 09 item 8 reports READY, or, for a TPDO, a frame on the
+   new identifier with the confirmed length; an RPDO has no drive-side marker, so its
+   change stays pending without READY. A model-specific positive marker remains a
+   fixture or vendor question.
+2. **Legacy absence on C5-E and PD4-C.** Answered in part by this pack. The FIR-v2039
+   update instructions cover the product groups C5, C5-E, N5, CL3-E, NP5 and PDx-C
+   from FIR-v1650 (FWUPD p1) and list 1006h, 1016h, 1019h, 1F80h, 2290h-2292h, 3203h
+   and 3701h among the objects new in FIR-v2039 (FWUPD pp11-12): group-scoped support
+   for those absences, including the 2290h absence on which 04b's Plug & Drive row
+   admits without an upload. The same list names 1029h, which N5V2 documents (NT-D31),
+   so it is not exact. 6007h is not in that list; its absence on C5-E and PD4-C rests
+   on N5V2 alone. The stock C5-E 2.0.1 and PD4-C 2.0.2 manuals are remote-only and stay
+   stage 13's missing evidence. No stage change: absence there drives only refusals,
+   read omissions and, after F9, a save snapshot that reports its membership
+   unverified.
+
+### Round 4 lead decisions (2026-11-19)
+
+1. **Homing interruption is a stop.** `prepareHomeInterrupt` counts as an explicitly
+   requested stop under prompt 57's exemption: it is reviewed and cannot enable or start
+   motion. It keeps its own route, generation and source-state checks. Changed: 07 item 4
+   states the reason; the execution contract's exemption bullet (already applied) stands.
+2. **COB-ID changes stay BLOCKED** until 11 item 4's identifier check lands as its own
+   first commit, which is equivalent to landing it before 09's writes. Confirmed as
+   applied; no further change.
+3. **Caller declaration for a pending COB-ID.** Following the owner's engineering
+   direction of 2026-11-17 (user responsibility, settable), the application may declare
+   the new identifier active after a power cycle or Reset Communication that it
+   records; the route then becomes active, and every result that uses it names the
+   declaration. READY or an observed TPDO frame still activates without a declaration,
+   and readiness UNKNOWN still refuses nothing. This replaces the pending-only outcome on
+   factory settings noted while applying F5. Changed: 09 item 4 and Acceptance.
+4. **VL and PV runs do not enable or select a mode.** The application composes 04's
+   operations first. Confirmed as applied; no further change.
+
+### Round 4 checks
+
+`python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
+clean for it. Nothing was compiled; no hardware or port was used.

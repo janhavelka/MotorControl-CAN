@@ -24,12 +24,15 @@ deadlines, watchdog and measured transport requirements.
    stop budget fits before the one operation deadline, every later transfer bounded
    by the stop due time, `needsStop`, phase `STOPPING`). At stop due the run issues no
    further work and the application composes its urgent stop: 04's `HALT` (010Fh
-   with 605Dh, 6061h 2-4) or `QUICK_STOP` (000Bh or 010Bh by the fresh bit 8,
-   605Ah), a separate `NOT_REPEATABLE` operation with its own deadline that the run's
+   with 605Dh, 6061h 2-4) or `QUICK_STOP` (000Bh or 010Bh by the fresh bit 8, 010Bh
+   with the halt state unknown, 605Ah), a separate `NOT_REPEATABLE` operation with its own deadline that the run's
    deadline, identity outcome and a missing acknowledgement never bar. Both rows exist
    for every state this run can reach (Operation enabled, halted or not, in 6061h
    2-4); a run whose mode or state has no such row is refused before its first
-   changing TX. Those rows need fresh SDO evidence, so they are not a stop path once
+   changing TX. On a resolved route whose report is stale, missing or alarmed at stop
+   due, 04's `QUICK_STOP` branch without a fresh report (010Bh, reviewed from every
+   reachable state) is the stop path (canopen_shared 02 "Operation admission"). These
+   are SDO transfers, so they are not a stop path once
    a lost start reply leaves the route unresolved (S10 `NONE`, the Nanotec policy
    until 02b's markers are reviewed). The run is therefore also admitted only with a
    stop that can still leave then, as canopen_shared 02 "Operation admission" (timed
@@ -46,6 +49,31 @@ deadlines, watchdog and measured transport requirements.
    6048h/6049h are delta speed over delta time; 6046h limits; 604Ah quick stop. A
    native typed operation only; mapping it to common velocity needs its own
    qualification of 604Ch and the gear relation.
+
+Start rows for items 1 and 4 (canopen_shared 02 "Operation admission", state
+transitions). In VL and PV the ramp generator follows the target in Operation
+enabled; bit 8 = 1 stops the motor and its 1-to-0 transition accelerates to the
+target (N5 pp76-77). A run starts only from Operation enabled with 6061h already 2
+(VL) or 3 (PV), reached through 04's mode select and enable with their zero-target
+rules; the run neither selects a mode nor enables. Before its first changing TX it
+reads 6041h, 6061h, 6040h (halt state by 04's halt-evidence rule) and the target
+(6042h or 60FFh). The settings (6083h, 6084h and 60A4h for PV; 6048h, 6049h and
+6046h for VL) are written before the start-capable write, each confirmed by its SDO
+reply, and none after it.
+
+| Fresh predecessor | Target read | Start-capable write and order |
+| --- | --- | --- |
+| Operation enabled, bit 8 = 0 | Zero | Settings, then the target write, which starts motion |
+| Operation enabled, bit 8 = 0 | Nonzero | None: refused with nothing sent (a run toward a retained target is in progress) |
+| Operation enabled, bit 8 = 1 | Any | Settings, the target write under the held halt, a fresh target readback equal to the request, then 000Fh (bit 8 cleared), which starts motion; a readback that differs or fails sends no 000Fh |
+| Halt state unknown, target unread, any other state or mode | Any | None: refused with nothing sent, naming 04's operations that reach an admitted row |
+
+`needsStop` and UNKNOWN execution are set before the first possible TX of the target
+write in both admitted rows (under a held halt that write is not documented to
+start motion, but the run treats it as start-capable) and stay while it or 000Fh may
+have left. A stop due reached during staging sends no further step; a lost settings
+reply ends the run before the target write; a lost target or 000Fh reply keeps
+`needsStop` and UNKNOWN, with no replay.
 
 ### 06b Profile Torque (closed loop only)
 
@@ -112,7 +140,11 @@ and `test/nanotec_canopen_torque_test.cpp`; console routes `nanotec velocity` an
 
 ## Acceptance
 
-Tests cover start and stop frames, direction and range at I32 and I16 limits,
+Tests cover start and stop frames, the 06a start rows in literal order for VL and PV
+(unhalted with a zero target, halted with a retained nonzero target replaced before
+000Fh, a nonzero target unhalted, unknown halt and an unread target each refused
+with zero TX; lost settings, target and 000Fh replies; stop due reached during
+staging), direction and range at I32 and I16 limits,
 ramps in acceleration units, lost start, lost poll and lost stop, the shared timed-run
 cases (a duration that no longer fits with the stop budget refused at preparation, a
 lost start reply, an observation in flight near stop due, service resuming after stop
