@@ -34,7 +34,9 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
 
 4. Calibration 80H rotates the motor and requires no load (MK109 p.41, p.115): an explicit `MOTION_LIKE` commissioning
    action, never automatic; replies 0 calibrating, 1 success, 2 fail; F1H 6 while calibrating; afterwards 40H's
-   calibration flag is read, not assumed. It invalidates position evidence.
+   calibration flag is read, not assumed. It invalidates position evidence. From possible TX it holds 04 step 4's
+   exclusive Calibration condition on the address, which a deadline, a lost terminal reply, a local cancel or a stop
+   never ends (no page says a stop interrupts calibration); only that row's terminal or F1H reconciliation does.
 5. **Never written:** FFH (C8 or CA), 9AH, 50H, 0FH. Read and report their state where 00H permits. FFH and 9AH make the
    drive move at every power-on (MK109 p.27, p.85); report them as startup hazards in capability output and the
    startup guide. A later disabling write needs an explicit owner decision and an amendment to this stage.
@@ -63,7 +65,9 @@ restart and factory restore belong to [10](10_bus_settings_and_restart.md).
    admission until its TX disposition, work depending on the affected evidence is refused on the address and queued
    dependent work is retired without TX. A disposition proving the write unsent (02b step 3) keeps the old evidence;
    sent or possibly sent invalidates it before any dependent work is handed off, whether the reply is success,
-   failure or missing, and only a later readback or a new caller declaration re-establishes it. A preparation built
+   failure or missing, and only a readback handed off after the write is settled, or a new caller declaration made
+   after that settlement, re-establishes it (04 step 4 discharge ordering, deciding reads): a reading taken while the
+   write may still transmit stays an observation, because the write could apply after it. A preparation built
    on the old evidence carries that evidence's generation and refuses at admission, so a stale native frame never
    transmits; step 8 admits no write while dependent motion is admitted on the address, and any other result
    completing across the write names the possibly changed setting. Effects: 84H invalidates pulse scales and speed
@@ -95,7 +99,10 @@ admission"), status 0 rejection, lost reply with execution unknown and no repeat
 possibly applied with no reply and proven unsent, each against the retained pulse-scale, speed-mapping, work-mode and
 completion evidence and a prepared or queued move: zero stale move TX after the acknowledged and the possibly applied
 write (its preparation refused at admission, queued work retired), the old evidence kept only after the proven
-unsent one; invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
+unsent one; a possibly sent 84H held below the owner queue, an old-value readback before its settlement, the late
+TX applying the change and then its final TX report: a newly prepared pulse move refused at admission because that
+readback requalified nothing, and the same ordering for 82H and 90H; a lost 80H terminal reply followed by a move, a
+release and an 82H change, each refused with no TX until 04's Calibration row ends; invalidation of dependent scales and completion qualification, saved versus unsaved 83H replies, and refused FFH, 9AH,
 50H, 0FH and 8FH; board-dependent writes refused when the observed board code differs from the declared one; 9FH on a
 42D refused with IN_1 required as home or limit, admitted for a separately recorded remapped configuration, and its
 lost acknowledgement invalidating input, limit and reference evidence. No automatic save or restoration. The full

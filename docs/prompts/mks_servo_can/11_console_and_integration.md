@@ -44,7 +44,8 @@ and any other family's console, discovery and owner code before extending the 02
 11. Startup example: the shared application performs only non-changing reads for an MKS axis at startup (40H, 3AH,
     F1H, readable settings), reports FFH and 9AH power-on motion hazards and the dialect declaration in `caps`, and
     never enables, homes, clears a stall or writes a setting. Its attachment record (02b step 6 power cycle or quiet
-    interval; 03 step 8 stream-off declaration) comes from the application's configuration; without it the startup
+    interval; 03 step 8 stream-off declaration; 04 step 4 lost-history reconciliation) comes from the application's
+    configuration; without it the startup
     reads report their `possiblyLate` or stream refusal instead of a value, and nothing writes a report stop. Help and
     caps list the never-written commands with the reason.
 

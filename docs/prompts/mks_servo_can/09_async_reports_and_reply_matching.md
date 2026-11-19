@@ -77,12 +77,21 @@ code (review section 14 rule 2).
    motion command answers 5 and waits for 4BH, sent once to ID 0 without reply (MK109 p.106-107). The library sends 4BH
    once per explicit request; the manual's repeat about every 1 ms is an application choice, and whether a second 4BH
    restarts or repeats a latched move is undocumented (MK-D12), so the operation records each 4BH as new intent. 4BH
-   goes to ID 0, so it needs step 6's exhaustive participant record and a latch state for every possible recipient,
-   kept from its 4AH setting and every motion command this host sent it since a recorded power cycle (02b step 6)
-   while 4AH was or may have been enabled, with each command's reply (5, other or missing). No page says that a local
-   cancel, a stop or 4AH 00 discards a held command (MK109 p.106-107), so only a recorded power cycle clears a latch
-   state:
-   - `NONE`: 4AH established off, or no motion command sent while it may have been on;
+   goes to ID 0, so it needs step 6's exhaustive participant record and, for every possible recipient, two separate
+   records. The **effective flag** is `ON`, `OFF` or `UNKNOWN`: `UNKNOWN` at first bind, rebind, restart, a recorded
+   power cycle (4AH persistence is unknown, review section 11) and after a 4AH write with possible TX until it is
+   read back; established only by an attributed 00H 4A read where 03 established it readable (review section 6: not
+   confirmed) or by the caller's declaration with its evidence reference. The **latch history** is kept from every
+   motion command this host sent it since a recorded power cycle (02b step 6, which counts only frames settled before
+   the cycle) while the flag was or may have been `ON`, with each command's reply (5, other or missing). No page says
+   that a local cancel, a stop or 4AH 00 discards a held command (MK109 p.106-107), so only a recorded power cycle
+   clears the latch history (inference: the pages say nothing about power-off; 12A Q8 and Q12 measure it), and it
+   never establishes the flag. A motion command meant only to stage is admitted with the flag established `ON`, the
+   caller's explicit declaration of it, or the caller's separate authorization that the command may execute at once
+   (then also under 05's or 06's gates); the status 5 that follows is evidence after TX, never preflight. Latch
+   history states:
+   - `NONE`: no motion command sent since the last recorded power cycle while the flag was or may have been `ON`.
+     Establishing the flag `OFF` never erases an earlier `LATCHED_STALE`, `POSSIBLY_ARMED` or `UNKNOWN`;
    - `LATCHED_LIVE`: a motion with a checked status 5 whose admitted operation is still pending (not cancelled,
      superseded, stopped or failed) and before its deadline;
    - `LATCHED_STALE`: such a latch after its operation ended locally without a 4BH; the drive may still hold the
@@ -99,21 +108,29 @@ code (review section 14 rule 2).
    recipient without a recorded power cycle (lead decision, round 3), answering this gate only; that drive's result
    then states that any latched move on it, an expired, cancelled or earlier one included, may execute, and its
    motion record gains a retained obligation (04 step 4).
+   **One operation over all recipients.** A 4BH is reserved as one operation over every possible recipient and is
+   submitted to the owner only while each recipient's participant generation, dialect, check mode, reviewed 4BH
+   form, both gates (or the per-drive acceptance), deadlines and any required baseline reply still hold. A stop,
+   cancel, rebind or lost prerequisite on any member before the 4BH's handoff makes the context request retirement of
+   the queued 4BH, one frame for every member, before that member's stop is handed off (the stop never waits, 04
+   step 4); unless the 4BH is then proved unable to transmit later, every recipient with a latch records possible
+   execution (`POSSIBLY_ARMED`, execution `UNKNOWN`, a retained obligation), as after a 4BH that may have been sent.
    After a possible 4BH TX each latched member's execution is `UNKNOWN` and its latch `POSSIBLY_ARMED`. A latched
    move has no status 1 (its staging reply is 5 and 4BH has none), so its outcomes stay separate and none imports 05
    step 7's status-1 predicate: `stagingAccepted` (the attributed status 5), `triggerPossiblySent` (the 4BH's TX
    disposition sent or possibly sent, never "executed") and, per native form:
    - F4H and F5H (encoder targets): `latchedCompleted`, its terminal evidence under 04 step 4, needs a pre-trigger
-     31H read handed off after the status 5 and before the 4BH handoff whose value lies outside the caller's
-     tolerance of the latched target (for F4H, that value plus the displacement), then 05 step 7's standstill window
+     31H read handed off after the status 5 whose attributed reply is captured (latest bound) before the 4BH's
+     handoff (earliest bound), the 4BH being submitted only after that reply, and whose value lies outside the
+     caller's tolerance of the latched target (for F4H, that value plus the displacement), then 05 step 7's standstill window
      with every read handed off after the 4BH's final TX report, all attributed with 31H's stream state `OFF`. The
      pre-trigger read is what shows that the axis reached the target after the trigger. A target already within
      tolerance, a 4BH that did not arrive or a window ending elsewhere leaves execution `UNKNOWN` and the obligation
      for 04's stop; it is never claimed on a drive admitted under the per-drive acceptance, where another held move
      may have run;
    - FDH and FEH (pulse forms; 33H is no endpoint proof until MK-D30 is resolved) and F6H (no position target): no
-     reviewed completion route; execution stays `UNKNOWN` and only 04's stop with its post-stop observation
-     discharges the obligation.
+     reviewed completion route; execution stays `UNKNOWN` and only 04's stop with its post-stop observation, under
+     04 step 4's discharge ordering, discharges the obligation.
    A later status 2 on the member's ID, attributed by 02b step 6 (`QUIET_INTERVAL` at best, the latched exchange
    having entered the shape), is a native observation that completes nothing and ends no phase alone. Members
    without a latched move are `UNKNOWN` until their own observation. Native names only; never the CANopen `sync`
@@ -154,6 +171,12 @@ live intent; a live F5H latch whose 4BH the fake drive drops (execution `UNKNOWN
 same latch with a pre-trigger 31H outside tolerance and a real post-trigger standstill window at the target
 (`latchedCompleted`, then a new motion admitted), a target already within tolerance (no `latchedCompleted`), and FDH,
 FEH and F6H latches with no completion route; an attributed status 2 alone completing nothing and no status 1
-invented; V1_0_0 broadcast refused; a restart leaving
+invented; a staging frame refused before TX after a 4AH enable whose reply was lost (flag not established `ON`),
+admitted with the caller's declaration; a `LATCHED_STALE` member followed by an acknowledged 4AH 00 and a 4BH without
+the per-drive acceptance, refused; a pre-cycle staging frame held below the owner queue and released after the
+recorded power cycle, the latch history keeping it; a two-member 4BH queued behind other work, then one member
+stopped before the 4BH's handoff (4BH retired for both, or, if not retirable, every latched member `POSSIBLY_ARMED`),
+and a delayed baseline 31H reply holding the 4BH back (no `latchedCompleted` from a baseline captured after the
+handoff); V1_0_0 broadcast refused; a restart leaving
 previously active streams unknown until stopped or declared off. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN. Commit and push.

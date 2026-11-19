@@ -53,10 +53,12 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    completion nor the stop's is claimed. It stays a recorded observation and discharges no obligation, also when
    02b step 6 attributes it `QUIET_INTERVAL`, because the interval accepts timing risk in attribution, not which
    operation produced the frame; only step 4's post-stop observation discharges. The move and the stop may each
-   report, so the code's shapes enter 02b's ambiguous set (02b step 6) and a later same-code motion never takes a
-   second 2 as its own. F7H status 1 is acceptance of the emergency stop, not observed standstill. No stop reply is
-   therefore `OBSERVED` completion; F1H 1 with 32H 0 on fresh reads (step 4's post-stop observation) is a separate
-   firmware-reported observation, still not a physical measurement.
+   report, so the code's shapes enter 02b's ambiguous set (02b step 6). A later same-code motion, admitted only after
+   this obligation is discharged, never takes a second 2 as `QUALIFIED`; once that motion's quiet interval has passed,
+   05 step 7 lets such a 2 end it only with `QUIET_INTERVAL` correlation (the risk the interval accepts), never as an
+   outcome of the stopped move or of the stop. F7H status 1 is acceptance of the emergency stop, not observed
+   standstill. No stop reply is therefore `OBSERVED` completion; F1H 1 with 32H 0 on fresh reads (step 4's post-stop
+   observation) is a separate firmware-reported observation, still not a physical measurement.
 4. Priority and the request slot: stops use S9's stop precedence (02b step 3) and never open a second slot beside the
    one outstanding request per address (execution contract). If that request's TX disposition is not sent, the owner
    retires it, proved unable to transmit later, and the stop takes the slot; a retired start never transmits after
@@ -66,9 +68,8 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    successful retirement of that frame (02b step 3). The context requests that retirement before the stop's handoff;
    the stop never waits for it. If neither proof precedes the stop's handoff, the start may still leave the
    controller after the stop: the result records the order as unproved and the start's stop obligation survives the
-   stop's own terminal, also across bus-off and recovery, until a stop handed off after such a proof (a final
-   report, a retirement or a recovery that closes `RETIRED`), as new intent and never automatically, is followed by
-   the post-stop observation below.
+   stop's own terminal, also across bus-off and recovery, until a stop meeting the discharge ordering below, as new
+   intent and never automatically, is followed by its post-stop observation.
    Prefer an F7H form where the dialect has one: its code differs from the start's, so a late start reply is never
    taken for the stop's. A same-code mode stop leaves both immediate outcomes ambiguous. Record which was chosen.
    During a pending completion phase the slot is free and the phase stays bound; once a stop is admitted the phase
@@ -78,14 +79,34 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    (enable, release, stall clear, 05-07 motion, 08 and 10 writes, 09 dispatch that reaches it) is admitted only when
    every holding condition admits it, and stops (step 2's dialect rows) always are. Reads stay available, but a
    stopped report taken before a late start proves nothing about it. "Attributed" means `QUALIFIED` or
-   `QUIET_INTERVAL` under 02b step 6.
+   `QUIET_INTERVAL` under 02b step 6. "Settled" and "discharge ordering" are defined below the table.
 
    | Condition | Holds while | Changing TX admitted besides stops | Ends by |
    | --- | --- | --- | --- |
+   | Lost history | From first attachment of the address, and from a host restart unless the application restores this record from its own storage: the drive may still run or hold work this host has no record of (02b step 6) | None | A stop under the discharge ordering with its post-stop observation, or the caller's explicit reconciliation record, a caller declaration under the owner's 2026-11-17 direction (an evidence reference such as a recorded power cycle with FFH and 9AH read off, or an operator record), named in later results as accepted risk (round 5 lead decision 1) |
+   | Calibration | An 80H (08 step 4) is admitted and has not ended here; its deadline, a local cancel, a lost reply, rebinding, bus-off and recovery do not end it. This row, not uncertain execution or a retained obligation, covers 80H | None. Stops stay admitted, but no page says a stop interrupts calibration, so a stop ends nothing here | A disposition proving the 80H unsent; its terminal status 1 or 2 (MK109 p.41) attributed after its handoff; or, once the 80H is settled, two sequential attributed F1H reads (stream state `OFF`) reporting neither 6 (calibrating) nor 0 (query failed), the firmware's documented calibration report (MK109 p.80); then 08 step 4's 40H read |
    | Live intent | One admitted motion operation (05, 06, 07 homing or zeroing, a 09 step 7 latched staging) is pending: not cancelled, superseded, stopped, failed or past its deadline, in the binding generation and identity session that admitted it | Only that operation's same-intent transitions below | Its type's terminal evidence below (nothing remains). Any other end (local cancel, deadline, failure, a status 3 limit stop, an admitted stop, restart, bus-off, rebinding) leaves a retained obligation, except that an attributed status 0 rejecting a start with no earlier trigger of the operation leaves nothing, and a latched staging with its attributed status 5 and no 4BH since leaves `LATCHED_STALE` instead (09 step 7) |
    | Open TX | A changing frame to the address (start, update, latched staging, mode stop, 4BH or multi-target frame) may still transmit: handed to the owner without a final TX report, a successful retirement or a recovery closing `RETIRED` (02b step 3) | None | That proof for every such frame |
-   | Uncertain execution | A trigger's acceptance (status 1, or 5 for a latched staging) is not attributed: its reply missing at the request's deadline, `possiblyLate` or of an undocumented status (02 step 7); or a 4BH may have reached a `LATCHED_LIVE` member (09 step 7) | None | No observation clears it. The operation's end makes it a retained obligation; only a latched move's own terminal evidence (09 step 7) ends it with the live intent |
-   | Retained obligation | Motion may continue, or a received command may still run, after its operation ended: step 7's `DEADLINE`, a start preempted or unanswered, a stop with unproved order (above), a 4BH possibly reaching a member whose latch was not `NONE` or `LATCHED_LIVE`, a multi-target motion frame (09 step 6), recovery | None | A stop handed off after every earlier changing frame to the address is proved unable to transmit, or a drive-side limit stop (an attributed status 3) captured once every such frame is proved, which needs no host stop frame (round 4 lead decision); then the post-stop observation: F1H 1 with 32H 0 on two reads handed off after the stop's handoff (or the status 3's capture), the second after the first's reply, both attributed with their codes' stream state `OFF` (03 step 8), with no changing frame to the address, restart, bus-off, rebinding or recorded power cycle between |
+   | Uncertain execution | A trigger's acceptance (status 1, or 5 for a latched staging) is not attributed: its reply missing at the request's deadline, `possiblyLate` or of an undocumented status (02 step 7); or a 4BH may have reached a `LATCHED_LIVE` member (09 step 7) | None | No observation clears it, a 3BH transition after a lost 91H start reply included (07 step 4). The operation's end makes it a retained obligation; only a latched move's own terminal evidence (09 step 7) ends it with the live intent |
+   | Retained obligation | Motion may continue, or a received command may still run, after its operation ended: step 7's `DEADLINE`, a start preempted or unanswered, a stop with unproved order (above), a 4BH possibly reaching a member whose latch was not `NONE` or `LATCHED_LIVE`, a multi-target motion frame (09 step 6), recovery | None | A stop, or a drive-side limit stop (an attributed status 3, no host stop frame needed, round 4 lead decision 2), that meets the discharge ordering below, then its post-stop observation |
+
+   **Discharge ordering**, defined here once; 02b, 05-10 consume it by reference.
+   - *Settled*: a changing frame is settled once proved unable to transmit later (a final TX report, a successful
+     retirement or a recovery closing `RETIRED`, 02b step 3). Until then it may still reach the drive after any
+     observation.
+   - *Stop*: it counts only when handed off after every earlier changing frame to the address is settled, and when its
+     own TX is then settled as one that could have reached the drive (a final TX report, or possibly sent and then
+     closed `RETIRED` by recovery). A stop proved unsent (retired before transmission) discharges nothing; the
+     obligation stays for a new stop. This asks for TX evidence, not a device acknowledgement.
+   - *Limit stop*: an attributed status 3 counts only when its capture (earliest bound) follows the settlement of every
+     earlier changing frame to the address. A 3 captured before that settlement discharges nothing, also when the
+     proof arrives later, because an earlier frame could have transmitted after the limit hit and started motion.
+   - *Post-stop observation*: F1H 1 with 32H 0 on two reads, the first handed off after the stop's settlement (or the
+     status 3's capture), the second after the first's reply, both attributed with their codes' stream state `OFF`
+     (03 step 8), with no changing frame to the address, restart, bus-off, rebinding or recorded power cycle between.
+   - *Deciding reads*: any read that decides about a changing frame (08 step 9's readback, 10 step 2's deciding reads,
+     02b step 6's recorded power cycle as a boundary) counts only when taken after that frame is settled; a reading
+     taken while it may still transmit stays an observation.
 
    Same-intent transitions are admitted only while the record holds that live intent and nothing else (no open TX,
    uncertain execution or retained obligation); otherwise they refuse before TX. An F5H update (05 step 8) on a live
@@ -97,8 +118,9 @@ prompts 55/74's per-protocol retry classes are consumed, not copied.
    (`LATCHED_STALE`, `UNKNOWN`, `POSSIBLY_ARMED`); it never admits a 4BH over a recipient with open TX, uncertain
    execution, a retained obligation or a live intent other than a latched staging.
 
-   Terminal evidence that discharges each admitted motion type, every frame attributed and no same-code stop handed
-   off since the latest trigger (a status 2 after one is step 3's observation): finite position, 05 step 7's
+   Terminal evidence that discharges each admitted motion type, the latest trigger's acceptance and the terminal frame
+   attributed and no same-code stop handed off since that trigger (a status 2 after one is step 3's observation; one
+   decision per form, never a bare status): finite position, 05 step 7's
    `completed`; a finite F6H run with drive run time, its status 2 after its attributed status 1 (06 step 7); homing
    and 91H 01 zeroing, 07 step 4's completion; a latched move, 09 step 7's form-specific rule. A host-bounded run, a
    native continuous F6H run and a form without such evidence are discharged only by a stop and the post-stop
@@ -145,14 +167,20 @@ the same scenario are 08's, through its real settings route) and during a pendin
 of the step 4 motion record refusing enable, release and stall clear with no TX while a stop stays admitted, and
 ending only by its own "Ends by" column (a lost start reply staying uncertain after fresh stopped reads; a retained
 obligation discharged by a stop after proof and the post-stop observation, not by the stop's reply, a single read or
-reads with a changing frame between); a run's status 2 attributed `QUIET_INTERVAL` after a same-code stop's handoff
+reads with a changing frame between); the discharge ordering: a stop held below the owner queue while both
+post-stop reads complete, then retired unsent (obligation retained, a following release refused with no TX), and an
+attributed status 3 captured before a held start frame's final TX report, the start then transmitting (no
+discharge); lost history: first attachment, and a host restart during a continuous F6H run, each refusing enable,
+release and a move with no TX until a stop with its post-stop observation or the caller's reconciliation record; a
+run's status 2 attributed `QUIET_INTERVAL` after a same-code stop's handoff
 with the stop's own reply withheld, recorded as an observation with the obligation retained and a following
 release refused with no TX until the post-stop observation; a stop admitted on missing, stale and contradicting
 identity (03 step 5), its result carrying that identity and claiming no standstill; same-code stop ambiguity and a
-second status 2 never taken by a later same-code motion; a status 3 or other undocumented status after an F6H stop,
-and any frame of the
-interrupted move after F7H, kept raw and never a definitive stop or completion; F7H plain versus 01 per dialect (both
-refused on V1_0_0, 01 refused on MK109A); cross-mode stop refused; stall clear with stale and
+second status 2 never `QUALIFIED` for a later same-code motion and never the stopped move's or the stop's outcome
+(after that motion's quiet interval it ends it with `QUIET_INTERVAL` correlation, as 05's acceptance tests); a
+status 3 or other undocumented status after an F6H stop, and any frame of the interrupted move after F7H, kept raw
+and never a definitive stop or completion; F7H plain versus 01 per dialect (both refused on V1_0_0, 01 refused on
+MK109A); cross-mode stop refused; stall clear with stale and
 fresh 3EH; restart invalidation; no repeat after any lost reply; local cancel not a stop. The full matrix of contract
 02 "Registration acceptance" for this major change and CI on the exact final pushed commit pass. Hardware NOT RUN.
 Commit and push before any motion stage relies on these stops.

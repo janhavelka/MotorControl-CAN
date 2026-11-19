@@ -71,6 +71,26 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    bootstrap observation that never stands as admission evidence for dependent work (03 step 5). Keep the
    raw bytes (MK-D05). Reads carry the read effect decided in 01; the probe never writes and, as a
    bootstrap read, consumes no identity (contract 02 "Identity and device evidence").
+   **Unknown declaration values** (02 step 1), each distinct from a missing field:
+   - group ID `UNKNOWN` or a candidate set: the probe, reads and single-address work on the slave ID follow their own
+     gates; multi-target dispatch and 4BH refuse (09 step 6); and any frame to another address on the interface needs
+     10 step 2's recipient isolation, because a group ID equal to that address makes this drive execute frames and
+     replies sent there (review section 14 rule 5);
+   - 8CH active byte `UNKNOWN`: completion is handled as active off, so no unsolicited status 2 completes (05 step 7)
+     and completion needs polling (09 step 5);
+   - 8CH respond byte `UNKNOWN`: the binding runs as 10 step 2's "policy unknown" (every command
+     `AcknowledgementSupport::NONE`, ordinary reads unavailable); the probe and 03's 40H identity read stay admitted as
+     bootstrap observations, and a reply or its absence decides neither byte.
+   First contact declares the menu's respond byte (CanRSP, MK109 p.26) and leaves the group ID and the active byte
+   `UNKNOWN` unless an established 00H read gives them (execution contract, 12A Q1).
+   **Physical participant list** (round 5 lead decision 4). The application declares per interface every powered MKS
+   drive, bound or not, with its slave ID and its group ID, `UNKNOWN` or a candidate set. The address-disjointness
+   check (unique slave IDs, every group ID disjoint from every slave ID, review section 14 rule 5) runs over that
+   list, not only over configured bindings, and refuses before admission. A participant whose `UNKNOWN` or candidate
+   group ID could equal a destination makes frames to that destination, reads included, need 10 step 2's recipient
+   isolation. An undeclared participant is the application's responsibility, stated as an obligation in the
+   declaration's Doxygen. 09 step 6's exhaustive participant record extends this list with dialect, check mode and
+   evidence, and 10 step 9's validator checks both.
 6. Matcher, owned by the MKS service context and fed by the S9 route:
    - key = interface and slave address; **one outstanding request per address**, because a 00H read reply carries the
      setting's code (MK109 p.37), a 01H report carries the read code (p.36) and run and stop share codes (MK-D36);
@@ -100,7 +120,10 @@ profile resolution, foreign-profile guards and host-only matcher logic still lan
    - retirement: no reply latency is documented and a host controller restart does not stop the drive sending, so
      neither a host generation nor a restart retires a shape. The one evidenced boundary is a drive power cycle the
      caller records with its evidence reference, which empties the address's set and ends its identity session (03);
-     shapes of power-on behaviors that may run afterwards (FFH's F6H, 9AH's homing) stay in the set. An application
+     shapes of power-on behaviors that may run afterwards (FFH's F6H, 9AH's homing) stay in the set. The boundary is
+     two-sided: it covers only frames to the address proved unable to transmit later (step 3) before the recorded
+     cycle, the settlement 04 step 4's discharge ordering names. A frame still possibly transmitting then can reach the restarted drive and answer later, so its
+     shape stays in the set and its latch and motion effects carry forward (09 step 7, 04 step 4). An application
      may declare a quiet interval as accepted residual timing risk: a same-shape frame captured once that interval
      has passed since the latest event that put the shape in the set is attributed with correlation
      `QUIET_INTERVAL` and the interval recorded, and the shape stays in the set. The interval is measured from the
@@ -147,7 +170,11 @@ broadcast or group ID ignored, timeout then late identical reply `possiblyLate`,
 same-shape request is pending published `possiblyLate` and not as that request's reply, a completed exchange followed
 by a same-shape request and the first delayed duplicate of the earlier reply (`possiblyLate` before the interval,
 `QUIET_INTERVAL` after it, never `QUALIFIED`), the interval judged by capture time for a frame held in a host buffer,
-every shape in the set at first attachment and emptied only by a recorded power cycle, a frame captured before the
+every shape in the set at first attachment and emptied only by a recorded power cycle, a pre-cycle read held below
+the owner queue and released by the fake controller after the recorded cycle staying `possiblyLate` (its shape kept),
+a declaration with an `UNKNOWN` group ID admitting the probe and refusing group dispatch and frames to another
+unisolated address, a declared participant whose group ID equals another participant's slave ID refused by the
+disjointness check with zero TX (also when that participant has no binding), a frame captured before the
 request's handoff never matched, the fake transport never delivering its own TX, restart
 notification invalidating evidence, and a CANopen node on the same interface refused in both directions. The S2 tests
 pass, with the S3 and S13 default-deny no-TX regressions when MKS lands S2 first; JSONL records follow S6 (console

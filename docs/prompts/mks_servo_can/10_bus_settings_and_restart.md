@@ -13,7 +13,8 @@ forbidden on any bench.
      "01~10", consistent only in hexadecimal (MK-D20). Older CAN specifications reserved identifiers whose seven most
      significant bits are all recessive (0x7F0-0x7FF); assign those only when the host controller's documentation or a
      measurement admits them;
-   - 8DH group ID 0x01..0x7FF (p.49), validated disjoint from every slave ID in the application's node table;
+   - 8DH group ID 0x01..0x7FF (p.49), validated disjoint from every slave ID in the application's physical
+     participant list (02b step 5), not only its configured bindings;
    - 8CH reply policy (two bytes, one on V1_0_0) and 4CH check mode (MK109 dialect only, p.48).
 2. Activation is undocumented: which identifier and bitrate carry the reply, and when the change applies (review
    section 14 rule 15). Each operation states old and new tuples, reserves both addresses, and accepts as acknowledged
@@ -22,7 +23,12 @@ forbidden on any bench.
    replay the write, and update the binding only after the caller accepts the confirmation.
    **Quarantine.** The fence starts when the write is admitted, before its handoff: from then the scope admits only
    the reads and records named below, and queued ordinary work on it is retired without TX. Scope: both tuples for
-   8BH, 8DH and 8CH; the whole interface for 8AH, 4CH and 3FH (step 7). A TX disposition proving the write unsent
+   8BH, 8DH and 8CH; the whole interface for 8AH, 4CH and 3FH (step 7). An interface-scope write is admitted only
+   when, checked atomically at its admission, no address on the interface holds any 04 step 4 motion-record condition
+   (live intent, calibration, open TX, uncertain execution, retained obligation, lost history) or a queued or
+   handed-off trigger; otherwise it refuses before TX, because the fence would strand that address's stop path.
+   Stops to every address stay admitted throughout any quarantine, not only after node lost (04 step 2), each result
+   naming the active fence. A TX disposition proving the write unsent
    and unable to transmit later (02b step 3) lifts the fence with everything as it was. Once the disposition is sent
    or possibly sent, acknowledged or not, the change may already apply: the old binding stays as the record without
    admission, and the scope's identity, read, enable, reference, stream, latch and completion qualifications are
@@ -31,9 +37,9 @@ forbidden on any bench.
    readable, and an explicit operator reconciliation record (menu reading or node lost, step 11) run in quarantine.
    It ends, and the reservations with it, only when the caller accepts one outcome that the evidence below supports,
    taken after these settlements:
-   - TX settlement: the write frame is proved unable to transmit later (a final TX report, a successful retirement
-     or a recovery closing `RETIRED`, 02b step 3). A deciding read or operator reading counts only when taken after
-     it, because a frame held below the owner queue could apply after the reading.
+   - TX settlement: the write frame is settled (04 step 4 discharge ordering, deciding reads). A deciding read or
+     operator reading counts only when taken after it, because a frame held below the owner queue could apply after
+     the reading.
    - Configuration settlement: when a change applies is undocumented (review section 12 and section 14 rule 15), so a
      value equal to the old one shows the current setting, not that a received change will not apply later. An
      outcome resting on the old value (old tuple unchanged, or the old candidate of an 8DH or 8CH deciding read)
@@ -48,23 +54,33 @@ forbidden on any bench.
    reservations: every candidate tuple stays reserved, so no binding, probe or ordinary frame uses it; the drive stays
    in the participant record with every candidate value, so multi-target dispatch and 4BH on the interface refuse
    (09 step 6); and after an 8AH write or 3FH the interface's other bindings stay fenced for changing and
-   multi-target traffic (inference: a drive at another bitrate disturbs every frame it sees), stops staying admitted
-   and reads to other addresses admitted with their replies reported unqualified, never admission evidence, because
-   the lost node may answer on a reused ID (round 4 lead decision); each until an operator reconciliation record
-   states the drive's configuration or its removal from the bus. A declaration change alone never ends quarantine, restores admission
-   or sets group membership; the new declaration must match the accepted outcome. Because when a change applies is
+   multi-target traffic (inference: a drive at another bitrate disturbs every frame it sees), stops staying admitted;
+   each until an operator reconciliation record states the drive's configuration or its removal from the bus. Reads
+   to other addresses stay admitted there with their replies reported unqualified, never admission evidence, because
+   the lost node may answer on a reused ID (round 4 lead decision 4), but only to an address with recipient
+   isolation: the operator record, the physical participant list (02b step 5) or the exhaustive participant record
+   (09 step 6) shows that no lost or uncommissioned participant can hold that address as its slave or group ID, or the ledger reviews the read's
+   request and reply as non-changing for every candidate recipient. Otherwise the read refuses before TX: a drive
+   whose group ID equals the address takes the reply as a command (review section 14 rule 5), and a 00H read reply
+   `[code, value]` or a 42H reply has the layout of that code's write (MK109 p.37, p.39). The same isolation applies
+   wherever a participant's group ID is `UNKNOWN` or a candidate set (02b step 5). A declaration change alone never
+   ends quarantine, restores admission or sets group membership; the new declaration must match the accepted
+   outcome, using 02 step 1's `UNKNOWN` or candidate-set values for an unknown outcome. Because when a change applies is
    undocumented, a responder on the old tuple does not show the old value unchanged. The CAN menu shows CanRate,
    CanID, CanRSP (respond only) and CanCRC, and no group ID or active byte (MK109 p.25-26).
 
    | Write | Qualifying evidence | Unknown outcome |
    | --- | --- | --- |
    | 8BH slave ID, 8AH bitrate | New: a read on the new tuple attributed `QUALIFIED` or `QUIET_INTERVAL` (02b step 6; a probe-grade or `possiblyLate` responder only shows that something answers), plus continuity with the intended drive: a 42H read equal to the user ID read from this drive before the write and unique in the participant record, or the operator's CanID or CanRate reading on this specimen. Old: a 00H read of the code on the old tuple, attributed the same way, returning the old value (where 03 established it readable), or the operator's CanID or CanRate reading | None: unresolved means quarantine or node lost |
-   | 8DH group ID | A 00H 8D read (where established readable) attributed `QUALIFIED` or `QUIET_INTERVAL` whose value is the old or the new ID; a response on the unchanged slave ID proves nothing about the group | "Group unknown": ordinary work on the slave ID resumes in a new binding generation, and the participant record holds both candidate group IDs, so group dispatch to either refuses until a deciding read |
-   | 8CH reply policy | A deciding 00H 8C read where readable and answered; the operator's CanRSP reading settles the respond byte only | "Policy unknown": the binding runs under the weakest candidate, every command `AcknowledgementSupport::NONE` and ordinary reads unavailable (09 step 5), until a deciding read |
+   | 8DH group ID | A 00H 8D read (where established readable) attributed `QUALIFIED` or `QUIET_INTERVAL` whose value is the old or the new ID; a response on the unchanged slave ID proves nothing about the group | "Group unknown": ordinary work on the slave ID resumes in a new binding generation declared with both candidate group IDs (02 step 1 candidate set, 02b step 5), and the participant record holds both, so group dispatch to either refuses until a deciding read |
+   | 8CH reply policy | A deciding 00H 8C read where readable and answered; the operator's CanRSP reading settles the respond byte only | "Policy unknown": the binding is declared with the unsettled bytes `UNKNOWN` (02 step 1) and runs under the weakest candidate, every command `AcknowledgementSupport::NONE` and ordinary reads unavailable (09 step 5, 02b step 5), until a deciding read |
    | 4CH check mode | The operator's CanCRC reading, or a reply on the unchanged slave ID attributed `QUALIFIED` or `QUIET_INTERVAL` whose check byte is valid under one mode only, once 12A Q5 has established the fixed mode's uplink check (MK-D08); a reply valid under both (its 8-bit sum is 0x6B) or a probe-grade responder decides nothing | None |
 3. A bitrate change affects the whole interface: the host controller is reconfigured by the application at an idle,
    settled boundary, and every drive on that interface must share the new bitrate. Refuse the operation while other
-   work on the interface is admitted.
+   work on the interface is admitted (step 2's interface-scope check). One 8AH changes one drive, and an idle host
+   queue does not change the other drives' bitrate: admit it only when the exhaustive participant record (09 step 6)
+   lists no other powered participant on the interface, or the application's recorded plan names how every other
+   participant changes (each by its own 8AH under this quarantine) and accepts the mixed-bitrate interval.
 4. Check mode: after 4CH the host builds with the new mode, but the uplink check in fixed-0x6B mode is undocumented
    (MK-D08), so switching to 0x6B is refused until 12A Q5 resolves it. MK109A's 0FH is never sent.
 5. Reply policy: setting respond 0 makes later commands unacknowledged and possibly reads unavailable (MK-D11), so the
@@ -90,12 +106,12 @@ forbidden on any bench.
    MK109 p.25-26), each reserved, so 3FH is refused while another participant's slave or group ID equals a candidate
    ID (two drives on one ID corrupt every exchange, step 9). The participant record holds the old and default values,
    with the group ID and the 8CH active byte unknown, so multi-target dispatch and 4BH on the interface refuse until
-   reconciliation. Quarantine ends only through step 2's settlements and table rows for each field the restore may
+   reconciliation, and frames to any other address need step 2's recipient isolation. Quarantine ends only through step 2's settlements and table rows for each field the restore may
    have changed (8BH and 8AH on one candidate tuple, 4CH, 8CH, 8DH or their unknown outcomes) or node lost; a reply on
    a candidate or unexpected tuple admits nothing by itself.
 8. 50H IAP (boot, silent, exit silent) and its RS485-framed broadcast examples (MK109 p.57-58, MK-D26) are never built.
-9. Address planning helpers are host-side only: validate a proposed node table (unique slave IDs, disjoint group IDs,
-   one bitrate and check mode per interface), reusing 09 step 6's participant validator for the exhaustive record it
+9. Address planning helpers are host-side only: validate a proposed node table against the physical participant
+   list (02b step 5; unique slave IDs, disjoint group IDs, one bitrate and check mode per interface), reusing 09 step 6's participant validator for the exhaustive record it
    requires before any broadcast or group dispatch. Two drives on one ID corrupt every exchange on it; the library
    cannot detect an unknown drive safely and performs no ID sweep, so exhaustiveness is the application's commissioning
    record.
@@ -128,7 +144,13 @@ old-value read before its settlement, then the late TX applying the change: quar
 multi-target TX; an old-value read after TX settlement but without a recorded power cycle or the operator's risk
 record not accepted as "old unchanged"; node lost after an 8AH write keeping both tuples reserved, the interface's
 other bindings refusing changing work and multi-target dispatch refused until the operator record, while a stop to
-another address stays admitted and a read there is admitted with its reply reported unqualified; 3FH entering interface quarantine
+another address stays admitted and a read there is admitted with its reply reported unqualified only with recipient
+isolation established; a restored drive whose group ID may equal another slave ID, and a 42H or 00H read to that
+slave refused before TX without isolation (no frame that the lost drive could take as a write); a timed run on
+address B with a 4CH or 3FH request on A just before B's stop due refused before TX, and with B idle the write
+admitted while a stop to B stays admitted during the fence; an 8AH refused with another powered participant and no
+recorded plan; a "group unknown" and a "policy unknown" outcome expressed by the new declaration's candidate set or
+`UNKNOWN` values; 3FH entering interface quarantine
 with the default candidate tuples, refused while another participant uses ID 01, and a restore answering on an
 unexpected tuple admitting no ordinary or multi-target TX; refused ID 0, duplicate IDs, overlapping
 group IDs, 0x6B switch and admitted-work conflicts; restart and restore invalidating all evidence; 41H power-on motion

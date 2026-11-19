@@ -13,8 +13,11 @@ owner, transport or hardware is involved.
    retention, and the `DialectDeclaration` value (dialect, check mode, uplink check, reply policy as 8CH respond and
    active bytes or V1_0_0's one byte, group ID, expected board code 2 or 4) with a pure validator: no default, no I/O,
    values outside the dialect refused. A field the dialect lacks is declared not applicable and a value for it is
-   refused: MK100 documents no 8DH group ID, and V1_0_0's 8CH has one byte (MK100 p.19). 02b binds it to a binding generation before the first probe. No catalogue
-   strings in the codec link; keep descriptive names in the optional catalogue.
+   refused: MK100 documents no 8DH group ID, and V1_0_0's 8CH has one byte (MK100 p.19). The group ID and each 8CH
+   byte also take an explicit `UNKNOWN`, and the group ID a candidate set (10 step 2's "group unknown"), each
+   distinct from a missing field (refused) and from not applicable; 02b step 5 states what each admits. 02b binds the
+   declaration to a binding generation before the first probe. No catalogue strings in the codec link; keep
+   descriptive names in the optional catalogue.
 2. Frame shape: standard 11-bit data frames only, `extended`, `rtr` and `fd` false, DLC 2..8 (code plus check byte at
    minimum), built through `can/Frame.h` and `validateFrame` (MK109 p.30). Any other frame is refused before parsing.
    Broadcast ID 0 and group IDs are transmit destinations only; no reply is expected on them after V1.0.2 (MK109 p.1,
@@ -78,7 +81,8 @@ owner, transport or hardware is involved.
 ## Acceptance
 
 Every vector passes for its `use` (byte-exact build only for `build_parse`), `not_built` forms refuse without output
-change, malformed fixtures are rejected, the declaration validator refuses missing and out-of-dialect values, every
+change, malformed fixtures are rejected, the declaration validator refuses missing and out-of-dialect values and keeps `UNKNOWN`, a group candidate set,
+a missing field and not applicable distinct, every
 field boundary (minimum, maximum, one beyond, reserved
 bits, sign extension) is tested, wrong-dialect builders refuse without output change, and parsing is atomic with raw
 bytes retained on failure. No owner, admission or device claim exists yet. Quick and full verification, the family

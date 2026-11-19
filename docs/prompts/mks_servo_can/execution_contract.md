@@ -93,7 +93,7 @@ independent.
   A stop takes that slot only after the outstanding request is retired or ended ([04](04_enable_stop_and_uncertainty.md)
   step 4). A frame whose shape an earlier exchange may still produce is never a fresh acknowledgement or completion
   ([02b](02b_protocol_domain_and_owner.md) step 6). Group IDs stay disjoint from every slave ID (review section 14
-  rule 5).
+  rule 5), checked over the application's physical participant list (02b step 5).
 - No implicit enable, motion, homing, stall release, zero set, mode change, current change, ID/bitrate/check/reply
   change, synchronization flag, host-silence protection, restart or restore on startup, selection, probe, recovery or
   cached reads. Local cancel is not a stop. Controller TX, CAN ACK (every powered drive ACKs, MKSCH42/MKSCH57) and an
@@ -137,7 +137,8 @@ establish board and revision, motor, wiring and termination (42D jumper R13, 57D
 authorization (12A step 1); first power assumes FFH or 9AH may move the shaft (12A step 2). Before any CAN step
 establish from the menu the firmware (About), bitrate, slave ID, check mode, respond byte, work mode and 0_Mode (MK109
 p.21-29); the group ID, the 8CH active byte and FFH's state, which have no menu item, by an established 00H read or as
-recorded unknowns; a dedicated CAN interface with no CANopen node; and restart control. Host tests and fake drives
+recorded unknowns (the group ID and active byte as the declaration's explicit `UNKNOWN`, 02 step 1, with what each
+admits in 02b step 5); a dedicated CAN interface with no CANopen node; and restart control. Host tests and fake drives
 establish no hardware support.
 
 ## Handoff and progress

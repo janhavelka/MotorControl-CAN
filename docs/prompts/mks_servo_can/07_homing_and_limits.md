@@ -35,11 +35,16 @@ p.65-77), not only the extracts.
    MK109 p.70) and 91H 01 coordinate zeroing (move to the stored zero; motor enabled first, p.66, p.74; V1.0.9 tables
    only). Replies 0 fail, 1 start, 2 complete; 3BH status1 (single-turn) and status2 (other homing) with 0 running,
    1 success, 2 fail, one byte before 1.0.7 (p.35; MK106 p.19); F1H 5 while homing (p.80).
-4. Completion: a new status 2 for this pending phase that 02b step 6 attributes (`QUALIFIED`, or `QUIET_INTERVAL`
-   reported as that risk), or a fresh 3BH transition to success observed after the trigger.
+4. Completion needs the 91H start's status 1 attributed by 02b step 6 (MK109 p.70), then a new status 2 for this
+   pending phase that 02b step 6 attributes (`QUALIFIED`, or `QUIET_INTERVAL` reported as that risk), or a fresh 3BH
+   transition to success observed after that status 1. A 3BH transition does not resolve a lost or unattributed
+   start reply (lead default, round 5): homing can also start from the menu GoHome (p.14, p.28) or at power-on
+   (p.27), and no page ties a 3BH value to one 91H (inference), so it stays an observation and 04 step 4's uncertain
+   execution holds.
    A pre-existing 3BH success, F1H 1 or an elapsed deadline is never completion. This completion is the homing's
    terminal evidence under 04 step 4 and leaves the address free for new admission; a failed, stopped or expired
-   homing leaves a retained obligation for 04's stop and post-stop observation. Only after qualified completion does
+   homing, or one with an unattributed start, leaves a retained obligation for 04's stop and post-stop observation
+   under 04 step 4's discharge ordering. Only after qualified completion does
    `getHomeReference` publish a host origin generation, with a fresh 31H read recorded; the manual says the marked
    position becomes coordinate zero, but no source establishes the residual reading, so do not require exact zero.
 5. Zero set: 92H sets the current position to zero without motion (MK109 p.69) as the native `SET_DEVICE_POSITION`
@@ -55,7 +60,8 @@ p.65-77), not only the extracts.
    commissioning record (evidence reference) that a homing (91H or the menu GoHome, p.14) followed the last change
    with none since. Anything else refuses ordinary motion before TX: no established value, first attachment,
    rebinding, a declaration change, restart or bus-off, 3FH, and `limitHomingRequired`, which a possibly applied 90H,
-   94H, 9EH or 9FH write sets, also with its reply lost (08 step 9). Stops and step 3's homing, the requalifying
+   94H, 9EH or 9FH write sets, also with its reply lost (08 step 9); a read or declaration requalifies only once that
+   write is settled (08 step 9, 04 step 4 discharge ordering). Stops and step 3's homing, the requalifying
    route, stay admitted under their own gates. "Left" is defined only by
    examples (left with dir bit 1, p.77), so mapping to common limit directions needs `directionQualified`. Status 3 is a
    terminal limit stop; limit hits outside a move send no frame. MK106 says homing onto the left switch with EndLimit
@@ -66,8 +72,17 @@ p.65-77), not only the extracts.
    08's 9FH can turn IN_1 into an output; method 0 and the left limit on IN_1 are admitted only while the ledger and
    the application's record establish IN_1 as an input (08 step 9).
 8. Stop during homing: only the F7H forms are documented; a mode stop code is refused. `V1_0_0` has 91H but no F7H
-   (04 step 2), so homing there has no documented stop and is not offered. A stopped or failed homing invalidates the
-   host reference.
+   (04 step 2), so homing there has no documented stop and is not offered. Homing and 91H 01 zeroing are host-ended
+   runs under contract 02 "Operation admission", timed runs (its homing sentence), cited, not restated: the caller's
+   latest interruption time takes the duration's place, an optional travel bound uses attributed 31H reads no older
+   than a caller-supplied age, and the same stop budget, transfer cap and stop path apply; at stop due without step
+   4's completion the application composes its separate urgent F7H stop, and `needsStop` is 04 step 4's retained
+   obligation. The stop path is the dialect's F7H form, admitted without a fresh state report (04 step 1). On
+   `V1_0_9_NOV2025` plain F7H "may fail to stop the unit if the current is too low" (MK109 p.81, fixed only in the
+   Sep-2026 build, p.2), and mechanical homing runs at Hm_ma, "just enough to drive the load" (p.68, p.72): that
+   combination needs an independent stop the application declares for the run (its own enable, STO or power path,
+   named in the result), otherwise it is refused before its first changing TX. A stopped or failed homing
+   invalidates the host reference.
 9. Power-on homing (9AH mode 1 or 2) and the stored zero are read and reported where 00H permits, as a startup motion
    hazard and as a reason restart (10) can move the shaft.
 
@@ -84,8 +99,14 @@ single-turn homing without external configuration; completion only from new evid
 reference publication and invalidation; zero set with and without stationary admission; `limitHomingRequired` after a
 limit change; limit admission at first attachment, after a lost 90H or 9EH reply and after a possibly applied 9FH
 change, each with zero ordinary motion TX until a read or declaration and a homing or commissioning record requalify
-it; stop during homing with F7H only and homing refused on V1_0_0; a 91H status 2 of an ambiguous shape not
-completing a new homing; a qualified homing completion followed by a new motion admitted, and an expired homing
-followed by motion refused until 04's stop and post-stop observation; status 3 handling. The full matrix of contract 02 "Registration
+it, also an old-value read taken while the write was held below the owner queue requalifying nothing; stop during
+homing with F7H only and homing refused on V1_0_0; a 91H status 2 of an ambiguous shape not completing a new
+homing; a lost 91H start reply followed by a fresh 3BH running-then-success transition leaving execution uncertain
+and the obligation for 04's stop; a qualified homing completion followed by a new motion admitted, and an expired
+homing followed by motion refused until 04's stop and post-stop observation; the timed-run cases of contract 02
+"Operation admission" for homing (an interruption time that no longer fits with the stop budget, a missing switch
+reaching stop due, a poll in flight at stop due, service resuming late), each asserting the composed F7H stop
+intent and not only the expired home result; Nov-2025 mechanical homing refused before TX without the declared
+independent stop and admitted with it; status 3 handling. The full matrix of contract 02 "Registration
 acceptance" for this major change and CI on the exact final pushed commit pass. Physical homing needs the actual
 switch or mechanical fixture: hardware NOT RUN. Commit and push.
