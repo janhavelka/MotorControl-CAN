@@ -222,3 +222,98 @@ The three questions above were decided by the lead and applied:
 
 Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this directory.
 Nothing was compiled; no hardware or port was used.
+
+## Round 4
+
+Audit [`aud-20261119-193918-83d072`](audit.md#round-4) was checked finding by finding against this set's files
+(byte-identical to the audited ones at `a6b58cf1`), prompt 57 and canopen_shared 02 "Operation admission" as
+revised in `328651b6`, the shared [round 4 themes 6-8](../canopen_shared/audit_application.md#round-4-cross-cutting-findings-of-the-round-2-applications-and-round-3-audits-19-november-2026),
+the pack [review](../../reference/moons_canopen/review.md) (halt, interlock and enable-input entries), the
+page-marked UM21 extract and the rendered UM21 pages p17, p18 and p22 (this round) and p16, p21, p32, p34, p35,
+p37 and p56 (round 3). Extract pages used besides: p13, p19, p23, p31, p33, p63, p67, p84 and p86. Only this
+directory's files changed; no pack, shared, main-sequence or source file was edited. MotorControl-RS was not
+consulted: no finding concerns a common motion name.
+
+Dispositions: 7 accepted, 1 accepted in part (F3), none rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 | Accepted | Old 04 item 1 (Operation enabled row: nothing sent, the record carried), item 3 (mode change "when the record shows halt set", undefined for two candidates); 06 items 2 and 9 and 10 item 3 (enable with halt set, then setup writes); UM21 p32, p34, p35 (enable with 0x010F, start by clearing halt) | 04 item 8 defines the **known-halted** predecessor: a fresh Operation enabled read and a known record with bit 8 set in every candidate; an enable result, a mode change or a stop result is not that evidence. 04 item 1's already-enabled row says so; item 3 admits a change into 3, 4 or -1 only from it. 06 item 2 (and item 9 for mode 4): halt admission from fresh 0x6041 and 0x6061 before the first changing TX; a drive not enabled is enabled with 0x010F, an already enabled one must already be known halted; otherwise the run is refused before TX, naming stage 04's halt, and no setup write leaves until the record is known halted. 10 item 3 applies the same rule before the mode -1 write, the 0x2007 write and the start, also with the drive already in mode -1. Tests in 04, 06 (same-mode request with the three records) and 10 (mode -1 select and already in -1) |
+| F2 | Accepted | Old 04 item 9 halt row (admitted on a known record; 0x011F after any position, homing or Q trigger, also after a lost reply); rendered UM21 p17 (bit 4 "Toggle this bit from 0->1 to clock in a new set point"), p22 (bit 4 "Start or continue homing procedure", bit 8 = 1 "Stop axis"), p16 (Enable operation 0 1 1 1 1 makes transitions 4 and 3+4; transitions 5 and 8 also by "local signal"; Quick stop 0 x x 0 x has no enabling transition); p19 (0x001F then 0x000F clears a set-point), p23 and p35 (0x011F halts after 0x001F), p32 and p34 (0x010F stop), p31 and p33 (no bit 4 function in modes 3 and 4); review (interlock to Switch on disabled, UM21 p63) | 04 item 8, "Halt word": bits 0-3 and 8 set; bit 4 never raised. The recorded word with bit 8 set only when the record is known, every candidate has bit 4 set and the candidates agree in bits 4-6 and 9 (0x011F after an acknowledged 0x001F); otherwise 0x010F, also with the record unknown. A falling bit 4 makes no edge in modes 1, 3, 4 and 6 by the pages above; in mode -1 its effect is not stated, so a Q halt sent as 0x010F records it for 14a Q11. 04 item 9, "Halt source state": the halt first reads 0x6041 and 0x6061 through the urgent path and is sent only from Operation enabled in mode 1, 3, 4, 6 or -1; any other state or mode, or no reply, refuses before TX, because the halt word is the Enable operation command from Ready to switch on and Switched on, which local signals can reach. The refusal names the quick stop and the application-owned fallback; the remaining window between read and TX is recorded in the result. The identity exemption is unchanged. 06 item 4, 07 item 6 and 14a Q10 cite the word. 04 acceptance: acknowledged and lost trigger replies (both outcomes, 0x010F), an unknown record, and no TX after a state change without a host word or without a read reply |
+| F3 | Accepted in part | Old 08 item 4 (quiescence guard settable; the 0x260D and 0x2612 current rule has no off setting but acts only on the next enable and motion); UM21 p84 (0x260D "used to set the motor") and p86 (0x2612) state no point at which the drive applies the change; p67 (0x200B bits 0 and 14); the owner's 2026-11-17 direction for optional, settable guards (round 2 decision 4, round 3 decision 2) | 08 item 4 adds the **motor-data de-energized guard** for 0x260D and 0x2612 writes only: a fresh 0x6041 in Switch on disabled or Ready to switch on and 0x200B bits 0 and 14 clear, read within the operation. It is separate from the quiescence guard (switching that one off leaves this one on), on by default and settable per binding; with it off the write is sent and the result names the guard and states that the current may have changed on an energized drive. The caller limits, the `UNKNOWN` current and the enable and motion refusal stay. Not made non-bypassable, as the reviewer recommended, per the owner's direction and the lead's instruction for this round. 08a row and acceptance (enabled idle and running drives with the general guard off, both guards off, partial and uncertain writes) |
+| F4 | Accepted | Old 09 item 9 revocation bullet ("only fresh reads, with the NMT state the node then reports, requalify it"); shared 02 S13 (refuses unknown or stale effects); UM21 p13 (heartbeat states 0, 4, 5, 0x7F; NMT commands have no reply) | 09 item 9, new "Settling" bullet: requalification waits until every NMT command this owner admitted to the node or to node 0 is settled; while one is queued, in flight or sent without a later state report the approval stays revoked and reads taken meanwhile do not count. Settled by withdrawal before TX, a heartbeat after TX reporting the commanded state, boot-up after a reset, or a later admitted command settling; a heartbeat with the old state leaves it unsettled; with 0x1017 = 0 the node stays revoked until boot-up. 09 acceptance: reapproval with fresh Pre-operational reads refused while a targeted Start is queued and after its TX before an Operational heartbeat; the broadcast Start now asserts zero NMT TX (the old text grouped it with the targeted case) |
+| F5 | Accepted | Old 04 item 8 halt-release row ("completion follows stage 05 item 8 against the retained target"); 05 item 8 (completion anchored at a trigger); rendered UM21 p18 (bit 10 with halt = 1 means "Velocity of axis is 0"); p21 (the set-point continues after release); p16 transition 4 | 04 item 8: the halt release reports its acknowledgement and any continuation a later read shows, and claims no move completion. 05 item 10 owns resumed-target completion: the move retains its target and record from the trigger until observed completion, a new move, an unknown record, leaving Operation enabled or stage 07 item 12's retirement; after an acknowledged release, completion needs bit 10 low after the release, then high with halt clear and bit 12 low; a high bit 10 without that fall gives `NOT_OBSERVED`. Tests in 04 and 05 |
+| F6 | Accepted | Old 09 item 1 (the `nmt` route and the bootstrap Enter Pre-operational for MOONS' bindings generally); 03 item 2 (an AMP10 declaration refused for everything but the probe until stage 13); 13 items 1, 3 and 8 (Part A read-only); prompt 57 ("a family may refuse more with recorded evidence") | 09 item 1: the `nmt` route is for UM21 bindings only; every targeted NMT command to a TSM/TXM-C binding, the bootstrap Enter Pre-operational included, is refused before TX until stage 13 Part B admits it. 13 item 8 lists that route as Part B work. 09 acceptance: the bootstrap 0x80 to a Stopped TSM/TXM-C declaration with no current outcome gives zero TX |
+| F7 | Accepted | Old 07 items 9, 10 and 12 (stationary admission named but undefined; 0x200C with retirement only); UM21 p67 (0x200B bits 4 Moving, 6 Stopping, 10 Homing, 14 Q running; 0x200C zeroes position parameters), p16 (transition 4 clears set-points; transitions 11, 13, 14), p21 (a released halt resumes the set-point) | 07 item 10: a stationary predecessor table from fresh 0x6041, 0x6061 and 0x200B reads: admitted from Switch on disabled, Ready to switch on or Switched on with the four 0x200B bits clear, or from Operation enabled with them clear and no set-point possibly pending; refused with a possibly pending set-point or an unknown record, with any of the bits set or an operation of the binding in flight or `UNKNOWN`, and in Quick stop active, fault states or without a reply. Retirement still precedes the TX; a replacement reference also needs a later 0x200B read with the bits clear (item 12). Item 9 uses the same table for 35 and 37. 07 acceptance |
+| F8 | Accepted | Old execution contract "Hardware" (firmware strings and 0x2020 before any later bench step); old 14a entry ("its recorded identity"), "Before first power" list and Q1-Q3; 03 items 1, 2, 5 and 8 (0x2020 is a manufacturer-area, layout-typed read) | Execution contract "Hardware": the pre-power facts (board, transceiver, label and part number, motor, wiring, switch positions, RS-232 tool, authorization) are separate from the firmware strings and the 0x2020 part, which 14a Q1-Q3's read-only sequence establishes; those steps alone precede them. 14a entry: run with the recorded pre-power identity; Q1's passive observation and stage 03's probe, Q2's bootstrap identity reads, then Q3's reads under the layout admission are the only steps before the CAN identity is recorded. Q3 now reads 0x2020 against the switch and the active node ID |
+
+### Shared change after the audit (`328651b6`)
+
+- **Theme 6, unknown halt state.** Applied to stage 04: with the record unknown a stop word sets bit 8 and the
+  result records the unknown halt state; no stop row refuses for that reason alone, since no UM21 page gives bit 8
+  another meaning (p37, p56). The halt row is no longer refused for an unknown record (it sends 0x010F after its
+  fresh source-state read, F2). The quick stop (0x010B), release (0x0106) and disable voltage (0x0100) already set
+  bit 8 with halt possibly set; the disable voltage stays refused under a refusing outcome only because it is not
+  exempt from identity, which the theme does not change.
+- **Theme 8, undecided reference.** Stage 03 item 2 called the TSM/TXM-C abort for a UM21 declaration
+  CONTRADICTED. With the declared row's 0x2050 field aborted that reference is undecided, so the outcome is
+  UNCONFIRMED without the declared match (it refuses the same changing work; the bootstrap Enter Pre-operational
+  differs). The example was corrected; stage 13's CONTRADICTED case (a complete 0x2050 value for a TSM/TXM-C
+  declaration) is a decided non-match and stands.
+- **Theme 7, homing as a host-ended run.** Not applied: stage 07 item 6 still states its own caller stop and travel
+  plan rather than citing the shared latest interruption time, stop budget, transfer cap and stop path. It is
+  outside this round's findings and the stage 04 alignment the lead asked for (decision 4 below).
+
+### Unresolved question
+
+1. **Answered by the files.** Stage 06's torque admission means an admitting outcome under prompt 57 (stage 03
+   item 2) with a current match of the declared SSDC-C row's reference: CONFIRMED, or UNCONFIRMED with that match
+   (a collision or a candidate without references), whose result names every matching row. Nothing in the set
+   justifies CONFIRMED only: the execution contract's identity bullet requires "an admitting outcome" since round 3
+   F4, and prompt 57 lets a family refuse more only with recorded evidence, of which there is none for torque.
+   06 item 7 now says so; 06 acceptance tests a colliding declared match, still refused by the 0x6087 preflight.
+
+The coverage gaps are the executing stages' intake work, as before. For the device claims used here the rendered
+UM21 pages p17, p18 and p22 were opened this round.
+
+### Decisions for the lead or owner
+
+1. F3: the de-energized guard for 0x260D and 0x2612 is settable (on by default), not non-bypassable as the reviewer
+   recommended, following the owner's 2026-11-17 direction and this round's instruction. Confirm.
+2. F2: a halt now costs its own fresh 0x6041 and 0x6061 reads before TX, which the caller's stop budget must cover
+   (stage 06 item 4), and a local-signal transition between that read and the TX is recorded, not excluded.
+   The alternative is to offer only the quick stop as the urgent stop and keep halt as a non-urgent pause.
+3. F2: after a lost Q start reply the halt sends 0x010F, lowering bit 4 with an undocumented Q effect (UM21 p35
+   shows only 0x011F), instead of refusing with the quick stop named. Confirm, or prefer the refusal.
+4. Theme 7: stage 07 item 6 should consume canopen_shared 02 "Timed runs" for homing (a caller-supplied latest
+   interruption time, the stop budget, the transfer cap and a stop that can still leave after a lost reply,
+   which for MOONS' without an S3 shape means a declared independent stop). Authorize that edit or assign it.
+5. Theme 8: the stage 03 example was corrected beyond the stage 04 scope because it contradicted prompt 57 as
+   revised. Confirm or revert.
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this directory.
+Nothing was compiled; no hardware or port was used.
+
+### Round 4 lead decisions, 19 November 2026
+
+The five questions above were decided by the lead and applied:
+
+1. **Confirmed.** The motor-data de-energized guard for 0x260D and 0x2612 is settable, on by default, and an
+   admitted result names it when off (08 item 4, unchanged from the F3 row).
+2. **Confirmed.** The halt reads 0x6041 and 0x6061 before its TX, and a state change between that read and the
+   TX is recorded in the result, not excluded (04 item 9, "Halt source state").
+3. **Changed.** In mode -1 the halt is sent only when it lowers no bit 4: 0x011F after an acknowledged 0x001F,
+   or 0x010F before any start. After a lost Q start reply the halt row refuses before TX, because a falling
+   bit 4 has no stated Q effect (UM21 p35), and the result names the quick stop 0x010B as the available stop,
+   which stays admitted. No 0x010F is sent in that case. The same refusal covers an unknown record in mode -1,
+   which has the same undocumented bit 4 effect. Recorded in 04 items 8 and 9 and 04 acceptance, and 10 item 3
+   and 10 acceptance. This supersedes the 0x010F Q halt in the F2 row above.
+4. **Authorized and applied.** 07 item 6 consumes canopen_shared 02 "Timed runs" for homing by citation: the
+   stop and travel plan is that bullet's caller-supplied latest interruption time, an optional travel bound from
+   0x6064 observations of bounded age, the stop budget, the transfer cap at the interruption time and the stop
+   path. Without an S3 shape a run needs a declared independent stop, or it is refused before its first changing
+   TX. Tests in 07 acceptance.
+5. **Confirmed.** Stage 03's identity example stays aligned with prompt 57's undecided-reference rule.
+
+Checks after these changes: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean
+for this directory.

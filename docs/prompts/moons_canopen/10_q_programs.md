@@ -25,7 +25,14 @@ review s5.6) and is not offered.
    the UM21 range unresolved until fixture or vendor evidence.
 3. Normal Q, mode -1 (UM21 p35, p89): enable with halt set (0x0006, 0x0007, 0x010F, stage 04); write 0x6060 =
    -1 and confirm through 0x6061; write 0x2007 and read it back; bit 4 low, then 0x001F starts the segment
-   (UM21 p35, p89). UM21 shows 0x011F as the halt word and states nothing more; "runs to completion", "halts
+   (UM21 p35, p89). Halt admission, from fresh 0x6041 and 0x6061 reads before the first changing TX, is
+   stage 06 item 2's: a drive already in Operation enabled must be stage 04 item 8's known-halted predecessor,
+   whatever the enable result, and the 0x6060 = -1 write (stage 04 item 3), the 0x2007 write and the start are
+   sent only while the record is known halted; halt clear in any candidate or an unknown record refuses before
+   TX, also when the drive already reads mode -1. Stage 04's halt in mode -1 is 0x011F after an acknowledged
+   0x001F and 0x010F before any start; after a lost start reply or with the record unknown it is refused and
+   the result names the quick stop 0x010B, which stays admitted (stage 04 item 8). UM21 shows 0x011F as the
+   halt word and states nothing more; "runs to completion", "halts
    immediately" and "the next start runs it from the beginning" are AMP10 p48 statements for the 2010 layout.
    For UM21 publish "halt commanded" and the observed 0x200B bits; the stopping behavior and the restart point
    stay unknown until fixture evidence (14a Q11). A later 0-to-1 edge of bit 4 may re-execute the program
@@ -67,8 +74,11 @@ parity tests; coverage rows for Q start, SYNC Q (refused in this set) and regist
 
 ## Acceptance
 
-Tests cover refusal without qualification, wrong product or layout, segment outside the qualification, mode
-accept timeout, lost start reply without repeat, halt during a run publishing no stop or restart claim, bit 14
+Tests cover refusal without qualification, wrong product or layout, segment outside the qualification, item
+3's halt admission on an already enabled binding with the record halt set, clear and unknown, through the
+mode -1 select and with the drive already in mode -1 (zero changing TX unless halt set), mode
+accept timeout, lost start reply without repeat (a halt then refused with zero TX and the quick stop 0x010B
+named and admitted), halt during a run publishing no stop or restart claim, bit 14
 observed and missed, blank segment alarm, origin retirement before the start TX (references unusable also
 after a lost start reply), register writes while running refused, and
 mode -2 refused before any TX in every path, including a stale console request. No Q run is reported as a

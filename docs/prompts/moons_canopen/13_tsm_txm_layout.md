@@ -66,7 +66,8 @@ EDS layout. This stage never merges the 2010 layout into the UM21 tables, contex
    RTR and statusword-change triggering of AMP10 p51-p52, which stays unsupported (MO-D13); node ID and bitrate
    by switch on TSM24C and only by Quick Tuner on TXM24C, TSM34C, TXM34C (TSM24 p12; TXM24 p12; TSM34 p19;
    TXM34 p20); 0x1011 sub 1 "(not yet)" (MO-D23) keeps restore unsupported; the SYNC and NMT effect entry
-   for S13 (stage 09 item 9).
+   for S13 (stage 09 item 9) and the targeted NMT route, its bootstrap Enter Pre-operational included, which
+   stage 09 item 1 refuses until then.
 
 ## Deliver
 

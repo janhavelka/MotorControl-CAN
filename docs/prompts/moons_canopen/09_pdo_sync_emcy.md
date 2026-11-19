@@ -11,9 +11,11 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
 1. NMT (UM21 p13-p14): start 0x01, stop 0x02, enter pre-operational 0x80, reset node 0x81, reset communication
    0x82; the node enters Pre-operational on its own; SDO, SYNC, TIME and EMCY work in Pre-operational and
    Operational, PDO only in Operational, and a Stopped node serves only node and error control (UM21 p14
-   table). Admit the `nmt` route for MOONS' bindings only as explicit commands;
-   none is sent on startup, probe or recovery. An NMT stop is not a stop. What a transition to
-   Pre-operational does to an active motion is not documented; report it, claim no motion effect. Every NMT
+   table). Admit the `nmt` route for UM21 bindings (STF-C, SSDC-C) only, as explicit commands; none is sent
+   on startup, probe or recovery. A declared TSM/TXM-C binding has no reviewed NMT route: every targeted NMT
+   command to it, the bootstrap Enter Pre-operational below included, is refused before TX until stage 13
+   Part B reviews and admits it (stage 03 item 2; prompt 57 lets a family refuse more). An NMT stop is not a
+   stop. What a transition to Pre-operational does to an active motion is not documented; report it, claim no motion effect. Every NMT
    command, targeted or to node 0, passes the owner's NMT admission under S13 (canopen_shared 02 S13 bullet;
    item 9): until item 9 lands, the S2-commit default deny refuses node-0 NMT on any interface with a MOONS'
    binding, and admitting a command that can change an evaluated node's NMT state revokes the SYNC approval
@@ -107,6 +109,15 @@ PDO services and prompt 55's evidence classes; do not fork them. Claim or extend
      node's state (not after its reply), on the shared invalidators, on a heartbeat or boot-up reporting an
      NMT state other than the one evaluated (another NMT master) and on a report that an RS-232 tool was
      attached; only fresh reads, with the NMT state the node then reports, requalify it.
+   - Settling: requalification also waits until every NMT command this owner admitted to the node or to node
+     0 is settled. While one is queued, in flight or sent without a later state report, its transition can
+     still take effect, so the approval stays revoked and reads taken meanwhile do not count. A command is
+     settled when the owner reports it withdrawn before TX, when a heartbeat received after its TX reports the
+     commanded state (5 Operational for Start, 4 Stopped for Stop, 0x7F Pre-operational for Enter
+     Pre-operational; UM21 p13), by the node's boot-up after a reset command (item 2), or when a later admitted
+     command to the node settles. NMT has no reply, so a heartbeat after TX that still reports the old state
+     leaves the command unsettled. Requalifying reads are taken after the settling report; with 0x1017 = 0 there
+     is no report, and the node stays revoked until a boot-up.
    Until S13 has landed and passed, the MOONS' `sync` route stays Blocked and no MOONS' binding shares an
    interface with a SYNC schedule (execution contract). Record the shared-interface
    analysis that canopen_shared 02 requires for a second CANopen family in one domain (node IDs, configured
@@ -139,15 +150,18 @@ MOONS' nodes: admitted only when every declared node's effects are known harmles
 on a node other than the target for mode -2, an unread mode, a non -2 node with an unread or unknown map, a
 valid synchronous RPDO without an admitted producer and an enabled watchdog with the SYNC trigger not owned by
 the schedule; a 0x6060 write, remap, rebind and NMT reset during a running schedule followed by no SYNC TX
-until fresh reads; a targeted and a broadcast Start while a Pre-operational MOONS' node holds a valid
-synchronous RPDO (approval revoked before the Start, no later SYNC TX); a heartbeat reporting an unevaluated
+until fresh reads; while a Pre-operational MOONS' node holds a valid synchronous RPDO, a targeted Start
+(approval revoked before it, no later SYNC TX, and reapproval from fresh Pre-operational reads refused while
+the Start is queued and after its TX before a heartbeat reports Operational) and a broadcast Start (zero NMT
+TX); a heartbeat reporting an unevaluated
 NMT state during a schedule (no later SYNC TX); node-0 Stop, Enter Pre-operational and both resets on an
 interface with a MOONS' binding (zero NMT TX), also before item 9 lands (the S2-commit default deny); a mixed
 interface on which every UM21 node passes and a declared TSM/TXM-C node (monitored only, not the target) gives
 zero SYNC and zero node-0 NMT TX, with none of the entry's reads sent on its route; both directions with a
 Lichuan axis on the same interface. A Stopped node after rebinding and after a host restart: the targeted
 0x80 admitted on a fresh Stopped heartbeat with no current outcome, refused under CONTRADICTED, and with no
-fresh heartbeat no TX and the node reported stranded; a targeted Stop whose result names its recovery with
+fresh heartbeat no TX and the node reported stranded; the targeted 0x80 to a Stopped TSM/TXM-C declaration
+with no current outcome refused with zero TX; a targeted Stop whose result names its recovery with
 0x1017 read nonzero, zero and unread, and a possibly sent Stop whose state is known only from the next
 heartbeat. Quick and full verify, firmware builds and
 exact-commit CI pass. Hardware: NOT RUN.

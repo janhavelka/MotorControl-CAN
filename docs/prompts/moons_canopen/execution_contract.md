@@ -136,10 +136,12 @@ and promptset edits need local checks only. Never present an older green run as 
 
 No MOONS' fixture exists. Never send family frames to the CL86-C bench (COM15, nodes 1 and 2), and never open
 COM15 for family work. While COMMON records the owner as away, family hardware work waits for the recorded return
-(canopen_shared 02 "Bench steps and owner absence"); the waiver establishes no family fixture. Before any later
-bench step establish board, transceiver, drive model and firmware strings, motor, wiring, node ID (switch and
-0x2020), bitrate switch, RS-232 tool disconnected (UM21 p9), and applicable authorization, and derive the
-forbidden and allowed object lists from the family ledger.
+(canopen_shared 02 "Bench steps and owner absence"); the waiver establishes no family fixture. Before first
+power establish board, transceiver, drive model (label and part number), motor, wiring, node and bitrate
+switch positions, RS-232 tool disconnected (UM21 p9) and applicable authorization, and derive the forbidden
+and allowed object lists from the family ledger. The firmware strings and the node ID's 0x2020 part are
+established by 14a Q1-Q3's read-only sequence (stage 03's probe and bootstrap reads, then 0x2020 under its
+layout admission), the only bench steps admitted before them; every later bench step needs them recorded.
 
 COMMON's owner-absence rule 2 lists the CL86-C fixture's object numbers; they neither forbid nor allow anything
 on a MOONS' node. MOONS' persistent and communication-changing objects are its own and come from the stage 02

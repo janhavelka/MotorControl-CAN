@@ -21,7 +21,7 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    | Switch on disabled | 0x0006, then 0x0007, then the final word |
    | Ready to switch on | 0x0007, then the final word |
    | Switched on | The final word: 0x000F in modes 1 and 6 (UM21 p19; transition 4 clears all internal set-points, UM21 p16; homing starts only on a bit 4 edge, UM21 p22-p23), with 0x010F as the caller's option there; 0x010F, not optional, in modes 3, 4 and -1, where clearing halt is the start (UM21 p32, p34, p35), and for 0 or any value UM21 does not document |
-   | Operation enabled | Already enabled, nothing sent; the result carries item 8's controlword record, so a halted drive stays halted and an unknown record stays unknown |
+   | Operation enabled | Already enabled, nothing sent; the result carries item 8's controlword record, so a halted drive stays halted and an unknown record stays unknown. This result is no evidence of halt: an operation that relies on halt checks item 8's known-halted predecessor itself (item 3, stages 06 and 10) |
    | Quick stop active, Fault reaction active, Fault, Not ready to switch on | Refused before TX: transition 16 needs option codes 5-8, which UM21 p58 does not support, and a fault needs item 5's explicit reset |
 
    Mode -2 refuses before TX in every state (stage 10). A target already present (0x60FF, 0x6071, a selected
@@ -36,9 +36,9 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    -1 and -2 are refused here (stage 10). UM21 does not state in which drive state or motion state a mode
    change is accepted (principles CP-D24); require an explicit caller policy (disabled, or host-established
    standstill) and keep the drive's own rule an open question for 14a. A change into mode 3, 4 or -1 while
-   Operation enabled is admitted only when item 8's record shows halt set (the examples select these modes
-   after enabling with 0x010F, UM21 p32, p34, p35); with halt released or the record unknown it is refused
-   before TX, because a target already present in that mode could start.
+   Operation enabled is admitted only from item 8's known-halted predecessor (the examples select these modes
+   after enabling with 0x010F, UM21 p32, p34, p35); with halt released in any candidate or the record unknown
+   it is refused before TX, because a target already present in that mode could start.
 4. Release: which word removes motor current is not documented. Shutdown 0x0006, disable operation 0x0007 and
    disable voltage 0x0000 reach different states, and the power-stage meaning of Switched on differs between
    vendors (principles CP-D11); 0x605B and 0x605C reactions are undocumented (MO-D33). AMP10 p26's NMT "Drive
@@ -106,7 +106,10 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    or `UNKNOWN` start since the last confirmed enable transition 4, which UM21 p16 says clears all internal
    set-points, unqualified until 14a). A lost reply keeps the confirmed word and the unconfirmed one as the
    record's two candidates; rebinding, a new session or a host restart makes the record unknown. Halt is
-   possibly set when a candidate has bit 8 set or the record is unknown.
+   possibly set when a candidate has bit 8 set or the record is unknown. The predecessor is **known halted**
+   only when a fresh 0x6041 shows Operation enabled and the record is known with bit 8 set in every
+   candidate; an enable result (item 1's already-enabled row sends nothing), a mode change or a stop result is
+   not that evidence. Item 3 and stages 06 and 10 require it before any step that relies on halt.
 
    Bit 8 rule (canopen_shared 02 "State transitions"): a word that leaves Operation enabled (item 4's release,
    item 7's quick stop, item 9's disable voltage) keeps bit 8 set while halt is possibly set, because no UM21
@@ -116,6 +119,24 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    Halt at bit 8, p37 gives bit 8 Halt in every mode, and p32, p34 and p35 send a state command with bit 8 set
    (0x010F). So the quick stop is 0x010B, the release 0x0106 and disable voltage 0x0100 in that case, all
    checked on the rendered pages; no UM21 example sends them, and they stay unqualified with MO-D34 until 14a Q8.
+   With the record unknown a stop word sets bit 8 and its result records the unknown halt state; no stop row
+   refuses for that reason alone (canopen_shared 02 "State transitions"), since no UM21 page gives bit 8
+   another meaning (p37, p56).
+
+   Halt word (item 9's halt). Bits 0-3 and bit 8 are set, since the halt is sent only from a fresh Operation
+   enabled read (item 9). Bit 4 is never raised: a 0-to-1 edge clocks in a new set-point (UM21 p17), starts or
+   continues homing (p22) and starts a Q segment (p35, 0x001F), and after a lost trigger reply the drive may
+   still hold bit 4 low. The word is therefore the recorded word with bit 8 set only when the record is known,
+   every candidate has bit 4 set and the candidates agree in bits 4-6 and 9 (0x011F after an acknowledged
+   0x001F, the documented homing and Q halt, UM21 p23, p35); otherwise it is 0x010F, the documented velocity
+   and torque stop (p32, p34), with every other bit clear, also with the record unknown. A falling bit 4 makes
+   no new edge: in mode 1 it is the documented clear of a new set-point (p19, 0x001F then 0x000F), in mode 6
+   bit 4 = 0 is "Do not start homing procedure" (p22), and in modes 3 and 4 bit 4 has no stated function (p31,
+   p33). In mode -1 a falling bit 4 has no stated effect (p35 shows only 0x011F), so the Q halt is sent only
+   when it lowers nothing: 0x011F as above, or 0x010F when every candidate of a known record has bit 4 clear
+   (before any start). After a lost Q start reply, or with the record unknown, the halt row refuses before TX
+   (lead decision of 2026-11-19) and the result names the quick stop 0x010B as the available stop, which stays
+   admitted there (item 9).
 
    Releasing halt to resume a pending set-point is its own explicit operation, `prepareHaltRelease` through
    `ActionContext`, never a step of another. It is a changing request: identity admission by outcome, the
@@ -124,7 +145,7 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
 
    | Predecessor | First word, or result |
    | --- | --- |
-   | Operation enabled, 0x6061 = 1, no fault, the record known with one candidate, bit 8 set | That word with only bit 8 cleared (0x011F to 0x001F, 0x010F to 0x000F), so bit 4 makes no new edge. Acknowledged by the reply; continuation observed only in a later fresh read; completion follows stage 05 item 8 against the retained target |
+   | Operation enabled, 0x6061 = 1, no fault, the record known with one candidate, bit 8 set | That word with only bit 8 cleared (0x011F to 0x001F, 0x010F to 0x000F), so bit 4 makes no new edge. The result is the acknowledgement by the reply and, separately, any continuation a later fresh read shows; it claims no move completion, which stays with the move (stage 05 item 10) |
    | The same with bit 8 clear in the record | Not halted: nothing sent |
    | The record unknown or holding two candidates | Refused before TX: the other bits would be guessed |
    | Modes 3 and 4 | Refused before TX: clearing halt is the run start, which stage 06's finite run owns with its duration and stop path |
@@ -138,8 +159,20 @@ the concrete `ActionContext`; nothing runs on binding, probe, read or recovery.
    | Stop | Admitting outcome | Refusing outcome, or none current |
    | --- | --- | --- |
    | Quick stop 0x000B with halt known clear, 0x010B with halt possibly set (items 7 and 8) | Sent through `admitUrgent` without waiting for a read; its reviewed reaction covers Ready to switch on, Switched on and Operation enabled (transitions 7, 10 and 11 by the bit names, MO-D34); a ramp claim only after a fresh 0x605A read of 1 or 2 in this node epoch | Admitted with its route, binding-generation and source-state checks; the result carries the outcome and makes no ramp or standstill claim |
-   | Halt, bit 8 set on the recorded word (item 8) | Admitted while item 8's record for this server session is known; after a lost start or trigger reply its candidates fix the word as the mode's documented halt, 0x010F after a velocity or torque start (UM21 p32, p34), 0x011F after a position, homing or Q trigger (UM21 p23, p35) | The same; with the record unknown it is refused with that reason, since bits 0-6 would be guessed |
+   | Halt, item 8's halt word (0x011F only after an acknowledged trigger with bit 4 high, otherwise 0x010F) | Admitted from the halt source state below, then sent through `admitUrgent`; an unknown record is no refusal (item 8), except in mode -1, where a lost start reply or an unknown record refuses and names the quick stop 0x010B | The same; the exemption removes only the identity refusal, not the source-state check |
    | Disable voltage 0x0000, or 0x0100 with halt possibly set (item 8) | An explicit request; its mechanical effect is not observed (item 4) | Refused: not a quick stop or halt, so not exempt |
+
+   Halt source state. The halt operation first reads 0x6041 and 0x6061 through the urgent path (bootstrap
+   state reads, admitted under every outcome) and sends item 8's halt word only when they show Operation
+   enabled with no fault and mode 1, 3, 4, 6 or -1, whose halt UM21 documents (p21, p22, p31, p33, p35). Item
+   8's record chooses the word but never replaces this read. Any other state or mode, or a read without a
+   reply, refuses before TX: the halt word's bits 0-3 are the Enable operation command, which enables the
+   drive from Ready to switch on (transitions 3+4) and from Switched on (transition 4, UM21 p16), and a local
+   signal can reach those states without a host word (p16 transitions 5 and 8; the interlock of 0x60FD bit 3
+   drops the drive to Switch on disabled, p63). The refusal names the quick stop, whose pattern 0 x x 0 x has
+   no enabling transition (p16), and the application-owned fallback below. A local-signal transition between
+   the read and the TX is not excluded: the result records the read and the word sent, and an application
+   whose local signals can change the state composes the quick stop instead.
 
    The quick stop's exemption rests on UM21 p37 and p56 (bit 2 named "Quick stop") and p16 transition 11
    ("Quick stop command"), not on p16's command table (MO-D34; lead decision of 2026-11-19).
@@ -180,10 +213,16 @@ table (0x0106 with halt possibly set, nothing sent when already released), item 
 methods (nothing sent without a fault or alarm; 0x2006 while enabled refused with the alarm-clear guard on and
 sent with it off, the result naming the guard and that a pending target may resume), reset with a remaining fault,
 item 8's halt-release table (the exact mode 1 word, refusal with an unknown or two-candidate record, in modes
-3, 4, 6 and -1 and outside Operation enabled), item 9's stop table under each identity outcome with halt known
-clear (0x000B), set (0x010B) and unknown (0x010B) predecessors (an identity invalidated during motion: quick
-stop and halt with a known record admitted, other pending steps retired; a Lichuan server under the MOONS'
-label: quick stop admitted with the outcome named, halt with an unknown record and disable voltage refused), a
+3, 4, 6 and -1 and outside Operation enabled; no move completion claimed), item 8's known-halted predecessor
+on an already enabled drive with the record halt set, clear and unknown (only the first holds), item 9's stop
+table under each identity outcome with halt known clear (0x000B), set (0x010B) and unknown (0x010B, the
+unknown halt state recorded) predecessors, the halt word after an acknowledged trigger (0x011F), after a lost
+trigger reply whose trigger did and did not execute (0x010F in both in modes 1 and 6; in mode -1 no halt TX,
+the quick stop 0x010B named and admitted) and with the record unknown (0x010F admitted, in mode -1 refused
+the same way), the halt with no TX when its fresh read shows Ready to switch on, Switched on or Switch on disabled
+after a state change without a host word while the record still shows Operation enabled, or gets no reply
+(an identity invalidated during motion: quick stop and halt admitted, other pending steps retired; a Lichuan
+server under the MOONS' label: quick stop and halt admitted with the outcome named, disable voltage refused), a
 stop after a timeout under `NONE` with zero stop frames and item 10's result, quick stop
 with 0x605A unread, 0, 1, 2 and out-of-range, halt with a pending set-point, stop under queue pressure, late
 replies, stale generations and no replay, and the controlword record across halt, quick stop, a lost reply and

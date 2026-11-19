@@ -59,7 +59,16 @@ Status: NOT STARTED. Requires 03-04. MO-D03, MO-D20 and MO-D31 are owned here; M
    The common angle move row is owned here: it uses the core's reference, scale and angle-path policy
    ([prompt 34](../34_angle_moves.md)) through item 3's scale qualification, which must name native units per
    revolution; without it the row is `UNSUPPORTED` with the MO-D03 reason before TX.
-10. Interruption: halt pauses the set-point, and resuming it is stage 04's halt-release operation (item 8). A
+10. Interruption: halt pauses the set-point, and resuming it is stage 04's halt-release operation (item 8),
+    which reports only its acknowledgement and any continuation a later read shows. Resumed-target completion
+    belongs here. The move retains its prepared target and native move record from the trigger until its
+    completion is observed, a new move is admitted, stage 04's controlword record becomes unknown, the drive
+    leaves Operation enabled (the next enable's transition 4 clears set-points, UM21 p16) or stage 07 item 12
+    retires the reference. After an acknowledged halt release the resumed move completes by item 8's rule
+    anchored at the release instead of a trigger, since the release makes no new edge: bit 10 observed low
+    after the release, then high with halt clear and bit 12 low. Bit 10 is already high while halted at
+    standstill (UM21 p18, "Velocity of axis is 0"), so a high read without that fall gives completion
+    `NOT_OBSERVED`, with the 0x6064 comparison drive-reported. A
     quick stop is stage 04 item 9's stop: the move consumes its result (the word sent, 0x000B or 0x010B, the
     state and flags of a fresh read, the mechanical effect not observed) and claims no disabled state or
     standstill beyond that read. Both are explicit with retained results. Replacement during motion with bit 5 = 1 (UM21 p19 single
@@ -80,7 +89,9 @@ resolution change invalidation, bit 12 high at admission, a halted pending move 
 rebinding and with the record lost) refused with no TX, stale bit 10, lost trigger reply, partial setup,
 cumulative delay in which every reply meets its own timeout but the operation deadline arrives before the
 trigger (no trigger TX, partial effects reported), halt and quick stop during the move (the move's result
-carries stage 04's stop result and no disabled state without a fresh read), relative basis
+carries stage 04's stop result and no disabled state without a fresh read), completion of a move resumed by
+stage 04's halt release (bit 10 falling after the release then high, a high bit 10 without the fall
+`NOT_OBSERVED`, the retained target dropped at each end of its lifetime), relative basis
 refusal, angle move without a per-revolution scale refused, and no replay. Native
 units, the bit 12 meaning and measured feedback stay open with their MO-D IDs. Quick and full verify, firmware
 builds and exact-commit CI pass. Hardware: NOT RUN.

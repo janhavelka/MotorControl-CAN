@@ -17,7 +17,13 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    preflight until MO-D09 is resolved for 0x60FF (under UINT32 it would be a large forward value), and even
    then means reverse only after 0x607E and the direction settings were read.
 2. Sequence (UM21 p32): mode 3 confirmed through 0x6061; enable with halt set (0x010F); write 0x60FF, 0x6083,
-   0x6084, each confirmed; start by clearing halt (0x000F); stop by setting halt (0x010F). Statusword bit 10
+   0x6084, each confirmed; start by clearing halt (0x000F); stop by setting halt (0x010F). Halt admission, from
+   fresh 0x6041 and 0x6061 reads before the first changing TX: a drive not in Operation enabled is enabled
+   with 0x010F, whose acknowledged reply and fresh state read make the predecessor known halted; a drive
+   already in Operation enabled must already be stage 04 item 8's known-halted predecessor, since the enable
+   then sends nothing and proves no halt (stage 04 item 1). Halt clear in any candidate or an unknown record
+   refuses the run before its first changing TX, naming stage 04's explicit halt as the way to establish it,
+   and no setup write is sent until the record is known halted. Statusword bit 10
    target reached, bit 12 speed (1 = speed is 0) and bit 13 maximum slippage error (UM21 p31, rendered page).
    Bit 12 is the drive's zero-speed indication, not a measured standstill.
 3. Halt ramp: UM21 says the axis stops "according to the halt option code (0x605D)", which does not exist
@@ -31,7 +37,8 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    transfer is bounded by the stop due time, and at stop due the run issues no further work, keeps
    `needsStop` and leaves the stop to the application's separate urgent stop, which the run's deadline, its
    identity outcome and a missing acknowledgement never bar. The MOONS' stop row for modes 3 and 4 is stage
-   04 item 9's halt, 0x010F, whose word stays fixed after a lost start reply (stage 04 item 8); the quick stop
+   04 item 9's halt, 0x010F also after a lost start reply, since no velocity or torque word sets bit 4 (stage
+   04 item 8), sent after the halt's own fresh state read, which the caller's stop budget covers; the quick stop
    is the alternative the application may compose. A stop row is not a stop path (the same bullet): after a
    lost start reply the route stays unresolved (`SdoReuse` `NONE`), and a MOONS' binding has no S3 shape, so
    neither stop leaves on that route (stage 04 item 10). Preparation therefore refuses the run before its
@@ -54,7 +61,9 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
 ### Profile torque (SSDC-C only)
 
 7. Admission: refuse mode 4 on STF-C before TX (UM21 p58 "only supported for StepSERVO drive"; 0x6502 bit 3
-   step-servo only, UM21 p64). Require the declared SSDC-C product and a confirmed UM21 layout.
+   step-servo only, UM21 p64). Require the declared SSDC-C product and an admitting outcome under prompt 57
+   (stage 03 item 2) with a current match of the declared SSDC-C row's reference: CONFIRMED, or UNCONFIRMED
+   with that match, whose result names every matching row.
 8. Objects and the unit conflict (MO-D04): 0x6071 target torque INT16 is "per thousand of rated torque" and
    "mN·m" in one paragraph (UM21 p59); 0x6087 torque slope is "per thousand of rated torque per second" and
    "Nm/s" (UM21 p62), INT8 WO on UM21 p33 but UINT32 RW on p55/p62 and in EDS-SSDC; the worked example uses
@@ -62,7 +71,8 @@ they form one stage. Torque is a MOONS'-native typed operation for SSDC-C only, 
    example. Implement native-unit requests only, with the raw value and both documented interpretations in
    the result; physical torque units reject until MO-D04 is resolved. Never write 0x2216.
 9. Sequence (UM21 p34): mode 4 confirmed; enable with halt set (0x010F); write 0x6071 and 0x6087; start by
-   clearing halt; stop by setting halt. A finite run follows item 4. Report 0x6074 torque demand (mN·m) and
+   clearing halt; stop by setting halt. Item 2's halt admission applies in mode 4 before the 0x6071 write. A
+   finite run follows item 4. Report 0x6074 torque demand (mN·m) and
    0x6078 current actual (0.01 A) as drive-reported values (UM21 p60). The sequence needs the 0x6087 write,
    whose width and access conflict (INT8 WO on UM21 p33, UINT32 RW on p55/p62 and in EDS-SSDC; MO-D04): the
    write preflight refuses the whole torque operation, mode select and enable included, with nothing sent,
@@ -86,7 +96,11 @@ reaction, unsupported changes, torque refused on MO-D04); Doxygen; report.
 ## Acceptance
 
 Tests cover direction and range, a negative 0x60FF refused by the preflight, mode refusal on STF, halt
-start/stop frames, partial setup, lost start, lost poll and lost stop, cumulative delay reaching the
+start/stop frames, item 2's halt admission on an already enabled binding in the same mode with the record
+halt set, clear and unknown (only the first sends a setup write; the others give zero changing TX), in mode 3
+and, once the 0x6087 preflight admits torque, in mode 4, a colliding declared SSDC-C match admitted by
+outcome for the torque path with every matching row named (still refused by the 0x6087 preflight), partial
+setup, lost start, lost poll and lost stop, cumulative delay reaching the
 operation deadline before the start (no start TX), the shared timed-run cases (a duration that no longer fits
 with the stop budget refused at preparation, a barely timely setup, a lost start reply, an observation in
 flight near stop due, service resuming after stop due, a halt under queue pressure; none reports the axis

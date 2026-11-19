@@ -47,11 +47,20 @@ writing the table. Never borrow another profile's method numbering, index or lim
    p72-p73) but no hard-stop method number does: hard-stop homing is unsupported.
 6. Sequence for moving methods: mode 6 confirmed through 0x6061; Operation enabled observed; write method,
    speeds, acceleration, offset and offset mode, each confirmed; bit 4 low, then 0x001F to start (UM21 p23);
-   halt with 0x011F stops. One absolute operation deadline (canopen_shared 02 "Operation admission") derived
-   from caller travel and speed limits, not a copied short poll count. The drive's limit reaction is
-   undocumented (item 11) and a host deadline bounds nothing physical after communication loss, so admission
-   also needs a caller-reviewed stop and travel plan (travel bound, stop path) recorded in the request. A lost
-   start reply keeps `UNKNOWN`; never reissue it.
+   the stop is stage 04 item 9's halt: 0x011F after an acknowledged start (UM21 p23), 0x010F after a lost start
+   reply, which never raises bit 4 (stage 04 item 8). One absolute operation deadline (canopen_shared 02
+   "Operation admission") derived from caller travel and speed limits, not a copied short poll count. The
+   drive's limit reaction is undocumented (item 11) and a host deadline bounds nothing physical after
+   communication loss. Homing is a host-ended run under canopen_shared 02 "Timed runs" (its homing sentence),
+   and the request's stop and travel plan is that bullet's inputs: a caller-supplied latest interruption time
+   in place of the duration, which with the caller's stop budget must fit before the operation deadline or
+   preparation refuses; an optional travel bound that interrupts earlier, from 0x6064 observations no older
+   than a caller-supplied age; every later transfer capped at the interruption time, after which the run
+   issues no further work and keeps `needsStop` for the application's urgent stop; and the bullet's stop path.
+   A MOONS' binding has no S3 shape and its route stays unresolved after a lost start reply (`SdoReuse`
+   `NONE`, stage 04 item 10), so preparation refuses the run before its first changing TX (mode select
+   included) unless the application declares an independent stop for it, named in every result (as stage 06
+   item 4). A lost start reply keeps `UNKNOWN` and `needsStop`; never reissue it.
 7. Completion (UM21 p22, bits 13/12/10): 0,0,0 in progress; 0,0,1 interrupted or not started; 0,1,0 attained,
    target not reached; 0,1,1 completed; 1,0,0 and 1,0,1 errors. 0,0,1 is also the idle pattern, and 0,1,1 can
    remain from an earlier homing, so completion requires a post-trigger transition (an observed in-progress
@@ -67,10 +76,23 @@ writing the table. Never borrow another profile's method numbering, index or lim
    a non-enabled drive accepts the bit 4 trigger, which words it needs and whether 35 applies 0x607C are not
    stated on the rendered p22-p30 pages; define each from them, otherwise keep the method refused with the gap
    recorded for 14a Q10. AMP10 p44 says the 2010 method 35 ignores the home offset (stage 13). Both retire
-   host origin and reference generations (item 12) and need explicit stationary admission as host policy.
+   host origin and reference generations (item 12) and need item 10's stationary admission as host policy.
 10. Zero position 0x200C (write 1 zeroes "all position parameters such as" 0x6064, UM21 p67) is a separate
     explicit vendor operation with item 12's retirement. Which other objects it zeroes is not listed; record
-    them as unknown and re-read 0x6064, 0x607A and 0x607C afterwards.
+    them as unknown and re-read 0x6064, 0x607A and 0x607C afterwards. Stationary admission, from fresh 0x6041,
+    0x6061 and 0x200B reads within the operation (0x200B bits 4 "Moving", 6 "Stopping", 10 "Homing" and 14 "Q
+    Program is running", UM21 p67, are the drive's indications, not a measured standstill):
+
+    | Predecessor | Result |
+    | --- | --- |
+    | Switch on disabled, Ready to switch on or Switched on, the four 0x200B bits clear | Admitted: no drive function is enabled, and the next enable's transition 4 clears any pending set-point (UM21 p16) |
+    | Operation enabled, the four bits clear, stage 04's controlword record known with no set-point that may be pending | Admitted |
+    | Operation enabled with a set-point possibly pending (halted, quick-stopped or `UNKNOWN`) or the record unknown | Refused before TX: a later halt release would resume a target expressed in the old coordinates (UM21 p21) |
+    | Any of the four bits set, or a move, run, homing or Q operation of this binding in flight or with `UNKNOWN` execution | Refused before TX |
+    | Quick stop active, Fault reaction active, Fault, Not ready to switch on, or a read without a reply | Refused before TX: a stopping or fault function may still act (UM21 p16 transitions 11, 13, 14) |
+
+    Item 12's retirement still precedes the possible TX, and a replacement reference also needs a fresh 0x200B
+    read with the four bits clear, taken after the 0x6064, 0x607A and 0x607C reads.
 11. Limits: no 0x607D software limits exist; report 0x607F and, on SSDC, 0x2209 and 0x220A (UM21 p74). 0x603F
     bits 0-2 and 0x60FD bits 0-2 report limits (UM21 p56, p63). The drive's reaction on reaching a limit is not
     documented; report observations and claim no stop behavior. Host soft limits follow prompt 77.
@@ -81,7 +103,8 @@ writing the table. Never borrow another profile's method numbering, index or lim
     or unobserved completion never restores them, and a later preparation against a retired reference
     refuses before TX. A replacement comes only from item 8's qualified completion with a fresh 0x6064 read,
     or, for 35, 37 and 0x200C, from an acknowledged operation followed by fresh 0x6064, 0x607A and 0x607C
-    reads; an `UNKNOWN` outcome leaves the axis without a reference until a later qualified home.
+    reads and item 10's stationary 0x200B read; an `UNKNOWN` outcome leaves the axis without a reference
+    until a later qualified home.
 
 ## Deliver
 
@@ -95,10 +118,17 @@ Tests cover every method's admission per product, refused 15, 16, 31, 32, 36, 12
 refusal on STF, an unknown or stale direction qualification (after a 0x607E,
 direction or input-function change) with the direction check on or before prompt 77's guard lands (no TX) and
 with the guard off (admitted, the guard named), a missing input function, wiring declaration, index
-declaration or stop and travel plan refused also with the guard off, stale completion patterns, fast
+declaration or stop and travel plan refused also with the guard off, item 6's host-ended run (an
+interruption time that no longer fits with the stop budget refused at preparation, the travel bound
+interrupting earlier and a stale position observation not counted, no transfer after the interruption time,
+`needsStop` kept after a lost start reply, and a run without a declared independent stop refused with zero
+changing TX), stale completion patterns, fast
 completion between polls, timeout after start, halt interruption, both offset modes, methods 35 and 37
 through their own table (refused where the page leaves the sequence open), item 12's retirement (references
 held before a lost trigger reply, an interrupted or unobserved home and a possibly executed 0x200C write are
-unusable: a later position preparation against them sends nothing), 0x200C and no reissue.
+unusable: a later position preparation against them sends nothing), item 10's stationary table for 0x200C
+(running, halted with a pending target, an unknown record, each 0x200B bit set and an operation in flight
+refused with no TX; a replacement reference withheld when the later 0x200B read shows motion), 0x200C and no
+reissue.
 Direction and limit reactions stay open with MO-D07. Quick and full verify, firmware builds and exact-commit CI
 pass. Physical homing needs its switch fixture. Hardware: NOT RUN.

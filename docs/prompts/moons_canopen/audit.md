@@ -197,3 +197,61 @@ were checked for consistency only. The repository index was truncated: owner and
 packaging, workflows and seam landings were not verified at HEAD. The parent AGENTS, the conditional experiment
 prerequisites and the main-sequence prompts other than 57 and 77 were not supplied. No MOONS' fixture,
 authorization, trace, timing or restoration evidence existed; nothing was built, tested or run on hardware.
+
+## Round 4
+
+A fourth audit of the set as revised by round 3, condensed the same way. Line numbers refer to the files at
+the audited revision, before round 4 was applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-193918-83d072` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard (large input, about 213,828 tokens) |
+| Date | 2026-11-19 19:39:18 (from the ID), 200.2 s, one attempt |
+| Revision | `main` at `a6b58cf12e7d71e24b7c95ddfce40bd5da173a0d` with uncommitted changes outside this set; the family files' SHA-256 equal their blobs at `a6b58cf1` |
+| Cost | Estimated USD 0.44 (0.43605, configured pricing); 163,585 input and 10,888 output tokens (5,859 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-193918-83d072.json` (local) |
+| Location checks | 28 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: this directory's 20 files (README, execution contract, stages, rounds 1 to 3 audit and
+application). Context: `canopen_shared/README.md`, `02_profile_integration_contract.md` and
+`01_existing_code_and_tooling.md`, prompts 57 and 77, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md` and
+`review.md`; project instructions `AGENTS.md`, `CLAUDE.md`. The shared contract and prompt 57 were read as they
+stood before `328651b6`.
+
+**Summary.** Evidence intake, object generation and the independently gated probe and read work can proceed;
+the earlier fixes for conflicted writes, SDO timeout handling and refusal-only SYNC Q hold. Before dispatching
+the affected motion, settings and network stages, resolve the gaps in halt-state admission, current-changing
+writes and SYNC reapproval. **Verdict:** blocking issues: several changing paths lack an enforceable predecessor
+or an explicit invalidation boundary; they block the affected operations, not the read-only work. A document
+review; nothing was built, tested or run on hardware.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, probable defect, high | *A successful enable does not establish the halt required by velocity, torque and Q setup.* 04 returns already enabled with no TX, so a clear or unknown halt record stays so; 06 and 10 prescribe enabling with halt set without saying what their operations do with that no-op result, and in an already enabled mode-3 binding no mode change happens, so the mode-select check does not help either. A run that treats the enable result as sufficient can update a live target before its start; 10 has the same gap before its mode -1 write and segment selection. Make a current, known halted predecessor an admission condition before any setup write that relies on halt; refuse or route to a separately reviewed halt otherwise; test all three halt records on an already enabled binding, a same-mode velocity request and the Q mode-select path | 04:24, 39-41; 06:19-20; 10:26-27 |
+| F2 | High, verified defect, high | *The halt table neither establishes a valid source state nor excludes a new trigger edge.* 04 admits halt on a known controlword record, which describes prior host writes, not the drive's state; the review describes an interlock-driven state change independent of the controlword. After an uncertain position, homing or Q trigger the table selects 0x011F; if the trigger did not execute, bit 4 can still be low and the halt word makes the same rising edge as a start, and no precedence of halt over that edge is established. The timeout rule covers only a quarantined route. Keep the identity exemption, but define halt admission from evidenced source states and modes; cover both predecessors of an uncertain trigger; refuse the row where neither a non-triggering word nor documented precedence exists and name the alternative stop or the declared fallback; assert exact frames or no TX for autonomous state changes and both outcomes of a possibly sent trigger | 04:141; 07:49-50; review:225-226; 57:105 |
+| F3 | High, probable defect, high | *Indirect-current writes can bypass the current limit on an already energized drive.* 08 lets the quiescence guard be switched off; a motor-selection or custom-motor write changes current, whose value is unknown until readback, and blocking the next enable or motion does not protect a drive already energized or running if the change applies at once. No evidence says these writes take effect only at a later enable. Keep the general guard settable; require a separate, non-bypassable de-energized condition for these two writes unless evidence establishes the resulting current first; keep the readback and unknown-state rules; test enabled-idle and running predecessors with the general guard off and partial and uncertain writes | 08:27-29, 32-36 |
+| F4 | High, probable defect, high | *SYNC can be reapproved from observations taken before a queued NMT transition takes effect.* 09 revokes approval before admitting an NMT command but requalifies only on fresh reads and the NMT state the node reports, without requiring evidence from after the pending transition or blocking reapproval while it can still take effect. A Pre-operational observation taken while a targeted Start is queued or not yet reflected in the heartbeat describes the old state and would permit SYNC after the node goes Operational. Keep S13 approval revoked while an admitted transition can still change the evaluated state; require evidence beyond an explicit transition or retirement boundary; keep a possibly sent, unresolved transition ineligible; test reapproval with fresh old-state evidence while a targeted Start is queued and after dispatch before new-state evidence, and zero NMT TX for a broadcast Start with a valid RPDO | 09:88-89, 103-104, 108-109; shared 02:281-282 |
+| F5 | Medium, verified defect, high | *Stage 04 delegates halt-release completion to a move contract that does not exist yet.* 04 owns and tests halt release before 05 supplies the move context and completion rules; its record keeps a word and the pending flag, not the target the completion check needs; 05's completion rule is anchored to a new trigger, while halt release deliberately makes no new edge. Make 04's halt release report the acknowledgement and any separately defined continuation observation, without move completion; assign resumed-target completion to 05 with a retained-target lifetime and a rule for continuation without a new trigger; test each in its stage | 04:4, 127; 05:51-52 |
+| F6 | Medium, verified defect, high | *The targeted NMT bootstrap rule is not scoped to the reviewed layout.* 09 admits a targeted Enter Pre-operational on a fresh Stopped heartbeat with no current outcome for MOONS' bindings generally, while 03 admits only the probe for an AMP10 declaration until stage 13 and 13 Part A is read-only; 09 denies SYNC and node-0 NMT for AMP10 but not this targeted path. Scope 09's targeted NMT routes and the bootstrap exception to UM21; keep changing targeted NMT unavailable to AMP10 until a named stage admits it; test zero TX for that command on a Stopped AMP10 declaration with no current outcome | 09:22-24; 03:46-47; 13:15-16 |
+| F7 | High, probable defect, high | *Zero position can rebase coordinates without stationary admission.* 07 requires stationary admission for methods 35 and 37 but gives the 0x200C write only an explicit intent and host reference retirement, which makes old host work unusable but does not make an executing onboard move stationary; the write changes position parameters whose full set is unknown, so a rebase during motion and a replacement reference from fresh reads could be accepted. Give zero position its own predecessor table: current stationary evidence and no active or uncertain coordinate-dependent onboard operation; keep retirement before possible TX and the stationary condition through replacement-reference verification; test running, halted-with-pending-target and unknown predecessors | 07:69-72, 82-84 |
+| F8 | Medium, probable defect, high | *First contact lacks an explicit read-only path to establish its own entry evidence.* The contract requires firmware strings and node-ID evidence including 0x2020 before any later bench step, and 14a requires a recorded identity, yet Q1-Q3 are where transport, firmware strings and 0x2020 are first observed; a fixture with a label and switch settings but no CAN record has no entry path. Separate the pre-power and pre-CAN prerequisites from what the read-only first-contact sequence establishes; name the passive observations and bootstrap reads that may precede a recorded CAN identity and firmware; keep 0x2020 behind the layout admission and changing trials behind their gates | contract:139-141; 14a:6-7, 29, 37 |
+
+### Unresolved question (reviewer)
+
+1. For the future SSDC-C torque path, does stage 06's "confirmed UM21 layout" mean any admitting stage 03
+   outcome or only CONFIRMED? Prompt 57 admits a current matching declaration under some UNCONFIRMED outcomes
+   and the execution contract adopts that rule; the present 0x6087 gate masks the difference. Resolve the
+   wording and test a colliding declared match before opening the torque path.
+
+### Coverage gaps (reviewer)
+
+The original PDFs, rendered pages, EDS bytes, extracts and manifest were not supplied, so device claims and
+hashes were checked for consistency against the pack summary and review only. The repository index was
+truncated: owner and adapter code, the adapter bitrate table, build and verification scripts and workflows were
+not supplied, and the shared inventory is a historical map, not evidence of seam landings at HEAD. The parent
+project instructions, the conditional experiment prerequisites and main-sequence prompts other than 57 and 77
+were not supplied. No MOONS' fixture, wiring, authorization, measurement or trace existed; electrical behavior,
+physical stop effects, service latency and restoration were not verified.

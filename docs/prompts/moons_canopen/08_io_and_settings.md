@@ -36,6 +36,14 @@ are owned here; MO-D08 and MO-D09 apply to every object below.
      0x2603 reads lie within the limits (an out-of-limit readback keeps them refused with the values named).
      That readback is the drive's reported setting, not a measured current. This check is not the quiescence
      guard and has no off setting.
+   - Motor-data de-energized guard, for 0x260D and 0x2612 writes only and separate from the quiescence guard:
+     a fresh 0x6041 in Switch on disabled or Ready to switch on and 0x200B bits 0 "Motor Enabled" and 14 "Q
+     Program is running" clear (UM21 p67), read within the operation. UM21 p84 ("used to set the motor") and
+     p86 do not say when the drive applies new motor data, so on an energized drive the current may change at
+     once, before any readback. On by default and settable per binding independently of the quiescence guard:
+     switching that guard off leaves this one on. With it off the write is sent and the admitted result names
+     this guard and states that the current may have changed on an energized drive before the readback. The
+     caller limits, the `UNKNOWN` current and the enable and motion refusal above apply either way.
    - A write without a confirmed reply leaves the setting `UNKNOWN`, applies item 5's invalidation at once,
      and dependent motion, homing and output operations refuse until a fresh readback.
    - The alarm masks 0x2610 and 0x221A (08c) admit an explicit write of their documented function, masking
@@ -64,7 +72,7 @@ Deliver one tested, committed block at a time through the same context and the o
 
 | Block | Objects and evidence | Policy and tests |
 | --- | --- | --- |
-| 08a motor, current and resolution | STF: 0x2601 idle and 0x2603 acceleration current ("Amps multiply 100", UM21 p82), 0x2604 steps/rev, 0x260D motor selection, 0x2612 custom motor sub 1-15, 0x260E open-winding velocity limit (counts/s), 0x2611 load ratio, 0x260A jerk delay. SSDC: 0x2201 peak current (mA), 0x2203 idle, 0x2206 acceleration current (absent from EDS-SSDC, MO-D08), RO 0x2207, 0x2218, 0x2216. Both: 0x6073 (0.01 A, UM21 p60) | Motor selection and custom motor data change the motor model and current: explicit commissioning intent plus item 4's current limits and readback before enable. 0x6073 is "maximum permissible torque creating current" in UM21 p60 but "Running Current" in AMP10 p16; its effect on an open-loop stepper is unknown (MO-D25), so its write stays unsupported on STF. Units stay native where a page gives none. `test/moons_canopen_motor_settings_test.cpp` |
+| 08a motor, current and resolution | STF: 0x2601 idle and 0x2603 acceleration current ("Amps multiply 100", UM21 p82), 0x2604 steps/rev, 0x260D motor selection, 0x2612 custom motor sub 1-15, 0x260E open-winding velocity limit (counts/s), 0x2611 load ratio, 0x260A jerk delay. SSDC: 0x2201 peak current (mA), 0x2203 idle, 0x2206 acceleration current (absent from EDS-SSDC, MO-D08), RO 0x2207, 0x2218, 0x2216. Both: 0x6073 (0.01 A, UM21 p60) | Motor selection and custom motor data change the motor model and current: explicit commissioning intent plus item 4's de-energized guard, current limits and readback before enable. 0x6073 is "maximum permissible torque creating current" in UM21 p60 but "Running Current" in AMP10 p16; its effect on an open-loop stepper is unknown (MO-D25), so its write stays unsupported on STF. Units stay native where a page gives none. `test/moons_canopen_motor_settings_test.cpp` |
 | 08b inputs, outputs, brake and input functions | 0x60FD bits 16-23 X1-X8, bits 0-3 limits, home, interlock (UM21 p63). 0x60FE sub 1 Y1-Y4 in bits 0-3 and sub 2 mask, edge-triggered: write sub 2 first, then sub 1 (UM21 p63-p64; MO-D21). Output functions 0x2615/0x2214 (one 4-bit code per output, UM21 p87) and 0x2616/0x2213 alarm output on Y1; brake 0x2607/0x220C sub 1 mode, sub 2 and 3 delays in ms (UM21 p75, p83); enable input 0x2617/0x220D and alarm-reset input 0x2609/0x220E; input filters 0x260C sub 3-8 and 0x2210 in 200 us units (UM21 p76); SSDC analog 0x2212 and 0x221C | An output write requires that output's function to be general purpose (code 3) in a fresh read; a function-assigned output does not follow 0x60FE. Never toggle a brake output through 0x60FE. Writing the mask then the outputs is one operation with partial-failure evidence; mask-before-value is the documented order, not a generic CiA 402 layout. Changing the enable or alarm-reset input function changes who can enable or reset the drive: explicit, named, read back. Physical loads need their fixture. `test/moons_canopen_io_test.cpp` |
 | 08c direction, filters and loop tuning | STF: 0x260F sub 1 reverse direction, sub 2 wave smoothing, sub 3 electronic damping (0 = enabled), sub 4 open-winding detect (UM21 p85), 0x2613 pulse noise filter, 0x2614 smooth filter, 0x2610 alarm mask. SSDC: 0x2208 rotation reverse, 0x220B smooth filter, 0x2211 notch filter (SSDC only), 0x2220-0x2227 gains and filters, 0x2204/0x2205 and 0x2252 in-position conditions (0x2205 in 200 us cycles), 0x221A alarm mask | 0x2610/0x221A "mask the LED flashing of the corresponding alarm" (UM21 p85); whether masking also suppresses the alarm's effect is not stated, so an explicit write of the LED mask is admitted and its result states the protection effect as unreviewed (item 4). Gains have no documented units: native values only, no auto-tuning, no tuning as fault handling. Direction changes invalidate scales and origins. `test/moons_canopen_tuning_test.cpp` |
 
@@ -81,7 +89,9 @@ mismatch, partial failure, stale cache, invalidation and no automatic save, refu
 and on a Switched on drive with the quiescence guard on, admission with the guard off and the result naming
 it, a current above the caller's limit, a 0x260D and a 0x2612 write with the 0x2601/0x2603 readback missing,
 above and within the limits and with an uncertain acknowledgement (enable refused, refused, admitted,
-refused), invalidation and dependent refusal after a possibly applied write,
+refused), a 0x260D and a 0x2612 write on an enabled idle and on a running drive with the quiescence guard off
+(refused by the de-energized guard, no TX) and with both guards off (sent, the result naming both), and their
+partial and uncertain writes, invalidation and dependent refusal after a possibly applied write,
 and an alarm-mask write whose result states the unreviewed protection effect; 08b also tests the mask-then-value
 order, a function-assigned output refusal and brake-output refusal. Every ledger row of the three groups has
 an explicit disposition. Quick and full verify, firmware builds and exact-commit CI pass for each behavior

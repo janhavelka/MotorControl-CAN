@@ -35,8 +35,9 @@ Status: NOT STARTED. Requires 02b. MO-D01, MO-D09, MO-D11, MO-D19, MO-D20 and MO
    canopen_shared 02 "Identity and device evidence" applies to every family: CONFIRMED (the declared row's
    reference matches, every other candidate has a reference and none matches; unique among the supplied
    references, not physical proof), CONTRADICTED (another candidate's reference matches and none of the
-   declared row's, for example the other UM21 row's 0x2050, or the TSM/TXM-C abort for a UM21 declaration)
-   and UNCONFIRMED (everything else). Admission by outcome: CONFIRMED, and UNCONFIRMED in which the declared
+   declared row's, for example the other UM21 row's 0x2050; the TSM/TXM-C abort for a UM21 declaration
+   leaves the declared row's 0x2050 field undecided, so it is UNCONFIRMED without the declared match, prompt
+   57) and UNCONFIRMED (everything else). Admission by outcome: CONFIRMED, and UNCONFIRMED in which the declared
    row's reference matches (a collision, or a candidate without references such as another MOONS' series the
    application lists), admit, and the result names every matching row; UNCONFIRMED without that match (no
    answer, another abort, an incomplete or oversized string, any other value), CONTRADICTED and no current
