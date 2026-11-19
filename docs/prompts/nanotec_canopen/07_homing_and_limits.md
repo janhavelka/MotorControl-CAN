@@ -28,10 +28,28 @@ polarity, methods and reactions below are Nanotec facts.
    609Ah is used only when starting (N5 pp386-387); home offset 607Ch. Refuse a method
    whose prerequisites are not declared and observed; never disable a limit or
    reassign an input to make homing run.
-3. Method 35 (the preset, 6098h = 23h, N5 p385) sets the current position without
-   motion and does not need Operation enabled (N5 p89). Treat it as an explicit
-   coordinate operation, not as physical homing, and never run it because the preset
-   selects it (NT-D11). It invalidates host origin and reference generations.
+3. Method 35 (the preset, 6098h = 23h, N5 p385) references to the current position
+   (N5 p84, p88) without motion, and N5 p89 says it does not need Operation enabled.
+   Treat it as an explicit coordinate operation, not as physical homing, and never run
+   it because the preset selects it (NT-D11). It has its own source-state rows, runs
+   only on an explicit request, selects no mode and never enables (prompt 57: no
+   implicit enable; Operation enabled in mode 6 is reached through 04's mode select and
+   enable with their declarations):
+
+   | Fresh predecessor | First changing frame and order |
+   | --- | --- |
+   | Operation enabled, 6061h = 6, 6040h bit 4 = 0 with a known halt state (04's halt-evidence rule) | 6098h = 23h when the fresh 6098h differs, confirmed by its reply; then the trigger 001Fh, or 011Fh when that 6040h has bit 8 set (bit 8 kept, 04 item 1; it has no function in homing, N5 p82). With 6098h already 23h the trigger is the first changing frame |
+   | Operation enabled in another mode | None: refused, naming 04's mode select |
+   | Switch on disabled, Ready to switch on, Switched on | None: `UNSUPPORTED`. N5 p89 permits method 35 outside Operation enabled but documents no trigger word there, and from Switched on a word with bits 0-3 set is enable operation (transition 4, N5 p57); the route stays unavailable until vendor evidence gives the sequence |
+   | 6040h bit 4 set, or unread, stale or unqualified; any other state | None: refused with nothing sent |
+
+   Host origin and reference generations are invalidated before the trigger's first
+   possible TX. A lost 6098h reply ends the operation before the trigger; a lost
+   trigger reply leaves the coordinate possibly changed: result UNKNOWN, no earlier
+   reference reused, no replay. Completion follows item 4's bit pattern and item 5's
+   publication rule. N5 p89 indicates that energising the windings in open loop can
+   leave the position not exactly 0 after method 35, so the result reports the observed
+   6064h and never claims zero.
 4. `prepareHome`/`nextHome`/`advanceHome` (6060h = 6, bit 4 rising; N5 p82). Status
    bits 13/12/10: 000 running, 001 interrupted or not started, 010 homed since restart
    but target not reached, 011 complete, 100 error while turning, 101 error at
@@ -59,12 +77,24 @@ polarity, methods and reactions below are Nanotec facts.
    set or the halt state is unknown (04's halt-evidence rule; bit 8 has no special
    function in homing, N5 p82, so the word neither halts nor restarts); in any other
    state it sends nothing and reports the state. 04's `QUICK_STOP` also ends homing
-   (bits 4-6 = 0, 04 item 8). The run's stop path is checked before the trigger: on
+   (bits 4-6 = 0, 04 item 8). A moving method triggers only from the predecessor of
+   item 3's first row (Operation enabled in mode 6, bit 4 = 0, known halt) with the
+   same trigger word; its staging writes (its method in 6098h, 6099h, 609Ah, 607Ch and
+   203Ah) precede the trigger, each confirmed. Every other predecessor refuses it with
+   nothing sent. The run's stop path is checked at preparation, before its first
+   changing TX, staging writes included (canopen_shared 02 timed runs): on
    an unresolved route (a lost trigger reply, S10 `NONE`) the binding's opted-in S3
    shape 010Bh, which ends a running homing (04 item 8), or an independent stop the
-   application declares, named in the result; on a resolved route with a stale,
+   application declares, named in the result with the caller's fallback deadline
+   (06a item 3's rule: the application invokes it when the interruption or urgent stop
+   is not admitted, misses its dispatch window or leaves the stop effect unconfirmed at
+   that deadline, an early interruption with an upload pending included; admission, TX
+   or an acknowledgement never retire that need; a declaration without the deadline is
+   refused); on a resolved route with a stale,
    missing or alarmed report, 04's `QUICK_STOP` branch without a fresh report. Without
-   one the method is refused before the trigger. `needsStop` and UNKNOWN execution
+   one the method is refused before its first changing TX. The S3 frame and the
+   declared stop stay distinct, and neither one's TX is evidence of standstill.
+   `needsStop` and UNKNOWN execution
    are set before the trigger's possible TX and stay after a lost trigger reply,
    cancellation, failure or recovery; no result claims standstill without fresh
    evidence. Method 35 (item 3) is not a run and needs none of this.
@@ -123,11 +153,21 @@ with the stop budget refused at preparation; a lost trigger reply keeping `needs
 and UNKNOWN with no replay and at most the one S3 frame or the declared stop named; a
 poll in flight near interruption due with its deadline capped there; service resuming
 after interruption due sending no further step; a queue-pressured interruption;
-refusal before the trigger without an unresolved-route stop path), the interruption
+refusal without an unresolved-route stop path before the first changing frame, so no
+staging write of 6098h, 6099h, 609Ah, 607Ch or 203Ah leaves; a declared stop without a
+fallback deadline refused at preparation with zero TX; 06a's fallback cases with the
+recording declared-stop hook and fake clock, plus an early interruption while an
+observation upload is pending, each asserting the hook was invoked by the deadline and
+not cancelled by admission, TX or acknowledgement of the interruption), the interruption
 word (000Fh, 010Fh with bit 8 set or unknown, nothing outside Operation enabled in
 mode 6, admitted under a refusing identity outcome), a travel bound crossed by a fresh
 6064h interrupting early and an older observation never used,
-method 35 admitted without an interruption time and never run implicitly, reference publication only after observed
+method 35 admitted without an interruption time and never run implicitly, its
+source-state rows with the literal first changing frame (6098h = 23h when it differs,
+otherwise the trigger; 001Fh, or 011Fh with bit 8 set), zero TX from Switch on
+disabled, Ready to switch on, Switched on, another mode, bit 4 set and an unread
+6040h, never an enable word, and a lost trigger reply leaving the result UNKNOWN with
+the earlier reference not reused and no replay, reference publication only after observed
 completion, and each 3701h value's reported reaction. Item 8's own commit: an enabled
 limit reading active, a stale, missing or undecodable 60FDh or 3240h:01 and a failed
 read each refused with the input named; a function left off reported, not enabled;

@@ -304,3 +304,76 @@ removing the settable guards or for delaying independent work.
   64, 65 and 73 were not supplied.
 - No Nanotec fixture record, wire capture, service or heartbeat-delivery measurement,
   build or CI result existed; no code, test or hardware was exercised.
+
+## Round 5: audit of the round-4 promptset, 19 November 2026
+
+A condensed, faithful copy of the fifth report; untrusted reviewer input like rounds 1
+to 4. The verified dispositions are in [audit_application.md](audit_application.md),
+"Round 5". Line numbers refer to the files at the audited revision, before round 5 was
+applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-203724-052e45` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~237059 tokens)") |
+| Date | 2026-11-19 20:37:24 (from the ID), 197.3 s, one attempt |
+| Revision | `main` at `631f74fa27fb19b7df6da41e216c0113594bd648`, no uncommitted changes recorded; this set's files are byte-identical at `09147a84`, and the shared contract audited is the `631f74fa` text (371 lines), before `09147a84` |
+| Cost | Estimated USD 0.47 (0.467808, configured pricing); 180,284 input and 10,724 output tokens (4,550 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-203724-052e45.json` (local) |
+| Location checks | 35 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 21 files of this set after round 4 (`README.md` 150 lines,
+sha256 `86acee42...`; `execution_contract.md` 236, `e701e658...`; `audit.md` and
+`audit_application.md`; stages 01 to 13). Context: canopen_shared `README.md` (81,
+`f0df1f65...`), `02_profile_integration_contract.md` (371, `2b5e631d...`) and
+`01_existing_code_and_tooling.md` (181), `ADD_DRIVE.md`, `COMMON.md`, the pack
+`README.md` and `review.md` (380, `7deb2d9b...`), prompt 57 (219, `78c2f4bb...`), prompt
+77 (207, `bbb697d7...`); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** S3 and S13 default-deny behavior is scheduled with profile registration,
+the exclusive-control and limit predicates precede their first consumers, and free PDO
+COB-ID writes stay blocked until the identifier reservation check lands. The remaining
+blockers affect targeted NMT admission, stop and homing behavior, torque-mode entry and
+the evidence used to activate a pending PDO route. Evidence, ledger and package work and
+independent read-only implementation can proceed without changing the owner's
+no-firmware-lock or settable-guard decisions. **Verdict:** blocking issues: some changing
+routes lack a required admission rule, and others can pass their written acceptance
+without proving the required stop or routing behavior; correct the affected routes
+before exposing them; this does not block independent work or justify a blanket
+firmware lock.
+
+### Round 5 findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, probable defect (sequencing), high | *Registration does not close the owner's targeted NMT route before identity admission exists.* The shared inventory says the owner admits NMT; 02b closes SYNC and node-0 NMT, but its targeted-NMT restriction is on the console, and the owner's targeted checks are 09's. Unless the owner already denies targeted NMT for a new profile, a direct caller bypasses the console during 02b-08, so "no identity-dependent changing route is callable" is not established; prompt 57 treats targeted NMT as a changing request. Deny targeted NMT on Nanotec bindings at the owner entry point in the S2 commit; test direct owner admission with zero NMT TX; let 09 replace the deny with its per-command and hand-off checks, prompt 57's Stopped-to-Pre-operational bootstrap exception included. | shared 01:50; 02b:50-52, 84-86; 09:116-119; prompt 57:110-111 |
+| F2 | High, verified defect (safety), high | *Timed runs name independent fallbacks but not when to use them.* The shared contract requires a caller-supplied fallback deadline for a declared independent stop and says when the application invokes it; 06 accepts a declaration and tests that it is named, 07 does the same for homing, and neither tests invocation when the urgent stop cannot leave or its effect is unconfirmed at the deadline. 07 checks the stop path before the trigger, the shared rule before the first changing TX, which matters if homing selects a mode or stages settings first. Apply the rule at preparation for 06a, 06b and moving homing; require the deadline and test invocation after refused or late dispatch and when TX or acknowledgement has not confirmed the stop by then, early homing interruption with an upload pending included; prove no homing staging write leaves without an admitted stop path; keep the S3 path distinct from the fallback and treat neither TX as standstill. | shared 02:147-152; 06:155-156; 07:61-64, 122-126 |
+| F3 | High, probable defect (safety), high | *The method-35 coordinate route lacks a non-enabling trigger sequence.* 07 says method 35 does not need Operation enabled but gives only the common mode-6 rising-bit-4 description, with no admitted source states or complete trigger word for the non-enabled route, while 04 documents that an enable-operation word from Switched on enters Operation enabled with possible alignment or brake effects; a test that method 35 needs no interruption time would not catch a coordinate operation that also enables. Give method 35 its own page-backed source-state and command table with no implicit enable; per admitted predecessor assert the literal first changing frame and the coordinate/reference result; test a lost trigger reply so an old reference is not reused; keep a non-enabled predecessor without an evidenced sequence unavailable. | 07:31-35, 130-131; 04:36-37, 189 |
+| F4 | High, verified defect (consistency), high | *Profile Torque's private mode entry omits the enabled-mode controlword check.* 04 requires a fresh clear bit 4 for mode select in Operation enabled and makes 06b the only path into PT, but 06b's entry order (bit-15 check, zero torque target, mode download, confirmation, nonzero target) and its acceptance never require it, though the review records a command start when the mode changes in Operation enabled with bit 4 set. PT honors halt, yet 06b does not decide what a start with bit 8 set is. Use 04's enabled-mode predecessor validation before the private mode download; define the admitted halt state and the first start-capable write; refuse halted or unknown predecessors unless an evidenced PT start sequence exists; add owner-backed cases for bit 4 set or unread, a held halt and loss of the actual start-capable write. | 04:93-95, 58-60; 06:94-98; review:130 |
+| F5 | High, verified defect (instruction conflict), high | *Stage 04 treats a controlword read as proof of halt clear, contrary to the shared rule.* 04 sets clear or set from a fresh 6040h read after the last possibly sent word; the shared rule makes only an acknowledged bit-8-clear word with no later possibly sent bit-8-set word clear. At attachment without acknowledged history a fresh read of zero selects 000Bh under the family text but leaves halt unknown (010Bh) under the shared text; the aborted and malformed read tests do not cover this. Use the shared definition conservatively, or document Nanotec readback as an additional boundary with device and correlation evidence and amend the shared contract and tests; test first attachment with bit 8 read clear but no acknowledged clear word, and a later possibly sent set word. | 04:163-165, 190; shared 02:169-171 |
+| F6 | Medium, verified defect (sequencing), high | *Stage 04 requires positive VL and PV entry tests before those modes are available.* The host mode table keeps VL and PV unavailable until 06a, yet 04's acceptance requires an enabled entry with a zero target to send 6060h and a lost reply to give an unknown mode; at 04 the public route must refuse both, and sending the frame to pass acceptance would bypass the gate. Test VL and PV unavailable with no changing TX at 04; move the enabled-entry tests for zero, nonzero and unread targets and the lost mode reply to 06a's enabling commit through the public route; a private table test at 04 does not count as owner-path acceptance. | 04:118, 223-226; COMMON:90 |
+| F7 | High, verified defect (instruction conflict), high | *A same-ID, same-length TPDO can activate a route without distinguishing delayed traffic.* 09 lets one frame observed after a boot-up activate a pending TPDO identifier when ID and length match readback; those checks do not tell a delayed frame from an earlier use, so it can promote the route and release the other reservation, against 09's own observation rule and AGENTS. Atomic reservation does not retire earlier traffic. Keep the frame path only with a distinct verified route, a receive-retirement boundary or an applicable marker; otherwise keep both identifiers reserved and the route pending; test an old same-ID/same-length frame after boot-up against the pending candidate; keep the caller-declaration path, labelled declaration-based. | 09:65-67, 75-77; AGENTS:79 |
+| F8 | High, probable defect (safety), high | *The SDO restart route has no admission rule for the hazards that block NMT Reset Node.* 09 refuses Reset Node while restart-time NanoJ behavior is unknown and names restored command words and automatic Operational entry as restart effects; 10 exposes an explicit 2800h restart with no predecessor or restart-effect admission beyond the save reservation, and its acceptance tests invalidation, not whether the restart should be dispatched. Give 2800h a separate, evidenced admission rule (admissible predecessor, possible boot-time command paths, delayed or uncertain restart); refuse or withhold only that route where its effects cannot be bounded under the permitted explicit caller workflow; test refusal from a torque-producing state and the unresolved boot-path case; never use it as automatic recovery or an undocumented substitute for the refused NMT command. | 09:112; 10:131-134, 187-189 |
+| F9 | High, verified defect (instruction conflict), high | *S13 does not carry the shared external-writer exception into effect admission.* The shared ownership rule makes dependent evidence unqualified when the application declares outside actors; 09 classifies effects from fresh PDO and NMT observations and lists revocations but not how such an exception affects approval (with the single-master guard off and a declared external PDO configurator, a map read showing no command object could stay the basis of a SYNC approval after the configurator changes the map), and its Start row imports the RPDO predicate, which with the guard off admits on this owner's lack of an S14 route. Keep the guard settable; propagate declared exceptions into S13 evidence and invalidate affected approvals when they change; refuse SYNC or NMT that depends on unqualified evidence and keep unaffected routes; add real-owner cases for a declared external writer and an exception introduced after approval or NMT admission. | shared 02:105-107; 04b:22-25; 09:90-94, 108 |
+
+### Round 5 unresolved questions
+
+1. Which named, writable non-PDO object in the communication save category will
+   first-contact Q11 change, and which admitted route restores it? Until both are named,
+   the communication half is an outline rather than an executable production-route
+   question.
+2. What model- and firmware-specific evidence distinguishes the firmware session when
+   boot-loader boot-up suppression cannot be established? A positive marker would
+   support evidence-dependent actions such as pending identifier activation without
+   turning UNKNOWN into a firmware lock.
+
+### Round 5 coverage gaps (reviewer's)
+
+- The Nanotec source manifest, original pages, EDS/OD XML contents and package index
+  were not supplied; vendor facts were checked against the review and stage text only.
+- The repository index was truncated; owner, CANopenNode, TWAI, application, checker,
+  package and CI sources and live Git and PROGRESS state were not supplied.
+- The parent Projects instructions and prompts 51, 56, 60, 61, 64, 65, 73 and 75 were
+  not supplied.
+- No Nanotec fixture record, wire capture, service or heartbeat-delivery measurement or
+  execution result existed; no build, test, checker, CI job or hardware procedure ran.

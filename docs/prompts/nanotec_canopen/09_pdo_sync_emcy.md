@@ -64,11 +64,16 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    boot-up's ambiguity: item 8 reporting READY for that boot-up (so the readback comes
    from the firmware session that uses it), or, for a TPDO and that route only, a
    frame observed after that boot-up on the read-back identifier with the confirmed
-   map's length. Without either, the application may declare the new identifier
+   map's length where a distinct verified route, a receive-retirement boundary or an
+   applicable observable marker also rules out an earlier use of that identifier and
+   length (item 5; AGENTS.md). A same-ID, same-length frame alone cannot tell a
+   post-boot sample from a delayed one, so without such a boundary it activates
+   nothing and releases no reservation; this set records no such boundary yet. Without
+   either path, the application may declare the new identifier
    active after a power cycle or Reset Communication that it records (lead decision
    2026-11-19 under the owner's direction of 2026-11-17: user responsibility,
-   settable); the route then becomes active, and every result that uses it names the
-   declaration. Otherwise
+   settable); the route then becomes active, labelled declaration-based, and every
+   result that uses it names the declaration. Otherwise
    the change stays pending with both IDs reserved, its routes unqualified and the
    reason named; pending refuses no other work. A delayed sample on either ID stays
    unqualified until item 5's boundary.
@@ -96,7 +101,8 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    rejected with EMCY, N5 p166) and 1019h are read and reported. The manual's SYNC
    figure shows CAN-ID 80h + node (N5 p119) against 1005h = 80h (NT-D07): use 80h.
 
-   The NMT part of the same S13 rule replaces 02b's default deny for Nanotec nodes: a
+   The NMT part of the same S13 rule replaces 02b's default deny for Nanotec nodes,
+   both the node-0 deny and the owner-level deny of targeted NMT (02b item 2): a
    node-0 NMT command on an interface with a Nanotec binding is admitted at the
    owner's NMT admission only when every declared node's effect is known and admitted;
    an unlisted effect or unread or stale evidence refuses with zero NMT TX. This
@@ -109,7 +115,7 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    | 80h Enter Pre-operational | PDO stops; SDO, SYNC and EMCY stay active (N5 p118); no page gives the drive's reaction to the lost RPDO data | Fresh maps show no valid RPDO mapping a command object |
    | 02h Stop | Only NMT stays active (N5 p118): no SDO stop or EMCY can reach the node, and no page gives a motion reaction (an NMT Stop is not a quick stop) | A fresh CiA 402 state without torque at the motor (not Operation enabled, Quick stop active or Fault reaction active, N5 p57) |
    | 82h Reset Communication | CANopen settings reset and communication restarts (N5 p119); boot-up and item 8's invalidation follow | A fresh state without torque, as for Stop |
-   | 81h Reset Node | Complete restart (N5 p119): saved values reload (N5 p110), a saved 6040h or 6060h included (N5 pp112-113); 1F80h = 8 enters Operational (N5 p250); whether a stored NanoJ program then starts is unknown (NT-D32) | Never while NT-D32 is open: the effect is unknown |
+   | 81h Reset Node | Complete restart (N5 p119): saved values reload (N5 p110), a saved 6040h or 6060h included (N5 pp112-113); 1F80h = 8 enters Operational (N5 p250); whether a stored NanoJ program then starts is unknown (NT-D32) | Targeted: 10 item 8's restart admission, the same as for the 2800h restart (a fresh state without torque, no operation in flight or unresolved, the caller's NT-D32 acceptance), rechecked at hand-off, then pending until a boot-up. Node 0: never while NT-D32 is open, because the effect stays unknown under S13's broadcast rule |
 
    Admitting any NMT command that can change an evaluated node's NMT state revokes the
    SYNC approval before the command is sent (canopen_shared 02 S13). A targeted NMT
@@ -118,8 +124,10 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    only under prompt 57 "Admission by outcome" and this table's row for that command
    evaluated on the addressed node alone, from fresh reads of its binding: a targeted
    Stop or Reset Communication needs a fresh state without torque, a targeted Start or
-   Enter Pre-operational the row's map condition, Reset Node refuses while NT-D32 is
-   open, and a command without a row refuses, each with zero NMT TX. Both admissions,
+   Enter Pre-operational the row's map condition, a targeted Reset Node 10 item 8's
+   restart admission (lead decision 2026-11-19, the owner's direction of 2026-11-17:
+   explicit caller acceptance instead of a blanket refusal), and a command without a
+   row refuses, each with zero NMT TX. Both admissions,
    targeted and node 0, are rechecked when the command is handed to the controller
    (canopen_shared 02 S13): a binding change, stale evidence or a conflicting
    operation on an evaluated node (10 item 5's save reservation included) retires a
@@ -133,6 +141,26 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    heartbeat or guarding activity in Stopped (N5 p118, NT-D17), so such a report may
    never arrive; without it the node is reported stranded and its recovery is the
    application's (prompt 57). Nothing sends this command implicitly.
+
+   Ownership exceptions (canopen_shared 02 "Ownership premise" and S13 as amended in
+   `09147a84`). The single-master guard stays settable (04b item 1); separately, an
+   exception the application declares for the interface naming an actor outside the
+   owner makes the evidence that actor can change unqualified, on every node it covers.
+   A PDO configurator (another writer of 1400h-1407h, 1600h-1607h, 1800h-1807h or
+   1A00h-1A07h, for example a second master or a configuration tool) makes those nodes'
+   map, transmission-type and COB-ID evidence unqualified, so their SYNC effects are
+   unknown and the Start and Enter Pre-operational rows' map condition fails. An
+   external RPDO producer makes 04b item 1's RPDO-row alternative ("no S14 route of this
+   owner") unqualified, so the Start row admits on such a node only on fresh maps that
+   show no valid RPDO mapping a command object. Another NMT master makes the recorded
+   NMT state unqualified (it already never turns a harmful RPDO harmless). Whatever
+   depends on unqualified evidence
+   is refused with zero SYNC or NMT TX; routes whose evidence the exception does not
+   touch stay admitted. Declaring such an exception, or widening one, revokes the current
+   approvals before any later SYNC TX and retires a not-yet-handed-off NMT command (the
+   hand-off recheck above); a command already handed off is reported possibly sent. A
+   fresh read taken under the exception never requalifies what the outside actor can
+   change after it.
 7. EMCY (N5 pp120-121, pp161-165): 80h + node; error code, 1001h, manufacturer error
    number, padding; an error-cleared EMCY "00 00 E-REG E-Number" when no error
    remains. Decode with the N5 error-number table (watchdog reset 0, fieldbus 4,
@@ -203,19 +231,34 @@ interface refused with zero TX; a
 readback before activation reported as configured and pending, not active; both IDs
 reserved and their routes unqualified through a partial write, a lost reply and
 pending activation; a readback after a boot-up with readiness UNKNOWN keeping the
-change pending, a TPDO frame on the new identifier after the boot-up activating
-that TPDO's ID only, and a caller declaration after a recorded power cycle or Reset
-Communication activating an RPDO's new ID with the declaration named in every result
-using the route (READY and the TPDO frame still activating without one); after a reset, a delayed sample under the old map not qualified.
+change pending, an old same-ID, same-length TPDO frame delivered after the boot-up
+against the pending candidate activating nothing (both IDs stay reserved, the route
+pending), a TPDO frame activating that TPDO's ID only once a boundary of item 4 is
+recorded, and a caller declaration after a recorded power cycle or Reset
+Communication activating an RPDO's or TPDO's new ID as declaration-based, with the
+declaration named in every result using the route (READY still activating without
+one); after a reset, a delayed sample under the old map not qualified.
 The owner's targeted NMT route on a Nanotec binding: the bootstrap Enter
 Pre-operational admitted on a fresh Stopped report with no current outcome; refused
 under CONTRADICTED and with stale or missing state evidence (the node reported
 stranded); never sent by recovery or probe; a targeted Stop and Reset Communication
 refused with a fresh torque state (Operation enabled, Quick stop active, Fault
-reaction active) and with unread or stale state, a targeted Reset Node refused, a
+reaction active) and with unread or stale state, a targeted Reset Node refused
+from a torque state, with an operation in flight and without the caller's NT-D32
+acceptance, admitted with it from a fresh state without torque and then pending until
+a boot-up (changing requests refused, stops admitted), a
 targeted Start refused with a valid RPDO mapping a command object that 04b item 1
 does not admit, each with zero NMT TX; a targeted and a node-0 command whose evidence
-goes stale or whose binding changes between admission and hand-off retired unsent. S13 through the real producer with several
+goes stale or whose binding changes between admission and hand-off retired unsent;
+each targeted command refused by 02b's owner-level deny until this stage's commit
+replaces it, then admitted only by its row. Ownership exceptions through the real
+owner and producer with several Nanotec nodes, the single-master guard off on one
+binding: a declared PDO configurator on one node refusing SYNC (effect unknown) and a
+targeted or node-0 Start that depends on that node's maps, with zero SYNC and NMT TX,
+while a node outside the exception keeps its admitted routes; a declared external RPDO
+producer refusing the Start row's "no S14 route" alternative; an exception declared
+after an approval revoking it before the next SYNC TX; an exception declared after an
+NMT command's admission and before its hand-off retiring it unsent. S13 through the real producer with several
 Nanotec nodes (canopen_shared 02 S13 cases): known harmless admitted; unknown or stale
 refused; a valid synchronous RPDO mapping a command object refused on the target and
 on a node other than the target; remap, rebind and reset during a running schedule
@@ -223,7 +266,7 @@ with no later SYNC TX; a targeted and a broadcast Start while a Pre-operational 
 holds a synchronous RPDO (approval revoked before the Start, no later SYNC TX). Node-0
 NMT through the real owner's NMT admission with several Nanotec nodes: each command
 admitted only under its row's condition on every node; an unlisted command, unread or
-stale evidence, Reset Node, and a harmful effect on a node other than the target each
+stale evidence, a node-0 Reset Node, and a harmful effect on a node other than the target each
 refused with zero NMT TX. The landing or extension is recorded with its tested
 interface and these cases in the canopen_shared README table. Quick and full
 verification and CI on the exact final pushed commit pass. Hardware NOT RUN.

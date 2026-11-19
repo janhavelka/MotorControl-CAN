@@ -131,7 +131,27 @@ central. Follow the [commissioning guide](../../commissioning.md) and
 8. Restore and restart. 1011h:nn = 64616F6Ch discards saved data, effective after a
    restart; 1011h:01 keeps tuning, CANopen and Ethernet (N5 pp115-116). Restart with
    2800h:01 = 746F6F62h, optional delay 2800h:02 (N5 p115, p297), or NMT Reset Node;
-   both invalidate every generation, and neither is assumed equal to the other.
+   both invalidate every generation, and neither is assumed equal to the other. The
+   2800h restart is its own explicit operation with its own admission, never run by
+   recovery; a targeted NMT Reset Node to the binding (09 item 6) gets this same
+   admission, rechecked at hand-off, and node-0 Reset Node stays under S13. It reboots the
+   firmware (N5 p297), which reloads saved values, a saved 6040h, 6060h or 2300h
+   included (N5 p110, pp112-113); 1F80h = 8 then enters Operational (N5 p250), and
+   whether a stored NanoJ program starts is unknown (NT-D32). Admission before its TX:
+   admitted identity and write preflight (a vendor-object download); a fresh 6041h
+   without torque at the motor (not Operation enabled, Quick stop active or Fault
+   reaction active, as 09 item 6's Stop row), refusing on a torque state or an unread or
+   stale state; no operation of this library in flight or unresolved on the binding
+   (item 5's reservation included); fresh reads of 1F80h and 2800h:02, reported; and,
+   while NT-D32 is open, the caller's explicit acceptance, bound to binding and
+   generation, that the reboot reloads the saved command objects and may start a stored
+   program (the `prepareNanojStart` pattern of 04b item 3; the owner's direction of
+   2026-11-17), without which it is refused with zero TX. Every generation is
+   invalidated before the 2800h:01 TX. From that possible TX until a boot-up is
+   observed (a nonzero 2800h:02 delays it), the restart is pending: every changing
+   request on the binding is refused, stops stay admitted, and a lost reply leaves the
+   restart possibly pending, never replayed; only an observed boot-up or a rebinding
+   ends that state.
    1020h is a configuration stamp: the master writes date (1020h:01, days since
    1984-01-01) and time (1020h:02, ms since midnight) before a save-all 1010h:01, which
    stores them; any later write of a savable object, a category save 1010h:02-0Ch
@@ -186,7 +206,13 @@ the result states the declaration-bound claim; a 1010h:04-06 save
 unaffected), the same gate on the 1010h:0Ah store, completion
 by readback of 1, timeouts and a lost reply during a save (conflicting work refused
 until a read returns 1), post-save error checks, restore without
-restart, restart invalidation, 1020h interpretation (no baseline, zero, a matching
+restart, restart invalidation, the 2800h restart admission (refused with zero TX from
+Operation enabled, Quick stop active and Fault reaction active, with an unread or
+stale state, with an operation in flight and, while NT-D32 is open, without the
+caller's acceptance; admitted from a fresh state without torque with it; a lost
+2800h:01 reply and a nonzero 2800h:02 each keeping the restart pending, an ordinary
+request in that window refused, a stop still admitted, no replay; never sent by
+recovery), 1020h interpretation (no baseline, zero, a matching
 baseline, a failed save, a later savable write, a category save, a declared cfg.txt)
 and no automatic retry or save.
 Quick and full verification and CI on the exact final pushed commit pass. Restart and

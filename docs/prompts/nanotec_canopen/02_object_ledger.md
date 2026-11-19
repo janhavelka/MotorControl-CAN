@@ -31,7 +31,10 @@ public headers, so seam S7 lands here.
    `read_effect` unreviewed; set `REVIEWED_NON_CHANGING` only with page evidence.
    Record that 1003h subindices abort with 08000024h while the stack is empty
    (N5 p163) and that strings (1008h, 100Ah, 4040h) need segmented upload or the
-   per-character subindex form (N5 p123).
+   per-character subindex form (N5 p123). Record that 6040h is read / write (N5 p346)
+   and that its only documented drive-side change is bit 4 under 60F2h bits 4-5
+   (N5 p407): the readback evidence 04's halt-state rule consumes (canopen_shared 02
+   "State transitions").
 4. Per-model differences are ledger facts, not code branches by name: PD4-C lacks
    2059h and 3390h; CL4-E has 2102h and 1010h:0Bh (Modbus); PD4-C has 2006h, 2700h,
    4013h, 4015h and 4016h; C5-E has 2800h:03; N5 has 2010h-2013h and 1010h:0Ch. EDS

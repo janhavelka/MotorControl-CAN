@@ -318,3 +318,81 @@ Dispositions: 10 accepted (F1-F10), none accepted in part, rejected or deferred.
 
 `python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
 clean for it. Nothing was compiled; no hardware or port was used.
+
+## Round 5: application of audit `aud-20261119-203724-052e45`, 19 November 2026
+
+Each finding of the [round 5 audit](audit.md) was checked against this set's files
+(unchanged from the audited `631f74fa` to `09147a84`), the
+[reference review](../../reference/nanotec_canopen/review.md), the page-marked extract of
+N5 3.3.0 (multidrive pack) where a device claim is involved, prompt 57, AGENTS.md and the
+shared contract as revised in `2d1c70c2` (fallback deadline for the declared stop) and
+`09147a84` ([canopen_shared audit application](../canopen_shared/audit_application.md),
+themes 12 and 15-17). F1 falls under theme 16, F2 under theme 12, F5 under theme 15 and
+F9 under theme 17: the stages consume those rules by citation and add only Nanotec
+facts. Only files in this directory changed; nothing was compiled and no port was
+opened. The owner's direction holds: the single-master and PDO-persistence guards stay
+settable, the caller-declaration paths stay (labelled), readiness UNKNOWN stays a
+reported, nonblocking fact, and no firmware row is refused by name.
+
+Dispositions: 9 accepted (F1-F9), none accepted in part, rejected or deferred.
+
+### Round 5 findings
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 Targeted NMT before 09 | Accepted | canopen_shared 01 inventory (the owner admits NMT); canopen_shared 02 S13 as amended in `09147a84` (the S2 default deny also refuses targeted NMT to a non-Lichuan binding at the owner entry point until the family's NMT stage lands); 02b item 2 (only node-0 NMT denied at the owner), item 6 (targeted verbs kept off the console only) and Acceptance; 09 item 6; prompt 57 "Motion rule" (an NMT command is a changing request, never a stop) and "Admission by outcome" (a family may refuse more, never admit more; the bootstrap command) | 02b item 2: in the S2 commit the owner refuses every targeted NMT command to a Nanotec binding at its own entry point until 09 item 6 replaces it, the bootstrap Enter Pre-operational included (a Stopped node reported stranded); tests submit each command directly to the owner (zero NMT TX), Lichuan unchanged. 02b Acceptance: targeted NMT listed among the unavailable routes and tested through the owner. 09 item 6: replaces both the node-0 and the targeted deny; 09 Acceptance: the deny holds until 09's commit, then each command is admitted only by its row. README rows 02b and 09 |
+| F2 Fallback deadline of the declared stop | Accepted | canopen_shared 02 "Operation admission", timed runs, as amended in `2d1c70c2`; 06a item 3 and 06b item 6 (06b inherits 06a item 3), 06 Acceptance (declaration only named); 07 item 4 (stop path checked before the trigger) and Acceptance; N5 pp82-83 (homing objects 6098h, 6099h, 609Ah, 607Ch, 203Ah, written before the bit-4 trigger); Lichuan C extensions 03b items 5-6 for the shared test pattern | 06a item 3: a declared independent stop needs the caller's fallback deadline (refused at preparation without one); the application invokes it when the urgent stop is not admitted, misses its dispatch window or leaves the effect unconfirmed at that deadline; admission, TX or acknowledgement never retire it; the S3 frame stays distinct and neither TX is standstill; results name the stop and its deadline. 06 Acceptance: the missing-deadline refusal and service-level fallback cases with a recording declared-stop hook and fake clock; 06b's PT run takes the same cases. 07 item 4: a moving method triggers only from item 3's Operation-enabled mode-6 row, its staging writes precede the trigger, the stop path is checked before the first changing TX, and the declared stop carries the fallback deadline (early interruption with an upload pending included). 07 Acceptance: no staging write leaves without a stop path, a missing deadline refused, the fallback cases. README rows 06 and 07 |
+| F3 Method 35 route | Accepted | 07 items 3-4 and Acceptance; N5 p82 (activation by 6060h = 6, bit 4 starts referencing), p84 and p88 (method 35 references to the current position), p89 (Operation enabled not necessary; energising in open loop can leave the position not exactly 0), p385 (6098h INTEGER8, read / write, preset 23h); N5 p57 (from Switched on, enable operation is transition 4); 04 item 2 (enable side effects) and table; prompt 57 (no implicit enable). No page gives a trigger word outside Operation enabled | 07 item 3: method 35 gets its own source-state table: from a fresh Operation enabled in mode 6 with 6040h bit 4 = 0 and a known halt state, 6098h = 23h when it differs, then 001Fh (011Fh keeping a set bit 8); another mode refused; Switch on disabled, Ready to switch on and Switched on `UNSUPPORTED` until vendor evidence gives a sequence (any word with bits 0-3 set from Switched on enables); bit 4 set or 6040h unread refused; references invalidated before the trigger's possible TX; a lost trigger reply UNKNOWN with no reuse and no replay; observed 6064h reported, never a claimed zero. 07 Acceptance: literal first frames, zero TX from every non-admitted row, never an enable word, the lost trigger reply. 12A Q9 runs method 35 from that Operation-enabled row only. README row 07 |
+| F4 PT entry and start | Accepted | 04 item 6 (fresh 6040h bit 4 = 0 in Operation enabled, FWUPD p6) and host mode table row 4; review section 5 (FWUPD p6: a mode change in Operation enabled with bit 4 set starts the command); N5 p80 (PT: bit 8 = 1 stops the motor, its 1-to-0 transition starts it according to the presets), p81; 06b item 6 and 06 Acceptance; 06a start rows (the same halt pattern for VL and PV, round 4 F7) | 06b item 6: the private mode download first passes 04 item 6's predecessor validation (fresh state reads, 6040h bit 4 = 0 with a known halt state), then the bit 15 check, zero 6071h, 6060h = 4, 6061h = 4; start rows by halt state (halt clear: the nonzero 6071h starts; halt held: nonzero 6071h, matching readback, then 000Fh starts; a differing readback sends no 000Fh); bit 4 set or 6040h unread, stale or unqualified refused; `needsStop` before the nonzero 6071h's first possible TX; lost replies without replay. 04 item 6 host mode table row 4 names the bit-4 and halt checks. 06 Acceptance: those refusals, the literal start rows and a lost start-capable write. README row 06 |
+| F5 Halt state from a 6040h readback | Accepted (the second alternative: Nanotec readback documented as an additional boundary; the shared contract was amended by the lead in `09147a84`) | canopen_shared 02 "State transitions" as amended (a fresh controlword readback handed off after the last possibly sent word establishes the halt state where the family's ledger shows 6040h readable with the received value, under the ownership premise); N5 p346 (6040h Controlword: access read / write, savable category application, RX-PDO); N5 p407 (60F2h bits 4-5: the controller modifies 6040h bit 4; no other drive-side change of 6040h is documented); 04 table paragraph and Acceptance; 02 item 3 | 04 table paragraph: the halt state comes from a fresh 6040h readback handed off after the last possibly sent controlword, citing the amended rule and the ledger evidence (N5 p346, p407: bit 8 reads back as received); a declared ownership exception covering another 6040h writer makes it unqualified (halt unknown). 02 item 3 records that evidence in the ledger. 04 Acceptance: first attachment with no history and bit 8 read clear (`QUICK_STOP` 000Bh, the readback named), the same readback followed by a possibly sent 010Fh (halt unknown, 010Bh) and a declared exception (010Bh). README row 04 |
+| F6 VL and PV entry tests at 04 | Accepted (medium, cheap) | 04 item 6 table rows 2-3 (VL and PV only once 06a has landed) and Acceptance; COMMON usable-prerequisite rule; 06 Acceptance | 04 Acceptance: VL and PV mode select and enable with 6061h 2 or 3 refused as `UNSUPPORTED` with zero TX; a private table test of item 6's entry decisions is allowed but is not owner-path acceptance. 06 Acceptance: in 06a's enabling commit, the enabled entry through the public route (nonzero and unread targets refused with zero TX, zero with 6060h the only changing frame, a lost 6060h reply UNKNOWN without replay). README row 04 |
+| F7 TPDO frame as activation boundary | Accepted | 09 item 4 (frame path), item 5 (a delayed same-ID same-length sample stays unqualified until an evidenced boundary) and Acceptance; AGENTS.md PDO wire-evidence rule (evidenced transition or retirement boundary, distinct verified route or applicable observable marker); round 4 lead decision 3 (caller declaration) | 09 item 4: a TPDO frame on the read-back identifier with the confirmed length activates only where a distinct verified route, a receive-retirement boundary or an applicable marker rules out earlier use of that identifier and length; otherwise it activates nothing and releases no reservation (this set records no such boundary yet); the caller-declaration path stays, the route labelled declaration-based. 09 Acceptance: an old same-ID, same-length frame after the boot-up leaves the change pending with both IDs reserved; the frame activates only with a recorded boundary; the declaration activates an RPDO's or TPDO's ID as declaration-based. README row 09 |
+| F8 2800h restart admission | Accepted (verified: 10 item 8 gave the restart no predecessor or effect admission) | 09 item 6 Reset Node row (refused while NT-D32 is open); 10 items 5 and 8 and Acceptance; N5 p295-297 (2800h: 01h reboots the firmware with 746F6F62h, 02h delays it in ms), p112 (2800h savable in category application), p115 (restart via 2800h:01 after a restore), p110 and pp112-113 (saved values, 6040h, 6060h and 2300h included, reload), p250 (1F80h = 8 enters Operational), p283 and NT-D32 (NanoJ start at switching on); prompt 57 vendor-object rule; 04b item 3 (`prepareNanojStart` acceptance pattern); the owner's direction of 2026-11-17 | 10 item 8: the 2800h restart is its own explicit operation, never recovery and never a substitute for the refused Reset Node; admission needs admitted identity, write preflight, a fresh 6041h without torque (refusing torque, unread or stale states), no operation in flight or unresolved, fresh 1F80h and 2800h:02 reads reported, and while NT-D32 is open the caller's explicit acceptance that saved command objects reload and a stored program may start; generations invalidated before TX; from the possible TX until an observed boot-up the restart is pending (changing requests refused, stops admitted, a lost reply never replayed). 10 Acceptance: the refusals, the accepted case, a lost reply and a delayed reboot keeping it pending, never sent by recovery. README row 10 |
+| F9 Ownership exceptions in S13 | Accepted | canopen_shared 02 "Ownership premise" and S13 as amended in `09147a84` (an exception covering PDO, NMT or SYNC actors makes touched evidence unqualified, S13 refuses what depends on it, declaring it revokes approvals); 04b item 1 (the settable single-master guard; with it off the RPDO row admits on "no S14 route of this owner"); 09 item 6 classification, Start row and hand-off recheck | 09 item 6: a new "Ownership exceptions" paragraph: a declared PDO configurator makes the covered nodes' map, transmission-type and COB-ID evidence unqualified (SYNC effect unknown; the Start and Enter Pre-operational map condition fails); an external RPDO producer makes 04b item 1's "no S14 route" alternative unqualified; another NMT master makes the recorded NMT state unqualified; dependent SYNC and NMT refused with zero TX, unaffected routes kept; declaring or widening an exception revokes approvals before the next SYNC TX and retires a not-yet-handed-off NMT command; a fresh read under the exception never requalifies. The guard stays settable (04b unchanged). 09 Acceptance: real-owner cases with the guard off on one binding (declared configurator, external RPDO producer, an exception after approval, an exception between NMT admission and hand-off). README row 09 |
+
+### Round 5 unresolved questions
+
+1. **Q11's communication-category object.** Answered. Of the non-PDO objects in the
+   communication category (N5 p111-112: 1005h, 1006h, 1007h, 100Ch, 100Dh, 1014h, 1016h,
+   1017h, 1019h, 1029h, 1F80h, 2102h), 1029h:01 is the one with an admitted, unblocked
+   RAM setter with readback (09b item 2, admitting 0, 1 and 2). The nonzero 1016h:01
+   setter is BLOCKED until S11 (09b item 3), node guarding (100Ch, 100Dh) stays BLOCKED,
+   the 1F80h setter (10 item 3) is no harmless probe because 8 enters Operational, where
+   RPDO1 maps 6040h, CL4-E 2102h is refused (10 item 3), and the rest have no setter in
+   this set. 12A Q11 now names 1029h:01, changed
+   through 09b item 2's setter to another admitted value that the fixture record
+   accepts, in a no-torque state, then saved, restarted and compared, and restored
+   through the same setter with one more save and a readback; on FIR-v1650 the setter
+   refuses (`FIR1650_ERROR_BEHAVIOR`) and that part is NOT RUN.
+2. **Firmware-session marker.** Not answered by the pack; no stage change. The only
+   documented boundary remains 2007h:01 = 1 in force at that boot-up (N5 p252, 09 item
+   8). N5 p132 describes only the loader's boot-up message, pp246-249 (1F50h, 1F51h,
+   1F57h) and pp344-345 (4042h, the loader's version, fieldbuses and hardware group)
+   document no value that tells a loader session from the firmware's, and p32 concerns
+   Ethernet only. It stays a vendor or fixture question (12A Q2 records fixture
+   observations). Readiness UNKNOWN still refuses nothing; after F7 the TPDO frame is no
+   longer an activation boundary without its own evidence, so a pending identifier
+   without READY activates only through the labelled caller declaration.
+
+### Round 5 lead decisions (2026-11-19)
+
+1. **Method 35 outside Operation enabled** stays `UNSUPPORTED` until vendor evidence
+   gives a trigger word. Confirmed as applied (07 item 3); no further change.
+2. **One admission for both restarts.** A targeted NMT Reset Node to a Nanotec binding
+   gets the 2800h restart's admission (a fresh state without torque, nothing in flight
+   or unresolved, the caller's NT-D32 acceptance, pending until a boot-up), checked again
+   at hand-off; node-0 Reset Node stays under S13's broadcast rules and refuses while
+   NT-D32 leaves its effect unknown. This follows the owner's direction of 2026-11-17
+   (explicit caller acceptance instead of a blanket refusal) and replaces the round-4 F4
+   "Reset Node refused while NT-D32 is open" for targeted commands. Changed: 09 item 6
+   (Reset Node row and targeted text) and Acceptance (targeted refusals and the accepted
+   case, node-0 Reset Node refused); 10 item 8; README rows 09 and 10.
+3. **TPDO activation** runs in practice through the labelled caller declaration until
+   a boundary is recorded. Confirmed as applied (09 item 4); no further change.
+4. **PT start row for a halted drive** from N5 p80 (nonzero 6071h under the held halt,
+   matching readback, then 000Fh). Confirmed as applied (06b item 6); no further change.
+
+### Round 5 checks
+
+`python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
+clean for it. Nothing was compiled; no hardware or port was used.

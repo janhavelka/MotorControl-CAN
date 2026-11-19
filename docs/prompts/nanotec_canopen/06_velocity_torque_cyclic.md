@@ -39,7 +39,16 @@ deadlines, watchdog and measured transport requirements.
    runs) requires: the binding's opted-in S3 shape (04 item 8; S3 is opt-in per
    binding, so stage 04 having landed does not supply it) or an independent stop the
    application declares for the run (its own enable, STO or power path), named in the
-   result. Without either, it is refused before its first changing TX. The run also
+   result. Without either, it is refused before its first changing TX. A declared
+   independent stop carries the caller's fallback deadline (canopen_shared 02 timed
+   runs, as amended in `2d1c70c2`); a declaration without one is refused at
+   preparation the same way. The application invokes that stop when the urgent stop is
+   not admitted at stop due, misses its dispatch window, or leaves the stop effect
+   unconfirmed at the fallback deadline; admission, TX or an acknowledgement of the
+   urgent stop never retire that need. The opted-in S3 path stays distinct: it is the
+   route's one best-effort frame, not the declared stop, and neither one's TX is
+   evidence of standstill. Every result of the run names the declared stop and its
+   fallback deadline, and the application records when it invoked it. The run also
    passes 07 item 8's limit admission. `needsStop` and UNKNOWN execution stay while
    any start word may have left. A deadline never stops the drive by itself. No
    repeated start, no replayed stop.
@@ -91,13 +100,26 @@ reply ends the run before the target write; a lost target or 000Fh reply keeps
    with bit 15 = 1 (N5 p348), sampled in the current server session after the last
    boot-up and after the last write to the motor and feedback objects (3202h, 3203h
    and 03's motor group), immediately before the mode change to 4 or the first nonzero
-   6071h. Entry order from Operation enabled: that bit 15 check, a fresh 6071h that
+   6071h. Entry order from Operation enabled, the private mode download passing 04
+   item 6's enabled-mode predecessor validation first: the fresh state reads of 04's
+   table row; a fresh 6040h with bit 4 = 0 (FWUPD p6, review section 5: a mode change
+   in Operation enabled with bit 4 set starts the command) whose halt state is known by
+   04's halt-evidence rule; that bit 15 check; a fresh 6071h that
    reads zero (6071h is savable, 10 item 6, and no page documents what an enabled mode
    change does with a retained target; a nonzero or unread value refuses with nothing
-   sent and the operation writes no 6071h before the mode change), 6060h = 4 as the
-   first changing step, 6061h = 4 confirmed, then the first nonzero 6071h. A lost
+   sent and the operation writes no 6071h before the mode change); 6060h = 4 as the
+   first changing step; 6061h = 4 confirmed. Bit 4 set, or a 6040h that is unread,
+   stale or unqualified (halt unknown), refuses with nothing sent. The start then
+   follows the halt state, because in PT bit 8 = 1 stops the motor and its 1-to-0
+   transition starts it according to the presets (N5 p80): with halt clear the first
+   nonzero 6071h is the start-capable write; with halt set, the nonzero 6071h under the
+   held halt, a fresh 6071h readback equal to the request, then 000Fh (bit 8 cleared),
+   which starts; a readback that differs or fails sends no 000Fh. `needsStop` and
+   UNKNOWN execution are set before the first possible TX of the nonzero 6071h in both
+   rows (as 06a's start rows) and stay while it or 000Fh may have left. A lost
    6060h reply leaves the mode UNKNOWN and ends the operation without replay (04
-   item 6). This check also governs the public mode transition: 04 item 6's host mode
+   item 6); a lost reply to the nonzero 6071h or to 000Fh keeps `needsStop` and
+   UNKNOWN, with no replay. This check also governs the public mode transition: 04 item 6's host mode
    table admits mode 4 only inside this operation and refuses enable with 6061h = 4,
    so the generic mode select cannot bypass it. Configuration alone does not suffice: with encoder commutation and no auto
    alignment the drive stays in open loop until the index passes (N5 p53), and bit 15
@@ -153,12 +175,30 @@ unresolved-route branch (with S10 `NONE`, neither the binding's S3 shape nor a
 declared independent stop: refused before the first changing frame; with the S3
 shape opted in: the start reply lost, the ordinary run retired, at most the one
 reviewed 010Bh best-effort frame sent, uncertainty kept and no standstill claimed;
-with a declared independent stop: admitted and named in the result), 07 item 8's
+with a declared independent stop: admitted and named in the result with its fallback
+deadline, and refused at preparation with zero TX when the declaration has none), the
+fallback cases at the service level through the example application with a
+recording declared-stop hook and a fake clock (the urgent stop not admitted at stop
+due; admitted but not dispatched in its window under queue pressure; sent or
+acknowledged with no confirming observation by the fallback deadline; each asserting
+the hook was invoked by that deadline, that admission, TX or acknowledgement of the
+urgent stop did not cancel it, and that `needsStop` and UNKNOWN execution are kept),
+06a's enabling commit: mode select into VL and PV from Operation enabled, halted or
+not, and enable with 6061h = 2 or 3, through the public route against 04 item 6's
+table (a nonzero or unread destination target refused with zero TX, a zero one with
+6060h the only changing frame, a lost 6060h reply leaving the mode UNKNOWN with no
+replay), 07 item 8's
 limit refusals on each run route with zero TX, priority
 stop, unknown terminal motion, PT selected through the generic mode select refused,
 PT refusal in open loop or
 with 3202h bit 5 = 1, PT entry with a nonzero or unread retained 6071h refused with
 zero TX and a lost 6060h = 4 reply ending UNKNOWN without replay or a 6071h write,
+PT entry with 6040h bit 4 set, or 6040h unread, stale or unqualified, refused with
+zero TX; the PT start rows in literal order (halt clear: 6060h, then the nonzero
+6071h as the start-capable write; halt held: 6060h, the nonzero 6071h, its readback,
+then 000Fh; a differing readback sending no 000Fh) and a lost reply to the actual
+start-capable write keeping `needsStop` and UNKNOWN without replay; the PT run's
+timed-run and fallback-deadline cases as in 06a,
 PT on an enabled, configured closed-loop axis refused before
 and admitted after a fresh bit 15 = 1, and refused again with that evidence stale
 after a boot-up or a motor-settings write, per-mille limits and the 10 % preset

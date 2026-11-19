@@ -49,10 +49,21 @@ tested.
    commit (canopen_shared 02 "CANopen-only rules", S13; claim or extend as for S3):
    through the S2 lookup, on an interface with a Nanotec binding prompt 51's producer
    refuses `armSync` and `admitSync` and the owner's NMT admission refuses node-0 NMT
-   until 09 lands the Nanotec SYNC and NMT effects. Tests: with a Nanotec binding on the
+   until 09 lands the Nanotec SYNC and NMT effects. The same commit makes the owner
+   refuse every targeted NMT command addressed to a Nanotec binding at its own NMT
+   entry point, not only in the console (canopen_shared 02 S13 as amended in
+   `09147a84`; prompt 57: an NMT command is a changing request, never a stop), until 09
+   item 6 replaces this deny with its per-command rows and hand-off recheck. Prompt 57's
+   bootstrap Enter Pre-operational is refused too until then (a family may refuse more,
+   never admit more); a Stopped node is reported stranded and its recovery is the
+   application's. Tests: with a Nanotec binding on the
    interface, `armSync`, `admitSync` and a node-0 NMT command each refused with zero
-   TX; a schedule already running when the binding is admitted revoked first, with no
-   later SYNC TX; a Lichuan-only interface unchanged.
+   TX; each targeted command (Start, Stop, Enter Pre-operational, also on a fresh
+   Stopped report, Reset Node, Reset Communication) to a Nanotec binding submitted
+   directly to the owner, bypassing the console, refused with zero NMT TX, while a
+   targeted command to a Lichuan binding on its own interface is unchanged; a schedule
+   already running when the binding is admitted revoked first, with no later SYNC TX; a
+   Lichuan-only interface unchanged.
 3. Probe. `prepareProbe`/`checkProbe` in `profiles/nanotec_canopen/Reads.h`: one
    expedited upload of 1000h:00, whose read effect stage 02 reviewed. It proves a
    responding CANopen server only. No write, no NMT, no identity conclusion; the
@@ -108,11 +119,13 @@ The probe runs through the API and the application via the real `CanBusOwner`,
 terminals are compared literally. Registration delivers no identity outcome, so
 under canopen_shared 02 "Registration acceptance" this stage shows instead that
 every identity-dependent write and motion route is unavailable on a Nanotec binding
-with zero changing TX (none is callable yet); the identity refusal tests land with
+with zero changing TX (none is callable yet; targeted NMT is refused at the owner's
+entry point, item 2); the identity refusal tests land with
 03 before any such route becomes callable, and the probe runs only the 1000h:00 read
 whose effect 02 reviewed. Tests cover foreign-profile refusal without TX in
 both directions, the S3 and S13 default-deny cases of item 2 (no best-effort stop,
-SYNC or node-0 NMT TX on an interface with a Nanotec binding at this stage), abort
+SYNC, node-0 NMT or targeted NMT TX on an interface with a Nanotec binding at this
+stage, targeted NMT tested through the owner and not only the console), abort
 versus malformed reply, timeout and late identical reply, stale generation, retained
 results, cancel that is not a stop and no replay after a lost reply. A Lichuan axis
 and a Nanotec axis run on separate fake interfaces (owner and transport each) with

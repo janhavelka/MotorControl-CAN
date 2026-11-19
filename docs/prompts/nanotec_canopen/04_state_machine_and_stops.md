@@ -116,7 +116,7 @@ below are Nanotec's own.
    | 0 no mode assigned | Refused (no host operation) | Admitted | 04 |
    | 1 PP | Once 05 has landed | Once 05 has landed (bit 4 rule of item 2) | 05 |
    | 2 VL, 3 PV | Once 06a has landed; from Operation enabled only with a fresh zero 6042h or 60FFh (the order above) | Once 06a has landed, with a fresh zero 6042h or 60FFh: host policy, because these modes run toward their target whenever Operation enabled is reached without halt (N5 p76, p77) | 06a |
-   | 4 PT | Only inside 06b's operation, from Operation enabled, immediately after its fresh bit 15 = 1 check and a fresh zero 6071h (06 item 6) | Refused: bit 15 is meaningful only in Operation enabled (N5 p348), so PT is entered from another enabled mode | 06b |
+   | 4 PT | Only inside 06b's operation, from Operation enabled, after this item's fresh 6040h bit 4 = 0 with a known halt state, immediately after its fresh bit 15 = 1 check and a fresh zero 6071h (06 item 6) | Refused: bit 15 is meaningful only in Operation enabled (N5 p348), so PT is entered from another enabled mode | 06b |
    | 6 homing | Once 07 has landed | Once 07 has landed (bit 4 starts homing, N5 p82) | 07 |
    | 7 IP, 8 CSP, 9 CSV, 10 CST | Only inside an assigned 06c operation with its gates passed | Same | 06c |
    | -1, -2 | Refused (04b items 1 and 5); -2 only inside 04b's auto setup | Refused (04b item 1) | 04b |
@@ -160,9 +160,16 @@ transitions 2-16, state masks; the figure places torque at the motor only in Ope
 enabled, Quick stop active and Fault reaction active). A row is chosen by a fresh 6041h
 (with 6061h, 603Fh and, for an edge or the halt bit, 6040h), never by the last written word. The first
 listed word is the first TX; "nothing sent" reports the observed state as the result.
-The halt state is set or clear only from a fresh 6040h read taken after the last
-controlword this library may have sent (canopen_shared 02 "State transitions": halt
-evidence follows the words sent); otherwise it is unknown. Two stop branches do not
+The halt state is set or clear only from a fresh 6040h readback handed off after the
+last controlword this library may have sent (canopen_shared 02 "State transitions" as
+amended in `09147a84`: halt evidence follows the words sent, or a fresh readback where
+the ledger shows 6040h readable with the received value). The ledger's evidence: N5
+p346 lists 6040h with access read / write, and the only documented drive-side change
+of it is bit 4 under 60F2h bits 4-5 (N5 p407), so bit 8 reads back as received. The
+readback holds under the ownership premise only: an ownership exception declared for
+the interface that covers another writer of 6040h (canopen_shared 02 "Ownership
+premise"; another master, an external RPDO producer for a map holding 6040h) makes
+it unqualified, and the halt state is then unknown. Otherwise it is unknown. Two stop branches do not
 refuse for missing evidence (canopen_shared 02 "State transitions"):
 
 - Unknown halt state with a fresh 6041h and 6061h (6040h aborted, malformed or
@@ -216,14 +223,21 @@ the lost-transfer S3 case (6040h aborted or malformed: `QUICK_STOP` sends 010Bh 
 release, mode select and enable after quick stop send nothing); an aborted or
 malformed 6041h on a usable route (`QUICK_STOP` sends 010Bh with the drive state
 unknown, `HALT` refused); a failed 605Ah read not refusing either branch;
+halt evidence at first attachment with no controlword history: a fresh 6040h
+readback with bit 8 = 0 makes `QUICK_STOP` send 000Bh, its result naming the readback
+as the halt evidence; the same readback followed by a possibly sent bit-8-set word
+(a `HALT` 010Fh whose reply is lost) leaves the halt state unknown, and `QUICK_STOP`
+sends 010Bh; with an ownership exception declared for another 6040h writer the
+readback is unqualified and `QUICK_STOP` sends 010Bh;
 a Lichuan axis and a Nanotec axis on separate fake interfaces, each stopped by its own
 family's stop with Lichuan's frames and outcomes unchanged (the positive
 stop-independence case 02b leaves to this stage; the per-binding S3 opt-in tested
 separately);
-mode select into VL and PV from Operation enabled, halted or not, with a nonzero or
-unread destination target (zero TX) and with a zero one (6060h the only changing
-frame; PT's entry is tested in 06b),
-and a lost 6060h reply during that entry (mode UNKNOWN, no replay); every step's
+mode select into VL and PV and enable with 6061h = 2 or 3 refused as `UNSUPPORTED`
+with zero TX, because 06a has not landed (the enabled-entry decisions of item 6 for a
+nonzero, unread and zero destination target and a lost 6060h reply may be checked
+here as a private table test, which is not owner-path acceptance; they are accepted
+through the public route in 06a's enabling commit; PT's entry is tested in 06b); every step's
 confirmed, aborted, malformed, lost and late reply; stop while queued, in flight and
 waiting; stop during enable; bit 2 and bit 7 edges against a drive-modified 6040h;
 each 605Ah and 605Dh value; refused mode changes; the generic mode select and enable
