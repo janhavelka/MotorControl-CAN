@@ -87,6 +87,9 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
     - CONTRADICTED: a reference of another candidate matches and none of the declared model does.
     - UNCONFIRMED: everything else, including values shared by the declared model and another candidate, a
       candidate without references, no match and fields that could not be read.
+    A reference with a required field unread, of the wrong width or aborted is undecided, never a non-match:
+    CONTRADICTED needs every reference of the declared model decided as non-matching; with one undecided the
+    outcome is UNCONFIRMED without a declared match (which refuses the same changing work).
     The result carries the outcome, the live fields, every matching model with its reference basis and whether
     a reference of the declared model matched. An outcome exists only for a current observation; the
     invalidators of canopen_shared 02 "Identity and device evidence" clear it. It never selects or changes a

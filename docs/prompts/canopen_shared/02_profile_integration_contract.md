@@ -133,7 +133,9 @@ Commit tooling, core/profile and application/console changes separately, each te
   needs a stop that can still leave then, either the binding's opted-in S3 shape (CANopen) or the
   family's equivalent native stop, or an independent stop the application declares for the run
   (its own enable, STO or power path, named in the result). Without one the run is refused
-  before its first changing TX. Tests: a duration that no
+  before its first changing TX. Homing is such a run: a caller-supplied latest interruption time
+  takes the duration's place (a travel bound may interrupt earlier, from observations no older than
+  a caller-supplied age), with the same stop budget, transfer cap and stop path. Tests: a duration that no
   longer fits with the budget (refused at preparation), a lost start reply, an observation in
   flight near stop due, service resuming after stop due, a queue-pressured stop.
 - **State transitions.** Before the first TX of enable, release, a stop, fault clear or a
@@ -143,8 +145,11 @@ Commit tooling, core/profile and application/console changes separately, each te
   (without a shutdown or a power-stage or brake cycle), and which states refuse or need a
   separate explicit operation. Not a fixed word script. A stop word keeps a set halt bit (bit
   8) set unless the family's evidence shows its quick stop takes precedence over the halt
-  release; with the halt state unknown it keeps bit 8 set when the evidence admits that word,
-  otherwise the row refuses. Tests assert the first emitted frame, or none, for every
+  release. With the halt state unknown (no acknowledged controlword in the current reservation,
+  attachment without history) a stop word sets bit 8, because setting the CiA 402 halt bit cannot
+  start motion; a stop row refuses only where the family's evidence gives bit 8 another meaning,
+  and the result records the unknown halt state. A stop is never refused merely because the halt
+  state is unknown. Tests assert the first emitted frame, or none, for every
   starting state and mode in the table, halted and unknown-halt predecessors included.
 
 ### Console, help and JSONL (seam S6)
