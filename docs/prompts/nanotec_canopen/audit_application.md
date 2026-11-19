@@ -167,3 +167,70 @@ Dispositions: 10 accepted (F1-F10), none accepted in part, rejected or deferred.
 
 `python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
 clean for it. Nothing was compiled; no hardware or port was used.
+
+## Round 3: application of audit `aud-20261119-192232-a1c214`, 19 November 2026
+
+Each finding of the [round 3 audit](audit.md) was checked against this set's files
+(unchanged from the audited `6ff80ed1` to `c67e48dd`), the
+[reference review](../../reference/nanotec_canopen/review.md), the page-marked extract
+of N5 3.3.0 in the multidrive pack where a device claim is involved, prompt 57, prompt
+77, and the shared contract as revised in `c4e5574f`
+([canopen_shared audit application](../canopen_shared/audit_application.md), "Round 4").
+F1, F2 and F3 are that round's themes 3, 4 and 1: the stages now consume the shared rule
+by citation and add only the Nanotec facts. F4-F9 are family-specific. Only files in
+this directory changed; nothing was compiled and no port was opened.
+
+Dispositions: 8 accepted (F1-F8), 1 accepted in part (F9), none rejected or deferred.
+
+### Round 3 findings
+
+| Finding | Disposition | Evidence checked | Change (where) |
+| --- | --- | --- | --- |
+| F1 NMT bootstrap exception | Accepted | Prompt 57 "Admission by outcome" (bootstrap reads and the targeted Enter Pre-operational on a fresh heartbeat or node-guarding Stopped report, every outcome except CONTRADICTED; otherwise the node is reported stranded); canopen_shared audit application round 4 theme 3; contract lines 98-100 restated the rule without the command; N5 p118 (only NMT in Stopped), NT-D17 (heartbeat or guarding in Stopped not shown) | Execution contract: "Admission by outcome" consumed by reference, its bootstrap command named and assigned to 09; 09 item 6: the owner's targeted NMT route applies prompt 57's rule by reference, the Stopped report may never arrive on this device (N5 p118, NT-D17), then the node is reported stranded, nothing sends the command implicitly; 09 Acceptance: admitted on fresh Stopped with no outcome, refused under CONTRADICTED and with stale or missing state evidence, never sent by recovery or probe |
+| F2 S11 delivery bound and handoff recheck | Accepted | canopen_shared README S11 row (TX delay under load counted; producer rechecked when the `1016h` write is handed to the controller) and audit application round 4 theme 4; 09b item 3 and Acceptance at the audited revision | 09b item 3: both checks are prerequisites of every nonzero 1016h:01 write (consumer time above period plus S11's delivery bound, of which the prompt 56 gap is one part; a producer lost while the write waited withdraws it with nothing sent); the nonzero setter stays BLOCKED until S11 provides them; the "open request" text is gone. Acceptance: a consumer time that passes the service gap but not the delivery bound, and a producer invalidated between admission and handoff, each with zero 1016h TX. README stage table |
+| F3 Stop path after a lost start | Accepted | canopen_shared 02 "Operation admission", timed runs (a stop row is not a stop path; S3 shape or a declared independent stop, else refused before the first changing TX) and audit application round 4 theme 1; execution contract (S10 `NONE` until markers are reviewed); 04 item 8 (S3 opt-in per binding) | 06 item 3: the unresolved-route branch with the S3 opt-in caveat and the declared independent stop named in the result; 06 item 6 applies it to PT; Acceptance: refusal with neither, a lost start reply with the S3 shape (run retired, at most one 010Bh frame, uncertainty kept, no standstill), admission with a declared stop; README stage table |
+| F4 Retained target on an enabled mode change | Accepted | N5 p58 ("set or changed at any time"), FWUPD p6 (from FIR-v2039 mode change in Operation enabled allowed; a command starts at once if bit 4 is set), N5 pp76-79 (VL ramp generator follows 6042h; PV accelerates to 60FFh once the mode is selected and Operation enabled is reached), pp80-81 (PT, 6071h), pp112-113 per 10 item 6 (6042h, 60FFh, 6071h savable). No page states what an enabled mode change does with a retained nonzero target | 04 item 6: entering VL, PV or PT in Operation enabled needs a fresh zero destination target read under 04b item 1's predicate, with the order (state reads, target read, 6060h as the only changing step, 6061h), refusal on a nonzero or unread target whatever bit 8 shows, no write of another mode's target, a lost 6060h reply leaving the mode UNKNOWN; table rows 2/3 and 4; 06 item 6: PT entry order with a fresh zero 6071h; Acceptance in 04 and 06; README stage table |
+| F5 Set halt bit reported as attained | Accepted | N5 p60 and p347 (bit 8 halts in PP, VL, PV, PT, IP only), p82, pp91-93, p96 (no bit 8 function in homing, CSP, CSV, CST, auto setup); p57 (commands defined by bits 7, 3, 2, 1, 0: 0100h is disable voltage, transition 12 from Quick stop active); canopen_shared 02 "State transitions" | 04 item 1: a set bit is a requested halt in those five modes, never reported as attained; item 3: Quick stop active release keeps bit 8 (0100h); table: the bit-set Operation enabled `HALT` cell reports "requested" in 6061h 1-4 without an attained-halt or standstill claim and refuses in other modes; the Quick stop active `DISABLE_VOLTAGE` cell sends 0000h or 0100h by the fresh bit 8; Acceptance asserts results as well as frames; README stage table |
+| F6 Limit admission before the first motion route | Accepted (the first alternative) | Prompt 77 items 1-2 (assigned limit active, stale input or undecodable assignment refuses before TX; both directions until the sign is measured; guard on by default, settable per axis; stops never refused); N5 p66 (limit stores the position, sets bit 7, runs 3701h; factory -1 no reaction; opposite travel always possible), p97 and p411 (60FDh bits 0-1 report the NLS and PLS functions), p98 (3240h:01 bits 0-1 switch them on); 03 reads 3240h (config group) and 60FDh (`prepareState`) | 07 item 8: a pure limit-admission predicate over 03's fresh reads with Nanotec input facts and prompt 77's policy, landed in its own commit right after 03 and before 05's move (status line, Deliver `Limits.h/.cpp` and its test); 05 status and item 5, 06 items 3 and 6 consume it; Acceptance in 05, 06 and 07 (predicate cases in item 8's commit, route refusals with zero TX in each consumer, stops admitted); README stage table |
+| F7 PDO-persistence guard claim | Accepted (the claim narrowed, both guards kept settable) | 10 item 5 at the audited revision; 04b item 1 (single-master guard settable per binding); N5 p110 (saved values reload at boot); round 2 lead decision 1 | 10 item 5: the guard protects against this library's own PDO changes only; RAM holding the boot-loaded configuration is stated only with both guards on and only as far as the declaration holds; with the single-master guard off the result says another writer's change is not excluded and carries the map readback. 09 item 4 says the same. 12A Q11 runs with both guards on and compares 09's `PdoConfig` readback before the save with one taken after the boot-up. Acceptance: an out-of-band map change with only the single-master guard off, and both guards on |
+| F8 COB-ID reservation and activation | Accepted | N5 p127 and p129 (PDO 5-8 CAN-IDs free "with the restriction that it not be used by other services"; a change takes effect only after the controller or communication is restarted), p110 (saved values reload at switch-on or reset), p119 (Reset Communication resets the CANopen settings), NT-D09 and 10 item 7 (PDO save gated), 09 item 5 (delayed samples), canopen_shared 02 S13 and S14 (COB-ID reserved on the interface) | 09 item 4: a COB-ID change consumes 11 item 4's identifier plan at its admission, the candidate reserved beside the old ID, configured, active and pending values kept apart, readback before activation never wire proof, whether a RAM-only change survives its own activation recorded as undocumented, both IDs reserved and their routes and the node's S13 approval unqualified until an observed boot-up and fresh readback; 11 item 4 reruns the check per change; 09 Acceptance; README stage table |
+| F9 Boot loader and readiness | Accepted in part | N5 p132 and pp251-252 (2007h:01 BL Config, savable in category CANopen, preset 0; with 1 only the firmware sends a boot-up), pp246-249 (1F50h, 1F51h, 1F57h: no documented value that tells the loader from the firmware), p344 (4042h: versions and fieldbuses only), p275 (2084h); review section 11 (no boot duration) | 09 item 8: responding server, identity outcome and firmware readiness kept separate; an identity reply after the last observed boot-up re-establishes the outcome, not readiness; READY only with 2007h:01 = 1 read after an earlier boot-up and not changed by this library since, or a recorded fixture observation for that model and firmware row (12A Q2); otherwise UNKNOWN in every result; no delay, retry, count or build list makes it READY. Not accepted: UNKNOWN does not refuse changing work by itself (owner direction: no firmware lock; on factory settings 2007h:01 = 0 it would refuse every changing operation after each boot-up); an application may require READY as its policy, as 09b item 4. 09 Acceptance; 12A Q2; README stage table. See the lead question below |
+
+### Round 3 unresolved questions
+
+1. **Boot loader versus firmware.** Not answered by the files. N5 p132 and pp251-252
+   document only the boot loader's boot-up and its suppression; 1F50h, 1F51h, 1F57h
+   (pp246-249) and 4042h (p344) give no state that distinguishes the loader; no page
+   says whether the loader answers SDO. 09 item 8 therefore admits only two
+   distinguishing observations (2007h:01 = 1 in force, or a recorded fixture
+   observation for the row through 12A Q2) and otherwise reports readiness UNKNOWN.
+2. **Retained targets and COB-ID activation.** Not answered by the files. N5 p58, FWUPD
+   p6 and N5 pp76-81 give no disposition of a retained 6042h, 60FFh or 6071h on an
+   enabled mode change, so 04 item 6 and 06 item 6 now require a fresh zero target and
+   write none. N5 p127 and p129 put COB-ID activation at a restart, while p110 and p119
+   reload saved values or reset the CANopen settings then; whether a RAM-only change is
+   the one activated is undocumented, so 09 item 4 keeps configured, pending and active
+   values apart and takes the active value only from a readback after an observed
+   boot-up.
+
+### Round 3 open for the lead
+
+- F9: whether readiness UNKNOWN should become a settable guard (on by default would
+  refuse every changing operation after each boot-up on factory settings until the
+  application switches it off, sets and saves 2007h:01 = 1, or records 12A Q2) or stay
+  a reported fact with application policy, as applied.
+
+### Round 3 checks
+
+`python scripts/check_promptset.py` reports no error for this set; `git diff --check` is
+clean for it. Nothing was compiled; no hardware or port was used.
+
+### Round 3 lead decisions
+
+1. F9 readiness: UNKNOWN firmware readiness is reported and refuses nothing; refusing would block factory
+   units (2007h:01 = 0) after every boot-up, against the owner's no-lock direction. An application may
+   refuse on it; no guessed delay counts as evidence.
+2. canopen_shared 02 changed after this round (commit `328651b6`): with an unknown halt state a stop word
+   sets bit 8 and is never refused for that reason alone; homing is a host-ended run with a caller-supplied
+   latest interruption time. Stage 04's 010Bh rows and 07's homing already agree; the next round checks the
+   wording.

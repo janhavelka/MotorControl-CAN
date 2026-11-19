@@ -153,3 +153,77 @@ whole-category save, and test the actual owner admission paths before exposing t
   prompts 51, 56, 64, 73 and 77 were not supplied.
 - No Nanotec fixture, raw capture, measured service budget or electrical timing
   evidence existed; no build, checker, test, CI job or hardware procedure was run.
+
+## Round 3: audit of the round-2 promptset, 19 November 2026
+
+A condensed, faithful copy of the third report; untrusted reviewer input like rounds 1
+and 2. The verified dispositions are in [audit_application.md](audit_application.md),
+"Round 3". Line numbers refer to the files at the audited revision, before round 3 was
+applied.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-192232-a1c214` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~204009 tokens)") |
+| Date | 2026-11-19 19:22:32 (from the ID), 179.0 s, one attempt |
+| Revision | `main` at `6ff80ed1dd19026da4e970220fb947437abf87ba`, uncommitted changes recorded in other sets; this set's files and the shared, prompt 57, prompt 77 and pack context are byte-identical at `6ff80ed1` |
+| Cost | Estimated USD 0.42 (0.415602, configured pricing); 157,926 input and 9,975 output tokens (3,779 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-192232-a1c214.json` (local) |
+| Location checks | 33 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 21 files of this set after round 2 (`README.md` 150 lines,
+sha256 `07bf6c1c...`; `execution_contract.md` 235, `ffbe5f5c...`; `audit.md` and
+`audit_application.md`; stages 01 to 13). Context: canopen_shared `README.md` (81,
+`b0d83a01...`), `02_profile_integration_contract.md` (341, `6e125d23...`) and
+`01_existing_code_and_tooling.md`, `ADD_DRIVE.md`, `COMMON.md`, the pack `README.md` and
+`review.md` (380, `7deb2d9b...`), prompt 57 (214, `27398264...`), prompt 77 (207,
+`bbb697d7...`); project instructions `AGENTS.md`, `CLAUDE.md`. The shared round 4
+revision `c4e5574f` is inside the audited revision.
+
+**Summary.** The S3 and S13 default denials land with registration, the
+exclusive-control predicate and supervision snapshot precede enable, and package
+entries accompany the first headers. The remaining issues affect changing operations:
+the family drops prompt 57's NMT bootstrap exception, treats two binding S11 checks as
+optional future work, and does not fully specify stop admission, active-mode entry or
+what proves a PDO configuration safe to persist. Independent evidence, tooling and
+read-only work can proceed. **Verdict:** blocking issues: some acceptance criteria
+permit behavior the binding shared contract refuses, and some state and persistence
+rules can report a condition the evidence does not establish; these block the affected
+routes only, not grounds for a firmware lock or for delaying independent work.
+
+### Round 3 findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The family omits prompt 57's NMT bootstrap exception.* The contract restates admission by outcome as refusing every changing request without a current outcome, except reads and stops; prompt 57 also admits a targeted Enter Pre-operational on fresh Stopped evidence unless CONTRADICTED, and 09 leaves targeted NMT to its own undefined admission, so identity can be required before the command that makes the identity read possible. Reference prompt 57's table instead of an incomplete restatement; assign the case to the owner's targeted NMT route; test admission with fresh Stopped evidence and no outcome, refusal under CONTRADICTED or stale or missing state evidence, no implicit recovery send; keep the note that Stopped-state heartbeat or guarding is not guaranteed. | contract:98-100; prompt 57:119-121; 09:82-84 |
+| F2 | High, verified defect, high | *09b treats two binding S11 checks as an open request.* The shared row requires the period check to count TX delay under load and the producer to be rechecked when the 1016h write is handed to the controller; 09b calls both open and tests only producer status and period plus service gap at admission, which passes if the producer stops while the write is queued or delivery exceeds the consumer time. Make both prerequisites of a nonzero 1016h; keep the setter blocked until they pass; zero-write tests for producer invalidation between admission and handoff and for a delivery budget failing despite an acceptable service gap; keep configured supervision separate from demonstrated reaction. | shared README:62; 09b:61-64, 97-98 |
+| F3 | High, probable defect, high | *Timed-run acceptance does not prove a stop can leave after a lost start.* 06a and 06b cite the shared rule but admit and test the ordinary HALT and QUICK_STOP rows, which need fresh SDO evidence; with S10 `NONE` a lost start reply can leave the route unresolved, and S3 is opt-in per binding, so stage 04 having landed does not supply it. With S10 `NONE`, refuse before the first changing frame without the binding's reviewed S3 shape or a declared independent stop; with S3 opted in, lose the start reply and assert that the run retires and at most the reviewed best-effort frame is sent, uncertainty kept, no standstill claimed. | shared 02:131-134; 06:29-33, 99-104; 04:149-151 |
+| F4 | High, probable defect, high | *Selecting a mode while enabled does not account for a retained setpoint.* 04 checks for a fresh zero velocity target when enabling in VL or PV but not when selecting either mode while already enabled; the bit-4 check is not a target check. PT requires active closed loop but no order neutralizes or validates an existing torque target before selecting PT; stage 10 says these targets are savable, and the evidence does not say what an enabled mode change does with a retained nonzero target. Define admission and write order per destination mode entered while enabled, with the target and halt disposition; keep the paths gated where evidence cannot establish safety; test nonzero retained targets, lost replies during entry and zero TX on refusal. | 04:88-92, 105; 06:54-56; 10:89-90 |
+| F5 | High, verified defect, high | *A set halt bit is reported as an attained halt even in modes that ignore it.* The bit-8 Operation enabled row returns "Already halted" without testing the mode, although HALT is limited to modes 1-4 and bit 8 has no function in homing, cyclic modes or auto setup; the Quick stop active release uses 0000h without distinguishing bit 8, though no release clears a set halt bit. Distinguish a set bit from an attained halt; report an already requested halt only in a reviewed mode without claiming standstill, otherwise refuse; split the Quick stop active release by halt evidence with an evidenced halt-preserving word or refusal; assert results as well as frames. | 04:160, 128-130, 57-59, 161 |
+| F6 | High, probable defect, high | *The first motion stages can land before the limit admission they are meant to use.* 07 adopts prompt 77's limit admission but covers homing prerequisites and reaction reporting, not admission of the PP, PV or VL routes 05 and 06a already expose; prompt 77 requires the installed library to refuse active, stale or undecodable limits with a settable guard, and reporting 3701h (factory: no reaction) does not. Assign the Nanotec input and limit admission before the first dependent motion route or gate those routes; reuse prompt 77's policy and names with Nanotec input facts; test active, stale and undecodable inputs, guard-off reporting and admitted stops; import no Lichuan registers. | 07:4-6, 48-52; prompt 77:113-115; 05:36-37 |
+| F7 | High, verified defect, high | *The enabled PDO-persistence guard does not prove the baseline it claims.* 10 says the guard admits a save only when the PDO configuration is the one loaded at the last observed boot-up, but its checks show only an observed boot-up and no write by this library since; with the single-master guard off another writer can change a map and all checks still pass, so Q11 can save an unintended map with the PDO guard on. Keep both guards independently settable; with the PDO guard on, require evidence covering the claimed baseline through the save handoff or refuse; if it only protects against this library's changes, say so and do not use it as Q11's proof; test the two settings independently, including an out-of-band map change with only the single-master guard off. | 10:71-75; 04b:21-24; 12a:42 |
+| F8 | High, probable defect, high | *A run-time PDO COB-ID change has no identifier-reservation and activation handoff.* 09 exposes configurable COB-IDs that take effect only after restart or Reset Communication; 11 checks identifiers at binding and 09 revokes evidence on map changes, but neither defines how a bound interface checks and reserves a candidate or keeps the old route distinct while activation is pending, so a read-back value that is not yet active cannot qualify routing or renewed S13 approval. Consume the owner's identifier plan before the first remap write; distinguish configured, pending and active IDs, keep reservations and routes and S13 approval unqualified through partial writes or unknown activation; test an in-use candidate, readback before activation and reacquisition after reset without qualifying a delayed sample. | 09:18-20, 31-33; 11:44-46; AGENTS:79 |
+| F9 | High, probable defect, high | *A post-boot identity reply is insufficient to establish firmware readiness.* 09 replaces boot-up counting with a fresh identity reply after the last observed boot-up, but the files do not say whether the boot loader can answer it; if it can and the firmware boot-up is missed, the sequence passes without a firmware-ready boundary. Separate a responding server, a product identity outcome and a firmware session ready for changing work; leave readiness unknown while the boundary can be the boot loader's; test a possible loader reply with no later boot-up, keeping diagnostics and prompt 57's stop rules available; no guessed delay or build whitelist. | 09:96-99; audit_application:131-136; AGENTS:71 |
+
+### Round 3 unresolved questions
+
+1. What model- and firmware-specific observation distinguishes the boot loader from the
+   application firmware when the final boot-up is not seen? It decides which post-reset
+   observations requalify a session for changing work; a synthetic server tests only the
+   unknown case.
+2. What do the device sources establish about retained destination targets during an
+   enabled VL, PV or PT mode change, and about the active versus read-back COB-ID before
+   reset? These facts decide whether the transition and remap paths can be admitted,
+   need narrower entry conditions or stay gated.
+
+### Round 3 coverage gaps (reviewer's)
+
+- The rendered manuals, EDS and OD XML contents, source manifest and package index were
+  not supplied; device observations were checked against the stage text and review only.
+- The repository index was truncated; owner, CANopenNode, TWAI, application, package,
+  verification and workflow sources, live PROGRESS rows and Git history were not
+  supplied.
+- The parent Projects instructions, the shared audit application and prompts 51, 56, 64
+  and 73 were not supplied.
+- No fixture record, wire capture or measured service or heartbeat-delivery budget
+  existed; no build, test, CI job or hardware procedure was run.

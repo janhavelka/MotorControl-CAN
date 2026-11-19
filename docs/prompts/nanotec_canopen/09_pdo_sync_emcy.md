@@ -34,10 +34,30 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    says 1010h:03 while the category list puts PDO objects in communication 1010h:02
    (N5 pp111-112, p132; NT-D09); until it is resolved, stage 10's PDO-persistence
    guard (on by default) refuses every category save that could persist a PDO change
-   (10 items 5 and 7).
+   made by this library, and another writer's change is excluded only by 04b item 1's
+   single-master declaration (10 items 5 and 7).
    FIR-v2538 adds 2007h:02 "Automatic COB-ID", default 1, undocumented (NT-D02): on
    that row COB-ID writes refuse through stage 13's `FIR2538_AUTOMATIC_COB_ID` gate,
    and maps and COB-IDs are always taken from readback.
+   A COB-ID change (the CAN-ID bits of a PDO 5-8 COB-ID; the valid-bit steps of the
+   remapping order above are not one) consumes the interface's identifier plan before
+   its first write: 11 item 4's binding check, rerun at the write's admission against
+   every identifier reserved on the interface (other nodes' services, every configured,
+   pending or active PDO COB-ID, S11's producer and any S14 route); a collision refuses
+   with zero TX, and the owner then reserves the candidate beside the old ID. The
+   binding keeps per PDO a configured value (this library's confirmed write or a
+   readback), an active value (the readback taken after the last observed boot-up,
+   before any COB-ID write since) and a pending flag while the two differ. A readback
+   before activation is the configured value, never proof of the wire identifier: the
+   change takes effect only at a restart (N5 p127, p129), saved values reload at
+   switch-on or reset (N5 p110) and Reset Communication resets the CANopen settings
+   (N5 p119), so whether a RAM-only change survives its own activation is
+   undocumented, and the save that would keep it is gated (NT-D09, 10 item 7). While
+   pending, after a partial write or a lost reply, both IDs stay reserved, every route
+   on either is unqualified and the node's S13 approval stays revoked; a later
+   observed boot-up and fresh readback set the active value and release only the ID
+   that readback no longer shows, and a delayed sample on either ID stays unqualified
+   until item 5's boundary.
 5. PDO observations: decode TPDOs by the observed map and bind each sample to the map
    generation; a host generation is not a wire tag. After boot-up, remap or reset, a
    delayed same-ID same-length sample stays unqualified until an evidenced boundary.
@@ -81,7 +101,14 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    SYNC approval before the command is sent (canopen_shared 02 S13). A targeted NMT
    command to a Nanotec binding remains its own changing request (prompt 57 "Identity
    policy": never a stop; `MOTION_LIKE`) with its own admission and evidence; this
-   table governs node 0.
+   table governs node 0. The owner's targeted NMT route applies prompt 57 "Admission by
+   outcome" by reference, its bootstrap command included: a targeted Enter
+   Pre-operational to a Nanotec node whose fresh heartbeat or node-guarding state
+   reports Stopped is admitted under every outcome except CONTRADICTED, a current
+   outcome absent included, and its result records the reason. N5 does not show
+   heartbeat or guarding activity in Stopped (N5 p118, NT-D17), so such a report may
+   never arrive; without it the node is reported stranded and its recovery is the
+   application's (prompt 57). Nothing sends this command implicitly.
 7. EMCY (N5 pp120-121, pp161-165): 80h + node; error code, 1001h, manufacturer error
    number, padding; an error-cleared EMCY "00 00 E-REG E-Number" when no error
    remains. Decode with the N5 error-number table (watchdog reset 0, fieldbus 4,
@@ -91,12 +118,27 @@ Status: NOT STARTED. Runs after 03. NT-D02, D07, D09, D16 and D30 apply. Reuse `
    eight entries although the text speaks of seven shifting (NT-D16); subindex reads
    abort 08000024h while empty (N5 p163).
 8. Boot-up: the boot loader sends its own boot-up before the firmware's unless
-   2007h:01 = 1 (N5 p132, p252), and 2084h delays boot-up (preset 0, N5 p275). Each
-   boot-up invalidates dependent evidence, queued work and declarations (04b). Counting
-   boot-ups is no readiness rule: with 2007h:01 = 1 only one arrives, and one can be
-   missed. Readiness needs a fresh identity read (03) answered after the last observed
-   boot-up, and each later boot-up invalidates it again; the manuals give no boot
-   duration (review section 11), and the spacing is 12A Q2's measurement. 1F80h = 8
+   2007h:01 (BL Config, savable in category CANopen, preset 0) = 1 (N5 p132, pp251-252),
+   and 2084h delays boot-up (preset 0, N5 p275). Each boot-up invalidates dependent
+   evidence, queued work and declarations (04b). Counting boot-ups is no readiness
+   rule: with 2007h:01 = 1 only one arrives, and one can be missed. Three facts stay
+   separate: a responding server (any SDO reply), the product identity outcome (03,
+   prompt 57) and firmware readiness. Whether the boot loader answers SDO is not
+   documented: N5 p132 and p252 describe only its boot-up message, and neither 1F50h,
+   1F51h and 1F57h (pp246-249) nor 4042h (p344) documents a value that tells it from
+   the firmware. A fresh identity read answered after the last observed boot-up
+   therefore re-establishes the identity outcome, not readiness. Readiness is READY
+   only when that boot-up cannot be the boot loader's: 2007h:01 = 1 read on the binding
+   after an earlier boot-up, with no 2007h write, CANopen-category save or 1011h restore
+   by this library since (only the firmware then sends a boot-up, N5 p252), or a
+   recorded fixture observation for that model and firmware row that the boot loader
+   answers no identity read (12A Q2). Otherwise it is UNKNOWN and every result after
+   that boot-up reports it with the reason. UNKNOWN refuses nothing by itself (no
+   firmware lock; an application may require READY as its own policy, as 09b item 4
+   does for supervision); reads, reviewed diagnostics and prompt 57's stop rules stay
+   available either way. No delay, retry, boot-up count or firmware-build list makes it
+   READY; each later boot-up resets it. The manuals give no boot duration (review
+   section 11), and the spacing is 12A Q2's measurement. 1F80h = 8
    enters Operational automatically (default 0, N5 p250). NMT commands follow N5 p119; the "000 | 01 2A
    completely restarted" example mislabels Start Remote Node (NT-D07).
 
@@ -114,8 +156,19 @@ evidence supports them, with unchanged meaning.
 Tests cover 8+8 sets, 8 entries, fixed versus free COB-IDs, the Operational abort,
 partial remap, delayed samples across a remap, every transmission type, inhibit and
 event-timer units, EMCY decoding including the cleared form and unknown numbers, the
-empty-1003h abort, one and two boot-ups in sequence with invalidation on each and
-readiness only from a later identity read. S13 through the real producer with several
+empty-1003h abort, one and two boot-ups in sequence with invalidation on each, and
+readiness: an identity reply after one observed boot-up with no later boot-up (a
+possible boot-loader reply) gives the identity outcome with readiness UNKNOWN, while
+reads and both stop entry points stay available; READY only with 2007h:01 = 1 read
+after an earlier boot-up or a recorded fixture observation; no delay makes it READY.
+COB-ID changes: a candidate already reserved on the interface refused with zero TX; a
+readback before activation reported as configured and pending, not active; both IDs
+reserved and their routes unqualified through a partial write, a lost reply and
+pending activation; after a reset, a delayed sample under the old map not qualified.
+The owner's targeted NMT route on a Nanotec binding: the bootstrap Enter
+Pre-operational admitted on a fresh Stopped report with no current outcome; refused
+under CONTRADICTED and with stale or missing state evidence (the node reported
+stranded); never sent by recovery or probe. S13 through the real producer with several
 Nanotec nodes (canopen_shared 02 S13 cases): known harmless admitted; unknown or stale
 refused; a valid synchronous RPDO mapping a command object refused on the target and
 on a node other than the target; remap, rebind and reset during a running schedule

@@ -15,8 +15,10 @@ below are Nanotec's own.
    shutdown 0006h; switch on 0007h (bit 3 must be 0, CP-D07); enable operation
    000Fh; disable operation 0007h; disable voltage 0000h; quick stop 000Bh (bit 2 = 0,
    bit 1 = 1). Bits 4-6, 8 and 9 are mode specific and are 0 in every state command,
-   except that a word sent from a halted Operation enabled (fresh 6040h bit 8 = 1)
-   keeps bit 8 (the table's halted row and item 4). The p57 commands are defined by
+   except that a word sent while the fresh 6040h has bit 8 = 1 keeps bit 8 (the
+   table's bit-set Operation enabled row, its Quick stop active release and item 4).
+   A set bit 8 is a requested halt in PP, VL, PV, PT and IP only; it is never reported
+   as an attained halt. The p57 commands are defined by
    bits 7, 3, 2, 1 and 0 only, so 0107h, 0106h, 0100h and 010Bh are the same commands.
    Bit 7 is 0 except in fault reset (CP-D08). Two transitions need a rising edge:
    transition 16 (Quick stop active to Operation enabled, bit 2) and fault reset (15,
@@ -45,8 +47,8 @@ below are Nanotec's own.
    `DISABLE_OPERATION` (0007h, 605Ch, ends Switched on; torque-free per FWUPD p6),
    `SHUTDOWN` (0006h, 605Bh, ends Ready to switch on) and `DISABLE_VOLTAGE` (0000h,
    transitions 7, 9, 10, 12, ends Switch on disabled, motor free), each only from the
-   states the table admits for it and with bit 8 kept from a halted drive (0107h,
-   0106h, 0100h). Read the option
+   states the table admits for it and with bit 8 kept where the fresh 6040h has it
+   set (0107h, 0106h, 0100h; from Quick stop active 0100h). Read the option
    code first; completion is the observed state, not standstill. Automatic brake
    timing on leaving Operation enabled is 2038h:01/02. Release is never a stop.
 4. `prepareStop` with native kinds: `HALT` (the whole word 010Fh, enable operation
@@ -89,7 +91,18 @@ below are Nanotec's own.
    (N5 p57, rendered): admit in Switch on disabled, Ready to switch on, Switched on
    and Operation enabled; refuse in Quick stop active, Fault reaction active and
    Fault, although the text says "at any time" (N5 p58, NT-D13). In Operation enabled
-   require a fresh 6040h with bit 4 = 0 (FWUPD p6). A 6502h bit says what the drive
+   require a fresh 6040h with bit 4 = 0 (FWUPD p6). Entering VL, PV or PT while in
+   Operation enabled also needs the destination target to read zero: VL and PV run
+   toward 6042h or 60FFh in Operation enabled (N5 pp76-79), these targets are savable
+   (10 item 6), and N5 p58 and FWUPD p6 document no other disposition of a retained
+   target on an enabled mode change. The order is: the fresh state reads of the
+   table row, a fresh read of the destination target (6042h, 60FFh or 6071h) under
+   04b item 1's predicate, then the 6060h write as the only changing step, then 6061h.
+   A nonzero or unread target refuses with nothing sent, whatever bit 8 shows (a set
+   halt is released by the next start, item 4); the library writes no target of
+   another mode to make the change pass. A lost 6060h reply leaves the mode UNKNOWN:
+   no replay, and work that depends on the mode is refused until a fresh 6061h. The
+   result claims no standstill and no transient behavior. A 6502h bit says what the drive
    supports, never what this host can run: mode select and enable with a mode already
    active both consume the host mode table below, and a mode whose owning stage has
    not delivered its admission is unavailable (`UNSUPPORTED`, nothing sent). Values
@@ -102,8 +115,8 @@ below are Nanotec's own.
    | --- | --- | --- | --- |
    | 0 no mode assigned | Refused (no host operation) | Admitted | 04 |
    | 1 PP | Once 05 has landed | Once 05 has landed (bit 4 rule of item 2) | 05 |
-   | 2 VL, 3 PV | Once 06a has landed | Once 06a has landed, with a fresh zero 6042h or 60FFh: host policy, because these modes run toward their target whenever Operation enabled is reached without halt (N5 p76, p77) | 06a |
-   | 4 PT | Only inside 06b's operation, from Operation enabled, immediately after its fresh bit 15 = 1 check (06 item 6) | Refused: bit 15 is meaningful only in Operation enabled (N5 p348), so PT is entered from another enabled mode | 06b |
+   | 2 VL, 3 PV | Once 06a has landed; from Operation enabled only with a fresh zero 6042h or 60FFh (the order above) | Once 06a has landed, with a fresh zero 6042h or 60FFh: host policy, because these modes run toward their target whenever Operation enabled is reached without halt (N5 p76, p77) | 06a |
+   | 4 PT | Only inside 06b's operation, from Operation enabled, immediately after its fresh bit 15 = 1 check and a fresh zero 6071h (06 item 6) | Refused: bit 15 is meaningful only in Operation enabled (N5 p348), so PT is entered from another enabled mode | 06b |
    | 6 homing | Once 07 has landed | Once 07 has landed (bit 4 starts homing, N5 p82) | 07 |
    | 7 IP, 8 CSP, 9 CSV, 10 CST | Only inside an assigned 06c operation with its gates passed | Same | 06c |
    | -1, -2 | Refused (04b items 1 and 5); -2 only inside 04b's auto setup | Refused (04b item 1) | 04b |
@@ -157,8 +170,8 @@ best-effort stop's case, item 8).
 | Ready to switch on | 0007h (3), 000Fh (4) | Nothing sent for the first two kinds; 0000h (7) | Nothing sent (no torque) | Nothing sent (no torque) | Refused | 6060h |
 | Switched on | 000Fh (4) | Nothing sent; 0006h (6); 0000h (10) | Nothing sent (no torque) | Nothing sent (no torque) | Refused | 6060h |
 | Operation enabled, fresh 6040h bit 8 = 0 | Already enabled: nothing sent, no shutdown, power-stage or brake cycle | 0007h (5); 0006h (8); 0000h (9) | 010Fh in 6061h 1-4, otherwise refused | 000Bh (11) | Refused (only in Fault, item 5) | 6060h by item 6's table, with a fresh 6040h bit 4 = 0 |
-| Operation enabled, fresh 6040h bit 8 = 1 (halted) | Already enabled: nothing sent; the halt stays | 0107h (5); 0106h (8); 0100h (9): bit 8 kept (item 4) | Already halted: nothing sent | 010Bh (11): bit 8 kept (item 4; canopen_shared 02 "State transitions") | Refused (only in Fault, item 5) | 6060h by item 6's table, with a fresh 6040h bit 4 = 0; the halt stays |
-| Quick stop active | Refused; the separate enable-after-quick-stop (16) needs a fresh 6040h with bit 2 = 0 and item 6's enable column for the active mode, then 000Fh, or 010Fh when that 6040h has bit 8 = 1 | Refused; refused; 0000h (12) | Refused | Already reached: nothing sent | Refused | Refused |
+| Operation enabled, fresh 6040h bit 8 = 1 (bit set) | Already enabled: nothing sent; the bit stays | 0107h (5); 0106h (8); 0100h (9): bit 8 kept (item 4) | In 6061h 1-4: halt already requested, nothing sent; the result reports bit 10 by the mode's table and claims neither an attained halt nor standstill. Other modes: refused (bit 8 has no halt function in homing, CSP, CSV, CST or auto setup, N5 p82, pp91-93, p96; IP's halt belongs to 06c, item 4) | 010Bh (11): bit 8 kept (item 4; canopen_shared 02 "State transitions") | Refused (only in Fault, item 5) | 6060h by item 6's table, with a fresh 6040h bit 4 = 0; the bit stays |
+| Quick stop active | Refused; the separate enable-after-quick-stop (16) needs a fresh 6040h with bit 2 = 0 and item 6's enable column for the active mode, then 000Fh, or 010Fh when that 6040h has bit 8 = 1 | Refused; refused; 0000h (12) when the fresh 6040h has bit 8 = 0, 0100h (12, the same command by bits 7, 3, 2, 1, 0; bit 8 kept) when it has bit 8 = 1 | Refused | Already reached: nothing sent | Refused | Refused |
 | Fault reaction active | Refused | Refused | Nothing sent (fault reaction runs) | Nothing sent (fault reaction runs) | Refused until Fault | Refused |
 | Fault | Refused (reset first, never automatic) | Refused (fault reset is the route) | Nothing sent (no torque) | Nothing sent (no torque) | 0080h, after 0000h when a fresh 6040h has bit 7 = 1 (15) | Refused |
 
@@ -174,8 +187,15 @@ the coverage rows; the S3 shape and S8 changes with their tests;
 
 Tests use literal frames through the real owner and fake server: the first emitted
 frame, or none, for every cell of the source-state table and each mode in it
-(already enabled sends nothing; `HALT` sends 010Fh only in 6061h 1-4; from a halted
-Operation enabled `QUICK_STOP` sends 010Bh and each release keeps bit 8); every step's
+(already enabled sends nothing; `HALT` sends 010Fh only in 6061h 1-4; from Operation
+enabled with bit 8 set `QUICK_STOP` sends 010Bh, each release keeps bit 8, and `HALT`
+sends nothing with a "requested, not attained" result in 6061h 1-4 and is refused in
+every other mode; from Quick stop active `DISABLE_VOLTAGE` sends
+0000h or, with bit 8 set, 0100h), each asserting the result as well as the frame;
+mode select into VL and PV from Operation enabled, halted or not, with a nonzero or
+unread destination target (zero TX) and with a zero one (6060h the only changing
+frame; PT's entry is tested in 06b),
+and a lost 6060h reply during that entry (mode UNKNOWN, no replay); every step's
 confirmed, aborted, malformed, lost and late reply; stop while queued, in flight and
 waiting; stop during enable; bit 2 and bit 7 edges against a drive-modified 6040h;
 each 605Ah and 605Dh value; refused mode changes; the generic mode select and enable

@@ -95,13 +95,14 @@ contract, they apply in addition to it; they never relax one.
 - Product identity follows [prompt 57](../57_regular_drive_operations.md) "Identity
   policy", the policy of every CANopen family (canopen_shared 02 "Identity and device
   evidence"): its outcomes over 1000h, 1018h:01 and 1018h:02 with this set's
-  references, its "Admission by outcome" (no declared-model match, CONTRADICTED or no
-  current outcome refuses vendor-object downloads and every changing request with
-  nothing sent; bootstrap identity and state reads stay admitted) and its stop
-  exemption, which here covers 04's reviewed `HALT` and `QUICK_STOP` and, once opted
-  in, the S3 shape, each with its own checks (04 item 4). Release, fault reset, mode
-  select, NanoJ stop, Plug & Drive off and every NMT command are changing requests,
-  never that stop. This set refuses nothing more on identity.
+  references, its "Admission by outcome", consumed by reference as prompt 57 states it
+  (its bootstrap reads and its one bootstrap command, the targeted NMT Enter
+  Pre-operational on a fresh Stopped report, included; 09 item 6 assigns that command
+  to the owner's targeted NMT route), and its stop exemption, which here covers 04's
+  reviewed `HALT` and `QUICK_STOP` and, once opted in, the S3 shape, each with its own
+  checks (04 item 4). Release, fault reset, mode select, NanoJ stop, Plug & Drive off
+  and every NMT command are changing requests, never that stop. This set refuses
+  nothing more on identity.
 - No firmware lock (lead decision 2026-11-19; the owner's product direction of
   2026-11-12; prompt 57 "Identity policy").
   A firmware or hardware identity outside the qualified row (FIR-v1650, FIR-v2538,

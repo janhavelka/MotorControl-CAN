@@ -1,7 +1,7 @@
 # Nanotec CANopen profile promptset (FIR-v2213 generation)
 
 Prepared 2026-11-19. Source collection and prompt preparation complete; revised the
-same day after two rounds of independent [audit](audit.md) ([application](audit_application.md)).
+same day after three rounds of independent [audit](audit.md) ([application](audit_application.md)).
 All implementation stages are NOT STARTED; Nanotec hardware is NOT TESTED.
 
 Add the Nanotec CANopen family as an independent concrete profile of
@@ -44,14 +44,14 @@ drive modes (4015h), LSS and SDO block transfer.
 | 02 | [Object ledger, identity rows, generated tables and operation map](02_object_ledger.md) | 01; seam S7 and the package entries with the first generated header; per-model and per-firmware scopes; RW grants no write |
 | 02b | [Profile registration, probe and console family](02b_profile_integration.md) | 02; seams S1, S2 (with S3's and S13's default deny), S6, S10; no identity outcome, so identity-dependent routes unavailable; real owner, `SdoClient` and fake server; console part Blocked until S4 |
 | 03 | [Typed reads, identity gate and capabilities](03_reads_identity_capabilities.md) | 02b; prompt 57 identity outcomes and admission (stops exempt); firmware and hardware reported unqualified with stage 13 gates (no firmware lock); read-only `Supervision` snapshot; no detection of motor class |
-| 04 | [CiA 402 state machine, enable, release, stops and fault reset](04_state_machine_and_stops.md) | 03, 04b item 1; source-state table with halted rows; host mode table; Nanotec S3 shape (010Bh) and S8; edge rules on bits 2 and 7 |
+| 04 | [CiA 402 state machine, enable, release, stops and fault reset](04_state_machine_and_stops.md) | 03, 04b item 1; source-state table with bit-8 rows (a set bit is a requested halt, never an attained one); host mode table, enabled VL/PV entry only with a fresh zero target; Nanotec S3 shape (010Bh) and S8; edge rules on bits 2 and 7 |
 | 04b | [Vendor command paths: Plug & Drive interface, NanoJ, auto setup](04b_vendor_command_paths.md) | Item 1 (exclusive-control admission for every motion stage) after 03 and before 04's enable; items 2-5 after 04; auto setup has its own state sequence |
-| 05 | [Units and finite position (PP)](05_finite_position.md) | 03, 04, 04b; caller-qualified unit relation; NativeRateBasis gap |
-| 06 | [Velocity, profile torque and cyclic modes](06_velocity_torque_cyclic.md) | 05; 06a PV/VL, 06b PT with active closed loop only, 06c after 09 and 09b and only with seams S13 and S14 |
-| 07 | [Homing, limit switches and software limits](07_homing_and_limits.md) | 05; NT-D11, NT-D18; prompt 77 vocabulary |
+| 05 | [Units and finite position (PP)](05_finite_position.md) | 03, 04, 04b, 07 item 8 (limit admission); caller-qualified unit relation; NativeRateBasis gap |
+| 06 | [Velocity, profile torque and cyclic modes](06_velocity_torque_cyclic.md) | 05; timed runs need a stop for an unresolved route (opted-in S3 shape or a declared independent stop); 06a PV/VL, 06b PT with active closed loop and a fresh zero 6071h only, 06c after 09 and 09b and only with seams S13 and S14 |
+| 07 | [Homing, limit switches and software limits](07_homing_and_limits.md) | Item 8 (limit admission, prompt 77 item 2) after 03 and before 05's move; items 1-7 after 05; NT-D11, NT-D18; prompt 77 vocabulary |
 | 08 | [I/O, brake, motor and protection settings](08_io_brake_settings.md) | 03; four blocks 08a..08d; NT-D12, NT-D25 |
-| 09 | [PDO, SYNC, EMCY and boot-up](09_pdo_sync_emcy.md) | 03; seam S13 with Nanotec SYNC and node-0 NMT effects; 8 RPDO and 8 TPDO; NT-D07, NT-D09, NT-D16, NT-D30 |
-| 09b | [Host-loss supervision and reactions](09b_host_loss_supervision.md) | 09; off by default; NT-D08, NT-D24; the 1016h setter needs seam S11 and a live matching producer |
+| 09 | [PDO, SYNC, EMCY and boot-up](09_pdo_sync_emcy.md) | 03; seam S13 with Nanotec SYNC and node-0 NMT effects; COB-ID changes through the identifier plan with configured, pending and active values; firmware readiness reported UNKNOWN unless the boot loader is excluded; 8 RPDO and 8 TPDO; NT-D07, NT-D09, NT-D16, NT-D30 |
+| 09b | [Host-loss supervision and reactions](09b_host_loss_supervision.md) | 09; off by default; NT-D08, NT-D24; the nonzero 1016h setter needs seam S11 with its delivery bound and handoff recheck, and a live matching producer |
 | 10 | [Communication settings and persistence](10_communication_and_persistence.md) | 03, 04, 08, 09; NT-D04, NT-D05, NT-D06, NT-D09, NT-D28 |
 | 11 | [Console and mixed-profile integration](11_console_and_integration.md) | Implemented subsets of 02b-10; prompts 64, 75 when landed |
 | 12A | [First-contact questions](12a_first_contact.md) | Optional; needs an identified Nanotec fixture and authorization; one evidence path per question, never a production bypass |

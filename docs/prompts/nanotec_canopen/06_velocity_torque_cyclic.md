@@ -29,8 +29,17 @@ deadlines, watchdog and measured transport requirements.
    deadline, identity outcome and a missing acknowledgement never bar. Both rows exist
    for every state this run can reach (Operation enabled, halted or not, in 6061h
    2-4); a run whose mode or state has no such row is refused before its first
-   changing TX. `needsStop` and UNKNOWN execution stay while any start word may have
-   left. A deadline never stops the drive by itself. No repeated start, no replayed stop.
+   changing TX. Those rows need fresh SDO evidence, so they are not a stop path once
+   a lost start reply leaves the route unresolved (S10 `NONE`, the Nanotec policy
+   until 02b's markers are reviewed). The run is therefore also admitted only with a
+   stop that can still leave then, as canopen_shared 02 "Operation admission" (timed
+   runs) requires: the binding's opted-in S3 shape (04 item 8; S3 is opt-in per
+   binding, so stage 04 having landed does not supply it) or an independent stop the
+   application declares for the run (its own enable, STO or power path), named in the
+   result. Without either, it is refused before its first changing TX. The run also
+   passes 07 item 8's limit admission. `needsStop` and UNKNOWN execution stay while
+   any start word may have left. A deadline never stops the drive by itself. No
+   repeated start, no replayed stop.
    Follow [prompt 59](../59_velocity_range_direction.md) for range and direction
    facts, measured per profile.
 4. VL (6060h = 2; N5 pp76-77): 6042h is I16 rpm unless 604Ch changes it; ramps
@@ -48,12 +57,19 @@ deadlines, watchdog and measured transport requirements.
    preset 0064h is 10 % and limits PT by default (NT-D20): report it, never raise it
    implicitly.
 6. Admission: declared closed loop with a completed auto setup or the PD4-C factory
-   record, `Capabilities.torque` true, exclusive control, a timed run with its urgent
-   stop as in 06a item 3, and active closed loop: a fresh 6041h in Operation enabled
+   record, `Capabilities.torque` true, exclusive control, 07 item 8's limit admission,
+   a timed run with its urgent stop and unresolved-route stop as in 06a item 3, and
+   active closed loop: a fresh 6041h in Operation enabled
    with bit 15 = 1 (N5 p348), sampled in the current server session after the last
    boot-up and after the last write to the motor and feedback objects (3202h, 3203h
    and 03's motor group), immediately before the mode change to 4 or the first nonzero
-   6071h. This check also governs the public mode transition: 04 item 6's host mode
+   6071h. Entry order from Operation enabled: that bit 15 check, a fresh 6071h that
+   reads zero (6071h is savable, 10 item 6, and no page documents what an enabled mode
+   change does with a retained target; a nonzero or unread value refuses with nothing
+   sent and the operation writes no 6071h before the mode change), 6060h = 4 as the
+   first changing step, 6061h = 4 confirmed, then the first nonzero 6071h. A lost
+   6060h reply leaves the mode UNKNOWN and ends the operation without replay (04
+   item 6). This check also governs the public mode transition: 04 item 6's host mode
    table admits mode 4 only inside this operation and refuses enable with 6061h = 4,
    so the generic mode select cannot bypass it. Configuration alone does not suffice: with encoder commutation and no auto
    alignment the drive stays in open loop until the index passes (N5 p53), and bit 15
@@ -100,10 +116,18 @@ Tests cover start and stop frames, direction and range at I32 and I16 limits,
 ramps in acceleration units, lost start, lost poll and lost stop, the shared timed-run
 cases (a duration that no longer fits with the stop budget refused at preparation, a
 lost start reply, an observation in flight near stop due, service resuming after stop
-due, a queue-pressured urgent stop, the halted and unhalted stop words), priority
+due, a queue-pressured urgent stop, the halted and unhalted stop words), the
+unresolved-route branch (with S10 `NONE`, neither the binding's S3 shape nor a
+declared independent stop: refused before the first changing frame; with the S3
+shape opted in: the start reply lost, the ordinary run retired, at most the one
+reviewed 010Bh best-effort frame sent, uncertainty kept and no standstill claimed;
+with a declared independent stop: admitted and named in the result), 07 item 8's
+limit refusals on each run route with zero TX, priority
 stop, unknown terminal motion, PT selected through the generic mode select refused,
 PT refusal in open loop or
-with 3202h bit 5 = 1, PT on an enabled, configured closed-loop axis refused before
+with 3202h bit 5 = 1, PT entry with a nonzero or unread retained 6071h refused with
+zero TX and a lost 6060h = 4 reply ending UNKNOWN without replay or a 6071h write,
+PT on an enabled, configured closed-loop axis refused before
 and admitted after a fresh bit 15 = 1, and refused again with that evidence stale
 after a boot-up or a motor-settings write, per-mille limits and the 10 % preset
 reported unchanged. Quick

@@ -68,18 +68,24 @@ central. Follow the [commissioning guide](../../commissioning.md) and
      :03 persists whatever PDO configuration RAM holds. The PDO-persistence guard (on
      by default, settable per binding, the pattern of [prompt 77](../77_switch_ready_homing_limits.md)
      item 2; lead decision 2026-11-19 under the owner's engineering direction of
-     2026-11-17) admits such a save only when that configuration is the one loaded at
-     the last boot-up this owner observed on the binding (saved values reload at boot,
-     N5 p110): a boot-up observed in the current owner session, no PDO communication
-     or mapping write by this library since then and none unresolved, and no cfg.txt
+     2026-11-17) protects against this library's own PDO changes only. It admits such
+     a save when a boot-up was observed in the current owner session (saved values
+     reload at boot, N5 p110), this library has made no PDO communication or mapping
+     write on the binding since then and none is unresolved, and no cfg.txt applies
      (on C5-E and CL4-E a declared one, or no declaration, refuses, because cfg.txt
      wins at boot, C5E p108, CL4E p106); otherwise these three saves refuse with
-     nothing sent. With the guard off the save is admitted on the rest of the gate,
-     and its result names the guard as off, states that a PDO map change may be
-     persisted (NT-D09) and carries the readback of 1400h-1407h, 1600h-1607h,
-     1800h-1807h and 1A00h-1A07h taken in the operation before the save. With the
-     single-master guard off the result says that another writer's PDO change is not
-     excluded. The other categories are unaffected.
+     nothing sent. These checks do not show that RAM still holds the configuration
+     loaded at that boot-up: another writer's change is excluded only by 04b item 1's
+     single-master declaration, a separate guard settable on its own. Each save
+     result therefore names both guard settings; it states that the RAM PDO
+     configuration is the one loaded at the observed boot-up only with both guards on,
+     and then only as far as the declaration holds; with the single-master guard off
+     it says that another writer's PDO change since that boot-up is not excluded and
+     carries the readback of 1400h-1407h, 1600h-1607h, 1800h-1807h and 1A00h-1A07h
+     taken in the operation before the save. With the PDO-persistence guard off the
+     save is admitted on the rest of the gate, and its result names the guard as off,
+     states that a PDO map change may be persisted (NT-D09) and carries the same
+     readback. The other categories are unaffected.
    - One attempt; poll the subindex within the operation deadline. A timeout or lost
      reply leaves the stored state unknown and keeps the binding's conflicting work
      refused until a fresh read of that subindex returns 1 (no save running; the
@@ -144,7 +150,12 @@ partial remap, with no boot-up observed in the owner session and with a declared
 undeclared cfg.txt on C5-E or CL4-E; admitted after an observed boot-up with no PDO
 write; switched off for one binding: the same cases admitted, each result naming the
 guard as off, stating the possible PDO persistence with NT-D09 and carrying the map
-readback taken before the save, another binding still guarded; a 1010h:04-06 save
+readback taken before the save, another binding still guarded; the two guards set
+independently: a fake server changing a map out of band after the observed boot-up,
+with the PDO-persistence guard on and the single-master guard off, admits the save
+with a result that states the other writer's change is not excluded and carries the
+readback, never that the boot-loaded configuration is persisted; with both guards on
+the result states the declaration-bound claim; a 1010h:04-06 save
 unaffected), the same gate on the 1010h:0Ah store, completion
 by readback of 1, timeouts and a lost reply during a save (conflicting work refused
 until a read returns 1), post-save error checks, restore without

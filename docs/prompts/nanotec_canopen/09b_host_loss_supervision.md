@@ -57,11 +57,15 @@ the Nanotec facts below are this profile's own.
    recovery or reconfiguration since), its host node ID equal to the 1016h:01 producer
    field (bits 16-23) and reserved, and the consumer time above the producer period
    plus the application's measured worst service gap ([prompt 56](../56_host_throughput.md));
-   absent, wrong-node, stale or interrupted evidence refuses with nothing sent. A bound
-   on heartbeat delivery at the drive (TX queueing and arbitration under load, not
-   only owner service) and a recheck of the producer status at the 1016h TX rather than
-   only at admission are an open request on seam S11 (canopen_shared README, S11 row;
-   audit application round 2, question 2). The
+   absent, wrong-node, stale or interrupted evidence refuses with nothing sent. Two
+   checks of the S11 row (canopen_shared README; canopen_shared audit application,
+   round 4 theme 4) are also prerequisites of every nonzero 1016h:01 write: the
+   consumer time exceeds the producer period plus S11's delivery bound, which counts
+   TX queueing and arbitration delay under load and not only owner service (the
+   prompt 56 gap above is one part of it), and the producer status is rechecked when
+   the write is handed to the controller, so a producer stopped, interrupted or
+   invalidated while the write waited withdraws it with nothing sent. Until S11
+   provides that bound and handoff recheck, the nonzero setter stays BLOCKED. The
    result keeps configured, transmitting and physically demonstrated drive reaction
    separate (only 12A Q10 can show the last); no motion requires supervision
    (item 4). If no family has claimed S11, this stage claims it in the canopen_shared README table and lands it
@@ -94,8 +98,11 @@ Tests cover the snapshot with factory values (reported as unsupervised), each 60
 and 1029h:01 value, refused out-of-range values, the heartbeat/guarding exclusion,
 refusal of the 1016h setter while S11 has not landed and, with S11 compiled in, for an
 absent producer, a producer with another host node ID or on another interface, one
-stale after bus-off or reconfiguration, one interrupted (missed service) and a consumer
-time not above period plus measured gap; no write at startup or
+stale after bus-off or reconfiguration, one interrupted (missed service), a consumer
+time not above period plus measured gap, a consumer time above period plus the owner
+service gap but not above period plus S11's delivery bound, and a producer
+invalidated between admission and the handoff of the 1016h write, each with zero
+1016h TX; no write at startup or
 recovery, and console text that never claims a stop on host loss. Quick verification
 and CI on the exact final pushed commit pass. Hardware NOT RUN; no reaction timing
 or order is claimed.

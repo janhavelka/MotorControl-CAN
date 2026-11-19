@@ -1,7 +1,7 @@
 # 05 — Units and finite position (Profile Position)
 
 Execute this stage under the [execution contract](execution_contract.md).
-Status: NOT STARTED. Runs after 03, 04 and 04b. NT-D10, NT-D18 and NT-D19 directly affect it.
+Status: NOT STARTED. Runs after 03, 04, 04b and 07 item 8 (limit admission). NT-D10, NT-D18 and NT-D19 directly affect it.
 Follow [prompt 60](../60_user_units.md) for host-side user units and
 [prompt 52](../52_motion_changes.md) for later change operations.
 
@@ -33,7 +33,8 @@ Follow [prompt 60](../60_user_units.md) for host-side user units and
    6064h follows the commanded field unless 3203h selects an encoder (N5 p300), so
    the result reports commanded position, never a measured one. Both motor classes
    use the same preparation; full-step geometry stays optional (MULTIDRIVE case 1).
-5. PP sequence (N5 pp68-75). Admission: identity, exclusive control, Operation
+5. PP sequence (N5 pp68-75). Admission: identity, exclusive control, 07 item 8's limit
+   admission (landed before this stage exposes a move), Operation
    enabled with mode 1 confirmed by 6061h, fresh 6040h bit 4 = 0. Stage 607Ah, 6081h,
    6083h, 6084h and 6086h (0 trapezoid; 3 jerk-limited with 60A4h:01-04), each
    confirmed. Trigger: one write with bit 4 rising, bit 5 = 1 (apply immediately),
@@ -70,6 +71,7 @@ Tests cover exact quantization and range at I32 boundaries, gear and feed ration
 refused rate bases, pending unit writes in Operation enabled, open-loop commanded
 feedback, staging order, a lost trigger reply (UNKNOWN, no replay), a stale bit 10
 or bit 12 before the trigger, halt during the move, quick stop during staging, the
-60F2h basis rule and no relative-to-absolute conversion. Quick and full
+60F2h basis rule, no relative-to-absolute conversion and 07 item 8's limit admission
+on the move route (an active, stale or unread limit refused with zero TX). Quick and full
 verification, firmware builds and CI on the exact final pushed commit pass.
 Hardware NOT RUN; no physical scale or arrival accuracy is claimed.

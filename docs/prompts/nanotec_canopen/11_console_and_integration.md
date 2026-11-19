@@ -44,7 +44,9 @@ extending the seams.
    completions routed by the admitted profile and generation. Check the identifier
    plan at binding: node IDs unique, Nanotec PDO 5-8 COB-IDs (free) not colliding with
    any Lichuan or other node identifier, both boot-up messages of a Nanotec node
-   routed to that node, and SYNC and EMCY identifiers unchanged. No different-node
+   routed to that node, and SYNC and EMCY identifiers unchanged; the same check runs
+   again at the admission of each COB-ID change, with the old and candidate IDs both
+   reserved until activation is evidenced (09 item 4). No different-node
    assumption replaces this check.
 5. Discovery. Bounded scans over caller-listed nodes only; the probe is the 02b upload
    of 1000h and the identity read of 03. A finding is profile-typed and never selects
