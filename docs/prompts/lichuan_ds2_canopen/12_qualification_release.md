@@ -38,9 +38,10 @@ authorized DS2-family fixture; the CL86-C bench is not that fixture. MULTIDRIVE 
 2. Record the exact model, suffix, encoder, brake, supply, firmware identity and identity outcome, wiring and DI
    assignments, node, bitrate, termination, image revision and authorization. Model identity comes from the
    declaration and nameplate, never from a reply.
-3. Begin with non-changing reads and retained raw frames. Then explicit enable and release, small finite position
-   moves with prepared stops, relative and absolute policies, and only then bounded velocity, torque and homing runs
-   with their written plans. Negative encodings run only after 12a Q8a's or Q8b's conditions are met.
+3. Begin with non-changing reads and retained raw frames. Then explicit enable and release, finite position moves
+   bounded under 12a's bounded-move rule with prepared stops, relative and absolute policies, and only then bounded
+   velocity, torque and homing runs with their written plans. Negative encodings run only after 12a Q8a's or Q8b's
+   conditions are met.
 4. Qualify each status dialect, unit, ramp, stop and completion rule per model and firmware. A DS2-10C result does not
    qualify IBL60-C or ISL80-C, and one free-shaft specimen does not qualify the family or a loaded axis.
 5. Brake, I/O, limit-switch, homing-switch and restart cases need their actual fixtures and restart control. Wire
@@ -50,7 +51,8 @@ authorized DS2-family fixture; the CL86-C bench is not that fixture. MULTIDRIVE 
    native regression where representable, then rerun the original scenario and a short regression. Leave an
    unresolved investigation with the exact missing measurement when the cause is not established.
 7. When new DS2 behavior reaches the fixture, run a short existing-feature regression (probe, identity, state, one
-   small finite move with its stop) plus the focused new checks, and retain the evidence with the image revision.
+   finite move with its stop, bounded under 12a's bounded-move rule while any fact it consumes is unqualified for
+   that model and firmware) plus the focused new checks, and retain the evidence with the image revision.
 
 ## Deliver
 

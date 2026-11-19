@@ -33,7 +33,8 @@ decides completion evidence per dialect. MULTIDRIVE rows 9, 10, 33, 34, 52 and 6
 5. Sequence (DS2C p11). Preconditions: 04's `enabled` predicate in mode 1 on a fresh report, no other operation on
    the axis, and write preflight of every word the move may send (canopen_shared 02). Write `607A`,
    `6081` and the ramp words of the chosen policy, each confirmed; then the trigger word 31 (bit 4 rising, bit 5 0,
-   bit 6 0) for absolute or 95 (bit 6 1) for relative, from a confirmed 15. Words 63 and 127 (bit 5, change set
+   bit 6 0) for absolute or 95 (bit 6 1) for relative, only from 04's trigger predecessor (item 10: an acknowledged
+   0x000F in the caller's controlword history). Words 63 and 127 (bit 5, change set
    immediately) are a change operation and stay UNSUPPORTED here; [prompt 52](../52_motion_changes.md)'s per-profile
    change vocabulary owns them later. Never raise bit 4 again for a lost trigger.
 6. Acknowledgement and rearm. In `DS2C_TABLE` bit 12 "target position effective" is documented, unqualified
@@ -44,7 +45,9 @@ decides completion evidence per dialect. MULTIDRIVE rows 9, 10, 33, 34, 52 and 6
    rising bit 12 in `DS2C_TABLE`, the trigger's SDO confirmation in `IBL60_TABLE`) or its completion evidence, and only
    while no stop is admitted for the axis. Stop admission, cancel, deadline expiry, a timeout or lost reply on the
    trigger, boot-up, reset, rebind and invalidation retire a pending rearm; word 15 is never appended as cleanup of a
-   terminal. A later move that finds bit 4 high writes 15 as its own first step after its own admission.
+   terminal. A rearm's acknowledged 15 is the next move's predecessor. A move never writes 15 to make one: after a
+   trigger whose rearm was retired, the next move refuses before TX until 04's enable (after an explicit release)
+   establishes it.
 7. Completion. `DS2C_TABLE`: bit 15 "positioning complete" must be low after the trigger and then rise; bit 10 means
    speed zero, not arrival. `IBL60_TABLE`: bit 10 in mode 1 means positioning complete, with the same fall-then-rise
    rule. Observing the fall and rise needs repeated reads, so it runs only under `DS-DEC-1` (03) with its observation
@@ -67,13 +70,14 @@ coverage, operation map, `docs/position_parameters.md` and `docs/speed_units.md`
 
 ## Acceptance
 
-Tests cover exact quantization at range edges (2147483647 accepted, 2147483648 rejected, rounding across that
-boundary on the native and common paths, zero changing TX on every rejection), negative native targets rejected
-without declaration, smaller nonnegative absolute targets accepted, each ramp policy and an undeclared ramp request
-rejected, scale invalidation on a changed `6091`, the write and trigger order, a lost trigger with no re-trigger,
-stale bits 12 and 15, both dialects' completion rules, completion `NOT_OBSERVED` with no repeated upload when
-`DS-DEC-1` is absent and the bounded observation budget when it exists, a stop during the move and a retained
-terminal. Rearm cases assert exact owner traffic: a stop racing a pending rearm, an unknown trigger outcome, cancel
-and expiry each send no word 15. No hidden restoration or replay can restart motion. Quick and full verification
-and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off with the
-declarations listed.
+Tests cover exact quantization at range edges (2147483647 accepted, 2147483648 rejected, rounding across that boundary
+on the native and common paths, zero changing TX on every rejection), negative native targets rejected without
+declaration, smaller nonnegative absolute targets accepted, each ramp policy and an undeclared ramp request rejected,
+scale invalidation on a changed `6091`, the write and trigger order, a lost trigger with no re-trigger, stale bits 12
+and 15, both dialects' completion rules, completion `NOT_OBSERVED` with no repeated upload when `DS-DEC-1` is absent
+and the bounded observation budget when it exists, a stop during the move and a retained terminal. Rearm cases assert
+exact owner traffic: a stop racing a pending rearm, an unknown trigger outcome, cancel and expiry each send no word
+15. A trigger is refused with no TX without 04's predecessor: an already-enabled attachment, a move after a retired
+rearm, after an uncertain trigger or rearm, after a stop, a reset or a rebind; after a completed rearm the next move
+is admitted. No hidden restoration or replay can restart motion. Quick and full verification and required CI on the
+exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off with the declarations listed.

@@ -9,9 +9,9 @@ code and needs no hardware.
 1. Run [canopen_shared 01](../canopen_shared/01_existing_code_and_tooling.md) at the current HEAD: record HEAD, dirty
    state and PROGRESS rows 57, 63, 64, 65, 73, 75 and 77; refresh MotorControl-RS and its profile seam; mark every
    inventory row confirmed, changed or absent after reading the symbol and its callers. Classify each row for DS2.
-   Needed seams: S1, S2, S6, S7 and S10 (owned here or by the first family), S3 and S8 (stage 04), S4 and S5
-   (prompts 64 and 65); S13 is consumed (09, 11). S9, S11 and S12 are not needed (README). Record every claim and
-   landing in the canopen_shared seam table since `5045423d`.
+   Needed seams: S1, S2, S6, S7 and S10 (owned here or by the first family), S3 and S8 (stage 04), S4 and S5 (prompts
+   64 and 65); S13's default deny lands with S2 (02b) and its full gate is consumed (09, 11). S9, S11 and S12 are not
+   needed (README). Record every claim and landing in the canopen_shared seam table since `5045423d`.
 2. Establish the protocol from family evidence: CANopen CiA 301/402 by DS2C p24 (`1000` text), the EDS
    `[DeviceInfo]` sections and the object tables (DS2C p24-29). Modbus and the USB debug port (DS2C p22-23, DS2OP p5)
    are other documented paths to P-parameters and stay excluded.

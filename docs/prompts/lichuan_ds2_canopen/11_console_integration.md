@@ -19,8 +19,8 @@ rows 23, 24, 40-44, 53, 64, 68, 70 and 75 apply.
    the shared-interface positive tests wait for the same-domain analysis canopen_shared 02 requires, recorded in the
    report: node IDs, configured COB-IDs, bitrate, and NMT-broadcast and SYNC effects on both families. DS2's NMT
    effects are undocumented (DS-D32) and its SYNC effects unknown, so the analysis excludes NMT broadcasts and SYNC
-   production on that interface until S13 and DS2 evidence admit them. A recorded exclusion is not enforcement: the
-   owner admits explicit NMT broadcasts and prompt 51's producer checks no DS2 effect. Seam S13
+   production on that interface until S13 and DS2 evidence admit them. A recorded exclusion is not enforcement; S13's
+   default deny, landed with S2 (02b), already refuses both on every interface with a DS2 binding. Seam S13
    ([canopen_shared](../canopen_shared/README.md)) enforces both: it admits SYNC and every NMT command to node 0 on a
    mixed interface only for reviewed effects on every declared node, so a DS2 node with unknown effects refuses
    both. The shared-interface positive tests stay BLOCKED until S13 lands; DS2 consumes it with no DS2-local guard.
@@ -34,7 +34,8 @@ rows 23, 24, 40-44, 53, 64, 68, 70 and 75 apply.
    entries, the expected product identity of a DS2 node is its model's claim set and identity outcome (execution
    contract), not one value. Extend their identity check with the shared comparison, through their owners, rather
    than adding a DS2-only startup path. Startup verifies and reports; it enables, homes or writes nothing by default.
-5. Discovery. Add a bounded, explicit DS2 scan over caller-listed nodes: probe and identity reads only, profile-typed
+5. Discovery. Add a bounded, explicit DS2 scan over caller-listed nodes: probe (under 02b's read-effect row; without
+   it the scan refuses before TX) and identity reads only, profile-typed
    findings with the identity outcome, no model selection from replies and no `2xxx` read. The `discover` parser and the
    Python module report DS2 findings; unknown or unrouted profiles still reject before TX.
 6. Python and runners. `scripts/console_jsonl.py` validates `lichuan_ds2` records with DS2 fields and never accepts a

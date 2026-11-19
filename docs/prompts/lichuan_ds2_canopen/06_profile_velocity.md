@@ -10,8 +10,8 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    `6061`=3; write `60FF`, `6083`, `6084`; then 0x0006, 0x0007, 0x000F, after which "the motor is enabled and starts
    running". The enable words are the start. `prepareVelocity` therefore admits only a drive that 04's `released`
    predicate accepts on a fresh report, in mode 3 or a mode it selects first through 04's mode select, after write
-   preflight of every word it may send (canopen_shared 02). It owns the targets, the enable words, the run and the
-   stop as one operation under the one operation deadline.
+   preflight of every word it may send (canopen_shared 02). It owns the targets, the enable words and the run under
+   the one operation deadline; the run's stop is the application's separate urgent stop (item 5).
 2. Target encoding (DS-D10). `60FF` is I32 "maximum speed in velocity mode" default 0 (DS2C p29), U32 0..2147483648 in
    the mode table (DS2C p12), a signed range with type U32 in DS2OP p6, IBL60 p13 and ISL80 p14, and I32 default 120
    in DS2EDS. As for `607A` (05), the unqualified range is 0..2147483647, checked on the exact quantized value before
@@ -24,18 +24,26 @@ words. MULTIDRIVE rows 35, 52, 59 and 73 apply. This stage does not broaden any 
    reviewed with [prompt 60](../60_user_units.md)'s owner, as a core change, not a profile shortcut.
 4. Ramps use 05's policies (`VERIFIED_CONFIGURED` or a declared `WRITE_NATIVE`); a requested physical acceleration
    without a declaration rejects before TX.
-5. Run and stop. Require a positive finite `durationUs`; zero speed is a setting, not a run. The run counts from the
-   owner's admission of the start word (word 15), the earliest moment motion can begin. At preparation, and again
-   before the start word, the context checks with overflow-checked arithmetic that `now + durationUs` plus the
-   caller's stop dispatch budget is at most the operation deadline; otherwise it sends no start word and reports the
-   confirmed and uncertain effects of the setup writes. At run expiry the context yields the stop step of 04
-   (`QUICK_STOP` under `DS-DEC-2`: no velocity-mode stop is documented, the only stop arrow is in the position-mode
-   table, DS2C p11). If service resumes after the operation deadline, nothing further is sent: the result keeps the
-   stop obligation, says whether a stop was never transmitted or possibly transmitted, and never extends the deadline
-   or reports success. Changing `60FF` while enabled is undocumented: a zero target is neither a
-   stop nor offered here, and speed changes stay UNSUPPORTED until [prompt 52](../52_motion_changes.md)'s vocabulary
-   and DS2 evidence exist. Keep separate dispatch and wire deadlines and the shared never-transmitted-stop rule; never
-   report success while the drive may still run.
+5. Run and stop. Require a positive finite `durationUs`; zero speed is a setting, not a run. The run follows
+   canopen_shared 02 "Operation admission", timed-runs bullet, which reuses Lichuan C's finite-velocity design
+   (`VelocityOperation.h` `durationUs`; `profiles/lichuan_c/Velocity.h` `requiredStopBudgetUs`, `stopDueUs`,
+   `needsStop`, phase `STOPPING`): the duration runs from successful preparation and includes setup and queue
+   delay; preparation refuses, with overflow-checked arithmetic, unless the duration plus the caller's stop budget
+   fits before the operation deadline; every later transfer of the run, enable words and observations included, has
+   `deadlineUs` at most the stop due time, and no enable word is yielded at or after it. So nothing of the run holds
+   the channel at stop due, and 04's "an in-flight request settles first" waits for none of it. At stop due the
+   context issues no further work and the application composes 04's `QUICK_STOP` as its separate urgent stop with
+   its own deadline, which the run's deadline, identity outcome and a missing acknowledgement never bar. DS2 adds:
+   no velocity-mode stop is documented (the only stop arrow is in the position-mode table, DS2C p11), so the run is
+   refused before its first changing TX, mode select included, unless `DS-DEC-2` (04 item 6) has a mode-3 row for
+   every state the run may leave (an acknowledged 0x000F and each uncertain enable word); neither a valid encoding
+   nor a fake server accepting 0x000B clears that gate. On an unresolved route the best-effort word exists only
+   after 04's S3 opt-in (item 7 there); before it `admitBestEffortStop` returns `INVALID` with no TX. `needsStop`
+   survives cancellation, failure, recovery, a lost start reply and acknowledgement-only completion while any enable
+   word may have left; the result says whether a stop was never or possibly transmitted and never reports success
+   while the drive may still run. Changing `60FF` while enabled is undocumented: a zero target is neither a stop nor
+   offered here, and speed changes stay UNSUPPORTED until [prompt 52](../52_motion_changes.md)'s vocabulary and DS2
+   evidence exist.
 6. Uncertainty. A lost enable word leaves start execution `UNKNOWN` and a stop obligation; a lost stop leaves
    `needsStop` with execution unknown. Never repeat the enable or a transmitted stop automatically. Local cancel does
    not stop the motor.
@@ -60,11 +68,15 @@ map, Doxygen, CHANGELOG; the `RATE_BASIS` core review recorded in the report (la
 
 ## Acceptance
 
-Tests cover refusal from every report 04's `released` predicate rejects, the target-then-enable order, the range
-edges 2147483647 and 2147483648 and negative targets rejected without a declaration (zero changing TX), undeclared
-units and ramps, a lost enable word with retained stop obligation, run expiry yielding exactly one stop, cumulative
-setup delay leaving less than `durationUs` plus the stop budget (no start word), equality at that cutoff, service
-resumed after the operation deadline (nothing sent, stop obligation kept), a lost stop, a priority stop from another
-producer, deadline cutoff `now >= deadlineUs`, cancel that is not a stop and no repeat of any start. Tests drive the production sequence through the owner and fake server. Quick and
-full verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED; never substitute an
-unbounded run for a finite test. Commit, push and hand off.
+Tests cover refusal from every report 04's `released` predicate rejects, the target-then-enable order, the range edges
+2147483647 and 2147483648 and negative targets rejected without a declaration (zero changing TX), undeclared units and
+ramps, a lost enable word with retained stop obligation, and the timed-run cases of canopen_shared 02 through the real
+owner: a duration that no longer fits with the stop budget (refused at preparation), setup delay reaching stop due (no
+enable word), an observation in flight near stop due (its deadline ends there), `now` equal to stop due (no run
+transfer, the urgent stop composed), a lost start reply (`needsStop` kept), service resuming after stop due (no run
+work, the separate stop still composed) and a queue-pressured stop. Also a run refused with zero TX while `DS-DEC-2`
+has no mode-3 row, an uncertain start on an unresolved route (no best-effort TX before 04's opt-in, `needsStop` kept),
+a lost stop, a priority stop from another producer, deadline cutoff `now >= deadlineUs`, cancel that is not a stop and
+no repeat of any start. Tests drive the production sequence through the owner and fake server. Quick and full
+verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED; never substitute an unbounded
+run for a finite test. Commit, push and hand off.

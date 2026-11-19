@@ -16,7 +16,8 @@ prose.
    by `60E6` and an offset in "`606C`". `60E6` is absent from every table and EDS and `606C` is actual velocity, so
    method 35 is UNSUPPORTED until a source defines them. Never write `60E6` or use `606C` as an offset.
 3. Sequence (DS2C p13; IBL60 p14). Select mode 6 and enable through 04, then write `6098`, `6099:01`, `6099:02`,
-   `609A` (and `607C` when requested), then raise bit 4 (word 0x001F from a confirmed 0x000F); 1 to 0 interrupts.
+   `609A` (and `607C` when requested), then raise bit 4 (word 0x001F, only from 04's trigger predecessor, item 10:
+   an acknowledged 0x000F in the caller's controlword history); 1 to 0 interrupts.
    The manual writes the parameters after enabling; keep that order unless a source permits another.
 4. Parameters. Always write the requested `6098` and read it back: defaults 17 (DS2C p28) and 0 (DS2EDS), I08 versus
    U8 (DS-D08); positive methods have identical bytes. Speeds are pul/s and `609A` pul/s² in the tables, while DS2C
@@ -49,7 +50,10 @@ prose.
 10. Stops and interruption. A stop during homing follows 04; the result keeps the stop's own evidence, marks the
    reference invalid and never resumes the search. Bit 4 falling (word 0x000F, DS2C p13 "interrupt homing") is a
    separate native interrupt: offer it as an acknowledged-only homing interrupt, never as a stop, because its effect
-   on motion is undocumented.
+   on motion is undocumented. It is admitted only in mode 6 when the latest acknowledged word is this binding's
+   0x001F; its acknowledged 0x000F is the predecessor of a later trigger (04 item 10). A second homing after a
+   finished one therefore needs this interrupt or an explicit release and enable first; homing never lowers bit 4 by
+   itself.
 
 ## Deliver
 
@@ -62,6 +66,8 @@ coverage, operation map, `docs/homing.md` DS2 section, Doxygen and CHANGELOG.
 Tests cover every method's admission against declared signals, rejected 15/16/31/32/35, parameter order after enable,
 `6098` readback mismatch, a stale or already-high completion bit for both dialects, homing refused with no TX
 without `DS-DEC-1`, timeout with a stop obligation and no re-trigger, interruption by bit 4 falling and by an explicit stop, reference publication only after fresh evidence,
+a trigger refused with no TX without 04's predecessor (an already-enabled attachment, a second homing before the
+interrupt, an uncertain trigger, a stop, a reset or a rebind) and admitted after the interrupt's acknowledged 0x000F,
 and `607D` writes refused. Quick and full verification and required CI on the exact final pushed commit pass.
 Physical homing needs a DS2 fixture with real switches or a qualified index; hardware NOT TESTED. Commit, push and
 hand off.

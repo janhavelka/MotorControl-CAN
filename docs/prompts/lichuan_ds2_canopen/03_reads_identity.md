@@ -28,8 +28,10 @@ interpretations; raw observations remain available while an interpretation is ga
 4. Status dialects (DS-D04). A profile-local `StatusDialect` selected by `Model` through the 01 matrix:
    `DS2C_TABLE` (DS2C p12-13, MINI p13/p15, IBL80 p13): bit 7 alarm, bit 8 homing complete, bit 10 speed zero, bit 12
    target position effective, bit 15 positioning complete; `IBL60_TABLE` (IBL60 p13-14, ISL60 p15/p17, ISL80
-   p14/p16): bit 3 alarm, bit 10 positioning complete in mode 1 and homing complete in mode 6. Bits 0..2 follow the
-   documented 0/6/7/15 example only. Each interpretation is "documented, firmware unqualified"; undocumented bits stay
+   p14/p16): bit 3 alarm, bit 10 positioning complete in mode 1 and homing complete in mode 6. The dialect comes from
+   the declared model only, also when the identity result names siblings with the other dialect (the IBLEDS pair
+   matches IBL60 and IBL80; the DS2EDS/ISLEDS pair matches both groups). Bits 0..2 follow the documented 0/6/7/15
+   example only. Each interpretation is "documented, firmware unqualified"; undocumented bits stay
    raw. Do not build a CiA 402 state decoder, name fault, quick-stop or switch-on-disabled states, or reuse
    `StatusLayout`. The documented alarm bit is a drive report, not a fault-state decoder or a clearable condition.
 5. Configuration groups. `prepareConfig` with bounded groups that read only objects of the declared model's scope:
@@ -89,7 +91,13 @@ variants (manual and EDS) per model and assert the actual outcome and matching-m
 UNCONFIRMED with all nine models, the DS2EDS/ISLEDS pair UNCONFIRMED with five, the IBLEDS pair UNCONFIRMED with two;
 a pair that only other models' references hold (the IBLEDS pair on a DS2 or ISL declaration, the DS2EDS/ISLEDS pair
 on a MINI or IBL declaration) and 0x1000/0x0001 give CONTRADICTED; MINI uses manual-only fixtures; a stale observation
-after boot-up or rebinding has no outcome. Specimen references are reserved for qualified MEASURED rows. Also:
+after boot-up or rebinding has no outcome. Specimen references are reserved for qualified MEASURED rows.
+Cross-sibling tests run through the real owner (lead decision, [audit application](audit_application.md) round 2):
+an IBL60 declaration on a server with the IBLEDS pair and the IBL80 (DS2C) status behavior, the reverse, and a DS2
+declaration on an ISL-dialect server with the DS2EDS/ISLEDS pair. Each gives UNCONFIRMED naming every matching model,
+admits by the declaration and decodes only with the declared model's dialect. In one case only the sibling dialect's
+alarm bit is set (bit 3 versus bit 7): the result shows the declared dialect's reading, the raw word and both models,
+never a dialect chosen from the reply. Also:
 `1018:04` read only when announced and sourced (short, oversized and contradictory counts, no absent object read),
 width mismatch kept raw, wrong-dialect interpretation impossible for every model, `6060` never read, `607D:02` never
 read for MINI, `2406h` refused outside IBL and per the admission table, `DS-DEC-1` absent giving no repeated upload,

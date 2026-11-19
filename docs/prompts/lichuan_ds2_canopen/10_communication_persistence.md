@@ -32,8 +32,9 @@ UNSUPPORTED results; the one write path is `1017`.
 6. Volatility. `P02-31 = 3` implies 6000-group writes are not stored by themselves; that is an inference. `P0A-03`
    power-loss save (DS2C p21) and "RW/S" columns leave scope unknown; `P0C-13` concerns Modbus writes only (DS2C p23).
    Every write in this profile keeps "persistence unknown" until 12a's restart test for that object and firmware.
-7. Resets. NMT reset node and reset communication are explicit 09 operations whose DS2 effects are undocumented
-   (DS-D32); results invalidate all dependent evidence, routes and queued work. `P0D-00` software reset is
+7. Resets. NMT reset node and reset communication are explicit 09 operations under the execution contract's NMT
+   table, whose DS2 effects are undocumented (DS-D32); results invalidate all dependent evidence, routes and queued
+   work. `P0D-00` software reset is
    unreachable. DS2OP p9 asks for at least 10 s between power-off and power-on (Er.410); record it as a fixture
    procedure, not a library delay.
 8. Vendor tool. Node, bitrate, control mode, motor codes and saves are documented through the USB debug software

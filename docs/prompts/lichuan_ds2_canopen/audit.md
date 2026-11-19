@@ -73,3 +73,62 @@ extensions contract, the parent Projects instructions, the communication practic
 experiment prerequisites, several main-sequence prompts and sibling seams were not provided. No DS2
 fixture record or raw traffic existed. The audit was text-only: no checker, build, CI job or hardware
 test ran.
+
+## Round 2
+
+A condensed, faithful copy of the second reviewer report; dispositions are in
+[audit_application.md](audit_application.md) round 2. Line numbers refer to the files at the audited revision.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-184724-17daf9` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used (baseline), reasoning effort high, depth standard ("large input (~160702 tokens)") |
+| Date | 2026-11-19 18:47:24 (from the ID), 208.7 s, one attempt |
+| Revision | `main` at `edcf9621a1f5f598ca77d5e9261f885b7946f601`, no uncommitted changes recorded |
+| Cost | Estimated USD 0.35 (0.349538, configured pricing); 125,069 input and 9,940 output tokens (4,443 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-184724-17daf9.json` (local) |
+| Location checks | 32 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit: the 19 files of this directory, including round 1's `audit.md` and
+`audit_application.md` (`README.md` 124 lines, sha256 `b70c3ffc...`; `execution_contract.md` 184, `d58f4f50...`).
+Context: canopen_shared `README.md`, `02_profile_integration_contract.md` and `01_existing_code_and_tooling.md`,
+`ADD_DRIVE.md`, `COMMON.md`, the reference pack `README.md` and `review.md`, prompt 57 (194 lines, before
+`a7656efb`); project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The revision fixes several round-1 defects: S3 defaults to deny before DS2 registration, the disputed
+torque downloads are withheld by model, polling is gated, and the first generated headers ship with their package
+checks. The remaining blockers are in admission and failure handling: ambiguous identity can still authorize
+model-dependent writes, motion can lack a known controlword predecessor or a dispatchable stop, and network commands
+have gaps at the owner boundary. Evidence intake and independent host work can proceed; the affected changing routes
+and physical tests should stay gated. **Verdict:** blocking issues. Several acceptance criteria can be met by a
+synthetic server without proving that admission rejects a wrong-model binding, that a trigger starts from a known
+predecessor, or that a finite run can dispatch its planned stop under allowed owner timing.
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *A colliding identity match admits work that depends on the exact DS2 model.* The shared contract requires ambiguous identity to refuse dependent work, but the DS2 table admits changing requests on UNCONFIRMED with a declared-model match; IBL60 and IBL80 share one EDS identity with different alarm and bit-10 meanings, so a wrong-sibling binding passes and uses the wrong dialect. Keep prompt 57's comparison; split operations established across all matching candidates from those needing evidence of the declared model, and refuse the latter before TX; add real-owner cross-sibling tests (IBL60 versus IBL80, a wrong dialect reading the report as alarm-free). | execution_contract:124; contract 02:72-74; review:169-171; prompt 57:88-89 |
+| F2 | High, verified defect, high | *Position and homing require a confirmed trigger predecessor but do not define how to establish it.* 04 may return already enabled on a fresh 111 with no word sent, which shows neither the previous controlword nor bit 4; the ledger needs no controlword readback; nothing covers bit 4 unknown (attachment to an enabled drive, an uncertain trigger, a second homing). Define one DS2 predecessor rule: which current-session evidence establishes the word, what retires it, which reviewed transitions re-establish it; refuse when unknown; never use 111 as proof or send 15 as an unconditional repair; test attachment, consecutive homing, uncertain trigger or rearm, and stop, reset and rebind with exact owner traffic. | 04:23-24; 05:45-47; 07:18-19; 02:28-29; AGENTS.md:79 |
+| F3 | High, verified defect, high | *Finite velocity and torque lack a fail-closed gate for their required stop.* 04's only documented arrow is 15 to 11 in position mode and leaves modes 3, 4 and other predecessors to `DS-DEC-2`, yet 06 and 06b require a quick stop at expiry without saying what happens if no row is established; 04 sets the S3 shape per binding without limiting eligibility to reviewed modes and predecessors, and S3 validates a transfer shape, not the word's suitability. Make a reviewed stop policy a prerequisite of the finite start, refuse before changing TX when the mode or predecessor is out of scope, define S3 eligibility and reporting; test missing and refused stop rows and an uncertain start on an unresolved route, never clearing the gate with a synthetic drive. | 04:42-43, 49-51; 06:31-33; 06b:48-49; contract 02:226-227 |
+| F4 | High, probable defect, high | *The finite-run budget does not bound the owner's wait before stop dispatch.* The budget reserves duration plus a caller stop budget from the start word, but an in-flight request settles first, so a start SDO or observation in flight until the deadline can block the stop at expiry; no exact-cutoff outcome is defined. State the scheduling assumptions and enforce transfer cutoffs so an admitted run keeps a stop dispatch opportunity strictly before expiry; keep possibly-sent and needs-stop reporting; never extend the deadline; test a start or observation in flight across expiry, the exact cutoff and the torque case through the real owner. | 06:28-30; 04:46; contract 02:107-109; 06b:46-48 |
+| F5 | High, verified defect, high | *Explicit NMT requests are not covered by DS2's changing-request admission criteria.* 09 exposes start, stop, pre-operational and reset despite unknown effects; the admission matrix and the foreign-server tests omit 09 and NMT; prompt 57 refuses every changing request on CONTRADICTED except the drive stop; S13 covers broadcasts only. Add an NMT command-by-command disposition to the admission table, apply prompt 57 to targeted NMT, keep S13 for broadcasts, never treat NMT Stop as the stop exemption, define state and pending-work conditions, and test zero NMT TX on contradicted or stale bindings and each disallowed active-motion case; keep unevidenced commands gated. | 09:25-28; execution_contract:131-132; prompt 57:99-101; contract 02:211-212 |
+| F6 | High, probable defect, high | *A dedicated pre-S13 interface does not itself exclude owner-produced SYNC.* The mixed-bus fix keeps DS2 off other families' interfaces, but a DS2-only interface can still have the owner's SYNC producer, which leaves the remote hazard to the caller. Specify and test that a DS2-only production configuration exposes or retains no active SYNC producer, or block that deployment until S13; no DS2-local producer or guard; include the DS2-only topology and a transition onto an already scheduled owner in the shared producer tests. | 09:34-39; canopen_shared 01:48; contract 02:234-236 |
+| F7 | Medium, verified defect, high | *The registration probe is mandatory before its read effect is reviewed or expressly accepted.* The shared deliverable needs a reviewed or accepted probe read effect; 02b uploads `1000:00` with the effect unknown and no acceptance step, which also affects the scan. Give 02b a single-read effect review or acceptance path for `1000:00`, separate from polling and markers; refuse without TX when it is absent; keep unresolved effect evidence in the result. | 02b:34-36; contract 02:277-279 |
+| F8 | High, probable defect, high | *Early position and stop qualification can rely on the behavior under test for its bound.* The independent-bound rule covers negative encodings, velocity, torque and homing, not Q4, Q7, Q9 or 12's small-move regression; a small nonnegative absolute target need not be a small displacement, Q9 tests a stop with unknown reaction and Q7 an unresolved rate unit. Apply the protective-bound rule to Q4-Q7, Q9 and every regression consuming unqualified facts: fresh start position, travel and speed bounded under the competing interpretations, independent of the action under test, otherwise NOT RUN. | 12a:38, 41, 44-45; 12:52-53; AGENTS.md:83 |
+
+### Unresolved questions (reviewer)
+
+1. Which shared seams and main-sequence artifacts are landed and tested at the execution HEAD, and which family owns
+   each in-flight shared edit? (Current S4, S5 and S13 status decides which console, owner and mixed-interface
+   deliverables can be accepted without parallel implementations.)
+2. What model- and mode-scoped evidence establishes a usable stop predecessor and reaction after a position or homing
+   trigger, or during velocity and torque? (The review gives a position-mode example only; a ledger decision or a
+   fake-server result cannot supply device evidence.)
+
+### Coverage gaps (reviewer)
+
+Rendered vendor originals, EDS bodies, the manifest and DS2 fixture captures were not supplied; widths, units,
+applicability and device reactions were not checked against primary evidence. The repository index was truncated:
+no owner, SDO or SYNC implementation, package or checker code, Git state or progress records. The parent Projects
+instructions, the communication practice, the conditional-experiment prerequisites, the Lichuan C extensions contract
+and several consumed main-sequence prompts were not supplied. The audit was text-only: no verifier, build, CI job or
+hardware test ran.

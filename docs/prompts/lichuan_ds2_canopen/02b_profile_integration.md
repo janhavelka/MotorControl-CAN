@@ -3,11 +3,11 @@
 Execute this stage under the [execution contract](execution_contract.md).
 Status: NOT STARTED. Runs after 02. Apply [canopen_shared 02](../canopen_shared/02_profile_integration_contract.md)
 as written; claim seams S1, S2, S6 and S10 in the [canopen_shared table](../canopen_shared/README.md) and land
-them, or extend them if another family claimed or landed them first. Seam S3's default deny lands in the S2 commit
-(canopen_shared 02, S3 bullet), before any DS2 binding is admitted; only DS2's opt-in shape and its decision stay
-with 04. The console items (6 and the console tests) stay BLOCKED until seam S4 lands (execution contract);
-the API-level probe, refusals and owner tests do not wait. Commit tooling, core/profile and application/console
-changes separately, each tested.
+them, or extend them if another family claimed or landed them first. The default denies of seams S3 and S13 land in
+the S2 commit (canopen_shared 02, S3 and S13 bullets), before any DS2 binding is admitted; only DS2's S3 opt-in shape
+and its decision stay with 04. The console items (6 and the console tests) stay BLOCKED until seam S4 lands
+(execution contract); the API-level probe, refusals and owner tests do not wait. Commit tooling, core/profile and
+application/console changes separately, each tested.
 
 ## Work
 
@@ -31,9 +31,20 @@ changes separately, each tested.
    configured stop shape gets `INVALID` and no TX from `admitBestEffortStop`. Test it directly on an unconfigured DS2
    binding, an unresolved DS2 route after a timeout and a rebound channel, each with no TX; Lichuan C's best-effort
    tests and DEC-2 behavior stay unchanged. If another family landed S2 and the deny, add these DS2 cases to its tests.
+   The same commit carries S13's default deny if no family landed it: through the S2 lookup prompt 51's producer
+   refuses `armSync` and `admitSync`, and the owner refuses node-0 NMT, on every interface with a DS2 binding, and
+   admitting a DS2 binding onto an owner with a running schedule revokes the schedule first. Test a DS2-only and a
+   mixed interface (zero SYNC and node-0 NMT TX, also when the application arms the producer directly) and admission
+   onto an armed schedule (no later SYNC TX); Lichuan-only interfaces keep their behavior. If another family landed
+   it, add these DS2 cases; if S2 landed without it, no DS2 binding is admitted until it lands.
 4. Probe. `prepareProbe` performs one explicit upload of `1000:00` through the real owner and `SdoClient`. It proves a
-   responding CANopen server only, never DS2, model or firmware, and its read effect stays unknown (no `DS-DEC-1`
-   yet). Abort versus malformed reply, timeout and a late identical reply follow the existing service evidence.
+   responding CANopen server only, never DS2, model or firmware. Before it runs, this stage adds the probe's
+   single-read effect review to the DS2 ledger (canopen_shared 02 "Registration acceptance"; reviewer and date):
+   `1000:00` U32 RO, no PDO, a constant 0x00040192 (DS2C p24; DS2EDS l.119, IBLEDS l.54, ISLEDS l.54), one explicit
+   upload per request. It approves neither repeated reads (`DS-DEC-1`, 03) nor S10 markers, and results keep the
+   device-side effect as documented, not observed. Without that row `prepareProbe` refuses with no TX; 11's scan
+   reuses the same row. Abort versus malformed reply, timeout and a late identical reply follow the existing service
+   evidence.
 5. Seam S10, reviewed `SdoReuse` per binding. The owner's default markers (`1000:00`, `1018:01`-`03`) rest on
    Lichuan C DEC-1. S10 makes a non-Lichuan binding's effective default `NONE` through the S2 lookup; DS2 bindings
    keep `NONE` until a reviewed marker decision, separate from `DS-DEC-1`'s polling list (03), covers marker objects
@@ -76,10 +87,13 @@ profile, package and consumer entries, Doxygen for every public declaration, REA
 ## Acceptance
 
 The probe runs through the real owner, `SdoClient` and fake server in API tests, and in console tests with identical
-frames once S4 has landed (otherwise the console items are BLOCKED and the stage is PARTIAL). Foreign-profile
-refusals send nothing in both directions. `admitBestEffortStop` returns `INVALID` with no TX for every DS2 binding
-before 04 opts in its shape. JSONL records follow S6: `lichuan_ds2` only on records that target or were
-admitted for a DS2 binding, `null` without a resolved target, and Lichuan C targeted records otherwise unchanged. All consumers build in C++11 with no catalogue dependency. Checker
-negative tests still fail as intended. `python scripts/verify.py --mode quick` and `--mode full`, the Arduino and IDF
-firmware gates of the contract, and required CI on the exact final pushed commit pass. Hardware NOT TESTED; no DS2
-frame reaches COM15. Commit and push, then hand off with the seam rows updated.
+frames once S4 has landed (otherwise the console items are BLOCKED and the stage is PARTIAL). The probe refuses with
+no TX while its read-effect row is absent. No identity-dependent write or motion route is callable at this stage; 03
+lands the identity refusal tests before 04 exposes one. Foreign-profile refusals send nothing in both directions.
+`admitBestEffortStop` returns `INVALID` with no TX for every DS2 binding before 04 opts in its shape, and SYNC and
+node-0 NMT are refused with no TX on every interface with a DS2 binding. JSONL records follow S6: `lichuan_ds2` only
+on records that target or were admitted for a DS2 binding, `null` without a resolved target, and Lichuan C targeted
+records otherwise unchanged. All consumers build in C++11 with no catalogue dependency. Checker negative tests still
+fail as intended. `python scripts/verify.py --mode quick` and `--mode full`, the Arduino and IDF firmware gates of the
+contract, and required CI on the exact final pushed commit pass. Hardware NOT TESTED; no DS2 frame reaches COM15.
+Commit and push, then hand off with the seam rows updated.

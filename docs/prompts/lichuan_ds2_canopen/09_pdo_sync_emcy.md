@@ -24,8 +24,11 @@ RPDO.
    mapping is not stated and the manual marks PDO COB-IDs RO. Typed PDO mutation is UNSUPPORTED here.
 5. NMT. PDOs flow only in Operational under CiA 301; DS2 documents no boot, start-up state or NMT effect (DS-D32;
    `SimpleBootUpSlave=1`, DS2EDS). The NMT state comes from boot-up or heartbeat frames only. NMT start, stop, enter
-   pre-operational and resets are explicit operations through the existing `makeNmtRequest` admission for a DS2
-   binding, never implicit, and an NMT stop is not a quick stop. A boot-up invalidates dependent evidence and work.
+   pre-operational and resets to a DS2 node are explicit operations through the existing `makeNmtRequest` admission,
+   never implicit, each admitted only under the execution contract's NMT table: a changing request under prompt 57's
+   motion rule, never its stop exemption (an NMT stop is not a quick stop), from a fresh report that 04's `released`
+   predicate accepts and with no pending operation on the binding. Node-0 commands are refused by S13's default deny
+   (item 7). A boot-up invalidates dependent evidence and work.
 6. Heartbeat. `1017` producer (U16 ms, RW/S, default 0; DS2C p24) is read here and written only by 10. There is no
    consumer heartbeat, guarding, `6007` or `1029`: host observation of a heartbeat establishes nothing about the
    drive's reaction to host loss, a host heartbeat (seam S11) has no documented DS2 consumer, and node guarding
@@ -35,11 +38,12 @@ RPDO.
    DS2 does not claim seam S13: its SYNC effects are unknown, so once S13 lands a DS2 binding enters it as unknown
    and prompt 51's producer refuses SYNC on that interface. Refusing `prepareSync` for a DS2 target does not stop a
    SYNC requested for another family's node or already armed on the interface, and prompt 51's producer does not
-   check DS2's effects. Until S13 lands, a DS2 node therefore shares no interface with nodes of another family
-   (execution contract, 11); afterwards DS2 consumes S13's own producer tests and adds the DS2 cases (requests from
-   both families, DS2 attached while a schedule is armed: no further SYNC TX), never a profile-local producer. S13
-   also covers every NMT command to node 0 on a mixed interface, so this stage's explicit NMT operations broadcast there
-   only under S13's admission.
+   check DS2's effects. S13's default deny, landed in the S2 commit (02b), closes that gap on every interface with a
+   DS2 binding, a DS2-only one included: prompt 51's producer refuses `armSync` and `admitSync`, the owner refuses
+   node-0 NMT, and a schedule running when a DS2 binding is admitted is revoked first. Until the full S13 gate lands,
+   a DS2 node also shares no interface with nodes of another family (execution contract, 11); afterwards DS2
+   consumes S13's producer tests and adds the DS2 cases (requests from both families, DS2 attached while a schedule
+   is armed: no further SYNC TX), never a profile-local producer or guard.
 8. EMCY (DS-D07, DS-D19). `1014` is 0x80 in the manual (DS2C p24) and `$NODEID+0x80` in DS2EDS l.213: read it live and
    route EMCY only on the confirmed identifier. Deliver each EMCY through `checkNetworkEvent` with raw code, error
    register and vendor bytes into the application's bounded event queue; an entry the queue cannot hold is counted
@@ -68,6 +72,12 @@ CHANGELOG.
 ## Acceptance
 
 Tests cover both default-map claims as fake-server variants with decoding only from the live readback, a delayed
-same-ID sample left unqualified, no RPDO frame ever emitted, refused remap and SYNC with no TX, EMCY routed on a
-live 1014 value and an EMCY overflow counted, a boot-up invalidating dependent work, and NMT commands sent only on explicit request. Quick and full
-verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off.
+same-ID sample left unqualified, no RPDO frame ever emitted, refused remap and SYNC with no TX, EMCY routed on a live
+1014 value and an EMCY overflow counted, a boot-up invalidating dependent work, and NMT commands sent only on explicit
+request. Each targeted NMT command sends zero NMT TX on CONTRADICTED, unmatched, unread-field, no-outcome and stale
+bindings, while the drive reports enabled, while a position, velocity, torque, homing, enable or settings operation is
+pending, and for node 0; an admitted command sends exactly one frame, and an NMT Stop never takes the stop exemption.
+Through the real producer and owner, `armSync`, `admitSync` and node-0 NMT send nothing on a DS2-only interface, also
+when the application arms the producer directly, and admitting a DS2 binding revokes a running schedule. Quick and
+full verification and required CI on the exact final pushed commit pass. Hardware NOT TESTED. Commit, push and hand
+off.

@@ -14,9 +14,10 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
 2. Documented sequence (DS2C p12-13; IBL60 p13-14; IBL80 p13; ISL60 p16): write `6060`=4 and confirm `6061`=4; write
    `6071` target torque, `6072` maximum torque, `6087` torque slope and the model's speed-limit object; then 0x0006,
    0x0007, 0x000F, after which the motor runs. As in 06, the enable words are the start and the operation owns the
-   targets, enable, run and stop under the one operation deadline, admitted only from a drive that 04's `released`
-   predicate accepts. Write preflight (canopen_shared 02) covers every word of the sequence, mode select included: if
-   any row is withheld or unresolved for the bound model, the whole operation is refused with nothing sent.
+   targets, enable and run under the one operation deadline, with the separate urgent stop of 06 item 5, admitted only
+   from a drive that 04's `released` predicate accepts. Write preflight (canopen_shared 02) covers every word of the
+   sequence, mode select included: if any row is withheld or unresolved for the bound model, the whole operation is
+   refused with nothing sent.
 3. Units (DS-D12, DS-D13). `6071`, `6072` and `6077` are 0.1 % of a reference no source states (DS2C p27-28; `P00-12`
    rated torque is unreachable). `6087` is 0.1 % with no time base. Keep native integers; no newton-metre, current
    or rate conversion exists. `6071` is I16 in every source, so signed targets are encoded; the physical direction
@@ -43,10 +44,11 @@ This is the library's first torque operation: MULTIDRIVE rows 22 and 35 and ADD_
 5. Required caller inputs. Target torque, maximum torque, slope, speed limit and a positive finite `durationUs` are
    all explicit; no manual or EDS default is written and no field is left at an unread value. Zero torque is a
    setting, not a run.
-6. Run and stop. The run counts from the start word's admission, and its budget is checked as in 06 item 5
-   (overflow-checked `now + durationUs` plus the stop dispatch budget within the operation deadline, at preparation
-   and before the start word). At run expiry yield 04's `QUICK_STOP` under `DS-DEC-2` (no torque-mode stop is
-   documented). Torque on a free shaft accelerates until the speed limit acts, and whether either limit object
+6. Run and stop. As 06 item 5 (canopen_shared 02 timed-runs bullet): the duration runs from successful
+   preparation, the stop budget is checked there, every transfer of the run ends by stop due, and at stop due the
+   application composes 04's `QUICK_STOP` as its separate urgent stop. No torque-mode stop is documented, so the run
+   is refused before its first changing TX, mode select included, unless `DS-DEC-2` has a mode-4 row for every state
+   the run may leave. Torque on a free shaft accelerates until the speed limit acts, and whether either limit object
    actually clamps is unqualified: the API documentation states this, and 12a qualifies it before any physical claim.
    Lost enable or stop words keep `UNKNOWN` execution and a stop obligation; nothing is repeated; local cancel is not
    a stop; host loss produces no documented drive action (DS-D32).
@@ -75,8 +77,8 @@ Tests cover each model's speed-limit object: zero changing TX (mode select inclu
 `607F` width is unresolved and for IBL while the `2406h` write is withheld, also with a readable `2406h` and an
 otherwise admissible outcome; the exact four-byte `607F` download for ISL; `2406h` refused outside IBL; CONTRADICTED
 (another group's pair and 0x1000/0x0001) and no current outcome refusing the whole operation;
-range and sign checks for every field, missing caller inputs rejected before TX, target-then-enable order, run expiry
-yielding one stop, the run-budget cases of 06, lost enable and lost stop, a priority stop, deadline cutoff and no
-replay. Lichuan C behavior and the common headers' meanings are
+range and sign checks for every field, missing caller inputs rejected before TX, target-then-enable order,
+the timed-run cases of 06, a run refused with zero TX while `DS-DEC-2` has no mode-4 row, lost enable and lost
+stop, a priority stop, deadline cutoff and no replay. Lichuan C behavior and the common headers' meanings are
 unchanged. Quick and full verification and required CI on the exact
 final pushed commit pass. Hardware NOT TESTED. Commit, push and hand off.

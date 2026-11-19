@@ -40,12 +40,12 @@ the next. Creating this promptset does not execute it. The family was
 | --- | --- | --- |
 | 01 | [Evidence, inventory and operation coverage](01_evidence_and_coverage.md) | Pack and contracts; canopen_shared 01 inventory at current HEAD; documentation only |
 | 02 | [Object ledger, checkers and generated tables](02_object_ledger.md) | 01; seam S7 with the first headers' package entries; tooling change under the CI policy; no hardware |
-| 02b | [Profile registration, probe and `ds2` console family](02b_profile_integration.md) | 02; seams S1, S2 with S3's default deny, S6, S10; real owner, `SdoClient` and fake server |
+| 02b | [Profile registration, probe and `ds2` console family](02b_profile_integration.md) | 02; seams S1, S2 with the S3 and S13 default denies, S6, S10; the probe's read-effect row; real owner, `SdoClient` and fake server |
 | 03 | [Typed reads, identity, status dialects and capabilities](03_reads_identity.md) | 02b; prompt 57's identity outcomes; prepares `DS-DEC-1`; DS-D01..D05, D14, D19, D30, D33, D34 gate interpretations only |
-| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; source-state table first; seam S3 opt-in shape, seam S8 review; DS-D17, D21, D29 |
+| 04 | [Mode select, enable, release and stops](04_state_and_stops.md) | 03; source-state table first; controlword history and trigger predecessor; `DS-DEC-2` stop rows; seam S3 opt-in after its every-state review, seam S8 review; DS-D17, D21, D29 |
 | 05 | [Units and finite profile-position moves](05_finite_position.md) | 04; DS-D09, D16, D33, D34; negative encodings and ramp units stay declared or gated |
-| 06 | [Finite profile velocity](06_profile_velocity.md) | 04, 05 units; DS-D10, D16, D32; enable is the start |
-| 06b | [Finite profile torque](06b_profile_torque.md) | 04, 06 run pattern; DS-D11..D14; `607F` width per scope; `2406h` write withheld |
+| 06 | [Finite profile velocity](06_profile_velocity.md) | 04, 05 units; DS-D10, D16, D32; enable is the start; a `DS-DEC-2` mode-3 stop row |
+| 06b | [Finite profile torque](06b_profile_torque.md) | 04, 06 run pattern; DS-D11..D14; `607F` width per scope; `2406h` write withheld; a `DS-DEC-2` mode-4 stop row |
 | 07 | [Homing and limits](07_homing_and_limits.md) | 04, 05; `DS-DEC-1` for completion; DS-D08, D15, D16, D18; prompt 77 vocabulary when landed |
 | 08 | [I/O, brake, encoder and drive settings](08_io_and_settings.md) | 03, 04 `released` predicate, 05; DS-D24..D28, D30, D31; most vendor functions unreachable |
 | 09 | [PDO, SYNC, EMCY and heartbeat observation](09_pdo_sync_emcy.md) | 03; DS-D06, D07, D19, D32; no remap, no RPDO |
@@ -97,7 +97,7 @@ Each DS-D stays open until its owning stage closes it with cited new evidence or
 
 `python scripts/check_promptset.py` passed with no errors after these files were written; it checks links and table
 shapes and compiles nothing. No build, firmware gate, remote CI or hardware step ran, and no product file changed.
-An independent audit on 2026-11-19 ([audit](audit.md)) was verified and applied the same day
+Two independent audit rounds on 2026-11-19 ([audit](audit.md)) were verified and applied the same day
 ([application](audit_application.md)); the same checks passed again for this directory.
 
 ## Relationship to the main sequence and shared seams
@@ -106,13 +106,13 @@ An independent audit on 2026-11-19 ([audit](audit.md)) was verified and applied 
 | --- | --- |
 | S1 inventory, S2 binding profile and foreign refusal, S6 console and JSONL profile | 02b lands or extends them; S6's console part waits for S4 |
 | S7 per-family ledger, generator and operation checker, with the first header's package entries | 02 lands or extends it, package entries in the commit of the first DS2 headers |
-| S3 per-binding best-effort stop shape | Default deny in the S2 commit (02b), before any DS2 binding is admitted; 04 opts in DS2's shape under `DS-DEC-3` |
+| S3 per-binding best-effort stop shape | Default deny in the S2 commit (02b), before any DS2 binding is admitted; 04 opts in DS2's shape under `DS-DEC-3` only with its every-state review |
 | S8 shared CiA 402 helpers | 04 reviews; only an identical, evidenced helper is extracted |
 | S4 axis table and session, S5 package components | Consumed only after [prompt 64](../64_common_axis_interface.md) and [prompt 65](../65_application_package.md) |
 | S9 second protocol on one interface | Not needed: DS2 is CANopen; [prompt 63](../63_mixed_protocols.md) stays its owner |
 | S10 reviewed SDO reuse per binding | 02b lands or extends it; DS2 bindings keep `NONE` until a reviewed marker decision, separate from `DS-DEC-1` |
 | S11 host heartbeat producer, S12 RTR node guarding | Not needed: DS2 documents no `1016` consumer and no node guarding (DS-D32) |
-| S13 SYNC and NMT-broadcast side-effect admission | Not claimed: DS2 documents no SYNC or NMT effect, so its bindings enter S13 as unknown once it lands and refuse SYNC and node-0 NMT on a mixed interface (09, 11); until then DS2 shares no interface with another family |
+| S13 SYNC and NMT-broadcast side-effect admission | Default deny in the S2 commit (02b): no SYNC and no node-0 NMT on any interface with a DS2 binding. The full gate is not claimed: DS2 documents no SYNC or NMT effect, so its bindings enter it as unknown and keep both refused (09, 11); until it lands DS2 shares no interface with another family |
 
 A family that reaches a seam first claims it in the canopen_shared table and implements it once; a later one extends
 it. Main-sequence prompts this family consumes or must stay compatible with: [57](../57_regular_drive_operations.md)

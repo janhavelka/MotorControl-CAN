@@ -118,18 +118,37 @@ declaration) is CONTRADICTED until a MEASURED reference for the declared model e
 0x00040192 matches no reference. No caller acceptance replaces a reference (prompt 57): when no reference of the
 declared model matches, the application supplies a MEASURED reference for its specimen, with firmware provenance.
 
-| Current outcome (prompt 57) and DS2 case | Bootstrap reads (probe, identity, state) | Configuration reads (03 groups) | Changing requests (mode select, enable, release, motion, settings, `1017` write) | Explicitly requested stop (04's `QUICK_STOP`) | Vendor object `2406h` (IBL models only) |
+| Current outcome (prompt 57) and DS2 case | Bootstrap reads (probe, identity, state) | Configuration reads (03 groups) | Changing requests (mode select, enable, release, motion, settings, `1017` write, targeted NMT) | Explicitly requested stop (04's `QUICK_STOP`) | Vendor object `2406h` (IBL models only) |
 | --- | --- | --- | --- | --- | --- |
 | No current outcome: never read, or cleared by canopen_shared 02's invalidators | Allowed | Refused until a fresh identity read | Refused until a fresh identity read | Admitted | Refused |
-| CONFIRMED, or UNCONFIRMED with a declared-model match | Allowed | Allowed | Allowed; results carry every matching model and its basis ("documented, not observed" for DOCUMENTED) | Admitted | Read allowed; the write stays withheld (06b) |
+| CONFIRMED, or UNCONFIRMED with a declared-model match | Allowed | Allowed | Allowed; results carry every matching model and its basis ("documented, not observed" for DOCUMENTED); every interpretation uses the declared model's tables only (03 item 4) | Admitted | Read allowed; the write stays withheld (06b) |
 | UNCONFIRMED without a declared-model match, every product field read (a differing `1000` included) | Allowed | Allowed | Refused; the application supplies a MEASURED reference or corrects the declaration | Admitted | Refused |
 | UNCONFIRMED with a product field unread (abort, timeout or not announced by `1018:00`) | Allowed | Allowed | Refused; read the field again | Admitted | Refused |
 | CONTRADICTED | Allowed | Refused | Refused before TX by prompt 57's motion rule; nothing overrides it | Admitted under prompt 57's stop exemption; the result carries the contradicted identity and claims no standstill | Refused (prompt 57's vendor-object rule for downloads; DS2 refuses the upload too) |
 
-An explicitly requested stop still follows 04's source-state table; refusing it on identity grounds could leave a
-moving drive running. Firmware identity (`1009`, `100A`, `1018:03`) is reported and never refuses (prompt 57). Every
-stage with a changing request (04 to 08, 10) tests a correctly labelled DS2 binding on a foreign fake server
+An explicitly requested stop still passes its own route, binding-generation and source-state checks (04; prompt 57's
+exemption removes only the identity refusal); refusing it on identity grounds could leave a moving drive running. An
+NMT command is never that stop. Firmware identity (`1009`, `100A`, `1018:03`) is reported and never refuses (prompt
+57). Every stage with a changing request (04 to 10) tests a correctly labelled DS2 binding on a foreign fake server
 (0x1000/0x0001): zero changing TX, while 04's `QUICK_STOP` stays admitted with the contradicted identity in its result.
+
+A collision that includes the declared model admits by the declaration (prompt 57 "Admission by outcome"; lead
+decision of 2026-11-19, [audit application](audit_application.md) round 2). The colliding siblings can differ: IBL60
+and IBL80 share the IBLEDS pair but use different status dialects, and the DS2EDS/ISLEDS pair spans both dialects
+(review "Status-word dialects"). The application owns the declaration; the result names every matching model and
+nothing is decoded with a sibling's tables. 03 tests sibling servers under each colliding pair.
+
+Targeted NMT commands (09) are changing requests in the table above and never the stop exemption. DS2 documents no
+NMT effect on the drive (DS-D32), so each also needs the condition below before TX; a command without a row stays
+refused.
+
+| NMT command to a DS2 node | Condition before TX, beyond the identity table | Effect to record |
+| --- | --- | --- |
+| Start Remote Node (01h) | A fresh report that 04's `released` predicate accepts and no pending or non-terminal operation on the binding | PDOs flow in Operational (CiA 301, principles pack section 3); drive reaction undocumented; the owner sends no RPDO (09 item 4) |
+| Stop Remote Node (02h) | Same | A Stopped node serves only NMT and error control (principles pack section 3), so 04's SDO stop route is lost until a Start |
+| Enter Pre-operational (80h) | Same | PDOs stop; drive reaction undocumented |
+| Reset Node (81h), Reset Communication (82h) | Same | Reset and the following boot-up invalidate dependent evidence and queued work (canopen_shared 02, 10 item 7) |
+| Any command to node 0 | Refused by S13's default deny on every interface with a DS2 binding (owner bullet below) | No DS2-local guard |
 
 ## Owner and bus rules
 
@@ -138,7 +157,9 @@ stage with a changing request (04 to 08, 10) tests a correctly labelled DS2 bind
   read live and without overlap (DS-D06, DS-D07), reservations by bus and address whatever the profile label, and
   only once canopen_shared seam S13 has landed: it admits SYNC and every NMT command to node 0 on a mixed interface
   only for reviewed effects on every declared node, so DS2's unknown effects refuse both (11). Until then each
-  family has its own interface.
+  family has its own interface. S13's default deny lands earlier, in the S2 commit (02b): from DS2's first binding
+  prompt 51's producer refuses SYNC and the owner refuses node-0 NMT on every interface with a DS2 binding, a
+  DS2-only one included, and a schedule running when a DS2 binding is admitted is revoked first (09).
 - No implicit enable, mode change, homing, fault clear, NMT command, PDO or heartbeat change or parameter write on
   startup, selection, probe, recovery or cached reads. Never enable to prepare a stop. Release, stop, NMT stop, cancel
   and recovery stay distinct. Write preflight, the one operation deadline and the source-state table follow
