@@ -6,8 +6,11 @@ Status: NOT STARTED.
 Scope: CL2-57C, CL2-86C, CL257C-ABZ and CL286C-ABZ. No EDS exists; every row comes from the CL2 manuals
 (CL257, CL286, ABZ57, ABZ86), which give a P-parameter beside each vendor object (CL257 p14..19). The
 statusword, loop-mode codes, encoder field, input codes, monitor bits and homing table differ from the C
-family. This stage delivers the reads and decoders; [04b](04b_cl2_operations.md) admits operations. It is
-independent of 03a/03b.
+family. This stage delivers the reads and decoders; [04b](04b_cl2_operations.md) admits operations. It
+consumes three common artifacts that [03a](03a_tlc_rows.md) defines: item 2's reuse setup and `ModelBinding`
+attestation check (with S3's no shape where landed), item 3's model-taking getter rule and item 6's
+interface isolation. Whichever of 03a and 04a runs first lands them for both groups with their tests, and
+the other consumes them; the CL2 rows and decoders are otherwise independent of 03a/03b.
 
 ## Work
 

@@ -56,7 +56,9 @@ which models, and adds identity confirmation that can only confirm or contradict
    possibly sent. A copy taken at preparation is an admission snapshot for the result, never permission to
    transmit. The record also holds the application's SDO reuse attestation: the channel binding and
    configuration epoch for which the application read `SdoReusePolicy::NONE` back through the owner's
-   `sdoReuse` copy (03a item 2, 04a item 3). Rebinding clears it with the outcome, and every new-model
+   `sdoReuse` copy (03a item 2, 04a item 3). The owner's `setSdoReuse` advances no epoch, so the attestation
+   also requires the policy to stay `NONE`: any policy change on that binding clears it before the change and
+   retires the binding's unsent work (03a item 2). Rebinding clears it with the outcome, and every new-model
    preparation that takes the binding refuses before TX when it is absent or names another epoch than the
    target's channel; read preparations that take no model are covered by the application's route check
    (03a item 2). The core checks only the attestation; the owner read stays in the application.
@@ -74,7 +76,12 @@ which models, and adds identity confirmation that can only confirm or contradict
    - Match fields. A reference matches when every product identity field of prompt 57 (`1000`, `1018:01`,
      `1018:02`, `2000`) that the reference holds equals the observation's; a field the reference holds that
      the observation lacks (not read, aborted, wrong width) leaves that reference undecided, so the outcome is
-     at most UNCONFIRMED. Firmware fields (`1009`, `100A` and their reply widths, `1018:03`, `2001`), the
+     at most UNCONFIRMED. An undecided reference is neither a match nor a non-match. If it belongs to the
+     declared model and no other declared-model reference matches, the outcome is UNCONFIRMED without a
+     declared match and refuses. If it belongs to another candidate while a declared-model reference
+     matches, the outcome is UNCONFIRMED with a declared match, admitted under prompt 57's precedence, and
+     the result names the undecided reference and its missing field. CONFIRMED needs every other
+     candidate's reference decided and none matching. Firmware fields (`1009`, `100A` and their reply widths, `1018:03`, `2001`), the
      `1018:00` count, the optional `1018:04` serial and the record's provenance are reported beside the
      outcome and never decide it. Adding a field to the match (for example the count, LX-D02) is a later
      reviewed change under X01.
@@ -124,11 +131,13 @@ which models, and adds identity confirmation that can only confirm or contradict
   `ModelIdentityRecord` and `checkModelIdentity` in a profile-neutral header, or the extension of the
   comparison prompt 57 or DS2 stage 03 landed; their Doxygen; the central refusal in `ProfileEvidence.h`.
 - `test/model_applicability_test.cpp` (fail-closed table, binding mismatch, missing or stale reuse
-  attestation, no TX) and `test/model_identity_test.cpp` (all outcomes, each with its exact reason and
+  attestation, an attestation cleared by a policy change on the same binding, no TX) and `test/model_identity_test.cpp` (all outcomes, each with its exact reason and
   admission: a candidate without a reference and a TL-C record equal to the CL86-C record give UNCONFIRMED
   with a declared match, admitted with every matching model named; a definite product mismatch with no
   other match, a declared model without a reference and an unread product field give UNCONFIRMED without a
-  declared match, refused; no current outcome, refused; an apparently unique reference gives CONFIRMED and
+  declared match, refused; a declared-model match beside another candidate's reference left undecided by an
+  unread or wrong-width product field gives UNCONFIRMED with a declared match, admitted, the undecided
+  reference named; no current outcome, refused; an apparently unique reference gives CONFIRMED and
   nothing stronger; a TL-C declaration with only an equal CL86-C record gives CONTRADICTED; a DS-C record
   contradicting a CL86-C declaration; a record below the minimum content rejected; stale node generation;
   missing `1018:04`; a firmware-only or width difference that leaves the outcome and admission unchanged

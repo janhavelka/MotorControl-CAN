@@ -1,8 +1,9 @@
 # Lichuan C-family extensions promptset (TL-C integrated steppers, CL2 drives, 57C English manual)
 
 Prepared 2026-11-19. Source collection and prompt preparation complete. All implementation stages are NOT
-STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after two independent
-[audit](audit.md) rounds ([application](audit_application.md)) and prompt 57's identity policy as of `a7656efb`.
+STARTED; TL-C, CL2 and CL57-C/OL57-C hardware is NOT TESTED. Revised the same day after three independent
+[audit](audit.md) rounds ([application](audit_application.md)), prompt 57's identity policy as of `a7656efb`
+and the shared S3 and timed-run rules of `6ff80ed1` and `c4e5574f`.
 
 This promptset **extends the implemented Lichuan C profile** (`lichuan_c`, `MotorControlCAN::LICHUAN_C`,
 CL86-C first). It is not a new profile: no `DriveProfile` value, no copied profile directory, no second
@@ -37,14 +38,14 @@ host-loss reactions, which no extension source documents.
 | --- | --- | --- |
 | 01 | [Model declaration, decision applicability and identity confirmation](01_models_and_identity.md) | canopen_shared 01 refresh; backlog D18; coordinate prompt 57 identity policy; no hardware |
 | 02 | [Model-scoped rows on the LICHUAN_C ledger](02_model_ledger.md) | 01 model values and register; TLEDS lossless accounting; LX conflicts under a second hash guard |
-| 03a | [TL-C rows: reads, status table and the bitrate hazard](03a_tlc_rows.md) | 02; LX-D03/D04/D05/D06/D11/D12/D13; X gates for TL-C |
-| 03b | [TL-C operations](03b_tlc_operations.md) | 03a; LX-D07/D08/D09/D10; prompts 57 and 77 where landed |
-| 04a | [CL2 rows: mode-dependent status, encoder and loop rows, absent communication objects](04a_cl2_rows.md) | 02 (independent of 03); LX-D20..D25/D28/D30..D34 |
-| 04b | [CL2 operations](04b_cl2_operations.md) | 04a; LX-D23/D25/D26/D27/D29; prompt 77 where landed |
+| 03a | [TL-C rows: reads, status table and the bitrate hazard](03a_tlc_rows.md) | 02; LX-D03/D04/D05/D06/D11/D12/D13; X gates for TL-C; lands the common artifacts 04a consumes (items 2, 3, 6) unless 04a ran first |
+| 03b | [TL-C operations](03b_tlc_operations.md) | 03a; canopen_shared S3's explicit no shape before any changing operation but a reviewed stop; LX-D07/D08/D09/D10; prompts 57 and 77 where landed; lands the rules 04b consumes (items 1, 3, 5, 6) unless 04b ran first |
+| 04a | [CL2 rows: mode-dependent status, encoder and loop rows, absent communication objects](04a_cl2_rows.md) | 02; 03a's common artifacts (items 2, 3, 6), landed by whichever of 03a and 04a runs first, otherwise independent of 03; LX-D20..D25/D28/D30..D34 |
+| 04b | [CL2 operations](04b_cl2_operations.md) | 04a; 03b's common rules (items 1, 3, 5, 6, 12), landed by whichever of 03b and 04b runs first; canopen_shared S3's explicit no shape before any changing operation but a reviewed stop; LX-D23/D25/D26/D27/D29; prompt 77 where landed |
 | 05 | [The 57C English manual: C01, C02, C17 and Q02](05_en57_conflicts.md) | 02; ledger-only; LX-D15..D19 |
 | 06 | [Console, capabilities and coverage for the model rows](06_console_and_coverage.md) | Implemented subsets of 03a..05; canopen_shared S6 if landed; prompt 64 after it lands |
 | 07a | [First contact per model](07a_first_contact.md) | An exact TL-C or CL2 fixture, owner return and authorization; a reviewed fixture electrical record before first power; each question's evidence path: a production route (reads after 03a/04a, admitted operations after 03b/04b) or an assigned isolated experiment, otherwise NOT RUN |
-| 07b | [Qualification and release reconciliation](07b_qualification_and_release.md) | Software closeout after 06; physical part needs the 07a fixture |
+| 07b | [Qualification and release reconciliation](07b_qualification_and_release.md) | Software closeout after 06; physical part needs the 07a fixture and, per run, a pass envelope the owner approved before it (otherwise characterization) |
 
 Why this split: TL-C and CL2 each get two stages. The rows (ledger, reads, status decoding, hazards) are
 usable alone and gate the operations; the operations touch enable, stop, motion,
@@ -116,9 +117,13 @@ pages and EDS lines named in each stage. No product source, firmware or hardware
   - S1 and S2 are not needed (no new profile); the model binding is profile-internal. Once S2 lands, a
     new-model binding carries `LICHUAN_C`'s `DriveProfile` value like every Lichuan binding.
   - S3: TLCEN p11 and CL257 p12 document `000B` only from predecessor 15, while the best-effort word goes out
-    with the predecessor unknown, so TL-C and CL2 keep S3's default deny until a reviewed model decision
-    covers that case (X15). Before S3 lands, `prepareBestEffortStop` refuses these models; after it, the
-    application configures no shape for their bindings (03b item 3, 04b item 3). CL86-C keeps DEC-2.
+    with the predecessor unknown, so TL-C and CL2 have no best-effort shape until a reviewed model decision
+    covers that case (X15). S3's explicit per-binding no shape, which overrides the Lichuan default
+    (canopen_shared 02 S3), is set on every TL-C and CL2 binding before its first traffic and kept across
+    rebind, so a direct `admitBestEffortStop` returns `INVALID` with no TX; `prepareBestEffortStop` also
+    refuses these models; no TL-C or CL2 changing operation other than a reviewed stop is admitted before
+    the explicit no shape has landed, which 03b item 3 lands itself if S2 has not (03b item 3, 04b item 3). With no shape, a finite run or a home also needs an application-declared independent stop
+    (03b items 5 and 6). CL86-C keeps DEC-2.
   - S10 keeps Lichuan's marker default for every `lichuan_c` binding, but the markers read `1018`, which CL2
     does not document and DEC-1 does not cover for any new model. New-model bindings are set to
     `SdoReusePolicy::NONE` through the existing `setSdoReuse` (03a, 04a), and new-model preparations

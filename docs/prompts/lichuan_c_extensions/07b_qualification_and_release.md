@@ -41,21 +41,29 @@ Hardware is NOT TESTED for every model.
 2. Non-changing reads first, with retained raw frames: identity outcome, status table, monitor, I/O
    configuration and communication records. No automatic writes, alarm clears, setting changes or probing by
    motion.
-3. Establish explicit enable and stop prerequisites and a restoration plan. Run small finite position moves,
+3. Pass envelope. Every qualification run needs an envelope specific to the fixture and operation,
+   approved by the owner before the run. It names the observable, its limits and the independent
+   observation behind any physical claim, with limits from caller or fixture review and never invented
+   device timing (AGENTS evidence rules). A run without an approved envelope is characterization: its
+   observations are retained and attached to their gates, and it qualifies nothing.
+4. Establish explicit enable and stop prerequisites and a restoration plan. Run small finite position moves,
    prepared stops from each admitted predecessor, repeated triggers, absolute and relative policies and, for
    CL2, bit 10 transitions in modes 1 and 6. Retain before/after settings and every uncertain outcome.
-   Finite velocity qualifies only with measured start-to-stop criteria per run: the stop due time, the
-   urgent stop's TX time and the first fresh report after it; a run whose stop is not confirmed reports
-   motion unknown.
-4. Qualify TLC against TLO, and CL2 absolute-encoder against ABZ, independently; measure shaft displacement
+   Finite velocity: the envelope gives the latest acceptable urgent-stop TX after the stop due time, within
+   the caller's stop budget, and the permitted stopping time or travel, measured by an independent
+   observation such as a shaft or encoder measurement. The run records the stop due time, the urgent
+   stop's TX time and the first fresh report after it. A run outside its envelope, or whose stop is not
+   confirmed, fails and reports motion unknown; a report alone never establishes a physical stop.
+5. Qualify TLC against TLO, and CL2 absolute-encoder against ABZ, independently; measure shaft displacement
    before any physical-scale claim. Software timestamps bound observations; electrical timing needs measurement.
-5. Homing per method only with its actual switches and, for index methods, its actual Z source. Output, brake
+6. Homing per method only with its actual switches and, for index methods, its actual Z source, with the
+   method's search bound and declared independent stop (03b item 6) in its envelope. Output, brake
    and input-code tests only with their fixtures. Save and restart cases only with restart control; a TL-C
    bitrate change only under 07a T2's reviewed plan with SW5 as the way back.
-6. On a failure: preserve the scenario, reproduce deliberately within authorization, establish the cause, fix
+7. On a failure: preserve the scenario, reproduce deliberately within authorization, establish the cause, fix
    it with a native regression where representable, rerun the original case and a short regression. A later
    pass, a longer timeout or a hidden retry is not a fix; never replay an uncertain motor write.
-7. After any new image on an authorized board, run the short existing-feature regression (including the
+8. After any new image on an authorized board, run the short existing-feature regression (including the
    CL86-C regression when the CL86-C bench is in use for that image) plus the focused new checks.
 
 ## Deliver
@@ -70,6 +78,7 @@ obligation; `PROGRESS.md` and the stage report.
 ## Acceptance
 
 Software closeout is complete when every row and gate has an explicit disposition and the exact final commit
-passed CI. Physical claims name their fixture, model and firmware; no claim covers the whole TL-C or CL2
+passed CI. Physical claims name their fixture, model, firmware and the approved envelope they met; a run
+without one is reported as characterization; no claim covers the whole TL-C or CL2
 family from one specimen, and nothing qualified on a CL86-C transfers. If no fixture exists, finish the
 software closeout and leave physical qualification explicitly open, with the next measurement named per gate.

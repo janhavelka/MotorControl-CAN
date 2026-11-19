@@ -26,9 +26,15 @@ observations. Everything here can be verified on the host.
    application does this for every new model, checks it through the owner's reuse-setting copy and records
    the check as the `ModelBinding` attestation for that channel epoch (stage 01 item 5), which every new-model
    preparation taking the binding requires; its probe, identity and read routes, which take no model, check
-   the same for a declared new model. Tests cover
-   a missing attestation and a rebinding (stale attestation refused, no TX); the Doxygen of the new model
-   values states the obligation for other applications. canopen_shared seam S10, when landed, keeps
+   the same for a declared new model. The attestation holds only while the policy stays `NONE`: the
+   example application refuses any other `setSdoReuse` call on a channel holding a new-model binding, and a
+   policy change it does make there clears the attestation first and retires that binding's unsent work
+   (stage 01 item 5). Where canopen_shared S3 has landed, the same setup point also sets S3's explicit no
+   shape (03b item 3) before the first transfer. Tests cover
+   a missing attestation and a rebinding (stale attestation refused, no TX), and a same-binding policy
+   change around a queued request (refused, or the attestation cleared and the request retired unsent),
+   followed by a timeout and a late reply: no marker, no `acceptedCorrelation`, no replay. The Doxygen of
+   the new model values states the obligation for other applications. canopen_shared seam S10, when landed, keeps
    Lichuan's marker default for every `lichuan_c` binding, so this model-level setting stays this set's
    responsibility; an owner-enforced boundary keyed by the declared model would be a shared S10 change and
    is not made here.
@@ -77,13 +83,23 @@ observations. Everything here can be verified on the host.
    S13), so it does not see a TL-C or CL2 binding, which carries `LICHUAN_C`. From this stage, the first in
    which a TL-C binding carries traffic (04a for CL2), the example application therefore refuses, on every
    interface holding a TL-C or CL2 binding, `armSync`, every individual `admitSync` whatever node it names,
-   and every node-0 NMT command, with zero SYNC or NMT TX, and refuses a TL-C or CL2 declaration on an
-   interface whose SYNC schedule is armed. It admits nothing; the Doxygen of the new model values states the
-   same obligation for other applications. When S13's full gate lands, this set supplies TL-C and CL2 SYNC
-   and NMT effects as unknown, its population-wide guard then refuses on their interface, and only then is
-   the application rule retired. Tests through the real producer and owner: declaration refused while a
-   CL86-C-originated schedule is armed, arming after a declaration, an individual SYNC aimed at the CL86-C
-   node and a broadcast NMT command, each with zero SYNC and NMT TX on the interface.
+   and every node-0 NMT command, with zero SYNC or NMT TX. It also refuses a TL-C or CL2 declaration or
+   rebinding on an interface whose SYNC schedule is armed or that holds a pending SYNC or node-0 NMT request
+   (admitted and not yet terminal). Admission and hand-off are separate owner steps (`admitSync` before
+   `canTransmitSync` and `noteSyncSubmitted`, `admitNmt` before its transmit), so the population change is
+   serialized with them: the application makes it in the owner's one service context after checking the
+   live schedule and pending requests there. It may first cancel a pending request (`cancelSync`,
+   `cancelNmt`, which keep possible earlier effects) or wait for its terminal; a frame already handed to the
+   controller is reported as possibly sent, recorded with the declaration and never recalled. It admits
+   nothing; the Doxygen of the new model values states the same obligation for other applications. When
+   S13's full gate lands, this set supplies TL-C and CL2 SYNC and NMT effects as unknown, its
+   population-wide guard then refuses on their interface, and only then is the application rule retired.
+   Tests through the real producer and owner: declaration refused while a CL86-C-originated schedule is
+   armed, arming after a declaration, an individual SYNC aimed at the CL86-C node and a broadcast NMT
+   command, each with zero SYNC and NMT TX on the interface; a one-shot SYNC and a broadcast NMT admitted
+   before the declaration with hand-off held, then the declaration or a rebinding attempted (refused, no
+   later SYNC or NMT TX), and after explicit cancellation the declaration admitted with zero SYNC and NMT
+   TX.
 7. Ledger: mark each delivered TL-C row implemented and host-tested per model; X02, X03, X04 and X06 open.
 
 ## Decisions that do not transfer here

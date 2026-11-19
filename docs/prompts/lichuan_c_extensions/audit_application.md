@@ -163,3 +163,88 @@ directory. Nothing was compiled; no hardware or port was used; nothing was commi
    landing commit updates the release and mode-select cells).
 5. Electrical record before first power (F9): the owner reviews it at the bench; while COMMON records
    the owner as away, no TL-C or CL2 bench step runs in any case.
+
+## Round 3: audit `aud-20261119-191534-a7642a`, 19 November 2026
+
+Each finding of the [third report](audit.md) was checked against this set's files at `83a7a232` (unchanged at
+`94138cd7` and `6ff80ed1`), the [LX review](../../reference/lichuan_c_extensions/review.md), the rendered
+original pages, extracts and code named below, and the shared changes made since the audit, recorded in
+[canopen_shared audit_application](../canopen_shared/audit_application.md) "Round 4" themes 1 to 5: `c4e5574f`
+(canopen_shared 02 timed runs need a stop that can still leave on an unresolved route, either an opted-in S3
+shape, a native equivalent or an application-declared independent stop named in the result; a stop word keeps a
+set halt bit; prompt 57's Stopped-node bootstrap command; S11) and `6ff80ed1` (S3's per-binding configuration
+accepts an explicit no shape that overrides the profile default, set before first traffic and kept across rebind,
+used by TL-C and CL2). F1 and F3 are applied by consuming those rules. Following the user's direction of
+2026-11-19, every high finding was verified and fixed, and the three medium ones were cheap and clearly right.
+Only files in this directory changed; the shared contract, prompt 57, the LX pack, code and tests were not
+edited. No hardware, port or build was used.
+
+Dispositions: 9 accepted, 1 accepted in part (F5), none rejected or deferred.
+
+| Finding | Disposition | Evidence checked | Change |
+| --- | --- | --- | --- |
+| F1 best-effort stop boundary | Accepted | Old 03b lines 52-62, 04b lines 31-33, README S3 bullet; round-2 lead decision 2; canopen_shared 02 S3 after `6ff80ed1`; `CanBusOwner.h` `admitBestEffortStop` (accepts `6040:00=000B` on any binding today) and `SdoClient::checkBestEffortStop` | Round-2 lead decision 2 is superseded. 03b item 3: refusal at two levels. Owner: every TL-C binding carries S3's explicit no shape, set where the application binds a node with a declared TL-C model, before first traffic, beside `SdoReusePolicy::NONE`, and kept across rebind; the example's binding and declaration routes (06 item 2) set and check it. Profile: the `prepareBestEffortStop` refusal stays. Before S3 lands no owner entry point refuses a direct call, so no TL-C changing operation except the reviewed stops is admitted (NOT_IMPLEMENTED, S3 missing). 04b item 3 applies the same to CL2. 03a item 2 names the setup point. Tests: a direct `admitBestEffortStop` after a timeout and after a rebind, `INVALID` with zero TX. README S3 bullet, stage rows, 03b and 04b acceptance |
+| F2 queued interface-wide commands | Accepted | Old 03a lines 75-86; `CanBusOwner.h`: `admitSync` copies work ("Local admission only"), hand-off follows through `canTransmitSync`, `holdSyncHandoff` and `noteSyncSubmitted`; `admitNmt` ("No TX occurs during admission"); `cancelSync`, `cancelNmt` keep possible earlier effects | 03a item 6: a TL-C or CL2 declaration or rebinding is also refused while a SYNC or node-0 NMT request is pending (admitted, not terminal). The change runs in the owner's one service context after checking the live schedule and pending requests; the application may cancel first or wait for the terminal; a handed-off frame is reported possibly sent, recorded with the declaration, never recalled. Tests: one-shot SYNC and broadcast NMT admitted before the declaration with hand-off held, then declaration or rebinding (refused, no later TX), then cancellation and declaration (zero SYNC and NMT TX). 06 item 6 lists the case |
+| F3 stop path after a lost start reply | Accepted | Old 03b lines 70-79, 04b lines 42-46; canopen_shared 02 timed runs after `c4e5574f`; S10 `NONE`; 03b item 3 (no S3 shape, no native equivalent) | 03b item 5: a stop row is not a stop path; preparation refuses before the first changing TX unless the application declares an independent stop for the run (enable, STO or drive-power path), which the result names; at stop due on an unresolved route the result keeps `needsStop`, reports motion unknown and names that stop. 04b item 5 the same. Tests: no declared stop (refused at preparation); a possibly sent start and a timeout under `NONE` (no CANopen stop TX, declared stop named). The halt-bit rule of `c4e5574f` is consumed in 03b and 04b item 3: halted (`010F`) and unknown-halt predecessors are not predecessor 15, no TL-C or CL2 page documents a quick stop keeping bit 8, so those rows refuse (X15), with tests |
+| F4 stop prepared before enable | Accepted | Old 07a T5 and K5; 03b item 3 (ordinary stop needs a fresh admitted predecessor); `Actions.h` `EnableGate::ATTENDED_EXPERIMENT` (independent drive-power cutoff) and `prepareEnable` (607A/60FF re-uploaded before word 6) | 07a T5: before word 6 only stop readiness (a reviewed predecessor-15 stop row, the channel's urgent path free, the power cutoff attended); the stop is prepared only from a fresh read showing predecessor 15 after word 15's acknowledgement. Three partial-enable branches: word 15 known unsent (nothing further, last state recorded, cutoff only); possibly sent with no acknowledgement or observation (no predecessor, no best-effort shape, cutoff, enable state unknown); acknowledged with a fresh predecessor 15 (stop prepared). A plan not covering them leaves T5 an experiment or NOT RUN. K5 takes the same plan |
+| F5 position clear on unqualified reports | Accepted in part | Old 03b item 8, 04b item 8; `Actions.h` `prepareSetDevicePosition` (mode 1, `2100` running and alarm clear, `606C` zero: "conservative stationarity evidence, not an observed shaft: a live test also needs that"); X04 and X12 open; LX review "Units and scaling" | 03b item 8 defines admission apart from wording: GATED under X04 until a TL-C status record of that model qualifies bits 3 and 14 after transitions (07a T4, 07b); with it, mode 1, bit3 and bit14 clear and `606C` zero from one fresh model-taking read under the reservation that carries the writes, no earlier operation left motion `UNKNOWN`, `needsStop` set or its route unresolved (a proposed input: the binding's last motion terminal), and mode, generation and session rechecked before each `2302` write. 04b item 8: GATED under X12 until a CL2 monitor record qualifies `2100` bits 2 and 3, mode 1 from the same acquisition added, same exclusions. Tests: GATED with zero TX; stale reports, a move left `UNKNOWN`, an unresolved route, a mode or generation change before dispatch. X04 and X12 rows in 02 note the gate. **Not adopted as stated:** a mandatory independent stationarity observation for every clear. Once a model record qualifies the reports, they describe the drive state that the counter clear depends on; the result still claims no standstill, and a test needing a still shaft keeps the attendant's observation |
+| F6 CL2 homing boundary | Accepted | Old 04b item 6, 03b item 6 (X17 per method); LX review lines 259-262 (no halt behavior beyond the 271 example, no host-loss reaction) and "Limits and protection"; CL257 p13 (bit 4 falling interrupts homing); `Homing.h` `needsStop`, `advanceHomeStop` | 04b item 6: each admitted method needs a CL2 homing record for that model and method (X11: validated signal sequence, search bound, admitted interrupt predecessors), otherwise GATED; X11's row in 02 says so. Interruption is defined once in 03b item 6 for both groups: preparation refuses without read acceptance, without a search bound ending before the one deadline, and without a declared independent stop; the application requests the mode-6 HALT when the bound or deadline passes without the expected signal or transition, or observation is lost or expires after a possibly sent trigger; where the HALT cannot be admitted only the declared stop remains and `needsStop`, motion and reference stay unknown. Tests in 03b and 04b. 07b item 6 puts the bound and declared stop in the envelope |
+| F7 CL2 `2502` motor limit | Accepted | Old 04b item 10 and 03b item 10; TLCEN p18 text layer ("Maximum Peak Current, Unit: mA"); CL257 p17 and ABZ57 p17 (最大峰值电流, 单位mA, 0~7000), CL286 p17 and ABZ86 p17 (0~8000), located by PDF text search and read in the extracts | 04b item 10: the setter needs both the model's drive range and the caller's X14 record for the attached motor, a positive peak-current limit in mA; a missing or zero limit or a value inside the drive range above it refuses with zero TX. 03b item 10 states the same record for TL-C (whose `2502` has no documented bound) and that the caller, not the library, converts another rating basis. X14 row in 02. Tests in 03b and 04b |
+| F8 reuse policy change on the same channel | Accepted | Old 01 item 5, 03a item 2; `CanBusOwner.h` `setSdoReuse` ("A change applies to later resync steps; it does not reopen, re-quarantine or cancel anything"; no epoch advance) | 01 item 5: the attestation also requires the policy to stay `NONE`; any policy change on the binding clears it first and retires the binding's unsent work. 03a item 2: the example application refuses any other `setSdoReuse` on a channel holding a new-model binding. Tests: a same-binding policy change around a queued request, then a timeout and a late reply (no marker, no `acceptedCorrelation`, no replay); 01's applicability test. The raw-caller boundary (round 2 F5, decision 3) stays deferred |
+| F9 CL2 consumes TL-C artifacts | Accepted | Old README 04a row, 04a intro, 04a items 1, 3, 4, 04b items 1, 3, 5, 13 | 04a intro names 03a items 2, 3 and 6 as common artifacts and 04b's intro names 03b items 1, 3, 5, 6 and 12: whichever stage of the pair runs first lands them for both groups with their tests. README stage rows for 03a, 03b, 04a and 04b say so; the CL2 rows stay otherwise independent |
+| F10 qualification pass threshold | Accepted | Old 07b physical items 3 and 4; AGENTS evidence rules (no invented timing) | 07b physical item 3 (new): every qualification run needs a fixture- and operation-specific pass envelope approved by the owner before the run (observable, limits from caller or fixture review, the independent observation behind any physical claim); without one the run is characterization and qualifies nothing. Item 4: finite velocity's envelope bounds the urgent-stop TX after stop due within the caller's stop budget and the stopping time or travel, measured independently; a run outside it or with an unconfirmed stop fails and reports motion unknown. Acceptance and README 07b row follow; later items renumbered |
+
+### Unresolved questions
+
+1. **Answered by the files, now written in stage 01 item 6.** Prompt 57's UNCONFIRMED covers "fields that
+   could not be read", and its CONFIRMED needs every other candidate's reference to be a decided non-match. An
+   undecided reference is neither. With a declared-model reference matching and another candidate's
+   reference undecided, the outcome is UNCONFIRMED with a declared match, admitted under "Admission by
+   outcome", and the result names the undecided reference and its missing field; an undecided declared-model
+   reference with no other declared match refuses. This admits and refuses nothing beyond prompt 57. 01
+   adds the test.
+2. **Answered in part by the code, now written in 07a T5 and K5.** The plan is one fresh state read through
+   the model-taking getter under the reservation: `Reads.h` `StateBlock` STATUS (`6041`, `6061`), FEEDBACK
+   (`6064`, `606C`), MONITORS and ERRORS, with CL2's `6061` from 04a item 4's bracketed acquisition. The
+   reviewed `607A` and `60FF` come from earlier explicit uploads into `EnableEvidence`
+   (`reviewedPositionTarget`, `reviewedVelocityTarget`), and `prepareEnable` uploads them again before word 6
+   and stops on any difference (`Actions.h`). No file establishes a shared basis: TLCEN p10 lists
+   `6064` "Current Position" INTEGER32 with no unit beside `607A`'s -1000000..+1000000 range, the p15
+   dictionary gives none either, and CL257 p11 ("当前位置") and p19 match. Raw equality is now a screen, the basis
+   stays X16's question, and T5 and K5 rely on the enable sending no trigger, stop readiness and the attended
+   power cutoff.
+
+### Reviewer coverage gaps
+
+- Original pages: this application read the original PDFs' text layer (PyMuPDF) for TLCEN p10 and p18 and
+  CL257 p11 and p19, located `6064` and `2502` in all TL-C and CL2 PDFs by text search and read the `2502`
+  rows of CL286, ABZ57 and ABZ86 in the extracts; no page was rendered as an image this round. Other device
+  claims were left as round 2 checked them.
+- Code: read only for the symbols named above; landing state, builds and hardware are unchanged.
+
+### Decisions for the lead or owner
+
+- S3 timing: 03b and 04b now admit no TL-C or CL2 changing operation other than a reviewed stop until S3's
+  explicit no shape exists. S3 lands with S2, so these stages wait for the first S2 family unless the lead
+  lands S3 earlier. 03a and 04a reads can run before S3, and until then a direct `admitBestEffortStop` by an
+  application on a new-model binding still sends `000B`; the example application refuses its own path.
+- Outside this directory: the canopen_shared README S3 row does not yet mention the explicit no shape that
+  `6ff80ed1` added to 02; adding it keeps the seam table and contract consistent.
+
+### Round 3 lead decisions
+
+1. S3 timing: the explicit per-binding no shape is separable from S3's default deny for other profiles. If
+   S2 has not landed, 03b item 3 lands that part itself and records the claim in the canopen_shared README;
+   the TL-C and CL2 operations therefore wait only for this set's own stage, not for the first S2 family.
+2. Homing counts as a run the host ends: a home also needs a stop that can leave on an unresolved route, so
+   with no shape it needs the application-declared independent stop (03b items 5 and 6).
+3. The canopen_shared README S3 row now names the explicit no shape and its earlier landing.
+- Homing now uses the shared timed-run stop-path rule (a declared independent stop), which extends "any run
+  the host ends" to a home ended by interruption; confirm.
+- Proposals to confirm: position clear GATED under X04 and X12 with the last-motion-terminal input; the
+  owner as approver of each qualification envelope (as for the fixture electrical record); the example
+  application pinning `NONE` on new-model channels. The owner-enforced S10 boundary stays open (round 2
+  decision 3).
+
+Checks: `python scripts/check_promptset.py` reports no errors; `git diff --check` is clean for this
+directory. Nothing was compiled; no hardware or port was used; nothing was committed.

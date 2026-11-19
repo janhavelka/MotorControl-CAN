@@ -17,7 +17,9 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    each route already delivered by 03b and 04b.
 2. Model declaration route. One explicit console input per bound node declares the model by exact designation
    (`TLC57-C`, `TLO86-C`, `CL2-57C`, `CL257C-ABZ`, `CL86-C`, ...). It performs no I/O, is refused while work is
-   admitted or a result is retained on that node, and replaces the node's `ModelBinding`. The identity
+   admitted or a result is retained on that node, and replaces the node's `ModelBinding`; for a TL-C or CL2
+   model it sets the owner's `SdoReusePolicy::NONE` and, where landed, S3's explicit no shape before any
+   further work on that binding (03a item 2, 03b item 3). The identity
    candidate set and identity records come from the application's static configuration, the one loading
    path for a MEASURED record (07a T1, K2): a record is entered there with its provenance id, checked against
    stage 01 item 6's minimum content when loaded, and takes effect when the application starts with that
@@ -48,7 +50,8 @@ mode. Consumes [prompt 64](../64_common_axis_interface.md) if it has landed; oth
    under queue pressure, reservations that conflict on the same bus and node whatever the declared model,
    a model change with pending work refused, results and caches routed by the admitted model, separate
    identity outcomes, a TL-C or CL2 save leaving that route marked uncertain while the others
-   stay current, declaring a new model while a CL86-C-originated schedule is armed, a SYNC request aimed at the
+   stay current, declaring a new model while a CL86-C-originated schedule is armed or a SYNC or node-0 NMT
+   request admitted earlier is still pending (03a item 6), a SYNC request aimed at the
    CL86-C node, conflicting routes, and a broadcast NMT command refused while a TL-C or CL2 binding is
    present (a per-model row admitting the command is not S13's population-wide approval); assert the
    interface's traffic (zero SYNC, zero NMT and no refused frame), not only a verb's return.

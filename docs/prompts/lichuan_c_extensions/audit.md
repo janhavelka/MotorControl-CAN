@@ -150,3 +150,75 @@ work and host-only scaffolding need not wait.
   records were not supplied: landing order, the sibling identity integration and the specimen-count
   correction are unverified.
 - A text audit: no checker, compilation, test, CI job, port access or hardware procedure ran.
+
+## Round 3
+
+A condensed, faithful copy of the third report. It is untrusted reviewer input; the verified dispositions are in
+[audit_application.md](audit_application.md) "Round 3". Line numbers refer to the files as revised by round 2
+(committed in `83a7a232`; the family files' hashes in the report equal those of that commit, unchanged at the
+audited `94138cd7`). Prompt 57 and the shared contract were audited before `c4e5574f` and `6ff80ed1`.
+
+| Field | Value |
+| --- | --- |
+| Audit ID | `aud-20261119-191534-a7642a` (tool `audit_promptset`, server 1.1.0, prompt version 2026-11-18.2) |
+| Model | `gpt-6.2-sol` requested and used, reasoning effort high, depth standard ("large input (~174816 tokens)") |
+| Date | 2026-11-19 19:15:34 (from the ID), 191.4 s, one attempt |
+| Revision | `main` at `94138cd7b88852de54261a2309b693f32636095e`, uncommitted changes recorded (outside this directory) |
+| Cost | Estimated USD 0.36 (0.364016, configured pricing); 134,448 input and 9,512 output tokens (3,347 reasoning) |
+| Report | `C:\Users\Honza\.openai-auditor\reports\202611\aud-20261119-191534-a7642a.json` (local) |
+| Location checks | 34 verified, 0 relocated, unverified or invalid |
+
+Promptset under audit (lines, sha256 prefix): `01_models_and_identity.md` (152, `b6d29eaa`),
+`02_model_ledger.md` (108, `bb381e23`), `03a_tlc_rows.md` (114, `d62ea3d1`), `03b_tlc_operations.md` (158,
+`e426997e`), `04a_cl2_rows.md` (110, `6c2e60e1`), `04b_cl2_operations.md` (121, `2ed5d929`),
+`05_en57_conflicts.md` (64, `2256a5fb`), `06_console_and_coverage.md` (82, `f1bd4ba9`), `07a_first_contact.md`
+(98, `f457d20d`), `07b_qualification_and_release.md` (75, `bfa59659`), `README.md` (142, `90298dda`), `audit.md`
+(152, `9e2b09ae`), `audit_application.md` (165, `dfbd3de6`), `execution_contract.md` (151, `ccfb8db5`). Context:
+`canopen_shared/README.md` (81 lines) and `02_profile_integration_contract.md` (329), `ADD_DRIVE.md`,
+`COMMON.md`, the LX pack `README.md` and `review.md`, `57_regular_drive_operations.md`,
+`docs/reference/lichuan_review.md`; project instructions `AGENTS.md`, `CLAUDE.md`.
+
+**Summary.** The revision keeps the reviewed-stop exception to identity refusal, separates firmware reporting
+from model-specific evidence and requires an electrical review before first power. The remaining blockers are
+at transmit admission and motion recovery: the best-effort stop rules disagree about what the owner must
+enforce, interface isolation does not cover commands already queued, and an admitted finite run can lose its
+only stop route after a start timeout. **Verdict:** blocking issues. No consistent owner-level stop policy can
+be derived from the stage, the shared contract and the lead disposition, and the finite-run and first-contact
+enable stages lack an executable stop path for cases their own admission and failure rules permit; these are
+specification and acceptance defects, not observed hardware behavior. The documentary ledger and fail-closed
+scaffolding can proceed.
+
+### Findings
+
+| ID | Severity, class, confidence | Finding and recommendation | Locations |
+| --- | --- | --- | --- |
+| F1 | High, verified defect, high | *The stage and lead disposition specify different best-effort stop boundaries.* 03b requires the owner to return `INVALID` with no TX when the application configures no shape for a TL-C binding, and 04b imports it for CL2, but the shared contract keeps DEC-2 for Lichuan bindings and the round-2 lead decision calls the family-local preparation refusal sufficient. A refusal in `prepareBestEffortStop` does not cover a direct `admitBestEffortStop`, and omitting a configuration is not specified to override the Lichuan default. Choose one boundary and align stage, contract and disposition: either specify and test an explicit per-binding disable that overrides the Lichuan default before first new-model traffic and after rebind, or drop the owner-level guarantee and name the owner entry points left outside the supported route. | 03b:59-60; 04b:31-32; canopen_shared 02:246; audit_application:159-160 |
+| F2 | High, probable defect, high | *Pre-S13 isolation does not account for interface-wide commands already admitted.* The rule blocks new requests after a TL-C or CL2 binding appears and blocks declaration while a schedule is armed, but not a one-shot SYNC or node-0 NMT admitted earlier with no schedule armed; if admission and hand-off are separate, it can leave after the declaration. The tests cover only requests after declaration and an armed schedule. Define the serialization point for declaration, rebinding and interface-wide TX; refuse the population change while an affected command is outstanding, or retire unsent commands and recheck the population at hand-off; specify how handed-off traffic is reported; test SYNC and broadcast NMT admitted before declaration with dispatch held, then the population change. | 03a:79-81, 84-86; canopen_shared 02:277-279 |
+| F3 | High, verified defect, high | *A stop-table match does not establish a usable stop route after a lost start reply.* A timeout under `NONE` leaves the route unresolved; the ordinary stop needs a fresh admitted predecessor and the unresolved-route stop is denied for both groups, so even full stop-table coverage can leave a possibly running drive with no callable stop. Keeping `needsStop` is correct reporting but supplies no stop. Make a usable stop path under the lost-start timeout a separate admission prerequisite; keep production finite velocity gated where no reviewed path meets the stop budget; test a possibly sent start and a timeout under `NONE`, refused before start when no path exists. | 03b:76-79; 04b:45-46; canopen_shared 02:234-236, 127-129 |
+| F4 | High, verified defect, high | *First-contact enable asks for a prepared stop from a state the enable has not yet reached.* T5 and K5 require a stop from predecessor 15 prepared before enable, but ordinary stop admission needs a fresh observation of an admitted predecessor, and the enable does not start from predecessor 15. Planning and urgent-path readiness can precede enable; preparation cannot. The partial-enable text also does not separate a final word known unsent from one possibly sent with no usable reply. Separate planning and readiness from preparation against a fresh predecessor; define cutoff and reporting for interruption before word 15, a possibly sent word 15 with no observation and a confirmed predecessor; otherwise T5/K5 stay experimental or NOT RUN. | 07a:64, 79; 03b:52-53; 04b:28-30 |
+| F5 | High, probable defect, high | *Position clear can change the reference on evidence the stage calls unqualified.* 03b admits a reference-changing write on a newly read controller report while stating that the bits' freshness is unqualified and TLO feedback is not measured; a fresh upload does not make the drive's state fresh. The result wording claims no standstill, but the admission predicate is unchanged. CL2 omits the mode-1 restriction of the C-family predicate, and neither stage excludes clearing while earlier motion is active or uncertain. Define admission separately: a current model-reviewed idle predicate, exclusion of unresolved motion, independent stationarity evidence where reports cannot establish it, explicit modes; keep the write gated otherwise; test stale zero or running-clear reports, an unresolved earlier move and a mode or generation change before dispatch. | 03b:92-94; 04b:66-68 |
+| F6 | High, probable defect, high | *CL2 homing does not define a qualification and failure boundary for every admitted method.* 04b checks method numbers, wiring, direction and an X11 restriction for index methods but, unlike TL-C, does not require a method-specific behavioral record for every admitted method, and does not say who requests a reviewed interruption when a signal or completion transition never arrives, also without read acceptance. The general deadline stops operation steps, not physical homing, and no host-loss response is documented. Make X11's evidence explicit per model and method (validated signal sequence, bounded search, admitted interrupt predecessors); define the application's interruption obligation and what stays unknown if the stop or observation route fails; keep methods without it gated; test absent or stuck signals and observation loss or expiry after a possibly sent trigger. | 04b:55-57; 03b:81; LX review:259-262; ADD_DRIVE:25 |
+| F7 | High, probable defect, high | *The CL2 peak-current setter does not specify enforcement of the motor limit.* 04b gives the setter a model drive range and leaves the motor rating as the caller's limit; X14 and 07b need fixture current bounds, but no input, comparison or missing-record refusal is specified, so an in-range value above the attached motor's limit can be prepared. The TL-C setter has an explicit rating gate, so the groups differ without a stated disposition. Define whether CL2 current writes are gated on a caller-supplied, fixture-scoped motor limit; require both bounds in the same current basis or keep the setter gated; test missing or invalid limits and a value inside the drive range above the motor limit, with zero TX. | 04b:76-77; 03b:100-101; 07b:39-40 |
+| F8 | Medium, probable defect, medium | *The reuse attestation covers rebinds but not necessarily policy changes on the same channel.* The attestation records a readback of `NONE` against the channel epoch at preparation; the stage does not say whether the policy is immutable for that epoch, whether a change invalidates the attestation, or what happens to queued work and marker activity. If `setSdoReuse` changes policy without advancing the epoch, a stale attestation passes and a later timeout can add unreviewed marker traffic (distinct from the deferred raw-caller boundary). Pin `NONE` for the live binding on supported routes or make every policy mutation revoke the attestation and retire dependent unsent work; specify the serialization point; test a same-binding policy change around a queued request, then a timeout and a late reply: no marker or replay. | 01:58-60; 03a:24-25; audit_application:161 |
+| F9 | Medium, verified defect, high | *The advertised independent CL2 path consumes TL-C stage artifacts.* The nominal order can satisfy the dependencies, but the README and 04a say CL2 rows proceed from 02 independently while 04a consumes 03a's isolation, attestation and tests and 04b consumes 03b's evidence and observation rules. If a TL-C stage is blocked, an implementer cannot tell whether to wait, land the common artifacts in 04a or duplicate them. Record the specific 03a and 03b artifacts as prerequisites, or move common admission and isolation into a named earlier deliverable, keeping CL2 documentary work independently executable. | README:42; 04a:19-21; 04b:13-14 |
+| F10 | Medium, verified defect, high | *Physical qualification records timing observations without a pass threshold.* 07b calls the stop due time, urgent-stop TX time and first fresh report "criteria", but they are measurements: no latest acceptable stop TX, permitted stopping time or travel, or rule for what the post-stop report establishes, so two reviewers could judge one trace differently. Require an approved fixture- and operation-specific pass envelope before each qualification run; for finite velocity tie dispatch acceptance to the stop budget and state the independent observation and bounds behind any physical stopping claim; mark a run without criteria as characterization; use caller- or fixture-reviewed limits, not invented device timing. | 07b:47-51; AGENTS.md:71 |
+
+### Unresolved questions
+
+1. How does the single identity comparison classify a declared-model match when a competing reference is
+   undecidable because one of its product fields was unread or wrong-width? Stage 01 caps an undecided
+   reference at UNCONFIRMED, while prompt 57's CONFIRMED bullet says every competitor must have a reference
+   and none match; admission may not change, but the reported confidence and any future CONFIRMED guard do.
+2. Where is the executable state-read plan for T5/K5, and how does it establish that target and actual
+   position are comparable for the exact fixture? The stages name the reads and reject writes that make the
+   precondition hold, but equality of two raw values is not evidence of a shared coordinate basis.
+
+### Coverage gaps stated by the reviewer
+
+- Original PDFs, EDS files, manifests and the normalized delta were not supplied: register metadata, wording,
+  ratings, hashes and the three-EDS identity-default claim were not checked.
+- Lichuan headers and implementations, owner and service dispatch, example call sites, ledgers, checkers and
+  CI workflows were not supplied.
+- Main PROGRESS, the shared intake inventory, the DS2 identity stage and contract, parent instructions and the
+  Q01 raw specimen records were not supplied.
+- A text audit: no checker, compilation, test, CI job, port access or hardware procedure ran.
