@@ -147,7 +147,12 @@ Commit tooling, core/profile and application/console changes separately, each te
   is needed. The declared stop carries a caller-supplied fallback deadline: the application invokes
   it when the urgent stop is not admitted, misses its dispatch window, or leaves the stop effect
   unconfirmed at that deadline (an early homing interruption with an upload pending included);
-  admission, TX or an acknowledgement never retire that need. Where the reviewed paths above cover
+  admission, TX or an acknowledgement never retire that need. A fallback deadline already elapsed at
+  dispatch of the first possibly starting write refuses that write; when service resumes after the
+  deadline with the stop still owed, the application invokes the declared stop at once and the
+  result reports the missed deadline and unknown motion; an outstanding obligation also blocks
+  re-declaration or rebinding of that node. A stop path means a selected stop usable from every
+  reachable state of the run, not only a valid encoding. Where the reviewed paths above cover
   both route states (an opted-in S3 shape and a stop row admitted without a fresh report), a
   declared stop is optional; the run's `needsStop` and uncertainty stay in its result, and an
   application that declares one gets the fallback-deadline rule. Without one the run is refused
