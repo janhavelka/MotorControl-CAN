@@ -1,14 +1,18 @@
 # 02 — Profile integration contract
 
 Execute this stage under the family's execution contract.
-Status: NOT STARTED. Binding on every family stage from the one that registers the profile,
-after the family's ledger and codec checks pass. The first family lands each shared seam
-once; later families extend it ([README](README.md) table). Read the family's
+Status: NOT STARTED. The standing rules (common, then CANopen-only or other-protocol by the
+family's established protocol) bind every family code stage. Registration acceptance applies
+at the stage that registers the profile and at each later major change under AGENTS (public
+API or behavior, owner or protocol integration, persistence, build, toolchain or workflow);
+other stages run the affected local checks, keep required automatic checks and record checks
+not run. Stage 01's intake rules cover sources, ledgers and the S7 checker split; claim each
+seam in the [README](README.md) table before a shared edit. Read the family's
 [stage 01](01_existing_code_and_tooling.md) record, the [CLI contract](../../cli_contract.md),
 [owner guide](../../can_owner.md) and [communication practice](../../communication_practice.md).
 Commit tooling, core/profile and application/console changes separately, each tested.
 
-## Work
+## Common rules (every family)
 
 ### Names and layout
 
@@ -17,66 +21,53 @@ Commit tooling, core/profile and application/console changes separately, each te
   `profileId`, the JSONL `profile` value and the family's files. Its upper case names
   `MotorControlCAN::<FAMILY>` and `DriveProfile::<FAMILY>`; `Manufacturer::<MANUFACTURER>`
   is added once per manufacturer. A landed name changes only with a migration entry.
-- Common operations keep the MotorControl-RS names and phases of CONVENTIONS section 3
-  where the meaning matches (`prepareIdentity`, `prepareEnable`, `prepareStop`,
-  `prepareMoveAbsolute`, `prepareVelocity`, `prepareHome`, `prepareSave`, with their
-  `next...`/`advance...` calls and checked getters). Contexts are concrete per family;
-  no `getResult`, `advanceOperation` or universal context.
-- Native CANopen names stay native (`makeNmtRequest`, `checkNetworkEvent`,
-  `validatePdoMap`, `prepareSync`, statusword and controlword fields); a vendor feature
-  without a common meaning takes its manual's name. Equal words or object numbers never
-  justify reusing a Lichuan type such as `StopKind` or `StatusLayout`.
+- Common operations keep the MotorControl-RS names and phases of CONVENTIONS section 3 where
+  the meaning matches (`prepareIdentity`, `prepareEnable`, `prepareStop`, `prepareMoveAbsolute`,
+  `prepareVelocity`, `prepareHome`, `prepareSave`, their `next...`/`advance...` calls and
+  checked getters). Contexts are concrete per family; no `getResult`, `advanceOperation` or
+  universal context.
+- Native protocol names stay native; a vendor feature without a common meaning takes its
+  manual's name. Equal words or object numbers never justify reusing a Lichuan type such as
+  `StopKind` or `StatusLayout`.
 
-### Object and operation ledger
+### Profile resolution (seams S1, S2)
 
-- `docs/reference/<family>_objects.json`, schema 2, with the top-level keys and entry
-  fields of `lichuan_objects.json`: per entry `key`, `scope_id`, `type`, EDS and reviewed
-  access and PDO mapping, `units`, `scaling`, `effect`, `prerequisites`, `source_refs`
-  (PDF page or EDS line), `conflict_ids`, `coverage` (independent `documented`,
-  `implemented`, `host_tested`, `hardware_qualified`) and `review` (`read_effect`,
-  `write_policy`, `gate_ids`). Prose-only functions go in `manual_only`; `conflicts` keep
-  every original claim under a hash guard; `owner_prompt` names the family's stage IDs.
-  No EDS default is written at initialization and an RW flag grants no write.
-- `docs/reference/<family>_operations.json`, schema 2, with Lichuan's keys (`families`
-  with `header`, `functions`, `tests`, `console`; `ledger_bindings`; `python_plans`). It
-  references the ledger and never copies device facts.
-- `scripts/check_<family>_ledger.py`, `scripts/generate_<family>_objects.py` (`--check`
-  never writes; outputs `Types.h`, `Objects.h`, optional `Catalogue.h`, `Pdo.h` where
-  applicable, `docs/reference/<family>_generated.md`) and
-  `scripts/check_<family>_operations.py`, each with a registered negative test: missing
-  row, tampered hash, altered output, unclassified function, promoted gate. Add LF rules
-  for generated headers to `.gitattributes`; extend `TYPE_CODES` only from the family EDS.
-- Seam S7, once: scope `check_lichuan_operations.py` to common and `lichuan_c` headers
-  with a regression that an unclassified common or Lichuan function still fails; the
-  checkers together claim every public header exactly once. Register each in
-  `scripts/verify.py`, `scripts/check_repository.py` (`CHECKS`, file lists) and CTest.
+- S1: append the family to `Manufacturer`, `DriveProfile` and a finite table in
+  `src/Discovery.cpp` replacing `DiscoveryProfile`'s Lichuan defaults. `DriveProfile` takes
+  explicit nonzero values (`LICHUAN_C = 1`, then the next unused value, never reused).
+  `nonChanging`, `exactModel` and `firmware` stay false without family evidence; address
+  bounds, probe object and model/firmware `scopes` come from the ledger.
+- S2, the one representation: `Endpoint.profile` holds the family's `DriveProfile` value.
+  One pure lookup in `Discovery.h` accepts a binding only when that value is in the inventory
+  and `Endpoint.protocol` equals the entry's `protocol`; zero, unknown values and protocol
+  mismatches refuse; nothing defaults to Lichuan. Every family preparation (Lichuan's too),
+  the owner's per-binding defaults (S3, S10), console dispatch and the JSONL `profile` use it.
+  The relation is static; a binding changes family only by rebinding with a new
+  `bindingGeneration`, which invalidates dependent evidence and work.
+- Migration, in the S2 commit: Lichuan preparations, which accept any nonzero value today
+  (Lichuan tests use 41, examples 1), refuse all but `LICHUAN_C`'s; callers move to it;
+  `PdoProfile.profile` stays equal to `Endpoint.profile`; the `Endpoint.h` comment and
+  CHANGELOG record the break. Test-only contrast profiles use values that never resolve.
+- Tests: a migrated Lichuan binding with unchanged traffic; an old label (41), an unknown
+  value and a protocol mismatch refused; both cross-family directions; rebinding while a
+  result is retained (it keeps its admission family). Refusals touch no output, send nothing.
 
-### Sources, hashes and rights
+### Identity and device evidence
 
-- Pack in `docs/reference/<family>/`: `SOURCES.json` shaped like
-  [multidrive/SOURCES.json](../../reference/multidrive/SOURCES.json) (per source `url`,
-  `retrieved_on`, `bytes`, `sha256`, `applicability`, `firmware_match`, `license`,
-  `revision`, `pdf_pages`; `remote_only` entries with no path, hash or bytes), unmodified
-  originals in `vendor/`, extracts in `extracted/` with one-based PDF pages.
-- Add the manifest to `reference_manifests` in `scripts/check_promptset.py`; run it with
-  `--check-git-ref INDEX` before the commit and `HEAD` after. Never run vendor tools.
-- Vendor material is outside the MIT license and never enters `library.json` `export`,
-  an install rule or a packed archive; the exact archive set in `test/package_test.py`
-  proves its absence.
-
-### Identity and applicability
-
-- Seam S1: when the family's code lands, append it to `Manufacturer`, `DriveProfile` and a
-  finite table in `src/Discovery.cpp` replacing `DiscoveryProfile`'s Lichuan defaults.
-  `DiscoveryCapabilities.nonChanging`, `exactModel` and `firmware` stay false without
-  family evidence; address bounds, probe object and model/firmware `scopes` come from the
-  ledger. Unknown firmware keeps dependent operations gated even when reads succeed.
-- No universal identity probe. A `1000` or `1018` reply proves a responding CANopen
-  server, not the family, model or firmware. Selection performs no I/O; identity is an
-  explicit read; a mismatch refuses dependent work.
-- Seam S2: an explicit relation from `Endpoint.profile` to `DriveProfile`. Every family
-  preparation, and every Lichuan one, refuses a binding of another profile before
-  touching output or yielding work; test both directions and that nothing is sent.
+- No universal identity probe. A `1000` or `1018` reply proves a responding server, not
+  the family, model or firmware; [backlog D18](../../backlog.md) records `1018` collisions
+  between Lichuan families. Selection performs no I/O; identity is an explicit read.
+- Each device-facing operation's coverage row names the identity it consumes (product or
+  interface; firmware or configuration where its ledger says so) by ledger key, its holder
+  (an application record keyed to binding, generation and server session) and its
+  invalidators: boot-up, NMT reset, bus-off or controller restart, rebinding, a configuration
+  generation change, a contradicting identity read. A permitted bootstrap read (probe,
+  identity) needs none; a later write or motion needs the identity its row names. The label,
+  `Capabilities` and `DiscoveryCapabilities` grant nothing. Lichuan's policy is [prompt 57](../57_regular_drive_operations.md)'s.
+- Tests with the correct label and wrong (another family's server), missing, ambiguous (a
+  colliding `1018` match) or stale (after boot-up or rebinding) identity refuse dependent
+  work with nothing sent. Assert exact traffic: selection and cached queries send nothing;
+  a probe only its reviewed reads; recovery never appends enable, save, NMT, a stop or a write.
 
 ### Capabilities and the common operation mapping
 
@@ -85,68 +76,68 @@ Commit tooling, core/profile and application/console changes separately, each te
   `UNSUPPORTED` with the operation's `CAPABILITY` detail before admission.
 - `docs/<family>_coverage.md` has one row per common operation (reads, enable, release,
   mode select, absolute, relative and angle move, finite velocity, homing, each stop kind,
-  fault clear, save, restore): native objects and words by ledger key, staging and trigger
-  order, acknowledgement and completion evidence, stop interaction, `RetryClass`, gates
-  and tests, or the evidence-based reason it is unsupported.
-- CiA 402 objects and words apply only where the family's own pages say so; manual arrows
-  are examples. Never enable to prepare a stop or reset. Release, stop, NMT stop, cancel
-  and recovery stay distinct. One immutable deadline per operation (`now >= deadlineUs`
-  expires); no automatic repeat; an unconfirmed write keeps `UNKNOWN` execution. Units go
-  through `prepareVelocityTarget` and `Native.h`; a missing rate basis is a reviewed core
-  change, not a profile shortcut.
-- Seam S3 (CANopen): the best-effort stop on an unresolved route becomes a per-profile
-  reviewed shape instead of the hard-coded Lichuan `6040:00=000B`. Seam S8: extract a
-  CiA 402 helper only when both callers need identical, evidenced semantics. Review the
-  family's `SdoReuse` marker objects and their read effects before `setSdoReuse`. After
-  prompt 64, implement the family's row of its axis table and pass that prompt's session
-  and owner tests; add no second session.
+  fault clear, save, restore): native items by ledger key, staging and trigger order,
+  acknowledgement and completion evidence, identity consumed, stop interaction,
+  `RetryClass`, gates and tests, or the evidence-based reason it is unsupported.
+- Never enable to prepare a stop or reset. Release, stop, cancel and recovery stay distinct.
+  One immutable deadline per operation (`now >= deadlineUs` expires); no automatic repeat; an
+  unconfirmed write keeps `UNKNOWN` execution. Units go through `prepareVelocityTarget` and
+  `Native.h`; a missing rate basis is a reviewed core change. After prompt 64, implement the
+  family's axis-table row and pass that prompt's session and owner tests; no second session.
 
-### Console, help and parity
+### Console, help and JSONL (seam S6)
 
 - One `commands[]` entry per family in `examples/common/ProbeConsole.cpp`, parser and
-  formatter in `examples/common/<Family>Console.{h,cpp}`. Existing top-level verbs keep
-  their Lichuan meaning; no global selected-profile mode. After prompt 64, common verbs
-  may dispatch by the target axis's bound profile with unchanged grammar and units.
-- Seam S6: the JSONL `profile` field names the admitted operation's `profileId`
-  (`ProbeConsoleText.h` envelope, `PROFILE` in `scripts/console_jsonl.py`). `profile list`,
-  `caps` and `help` derive from the same inventory and claim no detection. `nmt`,
-  `heartbeat`, `network` and `sync` reach a family binding only when its evidence admits
-  them, with unchanged meaning.
+  formatter in `examples/common/<Family>Console.{h,cpp}`, Blocked until S4 lands. Existing
+  verbs keep their Lichuan meaning; no global selected-profile mode. After prompt 64, common
+  verbs may dispatch by the target axis's resolved profile with unchanged grammar and units.
+  `profile list`, `caps` and `help` derive from the same inventory and claim no detection.
+- JSONL `profile` by record: `null` on records without a target (`help`, `version`, `profile
+  list`, `caps`, `stats`, `drv`, `memory`, `load`, parse errors, unassociated traces) and on
+  a refusal whose target did not resolve; the target's `profileId` on other targeted replies
+  and refusals; the `profileId` copied at admission on an operation's records and its
+  retained `result`, also after a rebind. The validator checks a non-null value against the
+  request or operation correlated by `id`, not a list. Revise the schema in
+  `docs/cli_contract.md` with `scripts/console_jsonl.py`, `scripts/s2_console.py` and their
+  tests. Tests: two families interleaved, a retained result after rebind, untargeted `help`,
+  an invalid request, a mismatched record.
 - Each family route calls its public API. Tests drive the API and the console through the
-  real `CanBusOwner` and `SdoClient` and a fake server on the owner `Transport` callbacks
-  (`test/support/<Family>Drive.h`, documented frames only, labelled synthetic) and compare
-  TX frames and terminals. Cover foreign-profile refusal without TX, abort versus
-  malformed reply, timeout and late identical reply, stale generation, retained results,
-  cancel that is not a stop, urgent stop under queue pressure and no replay after a lost
-  reply. The map's `console` rows make the operation checker prove each route.
+  real `CanBusOwner`, the family's real protocol service and a fake device on the owner
+  `Transport` callbacks (`test/support/<Family>Drive.h`, documented frames only, labelled
+  synthetic) and compare TX frames and terminals. Cover foreign-profile and identity refusal
+  without TX, native rejection versus malformed reply, timeout and late identical reply, stale
+  generation, retained results, cancel that is not a stop, urgent stop under queue pressure
+  and no replay after a lost reply. The map's `console` rows make the checker prove each route.
 
 ### Multi-profile consumers and package scope
 
-- One fake interface carries a Lichuan axis and a family axis under one owner: independent
-  stops, reservations that conflict on the same bus and address whatever the profile
-  label, separate caches and results. `test/multidrive_contract_test.cpp` still passes.
-- Add sources to `MOTORCONTROLCAN_SOURCES` (the IDF component reuses it), an
-  `install(FILES ...)` rule for `profiles/<family>/`, headers and sources to
-  `test/package_test.py` (`HEADERS` and the exact archive set) and the export list in
-  `scripts/check_repository.py`, and C++11 consumers of core only, Lichuan only, the
-  family only and both. No
-  profile-selection build option; catalogue strings stay optional. After prompt 65,
-  follow its component layout.
+- By default a Lichuan axis and a family axis run on separate interfaces (owner and
+  transport each) with independent stops, caches and results; `test/multidrive_contract_test.cpp`
+  still passes. On one interface, reservations conflict on the same bus and address whatever
+  the label and an unanalysed second domain is refused (negative tests, run at registration).
+  A shared-interface positive test waits for its artifacts: for another protocol, prompt 63's
+  identifier plan, receive route and raw transmit kind, passed, with a plan admitting the
+  family; for a CANopen family in the same domain, a recorded analysis of node IDs,
+  configured COB-IDs, bitrate and NMT-broadcast and SYNC effects on both families.
+- Add sources to `MOTORCONTROLCAN_SOURCES` (the IDF component reuses it), an `install(FILES
+  ...)` rule for `profiles/<family>/`, and headers and sources to `test/package_test.py`
+  (`HEADERS`, exact archive set); `library.json` and `check_repository.py` `EXPORTS` stay
+  unchanged. C++11 consumers of core only, Lichuan only, the family only and both. No
+  profile-selection build option; catalogue strings optional; after prompt 65, its layout.
 
 ### Documentation and stage handoff
 
-- With the code: README scope, CHANGELOG `Unreleased` (landed code only), the coverage
-  file linked from `docs/coverage.md` and `docs/profile_contract.md`,
-  `docs/api_cli_mapping.md`, `docs/cli_contract.md`, `docs/source_map.md`, backlog,
-  roadmap and strict-gate Doxygen for every public declaration. Documented, implemented,
-  host-tested, firmware-built and hardware-qualified stay separate.
-- Each stage writes `docs/reports/<family>_<NN>.md` and updates
-  `docs/prompts/<family>/PROGRESS.md` (NOT STARTED, IN PROGRESS, PARTIAL, BLOCKED or
-  COMPLETE; hardware in its own column). The handoff gives commits and push result; source
-  and sibling revisions with adopted or rejected behavior; operations implemented versus
-  gated, by ledger key; local checks and exact-commit CI, including those not run;
-  hardware NOT RUN or exact fixture, firmware and raw evidence; the DOCUMENTATION and
-  MAINTAINABILITY records; seams landed or extended; next prerequisites.
+- With the code: README scope, CHANGELOG `Unreleased` (landed code only), the coverage file
+  linked from `docs/coverage.md` and `docs/profile_contract.md`, `docs/api_cli_mapping.md`,
+  `docs/cli_contract.md`, `docs/source_map.md`, backlog, roadmap and strict-gate Doxygen for
+  every public declaration. Documented, implemented, host-tested, firmware-built and
+  hardware-qualified stay separate.
+- Each stage writes `docs/reports/<family>_<NN>.md` and updates `docs/prompts/<family>/PROGRESS.md`
+  (NOT STARTED, IN PROGRESS, PARTIAL, BLOCKED or COMPLETE; hardware in its own column). The
+  handoff gives commits and push result; source and sibling revisions with adopted or rejected
+  behavior; operations implemented versus gated, by ledger key; local checks and exact-commit
+  CI, including those not run; hardware NOT RUN or exact fixture, firmware and raw evidence;
+  the DOCUMENTATION and MAINTAINABILITY records; seams claimed, landed or extended; next work.
 
 ### Bench steps and owner absence
 
@@ -159,19 +150,56 @@ to the CL86-C nodes or opens COM15. Before a later bench step, derive the family
 forbidden-object and allowed-RAM lists from its ledger and establish board, transceiver,
 drive, firmware, wiring, node, bitrate and authorization.
 
+## CANopen-only rules
+
+- Every SDO route runs through the real `CanBusOwner` and `SdoClient`. Native CANopen names
+  stay native (`makeNmtRequest`, `checkNetworkEvent`, `validatePdoMap`, `prepareSync`,
+  statusword and controlword fields). CiA 402 applies only where the family's own pages say
+  so; manual arrows are examples; an NMT stop is not a stop. Seam S8: a CiA 402 helper only
+  when both callers need identical, evidenced semantics. `nmt`, `heartbeat`, `network` and
+  `sync` reach a family binding only when its evidence admits them.
+- Seam S10: a family route has a reviewed `SdoReuse` policy before its first admission;
+  `NONE` (the route stays unresolved after a timeout) until the family ledger reviews its
+  marker objects' read effects or records the premises of `ACCEPTED_RISK_WITHOUT_MARKER`.
+  S10 makes a non-Lichuan binding's effective default `NONE` through the S2 lookup and keeps
+  Lichuan's. Tests on a two-family owner with no explicit configuration: a timeout, then a
+  late reply on the family route send no marker, set no `acceptedCorrelation` and replay
+  nothing; the Lichuan route keeps its default marker.
+- Seam S3, best-effort stop on an unresolved route, opt-in per binding: a non-Lichuan binding
+  has none until its family's reviewed exact shape (object, size, data, ledger review ID) is
+  set for it; a Lichuan binding keeps DEC-2's `6040:00=000B` and its terminal semantics.
+  `admitBestEffortStop` checks the transfer against the shape of its exact current binding
+  and channel generation; another family's valid shape, no shape and a stale target return
+  `INVALID` with no TX and no fallback word. Unchanged: one transmission at most; owner
+  markers and resync steps on the node retired as today; never `SUCCEEDED`; local TX or a
+  matching-looking reply proves neither acknowledgement nor standstill; the route stays
+  unresolved. Test each case and a matching late reply through `admitBestEffortStop`;
+  Lichuan's existing best-effort tests stay unchanged.
+
+## Other-protocol rules
+
+- The family's own bounded codecs and service contexts run beneath common motion through
+  the real owner once prompt 63's route and raw transmit kind (S9) have landed and passed;
+  never `canopen/`, `SdoClient`, `SdoReuse`, NMT, heartbeat, PDO, a statusword projection
+  or the CANopen console verbs. A missing native service, owner route or probe is Blocked,
+  never routed through SDO. FD is a separate adapter capability.
+- Test the protocol's actual acknowledgement or no-ack behavior (`checkServiceEvidence` with
+  `AcknowledgementSupport::NONE` where it has none), refresh lease and watchdog where it has
+  them, frame format (11/29-bit, RTR, DLC) and refusal of incompatible routes without TX.
+
 ## Deliver
 
-- Seams S1, S2, S6, S7 and, for a CANopen family, S3 landed or extended, with the README
-  table updated; S4, S5 and S9 consumed only from their prompts.
-- Inventory entry and guards; a real probe (reviewed or explicitly accepted read effect,
-  never a write) through API, application and console; registered ledger checkers; parity
-  and multi-profile tests; package entries; documentation; report; PROGRESS row.
+S1, S2, S6 landed or extended, S7 landed under stage 01, S3 and S10 for a CANopen family; S4,
+S5, S9 consumed; README claims and commits updated. Inventory entry and guards; a real probe
+(reviewed or explicitly accepted read effect, never a write) through API, application and
+console, the console part Blocked until S4; identity, refusal, multi-profile and package
+tests; documentation; report; PROGRESS row.
 
-## Acceptance
+## Registration acceptance
 
-The probe and each delivered route run through the real owner, `SdoClient` and fake server;
-foreign-profile refusals send nothing in both directions; JSONL records carry the admitted
-profile; checker negative tests fail as intended; all consumers build in C++11.
+The probe and each delivered route run through the real owner, the family's real protocol
+service and a fake device; foreign-profile and identity refusals send nothing; JSONL records
+follow S6; checker negative tests fail as intended; all consumers build in C++11.
 `python scripts/verify.py --mode quick` and `--mode full`, the firmware builds in
 [verification.md](../../verification.md) and the family checks pass, and CI passes on the
 exact final pushed commit. Host tests establish no hardware qualification.
