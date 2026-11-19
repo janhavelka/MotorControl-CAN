@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html ng-app="nanotec">
+<head>
+    <meta charset="utf-8">
+
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+<title>Plug &amp; Drive Studio 3 | Nanotec</title>
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Plug &amp; Drive Studio 3 features an UI Designer that enables users to customize the interface. The modular project management supports multi-axis systems.">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Plug &amp; Drive Studio 3 | Nanotec">
+<meta property="og:url" content="https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3">
+<meta property="og:description" content="Plug &amp; Drive Studio 3 is a software used to commission and program Nanotec’s motor controllers/drives. This software version comes with an integrated UI Designer which enables users to adapt the interface to different types of applications and user groups.
+With the help of Controlbrowser it is also possible to quickly develop and integrate customized modules. The modular project management supports multi-axis systems as well as copy/paste and the import/export of function modules.
+Fieldbus interfaces: USB, CANopen, Modbus RTU, Ethernet (REST), EtherCAT ">
+<meta property="og:image" content="https://www.nanotec.com/fileadmin/_processed_/0/9/csm_PNDS-3-plug-and-drive-studio-3_8a011c9d6f.jpg">
+<meta name="twitter:card" content="summary">
+<meta name="language" content="en">
+<meta name="facebook-domain-verification" content="hauvqnzj4u6hq0zkcdww7uhbyx8g49">
+<meta name="google-site-verification" content="_lKM7kD3fUOhehR2j5MQCXZfUKVY-EOePhTgITUfJ4w">
+<meta name="msvalidate.01" content="9D5E317E2A013771D5F642DC9B70BEB4">
+
+
+<link rel="stylesheet" href="/typo3conf/ext/nanotec/Resources/Public/Frontend/Styles/main.css?1795002047" media="all" title="main.css">
+
+
+
+
+
+
+<script type="text/javascript">var nanotecCurrencyJson = '{"symbolLeft":"\u20ac&nbsp;","symbolRight":"","decimalDigits":2,"divisor":100,"priceList":"1"}';var nanotecCurrency = JSON.parse(nanotecCurrencyJson);var currentLanguageId = 0;var languageIds = {"ex" : 0,"us" : 1,"de" : 3,"zh" : 4,"it" : 5};var languageBaseUrls = {0: "https://www.nanotec.com/eu/en",1: "https://www.nanotec.com/us/en",3: "https://www.nanotec.com/eu/de",4: "https://www.nanotec-cn.cn/zh",5: "https://www.nanotec.com/eu/it"};var jsDateFormat = "dd/MM/yy";var nanotecApiUrls = {
+    user: 'https://www.nanotec.com/eu/en/user.json',
+    basket: 'https://www.nanotec.com/eu/en/basket.json',
+    basketAdd: 'https://www.nanotec.com/eu/en/basket/add.json',
+    basketSetAmount: 'https://www.nanotec.com/eu/en/basket/setAmount.json',
+    basketClear: 'https://www.nanotec.com/eu/en/basket/clear.json',
+    clipboard: 'https://www.nanotec.com/eu/en/clipboard.json',
+    clipboardAdd: 'https://www.nanotec.com/eu/en/clipboard/add.json',
+    clipboardClear: 'https://www.nanotec.com/eu/en/clipboard/clear.json',
+    clipboardSetAmount: 'https://www.nanotec.com/eu/en/clipboard/setAmount.json',
+    getCountryByIsoCode: 'https://www.nanotec.com/eu/en/getCountryByIsoCode/',
+    stateOptions: 'https://www.nanotec.com/eu/en/stateOptions/',
+    priceData: 'https://www.nanotec.com/eu/en/priceData/',
+    cadenas: 'https://www.nanotec.com//cadenas-api/'
+};</script>
+    <script type="text/javascript">var nanotecUnitGroupsJson = '[{"baseUnit":null,"pid":245,"title":"Gewicht","uid":6,"units":{"000000000000469d0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"kg","title":"Kilogramm","uid":14},"00000000000046bf0000000000000000":{"conversionFactor":2.204,"pid":245,"symbol":"lb","title":"Pfund","uid":16},"00000000000046bd0000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"g","title":"Gramm","uid":15}}},{"baseUnit":null,"pid":245,"title":"Length (m)","uid":11,"units":{"00000000000046b60000000000000000":{"conversionFactor":1,"pid":245,"symbol":"m","title":"Meter","uid":22},"00000000000046b40000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":23},"00000000000046b00000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"mm","title":"Millimeter","uid":28}}},{"baseUnit":null,"pid":245,"title":"Length (mm)","uid":4,"units":{"00000000000046b20000000000000000":{"conversionFactor":1,"pid":245,"symbol":"mm","title":"Millimeter","uid":10},"00000000000046b80000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":12},"00000000000046c60000000000000000":{"conversionFactor":0.001,"pid":245,"symbol":"m","title":"Meter","uid":27}}},{"baseUnit":null,"pid":245,"title":"Torque (Ncm)","uid":3,"units":{"00000000000046c40000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":6},"00000000000046b50000000000000000":{"conversionFactor":1.41611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":7},"00000000000046d00000000000000000":{"conversionFactor":0.01,"pid":245,"symbol":"Nm","title":"Newton meter","uid":8}}},{"baseUnit":null,"pid":245,"title":"Torque (Nm)","uid":13,"units":{"00000000000046d20000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Nm","title":"Newton meter","uid":31},"00000000000046b90000000000000000":{"conversionFactor":141.611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":32},"00000000000046c70000000000000000":{"conversionFactor":100,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":33}}}]';var nanotecUnitGroups = JSON.parse(nanotecUnitGroupsJson || '[]');var nanotecUnitGroupDefaultSet = "metric";</script>
+
+
+            <link rel="apple-touch-icon" sizes="180x180"
+                  href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/apple-touch-icon.png?1795001905">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-32x32.png?1795001905"
+                  sizes="32x32">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-194x194.png?1795001905"
+                  sizes="194x194">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/android-chrome-192x192.png?1795001905"
+                  sizes="192x192">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-16x16.png?1795001905"
+                  sizes="16x16">
+            <link rel="manifest" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/manifest.json?1795001905">
+            <link rel="mask-icon" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/safari-pinned-tab.svg?1795001905" color="#5488c7">
+            <meta name="msapplication-TileColor" content="#5488c7">
+            <meta name="msapplication-TileImage" content="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/mstile-144x144.png?1795001905">
+            <meta name="theme-color" content="#ffffff">
+        
+
+            <link rel="preconnect" href="//app.usercentrics.eu">
+            <link rel="preconnect" href="//api.usercentrics.eu">
+            <link rel="preconnect" href="//privacy-proxy.usercentrics.eu">
+            <script id="usercentrics-cmp" src=https://app.usercentrics.eu/browser-ui/latest/loader.js data-settings-id="9K5HHE7yqTJ4lH" async></script>
+            <script type="application/javascript" src=https://privacy-proxy.usercentrics.eu/latest/uc-block.bundle.js></script>
+            <script>
+                uc.reloadOnOptIn('BJz7qNsdj-7');
+                uc.reloadOnOptIn('S1pcEj_jZX');
+            </script>
+        
+
+        <script type="text/javascript" tracking>
+            /**
+             * Global event tracking method
+             *
+             * @param category
+             * @param action
+             * @param name
+             * @param value
+             * @param services
+             * @param nonInteraction
+             */
+            window['trackEvent'] = (category, action, name = '', value = 0, parameters = {},
+                                    services = ['ga', 'gtm', 'baidu'],
+                                    nonInteraction = false
+            ) => {
+                return new Promise((resolve, reject) => {
+
+                    // fallback timeout, to ensure event tracking does not block consecutive JS events.
+                    const timeoutTrigger = setTimeout(() => reject(new Error('track event timeout')), 5000)
+                    const gaEventParameters = {
+                        'event_category': category,
+                        'event_action': action,
+                        'event_label': name,
+                        'value': value,
+                        'non_interaction': nonInteraction,
+                        ...parameters
+                    }
+                    // track Google Tag Manager
+                    if (services.indexOf('gtm') !== -1 && typeof gtm !== 'undefined') {
+                        gaEventParameters['event'] = gaEventParameters['event_action']
+                        gtm(gaEventParameters)
+                        if (window.siteMode != 0) {
+                            console.info('Track Google Tag Manager event: ', gaEventParameters);
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Google Tag Manager not loaded or not requested')
+                        }
+                    }
+
+                    // track Baidu
+                    if (services.indexOf('baidu') !== -1 && typeof _hmt !== 'undefined') {
+                        _hmt.push(['_trackEvent', category, action, name, value])
+                        if (window.siteMode != 0) {
+                            console.info('Track Baidu event ' + category + ' ' + action + ' ' + name + ' value: ' + value)
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Baidu not loaded or not requested');
+                        }
+                    }
+
+                    clearTimeout(timeoutTrigger)
+                    resolve()
+                    return true
+                });
+            }
+        </script>
+    
+
+                <script>
+                    // Google Tag Manager
+                    window.siteMode = 0;
+                    const gtagContainerId = 'GTM-K3TX2ZN'
+                    if ('1' === '1') {
+                        (function (w, d, s, l, i) {
+                            w[l] = w[l] || []
+                            w[l].push({
+                                'gtm.start':
+                                    new Date().getTime(), event: 'gtm.js'
+                            });
+                            var f = d.getElementsByTagName(s)[0],
+                                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''
+                            j.async = true
+                            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl
+                            f.parentNode.insertBefore(j, f)
+                        })(window, document, 'script', 'dataLayer', gtagContainerId)
+
+                        window.dataLayer = window.dataLayer || []
+                        window.gtm = function() {
+                            return dataLayer.push(...arguments)
+                        }
+                    }
+
+                    function gaOptout() {
+                        document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/'
+                        window[disableStr] = true
+                    }
+                </script>
+            
+<link rel="canonical" href="https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3" />
+<link rel="alternate" hreflang="en-GB" href="https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3">
+<link rel="alternate" hreflang="en-US" href="https://www.nanotec.com/us/en/products/10492-plug-drive-studio-3">
+<link rel="alternate" hreflang="de-DE" href="https://www.nanotec.com/eu/de/produkte/10492-plug-drive-studio-3">
+<link rel="alternate" hreflang="zh-CN" href="https://www.nanotec-cn.cn/zh/products/10492-plug-drive-studio-3-beta-for-motor-controllers-and-motors-with-integrated-controller">
+<link rel="alternate" hreflang="it-IT" href="https://www.nanotec.com/eu/it/prodotti/10492-plug-drive-studio-3-for-motor-controllers-and-motors-with-integrated-controller">
+<link rel="alternate" hreflang="x-default" href="https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3">
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        
+        
+        
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Nanotec","item":"https://www.nanotec.com/eu/en/"},{"@type":"ListItem","position":2,"name":"Products","item":"https://www.nanotec.com/eu/en/products"},{"@type":"ListItem","position":3,"name":"Software","item":"https://www.nanotec.com/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller"},{"@type":"ListItem","position":4,"name":"Plug & Drive Studio 3","item":"https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3"}]}</script>
+
+        
+
+        
+
+    
+        
+    
+        
+    
+    
+    
+    
+    
+            
+            
+            
+            
+            
+
+            
+            
+        
+
+        
+    
+        <div class="tec-conf-bar" ng-class="{'is-show': currentConfigurationCtrl.show}" current-configuration>
+            <div class="tec-cb-content">
+                <div class="tec-cb-container">
+                    <div class="item-left">
+                        <a href="#" ng-click="currentConfigurationCtrl.clearConfiguration();" class="btn-delete" title="clear combination">
+                            <i class="icon-trash"></i>
+                            <span class="text-display">
+                            <u>clear combination</u>
+                        </span>
+                        </a>
+                    </div>
+                    <div class="item-middle">
+                        <i class="icon-adjust"></i>
+                        <span class="text-display">
+                        active combination
+                    </span>
+                    </div>
+                    <div class="item-right">
+                        <a class="btn-back" title="back to configurator" href="/eu/en/products/product-configurator">
+                            <i class="icon-squared-big-left"></i>
+                            <span class="text-display">
+                            back to configurator
+                        </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+
+        <div class="wrapper">
+            
+    
+    <header id="header" sticky-header>
+        <div class="h-header">
+            <div class="row">
+                <div class="col-xs-6 col-md-4 col-logo">
+                    <a class="navbar-brand" href="/eu/en">
+                        <picture>
+                            <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.svg?1795001905" alt="Nanotec Electronic Homepage"
+                                 width="220" height="42" title="Nanotec Electronic Homepage"/>
+                            <source media="(min-width: 38em)" srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                            <source srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                        </picture>
+                    </a>
+                </div>
+                <div class="navbar-mobile hidden-lg-up col-xs-6" mobile-nav>
+                    
+                    <span class="hamburger" ng-click="mNav.toggleMobileNav()">
+                        <span></span>
+                    </span>
+                </div>
+                <!-- if you want a off-canvas open, please write the class is-open. -->
+                <div class="hidden-md-down off-canvas-md-down nav-mobile" ng-class="{'is-open': mNav.isOpen()}" mobile-nav>
+                    <div class="off-canvas-container">
+                        <div class="off-canvas-headline">
+                            Navigation
+                            <i class="icon-close" ng-click="mNav.toggleMobileNav()"></i>
+                        </div>
+                        <div class="col-md-8 pull-md-right col-utilities">
+                            
+    <nav class="navbar navbar-utilities" utilities-navbar>
+        <ul class="nav navbar-nav pull-md-right">
+
+            
+            
+
+            
+            <li class="nav-item item-all-products">
+                <a data-placement="bottom" tooltip="1" title="All products" class="nav-link" href="/eu/en/service/products">
+                    <span class="text hidden-lg-up">All products</span>
+                    <i class="icon-nanotec"></i>
+                </a>
+            </li>
+
+            
+                
+                <li class="nav-item item-login dropdown"
+                    ng-class="{'open': utilNav.isLoginDropdownOpen(), 'is-user-online' : user.userExists()}" user>
+                    <span class="nav-link" ng-click="utilNav.toggleLoginDropdown($event)"
+                          title="My Account" data-placement="bottom" tooltip>
+                        <span class="text hidden-lg-up">My Account</span>
+                        <i class="icon-male-user"></i>
+                    </span>
+                    <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLoginDropdown()"
+                         outside-if-not="item-login">
+                        <span class="link-back hidden-lg-up"
+                              ng-click="utilNav.toggleLoginDropdown($event)">Back</span>
+
+                        
+                        <div class="dropdown-user" ng-if="user.userExists()">
+                            <p>Hello <b>{{ user.user().username }}</b></p>
+                            <div class="actions row">
+                                <div class="col-xs-5">
+                                    <form action="/eu/en/login"
+                                          target="_top"
+                                          method="post" name="logout">
+                                        <input type="submit" name="submit"
+                                               value="Logout"
+                                               class="btn btn-secondary btn-sm"/>
+                                        <input type="hidden" name="logintype" value="logout"/>
+                                    </form>
+                                </div>
+                                <div class="col-xs-7">
+                                    <a class="btn btn-primary btn-sm" href="/eu/en">
+                                        Edit profile
+                                    </a>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        
+                        <div class="dropdown-login" ng-if="!user.userExists()">
+                            
+                            <form target="_top" class="form" action="/eu/en/login?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=7b24c29591f1a9306e9cf9cdd5f430a1" method="post">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Flux" >
+<input type="hidden" name="__referrer[@controller]" value="Page" >
+<input type="hidden" name="__referrer[@action]" value="render" >
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt977df86fa6619614b9b7a612854bb14c77cd4b957" >
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Flux&quot;,&quot;@controller&quot;:&quot;Page&quot;,&quot;@action&quot;:&quot;render&quot;}e6d95d58abbb7b0d0aca459fdc0413e3fc5731db" >
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCJVcGJXbVJVSWdJN00xRms1TkJoemFBXCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMDU6MDQ6MDkrMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTAxIiwicmVxdWVzdCI6eyJ1cmkiOiIvZXUvZW4vbG9naW4_dHhfZmVsb2dpbl9sb2dpbiU1QmFjdGlvbiU1RD1sb2dpbiZhbXA7dHhfZmVsb2dpbl9sb2dpbiU1QmNvbnRyb2xsZXIlNUQ9TG9naW4mYW1wO2NIYXNoPTdiMjRjMjk1OTFmMWE5MzA2ZTljZjljZGQ1ZjQzMGExIn19fQ.Slfc8SExZWChHGiRhAL9N9hI656AZFh3FZs3nFH-2fc"><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;logintype&quot;:1,&quot;referer&quot;:1,&quot;redirect_url&quot;:1,&quot;submit&quot;:1}d7491b138f243611d4bb585cd876451df7cd0c19" >
+</div>
+
+                                <fieldset class="form-group">
+                                    <input autocomplete="username" class="form-control form-control-success" placeholder="Username/E-Mail" type="text" name="user" required="required" />
+                                </fieldset>
+                                <fieldset class="form-group">
+                                    <input required="required" autocomplete="current-password" id="login-password" class="form-control form-control-danger" placeholder="Password" type="password" name="pass" value="" />
+                                </fieldset>
+                                <div style="display: none;">
+                                    <input type="hidden" name="logintype" value="login" />
+                                    <input type="hidden" name="referer" value="/eu/en/products/10492-plug-drive-studio-3" />
+                                    <input type="hidden" name="redirect_url" value="/eu/en/products/10492-plug-drive-studio-3" />
+                                </div>
+                                <div class="form-group">
+                                    <input class="btn btn-primary btn-sm" type="submit" value="Login" name="submit" />
+                                </div>
+                                <a title="Forgot your password?" href="/eu/en/login?tx_felogin_login%5Baction%5D=recovery&amp;tx_felogin_login%5Bcontroller%5D=PasswordRecovery&amp;cHash=b4e60212c8f14bf21400489efa2efd1a">
+                                    <small>Forgot your password?</small>
+                                </a>
+                                <hr>
+                                <a class="btn btn-tertiary btn-sm" href="/eu/en/register">Register
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+
+                
+                <li class="nav-item item-basket">
+                <span class="nav-link" ng-click="utilNav.toggleASideBasket($event)" title="Shopping cart"
+                      data-placement="bottom" tooltip>
+                    <span class="text hidden-lg-up">Shopping cart</span>
+                    <i class="icon-cart-shopping"></i>
+                    <span class="badge">
+                        <span class="count" ng-cloak ng-bind="utilNav.BasketService.basket.amount"></span>
+                    </span>
+                </span>
+                </li>
+            
+
+            
+            
+
+            
+            
+                    <li class="nav-item item-languages pull-right dropdown"
+                        ng-class="{'open': utilNav.isLangDropdownOpen()}">
+                        <span class="nav-link" ng-click="utilNav.toggleLangDropdown($event)"
+                              title="Chose site language" data-placement="bottom" tooltip>
+                            <span class="text hidden-lg-up">Languages</span>
+                            <span class="current-language">EN</span>
+                        </span>
+                        <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLangDropdown()"
+                             outside-if-not="item-languages">
+                            <span class="link-back hidden-lg-up"
+                                  ng-click="utilNav.toggleLangDropdown($event)">Back</span>
+                            
+                                
+                                    <a class="language-menu-link dropdown-item is-current hidden-lg-up"
+                                       data-language-identifier="0"
+                                       href="https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3">English</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="1"
+                                       href="https://www.nanotec.com/us/en/products/10492-plug-drive-studio-3">Engl. US</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="3"
+                                       href="https://www.nanotec.com/eu/de/produkte/10492-plug-drive-studio-3">Deutsch</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="4"
+                                       href="https://www.nanotec-cn.cn/zh/products/10492-plug-drive-studio-3-beta-for-motor-controllers-and-motors-with-integrated-controller">中文</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="5"
+                                       href="https://www.nanotec.com/eu/it/prodotti/10492-plug-drive-studio-3-for-motor-controllers-and-motors-with-integrated-controller">Italiano</a>
+                                
+                            
+                        </div>
+                    </li>
+                
+
+            
+            <li class="nav-item item-unit-selector dropdown" ng-class="{'open': utilNav.isUnitSelectorOpen()}">
+                <span class="nav-link" ng-click="utilNav.toggleUnitSelectorDropdown($event)" data-placement="bottom"
+                      title="Select unit systems" tooltip>
+                    <span class="text hidden-lg-up">Select unit systems</span>
+                    <i class="icon-tachometer"></i>
+                </span>
+                <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeUnitSelector()"
+                     outside-if-not="item-unit-selector">
+                    <span class="link-back hidden-lg-up" ng-click="utilNav.toggleUnitSelectorDropdown($event)">Back</span>
+                    <div class="dropdown-unit-selector text-md-center" unit-selector>
+                        <div class="header h4">Select unit system</div>
+                        <div class="controls">
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'metric'}"
+                                    ng-click="unitSelector.setPreset('metric')">Metric
+                            </button>
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'imperial'}"
+                                    ng-click="unitSelector.setPreset('imperial')">Imperial (US)
+                            </button>
+                        </div>
+                        <a href="/eu/en/products/unit-settings">
+                            <u>...or select units individually</u>
+                        </a>
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        
+        <form class="tec-form-search-submit pull-md-right" action="/eu/en/search"
+              method="get">
+            <input class="form-control" type="text" name="q" placeholder="Enter your search term">
+            <button type="submit" title="Search">
+                <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Icons/Frontend/search.svg?1795001905"
+                     width="20"
+                     height="20"
+                     alt="Search"
+                />
+            </button>
+        </form>
+    </nav>
+
+                        </div>
+                        <div class="col-md-12 col-navigation">
+                            
+    
+        <nav id="navigation" class="navbar navbar-light" role="navigation"><ul class="nav navbar-nav"><li class="nav-item item-home"><a href="/eu/en" class="nav-link is-home"><span class="text-display">Home</span><i class="icon-home"></i></a></li><li main-navigation-item class="nav-item has-menu active" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/products" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Products</a><div class="menu menu-lg level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/products" class="link-current">Products</a><div class="menus"><ul class="menu-box-info"><li class="nav-item"><a href="/eu/en/products/product-finder" class="nav-link hidden-lg-up">Product Filter</a><div class="menu-bi-content"><a href="/eu/en/products/product-finder" class="btn btn-tertiary">Product Filter</a></div></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="nav-link"><span class="text-display">Smart Brushless DC Servos</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="link-current">Smart Brushless DC Servos</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2878-bldc-motors-with-controller-integrated-brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2877-stepper-motor-with-controller-drive" class="nav-link"><span class="text-display">Stepper motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Integrated linear actuators</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/158-motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers / drives</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/158-motor-controllers-drives" class="link-current">Motor controllers / drives</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10739-bldc-motor-controller-1" class="nav-link"><span class="text-display">Controllers/Drives for IO applications</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10741-programmable-stepper-motor-controller-and-bldc" class="nav-link"><span class="text-display">High-performance controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10985-plug-in-motor-controllers-drives" class="nav-link"><span class="text-display">Plug-in motor controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10776-multi-axis-motor-controller-drive" class="nav-link"><span class="text-display">4-axis controllers/drives</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link"><span class="text-display">Software</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="link-current">Software</a><ul></ul></li></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="nav-link"><span class="text-display">Brushless DC motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="link-current">Brushless DC motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2265-brushless-dc-motors-rpm-w-watt" class="nav-link"><span class="text-display">BLDC motors with internal rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2267-brushless-dc-external-rotor-motors-bldc" class="nav-link"><span class="text-display">Flat BLDC motors with external rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/653-brushless-dc-motor-ip65-bldc-with-encoder" class="nav-link"><span class="text-display">IP65 BLDC motors with encoder</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/12404-dka-frameless-bldc-motors" class="nav-link"><span class="text-display">Frameless BLDC motors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="nav-link"><span class="text-display">Stepper motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="link-current">Stepper motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2263-nema-stepper-motors-14-110-mm-flange" class="nav-link"><span class="text-display">Hybrid stepper motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2254-flat-motors" class="nav-link"><span class="text-display">Flat motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1269-hollow-shaft-motors" class="nav-link"><span class="text-display">Hollow-shaft motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/154-stepper-motors-ip65" class="nav-link"><span class="text-display">Stepper motors IP65</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/11077-bldc-linear-actuators" class="nav-link"><span class="text-display">BLDC Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/11077-bldc-linear-actuators" class="link-current">BLDC Linear Actuators</a><ul></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="nav-link"><span class="text-display">Stepper Motor Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="link-current">Stepper Motor Linear Actuators</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Linear actuators with controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14354-lbsa56-nema23-ball-screw" class="nav-link"><span class="text-display">Linear actuators with ball screw</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14360-nema-6-23-linear-actuators" class="nav-link"><span class="text-display">Linear actuators NEMA 6 - NEMA 23</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="nav-link"><span class="text-display">Lead screws and nuts</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="link-current">Lead screws and nuts</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/290-leads-screws-for-stepper-motor" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2322-nuts-for-stepper-linear-actuators" class="nav-link"><span class="text-display">Threaded nuts</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2655-wheel-drives" class="nav-link"><span class="text-display">Wheel drives for AGV</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2655-wheel-drives" class="link-current">Wheel drives for AGV</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/8469-wd-modular-wheel-drives" class="nav-link"><span class="text-display">Modular wheel drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/11091-wd42-compact-wheel-drives-with-motor" class="nav-link"><span class="text-display">Compact wheel drives with motor</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="nav-link"><span class="text-display">Gearboxes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="link-current">Gearboxes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10989-hollow-rotary-tables" class="nav-link"><span class="text-display">Hollow rotary tables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2704-planetary-gearboxes" class="nav-link"><span class="text-display">Planetary gearboxes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2276-worm-gearbox-for-stepper-motor-bldc-motor" class="nav-link"><span class="text-display">Worm gearboxes</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="link-current">Encoders</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2277-optical-encoders" class="nav-link"><span class="text-display">Optical encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2278-reflective-encoders" class="nav-link"><span class="text-display">Reflective encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2279-magnetic-encoders" class="nav-link"><span class="text-display">Magnetic encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/9956-multiturn-absolute-encoder" class="nav-link"><span class="text-display">Multiturn encoders</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="nav-link"><span class="text-display">Brakes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="link-current">Brakes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/1936-spring-loaded-brake" class="nav-link"><span class="text-display">BWA – Spring-loaded brakes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10078-brake-with-output-shaft" class="nav-link"><span class="text-display">BCD – Spring-loaded brakes</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/162-accessories" class="nav-link"><span class="text-display">Accessories</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/162-accessories" class="link-current">Accessories</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/283-connection-cables" class="nav-link"><span class="text-display">Connection cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10754-brake-chopper" class="nav-link"><span class="text-display">Brake chopper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/288-damper" class="nav-link"><span class="text-display">Damper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1494-spacer-sleeves-spacer-sleeves" class="nav-link"><span class="text-display">Spacer sleeves</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1264-supplements-for-gsge-gearboxes" class="nav-link"><span class="text-display">Double shaft/Cover</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1272-electronics" class="nav-link"><span class="text-display">Electronics</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1047-capacitors" class="nav-link"><span class="text-display">Capacitors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1048-converters" class="nav-link"><span class="text-display">Converters</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2719-keys" class="nav-link"><span class="text-display">Keys</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1049-switching-power-supplies" class="nav-link"><span class="text-display">Switching power supplies</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2389-nanolube-50g-bearing-grease" class="nav-link"><span class="text-display">Lubricants</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1445-connectors" class="nav-link"><span class="text-display">Connectors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/individual-solutions" class="nav-link"><span class="text-display">Individual solutions</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/individual-solutions" class="link-current">Individual solutions</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/cable-assembly" class="nav-link"><span class="text-display">Cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/firmware" class="nav-link"><span class="text-display">Firmware</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/lead-screw-modification" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/custom-motors" class="nav-link"><span class="text-display">Motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/motor-shafts" class="nav-link"><span class="text-display">Motor shafts</span></a></li></ul></li></ul></ul></div></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/knowledge-base" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Know-How</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/knowledge-base" class="link-current">Knowledge Base</a><ul><li class="nav-item"><a href="/eu/en/knowledge-base/category/fieldbus-systems-interfaces" class="nav-link"><span class="text-display">Fieldbus systems & interfaces</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motors-with-controllers" class="nav-link"><span class="text-display">Motors with controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motors" class="nav-link"><span class="text-display">Stepper motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/linear-actuators" class="nav-link"><span class="text-display">Linear actuators</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/applications" class="nav-link"><span class="text-display">Applications</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-plug-drive-studio" class="nav-link"><span class="text-display">Programming with Plug & Drive Studio</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanolib" class="nav-link"><span class="text-display">Programming with NanoLib</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanoj" class="nav-link"><span class="text-display">Programming with NanoJ</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming" class="nav-link"><span class="text-display">Programming with other software</span></a></li></ul></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/downloads" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Downloads</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/downloads" class="link-current">Downloads</a><ul><li class="nav-item"><a href="/eu/en/downloads/catalogs-flyers" class="nav-link">Catalogs & Flyers</a></li><li class="nav-item"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link">Software</a></li><li class="nav-item"><a href="/eu/en/downloads/manualsdatasheets" class="nav-link">Manuals/Datasheets</a></li><li class="nav-item"><a href="/eu/en/downloads/drivers" class="nav-link">Drivers</a></li><li class="nav-item"><a href="/eu/en/downloads/archive" class="nav-link">Archive</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/news-trade-shows" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">News & Events</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/news-trade-shows" class="link-current">News & Events</a><ul><li class="nav-item"><a href="/eu/en/news-trade-shows/press" class="nav-link">Press</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trainings" class="nav-link">Trainings</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trade-shows" class="nav-link">Trade Shows</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/news" class="nav-link">News</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/company" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Company</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/company" class="link-current">Company</a><ul><li class="nav-item"><a href="/eu/en/company/about-nanotec" class="nav-link">About Nanotec</a></li><li class="nav-item"><a href="/eu/en/company/facts-and-figures" class="nav-link">Facts and figures</a></li><li class="nav-item"><a href="/eu/en/company/locations" class="nav-link">Locations</a></li><li class="nav-item"><a href="/eu/en/company/integrated-management" class="nav-link">Integrated management</a></li><li class="nav-item"><a href="/eu/en/company/research-funding" class="nav-link">Research funding</a></li></ul></li><li main-navigation-item class="nav-item"><a href="/eu/en/job-opportunities" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Career</a></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/contact-us" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Contact us</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/contact-us" class="link-current">Contact us</a><ul><li class="nav-item"><a href="/eu/en/contact-us/contact-form" class="nav-link">Contact Form</a></li><li class="nav-item"><a href="/eu/en/contact-us/sales-contact" class="nav-link">Local Sales Contact</a></li><li class="nav-item"><a href="/eu/en/contact-us/customer-service" class="nav-link">Customer Service</a></li><li class="nav-item"><a href="/eu/en/contact-us/support" class="nav-link">After Sales Support</a></li><li class="nav-item"><a href="/eu/en/contact-us/returns/rma" class="nav-link">Returns/RMA</a></li><li class="nav-item"><a href="/eu/en/contact-us/how-to-find-us" class="nav-link">How to Find Us</a></li></ul></li></ul></nav>
+    
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+
+            
+        
+    <div class="container">
+        <nav class="breadcrumb" role="navigation">
+            <ol>
+                <li>You are here:</li>
+                
+                    <li>
+                        <a href="/eu/en/">Nanotec</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products">Products</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller">Software</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/10492-plug-drive-studio-3">Plug &amp; Drive Studio 3</a>
+                    </li>
+                
+            </ol>
+        </nav>
+    </div>
+
+        <main class="main-content" role="main">
+            <div class="container">
+                <!-- TYPO3SEARCH_begin -->
+                
+
+
+    
+    
+    
+        
+            
+                    <div id="c812" name="c812">
+                        
+                            
+
+    
+
+
+
+                        
+                        
+
+    
+    
+
+
+    
+    
+    
+            
+
+    
+    
+            
+            
+        
+    
+    
+    
+            
+        
+    
+    
+    
+    
+    
+    
+    
+    
+            
+        
+
+
+    
+    <h1 class="headline" role="heading">
+        
+            <span class="headline-row">
+                <span class="headline-cell text-nowrap">Plug &amp; Drive Studio 3 &mdash;&nbsp;</span>
+                <span class="headline-cell">
+                    For motor controllers/drives and motors with integrated controller/drive
+                </span>
+            </span>
+            
+    </h1>
+    <section class="section section-product-detail" id="article-top">
+        <div class="row">
+            
+            
+                <div class="col-md-4 col-sm-12">
+                    <div class="product-image">
+                        <figure class="figure">
+                            <img src="/typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_eb6f9c72be.webp" srcset="/typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_3459bd6f84.webp 348w, /typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_0686cd3afb.webp 566w, /typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_e0d16705f0.webp 420w, /typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_eb6f9c72be.webp 771w, /typo3temp/assets/_processed_/a/1/csm_csm_PNDS-3-plug-and-drive-studio-3_0a95a26e0c_61ee71c5234344f5fb6f1b449ac045b6_515c0443d2.webp 698w" sizes="(min-width: 1280px) 348px, (min-width: 1024px) 566px, (min-width: 768px) 420px, 93vw" width="771" height="514" alt="Plug &amp; Drive Studio 3" class="product-image">
+
+                        </figure>
+                    </div>
+                </div>
+            
+            <div class="col-md-8">
+                <div class="content">
+                    <p>Plug &amp; Drive Studio 3 is a software used to commission and program Nanotec’s motor controllers/drives. This software version comes with an integrated UI Designer which enables users to adapt the interface to different types of applications and user groups.</p>
+<p>With the help of Controlbrowser it is also possible to quickly develop and integrate customized modules. The modular project management supports multi-axis systems as well as copy/paste and the import/export of function modules.</p>
+<p>Fieldbus interfaces:&nbsp;<a href="/eu/en/knowledge-base-article/bldc-stepper-motor-control-with-usb" target="_top">USB</a>, <a href="/eu/en/knowledge-base-article/canopen-motors-controllers" target="_top">CANopen</a>, <a href="/eu/en/knowledge-base-article/modbus-rtu-motors-controllers" target="_top">Modbus RTU</a>,&nbsp;Ethernet (REST), <a href="/eu/en/knowledge-base-article/ethercat-motors-controllers" target="_top">EtherCAT&nbsp;</a></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    <section class="section" id="current-version">
+        
+
+        <header class="s-header">
+            <h2 class="headline">
+                Latest Version 3.3.0.2
+            </h2>
+        </header>
+
+        <div class="list-groups m-b-2" list-actions="">
+            <div class="row">
+                <div class="col-md-6 col-sm-12">
+                    <ul class="list-group is-table">
+                        <li class="list-group-item">
+                            
+                                <div class="list-group-item-row">
+                                    
+                                            <strong class="cell">Download(s)</strong>
+                                        
+                                    <span class="cell text-sm-left">
+                                        <a class="link"
+                                           href="/fileadmin/files/Software/Plug_Drive_Studio/PnDS3_v.3.3.0.2_Package.zip?1793873154" ga-track-software
+                                           data-software="Plug &amp; Drive Studio 3 3.3.0.2">
+                                             3.3.0.2 (zip,&nbsp;160 MB)
+                                        </a>
+                                    </span>
+                                    <span class="cell text-sm-right">
+                                        <a href="/fileadmin/files/Software/Plug_Drive_Studio/PnDS3_v.3.3.0.2_Package.zip?1793873154"
+                                           ga-track-software data-software="Plug &amp; Drive Studio 3 3.3.0.2"
+                                           class="table-btn-action btn-tertiary"
+                                           title="Download: Plug &amp; Drive Studio 3 3.3.0.2">
+                                        <i class="icon-cloud-download"></i>
+                                    </a>
+                                    </span>
+                                </div>
+                            
+                        </li>
+                        
+                            <li class="list-group-item">
+                                <div class="list-group-item-row">
+                                    <strong class="cell">Operating Systems</strong>
+                                    <span class="cell text-sm-left">Windows 10 x64, Windows 11 x64</span>
+                                </div>
+                            </li>
+                        
+                        
+                            <li class="list-group-item">
+                                <div class="list-group-item-row">
+                                    <strong class="cell">Firmware</strong>
+                                    <span class="cell text-sm-left">
+                                    
+                                            <a href="/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871"
+                                               ga-track-software data-software="Plug &amp; Drive Studio 3 Firmware Package"
+                                               title="Download: Plug &amp; Drive Studio 3 Firmware Package">Firmware Package (zip,&nbsp;112 MB)
+                                            </a>
+                                        
+                                    </span>
+                                </div>
+                            </li>
+                        
+                    </ul>
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    <ul class="list-group is-table">
+                        
+                            <li class="list-group-item">
+                                
+                                    <div class="list-group-item-row">
+                                        
+                                                <strong class="cell">Manual</strong>
+                                            
+                                        <span class="cell text-sm-left">
+                                            <a class="link"
+                                               ga-track-download data-ga-action="Software Manual"
+                                               data-ga-label="PNDS3_User_Manual_V1.4.0.pdf"
+                                               href="/fileadmin/files/Software/Plug_Drive_Studio/PNDS3_User_Manual_V1.4.0.pdf?1784550104"
+                                               title="Plug &amp; Drive Studio 3 - User Manual v. 1.4.0">
+                                                    Plug &amp; Drive Studio 3 - User Manual v. 1.4.0 (pdf,&nbsp;2 MB)
+                                            </a>
+                                        </span>
+                                        <span class="cell text-sm-right">
+                                            <a href="/fileadmin/files/Software/Plug_Drive_Studio/PNDS3_User_Manual_V1.4.0.pdf?1784550104"
+                                               ga-track-download
+                                               data-ga-action="Software Manual"
+                                               class="table-btn-action btn-primary"
+                                               title="Download: Plug &amp; Drive Studio 3 - User Manual v. 1.4.0">
+                                                <i class="icon-cloud-download"></i>
+                                            </a>
+                                        </span>
+                                    </div>
+                                
+                            </li>
+                        
+                        
+                            <li class="list-group-item">
+                                <div class="list-group-item-row">
+                                    <strong class="cell">Compatible Products</strong>
+                                    <span class="cell text-sm-left">
+                                            
+    
+        <nav class="tooltip-links">
+            
+                <a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive">Smart Servos – Motors with integrated controller/drive</a>
+            
+                <a href="/eu/en/products/158-motor-controllers-drives">Motor controllers/drives for BLDC and stepper motors</a>
+            
+        </nav>
+    
+
+                                        </span>
+                                </div>
+                            </li>
+                        
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    
+
+    
+    
+    
+        <section class="section" id="additionalInformation">
+            <hr class="line-sep is-border"/>
+            
+
+
+    
+    
+    
+        
+            
+                    <div id="c27039" name="c27039">
+                        
+    
+            
+            
+    
+
+    
+
+
+
+    
+            <p class="warning text-center">You can find older software versions in our <a href="/eu/en/downloads/archive#c2678" target="_top">archive</a>.</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+        </section>
+    
+
+    
+    
+        
+    <section class="section">
+        
+            <hr class="line-sep is-border"/>
+            <div class="row" id="KBC11227">
+                <div class="col-lg-8 col-md-10 col-sm-12 offset-md-1 offset-lg-2">
+                    
+    <article>
+        
+        <header class="article-header">
+            
+                    <header class="s-header">
+                        <h2 class="headline has-border">Webinar: Introducing Plug &amp; Drive Studio 3</h2>
+                    </header>
+                
+        </header>
+
+        <div class="article-body clearfix">
+            
+            
+
+            
+            <p>Our free Plug &amp; Drive Studio 3 makes programming and commissioning Nanotec motor controllers / drives even more intuitive! This video provides insights into the software’s features and demonstrates how you can efficiently develop and integrate your own modules.</p>
+
+
+            
+            
+            
+                
+
+
+    
+    
+    
+        
+            
+                    <div id="c24462" name="c24462">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Our free Plug &amp; Drive Studio 3 makes programming and commissioning Nanotec motor controllers / drives even more intuitive! This video provides insights into the software’s features and demonstrates how you can efficiently develop and integrate your own modules.</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+
+
+    
+    
+    
+        
+            
+                    <div id="c24464" name="c24464">
+                        
+    
+            
+                    
+                    
+
+    
+
+
+
+                    
+    
+
+
+
+
+
+
+
+    <div class="tec-gallery is-single"
+         data-ce-columns="1" data-ce-images="1">
+        <div class="gl-container">
+            
+                <div class="gl-row">
+                    
+                    
+                        
+                        
+                        
+                        
+                            <div class="gl-column images-row-center">
+                                
+                                        
+    <div class="embed-responsive embed-responsive-16by9" style="flex: auto;">
+        
+    
+            <div>
+                
+    <iframe src="https://www.youtube-nocookie.com/embed/Ns_jIYgIAuA?autohide=1&amp;controls=1&amp;rel=0&amp;enablejsapi=1&amp;origin=https%3A%2F%2Fwww.nanotec.com" allowfullscreen width="1106" height="622" title="Easy programming with our motion control software – Nanotec" allow="fullscreen"></iframe>
+
+            </div>
+        
+
+    </div>
+
+                                    
+                            </div>
+                        
+                    
+                    
+                </div>
+            
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+            
+        </div>
+    </article>
+
+                </div>
+            </div>
+        
+    </section>
+
+    
+
+    
+        
+    <section class="section is-fullscreen is-gray">
+        <div class="s-body text-xs-center">
+            <h2 class="headline has-border">Do you have any questions?</h2>
+            <p class="m-b-3 m-t-1">Our sales team is happy to answer any questions you may have about our products.</p>
+            <a class="btn btn-tertiary btn-lg" title="Contact Sales" href="/eu/en/contact-us/sales-contact">
+                Contact Sales
+            </a>
+        </div>
+    </section>
+
+    
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                <!-- TYPO3SEARCH_end -->
+                
+            </div>
+        </main>
+    
+            
+    <footer id="footer">
+        <div class="f-container">
+            <div class="container">
+                
+                        
+    <nav class="f-social-links">
+        <ul>
+            
+                <li>
+                    <a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/nanotec-electronic">
+                        <i class="icon-linkedin"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Xing" target="_blank" href="https://www.xing.com/pages/nanotecelectronicgmbh-co-kg">
+                        <i class="icon-xing"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Youtube" target="_blank" href="https://www.youtube.com/@NanotecElectronic">
+                        <i class="icon-youtube-play"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Facebook" target="_blank" href="https://www.facebook.com/nanotecde">
+                        <i class="icon-facebook"></i>
+                    </a>
+                </li>
+            
+        </ul>
+    </nav>
+
+                    
+
+                <nav class="f-navigation" role="navigation">
+                    <ul><li><a href="/eu/en" title="Home">Home</a></li><li><a href="/eu/en/service/products" title="Product overview">Product overview</a></li><li><a href="/eu/en/news-trade-shows/news" title="News">News</a></li><li><a href="/eu/en/privacy-statement" title="Privacy Statement">Privacy Statement</a></li><li><a href="/eu/en/general-terms-and-conditions" title="General Terms and Conditions">General Terms and Conditions</a></li><li><a href="/eu/en/general-terms-and-conditions-of-purchase" title="General Terms and Conditions of Purchase">General Terms and Conditions of Purchase</a></li><li><a href="/eu/en/legal-details" title="Legal Details">Legal Details</a></li></ul>
+                </nav>
+                <div class="footer-info">
+                    
+                        
+                            
+
+
+    
+    
+    
+        
+            
+                    <div id="c21" name="c21">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Nanotec Electronic GmbH,&nbsp; Kapellenstr. 6, 85622 Feldkirchen, Germany, Tel.&nbsp;<a href="tel:+49899006860" class="ga-track-contact">+49 89 900686-0</a>, E-mail: <a href="/cdn-cgi/l/email-protection#6900070f0629070807061d0c0a470d0c" class="ga-track-contact"><span class="__cf_email__" data-cfemail="224b4c444d624c434c4d5647410c4647">[email&#160;protected]</span></a>&nbsp;</p>
+<p>Copyright © 1995-2026 by Nanotec Electronic GmbH, all rights reserved</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                        
+                    
+                    
+                </div>
+            </div>
+        </div>
+        
+            
+    
+        <span basket>
+            <div class="off-canvas-right" ng-class="{'is-open': basket.isOpen()}" click-outside="basket.closeBasket()"
+                 outside-if-not="item-basket">
+                <div class="off-canvas-headline">
+                    Shopping cart
+                    <i class="icon-close" ng-click="basket.toggleBasket()"></i>
+                </div>
+                <div class="off-canvas-body off-canvas-body-basket">
+                    <div class="off-canvas-content off-canvas-basket">
+                        <p class="alert alert-warning" role="alert" ng-if="basket.BasketService.basket.amount === 0">
+                            Your cart is empty.</p>
+
+                        <div class="media" ng-repeat="lineItem in basket.BasketService.basket.lineItems">
+                            <a class="media-left" ng-href="{{ lineItem.articles[0].url }}"
+                               ng-if="lineItem.imageSrc.length > 0">
+                                <img class="media-object" ng-src="{{ lineItem.imageSrc }}" alt="{{ lineItem.title }}" width="50"
+                                     height="40">
+                            </a>
+                            <div class="media-body">
+                                <span ng-if="lineItem.configuration" class="tag tag-primary">Combination</span>
+                                <h4 class="media-heading">
+                                    <span ng-bind="lineItem.amount + ' x '"></span>
+                                    <span ng-repeat="article in lineItem.articles">
+                                        <span ng-if="!$first"> +&nbsp;</span>
+                                        <a ng-href="{{ article.url }}"><span ng-bind="article.title"></span></a>
+                                        <span ng-if="lineItem.configuration" ng-bind="' - ' + article.subtitle"></span>
+                                    </span>
+                                </h4>
+                                <span ng-if="!lineItem.configuration" ng-bind="lineItem.articles[0].subtitle"></span><br>
+                                <span ng-if="basket.isPurchasable()" ng-bind-html="lineItem.price | priceAndCurrency"></span>
+                                <a ng-click="basket.removeLineItemWithConfirmation(lineItem, 'confirmClearLineItemModal')"
+                                   class="remove"><i class="icon-close"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="off-canvas-footer off-canvas-footer-basket" ng-show="basket.BasketService.basket.amount > 0">
+                    <div class="clear-basket">
+                        <a href="#" ng-click="basket.openModal('confirmClearBasketModal')">Clear cart</a>
+                    </div>
+                    <a class="btn btn-tertiary btn-block" href="/eu/en/your-shopping-basket">
+                        <span ng-if="basket.isPurchasable()">Checkout/Review/Share</span>
+                        <span ng-if="!basket.isPurchasable()">Request Quote/Review/Share</span>
+                    </a>
+                </div>
+            </div>
+            
+    <div class="modal fade" id="confirmClearBasketModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h3 class="modal-title">Delete all articles from your cart?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Please click &quot;Clear cart&quot; to delete all articles.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearFromModal('confirmClearBasketModal')">
+                        Clear cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            
+    <div class="modal fade" id="confirmClearLineItemModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h4 class="modal-title">Delete article from your cart?</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Click &quot;delete article&quot; to delete this article from your cart:</p>
+                    <div class="media">
+                        <a class="media-left" ng-href="{{ basket.lineItemOnTheBrink.articles[0].url }}"
+                           ng-if="basket.lineItemOnTheBrink.imageSrc.length > 0">
+                            <img class="media-object" ng-src="{{ basket.lineItemOnTheBrink.imageSrc }}"
+                                 alt="{{ basket.lineItemOnTheBrink.title }}"
+                                 width="50"
+                                 height="40">
+                        </a>
+                        <div class="media-body">
+                            <strong class="media-heading">{{ basket.lineItemOnTheBrink.amount }} x <span
+                                    ng-repeat="article in basket.lineItemOnTheBrink.articles"><a
+                                    ng-href="{{ article.url }}">{{ article.title }}</a></span>
+                            </strong><br>
+                            <span ng-bind-html="basket.lineItemOnTheBrink.articles[0].subtitle"></span><br>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearLineItemFromModal('confirmClearLineItemModal')">
+                        Clear article
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </span>
+    
+
+        
+        
+        
+        
+    
+    </footer>
+    <a href="#" class="btn-to-top" title="To top" scroll-to-top></a>
+
+        </div>
+        
+    <div domain-switcher>
+        <div class="modal" id="domain-switcher-modal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    
+                    
+                    <div class="modal-header">
+                        <button id="stay-on-language-site" type="button" class="btn btn-secondary close" data-dismiss="modal" aria-label="Close" title="Close">
+                            <i class="icon-close" ng-if="!domainSwitcherCtrl.forceMode"></i>
+                        </button>
+                        <h4 class="modal-title" ng-if="!domainSwitcherCtrl.forceMode">Please switch to another domain</h4>
+                        <h4 class="modal-title" ng-if="domainSwitcherCtrl.forceMode">Your will be redirected to {{domainSwitcherCtrl.targetDomain}}.</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div ng-if="!domainSwitcherCtrl.forceMode"><p><strong>Dear Visitor,</strong></p>
+<p>As a user from&nbsp;<strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we would like to redirect you to <strong>{{ domainSwitcherCtrl.targetDomain }}</strong>.</p></div>
+                        <div ng-if="domainSwitcherCtrl.forceMode"><p><strong>Dear Customer,&nbsp;</strong></p>
+<p>As a user from <strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we will redirect you to&nbsp;<strong>{{domainSwitcherCtrl.targetDomain}}</strong>.<strong>&nbsp;</strong></p>
+<p></p></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal"
+                                ng-if="!domainSwitcherCtrl.forceMode">No, stay on site
+                        </button>
+                        <a ng-href="{{ domainSwitcherCtrl.targetUrl }}" class="btn btn-primary">OK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/typo3conf/ext/nanotec/Resources/Public/Frontend/Scripts/main.d716963bb612bf7f4313.js?1795002047" type="text/javascript" async="async"></script>
+
+
+</body>
+</html>

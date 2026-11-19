@@ -1,0 +1,3314 @@
+=== PDF PAGE 1 ===
+Rev. 1.0
+10/13/2025
+STF-R/C
+Stepper Motor Drive
+Hardware Manual
+STF03/06-R    STF03/06-C    STF05/10-R-FC
+STF05/10-R    STF05/10-C    STF05/10-C-FC
+SHANGHAI AMP & MOONS’AUTOMATION CO.,LTD.
+
+=== PDF PAGE 2 ===
+2
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+Contents
+1  Introduction..................................................................................................3
+1.1  Features.............................................................................................3
+1.2  Block Diagram....................................................................................4
+1.3  Safety Instructions .............................................................................6
+2  Getting Started.............................................................................................7
+2.1  Installing Software .............................................................................8
+2.2  Connecting communication (-R model)..............................................9
+2.3  Connecting communication (-C model)............................................11
+2.4  Setting bus address and baud rate..................................................12
+2.4.1  RS-485 address and baud rate settings(-R model)	������������12
+2.4.2  CANopen address and baud rate settings(-C model)	����������13
+2.5  Connecting the Power Supply..........................................................14
+2.6  Choosing A Power Supply................................................................15
+2.6.1  Voltage ...............................................................................15
+2.6.2  Current................................................................................15
+2.7  Connecting the motor.......................................................................16
+3  Inputs and Outputs.....................................................................................16
+3.1  Digital Inputs.....................................................................................17
+3.1.1  X1, X2, X3, X4 digital input signal.......................................17
+3.1.2  X5, X6, X7, X8 digital input signal.......................................18
+3.2  Digital Outputs..................................................................................19
+3.2.1  Y1, Y2, Y3 Digital Outputs...................................................19
+3.2.2  Y4 Digital Output.................................................................20
+4  Mounting the Drive.....................................................................................21
+5  Reference Materials...................................................................................22
+5.1  Drive Mechanical Outlines................................................................22
+5.2  Technical Specifications...................................................................23
+5.3  Recommended Motor.......................................................................24
+5.4  Torque Curves..................................................................................27
+5.5  Numbering System...........................................................................30
+5.6  Ordering Information........................................................................30
+5.7  Alarm Code.......................................................................................30
+6  Accessories (Sold Separately)...................................................................31
+7  Contacting MOONS’..................................................................................32
+
+=== PDF PAGE 3 ===
+3
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+1  Introduction
+Thank you for selecting the MOONS’STF series stepper drive. The STF series are high 
+performance ﬁeldbus control stepper drive which also integrates with built-in motion controller. The 
+drives can be controlled by SCL, Modbus/RTU or CANopen in real time. Motion proﬁles can also 
+be programmed and stored in drives (Q Program) and then be triggered by SCL, Modbus/RTU or 
+CANopen commands. The drives support RS-485/422 or CANopen communication.
+This document contains mainly descriptive information about the stepper servo drive:
+Mode
+STF03/06-C
+-
+STF03/06-R
+-
+STF05/10-C
+STF05/10-C-FC
+STF05/10-R
+STF05/10-R-FC
+ : Conforms to UL certiﬁcation.
+1.1  Features
+• 
+Programmable, ﬁled bus controlled stepper motor drive in compact package
+• 
+Operating DC voltage range:    
+STF03    12-48V 
+STF05    24-48V 
+STF06    12-48V 
+STF10    24-70V
+• 
+Control Mode
+SCL 
+* 
+ Serial Communication Command
+Q program 
+* 
+Stand-Alone operation mode
+Modbus/RTU (-R model only)
+CANopen(-C model only)
+* 
+ Compliant with CiA301 and CiA402 standard
+• 
+Communication
+-R: Dual port RS-485/422
+-C: Dual port CANopen, RS-232 included
+• 
+STF03 output current: max 3A/phase (peak-of-sine)
+• 
+STF05 output current: max 5A/phase (peak-of-sine)
+• 
+STF06 output current: max 6A/phase (peak-of-sine)
+• 
+STF10 output current: max 10A/phase (peak-of-sine)
+• 
+I/O
+8 optically isolated digital inputs, 5-24VDC high level voltage
+4 optically isolated digital outputs, max30V/100mA
+
+=== PDF PAGE 4 ===
+4
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+1.2  Block Diagram
+DSP
+EMC
+Filter
+DC Input
+Power
+Converter
+Internal
+Logic
+Supply
+Voltage
+Temp.
+Det.
+Over
+Current
+Det.
+Mosfet
+PWM
+Power
+Amplifier
+High
+Speed
+Input
+Optical
+Isolation
+Input
+Optical
+Isolation
+Digital
+Filter
+Software
+Filter
+Digital
+Filter
+Software
+Filter
+Output
+Optical
+Isolation
+Single
+Ended
+Input
+Isolation
+X1+
+X1-
+X2+
+X2-
+X3+
+X3-
+X4+
+X4-
+X5
+X6
+X7
+X8
+XCOM
+Y1
+Y2
+Y3
+YCOM
+Software
+Filter
+Motor
+RS-485
+LED
+STF-R Block Diagram
+Power Supply
+STF03 12-48VDC
+STF05 24-48VDC
+STF06 12-48VDC
+STF10 24-70VDC
+Y4+
+Y4-
+S2
+RS-485
+baud rate
+S1
+RS-485
+address
+
+=== PDF PAGE 5 ===
+5
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+DSP
+EMC
+Filter
+DC Input
+Power
+Converter
+Internal
+Logic
+Supply
+Voltage
+Temp.
+Det.
+Over
+Current
+Det.
+Mosfet
+PWM
+Power
+Amplifier
+High
+Speed
+Input
+Optical
+Isolation
+Input
+Optical
+Isolation
+Digital
+Filter
+Software
+Filter
+Digital
+Filter
+Software
+Filter
+Output
+Optical
+Isolation
+Single
+Ended
+Input
+Isolation
+X1+
+X1-
+X2+
+X2-
+X3+
+X3-
+X4+
+X4-
+X5
+X6
+X7
+X8
+XCOM
+Y1
+Y2
+Y3
+YCOM
+Software
+Filter
+Motor
+ARM
+CANopen
+LED
+STF-C Block Diagram
+Power Supply
+STF03 12-48VDC
+STF05 24-48VDC
+STF06 12-48VDC
+STF10 24-70VDC
+Y4+
+Y4-
+CANopen
+Baud rate
+CANopen
+Node ID
+S2
+S1
+
+=== PDF PAGE 6 ===
+6
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+1.3  Safety Instructions
+Only qualiﬁed personnel should transport, assemble, install, operate, or maintain this equipment. 
+Properly qualiﬁed personnel are persons who are familiar with the transport, assembly, installation, 
+operation, and maintenance of motors, and who meet the appropriate qualiﬁcations for their jobs. 
+To minimize the risk of potential safety problems, all applicable local and national codes regulating 
+the installation and operation of equipment should be followed. These codes may vary from area 
+to area and it is the responsibility of the operating personnel to determine which codes should be 
+followed, and to verify that the equipment, installation, and operation are in compliance with the 
+latest revision of these codes.
+Equipment damage or serious injury to personnel can result from the failure to follow all applicable 
+codes and standards. MOONS’ does not guarantee the products described in this publication 
+are suitable for a particular application, nor do they assume any responsibility for product design, 
+installation, or operation.
+• 
+Read all available documentation before assembly and operation. Incorrect handling of the 
+products referenced in this manual can result in injury and damage to persons and machinery. 
+All technical information concerning the installation requirements must be strictly adhered to.
+• 
+It is vital to ensure that all system components are connected to earth ground. Electrical safety 
+is impossible without a low-resistance earth connection.
+• 
+This product contains electrostatically sensitive components that can be damaged by incorrect 
+handling. Follow qualiﬁed anti-static procedures before touching the product. 
+• 
+During operation keep all covers and cabinet doors shut to avoid any hazards that could 
+possibly cause severe damage to the product or personal health.
+• 
+During operation, the product may have components that are live or have hot surfaces. 
+• 
+Never plug in or unplug the Integrated Motor while the system is live. The possibility of electric 
+arcing can cause damage.
+Be alert to the potential for personal injury. Follow recommended precautions and safe operating 
+practices emphasized with alert symbols. Safety notices in this manual provide important 
+information. Read and be familiar with these instructions before attempting installation, operation, 
+or maintenance. The purpose of this section is to alert users to the possible safety hazards 
+associated with this equipment and the precautions necessary to reduce the risk of personal injury 
+and damage to equipment. Failure to observe these precautions could result in serious bodily 
+injury, damage to the equipment, or operational diﬃculty.
+
+=== PDF PAGE 7 ===
+7
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2  Getting Started
+The following items are needed:
+• 
+An appropriate power supply, see the section below entitled“Choose a Power Supply”for 
+help in choosing the right one.
+• 
+A compatible stepper motor, please see the section below entitled “Recommended Motor”
+• 
+A small ﬂat blade screwdriver for tightening the connectors screw(included)
+• 
+ A PC running Microsoft Windows XP / Vista / Windows 7/ Windows 8 / Windows 10(32-bit or 
+64-bit)operation system 
+• 
+Optional I/O cable (Sold seperately)
+• 
+Install STF Configurator software (Available from MOONS’website) 
+• 
+ -R model
+A network cable is included in the package. It is used for connection with the next drive in the 
+RS-485 network. It can also be used for connection with PC for drive conﬁguration.
+• 
+-C model
+A RS-232 programming cable(included in the package)
+A network cable is included in the package. It is used for connection with the next drive in the 
+CANopen network. 
+TIP: When connecting the first drive in the RS-485 or CANopen network with PC or controller. you 
+can cut the daisy chain cable or network cable into two: one half is used for connection with the 
+RS-485 or CANopen port on the PC or controller, the other half can be used for connection with 
+termination resistor, which can be put at the end of the network.
+
+=== PDF PAGE 8 ===
+8
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.1  Installing Software
+•	
+Download the STF Configurator Software from the MOONS’ website and install it.
+•	
+Launch the software by clicking Start-----Programs ----MOONS’
+•	
+Connect the drive to the PC using communication cable:
+Connect the -R model drive to the RS-485 port of the PC using the network cable included in 
+the package
+Connect the -C model drive to the RS-232 port of the PC using the RS-232 cable included in 
+the package
+The connectors and other points of interest are illustrated below:
+Ground Screws
+LED
+RS-485 or CANopen
+Communication
+Connector
+Motor Connector
+Power Connector
+I/O Connector
+Band Rate
+Node ID
+RS-485 or CANopen
+LED
+RS-485 or CANopen
+Communication Connector
+RS-485 or CANopen
+Ground Screws
+Motor Connector
+Power Connector
+I/O Connector
+Band Rate
+Node ID
+Model Number
+Model Number
+STF05-R
+STF05-C
+STF03-R
+STF03-C
+STF10-R
+STF10-C
+STF06-R
+STF06-C
+STF05-R-FC
+STF05-C-FC
+STF10-R-FC
+STF10-C-FC
+
+=== PDF PAGE 9 ===
+9
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.2  Connecting communication (-R model)
+RS-485 Port
+1 
+8 
+1 
+8 
+PIN
+Signal
+Wire Color
+1
+RX+
+ORN/WHT
+2
+RX-
+ORN
+3
+TX+
+GRN/WHT
+4.5
+NC
+BLU, BLU/WHT
+6
+TX-
+GRN
+7.8
+GND
+BRN/WHT, BRN
+Connection STF drive with PC using RS-485 communication
+Before using STF configurator for –R drive configuration, please connect COM1 or COM2 on the 
+driver to host PC by network cable provided. Both 4 wire connection or 2 wire connection can be 
+used. 
+RS-485 four-wire connection:
+RS-485 two-wire connection:
+Drive
+Connection
+RX+
+Connect to host’s TX+
+RX-
+Connect to host’s TX-
+TX+
+Connect to host’s RX+
+TX-
+Connect to host’s RX-
+GND
+Connect to host’s GND
+Drive
+Connection
+RX+
+Connect to host’s +
+RX-
+Connect to host’s -
+TX+
+Connect to host’s +
+TX-
+Connect to host’s -
+GND
+Connect to host’s GND
+NOTE: The RS-485 port on the drive is isolated from internal circuitry of the drive. So the 
+GND of each drive's RS-485 port must be connected together. The first drive's GND of the 
+RS-485 port must be connected to the GND of RS-485 port on the host PC or controller.
+
+=== PDF PAGE 10 ===
+10
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+RS-485 network connection
+Multiple –R model drive network can be built via dual RS-485 communication port by network 
+cable provided. 
+RS-485 Four-wire Conﬁguration
+RS-485 four-wire system utilize separate transmit and receive wires. One pair of wires connect 
+the host’s transmit signals(TX+/TX-) to each drive’s RX+/RX- receive terminals. The other pair 
+connects the drive’s TX+/TX- terminals to the host’s receive signals. A logical ground terminal is 
+provided on each drive and can be used to keep all the drives at the same ground potential. The 
+first drive’s logical GND of the RS-485 bus must connect to host’s ground.
+Four-wire Connection
+Connect the drive’s RX+ to the TX+ terminal of the host controller,and connect the drive’s RX- to 
+the TX- terminal of the host controller . Connect the drive’s TX+ to the RX+ terminal of the host 
+controller,and connect the drive’s TX- to the RX- terminal of the host controller .
+Connect the drive’s GND and the host’s GND to a same ground.
+NOTE: The RS-485 port on the drive is isolated from internal circuitry of the drive. So the 
+GND of each drive’s RS-485 port must be connected together. The first drive’s GND of the 
+RS-485 port must be connected to the GND of RS-485 port on the host PC or controller.
+RS-485 Tow-wire Conﬁguration 
+In a two-wire system ,the data transmitting and receiving use a same cable. the host must stop 
+its transmitting before receiving data. That means the host must stop transmit data before drive 
+begins to answer a query which just come from the host, otherwise the host cannot receive 
+any data witch sent from a drive. There is a transmit delay parameter that can be adjusted to 
+compensate for a host that is slow to disable its transmitter. This adjustment can be set over the 
+network using the TD command,it also can be set by using the STF Configurator software. Users 
+can set a shorter transmit delay in a four-wire system. 
+Two-wire connection 
+The RX+ and TX+ of the drive connect to the host’s + in parallel. The RX- and TX- of the drive 
+connect to the host’s - in parallel. Connect the drive’s GND and the host’s GND to a same ground.
+NOTE: The RS-485 port on the drive is isolated from internal circuitry of the drive. So the 
+GND of each drive’s RS-485 port must be connected together. The first drive’s GND of the 
+RS-485 port must be connected to the GND of RS-485 port on the host PC or controller.
+
+=== PDF PAGE 11 ===
+11
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.3  Connecting communication (-C model)
+CANopen COM Port
+1
+8
+1
+8
+COM1
+COM2
+PIN
+COM1 Signal
+COM2 Signal
+Wire Color
+1
+CAN_H
+CAN_H
+ORG/WHT
+2
+CAN_L
+CAN_L
+ORG
+3,7,8
+GND
+GND
+GRN/WHT, BRN/WHT, BRN
+4
+RS-232_TX
+NC
+BLU
+5
+RS-232_RX
+NC
+BLU/WHT
+6
+NC
+NC
+GRN
+PC connection with RS-232 cable
+Before using STF configurator for –C drive conﬁguration, please connect COM1 on the driver to 
+host PC by RS-232 programming cable.
+CANopen network connection 
+Multiple –C model drive network can be built via dual CANopen communication port by network 
+cable provided. 
+NOTE: The CANopen port on the drive is isolated from internal circuitry of the drive. So the 
+GND of each drive’s CANopen port must be connected together. The first drive’s GND of 
+the CANopen port must be connected to the GND of CANopen port on the controller.
+
+=== PDF PAGE 12 ===
+12
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.4  Setting bus address and baud rate
+STF drives (-R model and -C model) have two rotary switches to set the bus address and baud 
+rate.
+2.4.1  RS-485 address and baud rate settings(-R model)
+Set drive’s RS-485 address by rotary switch S1 
+Set drive’s RS-485 baud rate by rotary switch S2
+S1 is used to set drive’s RS-485 address, and the range is 0~F (0~15 in 
+decimal). If you want to set the drive’s RS-485 address range to 10~1F 
+(16~31 in decimal), you need to configure it in STF Configurator software.
+Upper/Lower addr
+S1 position
+SCL addr
+Upper/Lower addr
+S1 position
+SCL addr
+Lower(Axis 0~15)
+0
+0
+Upper(Axis 16~31)
+0
+@
+1
+1
+1
+!
+2
+2
+2
+"
+3
+3
+3
+#
+4
+4
+4
+$
+5
+5
+5
+%
+6
+6
+6
+&
+7
+7
+7
+'
+8
+8
+8
+(
+9
+9
+9
+)
+A
+:
+A
+*
+B
+;
+B
++
+C
+<
+C
+,
+D
+=
+D
+-
+E
+>
+E
+.
+F
+?
+F
+/
+S2 position
+Baud Rate (bps)
+0
+9600
+1
+19200
+2
+38400
+3
+57600
+4
+115200
+5-9
+Reserved
+S1
+S2
+RS-485 
+Baud Rate
+RS-485 
+Address
+
+=== PDF PAGE 13 ===
+13
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.4.2  CANopen address and baud rate settings(-C model)
+Set drive’s CANopen address by rotary switch S1
+Set drive’s CANopen baud rate by rotary switch S2
+Each node on a CANopen network must have a unique Node ID. Valid 
+ranges for the Node ID are 0x01 through 0x7F (1~127). Node ID 0x00 
+is reserved in accordance with CiA301. The Node ID is selected using 
+rotary switches and software; one sixteen position switch set the lower four bits (0~F) of node ID, 
+while upper three bits of node ID are configured by STF Configurator software. Each time when 
+Node ID is changed, a power cycle is required before the new Node ID is valid.
+Please refer to the CANopen manual for more information.
+CANopen Baud Rate 
+There are 8 types of baud rate supported by CANopen communication on STF drive. It is set via 
+S2 switch on the drive 
+S2 position
+Baud Rate (bps)
+0
+1M
+1
+800K
+2
+500K
+3
+250K
+4
+125K
+5
+50K
+6
+20K
+7
+12.5K
+8-9
+Reserved
+S1
+S2
+CANopen
+Baud Rate
+CANopen 
+Address
+
+=== PDF PAGE 14 ===
+14
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.5  Connecting the Power Supply
+Connect power supply “+” terminal to the drive terminal labeled “V+”. 
+Connect power supply “-” terminal to the drive terminal labeled “V-”.
+STF03 accepts DC voltage range from 12 – 48VDC
+STF05 accepts DC voltage range from 24 – 48VDC
+STF06 accepts DC voltage range from 12 – 48VDC
+STF10 accepts DC voltage range from 24 – 70VDC
+Warning: DO NOT reverse the wires
+NOTE: DO NOT apply power until all connections to the drive have been made
+V+
+J1
+V-
+Power Connector
+Ensure a proper earth ground connection by using the screw on the left side of the chassis.
+To Earth Ground
+Please read “choosing a power supply” for more details. 
+
+=== PDF PAGE 15 ===
+15
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.6  Choosing A Power Supply
+The main considerations when choosing a power supply are the voltage and current requirements 
+of the application.
+2.6.1  Voltage 
+The STF drive and motor is designed to give optimum performance between 24~48 Volts DC. Choosing 
+the voltage depends on the performance needed and diver/motor heating that acceptable and/or does 
+not cause a drive over-temperature. Higher voltage will give higher speed performance, but will cause 
+the drive to produce higher temperatures. Using power supplies with voltage outputs that are near the 
+drive maximum may significantly reduce the operational duty cycle.
+The STF03/06 drive extended range of operation voltage can be as low as 11VDC minimum to as 
+high as 53VDC maximum. When operation below 11VDC, the STF03/06 series will work unstable. 
+The supply input cannot go blow 11VDC for reliable operation, otherwise under voltage alarm will be 
+triggered. STF03/06 drive will stop working when this alarm is triggered.
+The STF10 drive extended range of operation voltage can be as low as 18VDC minimum to as high as 
+75VDC maximum (18-53VDC for STF05 Drives). When operation below 18VDC, the STF05/10 series 
+will work unstable. The supply input cannot go blow 18VDC for reliable operation, otherwise under 
+voltage alarm will be triggered. STF05/10 drive will stop working when this alarm is triggered.
+STF03/05/06
+If a regulated power supply is used, and that is near the driver maximum voltage of 53VDC ,a voltage 
+clamp may be required to prevent the voltage over 53VDC which will occurs a overvoltage fault. When 
+using an unregulated power supply, make sure the no-load voltage of the supply does not exceed the 
+maximum input voltage 53VDC.
+STF10
+If a regulated power supply is used, and that is near the driver maximum voltage of 75VDC ,a voltage 
+clamp may be required to prevent the voltage over 75VDC which will occurs a overvoltage fault. When 
+using an unregulated power supply, make sure the no-load voltage of the supply does not exceed the 
+maximum input voltage 75VDC.
+2.6.2  Current
+When STF drives work with diﬀerent motors, the recommended power supply output current 
+capacity under diﬀerent supply voltage is shown in below table. The STF drive power supply 
+current is lower than the the winding currents because it uses switching ampliﬁers to convert a 
+high voltage and low current into low voltage and high current. The more power supply voltage 
+exceeds the motor voltage,the less current will be required from the power supply.
+It is important to note that the current draw is signiﬁcantly diﬀerent at higher speeds depending 
+on the torque load to the motor. Estimating how much current is necessary may require a good 
+analysis of the load to the motor.
+Drive
+Motor
+Voltage
+Current
+Drive
+Motor
+Voltage
+Current
+STF03
+STF05
+STF06
+AM8
+24V
+above 1A
+STF10
+AM23
+24V
+above 3A
+AM11
+24V
+above 1A
+48V
+above 4A
+AM14
+24V
+above 1A
+70V
+above 4A
+AM17
+24V
+above 1.5A
+AM24
+24V
+above 4.5A
+48V
+above 1.5A
+48V
+above 4.5A
+AM23
+24V
+above 3A
+70V
+above 4.5A
+48V
+above 4A
+AM34
+24V
+above 6A
+AM24
+24V
+above 4.5A
+48V
+above 6A
+48V
+above 4.5A
+70V
+above 6A
+
+=== PDF PAGE 16 ===
+16
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+2.7  Connecting the motor
+For MOONS’stepper motor, please connect black, green, red, blue wires to drive’s  A+,  A-, B+ 
+and B- correspondingly. 
+A+
+J1
+A- B+ B-
+Motor Connector
+If using a non-MOONS’motor, please refer to your motor specs for wiring information.
+3  Inputs and Outputs
+STF series drive inputs and outputs include:
+• 
+8 optically isolated digital inputs, 5-24VDC for high level voltage
+• 
+4 optically isolated digital outputs, maximum voltage 30V, maximum sinking or sourcing current 
+100mA 
+2
+4
+6
+8
+10
+12
+14
+16
+18
+20
+1
+3
+5
+7
+9
+11
+13
+15
+17
+19
+X1+
+X2+
+X3+
+X4+
+X5
+X7
+Y1
+Y3
+Y4+
+XCOM
+YCOM
+X1-
+X2-
+X3-
+X4-
+X6
+X8
+Y2
+Y4-
+J2
+                I/O Connector Diagram
+
+=== PDF PAGE 17 ===
+17
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+3.1  Digital Inputs
+3.1.1  X1, X2, X3, X4 digital input signal
+X1, X2: optically isolated, differential, 5-24VDC, minimum pulse width 250ns, maximum pulse 
+frequency 2MHz 
+X3, X4: optically isolated, diﬀerential, 5-24VDC, minimum pulse width 100μs, maximum pulse 
+frequency 5KHz
+X1 can be used as general purpose input.
+X2 can be used as general purpose input.
+X3 can be used as CW limit input or general purpose input.
+X4 can be used as CCW limit input or general purpose input.
+Please use STF Conﬁgurator software for X1,X2,X3 and X4 function conﬁguration. 
+Following graphs shows some common connection methods for the inputs:
+STF
+Drive
+Switch or Relay 
+(closed = logic Low) 
+X1/2/3/4-
+X1/2/3/4+
+-
++
+5-24
+VDC
+Power
+Supply
+STF
+Drive
+NPN
+Output
+X1/2/3/4-
+X1/2/3/4+
+output
++
+–
+5-24
+VDC
+Power
+Supply
+-
++
+STF
+Drive
+PNP
+Output
+X1/2/3/4+
+output
++
+–
+X1/2/3/4-
+5-24
+VDC
+Power
+Supply
+-
++
+Connecting the inputs to a Switch or Relay 
+Connecting the inputs to a NPN type output
+Connecting the inputs to a PNP type output
+
+=== PDF PAGE 18 ===
+18
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+3.1.2  X5, X6, X7, X8 digital input signal
+X5,X6,X7,X8: optically isolated, single-ended, 5-24VDC, minimum pulse width 100μs, maximum pulse 
+frequency 5KHz
+X5 can be used as enable input or general purpose input.
+X6 can be used as alarm reset input or general purpose input.
+X7 can be used as general purpose input. 
+X8 can be used as general purpose input.
+Because the input is an optically isolated circuit, a 5-24V power supply is needed. For example, 
+you can use the power supply of the PLC when you are using a PLC control system, but if you 
+want to connect a relay or mechanical switch to the input , you must need a power supply.
+XCOM is an electronics term for a single-ended signal connection to a common voltage. In the 
+case of STF series, if you are using a sourcing (PNP) input signals, you need to connect XCOM 
+to the ground (power supply -), if you are using a sinking(NPN) input signals ,the XCOM need to 
+connect to the power supply +.
+Please use STF Configurator software for X5,X6,X7 and X8 function conﬁguration. Following 
+graphs shows some common connection methods for the inputs:
+5-24VDC 
+Power 
+Supply
+Connecting the inputs to a Switch or Relay
+XCOM
+X5/X6/X7/X8
++
+-
+STF
+Drive
+Switch or Relay
+(closed = logic Low)
+5-24VDC 
+Power 
+Supply
+XCOM
++
+-
++
+-
+X5/X6/X7/X8
+Connecting the inputs to a NPN type output
+STF
+Drive
+NPN
+Output
+output
++
+-
++
+-
+X5/X6/X7/X8
+XCOM
+Connecting the inputs to a PNP type output
+5-24VDC 
+Power 
+Supply
+STF
+Drive
+PNP
+Output
+output
+
+=== PDF PAGE 19 ===
+19
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+3.2  Digital Outputs
+3.2.1  Y1, Y2, Y3 Digital Outputs
+Y1 can be used as alarm output, motion status output or general purpose output.
+Y2 can be used as brake output, motion status output or general purpose output.
+Y3 cab be used as tach-out, timing signal output(50pulse/rev), motion status output or general
+purpose output.
+Please use STF Conﬁgurator software for Y1,Y2 and Y3 function conﬁguration. 
+Following graphs shows some common connection methods for the outputs: 
+NOTE: Do not connect the outputs to more than 30VDC power supply. And the current of 
+each output terminal must not exceed 100mA.
+Connecting a sinking output
+Connecting a sinking output with PLC’s input 
+STF
+Drive
+5-24 VDC 
+Power Supply
++
+–
+Load
+Y1/2/3-
+Y1/2/3+
+PLC
+5-24 VDC 
+Power Supply
++
+–
+Y1/2/3-
+Y1/2/3+
+COM
+IN
+STF
+Drive
+Driving a relay 
+STF
+Drive
+1N4935 suppression diode
+5-24 VDC 
+Power Supply
++
+–
+relay
+Y1/2/3-
+Y1/2/3+
+
+=== PDF PAGE 20 ===
+20
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+3.2.2  Y4 Digital Output
+Y4 can be used as motion state output or general purpose output.
+Please use STF Configurator software for Y4 function conﬁguration.
+Following graphs shows some common connection methods for the outputs:
+NOTE: Do not connect the outputs to more than 30VDC power supply. And the current of 
+each output terminal must not exceed 100mA.
++
+–
+Y4-
+Y4-
+Y4-
+Y4+
+Y4+
+Y4+
+C
+L
+P
++
+–
+IN
+COM
+PLC
++
+–
+COM
+IN
+STF
+Drive
+STF
+Drive
+STF
+Drive
+Connecting a sinking output
+Connecting a sinking output with PLC’s input
+Connecting a sourcing output with PLC’s input
+Load
+5-24 VDC 
+Power Supply
+5-24 VDC 
+Power Supply
+5-24 VDC 
+Power Supply
+
+=== PDF PAGE 21 ===
+21
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+Y4-
+Y4+
++
+–
+relay
+STF
+Drive
+Driving a relay
+5-24 VDC 
+Power Supply
+1N4935 suppression diode
+4  Mounting the Drive
+Use the M3 or M4 screw to mount the STF series drive .The drive should be securely fastened 
+to a smooth ,flat metal surface the will help conduct heat away from the chassis. If this is not 
+possible, forced airflow from a fan maybe required to prevent the drive from overheating.
+• Never use the drive in a place where there is no air ﬂow or the surrounding air is 
+more than 40℃.
+• Never put the drive where it can get wet or where metal or other electrically 
+conductive particle particles can get on the circuity.
+• Always provide air ﬂow around the drive. When mounting multiple STF drives near 
+each other, maintain at least 2cm of space between drives.
+
+=== PDF PAGE 22 ===
+22
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+5  Reference Materials
+5.1  Drive Mechanical Outlines
+  Unit: mm
+Model
+STF05/10-R
+STF05/10-C
+STF05/10-R-FC
+STF05/10-C-FC
+4.5
+3.5
+49.8
+61.8
+86.6
+23.5
+16
+7.8
+157.6
+100
+93
+93
+ Unit: mm
+Model
+STF03-R
+STF03-C
+STF06-R
+STF06-C
+142.5
+11.6
+29
+17
+78.2
+50
+4.5
+4.5
+122
+122
+129
+
+=== PDF PAGE 23 ===
+23
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+5.2  Technical Speciﬁcations
+Power Ampliﬁer
+Amplifier Type
+Dual H-Bridge, 4 Quadrant
+Current Control
+4 state PWM at 20KHz
+Output Current
+STF03: 0.1 - 3.0A/phase(Peak-of-Sine) in 0.01Amp increment
+STF05: 0.1 - 5.0A/phase(Peak-of-Sine) in 0.01Amp increment
+STF06: 0.1 - 6.0A/phase(Peak-of-Sine) in 0.01Amp increment
+STF10: 0.1 - 10.0A/phase(Peak-of-Sine) in 0.01Amp increment
+Rated input    voltage
+STF03: 12 - 48VDC
+STF05: 24 - 48VDC
+STF06: 12 - 48VDC
+STF10: 24 - 70VDC
+Absolute maximum 
+input voltage range
+STF03: 11 - 53VDC
+STF05: 18 - 53VDC
+STF06: 11 - 53VDC
+STF10: 18 - 75VDC
+Protection
+Over voltage, under voltage, over temp, over current, open winding, communication cable disconnection
+Idle Current Reduction
+Reduction range of 0 - 90% of running current after a delay selectable in milliseconds
+Controller
+Anti-Resonance
+Raises the system-damping ratio to eliminate midrange instability and allow stable operation
+throughout the speed range of the motor
+Torque Ripple
+Smoothing
+Allows for ﬁne adjustment of phase current waveform harmonic content to reduce low-speed
+torque ripple in the range of 0.25 to 1.5 rps
+Auto Test & Auto
+Setup
+Auto test and setup at power on (ie. motor resistance, and capacitance) to optimize your system
+performance.
+Non-Volatile Storage
+Conﬁgurations are saved in FLASH memory on-board the DSP
+Operation Mode
+R: SCL, Q, Modbus
+C: Compliant with CiA301 and CiA402 standard
+Digital Input
+8 digital inputs
+X1, X2: Optically isolated, diﬀerential, 5-24VDC for high level voltage,
+minimum pulse width = 250ns, maximum pulse frequency = 2MHz
+X3, X4: Optically isolated, diﬀerential, 5-24VDC for high level voltage,
+minimum pulse width = 100μs, maximum pulse frequency = 5KHz
+X5 ~ X8: Optically isolated, single-ended, 5-24VDC for high level voltage,
+minimum pulse width = 100μs, maximum pulse frequency = 5KHz
+Digital Output
+4 digital outputs
+Y1 ~ Y4: Optically isolated, maximum voltage 30V, maximum sinking or sourcing current 100mA
+Communication 
+Interface
+R model: dual port RS-485 (RJ45 connector) 
+C model: dual port CANopen (RJ45 connector) RS-232 included
+Physical
+Ambient
+Temperature
+0-40°C (32-104°F)(when mounted to a suitable heat sink)
+Humidity
+90% non-condensing
+
+=== PDF PAGE 24 ===
+24
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+5.3  Recommended Motor
+Standard type step motor
+Model
+Features
+Lead 
+number
+Length(mm)
+Holding
+Torque(N.m)
+Current(A)
+Rotor
+Inertia(g.cm2)
+Mass(Kg) Mass Dielectric 
+Strength
+AM8HY2050-01N
+Single Shaft
+4
+31.5
+0.015
+0.5
+2
+0.05
+500VAC/1Minute
+AM8HY2050-02N
+Double Shaft
+4
+AM8HY4043-01N
+Single Shaft
+4
+47
+0.037
+4.2
+0.09
+AM8HY4043-02N
+Double Shaft
+4
+AM11HS1008-07
+Single Shaft
+4
+31
+0.05
+1.6
+9
+0.1
+AM11HS3007-02
+Single Shaft
+4
+40
+0.08
+12
+0.15
+AM11HS5008-01
+Single Shaft
+4
+51
+0.12
+18
+0.2
+AM14HYB401-03
+Single Shaft
+4
+40
+0.2
+1
+20
+0.21
+AM17HD4452-02N
+Single Shaft
+4
+34.3
+0.25
+1.8
+38
+0.23
+AM17HD4452-01N
+Double Shaft
+4
+AM17HD2438-02N
+Single Shaft
+4
+39.8
+0.4
+1.8
+57
+0.28
+AM17HD2438-01N
+Double Shaft
+4
+AM17HD6426-06N
+Single Shaft
+4
+48.3
+0.5
+1.8
+82
+0.36
+AM17HD6426-05N
+Double Shaft
+4
+AM17HDB410-01N
+Single Shaft
+4
+62.8
+0.85
+1.6
+123
+0.6
+AM23HS0420-01
+Single Shaft
+4
+41
+0.6
+2.2
+135
+0.42
+AM23HS0420-02
+Double Shaft
+AM23HS2449-01
+Single Shaft
+4
+54
+1.2
+2.2
+260
+0.6
+AM23HS2449-02
+Double Shaft
+4
+AM23HS3454-01
+Single Shaft
+4
+76
+1.8
+2.2
+460
+1
+AM23HS3454-02
+Double Shaft
+4
+AM23HS0421-01
+Single Shaft
+4
+41
+0.6
+4.5
+135
+0.42
+AM23HS0421-02
+Double Shaft
+4
+AM23HS2450-01
+Single Shaft
+4
+54
+1.2
+4.5
+260
+0.6
+AM23HS2450-02
+Double Shaft
+4
+AM23HS3455-01
+Single Shaft
+4
+76
+1.8
+4.5
+460
+1
+AM23HS3455-02
+Double Shaft
+4
+AM23HS04A0-01
+Single Shaft
+4
+39
+0.82
+2.2
+120
+0.4
+AM23HS04A0-02
+Double Shaft
+4
+AM23HS84A0-01
+Single Shaft
+4
+55
+1.5
+2.2
+220
+0.6
+AM23HS84A0-02
+Double Shaft
+4
+AM23HSA4A0-01
+Single Shaft
+4
+77
+2.3
+2.2
+390
+1
+AM23HSA4A0-02
+Double Shaft
+4
+AM23HS04B0-01
+Single Shaft
+4
+39
+0.82
+4.5
+120
+0.4
+AM23HS04B0-02
+Double Shaft
+4
+AM23HS84B0-01
+Single Shaft
+4
+55
+1.5
+4.5
+220
+0.6
+AM23HS84B0-02
+Double Shaft
+4
+AM23HSA4B0-01
+Single Shaft
+4
+77
+2.3
+4.5
+390
+1
+AM23HSA4B0-02
+Double Shaft
+4
+AM23HS04B0-03
+Single Shaft
+4
+39
+0.82
+4.5
+120
+0.4
+AM23HS04B0-04
+Double Shaft
+4
+AM23HS84B0-03
+Single Shaft
+4
+55
+1.5
+4.5
+220
+0.6
+AM23HS84B0-04
+Double Shaft
+4
+AM23HSA4B0-03
+Single Shaft
+4
+77
+2.3
+4.5
+390
+1
+AM23HSA4B0-04
+Double Shaft
+4
+AM24HS2402-08N
+Single Shaft
+4
+54
+1.2
+4.5
+450
+0.83
+AM24HS2402-11N
+Double Shaft
+4
+AM24HS5401-10N
+Single Shaft
+4
+85
+2.5
+4.5
+900
+1.4
+AM24HS5401-24N
+Double Shaft
+4
+AM34HD0404-08
+Single Shaft
+4
+66.5
+3
+7
+1100
+1.6
+AM34HD0404-09
+Double Shaft
+4
+AM34HD1404-06
+Single Shaft
+4
+96
+5
+7
+1850
+2.7
+AM34HD1404-07
+Double Shaft
+4
+AM34HD2403-07
+Single Shaft
+4
+125.5
+7.1
+7
+2750
+3.8
+AM34HD2403-08
+Double Shaft
+4
+
+=== PDF PAGE 25 ===
+25
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+IP65 type motor
+Model
+Features
+Lead 
+number
+Length(mm)
+Holding
+Torque(N.m)
+Current(A)
+Rotor
+Inertia(g.cm2)
+Mass(Kg)
+Mass Dielectric 
+Strength
+AM23HS2450-03
+IP65 Motor
+4
+61.7
+1.2
+4.5
+260
+0.6
+500VAC/1Minute
+AM23HS3455-05
+IP65 Motor
+4
+83.7
+1.8
+460
+1
+AM24HS5401-44N
+IP65 Motor
+4
+94.5
+2.5
+900
+1.4
+AM34HD1404-13
+IP65 Motor
+4
+98
+5
+7
+1850
+2.7
+AM34HD2403-13
+IP65 Motor
+4
+127.5
+7.1
+2750
+3.8
+Brake type motor
+Model
+Features
+Lead 
+number
+Length(mm)
+Holding
+Torque(N.m)
+Current(A)
+Rotor
+Inertia(g.cm2)
+Mass(Kg)
+Mass Dielectric 
+Strength
+AM17HD4452-BR01
+Brake Motor
+4+2
+60.3
+0.25
+1.8
+38
+0.38
+500VAC/1Minute
+AM17HD2438-BR01
+Brake Motor
+4+2
+65.8
+0.4
+57
+0.43
+AM17HD6426-BR01
+Brake Motor
+4+2
+74.3
+0.5
+82
+0.51
+AM17HDB410-BR01
+Brake Motor
+4+2
+88.8
+0.85
+123
+0.75
+AM23HS2449-BR01
+Brake Motor
+4+2
+95
+1.2
+2.2
+260
+0.8
+AM23HS2450-BR01
+Brake Motor
+4+2
+95
+1.2
+260
+0.8
+AM23HS04B0-BR01
+Brake Motor
+4+2
+80
+0.82
+4.5
+120
+0.62
+AM23HS84B0-BR01
+Brake Motor
+4+2
+96
+1.5
+220
+0.8
+AM23HSA4B0-BR01
+Brake Motor
+4+2
+118
+2.3
+390
+1.2
+AM24HS2402-BR01
+Brake Motor
+4+2
+95
+1.2
+4.5
+450
+1.03
+AM24HS5401-BR01
+Brake Motor
+4+2
+126
+2.5
+900
+1.6
+AM34HD0404-BR01
+Brake Motor
+4+2
+118.5
+3
+7
+1100
+2.2
+AM34HD1404-BR01
+Brake Motor
+4+2
+148
+5
+1850
+3.3
+AM34HD2403-BR01
+Brake Motor
+4+2
+177.5
+7.1
+2750
+4.4
+Encoder type motor
+Model
+Features
+Lead 
+number Length(mm)
+Holding
+Torque(N.m)
+Current(A)
+Rotor
+Inertia(g.cm2)
+Mass(Kg)
+Mass Dielectric 
+Strength
+AM17HD4452-E1000D
+Encoder motor
+4
+34.3
+0.25
+1.8
+38
+0.23
+500VAC/1Minute
+AM17HD2438-E1000D
+Encoder motor
+4
+39.8
+0.4
+57
+0.28
+AM17HD6426-E1000D
+Encoder motor
+4
+48.3
+0.5
+82
+0.36
+AM23HS0420-E1000D
+Encoder motor
+4
+41
+0.6
+2.2
+135
+0.42
+AM23HS2449-E1000D
+Encoder motor
+4
+54
+1.2
+260
+0.6
+AM23HS3454-E1000D
+Encoder motor
+4
+76
+1.8
+460
+1
+AM23HS0421-E1000D
+Encoder motor
+4
+41
+0.6
+4.5
+135
+0.42
+AM23HS2450-E1000D
+Encoder motor
+4
+54
+1.2
+260
+0.6
+AM23HS3455-E1000D
+Encoder motor
+4
+76
+1.8
+460
+1
+AM23HS5412-E1000D
+Encoder motor
+4
+111
+3.2
+750
+1.5
+AM24HS2402-E1000D
+Encoder motor
+4
+54
+1.2
+450
+0.83
+AM24HS5401-E1000D
+Encoder motor
+4
+85
+2.5
+900
+1.4
+AM34HD0404-E1000D
+Encoder motor
+4
+66.5
+3
+7
+1100
+1.6
+AM34HD1404-E1000D
+Encoder motor
+4
+96
+5
+1850
+2.7
+AM34HD2403-E1000D
+Encoder motor
+4
+125.5
+7.1
+2750
+3.8
+
+=== PDF PAGE 26 ===
+26
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+Gearbox type motor
+Model
+Features
+Lead 
+number Length(mm)
+Holding
+Torque(N.m) Current(A)
+Rotor
+Inertia(g.cm2) Mass(Kg) Mass Dielectric 
+Strength
+AM17HD4452-PG05
+5 speed reducer motor
+4
+101.8
+1.25
+1.8
+950
+0.55
+500VAC/1Minute
+AM17HD4452-PG10
+10 speed reducer motor
+4
+101.8
+2.5
+1.8
+3800
+0.55
+AM17HD4452-PG20
+20 speed reducer motor
+4
+114.8
+5
+1.8
+15200
+0.63
+AM17HD2438-PG05
+5 speed reducer motor
+4
+107.3
+2
+1.8
+1425
+0.6
+AM17HD2438-PG10
+10 speed reducer motor
+4
+107.3
+4
+1.8
+5700
+0.6
+AM17HD2438-PG20
+20 speed reducer motor
+4
+120.3
+8
+1.8
+22800
+0.68
+AM17HD6426-PG05
+5 speed reducer motor
+4
+115.8
+2.5
+1.8
+2050
+0.68
+AM17HD6426-PG10
+10 speed reducer motor
+4
+115.8
+5
+1.8
+8200
+0.68
+AM17HD6426-PG20
+20 speed reducer motor
+4
+128.8
+10
+1.8
+32800
+0.76
+AM17HDB410-PG05
+5 speed reducer motor
+4
+130.3
+4.25
+1.6
+3075
+0.92
+AM17HDB410-PG10
+10 speed reducer motor
+4
+130.3
+8.5
+1.6
+12300
+0.92
+AM17HDB410-PG20
+20 speed reducer motor
+4
+143.3
+17
+1.6
+49200
+1
+AM23HS04B0-PG05
+5 speed reducer motor
+4
+112.5
+4.1
+4.5
+2625
+1.23
+AM23HS04B0-PG10
+10 speed reducer motor
+4
+112.5
+8.2
+4.5
+10500
+1.23
+AM23HS04B0-PG20
+20 speed reducer motor
+4
+125.5
+16.4
+4.5
+42000
+1.44
+AM23HS84B0-PG05
+5 speed reducer motor
+4
+128.5
+7.5
+4.5
+5375
+1.43
+AM23HS84B0-PG10
+10 speed reducer motor
+4
+128.5
+15
+4.5
+21500
+1.43
+AM23HS84B0-PG20
+20 speed reducer motor
+4
+141.5
+30
+4.5
+86000
+1.64
+AM23HSA4B0-PG05
+5 speed reducer motor
+4
+150.5
+11.5
+4.5
+9125
+1.83
+AM23HSA4B0-PG10
+10 speed reducer motor
+4
+150.5
+23
+4.5
+36500
+1.83
+AM23HSA4B0-PG20
+20 speed reducer motor
+4
+163.5
+46
+4.5
+146000
+2.07
+AM24HS2402-PG05
+5 speed reducer motor
+4
+127.5
+6
+4.5
+11250
+1.66
+AM24HS2402-PG10
+10 speed reducer motor
+4
+127.5
+12
+4.5
+45000
+1.66
+AM24HS2402-PG20
+20 speed reducer motor
+4
+140.5
+24
+4.5
+180000
+1.87
+AM24HS5401-PG05
+5 speed reducer motor
+4
+158.5
+12.5
+4.5
+22500
+2.23
+AM24HS5401-PG10
+10 speed reducer motor
+4
+158.5
+25
+4.5
+90000
+2.23
+AM24HS5401-PG20
+20 speed reducer motor
+4
+171.5
+50
+4.5
+360000
+2.44
+AM34HD0404-PG05
+5 speed reducer motor
+4
+170.5
+15
+7
+27500
+3.71
+AM34HD0404-PG10
+10 speed reducer motor
+4
+170.5
+30
+7
+110000
+3.71
+AM34HD0404-PG20
+20 speed reducer motor
+4
+188.5
+60
+7
+440000
+4.21
+AM34HD1404-PG05
+5 speed reducer motor
+4
+210
+25
+7
+46250
+4.81
+AM34HD1404-PG10
+10 speed reducer motor
+4
+210
+50
+7
+185000
+4.81
+AM34HD1404-PG20
+20 speed reducer motor
+4
+218
+100
+7
+740000
+5.31
+AM34HD2403-PG05
+5 speed reducer motor
+4
+229.5
+35.5
+7
+68750
+5.91
+AM34HD2403-PG10
+10 speed reducer motor
+4
+229.5
+71
+7
+275000
+5.91
+AM34HD2403-PG20
+20 speed reducer motor
+4
+247.5
+142
+7
+1100000
+6.41
+
+=== PDF PAGE 27 ===
+27
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+5.4  Torque Curves
+                                                     
+                                                                               
+                                                                               
+  
+                                                                               
+AM8HY2050
+Speed(rps)
+Torque(N m)
+0.016
+0.014
+0.012
+0.01
+0.008
+0.006
+0.004
+0.002
+0
+.
+Microstep: 20000 steps/rev
+Current: 0.5A(Peak)
+0
+5
+10
+15
+20
+AM8HY4043
+Speed(rps)
+Torque(N m)
+0.040
+0.035
+0.030
+0.025
+0.020
+0.015
+0.010
+0.005
+0
+0
+5
+10
+15
+20
+.
+Microstep: 20000 steps/rev
+Current: 0.5A(Peak)
+AM11HS1008
+Speed(rps)
+Torque(N·m)
+0.1
+0.08
+0.06
+0.04
+0.02
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.6A(Peak)
+AM11HS3007
+Speed(rps)
+Torque(mN m)
+100
+80
+60
+40
+20
+0
+0
+10
+20
+30
+40
+50
+.
+Microstep͹20000 steps/rev
+Current͹1.6AͧPeakͨ
+AM11HS5008
+Speed(rps)
+Torque(N·m)
+0.15
+0.12
+0.09
+0.06
+0.03
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.6A(Peak)
+AM14HYB401
+Speed(rps)
+Torque(N·m)
+0.15
+0.12
+0.09
+0.06
+0.03
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.0A(Peak)
+AM17HD4452
+Speed(rps)
+Torque(N·m)
+0.25
+0.20
+0.15
+0.10
+0.05
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.8A(Peak)
+AM17HD2438
+Speed(rps)
+Torque(N·m)
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.8A(Peak)
+AM17HD6426
+Speed(rps)
+Torque(mN m)
+500
+400
+300
+200
+100
+0
+0
+10
+20
+30
+40
+50
+.
+Microstep͹20000 steps/rev
+Current͹1.8AͧPeakͨ
+AM17HDB410
+Speed(rps)
+Torque(N·m)
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 1.8A(Peak)
+
+=== PDF PAGE 28 ===
+28
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+                                                        
+                                                                            
+                                                                            
+AM23HS04A0
+Speed(rps)
+1
+0.8
+0.6
+0.4
+0.2
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N m)
+.
+  
+AM23HS84A0
+Speed(rps)
+1.5
+1.2
+0.9
+0.6
+0.3
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N m)
+.
+24V
+48V
+Speed(rps)
+2.4
+2
+1.6
+1.2
+0.8
+0.4
+0
+0
+10
+20
+30
+40
+50 
+AM23HSA4A0
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N m)
+.
+24V
+48V
+Speed(rps)
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+0
+10
+20
+30
+40
+50 
+AM23HS04B0
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+Torque(N m)
+.
+24V
+48V
+Speed(rps)
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+0
+10
+20
+30
+40
+50 
+AM23HS0420
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N.m)
+24V
+48V
+Speed(rps)
+1.2
+1
+0.8
+0.6
+0.4
+0.2
+0
+0
+10
+20
+30
+40
+50 
+AM23HS2449
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N.m)
+AM23HS3454
+Speed(rps)
+2
+1.6
+1.2
+0.8
+0.4
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 2.2A(Peak)
+Torque(N m)
+.
+Speed(rps)
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+0
+10
+20
+30
+40
+50 
+AM23HS0421
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+24V
+48V
+75V
+Torque(N.m)
+Speed(rps)
+1.2
+1
+0.8
+0.6
+0.4
+0.2
+0
+0
+10
+20
+30
+40
+50 
+AM23HS2450
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+24V
+48V
+75V
+Torque(N.m)
+Speed(rps)
+1.8
+1.5
+1.2
+0.9
+0.6
+0.3
+0
+0
+10
+20
+30
+40
+50 
+AM23HS3455
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+24V
+48V
+75V
+Torque(N.m)
+
+=== PDF PAGE 29 ===
+29
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+AM23HS84B0
+Speed(rps)
+1.5
+1.2
+0.9
+0.6
+0.3
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+Torque(N m)
+.
+  
+AM23HSA4B0
+Speed(rps)
+2
+1.6
+1.2
+0.8
+0.4
+0
+0
+10
+20
+30
+40
+50
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+Torque(N m)
+.
+ 
+Speed(rps)
+1.2
+1
+0.8
+0.6
+0.4
+0.2
+0
+0
+10
+20
+30
+40
+50 
+AM24HS2402
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+24V
+48V
+75V
+Torque(N.m)
+Speed(rps)
+2.4
+2
+1.6
+1.2
+0.8
+0.4
+0
+0
+10
+20
+30
+40
+50 
+AM24HS5401
+Microstep: 20000 steps/rev
+Current: 4.5A(Peak)
+24V
+48V
+75V
+Torque(N.m)
+    
+                                                                            
+                                                                            
+Microstep: 20000 steps/rev
+Current: 7.0A(Peak)
+AM34HD0404
+24V
+48V
+75V
+Speed(rps)
+3
+2.5
+2
+1.5
+1
+0.5
+0
+0
+10
+20
+30
+40
+50 
+)
+m
+ 
+N
+(
+e
+u
+q
+r
+o
+T
+.
+AM34HD1404
+Microstep: 20000 steps/rev
+Current: 7.0A(Peak)
+Speed(rps)
+Torque(N m)
+5
+4
+3
+2
+1
+0
+0
+10
+20
+30
+40
+50 
+.
+24V
+48V
+75V
+Microstep: 20000 steps/rev
+Current: 7.0A(Peak)
+AM34HD2403
+24V
+48V
+75V
+Speed(rps)
+8
+7
+6
+5
+4
+3
+2
+1
+0
+0
+10
+20
+30
+40
+50 
+)
+m
+ 
+N
+(
+e
+u
+q
+r
+o
+T
+.
+
+=== PDF PAGE 30 ===
+30
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+5.5  Numbering System
+Output Current(peak-of-sine)
+03 = 3A(Peak)
+05 = 5A(Peak)
+06 = 6A(Peak)
+10 = 10A(Peak)
+Communication
+R = RS-485   
+C = CANopen
+STF Series 
+Type
+Blank = Standard type
+FC = UL type
+5.6  Ordering Information
+Model
+Current
+Voltage
+RS-485
+Modbus/RTU
+CANopen
+Q Program
+STF03-R
+0.1 - 3.0 A
+12 - 48 VDC
+√
+√
+　
+√
+STF05-R
+0.1 - 5.0 A
+24 - 48 VDC
+√
+√
+　
+√
+STF06-R
+0.1 - 6.0 A
+12 - 48 VDC
+√
+√
+　
+√
+STF10-R
+0.1 - 10.0 A
+24 - 70 VDC
+√
+√
+　
+√
+STF05-R-FC
+0.1 - 5.0 A
+24 - 48 VDC
+√
+√
+　
+√
+STF10-R-FC
+0.1 - 10.0 A
+24 - 70 VDC
+√
+√
+　
+√
+STF03-C
+0.1 - 3.0 A
+12 - 48 VDC
+　
+　
+√
+√
+STF05-C
+0.1 - 5.0 A
+24 - 48 VDC
+　
+　
+√
+√
+STF06-C
+0.1 - 6.0 A
+12 - 48 VDC
+　
+　
+√
+√
+STF10-C
+0.1 - 10.0 A
+24 - 70 VDC
+　
+　
+√
+√
+STF05-C-FC
+0.1 - 5.0 A
+24 - 48 VDC
+　
+　
+√
+√
+STF10-C-FC
+0.1 - 10.0 A
+24 - 70 VDC
+　
+　
+√
+√
+5.7  Alarm Code
+Code
+Error
+ 
+solid green
+no alarm,motor disabled
+  
+ 
+ﬂashing green
+no alarm,motor enabled
+    
+ 
+ 
+1 red，2 green
+drive_disabled_fault
+  
+ 
+ 
+2 red，1 green
+ccw_limit_fault
+   
+ 
+ 
+ 
+2 red，2 green
+cw_limit_fault
+    
+ 
+ 
+ 
+3 red，1 green
+overtemperature_fault
+ 
+ 
+ 
+ 
+3 red，2 green
+internal_voltage_fault
+ 
+ 
+ 
+ 
+ 
+3 red，3 green
+nv_memory_fault
+ 
+ 
+ 
+ 
+4 red，1 green
+overvoltage_fault
+ 
+ 
+ 
+ 
+ 
+4 red，2 green
+undervoltage_fault
+ 
+ 
+ 
+ 
+ 
+5 red，1 green
+overcurrent_fault
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+5 red，3 green
+comm_oﬄine_fault
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+6 red，1 green
+open_winding_fault
+ 
+ 
+ 
+ 
+6 red，2 green
+powerupunstable_fault
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 red，1 green
+serial_com_fault
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 red，2 green
+save_failed
+
+=== PDF PAGE 31 ===
+31
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+RC-880 Regeneration Clamp
+RC-880 is used to limit increase in power supply 
+voltage when the motor is decelerating under load. 
+This is commonly referred to as "regeneration".
+RC-880 can clamp the regeneration and prevent 
+the power supply and/or drive being damaged or 
+destroyed. Connect the RC-880 between the power 
+supply and the drive.
+Max. Supply Voltage: 80V
+Max. Output Current: 8A(rms)
+Continuous Power: 50W
+6  Accessories (Sold Separately)
+I/O Cable
+P/N
+Length
+1015-030
+0.3m
+1015-100
+1m
+1015-200
+2m
+Pin No. Assignment
+Description
+Color
+Pin No. Assignment
+Description
+Color
+1
+X1+
+X1 Digital Input
+Blue/White
+11
+X7
+X7 Digital Input
+Yellow
+2
+X1-
+Blue/Black
+12
+X8
+X8 Digital Input
+Green
+3
+X2+
+X2 Digital Input
+Green/White
+13
+SHIELD
+Shield
+Shield
+4
+X2-
+Green/Black
+14
+XCOM
+X5-X8 Digital Input COM
+Red
+5
+X3+
+X3 Digital Input
+Yellow/White
+15
+Y1
+Y1 Digital Output
+Brown
+6
+X3-
+Yellow/Black
+16
+Y2
+Y2 Digital Output
+Gray
+7
+X4+
+X4 Digital Input
+Orange/White
+17
+Y3
+Y3 Digital Output
+White
+8
+X4-
+Orange/Black
+18
+YCOM
+Y1-Y3 Digital Output COM
+Black
+9
+X5
+X5 Digital Input
+Blue
+19
+Y4+
+Y4 Digital Output
+Purple/White
+10
+X6
+X6 Digital Input
+Purple
+20
+Y4-
+Purple/Black
+RS-485/CANopen Communication Cable
+Common Type
+Shielded Type
+Length
+2012-030 *
+2013-030
+0.3m
+ 2012-300
+2013-300
+3m
+* 2012-030 is included in the drive package.
+L
+L
+8
+1
+8
+1
+Housing: 501646-2000(Molex)
+Crimp: 501648-1000(Molex)
+L
+19
+20
+2
+J1
+1
+50±5
+Mating Connector (included in drive package)
+STF05/10
+Part
+Description
+Part Number
+Vendor
+Qty
+J1
+Power & Motor Connector
+2EDGK-5.08-06P-13-1000AH
+DEGSON
+1
+J2
+I/O Connector Housing
+501646-2000
+Molex
+1
+J2
+I/O Connector Crimp
+501648-1000
+Molex
+20
+STF03/06
+Part
+Description
+Part Number
+Vendor
+Qty
+J1
+Power & Motor Connector
+BCP-381-6 BK
+Phoenix
+1
+J2
+I/O Connector Housing
+501646-2000
+Molex
+1
+J2
+I/O Connector Crimp
+501648-1000
+Molex
+20
+
+=== PDF PAGE 32 ===
+32
+Rev. 1.0
+10/13/2025
+STF-R/C Hardware Manual
+ 400-820-9661
+7  Contacting MOONS’
+https://www.moonsindustries.com/
+E-mail:ama-info@moons.com.cn
+•  All the specifications, technical parameters of the products provided in this catalog are for reference only, subject to change without notice. 
+  For the latest details, please contact our sales department.
+Customer Service Center
++86-400-820-9661
+Shenzhen
+Room 3901, Building A, Zhongguan Times Square,No 4168 Liuxian 
+Avenue, Nanshan District, Shenzhen, Guangdong Province, 
+518000, P.R. China
+Nanjing
+Room 1101-1102, Building 2, New Town Development Center, No.126
+Tianyuan Road , Moling Street, Jiangning District, Jiangsu Province, 
+China, 211106, P.R. China
+Qingdao
+Room1913,Scientific and Technological Innovation Builing,Floor19,
+No.171, ShanDong Road,Shibei District,QingDao, Shangdong Province, 
+266033, P.R. China
+Beijing
+Room 1206, Jing Liang Mansion, No.16 Middle Road of East,3rd Ring, 
+Chaoyang District, Beijing 100022, P.R. China
+Wuhan
+Room 3001, World Trade Tower, No.686 Jiefang Avenue, Jianghan District, 
+Wuhan, Hubei Province, 430022, P.R. China
+Chengdu
+Room 3907, Maoye Plaza, No.19, Dongyu Street, Jinjiang Distrit, 
+Chengdu Sichuan Province, 610066, P.R. China
+Xi’  an
+Room 1006, Tower D, Wangzuo International City, No.1 Tangyan Road, 
+Xi’  an, Shanxi Province, 710065, P.R. China
+Ningbo
+Room 309, Tower B, Taifu Plaza, 565 Jiangjia Road,Jiangdong District, 
+Ningbo, Zhejiang Province, 315040, P.R. China
+Guangzhou
+Room 4006, Tower B, China Shine Plaza, 9 Linhe Xi Road, Tianhe District, 
+Guangzhou, Guangdong Province, 510610, P.R. China
+Chongqing
+Room 2108, South yuanzhu Buliding 20, No.18 Fuquan Rd.,
+Jiangbei District, Chongqing, 400000, P.R. China
+Hefei
+Room 1521, Building B, CBC Tuoji Plaza, Jinggang Road, Shushan 
+District, Hefei, Anhui Province, 230088, P.R. China
+Dongguan
+Room 1106-1207, Building 5, Linrunzhigu, No.1 RD 5th Rd, Songshan 
+Lake, Dongguan, Guangdong Province, 523000, P.R. China
+Suzhou
+Room 1103-1105, North Building 4, Huizu Plaza, 758 Nanhuan East Rd, 
+Gusu District, Suzhou,Jiangsu Province, 215007, P.R. China
+MOONS' INDUSTRIES (AMERICA), INC. (Chicago)
+1113 North Prospect Avenue, Itasca, IL 60143, USA
+MOONS’ INDUSTRIES (AMERICA), INC. (Boston)
+36 Cordage Park Circle, Suite 310 Plymouth, MA 02360, USA
+APPLIED MOTION PRODUCTS, INC. (Morgan Hill)
+18645 Madrone Parkway. Morgan Hill, CA 95037, USA
+LIN ENGINEERING, Inc. (Morgan Hill)
+16245 Vineyard Blvd., Morgan Hill, CA 95037, USA
+U.K
+MOONS' INDUSTRIES (UK), LIMITED
+Rooms 4&5, 1st Floor, Greenbank, London Road, Reading, UK. RG1 5AQ 
+Building 7, Lane 88, Minbei Road, Minhang District, Shanghai，
+201107，P.R.China
+No. 18 Yingang Rd, Fuqiao Town, Taicang City Jiangsu Province, 
+215434, P.R. China
+MOONS’ Headquarter
+North America
+MOONS’ Taicang
+Domestic Office
+Europe
+Asia
+USA
+Switzerland
+TECHNOSOFT SA 
+Avenue des Alpes 20
+CH 2000 Neuchâtel Switzerland
+AMP & MOONS’ AUTOMATION (GERMANY) GMBH
+Kaiserhofstr. 15
+60313 Frankfurt am Main Germany
+Germany
+MOONS’ INDUSTRIES (EUROPE) HEAD QUARTER S.R.L.
+Via Torri Bianche n.1 20871 Vimercate(MB) Italy
+Italy
+MOONS' INDUSTRIES (SOUTH-EAST ASIA) PTE. LTD.
+33 Ubi Avenue 3 #08-23 Vertex Singapore 408868
+Singapore
+MOONS' INDUSTRIES JAPAN CO., LTD.
+Room 602, 6F, Shin Yokohama Koushin Building,
+2-12-1, Shin-Yokohama, Kohoku-ku, Yokohama, Kanagawa,  
+Japan 222-0033
+Japan
+MOONS' INTELLIGENT MOTION SYSTEM INDIA PVT. LTD.
+Room. 908, 9th Floor, Amar Business Park,
+Tal. Haveli, Baner, Pune, India 411045
+India
+MOONS' VIETNAM MANUFACTURING SITE
+Factory C1&D1, Lot IN3-11*A, VSIP Hai Phong Industrial Park in Dinh 
+Vu – Cat Hai Economic Zone, Lap Le Commune, Thuy Nguyen District, 
+Hai Phong City, Vietnam
+Vietnam
+

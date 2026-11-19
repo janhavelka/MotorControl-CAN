@@ -55,14 +55,17 @@ def main():
             errors.append("{}: {}".format(path.relative_to(root), exc))
             return {}
 
-    def check_records(base, records, label):
+    def check_records(base, records, label, within=None):
+        # within: an outer directory a record may point into (a reference pack citing a sibling
+        # pack's stored original instead of a second copy); by default the record's own base.
+        limit = (within or base).resolve()
         seen = set()
         for record in records:
             rel = record.get("path", "")
             require(bool(rel) and rel not in seen, label + ": missing/duplicate path " + rel)
             seen.add(rel)
             path = (base / rel).resolve()
-            if base.resolve() not in path.parents:
+            if limit not in path.parents:
                 errors.append(label + ": path escapes base: " + rel)
                 continue
             if not path.is_file():
@@ -96,8 +99,12 @@ def main():
                         label + ": not an expected EDS " + rel)
 
     refs = root / "docs/reference"
-    reference_manifests = [refs / "SOURCES.json", refs / "multidrive/SOURCES.json",
-                           refs / "other_can/SOURCES.json", refs / "public_code/SOURCES.json"]
+    # The root manifest plus every reference pack's own manifest, including each family pack added
+    # since 2026-11-19 (docs/reference/<pack>/SOURCES.json); the four original packs stay required.
+    reference_manifests = [refs / "SOURCES.json"] + sorted(refs.glob("*/SOURCES.json"))
+    for required_pack in ("multidrive", "other_can", "public_code"):
+        require(refs / required_pack / "SOURCES.json" in reference_manifests,
+                "Missing reference manifest: " + required_pack)
     for manifest_path in reference_manifests:
         sources = read_json(manifest_path)
         originals = sources.get("sources", [])
@@ -112,7 +119,8 @@ def main():
                     and remote.get("bytes") is None,
                     "Remote-only source must not claim a local file/hash: " + remote.get("id", "unknown"))
         check_records(manifest_path.parent, originals + sources.get("derived_artifacts", [])
-                      + sources.get("auxiliary_artifacts", []), str(manifest_path.relative_to(root)))
+                      + sources.get("auxiliary_artifacts", []), str(manifest_path.relative_to(root)),
+                      within=refs)
         counts["reference_packs"] += 1
 
     # The offline proof builds this exact upstream subset. It must retain its

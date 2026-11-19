@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html ng-app="nanotec">
+<head>
+    <meta charset="utf-8">
+
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+<title>PD6-E/-EB CANopen Online Manual: Technical Manual PD6-E | Nanotec</title>
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="
+            Jump to main content
+        
+        
+        
+        
+        
+        
+        
+            
+                
+                    
+                    
+ …">
+<meta name="robots" content="index,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PD6-E/-EB CANopen Online Manual: Technical Manual PD6-E | Nanotec">
+<meta property="og:url" content="https://www.nanotec.com/us/en/products/manual/pd6e-canopen-en/pd6e%2Fintroduction.html">
+<meta property="og:description" content="
+            Jump to main content
+        
+        
+        
+        
+        
+        
+        
+            
+                
+                    
+                    
+                    PD6-E CANopen Technical Manual
+                    
+                
+                
+                
+        …">
+<meta property="og:image" content="https://www.nanotec.com/_assets/a216ea4bcb7ed270c619139734398c4f/Images/dummy.jpg?1795001905">
+<meta name="language" content="en">
+<meta name="facebook-domain-verification" content="hauvqnzj4u6hq0zkcdww7uhbyx8g49">
+<meta name="google-site-verification" content="_lKM7kD3fUOhehR2j5MQCXZfUKVY-EOePhTgITUfJ4w">
+<meta name="msvalidate.01" content="9D5E317E2A013771D5F642DC9B70BEB4">
+
+
+<link rel="stylesheet" href="/typo3conf/ext/nanotec/Resources/Public/Frontend/Styles/main.css?1795002047" media="all" title="main.css">
+
+
+
+
+
+
+<script type="text/javascript">var nanotecCurrencyJson = '{"symbolLeft":"$","symbolRight":"","decimalDigits":2,"divisor":100,"priceList":"2"}';var nanotecCurrency = JSON.parse(nanotecCurrencyJson);var currentLanguageId = 1;var languageIds = {"ex" : 0,"us" : 1,"de" : 3,"zh" : 4,"it" : 5};var languageBaseUrls = {0: "https://www.nanotec.com/eu/en",1: "https://www.nanotec.com/us/en",3: "https://www.nanotec.com/eu/de",4: "https://www.nanotec-cn.cn/zh",5: "https://www.nanotec.com/eu/it"};var jsDateFormat = "dd/MM/yy";var nanotecApiUrls = {
+    user: 'https://www.nanotec.com/us/en/user.json',
+    basket: 'https://www.nanotec.com/us/en/basket.json',
+    basketAdd: 'https://www.nanotec.com/us/en/basket/add.json',
+    basketSetAmount: 'https://www.nanotec.com/us/en/basket/setAmount.json',
+    basketClear: 'https://www.nanotec.com/us/en/basket/clear.json',
+    clipboard: 'https://www.nanotec.com/us/en/clipboard.json',
+    clipboardAdd: 'https://www.nanotec.com/us/en/clipboard/add.json',
+    clipboardClear: 'https://www.nanotec.com/us/en/clipboard/clear.json',
+    clipboardSetAmount: 'https://www.nanotec.com/us/en/clipboard/setAmount.json',
+    getCountryByIsoCode: 'https://www.nanotec.com/us/en/getCountryByIsoCode/',
+    stateOptions: 'https://www.nanotec.com/us/en/stateOptions/',
+    priceData: 'https://www.nanotec.com/us/en/priceData/',
+    cadenas: 'https://www.nanotec.com//cadenas-api/'
+};</script>
+    <script type="text/javascript">var nanotecUnitGroupsJson = '[{"baseUnit":null,"pid":245,"title":"Gewicht","uid":6,"units":{"0000000000001e480000000000000000":{"conversionFactor":1,"pid":245,"symbol":"kg","title":"Kilogramm","uid":14},"0000000000001e620000000000000000":{"conversionFactor":2.204,"pid":245,"symbol":"lb","title":"Pfund","uid":16},"0000000000001e600000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"g","title":"Gramm","uid":15}}},{"baseUnit":null,"pid":245,"title":"Length (m)","uid":11,"units":{"0000000000001e530000000000000000":{"conversionFactor":1,"pid":245,"symbol":"m","title":"Meter","uid":22},"0000000000001e4f0000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":23},"0000000000001df40000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"mm","title":"Millimeter","uid":28}}},{"baseUnit":null,"pid":245,"title":"Length (mm)","uid":4,"units":{"0000000000001e4d0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"mm","title":"Millimeter","uid":10},"0000000000001e510000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":12},"0000000000001e570000000000000000":{"conversionFactor":0.001,"pid":245,"symbol":"m","title":"Meter","uid":27}}},{"baseUnit":null,"pid":245,"title":"Torque (Ncm)","uid":3,"units":{"0000000000001e670000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":6},"0000000000001e540000000000000000":{"conversionFactor":1.41611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":7},"0000000000001e730000000000000000":{"conversionFactor":0.01,"pid":245,"symbol":"Nm","title":"Newton meter","uid":8}}},{"baseUnit":null,"pid":245,"title":"Torque (Nm)","uid":13,"units":{"0000000000001e750000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Nm","title":"Newton meter","uid":31},"0000000000001e500000000000000000":{"conversionFactor":141.611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":32},"0000000000001e4c0000000000000000":{"conversionFactor":100,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":33}}}]';var nanotecUnitGroups = JSON.parse(nanotecUnitGroupsJson || '[]');var nanotecUnitGroupDefaultSet = "imperial";</script>
+
+
+            <link rel="apple-touch-icon" sizes="180x180"
+                  href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/apple-touch-icon.png?1795001905">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-32x32.png?1795001905"
+                  sizes="32x32">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-194x194.png?1795001905"
+                  sizes="194x194">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/android-chrome-192x192.png?1795001905"
+                  sizes="192x192">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-16x16.png?1795001905"
+                  sizes="16x16">
+            <link rel="manifest" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/manifest.json?1795001905">
+            <link rel="mask-icon" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/safari-pinned-tab.svg?1795001905" color="#5488c7">
+            <meta name="msapplication-TileColor" content="#5488c7">
+            <meta name="msapplication-TileImage" content="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/mstile-144x144.png?1795001905">
+            <meta name="theme-color" content="#ffffff">
+        
+
+        <script type="text/javascript" tracking>
+            /**
+             * Global event tracking method
+             *
+             * @param category
+             * @param action
+             * @param name
+             * @param value
+             * @param services
+             * @param nonInteraction
+             */
+            window['trackEvent'] = (category, action, name = '', value = 0, parameters = {},
+                                    services = ['ga', 'gtm', 'baidu'],
+                                    nonInteraction = false
+            ) => {
+                return new Promise((resolve, reject) => {
+
+                    // fallback timeout, to ensure event tracking does not block consecutive JS events.
+                    const timeoutTrigger = setTimeout(() => reject(new Error('track event timeout')), 5000)
+                    const gaEventParameters = {
+                        'event_category': category,
+                        'event_action': action,
+                        'event_label': name,
+                        'value': value,
+                        'non_interaction': nonInteraction,
+                        ...parameters
+                    }
+                    // track Google Tag Manager
+                    if (services.indexOf('gtm') !== -1 && typeof gtm !== 'undefined') {
+                        gaEventParameters['event'] = gaEventParameters['event_action']
+                        gtm(gaEventParameters)
+                        if (window.siteMode != 0) {
+                            console.info('Track Google Tag Manager event: ', gaEventParameters);
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Google Tag Manager not loaded or not requested')
+                        }
+                    }
+
+                    // track Baidu
+                    if (services.indexOf('baidu') !== -1 && typeof _hmt !== 'undefined') {
+                        _hmt.push(['_trackEvent', category, action, name, value])
+                        if (window.siteMode != 0) {
+                            console.info('Track Baidu event ' + category + ' ' + action + ' ' + name + ' value: ' + value)
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Baidu not loaded or not requested');
+                        }
+                    }
+
+                    clearTimeout(timeoutTrigger)
+                    resolve()
+                    return true
+                });
+            }
+        </script>
+    
+
+                <script>
+                    // Google Tag Manager
+                    window.siteMode = 0;
+                    const gtagContainerId = 'GTM-K3TX2ZN'
+                    if ('1' === '1') {
+                        (function (w, d, s, l, i) {
+                            w[l] = w[l] || []
+                            w[l].push({
+                                'gtm.start':
+                                    new Date().getTime(), event: 'gtm.js'
+                            });
+                            var f = d.getElementsByTagName(s)[0],
+                                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''
+                            j.async = true
+                            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl
+                            f.parentNode.insertBefore(j, f)
+                        })(window, document, 'script', 'dataLayer', gtagContainerId)
+
+                        window.dataLayer = window.dataLayer || []
+                        window.gtm = function() {
+                            return dataLayer.push(...arguments)
+                        }
+                    }
+
+                    function gaOptout() {
+                        document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/'
+                        window[disableStr] = true
+                    }
+                </script>
+            
+<link rel="canonical" href="https://www.nanotec.com/us/en/products/manual/m/pd6e-canopen-en/index.html" />
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        
+        
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.nanotec.com/us/en/products/manual#webpage","name":"Manual","description":"","url":"https://www.nanotec.com/us/en/products/manual","inLanguage":"en-US","isPartOf":{"@id":"https://www.nanotec.com/#website"},"publisher":{"@id":"https://www.nanotec.com/#organization"},"about":{"@id":"https://www.nanotec.com/#organization"}}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Nanotec","item":"https://www.nanotec.com/us/en/"},{"@type":"ListItem","position":2,"name":"Products","item":"https://www.nanotec.com/us/en/products"},{"@type":"ListItem","position":3,"name":"Manual","item":"https://www.nanotec.com/us/en/products/manual"}]}</script>
+
+        
+
+        
+
+    
+        
+    
+    
+    
+    
+    
+            
+            
+            
+            
+            
+
+            
+            
+        
+
+        
+    
+        <div class="tec-conf-bar" ng-class="{'is-show': currentConfigurationCtrl.show}" current-configuration>
+            <div class="tec-cb-content">
+                <div class="tec-cb-container">
+                    <div class="item-left">
+                        <a href="#" ng-click="currentConfigurationCtrl.clearConfiguration();" class="btn-delete" title="clear combination">
+                            <i class="icon-trash"></i>
+                            <span class="text-display">
+                            <u>clear combination</u>
+                        </span>
+                        </a>
+                    </div>
+                    <div class="item-middle">
+                        <i class="icon-adjust"></i>
+                        <span class="text-display">
+                        active combination
+                    </span>
+                    </div>
+                    <div class="item-right">
+                        <a class="btn-back" title="back to configurator" href="/us/en/products/product-configurator">
+                            <i class="icon-squared-big-left"></i>
+                            <span class="text-display">
+                            back to configurator
+                        </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+
+        <div class="wrapper">
+            
+    
+    <header id="header" sticky-header>
+        <div class="h-header">
+            <div class="row">
+                <div class="col-xs-6 col-md-4 col-logo">
+                    <a class="navbar-brand" href="/us/en">
+                        <picture>
+                            <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.svg?1795001905" alt="Nanotec Electronic Homepage"
+                                 width="220" height="42" title="Nanotec Electronic Homepage"/>
+                            <source media="(min-width: 38em)" srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                            <source srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                        </picture>
+                    </a>
+                </div>
+                <div class="navbar-mobile hidden-lg-up col-xs-6" mobile-nav>
+                    
+                    <span class="hamburger" ng-click="mNav.toggleMobileNav()">
+                        <span></span>
+                    </span>
+                </div>
+                <!-- if you want a off-canvas open, please write the class is-open. -->
+                <div class="hidden-md-down off-canvas-md-down nav-mobile" ng-class="{'is-open': mNav.isOpen()}" mobile-nav>
+                    <div class="off-canvas-container">
+                        <div class="off-canvas-headline">
+                            Navigation
+                            <i class="icon-close" ng-click="mNav.toggleMobileNav()"></i>
+                        </div>
+                        <div class="col-md-8 pull-md-right col-utilities">
+                            
+    <nav class="navbar navbar-utilities" utilities-navbar>
+        <ul class="nav navbar-nav pull-md-right">
+
+            
+            
+
+            
+            <li class="nav-item item-all-products">
+                <a data-placement="bottom" tooltip="1" title="All products" class="nav-link" href="/us/en/service/products">
+                    <span class="text hidden-lg-up">All products</span>
+                    <i class="icon-nanotec"></i>
+                </a>
+            </li>
+
+            
+                
+                <li class="nav-item item-login dropdown"
+                    ng-class="{'open': utilNav.isLoginDropdownOpen(), 'is-user-online' : user.userExists()}" user>
+                    <span class="nav-link" ng-click="utilNav.toggleLoginDropdown($event)"
+                          title="My Account" data-placement="bottom" tooltip>
+                        <span class="text hidden-lg-up">My Account</span>
+                        <i class="icon-male-user"></i>
+                    </span>
+                    <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLoginDropdown()"
+                         outside-if-not="item-login">
+                        <span class="link-back hidden-lg-up"
+                              ng-click="utilNav.toggleLoginDropdown($event)">Back</span>
+
+                        
+                        <div class="dropdown-user" ng-if="user.userExists()">
+                            <p>Hello <b>{{ user.user().username }}</b></p>
+                            <div class="actions row">
+                                <div class="col-xs-5">
+                                    <form action="/us/en/login"
+                                          target="_top"
+                                          method="post" name="logout">
+                                        <input type="submit" name="submit"
+                                               value="Logout"
+                                               class="btn btn-secondary btn-sm"/>
+                                        <input type="hidden" name="logintype" value="logout"/>
+                                    </form>
+                                </div>
+                                <div class="col-xs-7">
+                                    <a class="btn btn-primary btn-sm" href="/us/en">
+                                        Edit profile
+                                    </a>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        
+                        <div class="dropdown-login" ng-if="!user.userExists()">
+                            
+                            <form target="_top" class="form" action="/us/en/login?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=7b24c29591f1a9306e9cf9cdd5f430a1" method="post">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Flux" >
+<input type="hidden" name="__referrer[@controller]" value="Page" >
+<input type="hidden" name="__referrer[@action]" value="render" >
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt977df86fa6619614b9b7a612854bb14c77cd4b957" >
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Flux&quot;,&quot;@controller&quot;:&quot;Page&quot;,&quot;@action&quot;:&quot;render&quot;}e6d95d58abbb7b0d0aca459fdc0413e3fc5731db" >
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCJsREYyQThxb3RoWVlrNFJITVdQTmJ3XCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMTY6NDQ6NDQrMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTAxIiwicmVxdWVzdCI6eyJ1cmkiOiIvdXMvZW4vbG9naW4_dHhfZmVsb2dpbl9sb2dpbiU1QmFjdGlvbiU1RD1sb2dpbiZhbXA7dHhfZmVsb2dpbl9sb2dpbiU1QmNvbnRyb2xsZXIlNUQ9TG9naW4mYW1wO2NIYXNoPTdiMjRjMjk1OTFmMWE5MzA2ZTljZjljZGQ1ZjQzMGExIn19fQ.dHHEk_sfja8IeGpsjyU-xoof8Yqv5GLizwNtD9WClRc"><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;logintype&quot;:1,&quot;referer&quot;:1,&quot;redirect_url&quot;:1,&quot;submit&quot;:1}d7491b138f243611d4bb585cd876451df7cd0c19" >
+</div>
+
+                                <fieldset class="form-group">
+                                    <input autocomplete="username" class="form-control form-control-success" placeholder="Username/E-Mail" type="text" name="user" required="required" />
+                                </fieldset>
+                                <fieldset class="form-group">
+                                    <input required="required" autocomplete="current-password" id="login-password" class="form-control form-control-danger" placeholder="Password" type="password" name="pass" value="" />
+                                </fieldset>
+                                <div style="display: none;">
+                                    <input type="hidden" name="logintype" value="login" />
+                                    <input type="hidden" name="referer" value="/us/en/products/manual/m/pd6e-canopen-en/p" />
+                                    <input type="hidden" name="redirect_url" value="/us/en/products/manual/m/pd6e-canopen-en/p" />
+                                </div>
+                                <div class="form-group">
+                                    <input class="btn btn-primary btn-sm" type="submit" value="Login" name="submit" />
+                                </div>
+                                <a title="Forgot your password?" href="/us/en/login?tx_felogin_login%5Baction%5D=recovery&amp;tx_felogin_login%5Bcontroller%5D=PasswordRecovery&amp;cHash=b4e60212c8f14bf21400489efa2efd1a">
+                                    <small>Forgot your password?</small>
+                                </a>
+                                <hr>
+                                <a class="btn btn-tertiary btn-sm" href="/us/en/register">Register
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+
+                
+                <li class="nav-item item-basket">
+                <span class="nav-link" ng-click="utilNav.toggleASideBasket($event)" title="Shopping cart"
+                      data-placement="bottom" tooltip>
+                    <span class="text hidden-lg-up">Shopping cart</span>
+                    <i class="icon-cart-shopping"></i>
+                    <span class="badge">
+                        <span class="count" ng-cloak ng-bind="utilNav.BasketService.basket.amount"></span>
+                    </span>
+                </span>
+                </li>
+            
+
+            
+            
+
+            
+            
+
+            
+            <li class="nav-item item-unit-selector dropdown" ng-class="{'open': utilNav.isUnitSelectorOpen()}">
+                <span class="nav-link" ng-click="utilNav.toggleUnitSelectorDropdown($event)" data-placement="bottom"
+                      title="Ncm/oz-in? Select units" tooltip>
+                    <span class="text hidden-lg-up">Ncm/oz-in? Select units</span>
+                    <i class="icon-tachometer"></i>
+                </span>
+                <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeUnitSelector()"
+                     outside-if-not="item-unit-selector">
+                    <span class="link-back hidden-lg-up" ng-click="utilNav.toggleUnitSelectorDropdown($event)">Back</span>
+                    <div class="dropdown-unit-selector text-md-center" unit-selector>
+                        <div class="header h4">Switch unit for attribute values</div>
+                        <div class="controls">
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'metric'}"
+                                    ng-click="unitSelector.setPreset('metric')">Metric
+                            </button>
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'imperial'}"
+                                    ng-click="unitSelector.setPreset('imperial')">Imperial (US)
+                            </button>
+                        </div>
+                        <a href="/us/en/products/unit-settings">
+                            <u>... or select individual units for each attribute</u>
+                        </a>
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        
+        <form class="tec-form-search-submit pull-md-right" action="/us/en/search"
+              method="get">
+            <input class="form-control" type="text" name="q" placeholder="Enter your search term">
+            <button type="submit" title="Search">
+                <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Icons/Frontend/search.svg?1795001905"
+                     width="20"
+                     height="20"
+                     alt="Search"
+                />
+            </button>
+        </form>
+    </nav>
+
+                        </div>
+                        <div class="col-md-12 col-navigation">
+                            
+    
+        <nav id="navigation" class="navbar navbar-light" role="navigation"><ul class="nav navbar-nav"><li class="nav-item item-home"><a href="/us/en" class="nav-link is-home"><span class="text-display">Home</span><i class="icon-home"></i></a></li><li main-navigation-item class="nav-item has-menu active" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/products" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Products</a><div class="menu menu-lg level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/us/en/products" class="link-current">Products</a><div class="menus"><ul class="menu-box-info"><li class="nav-item"><a href="/us/en/products/product-finder" class="nav-link hidden-lg-up">Product Filter</a><div class="menu-bi-content"><a href="/us/en/products/product-finder" class="btn btn-tertiary">Product Filter</a></div></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/2262-smart-servos-motors-with-controller-drive" class="nav-link"><span class="text-display">Smart Brushless DC Servos</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/2262-smart-servos-motors-with-controller-drive" class="link-current">Smart Brushless DC Servos</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/2878-bldc-motors-with-controller-integrated-brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2877-stepper-motor-with-controller-drive" class="nav-link"><span class="text-display">Stepper motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Integrated linear actuators</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/158-motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers / drives</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/158-motor-controllers-drives" class="link-current">Motor controllers / drives</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/10739-bldc-motor-controller-1" class="nav-link"><span class="text-display">Controllers/Drives for IO applications</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10741-programmable-stepper-motor-controller-and-bldc" class="nav-link"><span class="text-display">High-performance controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10985-plug-in-motor-controllers-drives" class="nav-link"><span class="text-display">Plug-in motor controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10776-cm-cpb3-44-4-axis-controller" class="nav-link"><span class="text-display">4-axis controllers/drives</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link"><span class="text-display">Software</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="link-current">Software</a><ul></ul></li></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/156-brushless-dc-motors-from-manufacturer" class="nav-link"><span class="text-display">Brushless DC motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/156-brushless-dc-motors-from-manufacturer" class="link-current">Brushless DC motors</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/2265-brushless-dc-motors-rpm-w-watt" class="nav-link"><span class="text-display">BLDC motors with internal rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2267-brushless-dc-external-rotor-motors-bldc" class="nav-link"><span class="text-display">Flat BLDC motors with external rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/653-brushless-dc-motor-ip65-bldc-with-encoder" class="nav-link"><span class="text-display">IP65 BLDC motors with encoder</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/12404-dka-frameless-bldc-motors" class="nav-link"><span class="text-display">Frameless BLDC motors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/153-stepper-motors-from-manufacturer" class="nav-link"><span class="text-display">Stepper motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/153-stepper-motors-from-manufacturer" class="link-current">Stepper motors</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/2263-nema-stepper-motors-14-110-mm-flange" class="nav-link"><span class="text-display">Hybrid stepper motors</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2254-flat-motors" class="nav-link"><span class="text-display">Flat motors</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1269-hollow-shaft-motors" class="nav-link"><span class="text-display">Hollow-shaft motors</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/154-stepper-motors-ip65" class="nav-link"><span class="text-display">Stepper motors IP65</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/11077-bldc-linear-actuators" class="nav-link"><span class="text-display">BLDC Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/11077-bldc-linear-actuators" class="link-current">BLDC Linear Actuators</a><ul></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/157-linear-actuator-stepper-motor" class="nav-link"><span class="text-display">Stepper Motor Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/157-linear-actuator-stepper-motor" class="link-current">Stepper Motor Linear Actuators</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Linear actuators with controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/14354-lbsa56-nema23-ball-screw" class="nav-link"><span class="text-display">Linear actuators with ball screw</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/14360-nema-6-23-linear-actuators" class="nav-link"><span class="text-display">Linear actuators NEMA 6 - NEMA 23</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/2273-screws-and-nuts-for-linear-actuators" class="nav-link"><span class="text-display">Lead screws and nuts</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/2273-screws-and-nuts-for-linear-actuators" class="link-current">Lead screws and nuts</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/290-lead-screws-1" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2322-nuts-for-stepper-linear-actuators" class="nav-link"><span class="text-display">Threaded nuts</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/2655-wheel-drives" class="nav-link"><span class="text-display">Wheel drives for AGV</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/2655-wheel-drives" class="link-current">Wheel drives for AGV</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/8469-wd-modular-wheel-drives" class="nav-link"><span class="text-display">Modular wheel drives</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/11091-wd42-compact-wheel-drives-with-motor" class="nav-link"><span class="text-display">Compact wheel drives with motor</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="nav-link"><span class="text-display">Gearboxes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="link-current">Gearboxes</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/10989-hollow-rotary-tables" class="nav-link"><span class="text-display">Hollow rotary tables</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2704-planetary-gearboxes" class="nav-link"><span class="text-display">Planetary gearboxes</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2276-worm-gearbox-for-stepper-motor-bldc-motor" class="nav-link"><span class="text-display">Worm gearboxes</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="link-current">Encoders</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/2277-optical-encoders" class="nav-link"><span class="text-display">Optical encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2278-reflective-encoders" class="nav-link"><span class="text-display">Reflective encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2279-magnetic-encoders" class="nav-link"><span class="text-display">Magnetic encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/9956-multiturn-absolute-encoder" class="nav-link"><span class="text-display">Multiturn encoders</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="nav-link"><span class="text-display">Brakes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="link-current">Brakes</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/1936-spring-loaded-brake" class="nav-link"><span class="text-display">BWA – Spring-loaded brakes</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10078-brake-with-output-shaft" class="nav-link"><span class="text-display">BCD – Spring-loaded brakes</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/162-accessories" class="nav-link"><span class="text-display">Accessories</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/162-accessories" class="link-current">Accessories</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/283-connection-cables" class="nav-link"><span class="text-display">Connection cables</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/10754-brake-chopper" class="nav-link"><span class="text-display">Brake chopper</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/288-damper" class="nav-link"><span class="text-display">Damper</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1494-spacer-sleeves-spacer-sleeves" class="nav-link"><span class="text-display">Spacer sleeves</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1264-supplements-for-gsge-gearboxes" class="nav-link"><span class="text-display">Double shaft/Cover</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1272-electronics" class="nav-link"><span class="text-display">Electronics</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1047-capacitors" class="nav-link"><span class="text-display">Capacitors</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1048-converters" class="nav-link"><span class="text-display">Converters</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2719-keys" class="nav-link"><span class="text-display">Keys</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1049-switching-power-supplies" class="nav-link"><span class="text-display">Switching power supplies</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/2389-nanolube-50g-bearing-grease" class="nav-link"><span class="text-display">Lubricants</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/1445-connectors" class="nav-link"><span class="text-display">Connectors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/us/en/products/individual-solutions" class="nav-link"><span class="text-display">Individual solutions</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/products/individual-solutions" class="link-current">Individual solutions</a><ul><li main-navigation-item class="nav-item"><a href="/us/en/products/individual-solutions/cable-assembly" class="nav-link"><span class="text-display">Cables</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/individual-solutions/firmware" class="nav-link"><span class="text-display">Firmware</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/individual-solutions/lead-screws" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/individual-solutions/custom-motors" class="nav-link"><span class="text-display">Motors</span></a></li><li main-navigation-item class="nav-item"><a href="/us/en/products/individual-solutions/motor-shafts" class="nav-link"><span class="text-display">Motor shafts</span></a></li></ul></li></ul></ul></div></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/knowledge-base" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Know-How</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/us/en/knowledge-base" class="link-current">Knowledge Base</a><ul><li class="nav-item"><a href="/us/en/knowledge-base/category/fieldbus-systems-interfaces" class="nav-link"><span class="text-display">Fieldbus systems & interfaces</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/motors-with-controllers" class="nav-link"><span class="text-display">Motors with controllers/drives</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/stepper-motors" class="nav-link"><span class="text-display">Stepper motors</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers/drives</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/linear-actuators" class="nav-link"><span class="text-display">Linear actuators</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/applications" class="nav-link"><span class="text-display">Applications</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/programming-with-plug-drive-studio" class="nav-link"><span class="text-display">Programming with Plug & Drive Studio</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/programming-with-nanolib" class="nav-link"><span class="text-display">Programming with NanoLib</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/programming-with-nanoj" class="nav-link"><span class="text-display">Programming with NanoJ</span></a></li><li class="nav-item"><a href="/us/en/knowledge-base/category/programming" class="nav-link"><span class="text-display">Programming with other software</span></a></li></ul></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/downloads" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Downloads</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/downloads" class="link-current">Downloads</a><ul><li class="nav-item"><a href="/us/en/downloads/catalogs-flyers" class="nav-link">Catalogs & Brochures</a></li><li class="nav-item"><a href="/us/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link">Software</a></li><li class="nav-item"><a href="/us/en/downloads/manualsdatasheets" class="nav-link">Manuals/ Data Sheets</a></li><li class="nav-item"><a href="/us/en/downloads/drivers" class="nav-link">Drivers</a></li><li class="nav-item"><a href="/us/en/downloads/archive" class="nav-link">Archive</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/news-trade-shows" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">News & Events</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/news-trade-shows" class="link-current">News & Events</a><ul><li class="nav-item"><a href="/us/en/news-trade-shows/press" class="nav-link">Press</a></li><li class="nav-item"><a href="/us/en/news-trade-shows/trainings" class="nav-link">Trainings</a></li><li class="nav-item"><a href="/us/en/news-trade-shows/trade-shows" class="nav-link">Trade Shows</a></li><li class="nav-item"><a href="/us/en/news-trade-shows/news" class="nav-link">News</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/company" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Company</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/company" class="link-current">Company</a><ul><li class="nav-item"><a href="/us/en/company/about-nanotec" class="nav-link">About Nanotec</a></li><li class="nav-item"><a href="/us/en/company/facts-and-figures" class="nav-link">Facts and figures</a></li><li class="nav-item"><a href="/us/en/company/locations" class="nav-link">Locations</a></li><li class="nav-item"><a href="/us/en/company/integrated-management" class="nav-link">Integrated management</a></li><li class="nav-item"><a href="/us/en/company/research-funding" class="nav-link">Research funding</a></li></ul></li><li main-navigation-item class="nav-item"><a href="/us/en/job-opportunities" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Career</a></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/us/en/contact-us" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Contact us</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/us/en/contact-us" class="link-current">Contact us</a><ul><li class="nav-item"><a href="/us/en/contact-us/contact-form" class="nav-link">Contact Form</a></li><li class="nav-item"><a href="/us/en/contact-us/sales-contact" class="nav-link">Local Sales Contact</a></li><li class="nav-item"><a href="/us/en/contact-us/customer-service" class="nav-link">Customer Service</a></li><li class="nav-item"><a href="/us/en/contact-us/support" class="nav-link">Technical Support</a></li><li class="nav-item"><a href="/us/en/contact-us/returns/rma" class="nav-link">Returns/RMA</a></li><li class="nav-item"><a href="/us/en/contact-us/how-to-find-us" class="nav-link">How to find us</a></li></ul></li></ul></nav>
+    
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+
+            
+        
+    <div class="container">
+        <nav class="breadcrumb" role="navigation">
+            <ol>
+                <li>You are here:</li>
+                
+                    <li>
+                        <a href="/us/en/">Nanotec</a>
+                    </li>
+                
+                    <li>
+                        <a href="/us/en/products">Products</a>
+                    </li>
+                
+                    <li>
+                        <a href="/us/en/products/manual">Manual</a>
+                    </li>
+                
+            </ol>
+        </nav>
+    </div>
+
+        <main class="main-content" role="main">
+            <div class="container">
+                <!-- TYPO3SEARCH_begin -->
+                
+
+
+    
+    
+    
+        
+            
+                    <div id="c4676" name="c4676">
+                        
+                            
+
+
+
+                        
+                        
+
+    
+    
+
+
+
+<div id="manual">
+    
+    
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+                    
+                
+
+            
+            
+    
+
+            <div class="row">
+                <div class="col-sm-12">
+                    <h2 class="headline">PD6-E/-EB CANopen Online Manual</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-9 col-sm-12" id="content">
+                    <a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fintroduction.html#wh_topic_body" class="visually-hidden visually-hidden-focusable">
+            Jump to main content
+        </a>
+        
+        
+        
+        
+        <div class="container-fluid navbar-expand-md">
+        <div class="wh_header_flex_container navbar-nav navbar-dark">
+            <div class="wh_logo_and_publication_title_container">
+                <div class="wh_logo_and_publication_title">
+                    
+                    
+                    <div class=" wh_publication_title "><a href="/us/en/products/manual/m/pd6e-canopen-en/p"><span class="title">PD6-E CANopen Technical Manual</span></a></div>
+                    
+                </div>
+                
+                <button type="button" data-bs-target="#wh_top_menu_and_indexterms_link" id="wh_menu_mobile_button" data-bs-toggle="collapse" class="navbar-toggler collapsed wh_toggle_button" aria-expanded="false" aria-label="Toggle menu" aria-controls="wh_top_menu_and_indexterms_link">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+
+            <div class="wh_top_menu_and_indexterms_link collapse navbar-collapse" id="wh_top_menu_and_indexterms_link">
+                
+                <nav class=" wh_top_menu " aria-label="Menu Container"><ul role="menubar" aria-label="Menu"><li role="menuitem"><span id="topic_kp3_bgh_vh_pd6-d2029e19-mi" data-tocid="topic_kp3_bgh_vh_pd6-d2029e19" data-state="leaf" class=" topicref " data-id="topic_kp3_bgh_vh_pd6"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Technical Manual PD6-E</a></span></span></li><li role="menuitem"><span id="topic_bgd_4zt_2bb-d2029e28-mi" data-tocid="topic_bgd_4zt_2bb-d2029e28" data-state="leaf" class=" topicref " data-id="topic_bgd_4zt_2bb"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Safety and warning notices</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="topic_msq_jwy_fm-d2029e37-mi" data-tocid="topic_msq_jwy_fm-d2029e37" data-state="not-ready" class=" topicref " data-id="topic_msq_jwy_fm"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Technical details and pin assignment</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="topic_tfz_pbj_bbb_pd6-d2029e95-mi" data-tocid="topic_tfz_pbj_bbb_pd6-d2029e95" data-state="not-ready" class=" topicref " data-id="topic_tfz_pbj_bbb_pd6"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Commissioning</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="id121JB0S30UI-d2029e186-mi" data-tocid="id121JB0S30UI-d2029e186" data-state="not-ready" class=" topicref " data-id="id121JB0S30UI"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">General concepts</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="id121JB0S30UI-d2029e235-mi" data-tocid="id121JB0S30UI-d2029e235" data-state="not-ready" class=" topicref " data-id="id121JB0S30UI"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">operating modes</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="id121JB0S30UI-d2029e333-mi" data-tocid="id121JB0S30UI-d2029e333" data-state="not-ready" class=" topicref " data-id="id121JB0S30UI"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Special functions</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="topic_yps_l2q_dbb-d2029e385-mi" data-tocid="topic_yps_l2q_dbb-d2029e385" data-state="not-ready" class=" topicref " data-id="topic_yps_l2q_dbb"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">CANopen</a></span></span></li><li role="menuitem"><span id="topic_orl_wzm_2bb-d2029e418-mi" data-tocid="topic_orl_wzm_2bb-d2029e418" data-state="leaf" class=" topicref " data-id="topic_orl_wzm_2bb"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Programming with NanoJ</a></span></span></li><li role="menuitem" aria-haspopup="true" aria-expanded="false" class="has-children"><span id="id12A4EI00E5Z-d2029e428-mi" data-tocid="id12A4EI00E5Z-d2029e428" data-state="not-ready" class=" topicref " data-id="id12A4EI00E5Z"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Description of the object dictionary</a></span></span></li><li role="menuitem"><span id="topic_kp3_bgh_vh-d2029e2298-mi" data-tocid="topic_kp3_bgh_vh-d2029e2298" data-state="leaf" class=" topicref " data-id="topic_kp3_bgh_vh"><span class="title"><a href="/us/en/products/manual/m/pd6e-canopen-en/p">Copyrights</a></span></span></li></ul></nav>
+                
+                
+            </div>
+        </div>
+    </div>
+<div class="container-fluid navbar-expand-md" id="wh_topic_container">
+            
+            
+            
+            
+            
+            <div class="wh_content_area">
+                <div class="row">
+                    
+                    
+                    <div class="col-xs-12" id="wh_topic_body">
+                        
+                        <div class=" wh_topic_content body "><main role="main"><article class="" role="article" aria-labelledby="ariaid-title1">
+    <article class="nested0" aria-labelledby="ariaid-title1" id="topic_kp3_bgh_vh_pd6">
+        <h1 class="- topic/title title topictitle1" id="ariaid-title1">Technical Manual PD6-E</h1>
+        <div class="- topic/body body">
+            
+            <p class="- topic/p p fieldbus">Fieldbus: CANopen</p>
+            
+            
+            
+            
+            
+            <p class="- topic/p p"></p>
+            <p class="- topic/p p">For use with the following variants:</p>
+            
+            <p class="- topic/p p">PD6-E891S95-E(S)-65-2, PD6-E891M95-E(S)-65-2,
+                PD6-E891L95-E(S)-65-2, PD6-EB80SD-E(S)-65-2, PD6-EB80MD-E(S)-65-2,
+                PD6-EB80LD-E(S)-65-2, PD6-EB80CD-E(S)-65-2</p>
+            
+            
+            
+            
+            <p class="- topic/p p"><img class="- topic/image image" id="topic_kp3_bgh_vh_pd6__image_vjr_h5s_5cb" src="/manuals/pd6e-canopen-en/pd6e/../graphics/pd6e/pd6e.jpg" height="277" width="360"></p>
+            <div class="- topic/p p">
+                <div class="table-container"><table class="- topic/table table frame-none" id="topic_kp3_bgh_vh_pd6__table_i2h_brp_xr" data-ofbid="topic_kp3_bgh_vh_pd6__table_i2h_brp_xr" data-cols="2"><caption></caption><colgroup><col style="width:50%"><col style="width:50%"></colgroup><tbody class="- topic/tbody tbody">
+                            <tr class="- topic/row">
+                                <td class="- topic/entry entry align-left colsep-1 rowsep-1">Valid for firmware version FIR-v2538 and higher</td>
+                                <td class="- topic/entry entry align-left colsep-0 rowsep-1">Manual version 1.2.0</td>
+                            </tr>
+                            <tr class="- topic/row">
+                                <td class="- topic/entry entry align-left colsep-1 rowsep-0"></td>
+                                <td class="- topic/entry entry align-left colsep-0 rowsep-0"></td>
+                            </tr>
+                        </tbody></table></div>
+            </div>
+        </div>
+    </article>
+    
+    <article class="- topic/topic concept/concept topic concept nested0" aria-labelledby="ariaid-title2" xml:lang="en-us" lang="en-us" id="concept_et2_cvt_2bb">
+        <h1 class="- topic/title title topictitle1" id="ariaid-title2">Introduction</h1>
+        <div class="- topic/body concept/conbody body conbody">
+            <p class="- topic/p p">The <cite class="- topic/cite cite">PD6-E</cite> is a brushless motor with integrated controller in protection class IP65. The integrated absolute encoder makes immediate operation possible in <cite class="- topic/cite cite">closed-loop</cite> mode without homing.</p>
+            <p class="- topic/p p">This manual describes the functions of the controller and the available operating modes. It also shows how you can address and program the controller via the communication interface.</p>
+            
+            
+            
+            
+        </div>
+        
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title3" id="concept_ltt_blq_t2b">
+            <h2 class="- topic/title title topictitle2" id="ariaid-title3">Product documentation</h2>
+            <div class="- topic/body concept/conbody body conbody">
+                
+                <p class="- topic/p p">All product documentation is available on the respective product page at <a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fintroduction.html" target="_blank" rel="external noopener">us.nanotec.com</a>.</p>
+                
+                <div class="table-container"><table class="- topic/table table frame-topbot" id="concept_ltt_blq_t2b__table_yvt_w2m_xdb" data-ofbid="concept_ltt_blq_t2b__table_yvt_w2m_xdb" data-cols="2"><caption></caption><colgroup><col style="width:34.48275862068966%"><col style="width:65.51724137931035%"></colgroup><thead class="- topic/thead thead">
+                            <tr class="- topic/row">
+                                <th class="- topic/entry entry colsep-1 rowsep-1" id="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__1">Document</th>
+                                <th class="- topic/entry entry colsep-0 rowsep-1" id="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__2">Content</th>
+                            </tr>
+                        </thead><tbody class="- topic/tbody tbody">
+                            <tr class="- topic/row">
+                                <td class="- topic/entry entry colsep-1 rowsep-1" headers="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__1">Technical manual (this document)</td>
+                                <td class="- topic/entry entry colsep-0 rowsep-1" headers="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__2">Installation, commissioning, parameterization/programming, description of the functions of the motor controller</td>
+                            </tr>
+                            <tr class="- topic/row">
+                                <td class="- topic/entry entry colsep-1 rowsep-0" headers="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__1">Functional description STO</td>
+                                <td class="- topic/entry entry colsep-0 rowsep-0" headers="concept_ltt_blq_t2b__table_yvt_w2m_xdb__entry__2">Description of the integrated <cite class="- topic/cite cite">STO</cite> safety function for the product variants that include this function (<span class="- topic/ph ph">PD6-E...S-65...</span>)</td>
+                            </tr>
+                        </tbody></table></div>
+            </div>
+        </article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title4" id="id_aft_np3_cgb">
+        <h2 class="- topic/title title topictitle2" id="ariaid-title4">Version information</h2>
+        <div class="- topic/body concept/conbody body conbody">
+            <div class="table-container"><table class="- topic/table table frame-topbot" id="id_aft_np3_cgb__table_xqp_jgh_vh" data-ofbid="id_aft_np3_cgb__table_xqp_jgh_vh" data-cols="5"><caption></caption><colgroup><col style="width:11.705348133198788%"><col style="width:10.090817356205854%"><col style="width:52.67406659939454%"><col style="width:14.530776992936428%"><col style="width:10.99899091826438%"></colgroup><thead class="- topic/thead thead">
+                        <tr class="- topic/row">
+                            <th class="- topic/entry entry colsep-0 rowsep-0" id="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1">Manual version</th>
+                            <th class="- topic/entry entry colsep-0 rowsep-0" id="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2">Date</th>
+                            <th class="- topic/entry entry colsep-0 rowsep-0" id="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3">Changes</th>
+                            <th class="- topic/entry entry colsep-0 rowsep-0" id="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4">Firmware version</th>
+                            <th class="- topic/entry entry colsep-0 rowsep-0" id="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></th>
+                        </tr>
+                    </thead><tbody class="- topic/tbody tbody">
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1">1.0.0</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2">09/2022</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3">Edition</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4">v2213</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1">1.1.0</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2">11/2023</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3">Correction: Input 1 is the clock input in clock/direction
+                                mode.</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4">v2213</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1">1.1.1</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2">04/2025</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3"><a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p#concept_c3w_ndz_fm">Note on the USB connection</a> added.</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4">v2213</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1">1.2.0</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2">10/2025</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3">Variants with <cite class="- topic/cite cite">STO</cite> safety function added. <p class="- topic/p p">Shielded
+                                    cables also required for the voltage supply of the STO
+                                    variants.</p></td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4">v2538</td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__1"></td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__2"></td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__3"></td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__4"></td>
+                            <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_xqp_jgh_vh__entry__5"></td>
+                        </tr>
+                    </tbody></table></div>
+            <div class="table-container"><table class="- topic/table table frame-topbot" id="id_aft_np3_cgb__table_kj5_255_jgc" data-ofbid="id_aft_np3_cgb__table_kj5_255_jgc" data-cols="2"><caption></caption><colgroup><col style="width:52.38095238095239%"><col style="width:47.61904761904761%"></colgroup><thead class="- topic/thead thead">
+                        <tr class="- topic/row">
+                            <th class="- topic/entry entry colsep-1 rowsep-1" id="id_aft_np3_cgb__table_kj5_255_jgc__entry__1">Variants</th>
+                            <th class="- topic/entry entry align-center colsep-0 rowsep-1" id="id_aft_np3_cgb__table_kj5_255_jgc__entry__2">Hardware revision</th>
+                        </tr>
+                    </thead><tbody class="- topic/tbody tbody">
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-1 rowsep-1" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__1">Stepper: PD6-E...-65...</td>
+                            <td class="- topic/entry entry align-center colsep-0 rowsep-1" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__2">4</td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-1 rowsep-1" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__1">BLDC: PD6-E<strong class="+ topic/ph hi-d/b ph b">B</strong>...-65...</td>
+                            <td class="- topic/entry entry align-center colsep-0 rowsep-1" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__2">5</td>
+                        </tr>
+                        <tr class="- topic/row">
+                            <td class="- topic/entry entry colsep-1 rowsep-0" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__1">STO: PD6-E...<strong class="+ topic/ph hi-d/b ph b">S</strong>-65...</td>
+                            <td class="- topic/entry entry align-center colsep-0 rowsep-0" headers="id_aft_np3_cgb__table_kj5_255_jgc__entry__2">0</td>
+                        </tr>
+                    </tbody></table></div>
+        </div>
+    </article>
+        
+        
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title5" xml:lang="en-us" lang="en-us" id="id_jhl_twt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title5">Copyright<span class="- topic/ph ph">, marking and contact</span></h2>
+ <div class="- topic/body concept/conbody body conbody">
+    <p class="- topic/p p">© 2013 – 2025 Nanotec Electronic GmbH &amp; Co. KG. All rights reserved.</p>
+    
+    <p class="- topic/p p"><img class="- topic/image image" id="id_jhl_twt_2bb__image_wll_1wt_2bb" src="/manuals/pd6e-canopen-en/pd6e/../safety_instructions_and_warnings/../graphics/miscellaneous/ce-logo.svg" height="52" width="70"></p>
+    
+    <p class="- topic/p p">Nanotec Electronic GmbH &amp; Co. KG</p>
+    <p class="- topic/p p">Kapellenstraße 6</p>
+    <p class="- topic/p p">85622 Feldkirchen (Germany)</p>
+    <p class="- topic/p p">Germany</p>
+    <p class="- topic/p p"> </p>
+    <p class="- topic/p p">Phone: +49 89 900 686-0</p>
+    <p class="- topic/p p">Fax: +49 (89) 900 686-50</p>
+    <p class="- topic/p p"> </p>
+    <p class="- topic/p p"><a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fintroduction.html" target="_blank" rel="external noopener">us.nanotec.com</a></p>
+    <p class="- topic/p p"> </p>
+    
+    
+    <p class="- topic/p p"><span class="- topic/tm tm">Microsoft<span class="- topic/tmmark tmmark ">®</span></span> <span class="- topic/tm tm">Windows<span class="- topic/tmmark tmmark ">®</span></span> 98/NT/ME/2000/XP/7/10 are registered trademarks of the Microsoft Corporation.</p>
+    
+    
+    
+    
+    
+  </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title6" xml:lang="en-us" lang="en-us" id="id_byb_rwn_cgb">
+    <h2 class="- topic/title title topictitle2" id="ariaid-title6">Intended use</h2>
+    <div class="- topic/body concept/conbody body conbody">
+        <p class="- topic/p p">The <cite class="- topic/cite cite">PD6-E</cite> motor with integrated controller is used as a component of drive systems in a range of industrial applications.</p>
+        <p class="- topic/p p">Use the product as intended within the limits defined in the technical data (in particular, see <a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p#concept_x2n_tz4_ybb">Permissible operating voltage</a>) and the approved <a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p#topic_glf_skw_1bb">Environmental conditions</a>.</p>
+        <p class="- topic/p p">With the exception of the product variants with integrated <cite class="- topic/cite cite">STO</cite> safety function (<span class="- topic/ph ph">PD6-E...S-65...</span>), this Nanotec product may under no circumstances be integrated as a safety component in a product or system. For the STO variants, also observe the prerequisites for usage and the safety notices in the document <cite class="- topic/cite cite">Function description STO</cite>.</p>
+        <p class="- topic/p p"> All products containing a component manufactured by Nanotec must, upon delivery to the end user, be provided with corresponding warning notices including instructions for safe use and safe operation. All warning notices provided by Nanotec must be passed on directly to the end user.</p>
+    </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title7" xml:lang="en-us" lang="en-us" id="id_fjt_lzq_whb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title7">Warranty and disclaimer</h2>
+ <div class="- topic/body concept/conbody body conbody">
+    <p class="- topic/p p">Nanotec shall not be liable for damage and malfunctions attributable to installation errors, failure to observe this document or improper repair. The plant engineer, operating company and user shall be responsible for the selection, operation and use of our products. Nanotec shall not take responsibility for integration of the product in the end system. The general terms and conditions listed at www.nanotec.de shall apply. <strong class="+ topic/ph hi-d/b ph b">Comment:</strong> Modifications/changes to the product as well as opening the product are prohibited.</p>
+    
+    
+  </div>
+</article>
+        
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title8" xml:lang="en-us" lang="en-us" id="id_g3k_2xt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title8">Target group and qualification</h2>
+ <div class="- topic/body concept/conbody body conbody">
+  <p class="- topic/p p">The product and this documentation are directed towards technically trained specialists staff such as:</p>
+  
+  <ul class="- topic/ul ul" id="id_g3k_2xt_2bb__ul_sj4_twp_hhb" data-ofbid="id_g3k_2xt_2bb__ul_sj4_twp_hhb">
+   <li class="- topic/li li">Development engineers</li>
+   <li class="- topic/li li">Plant engineers</li>
+   <li class="- topic/li li">Installers/service personnel</li>
+   <li class="- topic/li li">Application engineers</li>
+  </ul>
+  <p class="- topic/p p">Only specialists may install, program and commission the product. Specialist staff are persons who</p>
+  <ul class="- topic/ul ul" id="id_g3k_2xt_2bb__ul_l2w_s4k_cv" data-ofbid="id_g3k_2xt_2bb__ul_l2w_s4k_cv">
+   <li class="- topic/li li">have appropriate training and experience in working with motors and their controller,</li>
+   <li class="- topic/li li">are familiar with and understand the content of this technical manual,</li>
+   <li class="- topic/li li">know the applicable regulations.</li>
+  </ul>
+ </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title9" xml:lang="en-us" lang="en-us" id="id_hqz_lxt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title9">EU directives for product safety</h2>
+ <div class="- topic/body concept/conbody body conbody">
+            <p class="- topic/p p">The following EU directives were observed:</p>
+            <ul class="- topic/ul ul">
+                  <li class="- topic/li li">RoHS directive (2011/65/EU, 2015/863/EU) </li>
+                  <li class="- topic/li li">Machinery directive (2006/42/EC), only with variants <span class="- topic/ph ph">PD6-E...S-65...</span> with STO safety function </li>
+                  
+                  
+                  <li class="- topic/li li">EMC directive (2014/30/EU) </li>
+            </ul>
+            
+            
+      </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title10" xml:lang="en-us" lang="en-us" id="id_gvl_jxt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title10">Other applicable regulations</h2>
+ <div class="- topic/body concept/conbody body conbody">
+  <p class="- topic/p p">In addition to this technical manual, the following regulations are to be observed:</p>
+  <ul class="- topic/ul ul" id="id_gvl_jxt_2bb__ul_ejb_2fq_5y" data-ofbid="id_gvl_jxt_2bb__ul_ejb_2fq_5y">
+   <li class="- topic/li li">Accident-prevention regulations</li>
+   <li class="- topic/li li">Local regulations on occupational safety</li>
+   
+  </ul>
+ </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title11" xml:lang="en-us" lang="en-us" id="id_o34_xxt_2bb">
+  <h2 class="- topic/title title topictitle2" id="ariaid-title11">Used icons</h2>
+  <div class="- topic/body concept/conbody body conbody">
+    <p class="- topic/p p">All notices are in the same format. The degree of the hazard  is divided into the following classes.</p>
+    
+    
+    
+    <table role="presentation" border="1" class="+ topic/note hazard-d/hazardstatement note hazardstatement caution hazardstatement_caution"><colgroup><col class="hazardstatement--logo-col"><col class="hazardstatement--msg-col"></colgroup><thead><tr><th colspan="2" class="hazardstatement--caution"><span class="hazardsymbol-container"><svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" class="hazardsymbol" version="1.1" height="1em" viewbox="0 0 600 525"><metadata>
+      <rdf xmlns="">
+         <work rdf:about="">
+            <format>image/svg+xml</format>
+            <type rdf:resource="http://purl.org/dc/dcmitype/StillImage"></type>
+            <title></title>
+         </work>
+      </rdf>
+   </metadata><defs>
+      <path d="M 2.8117,-1.046 A 3,3 0 0 1 0.5,2.958 V 4.5119 A 10.5,10.5 0 0 1 2,25.3078 v 0.5583 A 15,15 0 0 0 14.7975,8.5433 15,15 0 0 0 23.4007,-11.201 l -0.4835,0.2792 A 10.5,10.5 0 0 1 4.1574,-1.8229 z m 3.4148,8.871 a 10,10 0 0 1 -12.453,0 9.5,9.5 0 0 0 -2.1756,2.7417 13.5,13.5 0 0 0 16.8042,0 A 10,10 0 0 0 6.2265,7.825 z" transform="matrix(10,0,0,-10,260,260)"></path>
+   </defs><path d="M 597.6,499.6 313.8,8 C 310.9,3 305.6,0 299.9,0 294.2,0 288.9,3.1 286,8 L 2.2,499.6 c -2.9,5 -2.9,11.1 0,16 2.9,5 8.2,8 13.9,8 h 567.6 c 5.7,0 11,-3.1 13.9,-8 2.9,-5 2.9,-11.1 0,-16 z"></path><polygon points="43.875,491.5 299.875,48.2 555.875,491.5 " transform="matrix(1,0,0,0.99591458,0.125,2.0332437)" style="fill:#f6bd16;fill-opacity:1;stroke:none;overflow:visible"></polygon><path d="m -384.00937,417.52725 a 38.151581,36.156727 0 1 1 -76.30316,0 38.151581,36.156727 0 1 1 76.30316,0 z" transform="matrix(0.99319888,0,0,1.0479962,719.28979,-2.9357862)" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.62514842;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:0.4;stroke-dasharray:none;stroke-dashoffset:0"></path><path d="m 300,168.60074 c -20.64745,0 -37.26716,16.97292 -37.26716,38.05658 l 11.01897,133.31318 c 2.10449,17.24457 3.90184,27.0149 11.01898,31.60966 4.64712,2.1172 9.79468,3.32214 15.22921,3.32214 5.40832,0 10.53383,-1.1913 15.16343,-3.28925 7.15697,-4.58178 8.97556,-14.35941 11.08476,-31.64255 l 11.01898,-133.31318 c 0,-21.08366 -16.61973,-38.05658 -37.26717,-38.05658 z" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.88582677;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:1;stroke-dashoffset:0"></path></svg></span> CAUTION</th></tr></thead><tbody><tr><td><span class="hazardsymbol-container"><svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" class="hazardsymbol" version="1.1" height="4em" viewbox="0 0 600 525">
+   <metadata>
+      <rdf xmlns="">
+         <work rdf:about="">
+            <format>image/svg+xml</format>
+            <type rdf:resource="http://purl.org/dc/dcmitype/StillImage"></type>
+            <title></title>
+         </work>
+      </rdf>
+   </metadata>
+   <defs>
+      <path d="M 2.8117,-1.046 A 3,3 0 0 1 0.5,2.958 V 4.5119 A 10.5,10.5 0 0 1 2,25.3078 v 0.5583 A 15,15 0 0 0 14.7975,8.5433 15,15 0 0 0 23.4007,-11.201 l -0.4835,0.2792 A 10.5,10.5 0 0 1 4.1574,-1.8229 z m 3.4148,8.871 a 10,10 0 0 1 -12.453,0 9.5,9.5 0 0 0 -2.1756,2.7417 13.5,13.5 0 0 0 16.8042,0 A 10,10 0 0 0 6.2265,7.825 z" transform="matrix(10,0,0,-10,260,260)"></path>
+   </defs>
+   <path d="M 597.6,499.6 313.8,8 C 310.9,3 305.6,0 299.9,0 294.2,0 288.9,3.1 286,8 L 2.2,499.6 c -2.9,5 -2.9,11.1 0,16 2.9,5 8.2,8 13.9,8 h 567.6 c 5.7,0 11,-3.1 13.9,-8 2.9,-5 2.9,-11.1 0,-16 z"></path>
+   <polygon points="43.875,491.5 299.875,48.2 555.875,491.5 " transform="matrix(1,0,0,0.99591458,0.125,2.0332437)" style="fill:#f6bd16;fill-opacity:1;stroke:none;overflow:visible"></polygon>
+   <path d="m -384.00937,417.52725 a 38.151581,36.156727 0 1 1 -76.30316,0 38.151581,36.156727 0 1 1 76.30316,0 z" transform="matrix(0.99319888,0,0,1.0479962,719.28979,-2.9357862)" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.62514842;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:0.4;stroke-dasharray:none;stroke-dashoffset:0"></path>
+   <path d="m 300,168.60074 c -20.64745,0 -37.26716,16.97292 -37.26716,38.05658 l 11.01897,133.31318 c 2.10449,17.24457 3.90184,27.0149 11.01898,31.60966 4.64712,2.1172 9.79468,3.32214 15.22921,3.32214 5.40832,0 10.53383,-1.1913 15.16343,-3.28925 7.15697,-4.58178 8.97556,-14.35941 11.08476,-31.64255 l 11.01898,-133.31318 c 0,-21.08366 -16.61973,-38.05658 -37.26717,-38.05658 z" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.88582677;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:1;stroke-dashoffset:0"></path>
+</svg></span></td><td><div class="+ topic/sl hazard-d/messagepanel sl messagepanel">
+        <div class="+ topic/sli hazard-d/typeofhazard sli typeofhazard"><strong class="+ topic/ph hi-d/b ph b">The CAUTION notice indicates a possibly dangerous situation.</strong></div>
+        <div class="+ topic/sli hazard-d/consequence sli consequence">Failure to observe the notice <strong class="+ topic/ph hi-d/b ph b">may</strong> result in moderately severe injuries.</div>
+        <div class="+ topic/sli hazard-d/howtoavoid sli howtoavoid">► Describes how you can avoid the dangerous situation.</div>
+      </div></td></tr></tbody></table>
+    <table role="presentation" border="1" class="+ topic/note hazard-d/hazardstatement note hazardstatement notice hazardstatement_notice"><colgroup><col class="hazardstatement--logo-col"><col class="hazardstatement--msg-col"></colgroup><thead><tr><th colspan="2" class="hazardstatement--notice">Notice</th></tr></thead><tbody><tr><td><span class="hazardsymbol-container"><svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" class="hazardsymbol" version="1.1" height="4em" viewbox="0 0 600 525">
+   <metadata>
+      <rdf xmlns="">
+         <work rdf:about="">
+            <format>image/svg+xml</format>
+            <type rdf:resource="http://purl.org/dc/dcmitype/StillImage"></type>
+            <title></title>
+         </work>
+      </rdf>
+   </metadata>
+   <defs>
+      <path d="M 2.8117,-1.046 A 3,3 0 0 1 0.5,2.958 V 4.5119 A 10.5,10.5 0 0 1 2,25.3078 v 0.5583 A 15,15 0 0 0 14.7975,8.5433 15,15 0 0 0 23.4007,-11.201 l -0.4835,0.2792 A 10.5,10.5 0 0 1 4.1574,-1.8229 z m 3.4148,8.871 a 10,10 0 0 1 -12.453,0 9.5,9.5 0 0 0 -2.1756,2.7417 13.5,13.5 0 0 0 16.8042,0 A 10,10 0 0 0 6.2265,7.825 z" transform="matrix(10,0,0,-10,260,260)"></path>
+   </defs>
+   <path d="M 597.6,499.6 313.8,8 C 310.9,3 305.6,0 299.9,0 294.2,0 288.9,3.1 286,8 L 2.2,499.6 c -2.9,5 -2.9,11.1 0,16 2.9,5 8.2,8 13.9,8 h 567.6 c 5.7,0 11,-3.1 13.9,-8 2.9,-5 2.9,-11.1 0,-16 z"></path>
+   <polygon points="43.875,491.5 299.875,48.2 555.875,491.5 " transform="matrix(1,0,0,0.99591458,0.125,2.0332437)" style="fill:#f6bd16;fill-opacity:1;stroke:none;overflow:visible"></polygon>
+   <path d="m -384.00937,417.52725 a 38.151581,36.156727 0 1 1 -76.30316,0 38.151581,36.156727 0 1 1 76.30316,0 z" transform="matrix(0.99319888,0,0,1.0479962,719.28979,-2.9357862)" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.62514842;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:0.4;stroke-dasharray:none;stroke-dashoffset:0"></path>
+   <path d="m 300,168.60074 c -20.64745,0 -37.26716,16.97292 -37.26716,38.05658 l 11.01897,133.31318 c 2.10449,17.24457 3.90184,27.0149 11.01898,31.60966 4.64712,2.1172 9.79468,3.32214 15.22921,3.32214 5.40832,0 10.53383,-1.1913 15.16343,-3.28925 7.15697,-4.58178 8.97556,-14.35941 11.08476,-31.64255 l 11.01898,-133.31318 c 0,-21.08366 -16.61973,-38.05658 -37.26717,-38.05658 z" style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.88582677;stroke-linecap:square;stroke-miterlimit:4;stroke-opacity:1;stroke-dashoffset:0"></path>
+</svg></span></td><td><div class="+ topic/sl hazard-d/messagepanel sl messagepanel">
+        <div class="+ topic/sli hazard-d/typeofhazard sli typeofhazard"><strong class="+ topic/ph hi-d/b ph b">Indicates a possible incorrect operation of the product.</strong></div>
+        <div class="+ topic/sli hazard-d/consequence sli consequence">Failure to observe the notice may result in damage to this or other products.</div>
+        <div class="+ topic/sli hazard-d/howtoavoid sli howtoavoid">► Describes how you can avoid the incorrect operation.</div>
+      </div></td></tr></tbody></table>
+    <div class="- topic/note note tip note_tip"><span class="note__title">Tip:</span> <div class="note__body">Shows a tip for the application or task.</div></div>
+    <section class="- topic/section section" id="id_o34_xxt_2bb__section_xmv_cp2_jxb" data-ofbid="id_o34_xxt_2bb__section_xmv_cp2_jxb"><h3 class="- topic/title title sectiontitle">STO-specific notices</h3>
+      
+      <p class="- topic/p p">The following points apply only to the products with the STO (<cite class="- topic/cite cite">Safe Torque Off</cite>) safety function.</p>
+      <div class="table-container"><table class="- topic/table table frame-all" id="id_o34_xxt_2bb__table_qwn_rwk_3gb" data-ofbid="id_o34_xxt_2bb__table_qwn_rwk_3gb" data-cols="2"><caption></caption><colgroup><col style="width:15.673981191222571%"><col style="width:84.32601880877742%"></colgroup><thead class="- topic/thead thead">
+            <tr class="- topic/row">
+              <th class="- topic/entry entry caution colsep-0 rowsep-0" id="id_o34_xxt_2bb__table_qwn_rwk_3gb__entry__1" colspan="2">CAUTION</th>
+            </tr>
+          </thead><tbody class="- topic/tbody tbody">
+            <tr class="- topic/row">
+              <td class="- topic/entry entry align-center colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_qwn_rwk_3gb__entry__1" rowspan="3"><img class="- topic/image image" id="id_o34_xxt_2bb__image_rwn_rwk_3gb" src="/manuals/pd6e-canopen-en/pd6e/../safety_instructions_and_warnings/../graphics/miscellaneous/warning_sign_sto.png" height="102" width="81"></td>
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_qwn_rwk_3gb__entry__1"><strong class="+ topic/ph hi-d/b ph b">The CAUTION note with the STO icon indicates a possibly dangerous situation that can arise from the loss of the safety function.</strong></td>
+            </tr>
+            <tr class="- topic/row">
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_qwn_rwk_3gb__entry__1">Failure to observe the notice <strong class="+ topic/ph hi-d/b ph b">may</strong> result in moderately severe injuries.</td>
+            </tr>
+            <tr class="- topic/row">
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_qwn_rwk_3gb__entry__1">► Describes how you can avoid the dangerous situation.</td>
+            </tr>
+          </tbody></table></div>
+      <div class="table-container"><table class="- topic/table table frame-all" id="id_o34_xxt_2bb__table_a2n_jzk_3gb" data-ofbid="id_o34_xxt_2bb__table_a2n_jzk_3gb" data-cols="2"><caption></caption><colgroup><col style="width:15.673981191222571%"><col style="width:84.32601880877742%"></colgroup><thead class="- topic/thead thead">
+            <tr class="- topic/row">
+              <th class="- topic/entry entry hint colsep-0 rowsep-0" id="id_o34_xxt_2bb__table_a2n_jzk_3gb__entry__1" colspan="2">Note</th>
+            </tr>
+          </thead><tbody class="- topic/tbody tbody">
+            <tr class="- topic/row">
+              <td class="- topic/entry entry align-center colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_a2n_jzk_3gb__entry__1" rowspan="3"><img class="- topic/image image" id="id_o34_xxt_2bb__image_b2n_jzk_3gb" src="/manuals/pd6e-canopen-en/pd6e/../safety_instructions_and_warnings/../graphics/miscellaneous/note_sign_sto.png" height="93" width="86"></td>
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_a2n_jzk_3gb__entry__1"><strong class="+ topic/ph hi-d/b ph b">The note with the STO icon indicates a possible incorrect operation of the product with STO function.</strong></td>
+            </tr>
+            <tr class="- topic/row">
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_a2n_jzk_3gb__entry__1">Failure to observe the notice may result in damage to this or other products.</td>
+            </tr>
+            <tr class="- topic/row">
+              <td class="- topic/entry entry colsep-0 rowsep-0" headers="id_o34_xxt_2bb__table_a2n_jzk_3gb__entry__1">► Describes how you can avoid the incorrect operation.</td>
+            </tr>
+          </tbody></table></div>
+    </section>
+  </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title12" xml:lang="en-us" lang="en-us" id="id_qd3_2yt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title12">Emphasis in the text</h2>
+ <div class="- topic/body concept/conbody body conbody">
+  <p class="- topic/p p">The following conventions are used in the document:</p>
+  <p class="- topic/p p"><u class="+ topic/ph hi-d/u ph u">Underlined</u> text indicates cross references and hyperlinks:</p>
+  <ul class="- topic/ul ul" id="id_qd3_2yt_2bb__ul_s2f_lks_gz" data-ofbid="id_qd3_2yt_2bb__ul_s2f_lks_gz">
+   
+   <li class="- topic/li li">The following bits in object <a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p#od_motion_0x6041">6041</a><sub class="+ topic/ph hi-d/sub ph sub">h</sub> (statusword) have a special function:</li>
+   
+   <li class="- topic/li li">A list of available system calls can be found in chapter <a class="- topic/xref xref" href="/us/en/products/manual/m/pd6e-canopen-en/p#concept_f2w_rll_qz">NanoJ functions in the NanoJ program</a>.</li>
+  </ul>
+  <p class="- topic/p p">Text set in <em class="+ topic/ph hi-d/i ph i">italics</em> marks named objects:</p>
+  <ul class="- topic/ul ul" id="id_qd3_2yt_2bb__ul_vd2_wks_gz" data-ofbid="id_qd3_2yt_2bb__ul_vd2_wks_gz">
+   <li class="- topic/li li">Read the <cite class="- topic/cite cite">installation manual</cite>.</li>
+   <li class="- topic/li li">Use the <cite class="- topic/cite cite">Plug &amp; Drive Studio</cite> software to perform the auto setup.</li>
+   <li class="- topic/li li">For software: You can find the corresponding information in the <cite class="- topic/cite cite">Operation</cite> tab.</li>
+   <li class="- topic/li li">For hardware: Use the <cite class="- topic/cite cite">ON/OFF</cite> switch to switch the device on.</li>
+  </ul>
+  <p class="- topic/p p">A text set in <code class="+ topic/ph pr-d/codeph ph codeph">Courier</code> marks a code section or programming command:</p>
+  <ul class="- topic/ul ul" id="id_qd3_2yt_2bb__ul_cls_zls_gz" data-ofbid="id_qd3_2yt_2bb__ul_cls_zls_gz">
+   
+   <li class="- topic/li li">The line with the <code class="+ topic/ph pr-d/codeph ph codeph">od_write(0x6040, 0x00, 5 );</code> command has no effect.</li>
+   
+   <li class="- topic/li li">The NMT message is structured as follows: <code class="+ topic/ph pr-d/codeph ph codeph">000 | 81 2A</code></li>
+  </ul>
+  <p class="- topic/p p">A text in "quotation marks" marks user input:</p>
+  <ul class="- topic/ul ul" id="id_qd3_2yt_2bb__ul_gq1_yn3_mbb" data-ofbid="id_qd3_2yt_2bb__ul_gq1_yn3_mbb">
+   <li class="- topic/li li">Start the NanoJ program by writing object 2300<sub class="+ topic/ph hi-d/sub ph sub">h</sub>, bit 0 = "1".</li>
+   <li class="- topic/li li">If a holding torque is already needed in this state, the value "1" must be written in 3212<sub class="+ topic/ph hi-d/sub ph sub">h</sub>:01<sub class="+ topic/ph hi-d/sub ph sub">h</sub>.</li>
+  </ul>
+ </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title13" xml:lang="en-us" lang="en-us" id="id_lwz_myt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title13">Numerical values</h2>
+ <div class="- topic/body concept/conbody body conbody">
+    <p class="- topic/p p">Numerical values are generally specified in decimal notation. The use of hexadecimal notation is indicated by a subscript <cite class="- topic/cite cite">h</cite> at the end of the number. </p>
+    <p class="- topic/p p">The objects in the object dictionary are written with index and subindex as follows: <code class="+ topic/ph pr-d/codeph ph codeph">&lt;Index&gt;:&lt;Subindex&gt;</code></p>
+    <p class="- topic/p p">Both the index as well as the subindex are specified in hexadecimal notation. If no subindex is listed, the subindex is 00<sub class="+ topic/ph hi-d/sub ph sub">h</sub>. </p>
+    
+    <p class="- topic/p p">Example: Subindex 5 of object 1003<sub class="+ topic/ph hi-d/sub ph sub">h</sub> is addressed with <code class="+ topic/ph pr-d/codeph ph codeph">1003<sub class="+ topic/ph hi-d/sub ph sub">h</sub>:05<sub class="+ topic/ph hi-d/sub ph sub">h</sub></code>, subindex 00 of object 6040<sub class="+ topic/ph hi-d/sub ph sub">h</sub> with <code class="+ topic/ph pr-d/codeph ph codeph">6040<sub class="+ topic/ph hi-d/sub ph sub">h</sub></code>.</p>
+    
+    
+  </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title14" xml:lang="en-us" lang="en-us" id="id_kxk_nyt_2bb">
+ <h2 class="- topic/title title topictitle2" id="ariaid-title14">Bits</h2>
+ <div class="- topic/body concept/conbody body conbody">
+  <p class="- topic/p p">The numbering of individual bits in an object always begins with the LSB (bit number 0). See the following figure, which uses data type <cite class="- topic/cite cite">UNSIGNED8</cite> as an example.</p>
+  <br><img class="- topic/image image" id="id_kxk_nyt_2bb__image_mc4_wdh_k5" src="/manuals/pd6e-canopen-en/pd6e/../miscellaneous/../graphics/bitnummer.svg" height="57" width="310"><br>
+ </div>
+</article>
+        <article class="- topic/topic concept/concept topic concept nested1" aria-labelledby="ariaid-title15" xml:lang="en-us" lang="en-us" id="id_abw_nyt_2bb">
+  <h2 class="- topic/title title topictitle2" id="ariaid-title15">Counting direction (arrows)</h2>
+  <div class="- topic/body concept/conbody body conbody">
+    <p class="- topic/p p">In figures, the counting direction is always in the direction of an arrow. Objects <code class="+ topic/ph pr-d/codeph ph codeph">60C5<sub class="+ topic/ph hi-d/sub ph sub">h</sub></code> and <code class="+ topic/ph pr-d/codeph ph codeph">60C6<sub class="+ topic/ph hi-d/sub ph sub">h</sub></code> depicted as examples in the following figure are both specified as positive.</p>
+    <br><img class="- topic/image image" id="id_abw_nyt_2bb__image_xqq_wdh_k5" src="/manuals/pd6e-canopen-en/pd6e/../miscellaneous/../graphics/drawing_sample.svg" height="189" width="311"><br>
+  </div>
+</article>
+    </article>
+</article></main></div>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                    
+                        
+                    
+                </div>
+            </div>
+            
+            
+            
+        </div> 
+        
+        
+        
+        
+        <div id="modal_img_large" class="modal">
+            <span class="close oxy-icon oxy-icon-remove"></span>
+            <div id="modal_img_container"></div>
+            <div id="caption"></div>
+        </div>
+        
+        
+        
+    
+                    <div id="controls">
+                        
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-12">
+                    <div aside-tree-nav>
+                        <h3 class="toc-title">
+                            Contents
+                        </h3>
+                        <div>
+                            <div id="tree"><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fintroduction.html" data-id="topic_kp3_bgh_vh_pd6">Technical Manual PD6-E</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/safety_instructions_and_warnings%2Fwarnings_electrical.html" data-id="topic_bgd_4zt_2bb">Safety and warning notices</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Ftech_data.html" data-id="topic_msq_jwy_fm">Technical details and pin assignment</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fambient_conditions.html" data-id="topic_glf_skw_1bb">Environmental conditions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fmechanics.html" data-id="topic_cck_yhg_lm_pd6">Dimensioned drawings</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Felectrics.html" data-id="topic_msq_jwy_fm_pd6">Electrical properties and technical data</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Ftemperature.html" data-id="topic_xyc_4tc_lt">Overtemperature protection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fleds.html" data-id="topic_msq_jwy_fm">LED signaling</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fconnectors.html" data-id="topic_z34_25b_jm_pd6">Pin assignment</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fcommissioning.html" data-id="topic_tfz_pbj_bbb_pd6">Commissioning</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fconfiguration_usb.html" data-id="topic_msq_jwy_fm">Configuration via USB</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fconfiguration.html" data-id="topic_ssg_c1d_bbb_pd6">Communication settings</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Fetsablish_communication.html" data-id="topic_pcx_ndt_cbb_pd6">Establishing communication</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fsensor_configuration.html" data-id="topic_x5r_fy2_yv">Configuring the sensors</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/commissioning%2Fautosetup.html" data-id="id_swv_3z5_cbb">Auto setup</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/pd6e%2Ftestrun_velocity.html" data-id="testrun_velocity_pd6">Test run</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/commissioning%2Fspecial_drive_modes.html" data-id="topic_h5b_vd2_xbb">Special drive modes <span xmlns="" class="ph">(clock-direction and analog speed)</span></a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fgeneral.html" data-id="id121JB0S30UI">General concepts</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fcontrol_modes.html" data-id="topic_x5r_fy2_yv">Control modes</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fds402_power_state_machine.html" data-id="id127DF0SH07Q">CiA 402 Power State Machine</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fuser_units.html" data-id="id121JB0S30UI">User-defined units</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Flimit_switches.html" data-id="topic_qh3_wtb_dbb">Limitation of the range of motion</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fcycle_time.html" data-id="id_xvx_t4c_dbb">Cycle times</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fmodes.html" data-id="id121JB0S30UI">operating modes</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fprofile_position.html" data-id="id121JB0S30UI">Profile Position</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fvelocity.html" data-id="id121JB0S30UI">Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fprofile_velocity.html" data-id="id121JB0S30UI">Profile Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fprofile_torque.html" data-id="id121JB0S30UI">Profile Torque</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fhoming.html" data-id="id127DF0SH07R">Homing</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Finterpolated_position.html" data-id="topic_vtj_plp_nv">Interpolated Position Mode</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fcyc_sync_position.html" data-id="topic_zzf_vxw_4n">Cyclic Synchronous Position</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fcyc_sync_velocity.html" data-id="topic_zzf_vxw_4n">Cyclic Synchronous Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fcyc_sync_torque.html" data-id="topic_zzf_vxw_4n">Cyclic Synchronous Torque</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fclock_direction.html" data-id="id121JB0S30UI">Clock-direction mode</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/modes%2Fauto_setup.html" data-id="id1288H0E0PHS">Auto setup</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fadditional_functions.html" data-id="id121JB0S30UI">Special functions</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fdigital_io.html" data-id="id121JB0S30UI">Digital inputs and outputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fanalog.html" data-id="topic_uqb_nly_clb">Analog inputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fbrake_control.html" data-id="id127DF0I505Z">Automatic brake control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Foverload_protection.html" data-id="topic_rpl_sjw_qk">I<sup xmlns="" class="ph sup">2</sup>t Motor overload protection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fsaveables.html" data-id="topic_aky_p5w_z4">Saving objects</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/bus%2Fcan%2Fcan_reference.html" data-id="topic_yps_l2q_dbb">CANopen</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/bus%2Fcan%2Fgeneral_tickets.html" data-id="topic_o4r_hlq_dbb">General</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/bus%2Fcan%2Fcan_stack.html" data-id="topic_zj2_kqq_dbb">CANopen services</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/bus%2Fcan%2Flss.html" data-id="topic_zj2_kqq_dbb">LSS protocol</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/general%2Fnanoj.html" data-id="topic_orl_wzm_2bb">Programming with NanoJ</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fobject_dir_intro.html" data-id="id12A4EI00E5Z">Description of the object dictionary</a></span><ul><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1000.html" data-id="od_motion_0x1000">1000h Device Type</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1001.html" data-id="od_motion_0x1001">1001h Error Register</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1003.html" data-id="od_motion_0x1003">1003h Pre-defined Error Field</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1005.html" data-id="od_motion_0x1005">1005h COB-ID Sync</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1006.html" data-id="od_motion_0x1006">1006h Communication Cycle Period</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1007.html" data-id="od_motion_0x1007">1007h Synchronous Window Length</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1008.html" data-id="od_motion_0x1008">1008h Manufacturer Device Name</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1009.html" data-id="od_motion_0x1009">1009h Manufacturer Hardware Version</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x100A.html" data-id="od_motion_0x100A">100Ah Manufacturer Software Version</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x100C.html" data-id="od_motion_0x100C">100Ch Guard Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x100D.html" data-id="od_motion_0x100D">100Dh Live Time Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1010.html" data-id="od_motion_0x1010">1010h Store Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1011.html" data-id="od_motion_0x1011">1011h Restore Default Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1014.html" data-id="od_motion_0x1014">1014h COB-ID EMCY</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1016.html" data-id="od_motion_0x1016">1016h Consumer Heartbeat Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1017.html" data-id="od_motion_0x1017">1017h Producer Heartbeat Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1018.html" data-id="od_motion_0x1018">1018h Identity Object</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1019.html" data-id="od_motion_0x1017">1019h Synchronous Counter Overflow Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1020.html" data-id="od_motion_0x1020">1020h Verify Configuration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1029.html" data-id="od_motion_0x1029">1029h Error Behavior</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1400.html" data-id="od_motion_0x1400">1400h Receive PDO 1 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1401.html" data-id="od_motion_0x1401">1401h Receive PDO 2 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1402.html" data-id="od_motion_0x1402">1402h Receive PDO 3 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1403.html" data-id="od_motion_0x1403">1403h Receive PDO 4 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1404.html" data-id="od_motion_0x1404">1404h Receive PDO 5 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1405.html" data-id="od_motion_0x1405">1405h Receive PDO 6 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1406.html" data-id="od_motion_0x1406">1406h Receive PDO 7 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1407.html" data-id="od_motion_0x1407">1407h Receive PDO 8 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1600.html" data-id="od_motion_0x1600">1600h Receive PDO 1 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1601.html" data-id="od_motion_0x1601">1601h Receive PDO 2 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1602.html" data-id="od_motion_0x1602">1602h Receive PDO 3 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1603.html" data-id="od_motion_0x1603">1603h Receive PDO 4 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1604.html" data-id="od_motion_0x1604">1604h Receive PDO 5 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1605.html" data-id="od_motion_0x1605">1605h Receive PDO 6 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1606.html" data-id="od_motion_0x1606">1606h Receive PDO 7 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1607.html" data-id="od_motion_0x1607">1607h Receive PDO 8 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1800.html" data-id="od_motion_0x1800">1800h Transmit PDO 1 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1801.html" data-id="od_motion_0x1801">1801h Transmit PDO 2 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1802.html" data-id="od_motion_0x1802">1802h Transmit PDO 3 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1803.html" data-id="od_motion_0x1803">1803h Transmit PDO 4 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1804.html" data-id="od_motion_0x1804">1804h Transmit PDO 5 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1805.html" data-id="od_motion_0x1805">1805h Transmit PDO 6 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1806.html" data-id="od_motion_0x1806">1806h Transmit PDO 7 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1807.html" data-id="od_motion_0x1807">1807h Transmit PDO 8 Communication Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A00.html" data-id="od_motion_0x1A00">1A00h Transmit PDO 1 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A01.html" data-id="od_motion_0x1A01">1A01h Transmit PDO 2 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A02.html" data-id="od_motion_0x1A02">1A02h Transmit PDO 3 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A03.html" data-id="od_motion_0x1A03">1A03h Transmit PDO 4 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A04.html" data-id="od_motion_0x1A04">1A04h Transmit PDO 5 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A05.html" data-id="od_motion_0x1A05">1A05h Transmit PDO 6 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A06.html" data-id="od_motion_0x1A06">1A06h Transmit PDO 7 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1A07.html" data-id="od_motion_0x1A07">1A07h Transmit PDO 8 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1F50.html" data-id="od_motion_0x1F50">1F50h Program Data</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1F51.html" data-id="od_motion_0x1F51">1F51h Program Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1F57.html" data-id="od_motion_0x1F57">1F57h Program Status</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x1F80.html" data-id="od_motion_0x1F80">1F80h NMT Startup</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2005.html" data-id="od_motion_0x2005">2005h CANopen Baudrate</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2006.html" data-id="od_motion_0x2006">2006h CANopen WheelConfig</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2007.html" data-id="od_motion_0x2007">2007h CANopen Config</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2009.html" data-id="od_motion_0x2009">2009h CANopen NodeID</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x202F.html" data-id="od_motion_0x202F">202Fh MODBUS Address Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2030.html" data-id="od_motion_0x2030">2030h Pole Pair Count</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2031.html" data-id="od_motion_0x2031">2031h Max Motor Current</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2034.html" data-id="od_motion_0x2034">2034h Upper Voltage Warning Level</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2035.html" data-id="od_motion_0x2035">2035h Lower Voltage Warning Level</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2036.html" data-id="od_motion_0x2036">2036h Open Loop Current Reduction Idle Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2037.html" data-id="od_motion_0x2037">2037h Open Loop Current Reduction Value/factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2038.html" data-id="od_motion_0x2038">2038h Brake Controller Timing</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2039.html" data-id="od_motion_0x2039">2039h Motor Currents</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x203A.html" data-id="od_motion_0x203A">203Ah Homing On Block Configuration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x203B.html" data-id="od_motion_0x203B">203Bh I2t Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x203D.html" data-id="od_motion_0x203D">203Dh Torque Window</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x203E.html" data-id="od_motion_0x203E">203Eh Torque Window Time Out</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x203F.html" data-id="od_motion_0x203F">203Fh Max Slippage Time Out</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2057.html" data-id="od_motion_0x2057">2057h Clock Direction Multiplier</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2058.html" data-id="od_motion_0x2058">2058h Clock Direction Divider</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x205A.html" data-id="od_motion_0x205A">205Ah Absolute Sensor Boot Value (in User Units)</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x205B.html" data-id="od_motion_0x205B">205Bh Clock Direction Or Clockwise/Counter Clockwise Mode</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2084.html" data-id="od_motion_0x2084">2084h Bootup Delay</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2101.html" data-id="od_motion_0x2101">2101h Fieldbus Module Availability</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2102.html" data-id="od_motion_0x2102">2102h Fieldbus Module Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2103.html" data-id="od_motion_0x2103">2103h Fieldbus Module Status</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2290.html" data-id="od_motion_0x2290">2290h PDI Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2291.html" data-id="od_motion_0x2291">2291h PDI Input</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2292.html" data-id="od_motion_0x2292">2292h PDI Output</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2300.html" data-id="od_motion_0x2300">2300h NanoJ Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2301.html" data-id="od_motion_0x2301">2301h NanoJ Status</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2302.html" data-id="od_motion_0x2302">2302h NanoJ Error Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x230E.html" data-id="od_motion_0x230E">230Eh Timer</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x230F.html" data-id="od_motion_0x230F">230Fh Uptime Seconds</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2310.html" data-id="od_motion_0x2310">2310h NanoJ Input Data Selection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2320.html" data-id="od_motion_0x2320">2320h NanoJ Output Data Selection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2330.html" data-id="od_motion_0x2330">2330h NanoJ In/output Data Selection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2400.html" data-id="od_motion_0x2400">2400h NanoJ Inputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2410.html" data-id="od_motion_0x2410">2410h NanoJ Init Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2500.html" data-id="od_motion_0x2500">2500h NanoJ Outputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2600.html" data-id="od_motion_0x2600">2600h NanoJ Debug Output</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2701.html" data-id="od_motion_0x2701">2701h Customer Storage Area</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x2800.html" data-id="od_motion_0x2800">2800h Bootloader And Reboot Settings</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3202.html" data-id="od_motion_0x3202">3202h Motor Drive Submode Select</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3203.html" data-id="od_motion_0x3203">3203h Feedback Selection</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3204.html" data-id="od_motion_0x3204">3204h Feedback Mapping</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x320D.html" data-id="od_motion_0x320D">320Dh Torque Of Inertia Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3210.html" data-id="od_motion_0x3210">3210h Motor Drive Parameter Set</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3212.html" data-id="od_motion_0x3212">3212h Motor Drive Flags</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x321A.html" data-id="od_motion_0x321A">321Ah Current Controller Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x321B.html" data-id="od_motion_0x321B">321Bh Velocity Controller Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x321C.html" data-id="od_motion_0x321C">321Ch Position Controller Parameters</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x321D.html" data-id="od_motion_0x321D">321Dh Pre-control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x321E.html" data-id="od_motion_0x321E">321Eh Voltage Limit</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3220.html" data-id="od_motion_0x3220">3220h Analog Input Digits</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3221.html" data-id="od_motion_0x3221">3221h Analog Inputs Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3225.html" data-id="od_motion_0x3225">3225h Analog Input Switches</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3240.html" data-id="od_motion_0x3240">3240h Digital Inputs Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3242.html" data-id="od_motion_0x3242">3242h Digital Input Routing</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3243.html" data-id="od_motion_0x3243">3243h Home Switch Position Capture</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3250.html" data-id="od_motion_0x3250">3250h Digital Outputs Control</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3252.html" data-id="od_motion_0x3252">3252h Digital Output Routing</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3320.html" data-id="od_motion_0x3320">3320h Analog Input Values</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3321.html" data-id="od_motion_0x3321">3321h Analog Input Offsets</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3322.html" data-id="od_motion_0x3322">3322h Analog Input Numerators</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3323.html" data-id="od_motion_0x3323">3323h Analog Input Denominators</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3380.html" data-id="od_motion_0x3380">3380h Feedback Sensorless</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x33A0.html" data-id="od_motion_0x33A0">33A0h Feedback Incremental A/B/I 1</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x33A1.html" data-id="od_motion_0x33A1">33A1h Feedback Incremental A/B/I 2</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3502.html" data-id="od_motion_0x3502">3502h MODBUS Rx PDO Mapping</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3602.html" data-id="od_motion_0x3602">3602h MODBUS Tx PDO Mapping</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3700.html" data-id="od_motion_0x3700">3700h Deviation Error Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x3701.html" data-id="od_motion_0x3701">3701h Limit Switch Error Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4012.html" data-id="od_motion_0x4012">4012h HW Information</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4013.html" data-id="od_motion_0x4013">4013h HW Configuration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4014.html" data-id="od_motion_0x4014">4014h Operating Conditions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4015.html" data-id="od_motion_0x4015">4015h Special Drive Modes</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4016.html" data-id="od_motion_0x4016">4016h Factory Settings</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4021.html" data-id="od_motion_0x4021">4021h Ballast Configuration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4040.html" data-id="od_motion_0x4040">4040h Drive Serial Number</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4041.html" data-id="od_motion_0x4041">4041h Device Id</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x4042.html" data-id="od_motion_0x4042">4042h Bootloader Infos</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6007.html" data-id="od_motion_0x6007">6007h Abort Connection Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x603F.html" data-id="od_motion_0x603F">603Fh Error Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6040.html" data-id="od_motion_0x6040">6040h Controlword</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6041.html" data-id="od_motion_0x6041">6041h Statusword</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6042.html" data-id="od_motion_0x6042">6042h Vl Target Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6043.html" data-id="od_motion_0x6043">6043h Vl Velocity Demand</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6044.html" data-id="od_motion_0x6044">6044h Vl Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6046.html" data-id="od_motion_0x6046">6046h Vl Velocity Min Max Amount</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6048.html" data-id="od_motion_0x6048">6048h Vl Velocity Acceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6049.html" data-id="od_motion_0x6049">6049h Vl Velocity Deceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x604A.html" data-id="od_motion_0x604A">604Ah Vl Velocity Quick Stop</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x604C.html" data-id="od_motion_0x604C">604Ch Vl Dimension Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x605A.html" data-id="od_motion_0x605A">605Ah Quick Stop Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x605B.html" data-id="od_motion_0x605B">605Bh Shutdown Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x605C.html" data-id="od_motion_0x605C">605Ch Disable Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x605D.html" data-id="od_motion_0x605D">605Dh Halt Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x605E.html" data-id="od_motion_0x605E">605Eh Fault Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6060.html" data-id="od_motion_0x6060">6060h Modes Of Operation</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6061.html" data-id="od_motion_0x6061">6061h Modes Of Operation Display</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6062.html" data-id="od_motion_0x6062">6062h Position Demand Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6063.html" data-id="od_motion_0x6063">6063h Position Actual Internal Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6064.html" data-id="od_motion_0x6064">6064h Position Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6065.html" data-id="od_motion_0x6065">6065h Following Error Window</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6066.html" data-id="od_motion_0x6066">6066h Following Error Time Out</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6067.html" data-id="od_motion_0x6067">6067h Position Window</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6068.html" data-id="od_motion_0x6068">6068h Position Window Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x606B.html" data-id="od_motion_0x606B">606Bh Velocity Demand Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x606C.html" data-id="od_motion_0x606C">606Ch Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x606D.html" data-id="od_motion_0x606D">606Dh Velocity Window</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x606E.html" data-id="od_motion_0x606E">606Eh Velocity Window Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x606F.html" data-id="od_motion_0x606F">606Fh Velocity Threshold</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6070.html" data-id="od_motion_0x6070">6070h Velocity Threshold Time</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6071.html" data-id="od_motion_0x6071">6071h Target Torque</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6072.html" data-id="od_motion_0x6072">6072h Max Torque</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6073.html" data-id="od_motion_0x6073">6073h Max Current</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6074.html" data-id="od_motion_0x6074">6074h Torque Demand</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6075.html" data-id="od_motion_0x6075">6075h Motor Rated Current</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6077.html" data-id="od_motion_0x6077">6077h Torque Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607A.html" data-id="od_motion_0x607A">607Ah Target Position</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607B.html" data-id="od_motion_0x607B">607Bh Position Range Limit</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607C.html" data-id="od_motion_0x607C">607Ch Home Offset</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607D.html" data-id="od_motion_0x607D">607Dh Software Position Limit</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607E.html" data-id="od_motion_0x607E">607Eh Polarity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x607F.html" data-id="od_motion_0x6077">607Fh Max Profile Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6080.html" data-id="od_motion_0x2032">6080h Max Motor Speed</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6081.html" data-id="od_motion_0x6081">6081h Profile Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6082.html" data-id="od_motion_0x6082">6082h End Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6083.html" data-id="od_motion_0x6083">6083h Profile Acceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6084.html" data-id="od_motion_0x6084">6084h Profile Deceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6085.html" data-id="od_motion_0x6085">6085h Quick Stop Deceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6086.html" data-id="od_motion_0x6086">6086h Motion Profile Type</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6087.html" data-id="od_motion_0x6087">6087h Torque Slope</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x608F.html" data-id="od_motion_0x608F">608Fh Position Encoder Resolution</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6090.html" data-id="od_motion_0x6090">6090h Velocity Encoder Resolution</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6091.html" data-id="od_motion_0x6091">6091h Gear Ratio</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6092.html" data-id="od_motion_0x6092">6092h Feed Constant</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6096.html" data-id="od_motion_0x6096">6096h Velocity Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6097.html" data-id="od_motion_0x6097">6097h Acceleration Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6098.html" data-id="od_motion_0x6098">6098h Homing Method</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6099.html" data-id="od_motion_0x6099">6099h Homing Speed</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x609A.html" data-id="od_motion_0x609A">609Ah Homing Acceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60A2.html" data-id="od_motion_0x60A2">60A2h Jerk Factor</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60A4.html" data-id="od_motion_0x60A4">60A4h Profile Jerk</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60A8.html" data-id="od_motion_0x60A8">60A8h SI Unit Position</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60A9.html" data-id="od_motion_0x60A9">60A9h SI Unit Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60B0.html" data-id="od_motion_0x60B0">60B0h Position Offset</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60B1.html" data-id="od_motion_0x60B1">60B1h Velocity Offset</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60B2.html" data-id="od_motion_0x60B2">60B2h Torque Offset</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60C1.html" data-id="od_motion_0x60C1">60C1h Interpolation Data Record</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60C2.html" data-id="od_motion_0x60C2">60C2h Interpolation Time Period</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60C4.html" data-id="od_motion_0x60C4">60C4h Interpolation Data Configuration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60C5.html" data-id="od_motion_0x60C5">60C5h Max Acceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60C6.html" data-id="od_motion_0x60C6">60C6h Max Deceleration</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60E4.html" data-id="od_motion_0x60E4">60E4h Additional Position Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60E5.html" data-id="od_motion_0x60E5">60E5h Additional Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60E6.html" data-id="od_motion_0x60E6">60E6h Additional Position Encoder Resolution - Encoder Increments</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60E8.html" data-id="od_motion_0x60E8">60E8h Additional Gear Ratio - Motor Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60E9.html" data-id="od_motion_0x60E9">60E9h Additional Feed Constant - Feed</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60EB.html" data-id="od_motion_0x60EB">60EBh Additional Position Encoder Resolution - Motor Revolutions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60ED.html" data-id="od_motion_0x60ED">60EDh Additional Gear Ratio - Driving Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60EE.html" data-id="od_motion_0x60EE">60EEh Additional Feed Constant - Driving Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60F2.html" data-id="od_motion_0x60F2">60F2h Positioning Option Code</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60F4.html" data-id="od_motion_0x60F4">60F4h Following Error Actual Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60F8.html" data-id="od_motion_0x60F8">60F8h Max Slippage</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60FA.html" data-id="od_motion_0x60FA">60FAh Control Effort</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60FC.html" data-id="od_motion_0x60FC">60FCh Position Demand Internal Value</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60FD.html" data-id="od_motion_0x60FD">60FDh Digital Inputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60FE.html" data-id="od_motion_0x60FE">60FEh Digital Outputs</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x60FF.html" data-id="od_motion_0x60FF">60FFh Target Velocity</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6502.html" data-id="od_motion_0x6502">6502h Supported Drive Modes</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6503.html" data-id="od_motion_0x6503">6503h Drive Catalogue Number</a></span></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/object_dictionary%2Fod_motion_0x6505.html" data-id="od_motion_0x6505">6505h Http Drive Catalogue Address</a></span></li></ul></li><li><span class="topicref"><a href="/us/en/products/manual/m/pd6e-canopen-en/p/miscellaneous%2Fcopyrights_third_party.html" data-id="topic_kp3_bgh_vh">Copyrights</a></span></li></ul></div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        
+
+</div>
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                <!-- TYPO3SEARCH_end -->
+                
+            </div>
+        </main>
+    
+            
+    <footer id="footer">
+        <div class="f-container">
+            <div class="container">
+                
+                        
+    <nav class="f-social-links">
+        <ul>
+            
+                <li>
+                    <a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/nanotec-electronic">
+                        <i class="icon-linkedin"></i>
+                    </a>
+                </li>
+            
+            
+            
+                <li>
+                    <a title="Youtube" target="_blank" href="https://www.youtube.com/@NanotecElectronic">
+                        <i class="icon-youtube-play"></i>
+                    </a>
+                </li>
+            
+            
+        </ul>
+    </nav>
+
+                    
+
+                <nav class="f-navigation" role="navigation">
+                    <ul><li><a href="/us/en" title="Home">Home</a></li><li><a href="/us/en/service/products" title="Product overview">Product overview</a></li><li><a href="/us/en/news-trade-shows/news" title="News">News</a></li><li><a href="/us/en/privacy-statement" title="Privacy Statement">Privacy Statement</a></li><li><a href="/us/en/general-terms-and-conditions" title="Terms and Conditions of Sale">Terms and Conditions of Sale</a></li><li><a href="/us/en/general-terms-and-conditions-of-purchase" title="General Terms and Conditions of Purchase">General Terms and Conditions of Purchase</a></li><li><a href="/us/en/legal-details" title="Legal Details">Legal Details</a></li></ul>
+                </nav>
+                <div class="footer-info">
+                    
+                        
+                            
+
+
+    
+    
+    
+        
+            
+                    <div id="c1526" name="c1526">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Nanotec Electronic U.S. Inc.,&nbsp;48 Sword St., Units 105 &amp; 106, Auburn, MA 01501, Phone <a href="tel:+17812193343" class="ga-track-contact">(781) 219-3343</a>,&nbsp;Email: <a href="/cdn-cgi/l/email-protection#deb7b0b8b19eabadf0b0bfb0b1aabbbdf0bdb1b3" class="ga-track-contact"><span class="__cf_email__" data-cfemail="a0c9cec6cfe0d5d38ecec1cecfd4c5c38ec3cfcd">[email&#160;protected]</span></a><br>Copyright © 1995-2026&nbsp;by Nanotec Electronic GmbH, all rights reserved</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                        
+                    
+                    
+                </div>
+            </div>
+        </div>
+        
+            
+    
+        <span basket>
+            <div class="off-canvas-right" ng-class="{'is-open': basket.isOpen()}" click-outside="basket.closeBasket()"
+                 outside-if-not="item-basket">
+                <div class="off-canvas-headline">
+                    Shopping cart
+                    <i class="icon-close" ng-click="basket.toggleBasket()"></i>
+                </div>
+                <div class="off-canvas-body off-canvas-body-basket">
+                    <div class="off-canvas-content off-canvas-basket">
+                        <p class="alert alert-warning" role="alert" ng-if="basket.BasketService.basket.amount === 0">
+                            Your cart is empty.</p>
+
+                        <div class="media" ng-repeat="lineItem in basket.BasketService.basket.lineItems">
+                            <a class="media-left" ng-href="{{ lineItem.articles[0].url }}"
+                               ng-if="lineItem.imageSrc.length > 0">
+                                <img class="media-object" ng-src="{{ lineItem.imageSrc }}" alt="{{ lineItem.title }}" width="50"
+                                     height="40">
+                            </a>
+                            <div class="media-body">
+                                <span ng-if="lineItem.configuration" class="tag tag-primary">Combination</span>
+                                <h4 class="media-heading">
+                                    <span ng-bind="lineItem.amount + ' x '"></span>
+                                    <span ng-repeat="article in lineItem.articles">
+                                        <span ng-if="!$first"> +&nbsp;</span>
+                                        <a ng-href="{{ article.url }}"><span ng-bind="article.title"></span></a>
+                                        <span ng-if="lineItem.configuration" ng-bind="' - ' + article.subtitle"></span>
+                                    </span>
+                                </h4>
+                                <span ng-if="!lineItem.configuration" ng-bind="lineItem.articles[0].subtitle"></span><br>
+                                <span ng-if="basket.isPurchasable()" ng-bind-html="lineItem.price | priceAndCurrency"></span>
+                                <a ng-click="basket.removeLineItemWithConfirmation(lineItem, 'confirmClearLineItemModal')"
+                                   class="remove"><i class="icon-close"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="off-canvas-footer off-canvas-footer-basket" ng-show="basket.BasketService.basket.amount > 0">
+                    <div class="clear-basket">
+                        <a href="#" ng-click="basket.openModal('confirmClearBasketModal')">Clear cart</a>
+                    </div>
+                    <a class="btn btn-tertiary btn-block" href="/us/en/your-shopping-basket">
+                        <span ng-if="basket.isPurchasable()">Checkout/Review/Share</span>
+                        <span ng-if="!basket.isPurchasable()">Request Quote/Review/Share</span>
+                    </a>
+                </div>
+            </div>
+            
+    <div class="modal fade" id="confirmClearBasketModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h3 class="modal-title">Delete all articles from your cart?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Please click &quot;Clear cart&quot; to delete all articles.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearFromModal('confirmClearBasketModal')">
+                        Clear cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            
+    <div class="modal fade" id="confirmClearLineItemModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h4 class="modal-title">Delete article from your cart?</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Click &quot;delete article&quot; to delete this article from your cart:</p>
+                    <div class="media">
+                        <a class="media-left" ng-href="{{ basket.lineItemOnTheBrink.articles[0].url }}"
+                           ng-if="basket.lineItemOnTheBrink.imageSrc.length > 0">
+                            <img class="media-object" ng-src="{{ basket.lineItemOnTheBrink.imageSrc }}"
+                                 alt="{{ basket.lineItemOnTheBrink.title }}"
+                                 width="50"
+                                 height="40">
+                        </a>
+                        <div class="media-body">
+                            <strong class="media-heading">{{ basket.lineItemOnTheBrink.amount }} x <span
+                                    ng-repeat="article in basket.lineItemOnTheBrink.articles"><a
+                                    ng-href="{{ article.url }}">{{ article.title }}</a></span>
+                            </strong><br>
+                            <span ng-bind-html="basket.lineItemOnTheBrink.articles[0].subtitle"></span><br>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearLineItemFromModal('confirmClearLineItemModal')">
+                        Clear article
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </span>
+    
+
+        
+        
+        
+        
+    
+    </footer>
+    <a href="#" class="btn-to-top" title="To top" scroll-to-top></a>
+
+        </div>
+        
+    <div domain-switcher>
+        <div class="modal" id="domain-switcher-modal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    
+                    
+                    <div class="modal-header">
+                        <button id="stay-on-language-site" type="button" class="btn btn-secondary close" data-dismiss="modal" aria-label="Close" title="Close">
+                            <i class="icon-close" ng-if="!domainSwitcherCtrl.forceMode"></i>
+                        </button>
+                        <h4 class="modal-title" ng-if="!domainSwitcherCtrl.forceMode">Please switch to another domain</h4>
+                        <h4 class="modal-title" ng-if="domainSwitcherCtrl.forceMode">Your will be redirected to {{domainSwitcherCtrl.targetDomain}}.</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div ng-if="!domainSwitcherCtrl.forceMode"><p><strong>Dear Visitor,</strong></p>
+<p>As a user from&nbsp;<strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we would like to redirect you to <strong>{{ domainSwitcherCtrl.targetDomain }}</strong>.</p></div>
+                        <div ng-if="domainSwitcherCtrl.forceMode"><p><strong>Dear Customer,&nbsp;</strong></p>
+<p>As a user from <strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we will redirect you to&nbsp;<strong>{{domainSwitcherCtrl.targetDomain}}</strong>.<strong>&nbsp;</strong></p>
+<p></p></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal"
+                                ng-if="!domainSwitcherCtrl.forceMode">No, stay on site
+                        </button>
+                        <a ng-href="{{ domainSwitcherCtrl.targetUrl }}" class="btn btn-primary">OK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/typo3conf/ext/nanotec/Resources/Public/Frontend/Scripts/main.d716963bb612bf7f4313.js?1795002047" type="text/javascript" async="async"></script>
+
+
+</body>
+</html>

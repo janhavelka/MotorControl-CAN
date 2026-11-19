@@ -1,0 +1,1232 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-11-19",
+  "timezone": "Europe/Prague",
+  "purpose": "Nanotec CANopen family (FIR-v2213 generation; N5 primary, C5-E, CL4-E, PD4-C rows; PD6-E FIR-v2538 later row) design evidence; no implemented support or hardware qualification",
+  "sources": [
+    {
+      "id": "N5",
+      "title": "Nanotec N5 CANopen Technical Manual 3.3.0 (stored in multidrive pack)",
+      "path": "../multidrive/vendor/nanotec_n5_canopen_v3.3.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/N5/fir-v2213/N5_CANopen_Technical-Manual_V3.3.0.pdf?1663055466=",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 7511934,
+      "sha256": "4c60e1415c3f2421a010c57d3fd050b49bed87606a0fda769dd874052867ea41",
+      "language": "en",
+      "applicability": [
+        "N5-1-2",
+        "N5-2-2"
+      ],
+      "revision": "3.3.0 (07/2022); firmware FIR-v2213 and higher; hardware W007 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 418,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "N5 CANopen Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220804080040+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      },
+      "stored_in_pack": "docs/reference/multidrive (see its SOURCES.json; not duplicated here)",
+      "manufacturer_linking_page": "https://www.nanotec.com/us/en/products/1599-n5-1-2-motor-controller-for-canopen"
+    },
+    {
+      "id": "C5E",
+      "title": "Nanotec C5-E CANopen/USB Technical Manual 3.3.0 (stored in multidrive pack)",
+      "path": "../multidrive/vendor/nanotec_c5e_canopen_v3.3.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/C5-E/fir-v2213/C5E_CANopen_USB_Technical-Manual_V3.3.0.pdf?1662973676=",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 5868852,
+      "sha256": "1bbc8e3a0552b9aa1cfb38f4263598d945798dcb26f7ba2869db9f4f2694074c",
+      "language": "en",
+      "applicability": [
+        "C5-E-1-09",
+        "C5-E-2-09"
+      ],
+      "revision": "3.3.0 (07/2022); firmware FIR-v2213 and higher; hardware W006 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 417,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "C5-E CANopen/USB Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220803103149+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      },
+      "stored_in_pack": "docs/reference/multidrive (see its SOURCES.json; not duplicated here)",
+      "manufacturer_linking_page": "https://www.nanotec.com/us/en/products/1768-c5-e-2-09-motor-controller-drive-for-canopen-or-usb"
+    },
+    {
+      "id": "N5PAGE",
+      "title": "Nanotec N5-1-2 product page snapshot 2026-10-23 (stored in multidrive pack)",
+      "path": "../multidrive/vendor/nanotec_n5_product.html",
+      "url": "https://www.nanotec.com/us/en/products/1599-n5-1-2-motor-controller-for-canopen",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 225619,
+      "sha256": "c1951857c234117501d01da77fb43598afe29558f0a7c3044c2d0206d5b233f0",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "HTML snapshot retrieved 2026-10-23",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "stored_in_pack": "docs/reference/multidrive (see its SOURCES.json; not duplicated here)"
+    },
+    {
+      "id": "CL4E",
+      "title": "Nanotec CL4-E CANopen/USB/Modbus RTU Technical Manual 1.5.0",
+      "path": "vendor/nanotec_cl4e_canopen_usb_modbusrtu_v1.5.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/CL4-E/fir-v2213/CL4E_CANopen_USB_ModbusRTU_Technical-Manual_V1.5.0.pdf?1662975908",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 15922413,
+      "sha256": "07b5243de012c856be431aae5ae2734bc212c70a6bdc25cad167aff325043b10",
+      "language": "en",
+      "applicability": [
+        "CL4-E-1-12",
+        "CL4-E-2-12",
+        "CL4-E-1-12-5VDI",
+        "CL4-E-2-12-5VDI"
+      ],
+      "revision": "1.5.0 (07/2022); firmware FIR-v2213 and higher; hardware W002 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 440,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "CL4-E CANopen/Modbus RTU Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220804095854+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      },
+      "manufacturer_linking_page": "https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12"
+    },
+    {
+      "id": "PD4C",
+      "title": "Nanotec PD4-C CANopen Technical Manual 3.3.0",
+      "path": "vendor/nanotec_pd4c_canopen_v3.3.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Plug_Drive/PD4-C/fir-v2213/PD4C_CANopen_Technical-Manual_V3.3.0.pdf?1663072012",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 6854902,
+      "sha256": "09616298597ebf715ef78571f85ff178015bc768e75982a8a334eb6ee0f6feab",
+      "language": "en",
+      "applicability": [
+        "PD4-C5918X4204-E-08",
+        "PD4-C5918M4204-E-08",
+        "PD4-C5918L4204-E-08",
+        "PD4-C6018L4204-E-08",
+        "PD4-CB59M024035-E-08"
+      ],
+      "revision": "3.3.0 (07/2022); firmware FIR-v2213 and higher; hardware W006 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 406,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "PD4-C CANopen Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220805150104+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      },
+      "manufacturer_linking_page": "https://www.nanotec.com/eu/en/products/1606-pd4-c5918m4204-e-08"
+    },
+    {
+      "id": "N5V2",
+      "title": "Nanotec N5 CANopen Technical Manual 2.0.3 (product page label: 'Stock Firmware')",
+      "path": "vendor/nanotec_n5_canopen_v2.0.3_stock_fir-v1650.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/N5/N5_CANopen_Technical-Manual_V2.0.3.pdf?1656012607",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 7088942,
+      "sha256": "a17b870ae373b48ed241e789bb85e8da48c1b7dd1cfbfeea1bea0b9750c18ae0",
+      "language": "en",
+      "applicability": [
+        "N5-1-2",
+        "N5-2-2"
+      ],
+      "revision": "2.0.3; firmware FIR-v1650; hardware W007 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 348,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "N5 CANopen Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20201207115753+01'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      },
+      "retention_reason": "Older revision kept because the product page labels it the manual for the stock (as-delivered) firmware; it documents a different firmware generation than 3.3.0.",
+      "manufacturer_linking_page": "https://www.nanotec.com/eu/en/products/1599-n5-1-2-motor-controller-for-canopen"
+    },
+    {
+      "id": "FWUPD",
+      "title": "Nanotec Instructions for Firmware Update to version FIR-v2039, 1.2.0",
+      "path": "vendor/nanotec_firmware_update_fir-v2039_v1.2.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/fir-v2039/Instructions_Firmware-Update_FIR-v2039_V1.2.0.pdf?1656012586",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 638855,
+      "sha256": "d45b136f5dfe65841e3d93255d7f7f306d9d50eced7d87629c05e1ada361bb3f",
+      "language": "en",
+      "applicability": [
+        "C5, C5-E, N5, CL3-E, NP5, PDx-C families delivered with FIR-v1650"
+      ],
+      "revision": "1.2.0 (10/2020); describes changes FIR-v1650 to FIR-v2039",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 15,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "Instructions for Firmware Update",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20201002122921+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "PDI",
+      "title": "Nanotec Functional Description Plug & Drive Interface 1.0.1",
+      "path": "vendor/nanotec_plug_drive_interface_v1.0.1.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Plug_Drive/Plug_Drive_Interface/Functional-Description_Plug_Drive-Interface_V1.0.1.pdf?1753788278",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 420401,
+      "sha256": "21f82e3b971cd2298b4f0e8a9ae0feee6a0724a21297ee5e06698ef36ce01142",
+      "language": "en",
+      "applicability": [
+        "C5, C5-E, N5, CL3-E, CL4-E, CPB-x, NP5, PDx-C, PDx-E"
+      ],
+      "revision": "1.0.1 (03/2020); firmware FIR-v2013 stated in the document",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 15,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "Functional Description PlugNDrive-Interface V1.0.0",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20200422092831+02'00'",
+        "modDate": "D:20250729131956+02'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "PNDS3",
+      "title": "Nanotec Plug & Drive Studio 3 User Manual 1.4.0",
+      "path": "vendor/nanotec_pnds3_user_manual_v1.4.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/PNDS3_User_Manual_V1.4.0.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 1923286,
+      "sha256": "ee53c124473185915b10bc513b1b6cb98ba5c946bd2048d8dea7afa86283f545",
+      "language": "en",
+      "applicability": [
+        "Configuration tool; provenance of the OD files in the firmware package"
+      ],
+      "revision": "1.4.0 (PDF created 2026-04-21)",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "pdf_pages": 34,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "Plug And Drive Studio 3",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20260421112015+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "N5P12",
+      "title": "Nanotec N5-1-2 product page",
+      "path": "vendor/nanotec_n5-1-2_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1599-n5-1-2-motor-controller-for-canopen",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 228616,
+      "sha256": "d10b49fee88315395842c0cef43fbdf3a9528df4a0fa587ecd75d04a036314f8",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "N5P22",
+      "title": "Nanotec N5-2-2 product page",
+      "path": "vendor/nanotec_n5-2-2_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1602-n5-2-2-motor-controller-for-canopen",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 224379,
+      "sha256": "d0d8d792854920c50237b1ef76c2d9eb15b22d170d5fc1b8b8147a4ae2fd705f",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "C5EP109",
+      "title": "Nanotec C5-E-1-09 product page",
+      "path": "vendor/nanotec_c5-e-1-09_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1765-c5-e-1-09-motor-controller-drive-for-canopen-or-usb",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 225141,
+      "sha256": "d00fb68239dbf3287a64395810d1ede1898402a4ad52d7ed2bbb20986edb058d",
+      "language": "en",
+      "applicability": [
+        "C5-E-1-09"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "C5EP209",
+      "title": "Nanotec C5-E-2-09 product page",
+      "path": "vendor/nanotec_c5-e-2-09_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1768-c5-e-2-09-motor-controller-drive-for-canopen-or-usb",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 225145,
+      "sha256": "2c9f020f69f3d55416f1c970a45b2026985271b8448736bf0e5f1672f5c5dc03",
+      "language": "en",
+      "applicability": [
+        "C5-E-2-09"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CL4EP112",
+      "title": "Nanotec CL4-E-1-12 product page",
+      "path": "vendor/nanotec_cl4-e-1-12_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/2695-cl4-e-1-12",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 191064,
+      "sha256": "aa88691e92a605b7761c0f976f4defe127d45f89465629ba363121627ace3c57",
+      "language": "en",
+      "applicability": [
+        "CL4-E-1-12"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CL4EP212",
+      "title": "Nanotec CL4-E-2-12 product page",
+      "path": "vendor/nanotec_cl4-e-2-12_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 191070,
+      "sha256": "62cc68cc6debe41be26cb061fc19a29ef2a057ffe199f20f0a550324361d744a",
+      "language": "en",
+      "applicability": [
+        "CL4-E-2-12"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PD4CPM08",
+      "title": "Nanotec PD4-C5918M4204-E-08 product page (CANopen stepper)",
+      "path": "vendor/nanotec_pd4-c5918m4204-e-08_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1606-pd4-c5918m4204-e-08",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 205967,
+      "sha256": "569544d20b7146d79b9ad2bfe9ccba47771c252c35b751fc61635d0cea6e8223",
+      "language": "en",
+      "applicability": [
+        "PD4-C5918M4204-E-08"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PD4CPB08",
+      "title": "Nanotec PD4-CB59M024035-E-08 product page (CANopen BLDC)",
+      "path": "vendor/nanotec_pd4-cb59m024035-e-08_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1622-pd4-cb59m024035-e-08",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 215169,
+      "sha256": "cdef9749139bf2eb2761e84e6fe5be5ec15fe5b1867cad8caa166d3ec068c1b6",
+      "language": "en",
+      "applicability": [
+        "PD4-CB59M024035-E-08"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PD4CPM01",
+      "title": "Nanotec PD4-C5918M4204-E-01 product page (USB variant, suffix contrast)",
+      "path": "vendor/nanotec_pd4-c5918m4204-e-01_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/1607-pd4-c5918m4204-e-01",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 212991,
+      "sha256": "0c28294d7ae1e9b5aec448088146b2ad0ed91e06e7d1c21c43e8104152d95526",
+      "language": "en",
+      "applicability": [
+        "PD4-C5918M4204-E-01 (USB, not CANopen)"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PNDS3P",
+      "title": "Nanotec Plug & Drive Studio 3 product/download page",
+      "path": "vendor/nanotec_pnds3_product.html",
+      "url": "https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 81313,
+      "sha256": "90ef0324e9f0655261dfae5c19299930defcbf48a09017690cee8eeeb2872a99",
+      "language": "en",
+      "applicability": [
+        "Lists the OD and firmware package"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "N5OM",
+      "title": "Nanotec N5 CANopen online manual front page",
+      "path": "vendor/nanotec_n5_online_manual.html",
+      "url": "https://nanotec.com/eu/en/products/manual/m/n5-canopen-en/p",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 141961,
+      "sha256": "407c85c9b2ece94eba831a08f52c2012f0230ec81ea50a41240a196c33d40041",
+      "language": "en",
+      "applicability": [
+        "N5-1-2",
+        "N5-2-2"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "CL4EOM",
+      "title": "Nanotec CL4-E online manual front page",
+      "path": "vendor/nanotec_cl4e_online_manual.html",
+      "url": "https://nanotec.com/eu/en/products/manual/m/cl4e-canopen-usb-modbusrtu-en/p",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 140590,
+      "sha256": "e900600712f30211d50c6c66a2a692b24d5b2d26d1348736328cc0c483543555",
+      "language": "en",
+      "applicability": [
+        "CL4-E variants"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PD4COM",
+      "title": "Nanotec PD4-C CANopen online manual front page",
+      "path": "vendor/nanotec_pd4c_online_manual.html",
+      "url": "https://www.nanotec.com/eu/en/products/manual/m/pd4c-canopen-en/p",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 141221,
+      "sha256": "5488de4c6ab3d6290c0327adcf64b5d862954104f92f3779aed440de43b22af6",
+      "language": "en",
+      "applicability": [
+        "PD4-C ...-E-08 variants"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PD6EOM",
+      "title": "Nanotec PD6-E CANopen online manual front page (later row)",
+      "path": "vendor/nanotec_pd6e_online_manual.html",
+      "url": "https://www.nanotec.com/us/en/products/manual/m/pd6e-canopen-en/p",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 163281,
+      "sha256": "d8b03b2c37d58d909fd17b4dbe9774f5789c5b4e419daaf3325d96f5448323c6",
+      "language": "en",
+      "applicability": [
+        "PD6-E ...-E(S)-65-2 variants; FIR-v2538"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license"
+    },
+    {
+      "id": "PKG-OD_N5-1-2_2213-B1031134-97034e08",
+      "title": "Nanotec Plug & Drive Studio object dictionary XML for N5-1-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/OD_N5-1-2_2213-B1031134-97034e08.xml",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 1409379,
+      "sha256": "744be54e13f292263526139adcff9156ec0c5338e07f9252742588aed8fa76e7",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "OD_N5-1-2_2213-B1031134-97034e08.xml",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-OD_N5-1-2_2538-B1077563-343ccc7f",
+      "title": "Nanotec Plug & Drive Studio object dictionary XML for N5-1-2, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/OD_N5-1-2_2538-B1077563-343ccc7f.xml",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 1415848,
+      "sha256": "f4c4db5d0b3a5d5d3f606c823d3fcf03ef960cc13f0f413d8cfb91ca3ca37681",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "OD_N5-1-2_2538-B1077563-343ccc7f.xml",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-OD_N5-2-2_2213-B1031134-97034e08",
+      "title": "Nanotec Plug & Drive Studio object dictionary XML for N5-2-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/OD_N5-2-2_2213-B1031134-97034e08.xml",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 1409379,
+      "sha256": "c23a08b0f76efab30bf61aceb28dc5ced64ac534075f9e627bf189a8ac55d78f",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "OD_N5-2-2_2213-B1031134-97034e08.xml",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-OD_N5-2-2_2538-B1077563-343ccc7f",
+      "title": "Nanotec Plug & Drive Studio object dictionary XML for N5-2-2, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/OD_N5-2-2_2538-B1077563-343ccc7f.xml",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 1415849,
+      "sha256": "ffe8a2fb26832fa035d6e73b821a7cb8e4dcbd3228d963b42cd938f456d16373",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "OD_N5-2-2_2538-B1077563-343ccc7f.xml",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_C5-E-1-09_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for C5-E-1-09, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_C5-E-1-09_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 616712,
+      "sha256": "8597cd37aefd79a05cb304bcd5c78cbdf1c6d6a9b27422116e93488f31012e54",
+      "language": "en",
+      "applicability": [
+        "C5-E-1-09"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_C5-E-1-09_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_C5-E-1-09_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for C5-E-1-09, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_C5-E-1-09_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 619023,
+      "sha256": "73c0fdbf8bdae38e04b7b8c126853938debcae20ca13204c4d571e3eeea39a5f",
+      "language": "en",
+      "applicability": [
+        "C5-E-1-09"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_C5-E-1-09_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_C5-E-2-09_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for C5-E-2-09, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_C5-E-2-09_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 616715,
+      "sha256": "c8b92e009779c7a755d4a7aa36578832b9a017c7fbcc8c8a00fd4cee0bdf072a",
+      "language": "en",
+      "applicability": [
+        "C5-E-2-09"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_C5-E-2-09_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_C5-E-2-09_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for C5-E-2-09, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_C5-E-2-09_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 619026,
+      "sha256": "00328a432ac18a6b5bca3bf6a51d148923670d1149824e9f19a66f411f3af229",
+      "language": "en",
+      "applicability": [
+        "C5-E-2-09"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_C5-E-2-09_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_CL4-E-1-12_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for CL4-E-1-12, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_CL4-E-1-12_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 582787,
+      "sha256": "9ca567826a62c4c18accd9d3aba32883fe62bb3c64e3529db50641da709dfb07",
+      "language": "en",
+      "applicability": [
+        "CL4-E-1-12"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_CL4-E-1-12_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_CL4-E-1-12_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for CL4-E-1-12, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_CL4-E-1-12_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 618196,
+      "sha256": "4ac94608723c99bdcd4406ce45e4bd8849c74dd128725120996d4bf413af7bde",
+      "language": "en",
+      "applicability": [
+        "CL4-E-1-12"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_CL4-E-1-12_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_CL4-E-2-12_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for CL4-E-2-12, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_CL4-E-2-12_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 582789,
+      "sha256": "a2a7e144263c7b699b0a084053e75acf93e00241b4546e814af412f6725b4d91",
+      "language": "en",
+      "applicability": [
+        "CL4-E-2-12"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_CL4-E-2-12_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_CL4-E-2-12_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for CL4-E-2-12, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_CL4-E-2-12_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 618198,
+      "sha256": "0d26987ff46e79b44a89ec8b8d33d8141dada5eabc93dd43f4f7121c2aeb17a4",
+      "language": "en",
+      "applicability": [
+        "CL4-E-2-12"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_CL4-E-2-12_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-1-2_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for N5-1-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_N5-1-2_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 615509,
+      "sha256": "0ad8ef9ded0e64db35b3e4eafc076de52d73a8281ed5c8f6e01f25ac46bade6d",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-1-2_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-1-2_2213-B1031134-97034e08_n5-1-2",
+      "title": "Nanotec EDS (public objects only) for N5-1-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_N5-1-2_2213-B1031134-97034e08_n5-1-2.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 172011,
+      "sha256": "90aad09efc62f05de6864c1e3806629d32f2968872b89e53ad9498709f1d3736",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-1-2_2213-B1031134-97034e08_n5-1-2.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-1-2_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for N5-1-2, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_N5-1-2_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 617407,
+      "sha256": "8a97a602d49a8d3cbc10e31999b19f5cb68c56d7052717bde35875a3288a1c23",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-1-2_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-2-2_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for N5-2-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_N5-2-2_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 615509,
+      "sha256": "ec7bf6566c53231572e361a593d9e5b22b54a1544036821791e6d35b5cc3fc06",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-2-2_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-2-2_2213-B1031134-97034e08_n5-2-2",
+      "title": "Nanotec EDS (public objects only) for N5-2-2, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_N5-2-2_2213-B1031134-97034e08_n5-2-2.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 172011,
+      "sha256": "409fd09ff1a59dbf969291a89c3264fd00cfb41cf554e1069e4d9f41ca5e86c2",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-2-2_2213-B1031134-97034e08_n5-2-2.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_N5-2-2_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for N5-2-2, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_N5-2-2_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 617407,
+      "sha256": "02a70141f3dd250cee270abc57a8405b411b77f3b65d3b365e5d72f63c75524a",
+      "language": "en",
+      "applicability": [
+        "N5-2-2"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_N5-2-2_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_PD4-C5918M4204-E-08_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for PD4-C5918M4204-E-08, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_PD4-C5918M4204-E-08_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 579311,
+      "sha256": "a474b780307ba0994483a17e835fc3a1ea44b26d7606a64269938b4d41c924cb",
+      "language": "en",
+      "applicability": [
+        "PD4-C5918M4204-E-08"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_PD4-C5918M4204-E-08_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_PD4-C5918M4204-E-08_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for PD4-C5918M4204-E-08, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_PD4-C5918M4204-E-08_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 579625,
+      "sha256": "8115758978e637da6a4a556f1b2557e0842c946c2443f932004cc98b7c3fc0d3",
+      "language": "en",
+      "applicability": [
+        "PD4-C5918M4204-E-08"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_PD4-C5918M4204-E-08_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_PD4-CB59M024035-E-08_2213-B1031134-97034e08_EDS",
+      "title": "Nanotec EDS (all objects) for PD4-CB59M024035-E-08, FIR-v2213 build B1031134",
+      "path": "vendor/od_firmware_package/PLC_PD4-CB59M024035-E-08_2213-B1031134-97034e08_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 579317,
+      "sha256": "7c2e6871387917c1dcfe688cd7334c7f4e39730c89c20941e7e07e92c0c3f05e",
+      "language": "en",
+      "applicability": [
+        "PD4-CB59M024035-E-08"
+      ],
+      "revision": "FIR-v2213 build B1031134 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_PD4-CB59M024035-E-08_2213-B1031134-97034e08_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    },
+    {
+      "id": "PKG-PLC_PD4-CB59M024035-E-08_2538-B1077563-343ccc7f_EDS",
+      "title": "Nanotec EDS (all objects) for PD4-CB59M024035-E-08, FIR-v2538 build B1077563",
+      "path": "vendor/od_firmware_package/PLC_PD4-CB59M024035-E-08_2538-B1077563-343ccc7f_EDS.eds",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "extracted_unchanged_from_downloaded_zip_http_200",
+      "bytes": 579631,
+      "sha256": "f00743063828c5db231d7e8a8cb79bf2e8199c61306d9ceed88b7d84bdbc3612",
+      "language": "en",
+      "applicability": [
+        "PD4-CB59M024035-E-08"
+      ],
+      "revision": "FIR-v2538 build B1077563 (from file name, 100Ah and 1018h:03h)",
+      "firmware_match": "File-level firmware identity from the package; no physical drive inspected",
+      "origin": "member of manufacturer-hosted zip (bytes unchanged)",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "archive_member": "PLCConfigs/PLC_PD4-CB59M024035-E-08_2538-B1077563-343ccc7f_EDS.eds",
+      "archive_sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7"
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "path": "extracted/nanotec_cl4e_canopen_usb_modbusrtu_v1.5.0.txt",
+      "source_id": "CL4E",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 655176,
+      "sha256": "247a4e012f53236f40ff9e3f59d91031df77377d6e9829b87311714da8dc6604"
+    },
+    {
+      "path": "extracted/nanotec_pd4c_canopen_v3.3.0.txt",
+      "source_id": "PD4C",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 611403,
+      "sha256": "a573d81e1a9e65e359179b7d350508dcd9700d9515063881c0ff4ccdc1acc77c"
+    },
+    {
+      "path": "extracted/nanotec_n5_canopen_v2.0.3_stock_fir-v1650.txt",
+      "source_id": "N5V2",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 518453,
+      "sha256": "c39fe80dafde73fb38134f6adf1515c4870bd903c3cab711b6bd4ad93397013c"
+    },
+    {
+      "path": "extracted/nanotec_firmware_update_fir-v2039_v1.2.0.txt",
+      "source_id": "FWUPD",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 28816,
+      "sha256": "24c64bfcaf243d95151f80242efe6cdda958e55a8f23c6d3f23b9e3283b38bcc"
+    },
+    {
+      "path": "extracted/nanotec_plug_drive_interface_v1.0.1.txt",
+      "source_id": "PDI",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 27466,
+      "sha256": "eef02bf57a975aecb61138ff1f2e783768c11200016273302c24361b3646788c"
+    },
+    {
+      "path": "extracted/nanotec_pnds3_user_manual_v1.4.0.txt",
+      "source_id": "PNDS3",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative",
+      "bytes": 36671,
+      "sha256": "7923879b80eda9601355e834a2f8ab8e61b265eea56570d2a0284cd1188b4993"
+    },
+    {
+      "path": "extracted/od_firmware_package_index.json",
+      "source_id": "PKGZIP",
+      "generated_on": "2026-11-19",
+      "method": "Python zipfile directory listing of the downloaded OD_and_Firmware_Package.zip; family-relevant members with size, CRC32, SHA-256 (text members), and EDS DeviceInfo/default values; firmware binaries listed only, never extracted or executed",
+      "bytes": 200671,
+      "sha256": "b179b20fbb9c3ea30cf7c51b28abc1738eb8bc1b6f5e52724d3888d4dcdf2405"
+    },
+    {
+      "path": "../multidrive/extracted/nanotec_n5_canopen_v3.3.0.txt",
+      "source_id": "N5",
+      "generated_on": "2026-10-23",
+      "method": "Reused multidrive extract (PyMuPDF page.get_text(); one-based page markers); not regenerated",
+      "bytes": 916016,
+      "sha256": "ac6713ba9839c70e8c886755527a740adaa8913ed2acf987d87efece202c6ad9"
+    },
+    {
+      "path": "../multidrive/extracted/nanotec_c5e_canopen_v3.3.0.txt",
+      "source_id": "C5E",
+      "generated_on": "2026-10-23",
+      "method": "Reused multidrive extract (PyMuPDF page.get_text(); one-based page markers); not regenerated",
+      "bytes": 906373,
+      "sha256": "9e4adc222010bf6a87006a4bf6af02864c00b1402a167f3f012f30caec73050e"
+    }
+  ],
+  "remote_only": [
+    {
+      "id": "PKGZIP",
+      "title": "Nanotec Plug & Drive Studio 3 'OD and Firmware Package' (zip)",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/OD_and_Firmware_Package.zip?1780292871",
+      "revision": "HTTP Last-Modified 2026-06-01; members dated 2026-05-28; 2813 members",
+      "retrieval_status": "downloaded_http_200_not_stored_size_117940798_bytes",
+      "observed_download": {
+        "bytes": 117940798,
+        "sha256": "c9d57c10afe2977836842ce873a4d5d18f2f2b2c97c38409c2b349788ea8f9b7",
+        "etag": "dixh5ikrurfx-1y7vpa"
+      },
+      "applicability": [
+        "All Nanotec controllers; selected EDS and OD members stored under vendor/od_firmware_package"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "note": "Not stored because it exceeds the pack size budget and contains firmware binaries (.bin/.fw) that must not be kept or run. Selected text members are stored byte-for-byte; extracted/od_firmware_package_index.json lists all family members.",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "C5EV2",
+      "title": "Nanotec C5-E CANopen/USB Technical Manual 2.0.1 ('Stock Firmware')",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/C5-E/C5E_CANopen_USB_Technical-Manual_V2.0.1.pdf?1656012610",
+      "revision": "2.0.1; firmware FIR-v1650; hardware W006 and later (cover page read)",
+      "retrieval_status": "downloaded_http_200_cover_checked_not_stored",
+      "observed_download": {
+        "bytes": 5030678,
+        "sha256": "b3b22a92d936b61536ada5f45035e1d3ee4ba48dc45591e96e7e3d29de192940"
+      },
+      "applicability": [
+        "C5-E-1-09",
+        "C5-E-2-09 (stock firmware FIR-v1650)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "PD4CV2",
+      "title": "Nanotec PD4-C CANopen Technical Manual 2.0.2 ('Stock Firmware')",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Plug_Drive/PD4-C/PD4C_CANopen_Technical-Manual_V2.0.2.pdf?1656012586",
+      "revision": "2.0.2; firmware FIR-v1650; hardware W006 and later (cover page read)",
+      "retrieval_status": "downloaded_http_200_cover_checked_not_stored",
+      "observed_download": {
+        "bytes": 6043379,
+        "sha256": "d2979879650fac9d29832e6220215e36c21c97decbd949a009d3dab1d2f4b3f3"
+      },
+      "applicability": [
+        "PD4-C ...-E-08 variants (stock firmware FIR-v1650)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "PD6EMAN",
+      "title": "Nanotec PD6-E CANopen Technical Manual 1.2.0 (later row)",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Plug_Drive/PD6-E/fir-v2538/PD6E_CANopen_Technical-Manual_V1.2.0.pdf",
+      "revision": "1.2.0 (10/2025); FIR-v2538; HEAD: Content-Length 11140988, Last-Modified 2025-11-20",
+      "retrieval_status": "http_head_200_not_downloaded_later_row",
+      "applicability": [
+        "PD6-E...-E(S)-65-2 variants (see PD6EOM)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "N5NEWER",
+      "title": "Newer N5 CANopen manual revision (searched)",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/N5/fir-v2538/N5_CANopen_Technical-Manual_V3.4.0.pdf",
+      "revision": "None found: online manual and product pages list 3.3.0 as current; guessed paths .../N5/fir-v2538/..._V3.4.0.pdf, ..._V4.0.0.pdf and .../fir-v2213/..._V3.3.1.pdf answered HTTP 301 to a site page (no file)",
+      "retrieval_status": "not_found_http_301_on_guessed_paths",
+      "applicability": [
+        "N5-1-2",
+        "N5-2-2"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "NANOCANEDS",
+      "title": "Nanotec NanoCAN EDS Files (archive page)",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/NanoCAN/NanoCAN_EDS_Files.zip?1656012674",
+      "revision": "Archive entry labelled 'for PD...-O41/-N... and SMCI...'",
+      "retrieval_status": "listed_not_downloaded_not_applicable",
+      "applicability": [
+        "Older NanoCAN products; not the FIR-v2213 generation"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "PNDS3PKG",
+      "title": "Plug & Drive Studio 3 installer package 3.3.0.2",
+      "url": "https://www.nanotec.com/fileadmin/files/Software/Plug_Drive_Studio/PnDS3_v.3.3.0.2_Package.zip?1793873154",
+      "revision": "3.3.0.2 (160 MB per product page)",
+      "retrieval_status": "not_downloaded_installer",
+      "applicability": [
+        "Configuration software; installers are not obtained or run"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "id": "FWNOTES",
+      "title": "Firmware release notes for FIR-v2213 and FIR-v2538",
+      "url": "https://www.nanotec.com/eu/en/products/10492-plug-drive-studio-3",
+      "revision": "No release notes found on product, download, archive or software pages or by web search; manual version tables (N5 pp10-11) and FWUPD are the only change records",
+      "retrieval_status": "not_found",
+      "applicability": [
+        "All family members"
+      ],
+      "reviewed_on": "2026-11-19",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright (Nanotec Electronic GmbH & Co. KG, 'All rights reserved', N5 p11); no redistribution license found; not covered by the library license",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null
+    }
+  ],
+  "limitations": [
+    "N5 and C5-E manuals are referenced from ../multidrive with their recorded hashes; paths outside this directory are intentional.",
+    "EDS and OD XML files are unchanged members of a manufacturer zip; the zip itself is not stored (size and firmware content).",
+    "No firmware, installer, SDK or tool was run; firmware binaries in the zip were listed, not extracted.",
+    "No manual documents FIR-v2538 for N5, C5-E, CL4-E or PD4-C; only the package EDS/OD files describe that firmware.",
+    "No firmware release notes were found.",
+    "No hardware contacted; no vendor correspondence.",
+    "Full normative CiA 301/402/305/306 texts not obtained.",
+    "Public accessibility does not establish redistribution permission."
+  ]
+}

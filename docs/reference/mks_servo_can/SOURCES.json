@@ -1,0 +1,445 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-11-19",
+  "timezone": "Europe/Prague",
+  "purpose": "MKS SERVO42D/57D CAN proprietary-protocol evidence for a future non-CANopen profile; no implemented support or hardware qualification",
+  "sources": [
+    {
+      "id": "MK109",
+      "title": "MKS SERVO42D/57D Closed-Loop Stepper Motor CAN User Manual V1.0.9 (edition dated 2026-11-12)",
+      "path": "vendor/mks_servo42d57d_can_manual_v1.0.9_20261112.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/User%20Manual/V1.0.9/MKS%20SERVO42%2657D_CAN%20User%20Manual%20V1.0.9_20261112.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3767364,
+      "sha256": "7342b712165a1cb63d753682fea34b010372b1611f41c7c3a5fec6c0713cdcd1",
+      "language": "en",
+      "applicability": [
+        "MKS SERVO42D_CAN",
+        "MKS SERVO57D_CAN (and the SERVO57D_BUS board shown on PDF page 12)",
+        "SERVO28D/35D appear only in individual rows and notes; not established as covered models"
+      ],
+      "revision": "Manual V1.0.9; states firmware V1.0.9 dated Sep-2026; PDF created 2026-11-12; 118 pages",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f",
+      "pdf_pages": 118,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "Administrator",
+        "subject": "",
+        "keywords": "",
+        "creator": "WPS 文字",
+        "producer": "",
+        "creationDate": "D:20261112114834+08'00'",
+        "modDate": "D:20261112114834+08'00'",
+        "trapped": "",
+        "encryption": null
+      },
+      "survey_cross_check": "Size and SHA-256 equal the values recorded in docs/audit/2026-11-19_market_asia_mass_market.md"
+    },
+    {
+      "id": "MK109A",
+      "title": "MKS SERVO42D/57D CAN User Manual V1.0.9 (superseded edition dated 2025-12-18)",
+      "path": "vendor/mks_servo42d57d_can_manual_v1.0.9_20251218.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/eaf787cbc895f94d9902b768175964bb72bc503d/User%20Manual/V1.0.9/MKS%20SERVO42%2657D_CAN%20User%20Manual%20V1.0.9.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3044183,
+      "sha256": "2d16ff8e1184ffa50c997280ac05cd5ab47bdf4632ef5397efae233e0107078f",
+      "language": "en",
+      "applicability": [
+        "MKS SERVO42D_CAN",
+        "MKS SERVO57D_CAN"
+      ],
+      "revision": "Manual V1.0.9; states firmware V1.0.9 dated Nov-2025; PDF created 2025-12-18; 106 pages; removed from the repository in commit 85e2164271eae2e8a8c46e8544745ba13dd1418e (2026-11-13)",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "eaf787cbc895f94d9902b768175964bb72bc503d",
+      "pdf_pages": 106,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "Administrator",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Word 2019",
+        "producer": "Microsoft® Word 2019",
+        "creationDate": "D:20251218171748+08'00'",
+        "modDate": "D:20251218171748+08'00'",
+        "trapped": "",
+        "encryption": null
+      },
+      "retention_reason": "Same manual and firmware number as MK109 but documents a different command set (0FH no-verification mode instead of 4CH; no 38H, F7 01 or 50H)"
+    },
+    {
+      "id": "MK106",
+      "title": "MKS SERVO42D/57D_CAN User Manual V1.0.6",
+      "path": "vendor/mks_servo42d57d_can_manual_v1.0.6.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/User%20Manual/V1.0.6/MKS%20SERVO42%2657D_CAN%20User%20Manual%20V1.0.6.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 2399722,
+      "sha256": "373c2a8e0439d7dd3e37e06475fb332962aadfcef7c720059b88f179ab786b22",
+      "language": "en",
+      "applicability": [
+        "MKS SERVO42D_CAN",
+        "MKS SERVO57D_CAN"
+      ],
+      "revision": "Manual V1.0.6 for firmware V1.0.6 (Sep-2024); every page header still reads V1.0.5; PDF created 2024-10-22",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f",
+      "pdf_pages": 60,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "Administrator",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Word 2019",
+        "producer": "Microsoft® Word 2019",
+        "creationDate": "D:20241022091835+08'00'",
+        "modDate": "D:20241022091835+08'00'",
+        "trapped": "",
+        "encryption": null
+      },
+      "retention_reason": "Last edition before the V1.0.9 redesign; documents 9DH bit layout, 3BH one-byte reply, 8FH lock/unlock values and pre-V1.0.7 reply sets that the V1.0.9 editions no longer show"
+    },
+    {
+      "id": "MK100",
+      "title": "MKS SERVO42D/57D_CAN User Manual V1.0.0",
+      "path": "vendor/mks_servo57d_can_manual_v1.0.0.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/User%20Manual/V1.0.0/MKS%20SERVO57D_CAN%20User%20Manual%20V1.0.0.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 1644194,
+      "sha256": "74b487021fc5ff456ac7ab9d0cae093dc13c8f286d10f3b84a866a01a3b6e2f1",
+      "language": "en (some Chinese table labels)",
+      "applicability": [
+        "MKS SERVO57D_CAN (file name); page headers name SERVO42D/57D_CAN"
+      ],
+      "revision": "Manual V1.0.0 for firmware V1.0 (03/2023); PDF created 2023-03-28",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f",
+      "pdf_pages": 43,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "Administrator",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Word 2019",
+        "producer": "Microsoft® Word 2019",
+        "creationDate": "D:20230328191545+08'00'",
+        "modDate": "D:20230328191545+08'00'",
+        "trapped": "",
+        "encryption": null
+      },
+      "retention_reason": "Only source for the original firmware V1.0.0 encodings: mode 3 = CR_CAN, speed code 0-1600, acc 0-32 per 10 ms, int16 angle error, opposite speed sign"
+    },
+    {
+      "id": "MKNOTES",
+      "title": "MKS-SERVO42D-57D repository README (manual/firmware version notes)",
+      "path": "vendor/mks_servo42d57d_repo_readme_0bf272fe.md",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/README.md",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3727,
+      "sha256": "50d003a7e9bea77ce113a849ab2cbec2baec46e3ce7ee6311cb2ff159e136a3e",
+      "language": "en",
+      "applicability": [
+        "MKS SERVO42D/57D_CAN version history"
+      ],
+      "revision": "README at repository commit 0bf272fe (last README change 5c6d5b2e, 2025-12-18); lists versions to V1.0.9 Nov-2025",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f"
+    },
+    {
+      "id": "MKSCH42",
+      "title": "MKS SERVO42D_CAN V1.0_003 schematic",
+      "path": "vendor/mks_servo42d_can_v1.0_003_schematic.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/Hardware/MKS%20SERVO42D_CAN%20V1.0_003%20Schematic.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 164824,
+      "sha256": "a22edce3e3b3ef729d2848f4f27c84317b9f2699d26b75c0e73cc5454daff0c4",
+      "language": "en/zh labels",
+      "applicability": [
+        "MKS SERVO42D_CAN board revision V1.0_003 only"
+      ],
+      "revision": "Schematic print dated 2024-06-11; hardware context (transceiver, termination, encoder, MCU), not protocol evidence",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f",
+      "pdf_pages": 1,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "Schematic Prints",
+        "author": "5:‰ˆè-001",
+        "subject": "",
+        "keywords": "",
+        "creator": "",
+        "producer": "Microsoft: Print To PDF",
+        "creationDate": "D:20240611103012+08'00'",
+        "modDate": "D:20240611103012+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "MKSCH57",
+      "title": "MKS SERVO57D_CAN V1.1_001 schematic",
+      "path": "vendor/mks_servo57d_can_v1.1_001_schematic.pdf",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/Hardware/MKS%20SERVO57D_CAN%20V1.1_001%20Schematic.pdf",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 1390019,
+      "sha256": "48a4e381f77e9eedd412f459c8920f920b858dde86197ca360d1dd20ea33904d",
+      "language": "en/zh labels",
+      "applicability": [
+        "MKS SERVO57D_CAN board revision V1.1_001 only"
+      ],
+      "revision": "Schematic print dated 2024-06-11; hardware context only",
+      "firmware_match": "Document scope only; no physical drive or firmware image inspected",
+      "origin": "manufacturer-hosted (official makerbase-motor GitHub repository)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "manufacturer_linking_page": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "repository_commit": "0bf272fe6a884ec8c7940887a3416b40bf069e6f",
+      "pdf_pages": 1,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "Schematic Prints",
+        "author": "5:‰ˆè-001",
+        "subject": "",
+        "keywords": "",
+        "creator": "",
+        "producer": "Microsoft: Print To PDF",
+        "creationDate": "D:20240611112844+08'00'",
+        "modDate": "D:20240611112844+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "path": "extracted/mks_servo42d57d_can_manual_v1.0.9_20261112.txt",
+      "source_id": "MK109",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 140625,
+      "sha256": "5f7ce797e44cab4b8379b3c5d0a815fa1aaa6a36dd1641aa18b8d9b2a96c843e"
+    },
+    {
+      "path": "extracted/mks_servo42d57d_can_manual_v1.0.9_20251218.txt",
+      "source_id": "MK109A",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 139684,
+      "sha256": "a6b9152e973d1aadd94baa0ededd4e78d7f48a0b188ab5135e52903d0234b248"
+    },
+    {
+      "path": "extracted/mks_servo42d57d_can_manual_v1.0.6.txt",
+      "source_id": "MK106",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 64592,
+      "sha256": "2aced8c55d87cdcca91f6894013697e90aa93fbdd7635baf1175526e34857817"
+    },
+    {
+      "path": "extracted/mks_servo57d_can_manual_v1.0.0.txt",
+      "source_id": "MK100",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 39788,
+      "sha256": "fd6ffe15407e2fb525ea3c1d6fd72f36080dc3460cda76dc3c85eb0daa969fe5"
+    },
+    {
+      "path": "extracted/mks_servo42d_can_v1.0_003_schematic.txt",
+      "source_id": "MKSCH42",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 3280,
+      "sha256": "35356a38515a5ff4084afdf4af2ecefb8acd8c65f926aedaaa8297b7f47e38a1"
+    },
+    {
+      "path": "extracted/mks_servo57d_can_v1.1_001_schematic.txt",
+      "source_id": "MKSCH57",
+      "generated_on": "2026-11-19",
+      "method": "PyMuPDF 1.27.2 page.get_text(); one-based '=== PDF PAGE N ===' markers; formatting is not authoritative for tables or figures",
+      "bytes": 4458,
+      "sha256": "41ecc11f9acac84d02876132860de6b75b9df45f9cd55bdfe2f74141985237c5"
+    }
+  ],
+  "remote_only": [
+    {
+      "id": "MKREPO",
+      "title": "makerbase-motor/MKS-SERVO42D-57D GitHub repository",
+      "url": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "revision": "Commit 0bf272fe6a884ec8c7940887a3416b40bf069e6f (2026-11-19T01:55:10Z)",
+      "retrieval_status": "browsed_via_github_api_http_200",
+      "applicability": [
+        "Repository listing at commit 0bf272fe6a884ec8c7940887a3416b40bf069e6f"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "Tree listing reviewed through the GitHub API. Repository license field is null. It holds CAN manuals V1.0.0-V1.0.6 and V1.0.9 only (no V1.0.7 or V1.0.8 CAN manual), RS485 and Modbus manuals, schematics, RS485-only Arduino examples, a 1-byte STM32 example placeholder and PC tool archives/executables."
+    },
+    {
+      "id": "MKAE42",
+      "title": "AliExpress listing for MKS SERVO42D_CAN named on MK109 PDF page 8",
+      "url": "https://www.aliexpress.com/item/1005005593922187.html",
+      "revision": "Not retained",
+      "retrieval_status": "downloaded_http_200_javascript_shell_not_stored",
+      "applicability": [
+        "SERVO42D (title only)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "HTTP 200, 78 270 bytes; only og:title 'Makerbase MKS SERVO42D NEMA17 Closed Loop Driver'. Product, variant and firmware data load by JavaScript, so the shell fixes no suffix or firmware and was not stored."
+    },
+    {
+      "id": "MKAE57",
+      "title": "AliExpress listing for MKS SERVO57D_CAN/BUS named on MK109 PDF page 8",
+      "url": "https://www.aliexpress.com/item/1005005389508166.html",
+      "revision": "Not retained",
+      "retrieval_status": "downloaded_http_200_javascript_shell_not_stored",
+      "applicability": [
+        "SERVO57D (title only)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "HTTP 200, 78 349 bytes; only og:title naming a SERVO57D NEMA23 closed-loop driver. Not stored for the same reason."
+    },
+    {
+      "id": "MKCAN101-105",
+      "title": "MKS SERVO42D/57D CAN User Manuals V1.0.1 to V1.0.5",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/User%20Manual/",
+      "revision": "Not retained",
+      "retrieval_status": "downloaded_http_200_reviewed_not_stored",
+      "applicability": [
+        "Firmware V1.0.1-V1.0.5"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "Fetched for comparison only; superseded in content by MK106 plus the version notes. Observed downloads: V1.0.1 1698704 bytes a2267d2d856840f141317fd0f9fdc8b4cbb08567cbcf6ff3a743e0765ab8939f; V1.0.2 1820223 bytes e93f936981f812ffbe1a3034980ad75db3d1c7be1790aab2032aa99738a5f198; V1.0.3 1795229 bytes 30070474da6096d2bc864d6b3f99cb14c7f94640e1c3ae1547ff926cda6e0a8f; V1.0.4 2247779 bytes bdb2f5e30c11772b16b3dc34e3b067cbb1431f2b82957c4548c01773b389fbbf; V1.0.5 2244452 bytes 9120668816e818c24cf325232d272b9b4f5950e88915f53d81218a8e36a5a874. Not retained."
+    },
+    {
+      "id": "MKIAPDOC",
+      "title": "MKS SERVO42&57D IAP Upgrade commands.pdf (cited on MK109 PDF page 57)",
+      "url": "https://github.com/makerbase-motor/MKS-SERVO42D-57D",
+      "revision": "Not retained",
+      "retrieval_status": "not_found_in_repository",
+      "applicability": [
+        "IAP mode 2 command set"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "Named by the manual but absent from the repository tree at the pinned commit."
+    },
+    {
+      "id": "MKREPO42",
+      "title": "makerbase-motor/MKS-SERVO42D (schematic link on MK109 PDF page 118)",
+      "url": "https://github.com/makerbase-motor/MKS-SERVO42D",
+      "revision": "Not retained",
+      "retrieval_status": "http_404",
+      "applicability": [
+        "None"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "Cited link returns 404; MKS-SERVO57D redirects to MKS-SERVO42D-57D."
+    },
+    {
+      "id": "MKEXAMPLES",
+      "title": "Official Arduino example 11 (speed mode)",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/Example%20Code/Arduino%20Example%20Code/arduino_11_Serial_Speed%20Mode/arduino_11_speedMode/arduino_11_speedMode.ino",
+      "revision": "Not retained",
+      "retrieval_status": "downloaded_http_200_reviewed_not_stored",
+      "applicability": [
+        "RS485/UART framing (0xFA header), not CAN"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "Read as text only and never compiled or run. The Arduino examples use the serial RS485 frame, so they are not CAN evidence."
+    },
+    {
+      "id": "MKPCSRC",
+      "title": "MKS_ServoD_Control V1.0.3 source code archive",
+      "url": "https://raw.githubusercontent.com/makerbase-motor/MKS-SERVO42D-57D/0bf272fe6a884ec8c7940887a3416b40bf069e6f/MKS_ServoD_Control/MKS_ServoD_Control%20V1.0.3/MKS_ServoD_Control%20V1.0.3%20source%20code.zip",
+      "revision": "Not retained",
+      "retrieval_status": "downloaded_http_200_listed_not_extracted_not_stored",
+      "applicability": [
+        "RS485 PC tool"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer-hosted or manufacturer-linked",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license. The repository declares no license (GitHub API license: null).",
+      "note": "21811608 bytes; entry names listed and Form1.cs read in memory only. It uses SerialPort with the 0xFA header and has no CAN code. Embedded .exe files were not extracted or run. The V1.0.9.2 CAN-capable tool (.rar) was not downloaded."
+    }
+  ],
+  "limitations": [
+    "No CAN manual for firmware V1.0.7 or V1.0.8 exists in the repository; their changes are known only from the version notes.",
+    "Two different documents are both labelled manual V1.0.9 for firmware V1.0.9 (MK109A Dec-2025, MK109 Nov-2026); the firmware label alone does not identify the command set.",
+    "No firmware image, PC tool, installer or example code was executed; no archive was extracted to disk.",
+    "No hardware contacted and no vendor correspondence; nothing here is a hardware observation.",
+    "The official product listings are JavaScript shells; no manufacturer page fixes board revision or shipped firmware.",
+    "SERVO28D_CAN and SERVO35D_CAN have no dedicated CAN manual; the 28D_CAN schematic was not stored.",
+    "Public accessibility in a license-less repository does not establish redistribution permission."
+  ]
+}

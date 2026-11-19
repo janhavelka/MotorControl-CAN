@@ -1,0 +1,828 @@
+{
+ "schema_version": 1,
+ "audit_date": "2026-11-19",
+ "timezone": "Europe/Prague",
+ "purpose": "Applied Motion Products / MOONS' CANopen drive evidence (STF-C, SSDC-C, TSM/TXM-C); no implemented support or hardware qualification",
+ "sources": [
+  {
+   "id": "UM21",
+   "title": "MOONS' (AMP & MOONS' Automation) CANopen User Manual",
+   "path": "vendor/moons_canopen_user_manual_en20210816.pdf",
+   "url": "https://www.moonsindustries.com/medias/CANopen-UserManual-EN20210816.pdf?context=bWFzdGVyfHJvb3R8MTI2ODY0M3xhcHBsaWNhdGlvbi9wZGZ8aGU1L2g3Zi84ODQwMDc3NjcyNDc4LnBkZnw2MDE5YTNiYWEyNmFiMTliNjM4OWE5YWMyMzViN2E4MDczYjY3MWU0MzQ0ZTZkOTM1Y2E5ODg3MmVkYmRmNjAx&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 1268643,
+   "sha256": "6f3eb88aebd24fcaccb0b22a003d4e6657574e3c6aa59935a5ccc91e02840c23",
+   "language": "en",
+   "applicability": [
+    "STF03-C, STF05-C, STF06-C, STF10-C firmware 310A and later",
+    "STF03-C-mini firmware 1.02A and later",
+    "SSDC03-C, SSDC05-C, SSDC06-C, SSDC10-C firmware 310B and later"
+   ],
+   "revision": "Rev 1.0, cover and footer dated 8/16/2021; internal revision history lists 1.0 (6/05/2020) and 1.1 (9/11/2020); original file name CANopen-UserManual-EN20210816.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf05-c-000004696351002911",
+   "pdf_pages": 91,
+   "pdf_metadata": {
+    "format": "PDF 1.5",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign CC 13.0 (Windows)",
+    "producer": "Adobe PDF Library 15.0",
+    "creationDate": "D:20210816130131+08'00'",
+    "modDate": "D:20210816130142+08'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "Linked from the STF-C and SSDC-C product pages. Downloaded with the product page as Referer and a normal browser User-Agent; HTTP 200 (the 2026-11-19 market survey had recorded HTTP 403 for an automated fetch)."
+  },
+  {
+   "id": "AMP10",
+   "title": "Applied Motion Products CANopen Manual (CANopen Command Reference) 920-0025",
+   "path": "vendor/amp_canopen_manual_920-0025_revF.pdf",
+   "url": "https://applied-motion.s3.amazonaws.com/documents/Manuals/CANopen_Manual_920-0025R_RevF.pdf",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 2390812,
+   "sha256": "ecf8d87250b7d326f894f993db13b9b30d3d4396b5ff758acfbf66cfde0c14db",
+   "language": "en",
+   "applicability": [
+    "ST5-C, ST10-C, STM-C, STAC6-C, SV7-C (2010 generation); does not name STF, SSDC, TSM or TXM"
+   ],
+   "revision": "920-0025 Rev F, 7/27/2010; original file name CANopen_Manual_920-0025R_RevF.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "pdf_pages": 54,
+   "pdf_metadata": {
+    "format": "PDF 1.6",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "",
+    "producer": "",
+    "creationDate": "D:20100727163253-07'00'",
+    "modDate": "D:20100727163253-07'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "Older object layout (0x7000-range vendor objects, 0x4000 user registers, internal velocity and acceleration units). Kept as the 2010 command reference and as the closest documentation for the 0x7000-style TSM/TXM EDS."
+  },
+  {
+   "id": "STFHW",
+   "title": "MOONS' STF-R/C Stepper Motor Drive Hardware Manual",
+   "path": "vendor/moons_stf_r_c_hardware_manual_en20251013.pdf",
+   "url": "https://www.moonsindustries.com/medias/STF-R-C-Hardware-Manual-EN20251013.pdf?context=bWFzdGVyfHJvb3R8MzAzMjIxOHxhcHBsaWNhdGlvbi9wZGZ8aGQ0L2hkNC84ODUxNTQ3MzI0NDQ2LnBkZnw4ZjhmODcxODdiN2NlMTUzMjNjZTk2YjlhZGQyMTk4YTk5NmJhOTg5NDdjMTU4OTFjMzJkNmFkMmRiMzFjYTI1&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 3032218,
+   "sha256": "622f7a09f9408b1fea8027bf708396b3460e382c03ba8c65f92b74f814bbcbdf",
+   "language": "en",
+   "applicability": [
+    "STF03/06-R, STF03/06-C, STF05/10-R, STF05/10-C, STF05/10-R-FC, STF05/10-C-FC"
+   ],
+   "revision": "Rev 1.0, 10/13/2025; original file name STF-R-C-Hardware-Manual-EN20251013.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf05-c-000004696351002911",
+   "pdf_pages": 32,
+   "pdf_metadata": {
+    "format": "PDF 1.5",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign 20.5 (Windows)",
+    "producer": "Adobe PDF Library 17.0",
+    "creationDate": "D:20251013163848+08'00'",
+    "modDate": "D:20251013163901+08'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "Newest STF hardware manual found; the -FC suffix is the UL type."
+  },
+  {
+   "id": "STFHWC",
+   "title": "Applied Motion Products STF-R/C/D/IP Stepper Motor Drive Hardware Manual 920-0141",
+   "path": "vendor/amp_stf_hardware_manual_920-0141_revC.pdf",
+   "url": "https://applied-motion.s3.amazonaws.com/documents/Manuals/920-0141_RevC_STF-R-C-D-IP%20Hardware%20Manual.pdf",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 3442833,
+   "sha256": "bd495f6cc508e8dd0d77a85ea11e12e24590322272fb4c63571ad37a8628ea2a",
+   "language": "en",
+   "applicability": [
+    "STF03/05/06/10-R, -C, -D, -IP"
+   ],
+   "revision": "920-0141 Rev C, 3/27/2025; original file name \"920-0141_RevC_STF-R-C-D-IP Hardware Manual.pdf\"",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "pdf_pages": 47,
+   "pdf_metadata": {
+    "format": "PDF 1.4",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign 20.2 (Windows)",
+    "producer": "Adobe PDF Library 17.0",
+    "creationDate": "D:20250328112221-07'00'",
+    "modDate": "D:20250328112228-07'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "Applied Motion edition. Retained because its LED alarm-code table conflicts with the newer MOONS edition (review MO-D19). The URL was found by substituting RevC into the manufacturer-hosted Rev B path and returned HTTP 200 from the manufacturer bucket."
+  },
+  {
+   "id": "SSDCHW",
+   "title": "MOONS' SSDC-R/C Step-Servo Drive Hardware Manual",
+   "path": "vendor/moons_ssdc_r_c_hardware_manual_en20250820.pdf",
+   "url": "https://www.moonsindustries.com/medias/SSDC-R-C-Hardware-Manual-EN20250820.pdf?context=bWFzdGVyfHJvb3R8NDUzMzYxM3xhcHBsaWNhdGlvbi9wZGZ8aGI2L2hkOC84ODUxMjM3NjY2ODQ2LnBkZnxmNzg4Zjg4NzhmMzJkODAwMzgyODNkMGQxZmNiMTU4NjExN2JkNDgxZWI2ZjU0YzY0OGI1ZGE4MDEwYzRhOTI1&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 4533613,
+   "sha256": "995e7639fcb103c8c759302cc9af32622ed24ec284c26428029c07d83931af1f",
+   "language": "en",
+   "applicability": [
+    "SSDC03/06/10-R, SSDC03/06/10-C and their -FC variants"
+   ],
+   "revision": "Rev 1.1, 08/20/2025; original file name SSDC-R-C-Hardware-Manual-EN20250820.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/ssdc-series-step-servo-drives/ssdc06-c-000004696351003251",
+   "pdf_pages": 38,
+   "pdf_metadata": {
+    "format": "PDF 1.4",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign 20.5 (Windows)",
+    "producer": "Adobe PDF Library 17.0",
+    "creationDate": "D:20250820093755+08'00'",
+    "modDate": "D:20250820093817+08'00'",
+    "trapped": "",
+    "encryption": null
+   }
+  },
+  {
+   "id": "HCR",
+   "title": "MOONS' Host Command Reference (Q and SCL commands)",
+   "path": "vendor/moons_host_command_reference_920-0002_revJ.pdf",
+   "url": "https://www.moonsindustries.com/medias/HOST-COMMAND-reference.pdf?context=bWFzdGVyfHJvb3R8NzEzMDczM3xhcHBsaWNhdGlvbi9wZGZ8aDI0L2hmOC84ODE2MTE3Njc4MTEwLnBkZnxiNzY0Y2ZlNDc2Njk1NjA2MmEzNWRmYTM5NzBhOTA5OWI2OTRhZjZjMDQ4OGQ0M2UzMDA2NTFiZWJlYTdmNmY3&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 7130733,
+   "sha256": "494b0d3c97a3a4022c63e9e1974f4754b7b4a84fa53e2b1a33f29e63f10d2f3a",
+   "language": "en",
+   "applicability": [
+    "Servo, step-servo and stepper drives with SCL/Q; CANopen-specific content limited to the CB, CO and OP commands"
+   ],
+   "revision": "920-0002 Rev J, 12/2014; original file name HOST-COMMAND-reference.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/ssdc-series-step-servo-drives/ssdc06-c-000004696351003251",
+   "pdf_pages": 376,
+   "pdf_metadata": {
+    "format": "PDF 1.5",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign CS5 (7.0)",
+    "producer": "Adobe PDF Library 9.9",
+    "creationDate": "D:20150107095251+08'00'",
+    "modDate": "D:20150107095314+08'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "Revision linked from the SSDC-C product page; UM21 cites a Host Command Reference without a revision. Newer revisions are visible only on third-party mirrors and were not used."
+  },
+  {
+   "id": "TSM24",
+   "title": "MOONS' TSM24C Integrated Step-Servo Motor Hardware Manual",
+   "path": "vendor/moons_tsm24c_hardware_manual.pdf",
+   "url": "https://www.moonsindustries.com/medias/TSM24C-3CG-User-Manual.pdf?context=bWFzdGVyfHJvb3R8MjM3MzkxNnxhcHBsaWNhdGlvbi9wZGZ8aGIzL2gxNi84ODA4ODc1NTU2ODk0LnBkZnxjN2I5YTlkMDg2M2Q5YWE4NTM0YzI5ZmM3NDA0MmU4YTM2YzQ5ODA4MzY0YWQ1ZGVmMDZlOTBlNzk4NmQyNTc2&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 2373916,
+   "sha256": "84de4f70602f9e25aa78f62bee2aed4da57c3d9e83fcff375b3b5542b16dc546",
+   "language": "en",
+   "applicability": [
+    "TSM24C-3CG"
+   ],
+   "revision": "Rev 1.0, footer code 0006302013; original file name TSM24C-3CG-User-Manual.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/tsm-series-integrated-step-servo-motors/tsm24c-3cg-000004696351001104",
+   "pdf_pages": 22,
+   "pdf_metadata": {
+    "format": "PDF 1.4",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign CS5 (7.0.2)",
+    "producer": "Adobe PDF Library 9.9",
+    "creationDate": "D:20130802103228+08'00'",
+    "modDate": "D:20130802103247+08'00'",
+    "trapped": "",
+    "encryption": null
+   },
+   "notes": "TSM17C and TSM23C manuals of the same generation were reviewed and not retained (same CANopen setup text)."
+  },
+  {
+   "id": "TXM24",
+   "title": "MOONS' TXM24C Integrated Step-Servo Motor Hardware Manual",
+   "path": "vendor/moons_txm24c_hardware_manual_en1.120.pdf",
+   "url": "https://www.moonsindustries.com/medias/TXM24-C-Hardware-Manual-EN1.120.pdf?context=bWFzdGVyfHJvb3R8MzQxMzkwMHxhcHBsaWNhdGlvbi9wZGZ8aDhjL2gwNS84ODMzMDI2NjIxNDcwLnBkZnwzNTY3MmI5NTJiZjAzMTQ3YjYwZjU3MjJlYTBiZjg5ZTc1ZGYzN2U5NTJhYzU2Y2JmZGFiMmMzMjVmMjIyYjZm&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 3413900,
+   "sha256": "972f9e2de39f91be18da126c3f23333e17613d9f8e8bfc72d2a330d4495f9650",
+   "language": "en",
+   "applicability": [
+    "TXM24C-3CG"
+   ],
+   "revision": "Rev 1.0, footer code 0007052013 (PDF created 2015-01-20); original file name TXM24-C-Hardware-Manual-EN1.120.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/txm-series-ip65-rated-integrated-step-servo-motors/txm24c-3cg-000004696351000907",
+   "pdf_pages": 22,
+   "pdf_metadata": {
+    "format": "PDF 1.4",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign CS5 (7.0.2)",
+    "producer": "Adobe PDF Library 9.9",
+    "creationDate": "D:20150120152136+08'00'",
+    "modDate": "D:20150120152155+08'00'",
+    "trapped": "",
+    "encryption": null
+   }
+  },
+  {
+   "id": "TSM34",
+   "title": "MOONS' TSM34Q/C Integrated Step-Servo Motor Hardware Manual",
+   "path": "vendor/moons_tsm34q_c_hardware_manual.pdf",
+   "url": "https://www.moonsindustries.com/medias/TSM34Q-C-User-Manual.pdf?context=bWFzdGVyfHJvb3R8NDM3MjUzNXxhcHBsaWNhdGlvbi9wZGZ8aGIxL2g0NS84ODA4ODMxMzIwMDk0LnBkZnw2ZWNjNjZjMTRjNWI5NWE5MmIwN2Q0YWMzZTZjMWE5ZTE0OGVmNDM0ZTEwNTcxNjc4NjgwNDc2YzVkNDI1ZDcx&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 4372535,
+   "sha256": "afcab43a262804a3592cba5deb1e8bfb5c2db3e5abb93e6702d2321f7f55b897",
+   "language": "en",
+   "applicability": [
+    "TSM34Q and TSM34C (-xCG CANopen variants)"
+   ],
+   "revision": "Rev 1.0, footer code 0006152016; original file name TSM34Q-C-User-Manual.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/tsm-series-integrated-step-servo-motors/tsm34c-1cg-000004696351002394",
+   "pdf_pages": 38,
+   "pdf_metadata": {
+    "format": "PDF 1.5",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "Adobe InDesign CS5 (7.0)",
+    "producer": "Adobe PDF Library 9.9",
+    "creationDate": "D:20160616124741+08'00'",
+    "modDate": "D:20160616124757+08'00'",
+    "trapped": "",
+    "encryption": null
+   }
+  },
+  {
+   "id": "TXM34",
+   "title": "MOONS' TXM34Q/C Integrated Step-Servo Motor Hardware Manual",
+   "path": "vendor/moons_txm34q_c_hardware_manual_en20160826.pdf",
+   "url": "https://www.moonsindustries.com/medias/TXM34Q-C-Hardware-Manual-EN20160826L.pdf?context=bWFzdGVyfHJvb3R8MzA4NjM1OXxhcHBsaWNhdGlvbi9wZGZ8aDg2L2gyMy84ODE1MDMzNzQ1NDM4LnBkZnw3NDQ0MDI4YjRjYzYxNjQ4MDE3MWVhYmU5ODc1ZjAzOWI5NmM5ODQxYTkyNDUwYjEwZTU2NzY2MzAxODdkZTc1&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 3086359,
+   "sha256": "54f492f3f1480d1cf8b4b3e7b9c8e5847a33a6430f8342e7371a965c6add67ae",
+   "language": "en",
+   "applicability": [
+    "TXM34Q and TXM34C (-xCG CANopen variants)"
+   ],
+   "revision": "Rev 1.0, footer code 20160804, PDF created 2016-08-26; original file name TXM34Q-C-Hardware-Manual-EN20160826L.pdf",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/txm-series-ip65-rated-integrated-step-servo-motors/txm34c-1cg-000004696351002450",
+   "pdf_pages": 38,
+   "pdf_metadata": {
+    "format": "PDF 1.7",
+    "title": "",
+    "author": "",
+    "subject": "",
+    "keywords": "",
+    "creator": "",
+    "producer": "",
+    "creationDate": "D:20160826162158+08'00'",
+    "modDate": "D:20160826162158+08'00'",
+    "trapped": "",
+    "encryption": null
+   }
+  },
+  {
+   "id": "EDS-STF",
+   "title": "EDS for Step CANopen Drives (STF)",
+   "path": "vendor/CANOPEN-EDS-STEPPER-STF-V310A.eds",
+   "url": "https://www.moonsindustries.com/medias/CANOPEN-EDS-STEPPER-STF-V310A.eds?context=bWFzdGVyfHJvb3R8NDUxODF8YXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtfGg5OC9oNDkvODgzNjQzNzExNDkxMC5iaW58OWM1NDJkYTNkMWE2YWU4MWE5M2U3NjFiMTMzOTk5ZjEwOTI2YWMxYzZhZTk0MGRkZTJlZjhkMDAzOWRmMGUyOA&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 45181,
+   "sha256": "adbbabe9cefec5a2f0edf79afdb34dd178178f97ea4930db5ea0a419a948978e",
+   "language": "en",
+   "applicability": [
+    "STF-C (file name V310A matches the 310A firmware line in UM21 p6)"
+   ],
+   "revision": "FileVersion 3.0, FileRevision 0, EDSVersion 4.0, created and modified 06-02-2020",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf05-c-000004696351002911",
+   "notes": "File name unchanged from the manufacturer download."
+  },
+  {
+   "id": "EDS-SSDC",
+   "title": "EDS for Step-Servo CANopen Drives (SSDC)",
+   "path": "vendor/CANOPEN-EDS-STEPPER-SSDC-V310B.eds",
+   "url": "https://www.moonsindustries.com/medias/CANOPEN-EDS-STEPPER-SSDC-V310B.eds?context=bWFzdGVyfHJvb3R8NDYxMTJ8YXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtfGgxZC9oMzUvODgzNjQzNzM0NDI4Ni5iaW58NDgyOGQwMGM1MTllNzdjODMwYThlOTZmODk1YTgxYjIzMDdmZmMwN2UwMzVlYTVhMGM2ODdjYmE4NjI0ZTUxNw&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 46112,
+   "sha256": "2ed52e16dd485615304d8b21a9f60e677892ff8b945ce6b0a35e2ea9386c525b",
+   "language": "en",
+   "applicability": [
+    "SSDC-C (file name V310B matches the 310B firmware line in UM21 p6)"
+   ],
+   "revision": "FileVersion 3.0, FileRevision 0, EDSVersion 4.0, created and modified 06-01-2020",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/ssdc-series-step-servo-drives/ssdc06-c-000004696351003251",
+   "notes": "File name unchanged."
+  },
+  {
+   "id": "EDS-TSM",
+   "title": "EDS for Step-Servo CANopen Drives (SSM/TSM/SS/TXM)",
+   "path": "vendor/CAN-EDS-212N-SSM-TSM-SS-TXM.eds",
+   "url": "https://www.moonsindustries.com/medias/CAN-EDS-212N-SSM-TSM-SS-TXM.eds?context=bWFzdGVyfHJvb3R8NDMwNjB8YXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtfGgwOS9oNTAvODgzNjQzNzU3MzY2Mi5iaW58YzU4ZjFjN2QwNzJjOWMzODlhOTU5NzYzMjZiNjk0MzRlZGJjNjNlOGJkMmU0ODg1ZWQ3YWE3OWZlMWQ4MzNiYg&attachment=true",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 43060,
+   "sha256": "1c2900e782b93ea0af9fd129f29d5a43c96dd65eb79f1c1f320d3ecba7ea7528",
+   "language": "en",
+   "applicability": [
+    "TSM17C/23C/24C/34C and TXM24C/34C (linked from their product pages); file name says 212N SSM/TSM/SS/TXM"
+   ],
+   "revision": "FileVersion 3.0, FileRevision 0, EDSVersion 4.0, created and modified 05-29-2020; 1009 default 3.00, 100A default 2.12",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "manufacturer_linking_page": "https://www.moonsindustries.com/p/tsm-series-integrated-step-servo-motors/tsm24c-3cg-000004696351001104",
+   "notes": "File name unchanged."
+  },
+  {
+   "id": "PG-STF05",
+   "title": "MOONS' STF05-C manufacturer product and download page",
+   "path": "vendor/moons_stf05-c_product.html",
+   "url": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf05-c-000004696351002911",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 226774,
+   "sha256": "a00e77d0a21cd838121b3b2c17e35537233f0debd442264a03876a56c01cd83f",
+   "language": "en",
+   "applicability": [
+    "STF05-C"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-STF10",
+   "title": "MOONS' STF10-C manufacturer product and download page",
+   "path": "vendor/moons_stf10-c_product.html",
+   "url": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf10-c-000004696351002912",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 226780,
+   "sha256": "d485b78c12b5caf5f5c9d98d55e7355fc9aef2d929982fa5e3967dd02b17d7f6",
+   "language": "en",
+   "applicability": [
+    "STF10-C"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-STF05FC",
+   "title": "MOONS' STF05-C-FC (UL type) manufacturer product and download page",
+   "path": "vendor/moons_stf05-c-fc_product.html",
+   "url": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf05-c-fc-000004696351007231",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 223369,
+   "sha256": "88f15ce8dbdd5df1e106cf2d50ce91c3ff4bf93fc129a982e2b2e71af6119125",
+   "language": "en",
+   "applicability": [
+    "STF05-C-FC; the page links neither UM21 nor an EDS"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-SSDC06FC",
+   "title": "MOONS' SSDC06-C-FC (UL type) manufacturer product and download page",
+   "path": "vendor/moons_ssdc06-c-fc_product.html",
+   "url": "https://www.moonsindustries.com/p/ssdc-series-step-servo-drives/ssdc06-c-fc-000004696351007253",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 365929,
+   "sha256": "4bb9ff79db09217a4db5578a4dc501cde9fcacd1b0f4340fe1ef7ae813e4bc28",
+   "language": "en",
+   "applicability": [
+    "SSDC06-C-FC; the page links neither UM21 nor an EDS"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-STF03MINI",
+   "title": "MOONS' STF03-C-mini manufacturer product and download page",
+   "path": "vendor/moons_stf03-c-mini_product.html",
+   "url": "https://www.moonsindustries.com/p/stf-series-fieldbus-control-dc-stepper-drives/stf03-c-mini-000004696351006351",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 206226,
+   "sha256": "3eaece85ce50b43ec124d06d8cf16127b3243428c7f7c7aff1f3209835876f48",
+   "language": "en",
+   "applicability": [
+    "STF03-C-mini; the page lists no CANopen manual or EDS"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-SSDC06",
+   "title": "MOONS' SSDC06-C manufacturer product and download page",
+   "path": "vendor/moons_ssdc06-c_product.html",
+   "url": "https://www.moonsindustries.com/p/ssdc-series-step-servo-drives/ssdc06-c-000004696351003251",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 802190,
+   "sha256": "419e377c6b33532dd73de8db97cc45f2a14f870e871a5dfe898df164e4847a51",
+   "language": "en",
+   "applicability": [
+    "SSDC06-C"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-TSM24",
+   "title": "MOONS' TSM24C-3CG manufacturer product and download page",
+   "path": "vendor/moons_tsm24c-3cg_product.html",
+   "url": "https://www.moonsindustries.com/p/tsm-series-integrated-step-servo-motors/tsm24c-3cg-000004696351001104",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 234375,
+   "sha256": "e4a7e54900e3c4eedfa59a51458743155097f4d8e66dd2fa86d967fba72b8919",
+   "language": "en",
+   "applicability": [
+    "TSM24C-3CG"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-TXM24",
+   "title": "MOONS' TXM24C-3CG manufacturer product and download page",
+   "path": "vendor/moons_txm24c-3cg_product.html",
+   "url": "https://www.moonsindustries.com/p/txm-series-ip65-rated-integrated-step-servo-motors/txm24c-3cg-000004696351000907",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 181722,
+   "sha256": "88cdc90be19ed7c0b0b834638a60c9a2517b0db341abbbdba1bec43d0b8fbddb",
+   "language": "en",
+   "applicability": [
+    "TXM24C-3CG"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-MDX",
+   "title": "MOONS' MDXT61G5BRCA000 (MDX+ integrated servo, RS-485 and CANopen variant) manufacturer product and download page",
+   "path": "vendor/moons_mdxt61g5brca000_product.html",
+   "url": "https://www.moonsindustries.com/p/mdx-plus-series-integrated-servo-motors/mdxt61g5brca000-000004696351006226",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 403767,
+   "sha256": "12c6efa271974e059a1813087ac883c05b2a844f35646b2ed6d79b15e9e6fc5c",
+   "language": "en",
+   "applicability": [
+    "Exclusion evidence: links its own MDX CANopen manual and EDS, not the STF/SSDC ones"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  },
+  {
+   "id": "PG-M56S",
+   "title": "MOONS' M56S-21A8CX (AC servo drive, CANopen variant) manufacturer product and download page",
+   "path": "vendor/moons_m56s-21a8cx_product.html",
+   "url": "https://www.moonsindustries.com/p/m56s-series-high-end-ac-input-servo-drives/m56s-21a8cx-000004696351006769",
+   "retrieved_on": "2026-11-19",
+   "retrieval_status": "downloaded_http_200",
+   "bytes": 402500,
+   "sha256": "2697f0de98e3e6734e73fb6bc4a12acae7b14e025a4a9befbd882331f2007cfa",
+   "language": "en",
+   "applicability": [
+    "Exclusion evidence: links its own M56S CANopen manual and EDS"
+   ],
+   "revision": "HTML snapshot retrieved 2026-11-19",
+   "firmware_match": "Document scope only; no physical drive inspected",
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license"
+  }
+ ],
+ "derived_artifacts": [
+  {
+   "path": "extracted/moons_canopen_user_manual_en20210816.txt",
+   "source_id": "UM21",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 140215,
+   "sha256": "c608d64350ff9edc1d99ecc34c0a6deb3d7302127790501220a5cca022e2b1bb"
+  },
+  {
+   "path": "extracted/amp_canopen_manual_920-0025_revF.txt",
+   "source_id": "AMP10",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 64119,
+   "sha256": "18ff2bd6b6aafaf81ade21f5a32631782041973b9fa8e87c3e6c41611fe4d8f1"
+  },
+  {
+   "path": "extracted/moons_stf_r_c_hardware_manual_en20251013.txt",
+   "source_id": "STFHW",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 50060,
+   "sha256": "61ad6c1fa7e31e93a116a586807b9e96552a6f5417108438ce8454446ed053c7"
+  },
+  {
+   "path": "extracted/amp_stf_hardware_manual_920-0141_revC.txt",
+   "source_id": "STFHWC",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 59479,
+   "sha256": "7774348f5447a09004f49d0f48fbcb9d28fdd41cccdf4559ff6be4175336ecfa"
+  },
+  {
+   "path": "extracted/moons_ssdc_r_c_hardware_manual_en20250820.txt",
+   "source_id": "SSDCHW",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 46651,
+   "sha256": "787c42443ab8af2c6be29ddb35c27a76768914990aa2efa9584a538c9b28b2a2"
+  },
+  {
+   "path": "extracted/moons_host_command_reference_920-0002_revJ.txt",
+   "source_id": "HCR",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 563691,
+   "sha256": "5c4923fd1766f333bc0ec59afb0002ebd40419b17416f3563829339ae96048cc"
+  },
+  {
+   "path": "extracted/moons_tsm24c_hardware_manual.txt",
+   "source_id": "TSM24",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 28178,
+   "sha256": "f8c106bc1148c5e34a1567e37bdc08c4a14cd53faf8c29666250a86c21ae1946"
+  },
+  {
+   "path": "extracted/moons_txm24c_hardware_manual_en1.120.txt",
+   "source_id": "TXM24",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 27396,
+   "sha256": "a9c3e0be685695448de5b8562f25532f272a962ee1a092a8d0c3b60836a8fce0"
+  },
+  {
+   "path": "extracted/moons_tsm34q_c_hardware_manual.txt",
+   "source_id": "TSM34",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 67618,
+   "sha256": "c73ec826c6d6478c1a51e0ec259c579e52fb740ccd9557082892b0d0567f22ae"
+  },
+  {
+   "path": "extracted/moons_txm34q_c_hardware_manual_en20160826.txt",
+   "source_id": "TXM34",
+   "generated_on": "2026-11-19",
+   "method": "PyMuPDF 1.27.2 page.get_text(); one-based PDF page markers; formatting is not authoritative",
+   "bytes": 56497,
+   "sha256": "0fbddbb7c3765546124d20029570e0648ef699c5f23e39529fbcaadae6542d33"
+  }
+ ],
+ "remote_only": [
+  {
+   "id": "STFHWB",
+   "title": "Applied Motion STF-R/C/D/IP Hardware Manual 920-0141 Rev B",
+   "url": "https://applied-motion.s3.amazonaws.com/documents/Manuals/920-0141_RevB_STF-R-C-D-IP%20Hardware%20Manual.pdf",
+   "revision": "920-0141 Rev B, PDF created 2024-10-31, 47 pages",
+   "retrieval_status": "downloaded_http_200_reviewed_not_retained_superseded",
+   "applicability": [
+    "STF-R/C/D/IP"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": "2026-11-19",
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Superseded by Rev C; a text comparison found differences only in UL and Ethernet wording, none in CANopen content. The bytes were reviewed in a scratch directory and not stored; reviewed_bytes_sha256 identifies them.",
+   "reviewed_bytes": 3385441,
+   "reviewed_bytes_sha256": "b148bb693ad94cfb6b5a49cd5f9468a1c6bd16d079502efaaa4d3671a289028c"
+  },
+  {
+   "id": "TSM17",
+   "title": "MOONS' TSM17C Integrated Step-Servo Motor Hardware Manual",
+   "url": "https://www.moonsindustries.com/medias/TSM17C-User-Manual.pdf?context=bWFzdGVyfHJvb3R8MjgyMjQzOXxhcHBsaWNhdGlvbi9wZGZ8aDFiL2gwOC84ODA4Nzk3NzY1NjYyLnBkZnwyZGJjODRmMTU4NTJlNWQzMjcwOTYwMzczZTE3MWQ1OTU2MjdhNzc5ZmM1YTNlOWU4M2ZmMWU5MWM3MGUyMWZi&attachment=true",
+   "revision": "Rev 1.0, footer code 0006302013",
+   "retrieval_status": "downloaded_http_200_reviewed_not_retained_duplicate",
+   "applicability": [
+    "TSM17C-1CG to -4CG"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": "2026-11-19",
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Same CANopen node-ID and bit-rate text as TSM24C (rotary switches on the drive); not retained to keep the pack focused.",
+   "reviewed_bytes": 2822439,
+   "reviewed_bytes_sha256": "72a27bd51c8d29c57864448462e9dbde5b8941a33e773e1b2a5a55df46c35dea"
+  },
+  {
+   "id": "TSM23",
+   "title": "MOONS' TSM23C Integrated Step-Servo Motor Hardware Manual",
+   "url": "https://www.moonsindustries.com/medias/TSM23C-User-Manual.pdf?context=bWFzdGVyfHJvb3R8MjQ2NTc2MXxhcHBsaWNhdGlvbi9wZGZ8aGRjL2gzOC84ODA4ODEyMTE4MDQ2LnBkZnxkNmE4ZGFhMWYzZGZlYzU1YjNiNjEyNzZjOWU1ZWVjMTVmYTdjMDMxYjc0ODAyZmRmMDhkOWU2MTM0NDE1Nzcw&attachment=true",
+   "revision": "Rev 1.0, footer code 0006302013",
+   "retrieval_status": "downloaded_http_200_reviewed_not_retained_duplicate",
+   "applicability": [
+    "TSM23C-2CG to -4CG"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": "2026-11-19",
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Same CANopen setup text as TSM24C; not retained.",
+   "reviewed_bytes": 2465761,
+   "reviewed_bytes_sha256": "af99b991729d48ff34228de485b05c55bc7e7221318bebe97c306d74bf4d73f9"
+  },
+  {
+   "id": "AMP10K",
+   "title": "Applied Motion CANopen Manual 920-0025 Rev K (reported 3/5/2015)",
+   "url": "https://applied-motion.s3.amazonaws.com/documents/Manuals/CANopen_Manual_920-0025K.pdf",
+   "revision": "Rev K, 3/5/2015 (unverified)",
+   "retrieval_status": "blocked: needs manual browser download by the owner",
+   "applicability": [
+    "Reported by a third-party mirror to cover ST5/10-C, SV7-C, TSM17C/23C/24C and TXM24C"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": null,
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "The URL is a guess on the manufacturer bucket; it returned HTTP 403 AccessDenied (S3 also answers 403 for objects that do not exist). No manufacturer page linking Rev K was found and the third-party copy was not used. The owner should look for Rev K on applied-motion.com in a browser."
+  },
+  {
+   "id": "AMPSITE",
+   "title": "applied-motion.com support and product pages",
+   "url": "https://www.applied-motion.com/",
+   "revision": "Live site 2026-11-19",
+   "retrieval_status": "fetched_http_200_javascript_application_shell_only",
+   "applicability": [
+    "Applied Motion product and manual listings"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": null,
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "The site is a JavaScript application; the static response (redirect to /s/) contains no document list, so no Applied Motion-branded CANopen manual, EDS or firmware note could be located there. A browser session is needed to check for newer 920-0025 revisions, Applied Motion EDS files and firmware release notes."
+  },
+  {
+   "id": "MDXUM",
+   "title": "MOONS' MDX CANopen User Manual (MDX+ integrated servo)",
+   "url": "https://www.moonsindustries.com/medias/MDX-CANopen-UserManual-EN20251225.pdf?context=bWFzdGVyfHJvb3R8NjAxMjA0NXxhcHBsaWNhdGlvbi9wZGZ8aDRhL2gzZi84ODUyNjIyMjEzMTUwLnBkZnwyMTM0Y2I5MjZmYzcyNWEyZGI0ZjQ2MGE2Nzc2ZGNlNzcwZjFiYWNhZjJmNTE5MTEzYWRmMDQ0Yzc2ZjhkMmY1&attachment=true",
+   "revision": "EN20251225 (from the file name)",
+   "retrieval_status": "not_downloaded_out_of_scope",
+   "applicability": [
+    "MDXR/MDXT ...RC... (RS-485 and CANopen) variants"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": null,
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Out of scope: the MDX+ product page links this separate manual and its own EDS (CANOPEN-EDS-MDXPLUS-Servo-V1.0.1.eds), not UM21 or the STF/SSDC EDS. Needs its own pack."
+  },
+  {
+   "id": "MDXEDS",
+   "title": "MOONS' EDS for the MDX+ servo",
+   "url": "https://www.moonsindustries.com/medias/CANOPEN-EDS-MDXPLUS-Servo-V1.0.1.eds?context=bWFzdGVyfHJvb3R8NzQ0NjB8YXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtfGg1My9oMjcvODg0NzE5Njk0NjQ2Mi5iaW58M2EzOTBkYjk4NDNmNWZkMTBkNTNkNmU1OTJiMjMyMjU0YzhhYzY0NzJhMjU4MTI5NWYwYmIxYTE4OGU3MzEwNA&attachment=true",
+   "revision": "V1.0.1 (from the file name)",
+   "retrieval_status": "not_downloaded_out_of_scope",
+   "applicability": [
+    "MDX+ CANopen variants"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": null,
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Out of scope; see MDXUM."
+  },
+  {
+   "id": "M56SUM",
+   "title": "MOONS' M56S CANopen Communication User Manual",
+   "url": "https://www.moonsindustries.com/medias/M56S-CANopen-Communication-User-Manual-EN20251225.pdf?context=bWFzdGVyfHJvb3R8MTA1NjExMDZ8YXBwbGljYXRpb24vcGRmfGg1ZC9oMjMvODg1MjYyMjU3MzU5OC5wZGZ8ZDIyMjMyMzIyYWI0MmU2ZWQxZTM0YWZjODcxZDg4NWFlZjcyMzNiYTk3ZjUzMDZkMDFmYjdjZTBmNGMzN2U3Mg&attachment=true",
+   "revision": "EN20251225 (from the file name)",
+   "retrieval_status": "not_downloaded_out_of_scope",
+   "applicability": [
+    "M56S-...CN/CX AC servo drives"
+   ],
+   "reviewed_on": "2026-11-19",
+   "retrieved_on": null,
+   "path": null,
+   "bytes": null,
+   "sha256": null,
+   "origin": "manufacturer-hosted",
+   "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+   "notes": "Out of scope: separate CANopen manual and EDS (CANOPEN-EDS-M56S-V1.0.2.zip). No SV200 CANopen document was found on a manufacturer host."
+  }
+ ],
+ "limitations": [
+  "No firmware release notes were found on the MOONS product pages; applied-motion.com could not be browsed statically.",
+  "The EDS files carry placeholder defaults (product code 0, revision 0, many configuration defaults 0) and do not prove a drive firmware revision.",
+  "No current CANopen manual for TSM/TXM-C was found; their EDS follows the 2010 (920-0025) object layout.",
+  "Newer Host Command Reference and 920-0025 revisions are visible only on third-party mirrors; they were not used.",
+  "Configuration tools (Stepper Suite, STF Configurator, Step-Servo Quick Tuner, CANopen Test Tool), EPLAN .edz, CAD and brochure files were not downloaded; nothing was executed.",
+  "Full normative CiA 301/402 standards not obtained.",
+  "No hardware contacted or vendor correspondence.",
+  "Public accessibility does not establish redistribution permission."
+ ]
+}

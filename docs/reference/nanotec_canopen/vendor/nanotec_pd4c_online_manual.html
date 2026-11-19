@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html ng-app="nanotec">
+<head>
+    <meta charset="utf-8">
+
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+<title>PD4-C CANopen Online Manual: Technical Manual PD4-C | Nanotec</title>
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="
+    
+        Technical Manual PD4-C
+        
+            Fieldbus: CANopen
+            For use with the following variants:
+                    PD4-C5918X4204-E-08
+     …">
+<meta name="robots" content="index,nofollow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PD4-C CANopen Online Manual: Technical Manual PD4-C | Nanotec">
+<meta property="og:url" content="https://www.nanotec.com/eu/en/products/manual/pd4c-canopen-en/pd4c%2Fintroduction.html">
+<meta property="og:description" content="
+    
+        Technical Manual PD4-C
+        
+            Fieldbus: CANopen
+            For use with the following variants:
+                    PD4-C5918X4204-E-08
+                    PD4-C5918M4204-E-08
+                    PD4-C5918L4204-E-08
+                    PD4-C6018L4204-E-08
+               …">
+<meta property="og:image" content="https://www.nanotec.com/_assets/a216ea4bcb7ed270c619139734398c4f/Images/dummy.jpg?1795001905">
+<meta name="language" content="en">
+<meta name="facebook-domain-verification" content="hauvqnzj4u6hq0zkcdww7uhbyx8g49">
+<meta name="google-site-verification" content="_lKM7kD3fUOhehR2j5MQCXZfUKVY-EOePhTgITUfJ4w">
+<meta name="msvalidate.01" content="9D5E317E2A013771D5F642DC9B70BEB4">
+
+
+<link rel="stylesheet" href="/typo3conf/ext/nanotec/Resources/Public/Frontend/Styles/main.css?1795002047" media="all" title="main.css">
+
+
+
+
+
+
+<script type="text/javascript">var nanotecCurrencyJson = '{"symbolLeft":"\u20ac&nbsp;","symbolRight":"","decimalDigits":2,"divisor":100,"priceList":"1"}';var nanotecCurrency = JSON.parse(nanotecCurrencyJson);var currentLanguageId = 0;var languageIds = {"ex" : 0,"us" : 1,"de" : 3,"zh" : 4,"it" : 5};var languageBaseUrls = {0: "https://www.nanotec.com/eu/en",1: "https://www.nanotec.com/us/en",3: "https://www.nanotec.com/eu/de",4: "https://www.nanotec-cn.cn/zh",5: "https://www.nanotec.com/eu/it"};var jsDateFormat = "dd/MM/yy";var nanotecApiUrls = {
+    user: 'https://www.nanotec.com/eu/en/user.json',
+    basket: 'https://www.nanotec.com/eu/en/basket.json',
+    basketAdd: 'https://www.nanotec.com/eu/en/basket/add.json',
+    basketSetAmount: 'https://www.nanotec.com/eu/en/basket/setAmount.json',
+    basketClear: 'https://www.nanotec.com/eu/en/basket/clear.json',
+    clipboard: 'https://www.nanotec.com/eu/en/clipboard.json',
+    clipboardAdd: 'https://www.nanotec.com/eu/en/clipboard/add.json',
+    clipboardClear: 'https://www.nanotec.com/eu/en/clipboard/clear.json',
+    clipboardSetAmount: 'https://www.nanotec.com/eu/en/clipboard/setAmount.json',
+    getCountryByIsoCode: 'https://www.nanotec.com/eu/en/getCountryByIsoCode/',
+    stateOptions: 'https://www.nanotec.com/eu/en/stateOptions/',
+    priceData: 'https://www.nanotec.com/eu/en/priceData/',
+    cadenas: 'https://www.nanotec.com//cadenas-api/'
+};</script>
+    <script type="text/javascript">var nanotecUnitGroupsJson = '[{"baseUnit":null,"pid":245,"title":"Gewicht","uid":6,"units":{"0000000000001dfa0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"kg","title":"Kilogramm","uid":14},"0000000000001e5d0000000000000000":{"conversionFactor":2.204,"pid":245,"symbol":"lb","title":"Pfund","uid":16},"0000000000001e500000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"g","title":"Gramm","uid":15}}},{"baseUnit":null,"pid":245,"title":"Length (m)","uid":11,"units":{"0000000000001e4d0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"m","title":"Meter","uid":22},"0000000000001df40000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":23},"0000000000001e4a0000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"mm","title":"Millimeter","uid":28}}},{"baseUnit":null,"pid":245,"title":"Length (mm)","uid":4,"units":{"0000000000001dad0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"mm","title":"Millimeter","uid":10},"0000000000001e4f0000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":12},"0000000000001e650000000000000000":{"conversionFactor":0.001,"pid":245,"symbol":"m","title":"Meter","uid":27}}},{"baseUnit":null,"pid":245,"title":"Torque (Ncm)","uid":3,"units":{"0000000000001e630000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":6},"0000000000001e4b0000000000000000":{"conversionFactor":1.41611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":7},"0000000000001e700000000000000000":{"conversionFactor":0.01,"pid":245,"symbol":"Nm","title":"Newton meter","uid":8}}},{"baseUnit":null,"pid":245,"title":"Torque (Nm)","uid":13,"units":{"0000000000001e6f0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Nm","title":"Newton meter","uid":31},"0000000000001e540000000000000000":{"conversionFactor":141.611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":32},"0000000000001e660000000000000000":{"conversionFactor":100,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":33}}}]';var nanotecUnitGroups = JSON.parse(nanotecUnitGroupsJson || '[]');var nanotecUnitGroupDefaultSet = "metric";</script>
+
+
+            <link rel="apple-touch-icon" sizes="180x180"
+                  href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/apple-touch-icon.png?1795001905">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-32x32.png?1795001905"
+                  sizes="32x32">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-194x194.png?1795001905"
+                  sizes="194x194">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/android-chrome-192x192.png?1795001905"
+                  sizes="192x192">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-16x16.png?1795001905"
+                  sizes="16x16">
+            <link rel="manifest" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/manifest.json?1795001905">
+            <link rel="mask-icon" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/safari-pinned-tab.svg?1795001905" color="#5488c7">
+            <meta name="msapplication-TileColor" content="#5488c7">
+            <meta name="msapplication-TileImage" content="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/mstile-144x144.png?1795001905">
+            <meta name="theme-color" content="#ffffff">
+        
+
+            <link rel="preconnect" href="//app.usercentrics.eu">
+            <link rel="preconnect" href="//api.usercentrics.eu">
+            <link rel="preconnect" href="//privacy-proxy.usercentrics.eu">
+            <script id="usercentrics-cmp" src=https://app.usercentrics.eu/browser-ui/latest/loader.js data-settings-id="9K5HHE7yqTJ4lH" async></script>
+            <script type="application/javascript" src=https://privacy-proxy.usercentrics.eu/latest/uc-block.bundle.js></script>
+            <script>
+                uc.reloadOnOptIn('BJz7qNsdj-7');
+                uc.reloadOnOptIn('S1pcEj_jZX');
+            </script>
+        
+
+        <script type="text/javascript" tracking>
+            /**
+             * Global event tracking method
+             *
+             * @param category
+             * @param action
+             * @param name
+             * @param value
+             * @param services
+             * @param nonInteraction
+             */
+            window['trackEvent'] = (category, action, name = '', value = 0, parameters = {},
+                                    services = ['ga', 'gtm', 'baidu'],
+                                    nonInteraction = false
+            ) => {
+                return new Promise((resolve, reject) => {
+
+                    // fallback timeout, to ensure event tracking does not block consecutive JS events.
+                    const timeoutTrigger = setTimeout(() => reject(new Error('track event timeout')), 5000)
+                    const gaEventParameters = {
+                        'event_category': category,
+                        'event_action': action,
+                        'event_label': name,
+                        'value': value,
+                        'non_interaction': nonInteraction,
+                        ...parameters
+                    }
+                    // track Google Tag Manager
+                    if (services.indexOf('gtm') !== -1 && typeof gtm !== 'undefined') {
+                        gaEventParameters['event'] = gaEventParameters['event_action']
+                        gtm(gaEventParameters)
+                        if (window.siteMode != 0) {
+                            console.info('Track Google Tag Manager event: ', gaEventParameters);
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Google Tag Manager not loaded or not requested')
+                        }
+                    }
+
+                    // track Baidu
+                    if (services.indexOf('baidu') !== -1 && typeof _hmt !== 'undefined') {
+                        _hmt.push(['_trackEvent', category, action, name, value])
+                        if (window.siteMode != 0) {
+                            console.info('Track Baidu event ' + category + ' ' + action + ' ' + name + ' value: ' + value)
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Baidu not loaded or not requested');
+                        }
+                    }
+
+                    clearTimeout(timeoutTrigger)
+                    resolve()
+                    return true
+                });
+            }
+        </script>
+    
+
+                <script>
+                    // Google Tag Manager
+                    window.siteMode = 0;
+                    const gtagContainerId = 'GTM-K3TX2ZN'
+                    if ('1' === '1') {
+                        (function (w, d, s, l, i) {
+                            w[l] = w[l] || []
+                            w[l].push({
+                                'gtm.start':
+                                    new Date().getTime(), event: 'gtm.js'
+                            });
+                            var f = d.getElementsByTagName(s)[0],
+                                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''
+                            j.async = true
+                            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl
+                            f.parentNode.insertBefore(j, f)
+                        })(window, document, 'script', 'dataLayer', gtagContainerId)
+
+                        window.dataLayer = window.dataLayer || []
+                        window.gtm = function() {
+                            return dataLayer.push(...arguments)
+                        }
+                    }
+
+                    function gaOptout() {
+                        document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/'
+                        window[disableStr] = true
+                    }
+                </script>
+            
+<link rel="canonical" href="https://www.nanotec.com/eu/en/products/manual/m/pd4c-canopen-en/index.html" />
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        
+        
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.nanotec.com/eu/en/products/manual#webpage","name":"Manual","description":"","url":"https://www.nanotec.com/eu/en/products/manual","inLanguage":"en-GB","isPartOf":{"@id":"https://www.nanotec.com/#website"},"publisher":{"@id":"https://www.nanotec.com/#organization"},"about":{"@id":"https://www.nanotec.com/#organization"}}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Nanotec","item":"https://www.nanotec.com/eu/en/"},{"@type":"ListItem","position":2,"name":"Products","item":"https://www.nanotec.com/eu/en/products"},{"@type":"ListItem","position":3,"name":"Manual","item":"https://www.nanotec.com/eu/en/products/manual"}]}</script>
+
+        
+
+        
+
+    
+        
+    
+        
+    
+    
+    
+    
+    
+            
+            
+            
+            
+            
+
+            
+            
+        
+
+        
+    
+        <div class="tec-conf-bar" ng-class="{'is-show': currentConfigurationCtrl.show}" current-configuration>
+            <div class="tec-cb-content">
+                <div class="tec-cb-container">
+                    <div class="item-left">
+                        <a href="#" ng-click="currentConfigurationCtrl.clearConfiguration();" class="btn-delete" title="clear combination">
+                            <i class="icon-trash"></i>
+                            <span class="text-display">
+                            <u>clear combination</u>
+                        </span>
+                        </a>
+                    </div>
+                    <div class="item-middle">
+                        <i class="icon-adjust"></i>
+                        <span class="text-display">
+                        active combination
+                    </span>
+                    </div>
+                    <div class="item-right">
+                        <a class="btn-back" title="back to configurator" href="/eu/en/products/product-configurator">
+                            <i class="icon-squared-big-left"></i>
+                            <span class="text-display">
+                            back to configurator
+                        </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+
+        <div class="wrapper">
+            
+    
+    <header id="header" sticky-header>
+        <div class="h-header">
+            <div class="row">
+                <div class="col-xs-6 col-md-4 col-logo">
+                    <a class="navbar-brand" href="/eu/en">
+                        <picture>
+                            <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.svg?1795001905" alt="Nanotec Electronic Homepage"
+                                 width="220" height="42" title="Nanotec Electronic Homepage"/>
+                            <source media="(min-width: 38em)" srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                            <source srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                        </picture>
+                    </a>
+                </div>
+                <div class="navbar-mobile hidden-lg-up col-xs-6" mobile-nav>
+                    
+                    <span class="hamburger" ng-click="mNav.toggleMobileNav()">
+                        <span></span>
+                    </span>
+                </div>
+                <!-- if you want a off-canvas open, please write the class is-open. -->
+                <div class="hidden-md-down off-canvas-md-down nav-mobile" ng-class="{'is-open': mNav.isOpen()}" mobile-nav>
+                    <div class="off-canvas-container">
+                        <div class="off-canvas-headline">
+                            Navigation
+                            <i class="icon-close" ng-click="mNav.toggleMobileNav()"></i>
+                        </div>
+                        <div class="col-md-8 pull-md-right col-utilities">
+                            
+    <nav class="navbar navbar-utilities" utilities-navbar>
+        <ul class="nav navbar-nav pull-md-right">
+
+            
+            
+
+            
+            <li class="nav-item item-all-products">
+                <a data-placement="bottom" tooltip="1" title="All products" class="nav-link" href="/eu/en/service/products">
+                    <span class="text hidden-lg-up">All products</span>
+                    <i class="icon-nanotec"></i>
+                </a>
+            </li>
+
+            
+                
+                <li class="nav-item item-login dropdown"
+                    ng-class="{'open': utilNav.isLoginDropdownOpen(), 'is-user-online' : user.userExists()}" user>
+                    <span class="nav-link" ng-click="utilNav.toggleLoginDropdown($event)"
+                          title="My Account" data-placement="bottom" tooltip>
+                        <span class="text hidden-lg-up">My Account</span>
+                        <i class="icon-male-user"></i>
+                    </span>
+                    <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLoginDropdown()"
+                         outside-if-not="item-login">
+                        <span class="link-back hidden-lg-up"
+                              ng-click="utilNav.toggleLoginDropdown($event)">Back</span>
+
+                        
+                        <div class="dropdown-user" ng-if="user.userExists()">
+                            <p>Hello <b>{{ user.user().username }}</b></p>
+                            <div class="actions row">
+                                <div class="col-xs-5">
+                                    <form action="/eu/en/login"
+                                          target="_top"
+                                          method="post" name="logout">
+                                        <input type="submit" name="submit"
+                                               value="Logout"
+                                               class="btn btn-secondary btn-sm"/>
+                                        <input type="hidden" name="logintype" value="logout"/>
+                                    </form>
+                                </div>
+                                <div class="col-xs-7">
+                                    <a class="btn btn-primary btn-sm" href="/eu/en">
+                                        Edit profile
+                                    </a>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        
+                        <div class="dropdown-login" ng-if="!user.userExists()">
+                            
+                            <form target="_top" class="form" action="/eu/en/login?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=7b24c29591f1a9306e9cf9cdd5f430a1" method="post">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Flux" >
+<input type="hidden" name="__referrer[@controller]" value="Page" >
+<input type="hidden" name="__referrer[@action]" value="render" >
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt977df86fa6619614b9b7a612854bb14c77cd4b957" >
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Flux&quot;,&quot;@controller&quot;:&quot;Page&quot;,&quot;@action&quot;:&quot;render&quot;}e6d95d58abbb7b0d0aca459fdc0413e3fc5731db" >
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCJZY0NNVl9KalNCTldLZndvZTJrTW1nXCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMTA6MDM6MzcrMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTAxIiwicmVxdWVzdCI6eyJ1cmkiOiIvZXUvZW4vbG9naW4_dHhfZmVsb2dpbl9sb2dpbiU1QmFjdGlvbiU1RD1sb2dpbiZhbXA7dHhfZmVsb2dpbl9sb2dpbiU1QmNvbnRyb2xsZXIlNUQ9TG9naW4mYW1wO2NIYXNoPTdiMjRjMjk1OTFmMWE5MzA2ZTljZjljZGQ1ZjQzMGExIn19fQ.QZdS7H966uTYtby5q6Sq0h9XEYvG0PvXuwUVtbhpm0Q"><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;logintype&quot;:1,&quot;referer&quot;:1,&quot;redirect_url&quot;:1,&quot;submit&quot;:1}d7491b138f243611d4bb585cd876451df7cd0c19" >
+</div>
+
+                                <fieldset class="form-group">
+                                    <input autocomplete="username" class="form-control form-control-success" placeholder="Username/E-Mail" type="text" name="user" required="required" />
+                                </fieldset>
+                                <fieldset class="form-group">
+                                    <input required="required" autocomplete="current-password" id="login-password" class="form-control form-control-danger" placeholder="Password" type="password" name="pass" value="" />
+                                </fieldset>
+                                <div style="display: none;">
+                                    <input type="hidden" name="logintype" value="login" />
+                                    <input type="hidden" name="referer" value="/eu/en/products/manual/m/pd4c-canopen-en/p" />
+                                    <input type="hidden" name="redirect_url" value="/eu/en/products/manual/m/pd4c-canopen-en/p" />
+                                </div>
+                                <div class="form-group">
+                                    <input class="btn btn-primary btn-sm" type="submit" value="Login" name="submit" />
+                                </div>
+                                <a title="Forgot your password?" href="/eu/en/login?tx_felogin_login%5Baction%5D=recovery&amp;tx_felogin_login%5Bcontroller%5D=PasswordRecovery&amp;cHash=b4e60212c8f14bf21400489efa2efd1a">
+                                    <small>Forgot your password?</small>
+                                </a>
+                                <hr>
+                                <a class="btn btn-tertiary btn-sm" href="/eu/en/register">Register
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+
+                
+                <li class="nav-item item-basket">
+                <span class="nav-link" ng-click="utilNav.toggleASideBasket($event)" title="Shopping cart"
+                      data-placement="bottom" tooltip>
+                    <span class="text hidden-lg-up">Shopping cart</span>
+                    <i class="icon-cart-shopping"></i>
+                    <span class="badge">
+                        <span class="count" ng-cloak ng-bind="utilNav.BasketService.basket.amount"></span>
+                    </span>
+                </span>
+                </li>
+            
+
+            
+            
+
+            
+            
+
+            
+            <li class="nav-item item-unit-selector dropdown" ng-class="{'open': utilNav.isUnitSelectorOpen()}">
+                <span class="nav-link" ng-click="utilNav.toggleUnitSelectorDropdown($event)" data-placement="bottom"
+                      title="Select unit systems" tooltip>
+                    <span class="text hidden-lg-up">Select unit systems</span>
+                    <i class="icon-tachometer"></i>
+                </span>
+                <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeUnitSelector()"
+                     outside-if-not="item-unit-selector">
+                    <span class="link-back hidden-lg-up" ng-click="utilNav.toggleUnitSelectorDropdown($event)">Back</span>
+                    <div class="dropdown-unit-selector text-md-center" unit-selector>
+                        <div class="header h4">Select unit system</div>
+                        <div class="controls">
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'metric'}"
+                                    ng-click="unitSelector.setPreset('metric')">Metric
+                            </button>
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'imperial'}"
+                                    ng-click="unitSelector.setPreset('imperial')">Imperial (US)
+                            </button>
+                        </div>
+                        <a href="/eu/en/products/unit-settings">
+                            <u>...or select units individually</u>
+                        </a>
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        
+        <form class="tec-form-search-submit pull-md-right" action="/eu/en/search"
+              method="get">
+            <input class="form-control" type="text" name="q" placeholder="Enter your search term">
+            <button type="submit" title="Search">
+                <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Icons/Frontend/search.svg?1795001905"
+                     width="20"
+                     height="20"
+                     alt="Search"
+                />
+            </button>
+        </form>
+    </nav>
+
+                        </div>
+                        <div class="col-md-12 col-navigation">
+                            
+    
+        <nav id="navigation" class="navbar navbar-light" role="navigation"><ul class="nav navbar-nav"><li class="nav-item item-home"><a href="/eu/en" class="nav-link is-home"><span class="text-display">Home</span><i class="icon-home"></i></a></li><li main-navigation-item class="nav-item has-menu active" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/products" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Products</a><div class="menu menu-lg level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/products" class="link-current">Products</a><div class="menus"><ul class="menu-box-info"><li class="nav-item"><a href="/eu/en/products/product-finder" class="nav-link hidden-lg-up">Product Filter</a><div class="menu-bi-content"><a href="/eu/en/products/product-finder" class="btn btn-tertiary">Product Filter</a></div></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="nav-link"><span class="text-display">Smart Brushless DC Servos</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="link-current">Smart Brushless DC Servos</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2878-bldc-motors-with-controller-integrated-brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2877-stepper-motor-with-controller-drive" class="nav-link"><span class="text-display">Stepper motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Integrated linear actuators</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/158-motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers / drives</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/158-motor-controllers-drives" class="link-current">Motor controllers / drives</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10739-bldc-motor-controller-1" class="nav-link"><span class="text-display">Controllers/Drives for IO applications</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10741-programmable-stepper-motor-controller-and-bldc" class="nav-link"><span class="text-display">High-performance controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10985-plug-in-motor-controllers-drives" class="nav-link"><span class="text-display">Plug-in motor controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10776-multi-axis-motor-controller-drive" class="nav-link"><span class="text-display">4-axis controllers/drives</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link"><span class="text-display">Software</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="link-current">Software</a><ul></ul></li></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="nav-link"><span class="text-display">Brushless DC motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="link-current">Brushless DC motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2265-brushless-dc-motors-rpm-w-watt" class="nav-link"><span class="text-display">BLDC motors with internal rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2267-brushless-dc-external-rotor-motors-bldc" class="nav-link"><span class="text-display">Flat BLDC motors with external rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/653-brushless-dc-motor-ip65-bldc-with-encoder" class="nav-link"><span class="text-display">IP65 BLDC motors with encoder</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/12404-dka-frameless-bldc-motors" class="nav-link"><span class="text-display">Frameless BLDC motors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="nav-link"><span class="text-display">Stepper motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="link-current">Stepper motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2263-nema-stepper-motors-14-110-mm-flange" class="nav-link"><span class="text-display">Hybrid stepper motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2254-flat-motors" class="nav-link"><span class="text-display">Flat motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1269-hollow-shaft-motors" class="nav-link"><span class="text-display">Hollow-shaft motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/154-stepper-motors-ip65" class="nav-link"><span class="text-display">Stepper motors IP65</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/11077-bldc-linear-actuators" class="nav-link"><span class="text-display">BLDC Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/11077-bldc-linear-actuators" class="link-current">BLDC Linear Actuators</a><ul></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="nav-link"><span class="text-display">Stepper Motor Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="link-current">Stepper Motor Linear Actuators</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Linear actuators with controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14354-lbsa56-nema23-ball-screw" class="nav-link"><span class="text-display">Linear actuators with ball screw</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14360-nema-6-23-linear-actuators" class="nav-link"><span class="text-display">Linear actuators NEMA 6 - NEMA 23</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="nav-link"><span class="text-display">Lead screws and nuts</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="link-current">Lead screws and nuts</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/290-leads-screws-for-stepper-motor" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2322-nuts-for-stepper-linear-actuators" class="nav-link"><span class="text-display">Threaded nuts</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2655-wheel-drives" class="nav-link"><span class="text-display">Wheel drives for AGV</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2655-wheel-drives" class="link-current">Wheel drives for AGV</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/8469-wd-modular-wheel-drives" class="nav-link"><span class="text-display">Modular wheel drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/11091-wd42-compact-wheel-drives-with-motor" class="nav-link"><span class="text-display">Compact wheel drives with motor</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="nav-link"><span class="text-display">Gearboxes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="link-current">Gearboxes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10989-hollow-rotary-tables" class="nav-link"><span class="text-display">Hollow rotary tables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2704-planetary-gearboxes" class="nav-link"><span class="text-display">Planetary gearboxes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2276-worm-gearbox-for-stepper-motor-bldc-motor" class="nav-link"><span class="text-display">Worm gearboxes</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="link-current">Encoders</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2277-optical-encoders" class="nav-link"><span class="text-display">Optical encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2278-reflective-encoders" class="nav-link"><span class="text-display">Reflective encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2279-magnetic-encoders" class="nav-link"><span class="text-display">Magnetic encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/9956-multiturn-absolute-encoder" class="nav-link"><span class="text-display">Multiturn encoders</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="nav-link"><span class="text-display">Brakes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="link-current">Brakes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/1936-spring-loaded-brake" class="nav-link"><span class="text-display">BWA – Spring-loaded brakes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10078-brake-with-output-shaft" class="nav-link"><span class="text-display">BCD – Spring-loaded brakes</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/162-accessories" class="nav-link"><span class="text-display">Accessories</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/162-accessories" class="link-current">Accessories</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/283-connection-cables" class="nav-link"><span class="text-display">Connection cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10754-brake-chopper" class="nav-link"><span class="text-display">Brake chopper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/288-damper" class="nav-link"><span class="text-display">Damper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1494-spacer-sleeves-spacer-sleeves" class="nav-link"><span class="text-display">Spacer sleeves</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1264-supplements-for-gsge-gearboxes" class="nav-link"><span class="text-display">Double shaft/Cover</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1272-electronics" class="nav-link"><span class="text-display">Electronics</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1047-capacitors" class="nav-link"><span class="text-display">Capacitors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1048-converters" class="nav-link"><span class="text-display">Converters</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2719-keys" class="nav-link"><span class="text-display">Keys</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1049-switching-power-supplies" class="nav-link"><span class="text-display">Switching power supplies</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2389-nanolube-50g-bearing-grease" class="nav-link"><span class="text-display">Lubricants</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1445-connectors" class="nav-link"><span class="text-display">Connectors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/individual-solutions" class="nav-link"><span class="text-display">Individual solutions</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/individual-solutions" class="link-current">Individual solutions</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/cable-assembly" class="nav-link"><span class="text-display">Cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/firmware" class="nav-link"><span class="text-display">Firmware</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/lead-screw-modification" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/custom-motors" class="nav-link"><span class="text-display">Motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/motor-shafts" class="nav-link"><span class="text-display">Motor shafts</span></a></li></ul></li></ul></ul></div></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/knowledge-base" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Know-How</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/knowledge-base" class="link-current">Knowledge Base</a><ul><li class="nav-item"><a href="/eu/en/knowledge-base/category/fieldbus-systems-interfaces" class="nav-link"><span class="text-display">Fieldbus systems & interfaces</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motors-with-controllers" class="nav-link"><span class="text-display">Motors with controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motors" class="nav-link"><span class="text-display">Stepper motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/linear-actuators" class="nav-link"><span class="text-display">Linear actuators</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/applications" class="nav-link"><span class="text-display">Applications</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-plug-drive-studio" class="nav-link"><span class="text-display">Programming with Plug & Drive Studio</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanolib" class="nav-link"><span class="text-display">Programming with NanoLib</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanoj" class="nav-link"><span class="text-display">Programming with NanoJ</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming" class="nav-link"><span class="text-display">Programming with other software</span></a></li></ul></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/downloads" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Downloads</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/downloads" class="link-current">Downloads</a><ul><li class="nav-item"><a href="/eu/en/downloads/catalogs-flyers" class="nav-link">Catalogs & Flyers</a></li><li class="nav-item"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link">Software</a></li><li class="nav-item"><a href="/eu/en/downloads/manualsdatasheets" class="nav-link">Manuals/Datasheets</a></li><li class="nav-item"><a href="/eu/en/downloads/drivers" class="nav-link">Drivers</a></li><li class="nav-item"><a href="/eu/en/downloads/archive" class="nav-link">Archive</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/news-trade-shows" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">News & Events</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/news-trade-shows" class="link-current">News & Events</a><ul><li class="nav-item"><a href="/eu/en/news-trade-shows/press" class="nav-link">Press</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trainings" class="nav-link">Trainings</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trade-shows" class="nav-link">Trade Shows</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/news" class="nav-link">News</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/company" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Company</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/company" class="link-current">Company</a><ul><li class="nav-item"><a href="/eu/en/company/about-nanotec" class="nav-link">About Nanotec</a></li><li class="nav-item"><a href="/eu/en/company/facts-and-figures" class="nav-link">Facts and figures</a></li><li class="nav-item"><a href="/eu/en/company/locations" class="nav-link">Locations</a></li><li class="nav-item"><a href="/eu/en/company/integrated-management" class="nav-link">Integrated management</a></li><li class="nav-item"><a href="/eu/en/company/research-funding" class="nav-link">Research funding</a></li></ul></li><li main-navigation-item class="nav-item"><a href="/eu/en/job-opportunities" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Career</a></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/contact-us" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Contact us</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/contact-us" class="link-current">Contact us</a><ul><li class="nav-item"><a href="/eu/en/contact-us/contact-form" class="nav-link">Contact Form</a></li><li class="nav-item"><a href="/eu/en/contact-us/sales-contact" class="nav-link">Local Sales Contact</a></li><li class="nav-item"><a href="/eu/en/contact-us/customer-service" class="nav-link">Customer Service</a></li><li class="nav-item"><a href="/eu/en/contact-us/support" class="nav-link">After Sales Support</a></li><li class="nav-item"><a href="/eu/en/contact-us/returns/rma" class="nav-link">Returns/RMA</a></li><li class="nav-item"><a href="/eu/en/contact-us/how-to-find-us" class="nav-link">How to Find Us</a></li></ul></li></ul></nav>
+    
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+
+            
+        
+    <div class="container">
+        <nav class="breadcrumb" role="navigation">
+            <ol>
+                <li>You are here:</li>
+                
+                    <li>
+                        <a href="/eu/en/">Nanotec</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products">Products</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/manual">Manual</a>
+                    </li>
+                
+            </ol>
+        </nav>
+    </div>
+
+        <main class="main-content" role="main">
+            <div class="container">
+                <!-- TYPO3SEARCH_begin -->
+                
+
+
+    
+    
+    
+        
+            
+                    <div id="c4676" name="c4676">
+                        
+                            
+
+
+
+                        
+                        
+
+    
+    
+
+
+
+<div id="manual">
+    
+    
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+                    
+                
+
+            
+            
+    
+
+            <div class="row">
+                <div class="col-sm-12">
+                    <h2 class="headline">PD4-C CANopen Online Manual</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-9 col-sm-12" id="content">
+                    <table class="nav"><tbody><tr><td colspan="2"><div id="printlink"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p" title="Print this page"></a></div><div id="permalink"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fintroduction.html" title="Link to this page"></a></div></td></tr><tr><td style="width:75%;"><span class="topic_breadcrumb_links"></span></td><td><span id="topic_navigation_links" class="navheader"></span></td></tr></tbody></table><main role="main"><article role="article" aria-labelledby="ariaid-title1">
+    <article class="nested0" aria-labelledby="ariaid-title1" id="topic_kp3_bgh_vh">
+        <h1 class="title topictitle1" id="ariaid-title1">Technical Manual PD4-C</h1>
+        <div class="body">
+            <p class="p fieldbus">Fieldbus: CANopen</p>
+            <div class="p variant">For use with the following variants:<ul class="ul" id="topic_kp3_bgh_vh__ul_zrk_fgr_xr">
+                    <li class="li">PD4-C5918X4204-E-08</li>
+                    <li class="li">PD4-C5918M4204-E-08</li>
+                    <li class="li">PD4-C5918L4204-E-08</li>
+                    <li class="li">PD4-C6018L4204-E-08</li>
+                    <li class="li">PD4-CB59M024035-E-08</li>
+                </ul></div>
+            
+            
+            <p class="p"><img class="image" id="topic_kp3_bgh_vh__image_czp_3gr_xr" src="/manuals/pd4c-canopen-en/pd4c/../graphics/pd4c/pd4c_can.png" height="590" width="100%"></p>
+            <div class="p">
+                <table class="table frame-none" id="topic_kp3_bgh_vh__table_i2h_brp_xr"><caption></caption><colgroup><col style="width:50%"><col style="width:50%"></colgroup><tbody class="tbody">
+                            <tr>
+                                <td class="entry align-left colsep-1 rowsep-1">Valid for firmware version FIR-v2213 and higher</td>
+                                <td class="entry align-left colsep-1 rowsep-1">Manual version 3.3.0</td>
+                            </tr>
+                            <tr>
+                                <td class="entry align-left colsep-1 rowsep-1">and hardware version W006 and higher</td>
+                                <td class="entry align-left colsep-1 rowsep-1"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p" target="_blank">to the archive</a></td>
+                            </tr>
+                        </tbody></table>
+            </div>
+        </div>
+    </article>
+    <article class="topic concept nested0" aria-labelledby="ariaid-title2" xml:lang="en-us" lang="en-us" id="concept_et2_cvt_2bb">
+        <h1 class="title topictitle1" id="ariaid-title2">Introduction</h1>
+        <div class="body conbody">
+            <p class="p">The <cite class="cite">PD4-C</cite> is a brushless motor with integrated controller. The integrated absolute encoder makes immediate operation possible in closed loop mode without homing.</p>
+            <p class="p">This manual describes the functions of the controller and the available operating modes. It also shows how you can address and program the controller via the communication interface.</p>
+            <p class="p"> You can find further information on the product on <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fintroduction.html" target="_blank">us.nanotec.com</a>.</p>
+            
+        </div>
+        
+        <article class="topic concept nested1" aria-labelledby="ariaid-title3" id="id_hwf_kyk_rhb">
+		<h2 class="title topictitle2" id="ariaid-title3">Version information</h2>
+		<div class="body conbody">
+			<div class="p">
+				<table class="table frame-all" id="id_hwf_kyk_rhb__d23e19"><caption></caption><colgroup><col style="width:12.023809523809522%"><col style="width:11.904761904761903%"><col style="width:64.04761904761904%"><col style="width:12.023809523809522%"></colgroup><thead class="thead">
+							<tr>
+								<th class="entry colsep-1 rowsep-1" id="id_hwf_kyk_rhb__d23e19__entry__1">Manual version</th>
+								<th class="entry colsep-1 rowsep-1" id="id_hwf_kyk_rhb__d23e19__entry__2">Date</th>
+								<th class="entry colsep-1 rowsep-1" id="id_hwf_kyk_rhb__d23e19__entry__3">Changes</th>
+								<th class="entry colsep-1 rowsep-1" id="id_hwf_kyk_rhb__d23e19__entry__4">Firmware version</th>
+							</tr>
+						</thead><tbody class="tbody">
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.0.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">03.03.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Edition</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1403</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.0.3</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">12.05.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Minor improvements and corrections, "Preset value" field now occupied</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1419</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.1.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">16.05.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Following chapters added: <ul class="ul" id="id_hwf_kyk_rhb__d23e92">
+										<li class="li"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_zzf_vxw_4n">Cyclic Synchronous Position</a></li>
+										<li class="li"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_zzf_vxw_4n">Cyclic Synchronous Velocity</a></li>
+										<li class="li"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_zzf_vxw_4n">Cyclic Synchronous Torque</a></li>
+									</ul></td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1426</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.3.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">06.06.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e118">
+										<li class="li">PD4-CB59M024035-E-08 added</li>
+										<li class="li">Changeover of analog/digital inputs added</li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1426</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.4.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">23.07.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e142">
+										<li class="li">Chapter "<a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_aky_p5w_z4">Saving objects</a>" added, savable added to the list of objects</li>
+										<li class="li">The following objects were shifted: <ul class="ul" id="id_hwf_kyk_rhb__d23e151">
+												<li class="li">"Read Analog Input": from 6402 <sub class="ph sub">h</sub> to 3320 <sub class="ph sub">h</sub></li>
+												<li class="li">"Analogue Input Offset": from 6431 <sub class="ph sub">h</sub> to 3321 <sub class="ph sub">h</sub></li>
+												<li class="li">"Analogue Input Pre-scaling": from 6432 <sub class="ph sub">h</sub> to 3322 <sub class="ph sub">h</sub></li>
+											</ul></li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1426</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.4.7</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">10.09.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Error corrections</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1436</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.4.15</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">18.11.2014</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e210">
+										<li class="li">Error corrections</li>
+										<li class="li">The "Mode of modulo operation" object in 2070<sub class="ph sub">h</sub> was replaced with the "Positioning option code" object in <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x60F2">60F2</a><sub class="ph sub">h</sub></li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1446</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.5.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 "> 11.03.2015 </td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">New chapter:<ul class="ul" id="id_hwf_kyk_rhb__d23e241">
+										<li class="li"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#id121JB0S30UI">Clock-direction mode</a></li>
+									</ul></td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1504</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.5.1</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">24.04.2015</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e261">
+										<li class="li">Error corrections</li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_xbz_xlj_cr">Input Routing</a></li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1512</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.6.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">02.10.2015</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e286">
+										<li class="li">Error corrections</li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_xyc_4tc_lt">Overtemperature protection</a></li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_hvz_rxv_3t">Output Routing</a></li>
+										<li class="li">New section <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_s1z_qq5_3t">Possible combinations of travel commands</a></li>
+										<li class="li">Addition to the connection data for the connectors</li>
+										<li class="li">Addition to the switching thresholds for digital inputs</li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1540</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.7.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">08.04.2016</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e326">
+										<li class="li">Error corrections</li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_vtj_plp_nv">Interpolated Position Mode</a></li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1614</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">1.7.1</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">22.07.2016</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Additions and error corrections</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1626</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">2.0.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">01/2018</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e367">
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_glf_skw_1bb">Environmental conditions</a></li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_x5r_fy2_yv">Control modes</a></li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_qh3_wtb_dbb">Limitation of the range of motion</a></li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#id_xvx_t4c_dbb">Cycle times</a></li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_zj2_kqq_dbb">CANopen services</a></li>
+										<li class="li">Revision of chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_tfz_pbj_bbb">Commissioning</a></li>
+										<li class="li">Additions and error corrections</li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1650</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">2.0.1</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">04/2019</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Additions and error corrections</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1650</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">3.0.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">10/2019</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e428">
+										<li class="li">New firmware generation: see document <cite class="cite">Instructions on how to perform firmware update to version: FIR-v1939</cite>.</li>
+										<li class="li">Addition to the connection data for the connectors</li>
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v1939</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">3.1.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">11/2020</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">
+									<ul class="ul" id="id_hwf_kyk_rhb__d23e455">
+										<li class="li">New firmware generation: see document <cite class="cite">Instructions on how to perform firmware update to version: FIR-v2039</cite>.</li>
+										<li class="li">New chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_uqb_nly_clb">Analog inputs</a></li>
+										<li class="li">Worst-case calculations for the <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_cpb_g5b_jm__table_xfk_stw_sr">switching thresholds of the inputs</a></li>
+										
+										
+									</ul>
+								</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v2039</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">3.2.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">09/2021</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Additions and error corrections</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v2139</td>
+							</tr>
+							<tr>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__1 ">3.3.0</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__2 ">07/2022</td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__3 ">Correction of the baud rate values in <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_xjs_1p3_fbb">Setting node-ID and baud rate</a>.<p class="p">Changes in chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_kt3_2cb_4gb_controller">Controller structure</a>: New objects <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x321A">321A</a><sub class="ph sub">h</sub>, <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x321B">321B</a><sub class="ph sub">h</sub>, <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x321C">321C</a><sub class="ph sub">h</sub>, <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x321D">321D</a><sub class="ph sub">h</sub> and <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x321E">321E</a><sub class="ph sub">h</sub> for the control parameters replace 320E<sub class="ph sub">h</sub>. </p><p class="p">The current controller in <cite class="cite">open-loop</cite> is now only parameterized in <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x3210">3210</a><sub class="ph sub">h</sub>, object 320F<sub class="ph sub">h</sub> has been removed.</p><p class="p">New object <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p">6007h Abort Connection Option Code</a></p><p class="p">New object <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p">230Eh Timer</a></p></td>
+								<td class="entry colsep-1 rowsep-1" headers="id_hwf_kyk_rhb__d23e19__entry__4 ">FIR-v2213</td>
+							</tr>
+						</tbody></table>
+			</div>
+		</div>
+	</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title4" xml:lang="en-us" lang="en-us" id="id_jhl_twt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title4">Copyright<span class="ph">, marking and contact</span></h2>
+ <div class="body conbody">
+    <p class="p">© 2013 – 2022 Nanotec Electronic GmbH &amp; Co. KG. All rights reserved.</p>
+    
+    <p class="p"><img class="image" id="id_jhl_twt_2bb__d24e21" src="/manuals/pd4c-canopen-en/pd4c/../safety_instructions_and_warnings/../graphics/miscellaneous/ce-logo.svg" height="52" width="70"></p>
+    
+    <p class="p">Nanotec Electronic GmbH &amp; Co. KG</p>
+    <p class="p">Kapellenstraße 6</p>
+    <p class="p">85622 Feldkirchen</p>
+    <p class="p">Germany</p>
+    <p class="p"> </p>
+    <p class="p">Phone: +49 89 900 686-0</p>
+    <p class="p">Fax: +49 (89) 900 686-50</p>
+    <p class="p"> </p>
+    <p class="p"><a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fintroduction.html" target="_blank">us.nanotec.com</a></p>
+    <p class="p"> </p>
+    
+    
+    
+    
+    
+    
+  </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title5" xml:lang="en-us" lang="en-us" id="id_nby_ywt_2bb">
+    <h2 class="title topictitle2" id="ariaid-title5">Intended use</h2>
+    <div class="body conbody">
+        <p class="p">The <cite class="cite">PD4-C</cite> motor with integrated controller is used as a component of drive systems in a range of industrial applications.</p>
+        <p class="p">Use the product as intended within the limits defined in the technical data (in particular, see <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_wgh_2yn_lm">Permissible operating voltage</a>) and the approved <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#topic_glf_skw_1bb">Environmental conditions</a>.</p>
+        <p class="p">Under no circumstances may this Nanotec product be integrated as a safety component in a product or system. All products containing a component manufactured by Nanotec must, upon delivery to the end user, be provided with corresponding warning notices including instructions for safe use and safe operation. All warning notices provided by Nanotec must be passed on directly to the end user.</p>
+    </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title6" xml:lang="en-us" lang="en-us" id="id_g3k_2xt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title6">Target group and qualification</h2>
+ <div class="body conbody">
+  <p class="p">The product and this documentation are directed towards technically trained specialists staff such as:</p>
+  
+  <ul class="ul" id="id_g3k_2xt_2bb__d26e18">
+   <li class="li">Development engineers</li>
+   <li class="li">Plant engineers</li>
+   <li class="li">Installers/service personnel</li>
+   <li class="li">Application engineers</li>
+  </ul>
+  <p class="p">Only specialists may install, program and commission the product. Specialist staff are persons who</p>
+  <ul class="ul" id="id_g3k_2xt_2bb__d26e36">
+   <li class="li">have appropriate training and experience in working with motors and their control,</li>
+   <li class="li">are familiar with and understand the content of this technical manual,</li>
+   <li class="li">know the applicable regulations.</li>
+  </ul>
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title7" xml:lang="en-us" lang="en-us" id="id_j1y_zwt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title7">Warranty and disclaimer</h2>
+ <div class="body conbody">
+    <p class="p">Nanotec assumes no liability for damages and malfunctions resulting from installation errors, failure to observe this manual or improper repairs. The selection and use of Nanotec products is the responsibility of the plant engineer or end user. Nanotec accepts no responsibility for the integration of the product in the end system.</p>
+    <p class="p">Our general terms and conditions at www.nanotec.com apply.</p>
+    <div class="note note note_note"><span class="note__title">Note:</span> Changes or modifications to the product are not permitted.</div>
+    
+    
+  </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title8" xml:lang="en-us" lang="en-us" id="id_hqz_lxt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title8">EU directives for product safety</h2>
+ <div class="body conbody">
+  <p class="p">The following EU directives were observed:</p>
+  <ul class="ul">
+                  <li class="li">RoHS directive (2011/65/EU, 2015/863/EU) </li>
+                  
+                  
+                  <li class="li">EMC directive (2014/30/EU) </li>
+            </ul>
+  
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title9" xml:lang="en-us" lang="en-us" id="id_gvl_jxt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title9">Other applicable regulations</h2>
+ <div class="body conbody">
+  <p class="p">In addition to this technical manual, the following regulations are to be observed:</p>
+  <ul class="ul" id="id_gvl_jxt_2bb__d29e18">
+   <li class="li">Accident-prevention regulations</li>
+   <li class="li">Local regulations on occupational safety</li>
+   
+  </ul>
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title10" xml:lang="en-us" lang="en-us" id="id_o34_xxt_2bb">
+  <h2 class="title topictitle2" id="ariaid-title10">Used icons</h2>
+  <div class="body conbody">
+    <p class="p">All notices are in the same format. The degree of the hazard  is divided into the following classes.</p>
+    
+    
+    
+    <div class="note hazardstatement caution note_caution"><span class="note__title">CAUTION:</span> 
+      <ul class="sl messagepanel simple" id="id_o34_xxt_2bb__d30e24">
+        <li class="sli typeofhazard"><strong class="ph b">The CAUTION notice indicates a possibly dangerous situation.</strong></li>
+        <li class="sli consequence">Failure to observe the notice <strong class="ph b">may</strong> result in moderately severe injuries.</li>
+        <li class="sli howtoavoid">► Describes how you can avoid the dangerous situation.</li>
+      </ul>
+    </div>
+    
+    <div class="note hazardstatement note note_note"><span class="note__title">Note:</span> 
+      <ul class="sl messagepanel simple" id="id_o34_xxt_2bb__d30e43">
+        <li class="sli typeofhazard"><strong class="ph b">Indicates a possible incorrect operation of the product.</strong></li>
+        <li class="sli consequence">Failure to observe the notice may result in damage to this or other products.</li>
+        <li class="sli howtoavoid">► Describes how you can avoid the incorrect operation.</li>
+      </ul>
+    </div>
+    
+    <div class="note tip note_tip"><span class="note__title">Tip:</span> Shows a tip for the application or task.</div>
+  </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title11" xml:lang="en-us" lang="en-us" id="id_qd3_2yt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title11">Emphasis in the text</h2>
+ <div class="body conbody">
+  <p class="p">The following conventions are used in the document:</p>
+  <p class="p"><u class="ph u">Underlined</u> text indicates cross references and hyperlinks:</p>
+  <ul class="ul" id="id_qd3_2yt_2bb__d31e25">
+   
+   <li class="li">The following bits in object <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#od_motion_0x6041">6041</a><sub class="ph sub">h</sub> (statusword) have a special function:</li>
+   
+   <li class="li">A list of available system calls can be found in chapter <a class="xref" href="/eu/en/products/manual/m/pd4c-canopen-en/p#concept_f2w_rll_qz">NanoJ functions in the NanoJ program</a>.</li>
+  </ul>
+  <p class="p">Text set in <em class="ph i">italics</em> marks named objects:</p>
+  <ul class="ul" id="id_qd3_2yt_2bb__d31e47">
+   <li class="li">Read the <cite class="cite">installation manual</cite>.</li>
+   <li class="li">Use the <cite class="cite">Plug &amp; Drive Studio</cite> software to perform the auto setup.</li>
+   <li class="li">For software: You can find the corresponding information in the <cite class="cite">Operation</cite> tab.</li>
+   <li class="li">For hardware: Use the <cite class="cite">ON/OFF</cite> switch to switch the device on.</li>
+  </ul>
+  <p class="p">A text set in <code class="ph codeph">Courier</code> marks a code section or programming command:</p>
+  <ul class="ul" id="id_qd3_2yt_2bb__d31e81">
+   
+   <li class="li">The line with the <code class="ph codeph">od_write(0x6040, 0x00, 5 );</code> command has no effect.</li>
+   
+   <li class="li">The NMT message is structured as follows: <code class="ph codeph">000 | 81 2A</code></li>
+  </ul>
+  <p class="p">A text in "quotation marks" marks user input:</p>
+  <ul class="ul" id="id_qd3_2yt_2bb__d31e98">
+   <li class="li">Start the NanoJ program by writing object 2300<sub class="ph sub">h</sub>, bit 0 = "1".</li>
+   <li class="li">If a holding torque is already needed in this state, the value "1" must be written in 3212<sub class="ph sub">h</sub>:01<sub class="ph sub">h</sub>.</li>
+  </ul>
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title12" xml:lang="en-us" lang="en-us" id="id_lwz_myt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title12">Numerical values</h2>
+ <div class="body conbody">
+  <p class="p">Numerical values are generally specified in decimal notation. The use of hexadecimal notation is indicated by a subscript <cite class="cite">h</cite> at the end of the number. </p>
+  <p class="p">The objects in the object dictionary are written with index and subindex as follows: <code class="ph codeph">&lt;Index&gt;:&lt;Subindex&gt;</code></p>
+  <p class="p">Both the index as well as the subindex are specified in hexadecimal notation. If no subindex is listed, the subindex is 00<sub class="ph sub">h</sub>. </p>
+  <p class="p">Example: Subindex 5 of object 1003<sub class="ph sub">h</sub> is addressed with <code class="ph codeph">1003<sub class="ph sub">h</sub>:05<sub class="ph sub">h</sub></code>, subindex 00 of object 6040<sub class="ph sub">h</sub> with <code class="ph codeph">6040<sub class="ph sub">h</sub></code>.</p>
+  
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title13" xml:lang="en-us" lang="en-us" id="id_kxk_nyt_2bb">
+ <h2 class="title topictitle2" id="ariaid-title13">Bits</h2>
+ <div class="body conbody">
+  <p class="p">The numbering of individual bits in an object always begins with the LSB (bit number 0). See the following figure, which uses data type <cite class="cite">UNSIGNED8</cite> as an example.</p>
+  <br><img class="image" id="id_kxk_nyt_2bb__d33e21" src="/manuals/pd4c-canopen-en/pd4c/../miscellaneous/../graphics/bitnummer.svg" height="57" width="310"><br>
+ </div>
+</article>
+        <article class="topic concept nested1" aria-labelledby="ariaid-title14" xml:lang="en-us" lang="en-us" id="id_abw_nyt_2bb">
+  <h2 class="title topictitle2" id="ariaid-title14">Counting direction (arrows)</h2>
+  <div class="body conbody">
+    <p class="p">In figures, the counting direction is always in the direction of an arrow. Objects <code class="ph codeph">60C5<sub class="ph sub">h</sub></code> and <code class="ph codeph">60C6<sub class="ph sub">h</sub></code> depicted as examples in the following figure are both specified as positive.</p>
+    <br><img class="image" id="id_abw_nyt_2bb__d34e28" src="/manuals/pd4c-canopen-en/pd4c/../miscellaneous/../graphics/drawing_sample.svg" height="189" width="311"><br>
+  </div>
+</article>
+    </article>
+</article></main><footer role="contentinfo"><div class="navfooter"><!----></div><div class="footer" id="webhelp_copyright_information">Generated by<a class="oxyFooter" href="/eu/en/products/manual/m/pd4c-canopen-en/p" target="_blank">
+                            &lt;oXygen/&gt; XML WebHelp
+                        </a></div></footer><div id="cmts"><!----></div>
+                    <div id="controls">
+                        
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-12">
+                    <div aside-tree-nav>
+                        <h3 class="toc-title">
+                            Contents
+                        </h3>
+                        <div>
+                            <div id="tree"><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fintroduction.html">Technical Manual PD4-C</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/safety_instructions_and_warnings%2Fwarnings_electrical.html">Safety and warning notices</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Ftech_data.html">Technical details and pin assignment</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fambient_conditions.html">Environmental conditions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fmechanics.html">Dimensioned drawings</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Felectrics.html">Electrical properties and technical data</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Ftemperature.html">Overtemperature protection</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fleds.html">LED signaling</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fconnectors.html">Pin assignment</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fcommissioning.html">Commissioning</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fconfiguration.html">Communication settings</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fconfiguration_CANopen.html">CANopen</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/pd4c%2Fetsablish_communication.html">Establishing communication</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/bus%2Fcan%2FCANopen_setup_de.html" data-id="task_ddv_21j_d1b"><span class="ph">CANopen</span></a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/commissioning%2Fautosetup.html">Auto setup</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/commissioning%2Ftestrun.html" data-id="testrun">Test run</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/commissioning%2Fspecial_drive_modes.html">Special drive modes (clock-direction and analog speed)</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fgeneral.html">General concepts</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fcontrol_modes.html">Control modes</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fds402_power_state_machine.html">CiA 402 Power State Machine</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fuser_units.html">User-defined units</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Flimit_switches.html">Limitation of the range of motion</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fcycle_time.html">Cycle times</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fmodes.html">Operating modes</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fprofile_position.html">Profile Position</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fvelocity.html">Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fprofile_velocity.html">Profile Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fprofile_torque.html">Profile Torque</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fhoming.html">Homing</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Finterpolated_position.html">Interpolated Position Mode</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fcyc_sync_position.html">Cyclic Synchronous Position</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fcyc_sync_velocity.html">Cyclic Synchronous Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fcyc_sync_torque.html">Cyclic Synchronous Torque</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fclock_direction.html">Clock-direction mode</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/modes%2Fauto_setup.html">Auto setup</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fadditional_functions.html">Special functions</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fdigital_io.html">Digital inputs and outputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fanalog.html">Analog inputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Foverload_protection.html">I<sup class="ph sup">2</sup>t Motor overload protection
+         </a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fsaveables.html">Saving objects</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/bus%2Fcan%2Fcan_reference.html">CANopen</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/bus%2Fcan%2Fgeneral_tickets.html">General</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/bus%2Fcan%2Fcan_stack.html">CANopen services</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/bus%2Fcan%2Flss.html">LSS protocol</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/general%2Fnanoj.html">Programming with <cite class="cite">NanoJ</cite></a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fobject_dir_intro.html">Description of the object dictionary</a></span><ul><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1000.html">1000h Device Type</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1001.html">1001h Error Register</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1003.html">1003h Pre-defined Error Field</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1005.html">1005h COB-ID Sync</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1006.html">1006h Communication Cycle Period</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1007.html">1007h Synchronous Window Length</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1008.html">1008h Manufacturer Device Name</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1009.html">1009h Manufacturer Hardware Version</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x100A.html">100Ah Manufacturer Software Version</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x100C.html">100Ch Guard Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x100D.html">100Dh Live Time Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1010.html">1010h Store Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1011.html">1011h Restore Default Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1014.html">1014h COB-ID EMCY</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1016.html">1016h Consumer Heartbeat Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1017.html">1017h Producer Heartbeat Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1018.html">1018h Identity Object</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1019.html">1019h Synchronous Counter Overflow Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1020.html">1020h Verify Configuration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1029.html">1029h Error Behavior</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1400.html">1400h Receive PDO 1 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1401.html">1401h Receive PDO 2 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1402.html">1402h Receive PDO 3 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1403.html">1403h Receive PDO 4 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1404.html">1404h Receive PDO 5 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1405.html">1405h Receive PDO 6 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1406.html">1406h Receive PDO 7 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1407.html">1407h Receive PDO 8 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1600.html">1600h Receive PDO 1 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1601.html">1601h Receive PDO 2 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1602.html">1602h Receive PDO 3 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1603.html">1603h Receive PDO 4 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1604.html">1604h Receive PDO 5 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1605.html">1605h Receive PDO 6 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1606.html">1606h Receive PDO 7 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1607.html">1607h Receive PDO 8 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1800.html">1800h Transmit PDO 1 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1801.html">1801h Transmit PDO 2 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1802.html">1802h Transmit PDO 3 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1803.html">1803h Transmit PDO 4 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1804.html">1804h Transmit PDO 5 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1805.html">1805h Transmit PDO 6 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1806.html">1806h Transmit PDO 7 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1807.html">1807h Transmit PDO 8 Communication Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A00.html">1A00h Transmit PDO 1 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A01.html">1A01h Transmit PDO 2 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A02.html">1A02h Transmit PDO 3 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A03.html">1A03h Transmit PDO 4 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A04.html">1A04h Transmit PDO 5 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A05.html">1A05h Transmit PDO 6 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A06.html">1A06h Transmit PDO 7 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1A07.html">1A07h Transmit PDO 8 Mapping Parameter</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1F50.html">1F50h Program Data</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1F51.html">1F51h Program Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1F57.html">1F57h Program Status</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x1F80.html">1F80h NMT Startup</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2005.html">2005h CANopen Baudrate</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2006.html">2006h CANopen WheelConfig</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2007.html">2007h CANopen Config</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2009.html">2009h CANopen NodeID</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2030.html">2030h Pole Pair Count</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2031.html">2031h Max Motor Current</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2034.html">2034h Upper Voltage Warning Level</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2035.html">2035h Lower Voltage Warning Level</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2036.html">2036h Open Loop Current Reduction Idle Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2037.html">2037h Open Loop Current Reduction Value/factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2038.html">2038h Brake Controller Timing</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2039.html">2039h Motor Currents</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x203A.html">203Ah Homing On Block Configuration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x203B.html">203Bh I2t Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x203D.html">203Dh Torque Window</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x203E.html">203Eh Torque Window Time Out</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x203F.html">203Fh Max Slippage Time Out</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2057.html">2057h Clock Direction Multiplier</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2058.html">2058h Clock Direction Divider</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x205A.html">205Ah Absolute Sensor Boot Value (in User Units)</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x205B.html">205Bh Clock Direction Or Clockwise/Counter Clockwise Mode</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2084.html">2084h Bootup Delay</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2101.html">2101h Fieldbus Module Availability</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2102.html">2102h Fieldbus Module Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2103.html">2103h Fieldbus Module Status</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2290.html">2290h PDI Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2291.html">2291h PDI Input</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2292.html">2292h PDI Output</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2300.html">2300h NanoJ Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2301.html">2301h NanoJ Status</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2302.html">2302h NanoJ Error Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x230E.html">230Eh Timer</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x230F.html">230Fh Uptime Seconds</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2310.html">2310h NanoJ Input Data Selection</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2320.html">2320h NanoJ Output Data Selection</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2330.html">2330h NanoJ In/output Data Selection</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2400.html">2400h NanoJ Inputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2410.html">2410h NanoJ Init Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2500.html">2500h NanoJ Outputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2600.html">2600h NanoJ Debug Output</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2700.html">2700h User Storage Area</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x2800.html">2800h Bootloader And Reboot Settings</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3202.html">3202h Motor Drive Submode Select</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3203.html">3203h Feedback Selection</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3204.html">3204h Feedback Mapping</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x320D.html">320Dh Torque Of Inertia Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3210.html">3210h Motor Drive Parameter Set</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3212.html">3212h Motor Drive Flags</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x321A.html">321Ah Current Controller Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x321B.html">321Bh Velocity Controller Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x321C.html">321Ch Position Controller Parameters</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x321D.html">321Dh Pre-control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x321E.html">321Eh Voltage Limit</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3220.html">3220h Analog Input Digits</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3225.html">3225h Analog Input Switches</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3240.html">3240h Digital Inputs Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3241.html">3241h Digital Input Capture</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3242.html">3242h Digital Input Routing</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3243.html">3243h Digital Input Homing Capture</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3250.html">3250h Digital Outputs Control</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3252.html">3252h Digital Output Routing</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3320.html">3320h Analog Input Values</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3321.html">3321h Analog Input Offsets</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3322.html">3322h Analog Input Numerators</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3323.html">3323h Analog Input Denominators</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3380.html">3380h Feedback Sensorless</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x33A0.html">33A0h Feedback Incremental A/B/I 1</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3700.html">3700h Deviation Error Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x3701.html">3701h Limit Switch Error Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4012.html">4012h HW Information</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4013.html">4013h HW Configuration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4014.html">4014h Operating Conditions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4015.html">4015h Special Drive Modes</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4016.html">4016h Factory Settings</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4021.html">4021h Ballast Configuration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4040.html">4040h Drive Serial Number</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4041.html">4041h Device Id</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x4042.html">4042h Bootloader Infos</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6007.html">6007h Abort Connection Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x603F.html">603Fh Error Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6040.html">6040h Controlword</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6041.html">6041h Statusword</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6042.html">6042h Vl Target Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6043.html">6043h Vl Velocity Demand</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6044.html">6044h Vl Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6046.html">6046h Vl Velocity Min Max Amount</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6048.html">6048h Vl Velocity Acceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6049.html">6049h Vl Velocity Deceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x604A.html">604Ah Vl Velocity Quick Stop</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x604C.html">604Ch Vl Dimension Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x605A.html">605Ah Quick Stop Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x605B.html">605Bh Shutdown Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x605C.html">605Ch Disable Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x605D.html">605Dh Halt Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x605E.html">605Eh Fault Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6060.html">6060h Modes Of Operation</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6061.html">6061h Modes Of Operation Display</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6062.html">6062h Position Demand Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6063.html">6063h Position Actual Internal Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6064.html">6064h Position Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6065.html">6065h Following Error Window</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6066.html">6066h Following Error Time Out</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6067.html">6067h Position Window</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6068.html">6068h Position Window Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x606B.html">606Bh Velocity Demand Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x606C.html">606Ch Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x606D.html">606Dh Velocity Window</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x606E.html">606Eh Velocity Window Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x606F.html">606Fh Velocity Threshold</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6070.html">6070h Velocity Threshold Time</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6071.html">6071h Target Torque</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6072.html">6072h Max Torque</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6073.html">6073h Max Current</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6074.html">6074h Torque Demand</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6075.html">6075h Motor Rated Current</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6077.html">6077h Torque Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607A.html">607Ah Target Position</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607B.html">607Bh Position Range Limit</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607C.html">607Ch Home Offset</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607D.html">607Dh Software Position Limit</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607E.html">607Eh Polarity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x607F.html">607Fh Max Profile Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6080.html">6080h Max Motor Speed</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6081.html">6081h Profile Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6082.html">6082h End Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6083.html">6083h Profile Acceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6084.html">6084h Profile Deceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6085.html">6085h Quick Stop Deceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6086.html">6086h Motion Profile Type</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6087.html">6087h Torque Slope</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x608F.html">608Fh Position Encoder Resolution</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6090.html">6090h Velocity Encoder Resolution</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6091.html">6091h Gear Ratio</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6092.html">6092h Feed Constant</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6096.html">6096h Velocity Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6097.html">6097h Acceleration Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6098.html">6098h Homing Method</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6099.html">6099h Homing Speed</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x609A.html">609Ah Homing Acceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60A2.html">60A2h Jerk Factor</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60A4.html">60A4h Profile Jerk</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60A8.html">60A8h SI Unit Position</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60A9.html">60A9h SI Unit Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60B0.html">60B0h Position Offset</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60B1.html">60B1h Velocity Offset</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60B2.html">60B2h Torque Offset</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60C1.html">60C1h Interpolation Data Record</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60C2.html">60C2h Interpolation Time Period</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60C4.html">60C4h Interpolation Data Configuration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60C5.html">60C5h Max Acceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60C6.html">60C6h Max Deceleration</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60E4.html">60E4h Additional Position Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60E5.html">60E5h Additional Velocity Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60E6.html">60E6h Additional Position Encoder Resolution - Encoder Increments</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60E8.html">60E8h Additional Gear Ratio - Motor Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60E9.html">60E9h Additional Feed Constant - Feed</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60EB.html">60EBh Additional Position Encoder Resolution - Motor Revolutions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60ED.html">60EDh Additional Gear Ratio - Driving Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60EE.html">60EEh Additional Feed Constant - Driving Shaft Revolutions</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60F2.html">60F2h Positioning Option Code</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60F4.html">60F4h Following Error Actual Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60F8.html">60F8h Max Slippage</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60FA.html">60FAh Control Effort</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60FC.html">60FCh Position Demand Internal Value</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60FD.html">60FDh Digital Inputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60FE.html">60FEh Digital Outputs</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x60FF.html">60FFh Target Velocity</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6502.html">6502h Supported Drive Modes</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6503.html">6503h Drive Catalogue Number</a></span></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/object_dictionary%2Fod_motion_0x6505.html">6505h Http Drive Catalogue Address</a></span></li></ul></li><li><span class="topicref"><a href="/eu/en/products/manual/m/pd4c-canopen-en/p/miscellaneous%2Fcopyrights_third_party.html">Copyrights</a></span></li></ul></div>
+                        </div>
+                        
+                            <a href="/eu/en/products/1604-pd4-c-stepper-motor-with-integrated-controller-nema-23-24">
+                                <button class="btn btn-secondary">
+                                    Go to PD4-C
+                                </button>
+                            </a>
+                            <br/><br/>
+                        
+                            <a href="/eu/en/products/1620-pd4-cb-brushless-dc-motor-with-integrated-controller-nema-23">
+                                <button class="btn btn-secondary">
+                                    Go to PD4-CB
+                                </button>
+                            </a>
+                            <br/><br/>
+                        
+                    </div>
+                </div>
+            </div>
+        
+
+</div>
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                <!-- TYPO3SEARCH_end -->
+                
+            </div>
+        </main>
+    
+            
+    <footer id="footer">
+        <div class="f-container">
+            <div class="container">
+                
+                        
+    <nav class="f-social-links">
+        <ul>
+            
+                <li>
+                    <a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/nanotec-electronic">
+                        <i class="icon-linkedin"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Xing" target="_blank" href="https://www.xing.com/pages/nanotecelectronicgmbh-co-kg">
+                        <i class="icon-xing"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Youtube" target="_blank" href="https://www.youtube.com/@NanotecElectronic">
+                        <i class="icon-youtube-play"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Facebook" target="_blank" href="https://www.facebook.com/nanotecde">
+                        <i class="icon-facebook"></i>
+                    </a>
+                </li>
+            
+        </ul>
+    </nav>
+
+                    
+
+                <nav class="f-navigation" role="navigation">
+                    <ul><li><a href="/eu/en" title="Home">Home</a></li><li><a href="/eu/en/service/products" title="Product overview">Product overview</a></li><li><a href="/eu/en/news-trade-shows/news" title="News">News</a></li><li><a href="/eu/en/privacy-statement" title="Privacy Statement">Privacy Statement</a></li><li><a href="/eu/en/general-terms-and-conditions" title="General Terms and Conditions">General Terms and Conditions</a></li><li><a href="/eu/en/general-terms-and-conditions-of-purchase" title="General Terms and Conditions of Purchase">General Terms and Conditions of Purchase</a></li><li><a href="/eu/en/legal-details" title="Legal Details">Legal Details</a></li></ul>
+                </nav>
+                <div class="footer-info">
+                    
+                        
+                            
+
+
+    
+    
+    
+        
+            
+                    <div id="c21" name="c21">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Nanotec Electronic GmbH,&nbsp; Kapellenstr. 6, 85622 Feldkirchen, Germany, Tel.&nbsp;<a href="tel:+49899006860" class="ga-track-contact">+49 89 900686-0</a>, E-mail: <a href="/cdn-cgi/l/email-protection#640d0a020b240a050a0b1001074a0001" class="ga-track-contact"><span class="__cf_email__" data-cfemail="2d44434b426d434c434259484e034948">[email&#160;protected]</span></a>&nbsp;</p>
+<p>Copyright © 1995-2026 by Nanotec Electronic GmbH, all rights reserved</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                        
+                    
+                    
+                </div>
+            </div>
+        </div>
+        
+            
+    
+        <span basket>
+            <div class="off-canvas-right" ng-class="{'is-open': basket.isOpen()}" click-outside="basket.closeBasket()"
+                 outside-if-not="item-basket">
+                <div class="off-canvas-headline">
+                    Shopping cart
+                    <i class="icon-close" ng-click="basket.toggleBasket()"></i>
+                </div>
+                <div class="off-canvas-body off-canvas-body-basket">
+                    <div class="off-canvas-content off-canvas-basket">
+                        <p class="alert alert-warning" role="alert" ng-if="basket.BasketService.basket.amount === 0">
+                            Your cart is empty.</p>
+
+                        <div class="media" ng-repeat="lineItem in basket.BasketService.basket.lineItems">
+                            <a class="media-left" ng-href="{{ lineItem.articles[0].url }}"
+                               ng-if="lineItem.imageSrc.length > 0">
+                                <img class="media-object" ng-src="{{ lineItem.imageSrc }}" alt="{{ lineItem.title }}" width="50"
+                                     height="40">
+                            </a>
+                            <div class="media-body">
+                                <span ng-if="lineItem.configuration" class="tag tag-primary">Combination</span>
+                                <h4 class="media-heading">
+                                    <span ng-bind="lineItem.amount + ' x '"></span>
+                                    <span ng-repeat="article in lineItem.articles">
+                                        <span ng-if="!$first"> +&nbsp;</span>
+                                        <a ng-href="{{ article.url }}"><span ng-bind="article.title"></span></a>
+                                        <span ng-if="lineItem.configuration" ng-bind="' - ' + article.subtitle"></span>
+                                    </span>
+                                </h4>
+                                <span ng-if="!lineItem.configuration" ng-bind="lineItem.articles[0].subtitle"></span><br>
+                                <span ng-if="basket.isPurchasable()" ng-bind-html="lineItem.price | priceAndCurrency"></span>
+                                <a ng-click="basket.removeLineItemWithConfirmation(lineItem, 'confirmClearLineItemModal')"
+                                   class="remove"><i class="icon-close"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="off-canvas-footer off-canvas-footer-basket" ng-show="basket.BasketService.basket.amount > 0">
+                    <div class="clear-basket">
+                        <a href="#" ng-click="basket.openModal('confirmClearBasketModal')">Clear cart</a>
+                    </div>
+                    <a class="btn btn-tertiary btn-block" href="/eu/en/your-shopping-basket">
+                        <span ng-if="basket.isPurchasable()">Checkout/Review/Share</span>
+                        <span ng-if="!basket.isPurchasable()">Request Quote/Review/Share</span>
+                    </a>
+                </div>
+            </div>
+            
+    <div class="modal fade" id="confirmClearBasketModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h3 class="modal-title">Delete all articles from your cart?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Please click &quot;Clear cart&quot; to delete all articles.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearFromModal('confirmClearBasketModal')">
+                        Clear cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            
+    <div class="modal fade" id="confirmClearLineItemModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h4 class="modal-title">Delete article from your cart?</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Click &quot;delete article&quot; to delete this article from your cart:</p>
+                    <div class="media">
+                        <a class="media-left" ng-href="{{ basket.lineItemOnTheBrink.articles[0].url }}"
+                           ng-if="basket.lineItemOnTheBrink.imageSrc.length > 0">
+                            <img class="media-object" ng-src="{{ basket.lineItemOnTheBrink.imageSrc }}"
+                                 alt="{{ basket.lineItemOnTheBrink.title }}"
+                                 width="50"
+                                 height="40">
+                        </a>
+                        <div class="media-body">
+                            <strong class="media-heading">{{ basket.lineItemOnTheBrink.amount }} x <span
+                                    ng-repeat="article in basket.lineItemOnTheBrink.articles"><a
+                                    ng-href="{{ article.url }}">{{ article.title }}</a></span>
+                            </strong><br>
+                            <span ng-bind-html="basket.lineItemOnTheBrink.articles[0].subtitle"></span><br>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearLineItemFromModal('confirmClearLineItemModal')">
+                        Clear article
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </span>
+    
+
+        
+        
+        
+        
+    
+    </footer>
+    <a href="#" class="btn-to-top" title="To top" scroll-to-top></a>
+
+        </div>
+        
+    <div domain-switcher>
+        <div class="modal" id="domain-switcher-modal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    
+                    
+                    <div class="modal-header">
+                        <button id="stay-on-language-site" type="button" class="btn btn-secondary close" data-dismiss="modal" aria-label="Close" title="Close">
+                            <i class="icon-close" ng-if="!domainSwitcherCtrl.forceMode"></i>
+                        </button>
+                        <h4 class="modal-title" ng-if="!domainSwitcherCtrl.forceMode">Please switch to another domain</h4>
+                        <h4 class="modal-title" ng-if="domainSwitcherCtrl.forceMode">Your will be redirected to {{domainSwitcherCtrl.targetDomain}}.</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div ng-if="!domainSwitcherCtrl.forceMode"><p><strong>Dear Visitor,</strong></p>
+<p>As a user from&nbsp;<strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we would like to redirect you to <strong>{{ domainSwitcherCtrl.targetDomain }}</strong>.</p></div>
+                        <div ng-if="domainSwitcherCtrl.forceMode"><p><strong>Dear Customer,&nbsp;</strong></p>
+<p>As a user from <strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we will redirect you to&nbsp;<strong>{{domainSwitcherCtrl.targetDomain}}</strong>.<strong>&nbsp;</strong></p>
+<p></p></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal"
+                                ng-if="!domainSwitcherCtrl.forceMode">No, stay on site
+                        </button>
+                        <a ng-href="{{ domainSwitcherCtrl.targetUrl }}" class="btn btn-primary">OK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/typo3conf/ext/nanotec/Resources/Public/Frontend/Scripts/main.d716963bb612bf7f4313.js?1795002047" type="text/javascript" async="async"></script>
+
+
+</body>
+</html>

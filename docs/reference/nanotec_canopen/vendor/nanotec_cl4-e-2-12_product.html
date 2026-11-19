@@ -1,0 +1,2842 @@
+<!DOCTYPE html>
+<html ng-app="nanotec">
+<head>
+    <meta charset="utf-8">
+
+<!-- 
+	This website is powered by TYPO3 - inspiring people to share!
+	TYPO3 is a free open source Content Management Framework initially created by Kasper Skaarhoj and licensed under GNU/GPL.
+	TYPO3 is copyright 1998-2026 of Kasper Skaarhoj. Extensions are copyright of their respective owners.
+	Information and contribution at https://typo3.org/
+-->
+
+
+<title>CL4-E-2-12 - Motor controllers/drives | Nanotec</title>
+<meta name="generator" content="TYPO3 CMS">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Under „Downloads“ you will find the technical manual that corresponds with the stock firmware. Please refer to the new technical manual (FIR-v2139) when using Plug &amp; Drive Studio…">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CL4-E-2-12 - Motor controllers/drives | Nanotec">
+<meta property="og:url" content="https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12">
+<meta property="og:description" content="Under „Downloads“ you will find the technical manual that corresponds with the stock firmware. Please refer to the new technical manual (FIR-v2139) when using Plug &amp; Drive Studio…">
+<meta property="og:image" content="https://www.nanotec.com/fileadmin/_processed_/0/3/csm_CL4_E_ec3d0630fa.jpg">
+<meta name="twitter:card" content="summary">
+<meta name="language" content="en">
+<meta name="facebook-domain-verification" content="hauvqnzj4u6hq0zkcdww7uhbyx8g49">
+<meta name="google-site-verification" content="_lKM7kD3fUOhehR2j5MQCXZfUKVY-EOePhTgITUfJ4w">
+<meta name="msvalidate.01" content="9D5E317E2A013771D5F642DC9B70BEB4">
+
+
+<link rel="stylesheet" href="/typo3conf/ext/nanotec/Resources/Public/Frontend/Styles/main.css?1795002047" media="all" title="main.css">
+
+
+
+
+
+
+<script type="text/javascript">var nanotecCurrencyJson = '{"symbolLeft":"\u20ac&nbsp;","symbolRight":"","decimalDigits":2,"divisor":100,"priceList":"1"}';var nanotecCurrency = JSON.parse(nanotecCurrencyJson);var currentLanguageId = 0;var languageIds = {"ex" : 0,"us" : 1,"de" : 3,"zh" : 4,"it" : 5};var languageBaseUrls = {0: "https://www.nanotec.com/eu/en",1: "https://www.nanotec.com/us/en",3: "https://www.nanotec.com/eu/de",4: "https://www.nanotec-cn.cn/zh",5: "https://www.nanotec.com/eu/it"};var jsDateFormat = "dd/MM/yy";var nanotecApiUrls = {
+    user: 'https://www.nanotec.com/eu/en/user.json',
+    basket: 'https://www.nanotec.com/eu/en/basket.json',
+    basketAdd: 'https://www.nanotec.com/eu/en/basket/add.json',
+    basketSetAmount: 'https://www.nanotec.com/eu/en/basket/setAmount.json',
+    basketClear: 'https://www.nanotec.com/eu/en/basket/clear.json',
+    clipboard: 'https://www.nanotec.com/eu/en/clipboard.json',
+    clipboardAdd: 'https://www.nanotec.com/eu/en/clipboard/add.json',
+    clipboardClear: 'https://www.nanotec.com/eu/en/clipboard/clear.json',
+    clipboardSetAmount: 'https://www.nanotec.com/eu/en/clipboard/setAmount.json',
+    getCountryByIsoCode: 'https://www.nanotec.com/eu/en/getCountryByIsoCode/',
+    stateOptions: 'https://www.nanotec.com/eu/en/stateOptions/',
+    priceData: 'https://www.nanotec.com/eu/en/priceData/',
+    cadenas: 'https://www.nanotec.com//cadenas-api/'
+};</script>
+    <script type="text/javascript">var nanotecUnitGroupsJson = '[{"baseUnit":null,"pid":245,"title":"Gewicht","uid":6,"units":{"0000000000001da40000000000000000":{"conversionFactor":1,"pid":245,"symbol":"kg","title":"Kilogramm","uid":14},"0000000000001e510000000000000000":{"conversionFactor":2.204,"pid":245,"symbol":"lb","title":"Pfund","uid":16},"0000000000001e530000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"g","title":"Gramm","uid":15}}},{"baseUnit":null,"pid":245,"title":"Length (m)","uid":11,"units":{"0000000000001df20000000000000000":{"conversionFactor":1,"pid":245,"symbol":"m","title":"Meter","uid":22},"0000000000001daa0000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":23},"0000000000001e470000000000000000":{"conversionFactor":1000,"pid":245,"symbol":"mm","title":"Millimeter","uid":28}}},{"baseUnit":null,"pid":245,"title":"Length (mm)","uid":4,"units":{"0000000000001e490000000000000000":{"conversionFactor":1,"pid":245,"symbol":"mm","title":"Millimeter","uid":10},"0000000000001e4b0000000000000000":{"conversionFactor":0.03936,"pid":245,"symbol":"in","title":"Inch","uid":12},"0000000000001e620000000000000000":{"conversionFactor":0.001,"pid":245,"symbol":"m","title":"Meter","uid":27}}},{"baseUnit":null,"pid":245,"title":"Torque (Ncm)","uid":3,"units":{"0000000000001e600000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":6},"0000000000001dad0000000000000000":{"conversionFactor":1.41611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":7},"0000000000001e690000000000000000":{"conversionFactor":0.01,"pid":245,"symbol":"Nm","title":"Newton meter","uid":8}}},{"baseUnit":null,"pid":245,"title":"Torque (Nm)","uid":13,"units":{"0000000000001e6e0000000000000000":{"conversionFactor":1,"pid":245,"symbol":"Nm","title":"Newton meter","uid":31},"0000000000001e4d0000000000000000":{"conversionFactor":141.611932278,"pid":245,"symbol":"oz-in","title":"Ounce inch","uid":32},"0000000000001e630000000000000000":{"conversionFactor":100,"pid":245,"symbol":"Ncm","title":"Newton centimeter","uid":33}}}]';var nanotecUnitGroups = JSON.parse(nanotecUnitGroupsJson || '[]');var nanotecUnitGroupDefaultSet = "metric";</script>
+
+
+            <link rel="apple-touch-icon" sizes="180x180"
+                  href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/apple-touch-icon.png?1795001905">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-32x32.png?1795001905"
+                  sizes="32x32">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-194x194.png?1795001905"
+                  sizes="194x194">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/android-chrome-192x192.png?1795001905"
+                  sizes="192x192">
+            <link rel="icon" type="image/png" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/favicon-16x16.png?1795001905"
+                  sizes="16x16">
+            <link rel="manifest" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/manifest.json?1795001905">
+            <link rel="mask-icon" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/safari-pinned-tab.svg?1795001905" color="#5488c7">
+            <meta name="msapplication-TileColor" content="#5488c7">
+            <meta name="msapplication-TileImage" content="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/favicons/mstile-144x144.png?1795001905">
+            <meta name="theme-color" content="#ffffff">
+        
+
+            <link rel="preconnect" href="//app.usercentrics.eu">
+            <link rel="preconnect" href="//api.usercentrics.eu">
+            <link rel="preconnect" href="//privacy-proxy.usercentrics.eu">
+            <script id="usercentrics-cmp" src=https://app.usercentrics.eu/browser-ui/latest/loader.js data-settings-id="9K5HHE7yqTJ4lH" async></script>
+            <script type="application/javascript" src=https://privacy-proxy.usercentrics.eu/latest/uc-block.bundle.js></script>
+            <script>
+                uc.reloadOnOptIn('BJz7qNsdj-7');
+                uc.reloadOnOptIn('S1pcEj_jZX');
+            </script>
+        
+
+        <script type="text/javascript" tracking>
+            /**
+             * Global event tracking method
+             *
+             * @param category
+             * @param action
+             * @param name
+             * @param value
+             * @param services
+             * @param nonInteraction
+             */
+            window['trackEvent'] = (category, action, name = '', value = 0, parameters = {},
+                                    services = ['ga', 'gtm', 'baidu'],
+                                    nonInteraction = false
+            ) => {
+                return new Promise((resolve, reject) => {
+
+                    // fallback timeout, to ensure event tracking does not block consecutive JS events.
+                    const timeoutTrigger = setTimeout(() => reject(new Error('track event timeout')), 5000)
+                    const gaEventParameters = {
+                        'event_category': category,
+                        'event_action': action,
+                        'event_label': name,
+                        'value': value,
+                        'non_interaction': nonInteraction,
+                        ...parameters
+                    }
+                    // track Google Tag Manager
+                    if (services.indexOf('gtm') !== -1 && typeof gtm !== 'undefined') {
+                        gaEventParameters['event'] = gaEventParameters['event_action']
+                        gtm(gaEventParameters)
+                        if (window.siteMode != 0) {
+                            console.info('Track Google Tag Manager event: ', gaEventParameters);
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Google Tag Manager not loaded or not requested')
+                        }
+                    }
+
+                    // track Baidu
+                    if (services.indexOf('baidu') !== -1 && typeof _hmt !== 'undefined') {
+                        _hmt.push(['_trackEvent', category, action, name, value])
+                        if (window.siteMode != 0) {
+                            console.info('Track Baidu event ' + category + ' ' + action + ' ' + name + ' value: ' + value)
+                        }
+                    } else {
+                        if (window.siteMode != 0) {
+                            console.warn('Baidu not loaded or not requested');
+                        }
+                    }
+
+                    clearTimeout(timeoutTrigger)
+                    resolve()
+                    return true
+                });
+            }
+        </script>
+    
+
+                <script>
+                    // Google Tag Manager
+                    window.siteMode = 0;
+                    const gtagContainerId = 'GTM-K3TX2ZN'
+                    if ('1' === '1') {
+                        (function (w, d, s, l, i) {
+                            w[l] = w[l] || []
+                            w[l].push({
+                                'gtm.start':
+                                    new Date().getTime(), event: 'gtm.js'
+                            });
+                            var f = d.getElementsByTagName(s)[0],
+                                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''
+                            j.async = true
+                            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl
+                            f.parentNode.insertBefore(j, f)
+                        })(window, document, 'script', 'dataLayer', gtagContainerId)
+
+                        window.dataLayer = window.dataLayer || []
+                        window.gtm = function() {
+                            return dataLayer.push(...arguments)
+                        }
+                    }
+
+                    function gaOptout() {
+                        document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/'
+                        window[disableStr] = true
+                    }
+                </script>
+            
+<link rel="canonical" href="https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12" />
+<script src="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/js/fabric.min.js?1727171544849"></script>
+<script src="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/js/quill.min.js?1727171544849"></script>
+<script src="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/js/thirdparty.min.js?1727171544849"></script>
+<script src="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/js/psol.components.min.js?1727171544849"></script>
+<link type="text/css" rel="stylesheet" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/css/thirdparty.min.css?1727171544849"/>
+<link type="text/css" rel="stylesheet" href="/_assets/a216ea4bcb7ed270c619139734398c4f/Cadenas/8.1.0/api/css/psol.components.min.css?1727171544849"/>
+<link rel="alternate" hreflang="en-GB" href="https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12">
+<link rel="alternate" hreflang="en-US" href="https://www.nanotec.com/us/en/products/2696-cl4-e-2-12">
+<link rel="alternate" hreflang="de-DE" href="https://www.nanotec.com/eu/de/produkte/2696-cl4-e-2-12">
+<link rel="alternate" hreflang="zh-CN" href="https://www.nanotec-cn.cn/zh/products/2696-cl4-e-2-12">
+<link rel="alternate" hreflang="it-IT" href="https://www.nanotec.com/eu/it/prodotti/2696-cl4-e-2-12">
+<link rel="alternate" hreflang="x-default" href="https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12">
+</head>
+<body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        
+        
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12#webpage","name":"Products","description":"Efficient motion control technology: brushless DC motors with integrated controller, stepper motors, BLDC motors, motor controllers / drives, linear actuators! ","url":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12","inLanguage":"en-GB","isPartOf":{"@id":"https://www.nanotec.com/#website"},"publisher":{"@id":"https://www.nanotec.com/#organization"},"mainEntity":{"@id":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12#product"},"image":{"@type":"ImageObject","url":"https://www.nanotec.com/fileadmin/files/Fotos/Motorsteuerungen/CL4_E.jpg?1656012576"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.nanotec.com/fileadmin/files/Fotos/Motorsteuerungen/CL4_E.jpg?1656012576"}}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Nanotec","item":"https://www.nanotec.com/eu/en/"},{"@type":"ListItem","position":2,"name":"Products","item":"https://www.nanotec.com/eu/en/products"},{"@type":"ListItem","position":3,"name":"Motor controllers/drives for BLDC and stepper motors","item":"https://www.nanotec.com/eu/en/products/158-motor-controllers-drives"},{"@type":"ListItem","position":4,"name":"High-performance controllers/drives","item":"https://www.nanotec.com/eu/en/products/10741-programmable-stepper-motor-controller-and-bldc"},{"@type":"ListItem","position":5,"name":"CL4-E","item":"https://www.nanotec.com/eu/en/products/2693-cl4-e-controller-board-w-1kw-performance-58v-rms-a"},{"@type":"ListItem","position":6,"name":"CL4-E-2-12","item":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12"}]}</script>
+
+        
+
+        
+
+    
+        
+    
+        
+    
+    
+    
+    
+    
+            
+            
+            
+            
+            
+
+            
+            
+        
+
+        
+    
+        <div class="tec-conf-bar" ng-class="{'is-show': currentConfigurationCtrl.show}" current-configuration>
+            <div class="tec-cb-content">
+                <div class="tec-cb-container">
+                    <div class="item-left">
+                        <a href="#" ng-click="currentConfigurationCtrl.clearConfiguration();" class="btn-delete" title="clear combination">
+                            <i class="icon-trash"></i>
+                            <span class="text-display">
+                            <u>clear combination</u>
+                        </span>
+                        </a>
+                    </div>
+                    <div class="item-middle">
+                        <i class="icon-adjust"></i>
+                        <span class="text-display">
+                        active combination
+                    </span>
+                    </div>
+                    <div class="item-right">
+                        <a class="btn-back" title="back to configurator" href="/eu/en/products/product-configurator">
+                            <i class="icon-squared-big-left"></i>
+                            <span class="text-display">
+                            back to configurator
+                        </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+
+        <div class="wrapper">
+            
+    
+    <header id="header" sticky-header>
+        <div class="h-header">
+            <div class="row">
+                <div class="col-xs-6 col-md-4 col-logo">
+                    <a class="navbar-brand" href="/eu/en">
+                        <picture>
+                            <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.svg?1795001905" alt="Nanotec Electronic Homepage"
+                                 width="220" height="42" title="Nanotec Electronic Homepage"/>
+                            <source media="(min-width: 38em)" srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                            <source srcset="/_assets/a216ea4bcb7ed270c619139734398c4f/Images/Nanotec_Logo_wo_Trademark_RGB.png?1795001905"/>
+                        </picture>
+                    </a>
+                </div>
+                <div class="navbar-mobile hidden-lg-up col-xs-6" mobile-nav>
+                    
+                    <span class="hamburger" ng-click="mNav.toggleMobileNav()">
+                        <span></span>
+                    </span>
+                </div>
+                <!-- if you want a off-canvas open, please write the class is-open. -->
+                <div class="hidden-md-down off-canvas-md-down nav-mobile" ng-class="{'is-open': mNav.isOpen()}" mobile-nav>
+                    <div class="off-canvas-container">
+                        <div class="off-canvas-headline">
+                            Navigation
+                            <i class="icon-close" ng-click="mNav.toggleMobileNav()"></i>
+                        </div>
+                        <div class="col-md-8 pull-md-right col-utilities">
+                            
+    <nav class="navbar navbar-utilities" utilities-navbar>
+        <ul class="nav navbar-nav pull-md-right">
+
+            
+            
+
+            
+            <li class="nav-item item-all-products">
+                <a data-placement="bottom" tooltip="1" title="All products" class="nav-link" href="/eu/en/service/products">
+                    <span class="text hidden-lg-up">All products</span>
+                    <i class="icon-nanotec"></i>
+                </a>
+            </li>
+
+            
+                
+                <li class="nav-item item-login dropdown"
+                    ng-class="{'open': utilNav.isLoginDropdownOpen(), 'is-user-online' : user.userExists()}" user>
+                    <span class="nav-link" ng-click="utilNav.toggleLoginDropdown($event)"
+                          title="My Account" data-placement="bottom" tooltip>
+                        <span class="text hidden-lg-up">My Account</span>
+                        <i class="icon-male-user"></i>
+                    </span>
+                    <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLoginDropdown()"
+                         outside-if-not="item-login">
+                        <span class="link-back hidden-lg-up"
+                              ng-click="utilNav.toggleLoginDropdown($event)">Back</span>
+
+                        
+                        <div class="dropdown-user" ng-if="user.userExists()">
+                            <p>Hello <b>{{ user.user().username }}</b></p>
+                            <div class="actions row">
+                                <div class="col-xs-5">
+                                    <form action="/eu/en/login"
+                                          target="_top"
+                                          method="post" name="logout">
+                                        <input type="submit" name="submit"
+                                               value="Logout"
+                                               class="btn btn-secondary btn-sm"/>
+                                        <input type="hidden" name="logintype" value="logout"/>
+                                    </form>
+                                </div>
+                                <div class="col-xs-7">
+                                    <a class="btn btn-primary btn-sm" href="/eu/en">
+                                        Edit profile
+                                    </a>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        
+                        <div class="dropdown-login" ng-if="!user.userExists()">
+                            
+                            <form target="_top" class="form" action="/eu/en/login?tx_felogin_login%5Baction%5D=login&amp;tx_felogin_login%5Bcontroller%5D=Login&amp;cHash=7b24c29591f1a9306e9cf9cdd5f430a1" method="post">
+<div>
+<input type="hidden" name="__referrer[@extension]" value="Flux" >
+<input type="hidden" name="__referrer[@controller]" value="Page" >
+<input type="hidden" name="__referrer[@action]" value="render" >
+<input type="hidden" name="__referrer[arguments]" value="YTowOnt977df86fa6619614b9b7a612854bb14c77cd4b957" >
+<input type="hidden" name="__referrer[@request]" value="{&quot;@extension&quot;:&quot;Flux&quot;,&quot;@controller&quot;:&quot;Page&quot;,&quot;@action&quot;:&quot;render&quot;}e6d95d58abbb7b0d0aca459fdc0413e3fc5731db" >
+<input type="hidden" name="__RequestToken" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IntcInR5cGVcIjpcIm5vbmNlXCIsXCJuYW1lXCI6XCJ1ME4yOVp3a25HZmQ2T215VlFjZUpRXCJ9In0.eyJzY29wZSI6ImNvcmUvdXNlci1hdXRoL2ZlIiwidGltZSI6IjIwMjYtMTEtMTlUMDc6MDA6MjYrMDE6MDAiLCJwYXJhbXMiOnsicGlkIjoiMTAxIiwicmVxdWVzdCI6eyJ1cmkiOiIvZXUvZW4vbG9naW4_dHhfZmVsb2dpbl9sb2dpbiU1QmFjdGlvbiU1RD1sb2dpbiZhbXA7dHhfZmVsb2dpbl9sb2dpbiU1QmNvbnRyb2xsZXIlNUQ9TG9naW4mYW1wO2NIYXNoPTdiMjRjMjk1OTFmMWE5MzA2ZTljZjljZGQ1ZjQzMGExIn19fQ.Mow3RcO9F8uotRc9R4kunRcsXObrDCyYCvf4pFERjaQ"><input type="hidden" name="__trustedProperties" value="{&quot;user&quot;:1,&quot;pass&quot;:1,&quot;logintype&quot;:1,&quot;referer&quot;:1,&quot;redirect_url&quot;:1,&quot;submit&quot;:1}d7491b138f243611d4bb585cd876451df7cd0c19" >
+</div>
+
+                                <fieldset class="form-group">
+                                    <input autocomplete="username" class="form-control form-control-success" placeholder="Username/E-Mail" type="text" name="user" required="required" />
+                                </fieldset>
+                                <fieldset class="form-group">
+                                    <input required="required" autocomplete="current-password" id="login-password" class="form-control form-control-danger" placeholder="Password" type="password" name="pass" value="" />
+                                </fieldset>
+                                <div style="display: none;">
+                                    <input type="hidden" name="logintype" value="login" />
+                                    <input type="hidden" name="referer" value="/eu/en/products/2696-cl4-e-2-12" />
+                                    <input type="hidden" name="redirect_url" value="/eu/en/products/2696-cl4-e-2-12" />
+                                </div>
+                                <div class="form-group">
+                                    <input class="btn btn-primary btn-sm" type="submit" value="Login" name="submit" />
+                                </div>
+                                <a title="Forgot your password?" href="/eu/en/login?tx_felogin_login%5Baction%5D=recovery&amp;tx_felogin_login%5Bcontroller%5D=PasswordRecovery&amp;cHash=b4e60212c8f14bf21400489efa2efd1a">
+                                    <small>Forgot your password?</small>
+                                </a>
+                                <hr>
+                                <a class="btn btn-tertiary btn-sm" href="/eu/en/register">Register
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+
+                
+                <li class="nav-item item-basket">
+                <span class="nav-link" ng-click="utilNav.toggleASideBasket($event)" title="Shopping cart"
+                      data-placement="bottom" tooltip>
+                    <span class="text hidden-lg-up">Shopping cart</span>
+                    <i class="icon-cart-shopping"></i>
+                    <span class="badge">
+                        <span class="count" ng-cloak ng-bind="utilNav.BasketService.basket.amount"></span>
+                    </span>
+                </span>
+                </li>
+            
+
+            
+            
+
+            
+            
+                    <li class="nav-item item-languages pull-right dropdown"
+                        ng-class="{'open': utilNav.isLangDropdownOpen()}">
+                        <span class="nav-link" ng-click="utilNav.toggleLangDropdown($event)"
+                              title="Chose site language" data-placement="bottom" tooltip>
+                            <span class="text hidden-lg-up">Languages</span>
+                            <span class="current-language">EN</span>
+                        </span>
+                        <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeLangDropdown()"
+                             outside-if-not="item-languages">
+                            <span class="link-back hidden-lg-up"
+                                  ng-click="utilNav.toggleLangDropdown($event)">Back</span>
+                            
+                                
+                                    <a class="language-menu-link dropdown-item is-current hidden-lg-up"
+                                       data-language-identifier="0"
+                                       href="https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12">English</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="1"
+                                       href="https://www.nanotec.com/us/en/products/2696-cl4-e-2-12">Engl. US</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="3"
+                                       href="https://www.nanotec.com/eu/de/produkte/2696-cl4-e-2-12">Deutsch</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="4"
+                                       href="https://www.nanotec-cn.cn/zh/products/2696-cl4-e-2-12">中文</a>
+                                
+                                    <a class="language-menu-link dropdown-item"
+                                       data-language-identifier="5"
+                                       href="https://www.nanotec.com/eu/it/prodotti/2696-cl4-e-2-12">Italiano</a>
+                                
+                            
+                        </div>
+                    </li>
+                
+
+            
+            <li class="nav-item item-unit-selector dropdown" ng-class="{'open': utilNav.isUnitSelectorOpen()}">
+                <span class="nav-link" ng-click="utilNav.toggleUnitSelectorDropdown($event)" data-placement="bottom"
+                      title="Select unit systems" tooltip>
+                    <span class="text hidden-lg-up">Select unit systems</span>
+                    <i class="icon-tachometer"></i>
+                </span>
+                <div class="dropdown-menu dropdown-menu-right" click-outside="utilNav.closeUnitSelector()"
+                     outside-if-not="item-unit-selector">
+                    <span class="link-back hidden-lg-up" ng-click="utilNav.toggleUnitSelectorDropdown($event)">Back</span>
+                    <div class="dropdown-unit-selector text-md-center" unit-selector>
+                        <div class="header h4">Select unit system</div>
+                        <div class="controls">
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'metric'}"
+                                    ng-click="unitSelector.setPreset('metric')">Metric
+                            </button>
+                            <button class="btn btn-tertiary-outline"
+                                    ng-class="{active: unitSelector.selectedPreset === 'imperial'}"
+                                    ng-click="unitSelector.setPreset('imperial')">Imperial (US)
+                            </button>
+                        </div>
+                        <a href="/eu/en/products/unit-settings">
+                            <u>...or select units individually</u>
+                        </a>
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        
+        <form class="tec-form-search-submit pull-md-right" action="/eu/en/search"
+              method="get">
+            <input class="form-control" type="text" name="q" placeholder="Enter your search term">
+            <button type="submit" title="Search">
+                <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Icons/Frontend/search.svg?1795001905"
+                     width="20"
+                     height="20"
+                     alt="Search"
+                />
+            </button>
+        </form>
+    </nav>
+
+                        </div>
+                        <div class="col-md-12 col-navigation">
+                            
+    
+        <nav id="navigation" class="navbar navbar-light" role="navigation"><ul class="nav navbar-nav"><li class="nav-item item-home"><a href="/eu/en" class="nav-link is-home"><span class="text-display">Home</span><i class="icon-home"></i></a></li><li main-navigation-item class="nav-item has-menu active" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/products" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Products</a><div class="menu menu-lg level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/products" class="link-current">Products</a><div class="menus"><ul class="menu-box-info"><li class="nav-item"><a href="/eu/en/products/product-finder" class="nav-link hidden-lg-up">Product Filter</a><div class="menu-bi-content"><a href="/eu/en/products/product-finder" class="btn btn-tertiary">Product Filter</a></div></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="nav-link"><span class="text-display">Smart Brushless DC Servos</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2262-smart-servos-motors-with-controller-drive" class="link-current">Smart Brushless DC Servos</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2878-bldc-motors-with-controller-integrated-brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2877-stepper-motor-with-controller-drive" class="nav-link"><span class="text-display">Stepper motors with controller/drive</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Integrated linear actuators</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/158-motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers / drives</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/158-motor-controllers-drives" class="link-current">Motor controllers / drives</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10739-bldc-motor-controller-1" class="nav-link"><span class="text-display">Controllers/Drives for IO applications</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10741-programmable-stepper-motor-controller-and-bldc" class="nav-link"><span class="text-display">High-performance controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10985-plug-in-motor-controllers-drives" class="nav-link"><span class="text-display">Plug-in motor controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10776-multi-axis-motor-controller-drive" class="nav-link"><span class="text-display">4-axis controllers/drives</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link"><span class="text-display">Software</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="link-current">Software</a><ul></ul></li></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="nav-link"><span class="text-display">Brushless DC motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/156-brushless-dc-motors-from-manufacturer" class="link-current">Brushless DC motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2265-brushless-dc-motors-rpm-w-watt" class="nav-link"><span class="text-display">BLDC motors with internal rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2267-brushless-dc-external-rotor-motors-bldc" class="nav-link"><span class="text-display">Flat BLDC motors with external rotor</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/653-brushless-dc-motor-ip65-bldc-with-encoder" class="nav-link"><span class="text-display">IP65 BLDC motors with encoder</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/12404-dka-frameless-bldc-motors" class="nav-link"><span class="text-display">Frameless BLDC motors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="nav-link"><span class="text-display">Stepper motors</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/153-stepper-motors-from-manufacturer" class="link-current">Stepper motors</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2263-nema-stepper-motors-14-110-mm-flange" class="nav-link"><span class="text-display">Hybrid stepper motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2254-flat-motors" class="nav-link"><span class="text-display">Flat motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1269-hollow-shaft-motors" class="nav-link"><span class="text-display">Hollow-shaft motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/154-stepper-motors-ip65" class="nav-link"><span class="text-display">Stepper motors IP65</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/11077-bldc-linear-actuators" class="nav-link"><span class="text-display">BLDC Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/11077-bldc-linear-actuators" class="link-current">BLDC Linear Actuators</a><ul></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="nav-link"><span class="text-display">Stepper Motor Linear Actuators</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/157-linear-actuator-stepper-motor" class="link-current">Stepper Motor Linear Actuators</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10496-linear-actuators-with-controller" class="nav-link"><span class="text-display">Linear actuators with controllers/drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14354-lbsa56-nema23-ball-screw" class="nav-link"><span class="text-display">Linear actuators with ball screw</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/14360-nema-6-23-linear-actuators" class="nav-link"><span class="text-display">Linear actuators NEMA 6 - NEMA 23</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="nav-link"><span class="text-display">Lead screws and nuts</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2273-screws-and-nuts-for-linear-actuators" class="link-current">Lead screws and nuts</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/290-leads-screws-for-stepper-motor" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2322-nuts-for-stepper-linear-actuators" class="nav-link"><span class="text-display">Threaded nuts</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/2655-wheel-drives" class="nav-link"><span class="text-display">Wheel drives for AGV</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/2655-wheel-drives" class="link-current">Wheel drives for AGV</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/8469-wd-modular-wheel-drives" class="nav-link"><span class="text-display">Modular wheel drives</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/11091-wd42-compact-wheel-drives-with-motor" class="nav-link"><span class="text-display">Compact wheel drives with motor</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="nav-link"><span class="text-display">Gearboxes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/160-brushless-dc-motor-gearbox-stepper-motor-gearbox" class="link-current">Gearboxes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/10989-hollow-rotary-tables" class="nav-link"><span class="text-display">Hollow rotary tables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2704-planetary-gearboxes" class="nav-link"><span class="text-display">Planetary gearboxes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2276-worm-gearbox-for-stepper-motor-bldc-motor" class="nav-link"><span class="text-display">Worm gearboxes</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/159-stepper-motor-encoder-brushless-dc-motor" class="link-current">Encoders</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/2277-optical-encoders" class="nav-link"><span class="text-display">Optical encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2278-reflective-encoders" class="nav-link"><span class="text-display">Reflective encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2279-magnetic-encoders" class="nav-link"><span class="text-display">Magnetic encoders</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/9956-multiturn-absolute-encoder" class="nav-link"><span class="text-display">Multiturn encoders</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="nav-link"><span class="text-display">Brakes</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/161-stepper-motor-brake-brushless-dc-motor-brake" class="link-current">Brakes</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/1936-spring-loaded-brake" class="nav-link"><span class="text-display">BWA – Spring-loaded brakes</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10078-brake-with-output-shaft" class="nav-link"><span class="text-display">BCD – Spring-loaded brakes</span></a></li></ul></li></ul></ul><ul class="menu-box-info"><ul><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/162-accessories" class="nav-link"><span class="text-display">Accessories</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/162-accessories" class="link-current">Accessories</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/283-connection-cables" class="nav-link"><span class="text-display">Connection cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/10754-brake-chopper" class="nav-link"><span class="text-display">Brake chopper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/288-damper" class="nav-link"><span class="text-display">Damper</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1494-spacer-sleeves-spacer-sleeves" class="nav-link"><span class="text-display">Spacer sleeves</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1264-supplements-for-gsge-gearboxes" class="nav-link"><span class="text-display">Double shaft/Cover</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1272-electronics" class="nav-link"><span class="text-display">Electronics</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1047-capacitors" class="nav-link"><span class="text-display">Capacitors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1048-converters" class="nav-link"><span class="text-display">Converters</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2719-keys" class="nav-link"><span class="text-display">Keys</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1049-switching-power-supplies" class="nav-link"><span class="text-display">Switching power supplies</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/2389-nanolube-50g-bearing-grease" class="nav-link"><span class="text-display">Lubricants</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/1445-connectors" class="nav-link"><span class="text-display">Connectors</span></a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" ng-class="{'is-open': mainNavigationItemCtrl.isOpen()}"><a href="/eu/en/products/individual-solutions" class="nav-link"><span class="text-display">Individual solutions</span></a><div class="menu level-2"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/products/individual-solutions" class="link-current">Individual solutions</a><ul><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/cable-assembly" class="nav-link"><span class="text-display">Cables</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/firmware" class="nav-link"><span class="text-display">Firmware</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/lead-screw-modification" class="nav-link"><span class="text-display">Lead screws</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/custom-motors" class="nav-link"><span class="text-display">Motors</span></a></li><li main-navigation-item class="nav-item"><a href="/eu/en/products/individual-solutions/motor-shafts" class="nav-link"><span class="text-display">Motor shafts</span></a></li></ul></li></ul></ul></div></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/knowledge-base" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Know-How</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)" role="button">Back</span><a href="/eu/en/knowledge-base" class="link-current">Knowledge Base</a><ul><li class="nav-item"><a href="/eu/en/knowledge-base/category/fieldbus-systems-interfaces" class="nav-link"><span class="text-display">Fieldbus systems & interfaces</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motors-with-controllers" class="nav-link"><span class="text-display">Motors with controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/brushless-dc-motors" class="nav-link"><span class="text-display">Brushless DC motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motors" class="nav-link"><span class="text-display">Stepper motors</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/motor-controllers-drives" class="nav-link"><span class="text-display">Motor controllers/drives</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/linear-actuators" class="nav-link"><span class="text-display">Linear actuators</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/stepper-motor-encoder-brushless-dc-motor" class="nav-link"><span class="text-display">Encoders</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/applications" class="nav-link"><span class="text-display">Applications</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-plug-drive-studio" class="nav-link"><span class="text-display">Programming with Plug & Drive Studio</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanolib" class="nav-link"><span class="text-display">Programming with NanoLib</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming-with-nanoj" class="nav-link"><span class="text-display">Programming with NanoJ</span></a></li><li class="nav-item"><a href="/eu/en/knowledge-base/category/programming" class="nav-link"><span class="text-display">Programming with other software</span></a></li></ul></div></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/downloads" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Downloads</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/downloads" class="link-current">Downloads</a><ul><li class="nav-item"><a href="/eu/en/downloads/catalogs-flyers" class="nav-link">Catalogs & Flyers</a></li><li class="nav-item"><a href="/eu/en/products/2256-software-for-brushless-dc-servo-motor-controller" class="nav-link">Software</a></li><li class="nav-item"><a href="/eu/en/downloads/manualsdatasheets" class="nav-link">Manuals/Datasheets</a></li><li class="nav-item"><a href="/eu/en/downloads/drivers" class="nav-link">Drivers</a></li><li class="nav-item"><a href="/eu/en/downloads/archive" class="nav-link">Archive</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/news-trade-shows" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">News & Events</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/news-trade-shows" class="link-current">News & Events</a><ul><li class="nav-item"><a href="/eu/en/news-trade-shows/press" class="nav-link">Press</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trainings" class="nav-link">Trainings</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/trade-shows" class="nav-link">Trade Shows</a></li><li class="nav-item"><a href="/eu/en/news-trade-shows/news" class="nav-link">News</a></li></ul></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/company" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Company</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/company" class="link-current">Company</a><ul><li class="nav-item"><a href="/eu/en/company/about-nanotec" class="nav-link">About Nanotec</a></li><li class="nav-item"><a href="/eu/en/company/facts-and-figures" class="nav-link">Facts and figures</a></li><li class="nav-item"><a href="/eu/en/company/locations" class="nav-link">Locations</a></li><li class="nav-item"><a href="/eu/en/company/integrated-management" class="nav-link">Integrated management</a></li><li class="nav-item"><a href="/eu/en/company/research-funding" class="nav-link">Research funding</a></li></ul></li><li main-navigation-item class="nav-item"><a href="/eu/en/job-opportunities" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Career</a></li><li main-navigation-item class="nav-item has-menu" ng-class="{'is-open': mainNavigationItemCtrl.isOpen(), 'is-mobile': mainNavigationItemCtrl.isMobile()}"><a href="/eu/en/contact-us" class="nav-link" ng-click="mainNavigationItemCtrl.toggleMenuItem($event); mainNavigationItemCtrl.toggleTabletMenuItem($event);">Contact us</a><div class="menu level-1"><span class="link-back" ng-click="mainNavigationItemCtrl.toggleMenuItem($event)">Back</span><a href="/eu/en/contact-us" class="link-current">Contact us</a><ul><li class="nav-item"><a href="/eu/en/contact-us/contact-form" class="nav-link">Contact Form</a></li><li class="nav-item"><a href="/eu/en/contact-us/sales-contact" class="nav-link">Local Sales Contact</a></li><li class="nav-item"><a href="/eu/en/contact-us/customer-service" class="nav-link">Customer Service</a></li><li class="nav-item"><a href="/eu/en/contact-us/support" class="nav-link">After Sales Support</a></li><li class="nav-item"><a href="/eu/en/contact-us/returns/rma" class="nav-link">Returns/RMA</a></li><li class="nav-item"><a href="/eu/en/contact-us/how-to-find-us" class="nav-link">How to Find Us</a></li></ul></li></ul></nav>
+    
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+
+            
+        
+    <div class="container">
+        <nav class="breadcrumb" role="navigation">
+            <ol>
+                <li>You are here:</li>
+                
+                    <li>
+                        <a href="/eu/en/">Nanotec</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products">Products</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/158-motor-controllers-drives">Motor controllers/drives for BLDC and stepper motors</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/10741-programmable-stepper-motor-controller-and-bldc">High-performance controllers/drives</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/2693-cl4-e-controller-board-w-1kw-performance-58v-rms-a">CL4-E</a>
+                    </li>
+                
+                    <li>
+                        <a href="/eu/en/products/2696-cl4-e-2-12">CL4-E-2-12</a>
+                    </li>
+                
+            </ol>
+        </nav>
+    </div>
+
+        <main class="main-content" role="main">
+            <div class="container">
+                <!-- TYPO3SEARCH_begin -->
+                
+
+
+    
+    
+    
+        
+            
+                    <div id="c812" name="c812">
+                        
+                            
+
+    
+
+
+
+                        
+                        
+
+    
+    
+
+
+    
+    
+    
+            
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        
+    
+
+    
+    <script type="application/ld+json">
+        [{"@context":"https://schema.org","@type":"Product","@id":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12#product","name":"CL4-E-2-12 - Motor controllers/drives","description":"Under „Downloads“ you will find the technical manual that corresponds with the stock firmware. Please refer to the new technical manual (FIR-v2139) when using Plug & Drive Studio…","url":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12","inLanguage":"en-GB","brand":{"@type":"Brand","name":"Nanotec"},"manufacturer":{"@type":"Organization","@id":"https://www.nanotec.com/#organization"},"category":"High-performance controllers/drives","sku":"CL4-E-2-12","mpn":"CL4-E-2-12","isVariantOf":{"@type":"ProductGroup","@id":"https://www.nanotec.com/eu/en/products/2693-cl4-e-controller-board-w-1kw-performance-58v-rms-a#group"},"additionalProperty":[{"@type":"PropertyValue","name":"Operating Voltage","value":["12","58"],"unitCode":"VDC"},{"@type":"PropertyValue","name":"Rated Current (RMS)","value":"6","unitCode":"A"},{"@type":"PropertyValue","name":"Peak Current (RMS)","value":"18","unitCode":"A"},{"@type":"PropertyValue","name":"Matching Motors","value":{"649":"Brushless DC motors","648":"Stepper Motors"}},{"@type":"PropertyValue","name":"Fieldbus","value":{"1200":"CANopen","1201":"Modbus RTU"}}],"image":{"@type":"ImageObject","url":"https://www.nanotec.com/fileadmin/files/Fotos/Motorsteuerungen/CL4_E.jpg?1656012576"},"offers":{"@type":"Offer","seller":{"@id":"https://www.nanotec.com/#organization"},"url":"https://www.nanotec.com/eu/en/products/2696-cl4-e-2-12","price":"143.00","priceCurrency":"EUR"}}]
+    </script>
+
+    
+
+    <section class="section section-product-detail" id="article-top">
+        
+    <h1 class="headline" role="heading">
+        
+            <span class="headline-row">
+                <span class="headline-cell text-nowrap">CL4-E-2-12 &ndash;&nbsp;</span>
+                <span class="headline-cell">
+                    Motor controllers/drives
+                    
+                </span>
+            </span>
+            
+    </h1>
+
+        <div class="row flex-row">
+            <div class="col-md-5">
+                <div class="product-image">
+                    <figure class="figure">
+                        
+                        <img src="/fileadmin/_processed_/0/3/csm_CL4_E_cfae0b3c3e.webp" srcset="/fileadmin/_processed_/0/3/csm_CL4_E_ed883ce1f0.webp 443w, /fileadmin/_processed_/0/3/csm_CL4_E_d31bc811ed.webp 360w, /fileadmin/_processed_/0/3/csm_CL4_E_df58d3c162.webp 546w, /fileadmin/_processed_/0/3/csm_CL4_E_cfae0b3c3e.webp 886w" sizes="(min-width: 1280px) 443px, (min-width: 1024px) 443px, (min-width: 768px) 360px, 546px" width="886" height="590" alt="" title="CL4-E">
+
+                    </figure>
+                    <a href="#dimensions" class="product-image-badge-cadenas"
+                       title="Scroll to dimensions" scroll-to-anchor>
+                        <img src="/_assets/a216ea4bcb7ed270c619139734398c4f/Icons/Frontend/3d_cube.svg?1795001905"
+                             width="40"
+                             height="40"
+                             alt="Cadenas"
+                        />
+                    </a>
+                </div>
+                
+            </div>
+            <div class="col-md-7">
+                
+                        
+    <div class="buybox" price-data="" data-node-uid="2696" data-update-line-item="1" ng-cloak="">
+        <div class="loading-overlay bg-white" ng-if="!pna.data">
+            <div class="loading"></div>
+        </div>
+        
+            <div class="row m-t-2" ng-if="pna.data.priceAvailable">
+                <div class="col-md-3">
+                    <h4>Single Price</h4>
+                </div>
+                <div class="col-md-9">
+                    <strong ng-if="pna.data.minimumOrderQuantity == 1" ng-bind-html="pna.price"></strong>
+                    <span ng-if="pna.data.minimumOrderQuantity > 1">
+                        
+                        Minimum order quantity {{ pna.data.minimumOrderQuantity }} pcs.
+                    </span>
+                </div>
+            </div>
+            
+                    <div class="row m-t-2" ng-if="pna.data.priceAvailable">
+                        <div class="col-md-3">
+                            <h4>Volume Discount</h4>
+                        </div>
+                        <div class="col-lg-3 col-md-6 col-sm-9"  ng-if="pna.data.discounts.length > 0">
+                            
+    <dl class="tec-list-grid">
+        <dt>1 - {{ pna.data.discounts[0].amount - 1 }}</dt>
+        <dd class="text-right">
+            <b ng-if="pna.data.minimumOrderQuantity < pna.data.discounts[0].amount" ng-bind-html="pna.price"></b>
+            <b ng-if="pna.data.minimumOrderQuantity >= pna.data.discounts[0].amount">&mdash;</b>
+        </dd>
+        <dt ng-repeat-start="discount in pna.data.discounts">
+            <span ng-bind-html="discount.amount + ' - ' + (pna.data.discounts[$index + 1].amount - 1)" ng-if="!$last"></span>
+            <span ng-if="$last">{{ discount.amount }}+</span>
+        </dt>
+        <dd class="text-right" ng-repeat-end="">
+            <b ng-bind-html="pna.data.currencySymbolLeft + discount.priceFormatted + pna.data.currencySymbolRight"></b>
+        </dd>
+    </dl>
+
+                        </div>
+                    </div>
+                
+        
+
+        <div class="row m-t-2">
+            <div class="col-lg-3">
+                <h4>Availability</h4>
+            </div>
+            <div class="col-lg-9">
+                
+    <ul class="list-unstyled m-b-0">
+        
+                
+                        
+                                <li ng-if="pna.data.availability.now <= 0 && !pna.data.availability.moreAvailableSoon">
+                                    
+					Please <a href="#" data-toggle="modal" data-target="#availabilityAndDiscountRequestModal">contact us</a> for volume pricing and current availability.
+                                </li>
+                                <li ng-if="pna.data.availability.now > 0" ng-bind-html="pna.data.availability.nowText"></li>
+                                <li ng-if="pna.data.availability.moreAvailableSoon || pna.data.availability.now > 0" ng-bind-html="pna.data.availability.futureStockText"></li>
+                                <li ng-if="pna.data.availability.now > 0">Subject to prior sale.</li>
+                            
+                    
+            
+    </ul>
+    
+    <div class="modal fade" id="availabilityAndDiscountRequestModal" tabindex="-1" role="dialog" ajax-form
+         data-reset-action-param="tx_nanotec_ajaxform[controller]=Shop&tx_nanotec_ajaxform[action]=availabilityAndDiscountRequest&tx_nanotec_ajaxform[articleUid]=2696"
+         data-replace-id="availability-and-discount-request-container">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content" id="availability-and-discount-request-container">
+                
+    <script type="text/javascript">
+        //@formatter:off
+        window.staticCountries = [{"uid":1,"title":"Andorra","isoCode2":"AD","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":2,"title":"United Arab Emirates","isoCode2":"AE","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":3,"title":"Afghanistan","isoCode2":"AF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":4,"title":"Antigua and Barbuda","isoCode2":"AG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":5,"title":"Anguilla","isoCode2":"AI","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":6,"title":"Albania","isoCode2":"AL","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":7,"title":"Armenia","isoCode2":"AM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":9,"title":"Angola","isoCode2":"AO","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":10,"title":"Antarctica","isoCode2":"AQ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":11,"title":"Argentina","isoCode2":"AR","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":12,"title":"American Samoa","isoCode2":"AS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":13,"title":"Austria","isoCode2":"AT","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":14,"title":"Australia","isoCode2":"AU","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":15,"title":"Aruba","isoCode2":"AW","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":16,"title":"Azerbaijan","isoCode2":"AZ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":17,"title":"Bosnia and Herzegovina","isoCode2":"BA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":18,"title":"Barbados","isoCode2":"BB","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":19,"title":"Bangladesh","isoCode2":"BD","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":20,"title":"Belgium","isoCode2":"BE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":21,"title":"Burkina Faso","isoCode2":"BF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":22,"title":"Bulgaria","isoCode2":"BG","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":23,"title":"Bahrain","isoCode2":"BH","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":24,"title":"Burundi","isoCode2":"BI","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":25,"title":"Benin","isoCode2":"BJ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":26,"title":"Bermuda","isoCode2":"BM","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":27,"title":"Brunei","isoCode2":"BN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":28,"title":"Bolivia","isoCode2":"BO","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":29,"title":"Brazil","isoCode2":"BR","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":30,"title":"The Bahamas","isoCode2":"BS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":31,"title":"Bhutan","isoCode2":"BT","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":32,"title":"Bouvet Island","isoCode2":"BV","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":33,"title":"Botswana","isoCode2":"BW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":34,"title":"Belarus","isoCode2":"BY","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":35,"title":"Belize","isoCode2":"BZ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":36,"title":"Canada","isoCode2":"CA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":37,"title":"Cocos (Keeling) Islands","isoCode2":"CC","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":38,"title":"Congo","isoCode2":"CD","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":39,"title":"Central African Republic","isoCode2":"CF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":40,"title":"Congo-Brazzaville","isoCode2":"CG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":41,"title":"Switzerland","isoCode2":"CH","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":42,"title":"C\u00f4te d\u2019Ivoire","isoCode2":"CI","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":43,"title":"Cook Islands","isoCode2":"CK","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":44,"title":"Chile","isoCode2":"CL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":45,"title":"Cameroon","isoCode2":"CM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":46,"title":"China","isoCode2":"CN","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":47,"title":"Colombia","isoCode2":"CO","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":48,"title":"Costa Rica","isoCode2":"CR","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":49,"title":"Cuba","isoCode2":"CU","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":50,"title":"Cape Verde","isoCode2":"CV","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":51,"title":"Christmas Island","isoCode2":"CX","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":52,"title":"Cyprus","isoCode2":"CY","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":53,"title":"Czech Republic","isoCode2":"CZ","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":54,"title":"Germany","isoCode2":"DE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":55,"title":"Djibouti","isoCode2":"DJ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":56,"title":"Denmark","isoCode2":"DK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":57,"title":"Dominica","isoCode2":"DM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":58,"title":"Dominican Republic","isoCode2":"DO","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":59,"title":"Algeria","isoCode2":"DZ","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":60,"title":"Ecuador","isoCode2":"EC","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":61,"title":"Estonia","isoCode2":"EE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":62,"title":"Egypt","isoCode2":"EG","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":63,"title":"Western Sahara","isoCode2":"EH","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":64,"title":"Eritrea","isoCode2":"ER","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":65,"title":"Spain","isoCode2":"ES","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":66,"title":"Ethiopia","isoCode2":"ET","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":67,"title":"Finland","isoCode2":"FI","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":68,"title":"Fiji","isoCode2":"FJ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":69,"title":"Falkland Islands","isoCode2":"FK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":70,"title":"Micronesia","isoCode2":"FM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":71,"title":"Faroes","isoCode2":"FO","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":72,"title":"France","isoCode2":"FR","deliveryType":1,"isNoFallbackLocationRequired":true},{"uid":73,"title":"Gabon","isoCode2":"GA","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":74,"title":"United Kingdom (w\/o Northern Ireland)","isoCode2":"GB","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":75,"title":"Grenada","isoCode2":"GD","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":76,"title":"Georgia","isoCode2":"GE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":77,"title":"French Guiana","isoCode2":"GF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":78,"title":"Ghana","isoCode2":"GH","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":79,"title":"Gibraltar","isoCode2":"GI","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":80,"title":"Greenland","isoCode2":"GL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":81,"title":"Gambia","isoCode2":"GM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":82,"title":"Guinea","isoCode2":"GN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":83,"title":"Guadeloupe","isoCode2":"GP","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":84,"title":"Equatorial Guinea","isoCode2":"GQ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":85,"title":"Greece","isoCode2":"GR","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":86,"title":"South Georgia and the South Sandwich Islands","isoCode2":"GS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":87,"title":"Guatemala","isoCode2":"GT","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":88,"title":"Guam","isoCode2":"GU","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":89,"title":"Guinea-Bissau","isoCode2":"GW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":90,"title":"Guyana","isoCode2":"GY","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":91,"title":"Hong Kong SAR of China","isoCode2":"HK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":92,"title":"Honduras","isoCode2":"HN","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":93,"title":"Croatia","isoCode2":"HR","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":94,"title":"Haiti","isoCode2":"HT","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":95,"title":"Hungary","isoCode2":"HU","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":96,"title":"Indonesia","isoCode2":"ID","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":97,"title":"Ireland","isoCode2":"IE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":98,"title":"Israel","isoCode2":"IL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":99,"title":"India","isoCode2":"IN","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":100,"title":"British Indian Ocean Territory","isoCode2":"IO","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":101,"title":"Iraq","isoCode2":"IQ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":102,"title":"Iran","isoCode2":"IR","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":103,"title":"Iceland","isoCode2":"IS","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":104,"title":"Italy","isoCode2":"IT","deliveryType":1,"isNoFallbackLocationRequired":true},{"uid":105,"title":"Jamaica","isoCode2":"JM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":106,"title":"Jordan","isoCode2":"JO","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":107,"title":"Japan","isoCode2":"JP","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":108,"title":"Kenya","isoCode2":"KE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":109,"title":"Kyrgyzstan","isoCode2":"KG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":110,"title":"Cambodia","isoCode2":"KH","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":111,"title":"Kiribati","isoCode2":"KI","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":112,"title":"Comoros","isoCode2":"KM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":113,"title":"Saint Kitts and Nevis","isoCode2":"KN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":114,"title":"North Korea","isoCode2":"KP","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":115,"title":"South Korea","isoCode2":"KR","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":116,"title":"Kuwait","isoCode2":"KW","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":117,"title":"Cayman Islands","isoCode2":"KY","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":118,"title":"Kazakhstan","isoCode2":"KZ","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":119,"title":"Laos","isoCode2":"LA","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":120,"title":"Lebanon","isoCode2":"LB","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":121,"title":"Saint Lucia","isoCode2":"LC","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":122,"title":"Liechtenstein","isoCode2":"LI","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":123,"title":"Sri Lanka","isoCode2":"LK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":124,"title":"Liberia","isoCode2":"LR","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":125,"title":"Lesotho","isoCode2":"LS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":126,"title":"Lithuania","isoCode2":"LT","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":127,"title":"Luxembourg","isoCode2":"LU","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":128,"title":"Latvia","isoCode2":"LV","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":129,"title":"Libya","isoCode2":"LY","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":130,"title":"Morocco","isoCode2":"MA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":131,"title":"Monaco","isoCode2":"MC","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":132,"title":"Moldova","isoCode2":"MD","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":133,"title":"Madagascar","isoCode2":"MG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":134,"title":"Marshall Islands","isoCode2":"MH","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":135,"title":"North Macedonia","isoCode2":"MK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":136,"title":"Mali","isoCode2":"ML","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":137,"title":"Myanmar","isoCode2":"MM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":138,"title":"Mongolia","isoCode2":"MN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":139,"title":"Macao SAR of China","isoCode2":"MO","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":140,"title":"Northern Marianas","isoCode2":"MP","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":141,"title":"Martinique","isoCode2":"MQ","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":142,"title":"Mauritania","isoCode2":"MR","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":143,"title":"Montserrat","isoCode2":"MS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":144,"title":"Malta","isoCode2":"MT","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":145,"title":"Mauritius","isoCode2":"MU","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":146,"title":"Maldives","isoCode2":"MV","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":147,"title":"Malawi","isoCode2":"MW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":148,"title":"Mexico","isoCode2":"MX","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":149,"title":"Malaysia","isoCode2":"MY","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":150,"title":"Mozambique","isoCode2":"MZ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":151,"title":"Namibia","isoCode2":"NA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":152,"title":"New Caledonia","isoCode2":"NC","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":153,"title":"Niger","isoCode2":"NE","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":154,"title":"Norfolk Island","isoCode2":"NF","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":155,"title":"Nigeria","isoCode2":"NG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":156,"title":"Nicaragua","isoCode2":"NI","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":157,"title":"Netherlands","isoCode2":"NL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":158,"title":"Norway","isoCode2":"NO","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":159,"title":"Nepal","isoCode2":"NP","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":160,"title":"Nauru","isoCode2":"NR","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":161,"title":"Niue","isoCode2":"NU","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":162,"title":"New Zealand","isoCode2":"NZ","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":163,"title":"Oman","isoCode2":"OM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":164,"title":"Panama","isoCode2":"PA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":165,"title":"Peru","isoCode2":"PE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":166,"title":"French Polynesia","isoCode2":"PF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":167,"title":"Papua New Guinea","isoCode2":"PG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":168,"title":"Philippines","isoCode2":"PH","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":169,"title":"Pakistan","isoCode2":"PK","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":170,"title":"Poland","isoCode2":"PL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":171,"title":"Saint Pierre and Miquelon","isoCode2":"PM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":172,"title":"Pitcairn Islands","isoCode2":"PN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":173,"title":"Puerto Rico","isoCode2":"PR","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":174,"title":"Portugal","isoCode2":"PT","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":175,"title":"Palau","isoCode2":"PW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":176,"title":"Paraguay","isoCode2":"PY","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":177,"title":"Qatar","isoCode2":"QA","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":178,"title":"Reunion","isoCode2":"RE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":179,"title":"Romania","isoCode2":"RO","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":180,"title":"Russia","isoCode2":"RU","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":181,"title":"Rwanda","isoCode2":"RW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":182,"title":"Saudi Arabia","isoCode2":"SA","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":183,"title":"Solomon Islands","isoCode2":"SB","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":184,"title":"Seychelles","isoCode2":"SC","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":185,"title":"Sudan","isoCode2":"SD","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":186,"title":"Sweden","isoCode2":"SE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":187,"title":"Singapore","isoCode2":"SG","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":188,"title":"Saint Helena, Ascension and Tristan da Cunha","isoCode2":"SH","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":189,"title":"Slovenia","isoCode2":"SI","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":190,"title":"Svalbard","isoCode2":"SJ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":191,"title":"Slovakia","isoCode2":"SK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":192,"title":"Sierra Leone","isoCode2":"SL","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":193,"title":"San Marino","isoCode2":"SM","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":194,"title":"Senegal","isoCode2":"SN","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":195,"title":"Somalia","isoCode2":"SO","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":196,"title":"Suriname","isoCode2":"SR","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":197,"title":"S\u00e3o Tom\u00e9 e Pr\u00edncipe","isoCode2":"ST","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":198,"title":"El Salvador","isoCode2":"SV","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":199,"title":"Syria","isoCode2":"SY","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":200,"title":"Eswatini","isoCode2":"SZ","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":201,"title":"Turks and Caicos Islands","isoCode2":"TC","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":202,"title":"Chad","isoCode2":"TD","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":203,"title":"French Southern Territories","isoCode2":"TF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":204,"title":"Togo","isoCode2":"TG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":205,"title":"Thailand","isoCode2":"TH","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":206,"title":"Tajikistan","isoCode2":"TJ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":207,"title":"Tokelau","isoCode2":"TK","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":208,"title":"Turkmenistan","isoCode2":"TM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":209,"title":"Tunisia","isoCode2":"TN","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":210,"title":"Tonga","isoCode2":"TO","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":211,"title":"Timor-Leste","isoCode2":"TL","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":212,"title":"Turkey","isoCode2":"TR","deliveryType":3,"isNoFallbackLocationRequired":true},{"uid":213,"title":"Trinidad and Tobago","isoCode2":"TT","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":214,"title":"Tuvalu","isoCode2":"TV","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":215,"title":"Taiwan","isoCode2":"TW","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":216,"title":"Tanzania","isoCode2":"TZ","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":217,"title":"Ukraine","isoCode2":"UA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":218,"title":"Uganda","isoCode2":"UG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":219,"title":"United States Minor Outlying Islands","isoCode2":"UM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":220,"title":"United States","isoCode2":"US","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":221,"title":"Uruguay","isoCode2":"UY","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":222,"title":"Uzbekistan","isoCode2":"UZ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":223,"title":"Vatican City","isoCode2":"VA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":224,"title":"Saint Vincent and the Grenadines","isoCode2":"VC","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":225,"title":"Venezuela","isoCode2":"VE","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":226,"title":"British Virgin Islands","isoCode2":"VG","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":227,"title":"US Virgin Islands","isoCode2":"VI","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":228,"title":"Vietnam","isoCode2":"VN","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":229,"title":"Vanuatu","isoCode2":"VU","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":230,"title":"Wallis and Futuna","isoCode2":"WF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":231,"title":"Samoa","isoCode2":"WS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":232,"title":"Yemen","isoCode2":"YE","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":233,"title":"Mayotte","isoCode2":"YT","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":235,"title":"South Africa","isoCode2":"ZA","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":236,"title":"Zambia","isoCode2":"ZM","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":237,"title":"Zimbabwe","isoCode2":"ZW","deliveryType":2,"isNoFallbackLocationRequired":false},{"uid":238,"title":"Palestine","isoCode2":"PS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":240,"title":"\u00c5land","isoCode2":"AX","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":241,"title":"Heard Island and McDonald Islands","isoCode2":"HM","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":242,"title":"Montenegro","isoCode2":"ME","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":243,"title":"Serbia","isoCode2":"RS","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":244,"title":"Jersey","isoCode2":"JE","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":245,"title":"Guernsey","isoCode2":"GG","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":246,"title":"Isle of Man","isoCode2":"IM","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":247,"title":"Saint Martin","isoCode2":"MF","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":248,"title":"Saint Barth\u00e9lemy","isoCode2":"BL","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":249,"title":"Bonaire, Sint Eustatius and Saba","isoCode2":"BQ","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":250,"title":"Cura\u00e7ao","isoCode2":"CW","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":251,"title":"Sint Maarten","isoCode2":"SX","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":252,"title":"South Sudan","isoCode2":"SS","deliveryType":3,"isNoFallbackLocationRequired":false},{"uid":253,"title":"Kosovo","isoCode2":"XK","deliveryType":1,"isNoFallbackLocationRequired":false},{"uid":254,"title":"Northern Ireland","isoCode2":"XI","deliveryType":1,"isNoFallbackLocationRequired":false}]
+        window.selectedCountryIso2 = ''
+        //@formatter:on
+    </script>
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                aria-hidden="true">&times;</span></button>
+        <h3 class="modal-title">Availability and volume discount for CL4-E-2-12</h3>
+    </div>
+    <div class="modal-body">
+        
+        
+        
+        <form id="availability-and-discount-request-form" class="availability-and-discount-request-form" action="/eu/en/products?tx_nanotec_ajaxform%5Baction%5D=availabilityAndDiscountRequestFinish&amp;tx_nanotec_ajaxform%5Bcontroller%5D=Shop&amp;cHash=c86fe876e8d2c7a68b55771d8063c26d" method="post" name="availabilityAndDiscountRequest">
+<div>
+<input type="hidden" name="tx_nanotec_ajaxform[__referrer][@extension]" value="Nanotec" >
+<input type="hidden" name="tx_nanotec_ajaxform[__referrer][@controller]" value="Shop" >
+<input type="hidden" name="tx_nanotec_ajaxform[__referrer][@action]" value="show" >
+<input type="hidden" name="tx_nanotec_ajaxform[__referrer][arguments]" value="YTozOntzOjY6ImFjdGlvbiI7czo4OiJkaXNwYXRjaCI7czoxMDoiY29udHJvbGxlciI7czo0OiJTaG9wIjtzOjQ6Im5vZGUiO3M6NDoiMjY5NiI7fQ==961df3cbd4f9f69d88840736ba368d2c7abceaa2" >
+<input type="hidden" name="tx_nanotec_ajaxform[__referrer][@request]" value="{&quot;@extension&quot;:&quot;Nanotec&quot;,&quot;@controller&quot;:&quot;Shop&quot;,&quot;@action&quot;:&quot;show&quot;}bd01ca5f56a2df4ac462bd155ced47fbcf302417" >
+<input type="hidden" name="tx_nanotec_ajaxform[__trustedProperties]" value="{&quot;availabilityAndDiscountRequest&quot;:{&quot;senderName&quot;:1,&quot;senderEmail&quot;:1,&quot;country&quot;:1,&quot;zip&quot;:1,&quot;isCheckAvailability&quot;:1,&quot;availabilityQuantity&quot;:1,&quot;isCheckDiscount&quot;:1,&quot;discountQuantity&quot;:1,&quot;message&quot;:1,&quot;articleUid&quot;:1}}93ad49a3312372dfce92d04459fe958ea2108e08" >
+</div>
+
+            
+    
+    
+        
+    
+    
+    
+        <div class="form-group">
+            <label for="availabilityAndDiscountRequest.senderName"
+                   class="form-control-label required">
+                Name<sup>*</sup>
+            </label>
+
+            <input class="form-control" id="availabilityAndDiscountRequest.senderName" type="text" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][senderName]" />
+
+            
+        </div>
+    
+
+
+            
+    
+    
+        
+    
+    
+    
+        <div class="form-group">
+            <label for="availabilityAndDiscountRequest.senderEmail"
+                   class="form-control-label required">
+                Email<sup>*</sup>
+            </label>
+
+            <input class="form-control" id="availabilityAndDiscountRequest.senderEmail" type="text" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][senderEmail]" />
+
+            
+        </div>
+    
+
+
+            <div class="row">
+                <div class="col-md-6 col-sm-12">
+                    
+                        <div class="form-group">
+                            <label for="anaCountrySelect"
+                                   class="form-control-label required">
+                                Country<sup>*</sup>
+                            </label>
+
+                            <div class="tec-select">
+                                <select ng-model="andFormCtrl.selectedCountry" ng-options="country.title for country in andFormCtrl.countryOptions | orderBy: &#039;title&#039; track by country.isoCode2" class="form-control" id="anaCountrySelect" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][country]">
+                                    <option selected="selected" value="">Please select</option>
+                                </select>
+                            </div>
+
+                            
+                        </div>
+                    
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    
+    
+    
+        
+    
+    
+    
+        <div class="form-group">
+            <label for="availabilityAndDiscountRequest.zip"
+                   class="form-control-label required">
+                ZIP<sup>*</sup>
+            </label>
+
+            <input class="form-control" id="availabilityAndDiscountRequest.zip" type="text" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][zip]" value="" />
+
+            
+        </div>
+    
+
+
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-7 col-sm-12">
+                    <label
+                            for="isCheckAvailability"
+                            class="custom-control custom-checkbox label- col-form-label">
+                        <input type="hidden" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][isCheckAvailability]" value="" /><input ng-model="andFormCtrl.isCheckAvailability" class="custom-control-input check-isCheckAvailability col-form-label" id="isCheckAvailability" type="checkbox" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][isCheckAvailability]" value="1" />
+                        <span class="custom-control-indicator"></span>
+                        <span class="custom-control-description">Check availability for</span>
+                    </label>
+                    
+                        
+                    
+                </div>
+                <div class="col-md-2 col-sm-4">
+                    
+                        <input ng-model="andFormCtrl.availabilityQuantity" class="form-control" id="availabilityAndDiscountRequest.availabilityQuantity" type="number" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][availabilityQuantity]" value="0" />
+
+                        
+                    
+                </div>
+                <div class="col-md-3 col-sm-8 col-form-label">
+                    <label for="availabilityAndDiscountRequest.availabilityQuantity"
+                           class="form-control-label">
+                        pieces.
+                    </label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-7 col-sm-12">
+                    <label
+                            for="isCheckDiscount"
+                            class="custom-control custom-checkbox label- col-form-label">
+                        <input type="hidden" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][isCheckDiscount]" value="" /><input ng-model="andFormCtrl.isCheckDiscount" class="custom-control-input check-isCheckDiscount col-form-label" id="isCheckDiscount" type="checkbox" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][isCheckDiscount]" value="1" />
+                        <span class="custom-control-indicator"></span>
+                        <span class="custom-control-description">Request volume discount for</span>
+                    </label>
+                    
+                        
+                    
+                </div>
+                <div class="col-md-2 col-sm-4">
+                    
+                        <input ng-model="andFormCtrl.discountQuantity" class="form-control" id="availabilityAndDiscountRequest.discountQuantity" type="number" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][discountQuantity]" value="0" />
+
+                        
+                    
+                </div>
+                <div class="col-md-3 col-sm-8 col-form-label">
+                    <label for="availabilityAndDiscountRequest.discountQuantity"
+                           class="form-control-label">
+                        pieces.
+                    </label>
+                </div>
+            </div>
+
+            
+    
+    
+    
+    
+        <div class="form-group">
+            <label for="availabilityAndDiscountRequest.message"
+                   class="form-control-label">
+                Your message
+            </label>
+
+            <textarea class="form-control" placeholder="Please send me information on availability and/or quantity discounts." id="availabilityAndDiscountRequest.message" rows="6" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][message]"></textarea>
+
+            
+        </div>
+    
+
+
+            <input type="hidden" name="tx_nanotec_ajaxform[availabilityAndDiscountRequest][articleUid]" value="2696" />
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            Cancel
+        </button>
+        <button type="button" class="btn btn-tertiary"
+                ng-click="ajaxForm.send('availability-and-discount-request-form', 'availability-and-discount-request-container')">
+            Send
+        </button>
+        <div class="modal-loading" ng-class="{'is-loading': ajaxForm.loading}">
+            <span class="loading"></span>
+            Please wait.
+        </div>
+    </div>
+
+            </div>
+        </div>
+    </div>
+
+
+            </div>
+        </div>
+
+        <div class="actions m-t-2">
+            
+                    <div class="row">
+                        <div class="col-lg-9 offset-lg-3">
+                            
+                                
+    <div class="action-cart" basket data-item-id="2696">
+        <button class="btn btn-lg btn-tertiary"
+                ng-click="basket.addLineItemAndShowModal(basket.newLineItem)" ng-disabled="basket.newLineItem.newAmount < pna.data.minimumOrderQuantity">
+            
+            <span ng-if="pna.data.priceAvailable">Add to cart</span>
+            <span ng-if="!pna.data.priceAvailable">Request quote</span>
+        </button>
+        <label class="amount">
+            <input type="number" min="1" name="amount" ng-model="basket.newLineItem.newAmount" />
+        </label>
+    </div>
+    
+    <div class="modal fade" id="toBasketModal2696" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span class="icon-close" aria-hidden="true"></span>
+                    </button>
+                    <h3 class="modal-title">Add to cart</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="media">
+                        <a class="media-left" href="#">
+                            
+                                <img class="media-object" alt="CL4-E-2-12" src="/fileadmin/_processed_/0/3/csm_CL4_E_43f8444c49.jpg" width="64" height="64" title="CL4-E" />
+                            
+                        </a>
+                        <div class="media-body">
+                            <h4 class="media-heading">CL4-E-2-12 was added to your cart.</h4>
+                            <span class="price price-md" ng-if="pna.data.priceAvailable" ng-bind-html="pna.data.currencySymbolLeft + pna.data.priceFormatted + pna.data.currencySymbolRight"></span>
+                        </div>
+                    </div>
+                    
+                        <hr>
+                        <h4>Accessories</h4>
+                        
+    <div class="table-responsive">
+        <table>
+            
+                <tr price-data data-node-uid="2701">
+                    <td>
+                        <a href="/eu/en/products/2701-zk-xhp-5-500-s-can-rs485-in-out-05m" class="link no-bold">
+                                ZK-XHP-5-500-S
+                            </a>
+                    </td>
+                    <td>CAN/RS485 in/out 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2701">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10108">
+                    <td>
+                        <a href="/eu/en/products/10108-zk-mcm-12-500-s-jxh-encoder-cable-nme2-3-05m" class="link no-bold">
+                                ZK-MCM-12-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable NME2/3 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10108">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10110">
+                    <td>
+                        <a href="/eu/en/products/10110-zk-tm4-10-500-s-jxh-encoder-cable-nto3-05m" class="link no-bold">
+                                ZK-TM4-10-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable NTO3 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10110">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10104">
+                    <td>
+                        <a href="/eu/en/products/10104-zk-jzh-8-500-s-jxh-encoder-cable-wedl-05m" class="link no-bold">
+                                ZK-JZH-8-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable WEDL 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10104">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2702">
+                    <td>
+                        <a href="/eu/en/products/2702-zk-xhp-8-500-s-enc-hall-cable-or-in-out-05m" class="link no-bold">
+                                ZK-XHP-8-500-S
+                            </a>
+                    </td>
+                    <td>Enc.-/Hall cable or in/out, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2702">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10167">
+                    <td>
+                        <a href="/eu/en/products/10167-zk-ld-cl4" class="link no-bold">
+                                ZK-LD-CL4
+                            </a>
+                    </td>
+                    <td>Converter cable encoder</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10167">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="1141">
+                    <td>
+                        <a href="/eu/en/products/1141-z-k4700-50-capacitor" class="link no-bold">
+                                Z-K4700/50
+                            </a>
+                    </td>
+                    <td>Capacitor</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="1141">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="1631">
+                    <td>
+                        <a href="/eu/en/products/1631-zk-microusb-micro-usb-cable-15m" class="link no-bold">
+                                ZK-MICROUSB
+                            </a>
+                    </td>
+                    <td>Micro USB cable 1.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="1631">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2699">
+                    <td>
+                        <a href="/eu/en/products/2699-zk-vhr-4-500-motor-cable-05m" class="link no-bold">
+                                ZK-VHR-4-500
+                            </a>
+                    </td>
+                    <td>Motor cable, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2699">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2700">
+                    <td>
+                        <a href="/eu/en/products/2700-zk-vhr-3-500-power-cable-05m" class="link no-bold">
+                                ZK-VHR-3-500
+                            </a>
+                    </td>
+                    <td>Power cable, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2700">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+            
+        </table>
+    </div>
+
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Close
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <a class="btn btn-tertiary" href="/eu/en/your-shopping-basket">
+                        <span ng-if="pna.data.priceAvailable">Checkout/Review/Share</span>
+                        <span ng-if="!pna.data.priceAvailable">Request Quote/Review/Share</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+                            
+
+                            <div class="action-grid">
+                                
+                                
+                                    
+    
+            <button class="btn btn-secondary btn-lg btn-offer" data-toggle="modal" data-target="#requestOfferInfoModal">
+                Request quote
+            </button>
+            
+    
+            <div class="modal fade" id="requestOfferInfoModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span class="icon-close" aria-hidden="true"></span>
+                            </button>
+                            <h3 class="modal-title">Request quote</h3>
+                        </div>
+                        <div class="modal-body">
+                            
+                                
+
+
+    
+    
+    
+        
+            
+                    <div id="c3122" name="c3122">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Dear Customer,</p>
+<p>If you would like to request a quotation, please log in or register. In the shopping cart you will find the "Request a quote" button. You will find the <a href="/fileadmin/files/Medien/Sonstige/Company/Tutorial_Offer.pdf?1656012620" target="_blank">instructions</a> here.</p>
+<p>For larger quantities, please contact our sales department: <a href="/cdn-cgi/l/email-protection#96f9e4f2f3e4d6f8f7f8f9e2f3f5b8f2f3" class="ga-track-contact"><span class="__cf_email__" data-cfemail="93fce1f7f6e1d3fdf2fdfce7f6f0bdf7f6">[email&#160;protected]</span></a></p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                            
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                                Close
+                                <i class="icon-close-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+    
+
+        
+
+                                
+                            </div>
+                        </div>
+                    </div>
+                
+        </div>
+    </div>
+
+                    
+
+            </div>
+        </div>
+
+        
+            <div class="p-t-3"><p>Under „Downloads“ you will find the technical manual that corresponds with the stock firmware. Please refer to the new technical manual (FIR-v2139) when using <a href="/eu/en/products/2533-plug-drive-studio-2" target="_top">Plug &amp; Drive Studio 2</a>.<br> &nbsp;</p></div>
+        
+
+        
+    
+
+    </section>
+
+    
+    <section class="section section-navigation">
+        <!-- For navigation fixed, write the class "is-fixed" -->
+        <div class="navigation-anchor-wrapper" sticky-section-navigation>
+            <nav id="nav-anchor-wrapper" class="navigation-anchor">
+                <ul class="nav navbar-nav">
+                    <li class="nav-item item-product">
+                        
+                            <img src="/fileadmin/_processed_/0/3/csm_CL4_E_e8c7663134.jpg" width="100" height="80" alt="" title="CL4-E" />
+                        
+                        <a href="#article-top">CL4-E-2-12</a>
+                    </li>
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="#technical-specifications"
+                               title="">Technical Data</a>
+                        </li>
+                    
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="#dimensions" title="">Dimensions</a>
+                        </li>
+                    
+                    
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="#infos-downloads" title="">Downloads</a>
+                        </li>
+                    
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="#faqs" title="">Knowledge Base</a>
+                        </li>
+                    
+                    
+                        <li class="nav-item">
+                            <a class="nav-link" href="#accessories" title="">Accessories</a>
+                        </li>
+                    
+                    
+                    
+                    
+                </ul>
+            </nav>
+        </div>
+    </section>
+
+    
+    
+        
+
+    
+
+    <section id="technical-specifications" class="section">
+        <header class="s-header">
+            <h2 class="headline">Technical Data</h2>
+        </header>
+        
+            <div class="row">
+                <div class="col-sm-12">
+                    
+                    
+                </div>
+            </div>
+        
+        
+            <div class="list-groups" list-actions>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-group is-table is-overflow">
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Interface</strong>
+                                            <span class="cell text-sm-right">
+                                                USB&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Operating Voltage</strong>
+                                            <span class="cell text-sm-right">
+                                                12&nbsp;VDC&nbsp;&ndash; 58&nbsp;VDC
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Rated Current (RMS)</strong>
+                                            <span class="cell text-sm-right">
+                                                6&nbsp;A
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Number of Digital Inputs</strong>
+                                            <span class="cell text-sm-right">
+                                                4&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Number of Analog Inputs</strong>
+                                            <span class="cell text-sm-right">
+                                                1&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Number of Digital Outputs</strong>
+                                            <span class="cell text-sm-right">
+                                                2&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Encoder Input</strong>
+                                            <span class="cell text-sm-right">
+                                                <span ng-bind-html="'TRUE' | attributeValue"></span>&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Brake Output</strong>
+                                            <span class="cell text-sm-right">
+                                                <span ng-bind-html="'FALSE' | attributeValue"></span>&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Temperature Range</strong>
+                                            <span class="cell text-sm-right">
+                                                -10&nbsp;°C&nbsp;&ndash; 40&nbsp;°C
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group is-table is-overflow">
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Matching Motors</strong>
+                                            <span class="cell text-sm-right">
+                                                Brushless DC motors, Stepper Motors&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Logic Voltage</strong>
+                                            <span class="cell text-sm-right">
+                                                12 - 30 VDC (optional)&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Peak Current (RMS)</strong>
+                                            <span class="cell text-sm-right">
+                                                18&nbsp;A
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Type of Digital Inputs</strong>
+                                            <span class="cell text-sm-right">
+                                                24 V&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Type of Analog Input</strong>
+                                            <span class="cell text-sm-right">
+                                                0 - 10 V&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Type of Digital Output</strong>
+                                            <span class="cell text-sm-right">
+                                                high side switch (max. 30 V/100 mA)&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Encoder Signal Type</strong>
+                                            <span class="cell text-sm-right">
+                                                incremental&nbsp;
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                                
+                                    <li class="list-group-item">
+                                        <div class="list-group-item-row">
+                                            <strong class="cell">Weight</strong>
+                                            <span class="cell text-sm-right">
+                                                <span ng-bind-html="'0.032' | unitGroup:6:'':'':2:''"></span>
+                                            </span>
+                                        </div>
+                                    </li>
+                                
+                            
+                                
+                            
+                        </ul>
+                    </div>
+                </div>
+                
+            </div>
+        
+    </section>
+
+    
+    
+        <hr class="line-sep is-border"/>
+        
+    
+    <section id="dimensions" class="section position-relative" model-keyword="CL4-E-2-12" cadenas-viewer>
+        <header class="s-header">
+            <h2 class="headline has-border">Dimensions</h2>
+        </header>
+
+        <div ng-show="viewer.loading" class="loading-overlay">
+            <div class="loading-lines">
+                <span class="lines"></span>
+            </div>
+        </div>
+
+        <div ng-hide="viewer.loading" ng-cloak>
+            <figure ng-show="viewer.showStaticDimensionsImage">
+                
+                <img src="/fileadmin/_processed_/8/5/csm_CL4-E_06e8c16886.gif" alt="CL4-E-...-12-..." title="CL4-E-...-12-..."/>
+            </figure>
+            
+    
+    <div id="cnsWebViewerContainer" class="tec-web-viewer-container">
+        <div id="cnsWebViewer" class="tec-web-viewer"></div>
+    </div>
+    
+    <div class="cadenasDownload" ng-hide="viewer.showStaticDimensionsImage">
+
+        <div class="tec-web-viewer-download">
+            <div class="col">
+                <button class="btn"
+                        ng-click="viewer.show3dViewer()"
+                        ng-disabled="viewer.loading"
+                        ng-class="{'btn-tertiary': viewer.showingType === '3D', 'btn-secondary': viewer.showingType !== '3D'}">
+                    3D
+                </button>
+                <button class="btn"
+                        ng-click="viewer.show2dViewer()"
+                        ng-disabled="viewer.loading"
+                        ng-class="{'btn-tertiary': viewer.showingType === '2D', 'btn-secondary': viewer.showingType !== '2D'}">
+                    2D
+                </button>
+            </div>
+            <div class="col">
+                <div class="tec-web-viewer-download-select" ng-class="{'is-loading': viewer.downloadInProgress}">
+                    <div class="tec-select">
+                        <select ng-model="viewer.selectedDownloadFormat" name="downloadFormat"
+                                ng-disabled="viewer.downloadInProgress"
+                                ng-options="format.visibleName group by format.cad for format in viewer.downloadFormats"
+                                class="form-control">
+                            <option value="">Please select a download format</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-tertiary" ng-click="viewer.download()"
+                            title="CAD Download as"
+                            ng-disabled="viewer.selectedDownloadFormat.length === 0 || viewer.downloadInProgress">
+                        <i class="icon-cloud-download"></i>
+                    </button>
+                </div>
+
+                <div class="tec-web-viewer-download-loading" ng-class="{'is-loading': viewer.downloadInProgress}">
+                    <span class="text-display">Creation in progress ...</span>
+                    <i class="icon-cloud-download"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </section>
+
+    
+    
+    
+        
+    
+    <section id="infos-downloads" class="section is-gray is-fullscreen">
+        <div class="s-body">
+            <header class="s-header">
+                <h2 class="headline">Downloads</h2>
+            </header>
+            <div class="container">
+                <div class="row row-downloads">
+                    
+                        
+    <div class="col-xs-12 col-md-6 col-lg-4">
+        <h5>CAD</h5>
+        <ul class="links download-links">
+            
+            
+                
+                        
+                        <li>
+                            
+    
+            <i class="icon-icon-stp"></i>
+        
+
+                            <a href="/fileadmin/files/Datenblaetter/Motorsteuerungen/CL4-E/CL4-E-2.stp?1656012559" title="CL4-E-2"
+                               ga-track-download
+                               data-ga-action="CAD"
+                               data-ga-label="CL4-E-2.stp"
+                            >
+                                CL4-E-2 (stp, 9 MB)
+                            </a>
+                        </li>
+                    
+            
+        </ul>
+    </div>
+
+                    
+                        
+    <div class="col-xs-12 col-md-6 col-lg-4">
+        <h5>Manuals</h5>
+        <ul class="links download-links">
+            
+            
+                
+                        
+                        <li>
+                            
+    
+            <i class="icon-file-pdf"></i>
+        
+
+                            <a href="/fileadmin/files/Application_Notes/modbus-registers/ModbusRegisters_ApplicationNote_V1.0.3.pdf?1739773341" title="Modbus Registers Application Note"
+                               ga-track-download
+                               data-ga-action="Hardware Manual"
+                               data-ga-label="ModbusRegisters_ApplicationNote_V1.0.3.pdf"
+                            >
+                                Modbus Registers Application Note (pdf, 237 KB)
+                            </a>
+                        </li>
+                    
+            
+                
+                        
+                        <li>
+                            
+    
+            <i class="icon-file-pdf"></i>
+        
+
+                            <a href="/fileadmin/files/Handbuecher/Motorsteuerungen/CL4-E/fir-v2213/CL4E_CANopen_USB_ModbusRTU_Technical-Manual_V1.5.0.pdf?1662975908" title="CL4-E CANopen/USB/Modbus RTU Technical Manual"
+                               ga-track-download
+                               data-ga-action="Hardware Manual"
+                               data-ga-label="CL4E_CANopen_USB_ModbusRTU_Technical-Manual_V1.5.0.pdf"
+                            >
+                                CL4-E CANopen/USB/Modbus RTU Technical Manual (pdf, 15 MB)
+                            </a>
+                        </li>
+                    
+            
+                
+                        
+                        <li>
+                            
+    
+            <i class="icon-file-pdf"></i>
+        
+
+                            <a href="/fileadmin/files/Handbuecher/Kurzanleitungen/EN/cl4e-canopen-usb-modbus-rtu-quick-guide.pdf?1656012586" title="C4-E CANopen/USB/Modbus RTU Quick Guide "
+                               ga-track-download
+                               data-ga-action="Hardware Manual"
+                               data-ga-label="cl4e-canopen-usb-modbus-rtu-quick-guide.pdf"
+                            >
+                                C4-E CANopen/USB/Modbus RTU Quick Guide  (pdf, 520 KB)
+                            </a>
+                        </li>
+                    
+            
+                
+                        
+                        <li>
+                            
+    
+            <i class="icon-file-pdf"></i>
+        
+
+                            <a href="/fileadmin/files/Handbuecher/Plug_Drive/Plug_Drive_Interface/Functional-Description_Plug_Drive-Interface_V1.0.1.pdf?1753788278" title="Functional Description Plug &amp; Drive-Interface"
+                               ga-track-download
+                               data-ga-action="Hardware Manual"
+                               data-ga-label="Functional-Description_Plug_Drive-Interface_V1.0.1.pdf"
+                            >
+                                Functional Description Plug &amp; Drive-Interface (pdf, 411 KB)
+                            </a>
+                        </li>
+                    
+            
+                
+                        
+                        <li>
+                            <i class="icon-file-text"></i>
+                            <a href="/eu/en/products/manual/m/cl4e-canopen-usb-modbusrtu-en/index.html">
+                                CL4-E CANopen/USB/Modbus RTU Online Manual
+                            </a>
+                        </li>
+                    
+            
+        </ul>
+    </div>
+
+                    
+                    
+                    
+                        <div class="col-xs-12 col-md-6 col-lg-4">
+                            <h5>Software</h5>
+                            <ul class="links">
+                                
+                                    <li>
+                                        <a href="/eu/en/products/9985-nanolib" class="link no-underline">
+                                            
+    
+            <i class="icon-file-archive"></i>
+        
+&nbsp;NanoLib
+                                        </a>
+                                    </li>
+                                
+                                    <li>
+                                        <a href="/eu/en/products/10492-plug-drive-studio-3" class="link no-underline">
+                                            
+    
+            <i class="icon-file-archive"></i>
+        
+&nbsp;Plug &amp; Drive Studio 3
+                                        </a>
+                                    </li>
+                                
+                            </ul>
+                        </div>
+                    
+                    
+                    
+                        <div class="col-xs-12 col-md-6 col-lg-4">
+                            <h5>Conformity</h5>
+                            
+    <ul class="links download-links">
+        
+            
+                <li>
+                    
+    
+            <i class="icon-file-pdf"></i>
+        
+
+                    <a href="/fileadmin/files/Zertifikate/CE-Declaration/Motorsteuerungen/EU-DoC_CL4-E.pdf?1656012679" role="link" ga-track-download="void" data-ga-action="Certificat" data-ga-label="EU-DoC_CL4-E.pdf" title="EU-DoC CL4-E">
+                        EU-DoC CL4-E
+                    </a>
+                </li>
+            
+        
+        <li class="certificate-logos">
+            
+                
+                    <img src="/fileadmin/_processed_/1/b/csm_Logo_CE_01_8fe47424c8.jpg" alt="Logo_CE_01.jpg"/>&nbsp;
+                
+            
+                
+                    <img src="/fileadmin/_processed_/e/0/csm_RoHS_7ed7760e6b.jpg" alt="RoHS.jpg"/>&nbsp;
+                
+            
+        </li>
+    </ul>
+
+                        </div>
+                    
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    
+        
+    <section id="accessories" class="section section-product-accessories">
+        <header class="s-header">
+            <h2 class="headline">Accessories</h2>
+        </header>
+        <div class="row">
+            <div class="col-md-12 col-sm-12 col-lg-10 offset-lg-1">
+                
+    <div class="table-responsive">
+        <table>
+            
+                <tr price-data data-node-uid="2701">
+                    <td>
+                        <a href="/eu/en/products/2701-zk-xhp-5-500-s-can-rs485-in-out-05m" class="link no-bold">
+                                ZK-XHP-5-500-S
+                            </a>
+                    </td>
+                    <td>CAN/RS485 in/out 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2701">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10108">
+                    <td>
+                        <a href="/eu/en/products/10108-zk-mcm-12-500-s-jxh-encoder-cable-nme2-3-05m" class="link no-bold">
+                                ZK-MCM-12-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable NME2/3 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10108">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10110">
+                    <td>
+                        <a href="/eu/en/products/10110-zk-tm4-10-500-s-jxh-encoder-cable-nto3-05m" class="link no-bold">
+                                ZK-TM4-10-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable NTO3 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10110">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10104">
+                    <td>
+                        <a href="/eu/en/products/10104-zk-jzh-8-500-s-jxh-encoder-cable-wedl-05m" class="link no-bold">
+                                ZK-JZH-8-500-S-JXH
+                            </a>
+                    </td>
+                    <td>Encoder cable WEDL 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10104">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2702">
+                    <td>
+                        <a href="/eu/en/products/2702-zk-xhp-8-500-s-enc-hall-cable-or-in-out-05m" class="link no-bold">
+                                ZK-XHP-8-500-S
+                            </a>
+                    </td>
+                    <td>Enc.-/Hall cable or in/out, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2702">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="10167">
+                    <td>
+                        <a href="/eu/en/products/10167-zk-ld-cl4" class="link no-bold">
+                                ZK-LD-CL4
+                            </a>
+                    </td>
+                    <td>Converter cable encoder</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="10167">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="1141">
+                    <td>
+                        <a href="/eu/en/products/1141-z-k4700-50-capacitor" class="link no-bold">
+                                Z-K4700/50
+                            </a>
+                    </td>
+                    <td>Capacitor</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="1141">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="1631">
+                    <td>
+                        <a href="/eu/en/products/1631-zk-microusb-micro-usb-cable-15m" class="link no-bold">
+                                ZK-MICROUSB
+                            </a>
+                    </td>
+                    <td>Micro USB cable 1.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="1631">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2699">
+                    <td>
+                        <a href="/eu/en/products/2699-zk-vhr-4-500-motor-cable-05m" class="link no-bold">
+                                ZK-VHR-4-500
+                            </a>
+                    </td>
+                    <td>Motor cable, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2699">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+                <tr price-data data-node-uid="2700">
+                    <td>
+                        <a href="/eu/en/products/2700-zk-vhr-3-500-power-cable-05m" class="link no-bold">
+                                ZK-VHR-3-500
+                            </a>
+                    </td>
+                    <td>Power cable, 0.5m</td>
+                    
+                        <td align="right" ng-if="!pna.data">
+                            <span class="loading align-right"></span>
+                        </td>
+                        <td align="right" ng-if="pna.data">
+                            <span ng-if="pna.data.priceAvailable" ng-bind-html="pna.price"></span>
+                        </td>
+                    
+                    <td class="text-sm-center text-md-right text-nowrap">
+                        <div class="form-inline">
+                            
+                                <span basket data-item-id="2700">
+                                    <input class="form-control is-count" type="number" value="1" min="1"
+                                           ng-model="basket.newLineItem.amount"/>
+                                        <button class="btn btn-tertiary"
+                                                ng-disabled="basket.newLineItem.amount < pna.data.minimumOrderQuantity"
+                                                ng-click="basket.addLineItem(basket.newLineItem)">
+                                            <i class="icon-cart-shopping"></i>
+                                        </button>
+                                </span>
+                            
+
+                            
+                        </div>
+                    </td>
+                </tr>
+            
+            
+        </table>
+    </div>
+
+            </div>
+        </div>
+    </section>
+
+    
+    
+    
+        <hr class="line-sep is-border"/>
+        
+    
+    <section id="faqs" class="section">
+        <header class="s-header">
+            <h2 class="headline">Knowledge Base</h2>
+        </header>
+        <div class="row">
+            <div class="panel-list col-md-12 col-sm-12 col-lg-10 offset-lg-1">
+                <div id="accordion-" class="tec-accordion" role="tablist"
+                     aria-multiselectable="true">
+                    
+                    
+
+                        <div class="card">
+                            <div class="card-header" role="tab" id="heading-kb-10671">
+                                <h5 class="card-headline">
+                                    <a data-toggle="collapse" href="#card-kb-10671"
+                                       aria-expanded="true"
+                                       aria-controls="card-kb-10671"
+                                       class=""
+                                    >
+                                        NanoJ V2 Library
+                                        <span class="card-indicator"></span>
+                                    </a>
+                                </h5>
+                            </div>
+                            <div id="card-kb-10671"
+                                 class="card-collapse-block collapse in"
+                                 role="tabpanel" aria-labelledby="heading-kb-10671">
+                                <div class="card-block">
+                                    <article class="article is-list">
+                                        <div class="row">
+                                            <div class="col-md-4 col-sm-6 col-xs-12">
+                                                <a href="/eu/en/knowledge-base-article/nanoj-v2-library">
+                                                    
+                                                    <figure class="figure bg-white">
+                                                        <img src="/fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2bd1631605.webp" srcset="/fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_c40e2d3baa.webp 271w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2bd1631605.webp 542w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_c792488173.webp 215w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_39590e1f83.webp 430w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_88cea6f6d0.webp 418w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2ce0f8c777.webp 536w" sizes="(min-width: 1280px) 271px, (min-width: 1024px) 215px, (min-width: 768px) 418px, 93vw" width="542" height="173" alt="">
+
+                                                    </figure>
+                                                </a>
+                                            </div>
+                                            <div class="col-md-8 col-sm-6 col-xs-12">
+                                                <div class="excerpt">
+                                                    <div class="excerpt-small" style="display: inline;">
+                                                        
+    
+    
+            The examples and the Application Note show you how the NanoJ Library simplifies the use of the CiA 402 Power State Machine. The functions of the library are contained in a single header file, which you can easily add to your NanoJ project in Plug &amp; Drive Studio.
+        
+
+                                                        <nav class="article-categories">
+                                                            Topic:
+                                                            
+                                                                <a href="/eu/en/knowledge-base/category/programming-with-nanoj">
+                                                                    <u>Programming with NanoJ</u>
+                                                                </a>
+                                                            
+                                                        </nav>
+                                                    </div>
+                                                </div>
+                                                <a class="link" href="/eu/en/knowledge-base-article/nanoj-v2-library">
+                                                    More details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    
+
+                        <div class="card">
+                            <div class="card-header" role="tab" id="heading-kb-10689">
+                                <h5 class="card-headline">
+                                    <a data-toggle="collapse" href="#card-kb-10689"
+                                       aria-expanded="false"
+                                       aria-controls="card-kb-10689"
+                                       class="collapsed"
+                                    >
+                                        NanoJ V2 Example Programs
+                                        <span class="card-indicator"></span>
+                                    </a>
+                                </h5>
+                            </div>
+                            <div id="card-kb-10689"
+                                 class="card-collapse-block collapse"
+                                 role="tabpanel" aria-labelledby="heading-kb-10689">
+                                <div class="card-block">
+                                    <article class="article is-list">
+                                        <div class="row">
+                                            <div class="col-md-4 col-sm-6 col-xs-12">
+                                                <a href="/eu/en/knowledge-base-article/nanoj-v2-example-programs">
+                                                    
+                                                    <figure class="figure bg-white">
+                                                        <img src="/fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2bd1631605.webp" srcset="/fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_c40e2d3baa.webp 271w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2bd1631605.webp 542w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_c792488173.webp 215w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_39590e1f83.webp 430w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_88cea6f6d0.webp 418w, /fileadmin/_processed_/5/a/csm_Logo_NanoJ_V2_2ce0f8c777.webp 536w" sizes="(min-width: 1280px) 271px, (min-width: 1024px) 215px, (min-width: 768px) 418px, 93vw" width="542" height="173" alt="">
+
+                                                    </figure>
+                                                </a>
+                                            </div>
+                                            <div class="col-md-8 col-sm-6 col-xs-12">
+                                                <div class="excerpt">
+                                                    <div class="excerpt-small" style="display: inline;">
+                                                        
+    
+    
+            Our example programs show you how to use NanoJ code templates for the individual configuration of Nanotec motor controllers.
+        
+
+                                                        <nav class="article-categories">
+                                                            Topic:
+                                                            
+                                                                <a href="/eu/en/knowledge-base/category/programming-with-nanoj">
+                                                                    <u>Programming with NanoJ</u>
+                                                                </a>
+                                                            
+                                                        </nav>
+                                                    </div>
+                                                </div>
+                                                <a class="link" href="/eu/en/knowledge-base-article/nanoj-v2-example-programs">
+                                                    More details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    
+
+                        <div class="card">
+                            <div class="card-header" role="tab" id="heading-kb-10546">
+                                <h5 class="card-headline">
+                                    <a data-toggle="collapse" href="#card-kb-10546"
+                                       aria-expanded="false"
+                                       aria-controls="card-kb-10546"
+                                       class="collapsed"
+                                    >
+                                        CANopen
+                                        <span class="card-indicator"></span>
+                                    </a>
+                                </h5>
+                            </div>
+                            <div id="card-kb-10546"
+                                 class="card-collapse-block collapse"
+                                 role="tabpanel" aria-labelledby="heading-kb-10546">
+                                <div class="card-block">
+                                    <article class="article is-list">
+                                        <div class="row">
+                                            <div class="col-md-4 col-sm-6 col-xs-12">
+                                                <a href="/eu/en/knowledge-base-article/canopen-motors-controllers">
+                                                    
+                                                    <figure class="figure bg-white">
+                                                        <img src="/fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_8b99baefe3.webp" srcset="/fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_3bdf367340.webp 271w, /fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_8b99baefe3.webp 542w, /fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_8d921b9f45.webp 215w, /fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_209e8ff425.webp 430w, /fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_0aa6b19463.webp 418w, /fileadmin/_processed_/6/6/csm_canopen-stepper-bldc-motor-controller_c827a673fc.webp 536w" sizes="(min-width: 1280px) 271px, (min-width: 1024px) 215px, (min-width: 768px) 418px, 93vw" width="542" height="166" alt="CANopen Stepper Motor, BLDC Motor, Controller" title="CANopen Stepper Motor, BLDC Motor, Controller">
+
+                                                    </figure>
+                                                </a>
+                                            </div>
+                                            <div class="col-md-8 col-sm-6 col-xs-12">
+                                                <div class="excerpt">
+                                                    <div class="excerpt-small" style="display: inline;">
+                                                        
+    
+    
+            To reduce the length of the wiring harnesses in vehicles and save on weight, the Bosch company developed the so-called CAN bus for networking control units in 1987. CAN is the abbreviation for "Controller Area Network" and is often used in combination with "bus" (Binary Unit System) to describe a system for the transmission of data between different devices on a shared transmission path.
+        
+
+                                                        <nav class="article-categories">
+                                                            Topic:
+                                                            
+                                                                <a href="/eu/en/knowledge-base/category/fieldbus-systems-interfaces">
+                                                                    <u>Fieldbus systems &amp; interfaces</u>
+                                                                </a>
+                                                            
+                                                                <a href="/eu/en/knowledge-base/category/canopen">
+                                                                    <u>CANopen</u>
+                                                                </a>
+                                                            
+                                                        </nav>
+                                                    </div>
+                                                </div>
+                                                <a class="link" href="/eu/en/knowledge-base-article/canopen-motors-controllers">
+                                                    More details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    
+    
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                <!-- TYPO3SEARCH_end -->
+                
+            </div>
+        </main>
+    
+            
+    <footer id="footer">
+        <div class="f-container">
+            <div class="container">
+                
+                        
+    <nav class="f-social-links">
+        <ul>
+            
+                <li>
+                    <a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/nanotec-electronic">
+                        <i class="icon-linkedin"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Xing" target="_blank" href="https://www.xing.com/pages/nanotecelectronicgmbh-co-kg">
+                        <i class="icon-xing"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Youtube" target="_blank" href="https://www.youtube.com/@NanotecElectronic">
+                        <i class="icon-youtube-play"></i>
+                    </a>
+                </li>
+            
+            
+                <li>
+                    <a title="Facebook" target="_blank" href="https://www.facebook.com/nanotecde">
+                        <i class="icon-facebook"></i>
+                    </a>
+                </li>
+            
+        </ul>
+    </nav>
+
+                    
+
+                <nav class="f-navigation" role="navigation">
+                    <ul><li><a href="/eu/en" title="Home">Home</a></li><li><a href="/eu/en/service/products" title="Product overview">Product overview</a></li><li><a href="/eu/en/news-trade-shows/news" title="News">News</a></li><li><a href="/eu/en/privacy-statement" title="Privacy Statement">Privacy Statement</a></li><li><a href="/eu/en/general-terms-and-conditions" title="General Terms and Conditions">General Terms and Conditions</a></li><li><a href="/eu/en/general-terms-and-conditions-of-purchase" title="General Terms and Conditions of Purchase">General Terms and Conditions of Purchase</a></li><li><a href="/eu/en/legal-details" title="Legal Details">Legal Details</a></li></ul>
+                </nav>
+                <div class="footer-info">
+                    
+                        
+                            
+
+
+    
+    
+    
+        
+            
+                    <div id="c21" name="c21">
+                        
+    
+            
+            
+    
+
+
+
+    
+            <p>Nanotec Electronic GmbH,&nbsp; Kapellenstr. 6, 85622 Feldkirchen, Germany, Tel.&nbsp;<a href="tel:+49899006860" class="ga-track-contact">+49 89 900686-0</a>, E-mail: <a href="/cdn-cgi/l/email-protection#650c0b030a250b040b0a1100064b0100" class="ga-track-contact"><span class="__cf_email__" data-cfemail="c3aaada5ac83ada2adacb7a6a0eda7a6">[email&#160;protected]</span></a>&nbsp;</p>
+<p>Copyright © 1995-2026 by Nanotec Electronic GmbH, all rights reserved</p>
+        
+
+        
+    
+
+
+
+
+                        
+                            
+
+
+
+                        
+                    </div>
+                
+        
+        
+    
+
+
+                        
+                    
+                    
+                </div>
+            </div>
+        </div>
+        
+            
+    
+        <span basket>
+            <div class="off-canvas-right" ng-class="{'is-open': basket.isOpen()}" click-outside="basket.closeBasket()"
+                 outside-if-not="item-basket">
+                <div class="off-canvas-headline">
+                    Shopping cart
+                    <i class="icon-close" ng-click="basket.toggleBasket()"></i>
+                </div>
+                <div class="off-canvas-body off-canvas-body-basket">
+                    <div class="off-canvas-content off-canvas-basket">
+                        <p class="alert alert-warning" role="alert" ng-if="basket.BasketService.basket.amount === 0">
+                            Your cart is empty.</p>
+
+                        <div class="media" ng-repeat="lineItem in basket.BasketService.basket.lineItems">
+                            <a class="media-left" ng-href="{{ lineItem.articles[0].url }}"
+                               ng-if="lineItem.imageSrc.length > 0">
+                                <img class="media-object" ng-src="{{ lineItem.imageSrc }}" alt="{{ lineItem.title }}" width="50"
+                                     height="40">
+                            </a>
+                            <div class="media-body">
+                                <span ng-if="lineItem.configuration" class="tag tag-primary">Combination</span>
+                                <h4 class="media-heading">
+                                    <span ng-bind="lineItem.amount + ' x '"></span>
+                                    <span ng-repeat="article in lineItem.articles">
+                                        <span ng-if="!$first"> +&nbsp;</span>
+                                        <a ng-href="{{ article.url }}"><span ng-bind="article.title"></span></a>
+                                        <span ng-if="lineItem.configuration" ng-bind="' - ' + article.subtitle"></span>
+                                    </span>
+                                </h4>
+                                <span ng-if="!lineItem.configuration" ng-bind="lineItem.articles[0].subtitle"></span><br>
+                                <span ng-if="basket.isPurchasable()" ng-bind-html="lineItem.price | priceAndCurrency"></span>
+                                <a ng-click="basket.removeLineItemWithConfirmation(lineItem, 'confirmClearLineItemModal')"
+                                   class="remove"><i class="icon-close"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="off-canvas-footer off-canvas-footer-basket" ng-show="basket.BasketService.basket.amount > 0">
+                    <div class="clear-basket">
+                        <a href="#" ng-click="basket.openModal('confirmClearBasketModal')">Clear cart</a>
+                    </div>
+                    <a class="btn btn-tertiary btn-block" href="/eu/en/your-shopping-basket">
+                        <span ng-if="basket.isPurchasable()">Checkout/Review/Share</span>
+                        <span ng-if="!basket.isPurchasable()">Request Quote/Review/Share</span>
+                    </a>
+                </div>
+            </div>
+            
+    <div class="modal fade" id="confirmClearBasketModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h3 class="modal-title">Delete all articles from your cart?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Please click &quot;Clear cart&quot; to delete all articles.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearFromModal('confirmClearBasketModal')">
+                        Clear cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            
+    <div class="modal fade" id="confirmClearLineItemModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-label="Close">
+                        <i class="icon-close" aria-hidden="true"></i>
+                    </button>
+                    <h4 class="modal-title">Delete article from your cart?</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Click &quot;delete article&quot; to delete this article from your cart:</p>
+                    <div class="media">
+                        <a class="media-left" ng-href="{{ basket.lineItemOnTheBrink.articles[0].url }}"
+                           ng-if="basket.lineItemOnTheBrink.imageSrc.length > 0">
+                            <img class="media-object" ng-src="{{ basket.lineItemOnTheBrink.imageSrc }}"
+                                 alt="{{ basket.lineItemOnTheBrink.title }}"
+                                 width="50"
+                                 height="40">
+                        </a>
+                        <div class="media-body">
+                            <strong class="media-heading">{{ basket.lineItemOnTheBrink.amount }} x <span
+                                    ng-repeat="article in basket.lineItemOnTheBrink.articles"><a
+                                    ng-href="{{ article.url }}">{{ article.title }}</a></span>
+                            </strong><br>
+                            <span ng-bind-html="basket.lineItemOnTheBrink.articles[0].subtitle"></span><br>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white is-icon-right" data-dismiss="modal">
+                        Cancel
+                        <i class="icon-close-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            ng-click="basket.clearLineItemFromModal('confirmClearLineItemModal')">
+                        Clear article
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </span>
+    
+
+        
+        
+        
+        
+    
+    </footer>
+    <a href="#" class="btn-to-top" title="To top" scroll-to-top></a>
+
+        </div>
+        
+    <div domain-switcher>
+        <div class="modal" id="domain-switcher-modal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    
+                    
+                    <div class="modal-header">
+                        <button id="stay-on-language-site" type="button" class="btn btn-secondary close" data-dismiss="modal" aria-label="Close" title="Close">
+                            <i class="icon-close" ng-if="!domainSwitcherCtrl.forceMode"></i>
+                        </button>
+                        <h4 class="modal-title" ng-if="!domainSwitcherCtrl.forceMode">Please switch to another domain</h4>
+                        <h4 class="modal-title" ng-if="domainSwitcherCtrl.forceMode">Your will be redirected to {{domainSwitcherCtrl.targetDomain}}.</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div ng-if="!domainSwitcherCtrl.forceMode"><p><strong>Dear Visitor,</strong></p>
+<p>As a user from&nbsp;<strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we would like to redirect you to <strong>{{ domainSwitcherCtrl.targetDomain }}</strong>.</p></div>
+                        <div ng-if="domainSwitcherCtrl.forceMode"><p><strong>Dear Customer,&nbsp;</strong></p>
+<p>As a user from <strong>{{ domainSwitcherCtrl.sourceCountryNames.en }}</strong>, we will redirect you to&nbsp;<strong>{{domainSwitcherCtrl.targetDomain}}</strong>.<strong>&nbsp;</strong></p>
+<p></p></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-white" data-dismiss="modal"
+                                ng-if="!domainSwitcherCtrl.forceMode">No, stay on site
+                        </button>
+                        <a ng-href="{{ domainSwitcherCtrl.targetUrl }}" class="btn btn-primary">OK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/typo3conf/ext/nanotec/Resources/Public/Frontend/Scripts/main.d716963bb612bf7f4313.js?1795002047" type="text/javascript" async="async"></script>
+
+
+</body>
+</html>

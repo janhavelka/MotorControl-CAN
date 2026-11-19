@@ -1,0 +1,2796 @@
+=== PDF PAGE 1 ===
+TSM34Q/C
+Integrated Step-Servo Motor
+Hardware Manual
+Rev. 1.0
+SHANGHAI AMP&MOONS’ AUTOMATION CO.,LTD.
+
+=== PDF PAGE 2 ===
+2
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+Table of Contents
+1  Introduction........................................................................................................4
+1.1  Features..................................................................................................4
+1.2  Block Diagrams.......................................................................................5
+1.3  Safety Instructions..................................................................................8
+2  Getting Started..................................................................................................9
+2.1  Installing Software...................................................................................9
+2.2  Mounting the Hardware...........................................................................9
+2.3  Choosing a Power Supply.......................................................................10
+2.3.1  Supply Voltage ........................................................................ 10
+2.3.2 Auxiliary Supply Voltage (Keep Alive Function)........................ 10
+2.3.2.1 Keep Alive Recovery with I/O Function........................ 10
+2.3.2.2 Keep Alive Recovery with SCL.................................... 10
+2.3.3  Regeneration Clamp................................................................ 11
+2.3.4  Supply Current......................................................................... 11
+3  Installation/Connections.................................................................................... 15
+3.1  Connecting the Power Supply................................................................. 15
+3.1.1  Connect Main Power Supply ................................................... 15
+3.1.2  Connect Auxiliary Power Supply (Optional)............................. 15
+3.2  Connecting the TSM34Q/C Communications......................................... 16
+3.2.1  Connecting to a PC using RS-232........................................... 16
+3.2.2  Connecting to a Host using RS-485......................................... 16
+3.2.3  Connecting to a Host using CANopen..................................... 18
+3.2.3.1  Node ID....................................................................... 19
+3.2.3.2  Setting the Bitrate....................................................... 19
+3.2.4  Choosing the Right COM Port................................................. 19
+3.2.5  Connecting to a PC using Ethernet.......................................... 20
+3.3  Inputs and Outputs..................................................................................25
+3.3.1  Connector Pin Diagram............................................................ 25
+3.3.2  STEP & DIR Digital Inputs....................................................... 26
+3.3.3  X3/X4/X5/X6 Digital Input........................................................ 27
+3.3.4  X7/X8 Digital Input................................................................... 28
+3.3.5  AIN Input.................................................................................. 28
+3.3.6  Programmable Output Y1/Y2/Y3............................................. 29
+3.3.7  Programmable Output Y4........................................................ 30
+4  Troubleshooting.................................................................................................31
+4.1 Status (STAT) LED Error Codes.............................................................. 31
+4.2 Auxiliary Power (AUX) LED......................................................................31
+
+=== PDF PAGE 3 ===
+3
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+5  Reference Materials..........................................................................................32
+5.1  Torque-Speed Curves.............................................................................32
+5.2  Mechanical Outlines................................................................................32
+5.3  Technical Specifications..........................................................................33
+5.4  Optional Accessories..............................................................................34
+5.5  SCL Command Reference......................................................................36
+6  Contacting MOONS’..........................................................................................38
+TSM34 Models Available
+Model
+Communications
+RS-232
+RS-485
+Ethernet
+CANopen
+TSM34Q-1AG
+
+TSM34Q-1RG
+
+TSM34Q-1DG
+
+TSM34Q-3AG
+
+TSM34Q-3RG
+
+TSM34Q-3DG
+
+TSM34Q-5AG
+
+TSM34Q-5RG
+
+TSM34Q-5DG
+
+TSM34Q-6AG
+
+TSM34Q-6RG
+
+TSM34Q-6DG
+
+TSM34C-1CG
+
+
+TSM34C-3CG
+
+
+TSM34C-5CG
+
+
+TSM34C-6CG
+
+
+
+=== PDF PAGE 4 ===
+4
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+1  Introduction
+Thank you for selecting MOONS’ TSM34Q/C Integrated Motor. The TSM line of integrated step-
+servo motors combines servo technology with an integrated motor to create a product with 
+exceptional feature and broad capability. We hope our commitment to performance, quality and 
+economy will result in a successful motion control project. 
+1.1  Features
+•	
+Programmable, digital servo driver and motor in an integrated package
+•	
+Operates from a 24 to 70 volt DC power supply, auxiliary power from 12 to 48 volt DC
+•	
+Control Modes: 
+Torque Control
+-- Analog input
+-- SCL commanded
+Velocity Control
+-- Digital input Control Velocity
+-- Analog velocity
+-- SCL Commanded Velocity (Jogging) 
+Position Control
+-- Digital Signal type Step & Direction, CW & CCW pulse, A/B Quadrature
+-- Analog Position
+-- Serial Commanded Position
+Q Programming (Q Verision only)
+-- Stand alone operation
+CANopen Mode (CiA 301, CiA402 standard) 
+-- Torque mode
+-- Velocity mode 
+Modbus/RTU bus Control
+•	
+Communications:
+RS-232 , RS-485, CANopen or Ethernet
+•	
+5000 line (20,000 counts/rev) encoder feedback
+•	
+Available torque:
+TSM34□-1□G: Up to 2.7Nm Continuous (3.2Nm Boost)
+TSM34□-3□G: Up to 5.2Nm Continuous (6.1 Nm Boost)
+TSM34□-5□G: Up to 6.7Nm Continuous (7.2Nm Boost)
+TSM34□-6□G: Up to 8.1Nm Continuous (9.7 Nm Boost)
+•	
+I/O:
+8 optically isolated digital inputs, with adjustable bandwidth digital noise rejection filter, 5 
+to 24 volts
+4 optically isolated digital outputs, 30V/100 mA max.
+1 analog input for speed and position control, 0 to 5 volts
+Differential encoder outputs (A±, B±, Z±), 26C31 line driver, 20 mA sink or source max
+•	
+Technological advances:
+Full servo control, Closed loop 
+Efficient, Accurate, Fast, Smooth 
+Intelligent, Compact
+
+=== PDF PAGE 5 ===
+5
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+1.2  Block Diagrams
+Block Diagram
+TSM34   RS232 or RS485 
+MOSFET
+PWM
+Power
+Amplifier
+24 - 70 VDC
+ External
+Power Supply
+Voltage
+Temp
+Detect
+Over
+Current
+Detect
+motor
+encoder
+5 Volt DC
+Power Supply
+DSP
+Driver
+Controller
+3.3VDC
+Internal
+Logic
+Supply
++
+RS232 or RS485
+m
+m
+o
+C
+r
+e
+w
+o
+P
+n
+n
+o
+C
+-
+12 - 48 VDC
+ External
+Power Supply
++
+AUX
+n
+n
+o
+C
+-
+m
+m
+o
+C
+RS485 Version
+TX+,TX-,RX+,RX-,GND
+Port 2
+Port 1
+A+
+A -
+B+
+B -
+Z+
+Z-
+Line
+Driver
+Encoder Outputs
+I/O Connector
++5VDC (100mA max)
+GND
+AIN
+Optical
+Iso
+GND
++5V
+X1+
+X1-
+X2+
+X2-
+X3
+X4
+X5
+X6
+XCOM
+X7+
+X7-
+X8+
+X8-
+Y1
+Y2
+Y3
+YCOM
+Y4+
+Y4-
+Optical
+ISO
+RS232 Version
+TX,RX,GND
+RS485 Version
+TX+,TX-,RX+,RX-,GND
+Status
+AUX
+
+=== PDF PAGE 6 ===
+6
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+Status
+AUX
+Block Diagram
+MOSFET
+PWM
+Power
+Amplifier
+24 - 70 VDC
+ External
+Power Supply
+Voltage
+Temp
+Detect
+Over
+Current
+Detect
+motor
+encoder
+5 Volt DC
+Power Supply
+DSP
+Driver
+Controller
+3.3VDC
+Internal
+Logic
+Supply
+TSM34   CANopen
++
+CANopen
+m
+m
+o
+C
+Port 2
+r
+e
+w
+o
+P
+n
+n
+o
+C
+-
+12 - 48 VDC
+ External
+Power Supply
++
+AUX
+n
+n
+o
+C
+-
+m
+m
+o
+C
+Port 1
+CANopen
+CANH,CANL,GND
+RS232
+CANopen
+CANH,CANL,GND
+RS232
+TX,RX,GND
+Encoder Outputs
+I/O Connector
++5VDC (100mA max)
+GND
+GND
++5V
+A+
+A -
+B+
+B -
+Z+
+Z-
+Line
+Driver
+AIN
+Optical
+Iso
+X1+
+X1-
+X2+
+X2-
+X3
+X4
+X5
+X6
+XCOM
+X7+
+X7-
+X8+
+X8-
+Y1
+Y2
+Y3
+YCOM
+Y4+
+Y4-
+Optical
+ISO
+
+=== PDF PAGE 7 ===
+7
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+Status
+AUX
+A+
+A -
+B+
+B -
+Z+
+Z-
+Line
+Driver
+Encoder Outputs
+AIN
+Optical
+Iso
+X1+
+X1-
+X2+
+X2-
+X3
+X4
+X5
+X6
+XCOM
+X7+
+X7-
+X8+
+X8-
+Y1
+Y2
+Y3
+YCOM
+Y4+
+Y4-
+Optical
+ISO
+Block Diagram
+MOSFET
+PWM
+Power
+Amplifier
+24 - 70 VDC
+ External
+Power Supply
+Voltage
+Temp
+Detect
+Over
+Current
+Detect
+motor
+encoder
+5 Volt DC
+Power Supply
+DSP
+Driver
+Controller
+3.3VDC
+Internal
+Logic
+Supply
+TSM34   Ethernet
++
+Ethernet
+m
+m
+o
+C
+r
+e
+w
+o
+P
+n
+n
+o
+C
+-
+12 - 48 VDC
+ External
+Power Supply
++
+AUX
+n
+n
+o
+C
+-
+m
+m
+o
+C
+Ethernet
+RX+,RX-,TX+,TX-
+Ethernet
+RX+,RX-,TX+,TX-
+Port 2
+Port 1
+I/O Connector
++5VDC (100mA max)
+GND
+GND
++5V
+
+=== PDF PAGE 8 ===
+8
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+1.3  Safety Instructions
+Only qualified personnel should transport, assemble, install, operate, or maintain this equipment. 
+Properly qualified personnel are persons who are familiar with the transport, assembly, 
+installation, operation, and maintenance of motors, and who meet the appropriate qualifications 
+for their jobs.
+To minimize the risk of potential safety problems, all applicable local and national codes regulating 
+the installation and operation of equipment should be followed. These codes may vary from area 
+to area and it is the responsibility of the operating personnel to determine which codes should be 
+followed, and to verify that the equipment, installation, and operation are in compliance with the 
+latest revision of these codes.
+Equipment damage or serious injury to personnel can result from the failure to follow all applicable 
+codes and standards. MOONS’ does not guarantee the products described in this publication 
+are suitable for a particular application, nor do they assume any responsibility for product design, 
+installation, or operation.
+•	 Read all available documentation before assembly and operation. Incorrect handling of the 
+products referenced in this manual can result in injury and damage to persons and machinery. 
+All technical information concerning the installation requirements must be strictly adhered to.
+•	 It is vital to ensure that all system components are connected to earth ground. Electrical safety 
+is impossible without a low-resistance earth connection.
+•	 This product contains electrostatically sensitive components that can be damaged by incorrect 
+handling. Follow qualified anti-static procedures before touching the product.
+•	 During operation keep all covers and cabinet doors shut to avoid any hazards that could 
+possibly cause severe damage to the product or personal health.
+•	 During operation, the product may have components that are live or have hot surfaces.
+•	 Never plug in or unplug the Integrated Motor while the system is live. The possibility of electric 
+arcing can cause damage.
+Be alert to the potential for personal injury. Follow recommended precautions and safe operating 
+practices emphasized with alert symbols. Safety notices in this manual provide important 
+information. Read and be familiar with these instructions before attempting installation, operation, 
+or maintenance. The purpose of this section is to alert users to the possible safety hazards 
+associated with this equipment and the precautions necessary to reduce the risk of personal injury 
+and damage to equipment. Failure to observe these precautions could result in serious bodily 
+injury, damage to the equipment, or operational difficulty.
+
+=== PDF PAGE 9 ===
+9
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+2  Getting Started
+The following items are needed:
+•	 a 24 - 70 Volt DC power supply, see the section below entitled “Choosing a Power Supply” for 
+help in choosing the right one
+•	 If Keep Alive function is required, an external 12 - 48 volt DC power supply will be needed for 
+auxiliary power
+•	 a small flat blade screwdriver for tightening the connectors (included)
+•	 a PC running Microsoft Windows XP, or Windows 7, 8, or 10
+•	 a MOONS’ programming cable (included with RS-232 Models; RS-485 converters are available 
+from MOONS’)
+2.1  Installing Software
+Before utilizing the TSM34Q/C Integrated Step-Servo Motor and Step-Servo Quick Tuner 
+Software in an application, the following steps are necessary:
+•	 Install the Step-Servo Quick Tuner software from MOONS’ website
+•	 Connect the drive to the PC using the programming cable. When using RS-485, it is best to be 
+setup in a 4-Wire configuration (see Section 3.2.2 “Connecting to a host using RS-485”.) When 
+using Ethernet, see Section 3.2.5 “Connecting to a PC using Ethernet”.
+•	 Connect the drive to the power supply. See instructions below.
+•	 Launch the software by clicking Start...Programs...MOONS’.
+•	 Apply power to the drive.
+•	 The software will recognize the drive and display the model and firmware version. At this point, 
+it is ready for use.
+2.2  Mounting the Hardware
+As with any step motor, the TSM34 must be mounted so as to provide maximum heat sinking and 
+airflow. Keep enough space around the Integrated Motor to allow for the airflow.
+•	
+Never use the drive where there is no airflow or where other devices cause
+         the surrounding air to be more than 40°C (104°F).
+•	
+Never put the drive where it can get wet.
+•	
+Never use the drive where metal or other electrically conductive particles can 
+         infiltrate the drive.
+
+=== PDF PAGE 10 ===
+10
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+2.3  Choosing a Power Supply
+The main considerations when choosing a power supply are the voltage and current requirements 
+for the application.
+2.3.1  Supply Voltage 
+The TSM34 is designed to give optimum performance at 48 Volts DC. Choosing the voltage 
+depends on the performance needed and motor/drive heating that is acceptable and/or does not 
+cause a drive over-temperature. Higher voltages will give higher speed performance but will cause 
+the TSM34 to produce higher temperatures. Using power supplies with voltage outputs that are 
+near the drive’s maximum may significantly reduce the operational duty-cycle.
+The extended range of operation can be as low as 18VDC minimum to as high as 75VDC 
+maximum. When operating below 18VDC, the power supply input may require larger capacitance 
+to prevent under-voltage and internal-supply alarms. Current spikes may make supply readings 
+erratic. The supply input cannot go below 18VDC for reliable operation. Absolute minimum power 
+supply input is 18VDC. If the input supply drops below 18VDC the low voltage alarm will be 
+triggered. This will not fault the drive.
+Absolute maximum power supply input is 75VDC at which point an over-voltage alarm and fault 
+will occur. When using a power supply that is regulated and is near the drive maximum voltage 
+of 75VDC, a voltage clamp may be required to prevent over-voltage when regeneration occurs. 
+When using an unregulated power supply, make sure the no-load voltage of the supply does not 
+exceed the drive’s maximum input voltage of 75VDC.
+2.3.2 Auxiliary Supply Voltage (Keep Alive Function)
+Apart from the main power supply, TSM34 also has an auxiliary power input (AUX power) for 
+keep alive function of the drive. When the main power supply is off, the AUX power will keep the 
+logic power on, allowing the drive to remember its state data (motor position, etc.). This allows 
+the motor to resume operation from its previous position without a homing routine when the main 
+power is switched back on. 
+When the main power is removed while the auxiliary power is still on, the drive will show a fault. 
+If the AUX power supply range is 12-15VDC, the status LED will flash a 3 red, 2 green pattern 
+indicating the internal voltage is out of range. If the AUX power supply is 15-48VDC, the status 
+LED will flash a 4 red, 2 green pattern indicating a power supply undervoltage. When the main 
+power supply is restored the drive will not automatically clear the fault. It will need to be cleared by 
+the I/O function or SCL commands.
+2.3.2.1 Keep Alive Recovery with I/O Function
+1. After the main power is removed and the logic remains powered, an undervoltage or internal 
+bad voltage fault is generated. This alarm will display as a flashing LED pattern which can be 
+checked by the codes listed in Section 4.1 “Status (STAT) LED Error Codes”.
+2. After the main power supply has been restored, the fault must be cleared. Use the alarm reset 
+function through input 4 (X4) which can be set in the Step-Servo Quick Tuner software. If an 
+internal bad voltage alarm occurred, the motor will remain disabled. Use the servo on function 
+through input 3 (X3), also set by the software. If an undervoltage occurred, the motor will reenable 
+after using the alarm reset function.
+3. Resume motion and normal program operation.
+2.3.2.2 Keep Alive Recovery with SCL
+1. After the main power is removed and the logic remains powered, an undervoltage fault is 
+generated. This alarm displays as a flashing LED pattern and a bit in the alarm code which can be 
+read by the host using the AL command.
+
+=== PDF PAGE 11 ===
+11
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+2. Monitor the main power supply using the IU command. the IU command reads in units of 
+0.1V. For example, at 24 volts the response to the IU command will be IU=240. See Section 5.3 
+“Technical Specifications” for acceptable operational voltage limits.
+3. After the main power supply has been restored, the fault must be cleared. To clear the fault, 
+send the AR command. The alarm word will become 0. If the fault that occurred wasinternal 
+voltage out of range, the motor will remain disabled. Send the ME command to enable the motor. 
+The the fault was undervoltage, the motor will be enabled after the AR command is sent.
+4. As the motor may have moved while the main power was lost, the EP command may be used 
+to verify the motor’s current position.
+5. Resume motion and normal program operation.
+2.3.3  Regeneration Clamp
+If a regulated power supply is being used, there may be a problem with regeneration. When a 
+load decelerates rapidly from a high speed, some of the kinetic energy of the load is transferred 
+back to the power supply, possibly tripping the over-voltage protection of a regulated power 
+supply, causing it to shut down. This problem can be solved with the use of a MOONS’ RC880 
+Regeneration Clamp. It is recommended that an RC880 initially be installed in an application. If 
+the “regen” LED on the RC880 never flashes, the clamp is not necessary.
+RC880 Regen Clamp
+2.3.4  Supply Current
+The maximum supply currents required by the TSM34 are shown in the charts below at different 
+power supply voltage inputs. The TSM34 power supply current is lower than the winding currents 
+because it uses switching amplifiers to convert a high voltage and low current into lower voltage 
+and higher current. The more the power supply voltage exceeds the motor voltage, the less 
+current will be required from the power supply.
+It is important to note that the current draw is significantly different at higher speeds depending 
+on the torque load to the motor. Estimating how much current is necessary may require a good 
+analysis of the load the motor will encounter.
+LEDs
+Green- Power
+Red -  Regen on
+
+=== PDF PAGE 12 ===
+12
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+0
+1
+2
+3
+4
+5
+6
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+TSM34□-1□G 70V Power Supply Current
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+0
+1
+2
+3
+4
+5
+6
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+TSM34□-1□G 24V Power Supply Current
+0
+1
+2
+3
+4
+5
+6
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+TSM34□-1□G 48V Power Supply Current
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+
+=== PDF PAGE 13 ===
+13
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+TSM34□-3□G 24V Power Supply Current
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+7
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+TSM34□-3□G 48V Power Supply Current
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+TSM34□-3□G 70V Power Supply Current
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+7
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+
+=== PDF PAGE 14 ===
+14
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+TSM34□-5□G 70V Power Supply Current
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+7
+8
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+TSM34□-5□G 48V Power Supply Current
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+7
+8
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+TSM34□-5□G 24V Power Supply Current
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+7
+8
+0
+10
+20
+30
+40
+50
+Amps
+Torque(N.m)
+Speed(RPS)
+Torque
+Supply Current
+Full Load
+Supply Current
+No Load
+
+=== PDF PAGE 15 ===
+15
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+3  Installation/Connections
+3.1  Connecting the Power Supply
+Use 16 to 20-gauge wire to connect the TSM34 to a power supply. It contains an internal fuse 
+connected to the “+” terminal that is not user replaceable. If a user serviceable fuse is desired, 
+install a 10 amp fast acting fuse in line with the “+” power supply lead. 
+3.1.1  Connect Main Power Supply 
+Connect power supply “+” to drive’s “V+” terminal
+Connect power supply “-” to drive’s “V-” terminal
+TSM34 needs 24 to 70VDC for the main power supply 
+Be careful not to reverse the wires. Reversing the connection may open the internal 
+fuse on the drive and void the warranty.
+RC880
+TSM
+V-
+V+
+AUX-
+Vin
++
+-
+To Earth Ground
+Power Supply
+24-70VDC
+12-48VDC
+AUX Power Supply
+AUX+
+V-
+V+
+V-
+V+
+Vout
++
+-
+3.1.2  Connect Auxiliary Power Supply (Optional)
+If auxiliary power is needed to use the Keep Alive function, an extra power supply is required.
+Connect power supply “+” to drive’s “AUX+” terminal
+Connect power supply “-” to drive’s “AXU-” terminal
+TSM34 needs 12 to 48VDC for the auxiliary power supply 
+When using the optional auxiliary power supply, the main power must be applied 
+prior to the auxiliary power.
+
+=== PDF PAGE 16 ===
+16
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.2  Connecting the TSM34Q/C Communications
+The TSM34Q/C is available with different communications types, RS-232 (TSM34□ -□AG), RS-
+485 (TSM34Q -□RG), CANopen (TSM34C-□CG) or Ethernet (TSM34□ -□DG). Each type requires 
+a different hardware connection for interface to a PC or other Host system. 
+The RS-232 version comes with a cable that will provide the interface to an RS-232 port through 
+a DB9 style connector. The RS-485 version requires the user to provide both the cabling and 
+the RS-485 interface. The CANopen version requires the user to provide daisy chain cables and 
+interface. For Ethernet communication products, a CAT5e STP cable is provided in the package. 
+Below are descriptions of how to interface all of these serial communication types to a PC.
+3.2.1  Connecting to a PC using RS-232
+Locate the TSM34 within 1.5 meters of the PC. Plug the DB9 connector of the 
+communication cable that came with the drive into the serial port of the PC. 
+Plug the small end into the crimp style connector on the TSM34. Secure the 
+cable to the PC with the screws on the DB9 connector.
+Note: If the PC does not have an RS-232 serial port, a USB to RS-232 
+Serial Converter will be needed. You can contact MOONS’ to buy a USB 
+to RS-232 converter.
+Warning: The RS-232 circuitry does not have any extra electrical “hardening” and 
+care should be taken when connecting to the RS-232 port as hot plugging could 
+result in circuit failure. If this is a concern the RS-485 version which has 
+“hardening” built into the port input and output should be used.
+3.2.2  Connecting to a Host using RS-485
+RS-485 communication allows connection of more than one drive to a single host PC, PLC, HMI 
+or other computer. It also allows the communication cable to be long (more than 300 meters 
+or 1000 feet). The use of Category 5 cable is recommended as it is widely used for computer 
+networks, inexpensive, easily obtained and certified for quality and data integrity.
+The TSM34 can be used with either Two-Wire or Four-Wire RS-485 implementation. The 
+connection can be point-to-point (i.e. one drive and one host) or a multi-drop network (one host 
+and up to 32 drives).
+NOTE: To use the TSM34Q RS-485 version with the Step-Servo Quick Tuner software, it is 
+better to be connected in the Four-Wire configuration (see below).
+1
+5
+1
+5
+COM1
+COM2
+PIN
+Signal
+Color
+1
+RX+
+Black
+2
+RX-
+Brown
+3
+TX+
+Red
+4
+TX-
+Orange
+5
+GND
+Yellow
+GND
+TX
++5V
+RX
+
+=== PDF PAGE 17 ===
+17
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+Four-Wire Configuration
+Four-Wire Systems utilize separate transmit and receive wires. One pair of wires must connect 
+the host’s transmit signals to each drive’s RX+ and RX- terminals. The other pair connects the 
+drive’s TX+ and TX- terminals to the host’s receive signals. A logic ground terminal is provided 
+on each drive and can be used to keep all drives at the same ground potential. This terminal 
+connects internally to the DC power supply return (V-), so if all the drives on the RS-485 network 
+are powered from the same supply, only one drive’s GND terminal should be connected to the 
+host computer ground; the other drives’ GND terminals must not connect the logic grounds.
+Because the host in a four-wire system never needs to disable its transmitter, software is 
+simplified. Some converters make this process very difficult to implement and can delay 
+communications.
+NOTE: If the PC does not have an RS-485 serial port, a converter is required. You can 
+contact MOONS’ to buy a USB to RS-485 converter.
+Two-Wire Configuration
+In a 2-wire system, the host must disable its transmitter before it can receive data. This must 
+be done quickly before a drive begins to answer a query. The TSM34 includes a transmit delay 
+parameter that can be adjusted to compensate for a host that is slow to disable its transmitter. 
+This adjustment can be made over the network using the TD command, or it can be set using 
+the Step- Servo Quick Tuner software. It is not necessary to set the transmit delay in a four wire 
+system.
+Assigning Addresses
+Before the entire system is wired, each drive will need to connect individually to the host computer 
+so that it can be assigned a unique address.
+Once the drive has been connected to the PC as described above, launch the Step-Servo Quick 
+Tuner software. Apply power to the drive. If a drive has already been configured, click the Upload 
+button so that the Step-Servo Quick Tuner settings match those of the drive. When operating the 
+drive in SCL mode it will need to be assigned an address. This is done on the Drive Configuration 
+tab where a list of address options can be seen. The numerals 0..9 or the special characters ! “ # 
+$ % & ‘ ( ) * + , - . / : ; < = > ? @ may be used as addresses. Make sure each drive on the network 
+has a unique address. On a 2-wire network, the Transmit Delay may also need to be set. Most 
+adapters work well with 10 milliseconds. Once the address has been assigned, click Download to 
+save the settings to the drive.
+Drive #1
+Drive #2
+Drive #N
+120Ω
+RX+
+RX-
+to PC GND
+to PC RX-
+to PC TX+
+to PC TX-
+RX+
+RX+
+RX+
+RX+
+to PC RX+
+RX-
+RX-
+RX-
+RX-
+TX+
+TX+
+TX+
+TX+
+TX-
+TX-
+TX-
+TX-
+GND
+GND
+GND
+GND
+RX+
+RX-
+TX+
+TX-
+GND
+to PC GND
+to PC TX- (A)
+to PC TX+ (B)
+Drive #1
+Drive #2
+Drive #N
+120Ω
+RX+
+RX-
+RX+
+RX+
+RX+
+RX+
+RX-
+RX-
+RX-
+RX-
+TX+
+TX+
+TX+
+TX+
+TX-
+TX-
+TX-
+TX-
+GND
+GND
+GND
+GND
+RX+
+RX-
+TX+
+TX-
+GND
+
+=== PDF PAGE 18 ===
+18
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.2.3  Connecting to a Host using CANopen
+Two standard 5-pin disconnectable crimp style connectors are used for the communications 
+interface of a TSM34C. Only COM1 can be used for RS-232 serial interface and CANopen daisy-
+chain by the other cable included with TSM34C. So only COM1 can be used to configure the 
+TSM34 drive by RS-232 serial interface.
+The TSM34C is configured using a combination of rotary switches and an RS-232 serial link, 
+and then may be deployed on a distributed CANopen network. The RS-232 interface is used for 
+configuration, tuning, node ID setting and Q program downloading. The CANopen network should 
+be connected in a daisy-chain fashion, with a 120 ohm terminating resistor at each end of the 
+network.
+Locate the TSM34C within 1.5 meters of the PC. Plug the DB9 connector of the communication 
+cable that came with the drive into the serial port of the PC. Plug the 5-pin crimp style connector 
+into one of the two appropriate connectors on the TSM34C. Secure the cable to the PC with the 
+screws on the DB9 connector.
+Note: If the PC does not have an RS-232 serial port, a USB to RS-232 Serial Converter will 
+be needed. You can contact MOONS’ to buy a USB to RS-232 converter.
+Warning: The RS-232 circuitry does not have any extra electrical “hardening” and 
+care should be taken when connecting to the RS-232 port as hot plugging could 
+result in circuit failure. If this is a concern the RS-485 version which has 
+“hardening” built into the port input and output should be used.
+1
+.1” Spacing Spring Plug
+DSUB9 Female
+R termination:
+Network must be terminated at each
+end with a 120 ohm resistor.
+n:
+Cable may be made with up to 127 drive
+connectors. Termination is only required
+at each end.
+.1” Spacing Spring Plug
+n*
+R termination*
+120 ohm nominal
+R termination*
+120 ohm nominal
+1
+CAN_L
+CAN_L
+CAN_GND
+CAN_GND
+CAN_BUS
+CAN_SHLD
+CAN_SHLD
+CAN_H
+CAN_H
+2
+3
+4
+2
+3
+4
+5
+6
+7
+8
+9
+1
+CAN_L
+CAN_GND
+CAN_SHLD
+CAN_H
+2
+3
+4
+PIN
+COM1
+COM2
+Color
+1
+RS-232_TX
+NC
+Black
+2
+RS-232_RX
+NC
+Brown
+3
+CAN_H
+CAN_H
+Red
+4
+CAN_L
+CAN_L
+Orange
+5
+GND
+GND
+Yellow
+1
+5
+1
+5
+COM1
+COM2
+
+=== PDF PAGE 19 ===
+19
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+3.2.3.1  Node ID
+Each node on a CANopen network must have a unique Node ID. The Node ID is configured by 
+using Step-Servo Quick Tuner. CANopen Node IDs are seven bits long, with a range of 1 - 127.
+    
+3.2.3.2  Setting the Bitrate
+The CANopen network bitrate is set by using Step-Servo Quick Tuner software. The bit rate must 
+be the same for all nodes on the CANopen network. Any changes to the bit rate require either a 
+power cycle or a CANopen reset command to take effect.   
+3.2.4  Choosing the Right COM Port
+•	
+Open the “Device Manager” on the PC. If the PC has an built-in RS-232 serial port, “Ports 
+(COM & LPT)” (1) will be displayed. Connect the PC and drive with the included RS-232 
+communication cable. Choose the connected COM(n) port in the Step-Servo Quick Tuner 
+software.
+•	
+If the PC does not have an RS-232 serial port, or has one but using a USB port is preferred, 
+a USB to RS-232 serial port adapter will be needed. Open the “Device Manager” on the PC. 
+There may or may not be a “Ports” selection. (2) Connect the adapter to the PC, this USB 
+adapter COM port should then be displayed. (3) Choose this new COM(n) port in the Step-
+Servo Quick Tuner software.
+1
+2
+3
+
+=== PDF PAGE 20 ===
+20
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.2.5  Connecting to a PC using Ethernet
+This process requires three steps:
+•	 Physically connect the drive to the network (or directly to the PC). 
+There are 2 RJ45 connectors on the drive labeled COM1 and 
+COM2.
+-- If the Ethernet network is connected in a daisy-chain fashion, 
+the connection should be from Drive#1 COM2 to Drive#2 COM1, 
+Drive#2 COM2 to Drive#3 COM1 and so on.
+-- If using a router or hub on the network, the connection should 
+be from the router or hub to the drive. Either of the two COM 
+ports may be used, but take care to not connect to both COM 
+ports as this may cause the communication to work incorrectly.
+•	 Set the drive’s IP address
+•	 Set the appropriate networking properties on the PC
+Note: The following italicized sections are taken from the “Host Command Reference - Appendix 
+G: eSCL (SCL over Ethernet) Reference”. For more information, please read the rest of the guide. 
+It can be downloaded from MOONS’ website
+Power up Default processing for the IP address (units without rotary switches)
+With the cable disconnected for at least 5 seconds the default will be 10.10.10.10 (the delay time 
+can be configured in the Step-Servo software). If the cable is is connected at power up it set to the 
+factory default 192.168.1.10 or the configured setting
+Addresses, Subnets, and Ports
+Every device on an Ethernet network must have a unique IP address. In order for two devices to 
+communicate with each other, they must both be connected to the network and they must have 
+IP addresses that are on the same subnet. A subnet is a logical division of a larger network. 
+Members of one subnet are generally not able to communicate with members of another unless 
+they are connected through special network equipment (e.g. router). Subnets are defined by the 
+choices of IP addresses and subnet masks.
+If you want to know the IP address and subnet mask of your PC, select Start…All Programs… 
+Accessories…Command  Prompt. Then type “ipconfig” and press Enter. You should see 
+something like this:
+Daisy Chain
+ID1
+ID2
+IDn
+RS485/422
+Ethernet
+ Router 
+ID1
+ID2
+ID3
+ID4
+
+=== PDF PAGE 21 ===
+21
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+If your PC’s subnet mask is set to 255.255.255.0, a common setting known as a Class C subnet 
+mask, then your machine can only talk to another network device whose IP address matches 
+yours in the first three octets. (The numbers between the dots in an IP address are called octets.) 
+For example, if your PC is on a Class C subnet and has an IP address of 192.168.0.20, it can 
+talk to a device at 192.168.0.40, but not one at 192.168.1.40. If you change your subnet mask to 
+255.255.0.0 (Class B) you can talk to any device whose first two octets match yours. Be sure to 
+ask your system administrator before doing this. Your network may be segmented for a reason.
+Your drive IP address can be set by using Step-Servo Quick Tuner software. The default address 
+is “192.168.1.10”.
+The universal recovery address is always “10.10.10.10”. If someone were to change the other 
+settings and not write it down or tell anyone then you will not be able to communicate with your 
+drive. The only way to “recover” it is to use the universal recovery address.
+Setting the address to “0.0.0.0”, means using the “DHCP” function. It commands the drive to get 
+an IP address from a DHCP server on the network. The IP address automatically assigned by the 
+DHCP server may be “dynamic” or “static” depending on how the administrator has configured 
+DHCP. The DHCP setting is reserved for advanced users.
+Your PC, or any other device that you use to communicate with the drive, will also have a unique 
+address.
+One of the great features of Ethernet is the ability for many applications to share the network at 
+the same time. Ports are used to direct traffic to the right application once it gets to the right IP 
+address. The UDP eSCL port in our drives is 7775. To send and receive commands using TCP, 
+use port number 7776. You’ll need to know this when you begin to write your own application. You 
+will also need to choose an open (unused) port number for your application. Our drive doesn’t 
+care what that is; when the first command is sent to the drive, the drive will make note of the IP 
+address and port number from which it originated and direct any responses there. The drive will 
+also refuse traffic from other IP addresses that is headed for the eSCL port. The first application to 
+talk to a drive “owns” the drive. This lock is only reset when the drive powers down.
+If you need help choosing a port number for your application, you can find a list of commonly used 
+port numbers at http://www.iana.org/assignments/port-numbers.
+One final note: Ethernet communication can use one or both of two “transport protocols”: UDP and 
+TCP. eSCL commands can be sent and received using either protocol. UDP is simpler and more 
+efficient than TCP, but TCP is more reliable on large or very busy networks where UDP packets 
+might occasionally be dropped.
+Option 1: Connect a Drive to Your Local Area Network
+If you have a spare port on a switch or router and if you are able to set your drive to an IP address 
+that is compatible with your network, and not used by anything else, this is a simple way to get 
+connected. This technique also allows you to connect multiple drives to your PC. If you are on a 
+corporate network, check with the system administrator before connecting anything new to the 
+network. They should be able assign a suitable address and help you get going.
+If you are not sure which addresses are already used on your network, you can find out using 
+“Angry IP scanner”, which can be downloaded free from http://www.angryip.org/w/Download. But 
+be careful: an address might appear to be unused because a computer or other device is currently 
+turned off. And many networks use dynamic addressing where a DHCP server assigns addresses 
+“on demand”. The address you choose for your drive might get assigned to something else by the 
+DHCP server at another time.
+
+=== PDF PAGE 22 ===
+22
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+If the PC’s address is not in one of the configured drive subnets, you will have to change your 
+subnet mask to 255.255.0.0 in order to talk to your drive. To change your subnet mask:
+1. On Windows XP, right click on “My Network Places” and select properties. On Windows 7, click 
+Computer.
+Scroll down the left pane until you see “Network”. Right click and select properties. Select 
+“Change adapter settings”
+2. You should see an icon for your network interface card (NIC). Right click and select properties.
+3. Scroll down until you see “Internet Properties (TCP/IP)”. Select this item and click the 
+Properties button. On Windows 7/8/Vista, look for “(TCP/IPv4)”
+4. If the option “Obtain an IP address automatically” is selected, your PC is getting an IP address 
+and a subnet mask from the DHCP server. Please cancel this dialog and proceed to the next 
+section of this manual: “Using DHCP”.
+5. If the option “Use the following IP address” is selected, life is good. Change the subnet mask to 
+“255.255.0.0” and click OK.
+Using DHCP (not recommended)
+If you want to use your drive on a network where all or most of the devices use dynamic IP 
+addresses supplied by a DHCP server, set the IP address to “0.0.0.0”. When the drive is 
+connected to the network and powered on, it will obtain an IP address and a subnet mask from 
+the server that is compatible with your PC. The only catch is that you won’t know what address 
+the server assigns to your drive. As it may be difficult to resolve addresses with DHCP, this 
+method is not recommended. 
+PC 
+NIC 
+SWITCH 
+or 
+ R
+E
+T
+U
+O
+R
+LAN 
+DRIVE 
+
+=== PDF PAGE 23 ===
+23
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+Option 2: Connect a Drive Directly to Your PC
+1. Connect one end of a CAT5e STP cable into the LAN card (NIC) on your PC and the other to 
+the drive.
+You don’t need a special “crossover cable”; the drive will automatically detect the direct 
+connection and make the necessary physical layer changes.
+2. The default IP address is “192.168.1.10”.
+3. To set the IP address of your PC:
+a. On Windows XP, right click on “My Network Places” and select properties.
+b. On Windows 7, click Computer. Scroll down the left pane until you see “Network”. Right click 
+and select properties. Select “Change adapter settings”
+4. You should see an icon for your network interface card (NIC). Right click and select properties.
+a. Scroll down until you see “Internet Properties (TCP/IP)”. Select this item and click the 
+Properties button.
+b. On Windows 7 and Vista, look for “(TCP/IPv4)”
+5. Select the option “Use the following IP address”. Then enter the address “192.168.1.11”. This 
+will give your PC an IP address that is on the same subnet as the drive. Windows will know to 
+direct any traffic intended for the drive’s IP address to this interface card.
+6. Next, enter the subnet mask as “255.255.255.0”.
+7. Be sure to leave “Default gateway” blank. This will prevent your PC from looking for a router on 
+this subnet.
+8. Because you are connected directly to the drive, anytime the drive is not powered on, your PC 
+will annoy you with a small message bubble in the corner of your screen saying “The network 
+cable is unplugged.”
+Option 3: Use Two Network Interface Cards (NICs)
+This technique allows you to keep your PC connected to your LAN, but keeps the drive off the 
+LAN, preventing possible IP conflicts or excessive traffic.
+1. If you use a desktop PC and have a spare card slot, install a second NIC and connect it directly 
+to the drive using a CAT5e cable. You don’t need a special “crossover cable”; the drive will 
+automatically detect the direct connection and make the necessary physical layer changes.
+2. If you use a laptop and only connect to your LAN using wireless networking, you can use the 
+built-in RJ45 Ethernet connection as your second NIC. 
+3. The default IP address is “192.168.1.10”.
+4. To set the IP address of the second NIC:
+a. On Windows XP, right click on “My Network Places” and select properties.
+b. On Windows 7, click Computer. Scroll down the left pane until you see “Network”. Right click 
+and select properties. Select “Change adapter settings”
+5. You should see an icon for your newly instated NIC. Right click again and select properties. 
+a. Scroll down until you see “Internet Properties (TCP/IP)”. Select this item and click the 
+Properties button.
+b. On Windows 7 and Vista, look for “(TCP/IPv4)”
+
+=== PDF PAGE 24 ===
+24
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+6. Select the option “Use the following IP address”. Then enter the address “192.168.1.11”. This 
+will give your PC an IP address that is on the same subnet as the drive. Windows will know to 
+direct any traffic intended for the drive’s IP address to this interface card.
+7. Next, enter the subnet mask as “255.255.255.0”. Be sure to leave “Default gateway” blank. This 
+will prevent your PC from looking for a router on this subnet.
+8. Because you are connected directly to the drive, anytime the drive is not powered on your PC 
+will annoy you with a small message bubble in the corner of your screen saying “The network 
+cable is unplugged.”
+
+=== PDF PAGE 25 ===
+25
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+3.3  Inputs and Outputs
+The TSM34Q/C has three types of inputs:
+•	 High speed digital inputs for step & direction commands or encoder following, 5 to 24 volt logic
+•	 Low speed digital input for other signals, 5 to 24 volt logic
+•	 Analog input for analog speed and positioning modes
+All drives include 8 digital inputs and 1 analog input:
+•	 X1/STEP & X2/DIR are high-speed digital inputs for commanding position. Quadrature signals 
+from encoders can also be used. When not being used for the Step & Direction function these 
+inputs can be used for CW & CCW step, (start/stop)/direction (oscillator mode), or general 
+purpose input.
+•	 X3 & X4 are low speed software programmable input and can be used for Motor Enable/ 
+Disable and Alarm/Fault Reset function, or general purpose input
+•	 X5/X6/X7/X8 are low speed software programmable input and can be used for CW/CCW Jog, 
+CW/CCW Limit, Speed 1/Speed 2 (oscillator mode), or general purpose input
+•	 AIN is an analog input for a velocity or position command signal. It can accept 0-5 volts and 
+has gain, filtering, offset and dead-band settings.
+3.3.1  Connector Pin Diagram
+                                                                    
+A-
+B-
+Z-
+Y4-
+YCOM
+Y2
+X8-
+X7-
+GND
++5V
+X6
+X4
+DIR-
+STEP-
+A+
+B+
+Z+
+Y4+
+Y3
+Y1
+X8+
+X7+
+AIN
+XCOM
+X5
+X3
+DIR+
+STEP+
+27 28
+1    2
+
+=== PDF PAGE 26 ===
+26
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.3.2  STEP & DIR Digital Inputs
+The TSM34 drives include two high-speed inputs: X1/STEP and X2/DIR. They accept 5 to 24 volt 
+single-ended or differential signals, up to 2 MHz. Typically these inputs connect to an external 
+controller that provides step & direction command signals. You can also connect a master encoder 
+to the high-speed inputs for “following” applications. Or you can use these inputs with Wait 
+Input(WI), Feed to Sensor(FS), Seek Home(SH) and other SCL or Q commands.
+The functions for X1/STEP and X2/DIR can be configured by Step-Servo Quick Tuner software as 
+follows:
+X1/STEP:	 Step signal; CW pulse signal; Quadrature signal A
+X2/DIR : 	 Direction signal; CCW pulse signal; Quadrature signal B
+The diagrams below show how to connect the STEP & DIR inputs to various commonly used 
+devices.
++5v - +24v out
+DIR
+STEP
+DIR+
+DIR-
+STEP+
+STEP-
+Indexer 
+with 
+Sinking 
+Outputs 
+Connecting to Indexer with Sinking Outputs
+TSM34
+DIR
+COM
+STEP
+Indexer 
+with 
+Sourcing 
+Outputs
+DIR+
+DIR-
+STEP+
+STEP-
+Connecting to Indexer with Sourcing Outputs
+TSM34
+DIR+
+DIR-
+STEP+
+DIR+
+DIR-
+STEP+
+STEP-
+STEP-
+Indexer 
+with 
+Differential 
+Outputs
+Connecting to Indexer with Differential Outputs
+Many high-speed indexers have differential outputs
+TSM34
+A+
+A-
+B+
+STEP+
+STEP-
+DIR+
+DIR-
+B-
+Master
+Encoder
+Wiring for Encoder Following
+TSM34
+
+=== PDF PAGE 27 ===
+27
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+3.3.3  X3/X4/X5/X6 Digital Input
+While the STEP and DIR inputs are designed for high-speed digital input operation, the X3/X4/ 
+X5/X6 input are designed for low speed digital input operation between 5 and 24 volts optically 
+Isolated Single-ended input. They can be used with sourcing or sinking signals, 5 to 24 volts. This 
+allows connection to PLCs, sensors, relays and mechanical switches. Because the input circuits 
+are isolated, they require a source of power. If you are connecting to a PLC, you should be able 
+to get power from the PLC power supply. If you are using relays or mechanical switches, you will 
+need a 5-24 V power supply.
+What is COM?
+“Common” is an electronics term for an electrical connection to a common voltage. Sometimes 
+“common” means the same thing as “ground”, but not always. In the case of the TSM34 drives, if 
+you are using sourcing (PNP) input signals, then you will want to connect COM to ground (power 
+supply -). If you are using sinking (NPN) signals, then COM must connect to power supply +.
+Note: If current is flowing into or out of an input, the logic state of that input is low or 
+closed. If no current is flowing, or the input is not connected, the logic state is high or 
+open.
+The diagrams below show how to connect X3/X4/X5/X6 input to various commonly used devices.
+
+=== PDF PAGE 28 ===
+28
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.3.4  X7/X8 Digital Input
+The X7/X8 inputs are designed for low speed digital input operation between 5 and 24 volts 
+optically isolated differential input. They are normally used for end of travel limit switches. The 
+diagrams below show how to connect the X7/X8 Inputs to various commonly used devices.
+3.3.5  AIN Input
+The TSM34-Q/C drives have an analog input (AIN) which can accept a signal range of 0 to 5 volts. 
+The drive can be configured to operate at a speed or position that is proportional to the analog 
+signal. Use the Step-Servo Quick Tuner software to set the signal range, offset, dead-band and 
+filter frequency. The TSM34-Q/C provides a +5 volt/100mA limit voltage supply that can be used 
+to power external devices such as potentiometers. It is not the most accurate supply for reference, 
+for more precise readings use an external supply that can provide the desired accuracy.
+                                                                 
+Connecting an NPN type Proximity Sensor to an Input
+(when prox sensor activates, input goes low)
+X7/X8+
+X7/X8-
++
+-
++
+ NPN 
+Proximity 
+Sensor
+-
+TSM34
+output
+5 - 24V
+Power Supply 
+Connecting a PNP type Proximity Sensor to an Input
+(when prox sensor activates, input goes low)
+X7/X8+
+X7/X8-
++
+-
++
+-
+TSM34
+PNP 
+Proximity 
+Sensor
+output
+5 - 24V
+Power Supply 
++5v
+AIN
+GND
+100 mA limit
+Signal
+Conditioning
+inside drive
+I/O Connector
+Ω
++5v OUT
+AIN
+GND
+1 - 10k
+pot
+TSM34
+Connecting a Potentiometer to the Analog Input
+
+=== PDF PAGE 29 ===
+29
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+3.3.6  Programmable Output Y1/Y2/Y3
+TThe TSM34Q/C drives feature three optically isolated digital outputs (Y1 to Y3). Y1, Y2 and Y3 
+share a common terminal YCOM.
+•	 Y1 can be set to signal a fault condition.
+•	 Y2 can be set to indicate whether the motor is in position(dynamic).
+•	 Y3 can be set to control a motor brake.
+These outputs can also be turned on and off by program instructions like Set Output (SO). The 
+output can be used to drive LEDs, relays and the inputs of other electronic devices like PLCs and 
+counters. Diagrams of various connection types follow.
+Do not connect the outputs to more than 30 volts. The current through each output terminal must 
+not exceed 100mA.
+   
+   
++
+-
+Y1
+YCOM
+Connecting a Sinking Output
+Load
+TSM34
+5 - 24V
+Power Supply 
+COM
+IN
+Y2
+YCOM
+PLC
+Connecting a Sourcing Output
+TSM34
++
+-
+5 - 24V
+Power Supply 
++
+-
+Driving a Relay
+Y3
+YCOM
+relay
+TSM34
+5 - 24V
+Power Supply 
+1N4935 suppresion diode
+
+=== PDF PAGE 30 ===
+30
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+3.3.7  Programmable Output Y4
+TSM34-Q/C drives feature one optically isolated digital output Y4. The Y4+(collector) and Y4- 
+(emitter) terminals of the transistor are available at the connector. This allow the output to be 
+configured for current sourcing or sinking.
+Y4 can be set to provide an output frequency proportional to motor speed (tach signal) or to 
+provide a timing output (50 pulses/rev) or to indicate whether the motor is in position(static)
+Diagrams of various connection types follow.
++
+-
+Y4+
+Y4-
+TSM34
+Connecting a Sinking Output
+Load
+5 - 24V
+Power Supply 
+COM
+IN
+Y4+
+Y4-
+PLC
+Connecting a Sourcing Output
+TSM34
++
+-
+5 - 24V
+Power Supply 
++
+-
+Driving a Relay
+Y4+
+Y4-
+relay
+TSM34
+5 - 24V
+Power Supply 
+1N4935 suppresion diode
+
+=== PDF PAGE 31 ===
+31
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+4  Troubleshooting
+4.1 Status (STAT) LED Error Codes
+The TSM34 uses red and green LEDs to indicate status. When the motor is enabled, the green 
+LED flashes slowly. When the green LED is solid, the motor is disabled. Errors are indicated by 
+combinations of red and green flashes as shown below. This feature can be disabled for certain 
+warnings but not for alarms. See software manual for information on how to do this and which 
+warnings may be masked. 
+                              Code
+Error
+                              
+Solid green
+no alarm, motor disabled
+     
+ 
+Flashing green
+no alarm, motor enabled
+     
+ 
+1 red, 1 green
+position limit
+1 red, 2 green
+move while disabled
+            
+ 
+ 
+ 
+2 red, 1 green
+CCW limit
+      
+ 
+ 
+ 
+2 red, 2 green
+CW limit
+      
+ 
+ 
+ 
+3 red, 1 green
+drive over temperature
+ 
+ 
+ 
+ 
+3 red, 2 green
+internal voltage out of range
+ 
+ 
+ 
+ 
+ 
+3 red, 3 green
+blank Q segment
+ 
+ 
+ 
+ 
+4 red, 1 green
+power supply overvoltage
+ 
+ 
+ 
+ 
+ 
+4 red, 2 green
+power supply undervoltage
+ 
+ 
+ 
+ 
+ 
+5 red, 1 green
+over current
+ 
+ 
+ 
+ 
+ 
+ 
+6 red, 1 green
+open winding
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+6 red, 2 green
+bad encoder
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 red, 1 green
+communication error
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+      7 red, 2 green
+flash memory error
+                         
+NOTE: Items in bold italic represent drive Faults, which automatically disable the motor.
+4.2 Auxiliary Power (AUX) LED
+If the auxiliary power is connected, this yellow LED will be solid when the power is on. 
+
+=== PDF PAGE 32 ===
+32
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+5  Reference Materials
+5.1  Torque-Speed Curves
+Note:  All torque curves are at 10 amps rated continuous current.
+0
+0.5
+1.0
+1.5
+2.0
+2.5
+3.0
+3.5
+0
+10
+20
+30
+40
+50
+24V
+48V
+70V
+TSM34□-1□G
+Torque (N·m)
+Speed (rps)
+         
+0
+1.0
+2.0
+3.0
+4.0
+5.0
+6.0
+7.0
+0
+10
+20
+30
+40
+50
+24V
+48V
+70V
+TSM34□-3□G
+Torque (N·m)
+Speed (rps)
+0
+2.0
+4.0
+6.0
+8.0
+10.0
+24V
+48V
+70V
+0
+10
+20
+30
+40
+50
+TSM34□-5□G
+Torque (N·m)
+Speed (rps)
+           
+48V
+70V
+0
+2.0
+4.0
+6.0
+8.0
+0.0
+0
+10
+20
+30
+40
+50
+TSM34□-6□G
+Speed (rps)
+5.2  Mechanical Outlines
+B
+B
+37
+L
+25
+2
+10
+121
+136.7
+Ø 73
+69.6
+86 Max.
+4-Ø6.5
+69.6
+86 Max.
+86
+13
+13
+Ø14
+B-B
+Unit: mm
+Model
+Length ”L”
+Front shaft 
+diameter
+TSM34□-1□G
+112.5
+14
+TSM34□-3□G
+143
+TSM34□-5□G
+172.5
+TSM34□-6□G
+203
+
+=== PDF PAGE 33 ===
+33
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+5.3  Technical Specifications
+Power Amplifier
+Amplifier Type
+Dual H-Bridge, 4 Quadrant
+Current Control
+4 state PWM at 20 KHz
+Output Torque
+TSM34Q/C-1□G: Up to 2.7N•m Continuous (3.2 N•m Boost) 
+TSM34Q/C-3□G: Up to 5.2N•m Continuous (6.1 N•m Boost) 
+TSM34Q/C-5□G: Up to 6.7N•m Continuous (7.2 N•m Boost) 
+TSM34Q/C-6□G: Up to 8.1N•m Continuous (9.7 N•m Boost)
+Power Supply
+External 24 - 70 VDC main power supply, 12-48 VDC auxiliary power supply
+Protection
+Over-voltage, under-voltage, over-temp, motor/wiring shorts (phase-to-phase, phase-to-ground)
+Controller
+Electronic Gearing
+Software selectable from 200 to 51200 steps/rev in increments of 2 steps/rev
+Encoder Resolution
+20000 counts/rev
+Speed Range
+Up to 3600rpm
+Filters
+Digital input noise filter, Analog input noise filter, Smoothing filter, PID filter, Notch filter
+Non-Volatile 
+Storage
+Configurations are saved in FLASH memory on-board the DSP
+Modes of Operation
+TSM34Q: Step & direction, CW/CCW pulse, A/B quadrature pulse, velocity (oscillator, joystick), 
+streaming commands (SCL or eSCL), Q program execution
+TSM34C: CANopen control with stored Q program execution
+Digital Inputs
+Adjustable bandwidth digital noise rejection filter on all inputs
+X1/X2: Optically isolated, 5-24 volt, min. pulse width = 250 ns, max. pulse frequency = 2 MHz
+Function: Pulse/Direction, CW/CCW Pulse, A/B quadrature (encoder following), (start/stop)/direction 
+(oscillator mode), or general purpose input
+X3/X4: Optically isolated, 5-24 volt, min. pulse width = 100 μs, max. pulse frequency = 5 KHz
+Function: Servo on/off, Alarm/Fault Reset, or general purpose input
+X5/X6/X7/X8: Optically isolated, 5-24 volt. Min. pulse width = 100 μs, Max. pulse frequency = 5 KHz
+Function: CW/CCW Limit, Speed 1/Speed 2 (oscillator mode), or general purpose input
+Digital Outputs
+Y1/Y2/Y3/Y4: Optically isolated, 30V/100mA max Open Collector Output.
+Function: Alarm/Fault, In Position (dynamic/static), Brake Control, Tach out, Timing out, or general 
+purpose usage
+Encoder Output
+Standard Line driver outputs: A+/A-/B+/B-/Z+/Z-; 26C31 line driver, 20 mA sink or source max
+Analog Input
+AIN referenced to GND. Range = 0 to 5 VDC. Resolution = 12 bits
+Communication
+Interface
+RS-232 , RS-485, CANopen, Ethernet
+Physical
+Ambient 
+Temperature
+0 to 40°C (32 to 104°F) when mounted to a suitable heatsink
+Humidity
+90% Max., non-condensing
+Mass
+TSM34Q/C-1□G: 2100 g 
+TSM34Q/C-3□G: 3200 g 
+TSM34Q/C-5□G: 4300 g
+TSM34Q/C-6□G: 5500 g
+Rotor Inertia
+TSM34Q/C-1□G: 915 g•cm2
+TSM34Q/C-3□G: 1480 g•cm2
+TSM34Q/C-5□G: 2200 g•cm2
+TSM34Q/C-6□G: 3660 g•cm2
+
+=== PDF PAGE 34 ===
+34
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+5.4  Optional Accessories
+Power Supplies
+MOONS’ recommends using the following switching power supplies 
+P/N:MF150A24AG-V  150W, 24VDC                             P/N:MF320A48AG-V 320W, 48VDC
+Regeneration Clamp 
+P/N: RC880
+When using a regulated power supply 
+you may encounter a problem with 
+regeneration. The kinetic energy caused 
+by regeneration is transferred back 
+to the power supply. This can trip the 
+overvoltage protection of a switching 
+power supply, causing it to shut down.
+MOONS’ offers the RC880 “regeneration clamp” to solve this problem. If in doubt, use an RC880 
+for the first installation. If the “regen” LED on the RC880 never flashes, you don’t need the clamp.
+USB Converter
+Model: MS-USB-RS232-01
+Description: USB-RS-232 converter
+Model: MS-USB-RS485-01 
+Description: USB-RS-485 converter
+Model: MS-USB-CAN-01
+Description: USB-CAN converter
+Power Connector
+P/N
+Vendor
+5452570
+Phoenix
+11.5MAX
+3-M4 L=4mm
+LED
+V ADJ.
+CN3
+9
+1
+2
+3
+4
+5
+6
+7
+25
+117
+28
+12.5
+25
+44
+170
+152
+65
+45
+4-M4 L=4mm
+8
+9.5
+49.5
+18
+63
+99
+2
+1
+5
+4
+8
+1
+199
+157
+4-M4 L=4mm
+Air flow direction
+FAN
+4MAX
+18
+11.5MAX
+8
+63
+99
+18
+5
+V ADJ.
+CN3
+LED
+1
+2
+3
+4
+5
+6
+7
+9.5
+4-M4 L=4mm
+12.5
+25
+130
+52
+25
+12.5
+76
+45
+94
+85
+85
+28.6
+
+=== PDF PAGE 35 ===
+35
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+Cables
+General Purpose I/O Cable (unshielded) 
+P/N
+Length
+1101-100
+1m
+1101-200
+2m
+1101-500
+5m
+General Purpose I/O Cable (shielded)  
+P/N
+Length
+1102-100
+1m
+1102-200
+2m
+1102-500
+5m
+Housing:PUDP-28V-S(JST)
+Crimp:SPUD-001T-P0.5(JST)
+27
+28
+1
+2
+L±50
+Pin No.
+Assignment
+Description
+Color
+1
+X1+
+High Speed Digital 
+Input
+BLU
+2
+X1-
+BLU/WHT
+3
+X2+
+High Speed Digital 
+Input
+YEL
+4
+X2-
+YEL/WHT
+5
+X3
+X3 Digital Input
+GRN
+6
+X4
+X4 Digital Input
+ORG
+7
+X5
+X5 Digital Input
+GRY
+8
+X6
+X6 Digital Input
+PPL
+9
+XCOM
+X Digital Input COM
+WHT
+10
++5V
++5V  Analog Voltage
+RED
+11
+AIN
+Analog Input
+BLU
+12
+GND
+Analog Input Ground
+BLK
+13
+X7+
+X7 Digital Input
+ORG
+14
+X7-
+ORG/WHT
+Pin No.
+Assignment
+Description
+Color
+15
+X8+
+X8 Digital Input
+GRN
+16
+X8-
+GRN/WHT
+17
+Y1
+Y1 Digital Input
+BLU
+18
+Y2
+Y2 Digital Input
+YEL
+19
+Y3
+Y3 Digital Input
+BRN
+20
+YCOM
+Y Output COM
+BLK
+21
+Y4+
+Y4 Digital COM
+RED
+22
+Y4-
+RED/WHT
+23
+Z+
+Encoder Output Z
+(if applicable)
+BLK
+24
+Z-
+BLK/WHT
+25
+B+
+Encoder Output B
+(if applicable)
+GRN
+26
+B-
+GRN/WHT
+27
+A+
+Encoder Output A
+(if applicable)
+ORG
+28
+A-
+ORG/WHT
+Housing:PUDP-28V-S(JST)
+Crimp:SPUD-001T-P0.5(JST)
+UL2464 AMG24 10Pair
+2000±100
+30±3
+20±3
+10
+27
+28
+1
+2
+Pin No.
+Assignment
+Description
+Color
+1
+X1+
+High Speed Digital 
+Input
+BLK
+2
+X1-
+RED
+3
+X2+
+High Speed Digital 
+Input
+BLK
+4
+X2-
+WHT
+5
+X3
+X3 Digital Input
+BLK
+6
+X4
+X4 Digital Input
+GRN
+7
+NC
+8
+NC
+9
+XCOM
+X Input COM
+BLK
+10
++5V
++5V Analog Voltage
+BLU
+11
+AIN
+Analog Input
+BLK
+12
+GND
+Analog Input Ground
+YEL
+13
+NC
+14
+NC
+Pin No.
+Assignment
+Description
+Color
+15
+NC
+16
+NC
+17
+Y1
+Y1 Digital Output
+BLK
+18
+Y2
+Y2 Digital Output
+BRN
+19
+Y3
+Y3 Digital Output
+BLK
+20
+YCOM
+Y Output COM
+ORG
+21
+NC
+22
+NC
+23
+Z+
+Encoder Output Z
+(if applicable)
+RED
+24
+Z-
+WHT
+25
+B+
+Encoder Output B
+(if applicable)
+RED
+26
+B-
+GRN
+27
+A+
+Encoder Output A
+(If applicable)
+RED
+28
+A-
+BLU
+
+=== PDF PAGE 36 ===
+36
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+5.5  SCL Command Reference
+The Serial Command Language (SCL) was developed to give users a simple way to control a 
+motor drive via a serial port. This eliminates the need for separate motion controllers or indexers 
+to supply Pulse and Direction signals to the drive. It also provides an easy way to interface to a 
+variety of other industrial devices such as PLCs and HMIs, which often have standard or optional 
+serial ports for communicating to other devices. Some examples of typical host devices might be:
+•	 A Windows based PC running MOONS’ software
+•	 An industrial PC running a custom or other proprietary software application
+•	 A PLC with an ASCII module/serial port for sending text strings
+•	 An HMI with a serial connection for sending text strings
+SCL commands control the motion of the step motor, use of the inputs and outputs, and configure 
+aspects of the drive such as motor current and microstep resolution.
+In SCL mode, the TSM34Q receives commands from the host, executing them immediately or 
+sending them to a command buffer and then executing them directly from the buffer. The TSM34Q 
+also can create a stored program for stand-alone operation.
+The communications protocol of SCL is simple in that the host initiates all communication, with 
+one exception. The only time the drive will initiate communication is at power-up. At that time, the 
+drive will send an identifier to tell the software which drive is connected and what the firmware 
+version is.
+RS-485 Daisy Chain Communication Cable 
+P/N
+Length
+2111-050
+0.5m
+2111-100
+1m
+2111-300
+3m
+2111-500
+5m
+RS-232 Communication Cable (Q Type) 
+P/N
+Length
+2101-150
+1.5m
+L±100
+1
+5
+1
+5
+J2
+J1
+Housing: ZER-05V-S(JST)
+Crimp: SZE-002T-P0.3(JST)
+Housing: ZER-05V-S(JST)
+Crimp: SZE-002T-P0.3(JST)
+1
+J1
+1500±20
+J2
+15±2
+Connector(JST)
+Housing:ZER-04-S
+Crimp:SZE-002T-P0.3
+10
+20
+A
+B
+5
+9
+1
+6
+1
+A
+2
+3
+4
+DGND
+TX
+VCC
+RX
+B
+DB/9PFemale
+L
+L
+8
+1
+8
+1
+CANopen Daisy Chain Communication Cable 
+P/N
+Length
+2112-050
+0.5m
+2112-100
+1m
+2112-300
+3m
+2112-500
+5m
+RS-232 Communication Cable (C Type) 
+P/N
+Length
+2113-150
+1.5m
+L±100
+1
+5
+1
+5
+J2
+J1
+Housing: ZER-05V-S(JST)
+Crimp: SZE-002T-P0.3(JST)
+Housing: ZER-05V-S(JST)
+Crimp: SZE-002T-P0.3(JST)
+Connector(JST)
+J2
+J1
+B
+DB/9P Female
+1
+5
+Housing: ZER-05-S
+    Crimp: SZE-002T-P0.3
+Ethernet Daisy Chain Communication Cable (Q Type)
+Common Type Flexible Type
+Length(L)
+2012-030
+2013-030
+0.3m
+2012-300
+2013-300
+3m
+
+=== PDF PAGE 37 ===
+37
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
+ +86 400-820-9661
+There are two types of SCL commands: buffered and immediate. Buffered commands are loaded 
+into and then executed out of the drive’s command buffer. Buffered commands are executed
+one at a time and in sequential order. The buffer can be filled with commands without the host 
+controller needing to wait for a specific command to execute before sending the next command. 
+Special buffer commands enable the buffer to be loaded and to pause for a desired time.
+Immediate commands are not buffered, but are executed immediately, running in parallel with a 
+buffered command if necessary. Immediate commands are designed to access the drive at any 
+time and can be sent as often as needed. This allows a host controller to get information from the 
+drive at a high rate, most often for checking drive status or motor position.
+The basic structure of a command packet from the host to the drive is always a text string followed 
+by a carriage return. The text string is composed of the command itself, followed by any required 
+parameters. A carriage return denotes the end of transmission to the drive.
+The syntax of the command is:
+XXAB<cr>
+where XX designates the command (always composed of 2 uppercase letters), and A and B 
+define the possible parameters. These parameters can vary in length, can be letters or numbers, 
+and are often optional. Once a drive receives the <cr> (carriage return), it will determine whether 
+or not it understood the command-if it did, it will either execute or buffer the command. The drive 
+can also be programmed ahead of time to send a response as to whether or not it understood the 
+command as well as any error code.
+Some SCL commands transfer data to the drive for immediate or later use. These data values 
+are stored in data registers and remain there until new commands change the values or power 
+is removed from the drive. Some data registers in a drive are Read-Only and contain predefined 
+information about the drive which can also be read through SCL commands.
+Because of the intense nature of serial communications required in host mode applications, 
+there is a serial communication Protocol (PR) command available that will adjust a drive’s 
+serial communications protocol to best fit an application. Typically this command is used when 
+configuring a drive and saved as part of the startup parameters. But it can be used at any time to 
+dynamically alter the serial communications.
+The Host Command Reference contains the complete command listing as well as instructions on 
+connecting and configuring the TSM34Q/C for use in SCL mode, using the Data Registers and the 
+Protocol command. It also contains detailed information on:
+•	 Host Serial Communications
+•	 Host Serial Connections
+•	 Alarm and Status Codes
+•	 Working with Inputs and Outputs
+The Host Command Reference is available from the MOONS’ website at http://www.
+moonsindustries.com under Products/Drives1/Downloads/manuals.
+
+=== PDF PAGE 38 ===
+38
+Rev. 1.0
+0006152016
+TSM34Q/C Hardware Manual
++86 400-820-9661
+6  Contacting MOONS’
+■
+■MOONS' Headquarters 
+No. 168 Mingjia Road Industrial Park North
+Minhang District Shanghai 201107, P.R. China
+Tel: +86 (0)21 52634688
+Fax: +86 (0)21 52634098
+Email: info@moons.com.cn
+■
+■MOONS' International Trading Company
+4/F, Building 30, 69 Guiqing Road, Cao He Jin Hi-Tech Park
+Shanghai 200233, P.R. China
+Tel: +86 (0)21 64952755
+Fax: +86 (0)21 64951993
+■
+■Domestic Offices
+Shenzhen
+Room 2209, 22/F, Kerry Center, No. 2008 Renminnan Road
+Shenzhen 518001 P.R. China
+Tel: +86 (0)755 25472080
+Fax: +86 (0)755 25472081
+Beijing 
+Room 816, Block B, China Electronics Plaza,
+No. 3 Danling Street Haidian District Beijing 100080 P.R. China
+Tel: +86 (0)10 58753312
+Fax: +86 (0)10 58752279
+Nanjing 
+Room 302, Building A, Tengfei Creation Center,
+55 Jiangjun Ave, Jiangning District, Nanjing 211100 P.R. China
+Tel: +86 (0)25 52785841
+Fax: +86 (0)25 52785485
+Qingdao 
+Room 1012, Zhuoyue Tower, No. 16 Fengcheng Road,
+Shibei Dristrict, Qingdao 266000 P.R. China
+Tel: +86 (0)532 80969935
+Fax: +86 (0)532 80919938
+Wuhan  
+Room 3001, World Trade Tower, No. 686 Jiefang Ave
+Jianghan District, Wuhan 430022 P.R. China
+Tel: +86 (0)27 85448742
+Fax: +86 (0)27 85448355
+Chengdu  
+Room 1917, Western Tower
+No. 19, 4th Section of South People Road, Wuhou District, 
+Chengdu 610041 P.R. China
+Tel: +86 (0)28 85268102
+Fax: +86 (0)28 85268103
+Xi' an  
+Room 1006, Block D, Wangzuo International City
+No. 1 Tangyan Road, Xi’an 710065 P.R. China
+Tel: +86 (0)29 81870400
+Fax: +86 (0)29 81870340
+Ningbo
+Room 309, Tower B, Taifu Plaza, 565 Jiangjia Road
+Jiangdong District, Ningbo, 315040 P.R. China
+Tel: +86 (0)574 87052739
+Fax: +86 (0)574 87052365
+Guangzhou
+Room 4006, Tower B, China Shine Plaza, 9 Linhe Xi Road
+Tianhe District, Guangzhou, 510610 P.R. China
+Tel: +86 (0)20 38010153
+Fax: +86 (0)20 38103661
+■
+■North America
+MOONS’ Industries (America), Inc.
+1113 North Prospect Avenue, Itasca, IL 60143 USA
+Tel: +1 630 833 5940
+Fax: +1 630 833 5946
+APPLIED MOTION PRODUCTS, INC.
+404 Westridge Drive, Watsonville, CA  95076, USA
+Tel: +1 831 7616555
+Fax: +1 831 7616544
+LIN ENGINEERING, INC.
+16245 Vineyard Blvd., Morgan Hill, CA 95037 USA
+Tel: +1 408 9190200
+Fax: +1 408 9190201
+■
+■Europe
+MOONS’ Industries Europe S.R.L.
+Via Torri Bianche n.1 20059 Vimercate (MB) Italy
+Tel: +39 039 62 60 521
+Fax: +39 039 96 31 409
+■
+■South-East Asia
+MOONS’ Industries (South-East Asia) PTE LTD.
+33 Ubi Avenue 3 #08-23 Vertex Singapore 408868
+Tel: +65 6634 1198
+Fax: +65 6634 1138
+■
+■Japan
+MOONS' INDUSTRIES JAPAN CO., LTD.
+Room 601, 6F, Shin Yokohama Koushin Building
+2-12-1, Shin-Yokohama, Kohoku-ku, Yokohama
+Kanagawa, 222-0033, Japan
+Tel: +81 (0)45-4755788
+Fax: +81 (0)45 4755787
+

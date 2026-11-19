@@ -1,0 +1,801 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-11-19",
+  "timezone": "Europe/Prague",
+  "purpose": "StepperOnline DSY-C CANopen servo kits (secondary: IDS-C60AP/BP integrated servo, BLD-515C BLDC speed driver) reference intake; seller listings only, no protocol document obtained; no implemented support or hardware qualification",
+  "sources": [
+    {
+      "id": "SO-DSY400B-PAGE",
+      "title": "StepperOnline UK listing: DSY Series 400W CANopen DC Servo Motor w/ Brake, DSY-C400L2B2-M17S",
+      "path": "vendor/stepperonline_uk_dsy-c400l2b2-m17s.html",
+      "url": "https://www.stepperonline.co.uk/dsy-series-400w-canopen-dc-servo-motor-24-70vdc-1-27nm-w-brake-3000rpm-17-bit-incremental-encoder-ip65-dsy-c400l2b2-m17s.html",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 512416,
+      "sha256": "a6ba18efe006bd21690d12b9f0cce5746ef6e42acc2af9698f831a83d1310ff6",
+      "language": "en",
+      "applicability": [
+        "DSY-C400L2B2-M17S kit: drive DSY-400C, motor DSY60-400L2B2M17S"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19; storefront page cache",
+      "firmware_match": "Seller listing only; names no firmware revision; no physical drive inspected",
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk, served from the storefront page cache)",
+      "license": "Seller copyright (OMC Corporation Limited / STEPPERONLINE); the storefront terms page (reviewed 2026-11-19) states no content or redistribution license. Not covered by the library license; review redistribution rights before public release.",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:48Z",
+          "http_status": 200,
+          "result": "stored unchanged (no Accept-Encoding; original bytes)"
+        }
+      ],
+      "notes": "Only full DSY-C kit listing obtainable. Gives drive DSY-400C ratings, motor data, kit contents, the download links (manual V1.0 12.31 MB, DSY-C.EDS 36.81 KB, datasheet) and the 'same series' model table."
+    },
+    {
+      "id": "SO-DCSERVO-CAT",
+      "title": "StepperOnline UK category page: DC Servo Motor (page 1 of 3)",
+      "path": "vendor/stepperonline_uk_category_dc-servo-motor.html",
+      "url": "https://www.stepperonline.co.uk/dc-servo-motor.html",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 622431,
+      "sha256": "2dd4cf6003a1a488ebbfd9928de95baf4fa3ef53707159795614101efa14a451",
+      "language": "en",
+      "applicability": [
+        "DSY-C100L2A2-M17S",
+        "DSY-C100L2B2-M17S",
+        "DSY-C200L2A2-M17S",
+        "DSY-C200L2B2-M17S",
+        "DSY-C400L2A2-M17S",
+        "DSY-C400L2B2-M17S",
+        "DSY-C750L2A2-M17S",
+        "DSY-C750L2B2-M17S",
+        "DSY-C1000L2A2-M17S",
+        "DSY-C1000L2B2-M17S"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19; storefront page cache",
+      "firmware_match": "Seller listing only; names no firmware revision; no physical drive inspected",
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk, served from the storefront page cache)",
+      "license": "Seller copyright (OMC Corporation Limited / STEPPERONLINE); the storefront terms page (reviewed 2026-11-19) states no content or redistribution license. Not covered by the library license; review redistribution rights before public release.",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:05Z",
+          "http_status": 200,
+          "result": "stored unchanged (no Accept-Encoding; original bytes)"
+        }
+      ],
+      "notes": "Summary cards for all ten DSY-C kits: title, shaft, frame, rated torque, price, truncated description naming the driver power class and brake power. The nine other full kit listings were refused (see remote_only)."
+    },
+    {
+      "id": "SO-IDS60AP-PAGE",
+      "title": "StepperOnline UK listing: IDS Series 400W CANopen/RS485/Pulse Integrated DC Servo Motor, IDS-C60AP-48V400W",
+      "path": "vendor/stepperonline_uk_ids-c60ap-48v400w.html",
+      "url": "https://www.stepperonline.co.uk/ids-series-400w-canopen-rs485-pulse-integrated-dc-servo-motor-1-27nm-179-85oz-in-17-bit-absolute-encoder-ids-c60ap-48v400w.html",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 494626,
+      "sha256": "a4fcd1177f1d662ccf5bccc440c57bc3341b5fd4d622daa32e857ef07eb33299",
+      "language": "en",
+      "applicability": [
+        "IDS-C60AP-48V400W (no brake)"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19; storefront page cache",
+      "firmware_match": "Seller listing only; names no firmware revision; no physical drive inspected",
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk, served from the storefront page cache)",
+      "license": "Seller copyright (OMC Corporation Limited / STEPPERONLINE); the storefront terms page (reviewed 2026-11-19) states no content or redistribution license. Not covered by the library license; review redistribution rights before public release.",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:56Z",
+          "http_status": 200,
+          "result": "stored unchanged (no Accept-Encoding; original bytes)"
+        }
+      ],
+      "notes": "Key features, motor data, kit contents and download links (IDS_MotorV2.3.eds 118.26 KB, CANopen manual 765.71 KB, servo manual 1.06 MB, datasheet, DC_Servo_Debugging_Software.zip 6.75 MB)."
+    },
+    {
+      "id": "SO-INTSERVO-CAT",
+      "title": "StepperOnline UK category page: Integrated Servo Motor",
+      "path": "vendor/stepperonline_uk_category_integrated-servo-motor.html",
+      "url": "https://www.stepperonline.co.uk/integrated-servo-motor.html",
+      "retrieved_on": "2026-11-19",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 580740,
+      "sha256": "6ccba5f736264c0fa0df1fc1afee42b02d61cefbc1809a57294f2a3def952201",
+      "language": "en",
+      "applicability": [
+        "IDS-C60AP-48V400W",
+        "IDS-C60BP-48V400W (24 VDC 7.5 W brake)",
+        "IDS-EC60AP-48V400W (EtherCAT; out of scope)"
+      ],
+      "revision": "HTML snapshot retrieved 2026-11-19; storefront page cache",
+      "firmware_match": "Seller listing only; names no firmware revision; no physical drive inspected",
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk, served from the storefront page cache)",
+      "license": "Seller copyright (OMC Corporation Limited / STEPPERONLINE); the storefront terms page (reviewed 2026-11-19) states no content or redistribution license. Not covered by the library license; review redistribution rights before public release.",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:46Z",
+          "http_status": 200,
+          "result": "stored unchanged (no Accept-Encoding; original bytes)"
+        }
+      ],
+      "notes": "Only seller evidence for IDS-C60BP (brake 24 VDC 7.5 W, body 145 mm); its full listing was refused."
+    }
+  ],
+  "derived_artifacts": [],
+  "remote_only": [
+    {
+      "id": "SO-DSYMAN",
+      "title": "DSY-C Series Low Voltage Servo Drive User Manual V1.0",
+      "url": "https://files.omc-stepperonline.com/DSY-C_Series_Low_Voltage_Servo_Drive_User_Manual_V1.0.pdf",
+      "revision": "V1.0 per file name; listing size 12.31 MB (SO-DSY400B-PAGE downloads block)",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C drives DSY-200C/400C/750C/1200C class (exact scope unread)"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:16Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSYEDS",
+      "title": "DSY-C EDS file",
+      "url": "https://files.omc-stepperonline.com/DSY-C.EDS",
+      "revision": "No revision in file name; listing size 36.81 KB (SO-DSY400B-PAGE)",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C drives (exact identity unread)"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11Z (approx.)",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSYDS",
+      "title": "DSY60-400L2B2M17S full datasheet (motor)",
+      "url": "https://files.omc-stepperonline.com/DSY60-400L2B2M17S_Full_Datasheet.pdf",
+      "revision": "listing size 134.7 KB; low priority",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY60-400L2B2M17S motor"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:17:26Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-IDSEDS",
+      "title": "IDS motor EDS V2.3",
+      "url": "https://files.omc-stepperonline.com/IDS_MotorV2.3.eds",
+      "revision": "V2.3 per file name; listing size 118.26 KB (SO-IDS60AP-PAGE)",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "IDS-C60AP-48V400W",
+        "IDS-C60BP-48V400W"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:16Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-IDSCAN",
+      "title": "IDS Motor CANopen driver manual",
+      "url": "https://files.omc-stepperonline.com/IDS_Motor_CanOpen_driver_manual.pdf",
+      "revision": "no revision in file name; listing size 765.71 KB",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "IDS-C60AP-48V400W",
+        "IDS-C60BP-48V400W"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:16Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-IDSMAN",
+      "title": "IDS Servo Driver manual",
+      "url": "https://files.omc-stepperonline.com/IDS_Servo_Driver_manual.pdf",
+      "revision": "no revision in file name; listing size 1.06 MB",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "IDS-C60AP-48V400W",
+        "IDS-C60BP-48V400W"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:16Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-IDSDS",
+      "title": "IDS-C60AP-48V400W full datasheet",
+      "url": "https://files.omc-stepperonline.com/IDS-C60AP-48V400W_Full_Datasheet.pdf",
+      "revision": "listing size 147.5 KB; low priority",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "IDS-C60AP-48V400W"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:17:26Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-BLDEDS",
+      "title": "BLD-515C CAN EDS file",
+      "url": "https://files.omc-stepperonline.com/BLD_CAN.eds",
+      "revision": "URL from the 2026-11-19 market survey; listing not reachable here",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "BLD-515C"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:16Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-BLDMAN",
+      "title": "BLD-515C user manual",
+      "url": "https://files.omc-stepperonline.com/BLD-515C_user_manual.pdf",
+      "revision": "URL from the 2026-11-19 market survey; listing not reachable here",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "BLD-515C"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted (files.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:17Z",
+          "http_status": 403,
+          "result": "HTTP 403, text/html Cloudflare challenge page titled 'Just a moment...'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-USSTORE",
+      "title": "StepperOnline US storefront search for DSY-C",
+      "url": "https://www.omc-stepperonline.com/index.php?route=product/search&search=DSY-C",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C, IDS-C, BLD-515C US listings"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.omc-stepperonline.com)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:11:26Z",
+          "http_status": 403,
+          "result": "Cloudflare 'Access denied: You do not have access to www.omc-stepperonline.com'; not stored"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY1000A-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C1000L2A2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-1000w-canopen-dc-servo-motor-24-70vdc-3-20nm-3000rpm-17-bit-incremental-encoder-ip65-dsy-c1000l2a2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C1000L2A2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:13Z; recheck 16:14:35Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY1000B-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C1000L2B2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-1000w-canopen-dc-servo-motor-24-70vdc-3-20nm-w-brake-3000rpm-17-bit-incremental-encoder-ip65-dsy-c1000l2b2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C1000L2B2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:14Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY100A-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C100L2A2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-100w-canopen-dc-servo-motor-24-70vdc-0-318nm-3000rpm-17-bit-incremental-encoder-ip65-dsy-c100l2a2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C100L2A2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:16Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY100B-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C100L2B2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-100w-canopen-dc-servo-motor-24-70vdc-0-318nm-w-brake-3000rpm-17-bit-incremental-encoder-ip65-dsy-c100l2b2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C100L2B2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:17Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY200A-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C200L2A2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-200w-canopen-dc-servo-motor-24-70vdc-0-637nm-3000rpm-17-bit-incremental-encoder-ip65-dsy-c200l2a2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C200L2A2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:19Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY200B-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C200L2B2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-200w-canopen-dc-servo-motor-24-70vdc-0-637nm-w-brake-3000rpm-17-bit-incremental-encoder-ip65-dsy-c200l2b2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C200L2B2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:20Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY400A-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C400L2A2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-400w-canopen-dc-servo-motor-24-70vdc-1-27nm-3000rpm-17-bit-incremental-encoder-ip65-dsy-c400l2a2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C400L2A2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:22Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY750A-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C750L2A2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-750w-canopen-dc-servo-motor-24-70vdc-2-39nm-3000rpm-17-bit-incremental-encoder-ip65-dsy-c750l2a2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C750L2A2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:23Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-DSY750B-PAGE",
+      "title": "StepperOnline UK listing page: DSY-C750L2B2-M17S",
+      "url": "https://www.stepperonline.co.uk/dsy-series-750w-canopen-dc-servo-motor-24-70vdc-2-39nm-w-brake-3000rpm-17-bit-incremental-encoder-ip65-dsy-c750l2b2-m17s.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "DSY-C750L2B2-M17S"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:25Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-IDS60BP-PAGE",
+      "title": "StepperOnline UK listing page: IDS-C60BP-48V400W",
+      "url": "https://www.stepperonline.co.uk/ids-series-400w-canopen-rs485-pulse-integrated-dc-servo-motor-1-27nm-179-85oz-in-with-brake-17-bit-absolute-encoder-ids-c60bp-48v400w.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "IDS-C60BP-48V400W"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: listing facts only (would confirm the drive part number and output currents, review SO-D04); the category cards in SO-DCSERVO-CAT/SO-INTSERVO-CAT already give the model rows",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:57Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-BLDCCAT",
+      "title": "StepperOnline UK listing page: BLD-515C (category listing)",
+      "url": "https://www.stepperonline.co.uk/bldc-driver.html",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "BLD-515C (category listing)"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: the only seller source of BLD-515C listing facts (drive identity, download names); no stored page covers BLD-515C",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:14:47Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-BLD515C-PAGE",
+      "title": "StepperOnline UK listing page: BLD-515C",
+      "url": "https://www.stepperonline.co.uk/index.php?route=product/product&product_id=3111",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "BLD-515C"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: the only seller source of BLD-515C listing facts (drive identity, download names); no stored page covers BLD-515C",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:13:57Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried. Eleven other index.php?route=product/product&product_id=N requests (5462-5466, 5468-5471, 5300, 5301) at 16:13:52-16:13:56Z returned the same 503."
+        }
+      ]
+    },
+    {
+      "id": "SO-CMPPAGE",
+      "title": "StepperOnline UK servo motor comparison article",
+      "url": "https://www.stepperonline.co.uk/servo-motor-comparison",
+      "revision": "not available",
+      "retrieval_status": "blocked: needs manual browser download by the owner",
+      "applicability": [
+        "Servo motor comparison article"
+      ],
+      "reviewed_on": null,
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted storefront (www.stepperonline.co.uk)",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": false,
+      "priority": "optional: seller comparison of its servo ranges; context only",
+      "attempts": [
+        {
+          "utc": "2026-11-19T16:16:17Z",
+          "http_status": 503,
+          "result": "HTTP 503, empty body, header 'X-Lightning: non-cached pages access deny', Retry-After 86400; the storefront serves only page-cached pages to this client; not retried"
+        }
+      ]
+    },
+    {
+      "id": "SO-TUNEZIP",
+      "title": "StepperOnline GitHub: DSY_Series_Debug_Software_7_3.zip (tuning software)",
+      "url": "https://github.com/StepperOnline/Tunning-Software/blob/main/DSY_Series_Debug_Software_7_3.zip",
+      "revision": "repository HEAD f23dd9542179b1076209e3f731d8ec42a9d821e5 (2026-05-05); file last changed in cc14c240ad0c4d0d9782c768aa59e8c00cbe0a39 (2025-11-11); 39,252,530 bytes; git blob 5ed55de962696e984f9997ada4563d95703ddcc3",
+      "retrieval_status": "central_directory_read_by_http_range_not_downloaded",
+      "applicability": [
+        "DSY series (linked from SO-DSY400B-PAGE)"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-owned GitHub organization linked from the seller listing",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": true,
+      "finding": "The last 262,144 bytes were read with an HTTP range request (a suffix range returned HTTP 501; an explicit range returned 206). The central directory holds one entry, 'Servo Tuning Software V3.1.5.13.exe' (39,365,915 bytes uncompressed). No document, EDS or parameter table. Not downloaded, extracted or executed."
+    },
+    {
+      "id": "SO-HELP",
+      "title": "StepperOnline Help Center landing page",
+      "url": "https://help.omc-stepperonline.com/hc/s/en",
+      "revision": "live page 2026-11-19",
+      "retrieval_status": "reviewed_not_stored",
+      "applicability": [
+        "No DSY-C, IDS-C or BLD-515C article listed"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": true,
+      "finding": "HTTP 200. Landing page lists A6, Y-series and closed-loop stepper guides only. '?query=DSY' and '?query=CANopen' return the same page (search runs in the browser), so no DSY article could be located."
+    },
+    {
+      "id": "SO-TERMS",
+      "title": "StepperOnline UK Terms & Conditions",
+      "url": "https://www.stepperonline.co.uk/terms-conditions.html",
+      "revision": "page cache 2026-11-19",
+      "retrieval_status": "reviewed_not_stored",
+      "applicability": [
+        "rights note for this pack"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "seller-hosted",
+      "license": "Manufacturer copyright; no redistribution license found; not covered by the library license",
+      "content_reviewed": true,
+      "finding": "Sales terms only (customs, cancellation, faults, one-year warranty). No copyright, content-use or redistribution clause. Seller entities: OMC Corporation Limited (Nanjing, head office) and STEPPERONLINE Inc. (New York)."
+    },
+    {
+      "id": "SO-CM5USER",
+      "title": "Third-party user design: jrseti/cm5-servo-dish-controller",
+      "url": "https://github.com/jrseti/cm5-servo-dish-controller",
+      "revision": "commit 0298f3f1ce7ec4ac974b50f747309a317051cd22 (pushed 2026-11-18)",
+      "retrieval_status": "reviewed_not_stored",
+      "applicability": [
+        "names DSY-400C as an intended CANopen slave"
+      ],
+      "reviewed_on": "2026-11-19",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "third-party public repository (MIT); not manufacturer evidence",
+      "license": "MIT (third-party project); not vendor material",
+      "content_reviewed": true,
+      "finding": "README.md and hardware/README.md read. Schematic-only project; STM32 firmware not started, so it holds no DSY-C protocol code. hardware/README.md claims the drives' CN1/CN2 RJ45 ports use the CiA 303-1 pinout (pin 1 CAN_H, pin 2 CAN_L, pin 3 CAN_GND). Unverified third-party claim. The 'parts' submodule was not inspected for vendor copies."
+    }
+  ],
+  "limitations": [
+    "Every StepperOnline protocol document (DSY-C manual V1.0, DSY-C.EDS, IDS_MotorV2.3.eds, both IDS manuals, BLD_CAN.eds, BLD-515C manual) and both datasheets returned an HTTP 403 Cloudflare challenge to one ordinary request each. Per the task they were not retried with altered headers, archive copies or third-party mirrors (Scribd, manualslib).",
+    "No PDF or EDS is stored, so no extracted text exists (derived_artifacts is empty) and no object dictionary, identity, PDO, mode, unit, timing or state-machine fact is evidenced in this pack.",
+    "Stored HTML pages are storefront page-cache copies; prices and stock are snapshot values. The storefront refused non-cached pages (HTTP 503 'non-cached pages access deny'); only four relevant pages were cached.",
+    "DC_Servo_Debugging_Software.zip (IDS listing) was not requested: software is out of scope. The DSY tuning zip's central directory was read, nothing extracted or run.",
+    "Market-survey claims taken from search-indexed manual text, Scribd or manualslib (DSY-C modes PP/PV/PT/HM, 'DS3 drive', 23-bit optical encoder, BLD-515C conformance and register table) remain unverified here.",
+    "No firmware, SDK or installer executed. No hardware contacted. No vendor correspondence."
+  ]
+}

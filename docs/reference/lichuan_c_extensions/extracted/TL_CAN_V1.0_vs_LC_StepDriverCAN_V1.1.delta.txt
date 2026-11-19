@@ -1,0 +1,16 @@
+# EDS delta: A = LC_StepDriverCAN_V1.1.eds (CL86-C pack), B = TL_CAN_V1.0.eds (TLEDS).
+# Case, hex/decimal spelling and absent ObjFlags=0 are ignored. Line numbers are section headers.
+# Review aid only; the original EDS files are authoritative.
+sections only in A: DYNAMICCHANNELS
+sections only in B: 1018sub4
+[FILEINFO] A l.1, B l.1: FileName: 'LC_StepD.eds' -> 'TL_CAN_V1.0.eds'; CreationTime: '09:10 PM' -> '09:55AM'; CreationDate: '12-23-2020' -> '05-25-2023'; ModificationTime: '03:52 PM' -> '09:55AM'; ModificationDate: '11-11-2022' -> '05-25-2023'
+[DEVICEINFO] A l.12, B l.12: ProductName: 'LC_SterDriverCAN' -> 'TL_CAN'; CompactPDO: '0x00' -> '31'
+[1018] A l.270, B l.70: SubNumber: '0x04' -> '5'; ParameterName: 'Identity Object' -> 'Object 1018'
+[1018sub0] A l.276, B l.75: LowLimit: '1' -> None; HighLimit: '4' -> None; DefaultValue: '3' -> '4'
+[2401] A l.1496, B l.1561: ParameterName: 'Obj.Di0Filtime' -> 'Obj.DiFiltime'
+[2402] A l.1505, B l.1569: ParameterName: 'Obj.Di1Filtime' -> 'Obj.BaudSet'
+[2403] A l.1514, B l.1577: ParameterName: 'Obj.Di2Filtime' -> 'Obj.RSVD'
+[2404] A l.1523, B l.1585: ParameterName: 'Obj.Di3Filtime' -> 'Obj.RSVD'
+[2405] A l.1532, B l.1593: ParameterName: 'Obj.Di4Filtime' -> 'Obj.RSVD'
+[2406] A l.1541, B l.1601: ParameterName: 'Obj.Di5Filtime' -> 'Obj.RSVD'
+[2407] A l.1550, B l.1609: ParameterName: 'Obj.Di6Filtime' -> 'Obj.RSVD'

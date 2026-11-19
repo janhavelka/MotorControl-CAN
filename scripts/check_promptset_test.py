@@ -72,8 +72,9 @@ class PromptSequenceTests(unittest.TestCase):
     def test_current_sequence_passes(self):
         code, result = self.check_with()
         self.assertEqual(code, 0, result["errors"])
-        self.assertEqual(result["counts"]["stages"], 76)  # Prompts 73-76 added on 2026-11-17.
-        self.assertEqual(result["counts"]["hashed_artifacts"], 140)
+        self.assertEqual(result["counts"]["stages"], 78)  # Prompts 77-78 added on 2026-11-19.
+        # Family reference packs added on 2026-11-19 (docs/reference/<pack>/SOURCES.json).
+        self.assertEqual(result["counts"]["hashed_artifacts"], 318)
 
     def upstream_change(self, change):
         upstream = json.loads(UPSTREAM.read_text(encoding="utf-8"))

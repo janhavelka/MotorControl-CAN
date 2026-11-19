@@ -1,0 +1,887 @@
+=== PDF PAGE 1 ===
+Instructions for Firmware Update
+to version: FIR-v2039
+For the following product groups:
+C5, C5-E, N5, CL3-E, NP5, PDx-C
+Valid for the firmware version FIR-v1650
+            Document Version: 1.2.0
+ 
+ 
+
+=== PDF PAGE 2 ===
+Contents
+1 Introduction.....................................................................................................3
+1.1 Version information.....................................................................................................................................3
+1.2 Copyright and contact.................................................................................................................................4
+1.3 Emphasis in the text...................................................................................................................................4
+1.4 Numerical values........................................................................................................................................ 4
+2 Changes.......................................................................................................... 5
+2.1 N5: file system and NanoIP....................................................................................................................... 5
+2.2 Motor current setting...................................................................................................................................5
+2.3 User-defined units.......................................................................................................................................5
+2.4 Operating mode changeover...................................................................................................................... 6
+2.5 NanoJ program........................................................................................................................................... 6
+2.6 Storing fieldbus parameters........................................................................................................................6
+2.7 Limit switch behavior.................................................................................................................................. 6
+2.8 Controller clocking...................................................................................................................................... 6
+2.9 NP5: clock / direction input........................................................................................................................ 7
+2.10 EtherNet/IP
+™: Change of the assembly objects....................................................................................... 7
+3 New functions.................................................................................................8
+3.1 Plug&Drive interface................................................................................................................................... 8
+3.2 Support of multiple feedbacks....................................................................................................................8
+3.3 New controller structure..............................................................................................................................8
+3.4 Sensor monitoring.......................................................................................................................................8
+3.5 Monitoring the slippage error......................................................................................................................9
+3.6 Auto alignment............................................................................................................................................9
+3.7 Slow Speed.................................................................................................................................................9
+3.8 Capture function..........................................................................................................................................9
+3.9 Configuration of the ballast circuit..............................................................................................................9
+3.10 LSS protocol............................................................................................................................................. 9
+3.11 Sync-Master Functionality.......................................................................................................................10
+4 Object overview............................................................................................11
+4.1 New objects.............................................................................................................................................. 11
+4.2 Changed objects.......................................................................................................................................13
+4.3 Removed objects...................................................................................................................................... 14
+
+=== PDF PAGE 3 ===
+1 Introduction
+1 Introduction
+To be able to better integrate new requirements, the controller firmware was revised. To use the new
+functionalities, you must perform a firmware update to the current version, FIR-v2039, using Plug & Drive
+Studio.
+These instructions describe the differences between firmware versions FIR-1650 and FIR-v2039 and apply
+to the following products that are currently delivered with firmware FIR-1650:
+■
+C5-01
+■
+C5-E-1-09, C5-E-2-09
+■
+CL3-E-1-0F, CL3-E-2-0F
+■
+N5-1-1, N5-2-1
+■
+N5-1-2, N5-2-2
+■
+N5-1-3, N5-2-3
+■
+N5-1-4, N5-2-4
+■
+NP5-08
+■
+NP5-40
+■
+All motors of the product groups PD2-C, PD4-C and PD6-C
+The instructions provide information on the modifications that must be performed so that you can use the
+products without difficulty in your existing applications after performing the firmware update.
+Detailed documentation on the respective product and the technical manual on both firmware versions can
+be found on the respective product page or in the download folder of Plug & Drive Studio respectively, at
+us.nanotec.com. These instructions refer to the corresponding documents and chapters that describe in
+greater detail the changes/functions listed here.
+1.1 Version information
+Version
+of the
+instructions
+Date
+Changes
+Old firmware
+version
+New firmware
+version
+1.0.0
+10/2019
+First edition
+FIR-v1650
+FIR-v1939
+1.1.0
+04/2020
+New changes with firmware version
+FIR-v2013:
+■
+NP5: clock / direction input
+■
+EtherNet/IP: Change of the
+assembly objects
+New function:
+■
+Sync-Master Functionality
+New objects: 606Fh, 6070h,
+3231h:03h
+FIR-v1650
+FIR-v2013
+1.2.0
+10/2020
+New function:
+■
+Configuration of the ballast circuit
+New objects: 4021h, 3250h:09
+FIR-v1650
+FIR-v2039
+ 
+ 
+Version: 1.2.0 / FIR-v1650
+3
+
+=== PDF PAGE 4 ===
+1 Introduction
+1.2 Copyright and contact
+© 2013 – 2020 Nanotec Electronic GmbH & Co. KG. All rights reserved.
+Nanotec Electronic GmbH & Co. KG
+Kapellenstraße 6
+85622 Feldkirchen
+Germany
+ 
+Phone: +49 89 900 686-0
+Fax: +49 (89) 900 686-50
+ 
+us.nanotec.com
+ 
+1.3 Emphasis in the text
+The following conventions are used in the document:
+Underlined text indicates cross references and hyperlinks:
+■
+The following bits in object 6041h (statusword) have a special function:
+■
+A list of available system calls can be found in chapter System calls in a NanoJ program.
+Text set in italics marks named objects:
+■
+Read the installation manual.
+■
+Use the Plug & Drive Studio software to perform the auto setup.
+■
+For software: You can find the corresponding information in the Operation tab.
+■
+For hardware: Use the ON/OFF switch to switch the device on.
+A text set in Courier marks a code section or programming command:
+■
+The line with the od_write(0x6040, 0x00, 5 ); command has no effect.
+■
+The NMT message is structured as follows: 000 | 81 2A
+A text in "quotation marks" marks user input:
+■
+Start the NanoJ program by writing object 2300h, bit 0 = "1".
+■
+If a holding torque is already needed in this state, the value "1" must be written in 3212h:01h.
+1.4 Numerical values
+Numerical values are generally specified in decimal notation. The use of hexadecimal notation is indicated by
+a subscript h at the end of the number.
+The objects in the object dictionary are written with index and subindex as follows: <Index>:<Subindex>
+Both the index as well as the subindex are specified in hexadecimal notation. If no subindex is listed, the
+subindex is 00h.
+Example: Subindex 5 of object 1003h is addressed with 1003h:05h, subindex 00 of object 6040h with
+6040h.
+Version: 1.2.0 / FIR-v1650
+4
+
+=== PDF PAGE 5 ===
+2 Changes
+2 Changes
+In this chapter, the main changes that you should take into consideration for the update are described. You
+can find a list of the changed (and of the new) objects in chapter Object overview.
+2.1 N5: file system and NanoIP
+Note
+The N5-1-1/N5-2-1 (EtherCAT) and N5-1-2/N5-2-2 (CANopen) variants no longer have a file system.
+This has the following implications:
+■
+The stored files of the file system (.on) are lost after the update. You must configure the controller
+again.
+■
+The NanoIP web-browser-based user interface is no longer included. Use the Plug&Drive Studio.
+2.2 Motor current setting
+In FIR-v1650, object 2031h defines the current to be used in open-loop and the maximum current to be used
+when using I2t (motor overload protection).
+In FIR-v2039, the current in open-loop and the maximum current when using I2t are defined via 6073h *
+6075h. The result of this product can be limited with 2031h.
+See chapters Setting the motor data and I2t motor overload protection in the technical manual.
+2.3 User-defined units
+Firmware FIR-v2039 offers you the possibility to set other user-defined units. It is thereby possible to set and
+read out the corresponding parameters, e.g., directly in degrees [°], millimeter [mm], etc.
+A number of objects were thereby replace with new objects. See chapters User-defined units and
+Configuring the sensors in the technical manual.
+Position unit
+The factory setting for the position unit was changed and is now one “tenth of degree”. To specify one motor
+revolution, you would thus need to set a relative movement with “3600” as the target position instead of with
+“2000” as in the past.
+Firmware version
+Position unit (default)
+Object for configuring the unit
+FIR-v1650
+2000 increments/revolution
+608Fh
+FIR-v2039
+1°/10 (3600 per revolution)
+60A8h
+Object 608Fh no longer includes a virtual encoder resolution but rather the physical resolution and mirrors
+a subindex from 60E8h according to the position sensor set in object 3203h. See also Support of multiple
+feedbacks.
+Speed unit in Velocity mode
+Without exception, the unit in FIR-v2039 is rpm . Via 604Ch:01h/:02h, you can set a factor by which the speed
+is multiplied in order to define your own unit.
+If, for example, subindex 1 is set to the value "60" and subindex 2 is set to the value "1", the speed is
+specified in revolutions per second (60 revolutions per 1 minute). With the factory settings in FIR-v2039, the
+motor speed is thus one sixtieth of the speed in FIR-v1650.
+Version: 1.2.0 / FIR-v1650
+5
+
+=== PDF PAGE 6 ===
+2 Changes
+2.4 Operating mode changeover
+In firmware FIR-v1650, it is not permissible to change the operating mode to the Operation enabled state. It
+is therefore possible to use 3212h:01h to optionally apply a holding torque in the Switched on state.
+This behavior was revised in firmware FIR-v2039. Changeover of the operating mode can now be performed
+directly in the Operation enabled state. It is no longer necessary to switch back to the Switched on state
+nor does one need to explicitly set bit 0 in object 3212h:01h. If the state machine of Operation enabled is
+switched back to Switched on, the motor becomes torque-free.
+Note
+For the modes in which bit 4 in the controlword (6040h) starts a travel command (e.g., Profile Position),
+the command starts immediately upon changing from Switched on to Operation enabled or upon
+changing the mode to the Operation enabled state if bit 4 was already set.
+2.5 NanoJ program
+■
+The mapping in the NanoJ program is checked and an error in 2302h displayed if the entry is incorrect
+(e.g., wrong data type or wrong object address).
+■
+For controllers with USB interface, the NanoJ program is no longer automatically started each time the
+controller is restarted. To start the NanoJ program, you must insert line 2300:00=1 in the configuration
+file and save the file.
+■
+It is no longer possible to store multiple NanoJ programs with the N5; objects 2303h and 2304h are
+omitted.
+2.6 Storing fieldbus parameters
+FIR-v2039 uses new categories for separately storing/resetting fieldbus parameters such as node-ID, baud
+rate, IP address, etc. For this purpose there are, depending on the controller, one or more subindicies in the
+range 1010:08h to :0xh or 1011:08h to :0xh.
+These parameters are no longer stored/reset via 1010h:01h/:02 and 1011h:01h/02h.
+For further details, see chapter Saving objects in the technical manual.
+2.7 Limit switch behavior
+The tolerance bands that were to be set in 2056h and permitted a movement in the zone after the limit switch
+no longer exist in FIR-v2039.
+If a limit switch is now passed over, bit 7 (Warning) is immediately set in 6041h (statusword) and the action
+that is stored in object 3701h executed.
+See chapter Limitation of the range of motion in the technical manual.
+2.8 Controller clocking
+Controller clocking has changed in FIR-v2039.
+Controller
+Cycle time FIR-v1650
+Cycle time FIR-v2039
+Current controller
+31.25 µs (32 kHz)
+62.5 µs (16 kHz)
+Velocity controller
+31.25 µs (32 kHz)
+250 µs (4 kHz)
+Position controller
+31.25 µs (32 kHz)
+1 ms
+Version: 1.2.0 / FIR-v1650
+6
+
+=== PDF PAGE 7 ===
+2 Changes
+If may be necessary to modify the control parameters for closed loop if you continue to work with the
+old control parameters (object 3210h). The new control parameters (see New controller structure) are
+independent of the clock signal.
+Tip
+If necessary, multiply the integral component of the velocity controller (3210h:04h) by 8 and the integral
+component of the current controller (3210h:06h/:08h) by 2.
+2.9 NP5: clock / direction input
+In order to use the clock and direction input you have to activate this function in 3231h:03h. See chapter
+Digital inputs and outputs in the technical manual.
+2.10 EtherNet/IP™: Change of the assembly objects
+The Assembly Objects were changed in order to facilitate the control using Plug&Drive-Interface. See
+chapter Assembly objects in the technical manual.
+Version: 1.2.0 / FIR-v1650
+7
+
+=== PDF PAGE 8 ===
+3 New functions
+3 New functions
+In this chapter, the new functionalities that are available to you after an update are described. You can find a
+list of the new (and of the changed) objects in chapter Object overview.
+3.1 Plug&Drive interface
+The Plug & Drive interface represents a Nanotec-specific variant for controlling a drive and offers an
+alternative to the device profile, which is described in CiA 402.
+With the Plug & Drive interface, you can immediately trigger drive commands. This eliminates the need
+to run through the state machine. The interface is supported by all controllers and Plug & Drive motors,
+independent of the communication interface.
+For further details, read document Function description Plug & Drive interface, which you can find at
+us.nanotec.com.
+3.2 Support of multiple feedbacks
+Affects the following product groups: C5-E, CL3-E, N5, NP5.
+The FIR-v2039 firmware supports multiple feedbacks, which you can specifically assign to the individual
+control loops (current controller/commutation, speed, position). Now you can use, e.g., Hall sensors for the
+velocity control and for the commutation and an (external) encoder for the positioning, or the Hall sensors for
+the commutation immediately after switching on – until the index of the attached encoder is passed over for
+the first time.
+You can also use sensors that are not directly attached to the motor shaft. Sensors are possible at three
+locations:
+You can find details in chapters Assignment of the feedbacks to the control loops and Configuring the
+sensors of the technical manual.
+3.3 New controller structure
+Beginning with FIR-v1939, the new schema for the controller structure applies. This structure makes
+provision for standardized control parameters and the use of a feed forward. The old control parameters
+(object 3210h) are still activated in the factory settings for compatibility reasons.
+You can find details in chapter Controller structure in the technical manual.
+3.4 Sensor monitoring
+Affects the following product groups: C5-E, CL3-E, N5, NP5, PD2-C, PD4-C, PD6-C.
+Version: 1.2.0 / FIR-v1650
+8
+
+=== PDF PAGE 9 ===
+3 New functions
+In firmware FIR-v2039, the encoder is monitored for faults. Each time the index edge is seen, a check is
+performed to determine whether its position is correct. If the position of the index edge exceeds the tolerance
+window, an error is registered and the motor stopped hard, without a ramp.
+If no index is connected, this monitoring does not take place. If the index cable is interrupted during running
+operation, a check is no longer performed.
+Monitoring also takes place with integrated absolute encoders and Hall sensors. A check is performed when
+switching on and during operation to determine whether they are supplying a valid position.
+In case of an error, the exact error is entered in 1003h.
+3.5 Monitoring the slippage error
+Affects the following product groups: C5-E, CL3-E, N5, NP5, PD2-C, PD4-C, PD6-C.
+Analogous to the following error in Position Mode, the slippage error is now monitored in Profile Velocity
+mode.
+If the actual speed deviates so much from the set speed that the value (absolute value) of the object 60F8h is
+exceeded, bit 13 in object 6041h is set. The deviation must last longer than the time in object 203Fh.
+A reaction to the slippage error can be set in object 3700h. If a reaction is defined, an error is also entered in
+1003h.
+3.6 Auto alignment
+Affects the following product groups: C5-E, CL3-E, N5, NP5.
+It is now possible to activate closed loop even if the used encoder is not equipped with an index and a
+second sensor is not present for the commutation.
+It is now possible to have an auto-alignment determined once every time the controller is restarted. The
+previously necessary auto setup is also no longer necessary as a result.
+You can find further details and the prerequisites for enabling the determination of the auto alignment in
+section Activation in chapter Closed loop of the technical manual.
+3.7 Slow Speed
+Affects the following product groups: C5-E, CL3-E, N5, NP5, PD2-C, PD4-C, PD6-C.
+The new slow speed operating mode combines the advantages of open-loop and closed loop technologies in
+a low speed range and can be used if an encoder is present as feedback.
+You can find details in chapter Slow speed in the technical manual.
+3.8 Capture function
+With the new object 3243h, the current position can be noted automatically if a level change occurs at the
+digital input that is used for the home switch.
+3.9 Configuration of the ballast circuit
+With the new object 4021h you configure the ballast circuit and can set the response threshold (for all
+products) and/or the parameters for its monitoring, when the ballast resistor is not part of the product (for
+NP5).
+You can find details in chapter External ballast circuit in the technical manual of the NP5.
+3.10 LSS protocol
+Only affects products with the CANopen fieldbus.
+Version: 1.2.0 / FIR-v1650
+9
+
+=== PDF PAGE 10 ===
+3 New functions
+The services of the LSS protocol (Layer Settings Services) are used to assign the node-ID and/or the baud
+rate of the controller directly via the CANopen bus. This is especially useful with devices that have no means
+for the mechanical configuration (e.g., rotary switches) of the parameters.
+You can find further information in chapter LSS protocol of the technical manual of controllers with the
+CANopen fieldbus.
+3.11 Sync-Master Functionality
+Only affects products with the CANopen fieldbus.
+You can activate the generating of sync messages (the controller becomes the Sync Master of the network),
+by setting bit 30 in 1005h (COB-ID Sync) to "1". You set the cycle time in objekt 1006h.
+Version: 1.2.0 / FIR-v1650
+10
+
+=== PDF PAGE 11 ===
+4 Object overview
+4 Object overview
+In the course of revising the firmware, a number of new objects/functions were created and others were
+adapted or no longer exist. In this chapter, you will find lists with the objects of all three categories as well as
+a short description.
+4.1 New objects
+The following objects are new:
+Index
+Sub
+Bit
+Name
+Description
+1006h
+00h
+Communication
+Cycle Period
+see Sync-Master Functionality
+1010h
+08h – 0Dh
+Store Parameters
+New subindices for separately
+saving fieldbus parameters such as
+node-ID, baud rate, IP address, etc.
+See Storing fieldbus parameters.
+1011h
+08h – 0Dh
+Restore Default
+Parameters
+New subindices for separately
+resetting fieldbus parameters
+such as node-ID, baud rate, IP
+address, etc. See Storing fieldbus
+parameters.
+1016h
+01h
+Consumer
+Heartbeat Time
+Only CANopen: for monitoring the
+Heartbeat of a producer
+1019h
+00h
+Synchronous Counter
+Overflow Value
+Only CANopen: overflow for the
+Sync Counter for Tx-PDO
+1029h
+00h
+Error Behavior
+Only CANopen: for defining the
+NMT state of the slave in case of
+an error
+180Xh
+06h
+SYNC Start Value
+Only CANopen: start value of the
+Sync Counter for Tx-PDO
+1F80h
+00hh
+NMT Startup
+CANopen only: to set whether, after
+starting the controller, the state is
+automatically switched to the NMT
+state Operational.
+200Fh
+00h
+IEEE 802 MAC Address Ethernet interface: the object
+contains the MAC address of the
+controller as a character string.
+2010h
+00h
+5
+NetBIOS
+Protocol Enable
+Ethernet interface: for activating the
+NetBIOS protocol
+2010h
+00h
+6
+LLMNR
+Protocol Enable
+Ethernet interface: for activating the
+LLMNR protocol
+203Fh
+00h
+Max Slippage Time Out New functionality: see Monitoring
+the slippage error.
+2290h
+00h
+PDI Control
+see Plug&Drive interface
+2291h
+00h
+PDI Input
+see Plug&Drive interface
+2292h
+00h
+PDI Output
+see Plug&Drive interface
+2800h
+01h
+Reboot Command
+New object for rebooting the
+firmware
+2800h
+02h
+Reboot Delay
+Time In ms
+New object for setting a delay of the
+reboot.
+Version: 1.2.0 / FIR-v1650
+11
+
+=== PDF PAGE 12 ===
+4 Object overview
+Index
+Sub
+Bit
+Name
+Description
+2800h
+03h
+0
+Bootloader HW Config
+For setting whether the motor
+windings are short circuited in boot
+loader mode.
+3202h
+00h
+4
+Open-Loop
+Auto-Alignment
+see Auto alignment
+3203h
+00h
+Feedback Selection
+see Support of multiple feedbacks
+3204h
+00h
+Feedback Mapping
+see Support of multiple feedbacks
+320Dh
+00h
+Torque Of Inertia Factor For setting a factor for the
+acceleration feed forward, see New
+controller structure
+320Eh
+---
+Closed Loop
+Controller Parameter
+see New controller structure
+320Fh
+---
+Open Loop
+Controller Parameter
+see New controller structure
+3231h
+03h
+Alternate
+Function Mask
+see NP5: clock / direction input
+3243h
+---
+---
+Digital Input
+Homing Capture
+The encoder position can be
+detected automatically if a level
+change occurs at the digital input
+that is used for the home switch.
+3250h
+09h
+For switching the LEDs off/on.
+3390h
+---
+Feedback Hall
+see Support of multiple feedbacks
+33A0h
+---
+---
+Feedback
+Incremental A/B/I 1
+see Support of multiple feedbacks
+33A1h
+---
+---
+Feedback
+Incremental A/B/I 2
+see Support of multiple feedbacks
+33B4h
+---
+---
+SSI Encoder Multi Turn see Support of multiple feedbacks
+3701h
+00h
+---
+Limit Switch Error
+Option Code
+see Limit switch behavior
+4015h
+---
+Special Drive Modes
+For activating the clock-direction
+or analog mode via (if applicable,
+virtual) rotary switch/DIP switch,
+see chapter Special drive modes
+(clock-direction and analog speed)
+in the corresponding technical
+manual
+4021h
+01h– 03h,
+01h - 08h
+resp. (for
+NP5)
+For configurating the ballast circuit,
+see Configuration of the ballast
+circuit.
+606Fh
+00h
+Velocity Threshold
+Velocity in user defined untis above
+which the actual velocity in mode
+Profile Velocity counts as non equal
+to zero.
+6070h
+00h
+Velocity
+Threshold Time
+Time in millseconds from which an
+actual velocity bigger than the value
+in 606Fh in mode Profile Velocity
+counts as non equal to zero.
+6073h
+00h
+Max Current
+see Motor current setting
+6075h
+00h
+Motor Rated Current
+see Motor current setting
+Version: 1.2.0 / FIR-v1650
+12
+
+=== PDF PAGE 13 ===
+4 Object overview
+Index
+Sub
+Bit
+Name
+Description
+607Fh
+00h
+Max Profile Velocity
+Specifies the maximum speed in
+user-defined units for the modes
+Profile Position, Interpolated
+Position (only if closed-loop is
+activated), and Profile Velocity.
+6080h
+00h
+Max Motor Speed
+Replaces 2032h
+6090h
+01h/02h
+Velocity Encoder
+Resolution
+Mirrors a subindex from
+60E6h/60EBh according to the
+speed sensor set in object 3203h.
+See Support of multiple feedbacks
+and User-defined units.
+60B0h
+00h
+Position Offset
+Offset for the position set value in
+user-defined units
+60B1h
+00h
+Velocity Offset
+Offset for the speed set value in
+user-defined units
+60B2h
+00h
+Torque Offset
+Offset for the torque set value in
+tenths of a percent
+60F8h
+00h
+Max Slippage
+New functionality: see Monitoring
+the slippage error.
+60FAh
+00h
+Control Effort
+Contains the correction speed
+(control variable) in user-defined
+units that is fed to the velocity
+controller by the position controller.
+See New controller structure
+60FCh
+00h
+Position Demand
+Internal Value
+Indicates the current preset
+value for the position controller in
+increments of the sensor selected
+for the position in 3203h.
+4.2 Changed objects
+The following objects were adapted/expanded/changed:
+Index
+Sub
+Bit
+Name
+Description
+2031h
+00h
+Max Motor Current
+see Motor current setting
+203Bh
+01h
+Motor Rated Current
+see Motor current setting
+6041h
+00h
+15
+FIR-v1650: Closed
+Loop Available
+FIR-v2039: Closed
+Loop Active
+Indicates whether closed loop is
+active.
+604Ch
+---
+Vl Dimension Factor
+see User-defined units
+6063h
+00h
+Position Actual
+Internal Value
+Use object 3203h to set which
+of the existing feedbacks the
+controller takes into consideration
+for the position display.
+6064h
+00h
+Position Actual Value
+Use object 3203h to set which
+of the existing feedbacks the
+Version: 1.2.0 / FIR-v1650
+13
+
+=== PDF PAGE 14 ===
+4 Object overview
+Index
+Sub
+Bit
+Name
+Description
+controller takes into consideration
+for the position display.
+606Ch
+00h
+Velocity Actual Value
+Use object 3203h to set which
+of the existing feedbacks the
+controller takes into consideration
+for the velocity display.
+608Fh
+01h/02h
+Position Encoder
+Resolution
+Mirrors a subindex from
+60E6h/60EBh according to the
+position sensor set in object 3203h.
+See Support of multiple feedbacks
+and User-defined units.
+6091h
+01h/02h
+Gear Ratio
+Mirrors a subindex from
+60E8h/60EDh according to the
+position sensor set in object 3203h.
+See Support of multiple feedbacks
+and User-defined units.
+6092h
+01h/02h
+Feed Constant
+Mirrors a subindex from
+60E9h/60EEh according to the
+position sensor set in object 3203h.
+See Support of multiple feedbacks
+and User-defined units.
+4.3 Removed objects
+The following objects are no longer needed:
+Index
+Sub
+Bit
+Name
+Description
+2032h
+00h
+Max Motor Speed
+Replaced by 6080h
+2033h
+00h
+Plunger Block
+Removed; this functionality can
+be implemented using the NanoJ
+program.
+2050h
+00h
+Encoder Alignment
+The alignment is now entered
+for each existing encoder in the
+corresponding object, in subindex
+2h, see Support of multiple
+feedbacks
+2052h
+00h
+Encoder Resolution
+The resolution is now entered
+for each existing encoder in
+the corresponding subindex in
+60E6h/60EBh, see Support of
+multiple feedbacks
+2061h
+00h
+Velocity Numerator
+Replaced by 6096h:01h
+2062h
+00h
+Velocity Denominator
+Replaced by 6096h:02h
+2063h
+00h
+Acceleration Numerator Replaced by 6097h:01h
+2064h
+00h
+Acceleration
+Denominator
+Replaced by 6097h:02h
+2065h
+00h
+Jerk Numerator
+Replaced by 60A2h:01h
+2066h
+00h
+Jerk Denominator
+Replaced by 60A2h:02h
+Version: 1.2.0 / FIR-v1650
+14
+
+=== PDF PAGE 15 ===
+4 Object overview
+Index
+Sub
+Bit
+Name
+Description
+2303h
+00h
+Number Of Active
+User Program
+Removed, see NanoJ program
+2304h
+00h
+Table Of Available
+User Programs
+Removed, see NanoJ program
+320Ah
+---
+Motor Drive Sensor
+Display Open Loop
+The source for the position/speed is
+now set in 3203h.
+320Bh
+---
+Motor Drive Sensor
+Display Closed Loop
+The source for the position/speed is
+now set in 3203h.
+3212h
+01h
+0
+Motor Drive Flags
+- Enable Legacy
+Power Mode
+Functionality removed, see
+Operating mode changeover
+DD4Ch
+00h
+Special Drive
+Mode Config
+Replaced by 4015h, see chapter
+Special drive modes (clock-
+direction and analog speed) in the
+corresponding technical manual
+Version: 1.2.0 / FIR-v1650
+15
+

@@ -38,4 +38,4 @@ Evidence marks: **(text)** read in the original PDF text by this survey; **(page
 
 Defer INVT SV-DA200 (good guide, unclear CAN-variant market), Inovance SV660C and JMC iHSS57-RC (documentation not obtained). Damiao and CubeMars need new backends, and their impedance-control-first actuators fit a separate robotics-actuator survey better than this positioning-drive segment.
 
-No sibling repository was inspected beyond the [RS promptset shape](../../../MotorControl-RS/docs/prompts/lichuan_lc57bk_rs485/README.md). No vendor was contacted and no hardware was used.
+No sibling repository was inspected beyond the RS promptset shape (`MotorControl-RS/docs/prompts/lichuan_lc57bk_rs485/README.md` in the sibling checkout). No vendor was contacted and no hardware was used.

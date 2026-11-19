@@ -1,0 +1,1174 @@
+=== PDF PAGE 1 ===
+TXM24C
+Integrated Step-Servo Motor
+Rev. 1.0
+AMP & MOONS’ Automation
+
+=== PDF PAGE 2 ===
+2
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+Contents
+1  Introduction.................................................................................. 3
+1.1  Features.............................................................................................3
+1.2  Block Diagram....................................................................................4
+1.3  Safety Instructions..............................................................................5
+2  Getting Started............................................................................. 6
+2.1  Installing Software..............................................................................6
+2.2  Mounting the Hardware......................................................................6
+2.3  Choosing a Power Supply..................................................................7
+2.3.1  Voltage ...................................................................................................7
+2.3.2  Regeneration Clamp...............................................................................7
+2.3.3  Current....................................................................................................8
+3  Installation/Connections............................................................. 10
+3.1  Connecting the Power Supply..........................................................10
+3.2  Connecting the TXM24C Communications......................................11
+3.2.1  Node ID.................................................................................................12
+3.2.2  Setting the Bitrate.................................................................................12
+3.3  Inputs and Outputs...........................................................................13
+3.3.1  Connector Pin Diagram.........................................................................13
+3.3.2  X1 & X2 Inputs......................................................................................14
+3.3.3  X3, X4, X5 Input....................................................................................15
+3.3.4  What is COM?.......................................................................................15
+3.3.5  Programmable Output ..........................................................................17
+4  Troubleshooting.......................................................................... 18
+5  Reference Materials................................................................... 19
+5.1  Torque-Speed Curves......................................................................19
+5.2  Mechanical Outlines.........................................................................20
+5.3  Technical Specifications...................................................................21
+5.4  Accessories......................................................................................21
+6  Contacting MOONS’................................................................... 22
+Model
+Communications
+RS-232
+CANopen
+TXM24C-3CG
+
+
+
+=== PDF PAGE 3 ===
+3
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+1  Introduction
+Thank you for selecting the MOONS’ TXM24C Integrated Motor.The TXM 
+line of integrated step-servo motors combines servo technology with an 
+integrated motor to create a product with exceptional feature and broad 
+capability. We hope our commitment to performance, quality and economy 
+will result in a successful motion control project. 
+1.1  Features
+•	
+	Programmable, Digital servo driver and motor in an integrated package
+•	
+Operates from a 12 to 70 volts DC power supply
+•	
+Modes of Operation:
+CANopen(complant CiA 402)
+•	 Profile Torque
+•	 Profile Velocity
+•	 Profile Position
+•	 Homing
+Q Programing
+•	 Execute stored Q programs via MOONS’ specific CANopen objects
+•	
+Communications:
+CANopen & RS-232
+•	
+5000 line (20,000 counts/rev) encoder feedback
+•	
+Available torque:
+TXM24C-3CG: Up to 2.4N•m Continuous(3.0 N•m Boost)
+•	
+I/O:
+5 optically isolated digital inputs, with adjustable bandwidth digital noise rejection filter, 5 to 24 
+volts 
+3 optically isolated digital output, 30V/100 mA max.
+•	
+Technological advances:
+Full servo control, Closed loop
+Efficient, Accurate, Fast, Smooth
+Intelligent, Compact
+•	
+IP65 protected with four M12 connectors
+
+=== PDF PAGE 4 ===
+4
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+1.2  Block Diagram
+Block Diagram
+TXM24C
+MOSFET
+PWM 
+Power
+Amplifier
+12-70 VDC
+ External
+Power Supply
+Voltage
+Temp
+Det.
+Over
+Current
+Det.
+motor
+encoder
+5 Volt DC
+Power Supply
+3.3VDC
+Internal
+Logic
+Supply
+I/O Connector
++
+X1 (5 to 24 Volts)
+: CW Limit
+: General Purpose
+X2 (5 to 24 Volts)
+: CCW Limit
+: General Purpose
+X3 (5 to 24 Volts)
+: Servo On
+: General Purpose
+X4 (5 to 24 Volts)
+: Alarm Reset
+: General Purpose
+X5 (5 to 24 Volts)
+: General Purpose
+I/O Configurations
+Status
+RS-232
+CANopen
+CANopen
+Conn
+Power
+Conn
+RS-232
+TX, RX, GND
+CANopen
+CANH, CANL, GND
+-
+Y1 (30V, 100mA)
+: Alarm Output
+: General Purpose
+Y2 (30V, 100mA)
+: In Position
+: General Purpose
+Y3 (30V, 100mA)
+: Brake Output
+: General Purpose
+Optional
+10 XCOM
+4 X3/SERVO ON
+6 X4/ALARM RESET
+7 X5
+1 X1/CW LIMIT+
+3 X1/CW LIMIT-
+5 X2/CCW LIMIT+
+8 X2/CCW LIMIT-
+11 Y1/ALARM
+12 Y2/IN POSITION
+9 Y3/BRAKE
+2 YCOM
+Optical
+Isolation
+DSP
+Driver
+Controller
+Comm
+Conn
+
+=== PDF PAGE 5 ===
+5
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+1.3  Safety Instructions
+Only qualified personnel should transport, assemble, install, operate, or maintain this equipment. 
+Properly qualified personnel are persons who are familiar with the transport, assembly, installation, 
+operation, and maintenance of motors, and who meet the appropriate qualifications for their jobs. 
+To minimize the risk of potential safety problems, all applicable local and national codes regulating 
+the installation and operation of equipment should be followed. These codes may vary from area 
+to area and it is the responsibility of the operating personnel to determine which codes should be 
+followed, and to verify that the equipment, installation, and operation are in compliance with the 
+latest revision of these codes.
+Equipment damage or serious injury to personnel can result from the failure to follow all applicable 
+codes and standards. MOONS’ does not guarantee the products described in this publication 
+are suitable for a particular application, nor do they assume any responsibility for product design, 
+installation, or operation.
+•	
+Read all available documentation before assembly and operation. Incorrect handling of the 
+products referenced in this manual can result in injury and damage to persons and machinery. 
+All technical information concerning the installation requirements must be strictly adhered to.
+•	
+It is vital to ensure that all system components are connected to earth ground. Electrical safety 
+is impossible without a low-resistance earth connection.
+•	
+This product contains electrostatically sensitive components that can be damaged by incorrect 
+handling. Follow qualified anti-static procedures before touching the product. 
+•	
+During operation keep all covers and cabinet doors shut to avoid any hazards that could 
+possibly cause severe damage to the product or personal health.
+•	
+During operation, the product may have components that are live or have hot surfaces. 
+•	
+Never plug in or unplug the Integrated Motor while the system is live. The possibility of electric 
+arcing can cause damage.
+Be alert to the potential for personal injury. Follow recommended precautions and safe operating 
+practices emphasized with alert symbols. Safety notices in this manual provide important 
+information. Read and be familiar with these instructions before attempting installation, operation, 
+or maintenance. The purpose of this section is to alert users to the possible safety hazards 
+associated with this equipment and the precautions necessary to reduce the risk of personal injury 
+and damage to equipment. Failure to observe these precautions could result in serious bodily 
+injury, damage to the equipment, or operational difficulty.
+
+=== PDF PAGE 6 ===
+6
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+2  Getting Started
+The following items are needed: 
+•	
+a 12 - 70 volt DC power supply, see the section below entitled “Choosing a Power Supply” for 
+help in choosing the right one
+•	
+a PC running Microsoft Windows 2000, XP, Vista, or Windows 7 
+2.1  Installing Software
+Before utilizing the TXM24C Integrated Motor and Step-Servo Quick Tuner Software in an 
+application, the following steps are necessary:
+•	
+Download and install the Step-Servo Quick Tuner software from MOONS’ website. 
+•	
+Connect the drive to the PC using the RS-232 programming cable. 
+•	
+Connect the drive to the power supply. See instructions below.
+•	
+Launch the software by clicking Start...Programs...MOONS’...Step-Servo Quick Tuner.
+•	
+Apply power to the drive.
+•	
+The software will recognize the drive and display the model and firmware version. At this point, 
+it is ready for use.
+2.2  Mounting the Hardware
+As with any step motor, the TXM24C must be mounted so as to provide maximum heat sinking 
+and airflow. Keep enough space around the Integrated Motor to allow for airflow.
+•	
+Never use the drive where there is no airflow or where other devices cause the 
+surrounding air to be more than 40°C (104°F).
+•	
+Never put the drive where it can get wet.
+•	
+Never use the drive where metal or other electrically conductive particles can 
+infiltrate the drive.
+•	
+Always provide airflow around the drive.
+
+=== PDF PAGE 7 ===
+7
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+2.3  Choosing a Power Supply
+The main considerations when choosing a power supply are the voltage and current requirements 
+for the application.
+2.3.1  Voltage 
+The TXM24C is designed to give optimum performance between 24 and 48 Volts DC. Choosing 
+the voltage depends on the performance needed and motor/drive heating that is acceptable and/
+or does not cause a drive over-temperature. Higher voltages will give higher speed performance 
+but will cause the TXM24C to produce higher temperatures. Using power supplies with voltage 
+outputs that are near the drive maximum may significantly reduce the operational duty-cycle. 
+The extended range of operation can be as low as 10 VDC minimum to as high as 75 VDC 
+maximum. When operating below 18 VDC, the power supply input may require larger capacitance 
+to prevent under-voltage and internal-supply alarms. Current spikes may make supply readings 
+erratic. The supply input cannot go below 10 VDC for reliable operation. Absolute minimum power 
+supply input is 10 VDC. If the Input supply drops below 10 VDC the low voltage alarm will be 
+triggered. This will not fault the drive.
+Absolute maximum power supply input is 75 VDC at which point an over-voltage alarm and fault 
+will occur. When using a power supply that is regulated and is near the drive maximum voltage 
+of 75 VDC, a voltage clamp may be required to prevent over-voltage when regeneration occurs. 
+When using an unregulated power supply, make sure the no-load voltage of the supply does not 
+exceed the drive’s maximum input voltage of 75 VDC.
+2.3.2  Regeneration Clamp
+If a regulated power supply is being used, there may be a problem with regeneration. When a 
+load decelerates rapidly from a high speed, some of the kinetic energy of the load is transferred 
+back to the power supply, possibly tripping the over-voltage protection of a regulated power 
+supply, causing it to shut down. This problem can be solved with the use of a MOONS’ RC880 
+Regeneration Clamp. It is recommended that an RC880 initially be installed in an application. If 
+the “regen” LED on the RC880 never flashes, the clamp is not necessary.
+                                               RC880 Regen Clamp
+LEDs
+  Green - Power
+  Red - Regen on
+
+=== PDF PAGE 8 ===
+8
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+2.3.3  Current
+The maximum supply currents required by the TXM24C are shown in the charts below at different 
+power supply voltage inputs. The TXM24C power supply current is lower than the winding currents 
+because it uses switching amplifiers to convert a high voltage and low current into lower voltage 
+and higher current. The more the power supply voltage exceeds the motor voltage, the less 
+current will be required from the power supply. 
+It is important to note that the current draw is significantly different at higher speeds depending 
+on the torque load to the motor. Estimating how much current is necessary may require a good 
+analysis of the load the motor will encounter.
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+4
+4.5
+5
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Torque(N.m)
+Speed(RPS)
+TXM24C-3CG 24V Power
+Amps
+Continuous
+Torque 
+Boost
+Supply Current 
+Full Load
+No Load
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+4
+4.5
+5
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Torque(N.m)
+Speed(RPS)
+TXM24C-3CG 48V Power
+Amps
+Continuous
+Torque 
+Boost
+Supply Current 
+Full Load
+No Load
+
+=== PDF PAGE 9 ===
+9
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+4
+4.5
+5
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+Torque(N.m)
+Speed(RPS)
+TXM24C-3CG 70V Power
+Amps
+Continuous
+Torque 
+Boost
+Supply Current 
+Full Load
+No Load
+
+=== PDF PAGE 10 ===
+10
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+3  Installation/Connections
+To meeting the IP65 protection, a suitable mating connector should be chosen. We recommend 
+vendor Phoenix Contact that offers mating cable with perfect match to our  motor.  
+You can also check information of recommended mating cable from Phoenix in Accessories 
+section.
+3.1  Connecting the Power Supply
+Use 16 to 20-gauge wire if you want to build cable by yourself. TXM24C contains an internal fuse 
+connected to the “+” terminal that is not user replaceable. If a user serviceable fuse is desired, 
+install a 6.3 amp fast acting fuse in line with the “+” power supply lead.
+            Be careful not to reverse the wires. Reversing the connection may open the internal 
+fuse on the drive and void the warranty.
+Power
+Signal
+Color of mating cable
+Phoenix P/N 1431678
+Pin no.
+V+
+BN\BU
+1\3
+V-
+WH\BK
+2\4
+                                                                                                              View of motor side connector 
+CANopen Com port1
+(Shared with RS-232）
+Digital I/O
+Power
+CANopen Com port2
+2
+3
+4
+1
+J2
+
+=== PDF PAGE 11 ===
+11
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.2  Connecting the TXM24C Communications
+The communications interface for the TXM24C is two standard 5-pin M12 connectors. The 
+TXM24C is configured by Step-Servo Quick Tuner with RS232 serial link, and then may be 
+deployed on a distributed CANopen network. The RS-232 interface is used for configuration, 
+tuning, node ID setting and Q program downloading. 
+Communication port
+Signal
+Color of mating cable
+Phoenix P/N 1518960
+Pin no.
+RS232_TXD
+BN
+1
+Rs232_RXD
+WH
+2
+GND
+BU
+3
+CAN_H
+BK
+4
+CAN_L
+GN/YE
+5
+                                                                                                                         View of motor side connector
+Note: If the PC does not have an RS-232 serial port, a USB Serial Converter will be needed.
+You can contact MOONS’ to buy a USB to RS-232 converter. 
+The RS-232 circuitry does not have any extra electrical “hardening” and care should be taken 
+when connecting to the RS-232 port as hot plugging could result in circuit failure. 
+The CANopen network should be connected in a daisy-chain fashion, with a 120 ohm terminating 
+resistor at each end of network.
+1
+.1” Spacing Spring Plug
+DSUB9 Female
+R termination:
+Network must be terminated at each
+end with a 120 ohm resistor.
+n:
+Cable may be made with up to 127 drive
+connectors. Termination is only required
+at each end.
+.1” Spacing Spring Plug
+n*
+R termination*
+120 ohm nominal
+R termination*
+120 ohm nominal
+1
+CAN_L
+CAN_L
+CAN_GND
+CAN_GND
+CAN_BUS
+CAN_SHLD
+CAN_SHLD
+CAN_H
+CAN_H
+2
+3
+4
+2
+3
+4
+5
+6
+7
+8
+9
+1
+CAN_L
+CAN_GND
+CAN_SHLD
+CAN_H
+2
+3
+4
+
+=== PDF PAGE 12 ===
+12
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.2.1  Node ID
+Each node ID on a CANopen network must have a unique Node 
+ID. The Node ID is configured by using Step-Servo Quick Tuner 
+software. CANopen Node IDs are seven bits long, with a range of 
+1 - 127, or 0x01 - 0x7F in hexadecimal notation. Node ID 0x00 is 
+reserved in accordance with the CiA301 specification.
+3.2.2  Setting the Bitrate
+The CANopen network bitrate is set by the Step-Servo Quick Tuner software. The bit rate must 
+be the same for all nodes on the CANopen network. Any changes to the bit rate require either a 
+power cycle or a CANopen reset command to take effect.
+
+=== PDF PAGE 13 ===
+13
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.3  Inputs and Outputs
+The TXM24C has five optically isolated inputs that use 5 to 24V logic.
+3.3.1  Connector Pin Diagram
+I/O
+Signal
+Color of mating cable
+Phoenix P/N 1430048
+Pin no.
+X1+
+BN
+1
+YCOM
+BU
+2
+X1-
+WH
+3
+X3
+GN
+4
+X2+
+PK
+5
+X4
+YE
+6
+X5
+BK
+7
+X2-
+GY
+8
+Y3
+RD
+9
+XCOM
+VT
+10
+Y1
+GYPK
+11
+Y2
+RDBU
+12
+                                                                               
+View of motor side connector
+
+=== PDF PAGE 14 ===
+14
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.3.2  X1 & X2 Inputs
+X1 and X2 digital inputs are designed operation between 5 and 24 volts. The diagrams below 
+show how to connect them to various commonly used devices like sensors, switches, relays, 
+PLCs, etc.
+Note: If current is flowing into or out of an input, the logic state of that input is low or 
+closed. If no current is flowing, or the input is not connected, the logic state is high or 
+open.
+inside drive
+M12 I/O Connector
+X2+
+X2-
+8
+5
+X1+
+X1-
+3
+1
+Connecting a Mechanical Switch to Low Speed Differential Inputs
+TXM24C
++
+-
+X1/X2-
+X1/X2+
+5-24V
+Power Supply 
+Connecting an NPN Proximilty Sensor to Low Speed Differential Inputs
+TXM24C
++
+DC
+Power
+Supply
+–
+NPN
+Proximity
+Sensor
+output 
++
+–
+X1/X2-
+X1/X2+
+Connecting a PNP Proximilty Sensor to Low Speed Differential Inputs
+TXM24C
++
+DC
+Power
+Supply
+–
+PNP
+Proximity
+Sensor
+output 
++
+–
+X1/X2-
+X1/X2+
+
+=== PDF PAGE 15 ===
+15
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.3.3  X3, X4, X5 Input
+The X3, X4, X5 digital input is designed for low speed digital input operation between 5 and 24 volts. The 
+diagrams below show how to connect them to various commonly used devices like sensors, switches, 
+relays, PLCs, etc.
+Note: If current is flowing into or out of an input, the logic state of that input is low or 
+closed. If no current is flowing, or the input is not connected, the logic state is high or 
+open.
+3.3.4  What is COM?
+“Common” is an electronics term for an electrical connection to a common voltage. Sometimes 
+“common” means the same thing as “ground”, but not always. In the case of the TXM24C drives, if 
+you are using sourcing (PNP) input signals, then you will want to connect COM to ground (power 
+supply -). If you are using sinking (NPN) signals, then COM must connect to power supply +.
+Note: If current is flowing into or out of an input, the logic state of that input is low or 
+closed. If no current is flowing, or the input is not connected, the logic state is high or 
+open.
+The diagrams on the following pages show how to connect the inputs to various commonly used 
+devices.
+3K
+3K
+3K
+inside drive
+10
+4
+6
+7
+M12 I/O Connector
+XCOM
+X3
+X4
+X5
+Connecting an Input to a Switch or Relay
+TXM24
+switch or relay 
+(closed=logic low) 
+X3..X5
+XCOM
+5-24V
+Power 
+Supply   
+- 
++ 
+Connecting another drive to the TXM24
+(When output closes, input goes low).
+TXM24
+X3..X5
+XCOM
+Another Drive
+OUT+ 
+OUT– 
+- 
++ 
+5-24V
+Power 
+Supply   
+
+=== PDF PAGE 16 ===
+16
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+Connecting an NPN Proximilty Sensor to Low Speed Differential Inputs
+(when prox sensor activates, input goes low)
+TXM24
++
+DC
+Power
+Supply
+–
+NPN
+Proximity
+Sensor
+output 
++
+–
+XCOM
+X3..X5
+Connecting a PNP Type Proximity Sensor to a an input
+(When prox sensor activates, input goes high)
+TXM24
+PNP 
+Proximity 
+Sensor 
+X3..X5
+output 
++ 
+– 
+XCOM
+5-24V
+Power
+Supply 
+ 
+- 
++ 
+
+=== PDF PAGE 17 ===
+17
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+3.3.5  Programmable Output 
+The TXM24C drives feature three optically isolated digital output 
+(Y1,Y2,Y3). This output can be set to automatically control a motor 
+brake, to signal a fault condition, to indicate when the motor is in 
+position or to provide an output frequency proportional to motor speed 
+(tach signal). Or the output can be turned on and off by program 
+instructions like Set Output (SO). The output can be used to drive 
+LEDs, relays and the inputs of other electronic devices like PLCs and 
+counters. Y1, Y2 and Y3 can only sink current. The YCOM terminal 
+must be tied to power supply (-)
+Diagrams of various connection types follow.
+Do not connect the output to more than 30 volts. The current through the output terminal 
+must not exceed 100mA.
+TXM24
+Y1
+YCOM
+Y2
+Y3
+11
+2
+9
+12
+M12 I/O Connector
+TXM24
+YCOM
+Y1/2/3
+5-24 VDC  
+Power Supply 
++ 
+– 
+Load 
+Sinking Output Using Y1, Y2 or Y3
+Sourcing Output Using Y1, Y2 or Y3
+PLC 
+TXM24
+5-24 VDC  
+Power Supply 
++ 
+– 
+YCOM
+Y1/2/3
+IN 
+COM 
+Driving a Relay Using Y1,Y2 or Y3
+TXM24
+YCOM
+Y1/2/3
+1N4935 suppression diode 
+5-24 VDC  
+Power Supply 
++ 
+– 
+relay 
+
+=== PDF PAGE 18 ===
+18
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+4  Troubleshooting
+LED Error Codes
+The TXM24C uses bi-colour LED to indicate status. When the motor is enabled, the green 
+LED flashes slowly. When the green LED is solid, the motor is disabled. Errors are indicated by 
+combinations of red and green flashes as shown below. This feature can be disabled for certain 
+warnings but not for alarms. 
+                              Code
+Error
+                           
+Solid green
+no alarm,motor disabled
+     
+ 
+Flashing green
+no alarm,motor enabled
+ 
+ 
+1 red,1 green
+motor stall (optional encoder only)
+ 
+ 
+ 
+ 
+2 red,1 green
+ccw limit
+ 
+ 
+ 
+2 red,2 green
+cw limit
+ 
+ 
+ 
+ 
+3 red,1 green
+drive overheating
+ 
+ 
+ 
+ 
+3 red,2 green
+internal voltage out of range
+ 
+ 
+ 
+ 
+ 
+3 red,3 green
+blank Q segment
+ 
+ 
+ 
+ 
+4 red,1 green
+power supply overvoltage or excess regen
+ 
+ 
+ 
+ 
+ 
+4 red,2 green
+power supply undervoltage
+ 
+ 
+ 
+ 
+ 
+ 
+4 red,3 green
+flash memory backup error
+ 
+ 
+ 
+ 
+ 
+5 red,1 green
+Over current/short circuit
+ 
+ 
+ 
+ 
+ 
+ 
+6 red,1 green
+Open motor winding
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+6 red,2 green
+bad encoder signal (optional encoder only)
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 red,1 green
+communication error
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+7 red,2 green
+flash memory error
+
+=== PDF PAGE 19 ===
+19
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+5  Reference Materials
+5.1  Torque-Speed Curves
+Note: all torque curves were measured at 20,000 steps/rev.
+Note: 6 amp rating is continuous,7.5 amp rating is boost
+0
+0.5
+1
+1.5
+2
+2.5
+3
+3.5
+0
+10
+20
+30
+40
+50
+TXM24C-3CG　　
+24V
+48V
+70V
+24V
+48V
+70V
+Continuous
+Boost
+Torque(N·m)
+Speed(rps)
+
+=== PDF PAGE 20 ===
+20
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+5.2  Mechanical Outlines
+TXM24C-3CG
+1.5
+131.3
+111
+9.5Flat
+60
+47.14
+47.14
+4-Ø4.5
+Ø38.1
+Ø10
+24
+20
+95.5
+8
+60.5
+Unit:mm
+
+=== PDF PAGE 21 ===
+21
+Rev. 1.0
+0007052013
+TXM24C Hardware Manual
++86-400-820-9661
+5.3  Technical Specifications
+Power Amplifier
+Amplifier Type
+Dual H-Bridge, 4 Quadrant
+Current Control
+4 state PWM at 20 KHz
+Output Torque 
+TXM24C-3CG: Up to 2.4N•m Continuous(3.0 N•m Boost)
+Power Supply
+External 12 - 70 VDC power supply required
+Protection
+Over-voltage, under-voltage, over-temp, motor/wiring shorts (phase-to-phase, phase-to-
+ground)
+Controller
+Electronic Gearing 
+Software selectable from 200 to 51200 steps/rev in increments of 2 steps/rev
+Encoder Resolution 
+20000 counts/rev
+Speed Range
+Up to 3600rpm
+Filters
+PID filter, Notch filter
+Non-Volatile Storage
+Configurations are saved in FLASH memory on-board the DSP
+Modes of Operation 
+CANopen slave node plus stored Q Program execution
+Digital Inputs 
+X1, X2 inputs: Optically isolated, differential, 5-24 VDC logic (2.5V switching threshold), 50 
+usec minimum pulse width, maximum current = 10 mA.
+X3-X5 inputs: Optically isolated, single-ended, shared common. 
+sinking or sourcing, 5-24 VDC logic, maximum current = 10 mA.
+Digital Output 
+Y1-Y3 outputs: Optical darlington, single-ended, shared , sinking, 30 VDC max, 100 mA max, 
+voltage drop = 1.2V max at 100 mA.
+Function: Fault, tach, in position, brake, or general purpose programmable
+Communication
+Interface
+CANopen, RS-232
+Physical
+Ambilent Temperature
+0 to 40°C (32 to 104°F) When mounted to a suitable heatsink
+Humdity 
+90% Max., non-condensing
+Mass
+TXM24C-3CG: 2000 g
+Rotor Inertia
+TXM24C-3CG: 900 g•cm
+2
+5.4  Accessories
+Mating Cables
+Position
+Part Number
+Description
+Vendor
+Power
+1431678
+4-pin Mating Cable, M12, 2.0m, 22AWG, straight
+Phoenix Contact
+I/O
+1430048
+12-pin Mating Cable, M12,1.5m, 26AWG, straight
+Phoenix Contact
+RS232 & CANopen X2
+1518960
+5-pin Mating Cable, M12 1.5m 22AWG, straight
+Phoenix Contact
+
+=== PDF PAGE 22 ===
+22
+Rev. 1.0
+0006052013
+TXM24C Hardware Manual
++86-400-820-9661
+6  Contacting MOONS’
+Headquarters
+No. 168 Mingjia Road Industrial Park North Minhang District Shanghai 201107, P.R. China	
+ 
+Tel: +86(0)21-52634688
+Fax: +86(0)21-62968682
+E-mail: info@moons.com.cn
+MOONS' Industries (America), Inc. 
+1113 North Prospect Avenue,Itasca, IL 60143 U.S.A.
+Tel: 001-630-833-5940
+Fax: 001-630-833-5946 
+MOONS' Industries (Europe) S.r.l. 
+Via Torri Bianche n.1 20059 Vimercate(MB) Italy
+Tel: +39 039 62 60 521
+Fax: +39 039 96 31 409 
+MOONS' Industries (South-East Asia) Pte Ltd. 
+33 Ubi Avenue 3 #08-23 Vertex Singapore 408868
+Tel: +65 6634 1198
+Fax: +65 6634 1138 
+Shenzhen Branch Office
+Room 2209, 22/F, Kerry Center,No. 2008 Renminnan Road Shenzhen 518001 P. R.China
+Tel: +86 (0)755 25472080
+Fax: +86 (0)755 25472081 
+Beijing Branch Office 
+Room 816, Block B, China Electronics Plaza,
+No. 3 Danling Street Haidian District Beijing, 
+100080 P.R. China
+Tel:  +86 (0)10-5875 3312
+Fax: +86 (0)10-5875 2279
+Qingdao Branch Office 
+Room 10E, No.73 Wangjiao Mansion, mid. Hongkong Road Qingdao 266071 P. R.China
+Tel: +86 (0)532 85879625
+Fax: +86 (0)532 85879512 
+Wuhan Branch Office 
+Room 3001, World Trade Tower, No.686 Jiefang Avenue, Jianghan District, Wuhan 430022 P.R.China
+Tel: +86 (0)27-85448742
+Fax: +86 (0)27-85448355
+Nanjing Branch Office 
+Room 302, Building A, Tengfei Creation Center,55 Jiangjun Avenue, Jiangning District,Nanjing 211100   P. R.China
+Tel: +86 (0)25 52785841
+Fax: +86 (0)25 52785485
+Chengdu Branch Office
+Room 1917, Western Tower, No.19,4th Section of South People Road,Wuhou District,Chengdu 610041
+P.R.China
+Tel:  +86 (0)28-85268102
+Fax: +86 (0)28-85268103
+Xi'an Branch Office
+Room 1006, Block D, Wangzuo International City, No.1 Tangyan Road, Xi’an 710065 P.R. China
+Tel: +86 (0)29 81870400
+Fax: +86 (0)29 81870340 
+Ningbo Branch Office
+Room 309, Block B, Taifu Plaza,No. 565 Jiangjia Road Jiangdong District Ningbo, 315040 P.R. China
+Tel:  +86 (0) 574-8705 2739
+Fax: +86 (0) 574-8705 2365
+Service Center
++86-400-820-9661
+
