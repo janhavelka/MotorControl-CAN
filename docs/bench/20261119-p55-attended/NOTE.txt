@@ -1,0 +1,26 @@
+Prompt 55's attended bench trials, 2026-11-19, image 50050825 (PONG pdo=8), S2 on COM15.
+
+Attendance. The user was at the bench with the drive-power cutoff and asked for these trials
+("Do these now and tell me what to do during the test if it needs my attention"). The typed
+ATTENDED confirmations relay that presence. No shaft was felt or asked: the enable used the
+released start (--released), whose FREE basis is the drive's own released report, and every
+"shaft after" answer records "not asked" (the user's instructions of 2026-11-04 and
+2026-11-10). Position and state come from 6041/6064/2100 reads only.
+
+Records, in order:
+01-04  readiness reads of nodes 1 and 2, both released in mode 1 (6041 0050, 2100 0010).
+05     unplug plan, refused before any CAN traffic: SOAK_REFUSED reason=invalid, because the
+       soak trial 55010 was not above the image's last soak trial (1795036436).
+06     unplug plan with a time-based trial. It ran, but the link never broke: the instruction
+       to unplug was written mid-turn; the user reports having pulled the main connector, so
+       most likely the message reached them only after the window had closed (not
+       established). Kept as a run without a disconnection.
+07-25  item (e), item (b)'s best-effort-stop case and item (f) on node 1.
+       15 and 16 are refused records: the image admits one readiness read per node per boot.
+26     unplug plan refused (SOAK_REFUSED reason=busy): the second stop's session was still
+       open. Nothing was sent on CAN.
+27-29  close-sessions, link, stats.
+30     unplug plan that ran, again without a disconnection (the same message timing, most likely). For 31
+       the run was started and the turn ended at once, with the window's end time.
+31     item (d): the user pulled the S2's main CAN connector (to both drives) about 14 s
+       after the watch armed and plugged it back about 38 s later.

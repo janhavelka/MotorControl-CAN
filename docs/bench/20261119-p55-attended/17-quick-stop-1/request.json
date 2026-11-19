@@ -1,0 +1,93 @@
+{
+  "started_utc": "2026-11-19T09:16:32.244557+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "stop",
+  "seconds": 15.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 55003,
+  "plan": "packet 15 P4 / packet 16",
+  "fields": [
+    1,
+    55003,
+    1,
+    2,
+    2000,
+    3000,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 55003 to confirm: ",
+      "typed": "ATTENDED 55003",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not asked: the user was at the bench with the cutoff (2026-11-19); position read from 6064 instead"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "stop",
+    "--node",
+    "1",
+    "--trial",
+    "55003",
+    "--kind",
+    "quick",
+    "--deadline-ms",
+    "2000",
+    "--best-effort-ms",
+    "3000",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "docs/bench/20261119-p55-attended/motion-campaign.jsonl",
+    "--seconds",
+    "15",
+    "--output",
+    "docs/bench/20261119-p55-attended/17-quick-stop-1"
+  ],
+  "host_revision": "62f30431fd7a8977ccd73880468b26cfc0a082fe",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261119-p55-attended\\motion-campaign.jsonl",
+    "motion_total": 2,
+    "cases": {
+      "E1": 1,
+      "P1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5453312c35353030332c312c322c323030302c333030302c3530302c4b66643334666430360a"
+  ],
+  "image": {
+    "base": "50050825d879d2b2e943b478d23e573a79966c6f",
+    "elf": "f20eaea3f2fdca2709619faec6fb170944adccaaadb79a033aabd10daeef93ce",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TS1,55003,1,2,2000,3000,500,Kfd34fd06",
+  "tx_hex": "5453312c35353030332c312c322c323030302c333030302c3530302c4b66643334666430360a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-19T09:16:33.315583+00:00"
+}

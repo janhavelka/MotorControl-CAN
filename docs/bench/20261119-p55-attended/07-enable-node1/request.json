@@ -1,0 +1,109 @@
+{
+  "started_utc": "2026-11-19T09:13:48.056098+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "enable",
+  "seconds": 15.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 55001,
+  "plan": "packet 15 P3",
+  "fields": [
+    1,
+    55001,
+    1,
+    2,
+    1,
+    80,
+    -4000,
+    120,
+    10000,
+    1500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 55001 to confirm: ",
+      "typed": "ATTENDED 55001",
+      "accepted": true
+    },
+    "power_up_shaft": {
+      "typed": "FREE",
+      "read_from_drive": true,
+      "basis": "read from the drive's released start report (2100 bit 4 set: the power stage is off) at the user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not asked: the user was at the bench with the cutoff (2026-11-19); shaft observations are not asked per the 2026-11-10 instruction"
+    },
+    "holding_after": {
+      "question": "Attendant: turn the node 1 shaft by hand now: FREE or HOLDING? ",
+      "typed": "not asked (same)"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "enable",
+    "--node",
+    "1",
+    "--trial",
+    "55001",
+    "--status",
+    "0x0050",
+    "--position-target",
+    "-4000",
+    "--velocity-target",
+    "120",
+    "--deadline-ms",
+    "10000",
+    "--interval-ms",
+    "1500",
+    "--released",
+    "--campaign",
+    "docs/bench/20261119-p55-attended/motion-campaign.jsonl",
+    "--new-campaign",
+    "--seconds",
+    "15",
+    "--output",
+    "docs/bench/20261119-p55-attended/07-enable-node1"
+  ],
+  "enable_start": "RELEASED_BY_RECORDED_STOP",
+  "start_basis": "released report (--released); the operator owns that no command is pending",
+  "host_revision": "62f30431fd7a8977ccd73880468b26cfc0a082fe",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261119-p55-attended\\motion-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5445312c35353030312c312c322c312c38302c2d343030302c3132302c31303030302c313530302c4b30333735313638660a"
+  ],
+  "image": {
+    "base": "50050825d879d2b2e943b478d23e573a79966c6f",
+    "elf": "f20eaea3f2fdca2709619faec6fb170944adccaaadb79a033aabd10daeef93ce",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TE1,55001,1,2,1,80,-4000,120,10000,1500,K0375168f",
+  "tx_hex": "5445312c35353030312c312c322c312c38302c2d343030302c3132302c31303030302c313530302c4b30333735313638660a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-19T09:13:56.342747+00:00"
+}

@@ -1,0 +1,2 @@
+PONG target=esp32s2 base=50050825d879d2b2e943b478d23e573a79966c6f elf=f20eaea3f2fdca2709619faec6fb170944adccaaadb79a033aabd10daeef93ce sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=42903247499 routes=16 trial=0 motion=0 pdo=8 watch=0 capture=0
+SOAK_REFUSED reason=invalid; no work

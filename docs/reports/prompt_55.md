@@ -1,8 +1,9 @@
 # Prompt 55: communication self-repair, node presence and retry policy
 
-State: **Partial**. The library and adapter primitives, console forms, bench routes and their
-host tests are on `main`, and three short bench runs passed on the S2 with both CL86-C drives.
-Four bench items need the user at the bench and remain open (below). Q18 stays unqualified.
+State: **Complete**. The library and adapter primitives, console forms, bench routes and their
+host tests are on `main`. Every bench item ran on the S2 with both CL86-C drives: (a) and (c) on
+2026-11-18, and (b), (d), (e) and (f) on 2026-11-19 with the user at the bench. A shared-console
+`drv bus` reading was not run. Q18 stays unqualified.
 
 ## Scope
 
@@ -109,24 +110,27 @@ runs on two specimens, not qualification:
 | (c) [Absent node 3 beside nodes 1 and 2, 89 s](../bench/20261118T200459Z-p55c-absentnode/summary.txt) | `12130ece` | Nodes 1 and 2: 1171 and 1170 reads, all successful, at equal rates. Node 3: one probe and the owner's marker unanswered, then held with its route unresolved |
 | [Link lines](../bench/20261118T211341Z-s2-link/rx.txt), idle | `50050825` | First board read of the controller status: state active, TEC 0, REC 0, no bus errors or arbitration losses |
 | (c) [Absent node with a 250 ms marker budget, 45 s](../bench/20261118T211355Z-p55c2-absent-counters/summary.txt) | `50050825` | Nodes 1 and 2: 557 reads each, all answered. Node 3: probe, owner marker and explicit marker unanswered; [after the run](../bench/20261118T211441Z-s2-link-after-absent/rx.txt) `abortsSent=3`, node 3 `noResponse=3`, TEC and REC 0. One admission anomaly is recorded with `node=0`: not nodes 1 or 2, cause not established. The verdict `failed-evidence` reflects the absent node's expected failures and that anomaly |
+| (e) [Forced 1 ms trigger timeout on node 1](../bench/20261119-p55-attended/09-position-trigger-timeout/rx.txt) | `50050825` | One trigger frame, acknowledged 2.4 ms later: `TIMEOUT`, uncertain, nothing resent. The owner's marker inherited the 1 ms budget and failed; the explicit marker `y` reopened the route |
+| (f) and (b) [Two quick stops](../bench/20261119-p55-attended/17-quick-stop-1/rx.txt) | `50050825` | First: one `000B`, best effort, `UNCONFIRMED_SENT`; then `unresolved=1 pending=0` and one explicit marker reopened the route. [Second](../bench/20261119-p55-attended/23-quick-stop-2/rx.txt): a new operation that read the drive released and sent nothing. No `010F`, `000F` or enable word |
+| (d) [Unplug for about 38 s](../bench/20261119-p55-attended/31-unplug/run/rx.txt) | `50050825` | Expiry 100 ms after submission, one restart (TX expired), both nodes resynced, TEC and REC 0 afterwards. The watch's post-restart marker expired but stayed in the controller and went out when the cable returned; its unmatched reply was not taken as an answer, and node 2 resynced on `1018:01` |
 
 A refused readiness attempt record (no CAN traffic) was deleted by the lead by mistake on
 2026-11-18 and is not retained.
 
-## Blockers and next work
+## Findings and next work
 
-These need the user at the bench:
-
-- (e) a slow move with a forced 1 ms trigger timeout and no replay;
-- (f) a quick-stop reissue;
-- (d) unplugging the S2's CAN connector for 10 s inside the `U` window;
-- (b) the 2026-11-04 explicit-marker cases (a best-effort stop or a client abort, then `y`/`z`),
-  beyond what (a) shows.
-
-The procedure for each is in the [bench guide](../hardware_bench.md). Q18 stays unqualified;
-backlog D14, H04 and T04 keep their physical obligations ([backlog](../backlog.md)).
-[Prompt 74](../prompts/74_reference_self_repair_example.md) owns the presence, retry,
-reconciliation and restart policy built on these primitives.
+- First board observation of the owner's documented TX lifetime contract: an expired frame
+  may still leave, and only a restart retires it, as possibly sent. After the single restart a
+  frame submitted while the bus was still out (the watch's own marker read) expired and was
+  transmitted 38 s later, when the cable returned. Ordinary work is refused during NO_LISTENER,
+  so no write was exposed. Whether to restart again after such an expiry is prompt 74's
+  restart schedule (backlog H04).
+- The owner's marker inherits a deliberately short budget unless
+  `SdoReuse::markerResponseTimeoutUs` is set (documented); the bench route sets none.
+- Not run: a shared-console `drv bus` reading. Q18 stays unqualified; backlog D14, H04 and T04
+  keep the obligations an independent observer would settle ([backlog](../backlog.md)).
+  [Prompt 74](../prompts/74_reference_self_repair_example.md) owns the presence, retry,
+  reconciliation and restart policy built on these primitives.
 
 ## Branch and commits
 

@@ -1,0 +1,90 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-19T09:23:27.324153+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "docs/bench/20261119-p55-attended/30-unplug/plan.json",
+    "--output",
+    "docs/bench/20261119-p55-attended/30-unplug/run",
+    "--tail-s",
+    "40"
+  ],
+  "plan_file": "docs/bench/20261119-p55-attended/30-unplug/plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "14edb69fb3c7bdd3ecb6137b11517efb1820793ade00f952ce2da67dadf56651",
+    "s2_evidence.py": "064b0998de43cda74e5f686733128ea70726d3bac44f9c6ac1e3e2f4d9d8cb12"
+  },
+  "host_revision": "62f30431fd7a8977ccd73880468b26cfc0a082fe",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "50050825d879d2b2e943b478d23e573a79966c6f",
+    "elf": "f20eaea3f2fdca2709619faec6fb170944adccaaadb79a033aabd10daeef93ce",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "43805463581",
+    "routes": "16",
+    "trial": "0",
+    "motion": "4",
+    "pdo": "8",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "150 s state-read soak on nodes 1 and 2 at 200 ms, marker budget 250 ms, so a read is in flight when the connector comes out",
+      "sent": "S1795080207,150,200,10,0,0,3,250",
+      "tx_hex": "53313739353038303230372c3135302c3230302c31302c302c302c332c3235300a",
+      "utc": "2026-11-19T09:23:27.741367+00:00",
+      "monotonic": 640250.187,
+      "reply": "SOAK_BEGIN n=0 t=43805603253 trial=1795080207 dur=150 interval=200 summary=10 monitors=0 identity=0 opDeadline=2000000 queue=250000 resp=250000 stack=12368 heap=81860 heapMin=81860 stale=0 nodes=3 markerMs=250 lifetime=100000 base=50050825d879d2b2e943b478d23e573a79966c6f",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "120 s watch; after 'armed' the user unplugs the S2's CAN connector for about 10 s, then plugs it back",
+      "sent": "U",
+      "tx_hex": "55",
+      "utc": "2026-11-19T09:23:27.845429+00:00",
+      "monotonic": 640250.296,
+      "reply": "LINK_WATCH armed seconds=120 lifetime=100000 reuse1=marker reuse2=marker t=43805652501; one restart on TX lifetime expiry, nothing sent",
+      "reply_line": 11,
+      "end": "LINK_WATCH_END restarts=0 expired=0 recovery=-1 causes=0 listenerEnd=0 listenerUs=0 resynced=0,0 unmatchedAfter=0 refusedAfter=0 markers=0 explicit=0 explicitOk=0 noListener=0 dropped=0",
+      "end_line": 198,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "interface, node, bus and repair counters after the watch",
+      "sent": "L",
+      "tx_hex": "4c",
+      "utc": "2026-11-19T09:25:27.953253+00:00",
+      "monotonic": 640370.406,
+      "reply": "LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 markers=2 reuseStopped=0 recoveries=0 inhibited=0 t=43925761505 state=available offlineSince=0 receiveLost=0",
+      "reply_line": 204,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-19T09:26:08.251076+00:00",
+  "bytes": 35016
+}

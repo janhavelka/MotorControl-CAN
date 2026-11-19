@@ -1448,15 +1448,14 @@ See [report52](reports/prompt_52.md) for exact images, plans, failures and gates
 
 ## Prompt 55 self-repair bench
 
-**Status: partly run.** On 2026-11-18 items (a) and (c) ran once each on image `12130ece`. On
-image `50050825` the `L` lines were read idle and after a second absent-node soak with the
-owner's counters, and that soak ran too (results below). Items (b), (d), (e) and (f), a
-shared-console `drv bus` reading and the controller readings after item (d) are pending. The
-primitives are host-tested (`owner_self_repair`, `sdo_reconciliation`,
-`retry_class`, `can_bus_health`, `twai_adapter`, `twai_driver`, `link_watch`, `soak`,
-`bench_route`, `probe_console` and the runner tests). Q18 stays unqualified, and no trial
-here shows that an ordered server, remote retirement or the absence of a stale frame on the
-wire was established.
+**Status: run.** Items (a) and (c) ran on 2026-11-18 (images `12130ece` and `50050825`), and items
+(b), (d), (e) and (f) ran on 2026-11-19 on `50050825` with the user at the bench (results below). A
+shared-console `drv bus` reading was not run; the bench image's `L` lines read the same counters.
+The primitives are host-tested (`owner_self_repair`, `sdo_reconciliation`, `retry_class`,
+`can_bus_health`, `twai_adapter`, `twai_driver`, `link_watch`, `soak`, `bench_route`,
+`probe_console` and the runner tests). These are single short runs on two specimens, not
+qualification. Q18 stays unqualified, and no trial here shows that an ordered server or remote
+retirement was established.
 
 **Results on `12130ece`, 2026-11-18.** Both drives read released in mode 1 before the trials.
 These are single short runs on these two specimens, not qualification:
@@ -1494,6 +1493,43 @@ and of the new counters, again single short runs:
   `abortsSent=3` (node 3's three cleanup aborts) and every other counter 0, and the interface line
   shows `markers=1`.
 
+**Results on `50050825`, 2026-11-19, attended** ([records](bench/20261119-p55-attended/NOTE.txt)). Both drives read released in mode 1 first:
+
+- (e) [`09-position-trigger-timeout`](bench/20261119-p55-attended/09-position-trigger-timeout/rx.txt),
+  node 1 enabled from its released report (`07`), then a 200-count move at 1 rpm with
+  `--trigger-response-us 1000`: exactly one trigger frame `2B 40 60 00 1F 00`. The drive acknowledged
+  it 2.4 ms later, over the budget, in the timeout's own owner turn, so no cleanup abort was sent
+  and the write ended `TIMEOUT` with `uncertain=1`. Nothing resent it. The owner's marker failed:
+  by default it inherits the route's last response budget, here the trigger's deliberate 1 ms
+  (`SdoReuse::markerResponseTimeoutUs`), and its answer came 3 ms later. The route stayed
+  `unresolved=1` until the explicit marker `y` (`12`) reopened it on `1018:01`. The move's effect
+  stays unsettled by any resync.
+- (f) and (b): the first quick stop (`17`) found 6041 `9437` (enabled, target reached) and sent
+  exactly one `2B 40 60 00 0B 00`. It took the best-effort path, because `x` had dropped the
+  session's last controlword, and ended `UNCONFIRMED_SENT`; the drive's acknowledgement does not
+  qualify it. Item (b) followed: `LINK node=1` read `unresolved=1 pending=0` (no owner step), and
+  one explicit marker (`20`) reopened the route. The second stop (`23`), a new operation with its
+  own trial, read the drive released (6041 `8050`, 2100 `0011`) and was refused with nothing sent
+  to 6040. Neither record holds `010F`, `000F` or an enable word. A second `000B` needs a drive
+  that is still enabled after the first stop, which this drive never was.
+- (d) [`31-unplug`](bench/20261119-p55-attended/31-unplug/run/rx.txt): the user pulled the S2's
+  main CAN connector about 14 s after the watch armed and plugged it back about 38 s later. Node
+  2's in-flight read expired 100 ms after its submission (`kind=expired`), and in the same turn the
+  watch called `recover()` once (causes 4, TX expired); it was retired 6 ms later. The watch's
+  explicit marker for node 2 then went into the still-open bus and expired too (`expired=2`, no
+  second restart). **That frame stayed in the controller and was transmitted when the connector
+  went back in, 38 s later**; its reply arrived unmatched (`unmatchedAfter=1`). The owner did not
+  take it as an answer: it resynced node 2 with the next marker object, `1018:01`, 8 ms after
+  NO_LISTENER ended (`resynced=1,1`). Node 1 had nothing in flight and resynced at the restart.
+  The read stranded before the restart never reached the wire: the restart removed it. While
+  the bus was out, node 1's 73 operations were refused at admission, and 278177 error callbacks
+  arrived with no bus-off. Afterwards: state active, TEC 0, REC 0, `recoveries=1`. This is the owner's
+  documented contract seen on the board: an expired frame may still leave, and only a restart
+  retires it, as possibly sent. Here it was a read, and ordinary work is refused during
+  NO_LISTENER, so no write was exposed.
+- Records `05`, `26`, `15` and `16` are refusals with no CAN traffic. `06` and `30` ran without a
+  disconnection: the unplug instruction most likely reached the user after their window closed.
+
 **Image.** The bench image answers PONG `pdo=8` and builds with three SDO channels
 (`CONFIG_MOTORCONTROLCAN_SDO_CHANNELS=3` in its `sdkconfig.defaults`; the library default
 stays 2, and `check_firmware.py --target s2` checks the resolved value). The third channel
@@ -1519,8 +1555,8 @@ The shared console gives the same facts in JSONL: `@ID drv bus`, `@ID drv`, `@ID
 `python scripts/s2_bench_console.py --send "@1 drv bus" --output NEW_FILE`. Images before this
 revision (`12130ece` included) print neither `LINK bus` nor `LINK counters` and lack the new
 fields. On `50050825` the `L` lines have recorded the board's TWAI state, TEC, REC and
-error-callback counts (above). **Still missing:** one shared-console `drv bus` reading, and the
-`L` and `drv bus` readings after item (d). Before the SoakTwaiTap fix the bench image's tap did not pass
+error-callback counts (above). Item (d)'s `L` lines after the unplug are recorded (above). **Not run:** a
+shared-console `drv bus` reading. Before the SoakTwaiTap fix the bench image's tap did not pass
 the controller status read through, so these forms would have reported the status unknown.
 
 **After every reopening, `x`.** A reopening invalidates every reservation on the node, an idle
@@ -1556,12 +1592,12 @@ time), so `SOAK_LINK` counts `timeouts` and `aborts` separately.
 | (a) Short response-timeout read on node 1, repeated about 1000 times | `python scripts/s2_soak.py --duration-s 90 --interval-ms 20 --summary-s 30 --reads state --response-us 1000 --nodes 1 --marker-ms 250` (check it first with `--dry-run`: `S...,1000,1,250`), as run on 2026-11-18 | Node 1's tick comes every 40 ms (node 2's tick stays unused); the retained run completed 2067 operations. Each read is completed, or its route is retained unresolved, before the next: a tick waits while a resync step or its reopening is pending (`waits=`), and a route that stays unresolved stops the node (`SOAK_NODE_STOP`). `--marker-ms 250` gives the owner's marker a 250 ms response budget, so it does not inherit the reads' 1 ms. `SOAK_BEGIN` names `resp=1000 nodes=1 markerMs=250 lifetime=`. Each `SOAK_LINK` line counts `timeouts`, `aborts`, the owner's `markers`, `explicit`/`explicitOk`, `reopened`, `failed`, `other`, `reuseStopped`, `waits` and the presence observations. The verdict is reopenings against timeouts and every failure kept, with no MCU restart |
 | (b) The 2026-11-04 read cases without a restart | Trial 503's case: a `stop --kind quick` whose path is best effort, then `--command link`, `--command marker1` (or `marker2`), `--command link`, `--command close-sessions` | No owner step follows an accepted best-effort stop or a client abort. The `LINK node=N` line shows `unresolved=1 pending=0`. The explicit marker prints `MARKER admitted node=N object=1000:00` and, after its terminal, `MARKER node=N ... reopened=1`, and a second `L` shows the route open. The other two causes need no repair here. The read cut at a stop's deadline (trial 213) is prevented since `5b5b6c1`/`e7f28ac`; a timeout there would take item (a)'s path. The two-byte `60FE:00` and `607D:00` counts (D16) are read under the measured width since trials 604 to 609; any client abort still gets the same explicit marker |
 | (c) An absent node ID beside nodes 1 and 2 | `python scripts/s2_soak.py --duration-s 90 --interval-ms 20 --summary-s 30 --reads state --nodes 7`, as run on 2026-11-18; add `--marker-ms 250` for the soak's explicit marker, and run `--nodes 3` for a baseline without node 3 | Mask 4 adds node 3 (`0x603`/`0x583`) on the third channel: one `1000:00` probe per second on its own reservation, 20 ms response budget. Nodes 1 and 2 ACK its frames and nothing answers. The probe times out, and the owner's marker follows it (with `--marker-ms`, the soak's one explicit marker too). No probe is resent while the route stays unresolved (`held=`). `SOAK_ABSENT` counts the probes and terminals and carries node 3's presence observations (`noResponse=`, `responded=`, `heartbeat=`, `bootUps=`). The verdict compares nodes 1 and 2's `SOAK_NODE` counts and latency with each other and with a run without node 3 |
-| (d) Unplug the S2's CAN connector for 10 s with the drives released | `python scripts/s2_pdo.py run --port COM15 --serial 94A990398B40 --plan PLAN.json --output NEW_DIRECTORY --tail-s 40`. The plan's steps are an `S<trial>,150,200,10,0,0,3,250` soak (expect `SOAK_BEGIN`), `U` (expect `LINK_WATCH armed`, end `LINK_WATCH_END`, `end_timeout_s` 150) and `L` (expect `LINK interface`) | **The one physical action:** after `LINK_WATCH armed`, the user unplugs the S2's CAN connector for 10 s with both drives released, then plugs it back. In its 120 s window the image calls `recover()` itself exactly once when a TX lifetime expires. After that restart it probes each unresolved node with an explicit marker, at most 4 per node, 1 s apart. `LINK_EVENT` lines give `expired`, `restart`, `recovery` (with its causes), `listener-end`, `marker`, `marker-result` and `resynced`, each with its time. `LINK_WATCH_END` gives `restarts`, `expired`, `recovery`, `causes`, `listenerEnd`, `listenerUs`, `resynced=1,1`, `unmatchedAfter`, `refusedAfter`, `markers`, `explicit`, `explicitOk`. Expected: expiry reported within the lifetime (100 ms from the stranded frame's submission, checked each service turn), one restart, no stale frame and both nodes resynced. "No stale frame" can only be shown as no unmatched or reuse-refusing frame after the restart. An unmatched frame there can be the late reply to the watch's first probe, which the traffic distinguishes. Nothing shows the wire without an independent observer (H04) |
-| (e) Slow move with a forced trigger timeout and no replay | After an enable: `python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial TRIAL --start-position POSITION --target TARGET --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 4 --interval-ms 250 --stop-kind none --trigger-response-us 1000 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY` (or `--command relative`); then `x` | Only the trigger (`001F`, relative `005F`) gets the 1000 us budget; the other writes keep 250 ms. An older image refuses the longer line as syntax. `TRIAL_PLAN` ends in `trigResp=1000 reuse=marker`. The traffic must hold exactly one trigger frame. A cleanup abort `80 40 60 00 00 00 04 05` may follow it, and the owner's marker reopens the route. The move stays uncertain: nothing replays it, and no resync settles its effect. A later read can record where the drive is; it does not settle the move |
+| (d) Unplug the S2's CAN connector for 10 s with the drives released | `python scripts/s2_pdo.py run --port COM15 --serial 94A990398B40 --plan PLAN.json --output NEW_DIRECTORY --tail-s 40`. The plan's steps are an `S<trial>,150,200,10,0,0,3,250` soak (expect `SOAK_BEGIN`), `U` (expect `LINK_WATCH armed`, end `LINK_WATCH_END`, `end_timeout_s` 150) and `L` (expect `LINK interface`) | **The one physical action:** after `LINK_WATCH armed`, the user unplugs the S2's CAN connector for 10 s with both drives released, then plugs it back. In its 120 s window the image calls `recover()` itself exactly once when a TX lifetime expires. After that restart it probes each unresolved node with an explicit marker, at most 4 per node, 1 s apart. `LINK_EVENT` lines give `expired`, `restart`, `recovery` (with its causes), `listener-end`, `marker`, `marker-result` and `resynced`, each with its time. `LINK_WATCH_END` gives `restarts`, `expired`, `recovery`, `causes`, `listenerEnd`, `listenerUs`, `resynced=1,1`, `unmatchedAfter`, `refusedAfter`, `markers`, `explicit`, `explicitOk`. Expected: expiry reported within the lifetime (100 ms from the stranded frame's submission, checked each service turn), one restart and both nodes resynced. A frame submitted after the restart while the bus is still out can expire and still go out when the cable returns (2026-11-19: the watch's own marker, 38 s late). "No stale frame" can only be shown as no unmatched or reuse-refusing frame after the restart. An unmatched frame there can be the late reply to the watch's first probe, which the traffic distinguishes. Nothing shows the wire without an independent observer (H04) |
+| (e) Slow move with a forced trigger timeout and no replay | After an enable: `python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial TRIAL --start-position POSITION --target TARGET --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 4 --interval-ms 250 --stop-kind none --trigger-response-us 1000 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY` (or `--command relative`); then `x` | Only the trigger (`001F`, relative `005F`) gets the 1000 us budget; the other writes keep 250 ms. An older image refuses the longer line as syntax. `TRIAL_PLAN` ends in `trigResp=1000 reuse=marker`. The traffic must hold exactly one trigger frame. A cleanup abort `80 40 60 00 00 00 04 05` may follow it. The owner's marker inherits the trigger's 1 ms budget, so on this fixture it fails and an explicit marker `y` reopens the route (2026-11-19). The move stays uncertain: nothing replays it, and no resync settles its effect. A later read can record where the drive is; it does not settle the move |
 | (f) Quick-stop reissue | Two `python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial TRIAL --kind quick --deadline-ms 2000 --best-effort-ms 3000 --interval-ms 500 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY` records with different trials (after item (e), with `x` between them when the first reopened a route) | The second stop is a new operation with its own identity, not a replay. Both records' traffic must hold only `2B 40 60 00 0B 00 00 00` downloads to 6040, never `010F`, `000F` or an enable word. Whether the drive stopped is a separate observation |
 
 The plan of (d) uses no NMT, write or stop. A soak runs beside the watch so that a read is in
 flight when the connector comes out. Start the controller first with `c` (`--command start`)
 when PONG reports it inactive. Add every retained run to `docs/bench/SHA256SUMS.json`, as with any other evidence.
-Until the remaining runs exist, D14, H04 and T04 in the [backlog](backlog.md) keep their open
-physical obligations.
+D14, H04 and T04 in the [backlog](backlog.md) keep the obligations these runs cannot meet
+(Q18 and an independent observer).

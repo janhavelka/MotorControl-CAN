@@ -1,0 +1,5 @@
+LINK interface lifetime=100000 noListener=0 expiredPending=0 txExpired=0 markers=2 reuseStopped=0 recoveries=0 inhibited=0 t=43333346503 state=available offlineSince=0 receiveLost=0
+LINK node=1 reuse=marker unresolved=0 stopped=0 pending=0 accepted=1 responded=1 lastResponse=43329361501 heartbeat=0 lastHeartbeat=0 bootUps=0 noResponse=0 answered=3825 errors=0 misses=0 notObserved=0
+LINK node=2 reuse=marker unresolved=0 stopped=0 pending=0 accepted=0 responded=1 lastResponse=43144464506 heartbeat=0 lastHeartbeat=0 bootUps=0 noResponse=0 answered=3754 errors=0 misses=0 notObserved=0
+LINK bus read=1 t=43333358501 known=1 state=active tec=0 rec=0 busErrors=0 arbLost=0 prev=1 prevT=43290422501 dBusErrors=0 dArbLost=0 deltas=1 prevState=active dTec=0 dRec=0
+LINK counters busOff=0 recoveriesStarted=0 recoveries=0 recoveriesFailed=0 rxOverflows=0 abortsSent=3 abortsReceived=0 resyncs=1

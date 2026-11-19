@@ -1,0 +1,23 @@
+{
+  "purpose": "Prompt 55 item (d): unplug the S2's CAN connector for about 10 s with both drives released (6041 0050, mode 1, 2100 0010 read at 01 and 03), during a state-read soak on nodes 1 and 2; the image's link watch calls recover() once on a TX lifetime expiry, then resyncs each unresolved node with explicit markers. No NMT, write or stop is sent",
+  "authorization": "user 2026-11-19, at the bench: 'Do these now and tell me what to do during the test if it needs my attention' (prompt 55's attended trials); standing bench authorization in docs/prompts/COMMON.md",
+  "steps": [
+    {
+      "send": "S1795080630,150,200,10,0,0,3,250",
+      "expect": "SOAK_BEGIN",
+      "note": "150 s state-read soak on nodes 1 and 2 at 200 ms, marker budget 250 ms, so a read is in flight when the connector comes out"
+    },
+    {
+      "send": "U",
+      "expect": "LINK_WATCH armed",
+      "end": "LINK_WATCH_END",
+      "end_timeout_s": 150,
+      "note": "120 s watch; after 'armed' the user unplugs the S2's CAN connector for about 10 s, then plugs it back"
+    },
+    {
+      "send": "L",
+      "expect": "LINK interface",
+      "note": "interface, node, bus and repair counters after the watch"
+    }
+  ]
+}
