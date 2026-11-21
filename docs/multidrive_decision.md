@@ -12,6 +12,17 @@ Position, velocity, homing, enable/release, explicit stop, observations, coordin
 
 Keep capabilities independent of labels such as stepper, servo, open-loop or closed-loop. A servo speed controller may lack position control; a closed-loop stepper drive may support sophisticated position functions. For example, maxon distinguishes EPOS4 position/speed/current control from ESCON2 speed/current control without position control. [maxon controller selection](https://support.maxongroup.com/hc/en-us/articles/360015382019-EPOS4-ESCON2-ESCON-What-controller-should-I-select).
 
+For example, a machine can request an absolute move from either of two logical
+axes through the same API. Each selected profile converts the target using
+its own units and confirms the supported mode. An axis without position
+control returns unsupported before the application sends a command.
+
+| Design choice | Benefit | Cost |
+| --- | --- | --- |
+| **Selected: common motion API with explicit drive profiles** | Machine code can reuse the same move, stop and result logic while each profile handles its own wire commands and limitations. | The common contract needs careful unit, capability and completion checks, and each profile still needs its own evidence. |
+| Separate stepper and servo libraries | Each library can expose one family's native functions with a small initial API. | Machine code must learn two APIs, and shared behavior can diverge as the libraries grow. One drive family can also span both motor types. |
+| Expose only vendor-native operations | Brings a proprietary feature to a single application quickly and retains the vendor's exact semantics. | Every application that swaps drives must rewrite motion logic. Typed profile extensions can still provide these features under the selected design. |
+
 ## Recommended scope and order
 
 | Priority | Target | Role and scope |

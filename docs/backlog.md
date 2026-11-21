@@ -116,6 +116,9 @@ packet 17 have not run. The physical gates left open are rows D16, H03 and H04 b
 
 ## Documentary and firmware questions
 
+For plain-language examples, practical options and their tradeoffs, see the
+[device evidence questions](device_conflicts.md#questions-in-plain-language).
+
 | ID | Open fact and consequence | Owner / next concrete action |
 | --- | --- | --- |
 | D01 | **Documentary review closed:** the [reviewed dictionary](reference/lichuan_objects.md) covers 99 indexes, 202 entries and 53 manual functions, exact sources, effect/access policy, four model scopes and 21 qualification gates | [Prompt 3](reports/prompt_3.md) complete; 12 later generates reviewed policy. No feature implementation or firmware qualification closed by this documentary result. |

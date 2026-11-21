@@ -102,6 +102,28 @@ Executors add a row for each step that needs the owner and do not wait.
 | Prompt 72 | Reproduce S21 deliberately, then power-cycle | 72 step 2 guard row |
 | Prompt 59 | Attend the probe above 3000 rpm, the position probe and the 25600 bisection | 59's attended remainder |
 
+#### Choices for the attended switch fixture
+
+- **Choose switch contact behavior for prompt 77.** For example, unplugging a
+  positive-limit lead can leave the bench input inactive or appear as an
+  asserted limit, depending on the chosen wiring. A normally open contact at
+  the default polarity is the simplest temporary fixture and leaves an open
+  wire undetected. A normally closed contact with the reviewed polarity makes
+  an open wire appear active and needs an explicit polarity setup after each
+  power-up, or a separately chosen and verified persistent setting.
+- **Choose how to exercise the switch inputs.** For example, a homing trial
+  needs a repeatable transition at the origin input. A manual pushbutton is
+  enough to check one transition and gives variable timing. An optocoupler or
+  relay driven by the bench controller gives repeatable pulses and adds wiring
+  and an output check. See [prompt 77](77_switch_ready_homing_limits.md) for
+  the exact fixture and trial steps.
+- **Match the instrument to the question.** For example, the controller's own
+  capture cannot show whether its transceiver actually stayed silent. Use
+  independent listen-only capture for bus activity and a logic analyzer for
+  the level or timing at a board pin. The first gives bus-level events, the
+  second gives electrical timing, and either can be staged separately with the
+  named checklist rows.
+
 ## Execution order
 
 Prerequisites name the earlier results a prompt consumes, under the usable-prerequisite rule below; the prompt also states any device or fixture evidence gate. All numbers refer to this sequence, not historical stages.

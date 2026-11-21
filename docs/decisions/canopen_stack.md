@@ -226,6 +226,14 @@ device acceptance. The actual board, transceiver and qualified port remain open.
 | Selected CANopenNode adapter | Reuses actual expedited/segmented protocol state machines, abort and size/toggle handling, FIFO and later network/PDO services. Requires a C driver shim, small OD initializer, explicit configuration and the owner guards above. Caller-owned objects avoid the whole-stack allocator. The native exchange proves this boundary can compile and run without SDKs. |
 | Direct bounded local service subset | Removes the OD initializer and C shim and can integrate terminal/deadline policy directly. Must independently implement and maintain all required transfer forms, protocol faults, network/PDO/SYNC behavior and tests. It still needs controller retirement, ingress ownership and indistinguishable-reply reconciliation. No essential stack blocker justifies that extra implementation. |
 
+For example, consider a segmented SDO read that times out after receiving part
+of its data. CANopenNode owns segment handling and protocol errors. The
+application owner reports the absolute timeout, preserves the caller's output
+and decides when it can safely use the route again if the final reply arrives
+late. A local SDO client would give direct control of the segment loop and
+require the project to implement and test that loop. Both options need the
+same owner evidence before reusing an ambiguous route.
+
 Exactly one engine is active. Pure CAN/SDO envelope codecs, object codecs and
 profile intent planners remain useful core code; they must not acquire a second
 active session, retransmission loop or PDO protocol implementation. The optional
