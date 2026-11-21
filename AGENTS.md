@@ -107,3 +107,9 @@ Keep changes scoped and use the CI/Git policies above throughout each prompt. Es
 Maintain a current handoff rather than a transcript: completed behavior, actual verification, source/firmware uncertainty, next executable work, branch/commits and sync status. Continue through already-authorized stages without routine confirmation. When one feature is blocked, keep its obligation visible and proceed with independent work; do not call a partial stage complete because its current subset builds.
 
 Maintain a stage report, object/API/CLI coverage, backlog and roadmap as work proceeds. Update each when its distinct information changes; link the authoritative contract instead of copying the same narrative into every file. Mark software checks, device evidence and remaining gaps independently. For major implementation milestones verify required CI on the actual final commit when a remote exists; report unavailable checks honestly. Documentation-only promptset changes need local validation, not remote CI.
+
+## Commit and pull request attribution
+
+Credit human contributors for their work. Omit AI co-author trailers, AI-generated
+signatures or sign-offs, generated-by footers, session links, and other AI
+attribution from commit messages and pull request titles and descriptions.
