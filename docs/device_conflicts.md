@@ -56,38 +56,209 @@ describes the actual harness API, retained records and firmware integration.
 
 ## Questions in plain language
 
-The examples show what each gate is meant to resolve. Use the
-[evidence table](#conflict-and-observation-table) for exact objects and the
-[owner-return checklist](prompts/README.md#deferred-to-owner-return) for fixtures
-and physical actions. These options are proposals within the existing gates.
+These questions explain what could happen on a real drive and what we can do
+about it. The [evidence table](#conflict-and-observation-table) has exact CANopen
+settings and test results. The [owner-return checklist](prompts/README.md#deferred-to-owner-return)
+lists the bench work that needs someone present.
 
 ### Identify the drive and trust its status
 
-| Question | Example | Simple approach and tradeoff |
-| --- | --- | --- |
-| Which profile and wire format apply? (Q01, [D18](backlog.md#documentary-and-firmware-questions)) | The CL86-C and DS-C EDS files share vendor and product IDs, but `2300` has different meanings. Separately, the CL86-C specimens answer some U8 count fields with two bytes and report zero while the subentries still answer. | **Declare the model and preserve the documented decoder by default.** This protects vendor writes and requires commissioning an exact profile. **Opt in to the existing specimen-scoped width exceptions** when evidence applies. This recovers the affected reads and adds an explicit configuration choice. Keep reporting the raw zero until its meaning is known. |
-| Which bits show a current alarm, home or completed move? (Q02) | A new move begins while the previous move's done bit is still high. Reporting “arrived” from that bit alone can return success while the shaft is still moving. | **Qualify each status bit on the exact drive and require fresh operation evidence** from acceptance through completion. This gives a meaningful result and needs matched captures. **Expose raw status with an unqualified result** for other firmware. This preserves diagnostics and leaves the caller without an automatic completion verdict. |
-| Can a diagnostic read consume evidence? (Q20) | A background read of `1003` could change the fault record before a technician inspects it. Repeated equal replies would leave that possibility open. | **Keep routine reads within the accepted list.** This preserves existing polling and leaves other objects unavailable to it. **Obtain a vendor statement or qualify one separately reviewed read** with independent before-and-after fault evidence. This can admit a specific object and takes an attended observation or exact vendor evidence. |
+#### Which drive model and reply format should we use? (Q01, D18)
 
-### Know what motion and I/O will do
+**Example.** The CL86-C and DS-C have the same vendor and product numbers in
+their Electronic Data Sheets (EDS files, the lists of CANopen settings). Setting
+`2300` has different meanings on those models. Separately, the tested CL86-C
+drives answer some identity queries with one byte where the EDS says two.
+Some count queries go the other way and return two bytes. The count is zero
+even though the numbered entries can still be read.
 
-| Question | Example | Simple approach and tradeoff |
-| --- | --- | --- |
-| Which direction and units should a command use? (Q03, Q04) | An application requests one positive revolution. Target increments and returned feedback counts could use different scales, and the shaft could turn opposite the application's positive direction. | **Keep native target and feedback units** for the existing qualified routes. This works without a physical conversion and leaves the application to handle units. **Measure command and feedback scales independently**, with shaft direction and the exact subdivision and motor recorded. This enables physical units for the measured configuration and must be revisited when that configuration changes. |
-| When is a travel limit or home reference usable? (Q05, Q14, Q21) | The shaft starts on the positive limit after reboot. A request to move farther toward it should be refused. Whether motion away is admitted, and what coordinate a subsequent home publishes, depend on the input, direction and home evidence. | **Keep starts guarded while the input or reference is uncertain**, then qualify one switch method and its coordinate result. This is easy to reason about and can require attended recovery. **Add a qualified away-start rule and drive soft-limit behavior** only where the firmware and wiring are verified. This can recover without intervention and adds per-direction checks and reference invalidation rules. |
-| Which output changes, and how quickly is an input seen? (Q06, Q07, Q08, Q19) | A caller requests DO0 on while DO1 is already on. The command mask must preserve DO1. Separately, a short limit pulse can appear at the terminal and disappear before the drive reports it. | **Start with isolated terminal measurements and steady signals on one verified mapping.** This establishes address, polarity and mask behavior with simple equipment, with timing still open. **Add timestamped input stimulus and terminal capture** for filter and pulse qualification. This gives timing evidence and needs a repeatable fixture plus measured electrical levels. |
-| Which tuning fields and modes can production use? (Q09, Q10, [D17](backlog.md#documentary-and-firmware-questions)) | A disabled drive shows an experimental mode in `6061`. That leaves motion, torque, and stop behavior in that mode unknown. A tuning field marked writable likewise leaves its usable range open. | **Expose verified reads and permit only the implemented, qualified actions.** This keeps setup predictable and leaves optional features unavailable. **Qualify one concrete mode or setting for a named consumer** with matched documentation and the needed evidence. This adds useful support while limiting testing and maintenance to that feature. |
-| Does starting or stopping a drive do what the caller expects? (Q11, Q12, Q13) | A start reply is lost. The caller cannot tell whether the move started. A subsequent stop acknowledgement can arrive before standstill, and a later fault-clear request can see an old fault code. | **Keep the operation outcome uncertain and use a separately supported stop route when available.** Require fresh state evidence before rearm or clear. This avoids replay and can require an operator to reconcile the drive. **Qualify any missing transitions individually**, including the final motion or torque state. This expands usable states at the cost of more fixture evidence. |
-| Can zero ramp time or an in-flight update be supported? (Q11, Q22–Q26) | The same endpoint is still ahead, but the caller asks for a slower speed mid-move. A parameter write can be acknowledged with no change to the active curve. A zero ramp request could have a firmware-specific effect. | **Retain qualified finite moves and explicit replacement rules where supported.** This keeps timing and result evidence simpler and may require stopping or waiting before applying a new command. **Qualify one exact update type at a time** with fresh acceptance and trajectory evidence. This avoids an interruption for that type and adds cadence, buffering and stop-interaction checks. |
+- **Name the exact model at setup and use the documented format by default.**
+  This avoids choosing the wrong meaning for a write. Setup needs the correct
+  model, and the unusual replies remain unreadable through the default API.
+- **Enable the existing reply-size exceptions where the measured behavior
+  applies.** This lets us read those fields on the matching drives. It adds an
+  explicit setup choice, and the meaning of the reported zero stays open.
+
+The [backlog](backlog.md#documentary-and-firmware-questions) records the model
+conflict and the affected count fields.
+
+#### When can we say a move finished or a fault appeared? (Q02)
+
+**Example.** A drive may still report the previous move's "done" flag when the
+next move begins. Treating that flag as current would report arrival while the
+shaft is still moving. The manuals also disagree on which flags mean fault or
+motion, so those meanings need checking on the exact firmware.
+
+- **Verify the flags on the exact firmware and tie them to the current
+  command.** This yields a usable result and needs traffic captures alongside
+  an independent observation of the drive.
+- **Show the raw flags when their meaning or timing is unknown.** This keeps
+  diagnostic information visible while the application treats the outcome as
+  unknown.
+
+#### Could reading an error erase evidence? (Q20)
+
+**Example.** A background read of the fault history (`1003`) could change what
+a technician sees later. Seeing the same reply twice leaves that possibility
+open.
+
+- **Keep routine reads within the already accepted list.** Existing monitoring
+  continues, with fewer fields available for automatic polling.
+- **Ask the manufacturer or verify one field with a before-and-after check.**
+  This can add that field to routine monitoring, once the reply's effect is
+  understood. It needs exact vendor evidence or an independent observation,
+  such as watching the fault indicator while a reviewed read runs.
+
+### Know what motion and input/output signals will do
+
+#### Which way will the motor turn, and how far? (Q03, Q04)
+
+**Example.** The application asks for one positive turn. The drive may count
+requested motor steps and measured shaft position in different units, and its
+positive direction may differ from the machine's.
+
+- **Use the drive's own units for routes that already work.** This starts with
+  the available measurements and leaves conversion to the application.
+- **Measure both scales and the direction on the real shaft.** This lets the
+  application use turns or degrees. Record the motor and the drive's steps per
+  revolution setting so the result can be checked after setup changes.
+
+#### When is a travel limit or home position valid? (Q05, Q14, Q21)
+
+**Example.** The drive restarts with the positive travel switch held. It should
+refuse a move farther in that direction. Can it move away, and will finding
+the home switch establish a known coordinate? Setting the position to zero
+alone gives neither answer.
+
+- **Refuse starts while the switch state or position reference is uncertain,
+  then verify one way to find home.** This has fewer ways to start in error
+  and can require someone at the bench to recover.
+- **Allow a verified move away from an active limit and add drive-side
+  position limits.** This can let the machine recover itself. It needs exact
+  wiring and direction checks, evidence of how the drive reacts, and a rule
+  for when a restart or settings change makes the home position unknown again.
+
+#### Which terminal changes, and how short a signal can the drive see? (Q06-Q08, Q19)
+
+**Example.** Turning on digital output 0 (DO0) should leave output 1 as it was.
+A quick tap on a limit input might also be visible on the wire and too short
+for the drive's input filter to report.
+
+- **Measure known terminals with one steady signal at a time.** This checks
+  which setting controls each terminal, which electrical level means active,
+  and whether the output command preserves the other outputs. A meter is
+  enough for steady states.
+- **Apply timed pulses and record the terminal and the drive's report.** This
+  can establish which short signals the drive recognizes. It needs a
+  repeatable source and a capture with a shared time reference.
+
+#### Which settings and operating modes are usable in production? (Q09, Q10, D17)
+
+**Example.** A disabled drive may echo an experimental mode in its mode
+display (`6061`). The echo alone leaves motion, torque and stop behavior
+unknown. A setting described as writable likewise leaves its useful range
+unknown.
+
+- **Expose verified reads and keep writes and modes to the verified set.**
+  This keeps setup predictable and leaves optional features unavailable.
+- **Verify one additional mode or setting for a real application.** This adds
+  the needed feature and confines testing and maintenance to that feature.
+  The [backlog](backlog.md#documentary-and-firmware-questions) lists the
+  mode-display observations and their scope.
+
+#### What counts as a successful start, stop or fault clear? (Q11-Q13)
+
+**Example.** A start reply is lost. The drive may already be moving. A reply to
+a subsequent stop can arrive while the shaft is still slowing, and an old
+fault code can still be visible during a later fault-clear request.
+
+- **Report uncertainty, keep the original command from being sent again, and
+  use a separately supported stop when available.** Require fresh evidence
+  before another start or fault clear. The operator may need to check the
+  drive's state.
+- **Verify each missing transition on its own.** This can support more cases.
+  It needs independent observation of the actual motion, stopped state, or
+  holding torque relevant to the operation.
+
+#### Can we change a move while it is running? (Q11, Q22-Q26)
+
+**Example.** The application asks for a lower speed before the same endpoint.
+The drive may accept the setting and continue at the original speed. If the
+application asks for a zero ramp time, it is also unclear how the drive
+interprets having zero time to speed up or slow down.
+
+- **Use the verified move and replacement behavior already supported.** This
+  keeps timing and completion easier to check and can require waiting or
+  stopping before issuing a new command.
+- **Verify one specific running update at a time.** A verified update can
+  avoid an interruption. Measure when it takes effect, whether it waits in the
+  drive, and how it interacts with a subsequent stop.
 
 ### Change configuration or recover from loss
 
-| Question | Example | Simple approach and tradeoff |
-| --- | --- | --- |
-| Which settings survive restart, and which address comes back? (Q15, Q16) | A node-number change is acknowledged at the old address. After restart the drive could return at the old address, the new address, or the DIP-selected address. | **Keep runtime changes volatile and use a known physical address** where the fixture permits it. This reduces recovery work and may require reapplying setup after boot. **Qualify one attended save or commissioning route** with a captured baseline and physical recovery available. This enables repeatable deployment settings and takes a controlled restart plus before-and-after checks. |
-| Can a new PDO map be used immediately? (Q17) | A delayed eight-byte frame from the old map arrives after readback of a new eight-byte map on the same CAN ID. The new decoder could label old bytes as a new measurement. | **Keep the verified static map** where it provides the needed signals. This avoids ambiguous transitions and limits customization. **Qualify an observed retirement boundary or use a distinct verified route** for changes. This allows remapping with a cost in transition logic, CAN IDs or capture evidence. |
-| Can the bus recover, and does the motor stop if the host disappears? (Q18) | The cable goes away during a velocity run. The host can report loss of communication while the drive's physical state is unknown. After reconnection, a late reply can resemble the reply to a new request. | **Quarantine an ambiguous request route** where strict correlation is required. This preserves conservative result interpretation and reduces automatic recovery. **Use the existing explicitly accepted marker policy** where its residual correlation risk is acceptable, and retain that status in results. It restores service sooner and still requires independent wire evidence to qualify the premise. For a system that needs a stop on host loss, qualify the separate wired stop path. [Host-loss behavior](host_loss.md) |
-| Does synchronization prove a simultaneous sample or withdraw an unstarted command? (Q27, Q28) | Two feedback frames arrive after a SYNC message, yet one may contain an earlier sample. A later SYNC could also start a target previously buffered during an unsuccessful group admission. | **Keep independent starts and explicitly labeled feedback timing** where simultaneity is unnecessary. This avoids a remote buffer dependency and leaves inter-axis skew. **Qualify sample timing and withdrawal independently** before admitting dependent synchronous behavior. This can reduce skew and needs an independent capture plus proof of what happens to a pending command. |
+#### Which settings and address will the drive use after restart? (Q15, Q16)
+
+**Example.** A drive at address 2 acknowledges an address change. After
+restart it could answer at the new address, still answer at 2, or follow the
+small hardware address switches (DIP switches).
+
+- **Use a known hardware address and leave runtime changes unsaved.** This
+  makes it easier to return to the previous setup and may require reapplying
+  settings after boot.
+- **Verify one save or address-change procedure with someone at the bench.**
+  This enables repeatable deployment. It needs a backup, a way to recover the
+  drive, and a comparison of the settings before and after restart.
+
+#### Can the controller trust updates immediately after changing their layout? (Q17)
+
+**Example.** A PDO is a short CANopen message that carries values such as
+position or a command. Its map says what each byte means. When the map
+changes, an old eight-byte message can arrive late on the same CAN message
+number (CAN ID). The new map could read old position bytes as a different value.
+
+- **Keep a fixed, verified layout where it carries the needed values.** This
+  avoids the transition and limits customization.
+- **Verify how to clear old traffic before using the new layout, or use a
+  separately verified CAN ID.** This allows a change and needs an observed
+  cutoff, a distinct message number, or another reliable way to tell the layouts
+  apart.
+
+#### Can the controller recover its link, and what happens to a moving drive? (Q18)
+
+**Example.** The cable is pulled during a velocity run. The controller knows
+it lost contact while the shaft may still be moving. After reconnection, a
+late reply can look like the answer to a new request for the same setting.
+
+- **Keep new requests on that channel blocked if replies must match with
+  certainty.** This protects result integrity and can delay recovery.
+- **Use the already accepted marker option when that risk is acceptable.**
+  It sends a distinct, reviewed read before reopening the channel. This can
+  restore service sooner. It assumes one requester and a drive that answers
+  in order, so the result still carries a risk marker until those assumptions
+  can be verified.
+- **Reopen once the controller has finished its own transmissions.** The
+  existing option without a marker avoids waiting for a separate reply. An
+  old reply can still be taken as the result of a new request for the same
+  setting. [Request recovery options](canopen_services.md#settling-and-reopening-a-route)
+
+If the machine needs the drive to stop on link loss, verify the separate
+wired stop input for that use. [Host-loss behavior](host_loss.md)
+
+#### Do two drives sample or start together, and can a queued start be withdrawn? (Q27, Q28)
+
+**Example.** The controller sends SYNC, a shared timing message. Drive A and
+drive B each send a feedback message (TPDO) just afterwards. Drive B may still
+be reporting a position sampled earlier. In a separate case, Drive A may have
+stored a start sent in a command message (RPDO) for the next SYNC, even though
+Drive B never received its start. A later SYNC could start A by itself.
+
+- **Keep the starts independent and label when feedback was received.** This
+  avoids relying on the drive's stored start. Starts can be separated by time,
+  and reception time leaves the true sample time open.
+- **Verify sample timing and queued-start withdrawal as separate questions.**
+  That can reduce the time between starts and improve comparisons between
+  drives. It needs independent timing evidence and proof that a later SYNC
+  cannot release a start that the application tried to withdraw.
 
 ## Conflict and observation table
 

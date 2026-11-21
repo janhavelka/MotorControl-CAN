@@ -27,7 +27,7 @@ measurements, diagnostic fixes and the exact remaining motion/fixture gates.
 | Concurrent axes | [Independent/group stop, capacity and storage](multi_axis.md) |
 | Firmware | [Arduino and ESP-IDF](firmware_examples.md), [S2 bench image](../examples/s2_bench/README.md) |
 | Console and host clients | [CLI/JSONL](cli_contract.md), [API/CLI map](api_cli_mapping.md), [Python runners](runners.md), [finite scenarios](bench_scenarios.md) |
-| Physical evidence and open questions | [Bench facts](hardware_bench.md), [device conflicts](device_conflicts.md), [host-loss limits](host_loss.md) |
+| Physical evidence and open questions | [Drive questions and examples](device_conflicts.md#questions-in-plain-language), [owner-return checklist](prompts/README.md#deferred-to-owner-return), [bench facts](hardware_bench.md), [host-loss limits](host_loss.md) |
 
 Examples use the same public operations as callers. The
 [units](../examples/units_preview/README.md),

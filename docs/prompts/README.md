@@ -74,55 +74,55 @@ a row below, not a wait.
 
 ### Deferred to owner return
 
-Executors add a row for each step that needs the owner and do not wait.
+Each row shows what someone at the bench needs to do and what it helps verify.
+The IDs in parentheses identify the exact tests or records. Add newly deferred
+steps here and continue with work that can run unattended.
 
-| From | Owner action | Unlocks |
+| From | What to do at the bench | What it helps verify |
 | --- | --- | --- |
-| all | Power-cycle both drives, then a baseline read (identity, `2400`, `2201`, `2500`, `1017`, TPDO1) | Reverts RAM leftovers; clears any S20/S21 state; the post-absence baseline (77 O1) |
-| 19, 29 | Watch the fault LED around a `1003` read | H03/DEC-1 item, Q20 read effect |
-| 20, 33, 59, 60 | Shaft mark or tachometer over a +100,000-pulse move; watch the direction | Q04 scale, `2200`/Q03 direction, the 0.99 ratio, physical user units |
-| Prompt 21 | Meters on DO0..2 and DOCOM during one `2400:0E=4` write | P4, Q06 |
-| Prompt 22 | Phase-current probe and the motor's rated current | T1/T2, tuning writes |
-| 27, 47, 51, 54 | PCAN-USB on the bus as a listen-only observer | TWAI Q1/Q4, Q18, Q27, wire load and jitter, HM8 |
-| 27, 78 | PCAN-USB as a sender (DLC 9-15) and full-bus traffic generator | TWAI Q6; receive rate above about 2500 frames/s |
-| 28, 48 | Logic analyzer on GPIO17/18, the S pin and GPIO43 | Silent-start levels; cause of the console loss |
-| 30, 31, 35 | Independent torque, standstill and stop-distance observation | Release qualification, Q12, Q11 |
-| Prompt 32 | Count LED flashes on a natural alarm; shaft mark and cutoff for `2302` | Alarm identity, Q14 |
-| 36, 58, 77 | Emulated-switch trial (77 O2), then origin and limit switches on DI0..2 (77 O3) | Homing Q04/Q11/Q14/Q21, the homing record, limit trials (77 O4), `2202` Q05 |
-| 38, 61 | Node DIPs off and on with power cycles; DIP photos | Q16, `2203` precedence (N0-N3) |
-| Prompt 61 | Bitrate DIPs SW6/7 with a power cycle | Bitrate procedure B1 |
-| 39, 57, 61 | Attended `2300=2` save after a full backup, then a power cycle and torque check | Q15, 57's save proof, 61 S1-S4 |
-| Prompt 61 | `2300=1` with a recovery route or the vendor tool, at the owner's risk | 61 S5 |
-| 51, 54, 61 | RPDO map and start trials with a power cycle available afterwards | M09/Q28, trials a2/c, skew, M16, R1 |
-| 48, 54, 74 | Unplug one node, then return it | HM4, presence Degraded/Offline/Online, link loss |
-| Prompt 48 | OL86-C, CL57-C and OL57-C fixtures | Related-model baselines |
-| 62, 69, 71 | Wire the optocoupler stop line, watchdog IC, switches, relay, brake and LEDs; then the disconnect, MCU power-off and CAN-unplug trials | 62 item 5, 69 item 6, 71 item 3, 54 DI5/6 |
-| 67, 71, 76 | Deliver the ESP32-S3 (and other) boards with their facts | 67 items 1-5, 76 PSRAM, 71's S3 repeat |
-| Prompt 70 | Attended NMT Reset Node, or a natural power cycle | 70 item 3 |
-| Prompt 72 | Reproduce S21 deliberately, then power-cycle | 72 step 2 guard row |
-| Prompt 59 | Attend the probe above 3000 rpm, the position probe and the 25600 bisection | 59's attended remainder |
+| all | Power-cycle both drives and read back their identity, input/output settings (`2400`), pulses per turn (`2201`), loop mode (`2500`), heartbeat interval (`1017`) and first broadcast feedback message (TPDO1). | Clears temporary settings and retained fault or halt states (S20/S21) and gives a fresh baseline (77 O1). |
+| 19, 29 | Watch the drive's fault LED just before, during and after one read of its fault history (`1003`). | Whether that read affects the fault indication (H03/DEC-1, Q20). |
+| 20, 33, 59, 60 | Mark the shaft or use a tachometer to observe a +100,000-pulse move. Record the turns and direction. | Which direction the drive calls positive and whether the roughly 1% difference in reported motion comes from position scaling or the actual rate (Q04, `2200`/Q03). |
+| Prompt 21 | Measure DO0 through DO2 against their common terminal (DOCOM) during the reviewed `2400:0E=4` write. | Which physical output changes (P4, Q06). |
+| Prompt 22 | Provide the motor's rated current and a probe that can measure the current in a motor phase. | Tuning checks against the real current and motor rating (T1/T2). |
+| 27, 47, 51, 54 | Connect a PCAN-USB adapter in listen-only mode to record bus traffic independently of the controller. | Which messages reach the wire, how busy it is, and how much message timing varies (TWAI Q1/Q4, Q18, Q27, HM8). |
+| 27, 78 | Use the PCAN-USB to send full-bus test traffic, including frames with unusual values in their length field (DLC 9-15). | ESP32 CAN-controller receive behavior, including rates above about 2,500 messages per second (TWAI Q6). |
+| 28, 48 | Attach a logic analyzer to board pins GPIO17, GPIO18 and GPIO43 and the transceiver's S pin. | Whether the board starts in the expected quiet state, and whether missing console bytes were present on the wire. |
+| 30, 31, 35 | Observe the shaft directly during the release and stop checks. Check holding torque, actual standstill and distance traveled before stopping. | The real effects of releasing or stopping the drive (Q11, Q12). |
+| Prompt 32 | Count LED flashes during a naturally occurring alarm. For the position-clear test (`2302`), mark the shaft and have the cutoff available. | Which alarm the LED indicates and whether clearing the reported position affects the physical reference (Q14). |
+| 36, 58, 77 | Run the trial that simulates switch changes (77 O2), then wire the home switch and the two travel-limit switches to digital inputs DI0 through DI2 (77 O3). | Home direction and reference, travel-limit reactions and drive-side position limits (`2202`, Q05, 77 O4). See Q04, Q11, Q14 and Q21 for homing. |
+| 38, 61 | Test the small address switches (DIP switches) off and on, with a power cycle. Photograph their positions. | When the switch setting or software address (`2203`) takes effect (Q16, N0-N3). |
+| Prompt 61 | Test the CAN bus speed switches SW6/7 and power-cycle the drive. | Which bus speed the drive uses after startup (B1). |
+| 39, 57, 61 | With someone present, take a full backup, run the settings save (`2300=2`), then power-cycle and check torque. | Which settings survive the restart and what the drive does when it comes back (Q15, 57 save proof, 61 S1-S4). |
+| Prompt 61 | Decide whether to run the factory reset trial (`2300=1`). If it goes ahead, have a way to recover the drive or use the vendor tool. | What the reset changes and whether the drive can be brought back to its expected setup (61 S5). |
+| 51, 54, 61 | Test the CAN command-message layout (RPDO map) and coordinated starts with a power cycle available. | Whether the drives start together, by how much their starts differ, and how a stored start can be cleared (M09/Q28, a2/c, M16, R1). |
+| 48, 54, 74 | Unplug one drive from the bus, then reconnect it. | How the application reports and recovers a missing drive (HM4, Degraded/Offline/Online states). |
+| Prompt 48 | Supply OL86-C, CL57-C and OL57-C drives on appropriate test fixtures. | Baseline behavior for each related model. |
+| 62, 69, 71 | Wire the separate stop line with its optocoupler and watchdog chip, plus switches, relay, brake and LEDs. Then run the planned disconnect, controller power-off and CAN-unplug trials. | What the drive and physical outputs do when the controller, power or bus connection is lost (62 item 5, 69 item 6, 71 item 3, 54 DI5/6). |
+| 67, 71, 76 | Supply the ESP32-S3 and other planned boards with their exact hardware and memory configurations. | Board-specific checks, including external RAM (PSRAM) and repeating the fixtures on S3 (67 items 1-5, 76, 71). |
+| Prompt 70 | Be present for the CANopen Reset Node command (NMT Reset Node) or record a natural power cycle. | Behavior when the drive restarts and rejoins the bus (70 item 3). |
+| Prompt 72 | For the attended check of the S21 persistent enable fault, reproduce the condition and power-cycle the drive. | The guard against the condition that makes later enable requests fail (72 step 2). |
+| Prompt 59 | Attend the test above 3,000 rpm, the position probe and the tests that narrow down the limit at `2201=25600`. | The remaining speed and pulse-rate boundaries for this drive (59). |
 
 #### Choices for the attended switch fixture
 
-- **Choose switch contact behavior for prompt 77.** For example, unplugging a
-  positive-limit lead can leave the bench input inactive or appear as an
-  asserted limit, depending on the chosen wiring. A normally open contact at
-  the default polarity is the simplest temporary fixture and leaves an open
-  wire undetected. A normally closed contact with the reviewed polarity makes
-  an open wire appear active and needs an explicit polarity setup after each
-  power-up, or a separately chosen and verified persistent setting.
-- **Choose how to exercise the switch inputs.** For example, a homing trial
-  needs a repeatable transition at the origin input. A manual pushbutton is
-  enough to check one transition and gives variable timing. An optocoupler or
-  relay driven by the bench controller gives repeatable pulses and adds wiring
-  and an output check. See [prompt 77](77_switch_ready_homing_limits.md) for
-  the exact fixture and trial steps.
-- **Match the instrument to the question.** For example, the controller's own
-  capture cannot show whether its transceiver actually stayed silent. Use
-  independent listen-only capture for bus activity and a logic analyzer for
-  the level or timing at a board pin. The first gives bus-level events, the
-  second gives electrical timing, and either can be staged separately with the
-  named checklist rows.
+- **Choose what happens if a switch wire breaks.** For example, with the
+  positive-limit wire unplugged, the drive should report the behavior chosen
+  for the fixture. A normally open switch (contacts apart at rest) uses the
+  default input setting and leaves a broken wire looking inactive. A normally
+  closed switch (contacts joined at rest) makes a broken wire look like an
+  active limit after the drive's input setting is reversed. That setting must
+  be reapplied after power-up or saved in a separately approved and verified
+  step.
+- **Choose how to operate the switches during testing.** A person can press a
+  pushbutton to check, for example, that the home input changes. A pushbutton
+  is simple and gives variable timing. A controller-driven relay or
+  optocoupler (an electrically isolated switch) gives repeatable pulses and
+  needs extra wiring and an output check. [Prompt 77](77_switch_ready_homing_limits.md)
+- **Choose the instrument by what needs to be seen.** If the question is
+  whether the controller sent a CAN message, use a second, listen-only CAN
+  adapter. If the question is how long a pin stayed high, use a logic
+  analyzer. Each can be set up separately for the matching checklist rows.
 
 ## Execution order
 
