@@ -12,11 +12,11 @@ The owner is away and nobody can touch the bench. These rules follow MotorContro
 (`docs/prompts/ess_wired_bench/COMMON.md` there) and override any text that asks for the owner, until the owner's return
 is recorded here. A drive that becomes unreachable or needs a power cycle stays lost for the rest of the absence.
 
-**Schedule (2026-11-23).** The owner is away from 2026-11-24 until about 2026-12-05. Prompts run unattended through the
-Codex loop `AgentLoop-MotorControl-CAN` (Windows Task Scheduler; its instruction and handoff live outside the
-repository, in `C:\Users\Honza\agent-loop\MotorControl-CAN` and `C:\Users\Honza\agent-loop-logs\MotorControl-CAN`):
-at least one prompt per day, more when the shared usage allows, in the order of [SEQUENCE.json](SEQUENCE.json)
-(ascending id among ready work), starting with prompt 57. These rules apply to every such run.
+**Schedule (2026-11-23).** The owner is away from 2026-11-24 until about 2026-12-05. Prompts run unattended through a
+Claude Code loop (`/loop 1h` in this repository's session; its instruction, pacer state and handoff live outside the
+repository, in `C:\agent_loop\MotorControl-CAN`): at least one prompt per day, more when usage allows, in the order
+of [SEQUENCE.json](SEQUENCE.json) (ascending id among ready work), starting with prompt 57. Agents run on Opus at
+xhigh, with Fable at high for the most complex tasks. These rules apply to every such run.
 
 **Waiver.** On 2026-11-19 the owner chose this statement for the whole period: "Yes, unattended motion: Enables, moves, velocity runs and stops within the library's limits, with nobody at the bench; I accept the risk." Pass it verbatim with
 `s2_bench.py --unattended-waiver "<statement>" --waiver-covers-motion`. It is also the written waiver for unattended
