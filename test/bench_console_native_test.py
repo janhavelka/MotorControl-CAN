@@ -90,6 +90,30 @@ class NativeConsole(unittest.TestCase):
     def test_config_remains_q20_gated(self):
         self.exercise("read config 1000", 0, False)
 
+    def test_shipped_app_wires_the_regular_commands(self):
+        # Fix round c, item 2: the shipped native app attaches its first selected axis (SelectedAxis), so the
+        # regular commands and the console's own persistence reach their own fresh reads instead of refusing for
+        # a missing attachment or prerequisites. The fixture answers identity uploads only, so each ends at its
+        # state read with nothing written.
+        self.assertIsNotNone(BINARY, "CTest must supply the actual native_probe executable")
+        cases = (("mode 9 3", "INVALIDATED"), ("enable 9", "INVALIDATED"), ("motor-release 9", "INVALIDATED"),
+                 ("persistence save parameters", "PERSISTENCE_PREPARATION_FAILED"))
+        for command, outcome in cases:
+            with self.subTest(command=command), tempfile.TemporaryDirectory(prefix="CAN native app ") as directory:
+                script = Path(directory) / "input.txt"
+                script.write_text("@1 useaddr 5\n@2 " + command + "\n", encoding="ascii")
+                process = subprocess.run([BINARY, "--console-fake", str(script)], check=True,
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+                records = [json.loads(line) for line in process.stdout.splitlines()]
+                reply = [r for r in records if r["id"] == 2 and r["type"] == "reply"]
+                terminal = [r for r in records if r["id"] == 2 and r["type"] == "terminal"]
+                self.assertEqual(len(reply), 1, records)
+                self.assertEqual((reply[0]["ok"], reply[0]["result"]), (True, "accepted"), reply)
+                self.assertEqual(len(terminal), 1, records)
+                self.assertEqual((terminal[0]["ok"], terminal[0]["outcome"], terminal[0]["execution_code"]),
+                                 (False, outcome, 0), terminal)
+                self.assertFalse(terminal[0]["uncertain"])
+
 
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

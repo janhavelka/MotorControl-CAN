@@ -52,6 +52,11 @@ RouteKind admissionKind(const ConsoleLine& line) {
         return RouteKind::VELOCITY;
     if (is(name, "enable"))
         return RouteKind::ENABLE;
+    // Prompt 57's regular commands: one 6060 write, as the mode routes count it, and one 6040 release word.
+    if (is(name, "mode"))
+        return is(line.token(2), "3") ? RouteKind::MODE_THREE : RouteKind::MODE_ONE;
+    if (is(name, "motor-release"))
+        return RouteKind::RELEASE;
     if (is(name, "alarm-clear"))
         return RouteKind::CLEAR_ALARM;
     if (is(name, "position-clear"))
@@ -147,7 +152,7 @@ ConsoleGate benchConsoleGate(const ConsoleLine& line) noexcept {
                                        "driver",      "io",            "control",        "tuning",
                                        "velocity",    "move",          "moveby",         "moveto",
                                        "enable",      "stop",          "alarm-clear",    "position-clear",
-                                       "stepsperturn"};
+                                       "stepsperturn", "mode",         "motor-release"};
     if (oneOf(name, work, sizeof work / sizeof work[0]))
         return ConsoleGate::IDLE_BENCH;
     if ((is(name, "home") && !is(first, "methods")) || (is(name, "monitor") && !is(first, "off")) ||
@@ -219,6 +224,14 @@ bool BenchConsole::attachRoute(BenchRoute& route) noexcept {
     if (route_ && route_ != &route)
         return false;
     route_ = &route;
+    return true;
+}
+bool BenchConsole::attachCommissioning(unsigned node, ProbeCommissioning& commissioning) noexcept {
+    if (commissioning_ || node < 1 || node > BENCH_NODES || !axes_[node - 1] ||
+        !commissioning.usesOwner(firmware_.owner()) || !console_.attachCommissioning(commissioning))
+        return false;
+    commissioning_ = &commissioning;
+    commissioningNode_ = node;
     return true;
 }
 bool BenchConsole::attachAxis(unsigned node, BenchAxis& axis) noexcept {
@@ -690,7 +703,9 @@ bool BenchConsole::ownsDownload(MotorControlCANOwner::SequenceId sequence,
     for (const BenchAxis* axis : axes_)
         if (axis && axis->motion.ownsDownload(sequence, transfer))
             return true;
-    return false;
+    // The commissioning helper's one write, on its node's session under the operation it holds.
+    return commissioning_ && commissioning_->retained() && transfer.operation == commissioning_->heldOperation() &&
+           axes_[commissioningNode_ - 1]->motion.session().ownsDownload(sequence, transfer);
 }
 bool BenchConsole::preflight(MotorControlCANOwner::SequenceId sequence,
                              const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept {
@@ -699,6 +714,7 @@ bool BenchConsole::preflight(MotorControlCANOwner::SequenceId sequence,
         if (axis && axis->motion.ownsDownload(sequence, transfer))
             return axis->motion.preflight(sequence, transfer, now, fault(node));
     }
-    return false;
+    // ProbeCommissioning::preflight refuses anything but its own exact pending write.
+    return commissioning_ && commissioning_->preflight(sequence, transfer, now);
 }
 } // namespace MotorControlCANExample

@@ -416,15 +416,19 @@ bool sameFirmware(const IdentityValues& a, const IdentityValues& b) {
 }
 } // namespace
 IdentityCheck compareIdentity(const IdentityValues& expected, IdentityBasis basis,
-                              const IdentityValues& observed) noexcept {
+                              const IdentityValues& observed, const IdentityReference& application) noexcept {
     IdentityCheck c;
     c.basis = basis;
     c.expected = expected;
     c.observed = observed;
+    c.application = application;
     c.expectedMatch = sameProduct(expected, observed);
+    c.applicationMatch = application.present && sameProduct(application.values, observed);
     c.documentedMatch = sameProduct(documentedIdentity(), observed);
-    // The declared model is the only candidate, so a match of any of its references confirms it.
-    c.outcome = c.expectedMatch || c.documentedMatch ? IdentityOutcome::CONFIRMED : IdentityOutcome::UNCONFIRMED;
+    // The declared model is the only candidate. Only a MEASURED reference confirms it: no record was made
+    // on a drive that matches the documented reference alone, so every gate would refuse that CONFIRMED.
+    c.outcome = c.expectedMatch || c.applicationMatch ? IdentityOutcome::CONFIRMED : IdentityOutcome::UNCONFIRMED;
+    // The qualification belongs to expected's firmware, whichever reference matched.
     c.firmwareUnqualified = !sameFirmware(expected, observed);
     return c;
 }
@@ -458,9 +462,17 @@ IdentityValues measuredIdentity() noexcept {
 }
 Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
                      const IdentityValues& expected, IdentityBasis basis, uint64_t now) noexcept {
+    // A local copy of an empty reference, so that only the caller's own inputs can overlap output.
+    const IdentityReference none;
+    return checkIdentity(output, observed, current, expected, basis, none, now);
+}
+Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
+                     const IdentityValues& expected, IdentityBasis basis, const IdentityReference& application,
+                     uint64_t now) noexcept {
     if (overlaps(&output, sizeof output, &observed, sizeof observed) ||
         overlaps(&output, sizeof output, &current, sizeof current) ||
-        overlaps(&output, sizeof output, &expected, sizeof expected))
+        overlaps(&output, sizeof output, &expected, sizeof expected) ||
+        overlaps(&output, sizeof output, &application, sizeof application))
         return invalid(ReadError::OVERLAP, "identity check overlaps input");
     if (basis != IdentityBasis::DOCUMENTED && basis != IdentityBasis::MEASURED)
         return invalid(ReadError::ARGUMENT, "an identity reference needs a DOCUMENTED or MEASURED basis");
@@ -468,7 +480,7 @@ Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed,
         return invalid(ReadError::TARGET, "identity observation is not of the current binding and boot");
     if (observed.window.earliestUs > observed.window.latestUs || observed.window.latestUs > now)
         return invalid(ReadError::TIME, "identity observation window is after the supplied time");
-    output = compareIdentity(expected, basis, identityValues(observed));
+    output = compareIdentity(expected, basis, identityValues(observed), application);
     return Ok();
 }
 

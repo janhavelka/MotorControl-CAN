@@ -288,6 +288,8 @@ void testGate() {
                         {"@1 debug raw", E::ConsoleGate::IDLE_BENCH},
                         {"@1 result", E::ConsoleGate::ALWAYS},
                         {"@1 release 4", E::ConsoleGate::ALWAYS},
+                        {"@1 mode 1 3", E::ConsoleGate::IDLE_BENCH},      // Prompt 57: owner work.
+                        {"@1 motor-release 1", E::ConsoleGate::IDLE_BENCH},
                         {"@1 cancel", E::ConsoleGate::ALWAYS},
                         {"@1 host 0", E::ConsoleGate::IDLE_BENCH},
                         {"@1 useaddr 2", E::ConsoleGate::IDLE_BENCH},
@@ -1756,8 +1758,32 @@ void testPairedVelocity() {
 }
 } // namespace
 
+// Fix round c, item 2: the console's one commissioning helper attaches over an armed node's session and
+// target, once, so that its persistence commands reach their own prerequisite reads; nothing is sent.
+void testCommissioningAttachment() {
+    scenario = "commissioning attachment";
+    std::unique_ptr<Rig> r(new Rig);
+    std::unique_ptr<E::ProbeCommissioning> c(
+        new E::ProbeCommissioning(r->firmware.owner(), r->services, r->one, r->axis1.target));
+    const size_t sent = r->driver.requests.size();
+    CHECK(!r->console.attachCommissioning(0, *c) && !r->console.attachCommissioning(3, *c));
+    CHECK(r->console.attachCommissioning(1, *c));
+    CHECK(!r->console.attachCommissioning(1, *c) && !r->console.attachCommissioning(2, *c)); // Once.
+    CHECK(r->driver.requests.size() == sent);
+    // Without the block (main.cpp could not place it), the console's persistence is refused at once with its
+    // reason and nothing is transmitted; arming and motion do not depend on it.
+    std::unique_ptr<Rig> bare(new Rig);
+    bare->open();
+    const size_t before = bare->driver.requests.size();
+    const std::string reply = bare->command("@1 persistence save parameters");
+    CHECK(reply.find("\"ok\":false") != std::string::npos &&
+          reply.find("exact_externally_reviewed_plan_prerequisites_and_handoff_guard_required") != std::string::npos &&
+          reply.find("\"type\":\"terminal\"") == std::string::npos);
+    CHECK(bare->driver.requests.size() == before);
+}
 int main() {
     testTwoArmedAxes();
+    testCommissioningAttachment();
     testGate();
     testInputAndOutput();
     testInputLoss();

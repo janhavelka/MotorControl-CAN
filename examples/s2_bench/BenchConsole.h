@@ -179,6 +179,14 @@ class BenchConsole {
     bool attachAxis(unsigned node, BenchAxis& axis) noexcept;
     /** @param node 1 or 2. @return Whether that node has a motion attachment. */
     bool hasAxis(unsigned node) const noexcept { return node >= 1 && node <= BENCH_NODES && axes_[node - 1]; }
+    /** Borrow the console's one commissioning helper (prompt 57), over node's route session and that node's
+     * BenchAxis target, once, and attach it to the console: `persistence save parameters` and `persistence
+     * restore factory settings` then read their own prerequisites on that node. Sends nothing. Without it
+     * (main.cpp could not place its block, estimated at 13.5 KB, not measured on a board) those commands are
+     * refused at once with their reason and nothing is transmitted.
+     * @param node 1 or 2, with an attached axis. @param commissioning Stationary, over that axis's session
+     * and target. @return False for an invalid node, no axis there, a second helper or another owner graph. */
+    bool attachCommissioning(unsigned node, ProbeCommissioning& commissioning) noexcept;
     /** Take one input byte; the first byte of a line must be `@`.
      * @param byte Input byte. @param nowUs Supplied platform time.
      * @param bench The bench's activity, judged when the line ends.
@@ -212,7 +220,8 @@ class BenchConsole {
     /** @return True while the console's discovery scan drains network observations. */
     bool scanning() const noexcept { return device_.discovery().active(); }
     /** @param sequence Reservation. @param transfer Pending download.
-     * @return True when it is one of this console's motion attachments' own downloads. */
+     * @return True when it is one of this console's motion attachments' own downloads, or the commissioning
+     * helper's held operation on its node's session. */
     bool ownsDownload(MotorControlCANOwner::SequenceId sequence,
                       const MotorControlCAN::CANOPEN::SdoTransfer& transfer) const noexcept;
     /** The owner handoff check of an owned download: ProbeMotion::preflight with this node's fault
@@ -271,6 +280,8 @@ class BenchConsole {
     // console's motion routes act on, the last arming consumed and its line, scratch for armed().
     BenchRoute* route_ = nullptr;
     BenchAxis* axes_[BENCH_NODES] = {};
+    ProbeCommissioning* commissioning_ = nullptr; ///< attachCommissioning's helper, over commissioningNode_.
+    unsigned commissioningNode_ = 0;
     unsigned attached_ = 0;
     uint32_t consumedTrial_ = 0; // The last arming record looked at, whatever its outcome.
     struct StopBudget {

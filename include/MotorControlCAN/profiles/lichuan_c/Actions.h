@@ -102,6 +102,11 @@ struct ActionOptions {
      * least ENABLE_WORD_INTERVAL_US. Other actions ignore it. A later word is also held for that
      * step's observation, so the actual spacing can be longer; commandHistory keeps the times. */
     uint64_t commandIntervalUs = 0;
+    /** ENABLE, SELECT_MODE and RELEASE only: the application's MEASURED identity reference for its own
+     * specimen (prompt 57), besides measuredIdentity(), the two specimens every reviewed record was made
+     * on. Its product fields admit like that reference's; firmwareUnqualified still compares with
+     * measuredIdentity(). Absent by default; other actions ignore it. */
+    IdentityReference identityReference;
 };
 /** Concrete action's active phase. */
 enum class ActionPhase : uint8_t {
@@ -364,14 +369,22 @@ struct EnableRecord {
     /** Accepted observation after words 6, 7 and 15. After a RELEASED start, word 7's
      * is the second of the two still cycles word 15 waited for. */
     EnableStepRecord steps[3];
+    /** Already enabled (prompt 57, fix round c): under EnableGate::MEASURED the caller's latest
+     * acknowledged controlword under this reservation was 000F and the fresh report read the enabled
+     * pattern (start POWER_UP), so the context ended SUCCEEDED and OBSERVED at preparation with execution
+     * NOT_TRANSMITTED and nothing was written or sent: word 6 would drop the holding torque. Answered
+     * without a current identity, as an already selected mode is; identity records a current one. */
+    bool alreadyEnabled = false;
 };
 /** Which fresh report admitted a mode select. The library judges only that report: it keeps no
  * history of earlier writes, and the application owns what it knows beyond the report. */
 enum class ModeSelectStart : uint8_t {
     NONE, ///< Not a SELECT_MODE context.
-    /** The drive reports itself not enabled: 2100 bit 4 set (EN86 p17 and ZH86 p18, set released and
-     * clear enabled) with 6041 bits 1 and 2 clear, low bits 000 or 001, as every released report of both
-     * specimens read (8050, C050, 4050; 8031 after word 6). Any requested mode. */
+    /** The drive reports itself not enabled: the released standstill the enable admits. 2100 bit 4 set
+     * (EN86 p17 and ZH86 p18, set released and clear enabled) beside in place and homing complete only, so
+     * alarm, both soft limits and every undocumented bit clear, and 6041 bits 0..6 0x50 or 0x31, as every
+     * released report of both specimens read (8050, C050, 4050; 8031 after word 6). 2100 running only in
+     * the quick-stop latch: 2100 0014 or 0015 with 6041 4050 or C050. Any requested mode. */
     NOT_ENABLED,
     /** The measured power-up report: 6061 0, 6041 exactly 8037 and 2100 exactly 0001. Both specimens
      * report the manual's enabled pattern there; the 23 retained writes from it, records 102 to 1722 on
@@ -394,6 +407,11 @@ struct ModeSelectRecord {
      * context ended SUCCEEDED at preparation with execution NOT_TRANSMITTED, and no write was needed or
      * sent, as the release table's already-released row answers. */
     bool alreadySelected = false;
+    /** Frozen identity comparison of the admission against measuredIdentity(), as EnableRecord's: CONFIRMED
+     * with both tuples, and firmwareUnqualified when the drive runs a firmware no measured mode write was
+     * made on. outcome NONE for an already selected mode whose identity was not current: that answer sends
+     * nothing and does not need it. */
+    IdentityCheck identity;
 };
 /** The rows of the release table (prompt 57), the one place the release's admission, its settlement and
  * prompt 72's guard read. No manual names a release word: EN86/ZH86 p12 and OP86 p10 only pair 6040=0
@@ -482,6 +500,10 @@ struct ReleaseDecision {
     /** 1001 or 603F nonzero in the report. Row 4 reports it and still sends nothing, clearing nothing;
      * every other row refuses. */
     bool fault = false;
+    /** 6041 bit 3 (ZH86 p12) or bit 7 (EN86 p12, OP86 p10), the alarm bits the alarm clear also judges, in
+     * the report. Row 4 reports it and still sends nothing; every other row refuses it as
+     * ReleaseRefusal::ALARM, which no experiment overrides. */
+    bool statusAlarm = false;
 };
 /** SELECT_MODE's sibling for RELEASE: the table's answer and the admission report, kept after later
  * cycles replace the blocks, and the settling cycle's 606C. Raw values only. */
@@ -498,6 +520,11 @@ struct ReleaseRecord {
      * 1711). Never a standstill claim: a release says nothing about the rotor. */
     int32_t settledVelocity = 0;
     bool settledVelocityNonzero = false; ///< settledVelocity is nonzero.
+    /** Frozen identity comparison of the admission against measuredIdentity(), as EnableRecord's: CONFIRMED
+     * with both tuples, and firmwareUnqualified when the drive runs a firmware no measured release row was
+     * made on. outcome NONE for row 4 (already released) whose identity was not current: that answer
+     * sends nothing and does not need it. */
+    IdentityCheck identity;
 };
 /** Classify one fresh report by the release table, with an optional experiment. Pure: no I/O, no context.
  * Prompt 72's guard and prepareRelease share it.
@@ -815,14 +842,26 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& re
  * @param[in] identity As prepareEnable.
  * @param[in] evidence As prepareEnable. @param[in] operation As prepareEnable.
  * @param[in] nowUs As prepareEnable. @param[in] deadlineUs As prepareEnable.
- * @param[in] options As prepareEnable.
+ * @param[in] options As prepareEnable. @param[in] latestControl As prepareEnable.
  * @return The status prepareEnable would give. OK means prepareEnable with these same unchanged
  * values cannot refuse.
  */
 Status validateEnable(const ActionContext& output, const AxisReservation& reservation,
                       const ReadContext& state, const IdentityObservation& identity,
                       const EnableEvidence& evidence, uint32_t operation, uint64_t nowUs,
-                      uint64_t deadlineUs, const ActionOptions& options) noexcept;
+                      uint64_t deadlineUs, const ActionOptions& options,
+                      const CANOPEN::SdoCompletion* latestControl = nullptr) noexcept;
+/** Whether prepareEnable answers already enabled for these inputs, changing nothing: EnableGate::MEASURED,
+ * latestControl an acknowledged 6040 download of 000F under this reservation, completed no later than
+ * nowUs, and the fresh STATUS and MONITORS read the enabled pattern (start POWER_UP: 6041 low bits 111,
+ * 2100 in place with released clear), unless evidence names the RELEASED start. For a caller that must
+ * know before it moves other state, such as an owner operation.
+ * @param[in] reservation As prepareEnable. @param[in] state As prepareEnable.
+ * @param[in] evidence As prepareEnable. @param[in] latestControl As prepareEnable.
+ * @param[in] nowUs As prepareEnable.
+ * @return The answer; meaningful once validateEnable returned OK for the same inputs. */
+bool alreadyEnabled(const AxisReservation& reservation, const ReadContext& state, const EnableEvidence& evidence,
+                    const CANOPEN::SdoCompletion* latestControl, uint64_t nowUs) noexcept;
 /** Prepare the documented position-mode enable sequence: regular under EnableGate::MEASURED, an
  * attended trial under EnableGate::ATTENDED_EXPERIMENT. Neither qualifies another firmware or model.
  * Writes nothing itself. nextAction first yields one upload each of 607A and 60FF, as the project's
@@ -859,11 +898,14 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C changing after word 15
  * fails with a status message telling the caller to stop the drive.
  * @param[in] identity Current identity read of this boot (checkIdentity), under either gate, compared
- * with measuredIdentity() by the prompt 57 identity policy. No observation of this target, node
- * generation and binding, or product fields (1000, 1018:01, 1018:02, 2000) that differ, return
- * UNSUPPORTED with ActionError::TARGET before any TX; no gate or option overrides it. Firmware fields (1009, 100A, 1018:03, 2001) that differ admit the enable and
- * set output.enable.identity.firmwareUnqualified, with both tuples kept. The documented reference is
- * reported only: its 2000 default (1) is not what either specimen reads (0x0400).
+ * with measuredIdentity() and, when the application supplies one, options.identityReference, by the
+ * prompt 57 identity policy. No observation of this target, node generation and binding, or product
+ * fields (1000, 1018:01, 1018:02, 2000) that match neither reference, return UNSUPPORTED with
+ * ActionError::TARGET before any TX; no gate overrides it. Firmware fields (1009, 100A, 1018:03, 2001)
+ * that differ from measuredIdentity() admit the enable and set
+ * output.enable.identity.firmwareUnqualified, with both tuples kept. The documented reference is
+ * reported only (documentedMatch, outcome UNCONFIRMED): its 2000 default (1) is not what either
+ * specimen reads (0x0400).
  * @param[in] evidence Copied. A closed gate returns UNSUPPORTED. MEASURED consults only modeRaw, which
  * must be 1 (otherwise UNSUPPORTED), operation and start: UNKNOWN admits either measured start, RELEASED
  * or POWER_UP (NO_MOTION_WRITE_RECORDED counts as POWER_UP) requires that class. ATTENDED_EXPERIMENT
@@ -882,12 +924,20 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * unknown.
  * @param[in] options Nonzero budgets; commandIntervalUs at least ENABLE_WORD_INTERVAL_US;
  * maximumAgeUs covering nine fields at the queue plus response budgets; DECLARED_U16 identity widths.
+ * @param[in] latestControl Optional, borrowed for this call: the caller's latest acknowledged controlword
+ * terminal on this binding, null for none. Under EnableGate::MEASURED, when it is an acknowledged 000F
+ * under this reservation and the fresh report reads the enabled pattern (alreadyEnabled), the answer is
+ * already enabled: output ends SUCCEEDED and OBSERVED at preparation, execution NOT_TRANSMITTED,
+ * output.enable.alreadyEnabled set, and nothing is ever yielded or sent, because word 6 would drop the
+ * holding torque and the fresh report alone cannot tell an enabled drive from the power-up report. That
+ * answer needs no current identity; a current one is still compared and recorded.
  * @return Local validation only. No I/O. Never establishes firmware qualification or a safe enable.
  */
 Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
                      const ReadContext& state, const IdentityObservation& identity,
                      const EnableEvidence& evidence, uint32_t operation, uint64_t nowUs,
-                     uint64_t deadlineUs, const ActionOptions& options) noexcept;
+                     uint64_t deadlineUs, const ActionOptions& options,
+                     const CANOPEN::SdoCompletion* latestControl = nullptr) noexcept;
 /** Prepare one documented operating-mode selection on CL86-C/OL86-C: a single 6060:00 download of
  * modeRaw, settled only when a later fresh 6061 reads modeRaw. The request is the one byte
  * `2F 60 60 00 <modeRaw> 00 00 00`: the manuals declare 6060 INTEGER8 and the EDS U8, and 1, 3 and 6
@@ -899,9 +949,11 @@ Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
  * Admission needs a complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK acquired under
  * reservation: 1001 and 603F zero, 2100 alarm clear, 606C zero, and one of the two starts of
  * ModeSelectStart:
- * - NOT_ENABLED: 2100 released set and 6041 bits 1 and 2 clear, any start mode and any requested mode.
- *   2100 running may be set beside the release only as the latch a moving quick stop leaves (2100=0014 or
- *   0015 with 6041=4050 or C050, which stays for minutes); 606C zero in the same read admits it. When
+ * - NOT_ENABLED: the released standstill, any start mode and any requested mode: 2100 released set beside
+ *   in place and homing complete only (alarm, both soft limits and undocumented bits clear) and 6041 bits
+ *   0..6 0x50 or 0x31. 2100 running may be set beside the release only as the exact latch a moving quick
+ *   stop leaves (2100=0014 or 0015 with 6041=4050 or C050, bit 14 set, which stays for minutes); 606C zero
+ *   in the same read admits it. When
  *   6061 already reads modeRaw, the answer is already selected: the context ends SUCCEEDED and OBSERVED
  *   at preparation, execution NOT_TRANSMITTED and modeSelect.alreadySelected set, and nothing is ever
  *   yielded or sent.
@@ -929,6 +981,14 @@ Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
  * @param[in] reservation Continuous actual owner reservation, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite read as above, borrowed for this call. Its STATUS,
  * MONITORS and FEEDBACK seed the observations; modeSelect keeps the raw start.
+ * @param[in] identity Current identity read of this boot (checkIdentity), compared with
+ * measuredIdentity() and options.identityReference by the prompt 57 identity rule enable uses, after
+ * every state check: no observation of this target, node generation and binding, or product fields
+ * (1000, 1018:01, 1018:02, 2000) that match neither reference, return UNSUPPORTED with
+ * ActionError::TARGET before any TX. Firmware fields (1009,
+ * 100A, 1018:03, 2001) that differ admit the write and set output.modeSelect.identity.firmwareUnqualified.
+ * An already selected mode sends nothing and is answered without it: a current observation is still
+ * compared and recorded, any other leaves the record's outcome NONE.
  * @param[in] modeRaw The 6060 code: 1 position, 3 velocity or 6 homing (EN86/ZH86 p11). Any other
  * value returns UNSUPPORTED with ActionError::ARGUMENT right after the overlap check, before any state,
  * reservation or budget check: undocumented codes belong to the D17 probe, not to this operation.
@@ -938,16 +998,18 @@ Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
  * @param[in] options Nonzero budgets and observationIntervalUs; maximumAgeUs covering seven fields at the
  * queue plus response budgets; service.identityWidths DECLARED_U16 and service.countWidths DECLARED_U8.
  * @return Local validation only, no I/O: OVERLAP, then UNSUPPORTED for the code, then ARGUMENT for the
- * reservation, identity, time or budgets, then STATE for the read or the start report, each with output
- * unchanged; OK for a prepared write or an already selected mode. The prepared context's retryClass is
+ * reservation, identity, time or budgets, then STATE for the read or the start report, then UNSUPPORTED
+ * with ActionError::TARGET for the drive identity, each with output unchanged; OK for a prepared write or
+ * an already selected mode. The prepared context's retryClass is
  * NOT_REPEATABLE. Later, execution keeps the 6060
  * acknowledgement apart from completion: an acknowledged write whose cycles never report modeRaw ends
  * without completion and uncertain, a lost reply leaves execution UNKNOWN, an abort REJECTED, and
  * nothing is resent. A new attempt is a new operation, prepared from a new fresh read.
  */
 Status prepareModeSelect(ActionContext& output, const AxisReservation& reservation,
-                         const ReadContext& state, uint8_t modeRaw, uint32_t operation, uint64_t nowUs,
-                         uint64_t deadlineUs, const ActionOptions& options) noexcept;
+                         const ReadContext& state, const IdentityObservation& identity, uint8_t modeRaw,
+                         uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                         const ActionOptions& options) noexcept;
 /** Prepare a release (free the shaft) on CL86-C/OL86-C by the release table (ReleaseRow): one 6040 U16
  * word, the row's, or an explicit experiment's, settled only when a later fresh cycle reports the row's
  * 6041 low bits with 2100 released. 606C is recorded with that cycle and a nonzero value is reported
@@ -966,6 +1028,14 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& reservati
  * @param[out] output Owned context, unchanged on failure, disjoint from all inputs.
  * @param[in] reservation Continuous actual owner reservation, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite read as above, borrowed for this call.
+ * @param[in] identity Current identity read of this boot (checkIdentity), compared with
+ * measuredIdentity() and options.identityReference by the prompt 57 identity rule enable uses, once the
+ * table chose a word: no observation of this target, node generation and binding, or product fields
+ * (1000, 1018:01, 1018:02, 2000) that match neither reference, return UNSUPPORTED with
+ * ActionError::TARGET before any TX. Firmware fields (1009,
+ * 100A, 1018:03, 2001) that differ admit the word and set output.release.identity.firmwareUnqualified.
+ * Row 4 sends nothing and is answered without it: a current observation is still compared and recorded,
+ * any other leaves the record's outcome NONE.
  * @param[in] loop Optional fresh CONTROL observation (getControl) whose 2500 decides row 2; null leaves
  * row 2's report refused as LOOP. When given it must be current for the reservation's target, begun
  * under the reservation and within options.maximumAgeUs, or STATE is returned.
@@ -976,14 +1046,15 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& reservati
  * @param[in] deadlineUs Immutable exclusive future cutoff of the word and every observation.
  * @param[in] options Nonzero budgets and observationIntervalUs; maximumAgeUs covering seven fields at the
  * queue plus response budgets; service.identityWidths DECLARED_U16 and service.countWidths DECLARED_U8.
- * @return Local validation only, no I/O: OVERLAP, ARGUMENT, STATE, each with output unchanged; OK for a
- * prepared word or an already released report. retryClass is NOT_REPEATABLE. Later, execution keeps the
+ * @return Local validation only, no I/O: OVERLAP, ARGUMENT, STATE, then UNSUPPORTED with
+ * ActionError::TARGET for the drive identity, each with output unchanged; OK for a prepared word or an
+ * already released report. retryClass is NOT_REPEATABLE. Later, execution keeps the
  * word's acknowledgement apart from completion: a lost reply leaves it UNKNOWN, an abort REJECTED.
  */
 Status prepareRelease(ActionContext& output, const AxisReservation& reservation, const ReadContext& state,
-                      const ControlObservation* loop, const ReleaseExperiment& experiment,
-                      uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
-                      const ActionOptions& options) noexcept;
+                      const IdentityObservation& identity, const ControlObservation* loop,
+                      const ReleaseExperiment& experiment, uint32_t operation, uint64_t nowUs,
+                      uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Record a local withdrawal while this action's admitted work is still in flight, so that its
  * terminal is consumed as evidence and cannot complete the action. Sends nothing and stops nothing.
  * @param[in,out] context Active context with no earlier withdrawal; unchanged on refusal.

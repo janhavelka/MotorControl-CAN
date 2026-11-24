@@ -375,10 +375,13 @@ struct ConsoleFixture {
     E::ProbePlatform platform;
     E::ProbeApp app;
     E::ProbeConsole console;
-    ConsoleFixture()
+    // attached false: what a shipped image's console sees when its helpers could not be placed (the probe
+    // firmware's SelectedAxis block or the S2 bench console's commissioning block, fix round c).
+    explicit ConsoleFixture(bool attached = true)
         : platform(bytes.callbacks()), app(rig.owner, platform), console(app, rig.owner, platform) {
         CHECK(app.select(rig.current));
-        CHECK(console.attachCommissioning(rig.commissioning));
+        if (attached)
+            CHECK(console.attachCommissioning(rig.commissioning));
     }
     void command(const char* text) {
         for (const char* p = text; *p; ++p)
@@ -1021,7 +1024,35 @@ void restoreBackupGuard() {
     CHECK(rig.session.nextOperation() == operation && rig.commissioning.kind() == E::CommissioningKind::NONE);
 }
 
+// Fix round c, follow-up (c): when a shipped image could not place its helpers, the regular commands and the
+// console's own persistence are refused at once with a reason, never admitted, and nothing is transmitted.
+void unplacedHelpersRefuseCleanly() {
+    ConsoleFixture fixture(false);
+    const unsigned sent = fixture.rig.wire.sentCount;
+    const uint32_t axis = fixture.rig.current.channel.binding.logicalAxisId;
+    char line[64];
+    fixture.command("@801 persistence save parameters");
+    fixture.drain();
+    std::snprintf(line, sizeof line, "@802 mode %lu 3", static_cast<unsigned long>(axis));
+    fixture.command(line);
+    fixture.drain();
+    std::snprintf(line, sizeof line, "@803 enable %lu", static_cast<unsigned long>(axis));
+    fixture.command(line);
+    fixture.drain();
+    std::snprintf(line, sizeof line, "@804 motor-release %lu", static_cast<unsigned long>(axis));
+    fixture.command(line);
+    fixture.drain();
+    fixture.record(801, "\"ok\":false");
+    fixture.record(801, "exact_externally_reviewed_plan_prerequisites_and_handoff_guard_required");
+    for (uint32_t id = 802; id <= 804; ++id) {
+        fixture.record(id, "\"ok\":false");
+        fixture.record(id, "axis_id_of_an_attached_axis_required");
+    }
+    CHECK(!std::strstr(fixture.bytes.output, "\"type\":\"terminal\"")); // Never admitted.
+    CHECK(fixture.rig.wire.sentCount == sent);
+}
 int main() {
+    unplacedHelpersRefuseCleanly();
     invalidPreparedKindAndIdentityDoNotAdmitWork();
     heartbeatActualHandoffConfirmationAndFollow();
     lostHeartbeatReplyRetainsOneAttempt();

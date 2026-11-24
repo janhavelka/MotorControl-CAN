@@ -304,8 +304,12 @@ class AxisSession {
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.
      * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME,
-     * which includes clearBlocked() and faultBlocked(). On any refusal nothing changes, and on
-     * success no word has yet been admitted.
+     * which includes clearBlocked() and faultBlocked(). Under EnableGate::MEASURED, while latestControl()
+     * is an acknowledged 000F under this reservation and the fresh report reads the enabled pattern, the
+     * library answers already enabled (LICHUAN_C::alreadyEnabled): enableAction() is SUCCEEDED at once with
+     * enable.alreadyEnabled and execution NOT_TRANSMITTED, no owner operation is started and nothing is
+     * sent, because word 6 would drop the holding torque. On any refusal nothing changes, and on success
+     * no word has yet been admitted.
      */
     MotorControlCAN::Status
     requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -651,6 +655,9 @@ class AxisSession {
      * @param[in] state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK under this
      * reservation, as prepareModeSelect requires, whose STATUS and MONITORS began after this session's
      * latest write. Not held inside clearAction().
+     * @param[in] identity Current identity read of this boot, borrowed for this call: prepareModeSelect
+     * refuses differing product fields and flags a differing firmware (modeSelect.identity); an already
+     * selected mode is answered without it.
      * @param[in] modeRaw The 6060 code, 1, 3 or 6; any other value refuses with prepareModeSelect's
      * UNSUPPORTED, unchanged, once the session's own checks below pass.
      * @param[in] options Copied budgets, as prepareModeSelect requires (maximumAgeUs covering seven
@@ -664,7 +671,8 @@ class AxisSession {
      * operation ends the context INVALIDATED with nothing sent, as for requestClearAlarm.
      */
     MotorControlCAN::Status
-    requestModeSelect(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint8_t modeRaw,
+    requestModeSelect(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                      const MotorControlCAN::LICHUAN_C::IdentityObservation& identity, uint8_t modeRaw,
                       const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
                       uint64_t nowUs) noexcept;
     /** Request a release (free the shaft) on this axis through prepareRelease and its release table: one
@@ -677,7 +685,11 @@ class AxisSession {
      * @param[in] state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK under this
      * reservation, whose STATUS and MONITORS began after this session's latest write. Not held inside
      * clearAction().
-     * @param[in] loop Optional fresh CONTROL observation for row 2's 2500=1, borrowed for this call.
+     * @param[in] identity Current identity read of this boot, borrowed for this call: prepareRelease
+     * refuses differing product fields and flags a differing firmware (release.identity); row 4 is
+     * answered without it.
+     * @param[in] loop Optional fresh CONTROL observation for row 2's 2500=1, borrowed for this call; its
+     * window must also begin after this session's latest write, or the request is refused unchanged.
      * @param[in] experiment Off by default; see LICHUAN_C::ReleaseExperiment.
      * @param[in] options Copied budgets, as prepareRelease requires (maximumAgeUs covering seven fields).
      * @param[in] deadlineUs Immutable exclusive cutoff of the word and every observation.
@@ -687,6 +699,7 @@ class AxisSession {
      */
     MotorControlCAN::Status
     requestRelease(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                   const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
                    const MotorControlCAN::LICHUAN_C::ControlObservation* loop,
                    const MotorControlCAN::LICHUAN_C::ReleaseExperiment& experiment,
                    const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,

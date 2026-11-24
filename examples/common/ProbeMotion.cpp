@@ -468,67 +468,223 @@ M::Status ProbeMotion::setActionPrerequisites(const L::ReadContext& state,
     actionOptions_ = options;
     return M::Ok();
 }
+// The three regular requests after admission (prompt 57): the session request on the named report, which a
+// successful request consumes. The caller accepts or updates the result.
+M::Status ProbeMotion::issueAction(MotionKind kind, uint8_t modeRaw, uint64_t now, uint64_t deadline) noexcept {
+    if (kind == MotionKind::ENABLE) {
+        // Explicit evidence first (an attended trial); otherwise the regular measured enable from the named
+        // action report, which binds to the session's next operation and nothing else.
+        const bool regular = !enableState_ || !enableIdentity_;
+        if (regular && (!actionState_ || !actionIdentity_))
+            return refused(M::ActionError::STATE, "explicit enable or action prerequisites are missing");
+        L::EnableEvidence evidence = enableEvidence_;
+        if (regular) {
+            evidence = L::EnableEvidence();
+            evidence.gate = L::EnableGate::MEASURED;
+            evidence.modeRaw = 1;
+            evidence.operation = session_.nextOperation();
+        }
+        const M::Status status = regular ? session_.requestEnable(*actionState_, *actionIdentity_, evidence,
+                                                                  actionOptions_, deadline, now)
+                                         : session_.requestEnable(*enableState_, *enableIdentity_, evidence,
+                                                                  enableOptions_, deadline, now);
+        if (status && regular) {
+            actionState_ = nullptr;
+            actionIdentity_ = nullptr;
+        } else if (status) {
+            enableState_ = nullptr;
+            enableIdentity_ = nullptr;
+        }
+        return status;
+    }
+    if (!actionState_ || !actionIdentity_)
+        return refused(M::ActionError::STATE, "explicit action prerequisites are missing");
+    const M::Status status =
+        kind == MotionKind::MODE_SELECT
+            ? session_.requestModeSelect(*actionState_, *actionIdentity_, modeRaw, actionOptions_, deadline, now)
+            : session_.requestRelease(*actionState_, *actionIdentity_, actionLoopPresent_ ? &actionLoop_ : nullptr,
+                                      L::ReleaseExperiment(), actionOptions_, deadline, now);
+    if (status) {
+        actionState_ = nullptr;
+        actionIdentity_ = nullptr;
+        actionLoopPresent_ = false;
+    }
+    return status;
+}
 M::Status ProbeMotion::requestEnable(uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
-    // Explicit evidence first (an attended trial); otherwise the regular measured enable from the named
-    // action report (prompt 57), which binds to the session's next operation and nothing else.
-    const bool regular = !enableState_ || !enableIdentity_;
-    if (regular && (!actionState_ || !actionIdentity_))
-        return refused(M::ActionError::STATE, "explicit enable or action prerequisites are missing");
-    L::EnableEvidence evidence = enableEvidence_;
-    if (regular) {
-        evidence = L::EnableEvidence();
-        evidence.gate = L::EnableGate::MEASURED;
-        evidence.modeRaw = 1;
-        evidence.operation = session_.nextOperation();
-    }
-    const M::Status status = regular ? session_.requestEnable(*actionState_, *actionIdentity_, evidence,
-                                                              actionOptions_, deadline, now)
-                                     : session_.requestEnable(*enableState_, *enableIdentity_, evidence,
-                                                              enableOptions_, deadline, now);
-    if (status) {
-        if (regular) {
-            actionState_ = nullptr;
-            actionIdentity_ = nullptr;
-        } else {
-            enableState_ = nullptr;
-            enableIdentity_ = nullptr;
-        }
+    const M::Status status = issueAction(MotionKind::ENABLE, 0, now, deadline);
+    if (status)
         accept(MotionKind::ENABLE, session_.enableAction().operation, now);
-    }
     return status;
 }
 M::Status ProbeMotion::requestModeSelect(uint8_t modeRaw, uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
-    if (!actionState_)
-        return refused(M::ActionError::STATE, "explicit action prerequisites are missing");
-    const M::Status status = session_.requestModeSelect(*actionState_, modeRaw, actionOptions_, deadline, now);
-    if (status) {
-        actionState_ = nullptr;
-        actionIdentity_ = nullptr;
+    const M::Status status = issueAction(MotionKind::MODE_SELECT, modeRaw, now, deadline);
+    if (status)
         accept(MotionKind::MODE_SELECT, session_.clearAction().operation, now);
-    }
     return status;
 }
 M::Status ProbeMotion::requestRelease(uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
-    if (!actionState_)
-        return refused(M::ActionError::STATE, "explicit action prerequisites are missing");
-    const M::Status status = session_.requestRelease(*actionState_, actionLoopPresent_ ? &actionLoop_ : nullptr,
-                                                     L::ReleaseExperiment(), actionOptions_, deadline, now);
-    if (status) {
+    const M::Status status = issueAction(MotionKind::RELEASE, 0, now, deadline);
+    if (status)
+        accept(MotionKind::RELEASE, session_.clearAction().operation, now);
+    return status;
+}
+namespace {
+// startAction's reads, in order: the identity, CONTROL for a release (row 2's 2500), then the full state the
+// action judges, last so that it is the freshest and follows every earlier write.
+enum PreparationRead : uint8_t { READ_IDENTITY, READ_CONTROL, READ_STATE };
+uint8_t preparationReads(MotionKind kind) { return kind == MotionKind::RELEASE ? 3 : 2; }
+PreparationRead preparationRead(MotionKind kind, uint8_t step) {
+    return step == 0 ? READ_IDENTITY : kind == MotionKind::RELEASE && step == 1 ? READ_CONTROL : READ_STATE;
+}
+} // namespace
+M::Status ProbeMotion::startAction(MotionKind kind, uint8_t modeRaw, const L::ReadOptions& reads,
+                                   const L::ActionOptions& options, uint64_t now, uint64_t deadline) noexcept {
+    const M::Status valid = admission(now, deadline);
+    if (!valid)
+        return valid;
+    if (kind != MotionKind::ENABLE && kind != MotionKind::MODE_SELECT && kind != MotionKind::RELEASE)
+        return refused(M::ActionError::ARGUMENT, "only enable, mode select and release read their own report");
+    if (actionReportNamed())
+        return refused(M::ActionError::STATE, "a report is named: the request of that kind consumes it");
+    if (!reads.queueTimeoutUs || !reads.responseTimeoutUs || !options.maximumAgeUs)
+        return refused(M::ActionError::ARGUMENT, "read budgets and an age cap are required");
+    if (session_.busy())
+        return refused(M::ActionError::STATE, "the axis session is busy");
+    const uint32_t first = session_.nextOperation();
+    const uint8_t count = preparationReads(kind);
+    if (!first || first > UINT32_MAX - count)
+        return refused(M::ActionError::STATE, "operation identities exhausted");
+    plannedKind_ = kind;
+    plannedMode_ = modeRaw;
+    plannedReads_ = reads;
+    plannedOptions_ = options;
+    plannedDeadlineUs_ = deadline;
+    prepareStep_ = 0;
+    const M::Status started = startPreparationRead(now);
+    if (!started)
+        return started;
+    preparing_ = true;
+    readPending_ = prepareWithdrawn_ = false;
+    // The action runs under the operation after the reads'; nothing of it exists before the last read.
+    accept(kind, first + count, now);
+    return M::Ok();
+}
+M::Status ProbeMotion::startPreparationRead(uint64_t now) noexcept {
+    const uint32_t operation = session_.beginOperation(plannedDeadlineUs_, now);
+    if (!operation)
+        return refused(M::ActionError::STATE, "the session cannot begin a prerequisite read");
+    L::ReadOptions declared = plannedReads_;
+    declared.identityWidths = L::IdentityWidths::DECLARED_U16;
+    declared.countWidths = L::CountWidths::DECLARED_U8;
+    declared.pdoNumber = 0;
+    const uint8_t blocks =
+        uint8_t((1u << unsigned(L::StateBlock::ERRORS)) | (1u << unsigned(L::StateBlock::MONITORS)) |
+                (1u << unsigned(L::StateBlock::STATUS)) | (1u << unsigned(L::StateBlock::FEEDBACK)));
+    switch (preparationRead(plannedKind_, prepareStep_)) {
+    case READ_IDENTITY:
+        return L::prepareIdentity(ownRead_.read, current_, operation, now, plannedDeadlineUs_, plannedReads_);
+    case READ_CONTROL:
+        return L::prepareDriverRead(ownRead_, current_, operation, now, plannedDeadlineUs_, declared,
+                                    L::DriverGroup::CONTROL);
+    case READ_STATE:
+        break;
+    }
+    return L::prepareState(ownRead_.read, current_, operation, now, plannedDeadlineUs_, declared, blocks);
+}
+void ProbeMotion::endPreparation(M::ActionOutcome outcome, const M::Status& status, uint64_t now) noexcept {
+    preparing_ = readPending_ = false;
+    normal_.state = M::ActionState::FAILED;
+    normal_.outcome = outcome;
+    normal_.status = status ? refused(M::ActionError::STATE, "regular action preparation ended") : status;
+    normal_.execution = M::ActionExecution::NOT_TRANSMITTED;
+    normal_.completion = M::ActionCompletion::NOT_OBSERVED;
+    normal_.uncertain = false;
+    normal_.completedUs = now;
+}
+void ProbeMotion::servicePreparation(uint64_t now) noexcept {
+    L::ReadContext& read = ownRead_.read;
+    if (readPending_) {
+        C::SdoCompletion terminal;
+        if (!session_.settle(terminal))
+            return; // The owner settles it under the read's own deadline.
+        readPending_ = false;
+        const M::Status consumed = L::advanceRead(read, terminal, now);
+        if (!consumed)
+            return endPreparation(M::ActionOutcome::INVALIDATED, consumed, now);
+    }
+    if (prepareWithdrawn_)
+        return endPreparation(M::ActionOutcome::CANCELLED,
+                              refused(M::ActionError::STATE, "regular action preparation cancelled"), now);
+    if (now >= plannedDeadlineUs_)
+        return endPreparation(M::ActionOutcome::DEADLINE,
+                              refused(M::ActionError::TIME, "regular action preparation reached its cutoff"), now);
+    if (read.state == M::ReadState::ACTIVE) {
+        L::PreparedRead work;
+        const M::Status yielded = L::nextRead(read, now, work);
+        if (!yielded)
+            return endPreparation(M::ActionOutcome::INVALIDATED, yielded, now);
+        if (!work.ready)
+            return;
+        const O::BusAdmission admitted = session_.admitPrepared(work.transfer, now);
+        if (admitted == O::BusAdmission::RESULTS_FULL)
+            return;
+        if (admitted != O::BusAdmission::ACCEPTED)
+            return endPreparation(M::ActionOutcome::INVALIDATED,
+                                  refused(M::ActionError::STATE, "the owner refused a prerequisite read"), now);
+        readPending_ = true;
+        return;
+    }
+    const PreparationRead kind = preparationRead(plannedKind_, prepareStep_);
+    const bool succeeded = read.state == M::ReadState::SUCCEEDED;
+    if (kind == READ_IDENTITY) {
+        if (!succeeded ||
+            !L::getIdentity(read, current_, now, plannedOptions_.maximumAgeUs, ownIdentity_))
+            return endPreparation(M::ActionOutcome::INVALIDATED,
+                                  read.status ? refused(M::ActionError::STATE, "the identity read failed")
+                                              : read.status,
+                                  now);
+    } else if (kind == READ_CONTROL) {
+        // A failed or unpublished 2500 read leaves the loop absent, and the table's row 2 then refuses.
+        actionLoopPresent_ =
+            succeeded && L::getControl(ownRead_, current_, now, plannedOptions_.maximumAgeUs, actionLoop_).isOk();
+    } else if (!succeeded) {
+        return endPreparation(M::ActionOutcome::INVALIDATED,
+                              read.status ? refused(M::ActionError::STATE, "the state read failed") : read.status,
+                              now);
+    }
+    if (kind != READ_STATE) {
+        ++prepareStep_;
+        const M::Status started = startPreparationRead(now);
+        if (!started)
+            endPreparation(M::ActionOutcome::INVALIDATED, started, now);
+        return;
+    }
+    // Every read completed: request at this time, on these reads, exactly as a named report would be.
+    actionState_ = &read;
+    actionIdentity_ = &ownIdentity_;
+    actionOptions_ = plannedOptions_;
+    preparing_ = false;
+    const M::Status status = issueAction(plannedKind_, plannedMode_, now, plannedDeadlineUs_);
+    if (!status) {
         actionState_ = nullptr;
         actionIdentity_ = nullptr;
         actionLoopPresent_ = false;
-        accept(MotionKind::RELEASE, session_.clearAction().operation, now);
+        return endPreparation(M::ActionOutcome::INVALIDATED, status, now);
     }
-    return status;
+    normal_.nativeOperation = plannedKind_ == MotionKind::ENABLE ? session_.enableAction().operation
+                                                                 : session_.clearAction().operation;
+    lastUs_ = now;
+    snapshotNormal();
 }
 M::Status ProbeMotion::requestAlarmClear(uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
@@ -662,7 +818,8 @@ const L::ActionContext* ProbeMotion::nativeAction() const noexcept {
     return action && action->operation == normal_.nativeOperation ? action : nullptr;
 }
 void ProbeMotion::snapshotNormal() noexcept {
-    if (!retained() || terminal(normal_.state))
+    // startAction's reads run before any native context exists; servicePreparation keeps the result.
+    if (!retained() || terminal(normal_.state) || preparing_)
         return;
     if (const L::MoveContext* c = nativeMove()) {
         normal_.retryClass = c->retryClass;
@@ -737,9 +894,14 @@ void ProbeMotion::snapshotNormal() noexcept {
     } else if (const L::ActionContext* c = nativeAction()) {
         normal_.retryClass = c->retryClass;
         actionResult(normal_, *c);
-        if (normal_.kind == MotionKind::ENABLE) {
-            normal_.identityCompared = c->enable.identity.outcome != L::IdentityOutcome::NONE;
-            normal_.firmwareUnqualified = c->enable.identity.firmwareUnqualified;
+        // Enable, mode select and release compare the identity (prompt 57); the clears make none.
+        const L::IdentityCheck* identity = normal_.kind == MotionKind::ENABLE        ? &c->enable.identity
+                                           : normal_.kind == MotionKind::MODE_SELECT ? &c->modeSelect.identity
+                                           : normal_.kind == MotionKind::RELEASE     ? &c->release.identity
+                                                                                     : nullptr;
+        if (identity) {
+            normal_.identityCompared = identity->outcome != L::IdentityOutcome::NONE;
+            normal_.firmwareUnqualified = identity->firmwareUnqualified;
         }
     } else {
         normal_.state = M::ActionState::FAILED;
@@ -840,6 +1002,8 @@ bool ProbeMotion::service(uint64_t now) noexcept {
     if (!timeValid(now))
         return false;
     lastUs_ = now;
+    if (preparing_)
+        servicePreparation(now);
     followCoordinates();
     snapshotNormal();
     snapshotStops();
@@ -848,6 +1012,15 @@ bool ProbeMotion::service(uint64_t now) noexcept {
 bool ProbeMotion::cancelNormal(uint64_t now) noexcept {
     if (!timeValid(now) || !retained() || terminal(normal_.state))
         return false;
+    if (preparing_) {
+        // Nothing was requested yet: a read in flight settles first, then the result ends CANCELLED.
+        prepareWithdrawn_ = true;
+        lastUs_ = now;
+        if (!readPending_)
+            endPreparation(M::ActionOutcome::CANCELLED,
+                           refused(M::ActionError::STATE, "regular action preparation cancelled"), now);
+        return true;
+    }
     // A direct native caller may have replaced the session context since our last
     // snapshot. Cancellation is intent for this retained identity, not for whatever
     // operation currently occupies the same kind's slot.

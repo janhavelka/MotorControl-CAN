@@ -16,6 +16,7 @@ static unsigned checks = 0;
         }                                                                                          \
     } while (false)
 #include "support/ReferenceRig.h"
+#include "support/Identity.h"
 namespace {
 const uint16_t IN_PLACE = L::MONITOR_POSITION_COMPLETE;
 const uint16_t RUNNING = L::MONITOR_RUNNING;
@@ -35,9 +36,12 @@ const uint16_t WORD_SIX_STATUS = 0x8031;
 const uint16_t SWITCHED_ON_STATUS = 0x8033, CLEARED_STATUS = 0x8010;
 const uint8_t ALL_BLOCKS = 0x1d; // ERRORS, MONITORS, STATUS and FEEDBACK; no 1003 read.
 
+// A current identity of this boot with the measured values (support/Identity.h): the fake answers no
+// identity read.
+L::IdentityObservation identityOf(const Rig& r) { return TestIdentity::measured(r.reservation.target, r.now); }
 M::Status attempt(Rig& r, L::ActionContext& action, uint8_t mode) {
     r.begin();
-    return L::prepareModeSelect(action, r.reservation, r.state, mode, r.operation, r.now, r.deadline,
+    return L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), mode, r.operation, r.now, r.deadline,
                                 r.policy());
 }
 // A fresh prerequisite read of this report, with 1001 and 603F zero.
@@ -181,7 +185,17 @@ void refusedBeforeTransmission() {
         {RELEASED_STATUS, RELEASED_MONITOR, 1, 3, 0x1c, 0, 0},  // No ERRORS block.
         {RELEASED_STATUS, RELEASED_MONITOR, 1, 3, 0x0d, 0, 0},  // No FEEDBACK block.
         {RELEASED_STATUS, RELEASED_MONITOR, 1, 3, 0x19, 0, 0},  // No MONITORS block.
-        {RELEASED_STATUS, RELEASED_MONITOR, 1, 3, 0x15, 0, 0}}; // No STATUS block.
+        {RELEASED_STATUS, RELEASED_MONITOR, 1, 3, 0x15, 0, 0},  // No STATUS block.
+        // Fix round c, item 4: running only in the exact quick-stop latch, and the released standstill's shape.
+        {RELEASED_STATUS, LATCHED_MONITOR, 3, 1, ALL_BLOCKS, 0, 0},     // 0015 with 8050: no bit 14.
+        {0x0001, LATCHED_ONE_MONITOR, 1, 3, ALL_BLOCKS, 0, 0},          // 0014 with 0001.
+        {0x8051, LATCHED_ONE_MONITOR, 1, 3, ALL_BLOCKS, 0, 0},          // 0014 with low bits 001.
+        {LATCHED_STATUS, uint16_t(LATCHED_MONITOR | 0x0020), 3, 1, ALL_BLOCKS, 0, 0}, // Latch with a soft limit.
+        {RELEASED_STATUS, uint16_t(RELEASED_MONITOR | 0x0080), 1, 3, ALL_BLOCKS, 0, 0}, // 2100 bit 7.
+        {RELEASED_STATUS, uint16_t(RELEASED_MONITOR | L::MONITOR_POSITIVE_SOFT_LIMIT), 1, 3, ALL_BLOCKS, 0, 0},
+        {RELEASED_STATUS, uint16_t(RELEASED_MONITOR | L::MONITOR_NEGATIVE_SOFT_LIMIT), 1, 3, ALL_BLOCKS, 0, 0},
+        {0x0000, RELEASED, 1, 3, ALL_BLOCKS, 0, 0},                       // 0010 with 0000.
+        {0x8000, RELEASED, 1, 1, ALL_BLOCKS, 0, 0}}; // Already in the mode, yet not the released standstill.
     for (const Case& item : cases) {
         Rig r;
         r.feedbackVelocity = item.velocity;
@@ -220,7 +234,7 @@ void undocumentedCodes() {
         empty.unchanged(action);
         L::ReadContext none;
         L::AxisReservation unbound;
-        CHECK(L::prepareModeSelect(action, unbound, none, uint8_t(code), 0, 5, 5, L::ActionOptions()).code ==
+        CHECK(L::prepareModeSelect(action, unbound, none, L::IdentityObservation(), uint8_t(code), 0, 5, 5, L::ActionOptions()).code ==
               M::Err::UNSUPPORTED);
         empty.unchanged(action);
     }
@@ -228,7 +242,7 @@ void undocumentedCodes() {
     L::ActionContext action;
     L::ReadContext none;
     L::AxisReservation unbound;
-    const M::Status bad = L::prepareModeSelect(action, unbound, none, 3, 0, 5, 5, L::ActionOptions());
+    const M::Status bad = L::prepareModeSelect(action, unbound, none, L::IdentityObservation(), 3, 0, 5, 5, L::ActionOptions());
     CHECK(!bad && bad.code == M::Err::INVALID_CONFIG && bad.detail == int32_t(M::ActionError::ARGUMENT));
 }
 
@@ -241,19 +255,19 @@ void budgetsAndOverlap() {
     r.begin();
     L::ActionOptions options = r.policy();
     options.maximumAgeUs = 7 * 200 - 1;
-    M::Status s = L::prepareModeSelect(action, r.reservation, r.state, 3, r.operation, r.now, r.deadline, options);
+    M::Status s = L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.deadline, options);
     CHECK(!s && s.detail == int32_t(M::ActionError::ARGUMENT));
     options = r.policy();
     options.observationIntervalUs = 0;
-    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, 3, r.operation, r.now, r.deadline, options));
+    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.deadline, options));
     options = r.policy();
     options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
-    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, 3, r.operation, r.now, r.deadline, options));
-    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, 3, 0, r.now, r.deadline, r.policy()));
-    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, 3, r.operation, r.now, r.now, r.policy()));
+    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.deadline, options));
+    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, 0, r.now, r.deadline, r.policy()));
+    CHECK(!L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.now, r.policy()));
     empty.unchanged(action);
     // The read aged past maximumAgeUs before preparation.
-    s = L::prepareModeSelect(action, r.reservation, r.state, 3, r.operation, r.now + 1400, r.deadline,
+    s = L::prepareModeSelect(action, r.reservation, r.state, identityOf(r), 3, r.operation, r.now + 1400, r.deadline,
                              r.policy());
     CHECK(!s && s.detail == int32_t(M::ActionError::STATE));
     empty.unchanged(action);
@@ -263,20 +277,20 @@ void budgetsAndOverlap() {
     aliasing.read = r.state;
     aliasing.options = r.policy();
     const Saved<L::ActionContext> aliasingSaved(aliasing);
-    CHECK(L::prepareModeSelect(aliasing, aliasing.reservation, r.state, 3, r.operation, r.now, r.deadline,
+    CHECK(L::prepareModeSelect(aliasing, aliasing.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.deadline,
                                r.policy()).detail == int32_t(M::ActionError::OVERLAP));
-    CHECK(L::prepareModeSelect(aliasing, r.reservation, aliasing.read, 3, r.operation, r.now, r.deadline,
+    CHECK(L::prepareModeSelect(aliasing, r.reservation, aliasing.read, identityOf(r), 3, r.operation, r.now, r.deadline,
                                r.policy()).detail == int32_t(M::ActionError::OVERLAP));
-    CHECK(L::prepareModeSelect(aliasing, r.reservation, r.state, 3, r.operation, r.now, r.deadline,
+    CHECK(L::prepareModeSelect(aliasing, r.reservation, r.state, identityOf(r), 3, r.operation, r.now, r.deadline,
                                aliasing.options).detail == int32_t(M::ActionError::OVERLAP));
     // Overlap is judged before the code.
-    CHECK(L::prepareModeSelect(aliasing, aliasing.reservation, r.state, 2, r.operation, r.now, r.deadline,
+    CHECK(L::prepareModeSelect(aliasing, aliasing.reservation, r.state, identityOf(r), 2, r.operation, r.now, r.deadline,
                                r.policy()).detail == int32_t(M::ActionError::OVERLAP));
     aliasingSaved.unchanged(aliasing);
     // A reservation for another configuration epoch is not this read's.
     L::AxisReservation stale = r.reservation;
     ++stale.target.channel.binding.configurationGeneration;
-    CHECK(!L::prepareModeSelect(action, stale, r.state, 3, r.operation, r.now, r.deadline, r.policy()));
+    CHECK(!L::prepareModeSelect(action, stale, r.state, identityOf(r), 3, r.operation, r.now, r.deadline, r.policy()));
     empty.unchanged(action);
 }
 
@@ -476,6 +490,97 @@ void shapeIsChecked() {
     CHECK(L::nextAction(action, r.reservation, r.current, r.now, work) && work.ready &&
           work.transfer.index == 0x6060);
 }
+// Prompt 57 identity rule, as enable's (fix round c, item 1): product fields (1000, 1018:01, 1018:02, 2000)
+// that differ from measuredIdentity(), or an identity of another boot, refuse before any TX with
+// UNSUPPORTED and ActionError::TARGET; a firmware field (1009, 100A, 1018:03, 2001) that differs admits
+// the write and flags it. A state refusal names itself first, and an already selected mode, which sends
+// nothing, is answered without a current identity.
+void identityRule() {
+    enum Edit { PRODUCT_2000, PRODUCT_1000, PRODUCT_VENDOR, PRODUCT_CODE, DOCUMENTED_2000, OTHER_BOOT, NONE_READ };
+    for (int edit = PRODUCT_2000; edit <= NONE_READ; ++edit) {
+        Rig r;
+        acquire(r, RELEASED_STATUS, RELEASED_MONITOR, 1);
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        if (edit == PRODUCT_2000)
+            ++id.modelCode;
+        else if (edit == PRODUCT_1000)
+            ++id.deviceType;
+        else if (edit == PRODUCT_VENDOR)
+            ++id.vendorId;
+        else if (edit == PRODUCT_CODE)
+            ++id.productCode;
+        else if (edit == DOCUMENTED_2000)
+            id.modelCode = L::documentedIdentity().modelCode; // The EDS default admits nothing alone.
+        else if (edit == OTHER_BOOT)
+            ++id.target.nodeGeneration;
+        else
+            id = L::IdentityObservation();
+        const unsigned sent = r.wire.sentCount;
+        L::ActionContext action;
+        const Saved<L::ActionContext> empty(action);
+        const M::Status s =
+            L::prepareModeSelect(action, r.reservation, r.state, id, 3, r.operation, r.now, r.deadline, r.policy());
+        CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ActionError::TARGET));
+        empty.unchanged(action);
+        CHECK(r.wire.sentCount == sent);
+        // An already selected mode is still answered, with the comparison recorded where it could be made.
+        Rig same;
+        acquire(same, RELEASED_STATUS, RELEASED_MONITOR, 3);
+        same.begin();
+        L::IdentityObservation sameId = id;
+        if (edit != NONE_READ)
+            sameId.target = same.reservation.target;
+        if (edit == OTHER_BOOT)
+            ++sameId.target.nodeGeneration;
+        CHECK(L::prepareModeSelect(action, same.reservation, same.state, sameId, 3, same.operation, same.now,
+                                   same.deadline, same.policy()));
+        CHECK(action.modeSelect.alreadySelected && action.state == M::ActionState::SUCCEEDED &&
+              action.execution == M::ActionExecution::NOT_TRANSMITTED);
+        if (edit == OTHER_BOOT || edit == NONE_READ)
+            CHECK(action.modeSelect.identity.outcome == L::IdentityOutcome::NONE);
+        else
+            CHECK(action.modeSelect.identity.outcome == L::IdentityOutcome::UNCONFIRMED &&
+                  !action.modeSelect.identity.expectedMatch);
+    }
+    // A state refusal comes first: an enabled report with a foreign identity names Q11.
+    {
+        Rig r;
+        acquire(r, MODE_ONE_STATUS, POWER_UP_MONITOR, 1);
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        ++id.modelCode;
+        L::ActionContext action;
+        const M::Status s =
+            L::prepareModeSelect(action, r.reservation, r.state, id, 3, r.operation, r.now, r.deadline, r.policy());
+        CHECK(!s && s.detail == int32_t(M::ActionError::STATE) && std::strstr(s.msg, "Q11"));
+    }
+    // Each firmware field that differs admits the write and flags it; the measured identity does not.
+    for (int field = 0; field <= 4; ++field) {
+        Rig r;
+        acquire(r, RELEASED_STATUS, RELEASED_MONITOR, 1);
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        if (field == 1)
+            ++id.hardwareVersion;
+        else if (field == 2)
+            ++id.softwareVersion;
+        else if (field == 3)
+            ++id.revision;
+        else if (field == 4)
+            ++id.firmwareCode;
+        L::ActionContext action;
+        CHECK(L::prepareModeSelect(action, r.reservation, r.state, id, 3, r.operation, r.now, r.deadline,
+                                   r.policy()));
+        const L::IdentityCheck& check = action.modeSelect.identity;
+        CHECK(check.outcome == L::IdentityOutcome::CONFIRMED && check.basis == L::IdentityBasis::MEASURED &&
+              check.expectedMatch && check.firmwareUnqualified == (field != 0) &&
+              check.observed.softwareVersion == id.softwareVersion &&
+              check.expected.softwareVersion == L::measuredIdentity().softwareVersion);
+        r.wire.action = &action;
+        select(r, action, 3);
+    }
+}
 } // namespace
 int main() {
     admittedStarts();
@@ -488,5 +593,6 @@ int main() {
     writeFailureAtEveryStage();
     shapeIsChecked();
     alreadySelected();
+    identityRule();
     std::printf("mode select: %u checks passed\n", checks);
 }

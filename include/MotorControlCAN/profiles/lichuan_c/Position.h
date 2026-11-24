@@ -324,7 +324,8 @@ struct MoveContext {
     MoveEvidence evidence;       ///< Frozen capability evidence: the dialect, and the native base.
     /** Frozen identity comparison of the admission: outcome CONFIRMED, the expected record tuple, the
      * observed identity, and firmwareUnqualified when the move runs on a firmware its record was not
-     * made on. A replacement holds its own record compared with the original's observed identity. */
+     * made on. A replacement holds its own record compared with the original's observed identity, and
+     * keeps the original's firmwareUnqualified: it continues that motion. */
     IdentityCheck identity;
     MoveProfile profile;         ///< Frozen native profile choices.
     MoveOptions options;         ///< Frozen caller budgets.

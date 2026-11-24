@@ -741,26 +741,11 @@ class BenchTest(unittest.TestCase):
     def test_attended_confirmation_is_typed(self):
         for typed in ("", "attended 12", "ATTENDED 11", "yes"):
             board = Board()
-            status, _, err = self.run_main(ENABLE, Backend(board), Operator(typed, "FREE"))
+            status, _, err = self.run_main(ENABLE, Backend(board), Operator(typed))
             self.assertEqual(status, 2, err)
             self.assertIn("attended", err)
             self.assertEqual(board.writes, [])
             self.assertFalse(self.output.exists())
-        # The shaft observation is the attendant's, exactly as one of the two words.
-        for typed in ("", "free", "MAYBE"):
-            board = Board()
-            status, _, err = self.run_main(ENABLE, Backend(board), Operator("ATTENDED 12", typed))
-            self.assertEqual(status, 2, err)
-            self.assertEqual(board.writes, [])
-        # Nobody felt the shaft: the truthful answer is offered, named in the refusal, and sends nothing.
-        board = Board()
-        operator = Operator("ATTENDED 12", "UNOBSERVED")
-        status, _, err = self.run_main(ENABLE, Backend(board), operator)
-        self.assertEqual(status, 2, err)
-        self.assertIn("not observed", err)
-        self.assertIn("UNOBSERVED", operator.questions[-1])
-        self.assertEqual(board.writes, [])
-        self.assertFalse(self.output.exists())
 
     def test_a_relayed_power_up_shaft_lets_an_unattended_enable_run_and_is_recorded_as_relayed(self):
         # 2026-11-09: the user felt both shafts after the power cycle, then left; the lead relays it.
@@ -768,7 +753,7 @@ class BenchTest(unittest.TestCase):
         source = "user dialog 2026-11-09 10:57Z after the power cycle, before anything was sent"
         board = Board()
         operator = Operator()  # Any question would raise EOFError and refuse.
-        argv = ENABLE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE",
+        argv = ENABLE + ["--unattended-waiver", waiver, "--waiver-covers-motion", "--relayed-power-up-shaft", "FREE",
                          "--relayed-shaft-source", source]
         status, out, err = self.run_main(argv, Backend(board), operator)
         self.assertEqual(operator.questions, [])
@@ -779,7 +764,7 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(meta["operator"]["power_up_shaft"],
                          {"typed": "FREE", "relayed": True, "source": source, "accepted": True})
         self.assertEqual(meta["operator"]["holding_after"]["typed"], bench.UNOBSERVED)
-        # Without the relayed observation, or out of its place, nothing is sent.
+        # Without the waiver's motion statement, or a relayed observation out of its place, nothing is sent.
         for bad in (ENABLE + ["--unattended-waiver", waiver],
                     ENABLE + ["--relayed-power-up-shaft", "FREE", "--relayed-shaft-source", source],
                     ENABLE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE"],
@@ -827,21 +812,42 @@ class BenchTest(unittest.TestCase):
         self.assertIn("unattended under the user's waiver", out.getvalue())
         self.assertNotIn("ATTENDED 20", out.getvalue())
 
-    def test_enable_sends_the_typed_observation(self):
+    def test_power_up_enable_asks_no_shaft_and_sends_field_0(self):
+        # Fix round c: start 1 is the library's measured power-up enable, which consults no shaft observation, so
+        # none is asked or required (COMMON forbids a typed one while the owner is away); field 5 is 0.
         board = Board()
-        operator = Operator("ATTENDED 12", "HOLDING", "no movement", "HOLDING")
+        operator = Operator("ATTENDED 12", "no movement", "HOLDING")
         status, out, _ = self.run_main(ENABLE, Backend(board), operator)
         self.assertEqual(status, 0, out)
-        self.assertEqual(board.writes, [b"p", signed("TE1,12,1,1,2,32823,5000,120,10000,800").encode()])
+        self.assertFalse(any("FREE or HOLDING as felt" in q for q in operator.questions))
+        self.assertEqual(board.writes, [b"p", signed("TE1,12,1,1,0,32823,5000,120,10000,800").encode()])
         meta = self.meta()
-        self.assertEqual(meta["line"], signed("TE1,12,1,1,2,32823,5000,120,10000,800").strip())
-        self.assertEqual(meta["operator"]["power_up_shaft"]["typed"], "HOLDING")
+        self.assertEqual(meta["line"], signed("TE1,12,1,1,0,32823,5000,120,10000,800").strip())
+        self.assertEqual(meta["operator"]["power_up_shaft"],
+                         {"asked": False, "basis": bench.POWER_UP_SHAFT_BASIS, "accepted": True})
         self.assertEqual(meta["operator"]["holding_after"]["typed"], "HOLDING")
         self.assertEqual(meta["operator"]["shaft_after"]["typed"], "no movement")
         self.assertFalse(meta["retry"] or meta["reset"])
         self.assertTrue(board.closed)
         report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
         self.assertEqual(report.verdict, "complete")
+        # Unattended, it needs the waiver's motion statement and no shaft at all.
+        self.clear_output()
+        board = Board()
+        later = ["13" if item == "12" else item for item in ENABLE]  # A trial above the campaign's 12.
+        status, _, err = self.run_main(later + ["--unattended-waiver", "I am away; do the motion tests",
+                                                "--waiver-covers-motion"], Backend(board), Operator())
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual([w for w in board.writes if w.startswith(b"T")],
+                         [signed("TE1,13,1,1,0,32823,5000,120,10000,800").encode()])
+        # The dry run states it.
+        self.clear_output()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + ENABLE + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
+                       Operator())
+        self.assertIn("no shaft question: field 5 is 0", out.getvalue())
+        self.assertNotIn("FREE or HOLDING as felt", out.getvalue())
 
     def test_released_enable_needs_no_stop_record(self):
         # 2026-11-17: start 2 on the drive's own fresh released report; no record directory, no stop run first.
@@ -1013,8 +1019,8 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("TM1,5,1,4,200"))
         # test/bench_route_test.cpp pins 15 + 9 + 1 + 7 terminals for one cycle after a released start; the bound
         # holds the typed mode select's stated cycles plus one (prompt 57).
-        self.assertEqual(bench.plan_bounds("mode1", fields), (15 + 9 + 1 + 7 * 5, 2800 + 800))
-        self.assertEqual(bench.plan_bounds("mode3", fields), (9 + 9 + 1 + 7 * 5, 2800 + 800))
+        self.assertEqual(bench.plan_bounds("mode1", fields), (9 + 15 + 9 + 1 + 7 * 5, 2800 + 800))
+        self.assertEqual(bench.plan_bounds("mode3", fields), (9 + 9 + 9 + 1 + 7 * 5, 2800 + 800))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
@@ -1768,7 +1774,7 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(bounds(VELOCITY), (9 + 9 + 3 + 3 + 21 + 7 * 6 + 7 * 3 + 10, 15500))
         self.assertEqual(bounds(VELOCITY)[0], 118)
         self.assertEqual(bench.VELOCITY_WINDOW_CYCLES, 6)
-        self.assertEqual(bounds(MODE3), (9 + 9 + 1 + 7 * 3, 2800 + 400))  # The typed mode select (prompt 57).
+        self.assertEqual(bounds(MODE3), (9 + 9 + 9 + 1 + 7 * 3, 2800 + 400))  # Identity and the typed mode select.
         self.assertEqual(bounds(HOME), (29, 0))
         dense = list(VELOCITY)
         dense[dense.index("--interval-ms") + 1] = "100"
@@ -2877,14 +2883,14 @@ class BenchTest(unittest.TestCase):
                             (("--experiment", "--word", "0x0006"), "Tr1,40,1,1,6,3,200")):
             args, fields = bench.arguments(BASE + release(*extra) + LEDGER + ["--output", "x"])
             self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
-            self.assertEqual(bench.plan_bounds(args.command, fields), (2 + 9 + 1 + 7 * 4, 2800 + 3 * 200))
-            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (9 + 2 + 9 + 1 + 7 * 4, 2800 + 3 * 200))
+            self.assertEqual(bench.motion_weight(args.command, fields), (1, 0))  # Motion class (fix round c).
             bench.check_bounds(args.command, fields)
         self.assertEqual(bench.TRIALS["motor-release"][0], "r")
         self.assertEqual(bench.COMMANDS["release"], b"r")  # The record release keeps its name.
         self.assertEqual(len({letter for letter, _, _ in bench.TRIALS.values()}), len(bench.TRIALS))
-        self.assertIn("r", bench.SETTINGS_LETTERS)
-        self.assertNotIn("r", bench.MOTION_ROUTES)
+        self.assertNotIn("r", bench.SETTINGS_LETTERS)
+        self.assertIn("r", bench.MOTION_ROUTES)
         self.assertEqual(evidence.TRIAL_ROUTES["motor-release"], "release")
         self.assertNotEqual(evidence.EXPECTED["release"].family, "TRIAL")  # Still the record release.
         # The library's limits, refused by the parser before anything is sent: only 0x0000 and 0x0006 with the
@@ -2915,31 +2921,71 @@ class BenchTest(unittest.TestCase):
                                 Untouchable(), Clock(), Operator())
         self.assertEqual(status, 0)
         text = out.getvalue()
-        for part in ("require the operator to type: ATTENDED 40", "at most 40 terminals of 128 and 3400 ms",
+        for part in ("require the operator to type: ATTENDED 40", "at most 49 terminals of 128 and 3400 ms",
                      "the library's release table chooses the word", "experiment: word 0x0006",
                      "never a stop, never a standstill claim", "routes=16",
                      repr(signed("Tr1,40,1,1,6,3,200").encode("ascii"))):
             self.assertIn(part, text)
         self.assertFalse(self.output.exists())
         self.assertEqual(self.ledger.read_bytes(), b"")
-        # One send: the attended confirmation only, a settings entry with no motion weight, then the record.
+        # One send: the attended confirmation and the motion route's second question, a motion entry of weight
+        # one (fix round c: a 6040 word that frees the shaft is motion class), then the record.
         board = Board()
-        operator = Operator("ATTENDED 40")
+        operator = Operator("ATTENDED 40", "none")
         status, _, err_text = self.run_main(release(), Backend(board), operator)
         self.assertIn(status, (0, 1), err_text)  # The synthetic record has no terminals.
         self.assertEqual(board.writes, [b"p", signed("Tr1,40,1,0,0,3,200").encode()])
-        self.assertEqual(len(operator.questions), 1)
+        self.assertEqual(len(operator.questions), 2)
         self.assertEqual(self.meta()["plan"], "prompt 57 release table")
         send = [entry for entry in self.entries() if entry["event"] == "send"]
-        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("r", 0, 0, 1)])
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("r", 1, 0, None)])
         # Three per node across boots; node 2 has its own count.
-        self.write_ledger([dict(send_entry("r", 1, n, 0), settings=1) for n in (1, 2, 3)])
+        self.write_ledger([send_entry("r", 1, n) for n in (1, 2, 3)])
         self.clear_output()
         board = Board()
-        status, _, err_text = self.run_main(release(trial="60"), Backend(board), Operator("ATTENDED 60"))
+        status, _, err_text = self.run_main(release(trial="60"), Backend(board), Operator("ATTENDED 60", "none"))
         self.assertEqual(status, 2, err_text)
         self.assertIn("motor-release admissions on node 1, the cap is 3", err_text)
         self.assertEqual(board.writes, [])
+
+    def test_save_line_requires_persistent_and_reads_its_record(self):
+        # Fix round c, item 2: the Ts route's host command. The firmware's grammar (BenchRoute.cpp SAVE_FIELDS):
+        # node, trial, attended. Persistent, so --persistent is required; settings class, no motion weight.
+        def save(*extra, node="1", trial="40"):
+            return ["--command", "save", "--node", node, "--trial", trial] + list(extra)
+        args, fields = bench.arguments(BASE + save("--persistent") + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("Ts1,40,1"))
+        self.assertEqual(bench.plan_bounds(args.command, fields), (9 + 5 + 3 + 1, 0))
+        self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+        bench.check_bounds(args.command, fields)
+        self.assertEqual(bench.TRIALS["save"][0], "s")
+        self.assertIn("s", bench.SETTINGS_LETTERS)
+        self.assertNotIn("s", bench.MOTION_ROUTES)
+        self.assertEqual(evidence.TRIAL_ROUTES["save"], "save")
+        for argv, text in ((save(), "--persistent is required"),
+                           (MODE3 + ["--persistent"], "--persistent belongs to save"),
+                           (save("--persistent", node="3"), "--node must be 1..2")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + save("--persistent") + ["--dry-run", "--campaign", str(self.ledger)],
+                                Untouchable(), Clock(), Operator())
+        self.assertEqual(status, 0)
+        for part in ("2300 = 2, save parameters", "persistent (--persistent given)", "claims no durability",
+                     repr(signed("Ts1,40,1").encode("ascii"))):
+            self.assertIn(part, out.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_PLAN route=save node=1 trial=2 attended=1\n"
+            b"TRIAL_SAVE prepared=1 state=3 outcome=0 exec=1 attempts=1 guardsOff=0f uncertain=0 written=1 wire=0 "
+            b"ack=1 abort=00000000 cfg0=1 cfg1=2 followed=1\n")
+        self.assertEqual([(r.kind, r.status, r.extra) for r in lines],
+                         [("TRIAL_PLAN", "parsed", {}), ("TRIAL_SAVE", "parsed", {})])
+        self.assertEqual((lines[1].values["prepared"], lines[1].values["guardsOff"], lines[1].values["cfg1"]),
+                         (1, 0x0f, 2))
 
     def test_release_record_reads_through_the_evidence_parser(self):
         # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's).

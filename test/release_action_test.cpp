@@ -16,6 +16,7 @@ static unsigned checks = 0;
         }                                                                                          \
     } while (false)
 #include "support/ReferenceRig.h"
+#include "support/Identity.h"
 namespace {
 const uint16_t IN_PLACE = L::MONITOR_POSITION_COMPLETE;
 const uint16_t RUNNING = L::MONITOR_RUNNING;
@@ -39,11 +40,14 @@ L::ControlObservation loop(const Rig& r, uint16_t value) {
     o.window.earliestUs = o.window.latestUs = r.now;
     return o;
 }
+// A current identity of this boot with the measured values (support/Identity.h): the fake answers no
+// identity read.
+L::IdentityObservation identityOf(const Rig& r) { return TestIdentity::measured(r.reservation.target, r.now); }
 M::Status attempt(Rig& r, L::ActionContext& action, const L::ControlObservation* control = nullptr,
                   const L::ReleaseExperiment& experiment = L::ReleaseExperiment()) {
     r.begin();
-    return L::prepareRelease(action, r.reservation, r.state, control, experiment, r.operation, r.now, r.deadline,
-                             r.policy());
+    return L::prepareRelease(action, r.reservation, r.state, identityOf(r), control, experiment, r.operation,
+                             r.now, r.deadline, r.policy());
 }
 void prepare(Rig& r, L::ActionContext& action, const L::ControlObservation* control = nullptr,
              const L::ReleaseExperiment& experiment = L::ReleaseExperiment()) {
@@ -370,22 +374,23 @@ void inputsAndShape() {
     r.begin();
     L::ActionOptions options = r.policy();
     options.maximumAgeUs = 7 * 200 - 1;
-    CHECK(L::prepareRelease(action, r.reservation, r.state, &open, L::ReleaseExperiment(), r.operation, r.now,
+    const L::IdentityObservation id = identityOf(r);
+    CHECK(L::prepareRelease(action, r.reservation, r.state, id, &open, L::ReleaseExperiment(), r.operation, r.now,
                             r.deadline, options).detail == int32_t(M::ActionError::ARGUMENT));
-    CHECK(!L::prepareRelease(action, r.reservation, r.state, &open, L::ReleaseExperiment(), 0, r.now, r.deadline,
-                             r.policy()));
+    CHECK(!L::prepareRelease(action, r.reservation, r.state, id, &open, L::ReleaseExperiment(), 0, r.now,
+                             r.deadline, r.policy()));
     L::ControlObservation other = open;
     ++other.target.nodeGeneration; // Another node epoch.
-    CHECK(L::prepareRelease(action, r.reservation, r.state, &other, L::ReleaseExperiment(), r.operation, r.now,
+    CHECK(L::prepareRelease(action, r.reservation, r.state, id, &other, L::ReleaseExperiment(), r.operation, r.now,
                             r.deadline, r.policy()).detail == int32_t(M::ActionError::STATE));
     other = open;
     other.window.earliestUs = r.reservation.acquiredUs; // Older than the allowed age at a later time.
-    CHECK(L::prepareRelease(action, r.reservation, r.state, &other, L::ReleaseExperiment(), r.operation,
+    CHECK(L::prepareRelease(action, r.reservation, r.state, id, &other, L::ReleaseExperiment(), r.operation,
                             r.now + 1400, r.deadline, r.policy()).detail == int32_t(M::ActionError::STATE));
     empty.unchanged(action);
     static L::ActionContext aliasing;
     aliasing.reservation = r.reservation;
-    CHECK(L::prepareRelease(aliasing, aliasing.reservation, r.state, &open, L::ReleaseExperiment(), r.operation,
+    CHECK(L::prepareRelease(aliasing, aliasing.reservation, r.state, id, &open, L::ReleaseExperiment(), r.operation,
                             r.now, r.deadline, r.policy()).detail == int32_t(M::ActionError::OVERLAP));
     prepare(r, action, &open);
     L::PreparedAction work;
@@ -403,6 +408,128 @@ void inputsAndShape() {
           work.transfer.data[1] == 0);
 }
 } // namespace
+// Fix round c, item 5: 6041 bit 3 or bit 7 is an alarm, as 2100's alarm bit is: refused as ALARM before any
+// frame, and no experiment overrides it. Row 4 still answers a released report with nothing sent.
+void statusAlarmBits() {
+    struct Case {
+        uint16_t status, monitor;
+        uint8_t mode;
+    };
+    const Case cases[] = {{0x8018, 0x0001, 3}, {0x843f, 0x0001, 1}, {0x003f, 0x0000, 1}, {0x8088, 0x0001, 3},
+                          {0x8437 | 0x0080, 0x0001, 1}};
+    for (const Case& k : cases)
+        for (unsigned withExperiment = 0; withExperiment < 2; ++withExperiment)
+            for (unsigned w = 0; w < 2; ++w) {
+                const uint16_t word = w ? 0x0006 : 0x0000;
+                L::ReleaseReport report;
+                report.modeRaw = k.mode;
+                report.statusword = k.status;
+                report.monitor = k.monitor;
+                L::ReleaseDecision d;
+                const L::ReleaseExperiment e = withExperiment ? experiment(word) : L::ReleaseExperiment();
+                CHECK(L::classifyRelease(report, e, d));
+                CHECK(d.row == L::ReleaseRow::REFUSED && d.refusal == L::ReleaseRefusal::ALARM && !d.send &&
+                      d.statusAlarm && !d.alarm);
+                Rig r;
+                acquire(r, k.status, k.monitor, k.mode);
+                const unsigned sent = r.wire.sentCount;
+                L::ActionContext action;
+                const Saved<L::ActionContext> empty(action);
+                const M::Status s = attempt(r, action, nullptr, e);
+                CHECK(!s && s.detail == int32_t(M::ActionError::STATE) && std::strstr(s.msg, "alarm"));
+                empty.unchanged(action);
+                CHECK(r.wire.sentCount == sent);
+            }
+    // A released report with 6041 bit 3 set is still row 4: reported, nothing sent.
+    L::ReleaseReport released;
+    released.modeRaw = 1;
+    released.statusword = 0x8058;
+    released.monitor = RELEASED_MONITOR;
+    L::ReleaseDecision d;
+    CHECK(L::classifyRelease(released, L::ReleaseExperiment(), d));
+    CHECK(d.row == L::ReleaseRow::ALREADY_RELEASED && !d.send && d.statusAlarm);
+}
+// Prompt 57 identity rule, as enable's (fix round c, item 1): once the table chose a word, product fields
+// that differ from measuredIdentity(), or an identity of another boot, refuse before any TX with
+// UNSUPPORTED and ActionError::TARGET; a firmware field that differs admits the word and flags it. A
+// table refusal names itself first, and row 4, which sends nothing, is answered without a current identity.
+void identityRule() {
+    for (int edit = 0; edit < 4; ++edit) {
+        // 0 product 2000, 1 product 1018:02, 2 another boot, 3 no identity read at all.
+        Rig r;
+        acquire(r, 0x8437, IN_PLACE, 1); // Row 1, the power-up report: word 0x0006 to come.
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        if (edit == 0)
+            id.modelCode = L::documentedIdentity().modelCode;
+        else if (edit == 1)
+            ++id.productCode;
+        else if (edit == 2)
+            ++id.target.nodeGeneration;
+        else
+            id = L::IdentityObservation();
+        const unsigned sent = r.wire.sentCount;
+        L::ActionContext action;
+        const Saved<L::ActionContext> empty(action);
+        const M::Status s = L::prepareRelease(action, r.reservation, r.state, id, nullptr, L::ReleaseExperiment(),
+                                              r.operation, r.now, r.deadline, r.policy());
+        CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ActionError::TARGET));
+        empty.unchanged(action);
+        CHECK(r.wire.sentCount == sent);
+        // An experiment word is refused the same way: no option overrides the product rule.
+        CHECK(L::prepareRelease(action, r.reservation, r.state, id, nullptr, experiment(0x0000), r.operation, r.now,
+                                r.deadline, r.policy()).code == M::Err::UNSUPPORTED);
+        empty.unchanged(action);
+        // Row 4 is still answered, with the comparison recorded where it could be made.
+        Rig released;
+        acquire(released, 0x8050, RELEASED_MONITOR, 1);
+        released.begin();
+        L::IdentityObservation releasedId = id;
+        if (edit != 3)
+            releasedId.target = released.reservation.target;
+        if (edit == 2)
+            ++releasedId.target.nodeGeneration;
+        CHECK(L::prepareRelease(action, released.reservation, released.state, releasedId, nullptr,
+                                L::ReleaseExperiment(), released.operation, released.now, released.deadline,
+                                released.policy()));
+        CHECK(action.release.decision.row == L::ReleaseRow::ALREADY_RELEASED &&
+              action.execution == M::ActionExecution::NOT_TRANSMITTED);
+        CHECK(action.release.identity.outcome ==
+              (edit >= 2 ? L::IdentityOutcome::NONE : L::IdentityOutcome::UNCONFIRMED));
+    }
+    // The table's refusal comes first: a running report with a foreign identity names the stop.
+    {
+        Rig r;
+        acquire(r, 0x8437, uint16_t(IN_PLACE | RUNNING), 1);
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        ++id.vendorId;
+        L::ActionContext action;
+        const M::Status s = L::prepareRelease(action, r.reservation, r.state, id, nullptr, L::ReleaseExperiment(),
+                                              r.operation, r.now, r.deadline, r.policy());
+        CHECK(!s && s.detail == int32_t(M::ActionError::STATE) && std::strstr(s.msg, "running"));
+    }
+    // A firmware field that differs admits the row's word and flags it; the measured identity does not.
+    for (int field = 0; field < 3; ++field) {
+        Rig r;
+        acquire(r, 0x8437, IN_PLACE, 1);
+        r.begin();
+        L::IdentityObservation id = identityOf(r);
+        if (field == 1)
+            ++id.hardwareVersion;
+        else if (field == 2)
+            ++id.revision;
+        L::ActionContext action;
+        CHECK(L::prepareRelease(action, r.reservation, r.state, id, nullptr, L::ReleaseExperiment(), r.operation,
+                                r.now, r.deadline, r.policy()));
+        const L::IdentityCheck& check = action.release.identity;
+        CHECK(check.outcome == L::IdentityOutcome::CONFIRMED && check.expectedMatch &&
+              check.firmwareUnqualified == (field != 0) && action.release.decision.word == 0x0006);
+        r.wire.action = &action;
+        r.command(action, 0x6040, 0x0006);
+        CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED);
+    }
+}
 int main() {
     measuredRows();
     alreadyReleased();
@@ -411,5 +538,7 @@ int main() {
     cycleScopeAndDeadline();
     wordFailureAtEveryStage();
     inputsAndShape();
+    identityRule();
+    statusAlarmBits();
     std::printf("release: %u checks passed\n", checks);
 }

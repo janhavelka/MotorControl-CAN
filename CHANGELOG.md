@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### Review fixes (prompt 57, stage (c), 2026-11-24)
+
+- **API change:** `prepareModeSelect` and `prepareRelease` take an `IdentityObservation` (after the state read),
+  as `AxisSession::requestModeSelect` and `requestRelease` do. Enable's rule applies: product fields that differ
+  refuse with `UNSUPPORTED`/`ActionError::TARGET` before any TX, firmware fields only flag
+  (`ModeSelectRecord::identity`, `ReleaseRecord::identity`). An already selected mode and release row 4 send
+  nothing and need no current identity. `classifyRelease` stays pure.
+- `checkIdentity` no longer reports `CONFIRMED` for a documented-only match: that is `UNCONFIRMED` with
+  `documentedMatch` set. New `IdentityReference`, a `checkIdentity` overload taking it, `IdentityCheck::applicationMatch`
+  and `application`, and `ActionOptions::identityReference`: the application's MEASURED reference for its own
+  specimen also confirms enable, mode select and release; `firmwareUnqualified` still compares with
+  `measuredIdentity()`.
+- Mode select admits the released standstill only (2100 released beside in place, soft limits and undocumented
+  bits clear, 6041 bits 0..6 `0x50` or `0x31`), with 2100 running only in the exact latch `0014`/`0015` with
+  `4050`/`C050`. The release refuses 6041 bit 3 or bit 7 as `ALARM`, which no experiment overrides
+  (`ReleaseDecision::statusAlarm`). A move replacement keeps the original's `firmwareUnqualified`.
+- Already enabled: `prepareEnable` and `validateEnable` take an optional `latestControl` (the caller's latest
+  acknowledged controlword), and new `alreadyEnabled` tells a caller beforehand. Under `EnableGate::MEASURED`, an
+  acknowledged `000F` under the reservation with an enabled-pattern report is answered `SUCCEEDED` at preparation
+  with `EnableRecord::alreadyEnabled` and nothing sent; `AxisSession::requestEnable` passes its latest control and
+  starts no owner operation for it. `requestRelease` refuses a 2500 read older than the session's latest write.
+- Console: with no named report, `mode`, `enable` and `motor-release` read their own identity, CONTROL (release)
+  and state through the new `ProbeMotion::startAction`. New header-only `SelectedAxis` attaches an axis session,
+  motion and commissioning helper on the first selection; `native_probe --console-fake` and the probe firmware
+  (`EspProbeMain`, placed in internal RAM on first selection, with a download preflight) use it, and the S2 bench
+  console attaches one `ProbeCommissioning` with its first armed node (`BenchConsole::attachCommissioning`).
+  The bench console gates `mode` and `motor-release` as bench work. `without-backup` clears only the backup
+  guard bit.
+- Bench: the `mode1`, `mode3` and `release` routes read the identity first (9 more terminals each; the runner's
+  bounds follow), the release route is a motion route, and the enable route's start 1 is the measured power-up
+  start (`EnableStart::POWER_UP`): the runner asks no shaft question and sends shaft 0, which the grammar now
+  admits for start 1, and an unattended one needs `--waiver-covers-motion`. `s2_bench.py --command save
+  --persistent` sends the `Ts` route and `s2_evidence.py` reads `TRIAL_SAVE`; routes stay protocol 16.
+- RAM (estimated from the host build, not measured on a board): `SelectedAxis` about 60 KB on first selection,
+  the bench console's commissioning block about 13.5 KB on first console arming, `BenchAxis` about 2 KB more per
+  node. When a block cannot be placed, the commands it serves are refused at once and nothing is transmitted.
+- Documents: drive actions, CLI contract, API/CLI mapping, commissioning, hardware bench rows, the three probe
+  READMEs, coverage, backlog S08 and the source map.
+
 ### Console commands and documents (prompt 57, slice b6, 2026-11-24)
 
 - Console: `mode AXIS_ID 1|3|6` (`prepareModeSelect`), `enable AXIS_ID` (the regular measured enable) and

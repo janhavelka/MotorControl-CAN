@@ -140,9 +140,12 @@ startup selects/qualifies no motion context. An application that supplies an act
 registered session and exact native prerequisites can attach that same public
 `ProbeMotion` bridge; no CLI command grants missing firmware or physical evidence.
 Since prompt 57 `mode AXIS_ID 1|3|6`, `enable AXIS_ID` and `motor-release AXIS_ID` are regular commands
-on the report the application names (`ProbeMotion::setActionPrerequisites`), through `prepareModeSelect`,
-the measured `prepareEnable` and `prepareRelease`; `release ID` still frees a retained result and sends no
-frame. Every motion terminal carries `firmware_unqualified`. `position-clear` is zero-only and sends no save.
+on the report the application names (`ProbeMotion::setActionPrerequisites`) or, with none named, on their
+own fresh identity and state reads (`ProbeMotion::startAction`), through `prepareModeSelect`, the measured
+`prepareEnable` and `prepareRelease`; `release ID` still frees a retained result and sends no frame.
+`--console-fake` attaches its first selected axis (`SelectedAxis`, declared CL86-C) after `useaddr`, so
+these commands and `persistence save parameters` reach their own reads; the fixture answers identity
+uploads only, so each ends at its state read with nothing written. Every motion terminal carries `firmware_unqualified`. `position-clear` is zero-only and sends no save.
 Native tests use manufactured owner/server events; compile/fake results qualify no
 movement, stopping, wiring, service latency or output delivery on a physical fixture.
 The shared IDF S2 console uses UART0/core0; Arduino S2 remains blocked by the pinned

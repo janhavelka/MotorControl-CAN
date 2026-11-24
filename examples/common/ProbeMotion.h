@@ -53,8 +53,9 @@ struct MotionResult {
     MotorControlCAN::ActionCompletion completion =
         MotorControlCAN::ActionCompletion::NOT_OBSERVED; ///< Qualified controller observation only.
     bool uncertain = false;   ///< Retained possible write/read/motion effects.
-    /** The operation compared a current identity read (prompt 57): moves, velocity, homing and enable. False
-     * for a mode select, release, clear or stop, which compare none. */
+    /** The operation compared a current identity read (prompt 57): moves, velocity, homing, enable, a mode
+     * select and a release that sent their word. False for a clear or stop, which compare none, and for an
+     * already selected or released answer made without a current identity. */
     bool identityCompared = false;
     /** identityCompared only: firmware fields (1009, 100A, 1018:03, 2001) differ from the reference the
      * operation's qualification was made on; it ran regardless. The native context keeps both tuples. */
@@ -207,7 +208,8 @@ class ProbeMotion {
      * under the session's next operation. Nothing here reads, enables or selects.
      * @param state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK, borrowed until replaced
      * or consumed by a successful request. @param identity Current identity read, borrowed likewise; the
-     * enable compares it (prepareEnable). @param loop Optional fresh CONTROL observation, copied, for the
+     * enable, the mode select and the release compare it (prepareEnable, prepareModeSelect, prepareRelease).
+     * @param loop Optional fresh CONTROL observation, copied, for the
      * release table's row 2 (2500=1); null for none. @param options Copied budgets: maximumAgeUs covering nine
      * fields and commandIntervalUs at least ENABLE_WORD_INTERVAL_US serve all three.
      * @return Same atomic setter contract as moves. */
@@ -278,6 +280,30 @@ class ProbeMotion {
      * @return Native/local status: the table's refusal reason, or OK with the row's word to come or nothing
      * sent for an already released report. */
     MotorControlCAN::Status requestRelease(uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Run one regular action (prompt 57) on this helper's own fresh reads, for an application that names no
+     * report: the identity, for a release CONTROL (2500 for the table's row 2), then ERRORS, MONITORS, STATUS
+     * and FEEDBACK, each under its own session operation, as ProbeCommissioning::startPersistence reads its
+     * prerequisites. When the last read completes, service() requests the action at that time exactly as
+     * requestEnable, requestModeSelect or requestRelease would on a named report, with no explicit enable
+     * evidence (EnableGate::MEASURED, mode 1). Only this call starts it: nothing here runs on startup,
+     * selection or recovery, and no read or request is repeated. A read failure or the library's refusal
+     * ends the result FAILED with execution NOT_TRANSMITTED and that status; cancelNormal withdraws it.
+     * @param kind ENABLE, MODE_SELECT or RELEASE. @param modeRaw MODE_SELECT only: 1, 3 or 6, judged by
+     * the library. @param reads Budgets of the identity read, its widths included; the later reads use the
+     * declared widths. @param options Copied budgets of the action, as its request requires; maximumAgeUs
+     * also caps the reads' age. @param nowUs Supplied microseconds. @param deadlineUs Exclusive cutoff of
+     * the reads and the action together.
+     * @return Local status, unchanged on refusal: refused while a report is named (actionReportNamed), a
+     * result is retained or the session is busy. Success retains an ACTIVE result and admits nothing yet. */
+    MotorControlCAN::Status startAction(MotionKind kind, uint8_t modeRaw,
+                                        const MotorControlCAN::LICHUAN_C::ReadOptions& reads,
+                                        const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t nowUs,
+                                        uint64_t deadlineUs) noexcept;
+    /** @return True while setActionPrerequisites or setEnablePrerequisites names a report not yet consumed:
+     * the console then uses the request of that kind, not startAction. */
+    bool actionReportNamed() const noexcept { return actionState_ || enableState_; }
+    /** @return True while startAction's reads run, before the action's native context exists. */
+    bool preparing() const noexcept { return preparing_; }
     /** Dispatch explicit alarm clear, retaining an unresolved value-1 effect. Uses
      * AxisSession::requestClearAlarm's default method, AlarmClearMethod::CONTROLWORD_BIT7 (6040 0x0080,
      * then 0x0000); no console grammar selects OBJECT_2301.
@@ -399,6 +425,18 @@ class ProbeMotion {
     MotorControlCAN::LICHUAN_C::EnableEvidence enableEvidence_;
     MotorControlCAN::LICHUAN_C::ActionOptions enableOptions_, clearOptions_;
     StopPolicy stopPolicy_;
+    /** startAction's reads, one context reused in turn: the identity, CONTROL, then the state it judges. */
+    MotorControlCAN::LICHUAN_C::DriverContext ownRead_;
+    MotorControlCAN::LICHUAN_C::IdentityObservation ownIdentity_;
+    MotorControlCAN::LICHUAN_C::ReadOptions plannedReads_;
+    MotorControlCAN::LICHUAN_C::ActionOptions plannedOptions_;
+    uint64_t plannedDeadlineUs_ = 0;
+    MotionKind plannedKind_ = MotionKind::NONE;
+    uint8_t plannedMode_ = 0;
+    uint8_t prepareStep_ = 0;
+    bool preparing_ = false;
+    bool readPending_ = false;
+    bool prepareWithdrawn_ = false;
     bool timeValid(uint64_t nowUs) const noexcept;
     bool graph() const noexcept;
     MotorControlCAN::Status prerequisite() const noexcept;
@@ -407,6 +445,12 @@ class ProbeMotion {
     void forgetPrerequisites() noexcept;
     void followCoordinates() noexcept;
     void accept(MotionKind kind, uint32_t nativeOperation, uint64_t nowUs) noexcept;
+    MotorControlCAN::Status issueAction(MotionKind kind, uint8_t modeRaw, uint64_t nowUs,
+                                        uint64_t deadlineUs) noexcept;
+    MotorControlCAN::Status startPreparationRead(uint64_t nowUs) noexcept;
+    void servicePreparation(uint64_t nowUs) noexcept;
+    void endPreparation(MotorControlCAN::ActionOutcome outcome, const MotorControlCAN::Status& status,
+                        uint64_t nowUs) noexcept;
     void snapshotNormal() noexcept;
     void snapshotStops() noexcept;
 };

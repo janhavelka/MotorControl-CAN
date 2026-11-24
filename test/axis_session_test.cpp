@@ -3966,7 +3966,7 @@ void modeSelectThroughSession() {
     CHECK(r.a.motionHistoryWritten() && r.a.latestControl());
     {   // A report from before that write is not the drive's present report, however young it is.
         const Saved<E::AxisSession> session(r.a);
-        const M::Status stale = r.a.requestModeSelect(before, 3, clearOptions(), r.now + 4000, r.now);
+        const M::Status stale = r.a.requestModeSelect(before, TestIdentity::measured(target(), r.now), 3, clearOptions(), r.now + 4000, r.now);
         CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE) && std::strstr(stale.msg, "latest write"));
         session.unchanged(r.a);
     }
@@ -3974,14 +3974,14 @@ void modeSelectThroughSession() {
     readState(r, r.a, state, 1, mask);
     {   // An undocumented code is refused unchanged.
         const Saved<E::AxisSession> session(r.a);
-        const M::Status code = r.a.requestModeSelect(state, 2, clearOptions(), r.now + 4000, r.now);
+        const M::Status code = r.a.requestModeSelect(state, TestIdentity::measured(target(), r.now), 2, clearOptions(), r.now + 4000, r.now);
         CHECK(!code && code.code == M::Err::UNSUPPORTED);
         session.unchanged(r.a);
     }
     {   // The mode the report already shows: answered as already selected, no operation, zero frames.
         const unsigned sent = r.wire.sentCount;
         const C::SdoCompletion* control = r.a.latestControl();
-        CHECK(r.a.requestModeSelect(state, 1, clearOptions(), r.now + 4000, r.now).isOk() && !r.a.clearActive() &&
+        CHECK(r.a.requestModeSelect(state, TestIdentity::measured(target(), r.now), 1, clearOptions(), r.now + 4000, r.now).isOk() && !r.a.clearActive() &&
               !r.a.busy());
         const L::ActionContext& same = r.a.clearAction();
         CHECK(same.state == M::ActionState::SUCCEEDED && same.modeSelect.alreadySelected &&
@@ -3991,7 +3991,7 @@ void modeSelectThroughSession() {
         CHECK(r.wire.sentCount == sent && r.a.latestControl() == control && control);
     }
     const unsigned from = r.wire.sentCount;
-    CHECK(r.a.requestModeSelect(state, 3, clearOptions(100), r.now + 4000, r.now).isOk() && r.a.clearActive() &&
+    CHECK(r.a.requestModeSelect(state, TestIdentity::measured(target(), r.now), 3, clearOptions(100), r.now + 4000, r.now).isOk() && r.a.clearActive() &&
           r.a.busy());
     CHECK(r.wire.sentCount == from); // A request yields no traffic.
     const L::ActionContext& select = r.a.clearAction();
@@ -4000,7 +4000,7 @@ void modeSelectThroughSession() {
     // Busy: another request of the slot refuses with nothing changed.
     {
         const Saved<E::AxisSession> session(r.a);
-        CHECK(r.a.requestModeSelect(state, 6, clearOptions(), r.now + 4000, r.now).detail ==
+        CHECK(r.a.requestModeSelect(state, TestIdentity::measured(target(), r.now), 6, clearOptions(), r.now + 4000, r.now).detail ==
               int32_t(M::ActionError::STATE));
         session.unchanged(r.a);
     }
@@ -4026,6 +4026,54 @@ void modeSelectThroughSession() {
     CHECK(!r.a.latestControl() && r.a.motionHistoryWritten() && !r.a.clearBlocked());
     quiet(r);
 }
+// Fix round c, item 3: a measured enable while this session's latest controlword on this binding is an
+// acknowledged 000F, on an enabled-pattern report, is answered already enabled: terminal success, no owner
+// operation, no frame. Any other latest word, or none, leaves the judgment to the fresh report.
+void measuredEnableAfterOwnEnable() {
+    Rig r;
+    openAxis(r, r.a);
+    FakeDrive& d = r.drive[0];
+    d.monitor = 0x0001; // Low bits 111 with released clear: the power-up report and an enabled one alike.
+    d.status = 0x8437;
+    d.mode = 1;
+    d.errorCode = 0;
+    d.errorRegister = 0;
+    const uint8_t mask = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::FEEDBACK) | STATE_MASK);
+    write(r, r.a, 0x6040, WORD_ENABLE);
+    CHECK(r.a.latestControl());
+    L::ReadContext state;
+    readState(r, r.a, state, 1, mask);
+    L::EnableEvidence measured;
+    measured.gate = L::EnableGate::MEASURED;
+    measured.modeRaw = 1;
+    L::ActionOptions options = clearOptions();
+    options.maximumAgeUs = 9 * 200; // Nine fields at the queue plus response budgets, as an enable needs.
+    options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    {
+        const unsigned sent = r.wire.sentCount;
+        const uint32_t next = r.a.nextOperation();
+        measured.operation = next;
+        const M::Status answered = r.a.requestEnable(state, TestIdentity::measured(target(), r.now), measured,
+                                                     options, r.now + 4000000, r.now);
+        CHECK(answered.isOk());
+        const L::ActionContext& answer = r.a.enableAction();
+        CHECK(!r.a.enableActive() && !r.a.busy() && answer.enable.alreadyEnabled &&
+              answer.state == M::ActionState::SUCCEEDED && answer.execution == M::ActionExecution::NOT_TRANSMITTED);
+        CHECK(r.a.nextOperation() == next && r.a.latestControl()); // No owner operation; the 000F stays latest.
+        r.steps(10);
+        CHECK(r.wire.sentCount == sent);
+    }
+    // Another latest word (a quick stop's 000B) is no enable: the answer no longer applies, and the fresh
+    // report decides (here an alarmed one, refused for that).
+    write(r, r.a, 0x6040, WORD_QUICK);
+    d.monitor = uint16_t(0x0001 | L::MONITOR_ALARM);
+    readState(r, r.a, state, 1, mask);
+    measured.operation = r.a.nextOperation();
+    const M::Status other = r.a.requestEnable(state, TestIdentity::measured(target(), r.now), measured, options,
+                                              r.now + 4000000, r.now);
+    CHECK(!other.msg || !std::strstr(other.msg, "already enabled"));
+    quiet(r);
+}
 // A stop request ends an active mode select first, as it ends a clear: its write in flight settles as
 // evidence, and nothing of the select follows.
 void stopSupersedesModeSelect() {
@@ -4039,7 +4087,7 @@ void stopSupersedesModeSelect() {
     L::ReadContext state;
     readState(r, r.a, state, 1,
               uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::FEEDBACK) | STATE_MASK));
-    CHECK(r.a.requestModeSelect(state, 3, clearOptions(100), r.now + 4000, r.now).isOk());
+    CHECK(r.a.requestModeSelect(state, TestIdentity::measured(target(), r.now), 3, clearOptions(100), r.now + 4000, r.now).isOk());
     const unsigned from = r.wire.sentCount;
     r.step(); // The session admits the 6060.
     r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now), r.now);
@@ -4069,7 +4117,7 @@ void releaseThroughSession() {
         L::ReadContext state;
         readState(r, r.a, state, 1, mask);
         const unsigned sent = r.wire.sentCount;
-        CHECK(r.a.requestRelease(state, nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now).isOk());
+        CHECK(r.a.requestRelease(state, TestIdentity::measured(target(), r.now), nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now).isOk());
         const L::ActionContext& done = r.a.clearAction();
         CHECK(!r.a.clearActive() && done.state == M::ActionState::SUCCEEDED &&
               done.release.decision.row == L::ReleaseRow::ALREADY_RELEASED && done.release.decision.running &&
@@ -4091,13 +4139,28 @@ void releaseThroughSession() {
         write(r, r.a, 0x2200, 1);
         const Saved<E::AxisSession> session(r.a);
         const M::Status stale =
-            r.a.requestRelease(before, nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now);
+            r.a.requestRelease(before, TestIdentity::measured(target(), r.now), nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now);
         CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE));
         session.unchanged(r.a);
         readState(r, r.a, state, 1, mask);
     }
+    {   // Fix round c, item 7: a 2500 read from before this session's latest write is refused unchanged, even
+        // beside a fresh state report: that write may have changed the selector.
+        L::ControlObservation loop;
+        loop.target = target();
+        loop.loopModeRaw = 1;
+        loop.loopMode = L::LoopMode::OPEN_LOOP;
+        loop.window.earliestUs = loop.window.latestUs = r.now;
+        write(r, r.a, 0x2500, 1);
+        readState(r, r.a, state, 1, mask);
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status stale = r.a.requestRelease(state, TestIdentity::measured(target(), r.now), &loop,
+                                                   L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now);
+        CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE) && std::strstr(stale.msg, "2500 read"));
+        session.unchanged(r.a);
+    }
     const unsigned from = r.wire.sentCount;
-    CHECK(r.a.requestRelease(state, nullptr, L::ReleaseExperiment(), clearOptions(100), r.now + 4000, r.now).isOk() &&
+    CHECK(r.a.requestRelease(state, TestIdentity::measured(target(), r.now), nullptr, L::ReleaseExperiment(), clearOptions(100), r.now + 4000, r.now).isOk() &&
           r.a.clearActive());
     const L::ActionContext& release = r.a.clearAction();
     for (unsigned i = 0; i < 40 && release.observations == 0; ++i)
@@ -4502,6 +4565,7 @@ void allScenarios() {
     RUN(counterNoticeRefusalCancelsTrigger);
     RUN(ownerClosureIsNotACancel);
     RUN(modeSelectThroughSession);
+    RUN(measuredEnableAfterOwnEnable);
     RUN(stopSupersedesModeSelect);
     RUN(releaseThroughSession);
 }

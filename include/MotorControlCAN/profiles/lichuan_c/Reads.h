@@ -221,11 +221,15 @@ enum class IdentityBasis : uint8_t {
  * comparison with their model-scoped references and the candidate set. */
 enum class IdentityOutcome : uint8_t {
     NONE, ///< No current observation was compared. Enable and motion refuse.
-    /** A reference of the declared model matches on 1000, 1018:01, 1018:02 and 2000. It means unique
+    /** A MEASURED reference of the declared model matches on 1000, 1018:01, 1018:02 and 2000: the
+     * operation's own reference (expectedMatch) or the application's (applicationMatch). It means unique
      * among the supplied references only, not physical proof of the model: the Lichuan DS-C and TL-C
      * EDS files declare the same 1000, 1018:01 and 1018:02 (backlog D18). */
     CONFIRMED,
-    UNCONFIRMED, ///< No reference of the declared model matches on those fields. Enable and motion refuse.
+    /** No MEASURED reference of the declared model matches on those fields. Enable and motion refuse. A
+     * match of the documented reference alone stays UNCONFIRMED, with documentedMatch set: every gate of
+     * this profile refuses it, because no record was made on such a drive. */
+    UNCONFIRMED,
     CONTRADICTED ///< Another candidate's reference matches. Reserved: never produced by this profile.
 };
 /** One raw identity tuple. The product fields 1000, 1018:01, 1018:02 and 2000 say which product it
@@ -242,16 +246,30 @@ struct IdentityValues {
     uint16_t modelCode = 0;       ///< 2000 raw; product field.
     uint16_t firmwareCode = 0;    ///< 2001 raw; firmware field.
 };
+/** An application's MEASURED identity reference for its own specimen (prompt 57: when no reference of
+ * the declared model matches, the application supplies one; no caller acceptance replaces it). Its
+ * product fields admit like the operation's own reference; its firmware fields decide nothing, because
+ * the operation's qualification belongs to the firmware its record was made on, so firmwareUnqualified
+ * still compares with that record. The library never fills one in. */
+struct IdentityReference {
+    bool present = false;  ///< False: only the operation's own reference admits.
+    IdentityValues values; ///< Raw tuple the application read from its specimen; MEASURED basis.
+};
 /** One identity comparison. Enable, the position moves, velocity and homing freeze theirs into the
  * context at preparation, so every terminal result carries it; their stops make none. */
 struct IdentityCheck {
-    /** CONFIRMED or UNCONFIRMED once a current observation was compared; NONE before. */
+    /** CONFIRMED when expectedMatch or applicationMatch, otherwise UNCONFIRMED, once a current observation
+     * was compared; NONE before. */
     IdentityOutcome outcome = IdentityOutcome::NONE;
     IdentityBasis basis = IdentityBasis::NONE; ///< Basis of expected.
-    /** expected's product fields equal observed's. Every gate of this profile requires it: an
-     * operation's measured record names the product it was measured on, so a documented match alone
-     * admits nothing (a family may refuse more than the policy with recorded evidence). */
+    /** expected's product fields equal observed's. Every gate of this profile requires it or
+     * applicationMatch: an operation's measured record names the product it was measured on, so a
+     * documented match alone admits nothing (a family may refuse more than the policy with recorded
+     * evidence). */
     bool expectedMatch = false;
+    /** An application reference was supplied (IdentityReference::present) and its product fields equal
+     * observed's. False when none was supplied. */
+    bool applicationMatch = false;
     /** documentedIdentity()'s product fields equal observed's. Reported only. False on both measured
      * CL86-C specimens: their 2000 reads 0x0400 where the EDS default is 1. */
     bool documentedMatch = false;
@@ -260,6 +278,7 @@ struct IdentityCheck {
     bool firmwareUnqualified = false;
     IdentityValues expected; ///< The reference the operation's qualification was made on.
     IdentityValues observed; ///< The live fields of the compared observation.
+    IdentityReference application; ///< The application's reference as supplied; present false for none.
 };
 /** The documented reference: the DefaultValue entries of LC_StepDriverCAN_V1.1.eds, 1000=0x00040192,
  * 1009=0x2608, 100A=0x0001, 1018:01=0x00001000, 1018:02=0x00000001, 1018:03=0, 2000=0x0001, 2001=0.
@@ -275,9 +294,10 @@ IdentityValues documentedIdentity() noexcept;
  * @return The values. */
 IdentityValues measuredIdentity() noexcept;
 /** Compare one current identity observation with an operation's expected reference and the
- * documented one. A product-field difference makes the outcome UNCONFIRMED, unless the documented
- * reference matches; a firmware-field difference only sets firmwareUnqualified. A field that could
- * not be read leaves no observation: getIdentity publishes only a complete read.
+ * documented one. A product-field difference from expected makes the outcome UNCONFIRMED, whether or
+ * not the documented reference matches (documentedMatch then names it); a firmware-field difference only
+ * sets firmwareUnqualified. A field that could not be read leaves no observation: getIdentity publishes
+ * only a complete read.
  * @param[out] output Written only on success; must not overlap an input.
  * @param[in] observed Identity from getIdentity; current when its target equals current and its window
  * is ordered and ends no later than nowUs. An older boot, binding or configuration is never current.
@@ -290,6 +310,17 @@ IdentityValues measuredIdentity() noexcept;
  * range, and OVERLAP, each leaving output unchanged. No I/O; a result is never model detection. */
 Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
                      const IdentityValues& expected, IdentityBasis basis, uint64_t nowUs) noexcept;
+/** checkIdentity with an application's MEASURED reference beside expected: its product fields also
+ * confirm (applicationMatch), and firmwareUnqualified still compares with expected.
+ * @param[out] output As checkIdentity's; must not overlap an input.
+ * @param[in] observed As checkIdentity's. @param[in] current As checkIdentity's.
+ * @param[in] expected As checkIdentity's. @param[in] basis As checkIdentity's.
+ * @param[in] application The application's reference; present false behaves as checkIdentity.
+ * @param[in] nowUs As checkIdentity's.
+ * @return As checkIdentity's, OVERLAP including application. */
+Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
+                     const IdentityValues& expected, IdentityBasis basis, const IdentityReference& application,
+                     uint64_t nowUs) noexcept;
 /** One complete state block, independently available after a later block fails.
  * Only fields selected by block are meaningful; raw success does not interpret
  * disputed status bits, mode signedness, I/O assignment or physical scale.

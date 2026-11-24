@@ -238,10 +238,7 @@ void startupAndRejectedGrammar() {
                              "move angle 90 deg motor shortest reject 120 configured",
                              "velocity 1 rpm native 100 configured normal",
                              "home 1 120 60 100 zero",
-                             "enable 101",
-                             "mode 101 3",
-                             "motor-release 101",
-                             "enable 7", // No attached axis 7.
+                             "enable 7", // No attached axis 7; enable, mode and motor-release read their own.
                              "alarm-clear",
                              "position-clear",
                              "stop normal",
@@ -906,7 +903,7 @@ void regularActionsThroughTheConsole() {
         const unsigned first = r.wire.sentCount;
         const std::string output = r.command("@71 mode 101 3");
         contains(output, "\"result\":\"accepted\"");
-        contains(output, "\"firmware_unqualified\":null");
+        contains(output, "\"firmware_unqualified\":true");
         CHECK(r.motion.normalResult().kind == E::MotionKind::MODE_SELECT &&
               r.motion.normalResult().state == M::ActionState::SUCCEEDED && r.drive.mode == 3);
         CHECK(downloadsFrom(r, first, 0x6060) == 1 && !downloadsFrom(r, first, 0x6040));
@@ -928,12 +925,92 @@ void regularActionsThroughTheConsole() {
         const unsigned first = r.wire.sentCount;
         const std::string output = r.command("@73 motor-release 101");
         contains(output, "\"result\":\"accepted\"");
-        contains(output, "\"firmware_unqualified\":null");
+        contains(output, "\"firmware_unqualified\":true");
         CHECK(r.motion.normalResult().kind == E::MotionKind::RELEASE &&
               r.motion.normalResult().state == M::ActionState::SUCCEEDED);
         const uint8_t word6[] = {0x2b, 0x40, 0x60, 0, 6, 0, 0, 0};
         CHECK(frameIs(r, first, word6) && downloadsFrom(r, first, 0x6040) == 1 && !downloadsFrom(r, first, 0x2300));
         transcript += output;
+    }
+}
+// Fix round c, item 2: with no named report, `enable N`, `mode N M` and `motor-release N` read their own
+// (identity, CONTROL for a release, then ERRORS, MONITORS, STATUS and FEEDBACK) and request the action on
+// them, as `persistence save parameters` does. A drive with the measured firmware reports
+// firmware_unqualified false; a foreign product is refused after the reads with nothing written.
+unsigned uploadsOf(const ConsoleRig& r, unsigned first, uint16_t index) {
+    unsigned count = 0;
+    for (unsigned i = first; i < r.wire.sentCount; ++i)
+        count += r.wire.sent[i].data[0] == 0x40 && frameIndex(r.wire.sent[i]) == index;
+    return count;
+}
+void regularCommandsReadTheirOwnReport() {
+    scenario = "regular commands read their own report";
+    {
+        ConsoleRig r; // A not-enabled released report in mode 1, the measured firmware: one 6060 write of 3.
+        r.drive.followMode = true;
+        r.drive.measuredFirmware = true;
+        r.drive.monitor = uint16_t(L::MONITOR_RELEASED | L::MONITOR_POSITION_COMPLETE);
+        r.drive.status = 0x8050;
+        CHECK(!r.motion.actionReportNamed());
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@80 mode 101 3");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"firmware_unqualified\":false");
+        CHECK(r.motion.normalResult().kind == E::MotionKind::MODE_SELECT &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED && r.drive.mode == 3);
+        CHECK(uploadsOf(r, first, 0x1000) == 1 && uploadsOf(r, first, 0x2000) == 1 && uploadsOf(r, first, 0x1001) == 1);
+        CHECK(downloadsFrom(r, first, 0x6060) == 1 && !downloadsFrom(r, first, 0x6040));
+        CHECK(!r.motion.preparing() && r.motion.nativeAction() &&
+              r.motion.nativeAction()->modeSelect.identity.outcome == L::IdentityOutcome::CONFIRMED &&
+              !r.motion.nativeAction()->modeSelect.identity.firmwareUnqualified);
+        transcript += output;
+    }
+    {
+        ConsoleRig r; // The power-up report: the measured enable, words 6, 7 and 15.
+        r.drive.followEnable = true;
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@81 enable 101");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"firmware_unqualified\":true"); // This fake's own firmware fields.
+        CHECK(r.motion.normalResult().kind == E::MotionKind::ENABLE &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED);
+        CHECK(r.motion.nativeAction()->enable.evidence.gate == L::EnableGate::MEASURED);
+        CHECK(uploadsOf(r, first, 0x1000) == 1 && wordsFrom(r, first, 6) == 1 && wordsFrom(r, first, 7) == 1 &&
+              wordsFrom(r, first, 15) == 1);
+        transcript += output;
+    }
+    {
+        ConsoleRig r; // The power-up report: release row 1, the one word 0x0006, after a CONTROL read.
+        r.drive.followRelease = true;
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@82 motor-release 101");
+        contains(output, "\"result\":\"accepted\"");
+        CHECK(r.motion.normalResult().kind == E::MotionKind::RELEASE &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED);
+        CHECK(uploadsOf(r, first, 0x1000) == 1 && uploadsOf(r, first, 0x2500) == 1 &&
+              downloadsFrom(r, first, 0x6040) == 1);
+        transcript += output;
+    }
+    {
+        ConsoleRig r; // An enabled report: the library refuses the mode select after the reads, nothing written.
+        r.drive.status = 0x8437;
+        r.drive.monitor = 1;
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@83 mode 101 3");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"ok\":false");
+        contains(output, "\"status\":\"INVALID_CONFIG\"");
+        CHECK(r.motion.normalResult().state == M::ActionState::FAILED &&
+              r.motion.normalResult().execution == M::ActionExecution::NOT_TRANSMITTED &&
+              !r.motion.normalResult().uncertain);
+        CHECK(!downloadsFrom(r, first, 0x6060) && !downloadsFrom(r, first, 0x6040));
+        // A named report still takes the application path, not the console's reads.
+        r.readIdentity();
+        r.readState(r.state, ENABLE_MASK);
+        CHECK(r.motion.releaseNormal());
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        CHECK(r.motion.actionReportNamed());
+        CHECK(!r.motion.startAction(E::MotionKind::MODE_SELECT, 3, reads(), actionPolicy(), r.now, r.now + 1000000));
     }
 }
 // With an axis and a retained operation sharing one numeric ID, `release ID` frees the result and sends no
@@ -987,6 +1064,7 @@ int main(int argc, char** argv) {
     cancelSettlesTheAcceptedDownload();
     deviceZeroNeverSavesOrSetsAHostOrigin();
     explicitEnableAndAlarmClear();
+    regularCommandsReadTheirOwnReport();
     liveHostChangesFollowOnlyTheirOwnEpoch();
     replacedNativeContextCannotBeCancelledOrReleased();
     lookupReleaseAndFrozenOutputMode();

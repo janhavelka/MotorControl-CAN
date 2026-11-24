@@ -89,18 +89,19 @@ commit the ledger with each session's evidence.
 statement that they accept it: TEXT is that statement, stored verbatim in request.json and the send
 entry. No attendant question is asked, and every observation only an attendant could make is stored
 as "unattended: not observed". The line's attended field still reads 1: it records that the host's
-gate was satisfied, here by the waiver. An enable is refused, because its start report needs the
-attendant's power-up shaft observation, and so is --fault-led prompt, unless that observation was
-made and is relayed: --relayed-power-up-shaft FREE|HOLDING with --relayed-shaft-source TEXT, the
-user's own report of the shaft as they felt it after the power-up and before anything was sent,
-with where and when they gave it. It is stored as relayed, never inferred from the drive.
+gate was satisfied, here by the waiver. --fault-led prompt is refused. An enable needs
+--waiver-covers-motion; since fix round c the power-up enable (start 1) is the library's measured power-up
+start, which consults no shaft observation, so none is asked and its line carries shaft 0. An observation the
+user made may still be relayed and recorded: --relayed-power-up-shaft FREE|HOLDING with
+--relayed-shaft-source TEXT, the user's own report of the shaft as they felt it after the power-up and before
+anything was sent, with where and when they gave it. It is stored as relayed, never inferred from the drive.
 
 --waiver-covers-motion, only with --unattended-waiver, states that the user's statement explicitly accepts
 enables and velocity runs with nobody at the bench and nobody holding the cutoff (2026-11-11: "do a full night
 soak without my attendance / You can do motion tests, speeding up, changing speed on the fly etc"). With it
 a velocity line and a released enable are admitted unattended; the velocity scope and bounds,
 the S16 alerts and every other check are unchanged, and request.json and the send entry record it. A power-up
-enable still needs a relayed shaft: a waiver is not an observation.
+enable is admitted the same way and needs no shaft observation (fix round c).
 
 Drives kept powered (2026-11-10): mode1 decides its start from the first of its two full reads. Mode 0 is the
 power-up baseline, checked as before. Mode 3 is the released standstill a stop left: both reads released with
@@ -145,6 +146,14 @@ word than the row's, never over an alarm, running or a released report; any othe
 --experiment, is refused here before anything is sent. Then at most --cycles (1..16) cycles --interval-ms (100..5000)
 apart until the row's released report (TRIAL_RELEASE). Never a stop, never a standstill claim, never resent. It is
 attended and counted like the settings routes: three per node, no motion weight.
+
+save (prompt 57, `Ts`) runs the library's explicit parameter save (prepareSave, 2300=2) with no review guard
+set: a fresh identity read, a clean STATUS and MONITORS read and a MOTION_PARAMETERS read, then the one 2300
+download (TRIAL_SAVE). Its acknowledgement claims no durability; nothing is resent, and a lost or refused reply
+stays uncertain. It changes the drive's stored parameters, so it requires --persistent, the operator's explicit
+statement that a persistent write is intended. The owner-absence rule of docs/prompts/COMMON.md (nothing
+persistent while nobody can reach the bench) is policy that the operator applies: this runner documents it and
+checks no date. It is attended and counted like the settings routes, three per node, with no motion weight.
 
 loop (protocol 13, backlog S21) writes one volatile 2500 loop selector, --value 0 (noneffective), 1 (open loop) or
 2 (closed loop) (EN86/ZH86 p19), through the library's prepareControlSettings, like subdivision: a fresh 2500/2501
@@ -238,8 +247,12 @@ TRIALS = {
     "velocity-change": ("v", True, "prompt52 finite positive velocity-change experiment"),
     "velocity-nmt": ("n", True, "prompt54 finite velocity with addressed NMT STOP and PREOP"),
     # Prompt 57: the release trials, one word from the library's measured release table (or the explicit
-    # experiment's 0x0000 or 0x0006) and its cycles. It frees the shaft without motion: a settings route.
-    "motor-release": ("r", False, "prompt 57 release table"),
+    # experiment's 0x0000 or 0x0006) and its cycles. A 6040 word that frees the shaft: motion class, as the
+    # firmware's isMotion counts it (fix round c).
+    "motor-release": ("r", True, "prompt 57 release table"),
+    # Prompt 57: the explicit parameter save, one 2300=2 through the library's prepareSave. Persistent:
+    # --persistent is required.
+    "save": ("s", False, "prompt 57 explicit parameter save"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -248,7 +261,7 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
 SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop", "mode-probe",
-                   "motor-release")
+                   "save")
 # release's experiment words, as LICHUAN_C::ReleaseExperiment admits them: 0x0000 and 0x0006, nothing else.
 RELEASE_EXPERIMENT_WORDS = (0x0000, 0x0006)
 RELEASE_CYCLES = (1, 16)  # BenchRoute.cpp RELEASE_FIELDS: CYCLES and MODE_INTERVAL.
@@ -361,6 +374,10 @@ ENABLE_STARTS = {"NO_MOTION_WRITE_RECORDED": 1, "RELEASED": 2}
 # line reserves its terminals and time, so 10000/800, which fits start 1, is refused as capacity.
 ENABLE_STOP_MS = 1500
 ENABLE_STOP_INTERVAL_MS = 500
+# The measured power-up start's shaft basis (fix round c): none, because the library judges the fresh report
+# alone and consults no shaft observation.
+POWER_UP_SHAFT_BASIS = ("measured power-up start (EnableGate::MEASURED, EnableStart::POWER_UP): the fresh report "
+                        "alone decides; no shaft observation is consulted or asked")
 # A released start's shaft basis, stored instead of a typed answer: the drive's own released report.
 RELEASED_SHAFT_BASIS = ("read from the drive's released start report (2100 bit 4 set: the power stage is off) at the "
                         "user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt")
@@ -506,8 +523,8 @@ def trial_line(args, parser):
                          "6040, target, ramp or mode write since power-up other than one acknowledged 6060=1) or "
                          "--released (the drive reads the released standstill; the firmware and library check that "
                          "report, the operator owns the rest)")
-        # Start 1: the shaft is a placeholder that the attendant's typed observation replaces. Start 2: FREE, the
-        # released start report's own basis, never asked.
+        # Start 1, the measured power-up start (fix round c): 0, no observation, never asked; only a relayed one
+        # replaces it. Start 2: FREE, the released start report's own basis, never asked.
         start = ENABLE_STARTS["RELEASED" if released else "NO_MOTION_WRITE_RECORDED"]
         fields += [1, start, SHAFT["FREE"] if released else 0,
                    _within(parser, "status", args.status, 0, 0xFFFF),
@@ -603,6 +620,11 @@ def trial_line(args, parser):
                    _within(parser, "interval-ms", args.interval_ms, *CONTROLWORD_INTERVAL_MS)]
     elif args.command == "subdivision":
         fields += [1, _within(parser, "value", args.value, *SUBDIVISION_RANGE)]
+    elif args.command == "save":
+        if not args.persistent:
+            parser.error("save writes the drive's stored parameters (2300=2): --persistent is required to state that "
+                         "a persistent write is intended (owner-absence rule: docs/prompts/COMMON.md)")
+        fields += [1]
     elif args.command == "loop":
         fields += [1, _within(parser, "value", args.value, *LOOP_RANGE)]
     elif args.command == "motor-release":
@@ -701,6 +723,8 @@ def trial_line(args, parser):
         parser.error("--word belongs to controlword and motor-release")
     if args.command != "motor-release" and args.experiment:
         parser.error("--experiment belongs to motor-release")
+    if args.command != "save" and args.persistent:
+        parser.error("--persistent belongs to save")
     if args.command != "velocity" and args.range_probe:
         parser.error("--range-probe belongs to velocity")
     if args.command != "velocity" and args.reverse:
@@ -762,24 +786,27 @@ def plan_bounds(command, fields):
         return 2 + 5 + 1 + 2 + 2, 0  # DRIVER, STATUS and MONITORS, the 2201 write, the readback, DRIVER again.
     if command == "loop":
         return 2 + 5 + 1 + 2 + 2, 0  # CONTROL, STATUS and MONITORS, the 2500 write, the readback, CONTROL again.
+    if command == "save":
+        return 9 + 5 + 3 + 1, 0  # Identity, STATUS and MONITORS, MOTION_PARAMETERS, the one 2300 download.
     if command == "motor-release":
         cycles, interval = fields[5:7]
-        # CONTROL (2500, 2501), the full read, the one word, at most the stated seven-field cycles and one of
-        # margin, within the mode select's span (BenchRoute.cpp terminalBound and durationBound).
-        return 2 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
+        # Identity (prompt 57), CONTROL (2500, 2501), the full read, the one word, at most the stated
+        # seven-field cycles and one of margin, within the mode select's span (BenchRoute.cpp terminalBound
+        # and durationBound).
+        return 9 + 2 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "mode1":
         cycles, interval = fields[3:5]
-        # The readiness reads less their image, a second full read, then the typed mode select (prompt 57): its
-        # 6060 and at most the stated seven-field cycles plus one of margin, within its write and one cycle at
-        # the full route budgets (8 x 350 ms) and the stated intervals.
-        return 15 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
+        # Identity (prompt 57), the readiness reads less their image, a second full read, then the typed mode
+        # select: its 6060 and at most the stated seven-field cycles plus one of margin, within its write and
+        # one cycle at the full route budgets (8 x 350 ms) and the stated intervals.
+        return 9 + 15 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "mode-probe":
         cycles, interval = fields[4:6]
         return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval
     if command == "mode3":
         cycles, interval = fields[3:5]
-        # Two full reads, then the typed mode select, bounded as mode1's.
-        return 9 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
+        # Identity (prompt 57), two full reads, then the typed mode select, bounded as mode1's.
+        return 9 + 9 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "position-change":
         return (9 + 3 + 1 + 5 + 4 + 7 * fields[13] + _stop_terminals(fields[16], fields[18]),
                 fields[12] + fields[17])
@@ -1229,20 +1256,11 @@ def before_send(args, fields, ask, operator):
                                       "source": args.relayed_shaft_source, "accepted": True}
         fields[4] = SHAFT[args.relayed_power_up_shaft]
     elif args.command == "enable":
-        # The answer is what a person felt. A start report from the drive is never a substitute: on
-        # 2026-11-05 (trials 704, 712) HOLDING was typed from 8437/0001 with nobody at the shaft, and
-        # that passed the library guard which exists for exactly this observation.
-        try:
-            shaft = ask_operator(ask, operator, "power_up_shaft",
-                                 "Attendant: turn the node %d shaft by hand now. Type FREE or HOLDING as felt, "
-                                 "or UNOBSERVED if nobody felt it (the enable is then refused): " % node,
-                                 lambda text: SHAFT.get(text))
-        except Refused:
-            if operator["power_up_shaft"]["typed"] == "UNOBSERVED":
-                raise Refused("power_up_shaft: not observed; an enable needs the attendant's own shaft "
-                              "observation, never a value inferred from the drive's start report")
-            raise
-        fields[4] = shaft
+        # Fix round c: start 1 is the library's measured power-up enable, judged on the fresh report alone, which
+        # consults no shaft observation; COMMON forbids a typed one while the owner is away. Never asked: field 5
+        # stays 0 (none recorded).
+        operator["power_up_shaft"] = {"asked": False, "basis": POWER_UP_SHAFT_BASIS, "accepted": True}
+        fields[4] = 0
     if args.command == "home":
         # Recorded, never sent and never interpreted: the route opens no homing gate whatever is typed.
         question = ("Attendant: which DI terminals of node %d are wired to a switch, as seen? Type NONE, or the "
@@ -1591,7 +1609,9 @@ def dry_run(args, fields):
                   "above, never counted as motion" % (ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS))
             print("  no shaft question: field 5 is FREE, %s" % RELEASED_SHAFT_BASIS)
         elif args.command == "enable":
-            print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
+            print("  start 1 NO_MOTION_WRITE_RECORDED: the library's measured power-up enable (EnableGate::MEASURED, "
+                  "EnableStart::POWER_UP) on the fresh report alone; no shaft question: field 5 is %d"
+                  % fields[4])
         if args.command == "mode1":
             print("  two full reads; the first decides the start: mode 0, the power-up check on both; mode 3, both "
                   "released (2100 bit 4, alarm clear, 6041 bits 0..6 0x50, 606C 0, 1001 and 603F 0, the same 6064, "
@@ -1672,6 +1692,12 @@ def dry_run(args, fields):
                       % fields[4])
             print("  then at most %d STATUS/MONITORS/FEEDBACK cycles %d ms apart until the row's released report; "
                   "never a stop, never a standstill claim, no second word, no retry" % (fields[5], fields[6]))
+        if args.command == "save":
+            print("  prompt 57: one fresh identity read, a clean STATUS and MONITORS read and one MOTION_PARAMETERS "
+                  "read, then the library's prepareSave with no review guard: one download 2B 00 23 00 02 00 00 00 "
+                  "(2300 = 2, save parameters); persistent (--persistent given)")
+            print("  its acknowledgement claims no durability; no readback, restart, retry or second write; a lost or "
+                  "refused reply stays uncertain")
         if args.command == "loop":
             print("  protocol 13, 2500: one fresh 2500/2501 read and a clean STATUS and MONITORS read; the library "
                   "refuses 2100 running, an alarm or an undocumented bit, and closed loop while 2501 reads 0, and the "
@@ -1766,6 +1792,8 @@ def arguments(argv):
     word.add_argument("--experiment", action="store_true",
                       help="motor-release: set LICHUAN_C::ReleaseExperiment with --word; without it the measured table "
                            "chooses the word")
+    trial.add_argument("--persistent", action="store_true",
+                       help="save: the operator's explicit statement that a persistent 2300=2 write is intended")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
@@ -1817,9 +1845,10 @@ def arguments(argv):
             parser.error("--unattended-waiver refuses a released enable: word 7 moves the rotor to "
                          "the drive's internal command with no bound known, so the attendant with the independent "
                          "cutoff is its only control")
-        if args.command == "enable" and not args.relayed_power_up_shaft and not released_start(args):
-            parser.error("--unattended-waiver refuses enable: its start report needs the attendant's power-up "
-                         "shaft observation (relay one the user made with --relayed-power-up-shaft)")
+        if args.command == "enable" and not released_start(args) and not args.waiver_covers_motion:
+            parser.error("--unattended-waiver refuses a power-up enable without --waiver-covers-motion: word 7 "
+                         "energizes the drive again, so the attendant with the independent cutoff is its only "
+                         "control; no shaft observation is needed")
         if args.fault_led == "prompt":
             parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
         if args.command in ("velocity", "velocity-change", "velocity-nmt", "position-change") and not args.waiver_covers_motion:

@@ -50,6 +50,7 @@ INPUT += examples/common/ProbeDevice.h examples/common/ProbeSettings.h
 INPUT += examples/common/ProbeCommissioning.h
 
 INPUT += examples/common/ProbeMotion.h examples/common/MotionIntent.h examples/common/AxisSession.h
+INPUT += examples/common/SelectedAxis.h
 
 INPUT += examples/fieldcore_consumer/MotorModule.h
 INPUT += examples/common/GroupStop.h examples/common/WiredStopOutput.h examples/common/StartupColdStorage.h docs/multi_axis.md

@@ -367,11 +367,21 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Ident
     if (!next)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
     const uint32_t last = next - 1;
-    // Check everything before the owner moves; the context is written only once that succeeded.
-    const M::Status checked =
-        L::validateEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options);
+    // Check everything before the owner moves; the context is written only once that succeeded. The latest
+    // acknowledged controlword lets the library answer already enabled (fix round c): word 6 would drop the
+    // holding torque of a drive this session enabled.
+    const C::SdoCompletion* control = controlPresent_ ? &control_ : nullptr;
+    const M::Status checked = L::validateEnable(enable_, reservation_, state, identity, evidence, last + 1, now,
+                                                deadline, options, control);
     if (!checked)
         return checked;
+    if (L::alreadyEnabled(reservation_, state, evidence, control, now)) {
+        // Answered from the report alone: terminal already, with no work for an owner operation to hold.
+        L::prepareEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options, control);
+        enableWithdrawn_ = M::ActionOutcome::NONE;
+        lastUs_ = now;
+        return M::Ok();
+    }
     // After the library's checks, so that a closed gate or a zero trial reports as such.
     if (!measured && evidence.trial <= lastTrial_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
@@ -379,7 +389,7 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Ident
     if (!owner_.beginOperation(sequence_, last + 1, deadline, now))
         return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
     // Same values as the check above, and only the owner moved, so this cannot refuse.
-    L::prepareEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options);
+    L::prepareEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options, control);
     operation_ = last + 1;
     if (!measured)
         lastTrial_ = evidence.trial;
@@ -1295,8 +1305,8 @@ M::Status AxisSession::requestCounterZero(const L::ReadContext& state, int64_t n
     return startClear(state, nativePosition, &axis, &reference, options, deadline, now,
                       L::AlarmClearMethod::OBJECT_2301);
 }
-M::Status AxisSession::requestModeSelect(const L::ReadContext& state, uint8_t modeRaw,
-                                         const L::ActionOptions& options, uint64_t deadline,
+M::Status AxisSession::requestModeSelect(const L::ReadContext& state, const L::IdentityObservation& identity,
+                                         uint8_t modeRaw, const L::ActionOptions& options, uint64_t deadline,
                                          uint64_t now) noexcept {
     // A running velocity or homing run may not show in a fresh report yet (requestStop), so the mode
     // stays as it is until a checked stop or acknowledgeStandstill; a drive fault alone does not refuse it.
@@ -1313,7 +1323,7 @@ M::Status AxisSession::requestModeSelect(const L::ReadContext& state, uint8_t mo
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
                          "mode select needs a fresh report taken after this session's latest write");
     // prepareModeSelect validates everything before it writes the context, so a refusal changes nothing.
-    s = L::prepareModeSelect(clear_, reservation_, state, modeRaw, next, now, deadline, options);
+    s = L::prepareModeSelect(clear_, reservation_, state, identity, modeRaw, next, now, deadline, options);
     if (!s)
         return s;
     if (clear_.modeSelect.alreadySelected) {
@@ -1327,9 +1337,9 @@ M::Status AxisSession::requestModeSelect(const L::ReadContext& state, uint8_t mo
     }
     return beginSlot(next, deadline, now, nullptr, nullptr);
 }
-M::Status AxisSession::requestRelease(const L::ReadContext& state, const L::ControlObservation* loop,
-                                      const L::ReleaseExperiment& experiment, const L::ActionOptions& options,
-                                      uint64_t deadline, uint64_t now) noexcept {
+M::Status AxisSession::requestRelease(const L::ReadContext& state, const L::IdentityObservation& identity,
+                                      const L::ControlObservation* loop, const L::ReleaseExperiment& experiment,
+                                      const L::ActionOptions& options, uint64_t deadline, uint64_t now) noexcept {
     // A velocity or homing run that still needs a stop may not show running in a fresh report: a release
     // is no stop, so it waits for that stop or acknowledgeStandstill.
     uint32_t next = 0;
@@ -1343,8 +1353,13 @@ M::Status AxisSession::requestRelease(const L::ReadContext& state, const L::Cont
         status.window.earliestUs < lastWriteUs_ || monitors.window.earliestUs < lastWriteUs_)
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
                          "release needs a fresh report taken after this session's latest write");
+    // Row 2's 2500=1 is part of that report (fix round c): a loop read from before this session's latest
+    // write, a 2500 write included, shows a selector that may no longer be set.
+    if (loop && loop->window.earliestUs < lastWriteUs_)
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
+                         "release needs a 2500 read taken after this session's latest write");
     // prepareRelease validates everything before it writes the context, so a refusal changes nothing.
-    s = L::prepareRelease(clear_, reservation_, state, loop, experiment, next, now, deadline, options);
+    s = L::prepareRelease(clear_, reservation_, state, identity, loop, experiment, next, now, deadline, options);
     if (!s)
         return s;
     if (!clear_.release.decision.send) {

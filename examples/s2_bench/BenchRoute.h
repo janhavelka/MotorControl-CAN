@@ -39,9 +39,10 @@
  *   unchanged.
  * - ENABLE, packet 15 P3. The identity read (prompt 57: product fields that differ refuse, firmware fields
  *   only flag), a fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then AxisSession::requestEnable.
- *   Start 1 is the attended power-up trial (EnableGate::ATTENDED_EXPERIMENT) with the host's trial, start
- *   record, reviewed 6041, 607A and 60FF and the attendant's shaft observation; the firmware never supplies
- *   an observation itself, and the session's own write record still refuses it after a write of this boot.
+ *   Start 1 is the regular measured power-up enable (EnableGate::MEASURED, EnableStart::POWER_UP, fix round
+ *   c of prompt 57) on the fresh measured power-up report alone: the line's trial, shaft, start record and
+ *   reviewed 6041, 607A and 60FF are recorded but not consulted, so no typed shaft observation is needed; the
+ *   route's own policy still refuses it after a motion write of this boot by the session.
  *   Start 2 is the regular measured enable (EnableGate::MEASURED, EnableStart::RELEASED, prompt 57) on the
  *   fresh released report alone: no recorded stop, trial log or per-boot history, and the line's trial,
  *   shaft 1 (FREE, read from the released start report at the user's instruction of 2026-11-10, never
@@ -445,12 +446,11 @@ struct RoutePlan {
     int32_t pairStartPosition = 0;
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
-    /** ENABLE: 1 EnableStart::NO_MOTION_WRITE_RECORDED, the attended power-up trial, or 2 EnableStart::RELEASED
-     * under EnableGate::MEASURED. Start 2 also reserves the route's own QUICK_STOP after a failure once word 15
-     * may have reached the drive. */
+    /** ENABLE: 1 EnableStart::POWER_UP or 2 EnableStart::RELEASED, both under EnableGate::MEASURED. Start 2
+     * also reserves the route's own QUICK_STOP after a failure once word 15 may have reached the drive. */
     uint8_t start = 0;
-    /** ENABLE: shaft observation, 1 FREE or 2 HOLDING. Start 1: the attendant's typed observation. Start 2:
-     * always 1, read from the released start report, never felt. */
+    /** ENABLE: shaft observation, 0 none, 1 FREE or 2 HOLDING, recorded and not consulted. Start 1: 0, or
+     * the host's relayed record. Start 2: always 1, read from the released start report, never felt. */
     uint8_t shaft = 0;
     uint16_t reviewedStatus = 0;        ///< ENABLE: exact reviewed 6041.
     int32_t reviewedPositionTarget = 0; ///< ENABLE: exact reviewed 607A, history and not intent.
@@ -1303,7 +1303,7 @@ class BenchRoute {
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
     // RouteKind up to VELOCITY_CHANGE, the last motion route.
     RouteCaps caps_; // Optional per-boot caps, all off by default (2026-11-17).
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::VELOCITY_NMT) + 1][BENCH_NODES] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::RELEASE) + 1][BENCH_NODES] = {};
     uint8_t positionChangeCases_[8][BENCH_NODES] = {}; ///< Per experimental position case and node.
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;
@@ -1320,7 +1320,7 @@ class BenchRoute {
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
-    uint8_t settingsCases_[18][BENCH_NODES] = {}; ///< Row 16: SAVE; row 17: RELEASE.
+    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE.
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;

@@ -2,6 +2,7 @@
 #include "FakeTransport.h"
 #include "ProbeApp.h"
 #include "ProbeConsole.h"
+#include "SelectedAxis.h"
 #include <cstdio>
 #include <cstring>
 #ifdef _WIN32
@@ -112,6 +113,10 @@ int runConsoleFake(const char* path) {
     E::ProbeSync sync(owner);
     console.attachSync(sync);
     console.attachDevice(device);
+    // Prompt 57: the regular commands and persistence act on the first selected axis, with their own fresh
+    // reads. The fixture declares CL86-C so that they reach the library; its identity is synthetic and its
+    // replies identity-only, so their state reads fail and nothing is ever written.
+    E::SelectedAxis selectedAxis(app, owner, services, console, L::SettingsModel::CL86_C);
     E::HostInterfaceFacts interface;
     interface.interfaceKnown = interface.bitrateKnown = true;
     interface.interfaceId = target.channel.binding.endpoint.bus;
@@ -142,6 +147,7 @@ int runConsoleFake(const char* path) {
             }
         }
         console.service(fake.nowUs());
+        selectedAxis.follow(fake.nowUs());
         if (consumed == batch.inputSize && console.drained() && !platform.stats().outputUsed) {
             complete = true;
             break;

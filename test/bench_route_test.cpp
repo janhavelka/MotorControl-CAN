@@ -220,6 +220,9 @@ bool has(const std::string& text, const char* part) { return text.find(part) != 
 void testParse() {
     scenario = "parse";
     E::RoutePlan p;
+    // Fix round c: start 1, the measured power-up start, records no shaft (0); start 2 still carries FREE only.
+    CHECK(E::parseRouteCommand("E1,7,1,1,0,0,0,0,10000,800", 26, p) && p.kind == E::RouteKind::ENABLE &&
+          p.start == 1 && p.shaft == 0);
     CHECK(E::parseRouteCommand("A1,5", 4, p) && p.kind == E::RouteKind::READ_ACTIONS && p.node == 1 && p.trial == 5);
     CHECK(E::parseRouteCommand("I2,4294967295", 13, p) && p.kind == E::RouteKind::READ_IO && p.trial == UINT32_MAX);
     CHECK(E::parseRouteCommand("U1,9", 4, p) && p.kind == E::RouteKind::READ_TUNING);
@@ -256,7 +259,7 @@ void testParse() {
     const char* const bad[] = {"", "A", "A1", "A1,", "A0,5", "A3,5", "A1,0", "A1,5,", "A1,5,1", "X1,5",
                                "a1,5", "A1, 5", "A+1,5", "A1,-5", "A1,99999999999", "A1,4294967296",
                                "M1,6,1,0,250", "M1,6,1,11,250", "M1,6,1,3,99", "M1,6,2,3,250", "M1,6,1,3",
-                               "E1,7,1,0,1,0,0,0,10000,800", "E1,7,1,1,0,0,0,0,10000,800",
+                               "E1,7,1,0,1,0,0,0,10000,800", "E1,7,1,2,0,0,0,0,10000,800",
                                "E1,7,1,1,3,0,0,0,10000,800", "E1,7,1,1,1,65536,0,0,10000,800",
                                "E1,7,1,1,1,0,0,0,55001,800", "E1,7,1,1,1,0,0,0,10000,9",
                                "E1,7,1,1,1,0,2147483648,0,10000,800", "E1,7,1,1,1,-1,0,0,10000,800",
@@ -498,6 +501,7 @@ void testModeEnableStop() {
     CHECK(mode.failure == E::RouteFailure::NONE && mode.cycles == 1 && mode.checkPresent && mode.checkPassed &&
           mode.modeRequested && mode.firstPresent);
     size_t at = 0;
+    expectUploads(*r, at, 1, IDENTITY, 9); // Prompt 57: the mode select compares the identity.
     expectUploads(*r, at, 1, FULL, 9);
     const Address rest[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x1017, 0}, {0x607a, 0}, {0x60ff, 0}};
     expectUploads(*r, at, 1, rest, 6);
@@ -512,6 +516,10 @@ void testModeEnableStop() {
           select.modeSelect.start == L::ModeSelectStart::POWER_UP && select.modeSelect.requestedModeRaw == 1 &&
           select.execution == M::ActionExecution::ACKNOWLEDGED &&
           select.completion == M::ActionCompletion::OBSERVED);
+    // This fake's firmware fields are its own: the write ran, flagged firmware unqualified.
+    CHECK(select.modeSelect.identity.outcome == L::IdentityOutcome::CONFIRMED &&
+          select.modeSelect.identity.firmwareUnqualified &&
+          select.modeSelect.identity.observed.firmwareCode == FIRMWARE);
     std::string text = r->dump();
     CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=00"));
     CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=00"));
@@ -623,7 +631,7 @@ void testPrerequisitesAndLostReplies() {
     r->driver.drives[0].mode = 1;
     const E::RouteRecord& m = r->run("M1,1,1,3,200");
     CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0);
-    CHECK(r->downloadsFrom(0) == 0 && m.terminalCount == 24); // Both full reads come before the check.
+    CHECK(r->downloadsFrom(0) == 0 && m.terminalCount == 9 + 24); // The identity and both full reads come first.
     r->release();
     r->driver.drives[0].mode = 0;
     r->driver.drives[0].velocity = 2;
@@ -692,26 +700,38 @@ void testPrerequisitesAndLostReplies() {
     CHECK(p->downloadsFrom(second) == 5);
     p->dump();
 }
-// Enable refusals and withdrawals: reviewed mismatch, EMCY and a local abort.
+// Enable refusals and withdrawals: the measured power-up start, EMCY and a local abort.
 void testEnableWithdrawals() {
-    scenario = "enable-mismatch";
+    scenario = "enable-measured-power-up";
+    // Fix round c: start 1 is the measured power-up enable. The line's reviewed values (here 607A 5001 and
+    // 6041 8036, neither what the drive reports) and shaft (0, none recorded) are recorded but not consulted: the fresh report
+    // alone decides, and the drive's measured power-up report runs the three words.
     std::unique_ptr<Rig> r(new Rig);
     r->run("M1,1,1,1,200");
     r->release();
     r->heartbeat(1);
     const size_t first = r->driver.requests.size();
-    const E::RouteRecord& mismatch = r->run("E1,2,1,1,1,32823,5001,120,10000,800");
-    CHECK(mismatch.failure == E::RouteFailure::ACTION && r->downloadsFrom(first) == 0);
-    CHECK(has(r->dump(), "TRIAL_ENABLE own=1 state=3"));
+    const E::RouteRecord& measured = r->run("E1,2,1,1,0,32822,5001,120,10000,800");
+    CHECK(measured.failure == E::RouteFailure::NONE && measured.enableRequested && r->downloadsFrom(first) == 3);
+    CHECK(r->one.enableAction().enable.evidence.gate == L::EnableGate::MEASURED &&
+          r->one.enableAction().enable.start == L::EnableStart::POWER_UP);
+    CHECK(has(r->dump(), "TRIAL_ENABLE own=1 state=2"));
     r->release();
 
     scenario = "enable-refused";
-    // Without the attendant's shaft observation the library refuses the power-up enabled pattern.
-    // The parser never yields shaft 0, so a held drive with a different reviewed word refuses instead.
-    const E::RouteRecord& refused = r->run("E1,3,1,1,1,32822,5000,120,10000,800");
-    CHECK(refused.failure == E::RouteFailure::REFUSED && refused.statusPresent);
-    CHECK(has(r->dump(), "TRIAL_STATUS code="));
-    r->release();
+    // Start 1 names the power-up start: a fresh released report is another start, refused before any word
+    // whatever the line says.
+    std::unique_ptr<Rig> f(new Rig);
+    f->run("M1,1,1,1,200");
+    f->release();
+    f->heartbeat(1);
+    f->driver.drives[0].monitor = 0x0011; // Released and in place: the released standstill.
+    f->driver.drives[0].status = 0x8050;
+    const size_t before = f->driver.requests.size();
+    const E::RouteRecord& refused = f->run("E1,3,1,1,1,32807,5000,120,10000,800");
+    CHECK(refused.failure == E::RouteFailure::REFUSED && refused.statusPresent && f->downloadsFrom(before) == 0);
+    CHECK(has(f->dump(), "TRIAL_STATUS code="));
+    f->release();
 
     scenario = "enable-emcy";
     std::unique_ptr<Rig> e(new Rig);
@@ -801,13 +821,18 @@ void testMotionBudget() {
         r->release();
         r->heartbeat(node);
     }
-    // A reviewed 607A that does not match ends each enable before any word, so none writes.
+    // A released report under a line naming the power-up start ends each enable before any word (fix round c:
+    // the measured start is judged on the fresh report), so none writes.
+    for (unsigned node = 0; node < 2; ++node) {
+        r->driver.drives[node].monitor = 0x0011;
+        r->driver.drives[node].status = 0x8050;
+    }
     for (unsigned i = 0; i < 3; ++i) {
-        CHECK(r->run("E1," + id() + ",1,1,1,32823,5001,120,10000,800").failure == E::RouteFailure::ACTION);
+        CHECK(r->run("E1," + id() + ",1,1,1,32823,5001,120,10000,800").failure == E::RouteFailure::REFUSED);
         r->release();
     }
     CHECK(std::strcmp(r->start("E1," + id() + ",1,1,1,32823,5001,120,10000,800"), "budget") == 0);
-    CHECK(r->run("E2," + id() + ",1,1,1,32823,5001,120,10000,800").failure == E::RouteFailure::ACTION);
+    CHECK(r->run("E2," + id() + ",1,1,1,32823,5001,120,10000,800").failure == E::RouteFailure::REFUSED);
     r->release();
     CHECK(r->route.motionAdmissions() == 12);
     CHECK(std::strcmp(r->start("E2," + id() + ",1,1,1,32823,5001,120,10000,800"), "budget") == 0);
@@ -1706,6 +1731,7 @@ void testPlanValidation() {
     bad[9].stopAfter = 0; // A stop naming no cycle.
     bad[10] = stop;
     bad[10].bestEffortMs = 1000; // Best effort before the deadline.
+    bad[11].start = 2; // A released start carries FREE (1) only; start 1 may record none (fix round c).
     bad[11].shaft = 0;
     for (const E::RoutePlan& plan : bad) {
         CHECK(!E::routePlanValid(plan));
@@ -3367,12 +3393,13 @@ void testModeThree() {
     CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && m.firstPresent && m.modeRequested && m.cycles == 1);
     CHECK(m.motionTotal == 1 && m.caseCount == 1 && d.mode == 3);
     size_t at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9); // Prompt 57: the mode select compares the identity.
     expectUploads(*r, at, 1, FULL, 9);
     expectUploads(*r, at, 1, FULL, 9);
     const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
     CHECK(download(r->driver.requests[at++], 1, three));
     expectUploads(*r, at, 1, IMAGE, 7);
-    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1 && m.terminalCount == 9 + 9 + 1 + 7);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1 && m.terminalCount == 9 + 9 + 9 + 1 + 7);
     std::string text = r->dump();
     CHECK(has(text, "TRIAL id=2 node=1 route=mode3 failure=0 why=none "));
     CHECK(has(text, "TRIAL_PLAN route=mode3 node=1 trial=2 attended=1 cycles=2 interval=200\n"));
@@ -4060,6 +4087,7 @@ void testVelocityHomePlan() {
     for (unsigned node = 1; node <= 2; ++node) {
         Drive& d = r->driver.drives[node - 1];
         d.releaseWords = d.spins = true;
+        d.releasePattern = true; // The measured released pattern after 000B (8050), which a mode select needs.
         documentedInputs(d);
     }
     // Trials 1001 and 1002: both sessions first, as the procedure allocates them.
@@ -4849,8 +4877,9 @@ void testReleasedModeOneChain() {
     size_t first = r->driver.requests.size();
     const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,4,200");
     CHECK(m.failure == E::RouteFailure::NONE && m.firstPresent && m.checkPassed && m.cycles == 1);
-    CHECK(m.terminalCount == 15 + 9 + 1 + 7 && d.mode == 1);
+    CHECK(m.terminalCount == 9 + 15 + 9 + 1 + 7 && d.mode == 1);
     size_t at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9);
     expectUploads(*r, at, 1, FULL, 9);
     const Address rest[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x1017, 0}, {0x607a, 0}, {0x60ff, 0}};
     expectUploads(*r, at, 1, rest, 6);
@@ -5163,7 +5192,7 @@ void testReleasedModeOneRefusals() {
         const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
         CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, k.why) == 0);
         CHECK(m.firstPresent && !m.checkPassed && r->downloadsFrom(0) == 0 && d.mode == 3);
-        CHECK(m.terminalCount == 15 + 9);
+        CHECK(m.terminalCount == 9 + 15 + 9);
     }
     struct After {
         uint16_t monitor, status;
@@ -5213,7 +5242,7 @@ void testReleasedModeOneRefusals() {
         uint32_t trial = 0;
         const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
         CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0 && m.firstPresent);
-        CHECK(m.terminalCount == 15 + 9 && r->downloadsFrom(0) == 0);
+        CHECK(m.terminalCount == 9 + 15 + 9 && r->downloadsFrom(0) == 0);
         // And the released enable in mode 3, before any mode change, is the library's refusal: no write.
         r->release();
         r->driver.drives[0].mode = 3;
@@ -5730,8 +5759,11 @@ void testRelease() {
     r->heartbeat(1);
     size_t first = r->driver.requests.size();
     const E::RouteRecord& released = r->run("r1,2,1,0,0,3,200");
-    CHECK(released.failure == E::RouteFailure::NONE && released.releaseRequested && released.motionTotal == 0);
+    // Motion class since fix round c: one 6040 word that frees the shaft.
+    CHECK(released.failure == E::RouteFailure::NONE && released.releaseRequested && released.motionTotal == 1 &&
+          released.caseCount == 1);
     size_t at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9); // Prompt 57: the release compares the identity.
     const Address control[] = {{0x2500, 0}, {0x2501, 0}};
     expectUploads(*r, at, 1, control, 2);
     expectUploads(*r, at, 1, FULL, 9);
@@ -5740,6 +5772,9 @@ void testRelease() {
     const L::ActionContext& c = r->one.clearAction();
     CHECK(c.actionKind == M::ActionKind::RELEASE && c.state == M::ActionState::SUCCEEDED &&
           c.release.decision.row == L::ReleaseRow::POWER_UP_IDLE && c.release.decision.word == 6);
+    // This fake's firmware fields are its own: the word ran, flagged firmware unqualified.
+    CHECK(c.release.identity.outcome == L::IdentityOutcome::CONFIRMED && c.release.identity.firmwareUnqualified &&
+          c.release.identity.observed.firmwareCode == FIRMWARE);
     std::string text = r->dump();
     CHECK(has(text, "TRIAL_PLAN route=release node=1 trial=2 attended=1 cycles=3 interval=200 word=0000 experiment=0\n"));
     CHECK(has(text, "TRIAL_RELEASE own=1 row=1 refusal=0 word=0006 send=1 experiment=0 "));
@@ -6635,6 +6670,7 @@ void writeTranscript(const char* path, bool all) {
         std::unique_ptr<Rig> m(new Rig);
         Drive& spun = m->driver.drives[0];
         spun.releaseWords = spun.spins = true;
+        spun.releasePattern = true; // The measured released pattern after 000B (8050), which a mode select needs.
         documentedInputs(spun);
         trial = 0;
         enabled(*m, trial, 1);
@@ -7481,18 +7517,21 @@ void replayRouteBootR2c() {
         "END trial terminals=35 traffic=107 tail=6 tailLost=0 lost=0; r=release"};
     trial = 916;
     first = r->driver.requests.size();
-    // The record's replies to its two admission reads (RESULT lines 10-27) and to its last cycle (lines
-    // 38-44), in the typed mode select's order; its third full read (lines 29-37) has no counterpart now.
-    Captured typed[25];
-    std::copy(MODE3_917, MODE3_917 + 18, typed);
-    std::copy(MODE3_917 + 27, MODE3_917 + 34, typed + 18);
+    // Since fix round c the route reads the identity first, which the mode select compares: node 2's identity
+    // replies of this boot (home 915's). Then the record's replies to its two admission reads (RESULT lines
+    // 10-27) and to its last cycle (lines 38-44), in the typed mode select's order; its third full read
+    // (lines 29-37) has no counterpart now.
+    Captured typed[34];
+    std::copy(HOME_915, HOME_915 + 9, typed);
+    std::copy(MODE3_917, MODE3_917 + 18, typed + 9);
+    std::copy(MODE3_917 + 27, MODE3_917 + 34, typed + 27);
     Drive& node2 = r->driver.drives[1];
     node2.script = typed;
-    node2.scriptLength = 25;
+    node2.scriptLength = 34;
     node2.scriptAt = 0;
     r->run(modeThreeLine(2, trial, 2, 500));
     node2.script = nullptr;
-    CHECK(node2.scriptAt == 25);
+    CHECK(node2.scriptAt == 34);
     const std::vector<M::Frame> written = downloads(*r, first, 2);
     const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
     CHECK(written.size() == 1 && frameIs(written[0], three) && node2.mode == 3);
@@ -7510,9 +7549,13 @@ void replayRouteBootR2c() {
         if (line.compare(0, 7, "RESULT ") == 0)
             results.push_back(line);
     }
-    CHECK(results.size() == 26);
-    for (size_t i = 0; i < results.size() && i < 26; ++i)
-        CHECK(sameLine(results[i], mode917[i < 19 ? 7 + i : 35 + (i - 19)], "op req oreq admitted completed step"));
+    CHECK(results.size() == 9 + 26);
+    for (size_t i = 0; i < 9 && i < results.size(); ++i) // The identity, as home 915 read it.
+        CHECK(sameLine(results[i], home915[7 + i], "op req oreq admitted completed step"));
+    for (size_t i = 9; i < results.size() && i < 9 + 26; ++i) {
+        const size_t j = i - 9;
+        CHECK(sameLine(results[i], mode917[j < 19 ? 7 + j : 35 + (j - 19)], "op req oreq admitted completed step"));
+    }
     CHECK(has(r->dump(), "TRIAL_MODE own=1 start=1 requested=3 from=1 state=2 outcome=1 exec=1 completion=1 "));
     CHECK(has(r->dump(), " s0=8050 m0=0011 p0=-49 s1=8050 m1=0011 mode=3 p1=-49 v1=0\n"));
     r->release();

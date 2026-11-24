@@ -27,11 +27,15 @@ struct Fixture {
     L::ReadTarget current;
     L::MoveReplacementEvidence evidence;
     L::MoveReplacementRequest request;
-    Fixture() {
+    // flagged: the original's record names another firmware (1009), so the original runs firmware unqualified.
+    explicit Fixture(bool flagged = false) {
         rig.ready();
         rig.drive.travelReads = 100;
         rig.drive.velocity = 30;
-        CHECK(rig.request(MoveRig::evidence(), moveRequest(TARGET, 30)));
+        L::MoveEvidence first = MoveRig::evidence();
+        if (flagged)
+            ++first.firmware.hardwareVersion;
+        CHECK(rig.request(first, moveRequest(TARGET, 30)));
         for (unsigned i = 0; i < 300 && !rig.a.moveAction().latest.present; ++i)
             rig.step();
         CHECK(rig.a.moveAction().phase == L::MovePhase::WAITING &&
@@ -247,6 +251,24 @@ void measuredBuffered() {
     CHECK(f.changed.acceptance.earliestUs >= f.changed.trigger.completedUs &&
           f.changed.rearmPresent);
 }
+// Fix round c, item 6: a replacement of a move that runs firmware unqualified stays flagged, even when its own
+// record names the drive's firmware; the original's own flag is unchanged.
+void replacementKeepsTheFirmwareFlag() {
+    Fixture f(true);
+    CHECK(f.original.identity.firmwareUnqualified && f.original.identity.expectedMatch);
+    const L::IdentityValues& observed = f.original.identity.observed;
+    f.evidence.firmware.hardwareVersion = observed.hardwareVersion; // The replacement record is the drive's own.
+    f.evidence.firmware.softwareVersion = observed.softwareVersion;
+    f.evidence.firmware.revision = observed.revision;
+    f.evidence.firmware.firmwareCode = observed.firmwareCode;
+    CHECK(f.prepare());
+    CHECK(f.changed.identity.outcome == L::IdentityOutcome::CONFIRMED && f.changed.identity.expectedMatch &&
+          f.changed.identity.firmwareUnqualified);
+    // Without the original's flag the same record is qualified.
+    Fixture g;
+    CHECK(!g.original.identity.firmwareUnqualified);
+    CHECK(g.prepare() && !g.changed.identity.firmwareUnqualified);
+}
 void qualificationAndValidationAreAtomic() {
     Fixture f;
     L::StoredPositionQualification qualification;
@@ -276,5 +298,6 @@ int main() {
     changedTarget();
     failedWriteAndNoReplay();
     measuredBuffered();
+    replacementKeepsTheFirmwareFlag();
     std::printf("move replacement: %u checks\n", checks);
 }

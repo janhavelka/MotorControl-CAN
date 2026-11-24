@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include "ProfileEvidence.h"
 #include "ReadPlan.h"
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
@@ -62,16 +63,15 @@ bool documentedMode(uint8_t mode) {
 constexpr uint16_t POWER_UP_STATUSWORD = 0x8037, POWER_UP_MONITOR = 0x0001;
 // 6041 bits 1 and 2: clear in every released report (8050, C050, 4050, 8031), so low bits 000 or 001.
 constexpr uint16_t STATUS_SWITCHED_ON_BITS = 0x0006;
+bool modeSelectNotEnabled(uint16_t monitor, uint16_t statusword);
 // A mode select's admitted start, judged on one report; the context's shape check judges the record.
 // The requested mode equals the start mode only in an already selected answer, from a released report.
 bool modeSelectAdmitted(const ModeSelectRecord& m) {
-    const bool released = (m.startMonitor & MONITOR_RELEASED) != 0;
     return documentedMode(m.requestedModeRaw) &&
            (m.requestedModeRaw != m.startModeRaw) != m.alreadySelected &&
            (!m.alreadySelected || m.start == ModeSelectStart::NOT_ENABLED) &&
            !(m.startMonitor & MONITOR_ALARM) &&
-           ((m.start == ModeSelectStart::NOT_ENABLED && released &&
-             !(m.startStatusword & STATUS_SWITCHED_ON_BITS)) ||
+           ((m.start == ModeSelectStart::NOT_ENABLED && modeSelectNotEnabled(m.startMonitor, m.startStatusword)) ||
             (m.start == ModeSelectStart::POWER_UP && m.startModeRaw == 0 && m.requestedModeRaw == 1 &&
              m.startStatusword == POWER_UP_STATUSWORD && m.startMonitor == POWER_UP_MONITOR));
 }
@@ -128,6 +128,21 @@ EnableStart startClass(uint16_t monitor, uint16_t statusword) {
                    (statusword & STATUS_LOW_BITS) == STATUS_LOW_BITS
                ? EnableStart::POWER_UP
                : EnableStart::UNKNOWN;
+}
+// A mode select's NOT_ENABLED report (fix round c): the released standstill the enable admits (startClass
+// RELEASED: 2100 released with only in place, homing complete and running beside it, so alarm, both soft
+// limits and every undocumented bit clear; 6041 bits 0..6 0x50 or 0x31). 2100 running only in the exact latch
+// a moving quick stop leaves: 2100 0014 or 0015 with 6041 4050 or C050, bit 14 set (trials 2109 and 1924).
+bool modeSelectNotEnabled(uint16_t monitor, uint16_t statusword) {
+    if (startClass(monitor, statusword) != EnableStart::RELEASED)
+        return false;
+    if (!(monitor & MONITOR_RUNNING))
+        return true;
+    const uint16_t shape = uint16_t(monitor & ~MONITOR_HOMING_COMPLETE);
+    return (shape == (MONITOR_RUNNING | MONITOR_RELEASED) ||
+            shape == (MONITOR_RUNNING | MONITOR_RELEASED | MONITOR_POSITION_COMPLETE)) &&
+           (statusword == (RELEASED_LATCH_STATUS_BIT | RELEASED_PATTERN) ||
+            statusword == (0x8000 | RELEASED_LATCH_STATUS_BIT | RELEASED_PATTERN));
 }
 // 6041 bit 3, the alarm bit of ZH86 p12, and bit 7, that of EN86 p12 and OP86 p10. A mode 3 alarm clear
 // completes only with both clear: node 1 read C018 with its alarm and 8010 after the 2301 clear (trial 5323).
@@ -204,6 +219,11 @@ Status shape(const ActionContext& c, uint64_t now) {
                       : c.release.decision.row != ReleaseRow::NONE) ||
         (selectingMode(c) ? !modeSelectAdmitted(c.modeSelect)
                           : c.modeSelect.start != ModeSelectStart::NONE || c.modeSelect.alreadySelected) ||
+        // An already enabled answer is terminal at preparation and never held any work.
+        (c.enable.alreadyEnabled &&
+         (!enabling(c) || c.state != ActionState::SUCCEEDED || c.execution != ActionExecution::NOT_TRANSMITTED ||
+          c.phase != ActionPhase::COMMAND || c.commandEvidenceMask || c.effectsPossible || c.uncertain ||
+          c.enable.start != EnableStart::POWER_UP || c.enable.evidence.gate != EnableGate::MEASURED)) ||
         // An already selected answer is terminal at preparation and never held any work.
         (c.modeSelect.alreadySelected &&
          (c.state != ActionState::SUCCEEDED || c.execution != ActionExecution::NOT_TRANSMITTED ||
@@ -939,26 +959,53 @@ void resetAction(ActionContext& c) noexcept {
 }
 
 namespace {
-// The prompt 57 identity rule of enable: the product fields refuse, a firmware difference only flags.
-// The reference is the measured specimens' identity, on which every reviewed enable record was made.
-Status enableIdentity(const AxisReservation& r, const IdentityObservation& identity, uint64_t now,
-                      IdentityCheck& check) {
-    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED, now))
-        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET),
-                      "enable needs a current identity read of this boot");
-    if (!check.expectedMatch)
+// The prompt 57 identity rule of enable, mode select and release: the product fields refuse, a firmware
+// difference only flags. The reference is the measured specimens' identity, on which every reviewed
+// enable record, mode write and release row was made.
+// The application's own MEASURED reference (ActionOptions::identityReference) also admits; a documented
+// match alone never does.
+Status actionIdentity(const AxisReservation& r, const IdentityObservation& identity, const ActionOptions& options,
+                      uint64_t now, IdentityCheck& check, const char* missing) {
+    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED,
+                       options.identityReference, now))
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET), missing);
+    if (check.outcome != IdentityOutcome::CONFIRMED)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET),
                       "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the measured "
-                      "CL86-C identity");
+                      "CL86-C identity and from the application's reference");
     return Ok();
+}
+Status enableIdentity(const AxisReservation& r, const IdentityObservation& identity, const ActionOptions& options,
+                      uint64_t now, IdentityCheck& check) {
+    return actionIdentity(r, identity, options, now, check, "enable needs a current identity read of this boot");
+}
+// An answer that sends nothing (already selected, already released) records a current identity's
+// comparison and needs none: any other observation leaves the record NONE.
+IdentityCheck recordedIdentity(const AxisReservation& r, const IdentityObservation& identity,
+                               const ActionOptions& options, uint64_t now) {
+    IdentityCheck check;
+    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED,
+                       options.identityReference, now))
+        return IdentityCheck();
+    return check;
 }
 } // namespace
 
+bool alreadyEnabled(const AxisReservation& r, const ReadContext& state, const EnableEvidence& evidence,
+                    const CANOPEN::SdoCompletion* control, uint64_t now) noexcept {
+    // The drive was enabled through the caller's own last word, and nothing replaced it since; the fresh
+    // report still reads the enabled pattern, which the power-up report shares (fix round c).
+    return evidence.gate == EnableGate::MEASURED && control && Detail::acknowledgedControlWrite(*control, r, now) &&
+           Detail::controlWord(control->transfer) == 0x000f && evidence.start != EnableStart::RELEASED &&
+           startClass(uint16_t(raw(state, StateBlock::MONITORS, 0)), uint16_t(raw(state, StateBlock::STATUS, 0))) ==
+               EnableStart::POWER_UP;
+}
 Status validateEnable(const ActionContext& output, const AxisReservation& r, const ReadContext& state,
                       const IdentityObservation& identity, const EnableEvidence& evidence,
                       uint32_t operation, uint64_t now, uint64_t deadline,
-                      const ActionOptions& options) noexcept {
-    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+                      const ActionOptions& options, const CANOPEN::SdoCompletion* control) noexcept {
+    if ((control && overlaps(&output, sizeof output, control, sizeof *control)) ||
+        overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &identity, sizeof identity) ||
         overlaps(&output, sizeof output, &evidence, sizeof evidence) ||
@@ -1026,9 +1073,12 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return error(ActionError::STATE, "enable needs 1001 and 603F zero");
     if (raw(state, StateBlock::FEEDBACK, 1))
         return error(ActionError::STATE, "enable needs 606C zero");
+    // Already enabled: answered with nothing sent, so, as an already selected mode, without an identity.
+    if (alreadyEnabled(r, state, evidence, control, now))
+        return Ok();
     // After every state check, so that a stale or wrong report names itself first.
     IdentityCheck check;
-    const Status checked = enableIdentity(r, identity, now, check);
+    const Status checked = enableIdentity(r, identity, options, now, check);
     if (!checked)
         return checked;
     if (measured) {
@@ -1076,12 +1126,17 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
 Status prepareEnable(ActionContext& output, const AxisReservation& r, const ReadContext& state,
                      const IdentityObservation& identity, const EnableEvidence& evidence,
                      uint32_t operation, uint64_t now, uint64_t deadline,
-                     const ActionOptions& options) noexcept {
-    const Status s = validateEnable(output, r, state, identity, evidence, operation, now, deadline, options);
+                     const ActionOptions& options, const CANOPEN::SdoCompletion* control) noexcept {
+    const Status s =
+        validateEnable(output, r, state, identity, evidence, operation, now, deadline, options, control);
     if (!s)
         return s;
+    const bool answered = alreadyEnabled(r, state, evidence, control, now);
     IdentityCheck check;
-    enableIdentity(r, identity, now, check); // Validated above, so this cannot refuse.
+    if (answered)
+        check = recordedIdentity(r, identity, options, now);
+    else
+        enableIdentity(r, identity, options, now, check); // Validated above, so this cannot refuse.
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
     output.actionKind = ActionKind::ENABLE;
@@ -1106,14 +1161,24 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     record.startStatusword = output.statusObservation.statusword;
     record.startMonitor = output.monitorObservation.monitor;
     record.startPosition = output.extraObservation.actualPosition;
+    if (answered) {
+        // Already enabled: terminal from the report alone; nothing is ever yielded or sent.
+        record.alreadyEnabled = true;
+        output.phase = ActionPhase::COMMAND;
+        output.state = ActionState::SUCCEEDED;
+        output.outcome = ActionOutcome::OBSERVED;
+        output.completion = ActionCompletion::OBSERVED;
+        output.status = Ok();
+    }
     return Ok();
 }
 
 Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const ReadContext& state,
-                         uint8_t modeRaw, uint32_t operation, uint64_t now, uint64_t deadline,
-                         const ActionOptions& options) noexcept {
+                         const IdentityObservation& identity, uint8_t modeRaw, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &identity, sizeof identity) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "mode select preparation overlaps input");
     if (!documentedMode(modeRaw))
@@ -1143,9 +1208,9 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const 
         return error(ActionError::STATE, "mode select needs 2100 alarm, 1001 and 603F clear");
     if (raw(state, StateBlock::FEEDBACK, 1))
         return error(ActionError::STATE, "mode select needs 606C zero");
-    // The drive's own not-enabled report, any mode to any documented mode. 2100 running beside the release
-    // is the latch a moving quick stop leaves, admitted here only with 606C zero in this same read.
-    const bool notEnabled = (monitor & MONITOR_RELEASED) && !(statusword & STATUS_SWITCHED_ON_BITS);
+    // The drive's own not-enabled report, any mode to any documented mode: the released standstill, with 2100
+    // running only in the exact latch a moving quick stop leaves, and 606C zero in this same read.
+    const bool notEnabled = modeSelectNotEnabled(monitor, statusword);
     // The measured exception: 6060=1 from the power-up report, which reads as the enabled pattern.
     const bool powerUp = mode == 0 && statusword == POWER_UP_STATUSWORD && monitor == POWER_UP_MONITOR;
     if (powerUp && modeRaw != 1)
@@ -1154,8 +1219,20 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const 
         return error(ActionError::STATE,
                      (statusword & STATUS_LOW_BITS) == STATUS_LOW_BITS && !(monitor & MONITOR_RELEASED)
                          ? "the drive reports itself enabled: no mode change while enabled (Q11)"
-                         : "mode select needs 2100 released with 6041 low bits 000 or 001, or the "
-                           "power-up report");
+                         : "mode select needs the released standstill (2100 released beside in place only, "
+                           "6041 bits 0..6 0x50 or 0x31; running only as the quick-stop latch 0014/0015 with "
+                           "4050/C050) or the power-up report");
+    // After every state check, as enable's, so that a stale or wrong report names itself first. An
+    // already selected mode sends nothing, so it is answered without a current identity.
+    IdentityCheck check;
+    if (mode != modeRaw) {
+        const Status checked = actionIdentity(r, identity, options, now, check,
+                                              "mode select needs a current identity read of this boot");
+        if (!checked)
+            return checked;
+    } else {
+        check = recordedIdentity(r, identity, options, now);
+    }
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
     output.actionKind = ActionKind::SELECT_MODE;
@@ -1176,6 +1253,7 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const 
     record.startStatusword = statusword;
     record.startMonitor = monitor;
     record.startPosition = output.extraObservation.actualPosition;
+    record.identity = check;
     // Already selected: the fresh 6061 of a drive that reports itself not enabled is the requested mode
     // (the power-up report reads mode 0, which is never requested). Nothing to write, and nothing is sent.
     if (mode == modeRaw) {
@@ -1203,6 +1281,7 @@ Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& exp
     d.velocityNonzero = report.velocity != 0;
     d.alarm = (report.monitor & MONITOR_ALARM) != 0;
     d.fault = report.errorRegister || report.errorCode;
+    d.statusAlarm = (report.statusword & STATUS_ALARM_BITS) != 0;
     // Row 4 first, whatever the running bit or an alarm (lead decisions of b3): nothing is sent, so nothing
     // is risked, and the decision reports what the report showed.
     if (released && low <= 1) {
@@ -1210,7 +1289,8 @@ Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& exp
         output = d;
         return Ok();
     }
-    const bool alarm = d.alarm || d.fault;
+    // 6041 bit 3 or 7 is an alarm as the 2100 bit is (fix round c): never a measured row, never an experiment.
+    const bool alarm = d.alarm || d.fault || d.statusAlarm;
     const bool clean = !alarm && !d.velocityNonzero && report.monitor == RELEASE_ROW_MONITOR;
     const bool openLoop = report.loopKnown && report.loopModeRaw == uint16_t(LoopMode::OPEN_LOOP);
     const ReleaseTableRow* match = nullptr;
@@ -1254,10 +1334,12 @@ Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& exp
 }
 
 Status prepareRelease(ActionContext& output, const AxisReservation& r, const ReadContext& state,
-                      const ControlObservation* loop, const ReleaseExperiment& experiment, uint32_t operation,
-                      uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+                      const IdentityObservation& identity, const ControlObservation* loop,
+                      const ReleaseExperiment& experiment, uint32_t operation, uint64_t now, uint64_t deadline,
+                      const ActionOptions& options) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &identity, sizeof identity) ||
         (loop && overlaps(&output, sizeof output, loop, sizeof *loop)) ||
         overlaps(&output, sizeof output, &experiment, sizeof experiment) ||
         overlaps(&output, sizeof output, &options, sizeof options))
@@ -1296,7 +1378,8 @@ Status prepareRelease(ActionContext& output, const AxisReservation& r, const Rea
     if (decision.row == ReleaseRow::REFUSED) {
         const char* const reasons[] = {
             "release refused",
-            "release refused: an alarm or a fault code is reported; use the alarm clear",
+            "release refused: an alarm (2100 bit 3, 6041 bit 3 or 7) or a fault code is reported; use the alarm "
+            "clear",
             "release refused: 2100 reports running; a moving drive needs a stop",
             "release refused: 2100 released beside 6041 low bits other than 000 and 001, an unmeasured report",
             "release refused: 606C is nonzero with 2100 running clear (S21); only an experiment may send",
@@ -1304,6 +1387,17 @@ Status prepareRelease(ActionContext& output, const AxisReservation& r, const Rea
             "release refused: row 2 needs a fresh 2500=1 (open loop); only an experiment may send",
             "release refused: no measured row matches this report; only an experiment may send"};
         return error(ActionError::STATE, reasons[unsigned(decision.refusal)]);
+    }
+    // Once the table chose a word, as enable's after its state checks; row 4 sends nothing, so it is
+    // answered without a current identity. classifyRelease stays pure: the identity is this call's.
+    IdentityCheck check;
+    if (decision.send) {
+        const Status checked = actionIdentity(r, identity, options, now, check,
+                                              "release needs a current identity read of this boot");
+        if (!checked)
+            return checked;
+    } else {
+        check = recordedIdentity(r, identity, options, now);
     }
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
@@ -1327,6 +1421,7 @@ Status prepareRelease(ActionContext& output, const AxisReservation& r, const Rea
     record.startVelocity = report.velocity;
     record.loopKnown = report.loopKnown;
     record.loopModeRaw = report.loopModeRaw;
+    record.identity = check;
     if (!decision.send) {
         // Row 4: already released, answered from the report alone; nothing is ever yielded or sent.
         output.state = ActionState::SUCCEEDED;

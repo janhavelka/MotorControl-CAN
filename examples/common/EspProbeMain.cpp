@@ -4,9 +4,12 @@
 #include "EspTransceiverPin.h"
 #include "IdfTwaiDriver.h"
 #include "ProbeConsole.h"
+#include "SelectedAxis.h"
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 #include "sdkconfig.h"
 #include <atomic>
+#include <new>
 
 #if !configSUPPORT_STATIC_ALLOCATION || portNUM_PROCESSORS < 1
 #error "This example requires static task allocation and an owner core"
@@ -31,6 +34,21 @@ void write(FirmwareProbe& firmware, const char* message) {
     while (message[length])
         ++length; // Fixed bounded messages, each shorter than 96 bytes.
     firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(message), length);
+}
+// Prompt 57: the console's regular commands and persistence act on the first selected axis. Its storage
+// (session, motion and commissioning helpers, about 60 KB) is placed in internal RAM on that first
+// selection, never at boot, and never freed; when it cannot be placed those commands keep refusing.
+struct SelectedDispatch {
+    SelectedAxis* axis = nullptr;
+    const MotorControlCAN::CANOPEN::NodeSnapshot* node = nullptr; ///< Its node, captured on attachment.
+    uint32_t emcyBaseline = 0;                                    ///< That node's EMCY count then.
+};
+// The application's maybe-fault decision for the attached axis, as the bench console's: more than one
+// EMCY since attachment, or one with a nonzero error code. A fault refuses the motion helper's downloads.
+bool attachedFault(const SelectedDispatch& d) {
+    return !d.node ||
+           (d.node->emcyCount != d.emcyBaseline &&
+            (d.node->emcyCount != d.emcyBaseline + 1 || d.node->emcy.errorCode != 0));
 }
 void ownerTask(void*) {
     // Lifetime continues even after failed initialization/deletion. SDK callback
@@ -58,6 +76,18 @@ void ownerTask(void*) {
     bus.context = &firmware;
     bus.read = readConsoleBus;
     commands.attachBus(bus);
+    // Every ordinary download is the attached axis's or refused unsent: no other producer downloads here.
+    static DRAM_ATTR SelectedDispatch selected;
+    DownloadPreflight preflight;
+    preflight.context = &selected;
+    preflight.check = [](void* context, MotorControlCANOwner::SequenceId sequence,
+                         const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) {
+        SelectedDispatch& d = *static_cast<SelectedDispatch*>(context);
+        return d.axis && d.axis->ownsDownload(sequence, transfer) &&
+               d.axis->preflight(sequence, transfer, now, attachedFault(d));
+    };
+    firmware.setPreflight(preflight);
+    bool selectedRefused = false;
     // Silence a configured transceiver before anything else; the controller stays closed.
     firmware.prepare(configuration);
     if (firmware.prepared()) {
@@ -90,8 +120,24 @@ void ownerTask(void*) {
             // Test hooks own their input exclusively. Ordinary Arduino/IDF entries
             // share this console, including while CAN remains explicitly inactive.
             uint64_t now = 0;
-            if (firmware.platform().nowUs(now))
+            if (firmware.platform().nowUs(now)) {
                 commands.service(now);
+                if (!selected.axis && !selectedRefused && firmware.app().selected()) {
+                    void* memory = heap_caps_aligned_alloc(alignof(SelectedAxis), sizeof(SelectedAxis),
+                                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+                    if (memory) {
+                        selected.axis = new (memory) SelectedAxis(firmware.app(), firmware.owner(), services,
+                                                                 commands, MotorControlCAN::LICHUAN_C::SettingsModel::CL86_C);
+                    } else {
+                        selectedRefused = true;
+                        write(firmware, "MotorControl-CAN: no memory for the selected axis; its commands refuse.\n");
+                    }
+                }
+                if (selected.axis && !selected.axis->attached() && selected.axis->follow(now)) {
+                    selected.node = device.node();
+                    selected.emcyBaseline = selected.node ? selected.node->emcyCount : 0;
+                }
+            }
         }
         // Explicit start/stop happen only through the hook; startup itself never moves on.
         const FirmwareBootStatus next = firmwareStatus(firmware, platformReady);

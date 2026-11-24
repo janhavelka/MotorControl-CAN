@@ -7,6 +7,9 @@ namespace MotorControlCANExample {
 namespace M = MotorControlCAN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
+// Console policy for the regular commands' own reads (prompt 57): one observation cycle every 10 ms, which
+// the product direction of 2026-11-12 states is enough. No drive timing is claimed.
+constexpr uint64_t REGULAR_ACTION_INTERVAL_US = 10000;
 bool eq(const char* a, const char* b) {
     return !std::strcmp(a, b);
 }
@@ -637,12 +640,36 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             } else if (axisCommand) {
                 // The library judges the mode code: 1, 3 and 6 are documented, every other is refused there.
                 uint64_t mode = 0;
-                if (eq(name, "enable") && line.count == 2)
-                    status = motion->requestEnable(now, cutoff);
-                else if (eq(name, "motor-release") && line.count == 2)
-                    status = motion->requestRelease(now, cutoff);
-                else if (eq(name, "mode") && line.count == 3 && positiveInteger(line.token(2), mode) && mode <= 255)
-                    status = motion->requestModeSelect(uint8_t(mode), now, cutoff);
+                const MotionKind kind =
+                    eq(name, "enable") && line.count == 2          ? MotionKind::ENABLE
+                    : eq(name, "motor-release") && line.count == 2 ? MotionKind::RELEASE
+                    : eq(name, "mode") && line.count == 3 && positiveInteger(line.token(2), mode) && mode <= 255
+                        ? MotionKind::MODE_SELECT
+                        : MotionKind::NONE;
+                if (kind != MotionKind::NONE && motion->actionReportNamed()) {
+                    // The application's named report (setActionPrerequisites or explicit enable evidence).
+                    status = kind == MotionKind::ENABLE    ? motion->requestEnable(now, cutoff)
+                             : kind == MotionKind::RELEASE ? motion->requestRelease(now, cutoff)
+                                                           : motion->requestModeSelect(uint8_t(mode), now, cutoff);
+                } else if (kind != MotionKind::NONE) {
+                    // Otherwise the command's own fresh reads (prompt 57), as `persistence save parameters`.
+                    L::ReadOptions reads;
+                    L::ActionOptions options;
+                    if (device_) {
+                        reads = device_->readOptions(L::ReadKind::IDENTITY);
+                        options.service = device_->readOptions(L::ReadKind::STATE);
+                    } else {
+                        reads.queueTimeoutUs = reads.responseTimeoutUs = 100000;
+                        options.service = reads;
+                    }
+                    options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+                    options.service.countWidths = L::CountWidths::DECLARED_U8;
+                    options.service.pdoNumber = 0;
+                    options.observationIntervalUs = REGULAR_ACTION_INTERVAL_US;
+                    options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+                    options.maximumAgeUs = cutoff - now; // The command's own window, console policy.
+                    status = motion->startAction(kind, uint8_t(mode), reads, options, now, cutoff);
+                }
             } else if (line.count == 1) {
                 if (eq(name, "alarm-clear"))
                     status = motion->requestAlarmClear(now, cutoff);

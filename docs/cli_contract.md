@@ -390,9 +390,9 @@ paths as a direct native caller. The installed core has no parser or scheduler.
 | `velocity read` | Ordinary typed `VELOCITY_TARGET` read | Explicit upload plan; Q20 whole-plan gate applies |
 | `home read` | Ordinary typed `HOMING` read | Explicit upload plan; Q20 whole-plan gate applies |
 | `home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero` | `requestHome` | Qualified native method; retained asynchronous operation |
-| `mode AXIS_ID 1\|3\|6` | `ProbeMotion::requestModeSelect` / `prepareModeSelect` (prompt 57) | One `6060` write on the named fresh report, settled by `6061`; the library refuses every other code and an enabled drive; never enables |
-| `enable AXIS_ID` | `ProbeMotion::requestEnable` / `prepareEnable` | The regular measured mode 1 enable from the named fresh report and identity (`EnableGate::MEASURED`), or explicitly named trial evidence; retained asynchronous operation |
-| `motor-release AXIS_ID` | `ProbeMotion::requestRelease` / `prepareRelease` (prompt 57) | The release table's one word on the named fresh report, or nothing for an already released one; not a stop, never a standstill claim, never resent |
+| `mode AXIS_ID 1\|3\|6` | `ProbeMotion::requestModeSelect` or `startAction` / `prepareModeSelect` (prompt 57) | One `6060` write on the named fresh report, or on the command's own identity and state reads, settled by `6061`; the library refuses every other code, an enabled drive and another product before any write; never enables |
+| `enable AXIS_ID` | `ProbeMotion::requestEnable` or `startAction` / `prepareEnable` | The regular measured mode 1 enable from the named fresh report and identity, or from the command's own reads (`EnableGate::MEASURED`), or explicitly named trial evidence; "already enabled" (a terminal success, `alreadyEnabled`, nothing sent) after the session's own acknowledged `000F`; retained asynchronous operation |
+| `motor-release AXIS_ID` | `ProbeMotion::requestRelease` or `startAction` / `prepareRelease` (prompt 57) | The release table's one word on the named fresh report, or on the command's own identity, CONTROL and state reads, or nothing for an already released one; not a stop, never a standstill claim, never resent |
 | `alarm-clear`, `position-clear` | Native action via `ProbeMotion` / `AxisSession` | Explicit device action; retained asynchronous operation |
 | `stop normal`, `stop fast` | `ProbeMotion::requestStop` / `AxisSession::requestStop` | Independent retained stop request; reserved admission/output |
 
@@ -437,7 +437,13 @@ does not exist, and it does not appear as a working command in help. `motor-rele
 word is a release fallback. `mode`, `enable` and `motor-release` take the axis ID; the console never
 infers an axis from a retained operation ID or the reverse, and `release ID` keeps its meaning. Their
 fresh report is the one the application names with `ProbeMotion::setActionPrerequisites`; explicit
-trial evidence (`setEnablePrerequisites`) still selects the attended enable. Every motion terminal
+trial evidence (`setEnablePrerequisites`) still selects the attended enable. With nothing named, each
+reads its own (fix round c, `ProbeMotion::startAction`): the identity, for `motor-release` CONTROL, then
+ERRORS, MONITORS, STATUS and FEEDBACK, each under its own session operation, and requests the action when
+the last read completes; a failed read or the library's refusal ends the terminal with nothing written.
+The shipped consoles (`native_probe --console-fake`, the probe firmware and the S2 bench console) attach
+their axis on the first selection (`SelectedAxis`) or arming, so these commands and the console's own
+persistence reach the library without application prerequisites. Every motion terminal
 carries `firmware_unqualified`: `true` or `false` for a move, velocity, home or enable (prompt 57's
 identity policy), `null` for operations that compare no identity. Unknown/home methods,
 unqualified reverse velocity, missing enable evidence and contradictory state remain

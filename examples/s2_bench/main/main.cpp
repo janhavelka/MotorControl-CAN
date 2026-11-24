@@ -845,7 +845,24 @@ bool axisStorage(E::FirmwareProbe& firmware, E::BenchConsole& console, unsigned 
     void* memory = session ? heap_caps_aligned_alloc(alignof(E::BenchAxis), sizeof(E::BenchAxis),
                                                      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
                            : nullptr;
-    return memory && console.attachAxis(node, *new (memory) E::BenchAxis(firmware, *session));
+    if (!memory)
+        return false;
+    E::BenchAxis& axis = *new (memory) E::BenchAxis(firmware, *session);
+    if (!console.attachAxis(node, axis))
+        return false;
+    // Prompt 57: the console's persistence commands act on the first armed node, over its route session and
+    // axis target: one more block, placed with that first axis and never freed. Only console arming reaches
+    // here, so T-line campaigns never place it. Without the block persistence stays refused; arming goes on.
+    static bool commissioningPlaced = false;
+    if (!commissioningPlaced) {
+        commissioningPlaced = true;
+        void* block = heap_caps_aligned_alloc(alignof(E::ProbeCommissioning), sizeof(E::ProbeCommissioning),
+                                              MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (block)
+            console.attachCommissioning(
+                node, *new (block) E::ProbeCommissioning(firmware.owner(), firmware.services(), *session, axis.target));
+    }
+    return true;
 }
 // The route contexts' work block (settings routes, an observed move): attached on the first route
 // from its reservation, or from the ordinary heap on the first route that needs it.

@@ -1004,6 +1004,10 @@ Status checkReplacement(const MoveContext& output, const MoveContext& original,
                          Err::UNSUPPORTED);
     checked.identity =
         compareIdentity(identityValues(e.firmware), IdentityBasis::MEASURED, original.identity.observed);
+    // The replacement continues the original's motion: a firmware the original's record was not made on
+    // stays flagged, whatever the replacement record names (fix round c).
+    checked.identity.firmwareUnqualified =
+        checked.identity.firmwareUnqualified || original.identity.firmwareUnqualified;
     if (!checked.identity.expectedMatch)
         return moveError(MoveError::CAPABILITY,
                          "replacement record names other product fields (1000, 1018:01, 1018:02, 2000)",

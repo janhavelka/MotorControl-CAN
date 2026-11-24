@@ -129,6 +129,9 @@ struct FakeDrive {
     // Manufactured from the measured tables (prompt 57): a 6060 write sets 6061 (followMode), and word 6
     // releases with low bits 001, as the release table's first row reports 8031/0011 (followRelease).
     bool followMode = false, followRelease = false;
+    // The firmware fields of measuredIdentity() (1009=0C, 100A=20, 1018:03=0, 2001=0200) in place of this
+    // file's, so that a comparison reports no firmware difference.
+    bool measuredFirmware = false;
     bool commandedBase = false;
     bool mute = false; // Acts on every frame but its replies are lost: missing feedback.
     // Manufactured, no capture: the alarm raised at alarmAtRead also clears 6041 low bits in that
@@ -312,14 +315,17 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
     unsigned size = 2;
     switch (index) {
     case 0x1000: raw = DEVICE_TYPE; size = 4; break;
-    case 0x1009: raw = HARDWARE; break;
-    case 0x100a: raw = SOFTWARE; break;
+    case 0x1009: raw = drive.measuredFirmware ? L::measuredIdentity().hardwareVersion : HARDWARE; break;
+    case 0x100a: raw = drive.measuredFirmware ? L::measuredIdentity().softwareVersion : SOFTWARE; break;
     case 0x1018:
         size = sub ? 4 : 1;
-        raw = sub == 0 ? 3 : sub == 1 ? VENDOR : sub == 2 ? PRODUCT : REVISION;
+        raw = sub == 0   ? 3
+              : sub == 1 ? VENDOR
+              : sub == 2 ? PRODUCT
+                         : (drive.measuredFirmware ? L::measuredIdentity().revision : REVISION);
         break;
     case 0x2000: raw = MODEL; break;
-    case 0x2001: raw = FIRMWARE; break;
+    case 0x2001: raw = drive.measuredFirmware ? L::measuredIdentity().firmwareCode : FIRMWARE; break;
     case 0x1001: raw = 0; size = 1; break;
     case 0x1003: raw = 0; size = sub ? 4 : 1; break; // No error history.
     case 0x603f: raw = drive.errorCode; break;

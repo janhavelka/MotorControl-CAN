@@ -2397,11 +2397,26 @@ void measuredEnable() {
         CHECK(requestMeasured(r, state).isOk());
         r.finishEnable();
         CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
-        // A second measured enable from the fresh report after it: no trial log refuses it.
+        // A second measured enable after it (fix round c): the session's latest controlword is the acknowledged
+        // 000F of that enable, under this reservation, and the report reads the enabled pattern, so the library
+        // answers already enabled: terminal success with nothing sent; word 6 would drop the holding torque.
         r.readState(state);
-        CHECK(requestMeasured(r, state).isOk());
-        r.finishEnable();
-        CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
+        const unsigned sent = r.wire.sentCount;
+        CHECK(requestMeasured(r, state).isOk() && !r.a.enableActive());
+        const L::ActionContext& answer = r.a.enableAction();
+        CHECK(answer.state == M::ActionState::SUCCEEDED && answer.outcome == M::ActionOutcome::OBSERVED &&
+              answer.completion == M::ActionCompletion::OBSERVED &&
+              answer.execution == M::ActionExecution::NOT_TRANSMITTED && answer.enable.alreadyEnabled &&
+              answer.enable.start == L::EnableStart::POWER_UP && !answer.effectsPossible && !answer.uncertain &&
+              answer.commandEvidenceMask == 0);
+        L::PreparedAction work;
+        CHECK(L::nextAction(answer, answer.reservation, answer.reservation.target, r.now, work) && !work.ready);
+        quiet(r);
+        CHECK(r.wire.sentCount == sent);
+        // The flag is never valid on work in progress.
+        L::ActionContext edited = answer;
+        edited.state = M::ActionState::ACTIVE;
+        CHECK(!L::nextAction(edited, edited.reservation, edited.reservation.target, r.now, work));
     }
     {   // Refusals before any frame: reports outside the measured starts, a named start the report does not
         // show, an alarm, errors, motion, mode 3, and mode 6, which needs the attended gate.
@@ -2527,6 +2542,35 @@ void identityPolicy() {
             CHECK(check.observed.firmwareCode == id.firmwareCode && check.observed.revision == id.revision &&
                   check.observed.hardwareVersion == id.hardwareVersion &&
                   check.observed.softwareVersion == id.softwareVersion);
+            exactEnableFrames(r);
+        }
+        // Fix round c, item 8: the application's MEASURED reference for its own specimen also admits. A
+        // specimen whose 2000 differs from both measured drives enables with that reference supplied, and
+        // its firmware flag still compares with measuredIdentity(); without it, it refuses.
+        {
+            Rig r;
+            L::ReadContext state;
+            admittedRig(r, state);
+            L::IdentityObservation id = r.identity();
+            id.modelCode = 0x0401; // Neither the specimens' 0x0400 nor the EDS default 1.
+            L::ActionOptions own = options();
+            own.identityReference.present = true;
+            own.identityReference.values = L::measuredIdentity();
+            own.identityReference.values.modelCode = 0x0401;
+            own.identityReference.values.firmwareCode = 0x0300; // Its own firmware decides nothing.
+            L::EnableEvidence e = gate ? measured() : r.bound(evidence());
+            e.operation = r.a.nextOperation();
+            const Saved<L::ActionContext> before(r.a.enableAction());
+            CHECK(r.a.requestEnable(state, id, e, options(), r.now + 400000, r.now).code == M::Err::UNSUPPORTED);
+            before.unchanged(r.a.enableAction());
+            r.startFrame = r.wire.sentCount;
+            CHECK(r.a.requestEnable(state, id, e, own, r.now + 400000, r.now).isOk());
+            r.finishEnable();
+            const L::IdentityCheck& check = r.a.enableAction().enable.identity;
+            CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
+            CHECK(check.outcome == L::IdentityOutcome::CONFIRMED && !check.expectedMatch && check.applicationMatch &&
+                  check.application.present && check.application.values.modelCode == 0x0401 &&
+                  !check.firmwareUnqualified); // The firmware fields are the specimens'.
             exactEnableFrames(r);
         }
     }

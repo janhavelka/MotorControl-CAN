@@ -98,8 +98,11 @@ class RunnerCLI(unittest.TestCase):
         self.assertIn("quick", text)
         self.assertTrue(any(item == "probe" or item.startswith("probe ") for item in text), text)
         self.assertNotIn("COM13", text)
-        for mutation in ("enable", "motor-release", "alarm-clear", "position-clear", "recover"):
-            self.assertNotIn(mutation, text)
+        # Every plan item's command is its first token (fix round c): "enable 101" is a mutation as "enable" is.
+        commands = {item.split()[0] for item in text if item.split()}
+        for mutation in ("enable", "mode", "motor-release", "persistence", "alarm-clear", "position-clear",
+                         "recover"):
+            self.assertNotIn(mutation, commands)
 
     def test_all_explicit_read_scenarios_make_plans_without_serial_or_files(self):
         for scenario, command in (("quick", "probe"), ("probe", "probe"),

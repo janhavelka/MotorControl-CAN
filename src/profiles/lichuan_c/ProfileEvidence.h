@@ -92,7 +92,8 @@ inline IdentityValues identityValues(const Tuple& t) noexcept {
 // The comparison of checkIdentity without its currentness checks, for a record compared with values a
 // context already holds (a move replacement or a velocity change). Defined in Reads.cpp.
 IdentityCheck compareIdentity(const IdentityValues& expected, IdentityBasis basis,
-                              const IdentityValues& observed) noexcept;
+                              const IdentityValues& observed,
+                              const IdentityReference& application = IdentityReference()) noexcept;
 } // namespace Detail
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

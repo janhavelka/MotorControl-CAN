@@ -492,7 +492,8 @@ with the library's default guards (none) and requests it, under the command's
 cutoff; the result names the guards that were off. `persistence restore factory
 settings` with nothing armed keeps the restore's backup guard, which the console
 cannot name, and is refused before any read; a restore needs an armed context
-with its backup record or its guard cleared. A failed prerequisite read or a
+with its backup record, or `persistence restore factory settings without-backup`,
+which clears only the backup guard bit and keeps every other guard of the plan. A failed prerequisite read or a
 refused preparation ends the command as `PERSISTENCE_PREPARATION_FAILED` with
 nothing written.
 

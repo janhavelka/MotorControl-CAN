@@ -121,12 +121,14 @@ static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::RELEASE) + 1
 // MODE_THREE changes the drive's mode and VELOCITY runs the motor. HOME writes nothing and VELOCITY_TARGET
 // writes one target to a released drive: not motion. CONTROLWORD writes 6040 to move the drive's state
 // machine, as RELEASED_QUICK and WORD67 do, and its 0080 may let a drive act again as CLEAR_ALARM's bit 7 may:
-// motion class like every 6040 write.
+// motion class like every 6040 write. RELEASE writes one 6040 word that frees the shaft (fix round c): motion
+// class too.
 bool isMotion(RouteKind kind) {
     return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) ||
            (kind >= RouteKind::RELEASED_QUICK && kind <= RouteKind::RELATIVE) || kind == RouteKind::COUNTER_ZERO ||
            kind == RouteKind::CLEAR_ALARM || kind == RouteKind::MODE_THREE || kind == RouteKind::VELOCITY ||
-           kind == RouteKind::CONTROLWORD || kind == RouteKind::POSITION_CHANGE || kind == RouteKind::VELOCITY_CHANGE || kind == RouteKind::VELOCITY_NMT;
+           kind == RouteKind::CONTROLWORD || kind == RouteKind::POSITION_CHANGE || kind == RouteKind::VELOCITY_CHANGE || kind == RouteKind::VELOCITY_NMT ||
+           kind == RouteKind::RELEASE;
 }
 bool isVelocity(RouteKind kind) { return kind == RouteKind::VELOCITY || kind == RouteKind::VELOCITY_CHANGE || kind == RouteKind::VELOCITY_NMT; }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
@@ -149,7 +151,6 @@ int attendedCase(RouteKind kind) {
            : kind == RouteKind::SUBDIVISION     ? 4
            : kind == RouteKind::LOOP            ? 5
            : kind == RouteKind::SAVE            ? 16 // After MODE_PROBE's rows 6..15.
-           : kind == RouteKind::RELEASE         ? 17
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
@@ -205,7 +206,7 @@ constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_
 constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
 constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = {1, 10};
 // ENABLE's start: 1 NO_MOTION_WRITE_RECORDED under the attended gate, 2 RELEASED under MEASURED (EnableStart).
-constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 2}, SHAFT = {1, 2}, KIND = {1, 2};
+constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 2}, SHAFT = {0, 2}, KIND = {1, 2};
 constexpr Range WORD_CYCLES = {1, 4}, PREDECESSOR = {1, 3}, RELATIVE_BASE = {0, 2};
 // 2202 codes 0 and 1 only (EN86/ZH86 p18); the EDS default 10 is not a documented code. DI3 cases 1..4.
 constexpr Range LIMIT_CODE = {0, 1}, DI3_CASE = {1, 4}, OBSERVER = {0, BENCH_NODES};
@@ -672,10 +673,10 @@ unsigned terminalBound(const RoutePlan& p) {
         // The full read, 1003:00 and at most four entries (a larger count fails the read), 1001 and 603F.
         return 9 + 1 + 4 + 2;
     case RouteKind::MODE_ONE:
-        // The reads of READ_ACTIONS less its image, a second full read, then the typed mode select: its 6060
-        // and at most the stated seven-field cycles (the route withdraws it after them), plus one cycle of
-        // margin.
-        return 15 + 9 + 1 + 7u * (p.cycles + 1u);
+        // Identity (prompt 57: the mode select compares it), the reads of READ_ACTIONS less its image, a
+        // second full read, then the typed mode select: its 6060 and at most the stated seven-field cycles
+        // (the route withdraws it after them), plus one cycle of margin.
+        return 9 + 15 + 9 + 1 + 7u * (p.cycles + 1u);
     case RouteKind::ENABLE:
         // Identity (prompt 57: the enable compares it), the full read, 607A and 60FF, three words and their
         // cycles.
@@ -726,8 +727,8 @@ unsigned terminalBound(const RoutePlan& p) {
         // MONITORS and STATUS to the deadline; then ERRORS once.
         return 2 + 5 + 5 + 2 + 2 + 5 * (2 + p.deadlineMs / p.intervalMs) + 2;
     case RouteKind::MODE_THREE:
-        // Two full reads, then the typed mode select, bounded as MODE_ONE's.
-        return 9 + 9 + 1 + 7u * (p.cycles + 1u);
+        // Identity, two full reads, then the typed mode select, bounded as MODE_ONE's.
+        return 9 + 9 + 9 + 1 + 7u * (p.cycles + 1u);
     case RouteKind::MODE_PROBE:
         // Two full reads, the 6060 write, then a full first cycle and image cycles.
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
@@ -769,8 +770,9 @@ unsigned terminalBound(const RoutePlan& p) {
         // Identity, STATUS and MONITORS, MOTION_PARAMETERS, then the one 2300 download.
         return 9 + 5 + 3 + 1;
     case RouteKind::RELEASE:
-        // CONTROL, the full read, the one word, at most the stated seven-field cycles and one of margin.
-        return 2 + 9 + 1 + 7u * (p.cycles + 1u);
+        // Identity, CONTROL, the full read, the one word, at most the stated seven-field cycles and one of
+        // margin.
+        return 9 + 2 + 9 + 1 + 7u * (p.cycles + 1u);
     default:
         return ROUTE_TERMINALS + 1;
     }
@@ -920,6 +922,7 @@ bool routePlanValid(const RoutePlan& p) noexcept {
     case RouteKind::ENABLE:
         // A released start's shaft basis is the released report itself, so the line carries FREE: read
         // from the drive at the user's instruction of 2026-11-10, never felt. HOLDING would contradict it.
+        // Start 1, the measured power-up start, consults no shaft: 0 records none (fix round c).
         return p.start != 2 || p.shaft == 1;
     case RouteKind::STOP:
         return !p.bestEffortMs || p.bestEffortMs >= p.deadlineMs;
@@ -1262,8 +1265,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if (session->busy() || !owner.sequence(session->sequence()))
         return "session";
     // MODE_ONE keeps no per-boot history rule since prompt 57: the library's fresh not-enabled check decides.
-    // Start 1, the attended power-up trial, keeps the session's own write record; start 2 is the measured
-    // released enable, judged on its fresh report alone (prompt 57).
+    // Start 1, the measured power-up enable, also keeps the session's own write record as this route's
+    // policy (the power-up report after this library's own word 15 cannot be told apart); start 2 is the
+    // measured released enable, judged on its fresh report alone (prompt 57).
     if (plan.kind == RouteKind::ENABLE && plan.start == 1 && session->motionHistoryWritten())
         return "history";
     // The session admits its enable words as ordinary SDO work, which needs a current NMT state or
@@ -1502,10 +1506,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                   {STEP_TUNING, uint8_t(L::TuningGroup::EDS_GAINS)},
                                   {STEP_STATE, IMAGE},
                                   {STEP_END, 0}};
-    // Two fresh full reads, the second after the readiness reads, so that the typed mode select judges a
-    // fresh state read: the first read's mode chooses the check, and a released mode 3 standstill must
-    // repeat. The mode select runs its own cycles and ends the route.
-    static const Step mode[] = {{STEP_STATE, FULL},
+    // The identity the mode select compares (prompt 57), then two fresh full reads, the second after the
+    // readiness reads, so that the typed mode select judges a fresh state read: the first read's mode
+    // chooses the check, and a released mode 3 standstill must repeat. The mode select runs its own cycles
+    // and ends the route.
+    static const Step mode[] = {{STEP_IDENTITY, 0},
+                                {STEP_STATE, FULL},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)},
                                 {STEP_SINGLE, 0},
                                 {STEP_SINGLE, 1},
@@ -1572,8 +1578,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                 {STEP_SETTINGS, 0},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)},
                                 {STEP_END, 0}};
-    // Two fresh full reads of a released, stationary drive, then the typed mode select to 3.
-    static const Step modeThree[] = {{STEP_STATE, FULL},
+    // The identity, two fresh full reads of a released, stationary drive, then the typed mode select to 3.
+    static const Step modeThree[] = {{STEP_IDENTITY, 0},
+                                     {STEP_STATE, FULL},
                                      {STEP_SECOND, FULL},
                                      {STEP_CHECK_MODE_THREE, 0},
                                      {STEP_MODE_SELECT, 0}};
@@ -1614,8 +1621,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     static const Step modeProbe[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL},
                                      {STEP_CHECK_MODE_PROBE, 0}, {STEP_MODE_WRITE, 0},
                                      {STEP_OBSERVE, OBSERVE_ALL}};
-    // CONTROL first, for the table's row 2 (2500=1), then the full read the release judges.
-    static const Step release[] = {{STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)}, {STEP_STATE, FULL}, {STEP_RELEASE, 0}};
+    // The identity the release compares (prompt 57), CONTROL for the table's row 2 (2500=1), then the full
+    // read the release judges.
+    static const Step release[] = {{STEP_IDENTITY, 0},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)},
+                                   {STEP_STATE, FULL},
+                                   {STEP_RELEASE, 0}};
     // The save's prerequisites, each kept in SaveWork as its read completes, then the save itself.
     static const Step save[] = {{STEP_IDENTITY, 0},
                                 {STEP_STATE, STOP_STATE},
@@ -3357,13 +3368,11 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
     }
     // The reservation and operation are binding facts the session holds. Every observation and
     // reviewed value comes from the host's command; none is made up here.
-    // Start 2 is the regular measured enable from the released standstill (prompt 57): the library judges
-    // the fresh report and does not consult the line's trial, shaft or reviewed values, which the record
-    // keeps. Start 1 stays the attended power-up trial with every statement the line carries.
+    // Both starts are the regular measured enable (prompt 57; start 1 since fix round c): the library judges
+    // the fresh report alone, the measured power-up report for start 1 and the released standstill for
+    // start 2, and does not consult the line's trial, shaft or reviewed values, which the record keeps.
     L::EnableEvidence evidence;
-    evidence.gate = !p.attended     ? L::EnableGate::CLOSED
-                    : p.start == 2 ? L::EnableGate::MEASURED
-                                   : L::EnableGate::ATTENDED_EXPERIMENT;
+    evidence.gate = p.attended ? L::EnableGate::MEASURED : L::EnableGate::CLOSED;
     evidence.trial = p.trial;
     evidence.reservation.target = target;
     evidence.reservation.model = L::SettingsModel::CL86_C;
@@ -3373,7 +3382,7 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
     evidence.reservation.acquiredUs = live->acquiredUs;
     evidence.operation = axis().nextOperation();
     evidence.expiresUs = now + 1000000;
-    evidence.start = p.start == 1   ? L::EnableStart::NO_MOTION_WRITE_RECORDED
+    evidence.start = p.start == 1   ? L::EnableStart::POWER_UP
                      : p.start == 2 ? L::EnableStart::RELEASED
                                     : L::EnableStart::UNKNOWN;
     evidence.powerUpShaft = p.shaft == 1   ? L::ShaftObservation::FREE
@@ -4042,8 +4051,9 @@ void BenchRoute::startRelease(uint64_t now) noexcept {
     L::ReleaseExperiment experiment;
     experiment.enabled = p.releaseExperiment != 0;
     experiment.word = p.releaseWord;
-    const M::Status status = axis().requestRelease(context_.read, record_->releaseLoopPresent ? &releaseLoop_ : nullptr,
-                                                   experiment, options, deadline, now);
+    const M::Status status =
+        axis().requestRelease(context_.read, identity_, record_->releaseLoopPresent ? &releaseLoop_ : nullptr,
+                              experiment, options, deadline, now);
     if (!status) {
         record_->statusPresent = true;
         record_->statusCode = uint8_t(status.code);
@@ -4081,8 +4091,8 @@ void BenchRoute::startModeSelect(uint64_t now) noexcept {
         finish(RouteFailure::REFUSED, "deadline", now);
         return;
     }
-    const M::Status status = axis().requestModeSelect(context_.read, p.kind == RouteKind::MODE_THREE ? 3 : 1,
-                                                      options, deadline, now);
+    const M::Status status = axis().requestModeSelect(context_.read, identity_,
+                                                      p.kind == RouteKind::MODE_THREE ? 3 : 1, options, deadline, now);
     if (!status) {
         record_->statusPresent = true;
         record_->statusCode = uint8_t(status.code);

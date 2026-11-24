@@ -421,6 +421,7 @@ int main() {
     if (!LICHUAN_C::checkIdentity(identityCheck, observedIdentity, observedIdentity.target, measured,
                                   LICHUAN_C::IdentityBasis::MEASURED, 0) ||
         identityCheck.expectedMatch || !identityCheck.documentedMatch ||
+        identityCheck.outcome != LICHUAN_C::IdentityOutcome::UNCONFIRMED ||
         LICHUAN_C::checkIdentity(unchanged, observedIdentity, LICHUAN_C::ReadTarget(), measured,
                                  LICHUAN_C::IdentityBasis::MEASURED, 0) ||
         unchanged.outcome != LICHUAN_C::IdentityOutcome::CONFIRMED)

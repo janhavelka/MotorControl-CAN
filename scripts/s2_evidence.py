@@ -306,6 +306,14 @@ GRAMMAR = (
         "loop:i s1:x m1:x v1:i running:b alarm:b fault:b",
         signals=(("health", "releaseOutcome"), ("health", "releaseCompletion"), ("health", "releaseUncertain")),
         per_node=True),
+    # save (prompt 57): the session's one 2300=2 through prepareSave, raw. prepared whether the library prepared
+    # it, state/outcome/exec the persistence context's, guardsOff the guards it ran without, written/wire/ack/abort
+    # the 2300 terminal (wire 255 when none is held), cfg0/cfg1 the configuration epochs around it. An
+    # acknowledgement claims no durability.
+    Row("TRIAL_SAVE", "TRIAL_SAVE ", "summary",
+        "prepared:b state:u outcome:u>saveOutcome exec:u attempts:u guardsOff:x uncertain:b>saveUncertain "
+        "written:b wire:u ack:b abort:x cfg0:u cfg1:u followed:b",
+        signals=(("health", "saveOutcome"), ("health", "saveUncertain")), per_node=True),
     Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
         "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x rb:u?"),
@@ -694,7 +702,8 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
                 "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
                 "loop": "loop", "mode-probe": "mode-probe", "position-change": "position-change",
-                "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt", "motor-release": "release"}
+                "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt", "motor-release": "release",
+                "save": "save"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 

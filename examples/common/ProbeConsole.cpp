@@ -2655,7 +2655,7 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                 plan.review.target = commissioning_->target();
                 plan.review.kind = expected;
                 if (withoutBackup)
-                    plan.review.guards = 0;
+                    plan.review.guards = uint8_t(plan.review.guards & ~L::PERSISTENCE_GUARD_BACKUP);
                 if (device_)
                     plan.reads = device_->readOptions(L::ReadKind::IDENTITY);
                 else

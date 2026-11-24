@@ -1857,16 +1857,48 @@ void identityCheckRules() {
             CHECK(c.outcome == L::IdentityOutcome::CONFIRMED && c.expectedMatch && c.firmwareUnqualified);
     }
     {
-        // A drive reporting the EDS 2000 default: the documented reference alone matches. The outcome is
-        // CONFIRMED, yet expectedMatch stays false, which every gate of this profile requires.
+        // A drive reporting the EDS 2000 default: the documented reference alone matches. Every gate of this
+        // profile refuses that, so the outcome is UNCONFIRMED, with the documented match named (fix round c).
         L::IdentityObservation o = base;
         o.modelCode = documented.modelCode;
         L::IdentityCheck c;
         CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, now));
-        CHECK(c.outcome == L::IdentityOutcome::CONFIRMED && c.documentedMatch && !c.expectedMatch);
+        CHECK(c.outcome == L::IdentityOutcome::UNCONFIRMED && c.documentedMatch && !c.expectedMatch &&
+              !c.applicationMatch && !c.application.present);
         CHECK(L::checkIdentity(c, o, target(), documented, L::IdentityBasis::DOCUMENTED, now));
         CHECK(c.expectedMatch && c.documentedMatch && c.basis == L::IdentityBasis::DOCUMENTED &&
               c.firmwareUnqualified); // The specimens' 1009, 100A and 2001 are not the EDS defaults.
+    }
+    {
+        // The application's MEASURED reference for its own specimen confirms on its product fields; the
+        // firmware flag still compares with the operation's reference (fix round c, item 8).
+        L::IdentityObservation o = base;
+        o.modelCode = 0x0401;
+        L::IdentityReference own;
+        own.present = true;
+        own.values = measured;
+        own.values.modelCode = 0x0401;
+        own.values.softwareVersion = uint16_t(measured.softwareVersion + 1);
+        L::IdentityCheck c;
+        CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, own, now));
+        CHECK(c.outcome == L::IdentityOutcome::CONFIRMED && !c.expectedMatch && c.applicationMatch &&
+              !c.documentedMatch && !c.firmwareUnqualified && c.application.values.modelCode == 0x0401);
+        // A reference that is not present decides nothing, whatever it holds.
+        own.present = false;
+        CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, own, now));
+        CHECK(c.outcome == L::IdentityOutcome::UNCONFIRMED && !c.applicationMatch);
+        // Another product's reference does not confirm this one.
+        own.present = true;
+        ++own.values.productCode;
+        CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, own, now));
+        CHECK(c.outcome == L::IdentityOutcome::UNCONFIRMED && !c.applicationMatch);
+        // The reference is an input: one inside the output is refused as overlap.
+        L::IdentityCheck inside;
+        inside.application = own;
+        const Saved<L::IdentityCheck> insideSaved(inside);
+        CHECK(L::checkIdentity(inside, o, target(), measured, L::IdentityBasis::MEASURED, inside.application, now)
+                  .detail == int32_t(M::ReadError::OVERLAP));
+        insideSaved.unchanged(inside);
     }
     // Nothing that is not a current observation is compared, and a refusal writes nothing.
     L::IdentityCheck kept;
