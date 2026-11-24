@@ -1,6 +1,6 @@
 # Prompt 57 report: regular enable, release, mode select and firmware identity policy
 
-State: In progress; stage (a) complete, stage (b) next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a) and (b) complete, stage (c) independent review next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -167,3 +167,24 @@ Slices, each a coherent checked commit:
   S20, S21), CHANGELOG and Doxygen.
 
 Stage (c): a new reviewer; the release settlement and the identity policy go to a stronger reviewer (Fable, high).
+
+## Stage (b) implementation (2026-11-24)
+
+One implementer (Opus, xhigh) delivered the six slices; the lead checked each on a clean worktree of its exact commit
+(`python scripts/verify.py --mode quick`, `check_promptset.py --check-git-ref HEAD`, `check_lichuan_operations.py`) and
+pushed it.
+
+| Slice | Commit | Content | CI |
+| --- | --- | --- | --- |
+| b1 Mode select | `cb8f0ec8` | `ActionKind::SELECT_MODE`, `prepareModeSelect` (modes 1, 3, 6; not-enabled or the power-up `8037/0001` mode 0 start for mode 1 only, the 23 measured writes; already-reported mode answered with nothing sent); bench `MODE_ONE`/`MODE_THREE` through the session; per-boot history rule replaced | verify.yml on later commits |
+| b2 Enable | `92dbdb55` | `EnableGate::MEASURED` from the fresh power-up or released report (`0x50` or `0x31`, so `8031/0011`); recorded-stop premise removed (`RELEASED_BY_RECORDED_STOP` a deprecated alias); `--released-by-recorded-stop` removed; mode 6 stays attended | verify.yml on later commits |
+| b3 Release | `d9956317` | `ActionKind::RELEASE`, `prepareRelease` on the pure `classifyRelease` table; row 4 first; settlement from the row's report; experiment option `0x0000`/`0x0006` | verify.yml on later commits |
+| b4 Identity | `3d1f01c5` | Product fields refuse, firmware fields run with `IdentityCheck.firmwareUnqualified`; `prepareEnable` takes an `IdentityObservation` (API change); references are the two measured specimens, EDS values reported | run 45413647691 succeeded |
+| b5 Save and restore | `821f51ed` | Review records settable guards (off by default); restore backup guard on by default; console save prepares its own context; S2 save route `Ts` | run 45422433482 succeeded |
+| b6 Console and documents | `3586ac2b` | `mode`, `enable AXIS_ID`, `motor-release AXIS_ID`; `firmware_unqualified` in every motion terminal; `restore ... without-backup`; release route `Tr` with `s2_bench.py motor-release`; contracts, guides, coverage, backlog | pending |
+
+Implementer decisions accepted by the lead and open for the stage (c) reviewer: mode select and release take no
+identity input (they do not move the motor; CONTRADICTED is not produced while the profile has no candidate set);
+`enable` requires the axis ID (grammar change); the console relies on application-named reports for these commands
+like the other motion commands, so on the S2 they run as bench routes; the S2 save route allocates its work area on
+first use from internal memory (allocation failure refuses the route).
