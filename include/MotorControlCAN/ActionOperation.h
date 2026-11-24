@@ -43,7 +43,10 @@ enum class ActionKind : uint8_t {
     STOP,               ///< Profile-selected explicit stop.
     CLEAR_ALARM,        ///< Documented fault-clear attempt, with fresh observations.
     SET_DEVICE_POSITION, ///< Only a profile's evidenced native counter operation.
-    ENABLE               ///< Profile's explicit enable sequence, gated while its effect is unmeasured.
+    ENABLE,              ///< Profile's explicit enable sequence, gated while its effect is unmeasured.
+    /** Profile's documented operating-mode selection, settled only by the drive's own mode report.
+     * Appended: earlier values keep their numbers. */
+    SELECT_MODE
 };
 /** Local concrete operation phase; OK from an advancing call is not completion. */
 enum class ActionState : uint8_t {

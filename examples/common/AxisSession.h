@@ -185,7 +185,7 @@ class AxisSession {
         return motionKind_ == MotionStorageKind::HOME &&
                motion_.home.state == MotorControlCAN::ActionState::ACTIVE;
     }
-    /** @return True while an alarm clear or counter clear is neither finished nor failed. */
+    /** @return True while an alarm clear, counter clear or mode select is neither finished nor failed. */
     bool clearActive() const noexcept {
         return clear_.state == MotorControlCAN::ActionState::ACTIVE;
     }
@@ -628,7 +628,40 @@ class AxisSession {
                        MotorControlCAN::AxisConfig& axis, MotorControlCAN::AxisReference& reference,
                        const MotorControlCAN::LICHUAN_C::ActionOptions& options,
                        uint64_t deadlineUs, uint64_t nowUs) noexcept;
-    /** Withdraw an active alarm clear or counter clear locally: no further write or read is admitted, and
+    /** Request one documented operating-mode selection on this axis through prepareModeSelect: a single
+     * 6060:00 byte of 1, 3 or 6, then MONITORS, STATUS and FEEDBACK cycles until 6061 reports that mode.
+     * The judgment is the fresh report alone: a drive that reports itself not enabled (2100 released, 6041
+     * low bits 000 or 001) or the measured power-up report to mode 1. No per-boot history of earlier words
+     * or writes is consulted. Starts a new owner operation, then prepares clearAction() in place: the mode
+     * select shares the clears' slot, service branch, withdrawal (cancelClear) and fault hold, so a stop
+     * request ends it first. Yields no traffic here: service() admits the write and each read. A 6060 of
+     * 1 or 6 acknowledged leaves motionHistoryWritten() as it was; a 6060 of 3, or one of 1 or 6 that may
+     * have landed unacknowledged, sets it, as an admitted 6060 always has. The write withdraws the latest
+     * controlword like every download. Never enables, never reads 6060, never writes 6061, never resends.
+     * When the not-enabled report already shows 6061 equal to modeRaw, clearAction() is SUCCEEDED at
+     * once with modeSelect.alreadySelected and execution NOT_TRANSMITTED: no owner operation is started
+     * and nothing is sent.
+     * @param[in] state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK under this
+     * reservation, as prepareModeSelect requires, whose STATUS and MONITORS began after this session's
+     * latest write. Not held inside clearAction().
+     * @param[in] modeRaw The 6060 code, 1, 3 or 6; any other value refuses with prepareModeSelect's
+     * UNSUPPORTED, unchanged, once the session's own checks below pass.
+     * @param[in] options Copied budgets, as prepareModeSelect requires (maximumAgeUs covering seven
+     * fields).
+     * @param[in] deadlineUs Immutable exclusive cutoff of the write and every observation.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return prepareModeSelect's status, or a local refusal with ActionError::STATE (busy, clearBlocked(),
+     * velocityNeedsStop(), homeNeedsStop(), identities exhausted, or a report older than this session's
+     * latest write), TARGET (no usable reservation) or TIME. faultBlocked() alone does not refuse it. On
+     * such a refusal nothing changes, and on success nothing has been admitted; an owner refusal of the
+     * operation ends the context INVALIDATED with nothing sent, as for requestClearAlarm.
+     */
+    MotorControlCAN::Status
+    requestModeSelect(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint8_t modeRaw,
+                      const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
+                      uint64_t nowUs) noexcept;
+    /** Withdraw an active alarm clear, counter clear or mode select locally: no further write or read is
+     * admitted, and
      * a write the owner has not yet handed to the controller is cancelled. It sends no stop and undoes
      * nothing: a coordinate withdrawal stays, and a 1 that may have landed without an acknowledged 0
      * leaves valueOneMayRemain and clearBlocked(). A request in flight, or one whose cancel the owner did
@@ -720,11 +753,12 @@ class AxisSession {
      * running or a nonzero velocity. */
     bool acknowledgeStandstill(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint64_t maximumAgeUs,
                                uint64_t nowUs) noexcept;
-    /** @return Retained context of the latest requestClearAlarm or requestCounterZero; EMPTY if neither
-     * was prepared since open. The two share this one slot, so a new request of either kind replaces it:
-     * actionKind is CLEAR_ALARM or SET_DEVICE_POSITION. commandHistory keeps every write's terminal,
-     * failure included; execution describes the 1; valueOneMayRemain and uncertain record what may have
-     * landed. A read held in it and passed to requestStop is judged after that clear has ended. */
+    /** @return Retained context of the latest requestClearAlarm, requestCounterZero or requestModeSelect;
+     * EMPTY if none was prepared since open. The three share this one slot, so a new request of any kind
+     * replaces it: actionKind is CLEAR_ALARM, SET_DEVICE_POSITION or SELECT_MODE, and clearActive() is
+     * true while any of them runs. commandHistory keeps every write's terminal, failure included;
+     * execution describes the 1, or the 6060 write; valueOneMayRemain and uncertain record what may have
+     * landed. A read held in it and passed to requestStop is judged after that action has ended. */
     const MotorControlCAN::LICHUAN_C::ActionContext& clearAction() const noexcept { return clear_; }
     /** @return True once a clear ended with valueOneMayRemain: its 1 may have reached the drive and its 0
      * has no positive acknowledgement, so 2301 or 2302 may still hold 1, with undocumented effect.
@@ -859,8 +893,8 @@ class AxisSession {
     const MotorControlCAN::AxisReference* moveReference_ = nullptr;
     MotorControlCAN::LICHUAN_C::DriverContext* retained_[4] = {};
     uint8_t retainedCount_ = 0;
-    // The latest alarm clear or counter clear. One slot for both: they exclude each other, and a
-    // second ActionContext would cost its whole size again in every session.
+    // The latest alarm clear, counter clear or mode select. One slot for all three: they exclude each
+    // other, and a second ActionContext would cost its whole size again in every session.
     MotorControlCAN::LICHUAN_C::ActionContext clear_;
     // The clear's current target: its frozen reservation's, until a counter clear's 1 notice advances the
     // configuration epoch. It cannot be reservation_.target, which that notice must not overlap.
@@ -912,6 +946,11 @@ class AxisSession {
     void afterHome() noexcept;
     bool syncHome(uint64_t nowUs) noexcept;
     void settleHomeStop(uint64_t nowUs) noexcept;
+    MotorControlCAN::Status refuseSlot(bool changing, bool fault, uint64_t nowUs,
+                                       uint32_t& next) const noexcept;
+    MotorControlCAN::Status beginSlot(uint32_t next, uint64_t deadlineUs, uint64_t nowUs,
+                                      MotorControlCAN::AxisConfig* axis,
+                                      MotorControlCAN::AxisReference* reference) noexcept;
     MotorControlCAN::Status
     startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state, int64_t nativePosition,
                MotorControlCAN::AxisConfig* axis, MotorControlCAN::AxisReference* reference,

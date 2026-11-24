@@ -22,16 +22,21 @@
  *   STATE(ERRORS) again, so 1001 and 603F are on record before and after the first 1003 read. Every
  *   1003 upload is unqualified and takes its own one-use grant. No writes; the values are kept raw
  *   and never interpreted. Last in RouteKind, so earlier route numbers and records are unchanged.
- * - MODE_ONE, packet 15 P2. The READ_ACTIONS reads, a prerequisite check, one 6060:00=1 through
- *   AxisSession::admitPrepared, then the stated number of fresh cycles. Never enables. Two starts,
- *   chosen by the first read's mode, both in a session with no write or controlword in this boot. Mode 0,
- *   the power-up baseline: the check as packet 15 P2 states it, then the stated cycles, recorded. Mode 3,
- *   the released standstill a recorded stop left with the drive kept powered (2026-11-10): a second
- *   fresh full read, and both must report 2100 bit 4 released, alarm clear, 6041 bits 0..6 the release
- *   pattern 0x50, mode 3, 606C 0, 1001 and 603F 0 and the same 6064, with 2100 running admitted latched;
- *   then the same one 6060=1, and cycles until one reads 6061=1, at most the stated number, each still
- *   released with low bits 000, 606C 0 and the check's 6064, running only if the check read it latched.
- *   No 6040 in either. The line is unchanged.
+ * - MODE_ONE, packet 15 P2. The READ_ACTIONS reads, a second fresh full read, a prerequisite check, then
+ *   AxisSession::requestModeSelect for mode 1 (prepareModeSelect, prompt 57) on that second read: one
+ *   6060:00=1 and the library's MONITORS, STATUS and FEEDBACK cycles every interval until 6061 reads 1, at
+ *   most the stated number of cycles (the route then withdraws it locally) within modeSelectSpanMs: the
+ *   write and one cycle at the full route budgets, then the stated intervals. The route ends at the select's
+ *   terminal, TRIAL_MODE holding it; any end but its observed 6061 is failure ACTION, why=mode. Never
+ *   enables. Two starts, chosen by the first read's mode. Mode 0, the power-up baseline: the check as packet
+ *   15 P2 states it, on both reads; the library then admits only its measured power-up report (6041 8037,
+ *   2100 0001). Mode 3, the released standstill a stop left with the drive kept powered (2026-11-10): both
+ *   reads must report 2100 bit 4 released, alarm clear, 6041 bits 0..6 the release pattern 0x50, mode 3,
+ *   606C 0, 1001 and 603F 0 and the same 6064, with 2100 running admitted latched. No per-boot history is
+ *   required since prompt 57: the library's fresh not-enabled check replaces the earlier rule that refused
+ *   this route after any controlword or write of this boot. The latest controlword recorded at admission
+ *   must still be the latest at the request, as for RELEASED_QUICK. No 6040 in either. The line is
+ *   unchanged.
  * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then
  *   AxisSession::requestEnable with the host's trial, start record, reviewed 6041, 607A and 60FF and the
  *   attendant's shaft observation. The firmware never supplies an observation itself. Start 2,
@@ -110,11 +115,11 @@
  * - MODE_THREE, prompt 35's released mode change. Two fresh full reads that must both report the
  *   drive released and stationary (2100 bit 4 set, alarm clear, running clear or only the latch a moving
  *   000B leaves, 6041 low bits 000 or 001,
- *   mode 0 or 1, 606C 0, 1001 and 603F 0, the same 6064), then one 6060:00=3 through
- *   AxisSession::admitPrepared under its own grant, then the stated number of fresh cycles, recorded
- *   and never judged. A drive that reports enabled is refused: no source documents changing 6060 while
- *   enabled (Q11). The session's latest word recorded at admission must be unchanged at the write, as
- *   for RELEASED_QUICK. Never enables. Motion class.
+ *   mode 0 or 1, 606C 0, 1001 and 603F 0, the same 6064), then AxisSession::requestModeSelect for mode 3 on
+ *   the second read: one 6060:00=3 and the library's cycles until 6061 reads 3, bounded and ended as for
+ *   MODE_ONE. A drive that reports enabled is refused, by the check and by the library: no source documents
+ *   changing 6060 while enabled (Q11). The session's latest word recorded at admission must be unchanged at
+ *   the request, as for RELEASED_QUICK. Never enables. Motion class.
  * - VELOCITY, prompt 35. A fresh identity read and full read, a check that the drive reports released
  *   and stationary in mode 3, then AxisSession::requestVelocity under VelocityGate::ATTENDED_EXPERIMENT:
  *   the run measures its mode 3 start and stop and claims neither, so startQualified and stopQualified
@@ -303,7 +308,7 @@
  * POSITION, RELATIVE or MOVE with `control`, HOME with the session's `code=1 detail=3`). Everything
  * that refuses later work survives in the stationary session object and here, as it would not
  * across an MCU restart: the session's move fence, clear and fault blocks, needs-stop facts, motion
- * write history and enable trials, and this object's mode write record, trial identity, caps and
+ * write history and enable trials, and this object's trial identity, caps and
  * counters. The next route on that node reopens the same session object, which refuses the same way.
  *
  * Grant identities start at ROUTE_GRANT_BASE, above every other bench range. The channel grants an
@@ -329,7 +334,7 @@ enum class RouteKind : uint8_t {
     READ_ACTIONS, ///< Packet 15 P1 reads; `TA`.
     READ_IO,      ///< Packet 13 P1 reads; `TI`.
     READ_TUNING,  ///< Packet 14 T0 reads; `TU`.
-    MODE_ONE,     ///< Packet 15 P2, one 6060:00=1; `TM`.
+    MODE_ONE,     ///< Packet 15 P2, one typed mode select to 1 (6060:00=1); `TM`.
     ENABLE,       ///< Packet 15 P3, AxisSession::requestEnable; `TE`.
     STOP,         ///< Packet 15 P4 and packet 16, AxisSession::requestStop; `TS`.
     POSITION,     ///< Packet 19 isolated absolute experiment; `TP`.
@@ -346,7 +351,7 @@ enum class RouteKind : uint8_t {
     /** AxisSession::requestClearAlarm, 2301 1, 0 or, from protocol 10, 6040 0x0080, 0x0000 as the line's
      * method names; `TC`. Motion class. */
     CLEAR_ALARM,
-    MODE_THREE,     ///< Prompt 35, one 6060:00=3 on an evidenced released drive; `TN`. Motion class.
+    MODE_THREE,     ///< Prompt 35, one typed mode select to 3 on an evidenced released drive; `TN`. Motion class.
     VELOCITY,       ///< Prompt 35, AxisSession::requestVelocity from released mode 3; `TV`. Motion class.
     HOME,           ///< Prompt 36, AxisSession::requestHome's admission reads and refusal; `TO`. Attended.
     VELOCITY_TARGET, ///< Gate Q03, one 60FF write and its readback on a released mode 3 drive; `TF`. Attended.
@@ -429,8 +434,9 @@ struct RoutePlan {
      * MoveOptions::observationIntervalUs, in milliseconds, and the observer's cycle spacing. VELOCITY:
      * VelocityOptions::pollIntervalUs in milliseconds, its stop's observation interval too. */
     uint32_t intervalMs = 0;
-    /** Fresh observation cycles: MODE_PROBE, MODE_ONE and MODE_THREE 1..10, for MODE_ONE from a released mode 3 start
-     * the most it waits for 6061=1; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16; WORD67 1..16 after
+    /** Fresh observation cycles: MODE_PROBE 1..10; MODE_ONE and MODE_THREE 1..10, the most cycles the typed
+     * mode select reads while 6061 does not yet report the mode; POSITION, RELATIVE, REARM and RELEASED_QUICK
+     * 1..16; WORD67 1..16 after
      * its 0007; CONTROLWORD 1..ROUTE_CONTROLWORD_CYCLES after its word. */
     uint16_t cycles = 0;
     uint8_t wordCycles = 0;  ///< WORD67: fresh observation cycles after its 0006, 1..4.
@@ -934,6 +940,9 @@ struct RouteRecord {
     /** COUNTER_ZERO and CLEAR_ALARM: requestCounterZero or requestClearAlarm accepted;
      * AxisSession::clearAction holds it. */
     bool clearRequested = false;
+    /** MODE_ONE and MODE_THREE: requestModeSelect accepted; AxisSession::clearAction holds it, and the record
+     * prints TRIAL_MODE. */
+    bool modeRequested = false;
     /** VELOCITY: requestVelocity accepted; AxisSession::velocityAction holds it, and the stop it asked for
      * at its due time is the session's stopAction of the plan's kind. */
     bool velocityRequested = false;
@@ -995,8 +1004,10 @@ enum SessionKept : uint8_t {
     KEPT_FAULT_BLOCK = 4,    ///< AxisSession::faultBlocked: work was withdrawn for a drive fault.
     KEPT_VELOCITY_STOP = 8,  ///< AxisSession::velocityNeedsStop.
     KEPT_HOME_STOP = 16,     ///< AxisSession::homeNeedsStop.
-    KEPT_WRITTEN = 32,       ///< AxisSession::motionHistoryWritten: the enable stays refused.
-    KEPT_MODE_WRITE = 64     ///< This object admitted a 6060 write on the node: MODE_ONE stays refused.
+    /** AxisSession::motionHistoryWritten: the enable stays refused. Bit 64, a 6060 write admitted by this
+     * object, refused MODE_ONE until prompt 57 replaced that rule with the library's fresh check; it is no
+     * longer reported. */
+    KEPT_WRITTEN = 32
 };
 class BenchRoute;
 /** A successful arming record's acquisition (isArming), as BenchRoute::armed publishes it. The
@@ -1175,9 +1186,6 @@ class BenchRoute {
         STEP_CHECK_TARGET,   ///< VELOCITY_TARGET's check of both reads: released standstill in mode 3.
         STEP_TARGET_WRITE,   ///< VELOCITY_TARGET: the one 60FF download.
         STEP_CHECK_TARGET_AFTER, ///< VELOCITY_TARGET: the read after the readback against the check.
-        /** MODE_ONE: a second fresh state read, kept as STEP_SECOND keeps it, only when the first read
-         * reported mode 3; skipped otherwise. */
-        STEP_SECOND_RELEASED,
         STEP_CHECK_WITNESS, ///< ARM_WITNESS's check of both reads: stationary, idle or released, at the reviewed 6064.
         STEP_CHECK_CONTROLWORD, ///< CONTROLWORD's admission check of its fresh full read.
         STEP_CHANGE_FALL, ///< POSITION_CHANGE: the explicitly measured 000F falling edge.
@@ -1185,7 +1193,8 @@ class BenchRoute {
         STEP_CHECK_MODE_PROBE, ///< MODE_PROBE: two released, non-enabled stationary reads.
         STEP_CHECK_CONTROLWORD_AFTER, ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
         /** A paired arming: keep the first node's checked reads, then run the same steps on the other node. */
-        STEP_PAIR_NEXT
+        STEP_PAIR_NEXT,
+        STEP_MODE_SELECT ///< MODE_ONE and MODE_THREE: the session's typed mode select request.
     };
     struct Step {
         uint8_t kind;
@@ -1268,7 +1277,6 @@ class BenchRoute {
     /// MOVE: the planned stop was asked for, whatever its path. VELOCITY: the route's own fallback
     /// QUICK_STOP after a run that ended needing a stop with none sent (backlog S16).
     bool stopAttempted_ = false;
-    bool modeAdmitted_[BENCH_NODES] = {};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
     uint32_t emcyBaseline_[BENCH_NODES] = {}; ///< Each node's emcyCount when this route last handled it.
     const char* endWhy_ = "none";
@@ -1307,7 +1315,6 @@ class BenchRoute {
     const char* predecessor(uint8_t write, uint8_t word = 0) const noexcept;
     const char* checkMode() const noexcept;
     const char* checkModeOneReleased() const noexcept;
-    const char* checkModeOneCycle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkIdle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkPosition() const noexcept;
     const char* checkRearm() const noexcept;
@@ -1342,6 +1349,7 @@ class BenchRoute {
     void observerReadDone(uint64_t nowUs) noexcept;
     void serviceObserver(uint64_t nowUs) noexcept;
     void startClear(uint64_t nowUs) noexcept;
+    void startModeSelect(uint64_t nowUs) noexcept;
     void startEnable(uint64_t nowUs) noexcept;
     void startMove(uint64_t nowUs) noexcept;
     void startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffortMs, uint32_t intervalMs,

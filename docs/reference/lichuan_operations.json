@@ -353,6 +353,7 @@
         "prepareSetDevicePosition": 1,
         "validateEnable": 1,
         "prepareEnable": 1,
+        "prepareModeSelect": 1,
         "noteActionWithdrawal": 1,
         "nextAction": 1,
         "noteActionTransmission": 2,
@@ -379,6 +380,10 @@
         {
           "path": "test/alarm_clear_test.cpp",
           "ctest": "alarm_clear"
+        },
+        {
+          "path": "test/mode_select_test.cpp",
+          "ctest": "mode_select"
         },
         {
           "path": "test/counter_clear_test.cpp",
@@ -1516,7 +1521,13 @@
       }
     },
     "manual": {
-      "mode_selection": "Settings",
+      "mode_selection": {
+        "family": "Actions",
+        "role": "workflow",
+        "entries": [
+          "Actions.prepareModeSelect"
+        ]
+      },
       "enable_transition": {
         "family": "Actions",
         "role": "workflow",

@@ -286,6 +286,16 @@ GRAMMAR = (
     Row("TRIAL_INCIDENT", "TRIAL_INCIDENT ", "summary",
         "present:b 1001:x 603f:x count:u 2100:x 2101:x 2102:x 6041:x 6061:x"),
     Row("TRIAL_BASELINE", "TRIAL_BASELINE ", "summary", "present:b 6064:i 606c:i"),
+    # mode1 and mode3 (prompt 57): the session's typed mode select, raw. start 1 NOT_ENABLED, 2 POWER_UP;
+    # requested and from the 6060 written and the 6061 at admission; wout the 6060 terminal's outcome (255
+    # when none is held) and ack its acknowledgement; s0/m0/p0 the admission report, s1/m1/mode/p1/v1 the
+    # last cycle. Completion is the drive's 6061 report, never the acknowledgement.
+    Row("TRIAL_MODE", "TRIAL_MODE ", "summary",
+        "own:b start:u requested:u from:u state:u outcome:u>modeOutcome exec:u completion:u>modeCompletion "
+        "uncertain:b>modeUncertain effects:b observations:u op:u wout:u ack:b s0:x m0:x p0:i s1:x m1:x mode:u "
+        "p1:i v1:i",
+        signals=(("health", "modeOutcome"), ("health", "modeCompletion"), ("health", "modeUncertain")),
+        per_node=True),
     Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
         "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x rb:u?"),
@@ -606,7 +616,8 @@ GRAMMAR = (
     # x (backlog S15): the idle route sessions closed, or a refusal with nothing changed (reason record,
     # state, busy, configuration, owner or none). Nothing is sent either way. kept1/kept2 are BenchRoute
     # SessionKept bits, the facts that still refuse later work: 1 move fence, 2 clear block, 4 fault
-    # block, 8 velocity needs a stop, 16 home needs a stop, 32 motion written, 64 a 6060 write admitted.
+    # block, 8 velocity needs a stop, 16 home needs a stop, 32 motion written. Bit 64, a 6060 write
+    # admitted, was retired with prompt 57's typed mode select; older records may still show it.
     Row("SESSIONS_CLOSED", "SESSIONS closed", "response", "node1:b node2:b kept1:x kept2:x motion:u"),
     Row("SESSIONS_REFUSED", "SESSIONS refused", "response", "reason:s node1:b node2:b"),
     # n while a discovery scan runs: its passive evidence is the history the listing would drain.

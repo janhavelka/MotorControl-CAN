@@ -19767,7 +19767,14 @@
           "Q11"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "operation_coverage": {
+        "documented": true,
+        "implemented": true,
+        "host_tested": true,
+        "hardware_qualified": false
+      },
+      "operation_scope": "Actions.h prepareModeSelect (prompt 57): documented 6060 codes 1, 3 and 6 only, one 6060 write from a fresh not-enabled report (2100 released, 6041 low bits 000 or 001) or the measured power-up report to mode 1, settled when a fresh 6061 reads the mode; never reads 6060 or writes 6061; no mode change while enabled (Q11)."
     },
     {
       "key": "enable_transition",

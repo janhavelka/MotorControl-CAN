@@ -1,5 +1,5 @@
 /** @file Actions.h
- * @brief Finite source-backed 86C stop, fault-clear and device-zero actions.
+ * @brief Finite source-backed 86C stop, fault-clear, device-zero, enable and mode-select actions.
  * SPDX-License-Identifier: MIT
  * Stop transition contract: CL86-C/OL86-C only, one continuous actual owner reservation
  * acquired before the last positively acknowledged 6040:00 U16 word. Fresh SDO
@@ -64,6 +64,10 @@
  * records the word 7 position move, claims no continuity across it, and fails on any position or
  * velocity change after word 15, which the caller must answer with a stop. Read
  * docs/drive_actions.md for the full table.
+ * Mode select contract (prepareModeSelect): one 6060:00 byte of a documented code, 1, 3 or 6, from a
+ * fresh report of a drive that is not enabled, or from the measured power-up report to mode 1, and
+ * settled only when a later fresh 6061 reads that code. It never reads 6060 (write-only in the EDS,
+ * D04), never writes 6061, never enables and is never resent. Other codes stay in the D17 probe.
  * Preparation and advancement validate first, then write the caller's context in place,
  * so no call copies a context onto the stack and a refused call changes nothing. Keep
  * contexts in static or owner storage, never in task locals.
@@ -326,6 +330,36 @@ struct EnableRecord {
      * is the second of the two still cycles word 15 waited for. */
     EnableStepRecord steps[3];
 };
+/** Which fresh report admitted a mode select. The library judges only that report: it keeps no
+ * history of earlier writes, and the application owns what it knows beyond the report. */
+enum class ModeSelectStart : uint8_t {
+    NONE, ///< Not a SELECT_MODE context.
+    /** The drive reports itself not enabled: 2100 bit 4 set (EN86 p17 and ZH86 p18, set released and
+     * clear enabled) with 6041 bits 1 and 2 clear, low bits 000 or 001, as every released report of both
+     * specimens read (8050, C050, 4050; 8031 after word 6). Any requested mode. */
+    NOT_ENABLED,
+    /** The measured power-up report: 6061 0, 6041 exactly 8037 and 2100 exactly 0001. Both specimens
+     * report the manual's enabled pattern there; the 23 retained writes from it, records 102 to 1722 on
+     * one firmware (1000=00040192, 1009=000c, 100A=0020), were all 6060=1, acknowledged and followed by
+     * 6061=1 (6041=8437). So only mode 1 is admitted from it (lead decision, 2026-11-24): another
+     * mode from the manual's enabled pattern is a mode change while enabled that nothing measured. */
+    POWER_UP
+};
+/** SELECT_MODE only: the request and the admission report, kept after later cycles replace the blocks.
+ * Raw values, never an interpretation. */
+struct ModeSelectRecord {
+    ModeSelectStart start = ModeSelectStart::NONE; ///< The admitted start; NONE in every other context.
+    uint8_t requestedModeRaw = 0; ///< The one 6060 byte written: 1, 3 or 6.
+    /** 6061 complete byte at admission; differs from requestedModeRaw unless alreadySelected. */
+    uint8_t startModeRaw = 0;
+    uint16_t startStatusword = 0; ///< 6041 raw at admission.
+    uint16_t startMonitor = 0;    ///< 2100 raw at admission.
+    int32_t startPosition = 0;    ///< 6064 raw at admission; every cycle must repeat it.
+    /** True when the admission report, a NOT_ENABLED start, already showed 6061 equal to the request: the
+     * context ended SUCCEEDED at preparation with execution NOT_TRANSMITTED, and no write was needed or
+     * sent, as the release table's already-released row answers. */
+    bool alreadySelected = false;
+};
 /** Caller-owned concrete action context. Serialize access; do not edit active fields.
  * Histories are inspectable after terminal and survive failure. Inputs are borrowed
  * during calls only. Every yielded/advanced service needs the actual live reservation.
@@ -338,10 +372,11 @@ struct ActionContext {
     /** Set by successful preparation: MOTION_LIKE for prepareEnable; NOT_REPEATABLE for every
      * stop (prepareStop, prepareEscalation, prepareVelocityStop, prepareHaltedVelocityQuickStop),
      * for prepareClearAlarm (2301 or 6040 bit 7) and for prepareSetDevicePosition (2302), whose
-     * value-1 writes are edges with undocumented repeat behavior. A new stop is a new operation
-     * with its own identity, never a replay: QUICK_STOP may be prepared again while its admission
-     * rules hold and sends only 000B, and prepareStop refuses HALT after an acknowledged 010F. The
-     * library cannot see an unconfirmed earlier stop: the application withdraws its predecessor
+     * value-1 writes are edges with undocumented repeat behavior, and for prepareModeSelect, whose
+     * 6060 cannot be read back and whose effect on the drive beyond 6061 is undocumented (Q11). A new
+     * stop is a new operation with its own identity, never a replay: QUICK_STOP may be prepared again
+     * while its admission rules hold and sends only 000B, and prepareStop refuses HALT after an
+     * acknowledged 010F. The library cannot see an unconfirmed earlier stop: the application withdraws its predecessor
      * evidence when a stop may have left (AxisSession does), since a HALT prepared from an older
      * 000F after an unconfirmed 010F would send 010F again. */
     RetryClass retryClass = RetryClass::NOT_REPEATABLE;
@@ -393,15 +428,17 @@ struct ActionContext {
         false; ///< Unconfirmed command/read effects or missing supported action observation.
     CANOPEN::SdoCompletion controlEvidence; ///< STOP only: prior positively acknowledged word.
     /** Each ordered download terminal, including failure. The effecting command is slot 0
-     * for a stop or alarm clear (2301 value 1, or 6040 0x0080) and slot 1 for a counter clear
-     * (value 1). In an enable
+     * for a stop, an alarm clear (2301 value 1, or 6040 0x0080) or a mode select (its one 6060) and
+     * slot 1 for a counter clear (value 1). In an enable
      * every slot is effecting: words 6, 7 and 15, and a prefix stays retained after failure. */
     CANOPEN::SdoCompletion commandHistory[3];
     uint8_t commandEvidenceMask = 0; ///< Bits identify retained commandHistory slots.
-    uint8_t commandCursor = 0;       ///< Current download slot: stop 0, alarm 0..1, counter 0..2, enable 0..2.
+    /** Current download slot: stop and mode select 0, alarm 0..1, counter 0..2, enable 0..2. */
+    uint8_t commandCursor = 0;
     AlarmIncident incident; ///< CLEAR_ALARM only: the prerequisite, kept after later cycles.
     CounterBaseline baseline; ///< SET_DEVICE_POSITION only: admission feedback, kept after later cycles.
     EnableRecord enable;    ///< ENABLE only: evidence, targets and per-step observations.
+    ModeSelectRecord modeSelect; ///< SELECT_MODE only: the request and its admission report.
     Generation originalReferenceGeneration = 0; ///< Counter action's frozen confidence epoch.
     bool coordinatesInvalidated =
         false; ///< Counter trigger crossed possible-TX boundary; never undone.
@@ -421,8 +458,8 @@ struct ActionContext {
     StateObservation
         monitorObservation; ///< Latest complete cycle MONITORS; sequential, not atomic.
     /** Selected by its block. CLEAR_ALARM: raw 1001/603F, the prerequisite until the final read.
-     * SET_DEVICE_POSITION and ENABLE: signed 6064/606C, the admission's until the first cycle
-     * replaces it, no scale/home proof.
+     * SET_DEVICE_POSITION, ENABLE and SELECT_MODE: signed 6064/606C, the admission's until the first
+     * cycle replaces it, no scale/home proof.
      * QUICK_STOP: the latest 6064/606C once standstillObserving is set; otherwise unused, as for
      * HALT.
      * The default block is ERRORS with fieldCount 0, so check fieldCount before reading it. */
@@ -684,6 +721,66 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
 Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
                      const ReadContext& state, const EnableEvidence& evidence, uint32_t operation,
                      uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
+/** Prepare one documented operating-mode selection on CL86-C/OL86-C: a single 6060:00 download of
+ * modeRaw, settled only when a later fresh 6061 reads modeRaw. The request is the one byte
+ * `2F 60 60 00 <modeRaw> 00 00 00`: the manuals declare 6060 INTEGER8 and the EDS U8, and 1, 3 and 6
+ * are the same byte either way. It never reads 6060, which the EDS (LC_StepDriverCAN_V1.1.eds) declares
+ * write-only while the manual tables list it RW (D04); never writes 6061, the drive's mode report
+ * (EN86's "set 6061" is a known mistranslation of monitor); and never writes 6040, enables, clears,
+ * stops or resends anything.
+ *
+ * Admission needs a complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK acquired under
+ * reservation: 1001 and 603F zero, 2100 alarm clear, 606C zero, and one of the two starts of
+ * ModeSelectStart:
+ * - NOT_ENABLED: 2100 released set and 6041 bits 1 and 2 clear, any start mode and any requested mode.
+ *   2100 running may be set beside the release only as the latch a moving quick stop leaves (2100=0014 or
+ *   0015 with 6041=4050 or C050, which stays for minutes); 606C zero in the same read admits it. When
+ *   6061 already reads modeRaw, the answer is already selected: the context ends SUCCEEDED and OBSERVED
+ *   at preparation, execution NOT_TRANSMITTED and modeSelect.alreadySelected set, and nothing is ever
+ *   yielded or sent.
+ * - POWER_UP: 6061 0, 6041 exactly 8037 and 2100 exactly 0001, to mode 1 only: all 23 measured writes
+ *   from it were 6060=1.
+ * Every other report is refused before TX. That includes an enabled drive (6041 low bits 111 with 2100
+ * released clear in any mode but the power-up report): no source documents a mode change while enabled
+ * (Q11), and only the power-up writes measured one. It also includes the switched-on reports 8033 and
+ * 8010 beside 2100=0001 (backlog S21 and the 2301 clear), from which no mode write was measured.
+ *
+ * From the acknowledgement on it reads MONITORS, STATUS and FEEDBACK in cycles, each after the previous
+ * one by observationIntervalUs, until a cycle in scope reports 6061 equal to modeRaw. A cycle that starts
+ * after the acknowledgement is the only settlement evidence. A cycle is in scope when 6061 reads the
+ * start mode or modeRaw, 2100 alarm stays clear, 2100 released and the class of 6041 bits 0..2 repeat the admission's
+ * (000 or 001 after NOT_ENABLED, 111 after POWER_UP), 2100 running is set only where the admission read
+ * it, 606C reads zero and 6064 repeats the admission value. Other 6041 bits decide nothing: bit 10 went
+ * from 8037 to 8437 with the power-up mode change. A cycle still reporting the start mode repolls until
+ * the deadline; any other report ends the action OBSERVATION_SCOPE with that cycle kept. Measured: about
+ * 130 writes on two CL86-C specimens, one firmware (1000=00040192, 1009=000c, 100A=0020), all
+ * acknowledged and read back: 23 from the power-up report, the others 1 to 3 and 3 to 1 released
+ * (trials 917, 2101 and 2221 among them, and the night soaks). No mode 6 write and no write from a start
+ * mode other than 0, 1 or 3 has run. Success is the drive's mode report, not a qualification of that
+ * mode's motion.
+ * @param[out] output Owned context, unchanged on failure, disjoint from all inputs.
+ * @param[in] reservation Continuous actual owner reservation, CL86-C/OL86-C.
+ * @param[in] state Complete fresh prerequisite read as above, borrowed for this call. Its STATUS,
+ * MONITORS and FEEDBACK seed the observations; modeSelect keeps the raw start.
+ * @param[in] modeRaw The 6060 code: 1 position, 3 velocity or 6 homing (EN86/ZH86 p11). Any other
+ * value returns UNSUPPORTED with ActionError::ARGUMENT right after the overlap check, before any state,
+ * reservation or budget check: undocumented codes belong to the D17 probe, not to this operation.
+ * @param[in] operation Nonzero identity unique while old owner work exists.
+ * @param[in] nowUs Nondecreasing monotonic microseconds, zero valid.
+ * @param[in] deadlineUs Immutable exclusive future cutoff of the write and every observation.
+ * @param[in] options Nonzero budgets and observationIntervalUs; maximumAgeUs covering seven fields at the
+ * queue plus response budgets; service.identityWidths DECLARED_U16 and service.countWidths DECLARED_U8.
+ * @return Local validation only, no I/O: OVERLAP, then UNSUPPORTED for the code, then ARGUMENT for the
+ * reservation, identity, time or budgets, then STATE for the read or the start report, each with output
+ * unchanged; OK for a prepared write or an already selected mode. The prepared context's retryClass is
+ * NOT_REPEATABLE. Later, execution keeps the 6060
+ * acknowledgement apart from completion: an acknowledged write whose cycles never report modeRaw ends
+ * without completion and uncertain, a lost reply leaves execution UNKNOWN, an abort REJECTED, and
+ * nothing is resent. A new attempt is a new operation, prepared from a new fresh read.
+ */
+Status prepareModeSelect(ActionContext& output, const AxisReservation& reservation,
+                         const ReadContext& state, uint8_t modeRaw, uint32_t operation, uint64_t nowUs,
+                         uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Record a local withdrawal while this action's admitted work is still in flight, so that its
  * terminal is consumed as evidence and cannot complete the action. Sends nothing and stops nothing.
  * @param[in,out] context Active context with no earlier withdrawal; unchanged on refusal.
@@ -707,7 +804,7 @@ Status noteActionWithdrawal(ActionContext& context, const AxisReservation& live,
  */
 Status nextAction(const ActionContext& context, const AxisReservation& live,
                   const ReadTarget& current, uint64_t nowUs, PreparedAction& output) noexcept;
-/** Record possible stop/alarm/enable command transmission; never sends or modifies a binding.
+/** Record possible stop/alarm/enable/mode command transmission; never sends or modifies a binding.
  * Counter actions reject this overload to prevent bypassing coordinate invalidation.
  * @param[in,out] context Pending download, exactly one notice per step. Uploads use owner terminals.
  * @param[in] live Actual reservation. @param[in] current Actual target/epochs.

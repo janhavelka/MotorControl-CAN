@@ -75,6 +75,7 @@ struct FakeDrive {
     bool answer = true;
     uint16_t monitor = 4, status = 7, errorCode = 0xff05, abortIndex = 0;
     uint8_t mode = 1;
+    uint8_t errorRegister = 1; ///< 1001 as this fake reports it.
 };
 uint16_t frameIndex(const M::Frame& f) { return uint16_t(f.data[1] | (uint16_t(f.data[2]) << 8)); }
 M::Frame replyTo(const M::Frame& sent, const FakeDrive& drive) {
@@ -101,7 +102,7 @@ M::Frame replyTo(const M::Frame& sent, const FakeDrive& drive) {
         size = 4;
         break;
     case 0x1001:
-        raw = 1;
+        raw = drive.errorRegister;
         size = 1;
         break;
     case 0x1003:
@@ -3943,6 +3944,112 @@ void counterNoticeRefusalCancelsTrigger() {
 // The owner closing a clear's queued write is not a cancel this session made: the clear ends
 // INVALIDATED, with that unsent terminal kept. Revoking the reservation reads as an invalidation from
 // the owner already; another producer's urgent operation closes it as a plain cancel.
+// Prompt 57: the typed mode select through the session's explicit-action slot. The judgment is the fresh
+// report alone: a session that has written and holds a latest controlword still admits it. One 6060, cycles
+// that repoll while 6061 still reports the start mode, completion on the requested mode; never a 6060 upload.
+void modeSelectThroughSession() {
+    Rig r;
+    openAxis(r, r.a);
+    FakeDrive& d = r.drive[0];
+    d.monitor = 0x0011; // In place and released.
+    d.status = 0x8050;
+    d.mode = 1;
+    d.errorCode = 0;
+    d.errorRegister = 0;
+    const uint8_t mask = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::FEEDBACK) | STATE_MASK);
+    L::ReadContext before;
+    readState(r, r.a, before, 1, mask);
+    write(r, r.a, 0x6040, WORD_ENABLE); // A write and a latest controlword: no per-boot history refuses.
+    CHECK(r.a.motionHistoryWritten() && r.a.latestControl());
+    {   // A report from before that write is not the drive's present report, however young it is.
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status stale = r.a.requestModeSelect(before, 3, clearOptions(), r.now + 4000, r.now);
+        CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE) && std::strstr(stale.msg, "latest write"));
+        session.unchanged(r.a);
+    }
+    L::ReadContext state;
+    readState(r, r.a, state, 1, mask);
+    {   // An undocumented code is refused unchanged.
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status code = r.a.requestModeSelect(state, 2, clearOptions(), r.now + 4000, r.now);
+        CHECK(!code && code.code == M::Err::UNSUPPORTED);
+        session.unchanged(r.a);
+    }
+    {   // The mode the report already shows: answered as already selected, no operation, zero frames.
+        const unsigned sent = r.wire.sentCount;
+        const C::SdoCompletion* control = r.a.latestControl();
+        CHECK(r.a.requestModeSelect(state, 1, clearOptions(), r.now + 4000, r.now).isOk() && !r.a.clearActive() &&
+              !r.a.busy());
+        const L::ActionContext& same = r.a.clearAction();
+        CHECK(same.state == M::ActionState::SUCCEEDED && same.modeSelect.alreadySelected &&
+              same.execution == M::ActionExecution::NOT_TRANSMITTED &&
+              same.completion == M::ActionCompletion::OBSERVED);
+        r.steps(10);
+        CHECK(r.wire.sentCount == sent && r.a.latestControl() == control && control);
+    }
+    const unsigned from = r.wire.sentCount;
+    CHECK(r.a.requestModeSelect(state, 3, clearOptions(100), r.now + 4000, r.now).isOk() && r.a.clearActive() &&
+          r.a.busy());
+    CHECK(r.wire.sentCount == from); // A request yields no traffic.
+    const L::ActionContext& select = r.a.clearAction();
+    CHECK(select.actionKind == M::ActionKind::SELECT_MODE &&
+          select.modeSelect.start == L::ModeSelectStart::NOT_ENABLED && select.modeSelect.requestedModeRaw == 3);
+    // Busy: another request of the slot refuses with nothing changed.
+    {
+        const Saved<E::AxisSession> session(r.a);
+        CHECK(r.a.requestModeSelect(state, 6, clearOptions(), r.now + 4000, r.now).detail ==
+              int32_t(M::ActionError::STATE));
+        session.unchanged(r.a);
+    }
+    for (unsigned i = 0; i < 40 && select.observations == 0; ++i)
+        r.step();
+    // The drive still reports mode 1: in scope, waiting for the next cycle.
+    CHECK(select.state == M::ActionState::ACTIVE && select.phase == L::ActionPhase::WAITING &&
+          select.observations == 1 && select.execution == M::ActionExecution::ACKNOWLEDGED);
+    d.mode = 3;
+    for (unsigned i = 0; i < 400 && r.a.clearActive(); ++i)
+        r.step();
+    CHECK(select.state == M::ActionState::SUCCEEDED && select.outcome == M::ActionOutcome::OBSERVED &&
+          select.completion == M::ActionCompletion::OBSERVED && select.observations == 2 && !select.uncertain);
+    unsigned downloads = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        if (r.wire.sent[i].data[0] != 0x40) {
+            const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
+            CHECK(r.wire.sent[i].id == 0x601 && !std::memcmp(r.wire.sent[i].data, three, sizeof three));
+            ++downloads;
+        }
+    CHECK(downloads == 1 && uploads(r, from, 0x6060) == 0 && uploads(r, from, 0x6061) == 2);
+    // The 6060 withdrew the latest controlword like every download; 6060=3 keeps the enable refused.
+    CHECK(!r.a.latestControl() && r.a.motionHistoryWritten() && !r.a.clearBlocked());
+    quiet(r);
+}
+// A stop request ends an active mode select first, as it ends a clear: its write in flight settles as
+// evidence, and nothing of the select follows.
+void stopSupersedesModeSelect() {
+    Rig r;
+    openAxis(r, r.a);
+    FakeDrive& d = r.drive[0];
+    d.monitor = 0x0011;
+    d.status = 0x8050;
+    d.errorCode = 0;
+    d.errorRegister = 0;
+    L::ReadContext state;
+    readState(r, r.a, state, 1,
+              uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::FEEDBACK) | STATE_MASK));
+    CHECK(r.a.requestModeSelect(state, 3, clearOptions(100), r.now + 4000, r.now).isOk());
+    const unsigned from = r.wire.sentCount;
+    r.step(); // The session admits the 6060.
+    r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now), r.now);
+    for (unsigned i = 0; i < 400 && (r.a.clearActive() || r.a.stopActive()); ++i)
+        r.step();
+    const L::ActionContext& select = r.a.clearAction();
+    CHECK(!r.a.clearActive() && select.state == M::ActionState::FAILED &&
+          select.completion == M::ActionCompletion::NOT_OBSERVED);
+    unsigned modeWrites = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        modeWrites += r.wire.sent[i].data[0] == 0x2f && frameIndex(r.wire.sent[i]) == 0x6060;
+    CHECK(modeWrites <= 1 && uploads(r, from, 0x6061) == 0);
+}
 void ownerClosureIsNotACancel() {
     for (unsigned revoke = 0; revoke < 2; ++revoke) {
         ClearRun run(false);
@@ -4325,6 +4432,8 @@ void allScenarios() {
     RUN(stopAfterUnsentClearKeepsHistory);
     RUN(counterNoticeRefusalCancelsTrigger);
     RUN(ownerClosureIsNotACancel);
+    RUN(modeSelectThroughSession);
+    RUN(stopSupersedesModeSelect);
 }
 } // namespace
 

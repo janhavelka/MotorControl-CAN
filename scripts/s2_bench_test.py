@@ -1070,12 +1070,15 @@ class BenchTest(unittest.TestCase):
         argv = ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "4", "--interval-ms", "200"]
         args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("TM1,5,1,4,200"))
-        # test/bench_route_test.cpp pins 15 + 9 + 1 + 9 terminals for one cycle after a released start.
-        self.assertEqual(bench.plan_bounds("mode1", fields), (15 + 9 + 1 + 9 + 7 * 3, 800))
+        # test/bench_route_test.cpp pins 15 + 9 + 1 + 7 terminals for one cycle after a released start; the bound
+        # holds the typed mode select's stated cycles plus one (prompt 57).
+        self.assertEqual(bench.plan_bounds("mode1", fields), (15 + 9 + 1 + 7 * 5, 2800 + 800))
+        self.assertEqual(bench.plan_bounds("mode3", fields), (9 + 9 + 1 + 7 * 5, 2800 + 800))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
-        self.assertIn("mode 3, a second full read", out.getvalue())
+        self.assertIn("two full reads; the first decides the start", out.getvalue())
+        self.assertIn("no per-boot history", out.getvalue())
         self.assertIn("never 6040", out.getvalue())
 
     def test_readiness_records_the_fault_led(self):
@@ -1824,7 +1827,7 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(bounds(VELOCITY), (9 + 9 + 3 + 3 + 21 + 7 * 6 + 7 * 3 + 10, 15500))
         self.assertEqual(bounds(VELOCITY)[0], 118)
         self.assertEqual(bench.VELOCITY_WINDOW_CYCLES, 6)
-        self.assertEqual(bounds(MODE3), (35, 400))
+        self.assertEqual(bounds(MODE3), (9 + 9 + 1 + 7 * 3, 2800 + 400))  # The typed mode select (prompt 57).
         self.assertEqual(bounds(HOME), (29, 0))
         dense = list(VELOCITY)
         dense[dense.index("--interval-ms") + 1] = "100"

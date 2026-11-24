@@ -9,7 +9,8 @@ qualified TPDO sample, decodes it with `interpretStatusword`, and tests object
 2100 with the `MONITOR_` masks beside it. Those give the same meanings, but
 prove no route, freshness or firmware: a decoded word is not admission or
 completion evidence by itself, and each caller must prove those facts itself. A gated enable, run
-attended on both specimens on one firmware, is described below, and release has no API. The separate
+attended on both specimens on one firmware, and the typed mode select are described below, and release
+has no API. The separate
 [conditional stop lifecycle](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) uses common `ActionOperation.h`
 evidence and concrete `Actions.h` contexts; it establishes neither of those. [Fault clear and counter zero](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md)
 also use this lifecycle with their own documented writes and report criteria;
@@ -283,6 +284,33 @@ that word, and the first of those admissions withdraws any older one. Settings a
 their own predicates on an acknowledged `000F`. Each still needs its own fresh report, and an
 enable's success does not satisfy them by itself.
 
+## Mode select: the typed `6060` write (prompt 57)
+
+`prepareModeSelect` in `Actions.h` (`ActionKind::SELECT_MODE`) writes one documented operating mode
+and settles only on the drive's own mode report. It runs through the ordinary `nextAction`,
+`noteActionTransmission` and `advanceAction` lifecycle; `AxisSession::requestModeSelect` runs it
+through the sole owner in the session's explicit-action slot, which it shares with the alarm and
+counter clears.
+
+| Item | Rule | Basis |
+| --- | --- | --- |
+| Codes | `1` position, `3` velocity, `6` homing only. Any other byte, `0` included, is `UNSUPPORTED` before any other check; undocumented codes stay in the D17 probe (`MODE_PROBE`) | EN86 and ZH86 p11 |
+| Wire | One download `2F 60 60 00 <mode> 00 00 00`; the manuals' INTEGER8 and the EDS U8 give the same byte | EN86/ZH86 p11, EDS `[6060]` |
+| Never | A `6060` upload (write-only in the EDS, D04; the manual tables list RW), a `6061` download (the drive's report; EN86's "set 6061" is a mistranslation), any `6040` word, an enable, a resend | EDS `LC_StepDriverCAN_V1.1.eds`, ZH86 p12-14 |
+| Admission | A fresh complete SDO read of `ERRORS`, `MONITORS`, `STATUS`, `FEEDBACK` under the reservation: `1001`, `603F` and `606C` zero, `2100` alarm clear, and either the drive reporting itself not enabled (`2100` bit 4 released with `6041` low bits 000 or 001; running set only beside the release as a moving quick stop's latch) or the measured power-up report (`6041=8037`, `2100=0001`, `6061=0`) to mode 1 only, because all 23 measured writes from it were `6060=1` | Lead decision 1 of [report 57](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_57.md) |
+| Already selected | A not-enabled report whose `6061` already reads the request is answered at preparation: `SUCCEEDED`, `OBSERVED`, execution `NOT_TRANSMITTED`, `modeSelect.alreadySelected`; nothing is written or sent, as the release table's already-released row answers | Lead decision, 2026-11-24 |
+| Refused before TX | An enabled drive (low bits 111 with `2100` released clear, except the power-up report): no source documents a mode change while enabled (Q11). Also the switched-on reports `8033`/`0001` and `8010`/`0001`, from which no write was measured | Q11 |
+| Settlement | MONITORS, STATUS and FEEDBACK every `observationIntervalUs` after the acknowledgement until a cycle reports `6061` equal to the request. Each cycle must keep `6061` at the start or requested mode, `2100` alarm clear, `2100` released and the class of `6041` bits 0..2 as admitted, running only where admitted, `606C` zero and `6064` at the admission value; other `6041` bits decide nothing (bit 10 went `8037` to `8437` at power-up). Anything else ends `OBSERVATION_SCOPE` | Project policy over the measured reports |
+| Result | `execution` keeps the `6060` acknowledgement, `completion` the `6061` report. A lost reply stays `UNKNOWN` and uncertain, an abort `REJECTED`, and nothing is resent. `retryClass` is `NOT_REPEATABLE` | `ActionOperation.h` |
+
+Measured: about 130 writes on two CL86-C specimens, one firmware (`1000=00040192`, `1009=000c`,
+`100A=0020`), all acknowledged and read back: 23 from the power-up report (packet 15 P2, records 102
+to 1722), and 1 to 3 and 3 to 1 from released reports (trials 917, 2101 and 2221, and the night
+soaks). No mode 6 write and no write from another start mode has run; a success is the drive's mode
+report, not a qualification of that mode's motion. The bench routes `MODE_ONE` and `MODE_THREE` use
+this operation since prompt 57, judged on their fresh reads alone: the earlier per-boot rule, which
+refused a mode change after any controlword or write of the boot, is gone.
+
 ## Release: pending, with no API
 
 There is deliberately no `prepareRelease`. Its contract needs one specific applicable command, the
@@ -320,7 +348,7 @@ and stop on any abort below. Never retry within a trial.
 | Trial | Exact typed sequence | Decides | Abort on |
 | --- | --- | --- | --- |
 | P1, refresh (step 1). No attendant needed, no writes | Packet-11 image, then reads of `6041`, `6061`, `2100`, `2101`, `2102`, `6064`, `606C` on the DEC-1 accepted list; `1001` and `603F` as unqualified single reads, never polled, with the fault LEDs recorded before and after; `6081`, `6083`, `6084` through the typed motion-parameter read, which is unqualified; `1017` as an unqualified single read; and `607A`, `60FF` once each under a one-use experiment grant, because their ledger acceptance covers only the enable's own reads | Whether the November values still hold, and the exact words to review | Any abort, timeout, boot-up, bus fault or changed value: stop and report |
-| P2, mode (step 3). **Attendant required.** One isolated write, shaft watched | Full read of P1. Then `2F 60 60 00 01 00 00 00`. No typed write or firmware route builds this. The only path is a caller-built transfer through `AxisSession::admitPrepared`, whose bytes `enable_action_test` asserts. Then fresh `6061`, `6041`, `2100`, `2101`, `2102`, `1001`, `603F`, `6064`, `606C`, repeated for a window chosen beforehand, while the attendant watches a mark on the shaft. Only once the reads stay quiet, and only if the attendant judges it safe, they check whether the shaft holds. No enable or trigger is appended | Whether `6060=1` is accepted, whether `6061` follows, whether status or monitor bits change, and whether an earlier target has any effect at mode change. Also whether the shaft holds or turns, which is the only torque evidence | Any shaft movement, abort, lost reply, boot-up, alarm, `2100` running or nonzero `606C`: open the cutoff, stop, keep the record. A lost reply means the mode is unknown and refuses an enable |
+| P2, mode (step 3). **Attendant required.** One isolated write, shaft watched | Full read of P1. Then `2F 60 60 00 01 00 00 00`. When this plan ran, no typed write or firmware route built it, and the only path was a caller-built transfer through `AxisSession::admitPrepared`; since prompt 57 `prepareModeSelect` builds it (Mode select above). Then fresh `6061`, `6041`, `2100`, `2101`, `2102`, `1001`, `603F`, `6064`, `606C`, repeated for a window chosen beforehand, while the attendant watches a mark on the shaft. Only once the reads stay quiet, and only if the attendant judges it safe, they check whether the shaft holds. No enable or trigger is appended | Whether `6060=1` is accepted, whether `6061` follows, whether status or monitor bits change, and whether an earlier target has any effect at mode change. Also whether the shaft holds or turns, which is the only torque evidence | Any shaft movement, abort, lost reply, boot-up, alarm, `2100` running or nonzero `606C`: open the cutoff, stop, keep the record. A lost reply means the mode is unknown and refuses an enable |
 | P3, enable. **Attendant required**, cutoff in hand, separate authorization of the trial's values | In the same power-up as a clean P2, with nothing else written: the attendant checks by hand whether the shaft holds and records `FREE` or `HOLDING`; fresh read; `requestEnable` with `ATTENDED_EXPERIMENT`, a new trial identity, the session's reservation and `nextOperation()`, a short expiry, `NO_MOTION_WRITE_RECORDED`, that shaft observation and the exact reviewed `6041`, `607A`, `60FF`; interval `ENABLE_WORD_INTERVAL_US`; a deadline chosen beforehand and at least the admitted minimum. Before and after each word, the attendant checks holding torque by hand, with the cutoff in the other hand. Word 6 may remove holding torque. Wire: `40 7A 60 00`, `40 FF 60 00`, `2B 40 60 00 06 00 00 00`, cycle, `2B 40 60 00 07 00 00 00`, cycle, `2B 40 60 00 0F 00 00 00`, cycle | Whether low bits go 1, 3, 7, whether `2100` bit 4 moves, which bits above bit 2 change, whether `6064` settles, and from the attendant whether torque appears at which word and whether the shaft moves. Whether an earlier target or curve does anything here is the point of the trial | Any shaft movement; any terminal other than `OBSERVED`, whose raw words are then kept; EMCY; an alarm. Open the cutoff on unexpected motion. Do not retry on failure: a failed prefix leaves the state unknown. Power-cycle before any new trial |
 | P4, stop after enable. Attendant, after P3 succeeded with no movement | `requestStop` with the enable's own last read, then fresh cycles | `000B` and `010F` from an idle `000F`: acknowledgement, reports, and whether torque changes. Packet 16 owns moving stops | As P3 |
 

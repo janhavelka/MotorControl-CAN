@@ -6,6 +6,7 @@
 #include "CommunicationBench.h"
 #include "BenchHeap.h"
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -491,22 +492,38 @@ void testModeEnableStop() {
     scenario = "mode";
     std::unique_ptr<Rig> r(new Rig);
     const E::RouteRecord& mode = r->run("M1,10,1,3,200");
-    CHECK(mode.failure == E::RouteFailure::NONE && mode.cycles == 3 && mode.checkPresent && mode.checkPassed);
+    // The typed mode select settles on its first cycle, which reads 6061=1.
+    CHECK(mode.failure == E::RouteFailure::NONE && mode.cycles == 1 && mode.checkPresent && mode.checkPassed &&
+          mode.modeRequested && mode.firstPresent);
     size_t at = 0;
     expectUploads(*r, at, 1, FULL, 9);
     const Address rest[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x1017, 0}, {0x607a, 0}, {0x60ff, 0}};
     expectUploads(*r, at, 1, rest, 6);
+    expectUploads(*r, at, 1, FULL, 9); // The second full read, which the library judges.
     const uint8_t modeOne[8] = {0x2f, 0x60, 0x60, 0, 1, 0, 0, 0};
     CHECK(download(r->driver.requests[at++], 1, modeOne));
-    expectUploads(*r, at, 1, FULL, 9); // The first cycle reads 1001 and 603F once.
-    expectUploads(*r, at, 1, IMAGE, 7);
-    expectUploads(*r, at, 1, IMAGE, 7);
+    expectUploads(*r, at, 1, IMAGE, 7); // The library's cycle: 2100..2102, 6041, 6061, 6064, 606C.
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 1 && r->driver.drives[0].mode == 1);
     CHECK(mode.motionTotal == 1 && mode.caseCount == 1 && !r->one.motionHistoryWritten());
+    const L::ActionContext& select = r->one.clearAction();
+    CHECK(select.actionKind == M::ActionKind::SELECT_MODE && select.state == M::ActionState::SUCCEEDED &&
+          select.modeSelect.start == L::ModeSelectStart::POWER_UP && select.modeSelect.requestedModeRaw == 1 &&
+          select.execution == M::ActionExecution::ACKNOWLEDGED &&
+          select.completion == M::ActionCompletion::OBSERVED);
     std::string text = r->dump();
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=00"));
     CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=00"));
+    CHECK(has(text, "TRIAL_MODE own=1 start=2 requested=1 from=0 state=2 outcome=1 exec=1 completion=1 "
+                    "uncertain=0 effects=1 observations=1 "));
+    CHECK(has(text, " wout=0 ack=1 s0=8037 m0=0001 p0=0 s1=8037 m1=0001 mode=1 p1=0 v1=0\n"));
     r->release();
-    CHECK(std::strcmp(r->start("M1,11,1,3,200"), "history") == 0);
+    // No per-boot history since prompt 57: a second MODE_ONE is admitted and judged on its fresh reads. The
+    // drive reports mode 1 now, so the power-up check refuses before any write.
+    const size_t again = r->driver.requests.size();
+    const E::RouteRecord& twice = r->run("M1,11,1,3,200");
+    CHECK(twice.failure == E::RouteFailure::PREREQUISITE && std::strcmp(twice.why, "mode") == 0 &&
+          r->downloadsFrom(again) == 0);
+    r->release();
     // A bounded reply after its handoff qualifies service, so no heartbeat is needed first.
 
     scenario = "enable";
@@ -598,7 +615,7 @@ void testPrerequisitesAndLostReplies() {
     r->driver.drives[0].mode = 1;
     const E::RouteRecord& m = r->run("M1,1,1,3,200");
     CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0);
-    CHECK(r->downloadsFrom(0) == 0 && m.terminalCount == 15);
+    CHECK(r->downloadsFrom(0) == 0 && m.terminalCount == 24); // Both full reads come before the check.
     r->release();
     r->driver.drives[0].mode = 0;
     r->driver.drives[0].velocity = 2;
@@ -610,15 +627,22 @@ void testPrerequisitesAndLostReplies() {
     scenario = "mode-alarm";
     r->driver.drives[0].alarmAfterMode = L::MONITOR_ALARM;
     const E::RouteRecord& alarm = r->run("M1,3,1,5,200");
-    CHECK(alarm.failure == E::RouteFailure::OBSERVATION && std::strcmp(alarm.why, "alarm") == 0);
+    // The library's cycle reports the alarm: outside the mode select's scope, kept, nothing written again.
+    CHECK(alarm.failure == E::RouteFailure::ACTION && std::strcmp(alarm.why, "mode") == 0);
     CHECK(alarm.cycles == 1 && r->downloadsFrom(0) == 1);
+    CHECK(r->one.clearAction().outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+          r->one.clearAction().execution == M::ActionExecution::ACKNOWLEDGED &&
+          r->one.clearAction().completion == M::ActionCompletion::NOT_OBSERVED);
     r->release();
 
     scenario = "mode-lost";
     std::unique_ptr<Rig> lost(new Rig);
     lost->driver.drives[1].silentIndex = 0x6060;
     const E::RouteRecord& l = lost->run("M2,1,1,3,200");
-    CHECK(l.failure == E::RouteFailure::SERVICE && std::strcmp(l.why, "uncertain") == 0);
+    // The library keeps the lost reply UNKNOWN and uncertain, and never resends the 6060.
+    CHECK(l.failure == E::RouteFailure::ACTION && std::strcmp(l.why, "mode") == 0);
+    CHECK(lost->two.clearAction().execution == M::ActionExecution::UNKNOWN && lost->two.clearAction().uncertain &&
+          lost->two.clearAction().outcome == M::ActionOutcome::SERVICE_TIMEOUT);
     // The 6060 write's reply is lost: its cleanup abort follows at once.
     const size_t write = lost->driver.requests.size() - 2;
     CHECK(lost->downloadsFrom(0) == 1 && lost->driver.requests[write].data[0] == 0x2f &&
@@ -1635,14 +1659,15 @@ void testPredecessorAtAdmission() {
     std::unique_ptr<Rig> m(new Rig);
     first = m->driver.requests.size();
     CHECK(!m->start("M1,1,1,1,200"));
-    // Step 7 is the 6060 write: the power-up start skips the released start's second read (step 5).
+    // Step 7 is the typed mode select, after both full reads (steps 0 and 5) and the check (step 6).
     for (unsigned i = 0; i < 20000 && m->route.active() && m->route.record()->step < 7; ++i)
         m->turn();
     CHECK(m->route.active() && m->route.record()->checkPassed && m->downloadsFrom(first) == 0);
     ownWord(*m, 0x0006);
     finishRoute(*m);
+    // Another writer's word since admission makes the check's reads stale; no per-boot history decides.
     CHECK(m->route.record()->failure == E::RouteFailure::PREREQUISITE &&
-          std::strcmp(m->route.record()->why, "history") == 0);
+          std::strcmp(m->route.record()->why, "control") == 0 && !m->route.record()->modeRequested);
     CHECK(m->downloadsFrom(first) == 1 && m->driver.drives[0].mode == 0); // No 6060 write.
 }
 // begin() judges a plan built in code as the parser judges a line, before any bound divides by it.
@@ -3322,7 +3347,8 @@ void testParseVelocityHome() {
     const std::string line = velocityLine(2, big, longest);
     CHECK(line.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(line.data(), line.size(), p));
 }
-// MODE_THREE: two released, stationary reads, one 6060=3, cycles; refused before the write otherwise.
+// MODE_THREE: two released, stationary reads, then the typed mode select (one 6060=3 and its cycles until
+// 6061 reads 3); refused before the write otherwise.
 void testModeThree() {
     scenario = "mode3";
     std::unique_ptr<Rig> r(new Rig);
@@ -3332,28 +3358,38 @@ void testModeThree() {
     CHECK(std::strcmp(r->start(modeThreeLine(1, trial, 2, 200, 0)), "unattended") == 0);
     const size_t first = r->driver.requests.size();
     const E::RouteRecord& m = r->run(modeThreeLine(1, trial, 2, 200));
-    CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && m.firstPresent && m.cycles == 2);
+    // The mode select settles on its first cycle, which reads 6061=3.
+    CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && m.firstPresent && m.modeRequested && m.cycles == 1);
     CHECK(m.motionTotal == 1 && m.caseCount == 1 && d.mode == 3);
     size_t at = first;
     expectUploads(*r, at, 1, FULL, 9);
     expectUploads(*r, at, 1, FULL, 9);
     const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
     CHECK(download(r->driver.requests[at++], 1, three));
-    expectUploads(*r, at, 1, FULL, 9);
     expectUploads(*r, at, 1, IMAGE, 7);
-    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1 && m.terminalCount == 9 + 9 + 1 + 9 + 7);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1 && m.terminalCount == 9 + 9 + 1 + 7);
     std::string text = r->dump();
     CHECK(has(text, "TRIAL id=2 node=1 route=mode3 failure=0 why=none "));
     CHECK(has(text, "TRIAL_PLAN route=mode3 node=1 trial=2 attended=1 cycles=2 interval=200\n"));
     CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 "));
-    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 "));
+    CHECK(has(text, "TRIAL_MODE own=1 start=1 requested=3 from=1 state=2 outcome=1 exec=1 completion=1 "));
+    CHECK(has(text, " s0=8050 m0=0011 p0=0 s1=8050 m1=0011 mode=3 p1=0 v1=0\n"));
     CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 "));
     r->release();
-    // MODE_ONE is refused after any 6060 write of this boot, and so is a second MODE_THREE in mode 3.
-    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
+    // A second MODE_THREE in mode 3 is refused by the route's check, before any write.
     const size_t again = r->driver.requests.size();
     const E::RouteRecord& x = r->run(modeThreeLine(1, trial));
     CHECK(x.failure == E::RouteFailure::PREREQUISITE && std::strcmp(x.why, "mode") == 0 && r->downloadsFrom(again) == 0);
+    r->release();
+    // No per-boot history since prompt 57: in the same boot MODE_ONE takes the released mode 3 drive back to
+    // mode 1, and MODE_THREE to 3 again, each from its own fresh reads, one 6060 each.
+    const size_t back = r->driver.requests.size();
+    const E::RouteRecord& one = r->run("M1," + id(trial) + ",1,1,200");
+    CHECK(one.failure == E::RouteFailure::NONE && one.modeRequested && d.mode == 1 && r->downloadsFrom(back) == 1);
+    CHECK(r->one.clearAction().modeSelect.start == L::ModeSelectStart::NOT_ENABLED);
+    r->release();
+    const E::RouteRecord& thrice = r->run(modeThreeLine(1, trial));
+    CHECK(thrice.failure == E::RouteFailure::NONE && d.mode == 3 && r->downloadsFrom(back) == 2);
 
     // Each prerequisite refuses before the write, with nothing sent.
     struct Case {
@@ -3432,22 +3468,24 @@ void testModeThree() {
           std::strcmp(w->route.record()->why, "control") == 0);
     CHECK(w->downloadsFrom(mark) == 1 && w->driver.drives[0].mode == 1); // Only the other writer's word.
 
-    // After the write: an alarm ends the cycles; a lost reply leaves the mode unknown.
+    // After the write: an alarm ends the library's cycles outside its scope; a lost reply leaves the mode
+    // unknown and the write UNKNOWN, never resent.
     scenario = "mode3-alarm";
     std::unique_ptr<Rig> a(new Rig);
     releasedDrive(a->driver.drives[0]);
     a->driver.drives[0].alarmAfterMode = L::MONITOR_ALARM;
     trial = 0;
     const E::RouteRecord& b = a->run(modeThreeLine(1, trial, 4, 200));
-    CHECK(b.failure == E::RouteFailure::OBSERVATION && std::strcmp(b.why, "alarm") == 0 && b.cycles == 1);
-    CHECK(a->downloadsFrom(0) == 1);
+    CHECK(b.failure == E::RouteFailure::ACTION && std::strcmp(b.why, "mode") == 0 && b.cycles == 1);
+    CHECK(a->downloadsFrom(0) == 1 && a->one.clearAction().outcome == M::ActionOutcome::OBSERVATION_SCOPE);
     scenario = "mode3-lost";
     std::unique_ptr<Rig> l(new Rig);
     releasedDrive(l->driver.drives[0]);
     l->driver.drives[0].silentIndex = 0x6060;
     trial = 0;
     const E::RouteRecord& q = l->run(modeThreeLine(1, trial));
-    CHECK(q.failure == E::RouteFailure::SERVICE && std::strcmp(q.why, "uncertain") == 0 && l->downloadsFrom(0) == 1);
+    CHECK(q.failure == E::RouteFailure::ACTION && std::strcmp(q.why, "mode") == 0 && l->downloadsFrom(0) == 1);
+    CHECK(l->one.clearAction().execution == M::ActionExecution::UNKNOWN && l->one.clearAction().uncertain);
     l->turns(400);
     CHECK(l->route.release());
     // The lost reply leaves the route unresolved until an MCU restart: nothing more on that node.
@@ -4282,19 +4320,19 @@ void testCloseKeepsHistory() {
     CHECK(r->one.latestControl() == latest && r->route.motionAdmissions() == 2);
     const size_t sent = r->driver.requests.size();
     CHECK(closeAll(*r) == 1 && !r->one.latestControl() && !reserved(*r, 1));
-    CHECK(r->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && r->route.kept(2) == 0);
+    CHECK(r->route.kept(1) == E::KEPT_WRITTEN && r->route.kept(2) == 0);
     CHECK(sessionsLine(*r, nullptr, 1) ==
-          "SESSIONS closed node1=1 node2=0 kept1=60 kept2=00 motion=2; nothing sent; latest controlwords dropped; "
+          "SESSIONS closed node1=1 node2=0 kept1=20 kept2=00 motion=2; nothing sent; latest controlwords dropped; "
           "fences, trials and caps kept\n");
     r->turns(100);
     CHECK(r->driver.requests.size() == sent);
     // Every route that needs the latest word refuses before anything is sent, as after an MCU restart;
-    // the enable and mode 1 refuse on the kept history.
+    // the enable refuses on the kept history. Mode 1 keeps no history rule since prompt 57: the library
+    // judges its fresh report (testModeSelectWithoutHistory).
     CHECK(std::strcmp(r->start(position(1, trial, 0, 16)), "control") == 0);
     CHECK(std::strcmp(r->start(rearm(1, trial)), "control") == 0);
     CHECK(std::strcmp(r->start(move(1, trial)), "control") == 0);
     CHECK(std::strcmp(r->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800"), "history") == 0);
-    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
     CHECK(r->driver.requests.size() == sent && r->route.motionAdmissions() == 2);
     // HOME reopens the session and now refuses on the missing controlword, never reserved.
     const E::RouteRecord& after = r->run(homeLine(1, trial));
@@ -4347,13 +4385,13 @@ void testCloseKeepsFaultFence() {
     u->driver.drives[0].silentIndex = 0x6060;
     trial = 0;
     const E::RouteRecord& m = u->run("M1," + id(trial) + ",1,3,200");
-    CHECK(m.failure == E::RouteFailure::SERVICE && std::strcmp(m.why, "uncertain") == 0);
+    CHECK(m.failure == E::RouteFailure::ACTION && std::strcmp(m.why, "mode") == 0);
     u->turns(400);
     u->release();
     std::unique_ptr<E::RouteRecord> changedStorage(new E::RouteRecord);
     CHECK(u->route.bindRecordStorage(nullptr) && u->route.bindRecordStorage(changedStorage.get()));
     CHECK(u->services.unresolved(0) && u->one.motionHistoryWritten());
-    CHECK(closeAll(*u) == 1 && u->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && !reserved(*u, 1));
+    CHECK(closeAll(*u) == 1 && u->route.kept(1) == E::KEPT_WRITTEN && !reserved(*u, 1));
     const size_t after = u->driver.requests.size();
     // The session reopens without a reservation, as AxisSession::open does on an unresolved route, and the
     // route is refused; nothing reserves the node.
@@ -4370,7 +4408,7 @@ void testCloseKeepsFaultFence() {
     std::unique_ptr<Rig> d(new Rig);
     d->driver.drives[0].silentIndex = 0x6060;
     trial = 0;
-    CHECK(d->run("M1," + id(trial) + ",1,3,200").failure == E::RouteFailure::SERVICE);
+    CHECK(d->run("M1," + id(trial) + ",1,3,200").failure == E::RouteFailure::ACTION);
     d->turns(400);
     d->release();
     const size_t abortAt = d->driver.requests.size() - 2;
@@ -4380,7 +4418,7 @@ void testCloseKeepsFaultFence() {
     // The reopening invalidated every reservation on the node, the open session's too: a route refuses
     // the session until the explicit close (`x`), which sends nothing; the reopened session then reserves.
     CHECK(refusedAs(d->start("A1," + id(trial)), "session"));
-    CHECK(closeAll(*d) == 1 && d->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE));
+    CHECK(closeAll(*d) == 1 && d->route.kept(1) == E::KEPT_WRITTEN);
     CHECK(d->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800") != nullptr);
     CHECK(d->run("A1," + id(trial)).failure == E::RouteFailure::NONE && d->downloadsFrom(0) == 1);
     CHECK(d->one.motionHistoryWritten());
@@ -4806,7 +4844,7 @@ void testReleasedModeOneChain() {
     size_t first = r->driver.requests.size();
     const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,4,200");
     CHECK(m.failure == E::RouteFailure::NONE && m.firstPresent && m.checkPassed && m.cycles == 1);
-    CHECK(m.terminalCount == 15 + 9 + 1 + 9 && d.mode == 1);
+    CHECK(m.terminalCount == 15 + 9 + 1 + 7 && d.mode == 1);
     size_t at = first;
     expectUploads(*r, at, 1, FULL, 9);
     const Address rest[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x1017, 0}, {0x607a, 0}, {0x60ff, 0}};
@@ -4814,17 +4852,23 @@ void testReleasedModeOneChain() {
     expectUploads(*r, at, 1, FULL, 9); // The released start's second read, before the check.
     const uint8_t modeOne[8] = {0x2f, 0x60, 0x60, 0, 1, 0, 0, 0};
     CHECK(download(r->driver.requests[at++], 1, modeOne));
-    expectUploads(*r, at, 1, FULL, 9); // One cycle: it already reads 6061=1.
+    expectUploads(*r, at, 1, IMAGE, 7); // The library's one cycle: it already reads 6061=1.
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1);
     CHECK(downloads(*r, first, 1).size() == 1 && indexOf(downloads(*r, first, 1)[0]) == 0x6060); // Never 6040.
     CHECK(!r->one.motionHistoryWritten() && !r->one.latestControl());
     std::string text = r->dump();
     CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=15256 "));
     CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=15256 "));
-    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=15256 "));
+    CHECK(has(text, "TRIAL_MODE own=1 start=1 requested=1 from=3 state=2 outcome=1 exec=1 completion=1 "));
+    CHECK(has(text, " s0=8050 m0=0011 p0=15256 s1=8050 m1=0011 mode=1 p1=15256 v1=0\n"));
     r->release();
-    // The 6060=1 refuses a second MODE_ONE in this boot, as at power-up.
-    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
+    // No per-boot history since prompt 57: a second MODE_ONE is admitted, and its check refuses the drive
+    // that now reads mode 1, before any write.
+    const size_t twice = r->driver.requests.size();
+    const E::RouteRecord& again = r->run("M1," + id(trial) + ",1,1,200");
+    CHECK(again.failure == E::RouteFailure::PREREQUISITE && std::strcmp(again.why, "mode") == 0 &&
+          r->downloadsFrom(twice) == 0);
+    r->release();
     // Start 2 carries the released report's FREE; HOLDING contradicts it and is refused by the parser.
     E::RoutePlan plan;
     const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,1250";
@@ -4867,7 +4911,7 @@ void testReleasedModeOneChain() {
     CHECK(has(text, "TRIAL_PLAN route=enable node=1 trial=3 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=6 "));
     CHECK(has(text, " s0=8050 m0=0011 p0=15256\n"));
     CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=1 status=8033 monitor=0001 position=15261 velocity=0 "));
-    CHECK(!has(text, "TRIAL_STOP ") && e.cycles == 0 && e.motionTotal == 2); // No stop, no stop weight.
+    CHECK(!has(text, "TRIAL_STOP ") && e.cycles == 0 && e.motionTotal == 3); // No stop, no stop weight; both MODE_ONE admissions count.
     r->release();
 
     // A negative relative move under ACTUAL: its start and witness are the fresh 6064 after the enable.
@@ -5063,7 +5107,7 @@ void testReleasedLatchedEnable() {
         uint32_t trial = 0;
         const E::RouteRecord& m = r->run("M2," + id(trial) + ",1,4,200");
         CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && d.mode == 1);
-        CHECK(has(r->dump(), "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=01 6064=33743 "));
+        CHECK(has(r->dump(), " s0=c050 m0=0015 p0=33743 s1=c050 m1=0015 mode=1 p1=33743 v1=0\n"));
         r->release();
         r->heartbeat(2);
         const E::RouteRecord& e = r->run("E2," + id(trial) + ",1,2,1,49232,5000,30,10000,1250"); // 49232 is 0xC050.
@@ -5074,7 +5118,8 @@ void testReleasedLatchedEnable() {
         CHECK(has(text, "TRIAL_ENABLE_STEP word=15 present=1 status=8037 monitor=0001 position=33743 "));
     }
 }
-// MODE_ONE's released start refuses before any write, and its cycles end on what they do not repeat.
+// MODE_ONE's released start refuses before any write, and the typed mode select's cycles end on what they do
+// not repeat (its scope, prepareModeSelect), or after the stated cycles without 6061=1.
 void testReleasedModeOneRefusals() {
     struct Case {
         uint16_t monitor, status;
@@ -5123,10 +5168,10 @@ void testReleasedModeOneRefusals() {
     };
     const After after[] = {
         {0x0015, 0xc050, 0, 0, false, E::RouteFailure::NONE, "none", 1},  // Latched with the release: admitted.
-        {0x0011, 0x8050, L::MONITOR_RUNNING, 0, false, E::RouteFailure::OBSERVATION, "running", 1},
-        {0x0011, 0x8050, L::MONITOR_ALARM, 0, false, E::RouteFailure::OBSERVATION, "alarm", 1},
-        {0x0011, 0x8050, 0, 3, false, E::RouteFailure::OBSERVATION, "position", 1},
-        {0x0011, 0x8050, 0, 0, true, E::RouteFailure::OBSERVATION, "mode", 3}, // 6061 never reads 1.
+        {0x0011, 0x8050, L::MONITOR_RUNNING, 0, false, E::RouteFailure::ACTION, "mode", 1},
+        {0x0011, 0x8050, L::MONITOR_ALARM, 0, false, E::RouteFailure::ACTION, "mode", 1},
+        {0x0011, 0x8050, 0, 3, false, E::RouteFailure::ACTION, "mode", 1},
+        {0x0011, 0x8050, 0, 0, true, E::RouteFailure::ACTION, "mode", 3}, // 6061 never reads 1.
     };
     for (const After& k : after) {
         scenario = k.why;
@@ -5142,16 +5187,25 @@ void testReleasedModeOneRefusals() {
         const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
         CHECK(m.failure == k.failure && std::strcmp(m.why, k.why) == 0 && m.checkPassed && m.cycles == k.cycles);
         CHECK(r->downloadsFrom(0) == 1 && downloads(*r, 0, 1).size() == 1 && indexOf(downloads(*r, 0, 1)[0]) == 0x6060);
+        // A report outside the scope ends the select there; a 6061 that never reads 1 is withdrawn locally
+        // after the stated cycles. Either way the acknowledged 6060 is kept apart from the missing completion.
+        const L::ActionContext& c = r->one.clearAction();
+        CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED &&
+              (k.failure == E::RouteFailure::NONE
+                   ? c.completion == M::ActionCompletion::OBSERVED
+                   : c.completion == M::ActionCompletion::NOT_OBSERVED && c.uncertain &&
+                         c.outcome == (k.ignoreMode ? M::ActionOutcome::CANCELLED
+                                                    : M::ActionOutcome::OBSERVATION_SCOPE)));
     }
-    {   // A released start in mode 1 is no MODE_ONE case: the power-up check refuses it after one read.
+    {   // A released start in mode 1 is no MODE_ONE case: the power-up check refuses it after both reads.
         scenario = "released-mode1-start";
         std::unique_ptr<Rig> r(new Rig);
         releasedModeThreeKept(r->driver.drives[0], 0);
         r->driver.drives[0].mode = 1;
         uint32_t trial = 0;
         const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
-        CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0 && !m.firstPresent);
-        CHECK(m.terminalCount == 15 && r->downloadsFrom(0) == 0);
+        CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0 && m.firstPresent);
+        CHECK(m.terminalCount == 15 + 9 && r->downloadsFrom(0) == 0);
         // And the released enable in mode 3, before any mode change, is the library's refusal: no write.
         r->release();
         r->driver.drives[0].mode = 3;
@@ -6856,7 +6910,9 @@ void replayRoute(Rig& r, unsigned node, const std::string& line, const Captured*
 // session's refusal, code=1 detail=3, after their 29 reads and before any write. MODE_THREE then finds
 // node 2 released (2100 0011, 6041 8050) and stationary at -49 in mode 1, writes 6060=3 once, and
 // reads 6061 = 3 back while the drive stays released and at -49: one measurement of a mode change
-// while released (Q11), node 2 only, with no enable.
+// while released (Q11), node 2 only, with no enable. Since prompt 57 MODE_THREE writes through the typed
+// mode select, whose one cycle replaces the record's third full read and last cycle: the record's replies
+// to its two admission reads and to its last cycle replay through it value for value.
 void replayRouteBootR2c() {
     scenario = "replay r2c";
     std::unique_ptr<Rig> r(new Rig);
@@ -7316,15 +7372,40 @@ void replayRouteBootR2c() {
         "END trial terminals=35 traffic=107 tail=6 tailLost=0 lost=0; r=release"};
     trial = 916;
     first = r->driver.requests.size();
-    // The 701 and 702 heartbeats inside the record (TRAFFIC lines 129-130), between its third full
-    // read and its last cycle: both nodes held producer 1000 from the 11:21Z writes.
-    replayRoute(*r, 2, modeThreeLine(2, trial, 2, 500), MODE3_917, 34, mode917,
-                sizeof mode917 / sizeof mode917[0], 27);
+    // The record's replies to its two admission reads (RESULT lines 10-27) and to its last cycle (lines
+    // 38-44), in the typed mode select's order; its third full read (lines 29-37) has no counterpart now.
+    Captured typed[25];
+    std::copy(MODE3_917, MODE3_917 + 18, typed);
+    std::copy(MODE3_917 + 27, MODE3_917 + 34, typed + 18);
+    Drive& node2 = r->driver.drives[1];
+    node2.script = typed;
+    node2.scriptLength = 25;
+    node2.scriptAt = 0;
+    r->run(modeThreeLine(2, trial, 2, 500));
+    node2.script = nullptr;
+    CHECK(node2.scriptAt == 25);
     const std::vector<M::Frame> written = downloads(*r, first, 2);
     const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
-    CHECK(written.size() == 1 && frameIs(written[0], three) && r->driver.drives[1].mode == 3);
-    CHECK(r->route.record()->failure == E::RouteFailure::NONE && r->route.record()->cycles == 2);
+    CHECK(written.size() == 1 && frameIs(written[0], three) && node2.mode == 3);
+    CHECK(r->route.record()->failure == E::RouteFailure::NONE && r->route.record()->cycles == 1);
     CHECK(r->downloadsFrom(0) == 1);
+    // The plan, both admission reads and the control summary as recorded (lines 4, 6, 7 and 9), then every
+    // RESULT of the record but the third full read's: the reads, the one 6060 write (line 28) and the last
+    // cycle, value for value. The library numbers its cycle's steps after its write's.
+    const std::vector<std::string> got = replayed(r->dump());
+    std::vector<std::string> results;
+    for (const std::string& line : got) {
+        for (size_t at : {size_t(1), size_t(3), size_t(4), size_t(6)})
+            if (line.compare(0, 11, std::string(mode917[at]).substr(0, 11)) == 0)
+                CHECK(sameLine(line, mode917[at], ""));
+        if (line.compare(0, 7, "RESULT ") == 0)
+            results.push_back(line);
+    }
+    CHECK(results.size() == 26);
+    for (size_t i = 0; i < results.size() && i < 26; ++i)
+        CHECK(sameLine(results[i], mode917[i < 19 ? 7 + i : 35 + (i - 19)], "op req oreq admitted completed step"));
+    CHECK(has(r->dump(), "TRIAL_MODE own=1 start=1 requested=3 from=1 state=2 outcome=1 exec=1 completion=1 "));
+    CHECK(has(r->dump(), " s0=8050 m0=0011 p0=-49 s1=8050 m1=0011 mode=3 p1=-49 v1=0\n"));
     r->release();
 }
 // Boot B of round 4 (image 627bb42, drives power-cycled by the user): mode1 and the attended enable

@@ -1281,48 +1281,95 @@ M::Status AxisSession::requestCounterZero(const L::ReadContext& state, int64_t n
     return startClear(state, nativePosition, &axis, &reference, options, deadline, now,
                       L::AlarmClearMethod::OBJECT_2301);
 }
-// One request path for both clears; a null axis is the alarm clear.
-M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePosition, M::AxisConfig* axis,
-                                  M::AxisReference* reference, const L::ActionOptions& options,
-                                  uint64_t deadline, uint64_t now, L::AlarmClearMethod method) noexcept {
+M::Status AxisSession::requestModeSelect(const L::ReadContext& state, uint8_t modeRaw,
+                                         const L::ActionOptions& options, uint64_t deadline,
+                                         uint64_t now) noexcept {
+    // A running velocity or homing run may not show in a fresh report yet (requestStop), so the mode
+    // stays as it is until a checked stop or acknowledgeStandstill; a drive fault alone does not refuse it.
+    uint32_t next = 0;
+    M::Status s = refuseSlot(true, false, now, next);
+    if (!s)
+        return s;
+    // The report is the whole judgment, so it must follow this session's latest write: a report from before
+    // a word or setting this session sent shows a drive that may no longer exist.
+    L::StateObservation status, monitors;
+    if (!L::getStateBlock(state, L::StateBlock::STATUS, target_, now, options.maximumAgeUs, status) ||
+        !L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, options.maximumAgeUs, monitors) ||
+        status.window.earliestUs < lastWriteUs_ || monitors.window.earliestUs < lastWriteUs_)
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
+                         "mode select needs a fresh report taken after this session's latest write");
+    // prepareModeSelect validates everything before it writes the context, so a refusal changes nothing.
+    s = L::prepareModeSelect(clear_, reservation_, state, modeRaw, next, now, deadline, options);
+    if (!s)
+        return s;
+    if (clear_.modeSelect.alreadySelected) {
+        // Answered from the report alone: terminal already, with no work for an owner operation to hold.
+        clearTarget_ = reservation_.target;
+        clearWithdrawn_ = M::ActionOutcome::NONE;
+        clearAxis_ = nullptr;
+        clearReference_ = nullptr;
+        lastUs_ = now;
+        return M::Ok();
+    }
+    return beginSlot(next, deadline, now, nullptr, nullptr);
+}
+// The refusals every request of the one explicit-action slot shares. changing: the request changes
+// drive state beyond an alarm clear, and waits for a stop an earlier velocity or homing run still needs.
+// fault: a routed drive fault refuses it too. next receives the operation identity on success.
+M::Status AxisSession::refuseSlot(bool changing, bool fault, uint64_t now, uint32_t& next) const noexcept {
     const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
     if (now < latestUs())
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TIME),
                          "time is behind this session's or the owner's last time");
     if (!open_ || !usable())
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TARGET),
-                         "no usable reservation for a clear");
+                         "no usable reservation for this action");
     if (busy())
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (clearBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
-    if ((velocityNeedsStop_ || homeNeedsStop_) && axis)
+    if ((velocityNeedsStop_ || homeNeedsStop_) && changing)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier motion operation needs a checked stop");
-    if (faultBlocked_ && axis)
+    if (faultBlocked_ && fault)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
-    const uint32_t next = nextOperation();
+    next = nextOperation();
     if (!next)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
-    // The library has no separate check for these two, but it validates everything before it writes
-    // the context, so a refusal here changes nothing. The owner moves only after that.
-    const M::Status prepared =
-        axis ? L::prepareSetDevicePosition(clear_, reservation_, state, nativePosition, *axis, next, now,
-                                           deadline, options)
-             : L::prepareClearAlarm(clear_, reservation_, state, next, now, deadline, options, method);
-    if (!prepared)
-        return prepared;
+    return M::Ok();
+}
+// Bind a context just prepared into clear_ to its new owner operation.
+M::Status AxisSession::beginSlot(uint32_t next, uint64_t deadline, uint64_t now, M::AxisConfig* axis,
+                                 M::AxisReference* reference) noexcept {
     clearTarget_ = reservation_.target;
     clearWithdrawn_ = M::ActionOutcome::NONE;
     // Checked above but for work admitted around this session, which the class contract excludes.
     if (!owner_.beginOperation(sequence_, next, deadline, now)) {
         L::advanceAction(clear_, reservation_, clearTarget_, M::ActionOutcome::INVALIDATED, now);
-        return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
+                         "owner refused a new operation");
     }
     clearAxis_ = axis;
     clearReference_ = reference;
     operation_ = next;
     lastUs_ = now;
     return M::Ok();
+}
+// One request path for both clears; a null axis is the alarm clear.
+M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePosition, M::AxisConfig* axis,
+                                  M::AxisReference* reference, const L::ActionOptions& options,
+                                  uint64_t deadline, uint64_t now, L::AlarmClearMethod method) noexcept {
+    uint32_t next = 0;
+    M::Status s = refuseSlot(axis != nullptr, axis != nullptr, now, next);
+    if (!s)
+        return s;
+    // The library has no separate check for these two, but it validates everything before it writes
+    // the context, so a refusal here changes nothing. The owner moves only after that.
+    s = axis ? L::prepareSetDevicePosition(clear_, reservation_, state, nativePosition, *axis, next, now,
+                                           deadline, options)
+             : L::prepareClearAlarm(clear_, reservation_, state, next, now, deadline, options, method);
+    if (!s)
+        return s;
+    return beginSlot(next, deadline, now, axis, reference);
 }
 bool AxisSession::cancelClear(uint64_t now, M::ActionOutcome reason) noexcept {
     if (now < latestUs() || !clearActive() ||

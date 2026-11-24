@@ -21,7 +21,7 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Typed settings | 15 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Typed heartbeat workflows | 1 | Explicit typed heartbeat scope only; independent of manual operation facets |
 | Action obligations with conditional public paths | 6 | Narrow software action scope below; not whole-source or physical qualification |
-| Other manual obligations with conditional public paths | 16 | Operation facets below, not descriptor counts |
+| Other manual obligations with conditional public paths | 17 | Operation facets below, not descriptor counts |
 
 Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic function / hardware-qualified. Generator and declaration tests do not change a semantic coverage field. `resolved` describes native declaration scope only; other conflicts and every listed qualification gate remain visible. `withheld` and `excluded` entries have no ObjectDescriptor or ObjectMetadata constant.
 
@@ -31,6 +31,7 @@ These are implemented, host-tested conditional API paths. Original semantic gate
 
 | Manual obligation | Owner | Operation D/I/H/Q | Explicit software scope |
 | --- | ---: | --- | --- |
+| mode_selection | 20 | yes/yes/yes/no | Actions.h prepareModeSelect (prompt 57): documented 6060 codes 1, 3 and 6 only, one 6060 write from a fresh not-enabled report (2100 released, 6041 low bits 000 or 001) or the measured power-up report to mode 1, settled when a fresh 6061 reads the mode; never reads 6060 or writes 6061; no mode change while enabled (Q11). |
 | enable_transition | 30 | yes/yes/yes/no | Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission. |
 | position_parameters | 33 | yes/yes/yes/no | Position.h prepareMoveAbsolute/Relative: finite checked native parameter staging with explicit setup policy. |
 | position_trigger | 33 | yes/yes/yes/no | Position.h nextMove/advanceMove: matched trigger acceptance kept separate from native completion. |
@@ -5912,6 +5913,8 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Select6060 only; observe6061 under19. Typed groups never write6061.", "gate_ids": ["Q01", "Q10", "Q11"], "status": "complete", "write_policy": "qualification_required"} |
+| operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
+| operation_scope | Actions.h prepareModeSelect (prompt 57): documented 6060 codes 1, 3 and 6 only, one 6060 write from a fresh not-enabled report (2100 released, 6041 low bits 000 or 001) or the measured power-up report to mode 1, settled when a fresh 6061 reads the mode; never reads 6060 or writes 6061; no mode change while enabled (Q11). |
 
 ### enable_transition
 

@@ -102,9 +102,11 @@ a velocity line and a released-by-recorded-stop enable are admitted unattended; 
 the S16 alerts and every other check are unchanged, and request.json and the send entry record it. A power-up
 enable still needs a relayed shaft: a waiver is not an observation.
 
-Drives kept powered (2026-11-10): mode1 decides its start from its first read. Mode 0 is the power-up
-baseline, checked as before. Mode 3 is the released standstill a recorded stop left: a second full read, both
-released with 6041 bits 0..6 0x50, then one 6060=1 and cycles until 6061 reads 1; never 6040. An enable then
+Drives kept powered (2026-11-10): mode1 decides its start from the first of its two full reads. Mode 0 is the
+power-up baseline, checked as before. Mode 3 is the released standstill a stop left: both reads released with
+6041 bits 0..6 0x50. Since prompt 57 mode1 and mode3 write through the library's typed mode select: one 6060
+and its cycles until 6061 reports the mode, judged on the fresh report alone (no per-boot history); never
+6040. An enable then
 takes --released (2026-11-17: start 2 on the drive's own fresh released report alone, which the firmware route and
 the library check; the operator owns the premise that no earlier command is pending) or --released-by-recorded-stop
 RECORD instead of --no-motion-write-recorded (exactly one of the three): RECORD is
@@ -296,6 +298,9 @@ ROUTE_OPERATION_MS = 5000
 MOVE_SERVICE_STEPS = 13
 ROUTE_QUEUE_MS = 100
 ROUTE_RESPONSE_MS = 250
+# mode1 and mode3's typed mode select (BenchRoute.cpp modeSelectSpanMs, prompt 57): its deadline covers the
+# 6060 and one seven-field cycle at those budgets, then the stated intervals.
+MODE_SELECT_BUDGET_MS = 8 * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS)
 # The library's velocity admission (Velocity.cpp) from released mode 3: the duration must exceed 27 setup
 # services at the routes' budgets and the route's enable report window, and leave two 10 ms enable intervals
 # (ENABLE_WORD_INTERVAL_US), so at least 11470 ms; the deadline must leave more than the route's stop reserve,
@@ -737,14 +742,17 @@ def plan_bounds(command, fields):
         return 2 + 5 + 1 + 2 + 2, 0  # CONTROL, STATUS and MONITORS, the 2500 write, the readback, CONTROL again.
     if command == "mode1":
         cycles, interval = fields[3:5]
-        # The readiness reads less their image, a second full read when the first reports mode 3, 6060, the cycles.
-        return 15 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval
+        # The readiness reads less their image, a second full read, then the typed mode select (prompt 57): its
+        # 6060 and at most the stated seven-field cycles plus one of margin, within its write and one cycle at
+        # the full route budgets (8 x 350 ms) and the stated intervals.
+        return 15 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "mode-probe":
         cycles, interval = fields[4:6]
         return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval
     if command == "mode3":
         cycles, interval = fields[3:5]
-        return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval  # Two full reads, 6060, the cycles.
+        # Two full reads, then the typed mode select, bounded as mode1's.
+        return 9 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "position-change":
         return (9 + 3 + 1 + 5 + 4 + 7 * fields[13] + _stop_terminals(fields[16], fields[18]),
                 fields[12] + fields[17])
@@ -1597,10 +1605,12 @@ def dry_run(args, fields):
         elif args.command == "enable":
             print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
         if args.command == "mode1":
-            print("  the first full read decides the start: mode 0, the power-up check; mode 3, a second full read, "
-                  "both released (2100 bit 4, alarm clear, 6041 bits 0..6 0x50, 606C 0, 1001 and 603F 0, the same "
-                  "6064, 2100 running admitted latched); then 2F 60 60 00 01 00 00 00 once, never 6040, and cycles "
-                  "until 6061 reads 1, at most %d, each still released at that 6064" % fields[3])
+            print("  two full reads; the first decides the start: mode 0, the power-up check on both; mode 3, both "
+                  "released (2100 bit 4, alarm clear, 6041 bits 0..6 0x50, 606C 0, 1001 and 603F 0, the same 6064, "
+                  "2100 running admitted latched); then the library's typed mode select (prepareModeSelect): "
+                  "2F 60 60 00 01 00 00 00 once, never 6040, and its cycles until 6061 reads 1, at most %d, each "
+                  "in its scope (released or the power-up report as admitted, 606C 0, that 6064); no per-boot "
+                  "history" % fields[3])
         if args.command == "home":
             print("  ask the attendant which DI terminals are wired (recorded only); the route's HomeEvidence is "
                   "CLOSED, so the library refuses before any write")

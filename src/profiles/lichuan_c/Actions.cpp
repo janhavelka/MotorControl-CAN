@@ -12,10 +12,38 @@ Status error(ActionError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
 }
 uint8_t commandCount(const ActionContext& c) {
-    return c.actionKind == ActionKind::STOP ? 1 : c.actionKind == ActionKind::CLEAR_ALARM ? 2 : 3;
+    return c.actionKind == ActionKind::STOP || c.actionKind == ActionKind::SELECT_MODE ? 1
+           : c.actionKind == ActionKind::CLEAR_ALARM                                  ? 2
+                                                                                      : 3;
 }
 bool enabling(const ActionContext& c) {
     return c.actionKind == ActionKind::ENABLE;
+}
+bool selectingMode(const ActionContext& c) {
+    return c.actionKind == ActionKind::SELECT_MODE;
+}
+// The documented 6060 codes (EN86 and ZH86 p11): 1 position, 3 velocity, 6 homing. Mode 0 is no
+// operating mode, and every other code stays in the D17 probe.
+bool documentedMode(uint8_t mode) {
+    return mode == 1 || mode == 3 || mode == 6;
+}
+// The power-up report every retained 6060=1 from mode 0 started from (23 records, 102 to 1722, both
+// specimens, one firmware), and the only report a mode select admits while 6041 reads the enabled pattern.
+constexpr uint16_t POWER_UP_STATUSWORD = 0x8037, POWER_UP_MONITOR = 0x0001;
+// 6041 bits 1 and 2: clear in every released report (8050, C050, 4050, 8031), so low bits 000 or 001.
+constexpr uint16_t STATUS_SWITCHED_ON_BITS = 0x0006;
+// A mode select's admitted start, judged on one report; the context's shape check judges the record.
+// The requested mode equals the start mode only in an already selected answer, from a released report.
+bool modeSelectAdmitted(const ModeSelectRecord& m) {
+    const bool released = (m.startMonitor & MONITOR_RELEASED) != 0;
+    return documentedMode(m.requestedModeRaw) &&
+           (m.requestedModeRaw != m.startModeRaw) != m.alreadySelected &&
+           (!m.alreadySelected || m.start == ModeSelectStart::NOT_ENABLED) &&
+           !(m.startMonitor & MONITOR_ALARM) &&
+           ((m.start == ModeSelectStart::NOT_ENABLED && released &&
+             !(m.startStatusword & STATUS_SWITCHED_ON_BITS)) ||
+            (m.start == ModeSelectStart::POWER_UP && m.startModeRaw == 0 && m.requestedModeRaw == 1 &&
+             m.startStatusword == POWER_UP_STATUSWORD && m.startMonitor == POWER_UP_MONITOR));
 }
 bool effecting(const ActionContext& c) {
     return enabling(c) || c.commandCursor == (c.actionKind == ActionKind::SET_DEVICE_POSITION ? 1 : 0);
@@ -69,19 +97,23 @@ ReadTarget expectedTarget(const ActionContext& c) {
         ++target.channel.binding.configurationGeneration;
     return target;
 }
+// Whether a cycle also reads FEEDBACK (6064, 606C): seven fields instead of five.
+bool readsFeedback(const ActionContext& c) {
+    return c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || selectingMode(c) ||
+           c.standstillObserving || (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6);
+}
 uint8_t observationMask(const ActionContext& c) {
     if (c.finalErrorRead)
         return uint8_t(1u << static_cast<unsigned>(StateBlock::ERRORS));
     uint8_t mask = uint8_t((1u << static_cast<unsigned>(StateBlock::MONITORS)) |
                            (1u << static_cast<unsigned>(StateBlock::STATUS)));
-    if (c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || c.standstillObserving ||
-        (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6))
+    if (readsFeedback(c))
         mask |= uint8_t(1u << static_cast<unsigned>(StateBlock::FEEDBACK));
     return mask;
 }
 Status shape(const ActionContext& c, uint64_t now) {
     if (!validReservation(c.reservation) || c.kind > StopKind::QUICK_STOP ||
-        c.actionKind > ActionKind::ENABLE || !c.operation || !c.step ||
+        c.actionKind > ActionKind::SELECT_MODE || !c.operation || !c.step ||
         (c.actionKind == ActionKind::STOP && c.stopModeRaw != 1 && c.stopModeRaw != 3 &&
          c.stopModeRaw != 6) ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
@@ -109,6 +141,12 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
         (c.actionKind == ActionKind::CLEAR_ALARM && !clearAdmitted(c.incident)) ||
+        (selectingMode(c) ? !modeSelectAdmitted(c.modeSelect)
+                          : c.modeSelect.start != ModeSelectStart::NONE || c.modeSelect.alreadySelected) ||
+        // An already selected answer is terminal at preparation and never held any work.
+        (c.modeSelect.alreadySelected &&
+         (c.state != ActionState::SUCCEEDED || c.execution != ActionExecution::NOT_TRANSMITTED ||
+          c.phase != ActionPhase::COMMAND || c.commandEvidenceMask || c.effectsPossible || c.uncertain)) ||
         c.clearMethod > AlarmClearMethod::CONTROLWORD_BIT7 ||
         (c.actionKind != ActionKind::CLEAR_ALARM && c.clearMethod != AlarmClearMethod::OBJECT_2301) ||
         (c.standstillObserving &&
@@ -123,12 +161,7 @@ Status shape(const ActionContext& c, uint64_t now) {
          (!enabling(c) && (c.commandCursor + 1 != commandCount(c) || c.step <= commandCount(c))) ||
          !sameTarget(c.read.target, expectedTarget(c)) || c.read.operation != c.operation ||
          c.read.kind != ReadKind::STATE || c.read.source != ReadSource::SDO ||
-         c.read.count != (c.finalErrorRead ? 2
-                          : c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) ||
-                                  c.standstillObserving ||
-                                  (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6)
-                              ? 7
-                              : 5) ||
+         c.read.count != (c.finalErrorRead ? 2 : readsFeedback(c) ? 7 : 5) ||
          c.read.blockMask != observationMask(c) || c.read.deadlineUs != c.deadlineUs ||
          c.read.options.queueTimeoutUs != c.options.service.queueTimeoutUs ||
          c.read.options.responseTimeoutUs != c.options.service.responseTimeoutUs))
@@ -201,10 +234,16 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
                            c.clearMethod == AlarmClearMethod::CONTROLWORD_BIT7;
     t.index = c.actionKind == ActionKind::STOP || enabling(c) || resetWord ? 0x6040
               : c.actionKind == ActionKind::CLEAR_ALARM                   ? 0x2301
+              : selectingMode(c)                                          ? 0x6060
                                                                           : 0x2302;
     t.direction = CANOPEN::SdoDirection::DOWNLOAD;
     t.size = 2;
-    if (c.actionKind == ActionKind::STOP) {
+    if (selectingMode(c)) {
+        // 2F 60 60 00 <mode>: one byte. The manuals' INTEGER8 and the EDS's U8 give 1, 3 and 6 the same
+        // byte. Objects.h has no writable 6060 descriptor while those claims conflict (Velocity.cpp).
+        t.size = 1;
+        t.data[0] = c.modeSelect.requestedModeRaw;
+    } else if (c.actionKind == ActionKind::STOP) {
         t.data[0] = c.kind == StopKind::HALT ? 0x0f : 0x0b;
         t.data[1] = c.kind == StopKind::HALT && c.stopModeRaw != 6 ? 1 : 0;
     } else if (enabling(c))
@@ -326,6 +365,24 @@ bool enableScopeHolds(const ActionContext& c) {
            (monitors.monitor & MONITOR_RUNNING & uint16_t(~monitorLatch)) == 0 && positionHolds &&
            c.extraObservation.actualVelocity == 0;
 }
+// A mode select's cycle: the drive stays as admitted while 6061 moves from the start mode to the requested
+// one. Alarm clear; 2100 released and the class of 6041 bits 0..2 as admitted (NOT_ENABLED: released with
+// bits 1 and 2 clear; POWER_UP: released clear with low bits 111); running only where the admission read
+// the latch; 606C zero and 6064 unchanged. Other 6041 bits are not compared: bit 10 followed the mode
+// change at power-up (8037 to 8437), and disputed bits decide nothing.
+bool modeSelectScopeHolds(const ActionContext& c) {
+    const ModeSelectRecord& m = c.modeSelect;
+    const uint8_t mode = c.statusObservation.modeRaw;
+    const uint16_t status = c.statusObservation.statusword;
+    const uint16_t monitor = c.monitorObservation.monitor;
+    const bool lowBitsHold = m.start == ModeSelectStart::NOT_ENABLED
+                                 ? (status & STATUS_SWITCHED_ON_BITS) == 0
+                                 : (status & STATUS_LOW_BITS) == STATUS_LOW_BITS;
+    return (mode == m.startModeRaw || mode == m.requestedModeRaw) && !(monitor & MONITOR_ALARM) &&
+           ((monitor ^ m.startMonitor) & MONITOR_RELEASED) == 0 && lowBitsHold &&
+           (monitor & MONITOR_RUNNING & uint16_t(~m.startMonitor)) == 0 &&
+           c.extraObservation.actualVelocity == 0 && c.extraObservation.actualPosition == m.startPosition;
+}
 // After a released start: a cycle of word 15 reported 6064 away from word 7's accepted value or 606C
 // nonzero. The drive retains its 607A target (an interrupted move's, too), and whether words 6, 7 and 15
 // resume it is unmeasured, so the caller is told to stop the drive.
@@ -408,10 +465,12 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const uint16_t monitor = c.monitorObservation.monitor;
     const bool running = (monitor & MONITOR_RUNNING) != 0;
     const bool alarm = (monitor & MONITOR_ALARM) != 0;
+    // A mode select judges its mode in its own case below: the start mode or the requested one.
     const uint8_t expectedMode =
         c.actionKind == ActionKind::STOP          ? c.stopModeRaw
         : enabling(c)                             ? c.enable.evidence.modeRaw
         : c.actionKind == ActionKind::CLEAR_ALARM ? c.incident.modeRaw
+        : selectingMode(c)                        ? c.modeSelect.requestedModeRaw
                                                   : 1;
     bool outsideScope = c.statusObservation.modeRaw != expectedMode;
     bool done = false;
@@ -486,12 +545,20 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
             done = done && previousAfterCommand && (previousStatus & STATUS_LOW_BITS) == ENABLE_LOW_BITS[1] &&
                    previousPosition == c.extraObservation.actualPosition;
         break;
+    case ActionKind::SELECT_MODE:
+        // Settled only by the drive's own mode report; 6060 is never read back (D04).
+        outsideScope = !modeSelectScopeHolds(c);
+        done = c.statusObservation.modeRaw == c.modeSelect.requestedModeRaw;
+        break;
     }
     if (outsideScope)
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now,
              movedAfterWordFifteen(c) ? "6064 or 606C changed after word 15 from a release: the drive may be "
                                         "moving to a retained target; stop it"
-                                      : "drive report outside this action's supported observation scope");
+             : selectingMode(c) && c.statusObservation.modeRaw != c.modeSelect.startModeRaw &&
+                     c.statusObservation.modeRaw != c.modeSelect.requestedModeRaw
+                 ? "6061 reports neither the start mode nor the requested mode"
+                 : "drive report outside this action's supported observation scope");
     else if (done && enabling(c)) {
         if (!anotherStepAvailable && c.commandCursor + 1u < commandCount(c))
             fail(c, ActionOutcome::ITERATION_EXHAUSTED, now, "action service identity exhausted");
@@ -912,6 +979,85 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     record.startStatusword = output.statusObservation.statusword;
     record.startMonitor = output.monitorObservation.monitor;
     record.startPosition = output.extraObservation.actualPosition;
+    return Ok();
+}
+
+Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const ReadContext& state,
+                         uint8_t modeRaw, uint32_t operation, uint64_t now, uint64_t deadline,
+                         const ActionOptions& options) noexcept {
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
+        return error(ActionError::OVERLAP, "mode select preparation overlaps input");
+    if (!documentedMode(modeRaw))
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::ARGUMENT),
+                      "only the documented modes 1, 3 and 6 are selected; other codes belong to the "
+                      "D17 probe");
+    if (!validReservation(r) || !operation || deadline <= now || r.acquiredUs > now ||
+        !stopOptionsValid(options) || !ageCoversCycle(options, 7))
+        return error(ActionError::ARGUMENT, "invalid mode select reservation or budgets");
+    const uint64_t age = options.maximumAgeUs;
+    if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
+        state.startedUs < r.acquiredUs)
+        return error(ActionError::STATE,
+                     "mode select needs a complete SDO state read under this reservation");
+    const StateBlock blocks[] = {StateBlock::ERRORS, StateBlock::MONITORS, StateBlock::STATUS,
+                                 StateBlock::FEEDBACK};
+    ReadWindow window;
+    for (StateBlock block : blocks)
+        if (!validateStateBlock(state, block, r.target, now, age, window) ||
+            window.earliestUs < r.acquiredUs)
+            return error(ActionError::STATE,
+                         "mode select needs fresh ERRORS, MONITORS, STATUS and FEEDBACK");
+    const uint8_t mode = uint8_t(raw(state, StateBlock::STATUS, 1));
+    const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
+    const uint16_t monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
+    if (raw(state, StateBlock::ERRORS, 0) || raw(state, StateBlock::ERRORS, 1) || (monitor & MONITOR_ALARM))
+        return error(ActionError::STATE, "mode select needs 2100 alarm, 1001 and 603F clear");
+    if (raw(state, StateBlock::FEEDBACK, 1))
+        return error(ActionError::STATE, "mode select needs 606C zero");
+    // The drive's own not-enabled report, any mode to any documented mode. 2100 running beside the release
+    // is the latch a moving quick stop leaves, admitted here only with 606C zero in this same read.
+    const bool notEnabled = (monitor & MONITOR_RELEASED) && !(statusword & STATUS_SWITCHED_ON_BITS);
+    // The measured exception: 6060=1 from the power-up report, which reads as the enabled pattern.
+    const bool powerUp = mode == 0 && statusword == POWER_UP_STATUSWORD && monitor == POWER_UP_MONITOR;
+    if (powerUp && modeRaw != 1)
+        return error(ActionError::STATE, "from the power-up report only mode 1 was measured");
+    if (!notEnabled && !powerUp)
+        return error(ActionError::STATE,
+                     (statusword & STATUS_LOW_BITS) == STATUS_LOW_BITS && !(monitor & MONITOR_RELEASED)
+                         ? "the drive reports itself enabled: no mode change while enabled (Q11)"
+                         : "mode select needs 2100 released with 6041 low bits 000 or 001, or the "
+                           "power-up report");
+    new (static_cast<void*>(&output)) ActionContext();
+    output.reservation = r;
+    output.actionKind = ActionKind::SELECT_MODE;
+    output.options = options;
+    output.operation = operation;
+    output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
+    output.deadlineUs = deadline;
+    output.state = ActionState::ACTIVE;
+    // 6060 cannot be read back, and what a mode change does beyond 6061 is undocumented (Q11).
+    output.retryClass = RetryClass::NOT_REPEATABLE;
+    getStateBlock(state, StateBlock::STATUS, r.target, now, age, output.statusObservation);
+    getStateBlock(state, StateBlock::MONITORS, r.target, now, age, output.monitorObservation);
+    getStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, output.extraObservation);
+    ModeSelectRecord& record = output.modeSelect;
+    record.start = notEnabled ? ModeSelectStart::NOT_ENABLED : ModeSelectStart::POWER_UP;
+    record.requestedModeRaw = modeRaw;
+    record.startModeRaw = mode;
+    record.startStatusword = statusword;
+    record.startMonitor = monitor;
+    record.startPosition = output.extraObservation.actualPosition;
+    // Already selected: the fresh 6061 of a drive that reports itself not enabled is the requested mode
+    // (the power-up report reads mode 0, which is never requested). Nothing to write, and nothing is sent.
+    if (mode == modeRaw) {
+        record.alreadySelected = true;
+        output.state = ActionState::SUCCEEDED;
+        output.outcome = ActionOutcome::OBSERVED;
+        output.completion = ActionCompletion::OBSERVED;
+        output.status = Ok();
+    }
     return Ok();
 }
 

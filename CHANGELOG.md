@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Typed mode select (prompt 57, slice b1, 2026-11-24)
+
+- New `ActionKind::SELECT_MODE` (appended; earlier values keep their numbers) and
+  `LICHUAN_C::prepareModeSelect`: one `6060:00` byte of a documented mode, 1, 3 or 6, through the ordinary
+  `nextAction`/`advanceAction` lifecycle, settled only when a fresh `6061` reads that mode. Admitted from a
+  fresh report of a drive that is not enabled (`2100` released, `6041` low bits 000 or 001) or from the
+  measured power-up report (`8037`/`0001`, mode 0) to mode 1; an enabled drive and every undocumented code are
+  refused before TX. A request for the mode a not-enabled report already shows is answered as already
+  selected (`SUCCEEDED`, `NOT_TRANSMITTED`, `ModeSelectRecord::alreadySelected`) with nothing sent. It never
+  reads `6060`, never writes `6061`, never enables and never resends; a lost reply stays `UNKNOWN`. New `ModeSelectStart`, `ModeSelectRecord` and `ActionContext::modeSelect`.
+- `AxisSession::requestModeSelect` runs it in the session's explicit-action slot (`clearAction()`), shared with
+  the alarm and counter clears.
+- S2 bench: `MODE_ONE` and `MODE_THREE` write through the typed mode select. `MODE_ONE` now takes two full reads
+  (the second is the one the library judges), the per-boot rule that refused it after any controlword or write
+  of the boot is gone (and with it `SessionKept` bit 64), the routes end at the select's terminal with a new
+  `TRIAL_MODE` summary, and a failed select ends `ACTION why=mode`. The line grammar is unchanged; the terminal
+  and duration bounds changed with `scripts/s2_bench.py` (`plan_bounds`). `MODE_PROBE` keeps its raw D17 write.
+
 ### Owner absence plan and prompts 77 and 78 (2026-11-19)
 
 - Promptset only, no code: the owner-absence rules for 2026-11-20 to about 2026-12-04 (COMMON), with the owner's

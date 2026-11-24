@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Real service/owner rig for the alarm-clear and device-zero actions, with synthetic controller
-// traffic only. No physical drive, firmware qualification or implicit enabling is represented.
+// Real service/owner rig for the alarm-clear, device-zero and mode-select actions, with synthetic
+// controller traffic only. No physical drive, firmware qualification or implicit enabling is represented.
 // Define `checks` and CHECK first, as for OwnerRig.h. Test executables use one TU, so the
 // anonymous namespace below is private to the including suite.
 #pragma once
@@ -83,9 +83,11 @@ struct Wire : OwnerRig::WireBase {
         if (!w.action || work.operation != w.action->operation)
             return true;
         // The alarm clear's controlword method writes 6040 0x0080 and 0x0000; nothing else writes 6040.
+        // A mode select writes only its one 6060 byte.
         CHECK(w.reservation && w.current &&
               (work.index == 0x2301 || work.index == 0x2302 ||
-               (work.index == 0x6040 && w.action->clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7)));
+               (work.index == 0x6040 && w.action->clearMethod == L::AlarmClearMethod::CONTROLWORD_BIT7) ||
+               (work.index == 0x6060 && w.action->actionKind == M::ActionKind::SELECT_MODE)));
         ++w.notices;
         if (work.index == 0x2302) {
             CHECK(w.axis && w.reference);
