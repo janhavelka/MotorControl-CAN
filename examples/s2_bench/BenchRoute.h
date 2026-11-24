@@ -228,6 +228,16 @@
  *   value equal to the prior 2500 succeeds unchanged with nothing sent. No 6040, no enable, no save: a power
  *   cycle may restore the stored selector, and an acknowledged or read-back selector is register acceptance
  *   only, not a measured loop change. Settings class: attended, the settings routes' caps, no motion weight.
+ * - SAVE, prompt 57: one explicit save parameters, prepareSave and its one 2300=2 download. A fresh identity
+ *   read (1009/100A one byte), a STATUS and MONITORS read and a MOTION_PARAMETERS read (6081, 6083, 6084) as
+ *   the save's prerequisites, kept in SaveWork, then the library's save on the session's reservation with no
+ *   review guard set (the result's guardsOff names all four). The library refuses a running, alarmed or
+ *   undocumented 2100 report. The download's notice advances the configuration epoch, and the owner and the
+ *   session then follow as after a settings write. Its acknowledgement is protocol success only; a refused or
+ *   lost reply stays uncertain and nothing is repeated. Persistent: COMMON forbids persistent changes while
+ *   the owner is away, so nobody runs it then, and the host runner has no command for it. Verification is the
+ *   owner's power cycle and a later read (verifyPersistence), outside this route. Attended, the settings
+ *   routes' caps, no motion weight.
  * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
  *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
  *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
@@ -327,6 +337,7 @@
 #include "BenchRouteNmt.h"
 #include "BenchNodes.h"
 #include "FirmwareProbe.h"
+#include <MotorControlCAN/profiles/lichuan_c/Persistence.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCANExample {
@@ -391,7 +402,10 @@ enum class RouteKind : uint8_t {
     ARM_MOVE_PAIR,
     /** The paired velocity arming: ARM_VELOCITY's identity read, full read and check on both nodes in one
      * record, with the same evidence, rate cap, ramps and stop budgets for both; `Te`. Attended. */
-    ARM_VELOCITY_PAIR
+    ARM_VELOCITY_PAIR,
+    /** Prompt 57, one explicit save parameters (2300=2) after its identity, state and motion parameter
+     * reads; `Ts`. Persistent, so never run while the owner is away. Attended, settings caps. */
+    SAVE
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -742,6 +756,12 @@ struct RouteWork {
     MotorControlCAN::LICHUAN_C::HomeRequest homeRequest; ///< HOME: the line's method, rates, ramp, offset.
     MotorControlCAN::LICHUAN_C::HomeOptions homeOptions; ///< HOME: the route's budgets.
 };
+/** Work of SAVE, placed by the caller on the first save route only, so that no other route's memory grows:
+ * the save's three prerequisite reads and its context. Written only while SAVE runs; history afterwards. */
+struct SaveWork {
+    MotorControlCAN::LICHUAN_C::PersistencePrerequisites prior; ///< Identity, STATUS/MONITORS, MOTION_PARAMETERS.
+    MotorControlCAN::LICHUAN_C::PersistenceContext persistence; ///< The one save and its terminal.
+};
 /** One owner terminal, compacted from Completion for the RESULT line. */
 struct RouteTerminal {
     uint64_t admittedUs = 0;    ///< Native admission time.
@@ -894,6 +914,15 @@ struct RouteRecord {
     /** The candidate equalled the prior readback: the library succeeded with nothing to write, and
      * nothing was sent. */
     bool settingsNoop = false;
+    /** SAVE: prepareSave returned OK. The fields after it hold the context's result; its one download's raw
+     * terminal is in probeWritten and the fields after that. */
+    bool savePrepared = false;
+    uint8_t saveState = 0;      ///< PersistenceState at the route's end.
+    uint8_t saveOutcome = 0;    ///< Its ReadOutcome.
+    uint8_t saveExecution = 0;  ///< Its ActionExecution: the download's, never durability.
+    uint8_t saveAttempts = 0;   ///< 0 before a possible TX, 1 after; never more.
+    uint8_t saveGuardsOff = 0;  ///< PersistenceContext::guardsOff: the records the save ran without.
+    bool saveUncertain = false; ///< Its effect is unconfirmed, as after a refused or lost reply.
     uint8_t settingsState = 0;      ///< SettingsState at the record's end.
     uint8_t settingsOutcome = 0;    ///< ReadOutcome at the record's end.
     uint16_t settingsChanged = 0;   ///< Fields the candidate changed, by group position.
@@ -1067,6 +1096,11 @@ class BenchRoute {
      * @return False when one is already attached.
      */
     bool attachWork(RouteWork& work) noexcept;
+    /** Attach SAVE's work block once; a SAVE route is refused as "memory" without it.
+     * @param work Caller-owned storage that outlives this object. @return False when one is attached. */
+    bool attachSaveWork(SaveWork& work) noexcept;
+    /** @return True once attachSaveWork succeeded. */
+    bool saveWorkAttached() const noexcept { return save_ != nullptr; }
     /** @return Whether settings storage is attached. */
     bool workAttached() const noexcept { return work_ != nullptr; }
     /** @param node Node 1 or 2. @return Whether that node has a session attached. */
@@ -1198,7 +1232,8 @@ class BenchRoute {
         STEP_CHECK_CONTROLWORD_AFTER, ///< CONTROLWORD: the final full read's switched-on, enabled or 606C mark.
         /** A paired arming: keep the first node's checked reads, then run the same steps on the other node. */
         STEP_PAIR_NEXT,
-        STEP_MODE_SELECT ///< MODE_ONE and MODE_THREE: the session's typed mode select request.
+        STEP_MODE_SELECT, ///< MODE_ONE and MODE_THREE: the session's typed mode select request.
+        STEP_SAVE         ///< SAVE: prepareSave from SaveWork's reads, its one 2300 download and its terminal.
     };
     struct Step {
         uint8_t kind;
@@ -1265,13 +1300,14 @@ class BenchRoute {
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
-    uint8_t settingsCases_[16][BENCH_NODES] = {};
+    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE.
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
     uint64_t observerNextUs_ = 0, observerCycleUs_ = 0;
     uint32_t observerGrantOperation_ = 0, observerGrantStep_ = 0;
     RouteWork* work_ = nullptr;
+    SaveWork* save_ = nullptr;
     bool settingsSettled_ = false; ///< The transaction's result is recorded and the session followed.
     bool ownerFollowed_ = false;   ///< The owner's reservation already moved to the new epoch.
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
@@ -1340,6 +1376,9 @@ class BenchRoute {
     void startHome(uint64_t nowUs) noexcept;
     bool rearmable(uint8_t slot, const AxisSession& session, uint8_t predecessor) const noexcept;
     void noteEnd(uint64_t nowUs) noexcept;
+    bool noteSave(MotorControlCANOwner::SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                  uint64_t now) noexcept;
+    void serviceSave(uint64_t now) noexcept;
     bool noteSettings(MotorControlCANOwner::SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                       uint64_t nowUs) noexcept;
     void startSettings(uint64_t nowUs) noexcept;

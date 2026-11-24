@@ -5713,6 +5713,59 @@ void testSubdivision() {
     first = r->driver.requests.size();
     CHECK(std::strcmp(r->route.begin(p, r->console.now), "plan") == 0 && r->driver.requests.size() == first);
 }
+// Prompt 57: the explicit save route. Its identity, state and motion parameter reads, then one 2300=2 download
+// through the library's save with no review guard set; its acknowledgement claims no durability, and the epoch
+// advance is followed as after a settings write. A lost or refused reply stays uncertain and nothing is resent.
+void testSave() {
+    scenario = "save";
+    std::unique_ptr<Rig> r(new Rig);
+    std::unique_ptr<E::SaveWork> save(new E::SaveWork);
+    Drive& d = r->driver.drives[0];
+    CHECK(std::strcmp(r->start("s1,1,0"), "unattended") == 0);
+    CHECK(std::strcmp(r->start("s1,1,1"), "memory") == 0); // No SaveWork yet.
+    CHECK(r->route.attachSaveWork(*save) && !r->route.attachSaveWork(*save) && r->route.saveWorkAttached());
+    const uint32_t before = configuration(*r, 1);
+    const E::RouteRecord& ok = r->run("s1,2,1");
+    CHECK(ok.failure == E::RouteFailure::NONE && ok.savePrepared && ok.terminalCount == 18 && ok.motionTotal == 0);
+    CHECK(ok.saveState == uint8_t(L::PersistenceState::ACKNOWLEDGED) && ok.saveAttempts == 1 && !ok.saveUncertain &&
+          ok.saveGuardsOff == L::PERSISTENCE_GUARDS_REVIEW &&
+          ok.saveExecution == uint8_t(M::ActionExecution::ACKNOWLEDGED));
+    size_t at = 0;
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, STOP_STATE, 5);
+    const Address motion[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
+    expectUploads(*r, at, 1, motion, 3);
+    const uint8_t write[8] = {0x2b, 0x00, 0x23, 0, 0x02, 0, 0, 0}; // 2300 = 2, save parameters.
+    CHECK(download(r->driver.requests[at++], 1, write));
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 1);
+    CHECK(ok.configurationBefore == before && ok.configurationAfter == before + 1 && ok.configurationFollowed &&
+          configuration(*r, 1) == before + 1 && r->one.isOpen());
+    std::string text = r->dump();
+    CHECK(has(text, "route=save failure=0 "));
+    CHECK(has(text, "TRIAL_PLAN route=save node=1 trial=2 attended=1\n"));
+    CHECK(has(text, "TRIAL_SAVE prepared=1 state=2 ") && has(text, " attempts=1 guardsOff=0f uncertain=0 written=1 wire=0 ack=1 "));
+    r->release();
+    for (unsigned lost = 0; lost < 2; ++lost) {
+        // A lost reply and a refused one: one download each, uncertain, never resent.
+        (lost ? d.silentIndex : d.abortIndex) = 0x2300;
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& failed = r->run(lost ? "s1,4,1" : "s1,3,1");
+        CHECK(failed.failure == E::RouteFailure::SERVICE && std::strcmp(failed.why, "uncertain") == 0);
+        CHECK(failed.saveUncertain && failed.saveAttempts == 1 &&
+              failed.saveState == uint8_t(L::PersistenceState::FAILED));
+        r->turns(500);
+        CHECK(r->downloadsFrom(first) == 1);
+        (lost ? d.silentIndex : d.abortIndex) = 0;
+        r->release();
+        r->turns(2000); // The lost reply's cleanup and the owner's marker, as after any lost reply.
+    }
+    // A running report, on node 2 (three per route and node): the library refuses the save before its download.
+    r->driver.drives[1].monitor = uint16_t(r->driver.drives[1].monitor | L::MONITOR_RUNNING);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& running = r->run("s2,5,1");
+    CHECK(running.failure == E::RouteFailure::REFUSED && std::strcmp(running.why, "save") == 0 &&
+          running.statusPresent && r->downloadsFrom(first) == 0);
+}
 // The library's refusals send nothing; a drive that stores another value, a lost reply and an abort end the
 // route with the write's terminal and whatever readback arrived on record, and nothing is sent again.
 void testSubdivisionFailures() {
@@ -8205,6 +8258,7 @@ int main(int argc, char** argv) {
     testParseLoop();
     testLoop();
     testLoopFailures();
+    testSave();
     testCloseRefusals();
     testBorrowedRecordArena();
     testCloseKeepsHistory();

@@ -16,6 +16,19 @@ enum class CommissioningKind : uint8_t {
     PERSISTENCE,   ///< Native one-attempt save or restore factory settings.
     PDO            ///< Native exact TPDO1 map or event-timer transition and readback.
 };
+/** What startPersistence needs beyond the target: the caller's own command policy (prompt 57). */
+struct PersistencePlan {
+    /** Its kind selects SAVE or FACTORY_RESTORE; its target must be target(). Guards default as the
+     * library's: no review guard, and the restore's backup guard set. */
+    MotorControlCAN::LICHUAN_C::PersistenceReview review;
+    /** Budgets of the three prerequisite reads. identityWidths applies to the identity read only; the
+     * state and motion parameter reads use the declared widths. */
+    MotorControlCAN::LICHUAN_C::ReadOptions reads;
+    /** Budgets of the one 2300 write: nonzero, declared widths, no PDO. */
+    MotorControlCAN::LICHUAN_C::ReadOptions write;
+    uint64_t maximumAgeUs = 0;   ///< Nonzero inclusive prerequisite age cap, caller policy.
+    uint32_t attemptOrdinal = 0; ///< Caller's nonzero cumulative command number; no hidden count.
+};
 /** Optional stationary application storage for three native contexts, with at most one in use.
  * External application code prepares the actual typed context from reviewed specimen/baseline
  * evidence, then arms and explicitly requests it at that exact supplied preparation time. No
@@ -86,6 +99,23 @@ class ProbeCommissioning {
      * review comes from its actual native preparation. One write only; no rearm/readback/restart.
      */
     MotorControlCAN::Status requestPersistence(uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Prepare and start a save or a factory restore here, with no external arm (prompt 57). Only this
+     * call starts it: nothing here saves on startup, selection, probe or recovery. The helper reads
+     * identity, then STATUS and MONITORS, then MOTION_PARAMETERS through the session, each under its own
+     * operation, and when the last read completes prepares the context with prepareSave or
+     * prepareFactoryRestore and requests it at that time. Everything runs under deadlineUs; service
+     * drives it. A read failure or a preparation refusal ends it before any write, with
+     * preparationStatus. The write then follows requestPersistence's contract: one 2300 write, never
+     * repeated, its acknowledgement not persistence.
+     * @param[in] plan Copied review, budgets, age cap and attempt number.
+     * @param[in] nowUs Nondecreasing supplied us, at least owner time.
+     * @param[in] deadlineUs Immutable exclusive cutoff of the reads and the write together.
+     * @return Local status; the review is checked first (validatePersistenceReview), so a set guard
+     * without its record, such as the restore's default backup guard, refuses before any read. Refused
+     * while another context is held or the session is busy. Success admits nothing yet.
+     */
+    MotorControlCAN::Status startPersistence(const PersistencePlan& plan, uint64_t nowUs,
+                                             uint64_t deadlineUs) noexcept;
     /** Start the armed exact TPDO1 transition; no arbitrary map, value or identifier edit exists.
      * @param[in] nowUs As requestCommunication. @param[in] deadlineUs As requestCommunication.
      * @return Same atomic request contract. Native current qualified Pre-operational evidence
@@ -134,6 +164,17 @@ class ProbeCommissioning {
     CommissioningKind kind() const noexcept { return kind_; }
     /** @return True while an unrequested pristine context is held. */
     bool armed() const noexcept { return kind_ != CommissioningKind::NONE && !retained_; }
+    /** @return True while startPersistence's prerequisite reads run, before its context exists. */
+    bool preparing() const noexcept { return preparing_; }
+    /** @return Why a self-prepared persistence ended before its write was prepared or requested; OK
+     * otherwise. persistence() then returns an EMPTY context. Expires on release. */
+    const MotorControlCAN::Status& preparationStatus() const noexcept { return preparationStatus_; }
+    /** @return The operation identity of the held workflow: the armed or retained context's, or for a
+     * self-prepared persistence while it reads or after it ended before its write, the identity its write
+     * runs or would have run under; zero when none. */
+    uint32_t heldOperation() const noexcept {
+        return preparing_ || !preparationStatus_.isOk() ? plannedOperation_ : operation();
+    }
     /** @return True from successful request through explicit release. */
     bool retained() const noexcept { return retained_; }
     /** @return True while native intent or one admitted terminal is unsettled. */
@@ -165,6 +206,14 @@ class ProbeCommissioning {
     MotorControlCAN::LICHUAN_C::CommunicationContext communication_;
     MotorControlCAN::LICHUAN_C::PersistenceContext persistence_;
     MotorControlCAN::LICHUAN_C::Tpdo1ConfigurationContext pdo_;
+    MotorControlCAN::LICHUAN_C::PersistencePrerequisites prior_; ///< startPersistence's own reads.
+    PersistencePlan plan_;
+    MotorControlCAN::Status preparationStatus_;
+    uint64_t planDeadlineUs_ = 0;
+    uint32_t plannedOperation_ = 0;
+    uint8_t prepareStep_ = 0; ///< 0 identity, 1 state, 2 motion parameters.
+    bool preparing_ = false;
+    bool readPending_ = false;
     MotorControlCAN::LICHUAN_C::AxisReservation live_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCAN::CANOPEN::SdoTransfer expected_;
@@ -193,6 +242,11 @@ class ProbeCommissioning {
     bool configurationEligible(uint64_t nowUs) const noexcept;
     MotorControlCAN::Status request(CommissioningKind kind, uint64_t nowUs,
                                     uint64_t deadlineUs) noexcept;
+    MotorControlCAN::Status sessionReservation(MotorControlCAN::LICHUAN_C::AxisReservation& output) const noexcept;
+    MotorControlCAN::LICHUAN_C::ReadContext& prerequisite() noexcept;
+    MotorControlCAN::Status startPrerequisite(uint64_t nowUs) noexcept;
+    MotorControlCAN::Status servicePreparation(uint64_t nowUs) noexcept;
+    MotorControlCAN::Status failPreparation(const MotorControlCAN::Status& status) noexcept;
     MotorControlCAN::Status next(uint64_t nowUs,
                                  MotorControlCAN::LICHUAN_C::PreparedRead& output) const noexcept;
     MotorControlCAN::Status withdraw(MotorControlCAN::ReadOutcome reason, uint64_t nowUs) noexcept;

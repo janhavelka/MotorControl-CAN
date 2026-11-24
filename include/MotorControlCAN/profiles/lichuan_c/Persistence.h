@@ -26,16 +26,40 @@ enum class PersistenceState : uint8_t {
     ACKNOWLEDGED, ///< Protocol success only; persistence remains unverified.
     FAILED        ///< Immutable failed intent; later observations cannot replay or replace it.
 };
-/** Exact caller-reviewed specimen/procedure scope, never fabricated by an identity read. */
+/** Guard bits of PersistenceReview::guards and PersistenceContext::guardsOff (prompt 57). A set guard
+ * refuses the command before TX while its record is zero. The guards are the user's policy of
+ * 2026-11-17 (optional, settable review records; the user owns the responsibility), not manufacturer
+ * statements: no source says what a save or a restore needs beyond the one 2300 write. */
+constexpr uint8_t PERSISTENCE_GUARD_FIXTURE = 0x01;       ///< PersistenceReview::fixtureRecord required.
+constexpr uint8_t PERSISTENCE_GUARD_FIRMWARE = 0x02;      ///< PersistenceReview::firmwareRecord required.
+constexpr uint8_t PERSISTENCE_GUARD_PROCEDURE = 0x04;     ///< PersistenceReview::procedureRecord required.
+constexpr uint8_t PERSISTENCE_GUARD_AUTHORIZATION = 0x08; ///< PersistenceReview::authorizationRecord required.
+/** FACTORY_RESTORE only: PersistenceReview::backupRecord required. Set by default, because a restore is
+ * destructive; a save ignores it. */
+constexpr uint8_t PERSISTENCE_GUARD_BACKUP = 0x10;
+constexpr uint8_t PERSISTENCE_GUARDS_REVIEW = 0x0f; ///< The four review guards, the only ones of a save.
+constexpr uint8_t PERSISTENCE_GUARDS_ALL = 0x1f;    ///< Every defined guard; other bits are refused.
+/** The caller's scope for one command, never fabricated by an identity read. target and kind always bind
+ * the command; each record is required only while its guard is set. */
 struct PersistenceReview {
     ReadTarget target;                            ///< Actual original route and all epochs.
     PersistenceKind kind = PersistenceKind::SAVE; ///< Only this intent was reviewed.
-    uint32_t fixtureRecord = 0;   ///< Nonzero retained actual nameplate/wiring/specimen record.
-    uint32_t firmwareRecord = 0;  ///< Nonzero exact model/firmware applicability record.
-    uint32_t procedureRecord = 0; ///< Nonzero reviewed bounded procedure and effect-risk record.
-    uint32_t authorizationRecord = 0; ///< Nonzero explicit execution authorization record.
-    uint32_t backupRecord = 0; ///< Factory restore: caller's backup record of the configuration subset it read back; never a complete image.
-    uint32_t routeBackRecord = 0; ///< Factory restore: reviewed actual recommissioning route plan.
+    /** Which records the command requires. Default: no review guard, and for a factory restore the
+     * backup guard. Clearing a guard admits the command without that record, and the result names it in
+     * PersistenceContext::guardsOff. */
+    uint8_t guards = PERSISTENCE_GUARD_BACKUP;
+    uint32_t fixtureRecord = 0;   ///< Retained nameplate/wiring/specimen record; zero is none.
+    uint32_t firmwareRecord = 0;  ///< Model/firmware applicability record; zero is none.
+    uint32_t procedureRecord = 0; ///< Reviewed bounded procedure and effect-risk record; zero is none.
+    uint32_t authorizationRecord = 0; ///< Explicit execution authorization record; zero is none.
+    /** Factory restore: the caller's backup record, zero is none. That record names the configuration
+     * subset the application read back and lists what stays unknown: the complete persistent set and the
+     * factory values (prompt 39). It is never a complete or restorable image, and the library keeps only
+     * its identity. It also stands for the recommissioning route plan that routeBackRecord used to name. */
+    uint32_t backupRecord = 0;
+    /** Deprecated since prompt 57 and consulted by nothing: the backup guard and backupRecord cover the
+     * recommissioning route plan. Kept for source compatibility and copied with the review. */
+    uint32_t routeBackRecord = 0;
 };
 /** Actual independently acquired prerequisites; preparation copies checked observations only.
  * These reads do not prove a stopped shaft or a complete backup. No enable/stop preamble exists.
@@ -60,8 +84,8 @@ struct PersistenceVerification {
     ReadTarget current; ///< Actual reacquired route and current owner epochs.
     SettingsModel model =
         SettingsModel::UNKNOWN;  ///< Independently established same specimen model.
-    uint32_t fixtureRecord = 0;  ///< Must match original specimen record.
-    uint32_t firmwareRecord = 0; ///< Must match original firmware record.
+    uint32_t fixtureRecord = 0;  ///< Must equal the command's fixtureRecord, zero when it had none.
+    uint32_t firmwareRecord = 0; ///< Must equal the command's firmwareRecord, zero when it had none.
     uint32_t routeRecord = 0;    ///< Nonzero external identity/route reconciliation record.
     PersistencePrerequisites observations; ///< Fresh post-command identity/state/motion reads.
     uint64_t maximumAgeUs = 0; ///< Nonzero inclusive observation age limit, caller policy.
@@ -86,6 +110,9 @@ struct PersistenceContext {
     PersistenceRecord observed; ///< Last accepted independent reconciliation, if verificationKnown.
     PersistenceState state = PersistenceState::EMPTY; ///< Local phase only.
     PersistenceKind kind = PersistenceKind::SAVE;     ///< Frozen distinct intent.
+    /** The guards that were off when the command was prepared: PERSISTENCE_GUARDS_REVIEW bits for a save,
+     * PERSISTENCE_GUARDS_ALL bits for a factory restore. Each names a record the command ran without. */
+    uint8_t guardsOff = 0;
     ReadOutcome outcome =
         ReadOutcome::NONE; ///< Original terminal cause, never overwritten by verification.
     ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< Protocol execution evidence.
@@ -121,14 +148,33 @@ struct PersistenceContext {
     PersistenceRequirement restart =
         PersistenceRequirement::UNKNOWN; ///< Documentary requirement unknown.
     PersistenceRequirement rearm = PersistenceRequirement::UNKNOWN; ///< No zero write is generated.
-    PersistenceRequirement completeSavedSet =
-        PersistenceRequirement::UNKNOWN; ///< No complete scope known.
+    /** No complete scope known: neither the complete persistent set nor, for a restore, the factory
+     * values. A backup record covers only the subset the application read back. */
+    PersistenceRequirement completeSavedSet = PersistenceRequirement::UNKNOWN;
 };
-/** Prepare one explicit save, without writing or promising durability.
+/** Report what prepareSave or prepareFactoryRestore would refuse in the review alone, changing nothing:
+ * the bound target and command, an undefined guard bit, and a set guard without its record. For a caller
+ * that acquires the prerequisites only once the review admits the command.
+ * @param[in] review The caller's review, borrowed during the call.
+ * @param[in] current Actual current route/epochs; the review's target must equal it.
+ * @param[in] kind The command to be prepared.
+ * @return OK, or the preparation's status for the review: INVALID_CONFIG with ReadError::ARGUMENT for an
+ * unknown command or guard bit, UNSUPPORTED with ReadError::TARGET for another target or command, for the
+ * backup guard without a backup record and for a review guard without its record. No I/O.
+ */
+Status validatePersistenceReview(const PersistenceReview& review, const ReadTarget& current,
+                                 PersistenceKind kind) noexcept;
+/** Prepare one explicit save, without writing or promising durability. A save is a regular command
+ * (prompt 57), and never implicit: nothing here or in the examples saves on startup, selection, probe or
+ * recovery. Its evidence is the 2300 acknowledgement, which is protocol success only, a readback of the
+ * saved values, and after the owner's power cycle the same values read before any write
+ * (verifyPersistence). One write; a rejected or unacknowledged one stays uncertain and is never repeated.
  * @param[out] output Unchanged on rejection; inputs must not overlap it.
  * @param[in] reservation Actual owner exclusion acquired before all prerequisite reads.
  * @param[in] current Actual current route/epochs, exactly matching the reservation.
- * @param[in] review Exact SAVE review and nonzero fixture/firmware/procedure/authorization records.
+ * @param[in] review SAVE review on this target. Each set review guard needs its nonzero record, or the save
+ * returns UNSUPPORTED with ReadError::TARGET; guards outside PERSISTENCE_GUARDS_ALL return INVALID_CONFIG.
+ * The backup guard is ignored. output.guardsOff names the review guards that were off.
  * @param[in] prior Fresh identity, successful STATUS/MONITORS services and motion settings.
  * The 2100 report must have no running, alarm or undocumented bit. The disputed 6041 word is
  * retained without inferring torque/standstill from it; no physical stationary fact is invented.
@@ -145,11 +191,15 @@ Status prepareSave(PersistenceContext& output, const AxisReservation& reservatio
                    const PersistencePrerequisites& prior, uint32_t operation,
                    uint32_t attemptOrdinal, uint64_t nowUs, uint64_t deadlineUs,
                    const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
-/** Prepare one explicit restore factory settings, with identical atomicity/state rules to save.
+/** Prepare one explicit restore factory settings (2300=1), a separate command with identical
+ * atomicity/state rules to save. Guard set or not, it keeps its own intent, its uncertain effects and no
+ * replay; nothing restores the host's records or the saved values.
  * @param[out] output Unchanged on rejection, no input overlap.
  * @param[in] reservation Actual continuous owner exclusion.
  * @param[in] current Actual current route/epochs.
- * @param[in] review Exact FACTORY_RESTORE review plus external backup and route-back records.
+ * @param[in] review FACTORY_RESTORE review on this target. With PERSISTENCE_GUARD_BACKUP set (the default)
+ * and no backupRecord the restore returns UNSUPPORTED with ReadError::TARGET before TX; with it clear the
+ * restore is admitted and output.guardsOff names it. The review guards apply as for prepareSave.
  * @param[in] prior Fresh checked partial snapshots; these are not a complete backup.
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] attemptOrdinal Nonzero caller-maintained cumulative restore number.

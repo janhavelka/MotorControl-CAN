@@ -855,11 +855,20 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
     const bool needed = plan.kind == E::RouteKind::SETTINGS_2202 || plan.kind == E::RouteKind::IO_DI3 ||
                         plan.kind == E::RouteKind::SUBDIVISION || plan.kind == E::RouteKind::LOOP ||
                         plan.kind == E::RouteKind::VELOCITY || plan.kind == E::RouteKind::VELOCITY_CHANGE ||
-                        plan.kind == E::RouteKind::HOME || (plan.kind == E::RouteKind::MOVE && plan.observer);
+                        plan.kind == E::RouteKind::HOME || plan.kind == E::RouteKind::SAVE ||
+                        (plan.kind == E::RouteKind::MOVE && plan.observer);
     if (!needed && !benchMemory.blocks[RESERVE_WORK].memory)
         return true;
     void* memory = benchBlock(RESERVE_WORK, alignof(E::RouteWork), sizeof(E::RouteWork));
     return (memory && route.attachWork(*new (memory) E::RouteWork())) || !needed;
+}
+// SAVE's own block (prompt 57), from the ordinary heap on the first save route only: no reservation grows
+// for a route nobody runs while the owner is away.
+bool saveStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
+    if (plan.kind != E::RouteKind::SAVE || route.saveWorkAttached())
+        return true;
+    void* memory = internalAllocate(nullptr, alignof(E::SaveWork), sizeof(E::SaveWork));
+    return memory && route.attachSaveWork(*new (memory) E::SaveWork());
 }
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
                        E::BenchRoute*& route, E::BenchConsole* console, bool (&configured)[E::BENCH_NODES], const char* text,
@@ -890,7 +899,8 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
     if (!route || !route->bindRecordStorage(recordStorage) || !recordStorage ||
         !sessionStorage(firmware, *route, plan.node) ||
         (observer && !sessionStorage(firmware, *route, observer)) ||
-        (pair && !sessionStorage(firmware, *route, 3 - plan.node)) || !workStorage(*route, plan))
+        (pair && !sessionStorage(firmware, *route, 3 - plan.node)) || !workStorage(*route, plan) ||
+        !saveStorage(*route, plan))
         return "memory";
     // An arming hands its reads to the shared console (BenchConsole.h): it needs the console (`o`) and
     // that node's motion attachment first, so that a successful record is never left unconsumed.

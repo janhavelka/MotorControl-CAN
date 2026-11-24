@@ -257,6 +257,102 @@ void lostReplyDoesNotBecomeSuccess() {
     CHECK(aborted.context.execution == M::ActionExecution::REJECTED && aborted.context.uncertain);
     CHECK(aborted.context.writeEvidence.abortValid &&
           aborted.context.writeEvidence.abortCode == 0xf1234567);
+    // A rejected 2300 is reported uncertain, kept M, and never offered again.
+    CHECK(aborted.context.state == L::PersistenceState::FAILED && aborted.context.attempts == 1 &&
+          aborted.context.retryClass == M::RetryClass::MOTION_LIKE && !aborted.next().ready);
+}
+// Prompt 57: the review records are optional, settable guards. A save needs none by default and names the
+// guards that were off; a set guard without its record refuses before TX. A factory restore's backup guard
+// is set by default; cleared, the restore is admitted and names it.
+void optionalGuards() {
+    const uint8_t review[] = {L::PERSISTENCE_GUARD_FIXTURE, L::PERSISTENCE_GUARD_FIRMWARE,
+                              L::PERSISTENCE_GUARD_PROCEDURE, L::PERSISTENCE_GUARD_AUTHORIZATION};
+    for (unsigned factory = 0; factory < 2; ++factory) {
+        {
+            Fixture f; // No record at all: a save is admitted; a restore only with the backup guard cleared.
+            f.review = L::PersistenceReview();
+            f.review.target = f.reservation.target;
+            CHECK(L::PersistenceReview().guards == L::PERSISTENCE_GUARD_BACKUP);
+            if (factory) {
+                const Saved<L::PersistenceContext> saved(f.context);
+                const M::Status s = f.prepare(true);
+                CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ReadError::TARGET));
+                saved.unchanged(f.context);
+                f.review.guards = 0;
+            }
+            CHECK(f.prepare(factory != 0));
+            CHECK(f.context.guardsOff == (factory ? L::PERSISTENCE_GUARDS_ALL : L::PERSISTENCE_GUARDS_REVIEW));
+            // Guard set or not: one write, its own intent, and no second offer.
+            auto p = f.next();
+            CHECK(p.ready && p.transfer.index == 0x2300 && p.transfer.data[0] == (factory ? 1 : 2));
+            f.finish(C::SdoOutcome::TIMEOUT);
+            CHECK(f.context.uncertain && f.context.attempts == 1 && !f.next().ready &&
+                  f.context.kind == (factory ? L::PersistenceKind::FACTORY_RESTORE : L::PersistenceKind::SAVE));
+        }
+        for (unsigned g = 0; g < 4; ++g) {
+            Fixture f; // Each review guard set: its record is required, the others stay optional.
+            f.review.backupRecord = 5;
+            f.review.guards = uint8_t(review[g] | L::PERSISTENCE_GUARD_BACKUP);
+            CHECK(f.prepare(factory != 0));
+            CHECK(f.context.guardsOff == uint8_t(L::PERSISTENCE_GUARDS_REVIEW & ~review[g]));
+            Fixture missing;
+            missing.review.backupRecord = 5;
+            missing.review.guards = f.review.guards;
+            uint32_t* records[] = {&missing.review.fixtureRecord, &missing.review.firmwareRecord,
+                                   &missing.review.procedureRecord, &missing.review.authorizationRecord};
+            *records[g] = 0;
+            const Saved<L::PersistenceContext> saved(missing.context);
+            const M::Status s = missing.prepare(factory != 0);
+            CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ReadError::TARGET));
+            saved.unchanged(missing.context);
+            missing.review.guards = L::PERSISTENCE_GUARD_BACKUP; // The same review with the guard off.
+            CHECK(missing.prepare(factory != 0) && (missing.context.guardsOff & review[g]));
+        }
+        {
+            Fixture f; // Every guard set and every record named: nothing is off.
+            f.review.backupRecord = 5;
+            f.review.guards = L::PERSISTENCE_GUARDS_ALL;
+            CHECK(f.prepare(factory != 0) && f.context.guardsOff == 0);
+            Fixture bad; // An undefined guard bit.
+            bad.review.guards = 0x20;
+            const M::Status s = bad.prepare(factory != 0);
+            CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::ReadError::ARGUMENT));
+        }
+    }
+    {
+        // validatePersistenceReview gives the preparation's review status with no context or read.
+        Fixture f;
+        L::PersistenceReview r;
+        r.target = f.reservation.target;
+        CHECK(L::validatePersistenceReview(r, r.target, L::PersistenceKind::SAVE));
+        r.kind = L::PersistenceKind::FACTORY_RESTORE;
+        M::Status s = L::validatePersistenceReview(r, r.target, L::PersistenceKind::FACTORY_RESTORE);
+        CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ReadError::TARGET));
+        r.backupRecord = 3;
+        CHECK(L::validatePersistenceReview(r, r.target, L::PersistenceKind::FACTORY_RESTORE));
+        s = L::validatePersistenceReview(r, r.target, L::PersistenceKind::SAVE); // Another command.
+        CHECK(!s && s.code == M::Err::UNSUPPORTED);
+        r.guards = 0x40;
+        s = L::validatePersistenceReview(r, r.target, L::PersistenceKind::FACTORY_RESTORE);
+        CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::ReadError::ARGUMENT));
+        r.guards = L::PERSISTENCE_GUARD_AUTHORIZATION;
+        ++r.target.nodeGeneration;
+        s = L::validatePersistenceReview(r, f.reservation.target, L::PersistenceKind::FACTORY_RESTORE);
+        CHECK(!s && s.code == M::Err::UNSUPPORTED);
+        r.target = f.reservation.target;
+        s = L::validatePersistenceReview(r, r.target, L::PersistenceKind::FACTORY_RESTORE);
+        CHECK(!s && s.code == M::Err::UNSUPPORTED); // The authorization guard without its record.
+    }
+    Fixture save; // A save ignores the backup guard, also without a backup record.
+    save.review.guards = L::PERSISTENCE_GUARDS_ALL;
+    CHECK(save.prepare() && save.context.guardsOff == 0);
+    Fixture kind; // The review binds its command: a SAVE review cannot open a restore.
+    kind.review.guards = 0;
+    kind.review.kind = L::PersistenceKind::SAVE;
+    const M::Status other = L::prepareFactoryRestore(kind.context, kind.reservation, kind.reservation.target,
+                                                     kind.review, kind.prior, 9, 7, kind.now, kind.now + 10000,
+                                                     options(), 1000);
+    CHECK(!other && other.code == M::Err::UNSUPPORTED);
 }
 void rejectedCandidates() {
     for (unsigned scenario = 0; scenario < 12; ++scenario) {
@@ -264,9 +360,11 @@ void rejectedCandidates() {
         const Saved<L::PersistenceContext> saved(f.context);
         switch (scenario) {
         case 0:
+            f.review.guards = L::PERSISTENCE_GUARD_PROCEDURE; // A set guard without its record.
             f.review.procedureRecord = 0;
             break;
         case 1:
+            f.review.guards = L::PERSISTENCE_GUARD_FIRMWARE;
             f.review.firmwareRecord = 0;
             break;
         case 2:
@@ -303,12 +401,13 @@ void rejectedCandidates() {
         CHECK(!f.prepare());
         saved.unchanged(f.context);
     }
-    Fixture factory;
-    CHECK(!factory.prepare(true));
-    factory.review.backupRecord = 1;
+    Fixture factory; // The backup guard is set by default; routeBackRecord is no longer consulted.
     CHECK(!factory.prepare(true));
     factory.review.routeBackRecord = 2;
-    CHECK(factory.prepare(true));
+    CHECK(!factory.prepare(true));
+    factory.review.backupRecord = 1;
+    factory.review.routeBackRecord = 0;
+    CHECK(factory.prepare(true) && factory.context.guardsOff == L::PERSISTENCE_GUARDS_REVIEW);
     Fixture overlap;
     CHECK(overlap.prepare());
     const Saved<L::PersistenceContext> saved(overlap.context);
@@ -663,6 +762,7 @@ void realOwnerLostReplyAndReset() {
 }
 } // namespace
 int main() {
+    optionalGuards();
     commandsAndKnowledge();
     lostReplyDoesNotBecomeSuccess();
     rejectedCandidates();

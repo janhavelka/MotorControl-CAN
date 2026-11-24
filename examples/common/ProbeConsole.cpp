@@ -135,9 +135,9 @@ const ConsoleCommand commands[] = {
      nullptr, 41},
     {"persistence",
      "persistence save parameters [TIMEOUT_MS] | persistence restore factory settings [TIMEOUT_MS]",
-     "ProbeCommissioning/prepareSave/prepareFactoryRestore",
-     "exact external typed preparation and one-use service authority", E::DEVICE_ACTION,
-     C::ASYNCHRONOUS, "One explicit reviewed intent; ACK is not durability, restart or rollback.",
+     "ProbeCommissioning::startPersistence/prepareSave/prepareFactoryRestore",
+     "own fresh reads and default guards, or an armed reviewed plan", E::DEVICE_ACTION,
+     C::ASYNCHRONOUS, "One explicit intent; ACK is not durability, restart or rollback.",
      nullptr, 41},
     {"motion", "motion [write|verify]", "setSimpleSetup", "explicit host intent",
      E::HOST_CONFIGURATION, C::REPLY, "Inspect or choose native setup; verify writes differences.",
@@ -1100,10 +1100,7 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                 }
             } else if (op.commissioning) {
                 if (!commissioning_ || !commissioning_->retained() ||
-                    (commissioning_->communication() ? commissioning_->communication()->operation
-                     : commissioning_->persistence() ? commissioning_->persistence()->operation
-                     : commissioning_->pdo()         ? commissioning_->pdo()->operation
-                                                     : 0) != op.nativeOperation) {
+                    commissioning_->heldOperation() != op.nativeOperation) {
                     outcome = "INVALIDATED";
                     uncertain = true;
                 } else {
@@ -1119,8 +1116,12 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                         completed = c->servicedUs;
                     } else if (const auto* c = commissioning_->persistence()) {
                         succeeded = c->state == L::PersistenceState::ACKNOWLEDGED;
-                        outcome = succeeded ? "ACKNOWLEDGED" : "PERSISTENCE_FAILED";
-                        status = M::errToString(c->status.code);
+                        const bool unprepared = !commissioning_->preparationStatus().isOk();
+                        outcome = succeeded     ? "ACKNOWLEDGED"
+                                  : unprepared ? "PERSISTENCE_PREPARATION_FAILED"
+                                               : "PERSISTENCE_FAILED";
+                        status = M::errToString(unprepared ? commissioning_->preparationStatus().code
+                                                           : c->status.code);
                         detail = static_cast<int32_t>(c->outcome);
                         uncertain = c->uncertain;
                         completed = c->servicedUs;
@@ -1301,10 +1302,7 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                          static_cast<long>(settings.status.detail), retryLabel(settings.retryClass));
             }
             if (op.commissioning && commissioning_ && commissioning_->retained() &&
-                (commissioning_->communication() ? commissioning_->communication()->operation
-                 : commissioning_->persistence() ? commissioning_->persistence()->operation
-                 : commissioning_->pdo()         ? commissioning_->pdo()->operation
-                                                 : 0) == op.nativeOperation) {
+                commissioning_->heldOperation() == op.nativeOperation) {
                 if (const auto* c = commissioning_->communication())
                     body.add(",\"write_acknowledged\":%s,\"readback_matched\":%s,\"restart\":null,"
                              "\"persistent\":null,\"native_outcome_code\":%u,\"status_detail\":%ld,"
@@ -2173,10 +2171,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                                       sync_->context().options.generation == op->nativeOperation;
             const bool originalCommissioning =
                 commissioning_ && commissioning_->retained() &&
-                (commissioning_->communication() ? commissioning_->communication()->operation
-                 : commissioning_->persistence() ? commissioning_->persistence()->operation
-                 : commissioning_->pdo()         ? commissioning_->pdo()->operation
-                                                 : 0) == op->nativeOperation;
+                commissioning_->heldOperation() == op->nativeOperation;
             const bool originalDiscovery =
                 device_ && device_->discoveryOperation() == op->nativeOperation &&
                 (device_->discovery().active() || device_->discovery().complete());
@@ -2223,10 +2218,7 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
             const bool replacedCommissioning =
                 op->commissioning &&
                 (!commissioning_ || !commissioning_->retained() ||
-                 (commissioning_->communication() ? commissioning_->communication()->operation
-                  : commissioning_->persistence() ? commissioning_->persistence()->operation
-                  : commissioning_->pdo()         ? commissioning_->pdo()->operation
-                                                  : 0) != op->nativeOperation);
+                 commissioning_->heldOperation() != op->nativeOperation);
             const bool replacedDiscovery =
                 op->discovery && (!device_ || device_->discoveryOperation() != op->nativeOperation);
             const bool replacedCapture =
@@ -2616,7 +2608,10 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             reject("retained_results_full");
             return;
         }
-        if (!commissioning_ || !commissioning_->armed() || !app_.selected() ||
+        // Prompt 57: a save or a restore with nothing armed prepares its own context here.
+        const bool selfPrepared = equal(name, "persistence") && commissioning_ &&
+                                  commissioning_->kind() == CommissioningKind::NONE;
+        if (!commissioning_ || (!commissioning_->armed() && !selfPrepared) || !app_.selected() ||
             !sameReadTarget(commissioning_->target(), *app_.selected()) ||
             app_.readContext().state != M::ReadState::EMPTY || (settings_ && settings_->active()) ||
             (device_ && (device_->monitoring() || device_->discovery().active()))) {
@@ -2634,11 +2629,26 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             const auto* c = commissioning_->persistence();
             const auto expected =
                 end == 3 ? L::PersistenceKind::SAVE : L::PersistenceKind::FACTORY_RESTORE;
-            if (!c || c->kind != expected) {
+            if (selfPrepared) {
+                // The library's default guards: none for a save, the backup guard for a restore, which
+                // this console cannot name, so a restore needs an armed context with its backup record.
+                PersistencePlan plan;
+                plan.review.target = commissioning_->target();
+                plan.review.kind = expected;
+                if (device_)
+                    plan.reads = device_->readOptions(L::ReadKind::IDENTITY);
+                else
+                    plan.reads.queueTimeoutUs = plan.reads.responseTimeoutUs = 100000;
+                plan.write.queueTimeoutUs = plan.write.responseTimeoutUs = 100000;
+                plan.maximumAgeUs = cutoff - now; // The command's own window, console policy.
+                plan.attemptOrdinal = ++persistenceAttempts_;
+                status = commissioning_->startPersistence(plan, now, cutoff);
+            } else if (!c || c->kind != expected) {
                 reject("wrong_armed_persistence_intent");
                 return;
+            } else {
+                status = commissioning_->requestPersistence(now, cutoff);
             }
-            status = commissioning_->requestPersistence(now, cutoff);
         } else {
             const auto* c = commissioning_->pdo();
             const bool map = equal(line.token(2), "map3-to-map2");
@@ -2658,10 +2668,7 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
         }
         *op = Operation();
         op->commissioning = true;
-        op->nativeOperation =
-            commissioning_->communication() ? commissioning_->communication()->operation
-            : commissioning_->persistence() ? commissioning_->persistence()->operation
-                                            : commissioning_->pdo()->operation;
+        op->nativeOperation = commissioning_->heldOperation();
         admit(*op);
     } else if (equal(name, "driver") || equal(name, "io") || equal(name, "control") ||
                equal(name, "tuning") || equal(name, "home") || equal(name, "velocity")) {

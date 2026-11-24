@@ -796,6 +796,7 @@
       "id": "Persistence",
       "header": "include/MotorControlCAN/profiles/lichuan_c/Persistence.h",
       "functions": {
+        "validatePersistenceReview": 1,
         "prepareSave": 1,
         "prepareFactoryRestore": 1,
         "nextPersistence": 1,
@@ -821,7 +822,7 @@
           "ctest": "probe_commissioning_app"
         }
       ],
-      "api_only_reason": "Transmission, terminal advancement and independent verification are caller-owned phases. Console save/factory-restore consumes an externally reviewed typed plan; it does not invent durability evidence.",
+      "api_only_reason": "Transmission, terminal advancement and independent verification are caller-owned phases. The console's save prepares its own context from its own fresh reads with the library's default guards (none for a save, the backup guard for a restore); an armed reviewed plan stays possible. Neither invents durability evidence.",
       "console": [
         {
           "command": "persistence",
@@ -829,7 +830,7 @@
           "implementation": [
             "examples/common/ProbeCommissioning.cpp"
           ],
-          "api": "ProbeCommissioning/prepareSave/prepareFactoryRestore",
+          "api": "ProbeCommissioning::startPersistence/prepareSave/prepareFactoryRestore",
           "dispatch": "ProbeCommissioning::requestPersistence",
           "console_dispatch": {
             "path": "examples/common/ProbeConsole.cpp",

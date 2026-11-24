@@ -330,8 +330,10 @@ struct Rig {
             CHECK(L::nextCommunication(*context, context->reservation, current.channel.binding,
                                        observed, now, next));
         } else if (const L::PersistenceContext* context = commissioning.persistence()) {
-            CHECK(L::nextPersistence(*context, context->reservation, current.channel.binding, now,
-                                     next));
+            // A self-prepared save has no context while its reads run, or after it ended unprepared.
+            if (context->state != L::PersistenceState::EMPTY)
+                CHECK(L::nextPersistence(*context, context->reservation, current.channel.binding, now,
+                                         next));
         } else if (const L::Tpdo1ConfigurationContext* context = commissioning.pdo()) {
             const L::CommunicationNmt observed = nmt();
             CHECK(L::nextPdoConfiguration(*context, context->reservation, current.channel.binding,
@@ -383,8 +385,8 @@ struct ConsoleFixture {
             console.feed(static_cast<uint8_t>(*p), rig.now);
         console.feed('\n', rig.now);
     }
-    void drain() {
-        for (unsigned i = 0; i < 400; ++i) {
+    void drain(unsigned turns = 400) {
+        for (unsigned i = 0; i < turns; ++i) {
             rig.grantNext();
             rig.tick();
             platform.service();
@@ -886,6 +888,119 @@ void oldConsoleCancelAndReleaseCannotTouchReplacement() {
     CHECK(rig.commissioning.cancel(rig.now) && rig.commissioning.release());
 }
 } // namespace
+unsigned saveFrames(const Rig& rig) {
+    unsigned count = 0;
+    for (unsigned i = 0; i < rig.wire.sentCount; ++i)
+        if (rig.wire.sent[i].data[0] != 0x40 && rig.wire.sent[i].data[0] != 0x80 &&
+            rig.wire.sent[i].data[1] == 0x00 && rig.wire.sent[i].data[2] == 0x23)
+            ++count;
+    return count;
+}
+// Prompt 57: the console's save prepares its own context, from its own fresh identity, state and motion
+// parameter reads, with no external arm and the library's default guards. Nothing else saves: selection,
+// a probe and an identity read send no 2300.
+void consoleSavePreparesItsOwnContext() {
+    ConsoleFixture fixture;
+    Rig& rig = fixture.rig;
+    fixture.command("@700 read identity");
+    fixture.command("@701 probe");
+    fixture.drain();
+    CHECK(rig.drive.downloads == 0 && saveFrames(rig) == 0 && rig.commissioning.kind() == E::CommissioningKind::NONE);
+    const unsigned uploads = rig.drive.uploads;
+    fixture.command("@702 persistence save parameters");
+    fixture.drain(2000);
+    fixture.record(702, "\"result\":\"accepted\"");
+    fixture.record(702, "\"outcome\":\"ACKNOWLEDGED\"", true);
+    const L::PersistenceContext& c = *rig.commissioning.persistence();
+    CHECK(c.state == L::PersistenceState::ACKNOWLEDGED && c.kind == L::PersistenceKind::SAVE && c.attempts == 1);
+    CHECK(c.guardsOff == L::PERSISTENCE_GUARDS_REVIEW && !c.review.fixtureRecord && !c.review.authorizationRecord);
+    CHECK(c.before.identity.deviceType == 0x00040192 && c.before.configuration.positionSpeedRpm == 60);
+    CHECK(rig.drive.uploads - uploads == 9 + 5 + 3); // Identity, STATUS and MONITORS, MOTION_PARAMETERS.
+    CHECK(rig.drive.downloads == 1 && saveFrames(rig) == 1 && rig.drive.find(0x2300).raw == 2);
+    CHECK(!rig.commissioning.preparing() && rig.commissioning.preparationStatus().isOk());
+    CHECK(rig.commissioning.finishBinding(rig.now) && rig.commissioning.release());
+}
+// A refused or unacknowledged 2300 stays uncertain and is never repeated; a failed prerequisite read ends
+// the save before any write.
+void consoleSaveFailuresAreNotRepeated() {
+    for (unsigned variant = 0; variant < 3; ++variant) {
+        ConsoleFixture fixture;
+        Rig& rig = fixture.rig;
+        rig.drive.fault = variant == 1 ? Dictionary::Fault::LOST : Dictionary::Fault::ABORT;
+        rig.drive.faultIndex = variant == 2 ? 0x6083 : 0x2300;
+        rig.drive.faultDownload = variant != 2;
+        fixture.command("@710 persistence save parameters");
+        for (unsigned i = 0; i < 2000; ++i) {
+            if (i == 1000)
+                rig.now += 150000; // Past the console's 100 ms response budget: the lost reply times out.
+            rig.grantNext();
+            rig.tick();
+            fixture.platform.service();
+            fixture.console.service(rig.now);
+        }
+        fixture.drain(400);
+        if (variant == 2) {
+            fixture.record(710, "\"outcome\":\"PERSISTENCE_PREPARATION_FAILED\"", true);
+            CHECK(rig.drive.downloads == 0 && saveFrames(rig) == 0);
+            CHECK(!rig.commissioning.preparationStatus().isOk() && !rig.commissioning.active());
+            CHECK(rig.commissioning.persistence()->state == L::PersistenceState::EMPTY);
+        } else {
+            fixture.record(710, "\"outcome\":\"PERSISTENCE_FAILED\"", true);
+            fixture.record(710, "\"uncertain\":true", true);
+            const L::PersistenceContext& c = *rig.commissioning.persistence();
+            CHECK(c.state == L::PersistenceState::FAILED && c.uncertain && c.attempts == 1 &&
+                  c.execution == (variant == 0 ? M::ActionExecution::REJECTED : M::ActionExecution::UNKNOWN));
+            CHECK(rig.drive.downloads == 1 && saveFrames(rig) == 1); // One write, no repeat.
+        }
+        CHECK(rig.commissioning.release());
+    }
+}
+// The restore keeps its backup guard by default: refused before any read or write. Cleared, the restore is
+// admitted and names it; with a backup record it is admitted with the guard set.
+void restoreBackupGuard() {
+    {
+        ConsoleFixture fixture;
+        Rig& rig = fixture.rig;
+        fixture.command("@720 persistence restore factory settings");
+        fixture.drain();
+        fixture.record(720, "\"ok\":false");
+        CHECK(rig.drive.uploads == 0 && rig.drive.downloads == 0 && rig.commissioning.kind() == E::CommissioningKind::NONE);
+    }
+    for (unsigned variant = 0; variant < 2; ++variant) {
+        Rig rig;
+        E::PersistencePlan plan;
+        plan.review.target = rig.current;
+        plan.review.kind = L::PersistenceKind::FACTORY_RESTORE;
+        if (variant)
+            plan.review.backupRecord = 55;
+        else
+            plan.review.guards = 0;
+        plan.reads = plan.write = options();
+        plan.maximumAgeUs = AGE;
+        plan.attemptOrdinal = 1;
+        CHECK(rig.commissioning.startPersistence(plan, rig.now, DEADLINE));
+        CHECK(rig.commissioning.preparing() && rig.commissioning.active() && !rig.commissioning.armed());
+        CHECK(rig.commissioning.heldOperation() == rig.session.nextOperation() + 2);
+        rig.finish();
+        const L::PersistenceContext& c = *rig.commissioning.persistence();
+        CHECK(c.state == L::PersistenceState::ACKNOWLEDGED && c.kind == L::PersistenceKind::FACTORY_RESTORE);
+        CHECK(c.guardsOff == (variant ? L::PERSISTENCE_GUARDS_REVIEW : L::PERSISTENCE_GUARDS_ALL));
+        CHECK(rig.drive.find(0x2300).raw == 1 && rig.drive.downloads == 1);
+        CHECK(c.completeSavedSet == L::PersistenceRequirement::UNKNOWN && !c.verificationKnown);
+    }
+    Rig rig; // The set backup guard without a record refuses before anything is read.
+    E::PersistencePlan plan;
+    plan.review.target = rig.current;
+    plan.review.kind = L::PersistenceKind::FACTORY_RESTORE;
+    plan.reads = plan.write = options();
+    plan.maximumAgeUs = AGE;
+    plan.attemptOrdinal = 1;
+    const uint32_t operation = rig.session.nextOperation();
+    const M::Status s = rig.commissioning.startPersistence(plan, rig.now, DEADLINE);
+    CHECK(!s && s.code == M::Err::UNSUPPORTED && rig.wire.sentCount == 0);
+    CHECK(rig.session.nextOperation() == operation && rig.commissioning.kind() == E::CommissioningKind::NONE);
+}
+
 int main() {
     invalidPreparedKindAndIdentityDoNotAdmitWork();
     heartbeatActualHandoffConfirmationAndFollow();
@@ -900,5 +1015,8 @@ int main() {
     consolePreparedFamiliesRetainSuccessAndUncertainty();
     staleConsoleNodeEpochCannotStartCurrentPreparedWork();
     oldConsoleCancelAndReleaseCannotTouchReplacement();
+    consoleSavePreparesItsOwnContext();
+    consoleSaveFailuresAreNotRepeated();
+    restoreBackupGuard();
     std::printf("probe_commissioning_app: %u checks passed (HOST_FAKE only)\n", checks);
 }

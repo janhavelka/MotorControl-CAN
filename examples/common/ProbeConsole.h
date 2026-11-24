@@ -278,6 +278,7 @@ class ProbeConsole {
     ProbeDevice* device_ = nullptr;
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
+    uint32_t persistenceAttempts_ = 0; ///< Cumulative self-prepared save/restore commands of this object.
     ConsoleBusSource bus_;
     struct MotionAttachment {
         ProbeMotion* motion = nullptr;

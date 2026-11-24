@@ -16,11 +16,13 @@ bool optionsValid(const ReadOptions& o) {
            o.identityWidths == IdentityWidths::DECLARED_U16 &&
            o.countWidths == CountWidths::DECLARED_U8;
 }
+// The guards this kind consults: the review guards, and the backup guard of a restore only.
+uint8_t applicable(PersistenceKind kind) {
+    return kind == PersistenceKind::FACTORY_RESTORE ? PERSISTENCE_GUARDS_ALL : PERSISTENCE_GUARDS_REVIEW;
+}
+// A held context's review still admits its command: validatePersistenceReview, here as a predicate.
 bool reviewed(const PersistenceReview& v, const AxisReservation& r, PersistenceKind kind) {
-    return sameTarget(v.target, r.target) && v.kind == kind && v.fixtureRecord &&
-           v.firmwareRecord && v.procedureRecord && v.authorizationRecord &&
-           (kind == PersistenceKind::SAVE ||
-            (kind == PersistenceKind::FACTORY_RESTORE && v.backupRecord && v.routeBackRecord));
+    return validatePersistenceReview(v, r.target, kind).isOk();
 }
 bool sameIdentity(const IdentityObservation& a, const IdentityObservation& b);
 Status identitySnapshot(const ReadContext& read, const ReadTarget& target, uint64_t after,
@@ -157,9 +159,9 @@ Status prepare(PersistenceContext& output, const AxisReservation& r, const ReadT
         r.target.channel.binding.configurationGeneration == UINT32_MAX || !optionsValid(options) ||
         !exchangeFits(deadline, now, options.queueTimeoutUs, options.responseTimeoutUs))
         return error(ReadError::ARGUMENT, "invalid persistence candidate, reservation or budget");
-    if (!reviewed(review, r, kind))
-        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::TARGET),
-                      "exact persistence procedure, firmware and restoration route require review");
+    const Status admitted = validatePersistenceReview(review, r.target, kind);
+    if (!admitted)
+        return admitted;
     const Status checked = snapshots(prior, target, r.acquiredUs, now, age, nullptr, nullptr);
     if (!checked)
         return checked;
@@ -173,6 +175,7 @@ Status prepare(PersistenceContext& output, const AxisReservation& r, const ReadT
     output.before.fixtureRecord = review.fixtureRecord;
     output.before.firmwareRecord = review.firmwareRecord;
     output.kind = kind;
+    output.guardsOff = uint8_t(applicable(kind) & ~review.guards);
     output.state = PersistenceState::WRITING;
     output.retryClass = RetryClass::MOTION_LIKE;
     output.operation = operation;
@@ -194,6 +197,26 @@ bool sameIdentity(const IdentityObservation& a, const IdentityObservation& b) {
 }
 } // namespace
 
+Status validatePersistenceReview(const PersistenceReview& review, const ReadTarget& current,
+                                 PersistenceKind kind) noexcept {
+    if (kind > PersistenceKind::FACTORY_RESTORE || (review.guards & ~PERSISTENCE_GUARDS_ALL))
+        return error(ReadError::ARGUMENT, "unknown persistence command or guard bit");
+    if (!sameTarget(review.target, current) || review.kind != kind)
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::TARGET),
+                      "the persistence review names another target or command");
+    if (kind == PersistenceKind::FACTORY_RESTORE && (review.guards & PERSISTENCE_GUARD_BACKUP) &&
+        !review.backupRecord)
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::TARGET),
+                      "the factory restore backup guard is set and names no backup record");
+    const uint8_t g = uint8_t(review.guards & applicable(kind));
+    if (((g & PERSISTENCE_GUARD_FIXTURE) && !review.fixtureRecord) ||
+        ((g & PERSISTENCE_GUARD_FIRMWARE) && !review.firmwareRecord) ||
+        ((g & PERSISTENCE_GUARD_PROCEDURE) && !review.procedureRecord) ||
+        ((g & PERSISTENCE_GUARD_AUTHORIZATION) && !review.authorizationRecord))
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::TARGET),
+                      "a set persistence review guard names no record");
+    return Ok();
+}
 Status prepareSave(PersistenceContext& c, const AxisReservation& r, const ReadTarget& target,
                    const PersistenceReview& review, const PersistencePrerequisites& prior,
                    uint32_t operation, uint32_t ordinal, uint64_t now, uint64_t deadline,

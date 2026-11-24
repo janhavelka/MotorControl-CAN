@@ -110,7 +110,7 @@ bool ProbeCommissioning::nativeActive() const noexcept {
     return false;
 }
 bool ProbeCommissioning::active() const noexcept {
-    return retained_ && (pending_ || nativeActive());
+    return retained_ && (pending_ || nativeActive() || preparing_);
 }
 bool ProbeCommissioning::effectsPossible() const noexcept {
     switch (kind_) {
@@ -249,19 +249,10 @@ M::Status ProbeCommissioning::request(CommissioningKind requested, uint64_t now,
         return refused(M::ReadError::TIME, "request must use the actual external preparation time");
     const O::SequenceId id = session_.sequence();
     const O::Sequence* held = owner_.sequence(id);
-    if (!held || !M::sameBinding(session_.binding(), current_.channel.binding) ||
-        !M::sameBinding(held->binding, current_.channel.binding) ||
-        held->nodeGeneration != current_.nodeGeneration ||
-        !owner_.matchesChannel(current_.channel, current_.nodeGeneration))
-        return refused(M::ReadError::TARGET,
-                       "commissioning target or actual session reservation is stale");
     L::AxisReservation actual;
-    actual.target = current_;
-    actual.model = session_.model(); // The armed plan must agree with the existing model fact.
-    actual.owner = owner_.identity();
-    actual.sequence = uint32_t(id.slot) + 1;
-    actual.generation = id.generation;
-    actual.acquiredUs = held->acquiredUs;
+    const M::Status currentReservation = sessionReservation(actual);
+    if (!currentReservation)
+        return currentReservation;
     if (!sameReservation(actual, reservation()) || operation() != session_.nextOperation())
         return refused(M::ReadError::CORRELATION,
                        "prepared workflow names another owner reservation or operation");
@@ -287,6 +278,152 @@ M::Status ProbeCommissioning::request(CommissioningKind requested, uint64_t now,
     completionPresent_ = false;
     bindingStatus_ = M::Ok();
     lastUs_ = now;
+    return M::Ok();
+}
+M::Status ProbeCommissioning::sessionReservation(L::AxisReservation& output) const noexcept {
+    const O::SequenceId id = session_.sequence();
+    const O::Sequence* held = owner_.sequence(id);
+    if (!held || !M::sameBinding(session_.binding(), current_.channel.binding) ||
+        !M::sameBinding(held->binding, current_.channel.binding) ||
+        held->nodeGeneration != current_.nodeGeneration ||
+        !owner_.matchesChannel(current_.channel, current_.nodeGeneration))
+        return refused(M::ReadError::TARGET,
+                       "commissioning target or actual session reservation is stale");
+    L::AxisReservation actual;
+    actual.target = current_;
+    actual.model = session_.model(); // The prepared plan must agree with the existing model fact.
+    actual.owner = owner_.identity();
+    actual.sequence = uint32_t(id.slot) + 1;
+    actual.generation = id.generation;
+    actual.acquiredUs = held->acquiredUs;
+    output = actual;
+    return M::Ok();
+}
+M::Status ProbeCommissioning::startPersistence(const PersistencePlan& plan, uint64_t now,
+                                               uint64_t cutoff) noexcept {
+    if (!usesOwner(owner_) || kind_ != CommissioningKind::NONE || !session_.isOpen() ||
+        session_.busy() || session_.clearBlocked())
+        return refused(M::ReadError::STATE, "no held workflow and an idle open axis session required");
+    if (!timeValid(now) || cutoff <= now)
+        return refused(M::ReadError::TIME, "a future cutoff and monotonic time are required");
+    // The review first, so that a set guard without its record reads nothing.
+    const M::Status admitted = L::validatePersistenceReview(plan.review, current_, plan.review.kind);
+    if (!admitted)
+        return admitted;
+    L::AxisReservation actual;
+    const M::Status currentReservation = sessionReservation(actual);
+    if (!currentReservation)
+        return currentReservation;
+    if (!plan.maximumAgeUs || !plan.attemptOrdinal || !plan.reads.queueTimeoutUs ||
+        !plan.reads.responseTimeoutUs)
+        return refused(M::ReadError::ARGUMENT, "persistence plan needs budgets, an age cap and an attempt number");
+    const uint32_t first = session_.nextOperation();
+    if (!first || first > UINT32_MAX - 3)
+        return refused(M::ReadError::STATE, "operation identities exhausted");
+    plan_ = plan;
+    planDeadlineUs_ = cutoff;
+    plannedOperation_ = first + 3; // Three reads, then the write.
+    prepareStep_ = 0;
+    preparationStatus_ = M::Ok();
+    const M::Status started = startPrerequisite(now);
+    if (!started)
+        return started;
+    kind_ = CommissioningKind::PERSISTENCE;
+    retained_ = preparing_ = true;
+    readPending_ = withdrawn_ = false;
+    completionPresent_ = false;
+    bindingStatus_ = M::Ok();
+    lastUs_ = now;
+    return M::Ok();
+}
+L::ReadContext& ProbeCommissioning::prerequisite() noexcept {
+    return prepareStep_ == 0 ? prior_.identity : prepareStep_ == 1 ? prior_.state : prior_.configuration.read;
+}
+M::Status ProbeCommissioning::startPrerequisite(uint64_t now) noexcept {
+    const uint32_t operation = session_.beginOperation(planDeadlineUs_, now);
+    if (!operation)
+        return refused(M::ReadError::STATE, "session cannot begin a persistence prerequisite read");
+    L::ReadOptions declared = plan_.reads;
+    declared.identityWidths = L::IdentityWidths::DECLARED_U16;
+    declared.countWidths = L::CountWidths::DECLARED_U8;
+    declared.pdoNumber = 0;
+    const uint8_t blocks = uint8_t((1u << unsigned(L::StateBlock::STATUS)) |
+                                   (1u << unsigned(L::StateBlock::MONITORS)));
+    return prepareStep_ == 0
+               ? L::prepareIdentity(prior_.identity, current_, operation, now, planDeadlineUs_, plan_.reads)
+           : prepareStep_ == 1
+               ? L::prepareState(prior_.state, current_, operation, now, planDeadlineUs_, declared, blocks)
+               : L::prepareDriverRead(prior_.configuration, current_, operation, now, planDeadlineUs_,
+                                      declared, L::DriverGroup::MOTION_PARAMETERS);
+}
+M::Status ProbeCommissioning::failPreparation(const M::Status& status) noexcept {
+    preparationStatus_ = status ? refused(M::ReadError::STATE, "persistence preparation ended") : status;
+    preparing_ = readPending_ = false;
+    new (static_cast<void*>(&persistence_)) L::PersistenceContext();
+    return preparationStatus_;
+}
+M::Status ProbeCommissioning::servicePreparation(uint64_t now) noexcept {
+    L::ReadContext& read = prerequisite();
+    if (readPending_) {
+        C::SdoCompletion terminal;
+        if (!session_.settle(terminal))
+            return M::Ok(); // The owner settles it under the read's own deadline.
+        readPending_ = false;
+        completion_ = terminal;
+        completionPresent_ = true;
+        const M::Status consumed = L::advanceRead(read, terminal, now);
+        if (!consumed)
+            return failPreparation(consumed);
+    }
+    if (withdrawn_)
+        return failPreparation(refused(M::ReadError::STATE, "persistence preparation cancelled"));
+    if (now >= planDeadlineUs_)
+        return failPreparation(refused(M::ReadError::TIME, "persistence preparation reached its cutoff"));
+    if (read.state == M::ReadState::ACTIVE) {
+        L::PreparedRead work;
+        const M::Status yielded = L::nextRead(read, now, work);
+        if (!yielded)
+            return failPreparation(yielded);
+        if (!work.ready)
+            return M::Ok();
+        const O::BusAdmission admitted = session_.admitPrepared(work.transfer, now);
+        if (admitted == O::BusAdmission::RESULTS_FULL)
+            return M::Ok();
+        if (admitted != O::BusAdmission::ACCEPTED)
+            return failPreparation(refused(M::ReadError::STATE, "owner refused a persistence prerequisite read"));
+        readPending_ = true;
+        return M::Ok();
+    }
+    if (read.state != M::ReadState::SUCCEEDED)
+        return failPreparation(read.status ? refused(M::ReadError::STATE, "persistence prerequisite read failed")
+                                           : read.status);
+    if (prepareStep_ < 2) {
+        ++prepareStep_;
+        const M::Status started = startPrerequisite(now);
+        return started ? M::Ok() : failPreparation(started);
+    }
+    // Every read completed: prepare at this time and request at once, as an external arm would.
+    L::AxisReservation actual;
+    M::Status s = sessionReservation(actual);
+    if (s && session_.nextOperation() != plannedOperation_)
+        s = refused(M::ReadError::CORRELATION, "another operation began during the persistence reads");
+    if (s)
+        s = plan_.review.kind == L::PersistenceKind::SAVE
+                ? L::prepareSave(persistence_, actual, current_, plan_.review, prior_, plannedOperation_,
+                                 plan_.attemptOrdinal, now, planDeadlineUs_, plan_.write, plan_.maximumAgeUs)
+                : L::prepareFactoryRestore(persistence_, actual, current_, plan_.review, prior_,
+                                           plannedOperation_, plan_.attemptOrdinal, now, planDeadlineUs_,
+                                           plan_.write, plan_.maximumAgeUs);
+    if (!s)
+        return failPreparation(s);
+    preparing_ = false;
+    retained_ = false; // Requested exactly as an armed pristine context.
+    s = request(CommissioningKind::PERSISTENCE, now, planDeadlineUs_);
+    if (!s) {
+        retained_ = true;
+        preparing_ = true; // failPreparation clears it with the context.
+        return failPreparation(s);
+    }
     return M::Ok();
 }
 M::Status ProbeCommissioning::requestCommunication(uint64_t now, uint64_t cutoff) noexcept {
@@ -406,6 +543,8 @@ M::Status ProbeCommissioning::service(uint64_t now) noexcept {
     if (!retained_)
         return M::Ok();
     lastUs_ = now;
+    if (preparing_)
+        return servicePreparation(now);
     if (pending_) {
         C::SdoCompletion terminal;
         if (!session_.settle(terminal))
@@ -526,6 +665,11 @@ bool ProbeCommissioning::cancel(uint64_t now) noexcept {
         return false;
     withdrawn_ = true;
     lastUs_ = now;
+    if (preparing_) {
+        if (!readPending_) // A read in flight settles first; nothing is written either way.
+            failPreparation(refused(M::ReadError::STATE, "persistence preparation cancelled"));
+        return true;
+    }
     if (!pending_)
         withdraw(M::ReadOutcome::CANCELLED, now);
     return true;
@@ -576,6 +720,10 @@ bool ProbeCommissioning::release() noexcept {
     kind_ = CommissioningKind::NONE;
     retained_ = pending_ = withdrawn_ = ownerFollowed_ = sessionFollowed_ = false;
     snapshotsWithdrawn_ = completionPresent_ = false;
+    preparing_ = readPending_ = false;
+    preparationStatus_ = M::Ok();
+    plannedOperation_ = 0;
+    prepareStep_ = 0;
     live_ = L::AxisReservation();
     sequence_ = O::SequenceId();
     expected_ = C::SdoTransfer();

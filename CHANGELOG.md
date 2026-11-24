@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Save and restore with optional guards (prompt 57, slice b5, 2026-11-24)
+
+- The four `PersistenceReview` records are optional, settable guards: new `PersistenceReview::guards` with
+  `PERSISTENCE_GUARD_FIXTURE`, `_FIRMWARE`, `_PROCEDURE`, `_AUTHORIZATION` (off by default, both commands) and
+  `PERSISTENCE_GUARD_BACKUP` (factory restore only, on by default). A set guard with its record zero refuses
+  before TX with `UNSUPPORTED`; a guard that is off admits the command and the new
+  `PersistenceContext::guardsOff` names it. `routeBackRecord` is deprecated and no longer consulted: the backup
+  guard and record cover the recommissioning route plan. New `validatePersistenceReview` answers for the review
+  alone, before any read. Behavior change: a save or restore with missing review records is now admitted unless
+  its guard is set; a restore without a backup record is still refused by default.
+- Unchanged: one 2300 write, acknowledgement is not persistence, a refused or unacknowledged write stays
+  uncertain and is never repeated, verification after the owner's power cycle is the evidence, and nothing saves
+  implicitly.
+- Console: `persistence save parameters` with nothing armed prepares its own context through the new
+  `ProbeCommissioning::startPersistence` (its own identity, STATUS/MONITORS and MOTION_PARAMETERS reads) with the
+  default guards; a self-prepared restore is refused by its backup guard before any read. New terminal outcome
+  `PERSISTENCE_PREPARATION_FAILED`. An armed context works as before.
+- Bench: new route `save` (`Ts<node>,<trial>,1`, prompt 57) with its own lazily allocated `SaveWork`; no host
+  runner command, and nobody runs it while the owner is away. Routes stay protocol 16.
+
 ### Identity policy (prompt 57, slice b4, 2026-11-24)
 
 - The position moves, velocity and homing now refuse only when a product field of their record (`1000`,

@@ -297,9 +297,14 @@ actual route/session and width evidence separately. Startup still sends nothing.
 `communication heartbeat 1000 [TIMEOUT_MS]` consumes an externally armed,
 pristine `CommunicationContext`, prepared at the same supplied time and immutable
 cutoff. It supports only native raw0 to1000. `persistence save parameters
-[TIMEOUT_MS]` and `persistence restore factory settings [TIMEOUT_MS]` require the
-matching separately prepared `PersistenceContext`; a wrong intent rejects before
-owner admission. `pdo apply map3-to-map2 [TIMEOUT_MS]` or `pdo apply timer 0|100
+[TIMEOUT_MS]` and `persistence restore factory settings [TIMEOUT_MS]` consume an
+armed matching `PersistenceContext`; a wrong intent rejects before owner
+admission. With nothing armed (prompt 57) the console prepares its own context
+through `ProbeCommissioning::startPersistence`: fresh identity, STATUS/MONITORS and
+`MOTION_PARAMETERS` reads, then the library's preparation with its default guards.
+A save is admitted with every review guard off and the result names them; a
+restore keeps its backup guard and is refused before any read. A failed read or
+preparation is the terminal `PERSISTENCE_PREPARATION_FAILED`, nothing written. `pdo apply map3-to-map2 [TIMEOUT_MS]` or `pdo apply timer 0|100
 [TIMEOUT_MS]` consume only the corresponding exact TPDO1 preparation, not a map
 editor. `pdo SLOT` remains cached inspection. All three require an attached
 `ProbeCommissioning` sharing the actual axis/session/current target and the exact

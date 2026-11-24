@@ -356,14 +356,32 @@ precondition or reset semantics applies here.
 ### One explicit persistence attempt
 
 Use [Persistence.h](../include/MotorControlCAN/profiles/lichuan_c/Persistence.h)
-with the ordinary owner. Acquire continuous axis exclusion before acquiring
-the fresh identity, STATUS/MONITORS and `MOTION_PARAMETERS` prerequisites.
-Supply actual model/firmware, fixture, procedure and authorization records,
-finite queue/response budgets, age limit, immutable deadline and a nonzero
-application-maintained attempt ordinal. These are host admission requirements,
-not vendor guarantees of physical standstill or device timing. Factory restore
-also needs an external complete backup and an evidenced recommissioning-route
-plan; the three motion fields in this context are not that backup.
+with the ordinary owner. Saving is a regular explicit command (prompt 57), never
+implicit on startup, selection, probe or recovery. Acquire continuous axis
+exclusion before acquiring the fresh identity, STATUS/MONITORS and
+`MOTION_PARAMETERS` prerequisites, and supply finite queue/response budgets, an
+age limit, an immutable deadline and a nonzero application-maintained attempt
+ordinal. These are host admission requirements, not vendor guarantees of
+physical standstill or device timing.
+
+The review records are optional, settable guards (`PersistenceReview::guards`),
+the user's policy of 2026-11-17 rather than a manufacturer statement:
+
+| Guard | Default | Set, with its record zero |
+| --- | --- | --- |
+| `PERSISTENCE_GUARD_FIXTURE`, `_FIRMWARE`, `_PROCEDURE`, `_AUTHORIZATION` | Off, for both commands | Refused before TX with `UNSUPPORTED` |
+| `PERSISTENCE_GUARD_BACKUP` (factory restore only) | On, because a restore is destructive | Refused before TX with `UNSUPPORTED` |
+
+A guard that is off admits the command without its record, and
+`PersistenceContext::guardsOff` names each one in the result.
+`validatePersistenceReview` gives the same answer before any read. The backup
+record is the caller's: it names the configuration subset the application read
+back and lists what stays unknown, the complete persistent set and the factory
+values, so no read dump is a complete or restorable image. It also covers the
+recommissioning route plan that the deprecated `routeBackRecord` named, which
+nothing consults any more. With the backup guard cleared the restore is admitted;
+set or not, it keeps its own intent, its uncertain effects and no replay. The
+three motion fields in this context are not a backup.
 
 `nextPersistence` yields one command. Immediately before possible handoff,
 withdraw dependent producer/map/reference/prepared-work confidence and call
@@ -466,6 +484,17 @@ construct review records, grant unqualified reads or choose another route after
 silence. Host `host SLOT` / `useaddr NODE [SUBAXIS]` selection remains separate
 from native `2203`, heartbeat and PDO mutation. The three-field
 `motion-profile` record is not a full factory-recovery backup.
+
+Since prompt 57 `persistence save parameters` with nothing armed prepares its
+own context: `ProbeCommissioning::startPersistence` reads identity,
+STATUS/MONITORS and `MOTION_PARAMETERS` through the session, prepares the save
+with the library's default guards (none) and requests it, under the command's
+cutoff; the result names the guards that were off. `persistence restore factory
+settings` with nothing armed keeps the restore's backup guard, which the console
+cannot name, and is refused before any read; a restore needs an armed context
+with its backup record or its guard cleared. A failed prerequisite read or a
+refused preparation ends the command as `PERSISTENCE_PREPARATION_FAILED` with
+nothing written.
 
 Arming is explicit application code over actual public preparation. It copies a
 finite native plan, requires its exact preparation time/cutoff and current
