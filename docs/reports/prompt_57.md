@@ -1,6 +1,6 @@
 # Prompt 57 report: regular enable, release, mode select and firmware identity policy
 
-State: In progress; stages (a) and (b) complete, stage (c) independent review next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -188,3 +188,26 @@ identity input (they do not move the motor; CONTRADICTED is not produced while t
 `enable` requires the axis ID (grammar change); the console relies on application-named reports for these commands
 like the other motion commands, so on the S2 they run as bench routes; the S2 save route allocates its work area on
 first use from internal memory (allocation failure refuses the route).
+
+## Stage (c) independent review and fixes (2026-11-24)
+
+Two new read-only reviewers checked the stage (b) diff at `3586ac2b`: release settlement and identity policy (Fable,
+high) and mode select, enable, save/restore, console and documents (Opus, xhigh). The lead verified each finding; the
+implementer fixed all accepted items with a regression test each; commit `d06eeb0e`, clean-worktree verify quick,
+promptset, ledger and `s2_bench_test.py` passed; the implementer also ran the s2 and idf-s2 firmware builds.
+
+| Finding | Severity | Disposition |
+| --- | --- | --- |
+| Mode select and release sent with no identity (reproduced) | High | Fixed: both take an `IdentityObservation` with enable's rule; already-selected and already-released answers send nothing. Reverses the stage (b) decision |
+| No shipped image could reach `mode`, `enable N`, `motor-release N` or the console save (confirmed by search) | High | Fixed: the console commands read their own report (`ProbeMotion::startAction`, `SelectedAxis.h`), the bench console attaches commissioning, the S2 power-up enable is MEASURED without a typed shaft observation, `s2_bench.py save --persistent` |
+| Measured enable on an enabled drive after the session's own `000F` sent word 6 | Medium | Fixed: answered as already enabled, success with nothing sent |
+| Mode select admitted report shapes beyond its contract (reproduced) | Medium | Fixed: released standstill, or running only as the exact quick-stop latch; undocumented and soft-limit bits refused |
+| Release ignored `6041` bits 3 and 7 (reproduced) | Medium | Fixed: refused as an alarm, never overridden by the experiment option |
+| A move replacement dropped the original's firmware flag (reproduced) | Medium | Fixed |
+| Release row 2 could use a `2500` read older than the last write (inferred) | Low | Fixed |
+| Enable had one hard-coded reference; a documented-only match reported CONFIRMED | Low | Fixed: optional caller MEASURED reference (`ActionOptions::identityReference`); documented-only match is UNCONFIRMED |
+| RELEASE route not classed as motion | Low | Fixed in the bench and the runner |
+| Stale documents and test gaps | Low | Fixed (backlog S08, source map, commissioning `without-backup`, first-token CLI guard, `firmware_unqualified:false` test) |
+
+Estimated, not measured on a board: `SelectedAxis` about 60 KB of internal RAM on first selection, the bench console
+helper about 13.5 KB on first arming, about 2 KB per bench node; an allocation failure refuses the command with no TX.
