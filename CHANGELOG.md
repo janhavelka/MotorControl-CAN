@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Measured release (prompt 57, slice b3, 2026-11-24)
+
+- New `ActionKind::RELEASE` (appended) and `LICHUAN_C::prepareRelease`, with the release table as one pure
+  function, `classifyRelease` (`ReleaseRow`, `ReleaseRefusal`, `ReleaseReport`, `ReleaseDecision`), which
+  prompt 72's guard can call. Rows: the power-up report `8437`/`0001` in mode 1 sends `0x0006`; `8033`/`0001`
+  in mode 3 with a fresh `2500=1` sends `0x0000`; `8010`/`0001` in mode 3 sends `0x0080` alone; a report with
+  `2100` released and low bits 000 or 001 answers already released with nothing sent, reporting its running bit;
+  every other report is refused before TX with its reason. Settled only by the row's released report; `606C`
+  is recorded and a nonzero value reported (`ReleaseRecord`); never a standstill claim; never resent.
+- `ReleaseExperiment`, off by default, admits `0x0000` or `0x0006` from an unmeasured report or with another
+  word than the row's, never over an alarm, `2100` running or a released report; the result is `EXPERIMENT`.
+- `AxisSession::requestRelease` runs it in the explicit-action slot. No console command or bench route yet.
+
 ### Measured enable (prompt 57, slice b2, 2026-11-24)
 
 - New `EnableGate::MEASURED` (appended): the regular mode 1 enable, opened by the reviewed record of 111

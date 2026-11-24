@@ -12,7 +12,9 @@ Status error(ActionError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
 }
 uint8_t commandCount(const ActionContext& c) {
-    return c.actionKind == ActionKind::STOP || c.actionKind == ActionKind::SELECT_MODE ? 1
+    return c.actionKind == ActionKind::STOP || c.actionKind == ActionKind::SELECT_MODE ||
+                   c.actionKind == ActionKind::RELEASE
+               ? 1
            : c.actionKind == ActionKind::CLEAR_ALARM                                  ? 2
                                                                                       : 3;
 }
@@ -21,6 +23,34 @@ bool enabling(const ActionContext& c) {
 }
 bool selectingMode(const ActionContext& c) {
     return c.actionKind == ActionKind::SELECT_MODE;
+}
+bool releasing(const ActionContext& c) {
+    return c.actionKind == ActionKind::RELEASE;
+}
+// The release table's measured rows 1 to 3: the report each one admits and the one word it sends (prompt 57,
+// ReleaseRow). Every row also needs 2100 exactly 0001 and 1001, 603F and 606C zero; row 2 a fresh 2500=1.
+struct ReleaseTableRow {
+    ReleaseRow row;
+    uint8_t modeRaw;        // 6061.
+    uint8_t lowBits;        // 6041 bits 0..2.
+    bool openLoop;          // A fresh 2500=1 is required.
+    uint16_t word;          // The one 6040 word.
+    uint8_t settleLowBits;  // 6041 bits 0..2 that settle it, beside 2100 released.
+};
+const ReleaseTableRow RELEASE_TABLE[3] = {
+    {ReleaseRow::POWER_UP_IDLE, 1, 7, false, 0x0006, 1},
+    {ReleaseRow::SWITCHED_ON_OPEN_LOOP, 3, 3, true, 0x0000, 0},
+    {ReleaseRow::ALARM_CLEARED, 3, 0, false, 0x0080, 0}};
+constexpr uint16_t RELEASE_ROW_MONITOR = MONITOR_POSITION_COMPLETE; // 2100=0001.
+// The p12 correspondence table for the experiment's two words: 6040=0 gives 000, 6 gives 001.
+uint8_t experimentLowBits(uint16_t word) { return word == 0x0006 ? 1 : 0; }
+bool decisionValid(const ReleaseDecision& d) {
+    const bool rowWord = (d.row == ReleaseRow::POWER_UP_IDLE && d.word == 0x0006 && d.settleLowBits == 1) ||
+                         (d.row == ReleaseRow::SWITCHED_ON_OPEN_LOOP && d.word == 0 && d.settleLowBits == 0) ||
+                         (d.row == ReleaseRow::ALARM_CLEARED && d.word == 0x0080 && d.settleLowBits == 0) ||
+                         (d.row == ReleaseRow::EXPERIMENT && (d.word == 0 || d.word == 0x0006) &&
+                          d.settleLowBits == experimentLowBits(d.word));
+    return d.send ? rowWord : d.row == ReleaseRow::ALREADY_RELEASED && !d.word;
 }
 // The documented 6060 codes (EN86 and ZH86 p11): 1 position, 3 velocity, 6 homing. Mode 0 is no
 // operating mode, and every other code stays in the D17 probe.
@@ -120,6 +150,7 @@ ReadTarget expectedTarget(const ActionContext& c) {
 // Whether a cycle also reads FEEDBACK (6064, 606C): seven fields instead of five.
 bool readsFeedback(const ActionContext& c) {
     return c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || selectingMode(c) ||
+           releasing(c) ||
            c.standstillObserving || (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6);
 }
 uint8_t observationMask(const ActionContext& c) {
@@ -133,7 +164,7 @@ uint8_t observationMask(const ActionContext& c) {
 }
 Status shape(const ActionContext& c, uint64_t now) {
     if (!validReservation(c.reservation) || c.kind > StopKind::QUICK_STOP ||
-        c.actionKind > ActionKind::SELECT_MODE || !c.operation || !c.step ||
+        c.actionKind > ActionKind::RELEASE || !c.operation || !c.step ||
         (c.actionKind == ActionKind::STOP && c.stopModeRaw != 1 && c.stopModeRaw != 3 &&
          c.stopModeRaw != 6) ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
@@ -164,6 +195,13 @@ Status shape(const ActionContext& c, uint64_t now) {
         (enabling(c) ? c.enable.start != EnableStart::NO_MOTION_WRITE_RECORDED &&
                            c.enable.start != EnableStart::RELEASED && c.enable.start != EnableStart::POWER_UP
                      : c.enable.start != EnableStart::UNKNOWN) ||
+        // An already released answer is terminal at preparation and never held any work.
+        (releasing(c) ? !decisionValid(c.release.decision) ||
+                            (!c.release.decision.send &&
+                             (c.state != ActionState::SUCCEEDED ||
+                              c.execution != ActionExecution::NOT_TRANSMITTED ||
+                              c.phase != ActionPhase::COMMAND || c.commandEvidenceMask || c.effectsPossible))
+                      : c.release.decision.row != ReleaseRow::NONE) ||
         (selectingMode(c) ? !modeSelectAdmitted(c.modeSelect)
                           : c.modeSelect.start != ModeSelectStart::NONE || c.modeSelect.alreadySelected) ||
         // An already selected answer is terminal at preparation and never held any work.
@@ -255,13 +293,17 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
     t.step = c.step;
     const bool resetWord = c.actionKind == ActionKind::CLEAR_ALARM &&
                            c.clearMethod == AlarmClearMethod::CONTROLWORD_BIT7;
-    t.index = c.actionKind == ActionKind::STOP || enabling(c) || resetWord ? 0x6040
+    t.index = c.actionKind == ActionKind::STOP || enabling(c) || resetWord || releasing(c) ? 0x6040
               : c.actionKind == ActionKind::CLEAR_ALARM                   ? 0x2301
               : selectingMode(c)                                          ? 0x6060
                                                                           : 0x2302;
     t.direction = CANOPEN::SdoDirection::DOWNLOAD;
     t.size = 2;
-    if (selectingMode(c)) {
+    if (releasing(c)) {
+        // 2B 40 60 00 <word>: the release table's one word (0x0006, 0x0000 or 0x0080), a whole word.
+        t.data[0] = uint8_t(c.release.decision.word);
+        t.data[1] = uint8_t(c.release.decision.word >> 8);
+    } else if (selectingMode(c)) {
         // 2F 60 60 00 <mode>: one byte. The manuals' INTEGER8 and the EDS's U8 give 1, 3 and 6 the same
         // byte. Objects.h has no writable 6060 descriptor while those claims conflict (Velocity.cpp).
         t.size = 1;
@@ -494,6 +536,7 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         : enabling(c)                             ? c.enable.evidence.modeRaw
         : c.actionKind == ActionKind::CLEAR_ALARM ? c.incident.modeRaw
         : selectingMode(c)                        ? c.modeSelect.requestedModeRaw
+        : releasing(c)                            ? c.release.startModeRaw
                                                   : 1;
     bool outsideScope = c.statusObservation.modeRaw != expectedMode;
     bool done = false;
@@ -572,6 +615,17 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         // Settled only by the drive's own mode report; 6060 is never read back (D04).
         outsideScope = !modeSelectScopeHolds(c);
         done = c.statusObservation.modeRaw == c.modeSelect.requestedModeRaw;
+        break;
+    case ActionKind::RELEASE:
+        // The mode stays, no alarm appears and running sets only where the admission read it. 606C is
+        // recorded, never judged: a release claims nothing about the rotor (trial 5991 read 1711).
+        outsideScope |= alarm || (running && !(c.release.startMonitor & MONITOR_RUNNING));
+        done = (c.statusObservation.statusword & STATUS_LOW_BITS) == c.release.decision.settleLowBits &&
+               (monitor & MONITOR_RELEASED);
+        if (done && !outsideScope) {
+            c.release.settledVelocity = c.extraObservation.actualVelocity;
+            c.release.settledVelocityNonzero = c.extraObservation.actualVelocity != 0;
+        }
         break;
     }
     if (outsideScope)
@@ -1099,6 +1153,152 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const 
     // (the power-up report reads mode 0, which is never requested). Nothing to write, and nothing is sent.
     if (mode == modeRaw) {
         record.alreadySelected = true;
+        output.state = ActionState::SUCCEEDED;
+        output.outcome = ActionOutcome::OBSERVED;
+        output.completion = ActionCompletion::OBSERVED;
+        output.status = Ok();
+    }
+    return Ok();
+}
+
+Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& experiment,
+                       ReleaseDecision& output) noexcept {
+    if (overlaps(&output, sizeof output, &report, sizeof report) ||
+        overlaps(&output, sizeof output, &experiment, sizeof experiment))
+        return error(ActionError::OVERLAP, "release classification overlaps input");
+    // Only 0x0000 and 0x0006: never 0x0080 outside its row, never a word with bits 0..2 all set.
+    if (experiment.enabled && experiment.word != 0 && experiment.word != 0x0006)
+        return error(ActionError::ARGUMENT, "a release experiment writes 0x0000 or 0x0006 only");
+    ReleaseDecision d;
+    const uint16_t low = uint16_t(report.statusword & STATUS_LOW_BITS);
+    const bool released = (report.monitor & MONITOR_RELEASED) != 0;
+    d.running = (report.monitor & MONITOR_RUNNING) != 0;
+    d.velocityNonzero = report.velocity != 0;
+    // Row 4 first, whatever the running bit (lead decision 2): nothing is sent, so nothing is risked.
+    if (released && low <= 1) {
+        d.row = ReleaseRow::ALREADY_RELEASED;
+        output = d;
+        return Ok();
+    }
+    const bool alarm = (report.monitor & MONITOR_ALARM) || report.errorRegister || report.errorCode;
+    const bool clean = !alarm && !d.velocityNonzero && report.monitor == RELEASE_ROW_MONITOR;
+    const bool openLoop = report.loopKnown && report.loopModeRaw == uint16_t(LoopMode::OPEN_LOOP);
+    const ReleaseTableRow* match = nullptr;
+    bool otherMode = false, otherLoop = false;
+    for (const ReleaseTableRow& row : RELEASE_TABLE) {
+        if (!clean || low != row.lowBits)
+            continue;
+        if (report.modeRaw != row.modeRaw)
+            otherMode = true;
+        else if (row.openLoop && !openLoop)
+            otherLoop = true;
+        else
+            match = &row;
+    }
+    d.refusal = match              ? ReleaseRefusal::NONE
+                : alarm            ? ReleaseRefusal::ALARM
+                : d.running        ? ReleaseRefusal::RUNNING
+                : released         ? ReleaseRefusal::RELEASED
+                : d.velocityNonzero ? ReleaseRefusal::MOVING
+                : otherLoop        ? ReleaseRefusal::LOOP
+                : otherMode        ? ReleaseRefusal::MODE
+                                   : ReleaseRefusal::PATTERN;
+    const bool overridable = d.refusal == ReleaseRefusal::MOVING || d.refusal == ReleaseRefusal::MODE ||
+                             d.refusal == ReleaseRefusal::LOOP || d.refusal == ReleaseRefusal::PATTERN;
+    if (match && (!experiment.enabled || experiment.word == match->word)) {
+        d.row = match->row;
+        d.send = true;
+        d.word = match->word;
+        d.settleLowBits = match->settleLowBits;
+    } else if (experiment.enabled && (match || overridable)) {
+        // Unmeasured: another word from a measured row's report, or a word from a report outside the rows.
+        d.row = ReleaseRow::EXPERIMENT;
+        d.send = true;
+        d.word = experiment.word;
+        d.settleLowBits = experimentLowBits(experiment.word);
+    } else {
+        d.row = ReleaseRow::REFUSED;
+    }
+    output = d;
+    return Ok();
+}
+
+Status prepareRelease(ActionContext& output, const AxisReservation& r, const ReadContext& state,
+                      const ControlObservation* loop, const ReleaseExperiment& experiment, uint32_t operation,
+                      uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        (loop && overlaps(&output, sizeof output, loop, sizeof *loop)) ||
+        overlaps(&output, sizeof output, &experiment, sizeof experiment) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
+        return error(ActionError::OVERLAP, "release preparation overlaps input");
+    if (experiment.enabled && experiment.word != 0 && experiment.word != 0x0006)
+        return error(ActionError::ARGUMENT, "a release experiment writes 0x0000 or 0x0006 only");
+    if (!validReservation(r) || !operation || deadline <= now || r.acquiredUs > now ||
+        !stopOptionsValid(options) || !ageCoversCycle(options, 7))
+        return error(ActionError::ARGUMENT, "invalid release reservation or budgets");
+    const uint64_t age = options.maximumAgeUs;
+    if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
+        state.startedUs < r.acquiredUs)
+        return error(ActionError::STATE, "release needs a complete SDO state read under this reservation");
+    const StateBlock blocks[] = {StateBlock::ERRORS, StateBlock::MONITORS, StateBlock::STATUS,
+                                 StateBlock::FEEDBACK};
+    ReadWindow window;
+    for (StateBlock block : blocks)
+        if (!validateStateBlock(state, block, r.target, now, age, window) ||
+            window.earliestUs < r.acquiredUs)
+            return error(ActionError::STATE, "release needs fresh ERRORS, MONITORS, STATUS and FEEDBACK");
+    if (loop && (!sameTarget(loop->target, r.target) || loop->window.earliestUs < r.acquiredUs ||
+                 loop->window.earliestUs > now || now - loop->window.earliestUs > age ||
+                 loop->window.latestUs > now))
+        return error(ActionError::STATE, "the 2500 read is not fresh under this reservation");
+    ReleaseReport report;
+    report.modeRaw = uint8_t(raw(state, StateBlock::STATUS, 1));
+    report.statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
+    report.monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
+    report.errorRegister = uint8_t(raw(state, StateBlock::ERRORS, 0));
+    report.errorCode = uint16_t(raw(state, StateBlock::ERRORS, 1));
+    report.velocity = signed32(raw(state, StateBlock::FEEDBACK, 1));
+    report.loopKnown = loop != nullptr;
+    report.loopModeRaw = loop ? loop->loopModeRaw : 0;
+    ReleaseDecision decision;
+    classifyRelease(report, experiment, decision); // The experiment word was checked above.
+    if (decision.row == ReleaseRow::REFUSED) {
+        const char* const reasons[] = {
+            "release refused",
+            "release refused: an alarm or a fault code is reported; use the alarm clear",
+            "release refused: 2100 reports running; a moving drive needs a stop",
+            "release refused: 2100 released beside 6041 low bits other than 000 and 001, an unmeasured report",
+            "release refused: 606C is nonzero with 2100 running clear (S21); only an experiment may send",
+            "release refused: a measured row's report in another mode; only an experiment may send",
+            "release refused: row 2 needs a fresh 2500=1 (open loop); only an experiment may send",
+            "release refused: no measured row matches this report; only an experiment may send"};
+        return error(ActionError::STATE, reasons[unsigned(decision.refusal)]);
+    }
+    new (static_cast<void*>(&output)) ActionContext();
+    output.reservation = r;
+    output.actionKind = ActionKind::RELEASE;
+    output.options = options;
+    output.operation = operation;
+    output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
+    output.deadlineUs = deadline;
+    output.state = ActionState::ACTIVE;
+    // A 6040 word that may change the drive's state machine; a new release is new intent.
+    output.retryClass = RetryClass::NOT_REPEATABLE;
+    getStateBlock(state, StateBlock::STATUS, r.target, now, age, output.statusObservation);
+    getStateBlock(state, StateBlock::MONITORS, r.target, now, age, output.monitorObservation);
+    getStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, output.extraObservation);
+    ReleaseRecord& record = output.release;
+    record.decision = decision;
+    record.startModeRaw = report.modeRaw;
+    record.startStatusword = report.statusword;
+    record.startMonitor = report.monitor;
+    record.startPosition = output.extraObservation.actualPosition;
+    record.startVelocity = report.velocity;
+    record.loopKnown = report.loopKnown;
+    record.loopModeRaw = report.loopModeRaw;
+    if (!decision.send) {
+        // Row 4: already released, answered from the report alone; nothing is ever yielded or sent.
         output.state = ActionState::SUCCEEDED;
         output.outcome = ActionOutcome::OBSERVED;
         output.completion = ActionCompletion::OBSERVED;

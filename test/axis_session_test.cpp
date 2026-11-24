@@ -4050,6 +4050,71 @@ void stopSupersedesModeSelect() {
         modeWrites += r.wire.sent[i].data[0] == 0x2f && frameIndex(r.wire.sent[i]) == 0x6060;
     CHECK(modeWrites <= 1 && uploads(r, from, 0x6061) == 0);
 }
+// Prompt 57: the release through the session's explicit-action slot. An already released report answers
+// with no operation and zero frames; row 1's report sends 0x0006 once and settles on the released report,
+// and that acknowledged word becomes the latest controlword.
+void releaseThroughSession() {
+    const uint8_t mask = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::FEEDBACK) | STATE_MASK);
+    {
+        Rig r;
+        openAxis(r, r.a);
+        FakeDrive& d = r.drive[0];
+        d.monitor = 0x0014; // The latch of a moving quick stop beside the release.
+        d.status = 0x4050;
+        d.errorCode = 0;
+        d.errorRegister = 0;
+        L::ReadContext state;
+        readState(r, r.a, state, 1, mask);
+        const unsigned sent = r.wire.sentCount;
+        CHECK(r.a.requestRelease(state, nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now).isOk());
+        const L::ActionContext& done = r.a.clearAction();
+        CHECK(!r.a.clearActive() && done.state == M::ActionState::SUCCEEDED &&
+              done.release.decision.row == L::ReleaseRow::ALREADY_RELEASED && done.release.decision.running &&
+              done.execution == M::ActionExecution::NOT_TRANSMITTED);
+        r.steps(10);
+        CHECK(r.wire.sentCount == sent);
+    }
+    Rig r;
+    openAxis(r, r.a);
+    FakeDrive& d = r.drive[0];
+    d.monitor = 0x0001;
+    d.status = 0x8437;
+    d.errorCode = 0;
+    d.errorRegister = 0;
+    L::ReadContext state;
+    readState(r, r.a, state, 1, mask);
+    {   // A report older than this session's latest write is refused unchanged.
+        L::ReadContext before = state;
+        write(r, r.a, 0x2200, 1);
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status stale =
+            r.a.requestRelease(before, nullptr, L::ReleaseExperiment(), clearOptions(), r.now + 4000, r.now);
+        CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE));
+        session.unchanged(r.a);
+        readState(r, r.a, state, 1, mask);
+    }
+    const unsigned from = r.wire.sentCount;
+    CHECK(r.a.requestRelease(state, nullptr, L::ReleaseExperiment(), clearOptions(100), r.now + 4000, r.now).isOk() &&
+          r.a.clearActive());
+    const L::ActionContext& release = r.a.clearAction();
+    for (unsigned i = 0; i < 40 && release.observations == 0; ++i)
+        r.step();
+    CHECK(release.state == M::ActionState::ACTIVE && release.phase == L::ActionPhase::WAITING); // Still 8437.
+    d.status = 0x8031;
+    d.monitor = 0x0011;
+    for (unsigned i = 0; i < 400 && r.a.clearActive(); ++i)
+        r.step();
+    CHECK(release.state == M::ActionState::SUCCEEDED && release.completion == M::ActionCompletion::OBSERVED &&
+          release.release.decision.row == L::ReleaseRow::POWER_UP_IDLE);
+    unsigned downloads = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        if (r.wire.sent[i].data[0] != 0x40) {
+            CHECK(isWord(r, i, 0x0006));
+            ++downloads;
+        }
+    CHECK(downloads == 1 && r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x06);
+    quiet(r);
+}
 void ownerClosureIsNotACancel() {
     for (unsigned revoke = 0; revoke < 2; ++revoke) {
         ClearRun run(false);
@@ -4434,6 +4499,7 @@ void allScenarios() {
     RUN(ownerClosureIsNotACancel);
     RUN(modeSelectThroughSession);
     RUN(stopSupersedesModeSelect);
+    RUN(releaseThroughSession);
 }
 } // namespace
 

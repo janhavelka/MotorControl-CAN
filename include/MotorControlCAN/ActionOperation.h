@@ -46,7 +46,10 @@ enum class ActionKind : uint8_t {
     ENABLE,              ///< Profile's explicit enable sequence, gated while its effect is unmeasured.
     /** Profile's documented operating-mode selection, settled only by the drive's own mode report.
      * Appended: earlier values keep their numbers. */
-    SELECT_MODE
+    SELECT_MODE,
+    /** Profile's release (free the shaft): the one word its release table gives for the fresh report,
+     * settled only by the drive's own released report, never a standstill claim. Appended. */
+    RELEASE
 };
 /** Local concrete operation phase; OK from an advancing call is not completion. */
 enum class ActionState : uint8_t {

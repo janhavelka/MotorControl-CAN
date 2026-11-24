@@ -9,8 +9,8 @@ qualified TPDO sample, decodes it with `interpretStatusword`, and tests object
 2100 with the `MONITOR_` masks beside it. Those give the same meanings, but
 prove no route, freshness or firmware: a decoded word is not admission or
 completion evidence by itself, and each caller must prove those facts itself. A gated enable, run
-attended on both specimens on one firmware, and the typed mode select are described below, and release
-has no API. The separate
+attended on both specimens on one firmware, the typed mode select and the measured release are
+described below. The separate
 [conditional stop lifecycle](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) uses common `ActionOperation.h`
 evidence and concrete `Actions.h` contexts; it establishes neither of those. [Fault clear and counter zero](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/fault_reference_actions.md)
 also use this lifecycle with their own documented writes and report criteria;
@@ -335,29 +335,39 @@ report, not a qualification of that mode's motion. The bench routes `MODE_ONE` a
 this operation since prompt 57, judged on their fresh reads alone: the earlier per-boot rule, which
 refused a mode change after any controlword or write of the boot, is gone.
 
-## Release: pending, with no API
+## Release: the measured release table (prompt 57)
 
-There is deliberately no `prepareRelease`. Its contract needs one specific applicable command, the
-states it is admissible from, and new observations that establish its effect, and no reviewed source
-gives that:
+`prepareRelease` in `Actions.h` (`ActionKind::RELEASE`, the MotorControl-RS name) frees the shaft by the
+release table: one `6040` word chosen by the fresh report, settled only by the drive's own released
+report, never by TX. `classifyRelease` is the table itself, a pure function that prompt 72's guard
+calls too; `AxisSession::requestRelease` runs it through the sole owner in the explicit-action slot. No
+manual names a release word: EN86/ZH86 p12 and OP86 p10 only pair `6040=0` with `6041` low bits 000, and
+OP86 p10 carries a CL57-C header. So every row is measured, not documented, and keeps its scope: two
+CL86-C specimens on one firmware (`1000=00040192`, `1009=000c`, `100A=0020`).
 
-- `6040=0` appears only as the example paired with low bits 000. No source says that word releases
-  the motor, or from which state it may be written.
-- Low bits 0 are a report. Both specimens reported them, with `2100` released, after a stationary
-  `000B` from `000F` and from `010F` ([unattended report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-03_unattended_bench.md)),
-  and on 2026-11-04 after `000B` during a move and from the never-enabled power-up state
-  ([report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/2026-11-04_bench.md)). That is a quick stop's measured effect, not a release
-  command: no word was tried as a release, and the reference consequence is not stated.
-- `2100` bit 4 reports released. It is an observation, not a command.
-- Input function 4 is labeled motor enabling or MF, with no behavior text, and is not a CAN command
-  (D-28).
-- Generic CiA402 words 0, 6 and 7, an NMT stop and a brake-output label cannot supply it.
+| Row | Fresh report | Word | Settled by | Evidence and scope |
+| --- | --- | --- | --- | --- |
+| 1 `POWER_UP_IDLE` | Mode 1, `6041` low bits 111, `2100=0001`, `606C`, `1001`, `603F` zero: `8437`/`0001` | `0x0006` | Low bits 001, `2100` released (`8031`/`0011`) | The first word of 21 power-up enables, both specimens (node 1 trials 108 to 1703, node 2 trials 118 to 1723, `docs/bench/*-p3-node*`); node 1's shaft then turned freely by hand (2026-11-03). The same report after this library's word 15 cannot be told apart |
+| 2 `SWITCHED_ON_OPEN_LOOP` | Mode 3, low bits 011, `2100=0001`, `606C`, `1001`, `603F` zero, and a fresh `2500=1`: `8033`/`0001` | `0x0000` | Low bits 000, `2100` released (`8050`/`0011`) | Once: node 2, trial 5991 (`docs/bench/20261113-ladder/night.log:8763-8800`, `packed/S0193-n2-disable.tar.xz`), about 15 minutes after trial 5976's refused enable. Trial 5991 read no `2500`: its open loop is inferred from history (trial 5973), so the library requires a fresh `2500=1`. That read gave `606C` 1711, inferred not a rotor speed |
+| 3 `ALARM_CLEARED` | Mode 3, low bits 000, `2100=0001`, `606C`, `1001`, `603F` zero: `8010`/`0001` | `0x0080` alone | Low bits 000, `2100` released (`8050`/`0011`) | Node 1: `packed/20261113T141445Z-cw-0080-n1-5405` after `...141347Z-cw-0000-n1-5402`, `...141402Z-cw-000b-n1-5403` and `...141417Z-cw-0006-n1-5404` changed nothing; then 8 of 8 (trials 5362, 5396, 5452, 5500, 5524 on node 1; 5632, 5650, 5668 on node 2). The fault-reset bit (ZH86 p12, OP86 p10, EN86/ZH86 p15), the measured exit from this report only |
+| 4 `ALREADY_RELEASED` | `2100` released with low bits 000 or 001 (`8050`/`0011`, `4050`/`0014`, `C050`/`0015`, `8031`/`0011`), any mode, whatever its running bit | None | At preparation: `SUCCEEDED`, `NOT_TRANSMITTED` | Already released; the running bit and a nonzero `606C` are reported (lead decision 2) |
+| 5 `REFUSED` | Everything else | None | Refused before TX | `ReleaseRefusal` names the reason: `ALARM` (the alarm clear's case), `RUNNING` (a stop's case), `RELEASED` beside other low bits, `MOVING` (`606C` nonzero, running clear, S21), `MODE` (a row's report in another mode, such as the halted `9437`/`0001`), `LOOP` (row 2 without a fresh `2500=1`), `PATTERN` (such as S20's `1437`/`0000` or `0037`/`0000`) |
 
-What would close it: a manufacturer statement, or a bounded experiment that first has a working
-enable, then one explicit candidate word from a known state, with raw `6041`, `2100`, `606C`, an
-independent shaft and holding-torque observation, and the reference consequence stated. Release is
-not a prerequisite for enable or stop qualification. D-02's home-then-move gap depends on it, so that
-gap stays open too.
+A release settles when a fresh cycle after the acknowledgement reports the row's low bits with `2100`
+released; `606C` is recorded with it (`ReleaseRecord::settledVelocity`) and a nonzero value is reported,
+as in trial 5991. Each cycle must keep the admission's mode, `2100` alarm clear and running set only
+where the admission read it; anything else ends `OBSERVATION_SCOPE`. A release never claims standstill,
+holding torque or a reference. A refused or unacknowledged word is not repeated; a lost reply stays
+`UNKNOWN` and uncertain, and a new attempt is a new operation from a new fresh read. The acknowledged word
+becomes the session's latest controlword, which no stop follows.
+
+The experiment option (`ReleaseExperiment`, off by default) admits `0x0000` or `0x0006` only: never
+`0x0080` outside row 3, never a word with bits 0..2 all set. It sends from a report outside the measured
+rows whose refusal is `MOVING`, `MODE`, `LOOP` or `PATTERN`, or from a row 1 to 3 report with another
+word than its row's (word 6 from `8033`), and marks the result `EXPERIMENT`; its settlement is the p12
+table's low bits for that word (000 for 0, 001 for 6) with `2100` released. It never overrides an alarm,
+`2100` running or an already released report, and only a reviewed measured result adds a row. The release
+bench trials of the prompt run this way; they are not run yet.
 
 ## Bounded physical plan
 

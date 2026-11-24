@@ -1326,6 +1326,37 @@ M::Status AxisSession::requestModeSelect(const L::ReadContext& state, uint8_t mo
     }
     return beginSlot(next, deadline, now, nullptr, nullptr);
 }
+M::Status AxisSession::requestRelease(const L::ReadContext& state, const L::ControlObservation* loop,
+                                      const L::ReleaseExperiment& experiment, const L::ActionOptions& options,
+                                      uint64_t deadline, uint64_t now) noexcept {
+    // A velocity or homing run that still needs a stop may not show running in a fresh report: a release
+    // is no stop, so it waits for that stop or acknowledgeStandstill.
+    uint32_t next = 0;
+    M::Status s = refuseSlot(true, false, now, next);
+    if (!s)
+        return s;
+    // The table judges the report alone, so it must follow this session's latest write.
+    L::StateObservation status, monitors;
+    if (!L::getStateBlock(state, L::StateBlock::STATUS, target_, now, options.maximumAgeUs, status) ||
+        !L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, options.maximumAgeUs, monitors) ||
+        status.window.earliestUs < lastWriteUs_ || monitors.window.earliestUs < lastWriteUs_)
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::STATE),
+                         "release needs a fresh report taken after this session's latest write");
+    // prepareRelease validates everything before it writes the context, so a refusal changes nothing.
+    s = L::prepareRelease(clear_, reservation_, state, loop, experiment, next, now, deadline, options);
+    if (!s)
+        return s;
+    if (!clear_.release.decision.send) {
+        // Already released: terminal from the report alone, with no work for an owner operation.
+        clearTarget_ = reservation_.target;
+        clearWithdrawn_ = M::ActionOutcome::NONE;
+        clearAxis_ = nullptr;
+        clearReference_ = nullptr;
+        lastUs_ = now;
+        return M::Ok();
+    }
+    return beginSlot(next, deadline, now, nullptr, nullptr);
+}
 // The refusals every request of the one explicit-action slot shares. changing: the request changes
 // drive state beyond an alarm clear, and waits for a stop an earlier velocity or homing run still needs.
 // fault: a routed drive fault refuses it too. next receives the operation identity on success.

@@ -1,5 +1,5 @@
 /** @file Actions.h
- * @brief Finite source-backed 86C stop, fault-clear, device-zero, enable and mode-select actions.
+ * @brief Finite source-backed 86C stop, fault-clear, device-zero, enable, mode-select and release actions.
  * SPDX-License-Identifier: MIT
  * Stop transition contract: CL86-C/OL86-C only, one continuous actual owner reservation
  * acquired before the last positively acknowledged 6040:00 U16 word. Fresh SDO
@@ -54,7 +54,8 @@
  * trial identity, retained stop record or per-boot word history. EnableGate::ATTENDED_EXPERIMENT stays
  * for unmeasured states and mode 6, with the caller's explicit statements; a closed gate refuses. Mode 6
  * also requires its own evidence flag and a non-enabled released start; it sends no homing trigger.
- * Mode 3 startup belongs to the separately gated finite velocity operation. Release has no API yet.
+ * Mode 3 startup belongs to the separately gated finite velocity operation. Release (prepareRelease) has
+ * its own measured table, below.
  * Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern the manual
  * pairs with an enabled drive, and both held torque then by hand checks: word 6 releases it
  * (2026-11-03). At word 7 the drive reports itself energized again, and its position report returned
@@ -74,6 +75,7 @@
 #include <MotorControlCAN/ActionOperation.h>
 #include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
@@ -390,6 +392,114 @@ struct ModeSelectRecord {
      * sent, as the release table's already-released row answers. */
     bool alreadySelected = false;
 };
+/** The rows of the release table (prompt 57), the one place the release's admission, its settlement and
+ * prompt 72's guard read. No manual names a release word: EN86/ZH86 p12 and OP86 p10 only pair 6040=0
+ * with 6041 low bits 000 (OP86 p10 carries a CL57-C header). Each measured row's scope is two CL86-C
+ * specimens on one firmware (1000=00040192, 1009=000c, 100A=0020). A row is chosen by the fresh report
+ * (6041, 2100, 606C, 1001, 603F, 6061, and 2500 for row 2), never by retained history; row 4 comes before
+ * row 5. */
+enum class ReleaseRow : uint8_t {
+    NONE, ///< Not classified; every context but RELEASE.
+    /** Row 1: mode 1, 6041 low bits 111, 2100=0001 (in place; released, alarm and running clear), 606C,
+     * 1001 and 603F zero: the power-up report 8437/0001. Word 0x0006, settled by low bits 001 with 2100
+     * released (8031/0011). Measured as the first word of 21 power-up enables, both specimens (node 1
+     * trials 108 to 1703, node 2 trials 118 to 1723, docs/bench/ *-p3-node*); node 1's shaft then turned
+     * freely by hand (2026-11-03). The same report after this library's own word 15 cannot be told apart
+     * and is admitted on it. */
+    POWER_UP_IDLE,
+    /** Row 2: mode 3, low bits 011, 2100=0001, 606C, 1001 and 603F zero, and a fresh 2500=1 (open loop):
+     * 8033/0001, as a velocity enable refused at word 7 leaves it. Word 0x0000, settled by low bits 000
+     * with 2100 released (8050/0011). Measured once: node 2, trial 5991 (docs/bench/20261113-ladder/
+     * night.log:8763-8800, packed/S0193-n2-disable.tar.xz), about 15 minutes after the refusal of trial
+     * 5976. Trial 5991 read no 2500: its open loop is inferred from history (written and read back by
+     * trial 5973), so the library requires a fresh 2500=1 here. That read gave 606C 1711 beside the
+     * release, inferred not a rotor speed. */
+    SWITCHED_ON_OPEN_LOOP,
+    /** Row 3: mode 3, low bits 000, 2100=0001 (released clear), 606C, 1001 and 603F zero: 8010/0001, as an
+     * OBJECT_2301 alarm clear leaves it. Word 0x0080 alone, settled by low bits 000 with 2100 released
+     * (8050/0011). Measured on node 1: archives packed/20261113T141445Z-cw-0080-n1-5405 after
+     * ...141347Z-cw-0000-n1-5402, ...141402Z-cw-000b-n1-5403 and ...141417Z-cw-0006-n1-5404 changed nothing,
+     * then 8 of 8 (trials 5362, 5396, 5452, 5500, 5524 on node 1 and 5632, 5650, 5668 on node 2). It is the
+     * fault-reset bit (ZH86 p12 and OP86 p10 15->128; EN86/ZH86 p15), the measured exit from this report
+     * only, never a release word elsewhere. */
+    ALARM_CLEARED,
+    /** Row 4: 2100 released set with 6041 low bits 000 or 001 (8050/0011, the latches 4050/0014 and
+     * C050/0015, 8031/0011), in any mode and whatever its running bit: already released, nothing sent. */
+    ALREADY_RELEASED,
+    REFUSED, ///< Row 5: every other report, refused before TX with its ReleaseRefusal.
+    /** An explicit ReleaseExperiment word, 0x0000 or 0x0006, from a report outside the measured rows or with
+     * a word other than its row's; settled like a row, by the p12 table's low bits for that word (000 for
+     * 0, 001 for 6) with 2100 released. Unmeasured: the result is an experiment, never a measured row. */
+    EXPERIMENT
+};
+/** Why the release table refused a report (row 5). The experiment option may override only MOVING, MODE,
+ * LOOP and PATTERN, the unmeasured refusals; never ALARM (the alarm clear's case), RUNNING (a stop's case)
+ * or RELEASED. */
+enum class ReleaseRefusal : uint8_t {
+    NONE,     ///< Not refused.
+    ALARM,    ///< 2100 alarm set, or 1001 or 603F nonzero.
+    RUNNING,  ///< 2100 running set without the release: a moving drive needs a stop.
+    RELEASED, ///< 2100 released set beside 6041 low bits other than 000 and 001: unmeasured, never sent to.
+    MOVING,   ///< 606C nonzero with 2100 running clear, as in backlog S21.
+    MODE,     ///< A measured row's 6041 low bits and 2100=0001 in another mode, such as the halted 9437/0001.
+    LOOP,     ///< Row 2's report without a fresh 2500=1: closed loop, another selector or no 2500 read.
+    PATTERN   ///< Any other report, such as S20's 1437/0000 or the mode 1 report 0037/0000.
+};
+/** The fresh report the release table judges: raw values of one read, no interpretation. */
+struct ReleaseReport {
+    uint8_t modeRaw = 0;       ///< 6061 complete byte.
+    uint16_t statusword = 0;   ///< 6041 raw.
+    uint16_t monitor = 0;      ///< 2100 raw.
+    uint8_t errorRegister = 0; ///< 1001 raw.
+    uint16_t errorCode = 0;    ///< 603F raw.
+    int32_t velocity = 0;      ///< 606C raw, no scale.
+    bool loopKnown = false;    ///< loopModeRaw holds a fresh 2500 read; needed for row 2 only.
+    uint16_t loopModeRaw = 0;  ///< 2500 raw: 1 open loop, 2 closed loop (Tuning.h LoopMode).
+};
+/** The caller's explicit, unmeasured release experiment, off by default. When enabled, word (0x0000 or
+ * 0x0006, nothing else) is sent from a report outside the measured rows whose refusal is MOVING, MODE,
+ * LOOP or PATTERN, or from a row 1 to 3 report whose row names another word. The result is marked as an
+ * experiment; only a reviewed measured result adds a row. */
+struct ReleaseExperiment {
+    bool enabled = false; ///< Explicitly requested by the caller.
+    uint16_t word = 0;    ///< 0x0000 or 0x0006; never 0x0080 outside row 3, never bits 0..2 all set.
+};
+/** The release table's answer for one report. */
+struct ReleaseDecision {
+    ReleaseRow row = ReleaseRow::NONE;                 ///< The row, EXPERIMENT for an experiment word.
+    ReleaseRefusal refusal = ReleaseRefusal::NONE;     ///< Why the report is outside the measured rows.
+    bool send = false;          ///< One 6040 word is to be written: rows 1 to 3 and EXPERIMENT.
+    uint16_t word = 0;          ///< That word: 0x0006, 0x0000 or 0x0080.
+    uint8_t settleLowBits = 0;  ///< 6041 bits 0..2 that settle it, beside 2100 released.
+    bool running = false;       ///< 2100 running in the report; row 4 reports it.
+    bool velocityNonzero = false; ///< 606C nonzero in the report; reported, never a standstill claim.
+};
+/** SELECT_MODE's sibling for RELEASE: the table's answer and the admission report, kept after later
+ * cycles replace the blocks, and the settling cycle's 606C. Raw values only. */
+struct ReleaseRecord {
+    ReleaseDecision decision;        ///< At admission; row NONE in every other context.
+    uint8_t startModeRaw = 0;        ///< 6061 at admission; every cycle must repeat it.
+    uint16_t startStatusword = 0;    ///< 6041 at admission.
+    uint16_t startMonitor = 0;       ///< 2100 at admission.
+    int32_t startPosition = 0;       ///< 6064 at admission, no scale.
+    int32_t startVelocity = 0;       ///< 606C at admission, no scale.
+    bool loopKnown = false;          ///< loopModeRaw came from a fresh 2500 read.
+    uint16_t loopModeRaw = 0;        ///< 2500 raw at admission.
+    /** 606C of the cycle that settled the release, reported beside the released report (trial 5991 read
+     * 1711). Never a standstill claim: a release says nothing about the rotor. */
+    int32_t settledVelocity = 0;
+    bool settledVelocityNonzero = false; ///< settledVelocity is nonzero.
+};
+/** Classify one fresh report by the release table, with an optional experiment. Pure: no I/O, no context.
+ * Prompt 72's guard and prepareRelease share it.
+ * @param[in] report Raw values of one fresh read.
+ * @param[in] experiment Off by default; when enabled its word must be 0x0000 or 0x0006.
+ * @param[out] output The answer, written only on OK; disjoint from the inputs.
+ * @return OK with any row, REFUSED included; INVALID_CONFIG with ActionError::ARGUMENT for an enabled
+ * experiment naming another word, or OVERLAP, with output unchanged.
+ */
+Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& experiment,
+                       ReleaseDecision& output) noexcept;
 /** Caller-owned concrete action context. Serialize access; do not edit active fields.
  * Histories are inspectable after terminal and survive failure. Inputs are borrowed
  * during calls only. Every yielded/advanced service needs the actual live reservation.
@@ -469,6 +579,8 @@ struct ActionContext {
     CounterBaseline baseline; ///< SET_DEVICE_POSITION only: admission feedback, kept after later cycles.
     EnableRecord enable;    ///< ENABLE only: evidence, targets and per-step observations.
     ModeSelectRecord modeSelect; ///< SELECT_MODE only: the request and its admission report.
+    /** RELEASE only: the table's answer, the admission report and the settling cycle's 606C. */
+    ReleaseRecord release;
     Generation originalReferenceGeneration = 0; ///< Counter action's frozen confidence epoch.
     bool coordinatesInvalidated =
         false; ///< Counter trigger crossed possible-TX boundary; never undone.
@@ -818,6 +930,42 @@ Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
 Status prepareModeSelect(ActionContext& output, const AxisReservation& reservation,
                          const ReadContext& state, uint8_t modeRaw, uint32_t operation, uint64_t nowUs,
                          uint64_t deadlineUs, const ActionOptions& options) noexcept;
+/** Prepare a release (free the shaft) on CL86-C/OL86-C by the release table (ReleaseRow): one 6040 U16
+ * word, the row's, or an explicit experiment's, settled only when a later fresh cycle reports the row's
+ * 6041 low bits with 2100 released. 606C is recorded with that cycle and a nonzero value is reported
+ * (ReleaseRecord::settledVelocityNonzero); a release never claims standstill, holding torque or a
+ * reference. It never writes another object, enables, stops, clears or resends: a refused, lost or
+ * unacknowledged word is not repeated, and a new attempt is a new operation from a new fresh read.
+ *
+ * Admission needs a complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK under reservation,
+ * classified by classifyRelease. Row 4 (already released) ends SUCCEEDED and OBSERVED at preparation,
+ * execution NOT_TRANSMITTED, the running bit and 606C reported in release.decision, nothing ever sent.
+ * Row 5 is refused with ActionError::STATE and the refusal's reason, unless the experiment overrides it.
+ * From the acknowledgement on it reads MONITORS, STATUS and FEEDBACK in cycles, each after the previous
+ * one by observationIntervalUs; a cycle is in scope while 6061 repeats the admission's mode, 2100 alarm
+ * stays clear and 2100 running is set only where the admission read it. A cycle in scope that does not
+ * yet report the settlement repolls until the deadline; any other report ends it OBSERVATION_SCOPE.
+ * @param[out] output Owned context, unchanged on failure, disjoint from all inputs.
+ * @param[in] reservation Continuous actual owner reservation, CL86-C/OL86-C.
+ * @param[in] state Complete fresh prerequisite read as above, borrowed for this call.
+ * @param[in] loop Optional fresh CONTROL observation (getControl) whose 2500 decides row 2; null leaves
+ * row 2's report refused as LOOP. When given it must be current for the reservation's target, begun
+ * under the reservation and within options.maximumAgeUs, or STATE is returned.
+ * @param[in] experiment Off by default; see ReleaseExperiment. A word other than 0x0000 or 0x0006 is
+ * refused with ActionError::ARGUMENT before any state check.
+ * @param[in] operation Nonzero identity unique while old owner work exists.
+ * @param[in] nowUs Nondecreasing monotonic microseconds, zero valid.
+ * @param[in] deadlineUs Immutable exclusive future cutoff of the word and every observation.
+ * @param[in] options Nonzero budgets and observationIntervalUs; maximumAgeUs covering seven fields at the
+ * queue plus response budgets; service.identityWidths DECLARED_U16 and service.countWidths DECLARED_U8.
+ * @return Local validation only, no I/O: OVERLAP, ARGUMENT, STATE, each with output unchanged; OK for a
+ * prepared word or an already released report. retryClass is NOT_REPEATABLE. Later, execution keeps the
+ * word's acknowledgement apart from completion: a lost reply leaves it UNKNOWN, an abort REJECTED.
+ */
+Status prepareRelease(ActionContext& output, const AxisReservation& reservation, const ReadContext& state,
+                      const ControlObservation* loop, const ReleaseExperiment& experiment,
+                      uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                      const ActionOptions& options) noexcept;
 /** Record a local withdrawal while this action's admitted work is still in flight, so that its
  * terminal is consumed as evidence and cannot complete the action. Sends nothing and stops nothing.
  * @param[in,out] context Active context with no earlier withdrawal; unchanged on refusal.

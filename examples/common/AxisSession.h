@@ -187,7 +187,8 @@ class AxisSession {
         return motionKind_ == MotionStorageKind::HOME &&
                motion_.home.state == MotorControlCAN::ActionState::ACTIVE;
     }
-    /** @return True while an alarm clear, counter clear or mode select is neither finished nor failed. */
+    /** @return True while an alarm clear, counter clear, mode select or release is neither finished nor
+     * failed. */
     bool clearActive() const noexcept {
         return clear_.state == MotorControlCAN::ActionState::ACTIVE;
     }
@@ -663,6 +664,30 @@ class AxisSession {
     requestModeSelect(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint8_t modeRaw,
                       const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
                       uint64_t nowUs) noexcept;
+    /** Request a release (free the shaft) on this axis through prepareRelease and its release table: one
+     * 6040 word, the row's (0x0006, 0x0000 or 0x0080) or an explicit experiment's, then MONITORS, STATUS and
+     * FEEDBACK cycles until the row's released report arrives. It shares the clears' slot, service branch,
+     * withdrawal (cancelClear) and fault hold, so a stop request ends it first. An already released report
+     * answers at once: clearAction() SUCCEEDED, execution NOT_TRANSMITTED, no owner operation, nothing sent.
+     * A release is no stop and never claims standstill; the acknowledged word becomes this session's
+     * latest controlword like any other, which no stop follows. Never resends.
+     * @param[in] state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK under this
+     * reservation, whose STATUS and MONITORS began after this session's latest write. Not held inside
+     * clearAction().
+     * @param[in] loop Optional fresh CONTROL observation for row 2's 2500=1, borrowed for this call.
+     * @param[in] experiment Off by default; see LICHUAN_C::ReleaseExperiment.
+     * @param[in] options Copied budgets, as prepareRelease requires (maximumAgeUs covering seven fields).
+     * @param[in] deadlineUs Immutable exclusive cutoff of the word and every observation.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return prepareRelease's status, with the table's refusal reason, or a local refusal as
+     * requestModeSelect's. On a refusal nothing changes, and on success nothing has been admitted.
+     */
+    MotorControlCAN::Status
+    requestRelease(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                   const MotorControlCAN::LICHUAN_C::ControlObservation* loop,
+                   const MotorControlCAN::LICHUAN_C::ReleaseExperiment& experiment,
+                   const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
+                   uint64_t nowUs) noexcept;
     /** Withdraw an active alarm clear, counter clear or mode select locally: no further write or read is
      * admitted, and
      * a write the owner has not yet handed to the controller is cancelled. It sends no stop and undoes
@@ -756,12 +781,13 @@ class AxisSession {
      * running or a nonzero velocity. */
     bool acknowledgeStandstill(const MotorControlCAN::LICHUAN_C::ReadContext& state, uint64_t maximumAgeUs,
                                uint64_t nowUs) noexcept;
-    /** @return Retained context of the latest requestClearAlarm, requestCounterZero or requestModeSelect;
-     * EMPTY if none was prepared since open. The three share this one slot, so a new request of any kind
-     * replaces it: actionKind is CLEAR_ALARM, SET_DEVICE_POSITION or SELECT_MODE, and clearActive() is
+    /** @return Retained context of the latest requestClearAlarm, requestCounterZero, requestModeSelect or
+     * requestRelease; EMPTY if none was prepared since open. They share this one slot, so a new request of
+     * any kind replaces it: actionKind is CLEAR_ALARM, SET_DEVICE_POSITION, SELECT_MODE or RELEASE, and
+     * clearActive() is
      * true while any of them runs. commandHistory keeps every write's terminal, failure included;
-     * execution describes the 1, or the 6060 write; valueOneMayRemain and uncertain record what may have
-     * landed. A read held in it and passed to requestStop is judged after that action has ended. */
+     * execution describes the 1, the 6060 or the release word; valueOneMayRemain and uncertain record
+     * what may have landed. A read held in it and passed to requestStop is judged after that action has ended. */
     const MotorControlCAN::LICHUAN_C::ActionContext& clearAction() const noexcept { return clear_; }
     /** @return True once a clear ended with valueOneMayRemain: its 1 may have reached the drive and its 0
      * has no positive acknowledgement, so 2301 or 2302 may still hold 1, with undocumented effect.
@@ -898,8 +924,8 @@ class AxisSession {
     const MotorControlCAN::AxisReference* moveReference_ = nullptr;
     MotorControlCAN::LICHUAN_C::DriverContext* retained_[4] = {};
     uint8_t retainedCount_ = 0;
-    // The latest alarm clear, counter clear or mode select. One slot for all three: they exclude each
-    // other, and a second ActionContext would cost its whole size again in every session.
+    // The latest alarm clear, counter clear, mode select or release. One slot for all four: they exclude
+    // each other, and a second ActionContext would cost its whole size again in every session.
     MotorControlCAN::LICHUAN_C::ActionContext clear_;
     // The clear's current target: its frozen reservation's, until a counter clear's 1 notice advances the
     // configuration epoch. It cannot be reservation_.target, which that notice must not overlap.

@@ -354,6 +354,8 @@
         "validateEnable": 1,
         "prepareEnable": 1,
         "prepareModeSelect": 1,
+        "classifyRelease": 1,
+        "prepareRelease": 1,
         "noteActionWithdrawal": 1,
         "nextAction": 1,
         "noteActionTransmission": 2,
@@ -384,6 +386,10 @@
         {
           "path": "test/mode_select_test.cpp",
           "ctest": "mode_select"
+        },
+        {
+          "path": "test/release_action_test.cpp",
+          "ctest": "release_action"
         },
         {
           "path": "test/counter_clear_test.cpp",
