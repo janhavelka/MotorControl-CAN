@@ -1378,8 +1378,8 @@ Status prepareRelease(ActionContext& output, const AxisReservation& r, const Rea
     if (decision.row == ReleaseRow::REFUSED) {
         const char* const reasons[] = {
             "release refused",
-            "release refused: an alarm (2100 bit 3, 6041 bit 3 or 7) or a fault code is reported; use the alarm "
-            "clear",
+            ("release refused: an alarm (2100 bit 3, 6041 bit 3 or 7) or a fault code is reported; use the alarm "
+             "clear"),
             "release refused: 2100 reports running; a moving drive needs a stop",
             "release refused: 2100 released beside 6041 low bits other than 000 and 001, an unmeasured report",
             "release refused: 606C is nonzero with 2100 running clear (S21); only an experiment may send",

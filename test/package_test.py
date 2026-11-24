@@ -232,7 +232,7 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
-        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeSync.h", "ProbeSync.cpp", "GroupStop.h", "GroupStop.cpp", "WiredStopOutput.h", "WiredStopOutput.cpp", "ProbeConsoleMotion.cpp", "ProbeConsoleText.h", "ProbeMotion.h", "ProbeMotion.cpp", "MotionIntent.h", "MotionIntent.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbeAppLocal.cpp", "ProbeConsole.h", "ProbeConsole.cpp", "ProbeSync.h", "ProbeSync.cpp", "GroupStop.h", "GroupStop.cpp", "WiredStopOutput.h", "WiredStopOutput.cpp", "ProbeConsoleMotion.cpp", "ProbeConsoleText.h", "ProbeMotion.h", "ProbeMotion.cpp", "SelectedAxis.h", "MotionIntent.h", "MotionIntent.cpp", "ProbeDevice.h", "ProbeDevice.cpp", "ProbeSettings.h", "ProbeSettings.cpp", "ProbeCommissioning.h", "ProbeCommissioning.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp",
                     "ConfigurationRestore.h", "ConfigurationRestore.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
