@@ -172,8 +172,7 @@ bits and disagreement. It does not close action coverage R06/R13 or firmware
 qualification. `prepareEnable` implements the documented position-enable sequence behind a closed
 gate. It succeeded on both specimens in the attended session, after the bit 10 fix (`e17271a`);
 that is one firmware, not a qualification, and its initial/no-pending-motion provenance is a
-caller's statement, not a measured rule. No reviewed source defines release's CAN
-command/effects. Both lifecycles and their action-specific tests remain pending.
+caller's statement, not a measured rule. Prompt 57 supersedes the rest of this paragraph: see its section below.
 
 The [connected-board intake](reports/2026-11-02_s2_bench_intake.md) adds actual
 USB/design facts to R19 and S2/P4 isolated core compile/link evidence to R04/R20.
@@ -311,10 +310,26 @@ remains absent. Command/schema parity is still assigned to 40-42.
 | Explicit simple intent and RPM dimension | `MotionIntent.*`; `motion_intent_test`, `motion_console_test` | Caller scales/prerequisites remain explicit; no boot defaults |
 | Absolute/relative/wrapped moves | `ProbeMotion` -> existing `AxisSession`; `motion_console_test`, existing move suites | Native firmware/scale/reference gates retained |
 | Finite signed velocity and home | Existing typed operations through `ProbeMotion`; `probe_motion_actions_test` | Reverse, stop, method/input/reference qualifications remain native gates |
-| Enable, alarm clear, zero-only device clear | Existing action preparations via `ProbeMotion`; `motion_console_test` | Per-action evidence retained; no hidden enable/save |
+| Enable, alarm clear, zero-only device clear | Existing action preparations via `ProbeMotion`; `motion_console_test` | Per-action evidence retained; no hidden enable/save. Prompt 57: `enable AXIS_ID` |
 | Normal/fast stop, held recovery and uncertain motion retention | Separate correlations/component records; `motion_console_test`, `axis_session_test` | Best-effort replies never qualify execution; physical stopping not established |
 | Shared inventory and exact JSONL | `ProbeConsole.*`, `console_protocol_test.py`; native and pinned firmware builds | Compile/fake parity only |
-| Motor release and stored-only setup | Explicit caps-only gates with reasons in `consoleCommands` | D-17 release command absent; no native stored-only policy |
+| Stored-only setup | Explicit caps-only gate with its reason in `consoleCommands` | No native stored-only policy. Motor release became a regular command in prompt 57 |
+
+## Prompt 57 regular drive operations
+
+Implemented and host-tested means the library operation, its console command and its bench route exist and
+pass their native tests against fakes; device evidence is what the retained bench records measured on two
+CL86-C specimens of one firmware. Nothing here is a new hardware qualification: the prompt's bench steps wait
+for the owner's return ([deferred table](prompts/README.md)).
+
+| Feature | Implementation and host checks | Device evidence |
+| --- | --- | --- |
+| Typed mode select (`ActionKind::SELECT_MODE`, `prepareModeSelect`) | `AxisSession::requestModeSelect`, console `mode AXIS_ID 1\|3\|6`, bench `mode1`/`mode3`; `mode_select_test`, `axis_session_test`, `motion_console_test`, `bench_route_test` | The retained mode writes (23 from the power-up report in mode 0, the released starts); other codes stay with prompt 52's probe (D17) |
+| Regular enable (`EnableGate::MEASURED`) | `prepareEnable` from the fresh power-up or released report, with the identity input; console `enable AXIS_ID`, bench `enable` start 2; `enable_action_test`, `motion_console_test`, `bench_route_test` | The reviewed record of 111 enables on both specimens, one firmware; the attended gate stays for unmeasured states |
+| Release (`ActionKind::RELEASE`, `prepareRelease`, `classifyRelease`) | The measured release table, the explicit experiment option; console `motor-release AXIS_ID`, bench `release` (`Tr`); `release_action_test`, `axis_session_test`, `motion_console_test`, `bench_route_test` | Rows 1 to 3 measured (21 power-up enables, trial 5991, trial 5405 and 8 of 8); never a standstill claim. Bench trials of the experiment rows pending |
+| Identity policy (`checkIdentity`, `IdentityCheck`) | Product fields refuse, firmware fields flag, in moves, velocity, homing and enable; `firmware_unqualified` on every console motion terminal; `reads_test`, the motion suites | Both specimens' identity (`measuredIdentity()`); no other firmware measured |
+| Save parameters with optional guards | `prepareSave`, `validatePersistenceReview`, console `persistence save parameters` (self-prepared), bench `save` (`Ts`); `persistence_test`, `probe_commissioning_app_test`, `bench_route_test` | None: the save trials (`1017=1000`, readback, the owner's power cycle) wait for the owner |
+| Factory restore with the backup guard | `prepareFactoryRestore`, console `persistence restore factory settings [without-backup]`; the same suites | None: the restore trial is prompt 61's, after the owner returns |
 
 ## Prompt 51 host SYNC scope
 

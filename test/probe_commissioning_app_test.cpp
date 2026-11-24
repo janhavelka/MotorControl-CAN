@@ -965,6 +965,26 @@ void restoreBackupGuard() {
         fixture.drain();
         fixture.record(720, "\"ok\":false");
         CHECK(rig.drive.uploads == 0 && rig.drive.downloads == 0 && rig.commissioning.kind() == E::CommissioningKind::NONE);
+        // Prompt 57: without-backup clears the guard explicitly, and the result names it (31: every guard off).
+        fixture.command("@721 persistence restore factory settings without-backup");
+        fixture.drain(2000);
+        fixture.record(721, "\"outcome\":\"ACKNOWLEDGED\"", true);
+        fixture.record(721, "\"guards_off\":31", true);
+        CHECK(rig.drive.find(0x2300).raw == 1 && rig.drive.downloads == 1);
+        CHECK(rig.commissioning.persistence()->kind == L::PersistenceKind::FACTORY_RESTORE &&
+              rig.commissioning.persistence()->guardsOff == L::PERSISTENCE_GUARDS_ALL);
+        CHECK(rig.commissioning.finishBinding(rig.now) && rig.commissioning.release());
+    }
+    {
+        ConsoleFixture fixture; // The option belongs to a console-prepared restore, never to an armed one.
+        Rig& rig = fixture.rig;
+        L::PersistenceContext prepared;
+        rig.preparePersistence(prepared, true, 1000);
+        CHECK(rig.commissioning.armPersistence(prepared));
+        fixture.command("@722 persistence restore factory settings without-backup");
+        fixture.drain();
+        fixture.record(722, "without_backup_applies_to_a_console_prepared_restore");
+        CHECK(rig.drive.downloads == 0 && rig.commissioning.armed());
     }
     for (unsigned variant = 0; variant < 2; ++variant) {
         Rig rig;

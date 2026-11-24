@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Console commands and documents (prompt 57, slice b6, 2026-11-24)
+
+- Console: `mode AXIS_ID 1|3|6` (`prepareModeSelect`), `enable AXIS_ID` (the regular measured enable) and
+  `motor-release AXIS_ID` (`prepareRelease`, replacing the caps-only row D-17 gated) are regular commands on the
+  report the application names with the new `ProbeMotion::setActionPrerequisites` (state, identity, optional
+  CONTROL observation, budgets). **Grammar change:** `enable` now takes the axis ID; explicit trial evidence
+  (`setEnablePrerequisites`) still selects the attended enable. `release ID` keeps its meaning (frees a
+  retained result, no CAN frame); nothing infers one from the other. New `MotionKind::MODE_SELECT` and
+  `RELEASE`, `ProbeMotion::requestModeSelect` and `requestRelease`.
+- Every console motion terminal carries `firmware_unqualified` (`true`/`false` for a move, velocity, home or
+  enable; `null` where nothing is compared); `MotionResult` gains `identityCompared` and `firmwareUnqualified`.
+- Console factory restore: `persistence restore factory settings without-backup` clears the backup guard
+  explicitly for a console-prepared restore; persistence terminals carry `guards_off`.
+- Bench: new route `release` (`Tr<node>,<trial>,1,<experiment>,<word>,<cycles>,<interval>`) for the release
+  trials, and `s2_bench.py --command motor-release --cycles N --interval-ms MS [--experiment --word 0x0000|0x0006]`,
+  which refuses any other word, or a word without `--experiment`, before anything is sent; `s2_evidence.py`
+  reads `TRIAL_RELEASE` and the release plan line. Routes stay protocol 16. The hardware bench table's `mode1`
+  and `mode3` rows now state b1's fresh not-enabled / power-up rule.
+- Documents: CLI contract, API/CLI mapping, the three probe READMEs, the console script, the hardware bench
+  table (enable start 2, release and save routes), the drive actions guide, coverage (prompt 57 section) and
+  backlog D04, D17, S20, S21 dispositions.
+
 ### Save and restore with optional guards (prompt 57, slice b5, 2026-11-24)
 
 - The four `PersistenceReview` records are optional, settable guards: new `PersistenceReview::guards` with

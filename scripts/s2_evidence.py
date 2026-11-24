@@ -195,7 +195,7 @@ GRAMMAR = (
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
         "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i? "
-        "probe:u? reverse:b? word:x? mode:u? replacement:i? duration:u? stop:u? changes:b?"),
+        "probe:u? reverse:b? word:x? mode:u? replacement:i? duration:u? stop:u? changes:b? experiment:b?"),
     Row("TRIAL_NMT", "TRIAL_NMT ", "summary",
         "offered:b phase:u failure:u start:u stopEnd:u preopEnd:u resume:u due:u end:u"),
     Row("TRIAL_NMT_STEP", "TRIAL_NMT_STEP ", "summary",
@@ -295,6 +295,16 @@ GRAMMAR = (
         "uncertain:b>modeUncertain effects:b observations:u op:u wout:u ack:b s0:x m0:x p0:i s1:x m1:x mode:u "
         "p1:i v1:i",
         signals=(("health", "modeOutcome"), ("health", "modeCompletion"), ("health", "modeUncertain")),
+        per_node=True),
+    # release (prompt 57): the session's release, raw. row 1..4 the measured table's (5 REFUSED, 6 EXPERIMENT),
+    # refusal its reason, word and send the chosen word and whether one was sent, wout the word's terminal outcome
+    # (255 when none is held), s0/m0/v0/loop the admission report (loop -1 without a fresh 2500), s1/m1/v1 the
+    # settled report. Never a standstill claim.
+    Row("TRIAL_RELEASE", "TRIAL_RELEASE ", "summary",
+        "own:b row:u refusal:u word:x send:b experiment:b state:u outcome:u>releaseOutcome exec:u "
+        "completion:u>releaseCompletion uncertain:b>releaseUncertain observations:u wout:u ack:b s0:x m0:x v0:i "
+        "loop:i s1:x m1:x v1:i running:b alarm:b fault:b",
+        signals=(("health", "releaseOutcome"), ("health", "releaseCompletion"), ("health", "releaseUncertain")),
         per_node=True),
     Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
@@ -684,7 +694,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
                 "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
                 "loop": "loop", "mode-probe": "mode-probe", "position-change": "position-change",
-                "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt"}
+                "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt", "motor-release": "release"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 

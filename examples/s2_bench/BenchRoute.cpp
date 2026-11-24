@@ -113,8 +113,8 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
                              "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop", "mode-probe",
                              "position-change", "velocity-change", "velocity-nmt", "arm-move-pair", "arm-velocity-pair",
-                             "save"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::SAVE) + 1, "one name per route");
+                             "save", "release"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::RELEASE) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -149,6 +149,7 @@ int attendedCase(RouteKind kind) {
            : kind == RouteKind::SUBDIVISION     ? 4
            : kind == RouteKind::LOOP            ? 5
            : kind == RouteKind::SAVE            ? 16 // After MODE_PROBE's rows 6..15.
+           : kind == RouteKind::RELEASE         ? 17
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
@@ -407,6 +408,11 @@ constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(t
 // VELOCITY_TARGET: the one signed value; nothing else on the line is written.
 constexpr Field PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                   ROUTE_FIELD(velocityValue, PROBE_VALUE)};
+// RELEASE: the experiment flag and its word (0 or 6), then cycles and interval as the mode select's.
+constexpr Range RELEASE_WORD = {0, 6};
+constexpr Field RELEASE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                    ROUTE_FIELD(releaseExperiment, FLAG), ROUTE_FIELD(releaseWord, RELEASE_WORD),
+                                    ROUTE_FIELD(cycles, CYCLES), ROUTE_FIELD(intervalMs, MODE_INTERVAL)};
 // SAVE: nothing but the node, trial and attendance; the save writes only 2300=2.
 constexpr Field SAVE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG)};
 // SUBDIVISION: the one 2201 value; 2200 is read back, never written.
@@ -550,8 +556,10 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'a', RouteKind::ARM_MOVE_PAIR, ARM_MOVE_PAIR_FIELDS, countOf(ARM_MOVE_PAIR_FIELDS)},
                                 {'e', RouteKind::ARM_VELOCITY_PAIR, ARM_VELOCITY_FIELDS, countOf(ARM_VELOCITY_FIELDS)},
                                 // Prompt 57: `Ts`, one explicit save parameters.
-                                {'s', RouteKind::SAVE, SAVE_FIELDS, countOf(SAVE_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::SAVE), "one grammar per route");
+                                {'s', RouteKind::SAVE, SAVE_FIELDS, countOf(SAVE_FIELDS)},
+                                // Prompt 57: `Tr`, the release trials.
+                                {'r', RouteKind::RELEASE, RELEASE_FIELDS, countOf(RELEASE_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::RELEASE), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -760,6 +768,9 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::SAVE:
         // Identity, STATUS and MONITORS, MOTION_PARAMETERS, then the one 2300 download.
         return 9 + 5 + 3 + 1;
+    case RouteKind::RELEASE:
+        // CONTROL, the full read, the one word, at most the stated seven-field cycles and one of margin.
+        return 2 + 9 + 1 + 7u * (p.cycles + 1u);
     default:
         return ROUTE_TERMINALS + 1;
     }
@@ -803,6 +814,7 @@ uint32_t durationBound(const RoutePlan& p) {
         return p.deadlineMs + stop;
     case RouteKind::MODE_ONE:
     case RouteKind::MODE_THREE:
+    case RouteKind::RELEASE:
         return modeSelectSpanMs(p);
     case RouteKind::MODE_PROBE:
     case RouteKind::REARM:
@@ -944,6 +956,9 @@ bool routePlanValid(const RoutePlan& p) noexcept {
                              : p.rpm <= 3000);
     case RouteKind::HOME:
         return p.method == 17 || p.method == 18 || p.method == 24 || p.method == 29;
+    case RouteKind::RELEASE:
+        // The experiment's two words only; no word without the experiment.
+        return p.releaseExperiment ? p.releaseWord == 0 || p.releaseWord == 6 : p.releaseWord == 0;
     case RouteKind::ARM_MOVE: {
         // MOVE's own evidence rules, and a stop budget the console's stop requests can use whole.
         const bool base = p.relativeBase == 0 ? p.base == 0 : p.relativeBase == 1 ? p.base == p.startPosition : true;
@@ -1433,7 +1448,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.droppedBefore = r.droppedAfter = counters.rxDropped;
     r.unmatchedBefore = r.unmatchedAfter = counters.unmatchedFrames;
     r.lostBefore = r.lostAfter = counters.rxLost;
-    r.clearRequested = r.modeRequested = false;
+    r.clearRequested = r.modeRequested = r.releaseRequested = r.releaseLoopPresent = false;
+    r.releaseLoop = 0;
+    r.savePrepared = r.saveUncertain = false;
+    r.saveState = r.saveOutcome = r.saveExecution = r.saveAttempts = r.saveGuardsOff = 0;
     r.velocityRequested = false;
     r.velocityRequestedUs = 0;
     r.homeIdentity = r.homeDriverPresent = r.homeAdmitted = false;
@@ -1596,6 +1614,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     static const Step modeProbe[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL},
                                      {STEP_CHECK_MODE_PROBE, 0}, {STEP_MODE_WRITE, 0},
                                      {STEP_OBSERVE, OBSERVE_ALL}};
+    // CONTROL first, for the table's row 2 (2500=1), then the full read the release judges.
+    static const Step release[] = {{STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)}, {STEP_STATE, FULL}, {STEP_RELEASE, 0}};
     // The save's prerequisites, each kept in SaveWork as its read completes, then the save itself.
     static const Step save[] = {{STEP_IDENTITY, 0},
                                 {STEP_STATE, STOP_STATE},
@@ -1611,8 +1631,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
                                   subdivision, controlword, loop, modeProbe, positionChange, velocity, velocity,
-                                  armMovePair, armVelocityPair, save};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::SAVE) + 1,
+                                  armMovePair, armVelocityPair, save, release};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::RELEASE) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -2419,6 +2439,9 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_SAVE:
         serviceSave(now);
         return;
+    case STEP_RELEASE:
+        startRelease(now);
+        return;
     case STEP_OBSERVER_CHECK:
         if (!observerActive_ && !observerPending_ && !startObserverRead(FULL, now)) {
             finish(RouteFailure::INVALIDATED, "observer", now);
@@ -2564,6 +2587,13 @@ void BenchRoute::readDone(uint64_t now) noexcept {
         return;
     }
     readActive_ = false;
+    if (record_->plan.kind == RouteKind::RELEASE && steps_[stepIndex_].kind == STEP_GROUP) {
+        // The loop selector for the table's row 2; a failed or unpublished read leaves it absent, and that row
+        // then refuses.
+        record_->releaseLoopPresent =
+            currentTarget(target) && L::getControl(context_, target, now, ROUTE_OPERATION_US, releaseLoop_).isOk();
+        record_->releaseLoop = record_->releaseLoopPresent ? uint16_t(releaseLoop_.loopModeRaw) : 0;
+    }
     if (record_->plan.kind == RouteKind::SAVE && save_) {
         // Each prerequisite as the library takes it: the identity and state reads whole, the group read.
         const uint8_t kind = steps_[stepIndex_].kind;
@@ -3992,6 +4022,39 @@ void BenchRoute::startClear(uint64_t now) noexcept {
 // cycles, every interval, until 6061 reports the mode, at most the stated number of cycles within
 // modeSelectSpanMs. The route's check judged its reads; prepareModeSelect judges the later one again and
 // refuses a drive that reports itself enabled, other than its measured power-up report to mode 1.
+// RELEASE through the session (prompt 57): prepareRelease's table chooses the word from the fresh report, or
+// nothing for an already released one, and refuses every other report before TX. The line's experiment admits
+// 0x0000 or 0x0006 only where the library allows it. Then its own cycles, at most the stated number.
+void BenchRoute::startRelease(uint64_t now) noexcept {
+    const RoutePlan& p = record_->plan;
+    const C::NodeSnapshot* node = services_.node(slot());
+    C::ServiceEligibility eligibility;
+    if (!node || !C::serviceEligibility(*node, now, eligibility) || !eligibility.ordinarySdo)
+        return finish(RouteFailure::REFUSED, "eligibility", now);
+    L::ActionOptions options;
+    options.service.queueTimeoutUs = ROUTE_QUEUE_US;
+    options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
+    options.observationIntervalUs = uint64_t(p.intervalMs) * 1000;
+    options.maximumAgeUs = 7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US); // The library's floor.
+    const uint64_t deadline = now + uint64_t(modeSelectSpanMs(p)) * 1000;
+    if (deadline > cutoffUs_)
+        return finish(RouteFailure::REFUSED, "deadline", now);
+    L::ReleaseExperiment experiment;
+    experiment.enabled = p.releaseExperiment != 0;
+    experiment.word = p.releaseWord;
+    const M::Status status = axis().requestRelease(context_.read, record_->releaseLoopPresent ? &releaseLoop_ : nullptr,
+                                                   experiment, options, deadline, now);
+    if (!status) {
+        record_->statusPresent = true;
+        record_->statusCode = uint8_t(status.code);
+        record_->statusDetail = status.detail;
+        record_->statusMessage = status.msg ? status.msg : "";
+        return finish(RouteFailure::REFUSED, "release", now);
+    }
+    record_->releaseRequested = true;
+    record_->actionRequestedUs = now;
+    actionStarted_ = true;
+}
 void BenchRoute::startModeSelect(uint64_t now) noexcept {
     const RoutePlan& p = record_->plan;
     // The latest controlword recorded at admission must still be the latest, as for RELEASED_QUICK.
@@ -4224,6 +4287,21 @@ void BenchRoute::serviceObserver(uint64_t now) noexcept {
 }
 // The session advances its own action in ProbeApp::service; this only waits for it to end.
 void BenchRoute::serviceAction(uint64_t now) noexcept {
+    if (record_->releaseRequested) {
+        const L::ActionContext& c = axis().clearAction();
+        // As the mode select: at most the stated cycles, then a local withdrawal (no motor command); the word
+        // is never written again.
+        if (axis().clearActive() && c.phase == L::ActionPhase::WAITING && c.observations >= record_->plan.cycles)
+            axis().cancelClear(withdrawalTime(now), M::ActionOutcome::CANCELLED);
+        if (axis().clearActive())
+            return;
+        record_->cycles = uint16_t(c.observations > UINT16_MAX ? UINT16_MAX : c.observations);
+        if (endFailure_ != RouteFailure::NONE)
+            return finish(endFailure_, endWhy_, now);
+        // Settled only by the row's released report, never by the acknowledgement.
+        const bool ok = c.startedUs >= record_->actionRequestedUs && c.state == M::ActionState::SUCCEEDED;
+        return finish(ok ? RouteFailure::NONE : RouteFailure::ACTION, ok ? "none" : "release", now);
+    }
     if (record_->modeRequested) {
         const L::ActionContext& c = axis().clearAction();
         // At most the stated cycles: a select that waits for a further cycle after them is withdrawn locally
@@ -4526,8 +4604,10 @@ unsigned BenchRoute::summaryCount() const noexcept {
         count += r.plan.kind == RouteKind::SUBDIVISION || r.plan.kind == RouteKind::LOOP
                      ? 5
                      : 3 + (r.plan.kind == RouteKind::IO_DI3);
-    // SAVE: TRIAL_SAVE.
+    // SAVE: TRIAL_SAVE; RELEASE: TRIAL_RELEASE once requested.
     if (r.plan.kind == RouteKind::SAVE)
+        count += 1;
+    if (r.releaseRequested)
         count += 1;
     // TRIAL_OBSERVER, its check and last reads, and TRIAL_NODES.
     if (r.plan.kind == RouteKind::MOVE && r.plan.observer)
@@ -4616,6 +4696,14 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), unsigned(p.modeRaw), unsigned(p.cycles),
                        static_cast<unsigned long>(p.intervalMs));
+        case RouteKind::RELEASE:
+            // The fields in TRIAL_PLAN's order: cycles and interval, then the experiment's word and flag.
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u cycles=%u interval=%lu word=%04x "
+                       "experiment=%u\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), unsigned(p.cycles), static_cast<unsigned long>(p.intervalMs),
+                       unsigned(p.releaseWord), unsigned(p.releaseExperiment));
         case RouteKind::MODE_ONE:
         case RouteKind::MODE_THREE:
         case RouteKind::RELEASED_QUICK:
@@ -4900,6 +4988,29 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    unsigned(r.targetReadPresent), static_cast<long>(r.targetRead), unsigned(r.commandedKnown),
                    static_cast<long>(r.commanded), static_cast<unsigned long>(r.commandedTrial),
                    unsigned(r.commandedRelative), unsigned(r.witnessBasis), static_cast<long>(r.witnessPosition));
+    }
+    if (r.releaseRequested && !index--) {
+        // The session's release, raw: the table's row (1..4, 5 EXPERIMENT) and refusal, the word and whether one
+        // was sent, the context's state, outcome and execution, its cycles, the one word's terminal (wout 255
+        // when none is held), the admission report (s0, m0, v0, loop) and the settled report (s1, m1, v1). An
+        // already released report sends nothing; no line claims standstill.
+        const L::ActionContext& c = axis().clearAction();
+        const L::ReleaseRecord& x = c.release;
+        const bool held = (c.commandEvidenceMask & 1u) != 0;
+        return put(out, size,
+                   "TRIAL_RELEASE own=%u row=%u refusal=%u word=%04x send=%u experiment=%u state=%u outcome=%u exec=%u "
+                   "completion=%u uncertain=%u observations=%lu wout=%u ack=%u s0=%04x m0=%04x v0=%ld loop=%d s1=%04x "
+                   "m1=%04x v1=%ld running=%u alarm=%u fault=%u\n",
+                   unsigned(c.state != M::ActionState::EMPTY && c.startedUs >= r.actionRequestedUs),
+                   unsigned(x.decision.row), unsigned(x.decision.refusal), unsigned(x.decision.word),
+                   unsigned(x.decision.send), unsigned(p.releaseExperiment), unsigned(c.state), unsigned(c.outcome),
+                   unsigned(c.execution), unsigned(c.completion), unsigned(c.uncertain),
+                   static_cast<unsigned long>(c.observations), held ? unsigned(c.commandHistory[0].outcome) : 255u,
+                   unsigned(held && c.commandHistory[0].protocolAcknowledged), unsigned(x.startStatusword),
+                   unsigned(x.startMonitor), static_cast<long>(x.startVelocity),
+                   x.loopKnown ? int(x.loopModeRaw) : -1, unsigned(c.statusObservation.statusword),
+                   unsigned(c.monitorObservation.monitor), static_cast<long>(x.settledVelocity),
+                   unsigned(x.decision.running), unsigned(x.decision.alarm), unsigned(x.decision.fault));
     }
     if (p.kind == RouteKind::SAVE && !index--)
         // The save's result: the context's state, outcome and execution, its one attempt, the guards it ran

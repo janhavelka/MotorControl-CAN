@@ -126,6 +126,9 @@ struct FakeDrive {
     int32_t target = 5000, position = 0, velocity = 0, endpoint = 0, commanded = 0;
     uint32_t speed = 60, rampUp = 100, rampDown = 100;
     bool answer = true, acceptOnTrigger = true, clearCompletion = true, followEnable = false;
+    // Manufactured from the measured tables (prompt 57): a 6060 write sets 6061 (followMode), and word 6
+    // releases with low bits 001, as the release table's first row reports 8031/0011 (followRelease).
+    bool followMode = false, followRelease = false;
     bool commandedBase = false;
     bool mute = false; // Acts on every frame but its replies are lost: missing feedback.
     // Manufactured, no capture: the alarm raised at alarmAtRead also clears 6041 low bits in that
@@ -230,6 +233,10 @@ struct FakeDrive {
             const uint16_t low = w == 6 ? 1 : w == 7 ? 3 : 7;
             status = uint16_t((status & ~L::STATUS_LOW_BITS) | low);
         }
+        if (followRelease && w == 6) {
+            status = uint16_t((status & ~L::STATUS_LOW_BITS) | 1);
+            monitor = uint16_t(monitor | L::MONITOR_RELEASED);
+        }
         lastWord = w;
         ++words;
     }
@@ -285,6 +292,8 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
             drive.rampDown = value;
         else if (isWord)
             drive.word(word);
+        else if (index == 0x6060 && drive.followMode)
+            drive.mode = uint8_t(value);
         else if (index == 0x2301) {
             // Manufactured: the documented 1-then-0 clear ends the alarm. On 2026-11-13 it cleared FF05
             // 8 of 9 times on the bench and left 6041=8010, 2100=0001, which this fake does not model.

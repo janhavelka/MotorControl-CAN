@@ -23,7 +23,8 @@ NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning",
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop", "n": "velocity-nmt"}
+          "V": "velocity", "O": "home", "F": "velocity-target", "K": "subdivision", "T": "controlword", "l": "loop", "n": "velocity-nmt",
+          "r": "release"}
 # Protocol 6's routes, protocol 8's F, protocol 9's K, protocol 11's T and protocol 13's l. `bench_route_test --transcript` prints
 # the earlier ones only; `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names
 # them (see check_trial_transcript).
@@ -2864,6 +2865,94 @@ class BenchTest(unittest.TestCase):
         board.routes = 12
         status, _, err = self.run_main(loop(1, trial="70"), Backend(board), Operator("ATTENDED 70", "none"))
         self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"), err)
+
+    def test_release_line_bounds_dry_run_and_campaign(self):
+        self.caps = True  # These cases test the optional --motion-caps guard.
+        def release(*extra, node="1", trial="40", cycles="3", interval="200"):
+            return ["--command", "motor-release", "--node", node, "--trial", trial, "--cycles", cycles,
+                    "--interval-ms", interval] + list(extra)
+        # The firmware's grammar (BenchRoute.cpp RELEASE_FIELDS): node, trial, attended, the experiment flag, its
+        # word, cycles and interval, after the lowercase route letter r.
+        for extra, line in (((), "Tr1,40,1,0,0,3,200"), (("--experiment", "--word", "0"), "Tr1,40,1,1,0,3,200"),
+                            (("--experiment", "--word", "0x0006"), "Tr1,40,1,1,6,3,200")):
+            args, fields = bench.arguments(BASE + release(*extra) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (2 + 9 + 1 + 7 * 4, 2800 + 3 * 200))
+            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+            bench.check_bounds(args.command, fields)
+        self.assertEqual(bench.TRIALS["motor-release"][0], "r")
+        self.assertEqual(bench.COMMANDS["release"], b"r")  # The record release keeps its name.
+        self.assertEqual(len({letter for letter, _, _ in bench.TRIALS.values()}), len(bench.TRIALS))
+        self.assertIn("r", bench.SETTINGS_LETTERS)
+        self.assertNotIn("r", bench.MOTION_ROUTES)
+        self.assertEqual(evidence.TRIAL_ROUTES["motor-release"], "release")
+        self.assertNotEqual(evidence.EXPECTED["release"].family, "TRIAL")  # Still the record release.
+        # The library's limits, refused by the parser before anything is sent: only 0x0000 and 0x0006 with the
+        # experiment, no word without it, the route's cycle and interval ranges.
+        for argv, text in ((release("--experiment", "--word", "0x0080"), "--word 0x0080 is refused"),
+                           (release("--experiment", "--word", "7"), "--word 0x0007 is refused"),
+                           (release("--experiment", "--word", "0x000F"), "--word 0x000F is refused"),
+                           (release("--experiment"), "--word is required with --experiment"),
+                           (release("--word", "6"), "--word belongs to motor-release only with --experiment"),
+                           (release(cycles="0"), "--cycles must be 1..16"),
+                           (release(cycles="17"), "--cycles must be 1..16"),
+                           (release(interval="99"), "--interval-ms must be 100..5000"),
+                           (MODE3 + ["--experiment"], "--experiment belongs to motor-release"),
+                           (release("--range-probe"), "--range-probe belongs to velocity"),
+                           (release(node="3"), "--node must be 1..2")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        # Attended and counted like the settings routes: the campaign is required.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + release() + ["--output", "x"])
+        # The dry run touches nothing and states the table, the experiment and the bound.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + release("--experiment", "--word", "6") + ["--dry-run", "--campaign",
+                                                                                str(self.ledger)],
+                                Untouchable(), Clock(), Operator())
+        self.assertEqual(status, 0)
+        text = out.getvalue()
+        for part in ("require the operator to type: ATTENDED 40", "at most 40 terminals of 128 and 3400 ms",
+                     "the library's release table chooses the word", "experiment: word 0x0006",
+                     "never a stop, never a standstill claim", "routes=16",
+                     repr(signed("Tr1,40,1,1,6,3,200").encode("ascii"))):
+            self.assertIn(part, text)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # One send: the attended confirmation only, a settings entry with no motion weight, then the record.
+        board = Board()
+        operator = Operator("ATTENDED 40")
+        status, _, err_text = self.run_main(release(), Backend(board), operator)
+        self.assertIn(status, (0, 1), err_text)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("Tr1,40,1,0,0,3,200").encode()])
+        self.assertEqual(len(operator.questions), 1)
+        self.assertEqual(self.meta()["plan"], "prompt 57 release table")
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("r", 0, 0, 1)])
+        # Three per node across boots; node 2 has its own count.
+        self.write_ledger([dict(send_entry("r", 1, n, 0), settings=1) for n in (1, 2, 3)])
+        self.clear_output()
+        board = Board()
+        status, _, err_text = self.run_main(release(trial="60"), Backend(board), Operator("ATTENDED 60"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("motor-release admissions on node 1, the cap is 3", err_text)
+        self.assertEqual(board.writes, [])
+
+    def test_release_record_reads_through_the_evidence_parser(self):
+        # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's).
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_PLAN route=release node=1 trial=2 attended=1 cycles=3 interval=200 word=0000 experiment=0\n"
+            b"TRIAL_RELEASE own=1 row=1 refusal=0 word=0006 send=1 experiment=0 state=2 outcome=1 exec=1 completion=1 "
+            b"uncertain=0 observations=1 wout=0 ack=1 s0=8037 m0=0001 v0=0 loop=1 s1=8031 m1=0011 v1=0 running=0 "
+            b"alarm=0 fault=0\n")
+        self.assertEqual([(r.kind, r.status, r.extra) for r in lines],
+                         [("TRIAL_PLAN", "parsed", {}), ("TRIAL_RELEASE", "parsed", {})])
+        self.assertEqual((lines[0].values["route"], lines[0].values["experiment"]), ("release", 0))
+        self.assertEqual((lines[1].values["row"], lines[1].values["word"], lines[1].values["send"]), (1, 6, 1))
+        self.assertEqual((lines[1].values["s1"], lines[1].values["m1"], lines[1].values["loop"]), (0x8031, 0x11, 1))
 
     def test_loop_record_reads_through_the_evidence_parser(self):
         # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's): the

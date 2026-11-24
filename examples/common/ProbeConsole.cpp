@@ -44,6 +44,7 @@ enum Command {
     MOVE,
     VELOCITY,
     HOME,
+    MODE,
     ENABLE,
     STOP,
     MOTOR_RELEASE,
@@ -134,7 +135,8 @@ const ConsoleCommand commands[] = {
      "Consume the exact externally reviewed heartbeat plan; no arbitrary interval or route change.",
      nullptr, 41},
     {"persistence",
-     "persistence save parameters [TIMEOUT_MS] | persistence restore factory settings [TIMEOUT_MS]",
+     "persistence save parameters [TIMEOUT_MS] | persistence restore factory settings [without-backup] "
+     "[TIMEOUT_MS]",
      "ProbeCommissioning::startPersistence/prepareSave/prepareFactoryRestore",
      "own fresh reads and default guards, or an armed reviewed plan", E::DEVICE_ACTION,
      C::ASYNCHRONOUS, "One explicit intent; ACK is not durability, restart or rollback.",
@@ -162,16 +164,19 @@ const ConsoleCommand commands[] = {
      "exact method, input, parameter and completion qualification", E::DEVICE_ACTION,
      C::ASYNCHRONOUS, "Inspect methods or explicitly request qualified zero-offset homing.",
      nullptr, 42},
-    {"enable", "enable", "ProbeMotion::requestEnable", "explicit per-firmware enable evidence",
-     E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Request reviewed enable; never implied by motion or startup.", nullptr, 42},
+    {"mode", "mode AXIS_ID 1|3|6", "ProbeMotion::requestModeSelect/prepareModeSelect",
+     "named fresh not-enabled or power-up report", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Select a documented mode with one 6060 write; never enables.", nullptr, 57},
+    {"enable", "enable AXIS_ID", "ProbeMotion::requestEnable/prepareEnable",
+     "named fresh report and identity, or explicit trial evidence", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Regular measured mode 1 enable from the fresh report; never implied by motion or startup.", nullptr, 57},
     {"stop", "stop normal|fast | stop ID|all [normal|fast]", "ProbeMotion::requestStop/GroupStop",
      "explicit bounded stop policy", E::DEVICE_ACTION, C::ASYNCHRONOUS,
      "Request HALT or QUICK_STOP per axis; ID/all default fast, each result stays independent.", nullptr, 53},
-    {"motor-release", "motor-release", "no reviewed bus-release command",
-     "missing native release semantics", E::DEVICE_ACTION, C::ASYNCHRONOUS,
-     "Release drive power only with reviewed semantics.",
-     "No manual documents a bus release command (D-17); prompt 42 retains this gate.", 42},
+    {"motor-release", "motor-release AXIS_ID", "ProbeMotion::requestRelease/prepareRelease",
+     "named fresh report; the measured release table", E::DEVICE_ACTION, C::ASYNCHRONOUS,
+     "Free the shaft with the table's one word; not a stop, no standstill claim. release ID frees a result.",
+     nullptr, 57},
     {"subdivision", "subdivision [INTEGER|options]", "typed driver settings",
      "model/firmware-specific scale", E::DEVICE_SETTING, C::ASYNCHRONOUS,
      "Inspect or request reviewed subdivision.",
@@ -1309,12 +1314,18 @@ void ProbeConsole::poll(uint64_t now) noexcept {
                              "\"retry_class\":\"%s\"",
                              boolean(c->writeAcknowledged), boolean(c->readbackMatched),
                              unsigned(c->outcome), static_cast<long>(c->status.detail), retryLabel(c->retryClass));
-                else if (const auto* c = commissioning_->persistence())
+                else if (const auto* c = commissioning_->persistence()) {
                     body.add(",\"execution_code\":%u,\"attempts\":%u,\"durability_known\":false,"
                              "\"restart\":null,\"native_outcome_code\":%u,\"status_detail\":%ld,"
-                             "\"retry_class\":\"%s\"",
+                             "\"retry_class\":\"%s\",\"guards_off\":",
                              unsigned(c->execution), unsigned(c->attempts), unsigned(c->outcome),
                              static_cast<long>(c->status.detail), retryLabel(c->retryClass));
+                    // Prompt 57: the guards the command ran without; null when it was never prepared.
+                    if (c->state == L::PersistenceState::EMPTY)
+                        body.add("null");
+                    else
+                        body.add("%u", unsigned(c->guardsOff));
+                }
                 else if (const auto* c = commissioning_->pdo())
                     body.add(",\"acknowledged_mask\":%u,\"map_confirmed\":%s,\"samples_qualified\":"
                              "false,\"native_outcome_code\":%u,\"status_detail\":%ld,\"retry_class\":\"%s\"",
@@ -1456,6 +1467,7 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
         equal(name, "moveto") || equal(name, "speed") || equal(name, "accel") ||
         equal(name, "decel") || equal(name, "stepsperturn") || equal(name, "velocity") ||
         equal(name, "home") || equal(name, "enable") || equal(name, "alarm-clear") ||
+        equal(name, "mode") || equal(name, "motor-release") ||
         equal(name, "position-clear") || stop ||
         (equal(name, "axis") && equal(line.token(1), "origin") && selectedMotion())) {
         dispatchMotion(line, now);
@@ -2582,7 +2594,7 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                 end = 3;
             else if (equal(line.token(1), "restore") && equal(line.token(2), "factory") &&
                      equal(line.token(3), "settings"))
-                end = 4;
+                end = equal(line.token(4), "without-backup") ? 5 : 4;
             else {
                 reject("explicit_save_parameters_or_restore_factory_settings_required");
                 return;
@@ -2629,12 +2641,21 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
             const auto* c = commissioning_->persistence();
             const auto expected =
                 end == 3 ? L::PersistenceKind::SAVE : L::PersistenceKind::FACTORY_RESTORE;
+            // Prompt 57: `without-backup` clears the restore's backup guard explicitly; the result names it
+            // in guards_off. It applies only to a restore this console prepares.
+            const bool withoutBackup = end == 5;
+            if (withoutBackup && !selfPrepared) {
+                reject("without_backup_applies_to_a_console_prepared_restore");
+                return;
+            }
             if (selfPrepared) {
-                // The library's default guards: none for a save, the backup guard for a restore, which
-                // this console cannot name, so a restore needs an armed context with its backup record.
+                // The library's default guards: none for a save, the backup guard for a restore, which this
+                // console cannot name a record for; `without-backup` clears that guard instead.
                 PersistencePlan plan;
                 plan.review.target = commissioning_->target();
                 plan.review.kind = expected;
+                if (withoutBackup)
+                    plan.review.guards = 0;
                 if (device_)
                     plan.reads = device_->readOptions(L::ReadKind::IDENTITY);
                 else

@@ -432,14 +432,42 @@
           }
         },
         {
+          "command": "mode",
+          "entry": "prepareModeSelect",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp",
+            "examples/common/AxisSession.cpp"
+          ],
+          "api": "ProbeMotion::requestModeSelect/prepareModeSelect",
+          "dispatch": "ProbeMotion::requestModeSelect",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
           "command": "enable",
           "entry": "prepareEnable",
           "implementation": [
             "examples/common/ProbeMotion.cpp",
             "examples/common/AxisSession.cpp"
           ],
-          "api": "ProbeMotion::requestEnable",
+          "api": "ProbeMotion::requestEnable/prepareEnable",
           "dispatch": "ProbeMotion::requestEnable",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "motor-release",
+          "entry": "prepareRelease",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp",
+            "examples/common/AxisSession.cpp"
+          ],
+          "api": "ProbeMotion::requestRelease/prepareRelease",
+          "dispatch": "ProbeMotion::requestRelease",
           "console_dispatch": {
             "path": "examples/common/ProbeConsoleMotion.cpp",
             "function": "ProbeConsole::dispatchMotion"

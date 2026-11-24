@@ -403,6 +403,15 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
         motion = motionForAxis(uint32_t(explicitAxis));
         stopKind = line.count == 2 ? "fast" : line.token(2);
     }
+    // Prompt 57: these name their axis; `release ID` (a retained result) is a separate command, and nothing
+    // here infers one from the other or from which IDs exist.
+    const bool axisCommand = eq(name, "mode") || eq(name, "enable") || eq(name, "motor-release");
+    bool axisNamed = false;
+    if (axisCommand) {
+        uint64_t axisId = 0;
+        axisNamed = positiveInteger(line.token(1), axisId) && axisId <= UINT32_MAX;
+        motion = axisNamed ? motionForAxis(uint32_t(axisId)) : nullptr;
+    }
     if (ProbeMotion* changed = motionForChange(line))
         motion = changed;
     const unsigned intentSlot = motionSlot(motion);
@@ -448,8 +457,10 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
         }
     } else {
         if (!motion) {
-            reject(M::Status(M::Err::UNSUPPORTED, 0,
-                             "attach_actual_axis_and_explicit_native_prerequisites"));
+            reject(axisCommand && !axisNamed ? syntax
+                   : axisCommand ? M::Status(M::Err::INVALID_CONFIG, 0, "axis_id_of_an_attached_axis_required")
+                                 : M::Status(M::Err::UNSUPPORTED, 0,
+                                             "attach_actual_axis_and_explicit_native_prerequisites"));
             return;
         }
         const M::AxisConfig& axis = motion->axisConfig();
@@ -623,10 +634,17 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                     (eq(stopKind, "normal") || eq(stopKind, "fast")))
                     status = motion->requestStop(
                         stopSlot == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP, now);
-            } else if (line.count == 1) {
-                if (eq(name, "enable"))
+            } else if (axisCommand) {
+                // The library judges the mode code: 1, 3 and 6 are documented, every other is refused there.
+                uint64_t mode = 0;
+                if (eq(name, "enable") && line.count == 2)
                     status = motion->requestEnable(now, cutoff);
-                else if (eq(name, "alarm-clear"))
+                else if (eq(name, "motor-release") && line.count == 2)
+                    status = motion->requestRelease(now, cutoff);
+                else if (eq(name, "mode") && line.count == 3 && positiveInteger(line.token(2), mode) && mode <= 255)
+                    status = motion->requestModeSelect(uint8_t(mode), now, cutoff);
+            } else if (line.count == 1) {
+                if (eq(name, "alarm-clear"))
                     status = motion->requestAlarmClear(now, cutoff);
                 else if (eq(name, "position-clear"))
                     status = motion->requestPositionClear(0, now, cutoff);
@@ -902,6 +920,10 @@ bool ProbeConsole::motionTerminal(Operation& op) noexcept {
                      : result->retryClass == M::RetryClass::IDEMPOTENT_SETTING ? "W"
                                                                                 : "N");
         body.add(",\"axis_id\":%lu", static_cast<unsigned long>(op.axisId));
+        // Prompt 57: whether the operation ran on a firmware its reference was not made on; null for one
+        // that compares no identity (a mode select, release, clear or stop).
+        body.add(",\"firmware_unqualified\":%s",
+                 matched && result->identityCompared ? truth(result->firmwareUnqualified) : "null");
         if (stopped)
             body.add(",\"stop_path_code\":%u,\"superseded\":%s", unsigned(stopped->path),
                      truth(stopped->superseded));

@@ -137,6 +137,15 @@ TRIAL_SUBDIVISION the write's terminal; TRIAL_SETTINGS holds the configuration e
 attended and counted like the settings routes, three per node, with no motion weight. A value outside the
 range is refused before anything is sent.
 
+motor-release (prompt 57, `Tr`; `release` stays the record release `r`) runs the library's release from its measured table (AxisSession::requestRelease): a
+fresh 2500/2501 read for the table's row 2 and a fresh full read, then one 6040 word the table chooses (0x0006, 0x0000
+or 0x0080), nothing for an already released report, and refusal before any write of every other report. --experiment
+with --word 0x0000 or 0x0006 sets the library's ReleaseExperiment, admitted only for an unmeasured report or another
+word than the row's, never over an alarm, running or a released report; any other word, or a word without
+--experiment, is refused here before anything is sent. Then at most --cycles (1..16) cycles --interval-ms (100..5000)
+apart until the row's released report (TRIAL_RELEASE). Never a stop, never a standstill claim, never resent. It is
+attended and counted like the settings routes: three per node, no motion weight.
+
 loop (protocol 13, backlog S21) writes one volatile 2500 loop selector, --value 0 (noneffective), 1 (open loop) or
 2 (closed loop) (EN86/ZH86 p19), through the library's prepareControlSettings, like subdivision: a fresh 2500/2501
 read, a clean STATUS and MONITORS read, the one 2500 download and the library's 2500/2501 readback, then one more
@@ -228,6 +237,9 @@ TRIALS = {
     "position-change": ("p", True, "prompt52 finite position-change experiment"),
     "velocity-change": ("v", True, "prompt52 finite positive velocity-change experiment"),
     "velocity-nmt": ("n", True, "prompt54 finite velocity with addressed NMT STOP and PREOP"),
+    # Prompt 57: the release trials, one word from the library's measured release table (or the explicit
+    # experiment's 0x0000 or 0x0006) and its cycles. It frees the shaft without motion: a settings route.
+    "motor-release": ("r", False, "prompt 57 release table"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -235,7 +247,12 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # Attended routes that are not motion: one send counts one case, never motion weight. The two settings
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
-SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop", "mode-probe")
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop", "mode-probe",
+                   "motor-release")
+# release's experiment words, as LICHUAN_C::ReleaseExperiment admits them: 0x0000 and 0x0006, nothing else.
+RELEASE_EXPERIMENT_WORDS = (0x0000, 0x0006)
+RELEASE_CYCLES = (1, 16)  # BenchRoute.cpp RELEASE_FIELDS: CYCLES and MODE_INTERVAL.
+RELEASE_INTERVAL_MS = (100, 5000)
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
@@ -588,6 +605,19 @@ def trial_line(args, parser):
         fields += [1, _within(parser, "value", args.value, *SUBDIVISION_RANGE)]
     elif args.command == "loop":
         fields += [1, _within(parser, "value", args.value, *LOOP_RANGE)]
+    elif args.command == "motor-release":
+        # Without --experiment the library's table alone chooses the word, so none is given; with it only the
+        # library's two experiment words, refused here before anything is sent otherwise.
+        if args.experiment and args.word is None:
+            parser.error("--word is required with --experiment: 0x0000 or 0x0006")
+        if not args.experiment and args.word is not None:
+            parser.error("--word belongs to motor-release only with --experiment; the measured table chooses the word")
+        word = args.word if args.experiment else 0
+        if word not in RELEASE_EXPERIMENT_WORDS:
+            parser.error("--word 0x%04X is refused: the release experiment writes 0x0000 or 0x0006 only "
+                         "(LICHUAN_C::ReleaseExperiment)" % (word & 0xFFFFFFFF))
+        fields += [1, 1 if args.experiment else 0, word, _within(parser, "cycles", args.cycles, *RELEASE_CYCLES),
+                   _within(parser, "interval-ms", args.interval_ms, *RELEASE_INTERVAL_MS)]
     elif args.command in ("counter-zero", "clear-alarm"):
         fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
                    _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
@@ -667,8 +697,10 @@ def trial_line(args, parser):
         parser.error("--method belongs to home and clear-alarm")
     if args.command not in ("velocity-target", "subdivision", "loop") and args.value is not None:
         parser.error("--value belongs to velocity-target, subdivision and loop")
-    if args.command != "controlword" and args.word is not None:
-        parser.error("--word belongs to controlword")
+    if args.command not in ("controlword", "motor-release") and args.word is not None:
+        parser.error("--word belongs to controlword and motor-release")
+    if args.command != "motor-release" and args.experiment:
+        parser.error("--experiment belongs to motor-release")
     if args.command != "velocity" and args.range_probe:
         parser.error("--range-probe belongs to velocity")
     if args.command != "velocity" and args.reverse:
@@ -730,6 +762,11 @@ def plan_bounds(command, fields):
         return 2 + 5 + 1 + 2 + 2, 0  # DRIVER, STATUS and MONITORS, the 2201 write, the readback, DRIVER again.
     if command == "loop":
         return 2 + 5 + 1 + 2 + 2, 0  # CONTROL, STATUS and MONITORS, the 2500 write, the readback, CONTROL again.
+    if command == "motor-release":
+        cycles, interval = fields[5:7]
+        # CONTROL (2500, 2501), the full read, the one word, at most the stated seven-field cycles and one of
+        # margin, within the mode select's span (BenchRoute.cpp terminalBound and durationBound).
+        return 2 + 9 + 1 + 7 * (cycles + 1), MODE_SELECT_BUDGET_MS + cycles * interval
     if command == "mode1":
         cycles, interval = fields[3:5]
         # The readiness reads less their image, a second full read, then the typed mode select (prompt 57): its
@@ -1624,6 +1661,17 @@ def dry_run(args, fields):
                   "2200/2201 read at the advanced configuration epoch; 2200 never written; no 6040, no enable, no "
                   "save, no retry; when the drive applies the value is unmeasured (Q04)" %
                   (" ".join("%02X" % byte for byte in fields[3].to_bytes(2, "little") + b"\0\0"), fields[3]))
+        if args.command == "motor-release":
+            print("  prompt 57: one fresh 2500/2501 read for the table's row 2 and one fresh full read; the library's "
+                  "release table chooses the word (0x0006 from the power-up report, 0x0000 from mode 3 8033/0001 with "
+                  "a fresh 2500=1, 0x0080 from 8010/0001), sends nothing for an already released report and refuses "
+                  "every other report before any write")
+            if fields[3]:
+                print("  experiment: word 0x%04X, admitted only for an unmeasured report or another word than the "
+                      "row's, never over an alarm, running or a released report; the result is marked EXPERIMENT"
+                      % fields[4])
+            print("  then at most %d STATUS/MONITORS/FEEDBACK cycles %d ms apart until the row's released report; "
+                  "never a stop, never a standstill claim, no second word, no retry" % (fields[5], fields[6]))
         if args.command == "loop":
             print("  protocol 13, 2500: one fresh 2500/2501 read and a clean STATUS and MONITORS read; the library "
                   "refuses 2100 running, an alarm or an undocumented bit, and closed loop while 2501 reads 0, and the "
@@ -1713,7 +1761,11 @@ def arguments(argv):
                                      "reports low bits 000 (0x0000 also from 001 or 011); also --cycles 1..10 and "
                                      "--interval-ms 100..2000")
     word.add_argument("--word", type=lambda text: int(text, 0),
-                      help="the one 6040 word, only %s" % ", ".join("0x%04X" % w for w in sorted(CONTROLWORDS)))
+                      help="controlword: the one 6040 word, only %s; motor-release: the experiment's word, 0x0000 or "
+                           "0x0006" % ", ".join("0x%04X" % w for w in sorted(CONTROLWORDS)))
+    word.add_argument("--experiment", action="store_true",
+                      help="motor-release: set LICHUAN_C::ReleaseExperiment with --word; without it the measured table "
+                           "chooses the word")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))

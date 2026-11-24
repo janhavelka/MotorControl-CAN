@@ -16,7 +16,9 @@ enum class MotionKind : uint8_t {
     ALARM_CLEAR,    ///< Explicit native alarm clear.
     POSITION_CLEAR, ///< Device counter zero, not host origin.
     STOP_NORMAL,    ///< Explicit normal stop request.
-    STOP_FAST       ///< Explicit fast stop request, possibly superseding normal.
+    STOP_FAST,      ///< Explicit fast stop request, possibly superseding normal.
+    MODE_SELECT,    ///< Typed 6060 mode select (prompt 57); never enables.
+    RELEASE         ///< Release from the measured table (prompt 57); never a stop or standstill claim.
 };
 /** Small owned arithmetic projection. Native getters retain the complete typed preparation. */
 struct MotionValue {
@@ -51,6 +53,12 @@ struct MotionResult {
     MotorControlCAN::ActionCompletion completion =
         MotorControlCAN::ActionCompletion::NOT_OBSERVED; ///< Qualified controller observation only.
     bool uncertain = false;   ///< Retained possible write/read/motion effects.
+    /** The operation compared a current identity read (prompt 57): moves, velocity, homing and enable. False
+     * for a mode select, release, clear or stop, which compare none. */
+    bool identityCompared = false;
+    /** identityCompared only: firmware fields (1009, 100A, 1018:03, 2001) differ from the reference the
+     * operation's qualification was made on; it ran regardless. The native context keeps both tuples. */
+    bool firmwareUnqualified = false;
     /** The native context's retry class (prompt 55), copied for an application's repeat policy; the
      * library never repeats work. MOTION_LIKE for moves, velocities, homing and enables. */
     MotorControlCAN::RetryClass retryClass = MotorControlCAN::RetryClass::NOT_REPEATABLE;
@@ -194,6 +202,20 @@ class ProbeMotion {
                            const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
                            const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
                            const MotorControlCAN::LICHUAN_C::ActionOptions& options) noexcept;
+    /** Name the fresh report of the regular commands (prompt 57): requestModeSelect, requestRelease, and
+     * requestEnable when no explicit enable evidence is named, which then runs EnableGate::MEASURED in mode 1
+     * under the session's next operation. Nothing here reads, enables or selects.
+     * @param state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK, borrowed until replaced
+     * or consumed by a successful request. @param identity Current identity read, borrowed likewise; the
+     * enable compares it (prepareEnable). @param loop Optional fresh CONTROL observation, copied, for the
+     * release table's row 2 (2500=1); null for none. @param options Copied budgets: maximumAgeUs covering nine
+     * fields and commandIntervalUs at least ENABLE_WORD_INTERVAL_US serve all three.
+     * @return Same atomic setter contract as moves. */
+    MotorControlCAN::Status
+    setActionPrerequisites(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                           const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                           const MotorControlCAN::LICHUAN_C::ControlObservation* loop,
+                           const MotorControlCAN::LICHUAN_C::ActionOptions& options) noexcept;
     /** Name acquired clear prerequisites, without reading error history or manufacturing idle.
      * @param state Acquired native prerequisites. @param options Copied budgets.
      * @return Same atomic setter contract as moves. */
@@ -246,6 +268,16 @@ class ProbeMotion {
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
      * @return Atomic native/local preparation status. */
     MotorControlCAN::Status requestEnable(uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Dispatch the typed mode select (AxisSession::requestModeSelect) from the named action report.
+     * @param modeRaw 1, 3 or 6. @param nowUs Supplied microseconds. @param deadlineUs Exclusive cutoff.
+     * @return Native/local status; a mode the report already shows succeeds with nothing sent. */
+    MotorControlCAN::Status requestModeSelect(uint8_t modeRaw, uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** Dispatch the release from the measured table (AxisSession::requestRelease) from the named action
+     * report, with no experiment option. Never a stop, never a standstill claim, never resent.
+     * @param nowUs Supplied microseconds. @param deadlineUs Exclusive cutoff.
+     * @return Native/local status: the table's refusal reason, or OK with the row's word to come or nothing
+     * sent for an already released report. */
+    MotorControlCAN::Status requestRelease(uint64_t nowUs, uint64_t deadlineUs) noexcept;
     /** Dispatch explicit alarm clear, retaining an unresolved value-1 effect. Uses
      * AxisSession::requestClearAlarm's default method, AlarmClearMethod::CONTROLWORD_BIT7 (6040 0x0080,
      * then 0x0000); no console grammar selects OBJECT_2301.
@@ -344,7 +376,12 @@ class ProbeMotion {
     const MotorControlCAN::LICHUAN_C::IdentityObservation *moveIdentity_ = nullptr,
                                                           *velocityIdentity_ = nullptr,
                                                           *homeIdentity_ = nullptr,
-                                                          *enableIdentity_ = nullptr;
+                                                          *enableIdentity_ = nullptr,
+                                                          *actionIdentity_ = nullptr;
+    const MotorControlCAN::LICHUAN_C::ReadContext* actionState_ = nullptr;
+    MotorControlCAN::LICHUAN_C::ControlObservation actionLoop_;
+    bool actionLoopPresent_ = false;
+    MotorControlCAN::LICHUAN_C::ActionOptions actionOptions_;
     const MotorControlCAN::LICHUAN_C::DriverContext *stored_ = nullptr, *inputs_ = nullptr,
                                                     *driver_ = nullptr;
     MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;

@@ -108,7 +108,8 @@ product fields that differ from `measuredIdentity()` refuse, firmware fields tha
 flagged firmware unqualified in `EnableRecord::identity`.
 `1001`, `603F` and `606C` must read zero. No trial identity, expiry, reservation copy, shaft observation,
 reviewed value, retained stop record or per-boot word history is consulted: `AxisSession` needs only a
-report taken after its own latest write. `607A` and `60FF` are still read once before any word and
+report taken after its own latest write; the console's `enable AXIS_ID` runs it on the report and identity the
+application names (`ProbeMotion::setActionPrerequisites`). `607A` and `60FF` are still read once before any word and
 kept, not compared: no mode 1 enable of the record started motion from a retained target. A caller may
 name `RELEASED` or `POWER_UP` to require that class. Any other report, such as the switched-on
 `8033`/`0001` of backlog S21, and mode 6 stay with `EnableGate::ATTENDED_EXPERIMENT`, which keeps every
@@ -350,7 +351,8 @@ enable's success does not satisfy them by itself.
 and settles only on the drive's own mode report. It runs through the ordinary `nextAction`,
 `noteActionTransmission` and `advanceAction` lifecycle; `AxisSession::requestModeSelect` runs it
 through the sole owner in the session's explicit-action slot, which it shares with the alarm and
-counter clears.
+counter clears. The console reaches it as `mode AXIS_ID 1|3|6` (`ProbeMotion::requestModeSelect`, on
+the report the application names); the bench as the `mode1` and `mode3` routes.
 
 | Item | Rule | Basis |
 | --- | --- | --- |
@@ -372,6 +374,10 @@ this operation since prompt 57, judged on their fresh reads alone: the earlier p
 refused a mode change after any controlword or write of the boot, is gone.
 
 ## Release: the measured release table (prompt 57)
+
+Reached from the console as `motor-release AXIS_ID` (`ProbeMotion::requestRelease`, on the report the
+application names) and from the bench as the `release` route (`Tr`, with the experiment option); `release
+ID` stays the console's retained-result command and sends no frame.
 
 `prepareRelease` in `Actions.h` (`ActionKind::RELEASE`, the MotorControl-RS name) frees the shaft by the
 release table: one `6040` word chosen by the fresh report, settled only by the drive's own released

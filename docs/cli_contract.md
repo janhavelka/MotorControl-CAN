@@ -297,13 +297,15 @@ actual route/session and width evidence separately. Startup still sends nothing.
 `communication heartbeat 1000 [TIMEOUT_MS]` consumes an externally armed,
 pristine `CommunicationContext`, prepared at the same supplied time and immutable
 cutoff. It supports only native raw0 to1000. `persistence save parameters
-[TIMEOUT_MS]` and `persistence restore factory settings [TIMEOUT_MS]` consume an
+[TIMEOUT_MS]` and `persistence restore factory settings [without-backup] [TIMEOUT_MS]` consume an
 armed matching `PersistenceContext`; a wrong intent rejects before owner
 admission. With nothing armed (prompt 57) the console prepares its own context
 through `ProbeCommissioning::startPersistence`: fresh identity, STATUS/MONITORS and
 `MOTION_PARAMETERS` reads, then the library's preparation with its default guards.
 A save is admitted with every review guard off and the result names them; a
-restore keeps its backup guard and is refused before any read. A failed read or
+restore keeps its backup guard and is refused before any read, unless the explicit
+`without-backup` clears it, which the terminal records in `guards_off` (31: every
+guard off); the option is refused for an armed context. A failed read or
 preparation is the terminal `PERSISTENCE_PREPARATION_FAILED`, nothing written. `pdo apply map3-to-map2 [TIMEOUT_MS]` or `pdo apply timer 0|100
 [TIMEOUT_MS]` consume only the corresponding exact TPDO1 preparation, not a map
 editor. `pdo SLOT` remains cached inspection. All three require an attached
@@ -388,7 +390,10 @@ paths as a direct native caller. The installed core has no parser or scheduler.
 | `velocity read` | Ordinary typed `VELOCITY_TARGET` read | Explicit upload plan; Q20 whole-plan gate applies |
 | `home read` | Ordinary typed `HOMING` read | Explicit upload plan; Q20 whole-plan gate applies |
 | `home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero` | `requestHome` | Qualified native method; retained asynchronous operation |
-| `enable`, `alarm-clear`, `position-clear` | Native action via `ProbeMotion` / `AxisSession` | Explicit device action; retained asynchronous operation |
+| `mode AXIS_ID 1\|3\|6` | `ProbeMotion::requestModeSelect` / `prepareModeSelect` (prompt 57) | One `6060` write on the named fresh report, settled by `6061`; the library refuses every other code and an enabled drive; never enables |
+| `enable AXIS_ID` | `ProbeMotion::requestEnable` / `prepareEnable` | The regular measured mode 1 enable from the named fresh report and identity (`EnableGate::MEASURED`), or explicitly named trial evidence; retained asynchronous operation |
+| `motor-release AXIS_ID` | `ProbeMotion::requestRelease` / `prepareRelease` (prompt 57) | The release table's one word on the named fresh report, or nothing for an already released one; not a stop, never a standstill claim, never resent |
+| `alarm-clear`, `position-clear` | Native action via `ProbeMotion` / `AxisSession` | Explicit device action; retained asynchronous operation |
 | `stop normal`, `stop fast` | `ProbeMotion::requestStop` / `AxisSession::requestStop` | Independent retained stop request; reserved admission/output |
 
 `alarm-clear` takes no options. It calls `AxisSession::requestClearAlarm` with its
@@ -427,8 +432,14 @@ attachment, `axis`/`prepare` retain their separate offline-workspace meaning.
 
 `motion verify` names native `REUSE_STORED`: verify the supplied snapshot and write
 differences. `motion stored` is caps-only gated because a stored-only native policy
-does not exist. `motor-release` is caps-only gated by D-17; `6040=0` is not a release
-fallback. Neither appears as a working command in help. Unknown/home methods,
+does not exist, and it does not appear as a working command in help. `motor-release AXIS_ID`
+(prompt 57) replaces the caps-only row D-17 gated: it runs `prepareRelease`'s measured table, and no other
+word is a release fallback. `mode`, `enable` and `motor-release` take the axis ID; the console never
+infers an axis from a retained operation ID or the reverse, and `release ID` keeps its meaning. Their
+fresh report is the one the application names with `ProbeMotion::setActionPrerequisites`; explicit
+trial evidence (`setEnablePrerequisites`) still selects the attended enable. Every motion terminal
+carries `firmware_unqualified`: `true` or `false` for a move, velocity, home or enable (prompt 57's
+identity policy), `null` for operations that compare no identity. Unknown/home methods,
 unqualified reverse velocity, missing enable evidence and contradictory state remain
 native refusals rather than console permission switches.
 
@@ -499,7 +510,7 @@ An accepted stop still progresses when ordinary result/reply queues are full.
 Recovery has reserved correlation capacity for an explicitly held never-sent stop;
 it is never started automatically. Cancellation of ordinary motion withdraws future
 steps and settles the in-flight service; it sends no stop. `release ID` frees delivered
-history only and never clears a native fence, while `motor-release` remains gated.
+history only and never clears a native fence; `motor-release AXIS_ID` is the drive action.
 
 `stop AXIS_ID [normal|fast]` addresses a registered logical axis without changing
 selection; its default is fast. `stop all [normal|fast]` uses the separately

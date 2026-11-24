@@ -228,6 +228,14 @@
  *   value equal to the prior 2500 succeeds unchanged with nothing sent. No 6040, no enable, no save: a power
  *   cycle may restore the stored selector, and an acknowledged or read-back selector is register acceptance
  *   only, not a measured loop change. Settings class: attended, the settings routes' caps, no motion weight.
+ * - RELEASE, prompt 57: the release trials. A fresh CONTROL read (2500, 2501) for the table's row 2, a
+ *   fresh full read, then AxisSession::requestRelease: prepareRelease's measured table chooses the one 6040
+ *   word (0x0006, 0x0000 or 0x0080), or nothing for an already released report, and refuses every other
+ *   report before TX with its reason. The line's experiment flag and word (0x0000 or 0x0006) set
+ *   ReleaseExperiment, which the library admits only for an unmeasured report or another word than the
+ *   row's, never over an alarm, running or a released report; the result is then marked EXPERIMENT. Then
+ *   the library's own cycles, at most the stated number, until the row's released report. Never a stop,
+ *   never a standstill claim, never resent. Attended, the settings caps, no motion weight.
  * - SAVE, prompt 57: one explicit save parameters, prepareSave and its one 2300=2 download. A fresh identity
  *   read (1009/100A one byte), a STATUS and MONITORS read and a MOTION_PARAMETERS read (6081, 6083, 6084) as
  *   the save's prerequisites, kept in SaveWork, then the library's save on the session's reservation with no
@@ -405,7 +413,10 @@ enum class RouteKind : uint8_t {
     ARM_VELOCITY_PAIR,
     /** Prompt 57, one explicit save parameters (2300=2) after its identity, state and motion parameter
      * reads; `Ts`. Persistent, so never run while the owner is away. Attended, settings caps. */
-    SAVE
+    SAVE,
+    /** Prompt 57, one release from the measured release table, optionally the explicit experiment, and the
+     * library's cycles; `Tr`. Never a stop. Attended, settings caps. */
+    RELEASE
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -416,6 +427,9 @@ struct RoutePlan {
     /** MODE_PROBE: explicit 6060 candidate 2, 4, 7, 8, 9 or 10; 1 and 3 permit explicit restoration.
      * An acknowledged write/display match qualifies no motion capability. No automatic restoration. */
     uint8_t modeRaw = 0;
+    /** RELEASE: 1 sets ReleaseExperiment with releaseWord; 0 runs the measured table alone. */
+    uint8_t releaseExperiment = 0;
+    uint16_t releaseWord = 0; ///< RELEASE: the experiment's word, 0 or 6; 0 without the experiment.
     uint32_t newPositiveRpm = 0; ///< VELOCITY_CHANGE: explicit positive replacement rate, 1..60 RPM.
     uint32_t changeAfterMs = 0; ///< VELOCITY_CHANGE: earliest change admission after native preparation.
     /** POSITION_CHANGE: 1 bare speed, 2/3 bare acceleration/deceleration, 4 falling bit 4,
@@ -976,6 +990,11 @@ struct RouteRecord {
     /** MODE_ONE and MODE_THREE: requestModeSelect accepted; AxisSession::clearAction holds it, and the record
      * prints TRIAL_MODE. */
     bool modeRequested = false;
+    /** RELEASE: requestRelease accepted; AxisSession::clearAction holds it, and the record prints
+     * TRIAL_RELEASE. */
+    bool releaseRequested = false;
+    bool releaseLoopPresent = false; ///< RELEASE: the CONTROL read gave a 2500 for the table's row 2.
+    uint16_t releaseLoop = 0;        ///< RELEASE: that 2500, raw.
     /** VELOCITY: requestVelocity accepted; AxisSession::velocityAction holds it, and the stop it asked for
      * at its due time is the session's stopAction of the plan's kind. */
     bool velocityRequested = false;
@@ -1233,7 +1252,8 @@ class BenchRoute {
         /** A paired arming: keep the first node's checked reads, then run the same steps on the other node. */
         STEP_PAIR_NEXT,
         STEP_MODE_SELECT, ///< MODE_ONE and MODE_THREE: the session's typed mode select request.
-        STEP_SAVE         ///< SAVE: prepareSave from SaveWork's reads, its one 2300 download and its terminal.
+        STEP_SAVE,        ///< SAVE: prepareSave from SaveWork's reads, its one 2300 download and its terminal.
+        STEP_RELEASE      ///< RELEASE: the session's release request from the measured table.
     };
     struct Step {
         uint8_t kind;
@@ -1300,7 +1320,7 @@ class BenchRoute {
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
-    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE.
+    uint8_t settingsCases_[18][BENCH_NODES] = {}; ///< Row 16: SAVE; row 17: RELEASE.
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
@@ -1379,6 +1399,8 @@ class BenchRoute {
     bool noteSave(MotorControlCANOwner::SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                   uint64_t now) noexcept;
     void serviceSave(uint64_t now) noexcept;
+    void startRelease(uint64_t now) noexcept;
+    MotorControlCAN::LICHUAN_C::ControlObservation releaseLoop_; ///< RELEASE: the CONTROL read for row 2.
     bool noteSettings(MotorControlCANOwner::SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                       uint64_t nowUs) noexcept;
     void startSettings(uint64_t nowUs) noexcept;

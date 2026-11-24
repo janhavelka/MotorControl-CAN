@@ -170,7 +170,9 @@ M::Status ProbeMotion::hostChange(uint64_t now) const noexcept {
 }
 void ProbeMotion::forgetPrerequisites() noexcept {
     moveState_ = velocityState_ = homeState_ = enableState_ = clearState_ = nullptr;
-    moveIdentity_ = velocityIdentity_ = homeIdentity_ = enableIdentity_ = nullptr;
+    moveIdentity_ = velocityIdentity_ = homeIdentity_ = enableIdentity_ = actionIdentity_ = nullptr;
+    actionState_ = nullptr;
+    actionLoopPresent_ = false;
     stored_ = inputs_ = driver_ = nullptr;
     moveReplacementEvidence_ = L::MoveReplacementEvidence();
     moveFeedback_ = L::MoveFeedbackRelation();
@@ -452,18 +454,79 @@ M::Status ProbeMotion::requestHome(const L::HomeRequest& request, uint64_t now,
     }
     return status;
 }
+M::Status ProbeMotion::setActionPrerequisites(const L::ReadContext& state,
+                                              const L::IdentityObservation& identity,
+                                              const L::ControlObservation* loop,
+                                              const L::ActionOptions& options) noexcept {
+    const M::Status valid = prerequisite();
+    if (!valid)
+        return valid;
+    actionState_ = &state;
+    actionIdentity_ = &identity;
+    actionLoopPresent_ = loop != nullptr;
+    actionLoop_ = loop ? *loop : L::ControlObservation();
+    actionOptions_ = options;
+    return M::Ok();
+}
 M::Status ProbeMotion::requestEnable(uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
-    if (!enableState_ || !enableIdentity_)
-        return refused(M::ActionError::STATE, "explicit enable prerequisites are missing");
-    const M::Status status =
-        session_.requestEnable(*enableState_, *enableIdentity_, enableEvidence_, enableOptions_, deadline, now);
+    // Explicit evidence first (an attended trial); otherwise the regular measured enable from the named
+    // action report (prompt 57), which binds to the session's next operation and nothing else.
+    const bool regular = !enableState_ || !enableIdentity_;
+    if (regular && (!actionState_ || !actionIdentity_))
+        return refused(M::ActionError::STATE, "explicit enable or action prerequisites are missing");
+    L::EnableEvidence evidence = enableEvidence_;
+    if (regular) {
+        evidence = L::EnableEvidence();
+        evidence.gate = L::EnableGate::MEASURED;
+        evidence.modeRaw = 1;
+        evidence.operation = session_.nextOperation();
+    }
+    const M::Status status = regular ? session_.requestEnable(*actionState_, *actionIdentity_, evidence,
+                                                              actionOptions_, deadline, now)
+                                     : session_.requestEnable(*enableState_, *enableIdentity_, evidence,
+                                                              enableOptions_, deadline, now);
     if (status) {
-        enableState_ = nullptr;
-        enableIdentity_ = nullptr;
+        if (regular) {
+            actionState_ = nullptr;
+            actionIdentity_ = nullptr;
+        } else {
+            enableState_ = nullptr;
+            enableIdentity_ = nullptr;
+        }
         accept(MotionKind::ENABLE, session_.enableAction().operation, now);
+    }
+    return status;
+}
+M::Status ProbeMotion::requestModeSelect(uint8_t modeRaw, uint64_t now, uint64_t deadline) noexcept {
+    const M::Status valid = admission(now, deadline);
+    if (!valid)
+        return valid;
+    if (!actionState_)
+        return refused(M::ActionError::STATE, "explicit action prerequisites are missing");
+    const M::Status status = session_.requestModeSelect(*actionState_, modeRaw, actionOptions_, deadline, now);
+    if (status) {
+        actionState_ = nullptr;
+        actionIdentity_ = nullptr;
+        accept(MotionKind::MODE_SELECT, session_.clearAction().operation, now);
+    }
+    return status;
+}
+M::Status ProbeMotion::requestRelease(uint64_t now, uint64_t deadline) noexcept {
+    const M::Status valid = admission(now, deadline);
+    if (!valid)
+        return valid;
+    if (!actionState_)
+        return refused(M::ActionError::STATE, "explicit action prerequisites are missing");
+    const M::Status status = session_.requestRelease(*actionState_, actionLoopPresent_ ? &actionLoop_ : nullptr,
+                                                     L::ReleaseExperiment(), actionOptions_, deadline, now);
+    if (status) {
+        actionState_ = nullptr;
+        actionIdentity_ = nullptr;
+        actionLoopPresent_ = false;
+        accept(MotionKind::RELEASE, session_.clearAction().operation, now);
     }
     return status;
 }
@@ -592,7 +655,8 @@ const L::HomeContext* ProbeMotion::nativeHome() const noexcept {
 const L::ActionContext* ProbeMotion::nativeAction() const noexcept {
     const L::ActionContext* action =
         normal_.kind == MotionKind::ENABLE ? &session_.enableAction()
-        : (normal_.kind == MotionKind::ALARM_CLEAR || normal_.kind == MotionKind::POSITION_CLEAR)
+        : (normal_.kind == MotionKind::ALARM_CLEAR || normal_.kind == MotionKind::POSITION_CLEAR ||
+           normal_.kind == MotionKind::MODE_SELECT || normal_.kind == MotionKind::RELEASE)
             ? &session_.clearAction()
             : nullptr;
     return action && action->operation == normal_.nativeOperation ? action : nullptr;
@@ -609,6 +673,8 @@ void ProbeMotion::snapshotNormal() noexcept {
         normal_.completion = c->completion;
         normal_.uncertain = c->uncertain;
         normal_.completedUs = c->servicedUs;
+        normal_.identityCompared = c->identity.outcome != L::IdentityOutcome::NONE;
+        normal_.firmwareUnqualified = c->identity.firmwareUnqualified;
         targetValue(normal_.target, c->parameters.target);
         rateValue(normal_.rate, c->speed);
         for (unsigned n = 0; n < 4; ++n)
@@ -631,6 +697,8 @@ void ProbeMotion::snapshotNormal() noexcept {
         normal_.completion = c->completion;
         normal_.uncertain = c->uncertain;
         normal_.completedUs = c->servicedUs;
+        normal_.identityCompared = c->identity.outcome != L::IdentityOutcome::NONE;
+        normal_.firmwareUnqualified = c->identity.firmwareUnqualified || c->change.identity.firmwareUnqualified;
         rateValue(normal_.rate, c->rate);
         if (c->modeEvidencePresent)
             abortEvidence(normal_, c->modeEvidence);
@@ -655,6 +723,8 @@ void ProbeMotion::snapshotNormal() noexcept {
         normal_.completion = c->completion;
         normal_.uncertain = c->uncertain;
         normal_.completedUs = c->servicedUs;
+        normal_.identityCompared = c->identity.outcome != L::IdentityOutcome::NONE;
+        normal_.firmwareUnqualified = c->identity.firmwareUnqualified;
         rateValue(normal_.rate, c->searchSpeed);
         rateValue(normal_.creepRate, c->creepSpeed);
         for (unsigned n = 0; n < 5; ++n)
@@ -667,6 +737,10 @@ void ProbeMotion::snapshotNormal() noexcept {
     } else if (const L::ActionContext* c = nativeAction()) {
         normal_.retryClass = c->retryClass;
         actionResult(normal_, *c);
+        if (normal_.kind == MotionKind::ENABLE) {
+            normal_.identityCompared = c->enable.identity.outcome != L::IdentityOutcome::NONE;
+            normal_.firmwareUnqualified = c->enable.identity.firmwareUnqualified;
+        }
     } else {
         normal_.state = M::ActionState::FAILED;
         normal_.outcome = M::ActionOutcome::INVALIDATED;
@@ -787,7 +861,8 @@ bool ProbeMotion::cancelNormal(uint64_t now) noexcept {
         normal_.kind == MotionKind::MOVE       ? session_.cancelMove(now)
         : normal_.kind == MotionKind::HOME     ? session_.cancelHome(now)
         : normal_.kind == MotionKind::ENABLE   ? session_.cancelEnable(now)
-        : (normal_.kind == MotionKind::ALARM_CLEAR || normal_.kind == MotionKind::POSITION_CLEAR)
+        : (normal_.kind == MotionKind::ALARM_CLEAR || normal_.kind == MotionKind::POSITION_CLEAR ||
+           normal_.kind == MotionKind::MODE_SELECT || normal_.kind == MotionKind::RELEASE)
             ? session_.cancelClear(now)
             : false;
     if (cancelled) {

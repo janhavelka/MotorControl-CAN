@@ -5713,6 +5713,54 @@ void testSubdivision() {
     first = r->driver.requests.size();
     CHECK(std::strcmp(r->route.begin(p, r->console.now), "plan") == 0 && r->driver.requests.size() == first);
 }
+// Prompt 57: the release trials' route. The measured table chooses the word from the fresh report, an already
+// released report sends nothing, and every other report is refused before TX; the experiment word is the line's.
+void testRelease() {
+    scenario = "release";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    d.mode = 1;
+    d.releaseWords = true; // Word 6 reports the release, as row 1's 8031/0011.
+    CHECK(std::strcmp(r->start("r1,1,0,0,0,3,200"), "unattended") == 0);
+    E::RoutePlan plan;
+    for (const char* bad : {"r1,1,1,0,6,3,200", "r1,1,1,1,3,3,200", "r1,1,1,1,7,3,200"}) {
+        const std::string line = bad;
+        CHECK(!E::parseRouteCommand(line.data(), line.size(), plan) || std::strcmp(r->start(line), "plan") == 0);
+    }
+    r->heartbeat(1);
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& released = r->run("r1,2,1,0,0,3,200");
+    CHECK(released.failure == E::RouteFailure::NONE && released.releaseRequested && released.motionTotal == 0);
+    size_t at = first;
+    const Address control[] = {{0x2500, 0}, {0x2501, 0}};
+    expectUploads(*r, at, 1, control, 2);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t word6[8] = {0x2b, 0x40, 0x60, 0, 6, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, word6) && r->downloadsFrom(first) == 1);
+    const L::ActionContext& c = r->one.clearAction();
+    CHECK(c.actionKind == M::ActionKind::RELEASE && c.state == M::ActionState::SUCCEEDED &&
+          c.release.decision.row == L::ReleaseRow::POWER_UP_IDLE && c.release.decision.word == 6);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL_PLAN route=release node=1 trial=2 attended=1 cycles=3 interval=200 word=0000 experiment=0\n"));
+    CHECK(has(text, "TRIAL_RELEASE own=1 row=1 refusal=0 word=0006 send=1 experiment=0 "));
+    r->release();
+    // Now released (8031/0011): the table answers already released, nothing sent.
+    first = r->driver.requests.size();
+    const E::RouteRecord& again = r->run("r1,3,1,0,0,3,200");
+    CHECK(again.failure == E::RouteFailure::NONE && r->downloadsFrom(first) == 0);
+    CHECK(r->one.clearAction().release.decision.row == L::ReleaseRow::ALREADY_RELEASED);
+    CHECK(has(r->dump(), " send=0 "));
+    r->release();
+    // A running report on node 2: refused before TX with the table's reason.
+    Drive& two = r->driver.drives[1];
+    two.mode = 1;
+    two.monitor = uint16_t(two.monitor | L::MONITOR_RUNNING);
+    r->heartbeat(2);
+    first = r->driver.requests.size();
+    const E::RouteRecord& moving = r->run("r2,4,1,0,0,3,200");
+    CHECK(moving.failure == E::RouteFailure::REFUSED && std::strcmp(moving.why, "release") == 0 &&
+          moving.statusPresent && r->downloadsFrom(first) == 0);
+}
 // Prompt 57: the explicit save route. Its identity, state and motion parameter reads, then one 2300=2 download
 // through the library's save with no review guard set; its acknowledgement claims no durability, and the epoch
 // advance is followed as after a settings write. A lost or refused reply stays uncertain and nothing is resent.
@@ -8259,6 +8307,7 @@ int main(int argc, char** argv) {
     testLoop();
     testLoopFailures();
     testSave();
+    testRelease();
     testCloseRefusals();
     testBorrowedRecordArena();
     testCloseKeepsHistory();

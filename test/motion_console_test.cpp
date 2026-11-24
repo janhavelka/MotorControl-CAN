@@ -205,6 +205,12 @@ void startupAndRejectedGrammar() {
                              "home 1 2 3 4",
                              "home 1 2 3 4 zero extra",
                              "enable extra",
+                             "enable",
+                             "mode 101",
+                             "mode extra 1",
+                             "mode 101 1 extra",
+                             "motor-release",
+                             "motor-release 101 extra",
                              "alarm-clear extra",
                              "position-clear 1",
                              "stop",
@@ -232,20 +238,26 @@ void startupAndRejectedGrammar() {
                              "move angle 90 deg motor shortest reject 120 configured",
                              "velocity 1 rpm native 100 configured normal",
                              "home 1 120 60 100 zero",
-                             "enable",
+                             "enable 101",
+                             "mode 101 3",
+                             "motor-release 101",
+                             "enable 7", // No attached axis 7.
                              "alarm-clear",
                              "position-clear",
                              "stop normal",
-                             "stop fast",
-                             "motor-release"};
+                             "stop fast"};
     for (const char* command : unarmed) {
         contains(r.command(std::string("@11 ") + command), "\"ok\":false");
         CHECK(!r.motion.retained());
         CHECK(r.wire.sentCount == 0);
     }
-    contains(r.command("@12 help motor-release"), "\"ok\":false");
+    // Prompt 57: motor-release is a regular command now, through prepareRelease; release ID stays the
+    // retained-result command.
+    contains(r.command("@12 help motor-release"), "motor-release AXIS_ID");
     const std::string caps = r.command("@13 caps");
-    contains(caps, "D-17");
+    contains(caps, "\"command\":\"motor-release\",\"implemented\":true");
+    contains(caps, "\"command\":\"mode\",\"implemented\":true");
+    CHECK(caps.find("D-17") == std::string::npos);
     CHECK(r.wire.sentCount == 0);
 }
 
@@ -600,7 +612,7 @@ void explicitEnableAndAlarmClear() {
         policy.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
         CHECK(r.motion.setEnablePrerequisites(r.state, r.identity, proof, policy));
         const unsigned first = r.wire.sentCount;
-        const std::string output = r.command("@60 enable");
+        const std::string output = r.command("@60 enable 101");
         contains(output, "\"result\":\"accepted\"");
         CHECK(r.motion.normalResult().kind == E::MotionKind::ENABLE);
         CHECK(r.motion.normalResult().state == M::ActionState::SUCCEEDED);
@@ -855,6 +867,112 @@ void simpleCoordinatesPreserveMotorAndLoadMeaning() {
 }
 } // namespace
 
+// Prompt 57's regular console commands on the named fresh report: the measured enable, the typed mode select
+// and the release table, each terminal with the unqualified-firmware flag (null where nothing is compared).
+L::ActionOptions actionPolicy() {
+    L::ActionOptions policy;
+    policy.service = reads();
+    policy.observationIntervalUs = 1000;
+    policy.maximumAgeUs = 10000000; // Console policy for this fake: the named report stays current.
+    policy.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    return policy;
+}
+void regularActionsThroughTheConsole() {
+    scenario = "regular enable, mode select and release from the console";
+    {
+        ConsoleRig r; // The power-up report: a regular enable, flagged because this fake's firmware is its own.
+        r.drive.followEnable = true;
+        r.readIdentity();
+        r.readState(r.state, ENABLE_MASK);
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@70 enable 101");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"firmware_unqualified\":true");
+        CHECK(r.motion.normalResult().kind == E::MotionKind::ENABLE &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED);
+        CHECK(r.motion.nativeAction()->enable.evidence.gate == L::EnableGate::MEASURED);
+        CHECK(wordsFrom(r, first, 6) == 1 && wordsFrom(r, first, 7) == 1 && wordsFrom(r, first, 15) == 1);
+        transcript += output;
+    }
+    {
+        ConsoleRig r; // A not-enabled released report in mode 1: one 6060 write of 3, settled by 6061.
+        r.drive.followMode = true;
+        r.drive.monitor = uint16_t(L::MONITOR_RELEASED | L::MONITOR_POSITION_COMPLETE);
+        r.drive.status = 0x8050;
+        r.readIdentity();
+        r.readState(r.state, ENABLE_MASK);
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@71 mode 101 3");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"firmware_unqualified\":null");
+        CHECK(r.motion.normalResult().kind == E::MotionKind::MODE_SELECT &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED && r.drive.mode == 3);
+        CHECK(downloadsFrom(r, first, 0x6060) == 1 && !downloadsFrom(r, first, 0x6040));
+        transcript += output;
+        // An undocumented code is the library's refusal, before any frame.
+        r.readState(r.state, ENABLE_MASK);
+        CHECK(r.motion.releaseNormal());
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        const unsigned before = r.wire.sentCount;
+        contains(r.command("@72 mode 101 2"), "\"ok\":false");
+        CHECK(r.wire.sentCount == before);
+    }
+    {
+        ConsoleRig r; // The power-up report: release row 1, the one word 0x0006, settled by 8031/0011.
+        r.drive.followRelease = true;
+        r.readIdentity();
+        r.readState(r.state, ENABLE_MASK);
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        const unsigned first = r.wire.sentCount;
+        const std::string output = r.command("@73 motor-release 101");
+        contains(output, "\"result\":\"accepted\"");
+        contains(output, "\"firmware_unqualified\":null");
+        CHECK(r.motion.normalResult().kind == E::MotionKind::RELEASE &&
+              r.motion.normalResult().state == M::ActionState::SUCCEEDED);
+        const uint8_t word6[] = {0x2b, 0x40, 0x60, 0, 6, 0, 0, 0};
+        CHECK(frameIs(r, first, word6) && downloadsFrom(r, first, 0x6040) == 1 && !downloadsFrom(r, first, 0x2300));
+        transcript += output;
+    }
+}
+// With an axis and a retained operation sharing one numeric ID, `release ID` frees the result and sends no
+// CAN frame, and `motor-release ID` acts only on the axis: the console never infers one from the other.
+void releaseAndMotorReleaseNeverMix() {
+    scenario = "release ID and motor-release ID";
+    ConsoleRig r;
+    r.drive.monitor = uint16_t(L::MONITOR_RELEASED | L::MONITOR_POSITION_COMPLETE);
+    r.drive.status = 0x8050;
+    r.readIdentity();
+    r.readState(r.state, ENABLE_MASK);
+    // Operations 1..100: an already released report answers each release with nothing sent.
+    const unsigned baseline = r.wire.sentCount;
+    for (unsigned n = 1; n <= 100; ++n) {
+        CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+        contains(r.command("@" + std::to_string(1000 + n) + " motor-release 101"), "\"result\":\"accepted\"");
+        contains(r.command("@" + std::to_string(2000 + n) + " release " + std::to_string(n)), "\"ok\":true");
+    }
+    CHECK(r.wire.sentCount == baseline);
+    // Operation 101 is an ordinary identity read, retained; axis 101 is the motion's axis.
+    contains(r.command("@3101 read identity"), "\"operation_id\":101");
+    const unsigned reads = r.wire.sentCount;
+    r.drive.monitor = 1;
+    r.drive.status = IDLE_STATUS;
+    r.drive.followRelease = true;
+    r.readState(r.state, ENABLE_MASK);
+    CHECK(r.motion.setActionPrerequisites(r.state, r.identity, nullptr, actionPolicy()));
+    const unsigned first = r.wire.sentCount;
+    const std::string released = r.command("@3102 motor-release 101");
+    contains(released, "\"operation_id\":102");
+    CHECK(downloadsFrom(r, first, 0x6040) == 1 && r.motion.normalResult().kind == E::MotionKind::RELEASE);
+    contains(r.command("@3103 result 101"), "\"ok\":true"); // The read stays retained.
+    const unsigned beforeRelease = r.wire.sentCount;
+    contains(r.command("@3104 release 101"), "\"ok\":true");
+    CHECK(r.wire.sentCount == beforeRelease); // No CAN frame.
+    CHECK(r.motion.retained() && r.motion.normalResult().kind == E::MotionKind::RELEASE); // Untouched.
+    CHECK(reads > 0);
+}
+
 int main(int argc, char** argv) {
     if (argc != 1 && (argc != 3 || std::strcmp(argv[1], "--transcript")))
         return 2;
@@ -875,6 +993,8 @@ int main(int argc, char** argv) {
     unsentStopRemainsActiveAcrossOneExplicitRecovery();
     replacedNativeStopKeepsItsOwnChainIdentity();
     simpleCoordinatesPreserveMotorAndLoadMeaning();
+    regularActionsThroughTheConsole();
+    releaseAndMotorReleaseNeverMix();
     if (argc == 3) {
         FILE* output = std::fopen(argv[2], "wb");
         CHECK(output);

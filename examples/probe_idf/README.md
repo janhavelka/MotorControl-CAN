@@ -152,7 +152,10 @@ records exact command grammar, units, deadlines and stop/result retention. Defau
 startup selects/qualifies no motion context. An application that supplies an actual
 registered session and exact native prerequisites can attach that same public
 `ProbeMotion` bridge; no CLI command grants missing firmware or physical evidence.
-`motor-release` stays caps-only gated; `position-clear` is zero-only and sends no save.
+Since prompt 57 `mode AXIS_ID 1|3|6`, `enable AXIS_ID` and `motor-release AXIS_ID` are regular commands
+on the report the application names (`ProbeMotion::setActionPrerequisites`), through `prepareModeSelect`,
+the measured `prepareEnable` and `prepareRelease`; `release ID` still frees a retained result and sends no
+frame. Every motion terminal carries `firmware_unqualified`. `position-clear` is zero-only and sends no save.
 Native tests use manufactured owner/server events; compile/fake results qualify no
 movement, stopping, wiring, service latency or output delivery on a physical fixture.
 The shared IDF S2 console uses UART0/core0; Arduino S2 remains blocked by the pinned

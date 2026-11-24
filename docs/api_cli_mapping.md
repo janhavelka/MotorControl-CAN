@@ -103,10 +103,10 @@ Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming chec
 STATUS and MONITORS reads for explicit documentary comparison.
 Packet 10 adds `interpretStatusword` for one raw word, with the same meanings. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
-a conditional `enable` CLI route through `prepareEnable` and AxisSession. It remains
-evidence-gated; it ran attended on both specimens,
-on one firmware, through a bench route ([attended report](reports/2026-11-03_attended_bench.md)),
-which qualifies nothing, and `prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
+an `enable AXIS_ID` CLI route through `prepareEnable` and AxisSession. Since prompt 57 the regular
+mode 1 enable runs under `EnableGate::MEASURED` from the fresh report, and `prepareRelease` exists
+with the measured release table; the attended trials ([attended report](reports/2026-11-03_attended_bench.md))
+remain the evidence. The [transition guide](drive_actions.md) records both.
 Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
 `ActionContext` for the [conditional native stop path](stop_actions.md), including
 `noteActionTransmission` at the owner's external handoff. Prompt42 implements separate retained normal/fast stop CLI routes.
@@ -228,8 +228,9 @@ Two inventory states apply to every route. **Implemented**: in help and dispatch
 | `moveby`, `moveto`, `move relative\|absolute\|angle` | P42 | Same public finite motion API; no assumed RS scale or speed/ramp limits. RS `moveby VALUE [unit]` has no speed or ramp argument; an unset speed, ramp or scale rejects, and `moveto` needs an explicit `axis origin` |
 | `speed`, `accel`, `decel`, `motion`, `stepsperturn` | P42 | Explicit host intent where meaningful; display actual units, native ramp-time distinction and verified scale; this is the simple-move intent that replaces RS boot defaults, which CAN forbids |
 | `velocity`, `home methods`, `home ...` | P42 | Finite velocity and reviewed homing; velocity `native` means the configured [native-rate dimension](axis_contract.md#signed-velocity-and-the-native-rate-destination), so `rpm native` needs `MOTOR_TURNS` and `MINUTE`; `effectiveNative` reaches an rpm object only with that recorded destination |
-| `enable`, `alarm-clear`, `position-clear`, `stop normal\|fast` | P42 | Common explicit actions where supported; define quick-stop versus halt without implying equivalence; stop follows the DEC-2/DEC-8 contract in the RS rows below |
-| `motor-release` | P42 (visibly gated) | Gated: no manual documents a bus release command, so it is listed by `caps` with that reason and is not dispatched (D-17) |
+| `enable AXIS_ID`, `alarm-clear`, `position-clear`, `stop normal\|fast` | P42, P57 | Common explicit actions where supported; define quick-stop versus halt without implying equivalence; stop follows the DEC-2/DEC-8 contract in the RS rows below. Since prompt 57 `enable` names its axis and runs the regular measured enable on the named fresh report |
+| `mode AXIS_ID 1\|3\|6` | P57 | CANopen-native typed mode select (`prepareModeSelect`); RS has no counterpart |
+| `motor-release AXIS_ID` | P57 | `prepareRelease` and the measured release table (RS `prepareRelease`: name and no standstill claim adopted). It replaces the gated row of D-17; `release ID` keeps its result meaning |
 | `driver`, `io`, `control`, `tuning` | P41 | Typed family settings; document any native group differences |
 | `motion-profile read\|inspect` | P41 | Retained profile snapshot; read effects explicit |
 | `motion-profile restore\|forget` | P41 route and application code | Explicit restore effects and generation validity; no automatic restoration after uncertainty. This is `re-apply recorded configuration` in `examples/common` over the typed settings API, as RS does it in its application, with no new core API. Prompt 39 owns `restore factory settings` only |
@@ -280,8 +281,8 @@ one HALT, one QUICK_STOP and one recovery correlation. The [CLI contract](cli_co
 owns exact grammar, supplied deadlines, destination-rpm checks, output records,
 retention, source gates and tested examples. The native operation's context remains
 the complete evidence; `MotionResult` is an example-only owned projection.
-`motor-release`, `motion stored` and qualification-install capabilities appear only
-as precise gated rows. No survey-only driver or raw object sender is exposed.
+`motion stored` and qualification-install capabilities appear only as precise gated
+rows; `motor-release AXIS_ID` became a regular command in prompt 57. No survey-only driver or raw object sender is exposed.
 
 ## Prompt 51 SYNC
 

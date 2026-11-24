@@ -23,9 +23,9 @@
 @1 version
 # reply ok: grammar "version" and its help text.
 @2 help version
-# 54 "help" records, one per working inventory row (the 6 gated rows are absent), then reply result complete.
+# 56 "help" records, one per working inventory row (the 5 gated rows are absent), then reply result complete.
 @3 help
-# 60 "capability" records, one per row (gated rows implemented:false with their reason), then reply result
+# 61 "capability" records, one per row (gated rows implemented:false with their reason), then reply result
 # complete with probe/identity/non_changing, can_match_exact_model/can_match_firmware, model_match null,
 # firmware_match null, endpoint_range, motor_kind null, feedback null, hardware_qualified false.
 @4 caps
@@ -184,7 +184,8 @@
 @75 move relative 100 steps native 60 configured
 @76 velocity 60 rpm motor 1000 configured fast
 @77 home 17 60 30 100 zero
-@78 enable
+# reject status INVALID_CONFIG "axis_id_of_an_attached_axis_required" (prompt 57: these name their axis).
+@78 enable 1
 @79 alarm-clear
 @80 position-clear
 @81 stop normal
@@ -207,7 +208,9 @@
 @91 stop direct
 # reject unknown_command; gated rows are absent from dispatch.
 @92 motor on
+# reject invalid_arguments_or_gated_policy: motor-release names its axis (prompt 57).
 @93 motor-release
+# reject unknown_command; gated rows are absent from dispatch.
 @94 subdivision 16
 @95 settings
 # reject invalid_arguments.
