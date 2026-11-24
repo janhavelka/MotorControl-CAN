@@ -56,6 +56,39 @@ does not establish standstill, winding current, brake state or reference validit
 The OP86 filename and cover name 86C, while its relevant internal pages carry a
 CL57-C/OL57-C header; retain that applicability uncertainty.
 
+## Identity policy (prompt 57)
+
+The application's declared binding selects the profile and the model (`CL86_C` or `OL86_C`, as
+`AxisReservation::model` already requires); an identity read only confirms it and never selects or
+changes a declaration. Enable, the position moves, velocity and homing compare a current identity read
+with their reference in `checkIdentity` (`Reads.h`) and freeze the `IdentityCheck` in their context, so
+every terminal result carries it. Stops make no comparison: an explicitly requested stop is never refused
+on identity.
+
+| Fields | A difference from the reference |
+| --- | --- |
+| Product: `1000`, `1018:01` vendor, `1018:02` product, `2000` | Refused before any TX with `UNSUPPORTED` (outcome `UNCONFIRMED`): another product is another profile. No gate or option overrides it |
+| Firmware: `1009`, `100A`, `1018:03`, `2001` | The operation runs; `IdentityCheck::firmwareUnqualified` is set ("firmware unqualified") and the result keeps both tuples, `expected` and `observed` |
+
+The reference is the record the operation's qualification was made on: the caller's measured
+`MoveEvidence`, `VelocityEvidence` or `HomeEvidence::firmware`, and for the enable `measuredIdentity()`,
+the two CL86-C specimens (`1000=00040192`, `1009=0C`, `100A=20`, `1018:01..03=1000/1/0`, `2000=0400`,
+`2001=0200`), on which every reviewed enable record was made. No OL86-C identity is documented or
+measured, so an `OL86_C` binding is compared with the same values. A move replacement or a velocity change
+compares its own record with the observed identity its run already holds. An observation of another boot,
+binding or configuration, or with a window after the supplied time, is never compared and refuses the
+same way.
+
+The documented reference `documentedIdentity()` holds the EDS `DefaultValue` entries
+(`1000=00040192`, `1009=2608`, `100A=0001`, `1018:01..03=1000/1/0`, `2000=0001`, `2001=0000`). It is
+compared and reported (`documentedMatch`) but admits nothing on its own: its `2000` default is not what
+either specimen reads, the EDS is family-unbound, and the CL86-C/OL86-C manual gives no identity values.
+A product match does not prove a CL86-C either: the Lichuan DS-C and TL-C EDS files declare the same
+`1000`, `1018:01` and `1018:02` (backlog D18). This profile takes no candidate set, so the declared model
+is the only candidate and the outcome `CONTRADICTED` is never produced. The family promptsets
+`lichuan_c_extensions` and `lichuan_ds2_canopen` extend the same comparison with their model-scoped
+references and the candidate set. Mode select and release make no identity comparison yet.
+
 ## Enable: a regular measured command, and the attended trial
 
 Since prompt 57 the mode 1 enable is a regular command under `EnableGate::MEASURED`, opened by the
@@ -70,6 +103,9 @@ displacement. Its start is the fresh report alone, which the library classifies 
 | `POWER_UP` | Mode 1, `6041` low bits 111, `2100` in place with released, running, alarm, both soft limits and every undocumented bit clear | 21 power-up records: `8437`/`0001`, word 6 `8031`/`0011`, word 7 `8033`/`0001`, word 15 `8437`/`0001`. Both shafts held torque there by hand and word 6 released it, so no shaft observation is asked |
 | `RELEASED` | Mode 1, `2100` released (in place and the running latch either way, the other bits clear), `6041` bits 0..6 `0x50` or `0x31` | The released standstill a quick stop leaves (`8050`/`0011`, latches `4050`/`0014`, `C050`/`0015`); `8031`/`0011` is the report word 6 leaves on that path, which the earlier `0x50` rule refused |
 
+Both gates also take a current identity read under the identity policy above:
+product fields that differ from `measuredIdentity()` refuse, firmware fields that differ run the enable
+flagged firmware unqualified in `EnableRecord::identity`.
 `1001`, `603F` and `606C` must read zero. No trial identity, expiry, reservation copy, shaft observation,
 reviewed value, retained stop record or per-boot word history is consulted: `AxisSession` needs only a
 report taken after its own latest write. `607A` and `60FF` are still read once before any word and
@@ -350,7 +386,7 @@ CL86-C specimens on one firmware (`1000=00040192`, `1009=000c`, `100A=0020`).
 | 1 `POWER_UP_IDLE` | Mode 1, `6041` low bits 111, `2100=0001`, `606C`, `1001`, `603F` zero: `8437`/`0001` | `0x0006` | Low bits 001, `2100` released (`8031`/`0011`) | The first word of 21 power-up enables, both specimens (node 1 trials 108 to 1703, node 2 trials 118 to 1723, `docs/bench/*-p3-node*`); node 1's shaft then turned freely by hand (2026-11-03). The same report after this library's word 15 cannot be told apart |
 | 2 `SWITCHED_ON_OPEN_LOOP` | Mode 3, low bits 011, `2100=0001`, `606C`, `1001`, `603F` zero, and a fresh `2500=1`: `8033`/`0001` | `0x0000` | Low bits 000, `2100` released (`8050`/`0011`) | Once: node 2, trial 5991 (`docs/bench/20261113-ladder/night.log:8763-8800`, `packed/S0193-n2-disable.tar.xz`), about 15 minutes after trial 5976's refused enable. Trial 5991 read no `2500`: its open loop is inferred from history (trial 5973), so the library requires a fresh `2500=1`. That read gave `606C` 1711, inferred not a rotor speed |
 | 3 `ALARM_CLEARED` | Mode 3, low bits 000, `2100=0001`, `606C`, `1001`, `603F` zero: `8010`/`0001` | `0x0080` alone | Low bits 000, `2100` released (`8050`/`0011`) | Node 1: `packed/20261113T141445Z-cw-0080-n1-5405` after `...141347Z-cw-0000-n1-5402`, `...141402Z-cw-000b-n1-5403` and `...141417Z-cw-0006-n1-5404` changed nothing; then 8 of 8 (trials 5362, 5396, 5452, 5500, 5524 on node 1; 5632, 5650, 5668 on node 2). The fault-reset bit (ZH86 p12, OP86 p10, EN86/ZH86 p15), the measured exit from this report only |
-| 4 `ALREADY_RELEASED` | `2100` released with low bits 000 or 001 (`8050`/`0011`, `4050`/`0014`, `C050`/`0015`, `8031`/`0011`), any mode, whatever its running bit | None | At preparation: `SUCCEEDED`, `NOT_TRANSMITTED` | Already released; the running bit and a nonzero `606C` are reported (lead decision 2) |
+| 4 `ALREADY_RELEASED` | `2100` released with low bits 000 or 001 (`8050`/`0011`, `4050`/`0014`, `C050`/`0015`, `8031`/`0011`), any mode, whatever its running bit | None | At preparation: `SUCCEEDED`, `NOT_TRANSMITTED` | Already released; the running bit, a nonzero `606C`, the `2100` alarm bit and a nonzero `1001` or `603F` are reported, and nothing is cleared (lead decision 2 and the b3 review) |
 | 5 `REFUSED` | Everything else | None | Refused before TX | `ReleaseRefusal` names the reason: `ALARM` (the alarm clear's case), `RUNNING` (a stop's case), `RELEASED` beside other low bits, `MOVING` (`606C` nonzero, running clear, S21), `MODE` (a row's report in another mode, such as the halted `9437`/`0001`), `LOOP` (row 2 without a fresh `2500=1`), `PATTERN` (such as S20's `1437`/`0000` or `0037`/`0000`) |
 
 A release settles when a fresh cycle after the acknowledgement reports the row's low bits with `2100`

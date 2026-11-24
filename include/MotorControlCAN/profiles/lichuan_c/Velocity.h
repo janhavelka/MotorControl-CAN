@@ -53,7 +53,10 @@ constexpr uint32_t VELOCITY_REVERSE_PROBE_SIGN_MARGIN_RPM = 2;
  * enableSpacingUs, rounded down, may not exceed it. Project policy bounding the observation count and
  * the setup budget; it says nothing about the drive. */
 constexpr uint32_t VELOCITY_ENABLE_WINDOW_MAXIMUM_CYCLES = 16;
-/** Exact raw identity tuple, not model autodetection or inferred firmware compatibility. */
+/** Raw identity tuple a record was made on, not model autodetection or inferred firmware compatibility.
+ * Under the prompt 57 identity policy its product fields (1000, 1018:01, 1018:02, 2000) must match the
+ * current identity read; a differing firmware field (1009, 100A, 1018:03, 2001) only sets
+ * VelocityContext::identity.firmwareUnqualified. */
 struct VelocityFirmware {
     uint32_t deviceType = 0;      ///< 1000 raw.
     uint16_t hardwareVersion = 0; ///< 1009 raw.
@@ -71,7 +74,7 @@ struct VelocityEvidence {
     VelocityGate gate = VelocityGate::CLOSED; ///< Closed until established, or an attended experiment.
     uint32_t record = 0; ///< Nonzero retained evidence identity; for an experiment, its own record.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Explicit selected model.
-    VelocityFirmware firmware; ///< Must match the supplied acquired identity tuple.
+    VelocityFirmware firmware; ///< Product fields must match the acquired identity; firmware fields flag.
     StatusLayout layout =
         StatusLayout::UNSPECIFIED;      ///< Qualified status dialect; not chosen by language.
     bool startQualified = false; ///< Released, target-before-enable sequence established; MEASURED only.
@@ -112,7 +115,9 @@ struct VelocityChangeEvidence {
     VelocityGate gate = VelocityGate::CLOSED; ///< Closed by default; explicit experiment or measured record.
     uint32_t record = 0; ///< Nonzero retained record for this change capability or experiment.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Must match the run's selected model.
-    VelocityFirmware firmware; ///< Exact tuple retained by the run; no inferred firmware compatibility.
+    /** Product fields must match the run's observed identity; firmware fields that differ set
+     * VelocityChange::identity.firmwareUnqualified. No inferred firmware compatibility. */
+    VelocityFirmware firmware;
     bool rateChangeQualified = false; ///< Required for MEASURED; forbidden for ATTENDED_EXPERIMENT.
     /** Both original and replacement rates must be within 1..this bound, at most 3000 rpm.
      * ATTENDED_EXPERIMENT is further capped at VELOCITY_EXPERIMENT_MAXIMUM_RPM. The run's
@@ -191,6 +196,9 @@ struct VelocitySample {
 struct VelocityChange {
     bool present = false; ///< One change was admitted; never overwritten during this run.
     VelocityChangeEvidence evidence; ///< Frozen explicit capability/experiment record.
+    /** The change record compared with the run's observed identity: firmwareUnqualified when the
+     * record was made on another firmware. */
+    IdentityCheck identity;
     VelocityRequest request; ///< Original engineering change request, with units and generation.
     PreparedVelocityTarget rate; ///< Checked native replacement and exact quantization evidence.
     uint64_t preparedUs = 0; ///< Caller processing time of admission, not physical application.
@@ -224,6 +232,9 @@ struct PreparedVelocity {
 struct VelocityContext {
     AxisReservation reservation;            ///< Frozen logical/wire/configuration/node identity.
     VelocityEvidence evidence;              ///< Selected-firmware capability record.
+    /** Frozen identity comparison of the admission: CONFIRMED, the record and observed tuples, and
+     * firmwareUnqualified when the run uses a firmware its record was not made on. */
+    IdentityCheck identity;
     FiniteVelocityRequest request;          ///< Immutable engineering intent and duration.
     VelocityProfile profile;                ///< Immutable native ramps.
     VelocityOptions options;                ///< Immutable service and scheduling bounds.
@@ -317,7 +328,9 @@ struct VelocityContext {
  * must then repeat the admission's 6064, and from word 7's cycle on the latch must be clear.
  * @param[out] output Candidate unchanged on failure. @param[in] reservation Continuous exclusion.
  * @param[in] current Current target. @param[in] state Fresh complete state read.
- * @param[in] identity Acquired raw identity. @param[in] evidence Explicit firmware evidence.
+ * @param[in] identity Current identity read of this boot (checkIdentity). Product fields that differ
+ * from evidence.firmware refuse with UNSUPPORTED before any TX; firmware fields that differ admit the
+ * run and set output.identity.firmwareUnqualified. @param[in] evidence Explicit firmware evidence.
  * @param[in] request Signed rate and preparation-time duration. @param[in] profile Native ramps.
  * @param[in] axis Exact conversion facts. @param[in] operation Nonzero identity.
  * @param[in] nowUs Preparation time. @param[in] deadlineUs Fixed cutoff.

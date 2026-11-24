@@ -58,12 +58,6 @@ ReadTarget expectedTarget(const HomeContext& c) {
         ++t.channel.binding.configurationGeneration;
     return t;
 }
-bool sameFirmware(const HomeFirmware& f, const IdentityObservation& i) {
-    return f.deviceType == i.deviceType && f.hardwareVersion == i.hardwareVersion &&
-           f.softwareVersion == i.softwareVersion && f.vendorId == i.vendorId &&
-           f.productCode == i.productCode && f.revision == i.revision &&
-           f.modelCode == i.modelCode && f.firmwareCode == i.firmwareCode;
-}
 uint32_t raw(const ReadContext& c, StateBlock b, unsigned field) {
     return c.values[c.blockStart[unsigned(b)] + field].raw;
 }
@@ -152,6 +146,7 @@ Status rateRange(const PreparedVelocityTarget& rate, uint32_t qualified) {
 struct Checked {
     PreparedVelocityTarget search, creep;
     HomeSample admission;
+    IdentityCheck identity;
     uint64_t prerequisiteUs = 0;
 };
 Status check(const HomeContext& output, const AxisReservation& live, const ReadTarget& current,
@@ -189,12 +184,19 @@ Status check(const HomeContext& output, const AxisReservation& live, const ReadT
         deadline - now <=
             13 * (uint64_t(options.service.queueTimeoutUs) + options.service.responseTimeoutUs))
         return error(HomeError::TIME, "invalid home operation, cutoff or service budget");
-    if (e.model != live.model || !sameTarget(e.specimen, current) ||
-        !sameTarget(identity.target, current) || !sameFirmware(e.firmware, identity) ||
-        identity.window.earliestUs > identity.window.latestUs || identity.window.latestUs > now ||
+    if (e.model != live.model || !sameTarget(e.specimen, current))
+        return error(HomeError::CAPABILITY, "home qualification does not match the current specimen",
+                     Err::UNSUPPORTED);
+    // Prompt 57: the product fields refuse; a firmware difference only flags the home. checkIdentity
+    // orders the window before the age is taken.
+    if (!checkIdentity(checked.identity, identity, current, identityValues(e.firmware),
+                       IdentityBasis::MEASURED, now) ||
         now - identity.window.earliestUs > options.maximumAgeUs)
+        return error(HomeError::CAPABILITY, "home needs a current identity read within its age cap",
+                     Err::UNSUPPORTED);
+    if (!checked.identity.expectedMatch)
         return error(HomeError::CAPABILITY,
-                     "home qualification does not match current specimen/firmware",
+                     "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the home record",
                      Err::UNSUPPORTED);
     if (request.searchSpeed.value.numerator <= 0 || request.creepSpeed.value.numerator <= 0 ||
         !request.rampTimeMs || request.rampTimeMs > 2000 || request.rampTimeMs != e.rampTimeMs ||
@@ -504,6 +506,7 @@ Status prepareHome(HomeContext& output, const AxisReservation& live, const ReadT
     output.options = options;
     output.searchSpeed = checked.search;
     output.creepSpeed = checked.creep;
+    output.identity = checked.identity;
     output.admission = output.latest = checked.admission;
     output.prerequisiteUs = checked.prerequisiteUs;
     output.control = control;

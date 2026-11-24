@@ -379,23 +379,52 @@ int main() {
         return 57;
     // Enable is gated: default evidence refuses first, whatever else is offered.
     LICHUAN_C::EnableEvidence enableEvidence;
-    const Status closedEnable = LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state,
+    const LICHUAN_C::IdentityObservation noIdentity;
+    const Status closedEnable = LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state, noIdentity,
                                                          enableEvidence, 17, 65, 100, stopOptions);
     if (closedEnable.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
         return 61;
     enableEvidence.gate = LICHUAN_C::EnableGate::ATTENDED_EXPERIMENT;
-    if (LICHUAN_C::validateEnable(stop, LICHUAN_C::AxisReservation(), state, enableEvidence, 17, 65,
-                                  100, stopOptions) ||
+    if (LICHUAN_C::validateEnable(stop, LICHUAN_C::AxisReservation(), state, noIdentity, enableEvidence, 17,
+                                  65, 100, stopOptions) ||
         ActionKind::ENABLE == ActionKind::STOP || LICHUAN_C::ENABLE_WORD_INTERVAL_US != 10000)
         return 62;
     // The measured gate (prompt 57) refuses an unbound reservation the same way, with nothing written.
     enableEvidence.gate = LICHUAN_C::EnableGate::MEASURED;
     enableEvidence.start = LICHUAN_C::EnableStart::RELEASED;
-    if (LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state, enableEvidence, 17, 65, 100,
-                                 stopOptions) ||
+    if (LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state, noIdentity, enableEvidence, 17,
+                                 65, 100, stopOptions) ||
         stop.state != ActionState::EMPTY ||
         LICHUAN_C::EnableStart::RELEASED_BY_RECORDED_STOP != LICHUAN_C::EnableStart::RELEASED)
         return 92;
+    // The identity check (prompt 57) needs no device: a firmware difference flags, a product one does not
+    // match, and an observation of no current target is refused with nothing written.
+    LICHUAN_C::IdentityObservation observedIdentity;
+    observedIdentity.target = readTarget;
+    const LICHUAN_C::IdentityValues measured = LICHUAN_C::measuredIdentity();
+    observedIdentity.deviceType = measured.deviceType;
+    observedIdentity.hardwareVersion = measured.hardwareVersion;
+    observedIdentity.softwareVersion = uint16_t(measured.softwareVersion + 1);
+    observedIdentity.vendorId = measured.vendorId;
+    observedIdentity.productCode = measured.productCode;
+    observedIdentity.revision = measured.revision;
+    observedIdentity.modelCode = measured.modelCode;
+    observedIdentity.firmwareCode = measured.firmwareCode;
+    LICHUAN_C::IdentityCheck identityCheck;
+    if (!LICHUAN_C::checkIdentity(identityCheck, observedIdentity, observedIdentity.target, measured,
+                                  LICHUAN_C::IdentityBasis::MEASURED, 0) ||
+        identityCheck.outcome != LICHUAN_C::IdentityOutcome::CONFIRMED || !identityCheck.firmwareUnqualified ||
+        identityCheck.documentedMatch)
+        return 93;
+    observedIdentity.modelCode = LICHUAN_C::documentedIdentity().modelCode;
+    LICHUAN_C::IdentityCheck unchanged = identityCheck;
+    if (!LICHUAN_C::checkIdentity(identityCheck, observedIdentity, observedIdentity.target, measured,
+                                  LICHUAN_C::IdentityBasis::MEASURED, 0) ||
+        identityCheck.expectedMatch || !identityCheck.documentedMatch ||
+        LICHUAN_C::checkIdentity(unchanged, observedIdentity, LICHUAN_C::ReadTarget(), measured,
+                                 LICHUAN_C::IdentityBasis::MEASURED, 0) ||
+        unchanged.outcome != LICHUAN_C::IdentityOutcome::CONFIRMED)
+        return 94;
     // The value decoder and the masks need no read context, and refuse only an unknown document.
     LICHUAN_C::StatusIndications indications;
     if (!LICHUAN_C::interpretStatusword(0x0087, LICHUAN_C::StatusLayout::EN86, indications) ||

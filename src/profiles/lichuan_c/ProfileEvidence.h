@@ -74,6 +74,25 @@ inline ReadOutcome readOutcome(CANOPEN::SdoOutcome o) noexcept {
         return ReadOutcome::TRANSPORT_ERROR;
     }
 }
+// Copy the eight raw identity fields of an observation or of a move, velocity or home record, which
+// share their member names.
+template <class Tuple>
+inline IdentityValues identityValues(const Tuple& t) noexcept {
+    IdentityValues v;
+    v.deviceType = t.deviceType;
+    v.hardwareVersion = t.hardwareVersion;
+    v.softwareVersion = t.softwareVersion;
+    v.vendorId = t.vendorId;
+    v.productCode = t.productCode;
+    v.revision = t.revision;
+    v.modelCode = t.modelCode;
+    v.firmwareCode = t.firmwareCode;
+    return v;
+}
+// The comparison of checkIdentity without its currentness checks, for a record compared with values a
+// context already holds (a move replacement or a velocity change). Defined in Reads.cpp.
+IdentityCheck compareIdentity(const IdentityValues& expected, IdentityBasis basis,
+                              const IdentityValues& observed) noexcept;
 } // namespace Detail
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

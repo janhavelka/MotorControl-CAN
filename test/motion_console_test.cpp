@@ -598,7 +598,7 @@ void explicitEnableAndAlarmClear() {
         policy.observationIntervalUs = 1000;
         policy.maximumAgeUs = 60000;
         policy.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
-        CHECK(r.motion.setEnablePrerequisites(r.state, proof, policy));
+        CHECK(r.motion.setEnablePrerequisites(r.state, r.identity, proof, policy));
         const unsigned first = r.wire.sentCount;
         const std::string output = r.command("@60 enable");
         contains(output, "\"result\":\"accepted\"");

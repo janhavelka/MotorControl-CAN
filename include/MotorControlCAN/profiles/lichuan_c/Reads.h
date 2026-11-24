@@ -206,6 +206,90 @@ struct IdentityObservation {
     ReadWindow window;                ///< Aggregate acquisition/skew, not atomic snapshot.
     ReadProvenance fields[9];         ///< Source evidence in the order of fields above.
 };
+/** Where an identity reference's values come from (prompt 57 identity policy). */
+enum class IdentityBasis : uint8_t {
+    NONE,       ///< No reference: nothing was compared.
+    DOCUMENTED, ///< The EDS DefaultValue entries: documentedIdentity().
+    /** A retained read of a specimen: an operation's measured evidence record, or measuredIdentity(). */
+    MEASURED
+};
+/** Identity outcome of the prompt 57 policy, as far as this one profile uses it. The application's
+ * declared binding selects the profile and model; the identity read only confirms it and never
+ * selects or changes a declaration. This profile takes no candidate set, so the declared model is the
+ * only candidate, and CONTRADICTED, which needs another candidate's matching reference, is never
+ * produced here. The family promptsets lichuan_c_extensions and lichuan_ds2_canopen extend this same
+ * comparison with their model-scoped references and the candidate set. */
+enum class IdentityOutcome : uint8_t {
+    NONE, ///< No current observation was compared. Enable and motion refuse.
+    /** A reference of the declared model matches on 1000, 1018:01, 1018:02 and 2000. It means unique
+     * among the supplied references only, not physical proof of the model: the Lichuan DS-C and TL-C
+     * EDS files declare the same 1000, 1018:01 and 1018:02 (backlog D18). */
+    CONFIRMED,
+    UNCONFIRMED, ///< No reference of the declared model matches on those fields. Enable and motion refuse.
+    CONTRADICTED ///< Another candidate's reference matches. Reserved: never produced by this profile.
+};
+/** One raw identity tuple. The product fields 1000, 1018:01, 1018:02 and 2000 say which product it
+ * is: another product is another profile. The firmware fields 1009, 100A, 1018:03 and 2001 say which
+ * firmware, and never refuse. Member names equal those of MoveFirmware, VelocityFirmware and
+ * HomeFirmware, which keep their own types. No value is decoded into a model or version number. */
+struct IdentityValues {
+    uint32_t deviceType = 0;      ///< 1000 raw; product field.
+    uint16_t hardwareVersion = 0; ///< 1009 raw value; firmware field.
+    uint16_t softwareVersion = 0; ///< 100A raw value; firmware field.
+    uint32_t vendorId = 0;        ///< 1018:01 raw; product field.
+    uint32_t productCode = 0;     ///< 1018:02 raw; product field.
+    uint32_t revision = 0;        ///< 1018:03 raw; firmware field.
+    uint16_t modelCode = 0;       ///< 2000 raw; product field.
+    uint16_t firmwareCode = 0;    ///< 2001 raw; firmware field.
+};
+/** One identity comparison. Enable, the position moves, velocity and homing freeze theirs into the
+ * context at preparation, so every terminal result carries it; their stops make none. */
+struct IdentityCheck {
+    /** CONFIRMED or UNCONFIRMED once a current observation was compared; NONE before. */
+    IdentityOutcome outcome = IdentityOutcome::NONE;
+    IdentityBasis basis = IdentityBasis::NONE; ///< Basis of expected.
+    /** expected's product fields equal observed's. Every gate of this profile requires it: an
+     * operation's measured record names the product it was measured on, so a documented match alone
+     * admits nothing (a family may refuse more than the policy with recorded evidence). */
+    bool expectedMatch = false;
+    /** documentedIdentity()'s product fields equal observed's. Reported only. False on both measured
+     * CL86-C specimens: their 2000 reads 0x0400 where the EDS default is 1. */
+    bool documentedMatch = false;
+    /** "Firmware unqualified": observed's 1009, 100A, 1018:03 or 2001 differs from expected's. The
+     * operation still runs; its qualification belongs to expected's firmware, not to this one. */
+    bool firmwareUnqualified = false;
+    IdentityValues expected; ///< The reference the operation's qualification was made on.
+    IdentityValues observed; ///< The live fields of the compared observation.
+};
+/** The documented reference: the DefaultValue entries of LC_StepDriverCAN_V1.1.eds, 1000=0x00040192,
+ * 1009=0x2608, 100A=0x0001, 1018:01=0x00001000, 1018:02=0x00000001, 1018:03=0, 2000=0x0001, 2001=0.
+ * That EDS is family-unbound and the CL86-C/OL86-C manual (EN86/ZH86 pp15, 17) gives no values; no
+ * published table maps 2000 or 2001 codes to models or firmware.
+ * @return The values; the same for CL86_C and OL86_C. */
+IdentityValues documentedIdentity() noexcept;
+/** The measured reference: both CL86-C specimens, one firmware, read since 2026-11-04 under
+ * IdentityWidths::MEASURED_U8 (docs/device_conflicts.md Q01): 1000=0x00040192, 1009=0x0C, 100A=0x20,
+ * 1018:01=0x00001000, 1018:02=0x00000001, 1018:03=0, 2000=0x0400, 2001=0x0200. Every reviewed record
+ * of the regular enable was made on it, so prepareEnable compares with it. No OL86-C identity is
+ * documented or measured; an OL86_C binding is compared with the same values.
+ * @return The values. */
+IdentityValues measuredIdentity() noexcept;
+/** Compare one current identity observation with an operation's expected reference and the
+ * documented one. A product-field difference makes the outcome UNCONFIRMED, unless the documented
+ * reference matches; a firmware-field difference only sets firmwareUnqualified. A field that could
+ * not be read leaves no observation: getIdentity publishes only a complete read.
+ * @param[out] output Written only on success; must not overlap an input.
+ * @param[in] observed Identity from getIdentity; current when its target equals current and its window
+ * is ordered and ends no later than nowUs. An older boot, binding or configuration is never current.
+ * @param[in] current Actual current route and epochs, as the reservation holds them.
+ * @param[in] expected The reference the caller's operation is qualified on.
+ * @param[in] basis DOCUMENTED or MEASURED, the basis of expected.
+ * @param[in] nowUs Caller time, in the observation's clock domain.
+ * @return OK with output written whatever the outcome; INVALID_CONFIG with ReadError::TARGET for an
+ * observation that is not current, TIME for a window after nowUs, ARGUMENT for basis NONE or out of
+ * range, and OVERLAP, each leaving output unchanged. No I/O; a result is never model detection. */
+Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
+                     const IdentityValues& expected, IdentityBasis basis, uint64_t nowUs) noexcept;
 /** One complete state block, independently available after a later block fails.
  * Only fields selected by block are meaningful; raw success does not interpret
  * disputed status bits, mode signedness, I/O assignment or physical scale.

@@ -45,6 +45,27 @@ struct FakeDrive {
             return;
         }
         switch (index) {
+        // Identity: the values both CL86-C specimens report (measuredIdentity()), at the EDS widths.
+        case 0x1000:
+            raw = 0x00040192;
+            size = 4;
+            break;
+        case 0x1009:
+            raw = 0x0c;
+            break;
+        case 0x100a:
+            raw = 0x20;
+            break;
+        case 0x1018:
+            raw = sent.data[3] == 0 ? 3 : sent.data[3] == 1 ? 0x1000 : sent.data[3] == 2 ? 1 : 0;
+            size = sent.data[3] == 0 ? 1 : 4;
+            break;
+        case 0x2000:
+            raw = 0x0400;
+            break;
+        case 0x2001:
+            raw = 0x0200;
+            break;
         case 0x2100:
             raw = monitor;
             break;
@@ -124,7 +145,8 @@ struct FakeDrive {
 // Stationary application storage: contexts are too large for a task stack by design.
 C::SdoClient services;
 FakeDrive drive;
-L::ReadContext state;
+L::ReadContext identityRead, state;
+L::IdentityObservation identity;
 } // namespace
 
 int main() {
@@ -167,29 +189,41 @@ int main() {
     options.observationIntervalUs = 1000;
     options.maximumAgeUs = 36000;
     options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    const auto run = [&](L::ReadContext& read) {
+        while (read.state == M::ReadState::ACTIVE) {
+            L::PreparedRead work;
+            if (!L::nextRead(read, drive.nowUs, work) ||
+                session.admitPrepared(work.transfer, drive.nowUs) != O::BusAdmission::ACCEPTED)
+                return false;
+            C::SdoCompletion terminal;
+            while (!session.settle(terminal))
+                turn();
+            if (!L::advanceRead(read, terminal, drive.nowUs))
+                return false;
+        }
+        return true;
+    };
+    // The identity read every enable compares: product fields must match, firmware fields only flag.
+    uint32_t operation = session.beginOperation(drive.nowUs + 100000, drive.nowUs);
+    if (!operation ||
+        !L::prepareIdentity(identityRead, target, operation, drive.nowUs, drive.nowUs + 100000, options.service) ||
+        !run(identityRead) || !L::getIdentity(identityRead, target, drive.nowUs, 100000, identity))
+        return 2;
     const uint8_t blocks = uint8_t((1u << unsigned(L::StateBlock::ERRORS)) |
                                    (1u << unsigned(L::StateBlock::MONITORS)) |
                                    (1u << unsigned(L::StateBlock::STATUS)) |
                                    (1u << unsigned(L::StateBlock::FEEDBACK)));
-    uint32_t operation = session.beginOperation(drive.nowUs + 100000, drive.nowUs);
+    operation = session.beginOperation(drive.nowUs + 100000, drive.nowUs);
     if (!operation || !L::prepareState(state, target, operation, drive.nowUs, drive.nowUs + 100000,
                                        options.service, blocks))
         return 2;
-    while (state.state == M::ReadState::ACTIVE) {
-        L::PreparedRead work;
-        if (!L::nextRead(state, drive.nowUs, work) ||
-            session.admitPrepared(work.transfer, drive.nowUs) != O::BusAdmission::ACCEPTED)
-            return 3;
-        C::SdoCompletion terminal;
-        while (!session.settle(terminal))
-            turn();
-        if (!L::advanceRead(state, terminal, drive.nowUs))
-            return 4;
-    }
+    if (!run(state))
+        return 3;
 
     // Every default refuses. The gate is the first check, and it stays closed unless opened.
     L::EnableEvidence evidence;
-    M::Status status = session.requestEnable(state, evidence, options, drive.nowUs + 200000, drive.nowUs);
+    M::Status status =
+        session.requestEnable(state, identity, evidence, options, drive.nowUs + 200000, drive.nowUs);
     std::printf("default evidence: %s\n", status.msg);
     if (status.code != M::Err::UNSUPPORTED)
         return 5;
@@ -213,7 +247,7 @@ int main() {
     evidence.reviewedStatusword = 0x8037;
     evidence.reviewedPositionTarget = 5000;
     evidence.reviewedVelocityTarget = 120;
-    status = session.requestEnable(state, evidence, options, drive.nowUs + 200000, drive.nowUs);
+    status = session.requestEnable(state, identity, evidence, options, drive.nowUs + 200000, drive.nowUs);
     if (!status)
         return 6;
     while (session.enableActive())
@@ -223,6 +257,11 @@ int main() {
                 unsigned(enable.execution), unsigned(enable.uncertain));
     std::printf("reported only: low bits %u; this is not torque or a specimen result\n",
                 unsigned(enable.statusObservation.statusword & L::STATUS_LOW_BITS));
+    std::printf("identity outcome %u, firmware unqualified %u\n", unsigned(enable.enable.identity.outcome),
+                unsigned(enable.enable.identity.firmwareUnqualified));
+    if (enable.enable.identity.outcome != L::IdentityOutcome::CONFIRMED ||
+        enable.enable.identity.firmwareUnqualified)
+        return 7;
     if (enable.state != M::ActionState::SUCCEEDED || drive.downloads != 3)
         return 7;
 
@@ -243,7 +282,7 @@ int main() {
     std::printf("stop word %04X, acknowledged only: no shaft claim\n", unsigned(drive.word));
     // A second enable has no fresh history here, whatever the next read says, and the trial is spent.
     evidence.operation = session.nextOperation();
-    if (session.requestEnable(state, evidence, options, drive.nowUs + 200000, drive.nowUs))
+    if (session.requestEnable(state, identity, evidence, options, drive.nowUs + 200000, drive.nowUs))
         return 11;
     return 0;
 }

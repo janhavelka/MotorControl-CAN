@@ -195,7 +195,10 @@ after their identity reads, refused `why=grant` by the bench ordering of backlog
 
 ## Ordinary owner path
 
-`AxisSession::requestHome` validates the acquired identity, input configuration,
+`AxisSession::requestHome` validates the acquired identity under the
+[identity policy](drive_actions.md) (product fields `1000`, `1018:01`,
+`1018:02` and `2000` of `HomeEvidence::firmware` must match, within `HomeOptions::maximumAgeUs`;
+firmware fields that differ only set `HomeContext::identity.firmwareUnqualified`), input configuration,
 raw direction, current enabled mode-6 state and actual latest acknowledged
 `000F`, then prepares the fixed `HomeContext` in place. It neither changes mode
 nor enables. Supply mutable application-owned axis/reference storage that

@@ -1108,6 +1108,12 @@ void identityWidthVariants() {
         CHECK(id.modelCode == 0x0400 && id.firmwareCode == 0x0200 && !id.modelMatched);
         CHECK(id.fields[1].index == 0x1009 && id.fields[2].index == 0x100a);
         CHECK(!id.fields[1].captureKnown && id.fields[0].earliestUs == 0);
+        // Prompt 57: these replayed specimen bytes are the library's measured reference, which the regular
+        // enable compares. The documented EDS reference differs on 2000 (1, not 0x0400): reported only.
+        L::IdentityCheck check;
+        CHECK(L::checkIdentity(check, id, target(), L::measuredIdentity(), L::IdentityBasis::MEASURED, now));
+        CHECK(check.outcome == L::IdentityOutcome::CONFIRMED && check.expectedMatch && !check.documentedMatch &&
+              !check.firmwareUnqualified && check.basis == L::IdentityBasis::MEASURED);
         // The descriptor table is untouched: the option narrows this one context only.
         L::ReadDescriptor table = {};
         CHECK(L::readDescriptor(0x1009, 0, table) && table.widthBytes == 2);
@@ -1802,6 +1808,95 @@ void validateReadMatchesPreparation() {
     CHECK(c.state == M::ReadState::EMPTY && !c.count && !c.operation);
 }
 } // namespace
+// Prompt 57 identity policy: product fields decide the outcome, firmware fields only flag, and only a
+// current observation is compared. The declared model is the only candidate, so CONTRADICTED never occurs.
+void identityCheckRules() {
+    const L::IdentityValues measured = L::measuredIdentity(), documented = L::documentedIdentity();
+    // The documented reference is the EDS DefaultValue set; the two references differ only in 1009, 100A,
+    // 2000 and 2001.
+    CHECK(documented.deviceType == 0x00040192 && documented.hardwareVersion == 0x2608 &&
+          documented.softwareVersion == 1 && documented.vendorId == 0x1000 && documented.productCode == 1 &&
+          documented.revision == 0 && documented.modelCode == 1 && documented.firmwareCode == 0);
+    CHECK(measured.deviceType == documented.deviceType && measured.vendorId == documented.vendorId &&
+          measured.productCode == documented.productCode && measured.revision == documented.revision &&
+          measured.modelCode == 0x0400 && measured.hardwareVersion == 0x0c && measured.softwareVersion == 0x20 &&
+          measured.firmwareCode == 0x0200);
+    L::IdentityObservation base;
+    base.target = target();
+    base.deviceType = measured.deviceType;
+    base.hardwareVersion = measured.hardwareVersion;
+    base.softwareVersion = measured.softwareVersion;
+    base.vendorId = measured.vendorId;
+    base.productCode = measured.productCode;
+    base.revision = measured.revision;
+    base.modelCode = measured.modelCode;
+    base.firmwareCode = measured.firmwareCode;
+    base.window.earliestUs = 10;
+    base.window.latestUs = 20;
+    const uint64_t now = 20;
+    for (unsigned field = 0; field < 8; ++field) {
+        L::IdentityObservation o = base;
+        switch (field) {
+        case 0: ++o.deviceType; break;
+        case 1: ++o.vendorId; break;
+        case 2: ++o.productCode; break;
+        case 3: ++o.modelCode; break;
+        case 4: ++o.hardwareVersion; break;
+        case 5: ++o.softwareVersion; break;
+        case 6: ++o.revision; break;
+        default: ++o.firmwareCode; break;
+        }
+        L::IdentityCheck c;
+        CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, now));
+        CHECK(c.basis == L::IdentityBasis::MEASURED && !c.documentedMatch);
+        CHECK(c.expected.modelCode == measured.modelCode && c.observed.firmwareCode == o.firmwareCode &&
+              c.observed.revision == o.revision && c.observed.deviceType == o.deviceType);
+        if (field < 4)
+            CHECK(c.outcome == L::IdentityOutcome::UNCONFIRMED && !c.expectedMatch && !c.firmwareUnqualified);
+        else
+            CHECK(c.outcome == L::IdentityOutcome::CONFIRMED && c.expectedMatch && c.firmwareUnqualified);
+    }
+    {
+        // A drive reporting the EDS 2000 default: the documented reference alone matches. The outcome is
+        // CONFIRMED, yet expectedMatch stays false, which every gate of this profile requires.
+        L::IdentityObservation o = base;
+        o.modelCode = documented.modelCode;
+        L::IdentityCheck c;
+        CHECK(L::checkIdentity(c, o, target(), measured, L::IdentityBasis::MEASURED, now));
+        CHECK(c.outcome == L::IdentityOutcome::CONFIRMED && c.documentedMatch && !c.expectedMatch);
+        CHECK(L::checkIdentity(c, o, target(), documented, L::IdentityBasis::DOCUMENTED, now));
+        CHECK(c.expectedMatch && c.documentedMatch && c.basis == L::IdentityBasis::DOCUMENTED &&
+              c.firmwareUnqualified); // The specimens' 1009, 100A and 2001 are not the EDS defaults.
+    }
+    // Nothing that is not a current observation is compared, and a refusal writes nothing.
+    L::IdentityCheck kept;
+    CHECK(L::checkIdentity(kept, base, target(), measured, L::IdentityBasis::MEASURED, now));
+    const Saved<L::IdentityCheck> saved(kept);
+    const auto refuses = [&](const L::IdentityObservation& o, const L::ReadTarget& current, L::IdentityBasis basis,
+                             uint64_t time, M::ReadError detail) {
+        const M::Status s = L::checkIdentity(kept, o, current, measured, basis, time);
+        CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(detail));
+        saved.unchanged(kept);
+    };
+    L::ReadTarget later = target();
+    ++later.nodeGeneration; // A reboot: the old boot's identity is not this one's.
+    refuses(base, later, L::IdentityBasis::MEASURED, now, M::ReadError::TARGET);
+    later = target();
+    ++later.channel.binding.configurationGeneration;
+    refuses(base, later, L::IdentityBasis::MEASURED, now, M::ReadError::TARGET);
+    refuses(base, L::ReadTarget(), L::IdentityBasis::MEASURED, now, M::ReadError::TARGET);
+    refuses(base, target(), L::IdentityBasis::MEASURED, now - 1, M::ReadError::TIME);
+    L::IdentityObservation unordered = base;
+    unordered.window.earliestUs = 21;
+    refuses(unordered, target(), L::IdentityBasis::MEASURED, 30, M::ReadError::TIME);
+    refuses(base, target(), L::IdentityBasis::NONE, now, M::ReadError::ARGUMENT);
+    refuses(base, target(), static_cast<L::IdentityBasis>(3), now, M::ReadError::ARGUMENT);
+    static L::IdentityCheck alias;
+    const M::Status overlap =
+        L::checkIdentity(alias, base, target(), alias.expected, L::IdentityBasis::MEASURED, now);
+    CHECK(!overlap && overlap.detail == int32_t(M::ReadError::OVERLAP));
+}
+
 int main() {
     allRowsAndRealOwner();
     preparationAndGetters();
@@ -1823,6 +1918,7 @@ int main() {
     realLifecycleInvalidation();
     forgedHistoryCountRefusesAndPublishesNothing();
     validateReadMatchesPreparation();
+    identityCheckRules();
     std::printf("reads: %u checks passed\n", checks);
     return 0;
 }

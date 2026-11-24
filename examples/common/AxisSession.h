@@ -292,6 +292,8 @@ class AxisSession {
      * @param[in] state Complete fresh SDO read under this reservation, as prepareEnable requires,
      * and not held inside enableAction(). Under MEASURED its STATUS and MONITORS must begin after this
      * session's latest write.
+     * @param[in] identity Current identity read of this boot, as prepareEnable requires: product fields
+     * that differ refuse, firmware fields that differ flag enableAction().enable.identity.
      * @param[in] evidence Under MEASURED the gate, mode 1, operation (use nextOperation) and an optional
      * expected start; nothing else is consulted, and the session keeps no history or trial log for it.
      * Under ATTENDED_EXPERIMENT the caller's explicit trial, reservation, operation, expiry, start
@@ -307,6 +309,7 @@ class AxisSession {
      */
     MotorControlCAN::Status
     requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                  const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
                   const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
                   const MotorControlCAN::LICHUAN_C::ActionOptions& options, uint64_t deadlineUs,
                   uint64_t nowUs) noexcept;
@@ -512,7 +515,7 @@ class AxisSession {
      * The mutable axis/reference are borrowed until terminal; the trigger withdraws coordinates
      * once and synchronizes the owner before transmission on the new configuration epoch.
      * @param[in] state Complete enabled stationary mode6 state after the latest 000F.
-     * @param[in] identity Exact acquired specimen identity.
+     * @param[in] identity Acquired specimen identity, compared as prepareHome requires.
      * @param[in] inputs Reviewed input mapping/polarity acquisition.
      * @param[in] driver Fresh raw direction acquisition.
      * @param[in] evidence Exact selected-firmware qualification.

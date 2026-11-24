@@ -57,10 +57,12 @@ struct Console {
         return value;
     }
 };
-// The fake's identity: raw codes chosen here, not any real model or firmware. 1009 and 100A answer in
-// one byte, as the route reads them.
-const uint32_t DEVICE_TYPE = 0x00040192, VENDOR = 0x00000300, PRODUCT = 0x00008605, REVISION = 0x00010001;
-const uint16_t HARDWARE = 0x12, SOFTWARE = 0x34, MODEL = 0x0086, FIRMWARE = 0x0123;
+// The fake's identity: raw codes. The product fields (1000, 1018:01, 1018:02, 2000) are those of
+// measuredIdentity(), which the ENABLE route's enable compares (prompt 57); the firmware fields are chosen
+// here, so that enable runs flagged firmware unqualified. 1009 and 100A answer in one byte, as the route
+// reads them.
+const uint32_t DEVICE_TYPE = 0x00040192, VENDOR = 0x00001000, PRODUCT = 0x00000001, REVISION = 0x00010001;
+const uint16_t HARDWARE = 0x12, SOFTWARE = 0x34, MODEL = 0x0400, FIRMWARE = 0x0123;
 // This test's acceptance and completion bits for the fake's 6041. Not a dialect: no specimen has shown
 // what either bit does.
 const uint16_t ACCEPT_BIT = 0x1000, COMPLETE_BIT = 0x8000;

@@ -334,7 +334,7 @@ void validation() {
             r.evidence.directionRaw = 1;
             break;
         case 8:
-            ++r.evidence.firmware.firmwareCode;
+            ++r.evidence.firmware.modelCode; // A product field; firmware fields only flag (below).
             break;
         case 9:
             ++r.evidence.specimen.nodeGeneration;
@@ -392,6 +392,45 @@ void validation() {
             break;
         }
         r.reject();
+    }
+    // Prompt 57 identity policy: each product field (1000, 1018:01, 1018:02, 2000) of the record refuses,
+    // and an identity read older than the age cap does too; each firmware field (1009, 100A, 1018:03, 2001)
+    // admits the home and flags it, both tuples kept.
+    for (unsigned field = 0; field < 8; ++field) {
+        Rig r;
+        L::HomeFirmware& f = r.evidence.firmware;
+        switch (field) {
+        case 0: ++f.deviceType; break;
+        case 1: ++f.vendorId; break;
+        case 2: ++f.productCode; break;
+        case 3: ++f.modelCode; break;
+        case 4: ++f.hardwareVersion; break;
+        case 5: ++f.softwareVersion; break;
+        case 6: ++f.revision; break;
+        default: ++f.firmwareCode; break;
+        }
+        if (field < 4) {
+            const M::Status s = r.prepare();
+            CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::HomeError::CAPABILITY));
+            r.reject();
+            continue;
+        }
+        CHECK(r.prepare());
+        const L::IdentityCheck& id = r.home.identity;
+        CHECK(id.outcome == L::IdentityOutcome::CONFIRMED && id.basis == L::IdentityBasis::MEASURED &&
+              id.expectedMatch && id.firmwareUnqualified);
+        CHECK(id.expected.revision == f.revision && id.expected.firmwareCode == f.firmwareCode &&
+              id.observed.firmwareCode == r.identity.firmwareCode && id.observed.revision == r.identity.revision);
+    }
+    {
+        Rig r;
+        r.now = r.identity.window.earliestUs + r.options.maximumAgeUs + 1;
+        r.reject();
+    }
+    {
+        Rig r; // The record's own tuple: confirmed, not flagged.
+        CHECK(r.prepare());
+        CHECK(r.home.identity.outcome == L::IdentityOutcome::CONFIRMED && !r.home.identity.firmwareUnqualified);
     }
     Rig zero;
     zero.request.searchSpeed.value = M::Rational(1, 10);

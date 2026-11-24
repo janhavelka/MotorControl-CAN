@@ -27,6 +27,7 @@ static const char* scenario = "";
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/Identity.h"
 #include "support/OwnerRig.h"
 namespace {
 using OwnerRig::budget;
@@ -3764,7 +3765,8 @@ void clearAlarmThroughSession() {
         // Nothing follows a clear: this session wrote, so an enable is refused.
         const Saved<E::AxisSession> session(r.a);
         const M::Status enable =
-            r.a.requestEnable(run.state, L::EnableEvidence(), clearOptions(), r.now + 1000, r.now);
+            r.a.requestEnable(run.state, TestIdentity::measured(target(), r.now), L::EnableEvidence(), clearOptions(),
+                              r.now + 1000, r.now);
         CHECK(!enable && enable.detail == int32_t(M::ActionError::STATE) && r.a.motionHistoryWritten());
         session.unchanged(r.a);
         quiet(r);
@@ -3801,7 +3803,8 @@ void clearAlarmByControlword(ClearRun& run) {
           latest->transfer.operation == clear.operation);
     CHECK(!L::stopPredecessorAllowed(0, L::StopKind::HALT) && !L::stopPredecessorAllowed(0, L::StopKind::QUICK_STOP));
     // Nothing follows a clear: this session wrote, so an enable is refused.
-    const M::Status enable = r.a.requestEnable(run.state, L::EnableEvidence(), clearOptions(), r.now + 1000, r.now);
+    const M::Status enable = r.a.requestEnable(run.state, TestIdentity::measured(target(), r.now), L::EnableEvidence(), clearOptions(),
+                              r.now + 1000, r.now);
     CHECK(!enable && enable.detail == int32_t(M::ActionError::STATE) && r.a.motionHistoryWritten());
     quiet(r);
 }
@@ -4352,7 +4355,8 @@ void rejectedFinalZeroBlocks() {
                          r.a.requestCounterZero(fresh, 0, run.axis, run.reference, clearOptions(), deadline,
                                                 r.now),
                          int32_t(M::ActionError::STATE));
-            checkBlocked(r.a, r.a.requestEnable(fresh, L::EnableEvidence(), clearOptions(), deadline, r.now),
+            checkBlocked(r.a, r.a.requestEnable(fresh, TestIdentity::measured(target(), r.now), L::EnableEvidence(),
+                                                clearOptions(), deadline, r.now),
                          int32_t(M::ActionError::STATE));
             L::IdentityObservation identity;
             L::MoveEvidence evidence;

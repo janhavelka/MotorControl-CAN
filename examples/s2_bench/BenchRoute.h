@@ -37,7 +37,8 @@
  *   this route after any controlword or write of this boot. The latest controlword recorded at admission
  *   must still be the latest at the request, as for RELEASED_QUICK. No 6040 in either. The line is
  *   unchanged.
- * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then AxisSession::requestEnable.
+ * - ENABLE, packet 15 P3. The identity read (prompt 57: product fields that differ refuse, firmware fields
+ *   only flag), a fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then AxisSession::requestEnable.
  *   Start 1 is the attended power-up trial (EnableGate::ATTENDED_EXPERIMENT) with the host's trial, start
  *   record, reviewed 6041, 607A and 60FF and the attendant's shaft observation; the firmware never supplies
  *   an observation itself, and the session's own write record still refuses it after a write of this boot.

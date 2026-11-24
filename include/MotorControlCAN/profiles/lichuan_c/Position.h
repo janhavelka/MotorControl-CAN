@@ -142,7 +142,9 @@ enum class CompletionRule : uint8_t {
      * measurement showed that acceptance withdraws an earlier completion report. */
     AFTER_ACCEPTANCE
 };
-/** Raw identity values the measurement was made on, compared exactly with a current identity read. */
+/** Raw identity values the measurement was made on, compared with a current identity read under the
+ * prompt 57 identity policy: the product fields (1000, 1018:01, 1018:02, 2000) must match, a firmware
+ * field (1009, 100A, 1018:03, 2001) that differs sets MoveContext::identity.firmwareUnqualified. */
 struct MoveFirmware {
     uint32_t deviceType = 0;      ///< 1000 raw.
     uint16_t hardwareVersion = 0; ///< 1009 raw value.
@@ -176,7 +178,9 @@ struct MoveEvidence {
     MoveGate gate = MoveGate::CLOSED; ///< Must be MEASURED.
     uint32_t record = 0; ///< Nonzero identity of the reviewed measurement record; the dialect epoch.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Model measured; must equal the reservation's.
-    MoveFirmware firmware; ///< Identity measured; must equal the current identity read.
+    /** Identity measured: its product fields must equal the current identity read; its firmware fields
+     * may differ, which flags the move as firmware unqualified. */
+    MoveFirmware firmware;
     /** Report that this trigger was taken. It must be absent in the admission read, so an earlier
      * acceptance cannot pass for this one. */
     MoveSignal acceptance;
@@ -236,7 +240,9 @@ struct MoveReplacementEvidence {
     MoveChangeGate gate = MoveChangeGate::CLOSED; ///< Closed by default.
     uint32_t record = 0; ///< Nonzero retained measurement or attended experiment identity.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Must match the original move.
-    MoveFirmware firmware;     ///< Exact tuple frozen by the original measured move.
+    /** Identity measured: its product fields must equal the original's identity read; firmware fields
+     * that differ flag the replacement's identity as firmware unqualified. */
+    MoveFirmware firmware;
     uint8_t parameterMask = 0; ///< Qualified bare staging: bits 0..3 are 607A/6081/6083/6084.
     bool fallingEdgeQualified = false; ///< 000F during a curve was independently established.
     bool immediateQualified = false;   ///< 003F edge and fresh acceptance attribution established.
@@ -316,6 +322,10 @@ struct MoveSample {
 struct MoveContext {
     AxisReservation reservation; ///< Frozen route, model, epochs and continuous exclusion.
     MoveEvidence evidence;       ///< Frozen capability evidence: the dialect, and the native base.
+    /** Frozen identity comparison of the admission: outcome CONFIRMED, the expected record tuple, the
+     * observed identity, and firmwareUnqualified when the move runs on a firmware its record was not
+     * made on. A replacement holds its own record compared with the original's observed identity. */
+    IdentityCheck identity;
     MoveProfile profile;         ///< Frozen native profile choices.
     MoveOptions options;         ///< Frozen caller budgets.
     /** Frozen requested and effective 607A value, quantization error, units and frame, scale, origin,
@@ -478,8 +488,11 @@ Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& re
  * the 000F history is the enable evidence. The acceptance report must be absent here.
  * @param[in] control The actual latest acknowledged 6040:00 U16 under this reservation; exactly 000F.
  * A move never writes 000F to make one. After a trigger, a stop or an uncertain word none exists.
- * @param[in] identity Current identity read on reservation.target, node epoch included, whose raw values
- * equal evidence.firmware exactly. Missing firmware evidence refuses with UNSUPPORTED.
+ * @param[in] identity Current identity read on reservation.target, node epoch included, with a window
+ * ending no later than nowUs (checkIdentity). Product fields (1000, 1018:01, 1018:02, 2000) that
+ * differ from evidence.firmware refuse with UNSUPPORTED before any TX, as does an observation that is
+ * not current; firmware fields (1009, 100A, 1018:03, 2001) that differ admit the move and set
+ * output.identity.firmwareUnqualified, with both tuples kept.
  * @param[in] evidence Capability gate and measured signals, copied. CLOSED returns UNSUPPORTED.
  * @param[in] request Unwrapped absolute position and positive speed, both with configuration epoch
  * axis.binding.configurationGeneration. A relative or wrapped position is refused here.

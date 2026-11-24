@@ -339,6 +339,9 @@ struct EnableStepRecord {
 /** ENABLE history kept for inspection, including after failure. None of it is an interpretation. */
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
+    /** Frozen identity comparison of the admission against measuredIdentity(): CONFIRMED, both tuples,
+     * and firmwareUnqualified when the drive runs a firmware no reviewed enable record was made on. */
+    IdentityCheck identity;
     /** The start the sequence runs under: the caller's under ATTENDED_EXPERIMENT; under MEASURED the class
      * the fresh report showed, POWER_UP or RELEASED. UNKNOWN in every other context. */
     EnableStart start = EnableStart::UNKNOWN;
@@ -424,7 +427,8 @@ enum class ReleaseRow : uint8_t {
      * only, never a release word elsewhere. */
     ALARM_CLEARED,
     /** Row 4: 2100 released set with 6041 low bits 000 or 001 (8050/0011, the latches 4050/0014 and
-     * C050/0015, 8031/0011), in any mode and whatever its running bit: already released, nothing sent. */
+     * C050/0015, 8031/0011), in any mode and whatever its running bit or an alarm: already released, nothing
+     * sent, the running, alarm and fault facts reported in ReleaseDecision. */
     ALREADY_RELEASED,
     REFUSED, ///< Row 5: every other report, refused before TX with its ReleaseRefusal.
     /** An explicit ReleaseExperiment word, 0x0000 or 0x0006, from a report outside the measured rows or with
@@ -473,6 +477,11 @@ struct ReleaseDecision {
     uint8_t settleLowBits = 0;  ///< 6041 bits 0..2 that settle it, beside 2100 released.
     bool running = false;       ///< 2100 running in the report; row 4 reports it.
     bool velocityNonzero = false; ///< 606C nonzero in the report; reported, never a standstill claim.
+    /** 2100 alarm bit in the report. Row 4 reports it and still sends nothing; every other row refuses. */
+    bool alarm = false;
+    /** 1001 or 603F nonzero in the report. Row 4 reports it and still sends nothing, clearing nothing;
+     * every other row refuses. */
+    bool fault = false;
 };
 /** SELECT_MODE's sibling for RELEASE: the table's answer and the admission report, kept after later
  * cycles replace the blocks, and the settling cycle's 606C. Raw values only. */
@@ -803,6 +812,7 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& re
  * moves other state, such as an owner operation.
  * @param[in] output The context prepareEnable would write; read only for its overlap checks.
  * @param[in] reservation As prepareEnable. @param[in] state As prepareEnable.
+ * @param[in] identity As prepareEnable.
  * @param[in] evidence As prepareEnable. @param[in] operation As prepareEnable.
  * @param[in] nowUs As prepareEnable. @param[in] deadlineUs As prepareEnable.
  * @param[in] options As prepareEnable.
@@ -810,8 +820,9 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& re
  * values cannot refuse.
  */
 Status validateEnable(const ActionContext& output, const AxisReservation& reservation,
-                      const ReadContext& state, const EnableEvidence& evidence, uint32_t operation,
-                      uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
+                      const ReadContext& state, const IdentityObservation& identity,
+                      const EnableEvidence& evidence, uint32_t operation, uint64_t nowUs,
+                      uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare the documented position-mode enable sequence: regular under EnableGate::MEASURED, an
  * attended trial under EnableGate::ATTENDED_EXPERIMENT. Neither qualifies another firmware or model.
  * Writes nothing itself. nextAction first yields one upload each of 607A and 60FF, as the project's
@@ -847,6 +858,12 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * standstill as above. The released sequence differs as EnableStart lists: the latch must clear by
  * word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C changing after word 15
  * fails with a status message telling the caller to stop the drive.
+ * @param[in] identity Current identity read of this boot (checkIdentity), under either gate, compared
+ * with measuredIdentity() by the prompt 57 identity policy. No observation of this target, node
+ * generation and binding, or product fields (1000, 1018:01, 1018:02, 2000) that differ, return
+ * UNSUPPORTED with ActionError::TARGET before any TX; no gate or option overrides it. Firmware fields (1009, 100A, 1018:03, 2001) that differ admit the enable and
+ * set output.enable.identity.firmwareUnqualified, with both tuples kept. The documented reference is
+ * reported only: its 2000 default (1) is not what either specimen reads (0x0400).
  * @param[in] evidence Copied. A closed gate returns UNSUPPORTED. MEASURED consults only modeRaw, which
  * must be 1 (otherwise UNSUPPORTED), operation and start: UNKNOWN admits either measured start, RELEASED
  * or POWER_UP (NO_MOTION_WRITE_RECORDED counts as POWER_UP) requires that class. ATTENDED_EXPERIMENT
@@ -868,8 +885,9 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * @return Local validation only. No I/O. Never establishes firmware qualification or a safe enable.
  */
 Status prepareEnable(ActionContext& output, const AxisReservation& reservation,
-                     const ReadContext& state, const EnableEvidence& evidence, uint32_t operation,
-                     uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
+                     const ReadContext& state, const IdentityObservation& identity,
+                     const EnableEvidence& evidence, uint32_t operation, uint64_t nowUs,
+                     uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare one documented operating-mode selection on CL86-C/OL86-C: a single 6060:00 download of
  * modeRaw, settled only when a later fresh 6061 reads modeRaw. The request is the one byte
  * `2F 60 60 00 <modeRaw> 00 00 00`: the manuals declare 6060 INTEGER8 and the EDS U8, and 1, 3 and 6

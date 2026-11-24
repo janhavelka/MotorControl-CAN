@@ -115,7 +115,7 @@ void enableChain() {
     budgets.observationIntervalUs = 1000;
     budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
     budgets.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
-    CHECK(r.a.requestEnable(enableState, e, budgets, r.now + LEAD, r.now).isOk());
+    CHECK(r.a.requestEnable(enableState, r.identity, e, budgets, r.now + LEAD, r.now).isOk());
     for (unsigned k = 0; k < 600 && r.a.enableActive(); ++k)
         r.step();
     CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
@@ -321,12 +321,62 @@ void gates() {
     Rig r;
     r.ready();
     refused(r, r.request(L::MoveEvidence()), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);
-    L::MoveEvidence e = evidence();
-    e.firmware.firmwareCode = uint16_t(FIRMWARE + 1);
-    refused(r, r.request(e), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);
-    e = evidence();
-    e.firmware.softwareVersion = 0;
-    refused(r, r.request(e), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);
+    // Prompt 57 identity policy: a product field (1000, 1018:01, 1018:02, 2000) that differs from the
+    // record refuses before any TX, as does an identity read of another boot.
+    L::MoveEvidence e;
+    for (unsigned field = 0; field < 4; ++field) {
+        e = evidence();
+        if (field == 0)
+            ++e.firmware.deviceType;
+        else if (field == 1)
+            ++e.firmware.vendorId;
+        else if (field == 2)
+            ++e.firmware.productCode;
+        else
+            ++e.firmware.modelCode;
+        refused(r, r.request(e), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);
+    }
+    {
+        const L::IdentityObservation kept = r.identity;
+        ++r.identity.target.nodeGeneration;
+        refused(r, r.request(evidence()), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);
+        r.identity = kept;
+    }
+    // A firmware field (1009, 100A, 1018:03, 2001) that differs only flags the move: it runs, and its
+    // context, the terminal result, keeps both tuples.
+    for (unsigned field = 0; field < 4; ++field) {
+        Rig f;
+        f.ready();
+        e = evidence();
+        if (field == 0)
+            e.firmware.hardwareVersion = uint16_t(HARDWARE + 1);
+        else if (field == 1)
+            e.firmware.softwareVersion = 0;
+        else if (field == 2)
+            ++e.firmware.revision;
+        else
+            e.firmware.firmwareCode = uint16_t(FIRMWARE + 1);
+        CHECK(f.request(e).isOk());
+        f.finishMove();
+        const L::IdentityCheck& id = moveOf(f).identity;
+        CHECK(moveOf(f).state == M::ActionState::SUCCEEDED);
+        CHECK(id.outcome == L::IdentityOutcome::CONFIRMED && id.basis == L::IdentityBasis::MEASURED &&
+              id.expectedMatch && !id.documentedMatch && id.firmwareUnqualified);
+        CHECK(id.expected.hardwareVersion == e.firmware.hardwareVersion &&
+              id.expected.softwareVersion == e.firmware.softwareVersion &&
+              id.expected.revision == e.firmware.revision && id.expected.firmwareCode == e.firmware.firmwareCode);
+        CHECK(id.observed.hardwareVersion == HARDWARE && id.observed.softwareVersion == SOFTWARE &&
+              id.observed.revision == REVISION && id.observed.firmwareCode == FIRMWARE &&
+              id.observed.modelCode == MODEL);
+    }
+    {
+        Rig same; // The record's own firmware: confirmed and not flagged.
+        same.ready();
+        CHECK(same.request(evidence()).isOk());
+        same.finishMove();
+        CHECK(moveOf(same).identity.outcome == L::IdentityOutcome::CONFIRMED &&
+              !moveOf(same).identity.firmwareUnqualified);
+    }
     e = evidence();
     e.model = L::SettingsModel::OL86_C;
     refused(r, r.request(e), M::Err::UNSUPPORTED, M::MoveError::CAPABILITY);

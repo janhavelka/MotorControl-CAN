@@ -52,18 +52,6 @@ bool optionsValid(const VelocityOptions& o) {
            o.commandIntervalUs >= ENABLE_WORD_INTERVAL_US &&
            o.commandIntervalUs <= uint64_t(INT64_MAX) / 2 && o.stopKind <= StopKind::QUICK_STOP;
 }
-bool sameFirmware(const VelocityFirmware& f, const IdentityObservation& i) {
-    return f.deviceType == i.deviceType && f.hardwareVersion == i.hardwareVersion &&
-           f.softwareVersion == i.softwareVersion && f.vendorId == i.vendorId &&
-           f.productCode == i.productCode && f.revision == i.revision &&
-           f.modelCode == i.modelCode && f.firmwareCode == i.firmwareCode;
-}
-bool sameFirmware(const VelocityFirmware& a, const VelocityFirmware& b) {
-    return a.deviceType == b.deviceType && a.hardwareVersion == b.hardwareVersion &&
-           a.softwareVersion == b.softwareVersion && a.vendorId == b.vendorId &&
-           a.productCode == b.productCode && a.revision == b.revision &&
-           a.modelCode == b.modelCode && a.firmwareCode == b.firmwareCode;
-}
 uint32_t raw(const ReadContext& c, StateBlock block, unsigned field) {
     return c.values[c.blockStart[unsigned(block)] + field].raw;
 }
@@ -158,6 +146,7 @@ Status rateRange(const PreparedVelocityTarget& rate, const VelocityEvidence& e) 
 struct Checked {
     PreparedVelocityTarget rate;
     VelocitySample admission;
+    IdentityCheck identity;
 };
 Status check(const VelocityContext& output, const AxisReservation& r, const ReadTarget& current,
              const ReadContext& state, const IdentityObservation& identity,
@@ -220,10 +209,17 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
         axis.exhausted ||
         request.velocity.configurationGeneration != axis.binding.configurationGeneration)
         return error(VelocityError::TARGET, "velocity axis or rate generation is stale");
-    if (e.model != r.model || !sameTarget(identity.target, r.target) ||
-        !sameFirmware(e.firmware, identity) || identity.window.latestUs > now)
+    if (e.model != r.model)
+        return error(VelocityError::CAPABILITY, "velocity evidence does not match the selected model",
+                     Err::UNSUPPORTED);
+    // Prompt 57: the product fields refuse; a firmware difference only flags the run.
+    if (!checkIdentity(result.identity, identity, r.target, identityValues(e.firmware),
+                       IdentityBasis::MEASURED, now))
+        return error(VelocityError::CAPABILITY, "velocity needs a current identity read of this boot",
+                     Err::UNSUPPORTED);
+    if (!result.identity.expectedMatch)
         return error(VelocityError::CAPABILITY,
-                     "velocity evidence does not match selected model and firmware",
+                     "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the velocity record",
                      Err::UNSUPPORTED);
     if (!profile.rampUpTimeMs || profile.rampUpTimeMs > 2000 || !profile.rampDownTimeMs ||
         profile.rampDownTimeMs > 2000)
@@ -625,8 +621,16 @@ Status checkChange(const VelocityContext& c, const AxisReservation& live,
         (e.gate == VelocityGate::ATTENDED_EXPERIMENT &&
          e.maximumForwardRpm > VELOCITY_EXPERIMENT_MAXIMUM_RPM))
         return error(VelocityError::ARGUMENT, "invalid velocity change evidence scope");
-    if (e.model != c.reservation.model || !sameFirmware(e.firmware, c.evidence.firmware))
-        return error(VelocityError::CAPABILITY, "velocity change record differs from the run's model or firmware",
+    if (e.model != c.reservation.model)
+        return error(VelocityError::CAPABILITY, "velocity change record differs from the run's model",
+                     Err::UNSUPPORTED);
+    // The run's identity read is the drive of this boot: the change record must name its product, and a
+    // record of another firmware only flags the change.
+    if (c.identity.outcome == IdentityOutcome::NONE ||
+        !compareIdentity(identityValues(e.firmware), IdentityBasis::MEASURED, c.identity.observed)
+             .expectedMatch)
+        return error(VelocityError::CAPABILITY,
+                     "velocity change record names other product fields (1000, 1018:01, 1018:02, 2000)",
                      Err::UNSUPPORTED);
     if (c.state != ActionState::ACTIVE || c.phase != VelocityPhase::WAITING ||
         c.observation != VelocityObservation::RUNNING || !c.runningObserved ||
@@ -764,6 +768,7 @@ Status prepareVelocity(VelocityContext& output, const AxisReservation& r, const 
     output.options = options;
     output.axis = axis;
     output.rate = result.rate;
+    output.identity = result.identity;
     output.admission = result.admission;
     output.latest = result.admission;
     output.operation = operation;
@@ -792,6 +797,8 @@ Status prepareVelocityChange(VelocityContext& c, const AxisReservation& live,
         return s;
     c.change.present = true;
     c.change.evidence = evidence;
+    c.change.identity =
+        compareIdentity(identityValues(evidence.firmware), IdentityBasis::MEASURED, c.identity.observed);
     c.change.request = request;
     c.change.rate = rate;
     c.change.preparedUs = now;

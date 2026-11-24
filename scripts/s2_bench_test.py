@@ -845,8 +845,8 @@ class BenchTest(unittest.TestCase):
     def test_released_enable_needs_no_stop_record(self):
         # 2026-11-17: start 2 on the drive's own fresh released report; no record directory, no stop run first.
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
-                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1250"]
-        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1250")
+                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1300"]
+        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1300")
         args, fields = bench.arguments(BASE + released + ["--released"] + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
         for bad in (released + ["--released", "--no-motion-write-recorded"],
@@ -869,9 +869,9 @@ class BenchTest(unittest.TestCase):
 
     def test_released_start_enable_reads_its_shaft_basis_from_the_drive(self):
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
-                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1250"]
+                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1300"]
         argv = released + ["--released"]
-        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1250")
+        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1300")
         args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
         # Exactly one start; the flag belongs to enable; no waiver and no relayed shaft with it.
@@ -929,12 +929,13 @@ class BenchTest(unittest.TestCase):
     def test_released_start_reserves_its_stop(self):
         # Start 2 reserves the route's own QUICK_STOP (31 terminals, 1500 ms), as BenchRoute's terminalBound and
         # durationBound count it (test/bench_route_test.cpp pins 10000/800 and 10000/1100 as capacity there).
+        # Every enable line also has the identity read its enable compares (prompt 57): nine terminals more.
         def bounds(start, deadline, interval):
             return bench.plan_bounds("enable", [1, 7, 1, start, 1, 0x4050, -2000, 45, deadline, interval])
-        self.assertEqual(bounds(1, 10000, 800), (14 + 7 * 15, 10000))  # Start 1 unchanged.
-        self.assertEqual(bounds(2, 10000, 800), (14 + 7 * 15 + 31, 11500))
-        self.assertEqual(bounds(2, 10000, 1250), (14 + 7 * 11 + 31, 11500))
-        for interval, fits in ((1100, False), (1112, True), (1250, True)):
+        self.assertEqual(bounds(1, 10000, 800), (23 + 7 * 15, 10000))  # Start 1: exactly the 128.
+        self.assertEqual(bounds(2, 10000, 800), (23 + 7 * 15 + 31, 11500))
+        self.assertEqual(bounds(2, 10000, 1300), (23 + 7 * 10 + 31, 11500))
+        for interval, fits in ((1100, False), (1250, False), (1251, True), (1300, True)):
             fields = [1, 7, 1, 2, 1, 0x4050, -2000, 45, 10000, interval]
             if fits:
                 bench.check_bounds("enable", fields)
@@ -944,7 +945,7 @@ class BenchTest(unittest.TestCase):
         # The dry run states the latch, the still word 7, the post-15 rule and the route's own stop.
         out = io.StringIO()
         argv = ["--command", "enable", "--node", "1", "--trial", "2110", "--status", "0x4050", "--position-target",
-                "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250", "--released"]
+                "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1300", "--released"]
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
         self.assertIn("start 2 RELEASED (--released)", out.getvalue())
@@ -952,8 +953,8 @@ class BenchTest(unittest.TestCase):
         self.assertIn("running latched admitted", out.getvalue())
         self.assertIn("any 6064 or 606C change after word 15 fails", out.getvalue())
         self.assertIn("one QUICK_STOP follows at once (1500 ms, cycles every 500 ms", out.getvalue())
-        self.assertIn("at most 122 terminals of 128 and 11500 ms", out.getvalue())
-        self.assertIn(signed("TE1,2110,1,2,1,16464,-2000,45,10000,1250").strip(), out.getvalue())
+        self.assertIn("at most 124 terminals of 128 and 11500 ms", out.getvalue())
+        self.assertIn(signed("TE1,2110,1,2,1,16464,-2000,45,10000,1300").strip(), out.getvalue())
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv[:-2] + ["800", argv[-1], "--dry-run", "--campaign", str(self.ledger)],
@@ -961,7 +962,7 @@ class BenchTest(unittest.TestCase):
         self.assertIn("would refuse before sending: capacity", out.getvalue())
 
     def test_enable_alert_after_word_15_without_a_stop(self):
-        fields = [1, 30, 1, 2, 1, 0x4050, -2000, 45, 10000, 1250]
+        fields = [1, 30, 1, 2, 1, 0x4050, -2000, 45, 10000, 1300]
         failed = ("TRIAL_ENABLE own=1 state=3 outcome=9 exec=1 completion=0 uncertain=1 effects=1 mask=07 cursor=2 "
                   "observations=4 op=5 pt=-2000 vt=45 s0=4050 m0=0014 p0=-2017\n")
         sent = ("TRIAL_ENABLE_STEP word=15 present=0 status=0000 monitor=0000 position=0 velocity=0 history=1 "
@@ -994,7 +995,7 @@ class BenchTest(unittest.TestCase):
         board = Board()
         board.answer = enable_record(30, failed, sent).decode("ascii")
         argv = BASE + ["--command", "enable", "--node", "1", "--trial", "30", "--status", "0x4050", "--position-target",
-                       "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250",
+                       "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1300",
                        "--released", "--campaign", str(self.ledger),
                        "--output", str(self.output)]
         err = io.StringIO()

@@ -186,10 +186,12 @@ class ProbeMotion {
                          const MotorControlCAN::LICHUAN_C::HomeEvidence& evidence,
                          const MotorControlCAN::LICHUAN_C::HomeOptions& options) noexcept;
     /** Name explicitly authorized enable evidence; operation/trial identities are not repaired.
-     * @param state Acquired state. @param evidence Copied trial authorization and facts.
+     * @param state Acquired state. @param identity Acquired identity, borrowed like state.
+     * @param evidence Copied trial authorization and facts.
      * @param options Copied budgets. @return Same atomic setter contract as moves. */
     MotorControlCAN::Status
     setEnablePrerequisites(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                           const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
                            const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
                            const MotorControlCAN::LICHUAN_C::ActionOptions& options) noexcept;
     /** Name acquired clear prerequisites, without reading error history or manufacturing idle.
@@ -341,7 +343,8 @@ class ProbeMotion {
                                                   *clearState_ = nullptr, *stopState_ = nullptr;
     const MotorControlCAN::LICHUAN_C::IdentityObservation *moveIdentity_ = nullptr,
                                                           *velocityIdentity_ = nullptr,
-                                                          *homeIdentity_ = nullptr;
+                                                          *homeIdentity_ = nullptr,
+                                                          *enableIdentity_ = nullptr;
     const MotorControlCAN::LICHUAN_C::DriverContext *stored_ = nullptr, *inputs_ = nullptr,
                                                     *driver_ = nullptr;
     MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;

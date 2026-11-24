@@ -206,6 +206,8 @@ struct Address {
 const Address IMAGE[] = {{0x2100, 0}, {0x2101, 0}, {0x2102, 0}, {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}};
 const Address FULL[] = {{0x1001, 0}, {0x603f, 0}, {0x2100, 0}, {0x2101, 0}, {0x2102, 0},
                         {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}};
+const Address IDENTITY[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, {0x1018, 1},
+                            {0x1018, 2}, {0x1018, 3}, {0x2000, 0}, {0x2001, 0}};
 // Compare the next requests with a fixed list, advancing the cursor.
 void expectUploads(const Rig& r, size_t& at, unsigned node, const Address* list, unsigned count) {
     for (unsigned i = 0; i < count; ++i, ++at) {
@@ -533,7 +535,13 @@ void testModeEnableStop() {
     const L::ActionContext& c = r->one.enableAction();
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
     CHECK(c.enable.evidence.trial == 12 && c.enable.evidence.powerUpShaft == L::ShaftObservation::FREE);
+    // Prompt 57: the identity read comes first. This fake reports the measured product fields and its own
+    // firmware fields, so the enable runs, flagged firmware unqualified with both tuples kept.
+    CHECK(c.enable.identity.outcome == L::IdentityOutcome::CONFIRMED && c.enable.identity.expectedMatch &&
+          c.enable.identity.firmwareUnqualified && c.enable.identity.observed.firmwareCode == FIRMWARE &&
+          c.enable.identity.expected.firmwareCode == L::measuredIdentity().firmwareCode);
     at = enableStart;
+    expectUploads(*r, at, 1, IDENTITY, 9);
     expectUploads(*r, at, 1, FULL, 9);
     CHECK(upload(r->driver.requests[at++], 1, 0x607a) && upload(r->driver.requests[at++], 1, 0x60ff));
     const uint16_t words[] = {6, 7, 15};
@@ -893,9 +901,6 @@ std::string move(unsigned node, uint32_t& trial, const MoveSpec& m = MoveSpec())
                   m.rel, m.base, m.obs, m.stop);
     return text;
 }
-const Address IDENTITY[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, {0x1018, 1},
-                            {0x1018, 2}, {0x1018, 3}, {0x2000, 0}, {0x2001, 0}};
-
 void testParseRearmMove() {
     scenario = "parse-rearm-move";
     E::RoutePlan p;
@@ -1291,7 +1296,7 @@ void testMove() {
     std::string text = r->dump();
     CHECK(has(text, "TRIAL_PLAN route=move node=1 trial="));
     CHECK(has(text, "TRIAL_EVIDENCE record=19 as=1 am=1000 av=1000 cs=1 cm=8000 cv=8000 rule=1 dt=00040192 hw=0012 "
-                    "sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123"));
+                    "sw=0034 vid=00001000 pc=00000001 rev=00010001 mc=0400 fc=0123"));
     CHECK(has(text, "TRIAL_MOVE own=1 state=2 ") && has(text, " completion=1 rearm=1 ") && has(text, " fenced=0 "));
     CHECK(has(text, "TRIAL_MOVE_SAMPLE which=2 present=1 ") && has(text, "TRIAL_MOVE_SAMPLE which=4 present=1 "));
     r->release();
@@ -1326,7 +1331,7 @@ void testMoveRefusals() {
     r->release();
     const size_t first = r->driver.requests.size();
     MoveSpec firmware;
-    firmware.fc = FIRMWARE + 1; // The record names other firmware than the fresh read.
+    firmware.mc = MODEL + 1; // The record names another product (2000) than the fresh read; firmware only flags.
     const E::RouteRecord& f = r->run(move(1, trial, firmware));
     CHECK(f.failure == E::RouteFailure::REFUSED && std::strcmp(f.why, "move") == 0 && f.statusPresent &&
           f.statusCode == uint8_t(M::Err::UNSUPPORTED));
@@ -1676,7 +1681,7 @@ void testPlanValidation() {
     std::unique_ptr<Rig> r(new Rig);
     E::RoutePlan enable, stop, move, mode;
     const std::string e = "E1,1,1,1,1,32823,5000,120,10000,800", s = "S1,1,1,1,2000,0,200", g = "G1,1,1,0,16,1,1000,"
-                          "1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,0,0,0,1,2,"
+                          "1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,4096,1,65537,1024,291,0,0,0,1,2,"
                           "2000,0,500";
     CHECK(E::parseRouteCommand(e.data(), e.size(), enable) && E::routePlanValid(enable));
     CHECK(E::parseRouteCommand(s.data(), s.size(), stop) && E::routePlanValid(stop));
@@ -3570,7 +3575,7 @@ void testVelocity() {
     CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=6 attended=1 rpm=6 up=200 down=200 dur=12000 "
                     "interval=5000 deadline=15500 kind=1 probe=0 reverse=0\n"));
     CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
-                    "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123 "
+                    "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00001000 pc=00000001 rev=00010001 mc=0400 fc=0123 "
                     "probe=0 reverseProbe=0\n"));
     CHECK(!c.evidence.rangeProbe && !c.evidence.reverseProbe && !c.evidence.maximumReverseRpm);
     // The session's context keeps the experiment gate after success: the run qualified nothing.
@@ -3638,7 +3643,7 @@ void testVelocityRefusals() {
         // The attended experiment's bounds: 60 rpm and 20000 ms, the library's, refused before any write.
         {"experiment-rpm", [](VelocitySpec& v) { v.rpm = 61; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 1,
          "an attended velocity experiment claims no qualification and stays slow"},
-        {"identity", [](VelocitySpec& v) { v.fc = FIRMWARE + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7,
+        {"identity", [](VelocitySpec& v) { v.mc = MODEL + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7,
          nullptr},
         // Below 27 services at the route budgets, the 2000 ms enable report window and two enable
         // intervals: 11470 ms.
@@ -4871,10 +4876,12 @@ void testReleasedModeOneChain() {
     r->release();
     // Start 2 carries the released report's FREE; HOLDING contradicts it and is refused by the parser.
     E::RoutePlan plan;
-    const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,1250";
+    const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,1300";
     CHECK(!E::parseRouteCommand(holding.data(), holding.size(), plan));
     // Start 2 reserves its own stop's terminals: 10000/800, enough for start 1, no longer fits the record.
-    for (const char* tight : {"E1,99,1,2,1,32848,5000,6,10000,800", "E1,99,1,2,1,32848,5000,6,10000,1100"}) {
+    // With the identity read every enable compares (prompt 57), 10000/1250 no longer fits either.
+    for (const char* tight : {"E1,99,1,2,1,32848,5000,6,10000,800", "E1,99,1,2,1,32848,5000,6,10000,1100",
+                              "E1,99,1,2,1,32848,5000,6,10000,1250"}) {
         const char* why = r->start(tight);
         CHECK(why && std::strcmp(why, "capacity") == 0);
     }
@@ -4882,7 +4889,7 @@ void testReleasedModeOneChain() {
     scenario = "released-enable";
     r->heartbeat(1);
     first = r->driver.requests.size();
-    const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250");
+    const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1300");
     CHECK(e.failure == E::RouteFailure::NONE && e.enableRequested);
     const L::ActionContext& c = r->one.enableAction();
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
@@ -4895,6 +4902,7 @@ void testReleasedModeOneChain() {
           c.enable.steps[1].position == 15261);
     CHECK(c.enable.steps[2].statusword == 0x8037 && c.enable.steps[2].position == 15261);
     at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9);
     expectUploads(*r, at, 1, FULL, 9);
     CHECK(upload(r->driver.requests[at++], 1, 0x607a) && upload(r->driver.requests[at++], 1, 0x60ff));
     const uint16_t words[] = {6, 7, 15};
@@ -4966,7 +4974,7 @@ void latchedModeOne(Drive& d) {
     d.latchWord = 7;
     d.pullAtWord7 = 11;
 }
-const char* const LATCHED_ENABLE = ",1,2,1,16464,-2000,45,10000,1250"; // 16464 is 0x4050.
+const char* const LATCHED_ENABLE = ",1,2,1,16464,-2000,45,10000,1300"; // 16464 is 0x4050.
 // One read route of this boot first: its bounded SDO replies qualify the service the enable's words need
 // (eligibility), as MODE_ONE does in the chain above, and the drive's state stays as set.
 void readFirst(Rig& r, uint32_t& trial, unsigned node) {
@@ -5110,7 +5118,7 @@ void testReleasedLatchedEnable() {
         CHECK(has(r->dump(), " s0=c050 m0=0015 p0=33743 s1=c050 m1=0015 mode=1 p1=33743 v1=0\n"));
         r->release();
         r->heartbeat(2);
-        const E::RouteRecord& e = r->run("E2," + id(trial) + ",1,2,1,49232,5000,30,10000,1250"); // 49232 is 0xC050.
+        const E::RouteRecord& e = r->run("E2," + id(trial) + ",1,2,1,49232,5000,30,10000,1300"); // 49232 is 0xC050.
         CHECK(e.failure == E::RouteFailure::NONE && !e.stopRequested);
         const std::string text = r->dump();
         CHECK(has(text, "TRIAL_ENABLE_STEP word=6 present=1 status=c031 monitor=0015 position=33743 "));
@@ -5211,7 +5219,7 @@ void testReleasedModeOneRefusals() {
         r->driver.drives[0].mode = 3;
         r->heartbeat(1);
         const size_t first = r->driver.requests.size();
-        const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250");
+        const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1300");
         CHECK(e.failure == E::RouteFailure::REFUSED && std::strcmp(e.why, "enable") == 0 && !e.enableRequested);
         CHECK(r->downloadsFrom(first) == 0 && e.statusPresent && e.statusDetail == int32_t(M::ActionError::STATE));
     }
@@ -6586,7 +6594,7 @@ void writeTranscript(const char* path, bool all) {
         CHECK(k1->run(back).failure == E::RouteFailure::NONE);
         append(*k1, back);
         k1->heartbeat(1);
-        const std::string kept = "E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250";
+        const std::string kept = "E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1300";
         CHECK(k1->run(kept).failure == E::RouteFailure::NONE);
         append(*k1, kept);
         MoveSpec down;

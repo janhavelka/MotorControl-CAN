@@ -938,11 +938,29 @@ void resetAction(ActionContext& c) noexcept {
     new (static_cast<void*>(&c)) ActionContext();
 }
 
+namespace {
+// The prompt 57 identity rule of enable: the product fields refuse, a firmware difference only flags.
+// The reference is the measured specimens' identity, on which every reviewed enable record was made.
+Status enableIdentity(const AxisReservation& r, const IdentityObservation& identity, uint64_t now,
+                      IdentityCheck& check) {
+    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED, now))
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET),
+                      "enable needs a current identity read of this boot");
+    if (!check.expectedMatch)
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET),
+                      "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the measured "
+                      "CL86-C identity");
+    return Ok();
+}
+} // namespace
+
 Status validateEnable(const ActionContext& output, const AxisReservation& r, const ReadContext& state,
-                      const EnableEvidence& evidence, uint32_t operation, uint64_t now,
-                      uint64_t deadline, const ActionOptions& options) noexcept {
+                      const IdentityObservation& identity, const EnableEvidence& evidence,
+                      uint32_t operation, uint64_t now, uint64_t deadline,
+                      const ActionOptions& options) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &identity, sizeof identity) ||
         overlaps(&output, sizeof output, &evidence, sizeof evidence) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "enable preparation overlaps input");
@@ -1008,6 +1026,11 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return error(ActionError::STATE, "enable needs 1001 and 603F zero");
     if (raw(state, StateBlock::FEEDBACK, 1))
         return error(ActionError::STATE, "enable needs 606C zero");
+    // After every state check, so that a stale or wrong report names itself first.
+    IdentityCheck check;
+    const Status checked = enableIdentity(r, identity, now, check);
+    if (!checked)
+        return checked;
     if (measured) {
         // The fresh report alone decides; a caller's named start only narrows it.
         const EnableStart start = startClass(monitor, statusword);
@@ -1051,11 +1074,14 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
 }
 
 Status prepareEnable(ActionContext& output, const AxisReservation& r, const ReadContext& state,
-                     const EnableEvidence& evidence, uint32_t operation, uint64_t now,
-                     uint64_t deadline, const ActionOptions& options) noexcept {
-    const Status s = validateEnable(output, r, state, evidence, operation, now, deadline, options);
+                     const IdentityObservation& identity, const EnableEvidence& evidence,
+                     uint32_t operation, uint64_t now, uint64_t deadline,
+                     const ActionOptions& options) noexcept {
+    const Status s = validateEnable(output, r, state, identity, evidence, operation, now, deadline, options);
     if (!s)
         return s;
+    IdentityCheck check;
+    enableIdentity(r, identity, now, check); // Validated above, so this cannot refuse.
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
     output.actionKind = ActionKind::ENABLE;
@@ -1072,6 +1098,7 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     getStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, output.extraObservation);
     EnableRecord& record = output.enable;
     record.evidence = evidence;
+    record.identity = check;
     // MEASURED: the class the fresh report showed, which validateEnable proved is a measured start.
     record.start = evidence.gate == EnableGate::MEASURED
                        ? startClass(output.monitorObservation.monitor, output.statusObservation.statusword)
@@ -1174,13 +1201,16 @@ Status classifyRelease(const ReleaseReport& report, const ReleaseExperiment& exp
     const bool released = (report.monitor & MONITOR_RELEASED) != 0;
     d.running = (report.monitor & MONITOR_RUNNING) != 0;
     d.velocityNonzero = report.velocity != 0;
-    // Row 4 first, whatever the running bit (lead decision 2): nothing is sent, so nothing is risked.
+    d.alarm = (report.monitor & MONITOR_ALARM) != 0;
+    d.fault = report.errorRegister || report.errorCode;
+    // Row 4 first, whatever the running bit or an alarm (lead decisions of b3): nothing is sent, so nothing
+    // is risked, and the decision reports what the report showed.
     if (released && low <= 1) {
         d.row = ReleaseRow::ALREADY_RELEASED;
         output = d;
         return Ok();
     }
-    const bool alarm = (report.monitor & MONITOR_ALARM) || report.errorRegister || report.errorCode;
+    const bool alarm = d.alarm || d.fault;
     const bool clean = !alarm && !d.velocityNonzero && report.monitor == RELEASE_ROW_MONITOR;
     const bool openLoop = report.loopKnown && report.loopModeRaw == uint16_t(LoopMode::OPEN_LOOP);
     const ReleaseTableRow* match = nullptr;

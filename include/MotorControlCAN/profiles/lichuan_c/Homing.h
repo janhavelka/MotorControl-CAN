@@ -27,7 +27,10 @@ enum class HomeGate : uint8_t {
     CLOSED,  ///< Default: admission refuses without changing output.
     MEASURED ///< Caller retains the exact specimen/firmware/method experiment record.
 };
-/** Exact raw acquired identity, independent of model selection. */
+/** Raw identity tuple the record was made on, independent of model selection. Under the prompt 57
+ * identity policy its product fields (1000, 1018:01, 1018:02, 2000) must match the current identity
+ * read; a differing firmware field (1009, 100A, 1018:03, 2001) only sets
+ * HomeContext::identity.firmwareUnqualified. */
 struct HomeFirmware {
     uint32_t deviceType = 0;      ///< 1000 raw.
     uint16_t hardwareVersion = 0; ///< 1009 raw.
@@ -47,7 +50,7 @@ struct HomeEvidence {
     HomeGate gate = HomeGate::CLOSED;             ///< Explicit capability gate.
     uint32_t record = 0;                          ///< Nonzero application evidence record identity.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Explicit CL86_C or OL86_C.
-    HomeFirmware firmware;                        ///< Must match the acquired tuple.
+    HomeFirmware firmware; ///< Product fields must match the acquired identity; firmware fields flag.
     ReadTarget specimen; ///< Exact specimen binding/node/configuration for this qualification.
     HomingMethod method = HomingMethod::NEGATIVE_LIMIT; ///< One qualified method.
     StatusLayout layout = StatusLayout::UNSPECIFIED;    ///< Selected alarm and running dialect.
@@ -131,6 +134,9 @@ struct PreparedHome {
 struct HomeContext {
     AxisReservation reservation; ///< Frozen uninterrupted owner exclusion and original target.
     HomeEvidence evidence;       ///< Owned exact qualification.
+    /** Frozen identity comparison of the admission: CONFIRMED, the record and observed tuples, and
+     * firmwareUnqualified when the home runs on a firmware its record was not made on. */
+    IdentityCheck identity;
     HomeRequest request;         ///< Owned intent.
     HomeOptions options;         ///< Fixed service and polling budgets.
     AxisConfig axis;             ///< Frozen original conversion/configuration facts.
@@ -190,7 +196,9 @@ struct HomeContext {
  * @param[in] output Address checked for overlap. @param[in] live Continuous reservation.
  * @param[in] current Current target. @param[in] state Fresh ordinary state read.
  * @param[in] control Latest acknowledged 000F, before state and under live reservation.
- * @param[in] identity Acquired exact firmware identity. @param[in] inputs Reviewed 2400 acquisition.
+ * @param[in] identity Current identity read of this boot within options.maximumAgeUs. Product fields
+ * that differ from evidence.firmware refuse with UNSUPPORTED; firmware fields that differ admit the home
+ * and set output.identity.firmwareUnqualified. @param[in] inputs Reviewed 2400 acquisition.
  * @param[in] driver Fresh 2200 acquisition. @param[in] evidence Exact capability qualification.
  * @param[in] request Explicit intent. @param[in] axis Frozen host conversion facts.
  * @param[in] operation Nonzero identity. @param[in] nowUs Processing time.
@@ -206,7 +214,7 @@ Status validateHome(const HomeContext& output, const AxisReservation& live,
 /** Prepare the fully checked operation in place; output stays unchanged on failure.
  * @param[out] output Caller storage. @param[in] live Continuous reservation.
  * @param[in] current Current target. @param[in] state Fresh ordinary state read.
- * @param[in] control Latest acknowledged 000F. @param[in] identity Exact acquired identity.
+ * @param[in] control Latest acknowledged 000F. @param[in] identity As validateHome.
  * @param[in] inputs Reviewed 2400 acquisition. @param[in] driver Fresh 2200 acquisition.
  * @param[in] evidence Exact capability qualification. @param[in] request Explicit intent.
  * @param[in] axis Host conversion facts. @param[in] operation Nonzero identity.

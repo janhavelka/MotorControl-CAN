@@ -1834,7 +1834,7 @@ void expectFenced(Rig& r) {
     budgets.observationIntervalUs = 1000;
     budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
     budgets.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
-    const M::Status enable = r.a.requestEnable(enableState, L::EnableEvidence(), budgets, r.now + LEAD, r.now);
+    const M::Status enable = r.a.requestEnable(enableState, r.identity, L::EnableEvidence(), budgets, r.now + LEAD, r.now);
     CHECK(!enable && enable.code == M::Err::INVALID_CONFIG && enable.detail == int32_t(M::ActionError::STATE));
     CHECK(enable.msg && std::strstr(enable.msg, "drive fault"));
     L::ReadContext feedback;
@@ -1885,7 +1885,7 @@ void faultFence() {
             budgets.observationIntervalUs = 1000;
             budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
             budgets.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
-            CHECK(r.a.requestEnable(enableState, e, budgets, r.now + LEAD, r.now).isOk());
+            CHECK(r.a.requestEnable(enableState, r.identity, e, budgets, r.now + LEAD, r.now).isOk());
             const L::ActionContext& enable = r.a.enableAction();
             for (unsigned k = 0; k < 600 && r.a.enableActive() &&
                                  !(enable.phase == L::ActionPhase::COMMAND && enable.transmissionNoted);

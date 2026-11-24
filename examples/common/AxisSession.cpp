@@ -330,7 +330,8 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     output = copy;
     return true;
 }
-M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::EnableEvidence& evidence,
+M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::IdentityObservation& identity,
+                                     const L::EnableEvidence& evidence,
                                      const L::ActionOptions& options, uint64_t deadline,
                                      uint64_t now) noexcept {
     const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
@@ -368,7 +369,7 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
     const uint32_t last = next - 1;
     // Check everything before the owner moves; the context is written only once that succeeded.
     const M::Status checked =
-        L::validateEnable(enable_, reservation_, state, evidence, last + 1, now, deadline, options);
+        L::validateEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options);
     if (!checked)
         return checked;
     // After the library's checks, so that a closed gate or a zero trial reports as such.
@@ -378,7 +379,7 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
     if (!owner_.beginOperation(sequence_, last + 1, deadline, now))
         return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
     // Same values as the check above, and only the owner moved, so this cannot refuse.
-    L::prepareEnable(enable_, reservation_, state, evidence, last + 1, now, deadline, options);
+    L::prepareEnable(enable_, reservation_, state, identity, evidence, last + 1, now, deadline, options);
     operation_ = last + 1;
     if (!measured)
         lastTrial_ = evidence.trial;

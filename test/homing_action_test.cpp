@@ -20,6 +20,7 @@ static unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/Identity.h"
 #include "support/OwnerRig.h"
 namespace {
 template <class T> struct Saved {
@@ -232,8 +233,8 @@ void explicitEnable(bool heartbeat) {
     r.acquire();
     r.begin();
     L::ActionContext action;
-    CHECK(L::prepareEnable(action, r.reservation, r.state, r.evidence(), r.operation, r.now,
-                           r.deadline, options()));
+    CHECK(L::prepareEnable(action, r.reservation, r.state, TestIdentity::measured(r.reservation.target, r.now),
+                           r.evidence(), r.operation, r.now, r.deadline, options()));
     r.wire.action = &action;
     const unsigned start = r.wire.sentCount;
     uint16_t words[3] = {};
@@ -299,8 +300,8 @@ void enableRefusals() {
         action.operation = 0xaabb;
         const Saved<L::ActionContext> saved(action);
         const unsigned sent = r.wire.sentCount;
-        CHECK(!L::prepareEnable(action, r.reservation, r.state, e, r.operation, r.now, r.deadline,
-                                options()));
+        CHECK(!L::prepareEnable(action, r.reservation, r.state, TestIdentity::measured(r.reservation.target, r.now),
+                                e, r.operation, r.now, r.deadline, options()));
         saved.unchanged(action);
         r.turn(r.now + 1);
         CHECK(r.wire.sentCount == sent);

@@ -306,7 +306,7 @@ void preparationBoundaries() {
             ++r.identity.target.nodeGeneration;
             break;
         case 7:
-            ++r.identity.firmwareCode;
+            ++r.identity.modelCode; // A product field; firmware fields only flag (identityPolicy).
             break;
         case 8:
             r.evidence.gate = L::VelocityGate::CLOSED;
@@ -363,6 +363,42 @@ void preparationBoundaries() {
         Rig r;
         r.options.maxPolls = 50; // Exact duration coverage is sufficient.
         CHECK(r.prepare());
+    }
+    // Prompt 57 identity policy: each product field (1000, 1018:01, 1018:02, 2000) refuses with nothing
+    // published; each firmware field (1009, 100A, 1018:03, 2001) admits the run and flags it.
+    for (unsigned field = 0; field < 8; ++field) {
+        Rig r;
+        switch (field) {
+        case 0: ++r.identity.deviceType; break;
+        case 1: ++r.identity.vendorId; break;
+        case 2: ++r.identity.productCode; break;
+        case 3: ++r.identity.modelCode; break;
+        case 4: ++r.identity.hardwareVersion; break;
+        case 5: ++r.identity.softwareVersion; break;
+        case 6: ++r.identity.revision; break;
+        default: ++r.identity.firmwareCode; break;
+        }
+        if (field < 4) {
+            r.context.operation = 0xbeef;
+            const Saved<L::VelocityContext> before(r.context);
+            const M::Status s = r.prepare();
+            CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::VelocityError::CAPABILITY));
+            before.unchanged(r.context);
+            continue;
+        }
+        CHECK(r.prepare());
+        const L::IdentityCheck& id = r.context.identity;
+        CHECK(id.outcome == L::IdentityOutcome::CONFIRMED && id.basis == L::IdentityBasis::MEASURED &&
+              id.expectedMatch && id.firmwareUnqualified);
+        CHECK(id.expected.firmwareCode == r.evidence.firmware.firmwareCode &&
+              id.observed.firmwareCode == r.identity.firmwareCode && id.observed.revision == r.identity.revision &&
+              id.observed.hardwareVersion == r.identity.hardwareVersion &&
+              id.observed.softwareVersion == r.identity.softwareVersion);
+    }
+    {
+        Rig r; // The record's own tuple: confirmed, not flagged.
+        CHECK(r.prepare());
+        CHECK(r.context.identity.outcome == L::IdentityOutcome::CONFIRMED && !r.context.identity.firmwareUnqualified);
     }
     {
         Rig r;
@@ -738,7 +774,7 @@ void attendedExperimentScope() {
             detail = M::VelocityError::STATE;
             break;
         case 11:
-            ++r.identity.firmwareCode;
+            ++r.identity.vendorId; // A product field; firmware fields only flag (identityPolicy).
             code = M::Err::UNSUPPORTED;
             detail = M::VelocityError::CAPABILITY;
             break;

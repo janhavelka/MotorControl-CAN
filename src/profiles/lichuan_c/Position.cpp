@@ -176,12 +176,6 @@ bool reported(const MoveSignal& s, const MoveSample& sample) {
     const uint16_t word = s.source == MoveSignalSource::STATUSWORD ? sample.statusword : sample.monitor;
     return (word & s.mask) == s.value;
 }
-bool sameFirmware(const MoveFirmware& f, const IdentityObservation& i) {
-    return f.deviceType == i.deviceType && f.hardwareVersion == i.hardwareVersion &&
-           f.softwareVersion == i.softwareVersion && f.vendorId == i.vendorId &&
-           f.productCode == i.productCode && f.revision == i.revision &&
-           f.modelCode == i.modelCode && f.firmwareCode == i.firmwareCode;
-}
 uint32_t raw(const ReadContext& c, StateBlock block, unsigned field) {
     return c.values[c.blockStart[static_cast<unsigned>(block)] + field].raw;
 }
@@ -275,6 +269,7 @@ struct Checked {
     PreparedPositionParameters parameters;
     PreparedVelocityTarget speed;
     MoveSample admission;
+    IdentityCheck identity;
     bool known = false;
     int64_t displacement = 0;
     uint8_t mask = 0xf;
@@ -378,10 +373,18 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
                          "move deadline does not cover every scheduled service at its budgets");
     if (!sameTarget(r.target, current) || !sameBinding(axis.binding, r.target.channel.binding))
         return moveError(MoveError::TARGET, "move reservation, route or axis is not current");
-    if (e.model != r.model || !sameTarget(identity.target, r.target) ||
-        !sameFirmware(e.firmware, identity))
+    if (e.model != r.model)
+        return moveError(MoveError::CAPABILITY, "no measured move evidence for this model",
+                         Err::UNSUPPORTED);
+    // Prompt 57: another product is another profile, so the product fields refuse; another firmware
+    // only flags the move, which then runs on a firmware its record was not made on.
+    if (!checkIdentity(result.identity, identity, r.target, identityValues(e.firmware),
+                       IdentityBasis::MEASURED, now))
+        return moveError(MoveError::CAPABILITY, "move needs a current identity read of this boot",
+                         Err::UNSUPPORTED);
+    if (!result.identity.expectedMatch)
         return moveError(MoveError::CAPABILITY,
-                         "no measured move evidence for this model, firmware and boot",
+                         "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the move record",
                          Err::UNSUPPORTED);
     if (!acknowledgedControlWrite(control, r, now) || controlWord(control.transfer) != REARM_WORD)
         return moveError(MoveError::STATE,
@@ -757,6 +760,7 @@ void publishMove(MoveContext& output, const Checked& result, const AxisReservati
     c.setupMask = result.mask;
     c.control = control;
     c.admission = result.admission;
+    c.identity = result.identity;
 }
 } // namespace
 
@@ -859,12 +863,6 @@ void resetMove(MoveContext& c) noexcept {
 }
 
 namespace {
-bool sameMoveFirmware(const MoveFirmware& a, const MoveFirmware& b) {
-    return a.deviceType == b.deviceType && a.hardwareVersion == b.hardwareVersion &&
-           a.softwareVersion == b.softwareVersion && a.vendorId == b.vendorId &&
-           a.productCode == b.productCode && a.revision == b.revision &&
-           a.modelCode == b.modelCode && a.firmwareCode == b.firmwareCode;
-}
 uint32_t parameterValue(const MoveContext& c, unsigned field) {
     return field == 0   ? uint32_t(c.parameters.targetNative)
            : field == 1 ? c.parameters.settings.positionSpeedRpm
@@ -996,10 +994,20 @@ Status checkReplacement(const MoveContext& output, const MoveContext& original,
             stored.completedUs[i] != actual.completedUs[i])
             return moveError(MoveError::CORRELATION,
                              "replacement field witness differs from original terminal");
-    if (e.model != original.evidence.model ||
-        !sameMoveFirmware(e.firmware, original.evidence.firmware))
+    if (e.model != original.evidence.model)
+        return moveError(MoveError::CAPABILITY, "replacement record is for another model",
+                         Err::UNSUPPORTED);
+    // The original's identity read is the drive of this boot: the replacement record must name its
+    // product, and a record of another firmware only flags the replacement.
+    if (original.identity.outcome == IdentityOutcome::NONE)
+        return moveError(MoveError::CAPABILITY, "the original move holds no identity comparison",
+                         Err::UNSUPPORTED);
+    checked.identity =
+        compareIdentity(identityValues(e.firmware), IdentityBasis::MEASURED, original.identity.observed);
+    if (!checked.identity.expectedMatch)
         return moveError(MoveError::CAPABILITY,
-                         "replacement record is for another model or firmware", Err::UNSUPPORTED);
+                         "replacement record names other product fields (1000, 1018:01, 1018:02, 2000)",
+                         Err::UNSUPPORTED);
     if (!original.latest.present || !original.latest.feedback || !original.acceptance.present ||
         original.latest.earliestUs < original.trigger.completedUs ||
         original.latest.latestUs > now ||

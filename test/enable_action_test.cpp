@@ -27,6 +27,7 @@ static const char* scenario = "";
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/Identity.h"
 #include "support/OwnerRig.h"
 namespace {
 using OwnerRig::budget;
@@ -278,6 +279,9 @@ struct Rig {
         value.nodeGeneration = services.node(0)->route.generation;
         return value;
     }
+    // A current identity of this boot with the measured values (support/Identity.h): this fake answers
+    // no identity read.
+    L::IdentityObservation identity() const { return TestIdentity::measured(current(), now); }
     void later(const M::Frame& value) { wire.push(value, now + 1, owner.controllerEpoch()); }
     void turn(uint64_t time) {
         now = time;
@@ -384,7 +388,7 @@ struct Rig {
     M::Status request(const L::ReadContext& state, const L::EnableEvidence& given = evidence(),
                       uint64_t leadUs = 400000, const L::ActionOptions& budgets = options()) {
         startFrame = wire.sentCount;
-        return a.requestEnable(state, bound(given), budgets, now + leadUs, now);
+        return a.requestEnable(state, identity(), bound(given), budgets, now + leadUs, now);
     }
 };
 L::AxisReservation reservationOf(const Rig& r) { return r.reservation(); }
@@ -528,6 +532,7 @@ void refusalsAreAtomic() {
     const L::AxisReservation good = reservationOf(r);
     const uint32_t operation = 900;
     const uint64_t now = r.now, deadline = now + 400000;
+    const L::IdentityObservation identity = TestIdentity::measured(good.target, now);
     L::ActionContext output;
     Saved<L::ActionContext> blank(output);
     const unsigned sent = r.wire.sentCount;
@@ -536,8 +541,10 @@ void refusalsAreAtomic() {
                              uint64_t cutoff, const L::ActionOptions& budgets, M::Err code,
                              M::ActionError detail) {
         Saved<L::ReadContext> savedRead(read);
-        const M::Status checked = L::validateEnable(output, reservation, read, given, op, time, cutoff, budgets);
-        const M::Status actual = L::prepareEnable(output, reservation, read, given, op, time, cutoff, budgets);
+        const M::Status checked =
+            L::validateEnable(output, reservation, read, identity, given, op, time, cutoff, budgets);
+        const M::Status actual =
+            L::prepareEnable(output, reservation, read, identity, given, op, time, cutoff, budgets);
         CHECK(actual.code == code && actual.detail == int32_t(detail));
         CHECK(checked.code == code && checked.detail == int32_t(detail));
         blank.unchanged(output);
@@ -550,7 +557,7 @@ void refusalsAreAtomic() {
     fine.reservation = good;
     fine.operation = operation;
     fine.expiresUs = now + 1000000;
-    CHECK(L::validateEnable(output, good, state, fine, operation, now, deadline, budgets).isOk());
+    CHECK(L::validateEnable(output, good, state, identity, fine, operation, now, deadline, budgets).isOk());
     // The gate is first: no budget or state matters while it is closed.
     L::EnableEvidence given;
     refuses(good, state, given, operation, now, deadline, budgets, M::Err::UNSUPPORTED, M::ActionError::STATE);
@@ -587,7 +594,7 @@ void refusalsAreAtomic() {
     const uint64_t lead = minimumLead(budgets);
     CHECK(lead == 3 * INTERVAL + 26 * uint64_t(QUEUE + RESPONSE) + 1);
     refuses(good, state, fine, operation, now, now + lead - 1, budgets, bad, M::ActionError::ARGUMENT);
-    CHECK(L::validateEnable(output, good, state, fine, operation, now, now + lead, budgets).isOk());
+    CHECK(L::validateEnable(output, good, state, identity, fine, operation, now, now + lead, budgets).isOk());
     L::ActionOptions huge = budgets;
     huge.commandIntervalUs = UINT64_MAX / 2; // Cannot wrap.
     refuses(good, state, fine, operation, now, UINT64_MAX, huge, bad, M::ActionError::ARGUMENT);
@@ -611,7 +618,7 @@ void refusalsAreAtomic() {
     given.expiresUs = now;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::TIME);
     given.expiresUs = now + 1;
-    CHECK(L::validateEnable(output, good, state, given, operation, now, deadline, budgets).isOk());
+    CHECK(L::validateEnable(output, good, state, identity, given, operation, now, deadline, budgets).isOk());
     given = fine;
     given.operation = operation + 1;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
@@ -620,7 +627,7 @@ void refusalsAreAtomic() {
     given.powerUpShaft = L::ShaftObservation::NONE;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
     given.powerUpShaft = L::ShaftObservation::HOLDING;
-    CHECK(L::validateEnable(output, good, state, given, operation, now, deadline, budgets).isOk());
+    CHECK(L::validateEnable(output, good, state, identity, given, operation, now, deadline, budgets).isOk());
     given.powerUpShaft = static_cast<L::ShaftObservation>(3);
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::ARGUMENT);
     L::ActionOptions changed = budgets;
@@ -682,7 +689,7 @@ void refusalsAreAtomic() {
     L::ReadWindow window;
     CHECK(L::validateStateBlock(state, L::StateBlock::ERRORS, r.current(), now, budgets.maximumAgeUs, window));
     const uint64_t expire = window.earliestUs + budgets.maximumAgeUs;
-    CHECK(L::validateEnable(output, good, state, fine, operation, expire, expire + 400000, budgets).isOk());
+    CHECK(L::validateEnable(output, good, state, identity, fine, operation, expire, expire + 400000, budgets).isOk());
     refuses(good, state, fine, operation, expire + 1, expire + 400001, budgets, bad, M::ActionError::STATE);
     CHECK(r.wire.sentCount == sent);
     // Overlap with each borrowed input.
@@ -690,13 +697,13 @@ void refusalsAreAtomic() {
     Saved<L::ActionContext> aliasingSaved(aliasing);
     aliasing.reservation = good;
     aliasingSaved = Saved<L::ActionContext>(aliasing);
-    CHECK(L::prepareEnable(aliasing, aliasing.reservation, state, fine, operation, now, deadline, budgets).detail ==
+    CHECK(L::prepareEnable(aliasing, aliasing.reservation, state, identity, fine, operation, now, deadline, budgets).detail ==
           int32_t(M::ActionError::OVERLAP));
-    CHECK(L::prepareEnable(aliasing, good, aliasing.read, fine, operation, now, deadline, budgets).detail ==
+    CHECK(L::prepareEnable(aliasing, good, aliasing.read, identity, fine, operation, now, deadline, budgets).detail ==
           int32_t(M::ActionError::OVERLAP));
-    CHECK(L::prepareEnable(aliasing, good, state, aliasing.enable.evidence, operation, now, deadline, budgets).detail ==
+    CHECK(L::prepareEnable(aliasing, good, state, identity, aliasing.enable.evidence, operation, now, deadline, budgets).detail ==
           int32_t(M::ActionError::OVERLAP));
-    CHECK(L::prepareEnable(aliasing, good, state, fine, operation, now, deadline, aliasing.options).detail ==
+    CHECK(L::prepareEnable(aliasing, good, state, identity, fine, operation, now, deadline, aliasing.options).detail ==
           int32_t(M::ActionError::OVERLAP));
     aliasingSaved.unchanged(aliasing);
 }
@@ -1013,7 +1020,7 @@ void wordFailuresAtEachStep() {
             quiet(r);
             CHECK(wordsFrom(r, r.startFrame) == at + 1 && r.drive.clientAborts == 1);
             CHECK(!r.a.latestControl() && c.uncertain && c.execution == M::ActionExecution::UNKNOWN);
-            CHECK(!r.a.requestEnable(state, r.bound(evidence()), options(), r.now + 400000, r.now).isOk());
+            CHECK(!r.a.requestEnable(state, r.identity(), r.bound(evidence()), options(), r.now + 400000, r.now).isOk());
         }
     }
 }
@@ -1532,7 +1539,7 @@ void sessionHistory() {
             r.finishEnable();
             CHECK(r.a.motionHistoryWritten());
             const unsigned sent = r.wire.sentCount;
-            CHECK(r.a.requestEnable(state, r.bound(evidence()), options(), r.now + 400000, r.now).detail ==
+            CHECK(r.a.requestEnable(state, r.identity(), r.bound(evidence()), options(), r.now + 400000, r.now).detail ==
                   int32_t(M::ActionError::STATE));
             quiet(r);
             CHECK(r.wire.sentCount == sent);
@@ -1564,12 +1571,12 @@ void sessionHistory() {
         L::ReadContext state;
         admittedRig(r, state);
         const L::EnableEvidence used = r.bound(evidence());
-        CHECK(r.a.requestEnable(state, used, options(), r.now + 400000, r.now));
+        CHECK(r.a.requestEnable(state, r.identity(), used, options(), r.now + 400000, r.now));
         r.finishEnable();
         E::AxisSession other(r.owner); // Adopts the reservation r.a still holds.
         CHECK(other.open(r.current(), L::SettingsModel::CL86_C, 2, r.now));
         CHECK(other.nextOperation() > used.operation);
-        CHECK(other.requestEnable(r.a.enableAction().read, used, options(), r.now + 400000, r.now).detail ==
+        CHECK(other.requestEnable(r.a.enableAction().read, r.identity(), used, options(), r.now + 400000, r.now).detail ==
               int32_t(M::ActionError::STATE));
         CHECK(!other.enableActive());
         Rig restarted;
@@ -1577,7 +1584,7 @@ void sessionHistory() {
         restarted.open();
         L::ReadContext later;
         restarted.readState(later);
-        CHECK(restarted.a.requestEnable(later, used, options(), restarted.now + 400000, restarted.now).detail ==
+        CHECK(restarted.a.requestEnable(later, restarted.identity(), used, options(), restarted.now + 400000, restarted.now).detail ==
               int32_t(M::ActionError::TARGET));
     }
     {   // A stop admitted at any time ends the session's clean history.
@@ -1606,7 +1613,7 @@ void sessionHistory() {
         admittedRig(r, state);
         CHECK(r.request(state, evidence(POWER_UP_STATUS, 5000, 0)).isOk());
         r.finishEnable();
-        CHECK(r.a.requestEnable(r.a.enableAction().read, r.bound(evidence()), options(), r.now + 400000, r.now).detail ==
+        CHECK(r.a.requestEnable(r.a.enableAction().read, r.identity(), r.bound(evidence()), options(), r.now + 400000, r.now).detail ==
               int32_t(M::ActionError::OVERLAP));
     }
 }
@@ -1630,7 +1637,8 @@ struct Direct {
         given.reservation = live;
         given.operation = operation;
         given.expiresUs = r.now + 1000000;
-        CHECK(L::prepareEnable(c, live, state, given, operation, r.now, r.now + lead, options()));
+        CHECK(L::prepareEnable(c, live, state, TestIdentity::measured(live.target, r.now), given, operation, r.now,
+                           r.now + lead, options()));
     }
     // One service: yield, admit, a transmission notice for a word, then the owner terminal.
     bool once() {
@@ -2299,7 +2307,7 @@ M::Status requestMeasured(Rig& r, const L::ReadContext& state, const L::EnableEv
     r.startFrame = r.wire.sentCount;
     L::EnableEvidence e = given;
     e.operation = r.a.nextOperation(); // The one binding fact a measured enable keeps.
-    return r.a.requestEnable(state, e, options(), r.now + 400000, r.now);
+    return r.a.requestEnable(state, r.identity(), e, options(), r.now + 400000, r.now);
 }
 // The words and cycles of a whole enable from startFrame: 607A, 60FF, then each word and its cycle; a
 // released start's word 15 waits for a second still cycle of word 7's report.
@@ -2459,6 +2467,70 @@ void measuredEnable() {
         CHECK(wordsFrom(r, r.startFrame) == 2);
     }
 }
+// Prompt 57 identity policy, under both gates: a product field (1000, 1018:01, 1018:02, 2000) that differs
+// from measuredIdentity() refuses before any TX, as does an identity of another boot; a firmware field (1009,
+// 100A, 1018:03, 2001) that differs runs the enable, whose terminal result keeps it flagged with both tuples.
+void identityPolicy() {
+    for (unsigned gate = 0; gate < 2; ++gate) {
+        const auto request = [&](Rig& r, const L::ReadContext& state, const L::IdentityObservation& id) {
+            r.startFrame = r.wire.sentCount;
+            L::EnableEvidence e = gate ? measured() : r.bound(evidence());
+            e.operation = r.a.nextOperation();
+            return r.a.requestEnable(state, id, e, options(), r.now + 400000, r.now);
+        };
+        for (unsigned field = 0; field < 5; ++field) {
+            Rig r;
+            L::ReadContext state;
+            admittedRig(r, state);
+            L::IdentityObservation id = r.identity();
+            if (field == 0)
+                ++id.deviceType;
+            else if (field == 1)
+                ++id.vendorId;
+            else if (field == 2)
+                ++id.productCode;
+            else if (field == 3)
+                id.modelCode = L::documentedIdentity().modelCode; // The EDS default admits nothing alone.
+            else
+                ++id.target.nodeGeneration; // Another boot's identity.
+            const Saved<L::ActionContext> before(r.a.enableAction());
+            const M::Status s = request(r, state, id);
+            CHECK(!s && s.code == M::Err::UNSUPPORTED && s.detail == int32_t(M::ActionError::TARGET));
+            before.unchanged(r.a.enableAction());
+            CHECK(!r.a.enableActive());
+            quiet(r);
+            CHECK(r.wire.sentCount == r.startFrame);
+        }
+        for (unsigned field = 0; field < 5; ++field) {
+            Rig r;
+            L::ReadContext state;
+            admittedRig(r, state);
+            L::IdentityObservation id = r.identity();
+            if (field == 0)
+                ++id.hardwareVersion;
+            else if (field == 1)
+                ++id.softwareVersion;
+            else if (field == 2)
+                ++id.revision;
+            else if (field == 3)
+                ++id.firmwareCode;
+            CHECK(request(r, state, id).isOk());
+            r.finishEnable();
+            const L::ActionContext& c = r.a.enableAction();
+            CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+            const L::IdentityCheck& check = c.enable.identity;
+            CHECK(check.outcome == L::IdentityOutcome::CONFIRMED && check.basis == L::IdentityBasis::MEASURED &&
+                  check.expectedMatch && !check.documentedMatch);
+            CHECK(check.firmwareUnqualified == (field < 4)); // Field 4: the measured tuple itself.
+            CHECK(check.expected.firmwareCode == L::measuredIdentity().firmwareCode &&
+                  check.expected.revision == L::measuredIdentity().revision);
+            CHECK(check.observed.firmwareCode == id.firmwareCode && check.observed.revision == id.revision &&
+                  check.observed.hardwareVersion == id.hardwareVersion &&
+                  check.observed.softwareVersion == id.softwareVersion);
+            exactEnableFrames(r);
+        }
+    }
+}
 void allScenarios() {
     RUN(goldenSequence);
     RUN(minimumDeadline);
@@ -2477,6 +2549,7 @@ void allScenarios() {
     RUN(latchedRelease);
     RUN(directLifecycle);
     RUN(measuredEnable);
+    RUN(identityPolicy);
 }
 } // namespace
 

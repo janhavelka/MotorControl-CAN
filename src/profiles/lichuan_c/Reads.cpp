@@ -405,7 +405,72 @@ Status beginGet(const ReadContext& c, const void* output, size_t outputSize,
         return invalid(ReadError::STATE, "read group incomplete or wrong context");
     return fields(c, 0, c.count, now, age, window);
 }
+namespace {
+bool sameProduct(const IdentityValues& a, const IdentityValues& b) {
+    return a.deviceType == b.deviceType && a.vendorId == b.vendorId && a.productCode == b.productCode &&
+           a.modelCode == b.modelCode;
+}
+bool sameFirmware(const IdentityValues& a, const IdentityValues& b) {
+    return a.hardwareVersion == b.hardwareVersion && a.softwareVersion == b.softwareVersion &&
+           a.revision == b.revision && a.firmwareCode == b.firmwareCode;
+}
+} // namespace
+IdentityCheck compareIdentity(const IdentityValues& expected, IdentityBasis basis,
+                              const IdentityValues& observed) noexcept {
+    IdentityCheck c;
+    c.basis = basis;
+    c.expected = expected;
+    c.observed = observed;
+    c.expectedMatch = sameProduct(expected, observed);
+    c.documentedMatch = sameProduct(documentedIdentity(), observed);
+    // The declared model is the only candidate, so a match of any of its references confirms it.
+    c.outcome = c.expectedMatch || c.documentedMatch ? IdentityOutcome::CONFIRMED : IdentityOutcome::UNCONFIRMED;
+    c.firmwareUnqualified = !sameFirmware(expected, observed);
+    return c;
+}
 } // namespace Detail
+
+IdentityValues documentedIdentity() noexcept {
+    // LC_StepDriverCAN_V1.1.eds DefaultValue of [1000], [1009], [100A], [1018sub1..3], [2000], [2001].
+    IdentityValues v;
+    v.deviceType = 0x00040192;
+    v.hardwareVersion = 0x2608;
+    v.softwareVersion = 0x0001;
+    v.vendorId = 0x00001000;
+    v.productCode = 0x00000001;
+    v.revision = 0;
+    v.modelCode = 0x0001;
+    v.firmwareCode = 0;
+    return v;
+}
+IdentityValues measuredIdentity() noexcept {
+    // Both CL86-C specimens since 2026-11-04 (docs/device_conflicts.md Q01).
+    IdentityValues v;
+    v.deviceType = 0x00040192;
+    v.hardwareVersion = 0x0C;
+    v.softwareVersion = 0x20;
+    v.vendorId = 0x00001000;
+    v.productCode = 0x00000001;
+    v.revision = 0;
+    v.modelCode = 0x0400;
+    v.firmwareCode = 0x0200;
+    return v;
+}
+Status checkIdentity(IdentityCheck& output, const IdentityObservation& observed, const ReadTarget& current,
+                     const IdentityValues& expected, IdentityBasis basis, uint64_t now) noexcept {
+    if (overlaps(&output, sizeof output, &observed, sizeof observed) ||
+        overlaps(&output, sizeof output, &current, sizeof current) ||
+        overlaps(&output, sizeof output, &expected, sizeof expected))
+        return invalid(ReadError::OVERLAP, "identity check overlaps input");
+    if (basis != IdentityBasis::DOCUMENTED && basis != IdentityBasis::MEASURED)
+        return invalid(ReadError::ARGUMENT, "an identity reference needs a DOCUMENTED or MEASURED basis");
+    if (!validTarget(current) || !sameTarget(observed.target, current))
+        return invalid(ReadError::TARGET, "identity observation is not of the current binding and boot");
+    if (observed.window.earliestUs > observed.window.latestUs || observed.window.latestUs > now)
+        return invalid(ReadError::TIME, "identity observation window is after the supplied time");
+    output = compareIdentity(expected, basis, identityValues(observed));
+    return Ok();
+}
 
 Status prepareProbe(ReadContext& c, const ReadTarget& t, uint32_t operation, uint64_t now,
                     uint64_t deadline, const ReadOptions& options) noexcept {

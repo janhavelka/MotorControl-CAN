@@ -219,7 +219,7 @@ void refusalsAreAtomic() {
         case 0: r.proof.gate = L::VelocityGate::CLOSED; break;
         case 1: r.proof.record = 0; break;
         case 2: r.proof.rateChangeQualified = false; break;
-        case 3: r.proof.firmware.revision++; break;
+        case 3: r.proof.firmware.productCode++; break; // A product field; firmware only flags.
         case 4: r.proof.model = L::SettingsModel::UNKNOWN; break;
         case 5: r.replacement.value = M::Rational(0); break;
         case 6: r.replacement.value = M::Rational(-60); break;
@@ -341,10 +341,38 @@ void failedChangeRequestsStopWithoutReplay() {
         CHECK(r.run.change.uncertain && r.run.needsStop && r.run.stopRequested);
     }
 }
+// Prompt 57 identity policy: a change record of another firmware is admitted, and its own comparison with
+// the run's observed identity says so; the run's comparison stays its own.
+void changeRecordOfAnotherFirmwareOnlyFlags() {
+    for (unsigned field = 0; field < 4; ++field) {
+        Rig r;
+        r.running();
+        CHECK(!r.run.identity.firmwareUnqualified && r.run.identity.outcome == L::IdentityOutcome::CONFIRMED);
+        if (field == 0)
+            ++r.proof.firmware.hardwareVersion;
+        else if (field == 1)
+            ++r.proof.firmware.softwareVersion;
+        else if (field == 2)
+            ++r.proof.firmware.revision;
+        else
+            ++r.proof.firmware.firmwareCode;
+        r.replacement = request(180).velocity;
+        CHECK(r.change());
+        const L::IdentityCheck& id = r.run.change.identity;
+        CHECK(id.outcome == L::IdentityOutcome::CONFIRMED && id.expectedMatch && id.firmwareUnqualified &&
+              id.basis == L::IdentityBasis::MEASURED);
+        CHECK(id.expected.revision == r.proof.firmware.revision &&
+              id.expected.firmwareCode == r.proof.firmware.firmwareCode &&
+              id.observed.firmwareCode == r.run.identity.observed.firmwareCode);
+        CHECK(!r.run.identity.firmwareUnqualified);
+    }
+}
 } // namespace
+
 int main() {
     changedRateUsesOneWriteAndOriginalStop();
     refusalsAreAtomic();
+    changeRecordOfAnotherFirmwareOnlyFlags();
     explicitExperimentCannotQualifyItself();
     ignoredChangeRemainsRaw();
     engineeringPolarityDoesNotChangeTheWireDirection();

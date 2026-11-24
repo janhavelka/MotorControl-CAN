@@ -84,9 +84,11 @@ inline L::MoveProfile profile(uint32_t up = 100, uint32_t down = 200) {
     value.rampDownTimeMs = down;
     return value;
 }
-// The fake identity. Raw codes only; nothing here is a real model or firmware.
-const uint32_t DEVICE_TYPE = 0x00040192, VENDOR = 0x00000300, PRODUCT = 0x00008605, REVISION = 0x00010001;
-const uint16_t HARDWARE = 0x0102, SOFTWARE = 0x0203, MODEL = 0x0086, FIRMWARE = 0x0123;
+// The fake identity. Raw codes only. The product fields (1000, 1018:01, 1018:02, 2000) are those of
+// measuredIdentity(), so an enable compares them as matching (prompt 57); the firmware fields (1009,
+// 100A, 1018:03, 2001) are this file's, so every enable here runs flagged firmware unqualified.
+const uint32_t DEVICE_TYPE = 0x00040192, VENDOR = 0x00001000, PRODUCT = 0x00000001, REVISION = 0x00010001;
+const uint16_t HARDWARE = 0x0102, SOFTWARE = 0x0203, MODEL = 0x0400, FIRMWARE = 0x0123;
 inline L::MoveEvidence evidence(L::CompletionRule rule = L::CompletionRule::AFTER_ABSENCE) {
     L::MoveEvidence value;
     value.gate = L::MoveGate::MEASURED;

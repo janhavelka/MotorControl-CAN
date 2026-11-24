@@ -156,7 +156,22 @@ void alreadyReleased() {
             CHECK(!L::noteActionTransmission(action, r.reservation, r.current, r.now));
             r.turn(r.now + 1000);
             CHECK(r.wire.sentCount == sent); // Exactly zero frames.
+            CHECK(!d.alarm && !d.fault);
         }
+    }
+    // A released report with an alarm or a fault code also answers already released with nothing sent, and
+    // the decision reports what it showed (lead decision on b3); nothing is cleared.
+    for (unsigned variant = 0; variant < 3; ++variant) {
+        L::ReleaseReport report;
+        report.modeRaw = 1;
+        report.statusword = 0x8050;
+        report.monitor = uint16_t(RELEASED_MONITOR | (variant == 0 ? L::MONITOR_ALARM : 0));
+        report.errorRegister = variant == 1 ? 1 : 0;
+        report.errorCode = variant == 2 ? 0xff05 : 0;
+        L::ReleaseDecision d;
+        CHECK(L::classifyRelease(report, L::ReleaseExperiment(), d));
+        CHECK(d.row == L::ReleaseRow::ALREADY_RELEASED && !d.send && d.alarm == (variant == 0) &&
+              d.fault == (variant != 0));
     }
 }
 

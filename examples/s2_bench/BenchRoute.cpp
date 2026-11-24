@@ -663,7 +663,9 @@ unsigned terminalBound(const RoutePlan& p) {
         // margin.
         return 15 + 9 + 1 + 7u * (p.cycles + 1u);
     case RouteKind::ENABLE:
-        return 9 + 2 + 3 + 7 * (3 + p.deadlineMs / p.intervalMs) +
+        // Identity (prompt 57: the enable compares it), the full read, 607A and 60FF, three words and their
+        // cycles.
+        return 9 + 9 + 2 + 3 + 7 * (3 + p.deadlineMs / p.intervalMs) +
                (enableStopPlanned(p) ? stopTerminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) : 0);
     case RouteKind::STOP:
         return 5 + stopTerminals(p.deadlineMs, p.intervalMs);
@@ -1396,7 +1398,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                 {STEP_SECOND, FULL},
                                 {STEP_CHECK_MODE, 0},
                                 {STEP_MODE_SELECT, 0}};
-    static const Step enable[] = {{STEP_STATE, FULL}, {STEP_ENABLE, 0}};
+    static const Step enable[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_ENABLE, 0}};
     static const Step stopSteps[] = {{STEP_STATE, STOP_STATE}, {STEP_STOP, 0}};
     static const Step position[] = {{STEP_STATE, FULL},
                                     {STEP_CHECK_POSITION, 0},
@@ -3217,7 +3219,7 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
         finish(RouteFailure::REFUSED, "deadline", now);
         return;
     }
-    const M::Status status = axis().requestEnable(context_.read, evidence, options, deadline, now);
+    const M::Status status = axis().requestEnable(context_.read, identity_, evidence, options, deadline, now);
     if (!status) {
         record_->statusPresent = true;
         record_->statusCode = uint8_t(status.code);

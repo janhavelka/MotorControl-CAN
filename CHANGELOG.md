@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Identity policy (prompt 57, slice b4, 2026-11-24)
+
+- The position moves, velocity and homing now refuse only when a product field of their record (`1000`,
+  `1018:01`, `1018:02`, `2000`) differs from the current identity read, still before any TX with
+  `UNSUPPORTED`. A firmware field (`1009`, `100A`, `1018:03`, `2001`) that differs no longer refuses: the
+  operation runs and its context, the terminal result, carries the new `IdentityCheck` with
+  `firmwareUnqualified` and both tuples (`expected`, `observed`). New fields `MoveContext::identity`,
+  `VelocityContext::identity`, `VelocityChange::identity`, `HomeContext::identity` and
+  `EnableRecord::identity`. A move replacement or a velocity change record compares itself with the run's
+  observed identity the same way; it no longer has to repeat the run's firmware tuple. Stops compare nothing.
+- New in `Reads.h`: `IdentityBasis`, `IdentityOutcome` (`CONFIRMED`, `UNCONFIRMED`; `CONTRADICTED` reserved,
+  never produced: this profile takes no candidate set), `IdentityValues`, `IdentityCheck`, `checkIdentity`,
+  `documentedIdentity()` (the EDS defaults, reported only: its `2000` default 1 is not what either specimen
+  reads) and `measuredIdentity()` (the two CL86-C specimens). The family promptsets extend this comparison.
+- **API change:** `prepareEnable` and `validateEnable` take a `const IdentityObservation&` after the state
+  read, compared with `measuredIdentity()` under both gates; `AxisSession::requestEnable` and
+  `ProbeMotion::setEnablePrerequisites` take it in the same place. Migration: read identity
+  (`prepareIdentity`, `getIdentity`, `IdentityWidths::MEASURED_U8` on the bench specimens) in the same boot
+  and pass the observation. A call without it no longer compiles: a refusing overload would compile and then
+  refuse every enable at run time.
+- Bench: the `enable` route reads identity first (nine more terminals), so a start 2 line needs an interval
+  above 1250 ms at a 10000 ms deadline (`10000,1300`; `10000,1250` is now `capacity`); `s2_bench.py` counts it.
+  Routes stay protocol 16; the line format is unchanged. Console output of the flag comes with slice b6.
+- Release (b3 follow-up): new `ReleaseDecision::alarm` and `fault` report a report's `2100` alarm bit and a
+  nonzero `1001` or `603F`; the already released row still sends nothing and clears nothing.
+
 ### Measured release (prompt 57, slice b3, 2026-11-24)
 
 - New `ActionKind::RELEASE` (appended) and `LICHUAN_C::prepareRelease`, with the release table as one pure

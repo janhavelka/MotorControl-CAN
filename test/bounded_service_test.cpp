@@ -27,6 +27,7 @@ static const char* scenario = "";
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/Identity.h"
 #include "support/OwnerRig.h"
 namespace {
 using OwnerRig::budget;
@@ -291,7 +292,8 @@ void boundsQualifyTheSessionsWrites() {
     r.readState(state);
 
     r.startFrame = r.wire.sentCount;
-    CHECK(r.a.requestEnable(state, r.bound(), options(), r.now + 400000, r.now).isOk());
+    CHECK(r.a.requestEnable(state, TestIdentity::measured(r.current(), r.now), r.bound(), options(), r.now + 400000,
+                            r.now).isOk());
     for (unsigned i = 0; i < 400 && r.a.enableActive(); ++i)
         r.step();
     const L::ActionContext& enable = r.a.enableAction();
@@ -362,7 +364,8 @@ void otherIngressStillRefuses() {
             CHECK(r.a.admitPrepared(work.transfer, r.now) == O::BusAdmission::INVALID);
         }
         r.startFrame = r.wire.sentCount;
-        const M::Status requested = r.a.requestEnable(state, r.bound(), options(), r.now + 400000, r.now);
+        const M::Status requested = r.a.requestEnable(state, TestIdentity::measured(r.current(), r.now), r.bound(), options(), r.now + 400000,
+                            r.now);
         for (unsigned i = 0; i < 400 && r.a.enableActive(); ++i)
             r.step();
         CHECK(!requested.isOk() || r.a.enableAction().state == M::ActionState::FAILED);

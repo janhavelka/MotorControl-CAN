@@ -25,7 +25,11 @@ milliseconds, at most 2000; undocumented zero meaning is rejected.
 
 `VelocityEvidence` is closed by default. Opening it asserts an actual retained
 record for the selected model/raw firmware tuple, status layout, startup, chosen
-stop and rate range. Mode changes while released and reverse operation require
+stop and rate range. Under the [identity policy](drive_actions.md) the
+record's product fields (`1000`, `1018:01`, `1018:02`, `2000`) must equal a current identity read, or
+the run is refused before any write; firmware fields (`1009`, `100A`, `1018:03`, `2001`) that differ
+admit the run, and `VelocityContext::identity` keeps it flagged firmware unqualified with both tuples.
+A change record compares itself with the run's observed identity into `VelocityChange::identity`. Mode changes while released and reverse operation require
 their separate facts. `modeChangeFromRaw` names the one qualified source mode;
 a mode1-to3 record cannot authorize mode0/6-to3. Admission requires a fresh complete MONITORS, STATUS and
 FEEDBACK read, released/not enabled, no running or alarm, and raw velocity zero.
@@ -59,7 +63,7 @@ positive rate can be prepared, unless the reverse probe below is set. The rate i
 `VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US` (20 s). These two bounds are project
 policy for an unmeasured start and stop; they say nothing about the drive.
 `record` names the experiment's own retained record. Every other check is the
-same as for `MEASURED`: exact identity and dialect, released stationary mode 3
+same as for `MEASURED`: the identity rule above and the exact dialect, released stationary mode 3
 admission, the ZH86 p13 order, duration coverage and stop reserve, the fixed
 deadlines, the run's own stop at due, retained uncertainty after a possible
 transmission, no retry and the checked fault path.

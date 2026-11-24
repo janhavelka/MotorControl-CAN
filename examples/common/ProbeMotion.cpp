@@ -170,7 +170,7 @@ M::Status ProbeMotion::hostChange(uint64_t now) const noexcept {
 }
 void ProbeMotion::forgetPrerequisites() noexcept {
     moveState_ = velocityState_ = homeState_ = enableState_ = clearState_ = nullptr;
-    moveIdentity_ = velocityIdentity_ = homeIdentity_ = nullptr;
+    moveIdentity_ = velocityIdentity_ = homeIdentity_ = enableIdentity_ = nullptr;
     stored_ = inputs_ = driver_ = nullptr;
     moveReplacementEvidence_ = L::MoveReplacementEvidence();
     moveFeedback_ = L::MoveFeedbackRelation();
@@ -292,12 +292,14 @@ M::Status ProbeMotion::setHomePrerequisites(const L::ReadContext& state,
     return M::Ok();
 }
 M::Status ProbeMotion::setEnablePrerequisites(const L::ReadContext& state,
+                                              const L::IdentityObservation& identity,
                                               const L::EnableEvidence& evidence,
                                               const L::ActionOptions& options) noexcept {
     const M::Status valid = prerequisite();
     if (!valid)
         return valid;
     enableState_ = &state;
+    enableIdentity_ = &identity;
     enableEvidence_ = evidence;
     enableOptions_ = options;
     return M::Ok();
@@ -454,12 +456,13 @@ M::Status ProbeMotion::requestEnable(uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
-    if (!enableState_)
+    if (!enableState_ || !enableIdentity_)
         return refused(M::ActionError::STATE, "explicit enable prerequisites are missing");
     const M::Status status =
-        session_.requestEnable(*enableState_, enableEvidence_, enableOptions_, deadline, now);
+        session_.requestEnable(*enableState_, *enableIdentity_, enableEvidence_, enableOptions_, deadline, now);
     if (status) {
         enableState_ = nullptr;
+        enableIdentity_ = nullptr;
         accept(MotionKind::ENABLE, session_.enableAction().operation, now);
     }
     return status;

@@ -117,8 +117,9 @@ moves the rotor to the drive's internal command with no bound known (admitted on
 The library also admits the running latch a
 moving quick stop leaves (2100=0014 or 0015), which must clear by word 7; word 15 waits for word 7's report to
 hold still, and a 6064 or 606C change after word 15 fails the enable, after which the firmware sends its own
-QUICK_STOP. Start 2 reserves that stop's terminals and time, so its line needs an interval above 1111 ms at a
-10000 ms deadline (10000/1250 is 122 terminals of 128).
+QUICK_STOP. Start 2 reserves that stop's terminals and time, and every enable line the identity read the
+library's enable compares (prompt 57), so a start 2 line needs an interval above 1250 ms at a 10000 ms deadline
+(10000/1300 is 124 terminals of 128).
 
 velocity-target (ledger gate Q03) writes one 60FF value, --value -3000..3001, to a drive that reports
 itself released at standstill in mode 3 on two fresh reads, and only after an acknowledged write reads 60FF
@@ -768,7 +769,8 @@ def plan_bounds(command, fields):
         start, deadline, interval = fields[3], fields[8], fields[9]
         # Start 2 reserves the route's own QUICK_STOP after a failure once word 15 may have left.
         stop = start == ENABLE_STARTS["RELEASED"]
-        return (9 + 2 + 3 + 7 * (3 + deadline // interval) +
+        # Identity (prompt 57: the enable compares it), the full read, 607A and 60FF, three words, cycles.
+        return (9 + 9 + 2 + 3 + 7 * (3 + deadline // interval) +
                 (_stop_terminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) if stop else 0),
                 deadline + (ENABLE_STOP_MS if stop else 0))
     if command == "stop":
