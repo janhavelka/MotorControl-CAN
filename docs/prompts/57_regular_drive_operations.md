@@ -39,8 +39,10 @@ Deliver four regular library operations (mode select, enable, release, save) and
 in the [motion capability report](../reports/2026-11-12_motion_capability_evidence.md) sections d, e and f:
 
 - **Mode select:** `prepareModeSelect` with the existing `nextAction`/`advanceAction`, documented modes 1, 3 and 6
-  only, written once while the drive is not enabled, settled when `6061` reads the new mode; never writes `6061`, never
-  reads `6060` (WO, D04), no mode change while enabled (Q11). About 130 measured mode writes all succeeded. It replaces
+  only, written once while the drive is not enabled or from the measured power-up report `8037`/`0001` in mode 0
+  (23 of the measured writes, evidence report section d), settled when `6061` reads the new mode; never writes
+  `6061`, never reads `6060` (write-only in the EDS, `LC_StepDriverCAN_V1.1.eds`; the manual tables list RW; D04), no
+  other mode change while enabled (Q11). About 130 measured mode writes all succeeded. It replaces
   the raw `6060` writes in the examples (`AxisSession`, bench `MODE_ONE`/`MODE_THREE`). Undocumented codes stay in the
   D17 probe.
 - **Enable:** a `MEASURED` enable gate beside CLOSED and ATTENDED_EXPERIMENT, opened by a reviewed record of the
@@ -127,7 +129,9 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
 
 Release table: the one predecessor-to-word table that the release's admission, its tests and prompt 72 use. A row
 is chosen by a fresh report (`6041`, `2100`, `606C`, `1001`, `603F`, `6061`, and `2500` for the `0x0000` row), never
-by retained history.
+by retained history. The already-released row comes before the refusal row: a report with `2100` released set is
+answered as already released with nothing sent, whatever its running bit, and the result reports that bit
+(stage (a) of [report 57](../reports/prompt_57.md); trial 5991 read no `2500`, its open loop is inferred from history).
 
 | Fresh predecessor report | Word | Evidence and scope | Report after the word |
 | --- | --- | --- | --- |
