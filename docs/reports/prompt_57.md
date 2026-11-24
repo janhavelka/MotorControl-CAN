@@ -209,5 +209,11 @@ promptset, ledger and `s2_bench_test.py` passed; the implementer also ran the s2
 | RELEASE route not classed as motion | Low | Fixed in the bench and the runner |
 | Stale documents and test gaps | Low | Fixed (backlog S08, source map, commissioning `without-backup`, first-token CLI guard, `firmware_unqualified:false` test) |
 
+CI run 45468057191 on `d06eeb0e` failed in the full jobs: clang rejected a split string literal in the release
+refusal reasons array (`-Wstring-concatenation`) and the packaged native probe consumer lacked `SelectedAxis.h`. Both were
+fixed in `fd73d198` (literal parenthesized; header added to `test/package_test.py`'s copied files); the local quick
+verify and `test/package_test.py` passed, and CI run 45472978832 succeeded on `fd73d198` in every job. The stage (b) and
+(c) slices had been checked locally with quick mode only; stage (d) runs full mode before the final commit.
+
 Estimated, not measured on a board: `SelectedAxis` about 60 KB of internal RAM on first selection, the bench console
 helper about 13.5 KB on first arming, about 2 KB per bench node; an allocation failure refuses the command with no TX.
