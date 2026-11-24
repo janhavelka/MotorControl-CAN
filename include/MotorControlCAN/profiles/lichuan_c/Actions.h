@@ -47,23 +47,21 @@
  * read never overrides a newer routed fault. While admitted work is still in flight, deliver it
  * with noteActionWithdrawal instead: that work's terminal is then consumed as evidence, it cannot
  * complete or advance the action, and the outcome is the withdrawal's reason.
- * Enable transition contract: GATED. Two specimens ran prepareEnable on one firmware, seven times
- * in all by 2026-11-05 (docs/drive_actions.md); that qualifies nothing, and every other claim
- * about it below is fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15
- * about 10 ms apart in position mode. No source says what the drive does with an earlier target when it
- * enables, so EnableEvidence must carry the caller's explicit statements and a closed gate refuses.
- * Mode 1 remains the default. Mode 6 requires an explicit separate evidence gate and
- * non-enabled released start; it sends no homing trigger. Mode 3 startup belongs to
- * the separately gated finite velocity operation. Release has no API: no source pairs a command with an
- * effect. Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern
- * the manual pairs with an enabled drive, and both held torque then by hand checks: word 6 releases
- * it (2026-11-03). At word 7 the drive reports itself energized again, and its position report
- * returned to its last commanded value (trial 308, 2026-11-04; the shaft was not observed).
- * EnableStart::RELEASED_BY_RECORDED_STOP admits an attended enable from the released standstill a
- * recorded stop left, with no power cycle, the running latch of a moving quick stop included; it
- * records the word 7 position move, claims no continuity across it, and fails on any position or
- * velocity change after word 15, which the caller must answer with a stop. Read
- * docs/drive_actions.md for the full table.
+ * Enable transition contract: EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
+ * apart in position mode. EnableGate::MEASURED (prompt 57) makes the mode 1 enable a regular command,
+ * opened by the reviewed record of 111 successful enables on two CL86-C specimens, one firmware: its
+ * start is the fresh report alone, the measured power-up report or the released standstill, with no
+ * trial identity, retained stop record or per-boot word history. EnableGate::ATTENDED_EXPERIMENT stays
+ * for unmeasured states and mode 6, with the caller's explicit statements; a closed gate refuses. Mode 6
+ * also requires its own evidence flag and a non-enabled released start; it sends no homing trigger.
+ * Mode 3 startup belongs to the separately gated finite velocity operation. Release has no API yet.
+ * Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern the manual
+ * pairs with an enabled drive, and both held torque then by hand checks: word 6 releases it
+ * (2026-11-03). At word 7 the drive reports itself energized again, and its position report returned
+ * to its last commanded value (trial 308, 2026-11-04; the shaft was not observed). A released start
+ * (EnableStart::RELEASED), the running latch of a moving quick stop included, records the word 7
+ * position move, claims no continuity across it, and fails on any position or velocity change after
+ * word 15, which the caller must answer with a stop. Read docs/drive_actions.md for the full table.
  * Mode select contract (prepareModeSelect): one 6060:00 byte of a documented code, 1, 3 or 6, from a
  * fresh report of a drive that is not enabled, or from the measured power-up report to mode 1, and
  * settled only when a later fresh 6061 reads that code. It never reads 6060 (write-only in the EDS,
@@ -204,34 +202,53 @@ struct CounterBaseline {
     uint64_t earliestUs = 0;    ///< Earliest bound of that FEEDBACK block.
     uint64_t latestUs = 0;      ///< Latest bound of that FEEDBACK block.
 };
-/** Whether enable may run at all. This is the capability gate, not a readiness claim. */
+/** Whether enable may run at all. This is the capability gate, not a readiness claim. Appended values
+ * keep the earlier numbers. */
 enum class EnableGate : uint8_t {
     CLOSED,             ///< Default: prepareEnable returns UNSUPPORTED with no output change.
     /** One attended trial with an independent drive-power cutoff. Two specimens ran it attended on
-     * one firmware (docs/drive_actions.md); that qualifies no firmware or capability. */
-    ATTENDED_EXPERIMENT
+     * one firmware (docs/drive_actions.md); that qualifies no firmware or capability. It keeps every
+     * statement EnableEvidence carries and stays the gate for states outside MEASURED, mode 6 included. */
+    ATTENDED_EXPERIMENT,
+    /** The regular mode 1 enable (prompt 57), opened by the reviewed record of the retained enables:
+     * 111 succeeded on both CL86-C specimens, one firmware (1000=00040192, 1009=000c, 100A=0020), 28 of
+     * the 30 attended records 103 to 2402 and 83 night-soak runs (docs/bench/20261111-night/night.log);
+     * records 103 and 105 (2026-11-03, node 1) failed before the bit 10 fix and after a hand displacement.
+     * Its measured starts are the power-up report 8437/0001 in mode 1 (21 records: word 6 8031/0011,
+     * word 7 8033/0001, word 15 8437/0001) and the released standstill a quick stop leaves (8050/0011,
+     * the latches 4050/0014 and C050/0015); 8031/0011, the report word 6 leaves, is the released
+     * standstill's next state on that measured path. The start is the fresh report alone: the library
+     * classifies it (EnableRecord::start), and trial, expiresUs, reservation, powerUpShaft and the
+     * reviewed values are not consulted. 607A and 60FF are still read before any word and kept, not
+     * compared: no mode 1 enable started motion from a retained target. Mode 1 only. Every observation
+     * rule of the sequence is unchanged. It qualifies no other firmware or model. */
+    MEASURED
 };
-/** What the application's own retained record says happened before this enable. */
+/** Which start an enable runs from. Under ATTENDED_EXPERIMENT the caller states it; under MEASURED the
+ * fresh report decides it (EnableRecord::start), and a caller's RELEASED or POWER_UP only requires that
+ * class. Appended values keep the earlier numbers. */
 enum class EnableStart : uint8_t {
-    UNKNOWN, ///< Default: refused. Fresh flags cannot tell idle from an interrupted curve.
-    /** No 6040, target, ramp or other mode write reached this drive since its last power-up, as far
-     * as this application's retained record can show, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A
-     * statement the library cannot check, and not proof that the drive holds no pending curve. */
+    /** Default. ATTENDED_EXPERIMENT refuses it: fresh flags cannot tell idle from an interrupted curve.
+     * MEASURED accepts it as "either measured start". */
+    UNKNOWN,
+    /** ATTENDED_EXPERIMENT: no 6040, target, ramp or other mode write reached this drive since its last
+     * power-up, as far as this application's retained record can show, apart from one acknowledged 6060
+     * selecting this explicitly reviewed mode. A statement the library cannot check, and not proof that
+     * the drive holds no pending curve. MEASURED treats it as POWER_UP: the statement is not needed. */
     NO_MOTION_WRITE_RECORDED,
-    /** Attended experiment of 2026-11-10, for drives that stay powered between runs. The application's
-     * retained record states that this drive was last left released by a stop whose settlement this
-     * application observed (a QUICK_STOP that settled on the released report or standstill, the quick
-     * stop of a halted drive included), and that no 6040, target, ramp or other write reached it after
-     * that stop, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A statement
-     * the library cannot check, and not proof that the drive holds no pending curve.
+    /** The released standstill, for drives that stay powered between runs (2026-11-10). Since prompt 57
+     * the start is the fresh report alone: no retained stop record and no statement about earlier
+     * writes is asked (the recorded-stop premise of 2026-11-10 is gone); the application owns what it
+     * knows beyond the report. Mode 1 only.
      *
-     * Mode 1 only, under EnableGate::ATTENDED_EXPERIMENT only. The start report must be a released
-     * standstill: 2100 released, alarm, both soft limits and every undocumented bit clear, the in-place
-     * bit set or clear, 2100 running set or clear; 6041 bits 0..6 0x50, the pattern of every measured
-     * release (low bits 000), bits 14 and 15 as reported; 1001, 603F and 606C zero. Running set beside
-     * the release is the latch a quick stop during a mode 1 move leaves (2100=0014, 6041=4050, trial
-     * 2109 after 2108; 2100=0015, 6041=C050 in mode 3, trial 1924), and 6041 bit 14 was set exactly while
-     * it was latched.
+     * The start report must be a released standstill: 2100 released, alarm, both soft limits and every
+     * undocumented bit clear, the in-place bit set or clear, 2100 running set or clear; 6041 bits 0..6
+     * 0x50, the pattern of every measured release (low bits 000), or 0x31, the report word 6 leaves (low
+     * bits 001, 8031/0011); bits 14 and 15 as reported; 1001, 603F and 606C zero. Running set beside the
+     * release is the latch a quick stop during a mode 1 move leaves (2100=0014, 6041=4050, trial 2109
+     * after 2108; 2100=0015, 6041=C050 in mode 3, trial 1924), and 6041 bit 14 was set exactly while it
+     * was latched. From 0x31 word 6 repeats the word that led there, which no record measured as a
+     * repeat; its cycles must still report low bits 001 and the release.
      *
      * Words 6, 7 and 15 follow as for NO_MOTION_WRITE_RECORDED, with these differences, each measured
      * from released starts on one firmware or chosen for them here.
@@ -258,17 +275,27 @@ enum class EnableStart : uint8_t {
      *
      * EnableRecord keeps 6064 at admission and in each word's accepted cycle. Success claims no position
      * continuity across word 7: a later move takes its start position from a fresh read. */
-    RELEASED_BY_RECORDED_STOP
+    RELEASED,
+    /** Deprecated name of RELEASED, kept for source compatibility: it no longer asks for a recorded stop. */
+    RELEASED_BY_RECORDED_STOP = RELEASED,
+    /** MEASURED only: the measured power-up report, mode 1 with 6041 low bits 111 and 2100 in place with
+     * released, running, alarm, both soft limits and every undocumented bit clear (8437/0001 on both
+     * specimens). The record states that report holds torque on this model and word 6 removes it, so no
+     * shaft observation is asked. The same report after a word 15 cannot be told apart; the sequence is
+     * the one measured from it either way. ATTENDED_EXPERIMENT refuses it as an argument. */
+    POWER_UP
 };
 /** The attendant's own observation of the shaft after power-up, before any word. The library cannot
- * check it. A start report matching the manual's enabled pattern needs one of the two values. It is not
- * consulted when the start report reads 2100 released, as every RELEASED_BY_RECORDED_STOP start does. */
+ * check it. Under ATTENDED_EXPERIMENT a start report matching the manual's enabled pattern needs one of
+ * the two values. It is not consulted when the start report reads 2100 released, as every RELEASED start
+ * does, nor under MEASURED. */
 enum class ShaftObservation : uint8_t {
     NONE,   ///< Default: not observed. Refused when the start report matches the enabled pattern.
     FREE,   ///< Turned freely by hand: no holding torque observed.
     HOLDING ///< Resisted by hand: holding torque observed, which word 6 may then remove.
 };
-/** The caller's explicit evidence for one enable. Defaults are refused.
+/** The caller's explicit evidence for one enable. Defaults are refused. Under EnableGate::MEASURED only
+ * gate, modeRaw (1), operation and an optional expected start are consulted.
  * The reviewed values are read and compared, so they cannot go stale silently, but a match means only
  * that someone looked at these exact bits. No value is thereby called safe, known or intended. Both
  * targets need review whatever they read, zero included: an absolute target of zero is not a
@@ -279,7 +306,7 @@ struct EnableEvidence {
     bool homingEnableQualified =
         false; ///< Mode 6 only: retained trial evidence establishes no start
                ///< before a separate bit-4 edge on this firmware/binding.
-    EnableGate gate = EnableGate::CLOSED;     ///< Must be explicitly opened for an attended trial.
+    EnableGate gate = EnableGate::CLOSED;     ///< Must be explicitly opened: MEASURED or an attended trial.
     /** Nonzero identity of the attended trial record. AxisSession consumes each once, in rising order,
      * for the life of the session object. */
     uint32_t trial = 0;
@@ -310,15 +337,18 @@ struct EnableStepRecord {
 /** ENABLE history kept for inspection, including after failure. None of it is an interpretation. */
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
+    /** The start the sequence runs under: the caller's under ATTENDED_EXPERIMENT; under MEASURED the class
+     * the fresh report showed, POWER_UP or RELEASED. UNKNOWN in every other context. */
+    EnableStart start = EnableStart::UNKNOWN;
     /** Admission 6041; bits other than 0..2 and 10 must not change during the sequence, nor, after a
-     * RELEASED_BY_RECORDED_STOP start, bits other than 0..2, 5, 6, 10 and 14; bit 14 may then only clear,
+     * RELEASED start, bits other than 0..2, 5, 6, 10 and 14; bit 14 may then only clear,
      * and must from word 7 on. */
     uint16_t startStatusword = 0;
-    /** Admission 2100; bits other than released must not change. After a RELEASED_BY_RECORDED_STOP
+    /** Admission 2100; bits other than released must not change. After a RELEASED
      * start running may also clear, and must from word 7 on. */
     uint16_t startMonitor = 0;
     /** Admission 6064, read before word 6. Any later raw difference ends the sequence. After a
-     * RELEASED_BY_RECORDED_STOP start a difference ends it in word 6's cycles, none is judged in word 7's,
+     * RELEASED start a difference ends it in word 6's cycles, none is judged in word 7's,
      * and from word 15 on a difference from steps[1].position does. */
     int32_t startPosition = 0;
     uint8_t targetCursor = 0;     ///< Current upload: 0 is 607A, 1 is 60FF.
@@ -326,7 +356,7 @@ struct EnableRecord {
     bool velocityTargetKnown = false; ///< velocityTarget holds an acquired value.
     int32_t positionTarget = 0;   ///< 607A as read before the first word; history, not intent.
     int32_t velocityTarget = 0;   ///< 60FF as read before the first word; history, not intent.
-    /** Accepted observation after words 6, 7 and 15. After a RELEASED_BY_RECORDED_STOP start, word 7's
+    /** Accepted observation after words 6, 7 and 15. After a RELEASED start, word 7's
      * is the second of the two still cycles word 15 waited for. */
     EnableStepRecord steps[3];
 };
@@ -670,12 +700,13 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& re
 Status validateEnable(const ActionContext& output, const AxisReservation& reservation,
                       const ReadContext& state, const EnableEvidence& evidence, uint32_t operation,
                       uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
-/** Prepare the documented position-mode enable sequence. GATED: two specimens ran it attended
- * on one firmware, which qualifies nothing.
+/** Prepare the documented position-mode enable sequence: regular under EnableGate::MEASURED, an
+ * attended trial under EnableGate::ATTENDED_EXPERIMENT. Neither qualifies another firmware or model.
  * Writes nothing itself. nextAction first yields one upload each of 607A and 60FF, as the project's
- * accepted action prerequisite, not a poll; their effects stay unknown. Their bytes must equal the
- * reviewed values, or the action fails before any 6040 word: this is the decision for a target of
- * unknown origin. It then yields 6040 U16 words 6, 7, 15, one at a time. After each acknowledgement
+ * accepted action prerequisite, not a poll; their effects stay unknown. Under ATTENDED_EXPERIMENT their
+ * bytes must equal the reviewed values, or the action fails before any 6040 word: this is the decision
+ * for a target of unknown origin. Under MEASURED they are kept and not compared. It then yields
+ * 6040 U16 words 6, 7, 15, one at a time. After each acknowledgement
  * it reads 2100..2102, 6041, 6061, 6064 and 606C until 6041 bits 0..2 read 001, 011 or 111, then
  * holds the next word until options.commandIntervalUs after that acknowledgement. Those patterns
  * come from applying the correspondence table of EN86/ZH86 p12 (6040=6 gives 001, 7 gives 011, 15
@@ -691,23 +722,29 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * @param[out] output Owned context, unchanged on failure, disjoint from all inputs.
  * @param[in] reservation Continuous actual owner reservation, CL86-C/OL86-C.
  * @param[in] state Complete fresh SDO read of ERRORS, MONITORS, STATUS and FEEDBACK acquired under
- * reservation: mode 1; 2100 position-complete set, running, alarm, both soft limits and every
- * undocumented bit clear; 2100 released either way, because specimens read it clear before any
- * enable; 6041 equal to the reviewed word; 1001, 603F and 606C zero. Mode 0, 3 and 6 are refused.
- * Low bits 111 with released clear, the manual's enabled pattern and the specimens' power-up
- * report, are refused unless evidence.powerUpShaft records an attended observation. A
- * RELEASED_BY_RECORDED_STOP start instead needs 2100 released, with in-place and running either way
- * and the other bits as above, and 6041 bits 0..6 0x50; its sequence differs as EnableStart lists:
- * the latch must clear by word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C
- * changing after word 15 fails with a status message telling the caller to stop the drive.
- * @param[in] evidence Explicit gate, trial, reservation, operation, expiry, start history, shaft
- * observation and exact reviewed values, copied. A closed gate returns UNSUPPORTED; anything else
- * missing or mismatched returns INVALID_CONFIG, and a RELEASED_BY_RECORDED_STOP start with a mode
- * other than 1 or a start report other than the released standstill returns it with
- * ActionError::STATE.
+ * reservation, with 1001, 603F and 606C zero, in mode 1 (mode 6 only as below). Mode 0 and 3 are
+ * refused. Under MEASURED the report alone chooses the start: the power-up report (EnableStart::
+ * POWER_UP: 6041 low bits 111; 2100 in place with released, running, alarm, both soft limits and every
+ * undocumented bit clear) or the released standstill (EnableStart::RELEASED: 2100 released, in place
+ * and running either way, the other bits clear; 6041 bits 0..6 0x50 or 0x31). Any other report, such
+ * as the switched-on 8033/0001, is refused with ActionError::STATE: it is outside the measured starts.
+ * Under ATTENDED_EXPERIMENT the caller's start decides: NO_MOTION_WRITE_RECORDED needs 2100
+ * position-complete set, running, alarm, both soft limits and every undocumented bit clear, 2100
+ * released either way, and 6041 equal to the reviewed word; low bits 111 with released clear are
+ * refused unless evidence.powerUpShaft records an attended observation. RELEASED needs the released
+ * standstill as above. The released sequence differs as EnableStart lists: the latch must clear by
+ * word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C changing after word 15
+ * fails with a status message telling the caller to stop the drive.
+ * @param[in] evidence Copied. A closed gate returns UNSUPPORTED. MEASURED consults only modeRaw, which
+ * must be 1 (otherwise UNSUPPORTED), operation and start: UNKNOWN admits either measured start, RELEASED
+ * or POWER_UP (NO_MOTION_WRITE_RECORDED counts as POWER_UP) requires that class. ATTENDED_EXPERIMENT
+ * needs the trial, reservation, operation, expiry, start statement, shaft observation and exact
+ * reviewed values, and refuses POWER_UP. Anything missing or mismatched returns INVALID_CONFIG, and a
+ * start report outside the start's rule returns it with ActionError::STATE.
  * @param[in] operation Nonzero identity unique while old owner work exists, equal to
  * evidence.operation.
- * @param[in] nowUs Nondecreasing monotonic microseconds, zero valid, before evidence.expiresUs.
+ * @param[in] nowUs Nondecreasing monotonic microseconds, zero valid; under ATTENDED_EXPERIMENT before
+ * evidence.expiresUs.
  * @param[in] deadlineUs Immutable exclusive cutoff, more than three intervals plus
  * ENABLE_SERVICE_STEPS queue-and-response budgets ahead. That guarantees only that a drive which
  * answers every service within its budgets and shows each report in the first cycle can finish:

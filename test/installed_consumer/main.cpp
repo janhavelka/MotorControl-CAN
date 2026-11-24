@@ -388,6 +388,14 @@ int main() {
                                   100, stopOptions) ||
         ActionKind::ENABLE == ActionKind::STOP || LICHUAN_C::ENABLE_WORD_INTERVAL_US != 10000)
         return 62;
+    // The measured gate (prompt 57) refuses an unbound reservation the same way, with nothing written.
+    enableEvidence.gate = LICHUAN_C::EnableGate::MEASURED;
+    enableEvidence.start = LICHUAN_C::EnableStart::RELEASED;
+    if (LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state, enableEvidence, 17, 65, 100,
+                                 stopOptions) ||
+        stop.state != ActionState::EMPTY ||
+        LICHUAN_C::EnableStart::RELEASED_BY_RECORDED_STOP != LICHUAN_C::EnableStart::RELEASED)
+        return 92;
     // The value decoder and the masks need no read context, and refuse only an unknown document.
     LICHUAN_C::StatusIndications indications;
     if (!LICHUAN_C::interpretStatusword(0x0087, LICHUAN_C::StatusLayout::EN86, indications) ||

@@ -74,11 +74,31 @@ const uint16_t ENABLE_LOW_BITS[3] = {1, 3, 7};
 constexpr uint16_t RELEASED_START_STATUS_BITS = 0x0060;
 // 6041 bits 0..6 of every measured release: low bits 000 with bits 4 and 6 set (8050, C050, 4050).
 constexpr uint16_t RELEASED_PATTERN_MASK = 0x007f, RELEASED_PATTERN = 0x0050;
+// 6041 bits 0..6 of the report word 6 leaves on the measured path (8031/0011; C031 beside a latch): low bits
+// 001 with bits 4 and 5 set. A released enable may start there (prompt 57).
+constexpr uint16_t WORD_SIX_PATTERN = 0x0031;
 // 6041 bit 14, which read set exactly while 2100 running stayed latched beside the release (4050 with
 // 0014 in trials 308 and 2109, C050 with 0015 in 1742 and 1924) and cleared with it at word 7 (308: 4031
 // to 0033; 1742: C031 to 8033). ZH86 and OP86 call it running; no meaning is assigned to it here.
 constexpr uint16_t RELEASED_LATCH_STATUS_BIT = 0x4000;
-bool releasedStart(const EnableEvidence& e) { return e.start == EnableStart::RELEASED_BY_RECORDED_STOP; }
+bool releasedStart(const EnableRecord& e) { return e.start == EnableStart::RELEASED; }
+// The two measured enable starts, judged on one report: the released standstill (2100 released, in place and
+// the running latch either way, alarm, soft limits and undocumented bits clear; 6041 bits 0..6 0x50 or 0x31)
+// or the power-up report (2100 in place with released, running, alarm, soft limits and undocumented bits
+// clear; 6041 low bits 111). 2100 homing-complete is not judged, as for every enable start. UNKNOWN otherwise.
+EnableStart startClass(uint16_t monitor, uint16_t statusword) {
+    const uint16_t pattern = uint16_t(statusword & RELEASED_PATTERN_MASK);
+    if (monitor & MONITOR_RELEASED)
+        return (monitor & uint16_t(~(MONITOR_RELEASED | MONITOR_HOMING_COMPLETE | MONITOR_POSITION_COMPLETE |
+                                     MONITOR_RUNNING))) == 0 &&
+                       (pattern == RELEASED_PATTERN || pattern == WORD_SIX_PATTERN)
+                   ? EnableStart::RELEASED
+                   : EnableStart::UNKNOWN;
+    return (monitor & uint16_t(~MONITOR_HOMING_COMPLETE)) == MONITOR_POSITION_COMPLETE &&
+                   (statusword & STATUS_LOW_BITS) == STATUS_LOW_BITS
+               ? EnableStart::POWER_UP
+               : EnableStart::UNKNOWN;
+}
 // 6041 bit 3, the alarm bit of ZH86 p12, and bit 7, that of EN86 p12 and OP86 p10. A mode 3 alarm clear
 // completes only with both clear: node 1 read C018 with its alarm and 8010 after the 2301 clear (trial 5323).
 constexpr uint16_t STATUS_ALARM_BITS = 0x0088;
@@ -141,6 +161,9 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
         (c.actionKind == ActionKind::CLEAR_ALARM && !clearAdmitted(c.incident)) ||
+        (enabling(c) ? c.enable.start != EnableStart::NO_MOTION_WRITE_RECORDED &&
+                           c.enable.start != EnableStart::RELEASED && c.enable.start != EnableStart::POWER_UP
+                     : c.enable.start != EnableStart::UNKNOWN) ||
         (selectingMode(c) ? !modeSelectAdmitted(c.modeSelect)
                           : c.modeSelect.start != ModeSelectStart::NONE || c.modeSelect.alreadySelected) ||
         // An already selected answer is terminal at preparation and never held any work.
@@ -337,7 +360,7 @@ bool enableScopeHolds(const ActionContext& c) {
     const StateObservation& status = c.statusObservation;
     const StateObservation& monitors = c.monitorObservation;
     const EnableRecord& e = c.enable;
-    if (!releasedStart(e.evidence))
+    if (!releasedStart(e))
         return status.modeRaw == e.evidence.modeRaw &&
                ((status.statusword ^ e.startStatusword) & uint16_t(~lowBits)) == 0 &&
                ((monitors.monitor ^ e.startMonitor) & uint16_t(~MONITOR_RELEASED)) == 0 &&
@@ -387,7 +410,7 @@ bool modeSelectScopeHolds(const ActionContext& c) {
 // nonzero. The drive retains its 607A target (an interrupted move's, too), and whether words 6, 7 and 15
 // resume it is unmeasured, so the caller is told to stop the drive.
 bool movedAfterWordFifteen(const ActionContext& c) {
-    return releasedStart(c.enable.evidence) && c.commandCursor == 2 &&
+    return releasedStart(c.enable) && c.commandCursor == 2 &&
            (c.extraObservation.actualPosition != c.enable.steps[1].position || c.extraObservation.actualVelocity);
 }
 // A word was observed; keep its evidence and schedule the next one. A step that reached the cutoff
@@ -541,7 +564,7 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         // word 7, each with low bits 011, and the same 6064. Word 15's cycles are then held to that 6064.
         // Trial 2102 sent word 15 after one such cycle (15257), and its report moved on to 15260 in word
         // 15's cycles; whether word 7's pull or word 15 moved it is unknown.
-        if (c.commandCursor == 1 && releasedStart(c.enable.evidence))
+        if (c.commandCursor == 1 && releasedStart(c.enable))
             done = done && previousAfterCommand && (previousStatus & STATUS_LOW_BITS) == ENABLE_LOW_BITS[1] &&
                    previousPosition == c.extraObservation.actualPosition;
         break;
@@ -872,13 +895,19 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
     if (evidence.gate == EnableGate::CLOSED)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
                       "enable is gated: not qualified and no pending-motion rule is known");
-    if (evidence.gate > EnableGate::ATTENDED_EXPERIMENT ||
-        evidence.start > EnableStart::RELEASED_BY_RECORDED_STOP ||
-        evidence.powerUpShaft > ShaftObservation::HOLDING || !evidence.trial ||
+    // MEASURED (prompt 57): the regular mode 1 enable, whose start is the fresh report alone.
+    const bool measured = evidence.gate == EnableGate::MEASURED;
+    if (evidence.gate > EnableGate::MEASURED || evidence.start > EnableStart::POWER_UP ||
+        evidence.powerUpShaft > ShaftObservation::HOLDING || (!measured && !evidence.trial) ||
+        (!measured && evidence.start == EnableStart::POWER_UP) ||
         (evidence.modeRaw != 1 && evidence.modeRaw != 6) || !validReservation(r) || !operation ||
         deadline <= now || r.acquiredUs > now || !stopOptionsValid(options) ||
         !ageCoversCycle(options, 9))
-        return error(ActionError::ARGUMENT, "invalid enable trial, reservation or budgets");
+        return error(ActionError::ARGUMENT, "invalid enable trial, start, reservation or budgets");
+    if (measured && evidence.modeRaw != 1)
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
+                      "a measured enable is mode 1 only; mode 6 needs ATTENDED_EXPERIMENT and its own "
+                      "evidence");
     // Room for three intervals and every scheduled service at full budget. Each term is bounded
     // first, so nothing here can wrap.
     const uint64_t interval = options.commandIntervalUs;
@@ -889,19 +918,18 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
     if (interval < ENABLE_WORD_INTERVAL_US || interval > span / 3 || span - 3 * interval <= services)
         return error(ActionError::ARGUMENT,
                      "enable deadline does not cover three intervals and every scheduled service");
-    if (!sameReservation(evidence.reservation, r))
+    // A measured enable is bound to no trial, so the attended trial's binding and expiry are not asked.
+    if (!measured && !sameReservation(evidence.reservation, r))
         return error(ActionError::TARGET, "enable evidence was reviewed for another reservation");
-    if (now >= evidence.expiresUs)
+    if (!measured && now >= evidence.expiresUs)
         return error(ActionError::TIME, "enable evidence has expired");
     if (evidence.operation != operation)
         return error(ActionError::STATE, "enable evidence names another operation");
-    if (evidence.start == EnableStart::UNKNOWN || !evidence.reviewed)
+    if (!measured && (evidence.start == EnableStart::UNKNOWN || !evidence.reviewed))
         return error(ActionError::STATE, "enable needs the caller's start record and exact reviewed values");
-    // The gate is open here: a closed one returned UNSUPPORTED above, and the only other is the attended
-    // experiment, the one gate this start is defined for.
-    const bool fromRelease = releasedStart(evidence);
+    const bool fromRelease = !measured && evidence.start == EnableStart::RELEASED;
     if (fromRelease && evidence.modeRaw != 1)
-        return error(ActionError::STATE, "a released-by-recorded-stop enable is a mode 1 experiment only");
+        return error(ActionError::STATE, "a released enable is mode 1 only");
     const uint64_t age = options.maximumAgeUs;
     ReadWindow window;
     const StateBlock blocks[] = {StateBlock::ERRORS, StateBlock::MONITORS, StateBlock::STATUS,
@@ -921,9 +949,28 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
                       "mode6 enable needs its own selected-firmware evidence");
     const uint16_t monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
+    const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
+    if (raw(state, StateBlock::ERRORS, 0) || raw(state, StateBlock::ERRORS, 1))
+        return error(ActionError::STATE, "enable needs 1001 and 603F zero");
+    if (raw(state, StateBlock::FEEDBACK, 1))
+        return error(ActionError::STATE, "enable needs 606C zero");
+    if (measured) {
+        // The fresh report alone decides; a caller's named start only narrows it.
+        const EnableStart start = startClass(monitor, statusword);
+        if (start == EnableStart::UNKNOWN)
+            return error(ActionError::STATE, "enable start report is neither the measured power-up report "
+                                             "nor the released standstill");
+        const bool wantsReleased = evidence.start == EnableStart::RELEASED;
+        const bool wantsPowerUp = evidence.start == EnableStart::POWER_UP ||
+                                  evidence.start == EnableStart::NO_MOTION_WRITE_RECORDED;
+        if ((wantsReleased && start != EnableStart::RELEASED) ||
+            (wantsPowerUp && start != EnableStart::POWER_UP))
+            return error(ActionError::STATE, "the fresh report shows another enable start than the one named");
+        return Ok();
+    }
     constexpr uint16_t ignored = MONITOR_RELEASED | MONITOR_HOMING_COMPLETE;
-    // A release a recorded stop left may hold the in-place bit either way, and running latched beside the
-    // release, as a quick stop during a mode 1 move leaves it (2100=0014, trial 2109; 0015, trial 1924).
+    // A released standstill may hold the in-place bit either way, and running latched beside the release,
+    // as a quick stop during a mode 1 move leaves it (2100=0014, trial 2109; 0015, trial 1924).
     // Alarm, both soft limits and every undocumented bit stay clear.
     const uint16_t allowed = mode == 6     ? uint16_t(ignored | MONITOR_POSITION_COMPLETE)
                              : fromRelease ? uint16_t(ignored | MONITOR_POSITION_COMPLETE | MONITOR_RUNNING)
@@ -933,12 +980,11 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
     if (mode == 6 && (!(monitor & MONITOR_RELEASED) ||
                       (raw(state, StateBlock::STATUS, 0) & STATUS_LOW_BITS) == STATUS_LOW_BITS))
         return error(ActionError::STATE, "mode6 enable requires a non-enabled released start");
-    const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
-    // The released standstill a recorded stop left: 2100 released, and 6041 bits 0..6 the pattern of
-    // every measured release, 0x50 (low bits 000); bits 14 and 15 as reported.
-    if (fromRelease && (!(monitor & MONITOR_RELEASED) || (statusword & RELEASED_PATTERN_MASK) != RELEASED_PATTERN))
+    // The released standstill: 2100 released, and 6041 bits 0..6 the pattern of every measured release,
+    // 0x50 (low bits 000), or 0x31, the report word 6 leaves; bits 14 and 15 as reported.
+    if (fromRelease && startClass(monitor, statusword) != EnableStart::RELEASED)
         return error(ActionError::STATE,
-                     "a released-by-recorded-stop enable needs 2100 released and 6041 bits 0..6 0x50");
+                     "a released enable needs 2100 released and 6041 bits 0..6 0x50 or 0x31");
     if (statusword != evidence.reviewedStatusword)
         return error(ActionError::STATE, "6041 differs from the reviewed word");
     // The manual pairs 111 with an enabled drive, and 2100 then reads enabled. Both specimens report
@@ -947,10 +993,6 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         evidence.powerUpShaft == ShaftObservation::NONE)
         return error(ActionError::STATE,
                      "start report reads as enabled: an attended power-up shaft observation is required");
-    if (raw(state, StateBlock::ERRORS, 0) || raw(state, StateBlock::ERRORS, 1))
-        return error(ActionError::STATE, "enable needs 1001 and 603F zero");
-    if (raw(state, StateBlock::FEEDBACK, 1))
-        return error(ActionError::STATE, "enable needs 606C zero");
     return Ok();
 }
 
@@ -976,6 +1018,10 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     getStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, output.extraObservation);
     EnableRecord& record = output.enable;
     record.evidence = evidence;
+    // MEASURED: the class the fresh report showed, which validateEnable proved is a measured start.
+    record.start = evidence.gate == EnableGate::MEASURED
+                       ? startClass(output.monitorObservation.monitor, output.statusObservation.statusword)
+                       : evidence.start;
     record.startStatusword = output.statusObservation.statusword;
     record.startMonitor = output.monitorObservation.monitor;
     record.startPosition = output.extraObservation.actualPosition;
@@ -1300,9 +1346,12 @@ Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTa
             } else {
                 record.velocityTarget = signed32(value);
                 record.velocityTargetKnown = true;
-                // Never zeroed, never written: an unreviewed value refuses before any 6040 word.
-                if (record.positionTarget != record.evidence.reviewedPositionTarget ||
-                    record.velocityTarget != record.evidence.reviewedVelocityTarget)
+                // Never zeroed, never written: an unreviewed value refuses an attended trial before any 6040
+                // word. A measured enable keeps both and compares neither: no mode 1 enable of the record
+                // started motion from a retained target.
+                if (record.evidence.gate != EnableGate::MEASURED &&
+                    (record.positionTarget != record.evidence.reviewedPositionTarget ||
+                     record.velocityTarget != record.evidence.reviewedVelocityTarget))
                     fail(c, ActionOutcome::OBSERVATION_SCOPE, now,
                          "607A or 60FF differs from the reviewed value; no 6040 word was sent");
                 else

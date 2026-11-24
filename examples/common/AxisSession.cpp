@@ -50,10 +50,11 @@ bool isPositionParameter(const C::SdoTransfer& t) {
 uint16_t word(const C::SdoTransfer& t) {
     return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
 }
-// Explicit mode selection precedes the separately gated position or homing enable.
-bool isEnableModeWrite(const C::SdoTransfer& t) {
+// A documented mode selection (1, 3 or 6, as prepareModeSelect writes it) is no motion write: the mode
+// select needs a not-enabled report and settles on 6061 (prompt 57). Undocumented codes still count.
+bool isModeSelectWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6060 && !t.subindex &&
-           t.size == 1 && (t.data[0] == 1 || t.data[0] == 6);
+           t.size == 1 && (t.data[0] == 1 || t.data[0] == 3 || t.data[0] == 6);
 }
 bool sameRequest(RequestId a, RequestId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
@@ -272,7 +273,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
             dropControl();
             if (present)
                 suspended_ = id; // Its terminal decides whether control_ is the latest again.
-            motionWritten_ |= !isEnableModeWrite(transfer);
+            motionWritten_ |= !isModeSelectWrite(transfer);
         }
     }
     return admission;
@@ -324,7 +325,7 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
         controllerEpoch_ = owner_.controllerEpoch();
     }
     // A reviewed mode-selection write without acknowledgement leaves its effect unknown.
-    motionWritten_ |= isEnableModeWrite(copy.transfer) && copy.outcome != C::SdoOutcome::SUCCESS &&
+    motionWritten_ |= isModeSelectWrite(copy.transfer) && copy.outcome != C::SdoOutcome::SUCCESS &&
                       copy.effectPossible;
     output = copy;
     return true;
@@ -347,9 +348,20 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     if (velocityNeedsStop_ || homeNeedsStop_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier motion operation needs a checked stop");
-    if (motionWritten_)
+    // A measured enable judges the fresh report alone (prompt 57): no per-boot history, no trial log. That
+    // report must follow this session's latest write, or it shows a drive that may no longer exist.
+    const bool measured = evidence.gate == L::EnableGate::MEASURED;
+    if (measured) {
+        L::StateObservation status, monitors;
+        if (!L::getStateBlock(state, L::StateBlock::STATUS, target_, now, options.maximumAgeUs, status) ||
+            !L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, options.maximumAgeUs, monitors) ||
+            status.window.earliestUs < lastWriteUs_ || monitors.window.earliestUs < lastWriteUs_)
+            return M::Status(M::Err::INVALID_CONFIG, stateError,
+                             "a measured enable needs a fresh report taken after this session's latest write");
+    } else if (motionWritten_) {
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session wrote to the drive; no fresh enable history remains");
+    }
     const uint32_t next = nextOperation();
     if (!next)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
@@ -360,7 +372,7 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
     if (!checked)
         return checked;
     // After the library's checks, so that a closed gate or a zero trial reports as such.
-    if (evidence.trial <= lastTrial_)
+    if (!measured && evidence.trial <= lastTrial_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session has already consumed that trial identity");
     if (!owner_.beginOperation(sequence_, last + 1, deadline, now))
@@ -368,7 +380,8 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
     // Same values as the check above, and only the owner moved, so this cannot refuse.
     L::prepareEnable(enable_, reservation_, state, evidence, last + 1, now, deadline, options);
     operation_ = last + 1;
-    lastTrial_ = evidence.trial;
+    if (!measured)
+        lastTrial_ = evidence.trial;
     enableWithdrawn_ = M::ActionOutcome::NONE;
     lastUs_ = now;
     return M::Ok();

@@ -37,12 +37,15 @@
  *   this route after any controlword or write of this boot. The latest controlword recorded at admission
  *   must still be the latest at the request, as for RELEASED_QUICK. No 6040 in either. The line is
  *   unchanged.
- * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then
- *   AxisSession::requestEnable with the host's trial, start record, reviewed 6041, 607A and 60FF and the
- *   attendant's shaft observation. The firmware never supplies an observation itself. Start 2,
- *   EnableStart::RELEASED_BY_RECORDED_STOP, carries shaft 1 (FREE): the basis is the released start
- *   report, read from the drive at the user's instruction of 2026-11-10, never felt, and the library
- *   does not consult it for a released start. The library admits the running latch a moving quick stop
+ * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then AxisSession::requestEnable.
+ *   Start 1 is the attended power-up trial (EnableGate::ATTENDED_EXPERIMENT) with the host's trial, start
+ *   record, reviewed 6041, 607A and 60FF and the attendant's shaft observation; the firmware never supplies
+ *   an observation itself, and the session's own write record still refuses it after a write of this boot.
+ *   Start 2 is the regular measured enable (EnableGate::MEASURED, EnableStart::RELEASED, prompt 57) on the
+ *   fresh released report alone: no recorded stop, trial log or per-boot history, and the line's trial,
+ *   shaft 1 (FREE, read from the released start report at the user's instruction of 2026-11-10, never
+ *   felt) and reviewed values are recorded but not consulted; 607A and 60FF are read and kept. The released
+ *   report may be 6041 bits 0..6 0x50 or 0x31 (8031/0011, as word 6 leaves it). The library admits the running latch a moving quick stop
  *   leaves, which must clear by word 7, holds word 15 until word 7's report reads still, and fails on a
  *   6064 or 606C change after word 15. When a start 2 enable fails by itself once its word 15 may have
  *   reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1), the route asks the session for
@@ -413,9 +416,9 @@ struct RoutePlan {
     int32_t pairStartPosition = 0;
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
-    /** ENABLE: the host's record, 1 EnableStart::NO_MOTION_WRITE_RECORDED or 2
-     * EnableStart::RELEASED_BY_RECORDED_STOP. Start 2 also reserves the route's own QUICK_STOP after a
-     * failure once word 15 may have reached the drive. */
+    /** ENABLE: 1 EnableStart::NO_MOTION_WRITE_RECORDED, the attended power-up trial, or 2 EnableStart::RELEASED
+     * under EnableGate::MEASURED. Start 2 also reserves the route's own QUICK_STOP after a failure once word 15
+     * may have reached the drive. */
     uint8_t start = 0;
     /** ENABLE: shaft observation, 1 FREE or 2 HOLDING. Start 1: the attendant's typed observation. Start 2:
      * always 1, read from the released start report, never felt. */
@@ -603,7 +606,7 @@ bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcep
  * is 0 when absolute and the start position for ACTUAL; a velocity duration below its deadline, a
  * layout other than 3 (ZH57, no 86C dialect), a rate of at most 3000 rpm without the range probe and
  * ramps of at least VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS with it; a home method of 17, 18, 24 or 29; an enable whose start 2
- * (released by a recorded stop) carries shaft 1. Fields the route does not use are not judged.
+ * (the released start) carries shaft 1. Fields the route does not use are not judged.
  * @param plan Borrowed for this call.
  * @return True when parseRouteCommand could have produced these route fields.
  */

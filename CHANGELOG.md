@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Measured enable (prompt 57, slice b2, 2026-11-24)
+
+- New `EnableGate::MEASURED` (appended): the regular mode 1 enable, opened by the reviewed record of 111
+  successful enables on two CL86-C specimens, one firmware. Its start is the fresh report alone, classified
+  into the new `EnableRecord::start`: the measured power-up report (new `EnableStart::POWER_UP`) or the
+  released standstill, whose `6041` bits 0..6 may now be `0x50` or `0x31` (`8031`/`0011`, the report word 6
+  leaves). No trial identity, expiry, reservation copy, shaft observation, reviewed value or stop record is
+  consulted; `607A`/`60FF` are read and kept, not compared. Mode 6 and unmeasured reports stay with
+  `ATTENDED_EXPERIMENT`, which keeps its statements and now also admits the `0x31` released start.
+- `EnableStart::RELEASED` replaces `RELEASED_BY_RECORDED_STOP`, which stays as a deprecated alias with the same
+  value: the recorded-stop premise is gone. Migration: rename at leisure; behavior is unchanged except the
+  `0x31` admission.
+- `AxisSession::requestEnable` under `MEASURED` keeps no write history or trial log; it needs a report taken
+  after the session's latest write. An acknowledged documented mode select (`6060` = 1, 3 or 6, was 1 or 6) no
+  longer counts as a motion write (`motionHistoryWritten()`).
+- S2 bench: `ENABLE` start 2 runs under `MEASURED` and no longer refuses after earlier writes of the boot;
+  start 1 stays the attended trial. `scripts/s2_bench.py --released-by-recorded-stop` and `check_stop_record`
+  are removed; `--released` remains, and request.json's `enable_start` reads `RELEASED`.
+
 ### Typed mode select (prompt 57, slice b1, 2026-11-24)
 
 - New `ActionKind::SELECT_MODE` (appended; earlier values keep their numbers) and

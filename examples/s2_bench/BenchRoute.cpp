@@ -201,7 +201,7 @@ constexpr Range ACTION_MS = {1, 55000}, OPTIONAL_MS = {0, 55000}, ACTION_INTERVA
 constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_MAX}, SOURCE = {1, 2};
 constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
 constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = {1, 10};
-// ENABLE's start: 1 NO_MOTION_WRITE_RECORDED, 2 RELEASED_BY_RECORDED_STOP (EnableStart).
+// ENABLE's start: 1 NO_MOTION_WRITE_RECORDED under the attended gate, 2 RELEASED under MEASURED (EnableStart).
 constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 2}, SHAFT = {1, 2}, KIND = {1, 2};
 constexpr Range WORD_CYCLES = {1, 4}, PREDECESSOR = {1, 3}, RELATIVE_BASE = {0, 2};
 // 2202 codes 0 and 1 only (EN86/ZH86 p18); the EDS default 10 is not a documented code. DI3 cases 1..4.
@@ -632,7 +632,7 @@ bool stopPolicyValid(const RoutePlan& p, unsigned cycles) {
 unsigned stopTerminals(uint32_t deadlineMs, uint32_t intervalMs) {
     return 1 + 7 * (1 + deadlineMs / intervalMs) + 2; // Word, cycles, a held best-effort pair.
 }
-// ENABLE start 2 (RELEASED_BY_RECORDED_STOP): the QUICK_STOP the route sends itself once the enable failed
+// ENABLE start 2 (RELEASED): the QUICK_STOP the route sends itself once the enable failed
 // after its word 15 may have reached the drive, which then may be enabled and moving to a retained 607A
 // target. Application policy, not a drive timing: the planned stop budget record 2108's quick stop
 // completed in (sd=1500, si=500), with the best-effort 000B allowed to the same deadline. Every start 2
@@ -1148,7 +1148,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if (session->busy() || !owner.sequence(session->sequence()))
         return "session";
     // MODE_ONE keeps no per-boot history rule since prompt 57: the library's fresh not-enabled check decides.
-    if (plan.kind == RouteKind::ENABLE && session->motionHistoryWritten())
+    // Start 1, the attended power-up trial, keeps the session's own write record; start 2 is the measured
+    // released enable, judged on its fresh report alone (prompt 57).
+    if (plan.kind == RouteKind::ENABLE && plan.start == 1 && session->motionHistoryWritten())
         return "history";
     // The session admits its enable words as ordinary SDO work, which needs a current NMT state or
     // service qualification. On this fixture a bounded SDO reply strictly after its handoff gives
@@ -2783,7 +2785,7 @@ const char* BenchRoute::checkMode() const noexcept {
     }
     return nullptr;
 }
-// MODE_ONE from the released mode 3 standstill a recorded stop left, with the drives kept powered
+// MODE_ONE from the released mode 3 standstill a stop left, with the drives kept powered
 // (2026-11-10), on both fresh reads: 2100 bit 4 released and alarm clear, 6041 bits 0..6 the release
 // pattern 0x50, mode 3, 606C 0, 1001 and 603F 0, and the same 6064. 2100 running may stay latched with
 // that release, as a moving quick stop leaves it (2100=0015, reads 1514 and 1608). The mode changes on
@@ -3178,8 +3180,13 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
     }
     // The reservation and operation are binding facts the session holds. Every observation and
     // reviewed value comes from the host's command; none is made up here.
+    // Start 2 is the regular measured enable from the released standstill (prompt 57): the library judges
+    // the fresh report and does not consult the line's trial, shaft or reviewed values, which the record
+    // keeps. Start 1 stays the attended power-up trial with every statement the line carries.
     L::EnableEvidence evidence;
-    evidence.gate = p.attended ? L::EnableGate::ATTENDED_EXPERIMENT : L::EnableGate::CLOSED;
+    evidence.gate = !p.attended     ? L::EnableGate::CLOSED
+                    : p.start == 2 ? L::EnableGate::MEASURED
+                                   : L::EnableGate::ATTENDED_EXPERIMENT;
     evidence.trial = p.trial;
     evidence.reservation.target = target;
     evidence.reservation.model = L::SettingsModel::CL86_C;
@@ -3190,7 +3197,7 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
     evidence.operation = axis().nextOperation();
     evidence.expiresUs = now + 1000000;
     evidence.start = p.start == 1   ? L::EnableStart::NO_MOTION_WRITE_RECORDED
-                     : p.start == 2 ? L::EnableStart::RELEASED_BY_RECORDED_STOP
+                     : p.start == 2 ? L::EnableStart::RELEASED
                                     : L::EnableStart::UNKNOWN;
     evidence.powerUpShaft = p.shaft == 1   ? L::ShaftObservation::FREE
                             : p.shaft == 2 ? L::ShaftObservation::HOLDING

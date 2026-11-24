@@ -155,7 +155,7 @@ def check_trial_transcript(path, every=False):
                 problems.append("%s: no %s line" % (line, kind))
         if line.startswith("E") and not {"TRIAL_ENABLE", "TRIAL_ENABLE_STEP"} <= kinds:
             problems.append("%s: no enable summary" % line)
-        # A released-by-recorded-stop enable carries the released report's FREE (2026-11-10).
+        # A released enable carries the released report's FREE (2026-11-10).
         if line.startswith("E") and fields[3] == "2" and b" start=2 shaft=1 " not in body:
             problems.append("%s: a released start without its plan" % line)
         # mode1 from a released mode 3 drive reads twice (TRIAL_FIRST) and writes one 6060=1, never 6040.
@@ -842,19 +842,6 @@ class BenchTest(unittest.TestCase):
         report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
         self.assertEqual(report.verdict, "complete")
 
-    def stop_record(self, name="stop-1883", node=1, command="stop", trial=1883, header=" failure=0 why=none ",
-                    stop="TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1"):
-        """An evidence directory of a settled quick stop, in the firmware's format; this test's numbers."""
-        directory = Path(self.directory.name) / name
-        directory.mkdir()
-        (directory / "request.json").write_text(json.dumps({"node": node, "command": command, "trial": trial}),
-                                                encoding="utf-8")
-        (directory / "rx.txt").write_text(
-            "TRIAL admitted route=%s node=%d trial=%d motion=1 case=1; finite typed route, no retry\n"
-            "TRIAL id=%d node=%d route=%s%slost=0 terminals=20\n%s uncertain=0\nEND trial terminals=20\n" % (
-                command, node, trial, trial, node, command, header, stop), encoding="utf-8")
-        return directory
-
     def test_released_enable_needs_no_stop_record(self):
         # 2026-11-17: start 2 on the drive's own fresh released report; no record directory, no stop run first.
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
@@ -863,7 +850,7 @@ class BenchTest(unittest.TestCase):
         args, fields = bench.arguments(BASE + released + ["--released"] + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
         for bad in (released + ["--released", "--no-motion-write-recorded"],
-                    released + ["--released", "--released-by-recorded-stop", str(self.stop_record())],
+                    released + ["--released", "--released-by-recorded-stop", "x"],  # Gone since prompt 57.
                     ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "200",
                      "--released"],
                     released + ["--released", "--unattended-waiver", "I am not there"]):
@@ -876,23 +863,22 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(board.writes, [b"p", line.encode()])
         self.assertFalse(any("FREE or HOLDING as felt" in q for q in operator.questions))
         meta = self.meta()
-        self.assertEqual(meta["enable_start"], "RELEASED_BY_RECORDED_STOP")
+        self.assertEqual(meta["enable_start"], "RELEASED")
         self.assertIn("--released", meta["start_basis"])
         self.assertNotIn("start_record", meta)
 
     def test_released_start_enable_reads_its_shaft_basis_from_the_drive(self):
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
                     "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1250"]
-        record_dir = self.stop_record()
-        argv = released + ["--released-by-recorded-stop", str(record_dir)]
+        argv = released + ["--released"]
         line = signed("TE1,12,1,2,1,32848,5000,6,10000,1250")
         args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
-        # Exactly one start record; the flag belongs to enable; no waiver and no relayed shaft with it.
+        # Exactly one start; the flag belongs to enable; no waiver and no relayed shaft with it.
         for bad in (released,
                     argv + ["--no-motion-write-recorded"],
                     ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "200",
-                     "--released-by-recorded-stop", str(record_dir)],
+                     "--released"],
                     argv + ["--unattended-waiver", "I am not there"],
                     argv + ["--waiver-covers-motion"],
                     argv + ["--unattended-waiver", "I am not there", "--relayed-power-up-shaft", "FREE",
@@ -912,11 +898,10 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(meta["operator"]["power_up_shaft"],
                          {"typed": "FREE", "read_from_drive": True, "basis": bench.RELEASED_SHAFT_BASIS,
                           "accepted": True})
-        self.assertEqual(meta["enable_start"], "RELEASED_BY_RECORDED_STOP")
-        self.assertEqual(meta["start_record"], {"directory": str(record_dir), "command": "stop", "trial": 1883,
-                                                "stated": "nothing but one acknowledged 6060=1 since"})
+        self.assertEqual(meta["enable_start"], "RELEASED")
+        self.assertNotIn("start_record", meta)
         send = [entry for entry in self.entries() if entry["event"] == "send"]
-        self.assertEqual([entry.get("start_record") for entry in send], [str(record_dir)])
+        self.assertEqual([entry.get("start_record") for entry in send], [None])
         # A waiver that explicitly covers unattended motion admits it with no question; the after-route
         # observations are stored as not observed.
         self.clear_output()
@@ -931,41 +916,17 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(meta["operator"]["attended"]["covers_motion"], True)
         self.assertEqual(meta["operator"]["holding_after"]["typed"], bench.UNOBSERVED)
         self.assertEqual(meta["operator"]["power_up_shaft"]["typed"], "FREE")
-        # A record that does not show a settled quick stop of this node refuses before anything is sent.
-        bad_records = [self.stop_record("other-node", node=2), self.stop_record("mode1", command="mode1"),
-                       self.stop_record("failed", header=" failure=10 why=stop "),
-                       self.stop_record("halt", stop="TRIAL_STOP kind=1 path=1 final=4 own=1 state=2 outcome=1"),
-                       self.stop_record("not-own", stop="TRIAL_STOP kind=2 path=1 final=4 own=0 state=2 outcome=1"),
-                       self.stop_record("unsettled", stop="TRIAL_STOP kind=2 path=1 final=4 own=1 state=3 outcome=9"),
-                       Path(self.directory.name) / "absent"]
-        for number, directory in enumerate(bad_records, 13):
-            self.clear_output()
-            board = Board()
-            later = list(released)
-            later[later.index("--trial") + 1] = str(number)
-            status, _, err = self.run_main(later + ["--released-by-recorded-stop", str(directory)],
-                                           Backend(board), Operator("ATTENDED %d" % number))
-            self.assertEqual(status, 2, directory)
-            self.assertIn("released-by-recorded-stop", err)
-            self.assertEqual(board.writes, [])
-            self.assertFalse(self.output.exists())
-        # The dry run states what is checked and what is only stated, and touches nothing.
+        # The dry run states what is checked, and touches nothing.
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
                        Operator())
-        self.assertIn("start 2 RELEASED_BY_RECORDED_STOP: stop trial 1883 of node 1 records a settled quick stop",
-                      out.getvalue())
-        self.assertIn("no check here can show it", out.getvalue())
+        self.assertIn("start 2 RELEASED (--released): the library's measured enable", out.getvalue())
+        self.assertIn("no record, stop run or per-boot history", out.getvalue())
         self.assertIn("no shaft question: field 5 is FREE", out.getvalue())
         self.assertNotIn("require the attendant to type FREE or HOLDING", out.getvalue())
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            bench.main(BASE + released + ["--released-by-recorded-stop", str(bad_records[2]), "--dry-run",
-                                          "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
-        self.assertIn("would refuse before sending: released-by-recorded-stop", out.getvalue())
 
-    def test_released_start_reserves_its_stop_and_reads_retained_stop_records(self):
+    def test_released_start_reserves_its_stop(self):
         # Start 2 reserves the route's own QUICK_STOP (31 terminals, 1500 ms), as BenchRoute's terminalBound and
         # durationBound count it (test/bench_route_test.cpp pins 10000/800 and 10000/1100 as capacity there).
         def bounds(start, deadline, interval):
@@ -980,35 +941,14 @@ class BenchTest(unittest.TestCase):
             else:
                 with self.assertRaises(bench.Refused):
                     bench.check_bounds("enable", fields)
-        # The retained records the lead names: move 2108, whose own quick stop settled after the move was
-        # cancelled, and stop 1923, the halted-state quick stop. Both are this application's settled stops.
-        bench_dir = Path(__file__).resolve().parent.parent / "docs" / "bench"
-        for name, node, command, trial in (("20261110T1407Z-s21-c1-move-quick-node1-2108", 1, "move", 2108),
-                                           ("20261110T1408Z-s20-c12-stop-quick-node2-1923", 2, "stop", 1923)):
-            self.assertEqual(bench.check_stop_record(bench_dir / name, node),
-                             {"directory": str(bench_dir / name), "command": command, "trial": trial})
-            with self.assertRaises(bench.Refused):
-                bench.check_stop_record(bench_dir / name, 3 - node)  # Another node's record.
-        # A velocity record whose own QUICK_STOP settled counts as well; its HALT, as in velocity 1922, does not.
-        quick = self.stop_record("velocity-quick", command="velocity", trial=1990)
-        self.assertEqual(bench.check_stop_record(quick, 1)["command"], "velocity")
-        with self.assertRaises(bench.Refused):
-            bench.check_stop_record(bench_dir / "20261110T1408Z-s20-c12-velocity-node2-1922", 2)
-        # A move record whose stop was a HALT, or whose quick stop did not settle, does not.
-        for stop in ("TRIAL_STOP kind=1 path=1 final=4 own=1 state=2 outcome=1",
-                     "TRIAL_STOP kind=2 path=1 final=4 own=1 state=3 outcome=11"):
-            bad = self.stop_record("move-%s" % stop[16], command="move", trial=1991, stop=stop)
-            with self.assertRaises(bench.Refused):
-                bench.check_stop_record(bad, 1)
         # The dry run states the latch, the still word 7, the post-15 rule and the route's own stop.
         out = io.StringIO()
         argv = ["--command", "enable", "--node", "1", "--trial", "2110", "--status", "0x4050", "--position-target",
-                "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250",
-                "--released-by-recorded-stop", str(bench_dir / "20261110T1407Z-s21-c1-move-quick-node1-2108")]
+                "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250", "--released"]
         with contextlib.redirect_stdout(out):
             bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
-        self.assertIn("start 2 RELEASED_BY_RECORDED_STOP: move trial 2108 of node 1 records a settled quick stop",
-                      out.getvalue())
+        self.assertIn("start 2 RELEASED (--released)", out.getvalue())
+        self.assertIn("0x50 or 0x31", out.getvalue())
         self.assertIn("running latched admitted", out.getvalue())
         self.assertIn("any 6064 or 606C change after word 15 fails", out.getvalue())
         self.assertIn("one QUICK_STOP follows at once (1500 ms, cycles every 500 ms", out.getvalue())
@@ -1016,7 +956,7 @@ class BenchTest(unittest.TestCase):
         self.assertIn(signed("TE1,2110,1,2,1,16464,-2000,45,10000,1250").strip(), out.getvalue())
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            bench.main(BASE + argv[:-3] + ["800", argv[-2], argv[-1], "--dry-run", "--campaign", str(self.ledger)],
+            bench.main(BASE + argv[:-2] + ["800", argv[-1], "--dry-run", "--campaign", str(self.ledger)],
                        Untouchable(), Clock(), Operator())
         self.assertIn("would refuse before sending: capacity", out.getvalue())
 
@@ -1051,12 +991,11 @@ class BenchTest(unittest.TestCase):
         self.assertIsNone(bench.enable_alert("enable", fields, enable_record(29, failed, sent)))
         self.assertIsNone(bench.enable_alert("velocity", fields, enable_record(30, failed, sent)))
         # A run: the alert reaches the attendant before the questions after the route, and the exit is 4.
-        record_dir = self.stop_record()
         board = Board()
         board.answer = enable_record(30, failed, sent).decode("ascii")
         argv = BASE + ["--command", "enable", "--node", "1", "--trial", "30", "--status", "0x4050", "--position-target",
                        "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250",
-                       "--released-by-recorded-stop", str(record_dir), "--campaign", str(self.ledger),
+                       "--released", "--campaign", str(self.ledger),
                        "--output", str(self.output)]
         err = io.StringIO()
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):

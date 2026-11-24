@@ -98,7 +98,7 @@ with where and when they gave it. It is stored as relayed, never inferred from t
 --waiver-covers-motion, only with --unattended-waiver, states that the user's statement explicitly accepts
 enables and velocity runs with nobody at the bench and nobody holding the cutoff (2026-11-11: "do a full night
 soak without my attendance / You can do motion tests, speeding up, changing speed on the fly etc"). With it
-a velocity line and a released-by-recorded-stop enable are admitted unattended; the velocity scope and bounds,
+a velocity line and a released enable are admitted unattended; the velocity scope and bounds,
 the S16 alerts and every other check are unchanged, and request.json and the send entry record it. A power-up
 enable still needs a relayed shaft: a waiver is not an observation.
 
@@ -107,16 +107,12 @@ power-up baseline, checked as before. Mode 3 is the released standstill a stop l
 6041 bits 0..6 0x50. Since prompt 57 mode1 and mode3 write through the library's typed mode select: one 6060
 and its cycles until 6061 reports the mode, judged on the fresh report alone (no per-boot history); never
 6040. An enable then
-takes --released (2026-11-17: start 2 on the drive's own fresh released report alone, which the firmware route and
-the library check; the operator owns the premise that no earlier command is pending) or --released-by-recorded-stop
-RECORD instead of --no-motion-write-recorded (exactly one of the three): RECORD is
-the evidence directory of this node's record whose QUICK_STOP this application saw settle (header failure=0,
-TRIAL_STOP kind=2 own=1 state=2): a stop record, or a move, position, relative or velocity record whose own
-quick stop settled, as move 2108's did. The runner checks it, also in --dry-run. The flag also states that nothing
-but one acknowledged 6060=1 reached the drive after that record, which no runner check can show across boots: the
-operator types it only from that record and every ledger since. Its line carries start 2 and shaft FREE, read from
-the released start report at the user's instruction of 2026-11-10 ("do not ask if holding or not, read it") and
-never felt, so no shaft question is asked. It is refused with --unattended-waiver and with a relayed shaft: word 7
+takes --released instead of --no-motion-write-recorded (exactly one of the two): start 2, which the firmware route
+runs as the library's measured enable (EnableGate::MEASURED, prompt 57) on the drive's own fresh released report
+alone; no record directory, stop run or per-boot history is asked (--released-by-recorded-stop and its record check
+are gone since prompt 57), and the operator owns what the report cannot show. Its line carries start 2 and shaft
+FREE, read from the released start report at the user's instruction of 2026-11-10 ("do not ask if holding or not,
+read it") and never felt, so no shaft question is asked. It is refused with --unattended-waiver and with a relayed shaft: word 7
 moves the rotor to the drive's internal command with no bound known (admitted only with --waiver-covers-motion).
 The library also admits the running latch a
 moving quick stop leaves (2100=0014 or 0015), which must clear by word 7; word 15 waits for word 7's report to
@@ -341,7 +337,7 @@ CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
 SHAFT = {"FREE": 1, "HOLDING": 2}
 # The enable line's start field (BenchRoute.cpp START, EnableStart in Actions.h).
-ENABLE_STARTS = {"NO_MOTION_WRITE_RECORDED": 1, "RELEASED_BY_RECORDED_STOP": 2}
+ENABLE_STARTS = {"NO_MOTION_WRITE_RECORDED": 1, "RELEASED": 2}
 # Start 2's own QUICK_STOP after a failure once word 15 may have reached the drive (BenchRoute.cpp
 # ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS): record 2108's planned stop budget, application policy. Every start 2
 # line reserves its terminals and time, so 10000/800, which fits start 1, is refused as capacity.
@@ -350,8 +346,6 @@ ENABLE_STOP_INTERVAL_MS = 500
 # A released start's shaft basis, stored instead of a typed answer: the drive's own released report.
 RELEASED_SHAFT_BASIS = ("read from the drive's released start report (2100 bit 4 set: the power stage is off) at the "
                         "user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt")
-# Records whose own QUICK_STOP may have left the drive released (TRIAL_STOP kind=2): the firmware route names.
-STOPPING_ROUTES = ("stop", "move", "position", "relative", "velocity", "velocity-change", "velocity-nmt", "position-change")
 PING_TIMEOUT_S = 3.0
 CAPTURE_LIMIT = 1 << 20
 UNOBSERVED = "unattended: not observed"
@@ -489,17 +483,14 @@ def trial_line(args, parser):
                    _within(parser, "offset", args.offset, -1000000, 1000000)]
     elif args.command == "enable":
         released = released_start(args)
-        if int(bool(args.no_motion_write_recorded)) + int(bool(args.released)) + \
-                int(args.released_by_recorded_stop is not None) != 1:
+        if int(bool(args.no_motion_write_recorded)) + int(bool(args.released)) != 1:
             parser.error("enable needs exactly one start: --no-motion-write-recorded (the trial log shows no "
-                         "6040, target, ramp or mode write since power-up other than one acknowledged 6060=1), "
+                         "6040, target, ramp or mode write since power-up other than one acknowledged 6060=1) or "
                          "--released (the drive reads the released standstill; the firmware and library check that "
-                         "report, the operator owns the rest) or --released-by-recorded-stop RECORD (the drive was "
-                         "left released by that record's settled quick stop, and nothing but one acknowledged "
-                         "6060=1 was written since)")
+                         "report, the operator owns the rest)")
         # Start 1: the shaft is a placeholder that the attendant's typed observation replaces. Start 2: FREE, the
         # released start report's own basis, never asked.
-        start = ENABLE_STARTS["RELEASED_BY_RECORDED_STOP" if released else "NO_MOTION_WRITE_RECORDED"]
+        start = ENABLE_STARTS["RELEASED" if released else "NO_MOTION_WRITE_RECORDED"]
         fields += [1, start, SHAFT["FREE"] if released else 0,
                    _within(parser, "status", args.status, 0, 0xFFFF),
                    _within(parser, "position-target", args.position_target, -2**31, 2**31 - 1),
@@ -681,8 +672,6 @@ def trial_line(args, parser):
         parser.error("--range-probe belongs to velocity")
     if args.command != "velocity" and args.reverse:
         parser.error("--reverse belongs to velocity")
-    if args.command != "enable" and args.released_by_recorded_stop is not None:
-        parser.error("--released-by-recorded-stop belongs to enable")
     if args.command != "enable" and args.released:
         parser.error("--released belongs to enable")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
@@ -778,7 +767,7 @@ def plan_bounds(command, fields):
     if command == "enable":
         start, deadline, interval = fields[3], fields[8], fields[9]
         # Start 2 reserves the route's own QUICK_STOP after a failure once word 15 may have left.
-        stop = start == ENABLE_STARTS["RELEASED_BY_RECORDED_STOP"]
+        stop = start == ENABLE_STARTS["RELEASED"]
         return (9 + 2 + 3 + 7 * (3 + deadline // interval) +
                 (_stop_terminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) if stop else 0),
                 deadline + (ENABLE_STOP_MS if stop else 0))
@@ -874,40 +863,8 @@ def _integer(value, low, high):
 
 
 def released_start(args):
-    """An enable from the released standstill (start 2): --released, or --released-by-recorded-stop RECORD."""
-    return args.command == "enable" and (bool(getattr(args, "released", False)) or
-                                         args.released_by_recorded_stop is not None)
-
-
-def check_stop_record(directory, node):
-    """--released-by-recorded-stop: the evidence directory must hold this node's record, of a route that can
-    stop, whose header reports failure 0 and whose TRIAL_STOP shows its own QUICK_STOP succeeded (kind=2 own=1
-    state=2): a stop whose settlement this application observed. Read only. Returns what request.json and the
-    send entry keep. Whether anything but one acknowledged 6060=1 reached the drive since is not shown here."""
-    path = Path(directory)
-    try:
-        meta = json.loads((path / "request.json").read_text(encoding="utf-8"))
-        text = (path / "rx.txt").read_text(encoding="utf-8", errors="replace")
-    except (OSError, ValueError) as error:
-        raise Refused("released-by-recorded-stop: %s is not a readable evidence directory (%s)" % (path, error))
-    command, trial = (meta.get("command"), meta.get("trial")) if isinstance(meta, dict) else (None, None)
-    if command not in STOPPING_ROUTES or meta.get("node") != node or not _integer(trial, 1, 0xFFFFFFFF):
-        raise Refused("released-by-recorded-stop: %s is not a stop, move, position, relative or velocity record of "
-                      "node %d" % (path, node))
-    header = "TRIAL id=%d node=%d route=%s " % (trial, node, command)
-    succeeded, settled, inside = False, False, False
-    for line in text.splitlines():
-        if line.startswith(header):
-            inside, succeeded = True, " failure=0 why=none " in line
-        elif inside and line.startswith("END trial "):
-            break
-        elif inside and line.startswith("TRIAL_STOP "):
-            values = pong_values(line)
-            settled = (values.get("kind"), values.get("own"), values.get("state")) == ("2", "1", "2")
-    if not (succeeded and settled):
-        raise Refused("released-by-recorded-stop: %s does not record a settled quick stop of trial %d (header "
-                      "failure=0 and TRIAL_STOP kind=2 own=1 state=2)" % (path, trial))
-    return {"directory": str(path), "command": command, "trial": trial}
+    """An enable from the released standstill (start 2): --released, the firmware's measured enable."""
+    return args.command == "enable" and bool(getattr(args, "released", False))
 
 
 def _send_problem(entry):
@@ -1420,7 +1377,7 @@ def enable_alert(command, fields, data):
     may have reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1), and no stop of this record
     left, read as velocity_alert reads it. The drive retains its 607A target, an interrupted move's too, and may
     then be enabled and moving to it. Only lines between this trial's TRIAL header and its END count."""
-    if command != "enable" or fields[3] != ENABLE_STARTS["RELEASED_BY_RECORDED_STOP"]:
+    if command != "enable" or fields[3] != ENABLE_STARTS["RELEASED"]:
         return None
     node, trial = fields[0], fields[1]
     header = "TRIAL id=%d node=%d route=enable " % (trial, node)
@@ -1581,19 +1538,11 @@ def dry_run(args, fields):
             except Refused as error:
                 print("  campaign %s would refuse: %s" % (args.campaign, error))
         if args.command == "enable" and args.released:
-            print("  start 2 RELEASED (--released): the drive's own fresh released report is the premise, checked by "
-                  "the firmware route and the library; the operator owns that no earlier command is pending")
-        if args.command == "enable" and args.released_by_recorded_stop is not None:
-            try:
-                stop = check_stop_record(args.released_by_recorded_stop, fields[0])
-                print("  start 2 RELEASED_BY_RECORDED_STOP: %s trial %d of node %d records a settled quick stop" %
-                      (stop["command"], stop["trial"], fields[0]))
-            except Refused as error:
-                print("  would refuse before sending: %s" % error)
-            print("  the operator states that nothing but one acknowledged 6060=1 reached the drive since that "
-                  "record; no check here can show it")
+            print("  start 2 RELEASED (--released): the library's measured enable (EnableGate::MEASURED) on the "
+                  "drive's own fresh released report alone, checked by the firmware route and the library; no "
+                  "record, stop run or per-boot history; the operator owns that no earlier command is pending")
             print("  library: mode 1, 2100 released (in place either way, running latched admitted), 6041 bits 0..6 "
-                  "0x50, 606C 0; 6041 bits 5 and 6 may change; the latch (2100 running, 6041 bit 14) must clear "
+                  "0x50 or 0x31, 606C 0; 6041 bits 5 and 6 may change; the latch (2100 running, 6041 bit 14) must clear "
                   "by word 7; 6064 repeats in word 6's cycles, is free in word 7's (word 7 moves the rotor to the "
                   "drive's internal command, no bound known) and word 15 waits until two word 7 cycles read the "
                   "same 6064; any 6064 or 606C change after word 15 fails; success claims no position continuity, "
@@ -1791,15 +1740,11 @@ def arguments(argv):
                        help="enable, instead of --no-motion-write-recorded: start 2 on the drive's own fresh released "
                             "standstill report, which the firmware and library check; the operator owns the premise "
                             "that no earlier command is pending (no record needed)")
-    trial.add_argument("--released-by-recorded-stop", metavar="RECORD", type=Path,
-                       help="enable, instead of --no-motion-write-recorded: the evidence directory of this node's "
-                            "record whose quick stop settled (checked), after which nothing but one acknowledged "
-                            "6060=1 reached the drive (stated, typed only from the record and the ledgers since)")
     trial.add_argument("--unattended-waiver", metavar="TEXT",
                        help="The user's own written acceptance of a trial with nobody at the bench, verbatim")
     trial.add_argument("--waiver-covers-motion", action="store_true",
                        help="with --unattended-waiver: the statement explicitly accepts unattended enables and "
-                            "velocity runs with nobody holding the cutoff; admits velocity and the recorded-stop enable")
+                            "velocity runs with nobody holding the cutoff; admits velocity and the released enable")
     trial.add_argument("--relayed-power-up-shaft", choices=sorted(SHAFT),
                        help="enable under --unattended-waiver: the shaft as the user felt it after the power-up")
     trial.add_argument("--relayed-shaft-source", metavar="TEXT",
@@ -1815,7 +1760,7 @@ def arguments(argv):
         if not args.unattended_waiver.strip():
             parser.error("--unattended-waiver needs the user's statement")
         if released_start(args) and not args.waiver_covers_motion:
-            parser.error("--unattended-waiver refuses a released-by-recorded-stop enable: word 7 moves the rotor to "
+            parser.error("--unattended-waiver refuses a released enable: word 7 moves the rotor to "
                          "the drive's internal command with no bound known, so the attendant with the independent "
                          "cutoff is its only control")
         if args.command == "enable" and not args.relayed_power_up_shaft and not released_start(args):
@@ -1874,9 +1819,6 @@ def main(argv=None, backend=None, clock=None, ask=input):
             lock = CampaignLock(args.campaign).acquire(clock)
             campaign = Campaign(args.campaign, args.new_campaign, args.motion_caps).load()
             campaign.check(args.command, fields)
-        args.start_record = None
-        if args.command == "enable" and args.released_by_recorded_stop is not None:
-            args.start_record = check_stop_record(args.released_by_recorded_stop, fields[0])
         if is_trial:
             before_send(args, fields, ask, operator)
     except Refused as error:
@@ -1933,15 +1875,10 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
         if args.command == "controlword":
             meta["controlword"] = "0x%04X" % fields[3]
         if args.command == "enable":
-            stop = getattr(args, "start_record", None)
-            meta["enable_start"] = ("RELEASED_BY_RECORDED_STOP" if released_start(args) else
-                                    "NO_MOTION_WRITE_RECORDED")
+            meta["enable_start"] = "RELEASED" if released_start(args) else "NO_MOTION_WRITE_RECORDED"
             if args.released:
-                # 2026-11-17: the drive's own fresh released report, checked by the firmware and the library.
+                # The drive's own fresh released report, checked by the firmware and the library's measured gate.
                 meta["start_basis"] = "released report (--released); the operator owns that no command is pending"
-            if stop:
-                # Checked: the record's settled quick stop. Stated: nothing but one acknowledged 6060=1 since.
-                meta["start_record"] = dict(stop, stated="nothing but one acknowledged 6060=1 since")
         meta.update(repository_state())
         if campaign is not None:
             meta["campaign"] = dict(campaign.summary(), before=True)
@@ -1972,8 +1909,6 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
             entry["unattended_waiver"] = args.unattended_waiver
         if args.waiver_covers_motion:
             entry["waiver_covers_motion"] = True
-        if getattr(args, "start_record", None):
-            entry["start_record"] = args.start_record["directory"]
         campaign.append(entry)
     data = bytearray()
     try:

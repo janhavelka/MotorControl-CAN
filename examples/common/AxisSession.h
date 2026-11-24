@@ -55,15 +55,17 @@ struct StopPolicy {
  * across one explicit recovery and goes out once as 000B. A second recovery ends it. A
  * possibly sent frame is never sent again.
  *
- * Enable is gated. Both specimens have run it on one firmware, reported by the drives only
- * (records 108 and 118 on 2026-11-03, 206, 210 and 405 on 2026-11-04, 704 and 712 on 2026-11-05).
- * It takes one member, one request, one service branch and one advance. Its words pass through the
- * same path as every other command, so an acknowledged 000F becomes the latest controlword that a
- * stop may follow. A stop request ends an active enable first, even if the stop itself is refused:
- * no further word follows it. The session refuses an enable once
- * it has itself admitted a write other than an acknowledged 6060=1 or 6060=6. That record lasts as long as this
- * object, across close and open, because reopening cannot retire earlier drive work. A new object
- * knows nothing, as after an MCU restart, so the caller's EnableEvidence must speak for that time.
+ * Enable: EnableGate::MEASURED is the regular mode 1 enable (prompt 57), judged on the fresh report
+ * alone; EnableGate::ATTENDED_EXPERIMENT stays the attended trial for unmeasured states. It takes one
+ * member, one request, one service branch and one advance. Its words pass through the same path as
+ * every other command, so an acknowledged 000F becomes the latest controlword that a stop may follow.
+ * A stop request ends an active enable first, even if the stop itself is refused: no further word
+ * follows it. A measured enable needs only a report taken after this session's latest write; no write
+ * history or trial log of this object refuses it. An attended trial keeps both: the session refuses it
+ * once it has itself admitted a write other than an acknowledged documented mode select (6060 = 1, 3 or
+ * 6). That record lasts as long as this object, across close and open, because reopening cannot retire
+ * earlier drive work. A new object knows nothing, as after an MCU restart, so the caller's
+ * EnableEvidence must speak for that time.
  *
  * The absolute and relative moves are gated too. They share one member, one request path, one
  * service branch and one advance; only the trigger word differs. Observation cycles run in two
@@ -283,17 +285,18 @@ class AxisSession {
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
                          const StopPolicy& policy, uint64_t nowUs) noexcept;
-    /** Request the gated position-mode enable sequence on this axis. Both specimens have run it on
-     * one firmware, reported by the drives only. Starts a new owner operation, then prepares in
-     * place. Yields no traffic here: service() does.
+    /** Request the position-mode enable sequence on this axis: regular under EnableGate::MEASURED, an
+     * attended trial under ATTENDED_EXPERIMENT. Starts a new owner operation, then prepares in place.
+     * Yields no traffic here: service() does.
      * @param[in] state Complete fresh SDO read under this reservation, as prepareEnable requires,
-     * and not held inside enableAction().
-     * @param[in] evidence Caller's explicit gate, trial, reservation, operation (use nextOperation),
-     * expiry, start record, shaft observation and exact reviewed values. The session adds its own
-     * record: it refuses after any write of its own other than 6060=1 or 6060=6, and it consumes each trial
-     * identity once, in rising order, for this object's life. That holds for either start record: a
-     * RELEASED_BY_RECORDED_STOP start speaks only for the time before this object, so a stop this object
-     * admitted refuses it too, until a new object (an MCU restart) relies on the application's record.
+     * and not held inside enableAction(). Under MEASURED its STATUS and MONITORS must begin after this
+     * session's latest write.
+     * @param[in] evidence Under MEASURED the gate, mode 1, operation (use nextOperation) and an optional
+     * expected start; nothing else is consulted, and the session keeps no history or trial log for it.
+     * Under ATTENDED_EXPERIMENT the caller's explicit trial, reservation, operation, expiry, start
+     * record, shaft observation and exact reviewed values; the session adds its own record: it refuses
+     * after any write of its own other than an acknowledged documented mode select, and it consumes each
+     * trial identity once, in rising order, for this object's life, for either start.
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.
@@ -634,9 +637,9 @@ class AxisSession {
      * low bits 000 or 001) or the measured power-up report to mode 1. No per-boot history of earlier words
      * or writes is consulted. Starts a new owner operation, then prepares clearAction() in place: the mode
      * select shares the clears' slot, service branch, withdrawal (cancelClear) and fault hold, so a stop
-     * request ends it first. Yields no traffic here: service() admits the write and each read. A 6060 of
-     * 1 or 6 acknowledged leaves motionHistoryWritten() as it was; a 6060 of 3, or one of 1 or 6 that may
-     * have landed unacknowledged, sets it, as an admitted 6060 always has. The write withdraws the latest
+     * request ends it first. Yields no traffic here: service() admits the write and each read. An
+     * acknowledged 6060 of 1, 3 or 6 leaves motionHistoryWritten() as it was; one that may have landed
+     * unacknowledged sets it. The write withdraws the latest
      * controlword like every download. Never enables, never reads 6060, never writes 6061, never resends.
      * When the not-enabled report already shows 6061 equal to modeRaw, clearAction() is SUCCEEDED at
      * once with modeSelect.alreadySelected and execution NOT_TRANSMITTED: no owner operation is started
@@ -796,7 +799,9 @@ class AxisSession {
     const MotorControlCAN::LICHUAN_C::ActionContext& enableAction() const noexcept {
         return enable_;
     }
-    /** @return True once this object has admitted a write that refuses a later enable. */
+    /** @return True once this object has admitted a write other than an acknowledged documented mode
+     * select (6060 = 1, 3 or 6). It refuses a later attended enable trial and the halted best-effort
+     * stop path; a measured enable does not consult it. */
     bool motionHistoryWritten() const noexcept { return motionWritten_; }
     /** @return Retained context of the best-effort branch; EMPTY if never taken. */
     const MotorControlCAN::LICHUAN_C::BestEffortStop& bestEffort() const noexcept {

@@ -19829,7 +19829,7 @@
         "host_tested": true,
         "hardware_qualified": false
       },
-      "operation_scope": "Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission."
+      "operation_scope": "Actions.h prepareEnable: EnableGate::MEASURED, the regular mode 1 enable from the fresh power-up or released report (prompt 57), and the ATTENDED_EXPERIMENT trial for other states; mode/predecessor/observation rules; no generic enabling permission."
     },
     {
       "key": "position_parameters",

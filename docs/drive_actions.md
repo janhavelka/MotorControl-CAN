@@ -56,7 +56,29 @@ does not establish standstill, winding current, brake state or reference validit
 The OP86 filename and cover name 86C, while its relevant internal pages carry a
 CL57-C/OL57-C header; retain that applicability uncertainty.
 
-## Enable: gated, and run on two specimens
+## Enable: a regular measured command, and the attended trial
+
+Since prompt 57 the mode 1 enable is a regular command under `EnableGate::MEASURED`, opened by the
+reviewed record of the retained enables: 111 succeeded on both CL86-C specimens, one firmware
+(`1000=00040192`, `1009=000c`, `100A=0020`), 28 of the 30 attended records 103 to 2402 and 83 night-soak
+runs; records 103 and 105 (2026-11-03, node 1) failed before the bit 10 fix and after a hand
+displacement. Its start is the fresh report alone, which the library classifies into
+`EnableRecord::start`:
+
+| Start | Fresh report | Measured basis |
+| --- | --- | --- |
+| `POWER_UP` | Mode 1, `6041` low bits 111, `2100` in place with released, running, alarm, both soft limits and every undocumented bit clear | 21 power-up records: `8437`/`0001`, word 6 `8031`/`0011`, word 7 `8033`/`0001`, word 15 `8437`/`0001`. Both shafts held torque there by hand and word 6 released it, so no shaft observation is asked |
+| `RELEASED` | Mode 1, `2100` released (in place and the running latch either way, the other bits clear), `6041` bits 0..6 `0x50` or `0x31` | The released standstill a quick stop leaves (`8050`/`0011`, latches `4050`/`0014`, `C050`/`0015`); `8031`/`0011` is the report word 6 leaves on that path, which the earlier `0x50` rule refused |
+
+`1001`, `603F` and `606C` must read zero. No trial identity, expiry, reservation copy, shaft observation,
+reviewed value, retained stop record or per-boot word history is consulted: `AxisSession` needs only a
+report taken after its own latest write. `607A` and `60FF` are still read once before any word and
+kept, not compared: no mode 1 enable of the record started motion from a retained target. A caller may
+name `RELEASED` or `POWER_UP` to require that class. Any other report, such as the switched-on
+`8033`/`0001` of backlog S21, and mode 6 stay with `EnableGate::ATTENDED_EXPERIMENT`, which keeps every
+statement below. `EnableStart::RELEASED_BY_RECORDED_STOP` is now a deprecated alias of `RELEASED`: the
+recorded-stop premise of 2026-11-10 is gone. Every observation rule of the sequence below applies to
+both gates.
 
 `prepareEnable` in `Actions.h` implements the documented position-mode sequence through the
 ordinary `nextAction` and `advanceAction` lifecycle, and `AxisSession::requestEnable` runs it
@@ -131,9 +153,10 @@ Each of these is this project's decision, not a vendor statement.
 
 - **Mode 1 only.** The ZH86 p13 sentence is why: in mode 3 the same words are documented to start the
   motor, and `60FF` reads nonzero on both specimens. EN86 disagrees. Mode 3 has no approved path.
-- **A target of unknown origin fails closed.** `607A` and `60FF` readings are history, not intent. The
-  action reads each once before any word and fails with `OBSERVATION_SCOPE` unless both exact
-  values equal `EnableEvidence`'s reviewed values. Zero is not exempt: an absolute target of zero
+- **A target of unknown origin fails closed in an attended trial.** `607A` and `60FF` readings are
+  history, not intent. The action reads each once before any word and, under `ATTENDED_EXPERIMENT`,
+  fails with `OBSERVATION_SCOPE` unless both exact values equal `EnableEvidence`'s reviewed values;
+  under `MEASURED` it keeps them without comparing. Zero is not exempt: an absolute target of zero
   does not say no motion, and `60FF=0` has no documented meaning. A match says only that someone
   looked at those bits. It does not call them safe. The action never writes or zeroes a target.
 - **`2100` decides alarm and running**, because its two manuals agree. Disputed `6041` bits decide
@@ -142,18 +165,18 @@ Each of these is this project's decision, not a vendor statement.
 - **`2100` released is allowed either way at admission**, because specimens read it clear before any
   enable. In-place is required as one necessary condition: a curve left unfinished might show it
   clear. A set flag does not prove the absence of a pending curve.
-- **Start history.** `EnableStart::NO_MOTION_WRITE_RECORDED` is the application's statement about the
-  time before this session existed. The library cannot check it. `AxisSession` adds what it can see
-  and refuses after it has itself admitted any write other than an acknowledged `6060=1`, for the
-  rest of that object's life, across close and open. A stop admitted on any path counts.
-- **A released start after a recorded stop** (2026-11-10, attended experiment only). With the drives kept
-  powered, `EnableStart::RELEASED_BY_RECORDED_STOP` states instead that the application's record shows this
-  drive last left released by a stop whose settlement it observed (a `QUICK_STOP` that settled on the
-  released report or standstill, the quick stop of a halted drive included), and no write after that
-  stop but one acknowledged `6060=1`. The library cannot check it either. It admits mode 1 only, under
-  `EnableGate::ATTENDED_EXPERIMENT`, from a released standstill: `2100` released, alarm, both soft limits
-  and every undocumented bit clear, the in-place bit set or clear and `2100` running set or clear; `6041`
-  bits 0..6 `0x50`, the pattern of every measured release (low bits `000`), bits 14 and 15 as reported;
+- **Start history in an attended trial.** `EnableStart::NO_MOTION_WRITE_RECORDED` is the application's
+  statement about the time before this session existed. The library cannot check it. `AxisSession`
+  adds what it can see and refuses an attended trial after it has itself admitted any write other than
+  an acknowledged documented mode select (`6060` = 1, 3 or 6), for the rest of that object's life,
+  across close and open. A stop admitted on any path counts. A measured enable consults none of this.
+- **A released start** (`EnableStart::RELEASED`, 2026-11-10; the recorded-stop premise went with prompt
+  57). With the drives kept powered, the start is the released standstill the fresh report shows; no
+  record of the stop that left it is asked. It admits mode 1 only, under either open gate, from a
+  released standstill: `2100` released, alarm, both soft limits and every undocumented bit clear, the
+  in-place bit set or clear and `2100` running set or clear; `6041` bits 0..6 `0x50`, the pattern of every
+  measured release (low bits `000`), or `0x31`, the report word 6 leaves (`8031`/`0011`), bits 14 and 15 as
+  reported;
   `1001`, `603F` and `606C` zero. Running set beside the release is the latch a quick stop during a move
   leaves: node 1 read `2100=0014`, `6041=4050`, -2017 after the quick stop of move 2108 (trial 2109, the
   target -3522 not reached), node 2 `0015`, `C050` in mode 3 after a halted-state quick stop (trial 1924).
@@ -188,8 +211,8 @@ Each of these is this project's decision, not a vendor statement.
   continuity across word 7, and a later move takes its start position from a fresh read. The shaft
   observation is not consulted for a released start; the bench records `FREE` from the released report at
   the user's instruction of 2026-11-10 ("do not ask if holding or not, read it"), never felt.
-  `NO_MOTION_WRITE_RECORDED` keeps every rule it had. The session still refuses after any write of its
-  own, so this start serves an enable in a new MCU boot, or after a mode route's `6060=1`.
+  `NO_MOTION_WRITE_RECORDED` keeps every rule it had. Under `ATTENDED_EXPERIMENT` the session still
+  refuses after any write of its own; under `MEASURED` it does not.
 - **Each word waits for its report.** An acknowledgement and an elapsed interval establish nothing,
   so the next word needs the previous word's documented low bits in a fresh cycle.
 - **Spacing is at least 10 ms from the acknowledgement.** `ENABLE_WORD_INTERVAL_US` is the admitted
@@ -200,9 +223,10 @@ Each of these is this project's decision, not a vendor statement.
   must be zero. There is no tolerance, because none is sourced, so a closed-loop drive that settles a
   few counts on enable will fail here. That result would be useful evidence, not a defect to hide.
 - **Fault state.** `1001` and `603F` must read zero, so an old `603F` left by an earlier alarm refuses too.
-- **An enabled-looking start needs an attendant.** A start report of low bits `111` with `2100`
-  released clear is refused unless `EnableEvidence::powerUpShaft` records the attendant's own
-  observation at power-up, `FREE` or `HOLDING`. The library cannot check it.
+- **An enabled-looking start needs an attendant in an attended trial.** Under `ATTENDED_EXPERIMENT` a
+  start report of low bits `111` with `2100` released clear is refused unless
+  `EnableEvidence::powerUpShaft` records the attendant's own observation at power-up, `FREE` or
+  `HOLDING`. The library cannot check it. Under `MEASURED` that report is the measured `POWER_UP` start.
 - **Deadline.** Admission needs more than three intervals plus `ENABLE_SERVICE_STEPS` (26)
   queue-and-response budgets: two uploads, three words and one seven-field cycle per word. That
   guarantees only that a drive answering every service within its budgets, with each report in
@@ -240,7 +264,7 @@ action. `6040` is a whole-word write, never a read-modify-write.
 | Enable in mode 0 | Any | Undefined mode | None | None | The mode byte | None | Refused | None |
 | Enable in mode 6 | Non-enabled released, stationary and exact reviewed evidence | `modeRaw=6`, `homingEnableQualified`, ordinary explicit trial evidence | 6/7/15 with spacing | Fresh mode6 state after each ACK | No automatic home trigger | Retained action outcome | Conditional; see [homing](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/homing.md) | No reference published |
 | Enable from `000F` or after a stop | Latest word `000F`, `000B` or `010F` in this session | Any | None | None | None | None | Refused, and never writing 6 merely to "reset" | A word from 15 back to 6 has no documented meaning here |
-| Enable from a release a recorded stop left | Session clean; the application's record shows the settled stop and nothing after it but an acknowledged `6060=1`; fresh released standstill in mode 1, in place either way, the running latch of a moving quick stop admitted (`0014`/`4050`, trial 2109) | Mode 1, reviewed targets; an interrupted move's `607A` retained | 6, 7, 15 as above; word 15 only after two still cycles of word 7's report | As above | As above, except `6041` bits 5 and 6; the latch (`2100` running, `6041` bit 14) may stay only in word 6's cycles; `6064` repeats the start in word 6's cycles, is free in word 7's, and must repeat word 7's accepted value from word 15 on | As above | As above. A change after word 15 ends it with a message to stop the drive: the caller requests a `QUICK_STOP` at once | Attended experiment only. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed. Whether word 15 resumes a retained target is unmeasured |
+| Enable from a released standstill | Fresh released standstill in mode 1 (`6041` bits 0..6 `0x50` or `0x31`), in place either way, the running latch of a moving quick stop admitted (`0014`/`4050`, trial 2109); no stop record. An attended trial also needs a clean session | Mode 1; reviewed targets in an attended trial, kept and not compared under `MEASURED`; an interrupted move's `607A` retained | 6, 7, 15 as above; word 15 only after two still cycles of word 7's report | As above | As above, except `6041` bits 5 and 6; the latch (`2100` running, `6041` bit 14) may stay only in word 6's cycles; `6064` repeats the start in word 6's cycles, is free in word 7's, and must repeat word 7's accepted value from word 15 on | As above | As above. A change after word 15 ends it with a message to stop the drive: the caller requests a `QUICK_STOP` at once | `MEASURED` or an attended trial. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed. Whether word 15 resumes a retained target is unmeasured |
 | Stop during the sequence | Acknowledged 6 or 7 | Unchanged | A fresh idle report: no word, since DEC-8 has no arrow from them. A fresh running report, or none: best-effort `000B`, as for the same word still in flight | `000B` path: [stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | The stop's own | The stop's own | The enable ends either way. Use the independent cutoff | Unknown |
 | Stop after `000F` | Acknowledged 15 | Unchanged | `010F` or `000B` with a fresh cycle after the acknowledgement, otherwise best-effort `000B` | [Stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | [Stop guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/stop_actions.md) | Stop's own | The enable ends, and any word in flight settles into it | Unknown |
 

@@ -558,16 +558,19 @@ void refusalsAreAtomic() {
     given.gate = L::EnableGate::CLOSED;
     refuses(good, state, given, operation, now, deadline, budgets, M::Err::UNSUPPORTED, M::ActionError::STATE);
     given = fine;
-    given.gate = static_cast<L::EnableGate>(2);
+    given.gate = static_cast<L::EnableGate>(3); // The first value past MEASURED.
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::ARGUMENT);
     given = fine;
     given.start = L::EnableStart::UNKNOWN;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
     given = fine;
-    given.start = static_cast<L::EnableStart>(3); // The first value past RELEASED_BY_RECORDED_STOP.
+    given.start = static_cast<L::EnableStart>(4); // The first value past POWER_UP.
+    refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::ARGUMENT);
+    given = fine; // POWER_UP names a measured class; an attended trial states its history instead.
+    given.start = L::EnableStart::POWER_UP;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::ARGUMENT);
     given = fine; // A released start against this enabled-looking power-up report.
-    given.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    given.start = L::EnableStart::RELEASED;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
     given = fine;
     given.reviewed = false;
@@ -1465,17 +1468,26 @@ void sessionHistory() {
         CHECK(r.request(state).detail == int32_t(M::ActionError::STATE));
         quiet(r, 4);
     }
-    {   // A target, a settings word or a different mode each refuse.
+    {   // A target, a settings word or an undocumented mode code each refuse an attended trial.
         const uint16_t indexes[] = {0x607a, 0x60ff, 0x6081, 0x2200, 0x6060};
         for (uint16_t index : indexes) {
             Rig r;
             L::ReadContext state;
             r.open();
-            r.writeThrough(index, index == 0x6060 ? 1 : 2, index == 0x6060 ? 3 : 1);
+            r.writeThrough(index, index == 0x6060 ? 1 : 2, index == 0x6060 ? 2 : 1);
             r.drive.mode = 1;
             r.readState(state);
             CHECK(r.a.motionHistoryWritten());
             CHECK(r.request(state).detail == int32_t(M::ActionError::STATE));
+        }
+    }
+    {   // Since prompt 57 every acknowledged documented mode select (6060 = 1, 3 or 6) leaves it clean.
+        const uint8_t modes[] = {1, 3, 6};
+        for (uint8_t mode : modes) {
+            Rig r;
+            r.open();
+            r.writeThrough(0x6060, 1, mode);
+            CHECK(!r.a.motionHistoryWritten());
         }
     }
     {   // An acknowledged 6060=1 is the one write that leaves the history clean.
@@ -1823,10 +1835,12 @@ void directLifecycle() {
     }
 }
 
-// 12. EnableStart::RELEASED_BY_RECORDED_STOP: the released standstill in mode 1 a recorded stop left, with
+// 12. EnableStart::RELEASED (formerly RELEASED_BY_RECORDED_STOP): the released standstill in mode 1, with
 // the drive kept powered. The bytes follow the release measured on one firmware (8050 with 2100=0011,
 // then 8031, 8033 with 2100 released clear and the position report moved, 8037); the mode is the fake's.
 const uint16_t RELEASED_STATUS = 0x8050;
+// The deprecated name stays for source compatibility (prompt 57): it is the released start, no recorded stop.
+static_assert(L::EnableStart::RELEASED_BY_RECORDED_STOP == L::EnableStart::RELEASED, "deprecated alias");
 const uint16_t RELEASED_MONITOR = uint16_t(L::MONITOR_POSITION_COMPLETE | L::MONITOR_RELEASED);
 void releasedDrive(FakeDrive& d, int32_t position = 15256) {
     d.status = RELEASED_STATUS;
@@ -1838,7 +1852,7 @@ void releasedDrive(FakeDrive& d, int32_t position = 15256) {
 }
 L::EnableEvidence releasedEvidence(uint16_t status = RELEASED_STATUS) {
     L::EnableEvidence e = evidence(status, 5000, 6);
-    e.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    e.start = L::EnableStart::RELEASED;
     e.powerUpShaft = L::ShaftObservation::NONE; // Not consulted: the start report reads released.
     return e;
 }
@@ -1855,7 +1869,7 @@ void releasedByRecordedStop() {
         const L::ActionContext& c = r.a.enableAction();
         CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
         CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED && !c.uncertain && c.commandEvidenceMask == 7);
-        CHECK(c.enable.evidence.start == L::EnableStart::RELEASED_BY_RECORDED_STOP);
+        CHECK(c.enable.evidence.start == L::EnableStart::RELEASED);
         CHECK(c.enable.startStatusword == RELEASED_STATUS && c.enable.startMonitor == RELEASED_MONITOR);
         CHECK(c.enable.startPosition == 15256); // Before word 6.
         CHECK(c.enable.steps[0].statusword == 0x8031 && c.enable.steps[0].monitor == RELEASED_MONITOR &&
@@ -2099,7 +2113,7 @@ void latchedDrive(FakeDrive& d) {
 }
 L::EnableEvidence latchedEvidence(uint16_t status = LATCHED_STATUS) {
     L::EnableEvidence e = evidence(status, -2000, 45);
-    e.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    e.start = L::EnableStart::RELEASED;
     e.powerUpShaft = L::ShaftObservation::NONE;
     return e;
 }
@@ -2272,6 +2286,179 @@ void latchedRelease() {
         scenario = #name;                                                                          \
         name();                                                                                    \
     } while (false)
+// 14. EnableGate::MEASURED (prompt 57): the regular mode 1 enable, judged on the fresh report alone. No
+// trial, expiry, reservation copy, shaft observation or reviewed value is consulted, the session keeps no
+// history or trial log for it, and the targets are read and kept, not compared.
+L::EnableEvidence measured(L::EnableStart start = L::EnableStart::UNKNOWN) {
+    L::EnableEvidence e;
+    e.gate = L::EnableGate::MEASURED;
+    e.start = start;
+    return e;
+}
+M::Status requestMeasured(Rig& r, const L::ReadContext& state, const L::EnableEvidence& given = measured()) {
+    r.startFrame = r.wire.sentCount;
+    L::EnableEvidence e = given;
+    e.operation = r.a.nextOperation(); // The one binding fact a measured enable keeps.
+    return r.a.requestEnable(state, e, options(), r.now + 400000, r.now);
+}
+// The words and cycles of a whole enable from startFrame: 607A, 60FF, then each word and its cycle; a
+// released start's word 15 waits for a second still cycle of word 7's report.
+void exactEnableFrames(const Rig& r, unsigned sevenCycles = 1) {
+    unsigned i = r.startFrame;
+    CHECK(uploadAt(r, i++, 0x607a) && uploadAt(r, i++, 0x60ff));
+    const uint16_t words[] = {6, 7, 15};
+    const uint16_t cycle[] = {0x2100, 0x2101, 0x2102, 0x6041, 0x6061, 0x6064, 0x606c};
+    for (uint16_t w : words) {
+        CHECK(wordAt(r, i++, w));
+        for (unsigned n = 0; n < (w == 7 ? sevenCycles : 1u); ++n)
+            for (uint16_t index : cycle)
+                CHECK(uploadAt(r, i++, index));
+    }
+    CHECK(i == r.wire.sentCount && downloadsFrom(r, r.startFrame) == 3);
+}
+void measuredEnable() {
+    {   // The power-up report (this fake's 8037 with 2100=0001): no shaft, trial or reviewed value, and a
+        // 607A that differs from anything reviewed is kept, not compared.
+        Rig r;
+        r.drive.positionTarget = -3522;
+        L::ReadContext state;
+        admittedRig(r, state);
+        const M::Status s = requestMeasured(r, state);
+        CHECK(s.isOk() && r.wire.sentCount == r.startFrame);
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.enable.start == L::EnableStart::POWER_UP && c.enable.evidence.gate == L::EnableGate::MEASURED &&
+              c.retryClass == M::RetryClass::MOTION_LIKE);
+        r.finishEnable();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+              c.execution == M::ActionExecution::ACKNOWLEDGED && c.completion == M::ActionCompletion::OBSERVED);
+        CHECK(c.enable.positionTargetKnown && c.enable.positionTarget == -3522 && c.enable.velocityTarget == 120);
+        exactEnableFrames(r);
+        quiet(r);
+    }
+    {   // Each released standstill: 8050/0011, the latches 4050/0014 and C050/0015, and 8031/0011, the report
+        // word 6 of a release leaves, which the 0x50 rule refused before prompt 57.
+        struct Case {
+            uint16_t status, monitor;
+        };
+        const Case cases[] = {{0x8050, RELEASED_MONITOR},
+                              {0x4050, uint16_t(L::MONITOR_RUNNING | L::MONITOR_RELEASED)},
+                              {0xc050, uint16_t(RELEASED_MONITOR | L::MONITOR_RUNNING)},
+                              {0x8031, RELEASED_MONITOR}};
+        for (const Case& k : cases) {
+            Rig r;
+            releasedDrive(r.drive);
+            r.drive.status = k.status;
+            r.drive.monitor = k.monitor;
+            if (k.monitor & L::MONITOR_RUNNING)
+                r.drive.unlatchWord = 7;
+            L::ReadContext state;
+            admittedRig(r, state);
+            CHECK(requestMeasured(r, state, measured(L::EnableStart::RELEASED)).isOk());
+            const L::ActionContext& c = r.a.enableAction();
+            CHECK(c.enable.start == L::EnableStart::RELEASED && c.enable.startStatusword == k.status);
+            r.finishEnable();
+            CHECK(c.state == M::ActionState::SUCCEEDED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+            CHECK(c.enable.steps[0].statusword == uint16_t((k.status & 0xff80u) | 0x31u));
+            exactEnableFrames(r, 2);
+        }
+    }
+    {   // The attended released start now also takes 8031/0011, the report word 6 leaves.
+        Rig r;
+        releasedDrive(r.drive);
+        r.drive.status = 0x8031;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, releasedEvidence(0x8031)).isOk());
+        r.finishEnable();
+        CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED && r.a.enableAction().enable.start ==
+                                                                          L::EnableStart::RELEASED);
+    }
+    {   // No per-boot history: this session wrote a 000F and a target, and the next fresh report still decides.
+        Rig r;
+        r.open();
+        L::ReadContext before;
+        r.readState(before);
+        r.writeThrough(0x6040, 2, 0x000f);
+        r.writeThrough(0x607a, 2, 1);
+        CHECK(r.a.motionHistoryWritten());
+        // A report from before those writes is not the present drive's.
+        const M::Status stale = requestMeasured(r, before);
+        CHECK(!stale && stale.detail == int32_t(M::ActionError::STATE) && std::strstr(stale.msg, "latest write"));
+        L::ReadContext state;
+        r.readState(state);
+        CHECK(requestMeasured(r, state).isOk());
+        r.finishEnable();
+        CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
+        // A second measured enable from the fresh report after it: no trial log refuses it.
+        r.readState(state);
+        CHECK(requestMeasured(r, state).isOk());
+        r.finishEnable();
+        CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
+    }
+    {   // Refusals before any frame: reports outside the measured starts, a named start the report does not
+        // show, an alarm, errors, motion, mode 3, and mode 6, which needs the attended gate.
+        struct Case {
+            uint16_t status, monitor, errorCode;
+            uint8_t mode, errorRegister;
+            int32_t velocity;
+            L::EnableStart start;
+            M::Err code;
+        };
+        const M::Err bad = M::Err::INVALID_CONFIG;
+        const Case cases[] = {
+            {0x8033, 1, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad},  // Switched on (S21): unmeasured start.
+            {0x8010, 1, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad},  // After a 2301 clear.
+            {0x8070, RELEASED_MONITOR, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad}, // Released, other pattern.
+            {0x8037, RELEASED_MONITOR, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad}, // Released beside low bits 111.
+            {0x8037, 5, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad},  // Running, not released.
+            {0x8037, 9, 0, 1, 0, 0, L::EnableStart::UNKNOWN, bad},  // Alarm.
+            {0x8037, 1, 0xff05, 1, 1, 0, L::EnableStart::UNKNOWN, bad},
+            {0x8037, 1, 0, 1, 0, 3, L::EnableStart::UNKNOWN, bad},  // 606C moving.
+            {0x8037, 1, 0, 3, 0, 0, L::EnableStart::UNKNOWN, bad},  // Mode 3.
+            {0x8037, 1, 0, 1, 0, 0, L::EnableStart::RELEASED, bad}, // Named released, report power-up.
+            {0x8050, RELEASED_MONITOR, 0, 1, 0, 0, L::EnableStart::POWER_UP, bad},
+            {0x8050, RELEASED_MONITOR, 0, 1, 0, 0, L::EnableStart::NO_MOTION_WRITE_RECORDED, bad}};
+        for (const Case& k : cases) {
+            Rig r;
+            r.drive.status = k.status;
+            r.drive.monitor = k.monitor;
+            r.drive.mode = k.mode;
+            r.drive.errorCode = k.errorCode;
+            r.drive.errorRegister = k.errorRegister;
+            r.drive.velocity = k.velocity;
+            L::ReadContext state;
+            admittedRig(r, state);
+            const M::Status s = requestMeasured(r, state, measured(k.start));
+            CHECK(!s && s.code == k.code && s.detail == int32_t(M::ActionError::STATE));
+            CHECK(r.a.enableAction().state == M::ActionState::EMPTY && r.wire.sentCount == r.startFrame);
+        }
+        Rig r;
+        r.drive.mode = 6;
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence six = measured();
+        six.modeRaw = 6;
+        six.homingEnableQualified = true;
+        const M::Status s = requestMeasured(r, state, six);
+        CHECK(!s && s.code == M::Err::UNSUPPORTED && r.wire.sentCount == r.startFrame);
+    }
+    {   // Word 7's reply is lost: execution UNKNOWN and uncertain, word 15 never sent, word 7 never resent.
+        Rig r;
+        r.drive.silentIndex = 0x6040;
+        r.drive.silentWord = 7;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(requestMeasured(r, state).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT &&
+              c.execution == M::ActionExecution::UNKNOWN && c.uncertain && c.commandEvidenceMask == 3);
+        resyncAfterLoss(r, 0x6040);
+        CHECK(wordsFrom(r, r.startFrame) == 2);
+        quiet(r);
+        CHECK(wordsFrom(r, r.startFrame) == 2);
+    }
+}
 void allScenarios() {
     RUN(goldenSequence);
     RUN(minimumDeadline);
@@ -2289,6 +2476,7 @@ void allScenarios() {
     RUN(releasedByRecordedStop);
     RUN(latchedRelease);
     RUN(directLifecycle);
+    RUN(measuredEnable);
 }
 } // namespace
 

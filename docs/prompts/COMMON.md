@@ -21,8 +21,8 @@ xhigh, with Fable at high for the most complex tasks. These rules apply to every
 **Waiver.** On 2026-11-19 the owner chose this statement for the whole period: "Yes, unattended motion: Enables, moves, velocity runs and stops within the library's limits, with nobody at the bench; I accept the risk." Pass it verbatim with
 `s2_bench.py --unattended-waiver "<statement>" --waiver-covers-motion`. It is also the written waiver for unattended
 nights and soaks in this period (prompt 66). Observations only a person can make (shaft feel, direction against a mark,
-LEDs) are recorded as "not observed: owner away"; an enable uses the released start (`--released` or
-`--released-by-recorded-stop`), never a typed power-up shaft observation.
+LEDs) are recorded as "not observed: owner away"; an enable uses the released start (`--released`; prompt 57
+removed `--released-by-recorded-stop`), never a typed power-up shaft observation.
 
 1. **No waiting.** Ask the owner nothing and wait for nothing. A step that needs the owner (power cycle, cable pull,
    wiring, switch, DIP switch, instrument, observation) goes into the

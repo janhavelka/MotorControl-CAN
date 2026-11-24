@@ -4832,7 +4832,7 @@ void releasedModeThreeKept(Drive& d, int32_t position) {
     d.position = position;
     d.velocityTarget = 6;
 }
-// MODE_ONE's released start, then ENABLE with RELEASED_BY_RECORDED_STOP, whose word 7 moves the position
+// MODE_ONE's released start, then ENABLE's released start (start 2, MEASURED), whose word 7 moves the position
 // report, then a negative relative MOVE and a negative absolute POSITION, each from its own fresh read.
 void testReleasedModeOneChain() {
     scenario = "released-mode1";
@@ -4886,7 +4886,7 @@ void testReleasedModeOneChain() {
     CHECK(e.failure == E::RouteFailure::NONE && e.enableRequested);
     const L::ActionContext& c = r->one.enableAction();
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
-    CHECK(c.enable.evidence.start == L::EnableStart::RELEASED_BY_RECORDED_STOP &&
+    CHECK(c.enable.evidence.start == L::EnableStart::RELEASED &&
           c.enable.evidence.powerUpShaft == L::ShaftObservation::FREE);
     CHECK(c.enable.startStatusword == 0x8050 && c.enable.startMonitor == 0x0011 && c.enable.startPosition == 15256);
     CHECK(c.enable.steps[0].statusword == 0x8031 && c.enable.steps[0].monitor == 0x0011 &&

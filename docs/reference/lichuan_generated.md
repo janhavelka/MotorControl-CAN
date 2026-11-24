@@ -32,7 +32,7 @@ These are implemented, host-tested conditional API paths. Original semantic gate
 | Manual obligation | Owner | Operation D/I/H/Q | Explicit software scope |
 | --- | ---: | --- | --- |
 | mode_selection | 20 | yes/yes/yes/no | Actions.h prepareModeSelect (prompt 57): documented 6060 codes 1, 3 and 6 only, one 6060 write from a fresh not-enabled report (2100 released, 6041 low bits 000 or 001) or the measured power-up report to mode 1, settled when a fresh 6061 reads the mode; never reads 6060 or writes 6061; no mode change while enabled (Q11). |
-| enable_transition | 30 | yes/yes/yes/no | Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission. |
+| enable_transition | 30 | yes/yes/yes/no | Actions.h prepareEnable: EnableGate::MEASURED, the regular mode 1 enable from the fresh power-up or released report (prompt 57), and the ATTENDED_EXPERIMENT trial for other states; mode/predecessor/observation rules; no generic enabling permission. |
 | position_parameters | 33 | yes/yes/yes/no | Position.h prepareMoveAbsolute/Relative: finite checked native parameter staging with explicit setup policy. |
 | position_trigger | 33 | yes/yes/yes/no | Position.h nextMove/advanceMove: matched trigger acceptance kept separate from native completion. |
 | position_update_policy | 33 | yes/yes/yes/no | Position.h explicit write/verify setup policy, no replay of unknown effects. |
@@ -5933,7 +5933,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "State-transition example; no startup enable and no enable as stop/reset preamble.", "gate_ids": ["Q01", "Q11"], "status": "complete", "write_policy": "qualification_required"} |
 | operation_coverage | {"documented": true, "hardware_qualified": false, "host_tested": true, "implemented": true} |
-| operation_scope | Actions.h prepareEnable: explicitly gated mode/predecessor/history sequence; no generic enabling permission. |
+| operation_scope | Actions.h prepareEnable: EnableGate::MEASURED, the regular mode 1 enable from the fresh power-up or released report (prompt 57), and the ATTENDED_EXPERIMENT trial for other states; mode/predecessor/observation rules; no generic enabling permission. |
 
 ### position_parameters
 
