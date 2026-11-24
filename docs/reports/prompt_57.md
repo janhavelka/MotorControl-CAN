@@ -1,6 +1,7 @@
 # Prompt 57 report: regular enable, release, mode select and firmware identity policy
 
-State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
+State: Partial. The software scope is delivered and checked (stages (a) to (d)); the bench trials and the save
+proof remain, listed under "Remaining" below. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -217,3 +218,43 @@ verify and `test/package_test.py` passed, and CI run 45472978832 succeeded on `f
 
 Estimated, not measured on a board: `SelectedAxis` about 60 KB of internal RAM on first selection, the bench console
 helper about 13.5 KB on first arming, about 2 KB per bench node; an allocation failure refuses the command with no TX.
+
+## Stage (d) acceptance (2026-11-24)
+
+Checks on a clean worktree of `92bfe4df` (the final code is `fd73d198`; later commits change this report only):
+
+- `python scripts/verify.py --mode full --build-dir .build/f`: configure, build (C++11 gcc), Doxygen, registration and
+  173 of 174 tests passed; `planning_validator_contract` exceeded its 90 s limit under the full run's parallel load on
+  this machine and passed alone in 51 s (`ctest -R planning_validator_contract`). No test was changed or weakened.
+- `python scripts/check_firmware.py --target all` (IDF 5.5.5 through the PlatformIO framework and the borrowed IDF
+  Python): Arduino, IDF, IDF-S2, IDF-S2 optional acknowledgement, S2 and S3 storage with and without PSRAM and their
+  size and map checks, the S2 bench image and the isolated component passed; no flashing, ports or physical traffic.
+- CI `verify.yml` run 45472978832 succeeded on `fd73d198` in every job (Windows quick, full gcc and clang with ASan and
+  UBSan, ESP-IDF firmware and isolated component, Arduino); runs 45413647691 (`3d1f01c5`) and 45422433482 (`821f51ed`)
+  succeeded on the earlier slices.
+- `python scripts/check_promptset.py`, `python scripts/check_lichuan_operations.py`, `python test/package_test.py` and
+  `python scripts/s2_bench_test.py` passed.
+
+Acceptance against "Verify and exit": the host tests cover the retained enable and mode records, refusal of a mode
+change while enabled and of every undocumented code, release never claiming standstill, product-identity refusal
+versus firmware-identity flagging, the save with and without each guard, no implicit save, a refused or
+unacknowledged `2300` write reported uncertain without a repeat, the exact wire word of each measured release row and
+refusal before TX of every other report, the already-released answer without TX, the experiment option's limits, a
+lost reply kept UNKNOWN and never resent, a nonzero `606C` reported beside a released report, `release ID` versus
+`motor-release ID` with a shared numeric ID, and the factory restore with and without its backup guard. The Lichuan C
+extensions disposition map does not exist, so that conditional update did not apply.
+
+## Remaining
+
+- Bench, NOT RUN in this host-only stage: on both nodes, release from mode 1 idle through `prepareRelease`; through the
+  experiment option, release from the halted mode 3 state, `0x0000` from the mode 1 switched-on report `8033`/`0001`,
+  release from `0037`/`0000` and from mode 3 enabled idle; a re-enable after each release with `6064` before and after
+  word 7; then a short regression. These change no persistent setting, so COMMON's owner-absence rules allow an
+  unattended run (`scripts/s2_bench.py motor-release`, `enable`, `mode1`/`mode3`); it first establishes the current bench
+  state from the latest records (earlier campaigns left node 2 enabled and halted and the `0014` latch). Prompt 66's
+  hardware qualification owns that run.
+- Owner steps, in the [deferred table](../prompts/README.md#deferred-to-owner-return): set `1017=1000` and save on both
+  drives, read it back and confirm it after the owner's power cycle (row "39, 57, 61"); observe the shaft during the
+  release trials (row "30, 31, 35, 57").
+- The RAM of the new console helpers (`SelectedAxis` about 60 KB, the bench console helper about 13.5 KB, about 2 KB per
+  bench node) is estimated, not measured on a board; prompt 76 measures storage placement.
