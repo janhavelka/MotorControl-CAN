@@ -689,6 +689,11 @@ add_executable(records_test records_test.cpp)
 target_link_libraries(records_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(records_test)
 add_test(NAME records COMMAND records_test)
+
+add_executable(record_checks_test record_checks_test.cpp)
+target_link_libraries(record_checks_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(record_checks_test)
+add_test(NAME record_checks COMMAND record_checks_test)
 set_tests_properties(persistence PROPERTIES TIMEOUT 30)
 
 add_executable(configuration_restore_test configuration_restore_test.cpp)

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Synthetic source-backed shapes exercise public finite-velocity contracts, never firmware facts.
+#include <MotorControlCAN/profiles/lichuan_c/Records.h>
 #include <MotorControlCAN/profiles/lichuan_c/Velocity.h>
 #include <cstdio>
 #include <cstdlib>
@@ -861,13 +862,13 @@ void refusedWindow(Rig& r, M::VelocityError detail) {
 }
 void enableWindowAdmission() {
     {
-        // Outside the experiment no record establishes the lag, so a window is refused.
+        // Outside the experiment only a record's stated bound admits a window; without one it is refused.
         Rig r;
         r.options.enableWindowUs = 100000;
         r.options.enableSpacingUs = 20000;
         refusedWindow(r, M::VelocityError::ARGUMENT);
-        CHECK(std::strcmp(r.prepare().msg, "an enable report window belongs to an attended velocity experiment") ==
-              0);
+        CHECK(std::strcmp(r.prepare().msg,
+                          "an enable report window needs an attended experiment or a measured record's bound") == 0);
         r.options.enableWindowUs = r.options.enableSpacingUs = 0;
         CHECK(r.prepare()); // The same record without a window.
     }
@@ -945,6 +946,10 @@ void enableWindowThenRunning() {
     forged.evidence.gate = L::VelocityGate::MEASURED;
     forged.evidence.startQualified = forged.evidence.stopQualified = true;
     CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    forged.evidence.maximumEnableWindowUs = 100000 - 1; // A MEASURED bound below the window refuses too.
+    CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    forged.evidence.maximumEnableWindowUs = 100000;
+    CHECK(L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
     forged = r.context;
     forged.observations = forged.runningPolls + 3 + 100000 / 20000 + 1;
     CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
@@ -2091,8 +2096,139 @@ void reverseProbeRuns() {
         overSpeedFailed(fast.context, -(overSpeedLimit(-60) + 1));
     }
 }
+// Prompt 58 decision 3: under MEASURED a window is admitted up to the bound the record states, with the
+// experiment's window rules; beyond it the preparation refuses before any work.
+void measuredEnableWindow() {
+    {
+        Rig r;
+        r.evidence.maximumEnableWindowUs = 100000;
+        r.options.enableWindowUs = 100000;
+        r.options.enableSpacingUs = 20000;
+        r.lagCycles = 3;
+        r.runningStatus = 0xc437;
+        CHECK(r.prepare());
+        serveUntil(r, true);
+        const L::VelocityContext& c = r.context;
+        CHECK(c.state == M::ActionState::ACTIVE && c.runningObserved && c.evidence.gate == L::VelocityGate::MEASURED);
+        CHECK(c.enablePending == 3 && c.pendingFirst.present && c.pendingFirst.statusword == 0x8033 &&
+              c.enableReport.present && c.enableReport.statusword == 0xc437);
+        CHECK(c.enableReport.earliestUs - c.commandHistory[2].completedUs <= 100000);
+    }
+    {
+        // The same lag without a window fails after word 15, as before.
+        Rig r;
+        r.evidence.maximumEnableWindowUs = 100000;
+        r.lagCycles = 3;
+        CHECK(r.prepare());
+        serveUntil(r, false);
+        CHECK(r.context.state == M::ActionState::FAILED || r.context.phase == L::VelocityPhase::STOPPING);
+        CHECK(!r.context.runningObserved);
+    }
+    {
+        Rig r;
+        r.evidence.maximumEnableWindowUs = 99999;
+        r.options.enableWindowUs = 100000;
+        r.options.enableSpacingUs = 20000;
+        refusedWindow(r, M::VelocityError::ARGUMENT);
+        r.evidence.maximumEnableWindowUs = 100000;
+        CHECK(r.prepare());
+    }
+}
+// A record built from the rig's facts: its evidence, its check and the library's preparation together.
+L::MeasuredRecord rigRecord(const Rig& r, uint64_t window) {
+    L::MeasuredRecord record;
+    record.kind = L::RecordKind::VELOCITY;
+    std::strncpy(record.evidence, "velocity-test-rig", sizeof record.evidence - 1);
+    record.model = L::SettingsModel::CL86_C;
+    const L::VelocityFirmware& f = r.evidence.firmware;
+    record.identity.deviceType = f.deviceType;
+    record.identity.hardwareVersion = f.hardwareVersion;
+    record.identity.softwareVersion = f.softwareVersion;
+    record.identity.vendorId = f.vendorId;
+    record.identity.productCode = f.productCode;
+    record.identity.revision = f.revision;
+    record.identity.modelCode = f.modelCode;
+    record.identity.firmwareCode = f.firmwareCode;
+    L::VelocityScope& v = record.velocity;
+    const L::RecordBasis measured = L::RecordBasis::MEASURED;
+    v.layout = L::StatusLayout::ZH86;
+    v.layoutBasis = L::RecordBasis::DOCUMENTED;
+    v.rpm.minimum = 6;
+    v.rpm.maximum = 300;
+    v.rpm.basis = v.directionBasis = v.rampMs.basis = v.durationBasis = v.scaleBasis = measured;
+    v.direction = L::RecordDirection::FORWARD;
+    v.rampMs.minimum = 100;
+    v.rampMs.maximum = 200;
+    v.maximumDurationUs = 60000000;
+    v.scale2201 = 1000;
+    v.halt.admitted = true;
+    v.halt.rpm = v.rpm;
+    v.maximumWindowUs = window;
+    v.windowBasis = L::RecordBasis::INFERRED;
+    v.starts.count = 1;
+    v.starts.reports[0].statusword = 0x0001; // The rig's released standstill in mode 3.
+    v.starts.reports[0].monitor = L::MONITOR_RELEASED;
+    v.starts.basis = measured;
+    return record;
+}
+void recordWindowStaysLimitedByLibrary() {
+    {
+        // Within the record and the library: the record's evidence and check, then the preparation.
+        Rig r;
+        r.axis.units.commandStepsPerMotorTurn = M::UnitScale(1000, 1, M::ScaleSource::QUALIFIED);
+        const L::MeasuredRecord record = rigRecord(r, 100000);
+        CHECK(L::makeVelocityEvidence(r.evidence, record, L::StopKind::HALT));
+        r.options.enableWindowUs = 100000;
+        r.options.enableSpacingUs = 20000;
+        CHECK(L::checkRecordVelocity(record, r.evidence, r.request, r.profile, r.axis, r.initial, r.target, r.now,
+                                     r.options));
+        CHECK(r.prepare());
+        CHECK(r.context.evidence.maximumEnableWindowUs == 100000);
+    }
+    {
+        // A record stating a 30 s window: its check admits 25 s, and the library's window rules (at most
+        // VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US) still refuse it before any work.
+        Rig r;
+        r.axis.units.commandStepsPerMotorTurn = M::UnitScale(1000, 1, M::ScaleSource::QUALIFIED);
+        const L::MeasuredRecord record = rigRecord(r, 30000000);
+        CHECK(L::makeVelocityEvidence(r.evidence, record, L::StopKind::HALT));
+        r.options.enableWindowUs = 25000000;
+        r.options.enableSpacingUs = 25000000 / 16;
+        r.options.maxPolls = 10000;
+        r.request.durationUs = 40000000;
+        CHECK(L::checkRecordVelocity(record, r.evidence, r.request, r.profile, r.axis, r.initial, r.target, r.now,
+                                     r.options));
+        r.context.operation = 0xbeef;
+        const Saved<L::VelocityContext> before(r.context);
+        const M::Status s = r.prepare(60000000);
+        CHECK(!s && s.detail == int32_t(M::VelocityError::TIME));
+        before.unchanged(r.context);
+    }
+    {
+        // The record judges the written 60FF; the library also judges the requested rate. 3000.5 rpm
+        // rounds (ties to even) to a written 3000, which a 1..3000 record admits, and the preparation
+        // still refuses the request above its range.
+        Rig r;
+        r.axis.units.commandStepsPerMotorTurn = M::UnitScale(1000, 1, M::ScaleSource::QUALIFIED);
+        L::MeasuredRecord record = rigRecord(r, 0);
+        record.velocity.rpm.maximum = record.velocity.halt.rpm.maximum = 3000;
+        CHECK(L::makeVelocityEvidence(r.evidence, record, L::StopKind::HALT));
+        r.request.velocity.value = M::Rational(6001, 2);
+        r.request.velocity.rounding = M::Rounding::NEAREST;
+        r.request.velocity.maximumQuantizationError = M::Rational(1, 2);
+        CHECK(L::checkRecordVelocity(record, r.evidence, r.request, r.profile, r.axis, r.initial, r.target, r.now,
+                                     r.options));
+        r.context.operation = 0xbeef;
+        const Saved<L::VelocityContext> before(r.context);
+        const M::Status s = r.prepare();
+        CHECK(!s && s.code == M::Err::ILLEGAL_VALUE && s.detail == int32_t(M::VelocityError::RANGE));
+        before.unchanged(r.context);
+    }
+}
 } // namespace
 int main() {
+    measuredEnableWindow();
+    recordWindowStaysLimitedByLibrary();
     windowReferenceIsWord7sCycle();
     quickStopSettlesOnReleasedStandstill();
     releasedStandstillStaysNarrow();

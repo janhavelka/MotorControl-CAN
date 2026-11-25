@@ -118,7 +118,7 @@ def check_package(args, work, summary):
     expected = {"include/" + h for h in HEADERS} | {
         "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
         "src/profiles/lichuan_c/PdoConfiguration.cpp", "src/profiles/lichuan_c/Persistence.cpp",
-        "src/profiles/lichuan_c/Records.cpp",
+        "src/profiles/lichuan_c/Records.cpp", "src/profiles/lichuan_c/RecordChecks.cpp",
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",

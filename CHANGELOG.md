@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Record checks and record-built evidence (prompt 58, slice b2, 2026-11-25)
+
+- `recordId`: a record's id is the CRC-32 of its canonical line; a record whose CRC is 0 is now refused by
+  `validateRecord`, `encodeRecord` and `decodeRecord` (`RecordError::ZERO_CRC`).
+- `makeMoveEvidence`, `makeVelocityEvidence` and `makeEnableEvidence` build the library evidence a record opens
+  (gate MEASURED, record id from the CRC, model, identity, signals, layout, stop, window bound; for enable the
+  `IdentityReference` for `ActionOptions::identityReference`). They refuse a record whose gate facts are not
+  MEASURED (`RecordCheckError::BASIS`), a stop kind it does not admit, and a reverse-only velocity record.
+- `checkRecordMove`, `checkRecordVelocity` and `checkRecordEnable` check a request against its record before the
+  library's preparation: move kind, base, signals, rule, ramps, written rpm and travel (an absolute move needs a
+  known witness); velocity ramps, duration, axis command scale against `2201`, sign, rpm and stop ranges, window
+  and start report; enable mode and start report. Each refusal has a `RecordCheckError`. The library's own
+  preparation still applies afterwards, so a record never widens a library limit.
+- **Behavior change:** under `VelocityGate::MEASURED` an enable-report window (`VelocityOptions::enableWindowUs`)
+  is admitted up to the new `VelocityEvidence::maximumEnableWindowUs` (prompt 58 decision 3). Its default 0
+  keeps the old refusal; `ATTENDED_EXPERIMENT` is unchanged. The refusal message changed to "an enable report
+  window needs an attended experiment or a measured record's bound".
+
 ### Measured record codec (prompt 58, slice b1, 2026-11-25)
 
 - New `profiles/lichuan_c/Records.h`: `MeasuredRecord` for three kinds (enable, position completion, velocity),

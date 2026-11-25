@@ -335,10 +335,12 @@ honours a HALT sent before it reports operation enabled. Nothing here is qualifi
 `VelocityOptions::enableWindowUs` and `enableSpacingUs` (both default 0) let an
 attended experiment wait a bounded time for the enable report after word 15
 instead of failing at the first cycle. The window is the application's bounded
-wait, not a device timing: no record establishes when this firmware reports the
-enable in mode 3, so preparation refuses a nonzero window under any gate but
-`ATTENDED_EXPERIMENT`. Outside the experiment the window would claim that the report
-arrives within it.
+wait, not a device timing. Under `MEASURED` it would claim that the report arrives
+within it, so preparation admits a nonzero window there only up to
+`VelocityEvidence::maximumEnableWindowUs`, the bound a reviewed measured record
+states (prompt 58; `makeVelocityEvidence` fills it from the record's `window_max_us`).
+Its default 0 refuses every window, and any other gate refuses one too. The rules
+below are the same under both gates.
 
 | Field | Rule |
 | --- | --- |

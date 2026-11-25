@@ -108,6 +108,11 @@ struct VelocityEvidence {
     /** Negative rate magnitude, in motor rpm: with reverseQualified the qualified range, 1..3000; with
      * reverseProbe the experiment's stated range, 1 to its cap; otherwise 0. */
     uint32_t maximumReverseRpm = 0;
+    /** MEASURED only: the longest VelocityOptions::enableWindowUs this evidence admits, in microseconds:
+     * the window bound of the reviewed record behind it (MeasuredRecord, prompt 58; the measured enable
+     * report followed word 15 by 0.70-0.77 s). 0, the default, refuses every window under MEASURED, as
+     * before. ATTENDED_EXPERIMENT ignores it: that run measures the window itself. */
+    uint64_t maximumEnableWindowUs = 0;
 };
 /** Separate evidence for one positive 60FF write while an already observed run continues.
  * Q25 is independent of the run's start/stop evidence. No successful experiment promotes it. */
@@ -147,8 +152,10 @@ struct VelocityOptions {
      * default, keeps the one-cycle rule: the first cycle after word 15 must report the enable. A nonzero
      * window is the application's bounded wait, never a device timing: on 2026-11-09 the first cycle
      * after word 15 read 6041 8033 in all 13 retained records of one firmware, and no record
-     * establishes when the enable report follows in mode 3. So it is admitted only under
-     * VelocityGate::ATTENDED_EXPERIMENT, the run that measures it; any other gate refuses it. While the
+     * establishes when the enable report follows in mode 3. So it is admitted under
+     * VelocityGate::ATTENDED_EXPERIMENT, the run that measures it, and under MEASURED up to
+     * VelocityEvidence::maximumEnableWindowUs, the bound a reviewed record states; beyond it, or under
+     * any other gate, it is refused. The window rules below are the same under both gates. While the
      * window lasts, a final-enable cycle that still shows word 7's report exactly (mode 3, clean, low bits
      * 011, 2100 released and running clear, 606C 0, 6064 word 7's cycle's) schedules another one
      * enableSpacingUs later, as long as that one is eligible at most enableWindowUs after the

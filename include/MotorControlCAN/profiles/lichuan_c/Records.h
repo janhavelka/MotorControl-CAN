@@ -6,10 +6,13 @@
  * position completion or velocity): the evidence it comes from, the basis of each field group
  * (MEASURED, DOCUMENTED or INFERRED), the identity tuple of the specimen it was made on (prompt 57
  * policy: the product fields must match a drive's, a firmware difference is reported) and the
- * ranges it covers. This header defines the record and its codec only. A record opens no gate and
- * enables or moves nothing; nothing here loads, binds, stores or restores one. The library's own
- * preparation still checks every request, so a record can narrow what a run may do but never widen
- * a library limit.
+ * ranges it covers. This header defines the record, its codec, the library evidence a record builds
+ * (makeMoveEvidence, makeVelocityEvidence, makeEnableEvidence, with recordId as the record id) and the
+ * checks of a request against a record (checkRecordMove, checkRecordVelocity, checkRecordEnable). A
+ * record by itself opens no gate and enables or moves nothing; nothing here loads, binds, stores or
+ * restores one. A caller checks a request against its record before the library's own preparation,
+ * which still checks every request, so a record can narrow what a run may do but never widen a
+ * library limit.
  *
  * Text form, version 1: one line of `key=value` fields separated by exactly one space, printable
  * ASCII only (0x21..0x7E besides the separators). `v=1` is the first field and `crc=<8 lowercase hex>`
@@ -230,7 +233,10 @@ enum class RecordError : int32_t {
     RANGE,         ///< A range's minimum above its maximum.
     LIMIT,         ///< A value outside the documented device limits or the library's own.
     /** The identity is not eight fields, or all its product fields are zero. */
-    IDENTITY
+    IDENTITY,
+    /** The CRC-32 of the record's canonical line is 0, which cannot serve as its nonzero record id
+     * (recordId): change the evidence reference. Key `crc`. */
+    ZERO_CRC
 };
 /** Diagnostic of the last codec call. */
 struct RecordRefusal {
@@ -287,5 +293,152 @@ Status encodeRecord(char* text, size_t capacity, size_t& length, RecordRefusal& 
  * every failure. */
 Status decodeRecord(MeasuredRecord& output, RecordRefusal& refusal, const char* text,
                     size_t size) noexcept;
+/** The record id: the CRC-32 of the record's canonical line, the value encodeRecord writes after
+ * `crc=`. A line with its fields in another order decodes to the same record and the same id. It
+ * fills MoveEvidence::record and VelocityEvidence::record, the dialect epoch of a run, so a record
+ * whose content changes gets another id. Pure; no I/O or allocation.
+ * @param[out] output The id, nonzero; written only on success. Must not overlap record.
+ * @param[in] record Borrowed for the call.
+ * @return OK; validateRecord's refusals otherwise, ZERO_CRC included, with output unchanged. */
+Status recordId(uint32_t& output, const MeasuredRecord& record) noexcept;
+
+/** Status::detail of the record checks and evidence builders below (prompt 58 slice b2). */
+enum class RecordCheckError : int32_t {
+    NONE,     ///< No refusal.
+    OVERLAP,  ///< An output overlaps an input; nothing is written.
+    RECORD,   ///< The record itself is invalid (validateRecord, ZERO_CRC included).
+    KIND,     ///< The record covers another operation kind.
+    /** A fact the MEASURED gate relies on has a basis other than MEASURED: position rpm, ramps,
+     * distance, signals and base; velocity rpm, direction, ramps, duration, 2201 scale, the selected
+     * stop's range and the starts; enable mode and starts. Layout and window bound may rest on any
+     * basis. */
+    BASIS,
+    /** The supplied library evidence is not the one the record builds: gate, record id, model,
+     * identity, and for velocity every field; for enable gate, mode and the identity reference. */
+    EVIDENCE,
+    MOVE_KIND, ///< A relative request under an absolute record, or the reverse.
+    BASE,      ///< Relative basis or MoveEvidence::relativeBase not the record's base.
+    SIGNALS,   ///< MoveEvidence acceptance or completion not the record's.
+    RULE,      ///< MoveEvidence::rule not the record's.
+    RATE_BASIS, ///< The rate is not prepared as integer motor turns per minute.
+    SPEED,     ///< Written 6081 or 60FF magnitude outside the record's rpm range, or zero.
+    DIRECTION, ///< 60FF sign the record does not cover; or a reverse-only record (no forward range).
+    RAMP,      ///< 6083 or 6084 outside the record's ramp range.
+    DISTANCE,  ///< Travel beyond the record's distance bound.
+    /** An absolute move without a known witness: its travel, and so the record's distance bound,
+     * cannot be checked. */
+    DISTANCE_UNKNOWN,
+    DURATION,  ///< Requested duration beyond the record's longest.
+    /** The axis command scale (UnitConfig::commandStepsPerMotorTurn) is not exactly the record's 2201
+     * value: the record was made at another subdivision. The scale is the caller's configuration, not
+     * a 2201 read. */
+    SCALE,
+    STOP_KIND,  ///< The selected stop kind is not admitted by the record.
+    STOP_SPEED, ///< The rate is outside the selected stop's established rpm range.
+    WINDOW,     ///< VelocityOptions::enableWindowUs beyond the record's window bound.
+    START,      ///< The fresh 6041/2100 start report is not one the record admits.
+    MODE,       ///< The fresh 6061 mode is not the record's enable mode.
+    STATE,      ///< The state read has no current STATUS and MONITORS block for this check.
+    /** Added to an AxisError of prepareVelocityTarget, keeping its Err and message. */
+    RATE_ERROR_BASE = 10000,
+    /** Added to a PositionParameterError of preparePositionParameters, keeping its Err and message. */
+    PARAMETER_ERROR_BASE = 20000
+};
+/** Build the MoveEvidence a POSITION record opens: gate MEASURED, record recordId(record), its
+ * model, identity, signals and rule, and for a RELATIVE record its base (UNMEASURED for ABSOLUTE).
+ * The evidence carries no range: checkRecordMove applies them. Pure; no I/O.
+ * @param[out] output Written only on success; must not overlap record.
+ * @param[in] record Borrowed for the call.
+ * @return OK; INVALID_CONFIG with RECORD, KIND or OVERLAP; UNSUPPORTED with BASIS. Output unchanged on
+ * failure. */
+Status makeMoveEvidence(MoveEvidence& output, const MeasuredRecord& record) noexcept;
+/** Build the VelocityEvidence a VELOCITY record opens for one stop kind: gate MEASURED, record
+ * recordId(record), model, identity, layout, startQualified and stopQualified true, stopKind,
+ * reverseQualified for REVERSE or BOTH, maximumForwardRpm and maximumReverseRpm the record's rpm
+ * maximum for each covered direction, maximumEnableWindowUs the record's window bound; no mode change,
+ * range probe or reverse probe. Pure; no I/O.
+ * @param[out] output Written only on success; must not overlap record.
+ * @param[in] record Borrowed for the call.
+ * @param[in] stopKind The stop the run will use; the record must admit it.
+ * @return OK; INVALID_CONFIG with RECORD, KIND or OVERLAP; UNSUPPORTED with BASIS, STOP_KIND, or
+ * DIRECTION for a reverse-only record, which VelocityEvidence cannot express (it needs a forward
+ * range). Output unchanged on failure. */
+Status makeVelocityEvidence(VelocityEvidence& output, const MeasuredRecord& record,
+                            StopKind stopKind) noexcept;
+/** Build the enable inputs an ENABLE record opens: EnableEvidence with gate MEASURED, the record's
+ * mode, operation and start UNKNOWN (the fresh report decides it), and the IdentityReference for
+ * ActionOptions::identityReference holding the record's identity. prepareEnable still admits MEASURED
+ * in mode 1 only. Pure; no I/O.
+ * @param[out] evidence Written only on success.
+ * @param[out] reference Written only on success.
+ * @param[in] record Borrowed for the call; no output may overlap it or the other output.
+ * @param[in] operation The enable's operation identity, copied into evidence.operation.
+ * @return OK; INVALID_CONFIG with RECORD, KIND or OVERLAP; UNSUPPORTED with BASIS. Outputs unchanged
+ * on failure. */
+Status makeEnableEvidence(EnableEvidence& evidence, IdentityReference& reference,
+                          const MeasuredRecord& record, uint32_t operation) noexcept;
+/** Check one move request against a bound POSITION record before prepareMoveAbsolute,
+ * prepareMoveRelative or prepareMoveAngle (an angle is an absolute move), which still apply every
+ * library limit: a record narrows a request, never widens one. The native values are prepared with
+ * the same pure functions and inputs the move preparation uses: prepareVelocityTarget for 6081 and
+ * preparePositionParameters for 607A. Checks, in order: the evidence is makeMoveEvidence(record),
+ * the move kind and relative basis, the ramps, the written rpm, then the travel: the relative
+ * displacement, or for an absolute move the endpoint minus a known witness. Pure: no I/O, clock or
+ * output; a refusal happens before any context changes or work is yielded.
+ * @param[in] record Bound record.
+ * @param[in] evidence The MoveEvidence the move will use.
+ * @param[in] request As the move preparation's.
+ * @param[in] profile As the move preparation's.
+ * @param[in] axis As the move preparation's.
+ * @param[in] reference As the move preparation's; an absolute move needs a known one here
+ * (DISTANCE_UNKNOWN otherwise).
+ * @param[in] nowUs As the move preparation's.
+ * @return OK when the record admits the request. RECORD, KIND, EVIDENCE, RATE_BASIS with
+ * INVALID_CONFIG; BASIS, MOVE_KIND, BASE, SIGNALS, RULE, DISTANCE_UNKNOWN with UNSUPPORTED; SPEED,
+ * RAMP, DISTANCE with ILLEGAL_VALUE; conversion failures with their base added. */
+Status checkRecordMove(const MeasuredRecord& record, const MoveEvidence& evidence,
+                       const MoveRequest& request, const MoveProfile& profile,
+                       const AxisConfig& axis, const AxisReference* reference,
+                       uint64_t nowUs) noexcept;
+/** Check one finite velocity request against a bound VELOCITY record before prepareVelocity, which
+ * still applies every library limit. Checks, in order: the evidence is
+ * makeVelocityEvidence(record, options.stopKind), the ramps, the duration, the axis command scale
+ * against the record's 2201, the written 60FF (prepareVelocityTarget, as the preparation): its sign
+ * against the direction, its magnitude against the rpm range and the selected stop's range, then the
+ * enable-report window, then the fresh start report. Pure: no I/O, clock or output.
+ * @param[in] record Bound record.
+ * @param[in] evidence The VelocityEvidence the run will use.
+ * @param[in] request As prepareVelocity's.
+ * @param[in] profile As prepareVelocity's.
+ * @param[in] axis As prepareVelocity's.
+ * @param[in] state As prepareVelocity's; its STATUS and MONITORS blocks must be current
+ * (getStateBlock with current, nowUs and options.maximumAgeUs).
+ * @param[in] current As prepareVelocity's.
+ * @param[in] nowUs As prepareVelocity's.
+ * @param[in] options As prepareVelocity's.
+ * @return OK when the record admits the request. RECORD, KIND, EVIDENCE, RATE_BASIS, STATE with
+ * INVALID_CONFIG; BASIS, STOP_KIND, DIRECTION, SCALE, START with UNSUPPORTED; SPEED, STOP_SPEED, RAMP,
+ * DURATION, WINDOW with ILLEGAL_VALUE; a rate conversion failure with RATE_ERROR_BASE added. */
+Status checkRecordVelocity(const MeasuredRecord& record, const VelocityEvidence& evidence,
+                           const FiniteVelocityRequest& request, const VelocityProfile& profile,
+                           const AxisConfig& axis, const ReadContext& state,
+                           const ReadTarget& current, uint64_t nowUs,
+                           const VelocityOptions& options) noexcept;
+/** Check one enable against a bound ENABLE record before prepareEnable, which still applies every
+ * library rule (a MEASURED enable is mode 1 only). Checks, in order: evidence gate MEASURED with the
+ * record's mode, options.identityReference the record's identity (makeEnableEvidence), the fresh
+ * 6061 mode, then the exact 6041/2100 start report. Pure: no I/O, clock or output.
+ * @param[in] record Bound record.
+ * @param[in] evidence The EnableEvidence the enable will use.
+ * @param[in] options The ActionOptions it will use.
+ * @param[in] state As prepareEnable's; its STATUS and MONITORS blocks must be current (getStateBlock
+ * with current, nowUs and options.maximumAgeUs).
+ * @param[in] current The reservation's target.
+ * @param[in] nowUs As prepareEnable's.
+ * @return OK when the record admits the enable. RECORD, KIND, EVIDENCE, STATE with INVALID_CONFIG;
+ * BASIS, MODE, START with UNSUPPORTED. */
+Status checkRecordEnable(const MeasuredRecord& record, const EnableEvidence& evidence,
+                         const ActionOptions& options, const ReadContext& state,
+                         const ReadTarget& current, uint64_t nowUs) noexcept;
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

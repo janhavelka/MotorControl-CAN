@@ -310,14 +310,17 @@ bool uses(Field field, const MeasuredRecord& r) {
     }
 }
 
-// Encoding. With a null buffer the writer only counts, so the length is known before any write.
+// Encoding. With a null buffer the writer only counts, so the length is known before any write. It
+// keeps the CRC of everything put, which over the body is the record's CRC and id.
 struct Writer {
     char* out;
     size_t length;
+    uint32_t crc;
     void put(char c) {
         if (out)
             out[length] = c;
         ++length;
+        crc = crc32Ieee(crc, &c, 1);
     }
     void text(const char* s) {
         while (*s)
@@ -473,6 +476,17 @@ void writeBody(Writer& w, const MeasuredRecord& r) {
 }
 // " crc=" and eight digits.
 constexpr size_t CRC_FIELD = 13;
+// Every rule of check, then the canonical CRC, which must be nonzero to serve as the record id.
+bool checkAll(Fault& f, const MeasuredRecord& r, uint32_t& crc) {
+    if (!check(f, r))
+        return false;
+    Writer w = {nullptr, 0, 0};
+    writeBody(w, r);
+    if (!w.crc)
+        return fail(f, RecordError::ZERO_CRC, "crc", "record CRC is 0, which cannot be its id");
+    crc = w.crc;
+    return true;
+}
 
 // Decoding. Numbers are canonical: decimal without sign or leading zero, hexadecimal at its exact
 // width in the stated case.
@@ -819,7 +833,8 @@ bool decode(Fault& f, MeasuredRecord& r, const char* text, size_t size) {
         if (spans[field].size && field != KIND && field != MOVE &&
             !parseValue(f, Field(field), text + spans[field].start, spans[field].size, r))
             return false;
-    return check(f, r);
+    uint32_t crc;
+    return checkAll(f, r, crc);
 }
 } // namespace
 
@@ -839,7 +854,8 @@ Status validateRecord(RecordRefusal& refusal, const MeasuredRecord& record) noex
     if (overlaps(&refusal, sizeof refusal, &record, sizeof record))
         return overlapRefusal();
     Fault f;
-    check(f, record);
+    uint32_t crc;
+    checkAll(f, record, crc);
     return report(refusal, f);
 }
 
@@ -853,19 +869,19 @@ Status encodeRecord(char* text, size_t capacity, size_t& length, RecordRefusal& 
         overlaps(&length, sizeof length, &refusal, sizeof refusal))
         return overlapRefusal();
     Fault f;
+    uint32_t crc = 0;
     if (!text && capacity)
         fail(f, RecordError::ARGUMENT, "", "record buffer null");
-    else if (check(f, record)) {
-        Writer count = {nullptr, 0};
+    else if (checkAll(f, record, crc)) {
+        Writer count = {nullptr, 0, 0};
         writeBody(count, record);
         if (!text || count.length + CRC_FIELD >= capacity)
             fail(f, RecordError::CAPACITY, "", "record buffer too small for the line and its NUL");
     }
     if (f.reason != RecordError::NONE)
         return report(refusal, f);
-    Writer w = {text, 0};
+    Writer w = {text, 0, 0};
     writeBody(w, record);
-    const uint32_t crc = crc32Ieee(0, text, w.length);
     w.text(" crc=");
     w.hex(crc, 8, false);
     text[w.length] = '\0';
@@ -885,6 +901,17 @@ Status decodeRecord(MeasuredRecord& output, RecordRefusal& refusal, const char* 
         return report(refusal, f);
     output = candidate;
     return report(refusal, f);
+}
+
+Status recordId(uint32_t& output, const MeasuredRecord& record) noexcept {
+    if (overlaps(&output, sizeof output, &record, sizeof record))
+        return overlapRefusal();
+    Fault f;
+    uint32_t crc = 0;
+    if (!checkAll(f, record, crc))
+        return Status(category(f.reason), int32_t(f.reason), f.msg);
+    output = crc;
+    return Ok();
 }
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

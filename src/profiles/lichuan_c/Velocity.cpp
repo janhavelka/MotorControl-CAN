@@ -191,11 +191,11 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
     static_assert(VELOCITY_RANGE_PROBE_MINIMUM_RAMP_MS == 200, "the message names 200 ms");
     if (experiment && request.durationUs > VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US)
         return error(VelocityError::TIME, "an attended velocity experiment is at most 20 s");
-    // Outside the experiment a window would claim that the enable report arrives within it; no
-    // record establishes that.
-    if (o.enableWindowUs && !experiment)
+    // Outside the experiment a window claims that the enable report arrives within it, which only a
+    // reviewed record's stated bound establishes (prompt 58 decision 3).
+    if (o.enableWindowUs && !experiment && o.enableWindowUs > e.maximumEnableWindowUs)
         return error(VelocityError::ARGUMENT,
-                     "an enable report window belongs to an attended velocity experiment");
+                     "an enable report window needs an attended experiment or a measured record's bound");
     static_assert(VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US == 20000000, "the message names 20 s");
     if (!validReservation(r) || !operation || !optionsValid(o) || r.acquiredUs > now ||
         now > uint64_t(INT64_MAX) || deadline > uint64_t(INT64_MAX) || deadline <= now ||
@@ -266,7 +266,8 @@ Status shape(const VelocityContext& c, uint64_t now) {
         c.interruption > VelocityInterruption::DEADLINE ||
         (c.evidence.gate != VelocityGate::MEASURED &&
          c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
-        (c.options.enableWindowUs && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        (c.options.enableWindowUs && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT &&
+         c.options.enableWindowUs > c.evidence.maximumEnableWindowUs) ||
         ((c.evidence.rangeProbe || c.evidence.reverseProbe) &&
          c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         c.stopDueUs <= c.startedUs ||
