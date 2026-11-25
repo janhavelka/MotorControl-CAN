@@ -308,7 +308,7 @@ void crcVectors() {
     CHECK(L::crc32Ieee(0, fox, std::strlen(fox)) == 0x414fa339u);
     // Chaining over any split equals the whole, as zlib's running value does.
     for (size_t split = 0; split <= 9; ++split)
-        CHECK(L::crc32Ieee(L::crc32Ieee(0, "123456789", split), "123456789" + split, 9 - split) ==
+        CHECK(L::crc32Ieee(L::crc32Ieee(0, "123456789", split), &"123456789"[split], 9 - split) ==
               0xCBF43926u);
     CHECK(L::crc32Ieee(0x12345678u, nullptr, 5) == 0x12345678u);
     CHECK(L::crc32Ieee(0x12345678u, "abc", 0) == 0x12345678u);
@@ -436,7 +436,7 @@ void crcRefusals() {
     // No crc field, or crc not last.
     refused(ENABLE_BODY, std::strlen(ENABLE_BODY), L::RecordError::MISSING_KEY, "crc",
             M::Err::INVALID_CONFIG);
-    char moved[L::RECORD_TEXT_CAPACITY + 32];
+    char moved[sizeof(Line::text) + 16]; // Room for any Line, so the copy cannot truncate.
     std::snprintf(moved, sizeof moved, "%s mode=1", good.text);
     refused(moved, std::strlen(moved), L::RecordError::MISSING_KEY, "crc", M::Err::INVALID_CONFIG);
     refused("v=1", 3, L::RecordError::MISSING_KEY, "crc", M::Err::INVALID_CONFIG);
@@ -635,7 +635,7 @@ void syntaxRefusals() {
         line.text[16] = c[0]; // Beside the space after kind=enable: a space doubles it.
         refusedLine(line, L::RecordError::SYNTAX, "", M::Err::INVALID_CONFIG);
     }
-    char text[L::RECORD_TEXT_CAPACITY + 32];
+    char text[sizeof(Line::text) + 16]; // Room for any Line plus one byte.
     std::snprintf(text, sizeof text, " %s", good.text);
     refused(text, std::strlen(text), L::RecordError::SYNTAX, "", M::Err::INVALID_CONFIG);
     std::snprintf(text, sizeof text, "%s ", good.text);
