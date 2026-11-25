@@ -684,6 +684,11 @@ add_executable(persistence_test persistence_test.cpp)
 target_link_libraries(persistence_test PRIVATE MotorControlCAN::CanBusOwner)
 strict_test(persistence_test)
 add_test(NAME persistence COMMAND persistence_test)
+
+add_executable(records_test records_test.cpp)
+target_link_libraries(records_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(records_test)
+add_test(NAME records COMMAND records_test)
 set_tests_properties(persistence PROPERTIES TIMEOUT 30)
 
 add_executable(configuration_restore_test configuration_restore_test.cpp)

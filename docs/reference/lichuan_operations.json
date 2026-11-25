@@ -871,6 +871,30 @@
       "python_api_only_reason": "No named finite Python campaign covers this API. Use its ordinary public owner/console path with the exact evidence described above; runner coverage is not claimed."
     },
     {
+      "id": "Records",
+      "header": "include/MotorControlCAN/profiles/lichuan_c/Records.h",
+      "functions": {
+        "crc32Ieee": 1,
+        "validateRecord": 1,
+        "encodeRecord": 1,
+        "decodeRecord": 1
+      },
+      "implementation": [
+        "src/profiles/lichuan_c/Records.cpp"
+      ],
+      "tests": [
+        {
+          "path": "test/records_test.cpp",
+          "ctest": "records"
+        }
+      ],
+      "api_only_reason": "The codec is a pure text and validation boundary: a caller decodes a record before it binds anything, and encodes one only to store or show it. No device service, gate or motion is reached through it; binding a record to an axis and its range checks belong to the session API (prompt 58 b2, b3).",
+      "console": [],
+      "console_api_only_reason": "No console route yet: the console's record load, show, use, save, restore and drop routes come with prompt 58 slice b4 and will call this codec through the session API.",
+      "python_scenarios": [],
+      "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
+    },
+    {
       "id": "PdoConfiguration",
       "header": "include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
       "functions": {

@@ -47,6 +47,8 @@ REQUIRED = {
     "test/bench_probe_cli_test.py", "test/bench_evidence_test.py", "test/bench_console_native_test.py",
     "include/MotorControlCAN/profiles/lichuan_c/Persistence.h", "src/profiles/lichuan_c/Persistence.cpp",
     "test/persistence_test.cpp", "test/configuration_restore_test.cpp",
+    "include/MotorControlCAN/profiles/lichuan_c/Records.h", "src/profiles/lichuan_c/Records.cpp",
+    "test/records_test.cpp",
     "examples/common/ConfigurationRestore.h", "examples/common/ConfigurationRestore.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
     "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",

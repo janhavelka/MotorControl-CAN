@@ -156,6 +156,12 @@ remain excluded from installed core packages.
 | Raw 2300 read | DriverSettings/Reads, DriverReads; reviewed ledger | [Driver tests](../test/driver_settings_test.cpp) | Exact U16, one-use Q20 review; no read-effect or durability inference |
 | Recorded host re-application | [ConfigurationRestore.h](../examples/common/ConfigurationRestore.h), matching source | [Restore tests](../test/configuration_restore_test.cpp) | Original provenance plus existing three-field Settings engine; partial writes, no rollback or save |
 
+## Measured records (prompt 58)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Boundary |
+| --- | --- | --- | --- |
+| Record types, one-line text codec, CRC-32 | [Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h), [Records.cpp](../src/profiles/lichuan_c/Records.cpp) | [Codec tests](../test/records_test.cpp); the S2 bench's `routeLineCrc` | Pure validation and text only; no loading, binding, storage or gate opening |
+
 ## Communication commissioning (prompt 38)
 
 | Responsibility | Declaration / implementation | Actual caller / test | Boundary |

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "BenchRoute.h"
+#include <MotorControlCAN/profiles/lichuan_c/Records.h>
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cstdarg>
 #include <cstddef>
@@ -985,13 +986,8 @@ bool routePlanValid(const RoutePlan& p) noexcept {
     }
 }
 uint32_t routeLineCrc(const char* text, size_t size) noexcept {
-    uint32_t crc = 0xffffffffu;
-    for (size_t i = 0; i <= size; ++i) {
-        crc ^= i ? uint8_t(text[i - 1]) : uint8_t('T'); // The command byte first, as the host sent it.
-        for (unsigned bit = 0; bit < 8; ++bit)
-            crc = (crc >> 1) ^ (0xedb88320u & (0u - (crc & 1u)));
-    }
-    return ~crc;
+    // The command byte first, as the host sent it, then the line: the library's record CRC.
+    return L::crc32Ieee(L::crc32Ieee(0, "T", 1), text, size);
 }
 bool checkRouteIntegrity(const char* text, size_t size, size_t& body) noexcept {
     // `,K` and eight lowercase hexadecimal digits close the line; nothing may follow them.

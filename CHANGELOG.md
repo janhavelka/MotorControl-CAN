@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Measured record codec (prompt 58, slice b1, 2026-11-25)
+
+- New `profiles/lichuan_c/Records.h`: `MeasuredRecord` for three kinds (enable, position completion, velocity),
+  each with its evidence reference, the basis of every field group (`RecordBasis` MEASURED, DOCUMENTED or
+  INFERRED), the identity tuple it was measured on (`IdentityValues`) and its ranges: enable mode and admitted
+  6041/2100 start reports; position move kind, relative base, rpm, ramp and distance ranges, acceptance and
+  completion signals and rule; velocity layout, rpm range, direction, ramp range, longest duration, 2201 scale,
+  HALT and QUICK_STOP rate ranges, enable-report window bound and start reports.
+- One-line text form, version 1: `key=value` fields, `v=1` first and `crc=<8 hex>` last (CRC-32 IEEE over the
+  text before the CRC field's space). `encodeRecord` writes the canonical line into a caller buffer and changes
+  nothing when it is too small; `decodeRecord` validates the whole line (syntax, version, CRC, unknown,
+  duplicate, missing or misplaced keys, canonical numbers, ranges, documented device limits, the identity tuple)
+  and publishes nothing on failure, reporting a `RecordError` and the offending key in `RecordRefusal`;
+  `validateRecord` applies the same rules to a record built in code. `crc32Ieee` is the zlib-compatible bitwise
+  CRC-32, which the S2 bench's route-line integrity (`routeLineCrc`) now calls.
+- A record is data only: nothing loads, binds, stores or restores one yet, and no gate opens from it. The
+  library's own preparations are unchanged.
+
 ### Review fixes (prompt 57, stage (c), 2026-11-24)
 
 - **API change:** `prepareModeSelect` and `prepareRelease` take an `IdentityObservation` (after the state read),
