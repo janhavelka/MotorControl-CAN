@@ -162,6 +162,7 @@ remain excluded from installed core packages.
 | --- | --- | --- | --- |
 | Record types, one-line text codec, CRC-32 | [Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h), [Records.cpp](../src/profiles/lichuan_c/Records.cpp) | [Codec tests](../test/records_test.cpp); the S2 bench's `routeLineCrc` | Pure validation and text only; no loading, binding, storage or gate opening |
 | Record id, record-built evidence, request checks | Same header, [RecordChecks.cpp](../src/profiles/lichuan_c/RecordChecks.cpp) | [Check tests](../test/record_checks_test.cpp), [velocity window tests](../test/velocity_test.cpp) | Pure; checks run before the library's preparation, which keeps every limit |
+| Load, use, show, drop per axis; bound records in the motion requests | [ProbeMotion.h](../examples/common/ProbeMotion.h), matching source, [SelectedAxis.h](../examples/common/SelectedAxis.h) | [Session tests](../test/probe_records_test.cpp) | Caller-owned RAM slots; binding invalidated by rebinding, configuration, boot-up and recovery; no storage or console route yet |
 
 ## Communication commissioning (prompt 38)
 

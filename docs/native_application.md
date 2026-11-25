@@ -150,6 +150,29 @@ old read provenance stale. Host scale/origin similarly require the existing idle
 stationary evidence and owner migration. Neither path reopens a session or clears
 its historical uncertainty fences.
 
+Measured records (prompt 58) reach motion through the same attachment. The
+application attaches one caller-owned `AxisRecords` per axis (`attachRecords`;
+`SelectedAxis` does it for its axis) with four slots: enable, absolute position,
+relative position and velocity, so an application holds at most four records per
+attached axis, in RAM only (about 1.3 KB per axis on the host build, estimated).
+`loadRecord` decodes and validates a whole record line (or a record built in code)
+into its empty slot, `useRecord` binds it to the axis's binding, configuration,
+node and controller generations, `showRecord` copies it with its state (LOADED,
+BOUND or INVALIDATED) and `dropRecord` forgets it. None of them sends, enables or
+moves anything. A bound record governs the regular path of its slot: unless the
+setter named an attended experiment for that operation (velocity or enable
+`ATTENDED_EXPERIMENT`, which takes precedence in either order, since unmeasured
+ranges stay under the attended experiment), `requestMove`, `requestVelocity` and
+`requestEnable` (and `startAction`'s enable) build the evidence with
+`makeMoveEvidence`, `makeVelocityEvidence` or `makeEnableEvidence` and refuse a
+request outside the record with `checkRecordMove`, `checkRecordVelocity` or
+`checkRecordEnable` before the session's own preparation, which keeps every library
+limit. `MotionResult::attendedExperiment` and `MotionResult::record` say which ran.
+A rebinding, configuration change, drive boot-up (as the owner observes it) or
+controller recovery invalidates the binding, and requests of that slot are refused
+until the record is used again or dropped; a restart forgets every record and
+restores none. Without a bound record every gate is as before.
+
 Register multiple stationary attachments to the same console for independent axes.
 The application assigns a distinct fairness producer to each open session. Changing
 selection never changes a retained operation's owner. A `GroupStop` borrows a

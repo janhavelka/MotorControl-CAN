@@ -769,6 +769,11 @@ add_executable(probe_motion_actions_test probe_motion_actions_test.cpp)
 target_link_libraries(probe_motion_actions_test PRIVATE MotorControlCANProbeApp)
 strict_test(probe_motion_actions_test)
 add_test(NAME probe_motion_actions COMMAND probe_motion_actions_test)
+add_executable(probe_records_test probe_records_test.cpp)
+target_link_libraries(probe_records_test PRIVATE MotorControlCANProbeApp)
+strict_test(probe_records_test)
+add_test(NAME probe_records COMMAND probe_records_test)
+set_tests_properties(probe_records PROPERTIES TIMEOUT 30)
 set_tests_properties(probe_motion_actions PROPERTIES TIMEOUT 30)
 
 # Multi-axis application ownership and startup storage placement.

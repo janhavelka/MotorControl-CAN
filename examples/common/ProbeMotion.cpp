@@ -329,6 +329,121 @@ M::Status ProbeMotion::setStopPrerequisites(const L::ReadContext& state,
     stopPolicy_ = policy;
     return M::Ok();
 }
+namespace {
+// The slot a valid record fills: its kind, and for a position record its move.
+RecordSlot slotOf(const L::MeasuredRecord& record) {
+    return record.kind == L::RecordKind::ENABLE     ? RecordSlot::ENABLE
+           : record.kind == L::RecordKind::VELOCITY ? RecordSlot::VELOCITY
+           : record.position.move == L::RecordMoveKind::RELATIVE ? RecordSlot::POSITION_RELATIVE
+                                                                 : RecordSlot::POSITION_ABSOLUTE;
+}
+} // namespace
+bool ProbeMotion::recordCurrent(const RecordEntry& entry) const noexcept {
+    // The node generation as the owner sees it: a boot-up advances it there before any application
+    // follows it into its live target.
+    M::Generation node = 0;
+    uint32_t sessions = 0;
+    return M::sameBinding(entry.binding.binding, axis_.binding) &&
+           M::sameBinding(axis_.binding, current_.channel.binding) &&
+           owner_.nodeEpochs(axis_.binding, node, sessions) && entry.binding.nodeGeneration == node &&
+           entry.binding.nodeGeneration == current_.nodeGeneration &&
+           entry.binding.controllerEpoch == owner_.controllerEpoch();
+}
+void ProbeMotion::markEvidence() noexcept {
+    normal_.attendedExperiment = issuedAttended_;
+    normal_.record = issuedRecord_;
+}
+// A bound, current record for slot, or none (record null). A record bound to older generations refuses:
+// falling back to the setter's evidence would silently replace the record the application chose.
+M::Status ProbeMotion::boundRecord(RecordSlot slot, const L::MeasuredRecord*& record,
+                                   uint32_t& id) const noexcept {
+    record = nullptr;
+    id = 0;
+    if (!records_)
+        return M::Ok();
+    const RecordEntry& entry = records_->slots[unsigned(slot)];
+    if (!entry.loaded || !entry.bound)
+        return M::Ok();
+    if (!recordCurrent(entry))
+        return refused(M::ActionError::STATE,
+                       "the bound record's binding, configuration, node or controller epoch changed: use it "
+                       "again or drop it");
+    record = &entry.record;
+    id = entry.id;
+    return M::Ok();
+}
+M::Status ProbeMotion::store(const L::MeasuredRecord& record, RecordSlot& slot) noexcept {
+    uint32_t id = 0;
+    const M::Status s = L::recordId(id, record);
+    if (!s)
+        return s;
+    const RecordSlot filled = slotOf(record);
+    RecordEntry& entry = records_->slots[unsigned(filled)];
+    if (entry.loaded)
+        return refused(M::ActionError::STATE, "that record slot is occupied: drop it first");
+    new (&entry) RecordEntry();
+    entry.record = record;
+    entry.id = id;
+    entry.loaded = true;
+    slot = filled;
+    return M::Ok();
+}
+M::Status ProbeMotion::loadRecord(const char* text, size_t size, L::RecordRefusal& refusal,
+                                  RecordSlot& slot) noexcept {
+    if (!records_)
+        return refused(M::ActionError::STATE, "no record storage is attached to this axis");
+    // Decoded whole into a local candidate: nothing is stored unless the entire line is valid.
+    L::MeasuredRecord candidate;
+    const M::Status decoded = L::decodeRecord(candidate, refusal, text, size);
+    if (!decoded)
+        return decoded;
+    return store(candidate, slot);
+}
+M::Status ProbeMotion::loadRecord(const L::MeasuredRecord& record, L::RecordRefusal& refusal,
+                                  RecordSlot& slot) noexcept {
+    if (!records_)
+        return refused(M::ActionError::STATE, "no record storage is attached to this axis");
+    const M::Status valid = L::validateRecord(refusal, record);
+    if (!valid)
+        return valid;
+    return store(record, slot);
+}
+M::Status ProbeMotion::useRecord(RecordSlot slot, uint64_t now) noexcept {
+    if (!records_ || unsigned(slot) >= RECORD_SLOTS || !records_->slots[unsigned(slot)].loaded)
+        return refused(M::ActionError::STATE, "no record is loaded in that slot");
+    if (!current())
+        return refused(M::ActionError::TARGET, "a record binds to the registered session and exact live target");
+    if (!timeValid(now))
+        return refused(M::ActionError::TIME, "record binding time precedes the application or owner");
+    RecordEntry& entry = records_->slots[unsigned(slot)];
+    if (entry.record.model != session_.model())
+        return refused(M::ActionError::TARGET, "the record was made on another model than the session's");
+    entry.binding.binding = axis_.binding;
+    entry.binding.nodeGeneration = current_.nodeGeneration;
+    entry.binding.controllerEpoch = owner_.controllerEpoch();
+    entry.binding.boundUs = now;
+    entry.bound = true;
+    return M::Ok();
+}
+bool ProbeMotion::showRecord(RecordSlot slot, RecordView& output) const noexcept {
+    if (!records_ || unsigned(slot) >= RECORD_SLOTS || !records_->slots[unsigned(slot)].loaded)
+        return false;
+    const RecordEntry& entry = records_->slots[unsigned(slot)];
+    output.slot = slot;
+    output.state = !entry.bound ? RecordState::LOADED
+                   : recordCurrent(entry) ? RecordState::BOUND
+                                          : RecordState::INVALIDATED;
+    output.id = entry.id;
+    output.record = entry.record;
+    output.binding = entry.bound ? entry.binding : RecordBinding();
+    return true;
+}
+bool ProbeMotion::dropRecord(RecordSlot slot) noexcept {
+    if (!records_ || unsigned(slot) >= RECORD_SLOTS || !records_->slots[unsigned(slot)].loaded)
+        return false;
+    new (&records_->slots[unsigned(slot)]) RecordEntry();
+    return true;
+}
 void ProbeMotion::accept(MotionKind kind, uint32_t operation, uint64_t now) noexcept {
     new (&normal_) MotionResult();
     normal_.kind = kind;
@@ -350,22 +465,41 @@ M::Status ProbeMotion::requestMove(const M::MoveRequest& request, const L::MoveP
     if (!moveState_ || !moveIdentity_)
         return refused(M::ActionError::STATE, "explicit move prerequisites are missing");
     const M::AxisReference* reference = reference_.nativeKnown ? &reference_ : nullptr;
+    // A bound record of the move's slot (prompt 58) supplies the evidence and narrows the request first;
+    // the session's own preparation still applies every library limit.
+    const bool relative = request.position.relative && !request.position.wrapped;
+    const L::MeasuredRecord* record = nullptr;
+    uint32_t recordId = 0;
+    M::Status checked = boundRecord(relative ? RecordSlot::POSITION_RELATIVE : RecordSlot::POSITION_ABSOLUTE,
+                                    record, recordId);
+    L::MoveEvidence recordEvidence;
+    if (checked && record)
+        checked = L::makeMoveEvidence(recordEvidence, *record);
+    if (checked && record)
+        checked = L::checkRecordMove(*record, recordEvidence, request, profile, axis_,
+                                     request.position.wrapped || relative ? &reference_ : reference, now);
+    if (!checked)
+        return checked;
+    const L::MoveEvidence& evidence = record ? recordEvidence : moveEvidence_;
     const M::Status status =
         request.position.wrapped
-            ? session_.requestMoveAngle(*moveState_, *moveIdentity_, moveEvidence_, request,
+            ? session_.requestMoveAngle(*moveState_, *moveIdentity_, evidence, request,
                                         profile, stored_, axis_, reference_, moveOptions_, deadline,
                                         now)
         : request.position.relative
-            ? session_.requestMoveRelative(*moveState_, *moveIdentity_, moveEvidence_, request,
+            ? session_.requestMoveRelative(*moveState_, *moveIdentity_, evidence, request,
                                            profile, stored_, axis_, reference_, moveOptions_,
                                            deadline, now)
-            : session_.requestMove(*moveState_, *moveIdentity_, moveEvidence_, request, profile,
+            : session_.requestMove(*moveState_, *moveIdentity_, evidence, request, profile,
                                    stored_, axis_, reference, moveOptions_, deadline, now);
     if (status) {
         moveState_ = nullptr;
         moveIdentity_ = nullptr;
         stored_ = nullptr;
         accept(MotionKind::MOVE, session_.moveAction().operation, now);
+        issuedAttended_ = false; // MoveGate has no attended experiment.
+        issuedRecord_ = recordId;
+        markEvidence();
     }
     return status;
 }
@@ -410,13 +544,31 @@ M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request, 
                        "velocity prerequisites or stop selection missing");
     L::VelocityOptions options = velocityOptions_;
     options.stopKind = kind;
+    // An attended experiment the setter named runs as named: unmeasured ranges stay under it (prompt 58).
+    // Otherwise a bound velocity record supplies the evidence for this stop kind and narrows the run.
+    const bool attended = velocityEvidence_.gate == L::VelocityGate::ATTENDED_EXPERIMENT;
+    const L::MeasuredRecord* record = nullptr;
+    uint32_t recordId = 0;
+    M::Status checked = attended ? M::Ok() : boundRecord(RecordSlot::VELOCITY, record, recordId);
+    L::VelocityEvidence recordEvidence;
+    if (checked && record)
+        checked = L::makeVelocityEvidence(recordEvidence, *record, kind);
+    if (checked && record)
+        checked = L::checkRecordVelocity(*record, recordEvidence, request, velocityProfile_, axis_,
+                                         *velocityState_, current_, now, options);
+    if (!checked)
+        return checked;
     const M::Status status =
-        session_.requestVelocity(*velocityState_, *velocityIdentity_, velocityEvidence_, request,
+        session_.requestVelocity(*velocityState_, *velocityIdentity_,
+                                 record ? recordEvidence : velocityEvidence_, request,
                                  velocityProfile_, axis_, options, deadline, now);
     if (status) {
         velocityState_ = nullptr;
         velocityIdentity_ = nullptr;
         accept(MotionKind::VELOCITY, session_.velocityAction().operation, now);
+        issuedAttended_ = attended;
+        issuedRecord_ = recordId;
+        markEvidence();
     }
     return status;
 }
@@ -484,16 +636,36 @@ M::Status ProbeMotion::issueAction(MotionKind kind, uint8_t modeRaw, uint64_t no
             evidence.modeRaw = 1;
             evidence.operation = session_.nextOperation();
         }
+        L::ActionOptions options = regular ? actionOptions_ : enableOptions_;
+        // An attended trial named for this enable runs as named (prompt 58). Otherwise a bound enable record
+        // replaces the evidence with its own MEASURED evidence and identity reference, and narrows the start
+        // report first, on the same named report.
+        const bool attended = !regular && evidence.gate == L::EnableGate::ATTENDED_EXPERIMENT;
+        const L::MeasuredRecord* record = nullptr;
+        uint32_t recordId = 0;
+        M::Status checked = attended ? M::Ok() : boundRecord(RecordSlot::ENABLE, record, recordId);
+        if (checked && record)
+            checked = L::makeEnableEvidence(evidence, options.identityReference, *record,
+                                            session_.nextOperation());
+        if (checked && record)
+            checked = L::checkRecordEnable(*record, evidence, options, regular ? *actionState_ : *enableState_,
+                                           current_, now);
+        if (!checked)
+            return checked;
         const M::Status status = regular ? session_.requestEnable(*actionState_, *actionIdentity_, evidence,
-                                                                  actionOptions_, deadline, now)
+                                                                  options, deadline, now)
                                          : session_.requestEnable(*enableState_, *enableIdentity_, evidence,
-                                                                  enableOptions_, deadline, now);
+                                                                  options, deadline, now);
         if (status && regular) {
             actionState_ = nullptr;
             actionIdentity_ = nullptr;
         } else if (status) {
             enableState_ = nullptr;
             enableIdentity_ = nullptr;
+        }
+        if (status) {
+            issuedAttended_ = attended;
+            issuedRecord_ = recordId;
         }
         return status;
     }
@@ -516,8 +688,10 @@ M::Status ProbeMotion::requestEnable(uint64_t now, uint64_t deadline) noexcept {
     if (!valid)
         return valid;
     const M::Status status = issueAction(MotionKind::ENABLE, 0, now, deadline);
-    if (status)
+    if (status) {
         accept(MotionKind::ENABLE, session_.enableAction().operation, now);
+        markEvidence();
+    }
     return status;
 }
 M::Status ProbeMotion::requestModeSelect(uint8_t modeRaw, uint64_t now, uint64_t deadline) noexcept {
@@ -683,6 +857,8 @@ void ProbeMotion::servicePreparation(uint64_t now) noexcept {
     }
     normal_.nativeOperation = plannedKind_ == MotionKind::ENABLE ? session_.enableAction().operation
                                                                  : session_.clearAction().operation;
+    if (plannedKind_ == MotionKind::ENABLE)
+        markEvidence();
     lastUs_ = now;
     snapshotNormal();
 }

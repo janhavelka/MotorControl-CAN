@@ -4,6 +4,7 @@
  */
 #pragma once
 #include "ProbeApp.h"
+#include <MotorControlCAN/profiles/lichuan_c/Records.h>
 
 namespace MotorControlCANExample {
 /** Concrete retained operation; stop results have their own two slots. */
@@ -72,6 +73,13 @@ struct MotionResult {
     /** Application helper IDs of the retained original and replacement. Native contexts retain
      * their own operation IDs separately. Supersession withdraws only the original observer. */
     MotorControlCAN::MoveRelation relation;
+    /** The operation ran under an attended experiment the caller set explicitly for it
+     * (VelocityGate or EnableGate ATTENDED_EXPERIMENT; prompt 58). That trial takes precedence over a
+     * bound record of the same slot, and a result under it qualifies nothing. */
+    bool attendedExperiment = false;
+    /** Nonzero: the id (LICHUAN_C::recordId) of the bound measured record whose evidence the operation
+     * ran under; zero for none. */
+    uint32_t record = 0;
 };
 /** One native component of a requested stop, including its actual command terminal. */
 struct StopAttempt {
@@ -98,6 +106,57 @@ struct MotionStopResult {
     StopAttempt firstBestEffort;    ///< Controller-fault attempt proved unsent, if any.
     StopAttempt bestEffort;         ///< Last 000B component; no reply ever qualifies its execution.
     bool superseded = false;        ///< A fast request replaced this running normal stop.
+};
+/** One axis's measured record slots (prompt 58): one per operation a record covers. A position record
+ * covers one move kind, so absolute and relative moves have a slot each. */
+enum class RecordSlot : uint8_t {
+    ENABLE,            ///< MeasuredRecord of RecordKind::ENABLE: requestEnable and startAction's enable.
+    POSITION_ABSOLUTE, ///< RecordKind::POSITION, RecordMoveKind::ABSOLUTE: absolute and wrapped moves.
+    POSITION_RELATIVE, ///< RecordKind::POSITION, RecordMoveKind::RELATIVE: relative moves.
+    VELOCITY           ///< RecordKind::VELOCITY: requestVelocity.
+};
+/** Record slots per axis: at most one record per slot is held, loaded or bound. An application holds at
+ * most RECORD_SLOTS records per attached AxisRecords, so its capacity is that times its axes. */
+constexpr unsigned RECORD_SLOTS = 4;
+/** What a slot holds, as ProbeMotion::showRecord reports it. */
+enum class RecordState : uint8_t {
+    EMPTY,  ///< Nothing loaded.
+    LOADED, ///< Validated whole and held; no request uses it until useRecord binds it.
+    BOUND,  ///< Bound to the axis's current generations: every request of its slot uses it.
+    /** Bound earlier, and since then the axis binding, its configuration, the drive's boot (node
+     * generation) or the owner's controller epoch (a recovery) changed. Every request of its slot is
+     * refused, before any work, until useRecord binds it again or dropRecord forgets it. */
+    INVALIDATED
+};
+/** The generations a record was bound to. A change of any of them invalidates it; none is ever reused,
+ * so an invalidated record cannot become current again by itself. */
+struct RecordBinding {
+    MotorControlCAN::Binding binding; ///< Axis binding, with its binding and configuration generations.
+    MotorControlCAN::Generation nodeGeneration = 0; ///< Drive lifecycle epoch; a boot-up advances it.
+    uint32_t controllerEpoch = 0; ///< CanBusOwner::controllerEpoch(); a controller recovery advances it.
+    uint64_t boundUs = 0;         ///< useRecord's supplied time; zero valid.
+};
+/** One record slot. Written only through ProbeMotion; an application never edits it. */
+struct RecordEntry {
+    bool loaded = false; ///< record holds a validated record.
+    bool bound = false;  ///< useRecord bound it; binding is meaningful.
+    uint32_t id = 0;     ///< LICHUAN_C::recordId of record, nonzero while loaded.
+    MotorControlCAN::LICHUAN_C::MeasuredRecord record; ///< The decoded record, as loaded.
+    RecordBinding binding;                             ///< The generations bound to, while bound.
+};
+/** Caller-owned record storage of one axis, in RAM only: nothing saves or restores it, so an MCU restart
+ * forgets every record and a fresh one starts EMPTY. About 1.3 KB on the host build (four 296-byte records
+ * plus their bookkeeping), estimated, not measured on a board. Stationary while attached. */
+struct AxisRecords {
+    RecordEntry slots[RECORD_SLOTS]; ///< Indexed by RecordSlot.
+};
+/** ProbeMotion::showRecord's copy of one slot. */
+struct RecordView {
+    RecordSlot slot = RecordSlot::ENABLE;   ///< The slot shown.
+    RecordState state = RecordState::EMPTY; ///< Its state now, invalidation included.
+    uint32_t id = 0;                        ///< Record id (CRC-32 of the canonical line).
+    MotorControlCAN::LICHUAN_C::MeasuredRecord record; ///< The decoded record.
+    RecordBinding binding; ///< BOUND or INVALIDATED: the generations it was bound to.
 };
 /** One stationary attachment, not an executor. ProbeApp owns session progression.
  * All motion/action commands of this session must enter here while attached; external
@@ -151,7 +210,8 @@ class ProbeMotion {
 
     /** Name actual move prerequisites. stored must already be registered with retainSettings.
      * @param state Acquired state. @param identity Acquired specimen identity.
-     * @param evidence Copied explicit qualification. @param profile Copied default profile.
+     * @param evidence Copied explicit qualification; a record bound to the move's slot (useRecord)
+     * replaces it for that move kind. @param profile Copied default profile.
      * @param stored Optional retained settings read. @param options Copied finite budgets.
      * @return Local status; unchanged while an ordinary result is retained or graph is invalid. */
     MotorControlCAN::Status
@@ -169,7 +229,9 @@ class ProbeMotion {
         const MotorControlCAN::LICHUAN_C::MoveFeedbackRelation* feedback = nullptr) noexcept;
     /** Name actual velocity prerequisites; no start/reverse/stop qualification is inferred.
      * @param state Acquired state. @param identity Acquired specimen identity.
-     * @param evidence Copied qualification. @param profile Copied native ramps.
+     * @param evidence Copied qualification. A bound VELOCITY record (useRecord) replaces it, unless it is
+     * an ATTENDED_EXPERIMENT, which takes precedence over the record.
+     * @param profile Copied native ramps.
      * @param options Copied finite budgets. @return Same atomic setter contract as moves. */
     MotorControlCAN::Status
     setVelocityPrerequisites(const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -196,7 +258,9 @@ class ProbeMotion {
                          const MotorControlCAN::LICHUAN_C::HomeOptions& options) noexcept;
     /** Name explicitly authorized enable evidence; operation/trial identities are not repaired.
      * @param state Acquired state. @param identity Acquired identity, borrowed like state.
-     * @param evidence Copied trial authorization and facts.
+     * @param evidence Copied trial authorization and facts. An ATTENDED_EXPERIMENT trial takes precedence
+     * over a bound ENABLE record; any other gate is replaced by the record's MEASURED evidence and identity
+     * reference.
      * @param options Copied budgets. @return Same atomic setter contract as moves. */
     MotorControlCAN::Status
     setEnablePrerequisites(const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -232,7 +296,51 @@ class ProbeMotion {
     setStopPrerequisites(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                          const StopPolicy& policy) noexcept;
 
+    /** Attach this axis's record storage (prompt 58). Without one every record call is refused and every
+     * request runs on the evidence its setter named, as before. Nothing is read, sent or bound here.
+     * @param storage Caller-owned, stationary while attached; its current contents are kept. */
+    void attachRecords(AxisRecords& storage) noexcept { records_ = &storage; }
+    /** Load one record line into its slot: decodeRecord validates the whole line, and only a valid
+     * record is stored, LOADED, so it takes no effect until useRecord binds it. Never sends, enables or
+     * moves anything.
+     * @param text Borrowed characters of one line, without its line ending. @param size Character count.
+     * @param refusal decodeRecord's reason and key on a decoding failure; NONE otherwise.
+     * @param slot Written on success: the slot the record's kind and move fill.
+     * @return OK; decodeRecord's status (RecordError detail) for an invalid line; ActionError STATE for no
+     * attached storage or an occupied slot (drop it first). Storage unchanged on failure. */
+    MotorControlCAN::Status loadRecord(const char* text, size_t size,
+                                       MotorControlCAN::LICHUAN_C::RecordRefusal& refusal,
+                                       RecordSlot& slot) noexcept;
+    /** Load a record built in code, as the line overload, validated with validateRecord.
+     * @param record Copied. @param refusal validateRecord's reason and key, NONE otherwise.
+     * @param slot Written on success. @return As the line overload. */
+    MotorControlCAN::Status loadRecord(const MotorControlCAN::LICHUAN_C::MeasuredRecord& record,
+                                       MotorControlCAN::LICHUAN_C::RecordRefusal& refusal,
+                                       RecordSlot& slot) noexcept;
+    /** Bind a loaded record to this axis: from now on every request of its slot that is not an attended
+     * experiment named for it builds its evidence from the record (makeMoveEvidence, makeVelocityEvidence, makeEnableEvidence) and is checked
+     * against it (checkRecordMove, checkRecordVelocity, checkRecordEnable) before the library's own
+     * preparation, which keeps every library limit. Records the current binding, node generation and
+     * controller epoch; binding again after an invalidation records the new ones. Sends, enables and
+     * moves nothing, and a retained operation keeps the evidence it was prepared with.
+     * @param slot A LOADED, BOUND or INVALIDATED slot. @param nowUs Supplied microseconds, at least the
+     * helper's and the owner's latest time.
+     * @return OK; ActionError STATE for no storage or an empty slot, TARGET for a stale graph or a record of
+     * another model than the session's, TIME for a backward clock. Unchanged on failure. */
+    MotorControlCAN::Status useRecord(RecordSlot slot, uint64_t nowUs) noexcept;
+    /** Copy one slot's record and binding state, judging invalidation now. No I/O.
+     * @param slot Slot to show. @param output Written only when the slot holds a record.
+     * @return False for no storage or an empty slot. */
+    bool showRecord(RecordSlot slot, RecordView& output) const noexcept;
+    /** Forget one slot's record, bound or not; requests of its slot then use their setter's evidence
+     * again. A retained operation keeps the evidence it was prepared with. Nothing is sent.
+     * @param slot Slot to empty. @return False for no storage or an already empty slot. */
+    bool dropRecord(RecordSlot slot) noexcept;
+
     /** Dispatch wrapped/relative/absolute typed intent. Atomic refusal; no implicit configuration.
+     * A record bound to the move's slot builds the evidence and checkRecordMove narrows the request
+     * (RecordCheckError detail) before the session's preparation; an absolute move then needs a known
+     * witness. A record bound to older generations refuses with ActionError STATE.
      * @param request Exact typed intent. @param nowUs Supplied microseconds.
      * @param deadlineUs Exclusive future cutoff. @return Native preparation or local refusal. */
     MotorControlCAN::Status requestMove(const MotorControlCAN::MoveRequest& request, uint64_t nowUs,
@@ -249,7 +357,10 @@ class ProbeMotion {
      * @param nowUs Processing time; the original deadline is retained. @return Atomic admission. */
     MotorControlCAN::Status requestMoveReplacement(uint32_t id,
         const MotorControlCAN::LICHUAN_C::MoveReplacementRequest& request, uint64_t nowUs) noexcept;
-    /** Dispatch finite duration and explicit stop selection, preserving exact native-rate units.
+    /** Dispatch finite duration and explicit stop selection, preserving exact native-rate units. An
+     * attended experiment the setter named runs as named (MotionResult::attendedExperiment). Otherwise a
+     * bound VELOCITY record builds the evidence for stopKind and checkRecordVelocity narrows the run
+     * first (MotionResult::record); a record bound to older generations refuses with ActionError STATE.
      * @param request Exact rate and duration. @param stopKind Explicit normal/fast choice.
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
      * @return Native preparation or local refusal, atomic on failure. */
@@ -266,7 +377,11 @@ class ProbeMotion {
      * @param deadlineUs Exclusive future cutoff. @return Atomic native/local preparation status. */
     MotorControlCAN::Status requestHome(const MotorControlCAN::LICHUAN_C::HomeRequest& request,
                                         uint64_t nowUs, uint64_t deadlineUs) noexcept;
-    /** Dispatch explicit gated enable. No mode selection or automatic retry is added.
+    /** Dispatch explicit gated enable. No mode selection or automatic retry is added. An attended trial
+     * named by setEnablePrerequisites runs as named. Otherwise (the regular MEASURED enable, or other
+     * explicit evidence) a bound ENABLE record builds MEASURED evidence and the identity reference, and
+     * checkRecordEnable narrows the start report first, on whichever report is named; a record bound to
+     * older generations refuses.
      * @param nowUs Supplied microseconds. @param deadlineUs Exclusive future cutoff.
      * @return Atomic native/local preparation status. */
     MotorControlCAN::Status requestEnable(uint64_t nowUs, uint64_t deadlineUs) noexcept;
@@ -425,6 +540,9 @@ class ProbeMotion {
     MotorControlCAN::LICHUAN_C::EnableEvidence enableEvidence_;
     MotorControlCAN::LICHUAN_C::ActionOptions enableOptions_, clearOptions_;
     StopPolicy stopPolicy_;
+    AxisRecords* records_ = nullptr;
+    bool issuedAttended_ = false; // The latest admitted request's attended experiment, for its result.
+    uint32_t issuedRecord_ = 0;   // The latest admitted request's bound record id, zero for none.
     /** startAction's reads, one context reused in turn: the identity, CONTROL, then the state it judges. */
     MotorControlCAN::LICHUAN_C::DriverContext ownRead_;
     MotorControlCAN::LICHUAN_C::IdentityObservation ownIdentity_;
@@ -438,6 +556,12 @@ class ProbeMotion {
     bool readPending_ = false;
     bool prepareWithdrawn_ = false;
     bool timeValid(uint64_t nowUs) const noexcept;
+    bool recordCurrent(const RecordEntry& entry) const noexcept;
+    MotorControlCAN::Status boundRecord(RecordSlot slot, const MotorControlCAN::LICHUAN_C::MeasuredRecord*& record,
+                                        uint32_t& id) const noexcept;
+    void markEvidence() noexcept;
+    MotorControlCAN::Status store(const MotorControlCAN::LICHUAN_C::MeasuredRecord& record,
+                                  RecordSlot& slot) noexcept;
     bool graph() const noexcept;
     MotorControlCAN::Status prerequisite() const noexcept;
     MotorControlCAN::Status admission(uint64_t nowUs, uint64_t deadlineUs) const noexcept;

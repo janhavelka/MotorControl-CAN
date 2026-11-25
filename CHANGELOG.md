@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Measured records through the session API (prompt 58, slice b3, 2026-11-26)
+
+- `ProbeMotion::attachRecords`, `loadRecord` (a record line or a record built in code), `useRecord`, `showRecord`
+  and `dropRecord`: one caller-owned `AxisRecords` per axis with four `RecordSlot`s (enable, absolute position,
+  relative position, velocity), so at most four records per attached axis, RAM only (about 1.3 KB per axis on the
+  host build, estimated). Load validates the whole record before storing it; use binds it to the axis binding,
+  configuration generation, node generation and owner controller epoch; show reports LOADED, BOUND or INVALIDATED;
+  drop forgets it. None of them sends, enables or moves anything, and nothing is saved or restored.
+- A bound record governs the regular path of its slot: `requestMove`, `requestVelocity`, `requestEnable` and
+  `startAction`'s enable build their evidence from the record and refuse a request outside it (b2 checks) before
+  the session's preparation. An attended experiment the setter named for that operation (velocity or enable
+  `ATTENDED_EXPERIMENT`) takes precedence over a bound record, in either order; new
+  `MotionResult::attendedExperiment` and `MotionResult::record` say which evidence ran. A record bound to older
+  generations (rebinding, configuration change, a boot-up the owner observed, controller recovery) refuses its
+  slot's requests until it is used again or dropped. Without a bound record every gate is unchanged.
+- `SelectedAxis` holds its axis's `AxisRecords` and gives the motion helper non-const (`motion()`) for them.
+
 ### Record checks and record-built evidence (prompt 58, slice b2, 2026-11-25)
 
 - `recordId`: a record's id is the CRC-32 of its canonical line; a record whose CRC is 0 is now refused by

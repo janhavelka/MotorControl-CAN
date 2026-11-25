@@ -77,13 +77,17 @@ bool rampsWithin(uint32_t up, uint32_t down, const RecordRange& range) {
 // The fresh 6041/2100 pair and 6061 of a state read, as the preparations read them.
 Status startReport(const ReadContext& state, const ReadTarget& current, uint64_t now, uint64_t age,
                    StartReport& report, uint8_t& mode) {
-    StateObservation status, monitors;
-    if (!getStateBlock(state, StateBlock::STATUS, current, now, age, status) ||
-        !getStateBlock(state, StateBlock::MONITORS, current, now, age, monitors))
+    // One observation reused for both blocks: it is about 0.5 KB, and these checks run on console stacks.
+    StateObservation block;
+    if (!getStateBlock(state, StateBlock::STATUS, current, now, age, block))
         return refuse(RecordCheckError::STATE, "the state read has no current STATUS and MONITORS");
-    report.statusword = status.statusword;
-    report.monitor = monitors.monitor;
-    mode = status.modeRaw;
+    const uint16_t statusword = block.statusword;
+    const uint8_t modeRaw = block.modeRaw;
+    if (!getStateBlock(state, StateBlock::MONITORS, current, now, age, block))
+        return refuse(RecordCheckError::STATE, "the state read has no current STATUS and MONITORS");
+    report.statusword = statusword;
+    report.monitor = block.monitor;
+    mode = modeRaw;
     return Ok();
 }
 bool admitted(const RecordStarts& starts, const StartReport& report) {

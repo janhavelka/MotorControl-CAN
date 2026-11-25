@@ -49,6 +49,7 @@ REQUIRED = {
     "test/persistence_test.cpp", "test/configuration_restore_test.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Records.h", "src/profiles/lichuan_c/Records.cpp",
     "test/records_test.cpp", "src/profiles/lichuan_c/RecordChecks.cpp", "test/record_checks_test.cpp",
+    "test/probe_records_test.cpp",
     "examples/common/ConfigurationRestore.h", "examples/common/ConfigurationRestore.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
     "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
