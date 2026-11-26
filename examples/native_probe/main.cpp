@@ -2,6 +2,7 @@
 #include "FakeTransport.h"
 #include "ProbeApp.h"
 #include "ProbeConsole.h"
+#include "RecordStore.h"
 #include "SelectedAxis.h"
 #include <cstdio>
 #include <cstring>
@@ -72,7 +73,7 @@ struct BatchConsole {
             --outputSize;
     }
 };
-int runConsoleFake(const char* path) {
+int runConsoleFake(const char* path, const char* recordDirectory) {
     // This application-only capture is deliberately outside the owner's task stack.
     static BatchConsole batch;
     if (!batch.load(path)) {
@@ -117,6 +118,10 @@ int runConsoleFake(const char* path) {
     // reads. The fixture declares CL86-C so that they reach the library; its identity is synthetic and its
     // replies identity-only, so their state reads fail and nothing is ever written.
     E::SelectedAxis selectedAxis(app, owner, services, console, L::SettingsModel::CL86_C);
+    // Prompt 58: `record save` and `record restore` use files in the named directory, only on those commands.
+    E::FileRecordStore recordFiles(recordDirectory);
+    if (recordDirectory && !console.attachRecordStore(recordFiles.store()))
+        return 1;
     E::HostInterfaceFacts interface;
     interface.interfaceKnown = interface.bitrateKnown = true;
     interface.interfaceId = target.channel.binding.endpoint.bus;
@@ -248,7 +253,10 @@ int main(int argc, char** argv) {
     if (argc == 2 && !std::strcmp(argv[1], "--fake"))
         return runFake();
     if (argc == 3 && !std::strcmp(argv[1], "--console-fake"))
-        return runConsoleFake(argv[2]);
-    std::fputs("Usage: native_probe --fake | --console-fake FILE (synthetic only)\n", stderr);
+        return runConsoleFake(argv[2], nullptr);
+    if (argc == 5 && !std::strcmp(argv[1], "--console-fake") && !std::strcmp(argv[3], "--record-dir"))
+        return runConsoleFake(argv[2], argv[4]);
+    std::fputs("Usage: native_probe --fake | --console-fake FILE [--record-dir DIRECTORY] (synthetic only)\n",
+               stderr);
     return 2;
 }

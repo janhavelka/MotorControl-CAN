@@ -337,7 +337,7 @@ void testInputAndOutput() {
     CHECK(has(early, "\"id\":8") && has(early, "\"ok\":false"));
     // An overlong line and an incomplete one reach nothing.
     std::string longLine = "@9 help ";
-    longLine.append(300, 'x');
+    longLine.append(E::BenchConsole::LINE_CAPACITY, 'x');
     CHECK(r->send(longLine) == E::ConsoleInput::REFUSED);
     CHECK(std::strcmp(r->console.reply(), "CONSOLE_REFUSED reason=length; no work\n") == 0);
     CHECK(r->console.take('@', r->uart.now, r->activity) == E::ConsoleInput::COLLECTING);

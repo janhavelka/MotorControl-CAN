@@ -18,8 +18,11 @@ For a multiple configuration generator, append `--config Debug` when building
 and use the corresponding `Debug` executable directory. Windows adds `.exe`.
 PowerShell accepts the same `$PWD` interpolation; use `-G Ninja` when selecting
 the installed GCC/Ninja toolchain. These example-only builds require no Python.
-The two accepted forms are `--fake` and `--console-fake FILE`; other arguments
-exit with code 2. Both run entirely offline.
+The accepted forms are `--fake`, `--console-fake FILE` and
+`--console-fake FILE --record-dir DIRECTORY`; other arguments exit with code 2.
+All run entirely offline. With `--record-dir`, `record save SLOT` and
+`record restore SLOT` keep measured record lines as files in that existing
+directory (`FileRecordStore`, prompt 58), only on those commands.
 
 `--console-fake FILE` executes a bounded command file through the same
 `ProbeConsole`, `ProbeApp`, owner and platform as the default Arduino and IDF

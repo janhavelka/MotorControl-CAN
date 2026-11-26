@@ -158,6 +158,7 @@ REQUIRED = {
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
     "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeConsoleRecords.cpp", "examples/common/RecordStore.h", "examples/common/RecordStore.cpp", "examples/common/EspRecordStore.h", "examples/common/EspRecordStore.cpp", "test/record_console_test.cpp",
     "examples/common/ProbeConsoleMotion.cpp", "examples/common/ProbeConsoleText.h", "examples/common/ProbeMotion.h", "examples/common/ProbeMotion.cpp", "examples/common/MotionIntent.h", "examples/common/MotionIntent.cpp", "test/motion_console_test.cpp", "test/motion_intent_test.cpp", "test/probe_motion_actions_test.cpp",
     "examples/common/ProbeDevice.h", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.h", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.h", "examples/common/ProbeCommissioning.cpp", "test/probe_commissioning_app_test.cpp", "test/probe_device_console_test.cpp", "test/probe_settings_app_test.cpp",
     "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
@@ -382,6 +383,20 @@ def inventory_checks(root, listing, build, errors):
         python_command(by_name.get(name, {}), root / script, arguments)
 
 
+# Prompt 58: the console reaches measured records only through ProbeMotion's record API, never through
+# the record storage it attaches. These names belong to that storage and to ProbeMotion's implementation.
+RECORD_STORAGE_NAMES = ("AxisRecords", "RecordEntry", "records_", ".slots[")
+
+
+def record_api_checks(root, errors):
+    for path in sorted((root / "examples/common").glob("ProbeConsole*.cpp")):
+        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", " ", read(path, errors))
+        for name in RECORD_STORAGE_NAMES:
+            if name in code:
+                errors.append(f"{path.relative_to(root).as_posix()}: the console names record storage "
+                              f"({name}); use ProbeMotion's record API")
+
+
 def check(root, listing=None, build=None):
     """Return actionable diagnostics; never mutate source or generated output."""
     root = Path(root).resolve()
@@ -389,6 +404,7 @@ def check(root, listing=None, build=None):
               for relative in sorted(REQUIRED) if not (root / relative).is_file()]
     metadata_checks(root, errors)
     registration_checks(root, errors)
+    record_api_checks(root, errors)
     if listing is not None:
         if build is None:
             errors.append("CTest inventory: --build-dir is required with --ctest-json")

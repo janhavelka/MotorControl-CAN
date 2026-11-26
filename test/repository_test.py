@@ -156,6 +156,7 @@ FILES = {
     "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
     "examples/common/ProbeAppLocal.cpp", "examples/common/ProbeConsole.h", "examples/common/ProbeConsole.cpp",
+    "examples/common/ProbeConsoleRecords.cpp", "examples/common/RecordStore.h", "examples/common/RecordStore.cpp", "examples/common/EspRecordStore.h", "examples/common/EspRecordStore.cpp", "test/record_console_test.cpp",
     "examples/common/ProbeConsoleMotion.cpp", "examples/common/ProbeConsoleText.h", "examples/common/ProbeMotion.h", "examples/common/ProbeMotion.cpp", "examples/common/MotionIntent.h", "examples/common/MotionIntent.cpp", "test/motion_console_test.cpp", "test/motion_intent_test.cpp", "test/probe_motion_actions_test.cpp",
     "examples/common/ProbeDevice.h", "examples/common/ProbeDevice.cpp", "examples/common/ProbeSettings.h", "examples/common/ProbeSettings.cpp", "examples/common/ProbeCommissioning.h", "examples/common/ProbeCommissioning.cpp", "test/probe_commissioning_app_test.cpp", "test/probe_device_console_test.cpp", "test/probe_settings_app_test.cpp",
     "docs/cli_contract.md", "test/probe_app_local_test.cpp", "test/probe_console_test.cpp", "test/console_protocol_test.py",
@@ -214,7 +215,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "velocity_change", "move_replacement", "axis_change", "motion_change_console", "move_change_console", "mode_probe", "position_change", "sync", "sync_owner", "probe_sync_console", "fieldcore_consumer", "combined_contract", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "records", "record_checks", "probe_records", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "velocity_change", "move_replacement", "axis_change", "motion_change_console", "move_change_console", "mode_probe", "position_change", "sync", "sync_owner", "probe_sync_console", "fieldcore_consumer", "combined_contract", "motion_intent", "motion_console", "probe_motion_actions", "probe_commissioning_app", "probe_settings_app", "probe_device_console", "probe_console", "probe_app_local", "persistence", "records", "record_checks", "probe_records", "record_console", "configuration_restore", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})
@@ -274,6 +275,15 @@ class RepositoryTests(unittest.TestCase):
     def test_current_fixture_passes_source_and_actual_command_inventory(self):
         self.assertEqual(self.check(), [])
         self.assertEqual(self.check(True), [])
+
+    def test_console_reaches_records_only_through_the_motion_api(self):
+        # Prompt 58: a console route that edits record storage directly is refused; a comment is not code.
+        self.write("examples/common/ProbeConsoleRecords.cpp",
+                   "// AxisRecords are ProbeMotion's.\nvoid f() { motion->loadRecord(); }\n")
+        self.assertEqual(self.check(), [])
+        for name in ("AxisRecords", "RecordEntry", "records_", ".slots["):
+            self.write("examples/common/ProbeConsoleRecords.cpp", "void f() { x" + name + "; }\n")
+            self.assertTrue(any("names record storage (" + name + ")" in e for e in self.check()), name)
 
     def test_each_required_file_is_enforced_independently(self):
         for relative in sorted(FILES):

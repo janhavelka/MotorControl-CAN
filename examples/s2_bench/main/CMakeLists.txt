@@ -13,7 +13,7 @@ idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ../
     ../CommunicationBench.cpp ../BenchConsole.cpp ../LinkWatch.cpp
     ${firmware_sources}
     INCLUDE_DIRS .. ${firmware_include_dirs}
-    REQUIRES MotorControlCAN esp_driver_twai esp_driver_uart esp_driver_gpio esp_timer esp_app_format)
+    REQUIRES MotorControlCAN esp_driver_twai esp_driver_uart esp_driver_gpio esp_timer esp_app_format nvs_flash)
 set_target_properties(${COMPONENT_LIB} PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF
     C_STANDARD 99 C_STANDARD_REQUIRED YES)

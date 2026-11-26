@@ -289,7 +289,14 @@ const ConsoleCommand commands[] = {
     {"txlifetime", "txlifetime [MICROSECONDS]", "CanBusOwner::txLifetimeUs/setTxLifetime",
      "interface-wide TX lifetime; 0 disables", E::HOST_CONFIGURATION, C::REPLY,
      "Inspect or set when an unreported frame counts as expired; nothing is resent.", nullptr,
-     55}};
+     55},
+    {"record",
+     "record load LINE | record show|use|drop|save|restore enable|absolute|relative|velocity",
+     "ProbeMotion::loadRecord/showRecord/useRecord/dropRecord; RecordStore save/restore",
+     "selected attached axis with record storage; whole-record validation", E::HOST_CONFIGURATION,
+     C::REPLY,
+     "Load, show, bind, forget, save or restore one measured record; never enables or moves.", nullptr,
+     58}};
 bool equal(const char* a, const char* b) {
     return !std::strcmp(a, b);
 }
@@ -612,6 +619,12 @@ M::Status parseConsoleLine(const char* bytes, size_t size, ConsoleLine& output) 
         if (next == size)
             break;
         const size_t begin = next;
+        // `record load LINE`: the record line is one token, its single spaces kept for its CRC.
+        if (candidate.count == 2 && !std::strcmp(candidate.text + candidate.offsets[0], "record") &&
+            !std::strcmp(candidate.text + candidate.offsets[1], "load")) {
+            candidate.offsets[candidate.count++] = static_cast<uint16_t>(begin);
+            break;
+        }
         while (next < size && candidate.text[next] != ' ' && candidate.text[next] != '\t')
             ++next;
         if (next < size)
@@ -682,7 +695,8 @@ ConsoleStats ProbeConsole::stats() const noexcept {
     return result;
 }
 bool ProbeConsole::drained() const noexcept {
-    if (used_ || discard_ || listing_.active || ordinaryCount_ || controlCount_ || traceCount_ || groupReplyUsed_)
+    if (used_ || discard_ || listing_.active || recordLine_.active || ordinaryCount_ || controlCount_ ||
+        traceCount_ || groupReplyUsed_)
         return false;
     for (bool used : stopReplyUsed_)
         if (used)
@@ -807,6 +821,8 @@ void ProbeConsole::error(uint32_t id, bool json, const char* command, const char
 bool ProbeConsole::requestInUse(uint32_t id) const noexcept {
     if (!id)
         return false;
+    if (recordLine_.active && recordLine_.json && recordLine_.id == id)
+        return true;
     for (const Operation& op : operations_)
         if (op.used && op.request == id)
             return true;
@@ -1425,6 +1441,7 @@ void ProbeConsole::service(uint64_t now) noexcept {
         }
     }
     listNext();
+    recordLineNext();
     for (unsigned n = 0; n < INPUT_BUDGET; ++n) {
         uint8_t byte = 0;
         if (!platform_.takeInput(byte))
@@ -1475,6 +1492,10 @@ void ProbeConsole::dispatch(const ConsoleLine& line, uint64_t now) noexcept {
     }
     if (equal(name, "reuse") || equal(name, "txlifetime")) {
         dispatchLink(line, now);
+        return;
+    }
+    if (equal(name, "record")) {
+        dispatchRecord(line, now);
         return;
     }
     if (index > MEMORY) {
@@ -1964,14 +1985,14 @@ void ProbeConsole::dispatchLocal(const ConsoleLine& line, uint64_t now, size_t i
                 text.add(json ? "null" : "unknown");
         } else
             text.add(json ? ",\"app_bytes\":\"%llu\",\"owner_bytes\":\"%llu\",\"console_bytes\":\"%"
-                            "llu\",\"platform_bytes\":\"%llu\",\"line_capacity\":256,\"record_"
+                            "llu\",\"platform_bytes\":\"%llu\",\"line_capacity\":%u,\"record_"
                             "capacity\":512,\"runtime_stack_high_water\":null,\"free_heap\":null"
-                          : "app=%llu owner=%llu console=%llu platform=%llu bytes; line=256 "
+                          : "app=%llu owner=%llu console=%llu platform=%llu bytes; line=%u "
                             "record=512; runtime stack/heap unknown",
                      static_cast<unsigned long long>(sizeof app_),
                      static_cast<unsigned long long>(sizeof owner_),
                      static_cast<unsigned long long>(sizeof *this),
-                     static_cast<unsigned long long>(sizeof platform_));
+                     static_cast<unsigned long long>(sizeof platform_), unsigned(LINE_CAPACITY));
         break;
     }
     case WIRING: {

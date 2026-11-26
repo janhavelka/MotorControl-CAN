@@ -45,5 +45,11 @@ struct ConsoleText {
             add("%s: ", command);
     }
     void end(bool json) { add(json ? "}\n" : "\n"); }
+    /** Start a new candidate in the same storage, as a fresh object would. */
+    void reset() {
+        used = 0;
+        valid = true;
+        bytes[0] = 0;
+    }
 };
 } // namespace MotorControlCANExample

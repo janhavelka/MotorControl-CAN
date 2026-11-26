@@ -106,7 +106,7 @@ def main():
             (2, 2, 1, "SUCCESS"), (5, 5, 2, "SUCCESS")]
         assert any(r["id"] == 7 and r["ok"] is False and "Q20" in r["error"] and r["status"] == "UNSUPPORTED" for r in actual)
         assert any(r["id"] == 8 and r["selected_protocol"] == "canopen" and r["motor_kind"] is None for r in actual)
-        script.write_bytes(b"@1 wiring di0 connected\n" + b"x" * 256 + b"\n")
+        script.write_bytes(b"@1 wiring di0 connected\n" + b"x" * 1024 + b"\n")
         refused = subprocess.run([sys.argv[2], "--console-fake", str(script)],
                                  capture_output=True, timeout=15)
         assert refused.returncode == 2 and not refused.stdout

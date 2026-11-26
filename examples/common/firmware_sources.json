@@ -8,6 +8,8 @@
     "examples/common/ProbeConsole.cpp",
     "examples/common/ProbeSync.cpp",
     "examples/common/ProbeConsoleMotion.cpp",
+    "examples/common/ProbeConsoleRecords.cpp",
+    "examples/common/EspRecordStore.cpp",
     "examples/common/ProbeMotion.cpp",
     "examples/common/GroupStop.cpp",
     "examples/common/WiredStopOutput.cpp",

@@ -34,6 +34,10 @@ for source in upstream["files"]:
 inventory = json.loads((root / "examples/common/firmware_sources.json").read_text(encoding="utf-8"))
 env.AppendUnique(CPPPATH=[str(root / path) for path in inventory["include_dirs"]])
 env.AppendUnique(CPPPATH=[str(root / "include")])
+# The shared sources are built here, before the library finder runs, so they get the pinned core's
+# Preferences headers explicitly; platformio.ini's lib_deps compiles and links that library.
+env.AppendUnique(CPPPATH=[str(Path(platform.get_package_dir("framework-arduinoespressif32")) /
+                              "libraries/Preferences/src")])
 env.Replace(COMPILATIONDB_PATH=str(Path(env.subst("$BUILD_DIR")) / "compile_commands.json"))
 env.BuildSources("$BUILD_DIR/shared", str(root),
                  ["-<*>"] + ["+<" + path + ">" for path in inventory["sources"]])

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "EspProbeMain.h"
 #include "EspProbePlatform.h"
+#include "EspRecordStore.h"
 #include "EspTransceiverPin.h"
 #include "IdfTwaiDriver.h"
 #include "ProbeConsole.h"
@@ -76,6 +77,10 @@ void ownerTask(void*) {
     bus.context = &firmware;
     bus.read = readConsoleBus;
     commands.attachBus(bus);
+    // Prompt 58: record lines in NVS (Preferences in an Arduino build), on `record save` and `record restore`
+    // only; attaching touches no flash and nothing is restored at boot.
+    static EspRecordStore recordStore;
+    commands.attachRecordStore(recordStore.store());
     // Every ordinary download is the attached axis's or refused unsent: no other producer downloads here.
     static DRAM_ATTR SelectedDispatch selected;
     DownloadPreflight preflight;

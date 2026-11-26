@@ -902,11 +902,28 @@
         {
           "path": "test/velocity_test.cpp",
           "ctest": "velocity"
+        },
+        {
+          "path": "test/record_console_test.cpp",
+          "ctest": "record_console"
         }
       ],
       "api_only_reason": "The codec, the evidence builders and the request checks are pure: an application decodes a record, builds the library evidence from it and checks each request against it before the library's own preparation, which still applies every library limit. The example session layer (ProbeMotion::loadRecord, useRecord, showRecord, dropRecord, and its move, velocity and enable requests) is that application; no device service, gate or motion is reached through these functions themselves.",
-      "console": [],
-      "console_api_only_reason": "No console route yet: the console's record load, show, use, save, restore and drop routes come with prompt 58 slice b4 and will call ProbeMotion's record API, which calls this codec and these checks.",
+      "console": [
+        {
+          "command": "record",
+          "entry": "decodeRecord",
+          "implementation": [
+            "examples/common/ProbeMotion.cpp"
+          ],
+          "api": "ProbeMotion::loadRecord/showRecord/useRecord/dropRecord; RecordStore save/restore",
+          "dispatch": "ProbeMotion::loadRecord",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleRecords.cpp",
+            "function": "ProbeConsole::dispatchRecord"
+          }
+        }
+      ],
       "python_scenarios": [],
       "python_api_only_reason": "No named device campaign claims this lower-level representation/validation boundary. Native behavioral tests exercise it without serial I/O."
     },

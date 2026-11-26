@@ -6,8 +6,9 @@ same sources. Typed device and motion routes use the existing application/owner
 and concrete per-axis session. No route grants missing device evidence.
 
 Commands accept printable ASCII and TAB, with CR, LF or CRLF ending a line.
-There are at most 255 text bytes and 24 command tokens, plus an optional `@ID`
-prefix. An ID is decimal 1..4294967295 without a sign. Invalid, truncated,
+There are at most 831 text bytes (`CONSOLE_LINE_CAPACITY` 832 with its NUL; 255
+before prompt 58) and 24 command tokens, plus an optional `@ID` prefix. After
+`record load` the rest of the line is one token, kept byte for byte. An ID is decimal 1..4294967295 without a sign. Invalid, truncated,
 overlong or overflow-damaged lines are discarded whole before dispatch. A separate
 loss latch remains effective after the diagnostic drop counter saturates.
 No quoting or shell escape syntax exists. Exact values use the public
@@ -703,3 +704,37 @@ for any setting or reading. The S2 console script
 with the controller closed for a real image (`s2_console.py --script`). These are
 host results; no route here has a hardware result, and the board's TWAI status and
 counter values are unmeasured.
+
+## Measured records (prompt 58)
+
+`record` acts on the selected attached axis (or the sole attachment) through
+ProbeMotion's record API only (`loadRecord`, `showRecord`, `useRecord`,
+`dropRecord`); the console holds no record and names no record storage, which
+`scripts/check_repository.py` enforces. It is `HOST_CONFIGURATION` with an
+immediate reply, from the same inventory in the native fake, Arduino and IDF
+builds. No route sends a frame, enables or moves; the record format is the
+[Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h) file comment.
+`SLOT` is `enable`, `absolute`, `relative` or `velocity`.
+
+| Grammar | API | Reply |
+| --- | --- | --- |
+| `record load LINE` | `ProbeMotion::loadRecord` (decodeRecord) | `action`, `slot` (the record's own), `state:"loaded"`, `record_id` (8 hex digits, the CRC). A line decodeRecord refuses answers `error:"record_<reason>"` (`record_crc`, `record_missing_key`, `record_limit` and the other RecordError names in lower case) with `key`, the offending field |
+| `record show SLOT` | `showRecord`, `encodeRecord` | `state` (`loaded`, `bound`, `invalidated`), `record_id`, `kind`, `axis_id`, `bound` (`binding_generation`, `configuration_generation`, `node_generation`, `controller_epoch`, `bound_us`, or `null`), `line_bytes`, `line_parts`; then `line_parts` records of `type:"record_line"` with `part`, `parts` and `text`, at most 320 line bytes each so that every record stays within 511 bytes, whose texts concatenate to the canonical line |
+| `record use SLOT` | `useRecord` | `state:"bound"`; it binds the current generations and sends nothing |
+| `record drop SLOT` | `dropRecord` | `state:"empty"` |
+| `record save SLOT` | `showRecord`, `encodeRecord`, the application's `RecordStore::save` | The record's `state`; the store keeps the canonical line under `r<axis>s<slot>` |
+| `record restore SLOT` | `RecordStore::restore`, `decodeRecord`, `loadRecord` | `state:"loaded"`: a restored record is never bound |
+
+Errors: `invalid_arguments` (grammar), `axis_id_of_an_attached_axis_required`,
+`record_slot_empty`, `record_output_busy` (a `show` still printing its parts, or a
+`help` listing), `no_record_storage` (no store attached), `record_not_stored`,
+`record_store_too_large`, `record_store_failed`, `record_slot_mismatch` (a stored
+line of another slot), and ProbeMotion's own refusals as their message (an
+occupied slot, another model, a stale axis). `save` and `restore` run only on their
+command: nothing is saved on load or use, and nothing is restored at construction,
+boot, selection or recovery. The stores are examples: `FileRecordStore` (native,
+`native_probe --console-fake FILE --record-dir DIRECTORY`), and `EspRecordStore`,
+ESP-IDF NVS in the IDF build and Arduino Preferences in the Arduino build, both in
+the NVS namespace `mcc_records` and attached by `EspProbeMain`. A request against a
+bound record and its refusals are the motion routes' own (`velocity`, `moveby`,
+`moveto`, `enable`); `RecordCheckError` is their `detail`.

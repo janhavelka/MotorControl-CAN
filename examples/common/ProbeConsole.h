@@ -11,6 +11,7 @@
 #include "ProbeMotion.h"
 #include "ProbeSettings.h"
 #include "ProbeSync.h"
+#include "RecordStore.h"
 
 namespace MotorControlCANExample {
 /** Effect classification used by this inventory and later device routes. */
@@ -43,9 +44,12 @@ struct ConsoleCommand {
 };
 /** @param count Receives finite row count. @return Static immutable inventory. */
 const ConsoleCommand* consoleCommands(size_t& count) noexcept;
+/** Console input line bytes, the NUL included (prompt 58): room for `@ID record load ` and the longest
+ * record line (LICHUAN_C::RECORD_TEXT_CAPACITY), so 831 text bytes. It was 256 before prompt 58. */
+constexpr size_t CONSOLE_LINE_CAPACITY = MotorControlCAN::LICHUAN_C::RECORD_TEXT_CAPACITY + 64;
 /** Whole-line pure parse result. Token pointers refer into owned text below. */
 struct ConsoleLine {
-    char text[256] = {};       ///< Owned ASCII text; at most 255 bytes before terminator.
+    char text[CONSOLE_LINE_CAPACITY] = {}; ///< Owned ASCII text; at most CONSOLE_LINE_CAPACITY - 1 bytes.
     uint16_t offsets[24] = {}; ///< Up to 24 tokens, excluding the correlation prefix.
     uint8_t count = 0;         ///< Actual command token count.
     bool json = false;         ///< True only for strict nonzero correlation prefix.
@@ -54,8 +58,10 @@ struct ConsoleLine {
     const char* token(size_t n) const noexcept { return n < count ? text + offsets[n] : ""; }
 };
 /** Parse a complete borrowed span, without newline, I/O or application mutation.
- * Printable ASCII and TAB only; no quotes/escapes, NUL, trailing CR or truncation.
- * @param bytes Nonnull span of size bytes. @param size 1..255 bytes.
+ * Printable ASCII and TAB only; no quotes/escapes, NUL, trailing CR or truncation. After the tokens
+ * `record load`, the rest of the line, from its first non-separator byte to the end, is one token kept
+ * exactly as received, spaces included: the record line's CRC covers those bytes.
+ * @param bytes Nonnull span of size bytes. @param size 1..CONSOLE_LINE_CAPACITY - 1 bytes.
  * @param output Owned candidate, unchanged on failure. @return Local parsing status.
  */
 MotorControlCAN::Status parseConsoleLine(const char* bytes, size_t size,
@@ -121,7 +127,7 @@ struct ConsoleStats {
 class ProbeConsole {
   public:
     enum {
-        LINE_CAPACITY = 256,    ///< Includes NUL; at most 255 input text bytes.
+        LINE_CAPACITY = int(CONSOLE_LINE_CAPACITY), ///< Includes NUL; at most 831 input text bytes.
         TOKEN_CAPACITY = 24,    ///< Command tokens excluding optional correlation prefix.
         RECORD_CAPACITY = 512,  ///< Includes NUL; at most 511 record bytes including newline.
         ORDINARY_REPLIES = 2,   ///< Complete ordinary records; no partial overwrite.
@@ -212,6 +218,18 @@ class ProbeConsole {
         bus_ = source;
         return true;
     }
+    /** Borrow the application's record line storage for `record save` and `record restore` (prompt 58);
+     * nothing is read or written here, and nothing is ever restored without that explicit command.
+     * Without one both commands answer `no_record_storage`.
+     * @param store Hook functions and their context, all outliving this console.
+     * @return False unchanged for a missing function or a replacement attachment. */
+    bool attachRecordStore(const RecordStore& store) noexcept {
+        if (!store.save || !store.restore ||
+            (recordStore_.save && (recordStore_.save != store.save || recordStore_.context != store.context)))
+            return false;
+        recordStore_ = store;
+        return true;
+    }
     /** Withdraw the selected attachment, or the sole attachment when none is selected.
      * No traffic; the attachment's own results and native contexts stay as they are.
      * @return False unchanged while its console correlation is retained or selection is ambiguous. */
@@ -280,6 +298,16 @@ class ProbeConsole {
     ProbeCommissioning* commissioning_ = nullptr;
     uint32_t persistenceAttempts_ = 0; ///< Cumulative self-prepared save/restore commands of this object.
     ConsoleBusSource bus_;
+    RecordStore recordStore_;
+    /** `record show`'s canonical line, emitted after its reply as record_line parts of at most
+     * RECORD_LINE_PART bytes, each a complete record; save and restore use the same buffer. */
+    struct RecordLine {
+        bool active = false, json = false;
+        uint32_t id = 0;
+        uint8_t slot = 0, part = 0, parts = 0;
+        uint16_t length = 0;
+        char text[MotorControlCAN::LICHUAN_C::RECORD_TEXT_CAPACITY + 1] = {};
+    } recordLine_;
     struct MotionAttachment {
         ProbeMotion* motion = nullptr;
         SimpleMoveIntent intent;
@@ -328,6 +356,8 @@ class ProbeConsole {
     void dispatch(const ConsoleLine& line, uint64_t now) noexcept;
     void dispatchLocal(const ConsoleLine& line, uint64_t now, size_t index) noexcept;
     void dispatchLink(const ConsoleLine& line, uint64_t now) noexcept;
+    void dispatchRecord(const ConsoleLine& line, uint64_t now) noexcept;
+    void recordLineNext() noexcept;
     void error(uint32_t id, bool json, const char* command, const char* reason,
                bool control = false,
                MotorControlCAN::Err code = MotorControlCAN::Err::ILLEGAL_VALUE,

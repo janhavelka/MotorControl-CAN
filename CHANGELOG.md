@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Console record routes and storage hooks (prompt 58, slice b4, 2026-11-26)
+
+- Console `record load LINE | record show|use|drop|save|restore SLOT` (enable, absolute, relative, velocity) on
+  the selected axis, through ProbeMotion's record API only (`check_repository.py` refuses a console source that
+  names record storage). `show` prints the state, binding generations and the canonical line in `record_line`
+  parts of at most 320 bytes, so every JSONL record stays within 511 bytes. Load refusals name decodeRecord's
+  reason and key. Nothing sends a frame, enables or moves.
+- **Changed:** the console input line holds 831 text bytes (`CONSOLE_LINE_CAPACITY` 832, was 256), enough for
+  `@ID record load` and the longest record line; after `record load` the rest of the line is one token. RAM on
+  the host build: `ProbeConsole` grows by about 1.4 KB (576 more line bytes, a 769-byte record line buffer and
+  the store hook), `BenchConsole` by 576 line bytes, and each `ConsoleLine` (on the stack of `feed`) by 576;
+  estimated, not measured on a board.
+- Storage hooks in the examples: `RecordStore` (save and restore one slot's canonical line, bounded buffer,
+  explicit status), `FileRecordStore` (native; `native_probe --record-dir DIRECTORY`) and `EspRecordStore`
+  (ESP-IDF NVS, Arduino Preferences), attached by `EspProbeMain`. `save` and `restore` run only on their
+  command; a restored line is decoded and validated like `load` and stays LOADED, never bound. The IDF builds
+  now require `nvs_flash`.
+
 ### Measured records through the session API (prompt 58, slice b3, 2026-11-26)
 
 - `ProbeMotion::attachRecords`, `loadRecord` (a record line or a record built in code), `useRecord`, `showRecord`

@@ -329,15 +329,12 @@ M::Status ProbeMotion::setStopPrerequisites(const L::ReadContext& state,
     stopPolicy_ = policy;
     return M::Ok();
 }
-namespace {
-// The slot a valid record fills: its kind, and for a position record its move.
-RecordSlot slotOf(const L::MeasuredRecord& record) {
+RecordSlot recordSlotOf(const L::MeasuredRecord& record) noexcept {
     return record.kind == L::RecordKind::ENABLE     ? RecordSlot::ENABLE
            : record.kind == L::RecordKind::VELOCITY ? RecordSlot::VELOCITY
            : record.position.move == L::RecordMoveKind::RELATIVE ? RecordSlot::POSITION_RELATIVE
                                                                  : RecordSlot::POSITION_ABSOLUTE;
 }
-} // namespace
 bool ProbeMotion::recordCurrent(const RecordEntry& entry) const noexcept {
     // The node generation as the owner sees it: a boot-up advances it there before any application
     // follows it into its live target.
@@ -377,7 +374,7 @@ M::Status ProbeMotion::store(const L::MeasuredRecord& record, RecordSlot& slot) 
     const M::Status s = L::recordId(id, record);
     if (!s)
         return s;
-    const RecordSlot filled = slotOf(record);
+    const RecordSlot filled = recordSlotOf(record);
     RecordEntry& entry = records_->slots[unsigned(filled)];
     if (entry.loaded)
         return refused(M::ActionError::STATE, "that record slot is occupied: drop it first");

@@ -218,10 +218,10 @@ struct Rig {
         for (unsigned i = 0; i < turns; ++i)
             turn();
     }
-    std::string command(const std::string& text) {
+    std::string command(const std::string& text, unsigned turns = 1000) {
         const size_t start = bytes.output.size();
         line(text);
-        drain();
+        drain(turns);
         return bytes.output.substr(start);
     }
     void finishRead() {
@@ -256,9 +256,9 @@ void wholeLineParser() {
     saved.unchanged(line);
     CHECK(!E::parseConsoleLine(nullptr, 1, line));
     saved.unchanged(line);
-    std::string maximum(255, 'x');
+    std::string maximum(E::CONSOLE_LINE_CAPACITY - 1, 'x');
     CHECK(E::parseConsoleLine(maximum.data(), maximum.size(), line));
-    CHECK(line.count == 1 && std::strlen(line.token(0)) == 255);
+    CHECK(line.count == 1 && std::strlen(line.token(0)) == E::CONSOLE_LINE_CAPACITY - 1);
     maximum += 'x';
     const Saved<E::ConsoleLine> boundary(line);
     CHECK(!E::parseConsoleLine(maximum.data(), maximum.size(), line));
@@ -321,7 +321,7 @@ void passiveRoutesAndGrammar() {
                              "wiring do0 connected",
                              "wiring do2 unknown"};
     for (size_t i = 0; i < sizeof passive / sizeof passive[0]; ++i)
-        reply(rig.command(std::string("@10 ") + passive[i]), true);
+        reply(rig.command(std::string("@10 ") + passive[i], 2000), true); // caps lists every row.
     CHECK(!rig.wire.fake.transmitCalls());
     const E::HostInterfaceFacts before = rig.app.hostInterfaceFacts();
     const char* invalid[] = {"reset",
@@ -565,7 +565,7 @@ void inputLossLatchPreservesBuffersAndCounters() {
 void damagedLinesNeverDispatch() {
     Rig rig;
     std::string overlong = "wiring di0 connected";
-    overlong.append(256, ' ');
+    overlong.append(E::CONSOLE_LINE_CAPACITY, ' ');
     rig.line(overlong);
     rig.line(std::string("wiring di0 connected\0", 21));
     rig.line("wiring di0 connected\x01");

@@ -423,6 +423,7 @@ configuration with the same UART0 pins.
 | CAN ingress/TX | Application-selected RX depth 1..16; SDO channels + 1 copied TX slots (three by default), one active SDK frame |
 | SDO channels and sessions | `MOTORCONTROLCAN_SDO_CHANNELS`, default 2: one channel, reservation, urgent slot and `ProbeApp` session per axis route |
 | Owner turn | RX 8, TX 2, reports 8, starts 2, recovery poll 1 maximum |
+| Console line and records (prompt 58) | 832-byte input line with its NUL; one 769-byte record line buffer for `record show`, `save` and `restore`; `EspRecordStore` keeps one NVS string per axis and slot in the namespace `mcc_records` (Arduino: Preferences over the same NVS), written or read only on `record save` or `record restore`; nothing restored at boot. Sizes are host estimates |
 | Diagnostics | Existing 24 copied owner records; no second authoritative receive path |
 | Acquisition history | One retained record: up to 15 full terminals / 64 traffic copies, initial/final owner counters/resources and observed service gaps; loss interrupts acquisition |
 | Smoke check | One 240-byte pending line; one read in flight; nine identity fields per node |

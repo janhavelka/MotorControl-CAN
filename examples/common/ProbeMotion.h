@@ -144,6 +144,10 @@ struct RecordEntry {
     MotorControlCAN::LICHUAN_C::MeasuredRecord record; ///< The decoded record, as loaded.
     RecordBinding binding;                             ///< The generations bound to, while bound.
 };
+/** The slot a valid record fills: its kind, and for a position record its move. Pure.
+ * @param record A record validateRecord admits; another kind maps to POSITION_ABSOLUTE.
+ * @return The record's slot. */
+RecordSlot recordSlotOf(const MotorControlCAN::LICHUAN_C::MeasuredRecord& record) noexcept;
 /** Caller-owned record storage of one axis, in RAM only: nothing saves or restores it, so an MCU restart
  * forgets every record and a fresh one starts EMPTY. About 1.3 KB on the host build (four 296-byte records
  * plus their bookkeeping), estimated, not measured on a board. Stationary while attached. */

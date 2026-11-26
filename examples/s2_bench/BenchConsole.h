@@ -147,7 +147,7 @@ struct BenchConsoleStorage {
 class BenchConsole {
   public:
     enum {
-        LINE_CAPACITY = ProbeConsole::LINE_CAPACITY, ///< With its NUL: at most 255 line bytes.
+        LINE_CAPACITY = ProbeConsole::LINE_CAPACITY, ///< With its NUL: at most 831 line bytes (prompt 58).
         REPLY_CAPACITY = 320, ///< With its NUL; main.cpp's one-shot response buffer is as large.
         NOTICE_CAPACITY = 192, ///< With its NUL: one arming notice.
         /** A console line still open this long after its `@` is dropped, as a T line is after 2 s. */
