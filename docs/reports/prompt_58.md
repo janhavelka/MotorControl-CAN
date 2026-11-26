@@ -1,6 +1,6 @@
 # Prompt 58 report: measured records through the library API and the console
 
-State: In progress; stage (a) complete, stage (b) next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a) and (b) complete, stage (c) review next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -134,6 +134,12 @@ refuses a record whose `2201` is not MEASURED. The committed velocity record the
 checks that refusal. Either a run on this identity reads `2201` in its own capture and a new record states it
 MEASURED, or the rule is relaxed by a reviewed decision. The position and enable records open their routes.
 
+Lead decision (2026-11-26): the rule stays. A gate fact a record opens must be MEASURED, so the velocity record is
+kept as committed, with `2201=1000` INFERRED, and opens nothing. The next measurement is an attended-experiment
+velocity run on this identity (6 to 40 rpm, 200 ms ramps) whose own capture reads `2201` before and after the run;
+it is read-only apart from the run itself, so COMMON's owner-absence rules allow it unattended. Prompt 66's hardware
+qualification owns that run; a new record states `2201` MEASURED only from it.
+
 Recount against the stage (a) evidence above: 687 identity read sets, not 648 (39 captures name no node; all
 identical); quick stops at 45 to 60 rpm did not all settle (above); the enable report arrived 0.702 to 0.749 s after
 word 15's acknowledgement in the 104 included runs. Not covered by any record: absolute moves, homing, mode 6,
@@ -152,3 +158,18 @@ dated note beside the change. Raw evidence (`docs/bench`) was not edited.
 | `docs/reports/2026-11-12_motion_capability_evidence.md`, `docs/reports/2026-11-10_bench_r8.md` | Velocity at 6, 30 and 60 rpm only (rounds 7 to 9) | Round 9 captures `20261110T1101Z-s20-c1-velocity-node1-1706` (15 rpm), `...-c2-velocity-node2-1726` (45), `...-c7-velocity-node1-1822` (15), `...-c10-velocity-node1-1882` (45), `...-c11-velocity-node2-1902` (15), `TRIAL_PLAN` line 4 | 6, 15, 30, 45 and 60 rpm |
 | `docs/reports/2026-11-12_night_soak.md` | 308 completed moves | `docs/bench/20261111-night/results.jsonl` `kind: arrival` rows: 195 with `route: move` (152 exact, 22 at +1, 21 at -1) and 113 with `route: position` (86, 23, 4) | 308 arrivals: 195 library moves and 113 raw `position` route moves |
 | No repository document outside `docs/bench` | (`results.jsonl` `last` read as a final state) | `docs/bench/20261111-night/tools/night.py:179-184` takes the last `TRIAL_LAST passed=1` line, which for the library routes is the admission read: `results.jsonl:1` `last` `0011/8050` while its capture's word 15 reported `8437/0001` | Recorded here only: `last` is the admission report for `enable`, `move` and `velocity` rows, the final read for the raw `position` route |
+
+## Stage (b) commits and checks (2026-11-26)
+
+| Slice | Commit | Checks |
+| --- | --- | --- |
+| b1 record codec | `ac6119e2` | CI 45715301122 failed on test-only compiler warnings (clang `-Wstring-plus-int`, gcc 13 `-Wformat-truncation` in `records_test.cpp`); fixed in `9a47bd9b` |
+| b2 record checks and evidence builders | `9272f3f5`, fix `9a47bd9b` | CI 45720671246 succeeded on `9a47bd9b` (covers b1 and b2) |
+| b3 record load, show, use, drop through `ProbeMotion` | `5bad53e5` | `verify.py --mode full` on a clean worktree: 177 of 177 tests, build, registration, package; strict Doxygen in a worktree outside `.build` (39 headers); CI 45726261736 succeeded |
+| b4 console `record` commands and storage hooks | `8c9c35b5` | Full verify on a clean worktree: 178 of 178 tests, package; strict Doxygen (39 headers); `check_firmware.py --target all` by the implementer; CI 45731593420 succeeded |
+| b5 reviewed records, notes, guides, summary corrections | `f5d129f7` | Full verify on a clean worktree: 179 of 179 tests, build, registration, package; `check_promptset.py --check-git-ref HEAD`, `check_lichuan_operations.py`, `test/package_test.py`; strict Doxygen (39 headers). CI is checked on the pushed commit |
+
+A worktree under `.build` extracts nothing in Doxygen (the Doxyfile excludes `*/MotorControl-CAN/.build/*`), so the
+full mode's documentation step there fails vacuously; Doxygen ran in a worktree outside it instead. Locally,
+`planning_validator_contract` fails only in the main checkout, where the held untracked maxon files add 23 hashed
+artifacts; it passes on every clean worktree.
