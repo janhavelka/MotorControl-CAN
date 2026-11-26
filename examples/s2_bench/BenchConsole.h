@@ -131,9 +131,18 @@ struct BenchAxis {
      * ATTENDED_EXPERIMENT change prerequisites, scoped to that fresh arming trial/firmware;
      * every ordinary rearming closes both change kinds. No feedback relation is invented. */
     ProbeMotion motion;
+    /** This node's measured record slots (prompt 58), attached to motion at construction: the console's
+     * `record` commands load and bind them while this node is the attached axis, and a bound record then
+     * narrows the arming's move or velocity prerequisites (ProbeMotion::requestMove, requestVelocity). RAM
+     * only, empty after every restart: sizeof(AxisRecords), 1408 bytes per node in the S2 build (GCC 14.2,
+     * xtensa-esp32s2, the same as the host build), placed with the node's BenchAxis block on its first
+     * arming; a compile-time size, not a heap measurement on a board. */
+    AxisRecords records;
     /** @param firmware The assembly. @param session The route's session of this node, attached to it. */
     BenchAxis(FirmwareProbe& firmware, AxisSession& session) noexcept
-        : motion(firmware.app(), firmware.owner(), session, target, axis, reference) {}
+        : motion(firmware.app(), firmware.owner(), session, target, axis, reference) {
+        motion.attachRecords(records);
+    }
     BenchAxis(const BenchAxis&) = delete;            ///< ProbeMotion borrows the members.
     BenchAxis& operator=(const BenchAxis&) = delete; ///< ProbeMotion borrows the members.
 };
@@ -187,6 +196,12 @@ class BenchConsole {
      * @param node 1 or 2, with an attached axis. @param commissioning Stationary, over that axis's session
      * and target. @return False for an invalid node, no axis there, a second helper or another owner graph. */
     bool attachCommissioning(unsigned node, ProbeCommissioning& commissioning) noexcept;
+    /** Borrow the application's record line storage for the console's `record save` and `record restore`
+     * (prompt 58; ProbeConsole::attachRecordStore). main.cpp attaches the ESP-IDF NVS store; attaching
+     * touches no flash, and nothing is saved or restored without that explicit command.
+     * @param store Hook functions and their context, outliving this object.
+     * @return False unchanged for a missing function or a replacement attachment. */
+    bool attachRecordStore(const RecordStore& store) noexcept { return console_.attachRecordStore(store); }
     /** Take one input byte; the first byte of a line must be `@`.
      * @param byte Input byte. @param nowUs Supplied platform time.
      * @param bench The bench's activity, judged when the line ends.

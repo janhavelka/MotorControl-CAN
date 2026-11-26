@@ -65,8 +65,12 @@ inline bool recordStoreKey(uint32_t axisId, RecordSlot slot, char* key, size_t c
     return true;
 }
 /** Native implementation: one file per key, `<directory>/<key>.txt`, holding the line without a line
- * ending. A save writes `<key>.tmp` and renames it over the old file, so an interrupted save leaves the
- * old line or the new one; the medium's own durability is not claimed. Stationary while attached. */
+ * ending. A save writes and closes `<key>.tmp`, removes `<key>.txt` (a Windows rename refuses an existing
+ * destination, so this is done on every platform) and renames the new file into place. An interruption
+ * before the removal leaves the old line; between the removal and the rename it leaves no `<key>.txt` and
+ * the complete new line in `<key>.tmp`, so restore reports NOT_FOUND until the next save (renaming the file
+ * recovers it); after the rename, the new line. The medium's own durability is not claimed. Stationary
+ * while attached. */
 class FileRecordStore {
   public:
     /** @param directory Borrowed existing directory path, at most PATH_CAPACITY - 24 characters;

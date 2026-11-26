@@ -302,6 +302,11 @@ void boundRecordLimitsAndOpensVelocity() {
     CHECK(native && L::recordId(id, velocityRecord()) && native->evidence.record == id &&
           native->evidence.gate == L::VelocityGate::MEASURED && native->evidence.maximumForwardRpm == 60);
     CHECK(r.motion.normalResult().record == id && !r.motion.normalResult().attendedExperiment);
+    // A run under the record admits no rate change, refused before any TX: no record measured one.
+    unsigned running = r.wire.sentCount;
+    s = r.motion.requestVelocityChange(r.motion.normalResult().id, r.run(30).velocity, r.now);
+    CHECK(!s && s.detail == int32_t(M::ActionError::STATE) && std::strstr(s.msg, "admits no change") &&
+          r.wire.sentCount == running && !r.motion.nativeVelocity()->change.present);
     r.finish();
     CHECK(r.motion.normalResult().kind == E::MotionKind::VELOCITY &&
           r.motion.normalResult().state == M::ActionState::SUCCEEDED);
@@ -471,6 +476,10 @@ void attendedTrialTakesPrecedence() {
         const L::VelocityContext* native = r.motion.nativeVelocity();
         CHECK(native && native->evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && native->evidence.record == 901);
         CHECK(r.motion.normalResult().attendedExperiment && !r.motion.normalResult().record);
+        // The attended run's change keeps its own gate: refused here for its missing change evidence,
+        // never for the bound record.
+        const M::Status change = r.motion.requestVelocityChange(r.motion.normalResult().id, r.run(20).velocity, r.now);
+        CHECK(!std::strstr(change.msg, "admits no change"));
         r.finish();
         CHECK(r.writes(0x60ff, 30) == 1 && r.motion.normalResult().attendedExperiment);
         E::RecordView view;

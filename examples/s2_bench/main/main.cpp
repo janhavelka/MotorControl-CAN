@@ -7,6 +7,7 @@
 #include "DiscoveryBench.h"
 #include "EspProbeMain.h"
 #include "EspProbePlatform.h"
+#include "EspRecordStore.h"
 #include "EspTransceiverPin.h"
 #include "FirmwareProbe.h"
 #include "IdfTwaiDriver.h"
@@ -1014,6 +1015,10 @@ E::BenchConsole* consoleStorage(E::FirmwareProbe& firmware, C::SdoClient& servic
         return nullptr;
     }
     console = new (memory) E::BenchConsole(firmware, services, storage);
+    // Prompt 58: record lines in NVS, on `record save` and `record restore` only; attaching touches no
+    // flash and nothing is restored at boot.
+    static E::EspRecordStore recordStore;
+    console->attachRecordStore(recordStore.store());
     return console;
 }
 // One record line per turn, only when it fits the output queue whole.

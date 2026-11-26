@@ -508,6 +508,10 @@ M::Status ProbeMotion::requestMoveReplacement(uint32_t id, const L::MoveReplacem
         normal_.state != M::ActionState::ACTIVE || !nativeMove() || originalMove_.id ||
         nextId_ == UINT32_MAX || session_.stopActive())
         return refused(M::ActionError::STATE, "replacement ID is not an unused active move");
+    // A move under a bound measured record admits no replacement: the records measured none (prompt 58).
+    if (normal_.record)
+        return refused(M::ActionError::STATE,
+                       "a move under a measured record admits no change; the record measured none");
     const M::Status status = session_.requestMoveReplacement(
         request, moveReplacementEvidence_, moveFeedbackPresent_ ? &moveFeedback_ : nullptr, now);
     if (!status)
@@ -576,6 +580,10 @@ M::Status ProbeMotion::requestVelocityChange(uint32_t id, const M::VelocityReque
     if (!id || normal_.id != id || normal_.kind != MotionKind::VELOCITY ||
         normal_.state != M::ActionState::ACTIVE || !nativeVelocity() || session_.stopActive())
         return refused(M::ActionError::STATE, "velocity change ID is not this active velocity run");
+    // A run under a bound measured record admits no rate change: the records measured none (prompt 58).
+    if (normal_.record)
+        return refused(M::ActionError::STATE,
+                       "a run under a measured record admits no change; the record measured none");
     const M::Status status = session_.requestVelocityChange(request, velocityChangeEvidence_, now);
     if (status) {
         lastUs_ = now;
@@ -646,7 +654,7 @@ M::Status ProbeMotion::issueAction(MotionKind kind, uint8_t modeRaw, uint64_t no
                                             session_.nextOperation());
         if (checked && record)
             checked = L::checkRecordEnable(*record, evidence, options, regular ? *actionState_ : *enableState_,
-                                           current_, now);
+                                           regular ? *actionIdentity_ : *enableIdentity_, current_, now);
         if (!checked)
             return checked;
         const M::Status status = regular ? session_.requestEnable(*actionState_, *actionIdentity_, evidence,

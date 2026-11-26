@@ -608,30 +608,43 @@ void enableChecks() {
     f.readState(latched, 0x4050, 0x0014, 1);
     f.readState(enabled, 0x0437, 0x0001, 1);
     const uint64_t now = 400;
-    CHECK(L::checkRecordEnable(record, evidence, options, powerUp, f.target, now));
-    CHECK(L::checkRecordEnable(record, evidence, options, latched, f.target, now));
-    refused(L::checkRecordEnable(record, evidence, options, enabled, f.target, now), E::START,
+    CHECK(L::checkRecordEnable(record, evidence, options, powerUp, f.identity, f.target, now));
+    CHECK(L::checkRecordEnable(record, evidence, options, latched, f.identity, f.target, now));
+    refused(L::checkRecordEnable(record, evidence, options, enabled, f.identity, f.target, now), E::START,
             M::Err::UNSUPPORTED);
     L::ReadContext mode3;
     f.readState(mode3, 0x8437, 0x0001, 3);
-    refused(L::checkRecordEnable(record, evidence, options, mode3, f.target, now), E::MODE, M::Err::UNSUPPORTED);
+    refused(L::checkRecordEnable(record, evidence, options, mode3, f.identity, f.target, now), E::MODE,
+            M::Err::UNSUPPORTED);
     L::ActionOptions bare = options;
     bare.identityReference = L::IdentityReference();
-    refused(L::checkRecordEnable(record, evidence, bare, powerUp, f.target, now), E::EVIDENCE,
+    refused(L::checkRecordEnable(record, evidence, bare, powerUp, f.identity, f.target, now), E::EVIDENCE,
             M::Err::INVALID_CONFIG);
     L::ActionOptions otherSpecimen = options;
     otherSpecimen.identityReference.values.revision = 7;
-    refused(L::checkRecordEnable(record, evidence, otherSpecimen, powerUp, f.target, now), E::EVIDENCE,
+    refused(L::checkRecordEnable(record, evidence, otherSpecimen, powerUp, f.identity, f.target, now), E::EVIDENCE,
             M::Err::INVALID_CONFIG);
     L::EnableEvidence attended = evidence;
     attended.gate = L::EnableGate::ATTENDED_EXPERIMENT;
-    refused(L::checkRecordEnable(record, attended, options, powerUp, f.target, now), E::EVIDENCE,
+    refused(L::checkRecordEnable(record, attended, options, powerUp, f.identity, f.target, now), E::EVIDENCE,
             M::Err::INVALID_CONFIG);
     L::ActionOptions young = options;
     young.maximumAgeUs = 10;
-    refused(L::checkRecordEnable(record, evidence, young, powerUp, f.target, 5000), E::STATE,
+    refused(L::checkRecordEnable(record, evidence, young, powerUp, f.identity, f.target, 5000), E::STATE,
             M::Err::INVALID_CONFIG);
-    refused(L::checkRecordEnable(velocityRecord(), evidence, options, powerUp, f.target, now), E::KIND,
+    refused(L::checkRecordEnable(velocityRecord(), evidence, options, powerUp, f.identity, f.target, now), E::KIND,
+            M::Err::INVALID_CONFIG);
+
+    // The evidence a record builds names the record's identity; evidence without it is not the record's.
+    L::EnableEvidence plain = evidence;
+    plain.recordIdentity = L::IdentityReference();
+    refused(L::checkRecordEnable(record, plain, options, powerUp, f.identity, f.target, now), E::EVIDENCE,
+            M::Err::INVALID_CONFIG);
+    CHECK(evidence.recordIdentity.present && evidence.recordIdentity.values.modelCode == record.identity.modelCode);
+    // An identity read of another target is not current: refused before the start report.
+    L::IdentityObservation stale = f.identity;
+    stale.target.nodeGeneration = 12;
+    refused(L::checkRecordEnable(record, evidence, options, powerUp, stale, f.target, now), E::IDENTITY,
             M::Err::INVALID_CONFIG);
 
     // A record stating mode 6 passes its own check, and prepareEnable still refuses a MEASURED enable
@@ -643,7 +656,7 @@ void enableChecks() {
     CHECK(L::makeEnableEvidence(mode6, mode6Options.identityReference, homing, 42));
     L::ReadContext inMode6;
     f.readState(inMode6, 0x8437, 0x0001, 6);
-    CHECK(L::checkRecordEnable(homing, mode6, mode6Options, inMode6, f.target, now));
+    CHECK(L::checkRecordEnable(homing, mode6, mode6Options, inMode6, f.identity, f.target, now));
     static L::ActionContext output;
     const M::Status s = L::validateEnable(output, f.live, inMode6, f.identity, mode6, 42, now,
                                           now + 10000000, mode6Options);
@@ -651,6 +664,91 @@ void enableChecks() {
     CHECK(std::strstr(s.msg, "mode 1 only"));
     // The mode 1 record's own evidence passes that same library check's gate rules.
     CHECK(L::validateEnable(output, f.live, powerUp, f.identity, evidence, 42, now, now + 10000000, options));
+}
+
+// The prompt 57 identity policy against a loaded record's own identity (stage (c) fix): product fields refuse,
+// a firmware difference is flagged against the record, not against measuredIdentity(), both ways round.
+L::IdentityObservation observed(const Fixture& f, const L::IdentityValues& i) {
+    L::IdentityObservation o = f.identity;
+    o.deviceType = i.deviceType;
+    o.hardwareVersion = i.hardwareVersion;
+    o.softwareVersion = i.softwareVersion;
+    o.vendorId = i.vendorId;
+    o.productCode = i.productCode;
+    o.revision = i.revision;
+    o.modelCode = i.modelCode;
+    o.firmwareCode = i.firmwareCode;
+    return o;
+}
+// Prepare the record's enable on a power-up report with this identity observation.
+M::Status prepared(const Fixture& f, const L::MeasuredRecord& record, const L::IdentityObservation& identity,
+                   L::ActionContext& output) {
+    L::EnableEvidence evidence;
+    L::ActionOptions options;
+    options.service.queueTimeoutUs = options.service.responseTimeoutUs = 100;
+    options.observationIntervalUs = 1000;
+    options.maximumAgeUs = 1000000;
+    options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    CHECK(L::makeEnableEvidence(evidence, options.identityReference, record, 42));
+    L::ReadContext powerUp;
+    f.readState(powerUp, 0x8437, 0x0001, 1);
+    const uint64_t now = 400;
+    const M::Status checked = L::checkRecordEnable(record, evidence, options, powerUp, identity, f.target, now);
+    if (!checked)
+        return checked;
+    return L::prepareEnable(output, f.live, powerUp, identity, evidence, 42, now, now + 10000000, options);
+}
+void enableIdentityAgainstTheRecord() {
+    const Fixture f;
+    static L::ActionContext output;
+    // A record made on another firmware of the same product (not the built-in measuredIdentity()).
+    L::MeasuredRecord other = enableRecord();
+    other.identity.softwareVersion = 0x0021;
+    other.identity.firmwareCode = 0x0300;
+    // The drive reads the record's own firmware: confirmed and not flagged, although it differs from
+    // measuredIdentity(). Before the fix it was flagged against measuredIdentity().
+    CHECK(prepared(f, other, observed(f, other.identity), output));
+    CHECK(output.enable.identity.outcome == L::IdentityOutcome::CONFIRMED &&
+          !output.enable.identity.firmwareUnqualified &&
+          output.enable.identity.expected.firmwareCode == 0x0300);
+    // The drive reads measuredIdentity()'s firmware under that record: flagged against the record. Before
+    // the fix it passed unflagged, because it equals measuredIdentity().
+    CHECK(prepared(f, other, f.identity, output));
+    CHECK(output.enable.identity.outcome == L::IdentityOutcome::CONFIRMED &&
+          output.enable.identity.firmwareUnqualified && output.enable.identity.expected.firmwareCode == 0x0300 &&
+          output.enable.identity.observed.firmwareCode == L::measuredIdentity().firmwareCode);
+    // A record of another product (2000): the drive must read that product. The measured specimens' identity
+    // is refused before any TX, by the record check and by prepareEnable alike.
+    L::MeasuredRecord product = enableRecord();
+    product.identity.modelCode = 0x0500;
+    static const Saved<L::ActionContext> untouched(output);
+    refused(prepared(f, product, f.identity, output), E::IDENTITY, M::Err::UNSUPPORTED);
+    L::EnableEvidence evidence;
+    L::ActionOptions options;
+    options.service.queueTimeoutUs = options.service.responseTimeoutUs = 100;
+    options.observationIntervalUs = 1000;
+    options.maximumAgeUs = 1000000;
+    options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    CHECK(L::makeEnableEvidence(evidence, options.identityReference, product, 42));
+    L::ReadContext powerUp;
+    f.readState(powerUp, 0x8437, 0x0001, 1);
+    const M::Status library = L::prepareEnable(output, f.live, powerUp, f.identity, evidence, 42, 400, 10000400,
+                                               options);
+    CHECK(!library && library.code == M::Err::UNSUPPORTED && library.detail == int32_t(M::ActionError::TARGET));
+    CHECK(untouched.unchanged(output));
+    // A drive of that product is admitted under its record, although measuredIdentity() does not match it.
+    CHECK(prepared(f, product, observed(f, product.identity), output));
+    CHECK(output.enable.identity.outcome == L::IdentityOutcome::CONFIRMED &&
+          !output.enable.identity.firmwareUnqualified && output.enable.identity.expected.modelCode == 0x0500);
+    // Without a record the built-in reference is unchanged: measuredIdentity() and its firmware flag.
+    L::EnableEvidence regular;
+    regular.gate = L::EnableGate::MEASURED;
+    regular.operation = 42;
+    L::ActionOptions plain = options;
+    plain.identityReference = L::IdentityReference();
+    CHECK(L::prepareEnable(output, f.live, powerUp, observed(f, other.identity), regular, 42, 400, 10000400, plain));
+    CHECK(output.enable.identity.firmwareUnqualified &&
+          output.enable.identity.expected.firmwareCode == L::measuredIdentity().firmwareCode);
 }
 } // namespace
 
@@ -662,6 +760,7 @@ int main() {
     moveChecks();
     velocityChecks();
     enableChecks();
+    enableIdentityAgainstTheRecord();
     std::puts("record_checks_test passed");
     return 0;
 }

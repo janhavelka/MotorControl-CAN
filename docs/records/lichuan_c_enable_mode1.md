@@ -46,12 +46,41 @@ row), 4 on 2026-11-13, 56 on 2026-11-16 (`20261116-hil` 46, `20261116-p52` 9, `2
 
 | Trial | Node | Capture | `TRIAL_LAST` `6061` | Result | Ledger | Why excluded |
 | --- | --- | --- | --- | --- | --- | --- |
-| 103 | 1 | `docs/bench/20261103T0833Z-p3-node1/rx.txt` | 6: `01` | 7: state 3 outcome 8, start `8437/0001` | `docs/bench/20261103-campaign.jsonl:5,6` | 2026-11-03: word 6 cleared bit 10 and the enable, judging it out of scope, sent nothing more; the defect fixed in `e17271a` ([attended bench](../reports/2026-11-03_attended_bench.md), row 103) |
+| 103 | 1 | `docs/bench/20261103T0833Z-p3-node1/rx.txt` | 6: `01` | 7: state 3 outcome 8, start `8437/0001` | `docs/bench/20261103-campaign.jsonl:5,6` | 2026-11-03: word 6 cleared bit 10 and the enable, judging it out of scope, sent nothing more; the defect fixed in `e17271a` (on `main` as the tree-identical `6320892c`) ([attended bench](../reports/2026-11-03_attended_bench.md), row 103) |
 | 105 | 1 | `docs/bench/20261103T1004Z-p3-node1/rx.txt` | 6: `01` | 7: state 3 outcome 8, start `8031/0011` | `docs/bench/20261103-campaign.jsonl:9,10` | 2026-11-03: `6064` moved during the enable after the attendant's hand check, and the position rule stopped it before word 15 ([attended bench](../reports/2026-11-03_attended_bench.md), row 105); the only `8031/0011` start |
 | 52015 | 2 | `docs/bench/20261116-p52/37-enable-node2/rx.txt` | 6: `01` | no TRIAL_ENABLE; 7: TRIAL_STATUS code 1 detail 1; | `docs/bench/20261116-p52/velocity-campaign.jsonl:11,12` | refused before any write: "enable deadline does not cover three intervals and every scheduled service" (line 7), a plan error |
 
 `8031/0011` is not in the record: trial 105 is its only start and failed. It stays an inferred start
 ([drive actions](../drive_actions.md#enable-a-regular-measured-command-and-the-attended-trial)).
+
+## The S21 hazard of the `8050/0011` start
+
+Backlog S21 ([report](../reports/2026-11-13_enable_fault_state.md)): after an FF05 raised while running above the
+command-pulse ceiling at `2201=51200`, the drive enters a state in which every later enable reports `606C` 121 to
+256 rpm at word 7 with no command and raises FF05 about 0.5 s later; only a power cycle cleared it. In that state the
+start report is the ordinary released standstill `8050/0011`: nothing in the fresh `6041`/`2100` pair shows it.
+9 velocity enables on 2026-11-13 started from exactly `8050/0011` and failed at word 7 that way
+(`TRIAL_VELOCITY` state 3 outcome 8, `606C` nonzero in the `8033/0001` sample), 8 of them with an FF05 EMCY
+(`05ff81...`) later in the same capture. Stage (c) cited 8 (5679, 5733, 5835, 5901, 5942, 5951, 5965, 5976, FF05
+in 7); this scan also finds 5889, node 2 at 3000 rpm with 500 ms ramps, the same signature with its FF05.
+
+| Trial | Node | Capture | Plan | Start | Word 7 sample | Run | FF05 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 5679 | 1 | `docs/bench/20261113-ladder/packed/S0123-n1-P300.tar.xz!S0123-n1-P300/20261113T152158Z-velocity-halt-60-n1-5679/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 175 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5733 | 1 | `docs/bench/20261113-ladder/packed/S0136-n1-P300z.tar.xz!S0136-n1-P300z/20261113T152950Z-velocity-halt-60-n1-5733/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 175 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5835 | 1 | `docs/bench/20261113-ladder/packed/S0148-n1-L60.tar.xz!S0148-n1-L60/20261113T153949Z-velocity-halt-60-n1-5835/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 256 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5889 | 2 | `docs/bench/20261113-ladder/packed/S0161-n2-L3000.tar.xz!S0161-n2-L3000/20261113T154808Z-velocity-halt-3000-n2-5889/rx.txt` | 4: 3000 rpm, 500/500 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 255 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5901 | 2 | `docs/bench/20261113-ladder/packed/S0164-n2-L60.tar.xz!S0164-n2-L60/20261113T155005Z-velocity-halt-60-n2-5901/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 121 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5942 | 2 | `docs/bench/20261113-ladder/packed/S0176-n2-check.tar.xz!S0176-n2-check/20261113T162804Z-velocity-halt-60-n2-5942/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 256 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5951 | 2 | `docs/bench/20261113-ladder/packed/S0179-n2-check.tar.xz!S0179-n2-check/20261113T162956Z-velocity-halt-60-n2-5951/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 256 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5965 | 2 | `docs/bench/20261113-ladder/packed/S0183-n2-check.tar.xz!S0183-n2-check/20261113T164352Z-velocity-halt-60-n2-5965/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 256 | 9: state 3 outcome 8 | 168: `05ff81...` |
+| 5976 | 2 | `docs/bench/20261113-ladder/packed/S0186-n2-check.tar.xz!S0186-n2-check/20261113T164514Z-velocity-halt-60-n2-5976/rx.txt` | 4: 60 rpm, 1000/1000 ms, HALT | 12: `8050/0011` | 13: `8033/0001`, 606C 256 | 9: state 3 outcome 8 | none in the capture |
+
+The enable record keeps `8050/0011`: its 44 enables from that report all succeeded, and no mode 1 enable has run in
+the S21 state, so there is no mode 1 counterexample. But the hazard is the same report: the start report cannot
+detect the state, so a mode 1 enable from `8050/0011` after such an FF05 may move at word 7 exactly as these
+velocity enables did. The record does not guard against it. [Prompt 72](../prompts/72_enable_fault_guards.md) owns
+the word 7 guard and the mode 1 bench step in that state; until then the hazard stays open.
 
 ## Not covered
 

@@ -718,7 +718,7 @@ builds. No route sends a frame, enables or moves; the record format is the
 
 | Grammar | API | Reply |
 | --- | --- | --- |
-| `record load LINE` | `ProbeMotion::loadRecord` (decodeRecord) | `action`, `slot` (the record's own), `state:"loaded"`, `record_id` (8 hex digits, the CRC). A line decodeRecord refuses answers `error:"record_<reason>"` (`record_crc`, `record_missing_key`, `record_limit` and the other RecordError names in lower case) with `key`, the offending field |
+| `record load LINE` | `ProbeMotion::loadRecord` (decodeRecord) | `action`, `slot` (the record's own), `state:"loaded"`, `record_id` (8 hex digits: `recordId`, the CRC-32 of the record's canonical line as `encodeRecord` writes it, which differs from the loaded line's own `crc=` when that line orders its fields otherwise). A line decodeRecord refuses answers `error:"record_<reason>"` (`record_crc`, `record_missing_key`, `record_limit` and the other RecordError names in lower case) with `key`, the offending field |
 | `record show SLOT` | `showRecord`, `encodeRecord` | `state` (`loaded`, `bound`, `invalidated`), `record_id`, `kind`, `axis_id`, `bound` (`binding_generation`, `configuration_generation`, `node_generation`, `controller_epoch`, `bound_us`, or `null`), `line_bytes`, `line_parts`; then `line_parts` records of `type:"record_line"` with `part`, `parts` and `text`, at most 320 line bytes each so that every record stays within 511 bytes, whose texts concatenate to the canonical line |
 | `record use SLOT` | `useRecord` | `state:"bound"`; it binds the current generations and sends nothing |
 | `record drop SLOT` | `dropRecord` | `state:"empty"` |
@@ -735,13 +735,36 @@ command: nothing is saved on load or use, and nothing is restored at constructio
 boot, selection or recovery. The stores are examples: `FileRecordStore` (native,
 `native_probe --console-fake FILE --record-dir DIRECTORY`), and `EspRecordStore`,
 ESP-IDF NVS in the IDF build and Arduino Preferences in the Arduino build, both in
-the NVS namespace `mcc_records` and attached by `EspProbeMain`. A request against a
-bound record and its refusals are the motion routes' own (`velocity`, `moveby`,
-`moveto`, `enable`); `RecordCheckError` is their `detail`.
+the NVS namespace `mcc_records`; `restore` opens it read-only and answers
+`record_store_too_large` for a stored line that does not fit, in both builds.
+`EspProbeMain` attaches it, and the S2 bench console attaches the ESP-IDF NVS store.
+
+Which routes a bound record reaches depends on the console, because a record
+narrows prerequisites the application already named:
+
+- **Probe consoles** (`native_probe`, the Arduino and ESP-IDF probe images,
+  `SelectedAxis`): only the enable record affects a route. `enable` names its own
+  identity and state reads (`ProbeMotion::startAction`), so a bound enable record
+  narrows it. These consoles never name move or velocity prerequisites, so
+  `moveby`, `moveto` and `velocity` are refused for those missing prerequisites
+  before any record is consulted, and a bound position or velocity record changes
+  nothing there.
+- **S2 bench console**: each node's `BenchAxis` holds its own record slots (1408
+  bytes per node), and the arming routes (`Y`, `B`) name the move and velocity
+  prerequisites. A bound relative or absolute record then narrows the console's
+  `move`, `moveby` and `moveto` and refuses a request outside it before any TX; a
+  velocity arming the host marked attended runs as named, so only an unattended
+  velocity arming meets a bound velocity record.
+
+A bound record's refusals are the motion routes' own; `RecordCheckError` is their
+`detail`. A move or velocity run admitted under a bound record refuses
+`move speed`, `move ramps`, `move retarget` and `velocity change`
+before any TX (no record measured a change), while an attended-experiment run
+keeps its own change rules.
 
 The reviewed records are the one-line files in [docs/records](records/): `record load`
-followed by a file's line loads it, and `record use SLOT` binds it. The enable and
-relative position records open their regular routes; the velocity record loads and
-binds, but every `velocity` request under it is refused with
-`RecordCheckError::BASIS`, because its `2201` is INFERRED (see its review note).
-Homing has no record and no `record` slot.
+followed by a file's line loads it, and `record use SLOT` binds it. The enable
+record opens the regular `enable`, and the relative position record the bench
+console's armed relative moves; the velocity record loads and binds, but every
+`velocity` request under it is refused with `RecordCheckError::BASIS`, because its
+`2201` is INFERRED (see its review note). Homing has no record and no `record` slot.

@@ -303,7 +303,7 @@ enum class ShaftObservation : uint8_t {
     HOLDING ///< Resisted by hand: holding torque observed, which word 6 may then remove.
 };
 /** The caller's explicit evidence for one enable. Defaults are refused. Under EnableGate::MEASURED only
- * gate, modeRaw (1), operation and an optional expected start are consulted.
+ * gate, modeRaw (1), operation, an optional expected start and recordIdentity are consulted.
  * The reviewed values are read and compared, so they cannot go stale silently, but a match means only
  * that someone looked at these exact bits. No value is thereby called safe, known or intended. Both
  * targets need review whatever they read, zero included: an absolute target of zero is not a
@@ -331,6 +331,13 @@ struct EnableEvidence {
     uint16_t reviewedStatusword = 0;  ///< Exact 6041 at admission. Disputed bits are never interpreted.
     int32_t reviewedPositionTarget = 0; ///< Exact 607A read before any word. History, not intent.
     int32_t reviewedVelocityTarget = 0; ///< Exact 60FF read before any word. History, not intent.
+    /** MEASURED only, ignored under every other gate: the identity a loaded measured enable record
+     * (Records.h, prompt 58) was made on, as makeEnableEvidence fills it. Present, it replaces
+     * measuredIdentity() as the enable's reference: product fields (1000, 1018:01, 1018:02, 2000) that
+     * match neither it nor options.identityReference refuse, and EnableRecord::identity's
+     * firmwareUnqualified compares the firmware fields with it. Absent, the default: measuredIdentity(),
+     * on which the built-in record was made. */
+    IdentityReference recordIdentity;
 };
 /** One enable word's accepted observation, retained after later cycles replace the blocks. */
 struct EnableStepRecord {
@@ -345,8 +352,9 @@ struct EnableStepRecord {
 /** ENABLE history kept for inspection, including after failure. None of it is an interpretation. */
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
-    /** Frozen identity comparison of the admission against measuredIdentity(): CONFIRMED, both tuples,
-     * and firmwareUnqualified when the drive runs a firmware no reviewed enable record was made on. */
+    /** Frozen identity comparison of the admission against the enable's reference
+     * (evidence.recordIdentity when present under MEASURED, otherwise measuredIdentity()): CONFIRMED, both
+     * tuples, and firmwareUnqualified when the drive runs another firmware than that record was made on. */
     IdentityCheck identity;
     /** The start the sequence runs under: the caller's under ATTENDED_EXPERIMENT; under MEASURED the class
      * the fresh report showed, POWER_UP or RELEASED. UNKNOWN in every other context. */
@@ -899,11 +907,12 @@ bool alreadyEnabled(const AxisReservation& reservation, const ReadContext& state
  * word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C changing after word 15
  * fails with a status message telling the caller to stop the drive.
  * @param[in] identity Current identity read of this boot (checkIdentity), under either gate, compared
- * with measuredIdentity() and, when the application supplies one, options.identityReference, by the
+ * with the enable's reference (evidence.recordIdentity when present under MEASURED, otherwise
+ * measuredIdentity()) and, when the application supplies one, options.identityReference, by the
  * prompt 57 identity policy. No observation of this target, node generation and binding, or product
  * fields (1000, 1018:01, 1018:02, 2000) that match neither reference, return UNSUPPORTED with
  * ActionError::TARGET before any TX; no gate overrides it. Firmware fields (1009, 100A, 1018:03, 2001)
- * that differ from measuredIdentity() admit the enable and set
+ * that differ from the enable's reference admit the enable and set
  * output.enable.identity.firmwareUnqualified, with both tuples kept. The documented reference is
  * reported only (documentedMatch, outcome UNCONFIRMED): its 2000 default (1) is not what either
  * specimen reads (0x0400).

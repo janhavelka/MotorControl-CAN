@@ -960,14 +960,15 @@ void resetAction(ActionContext& c) noexcept {
 
 namespace {
 // The prompt 57 identity rule of enable, mode select and release: the product fields refuse, a firmware
-// difference only flags. The reference is the measured specimens' identity, on which every reviewed
-// enable record, mode write and release row was made.
+// difference only flags. The reference is the identity the operation's record was made on: the measured
+// specimens' identity, on which every built-in enable record, mode write and release row was made, or a
+// loaded enable record's own (EnableEvidence::recordIdentity, prompt 58).
 // The application's own MEASURED reference (ActionOptions::identityReference) also admits; a documented
 // match alone never does.
 Status actionIdentity(const AxisReservation& r, const IdentityObservation& identity, const ActionOptions& options,
-                      uint64_t now, IdentityCheck& check, const char* missing) {
-    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED,
-                       options.identityReference, now))
+                      const IdentityValues& expected, uint64_t now, IdentityCheck& check, const char* missing) {
+    if (!checkIdentity(check, identity, r.target, expected, IdentityBasis::MEASURED, options.identityReference,
+                       now))
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET), missing);
     if (check.outcome != IdentityOutcome::CONFIRMED)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::TARGET),
@@ -975,17 +976,23 @@ Status actionIdentity(const AxisReservation& r, const IdentityObservation& ident
                       "CL86-C identity and from the application's reference");
     return Ok();
 }
-Status enableIdentity(const AxisReservation& r, const IdentityObservation& identity, const ActionOptions& options,
-                      uint64_t now, IdentityCheck& check) {
-    return actionIdentity(r, identity, options, now, check, "enable needs a current identity read of this boot");
+// The enable's reference: a loaded record's identity under MEASURED, else the built-in record's.
+IdentityValues enableReference(const EnableEvidence& evidence) {
+    return evidence.gate == EnableGate::MEASURED && evidence.recordIdentity.present ? evidence.recordIdentity.values
+                                                                                    : measuredIdentity();
+}
+Status enableIdentity(const AxisReservation& r, const IdentityObservation& identity, const EnableEvidence& evidence,
+                      const ActionOptions& options, uint64_t now, IdentityCheck& check) {
+    return actionIdentity(r, identity, options, enableReference(evidence), now, check,
+                          "enable needs a current identity read of this boot");
 }
 // An answer that sends nothing (already selected, already released) records a current identity's
 // comparison and needs none: any other observation leaves the record NONE.
 IdentityCheck recordedIdentity(const AxisReservation& r, const IdentityObservation& identity,
-                               const ActionOptions& options, uint64_t now) {
+                               const ActionOptions& options, const IdentityValues& expected, uint64_t now) {
     IdentityCheck check;
-    if (!checkIdentity(check, identity, r.target, measuredIdentity(), IdentityBasis::MEASURED,
-                       options.identityReference, now))
+    if (!checkIdentity(check, identity, r.target, expected, IdentityBasis::MEASURED, options.identityReference,
+                       now))
         return IdentityCheck();
     return check;
 }
@@ -1078,7 +1085,7 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return Ok();
     // After every state check, so that a stale or wrong report names itself first.
     IdentityCheck check;
-    const Status checked = enableIdentity(r, identity, options, now, check);
+    const Status checked = enableIdentity(r, identity, evidence, options, now, check);
     if (!checked)
         return checked;
     if (measured) {
@@ -1134,9 +1141,9 @@ Status prepareEnable(ActionContext& output, const AxisReservation& r, const Read
     const bool answered = alreadyEnabled(r, state, evidence, control, now);
     IdentityCheck check;
     if (answered)
-        check = recordedIdentity(r, identity, options, now);
+        check = recordedIdentity(r, identity, options, enableReference(evidence), now);
     else
-        enableIdentity(r, identity, options, now, check); // Validated above, so this cannot refuse.
+        enableIdentity(r, identity, evidence, options, now, check); // Validated above, so this cannot refuse.
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
     output.actionKind = ActionKind::ENABLE;
@@ -1226,12 +1233,12 @@ Status prepareModeSelect(ActionContext& output, const AxisReservation& r, const 
     // already selected mode sends nothing, so it is answered without a current identity.
     IdentityCheck check;
     if (mode != modeRaw) {
-        const Status checked = actionIdentity(r, identity, options, now, check,
+        const Status checked = actionIdentity(r, identity, options, measuredIdentity(), now, check,
                                               "mode select needs a current identity read of this boot");
         if (!checked)
             return checked;
     } else {
-        check = recordedIdentity(r, identity, options, now);
+        check = recordedIdentity(r, identity, options, measuredIdentity(), now);
     }
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
@@ -1392,12 +1399,12 @@ Status prepareRelease(ActionContext& output, const AxisReservation& r, const Rea
     // answered without a current identity. classifyRelease stays pure: the identity is this call's.
     IdentityCheck check;
     if (decision.send) {
-        const Status checked = actionIdentity(r, identity, options, now, check,
+        const Status checked = actionIdentity(r, identity, options, measuredIdentity(), now, check,
                                               "release needs a current identity read of this boot");
         if (!checked)
             return checked;
     } else {
-        check = recordedIdentity(r, identity, options, now);
+        check = recordedIdentity(r, identity, options, measuredIdentity(), now);
     }
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;

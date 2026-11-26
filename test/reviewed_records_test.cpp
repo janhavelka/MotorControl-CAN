@@ -99,8 +99,9 @@ L::MeasuredRecord positionRelative() {
     p.signalsBasis = MEASURED;
     return r;
 }
-// Forward mode 3 runs, 6..60 rpm, 200 ms ramps, at most 12 s, HALT 6..60 and quick stop 6..40 rpm,
-// released starts only (104 runs). 2201 = 1000 is inferred: no run read 2201.
+// Forward mode 3 runs, 6..60 rpm, 200 ms ramps, at most 12 s, HALT 6..30 and quick stop 6..40 rpm, start
+// C050/0015 only (102 runs; stage (c) removed 8050/0011 for S21 and narrowed HALT). 2201 = 1000 is inferred: no run
+// read 2201.
 L::MeasuredRecord velocityForward() {
     L::MeasuredRecord r;
     r.kind = L::RecordKind::VELOCITY;
@@ -119,13 +120,13 @@ L::MeasuredRecord velocityForward() {
     v.scale2201 = 1000;
     v.scaleBasis = L::RecordBasis::INFERRED;
     v.halt.admitted = true;
-    v.halt.rpm = range(6, 60, MEASURED);
+    v.halt.rpm = range(6, 30, MEASURED);
     v.quickStop.admitted = true;
     v.quickStop.rpm = range(6, 40, MEASURED);
     v.maximumWindowUs = 2000000;
     v.windowBasis = MEASURED;
-    const uint16_t reports[2][2] = {{0x8050, 0x0011}, {0xC050, 0x0015}};
-    setStarts(v.starts, reports, 2);
+    const uint16_t reports[1][2] = {{0xC050, 0x0015}};
+    setStarts(v.starts, reports, 1);
     return r;
 }
 

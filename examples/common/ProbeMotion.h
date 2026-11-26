@@ -149,8 +149,8 @@ struct RecordEntry {
  * @return The record's slot. */
 RecordSlot recordSlotOf(const MotorControlCAN::LICHUAN_C::MeasuredRecord& record) noexcept;
 /** Caller-owned record storage of one axis, in RAM only: nothing saves or restores it, so an MCU restart
- * forgets every record and a fresh one starts EMPTY. About 1.3 KB on the host build (four 296-byte records
- * plus their bookkeeping), estimated, not measured on a board. Stationary while attached. */
+ * forgets every record and a fresh one starts EMPTY. 1408 bytes in the host and the S2 builds (four 296-byte
+ * records plus their bookkeeping; compile-time sizes, not measured on a board). Stationary while attached. */
 struct AxisRecords {
     RecordEntry slots[RECORD_SLOTS]; ///< Indexed by RecordSlot.
 };
@@ -356,7 +356,9 @@ class ProbeMotion {
     MotorControlCAN::Status requestMove(const MotorControlCAN::MoveRequest& request,
                                         const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
                                         uint64_t nowUs, uint64_t deadlineUs) noexcept;
-    /** Admit one explicit replacement of this helper's active move, keeping both results.
+    /** Admit one explicit replacement of this helper's active move, keeping both results. A move that ran
+     * under a bound measured record (MotionResult::record nonzero) is refused with ActionError STATE before
+     * any TX: no record measured a change (prompt 58).
      * @param id Original normalResult().id. @param request Exact selected fields and edge policy.
      * @param nowUs Processing time; the original deadline is retained. @return Atomic admission. */
     MotorControlCAN::Status requestMoveReplacement(uint32_t id,
@@ -371,7 +373,9 @@ class ProbeMotion {
     MotorControlCAN::Status requestVelocity(const MotorControlCAN::FiniteVelocityRequest& request,
                                             MotorControlCAN::LICHUAN_C::StopKind stopKind,
                                             uint64_t nowUs, uint64_t deadlineUs) noexcept;
-    /** Change the rate of this helper's retained active velocity run once, preserving its stop.
+    /** Change the rate of this helper's retained active velocity run once, preserving its stop. A run under
+     * a bound measured record (MotionResult::record nonzero) is refused with ActionError STATE before any
+     * TX: no record measured a change (prompt 58); an attended-experiment run is unchanged.
      * @param id Stable normalResult().id of that run. @param request Exact engineering rate.
      * @param nowUs Processing time. @return Atomic native admission or refusal; no new result identity. */
     MotorControlCAN::Status requestVelocityChange(uint32_t id,

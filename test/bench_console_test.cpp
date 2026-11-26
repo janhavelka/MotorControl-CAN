@@ -270,6 +270,7 @@ void testGate() {
         E::ConsoleGate gate;
     };
     const Row rows[] = {{"@1 version", E::ConsoleGate::ALWAYS},
+                        {"@1 record show relative", E::ConsoleGate::ALWAYS},
                         {"@1 help", E::ConsoleGate::ALWAYS},
                         {"@1 status", E::ConsoleGate::ALWAYS},
                         {"@1 health", E::ConsoleGate::ALWAYS},
@@ -930,6 +931,105 @@ void testExplicitMoveChangeArming() {
             CHECK(!r->one.moveAction().relation.originalOperationId && r->downloadsFrom(first) == 0);
         }
     }
+}
+// A relative position record of this fake (prompt 58): its identity, signals and rule, base ACTUAL, 1..60 rpm,
+// ramps 100..1000 ms and at most 100 counts. Test data in the record format, not a measurement.
+L::MeasuredRecord fakePositionRecord() {
+    L::MeasuredRecord r;
+    r.kind = L::RecordKind::POSITION;
+    std::memset(r.evidence, 0, sizeof r.evidence);
+    std::memcpy(r.evidence, "bench-console-fixture", sizeof "bench-console-fixture");
+    r.model = L::SettingsModel::CL86_C;
+    r.identity.deviceType = DEVICE_TYPE;
+    r.identity.hardwareVersion = HARDWARE;
+    r.identity.softwareVersion = SOFTWARE;
+    r.identity.vendorId = VENDOR;
+    r.identity.productCode = PRODUCT;
+    r.identity.revision = REVISION;
+    r.identity.modelCode = MODEL;
+    r.identity.firmwareCode = FIRMWARE;
+    L::PositionScope& p = r.position;
+    p.move = L::RecordMoveKind::RELATIVE;
+    p.relativeBase = L::RelativeBase::ACTUAL;
+    p.rpm.minimum = 1;
+    p.rpm.maximum = 60;
+    p.rampMs.minimum = 100;
+    p.rampMs.maximum = 1000;
+    p.maximumDistance = 100;
+    p.acceptance.source = p.completion.source = L::MoveSignalSource::STATUSWORD;
+    p.acceptance.mask = p.acceptance.value = ACCEPT_BIT;
+    p.completion.mask = p.completion.value = COMPLETE_BIT;
+    p.rule = L::CompletionRule::AFTER_ABSENCE;
+    p.baseBasis = p.rpm.basis = p.rampMs.basis = p.distanceBasis = p.signalsBasis = L::RecordBasis::MEASURED;
+    return r;
+}
+std::string recordLine(const L::MeasuredRecord& record) {
+    char text[L::RECORD_TEXT_CAPACITY + 1];
+    size_t size = 0;
+    L::RecordRefusal refusal;
+    CHECK(L::encodeRecord(text, sizeof text, size, refusal, record));
+    return std::string(text, size);
+}
+// The bench console's record slots (prompt 58 stage (c)): a relative position record loaded and bound through
+// the console narrows the arming's move. Inside its box the move runs under the record's evidence; outside it
+// is refused before any TX; a move under the record admits no change, before any TX.
+void testRecordBoundMove() {
+    scenario = "record-bound-move";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    Drive& d = r->driver.drives[0];
+    d.statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(has(r->command("@1 host 0", 100), "\"ok\":true"));
+    const L::MeasuredRecord record = fakePositionRecord();
+    const std::string line = recordLine(record);
+    uint32_t id = 0;
+    CHECK(L::recordId(id, record));
+    // Before an arming no motion is attached, so no record slot either.
+    CHECK(has(r->command("@2 record load " + line, 100), "axis_id_of_an_attached_axis_required"));
+    // Armed with change permission, as testExplicitMoveChangeArming's admitted case.
+    ArmSpec spec;
+    spec.sp = spec.base = d.position;
+    CHECK(r->run(arm(1, trial, spec) + ",1").failure == E::RouteFailure::NONE);
+    r->turns(2);
+    CHECK(has(r->command("@3 accel 1000", 100), "\"ok\":true") && has(r->command("@4 decel 1000", 100), "\"ok\":true"));
+    size_t first = r->driver.requests.size();
+    CHECK(has(r->command("@5 record load " + line, 100), "\"state\":\"loaded\""));
+    CHECK(has(r->command("@6 record use relative", 100), "\"state\":\"bound\""));
+    CHECK(r->driver.requests.size() == first); // Load and use send nothing.
+    // Outside the box: refused by the record before any TX, the arming's prerequisites kept.
+    std::string out = r->command("@7 move relative 500 steps native 1 configured", 100);
+    CHECK(has(out, "\"ok\":false") &&
+          has(out, ("\"detail\":" + std::to_string(int(L::RecordCheckError::DISTANCE))).c_str()));
+    out = r->command("@8 move relative 16 steps native 120 configured", 100);
+    CHECK(has(out, "\"ok\":false") &&
+          has(out, ("\"detail\":" + std::to_string(int(L::RecordCheckError::SPEED))).c_str()));
+    CHECK(r->driver.requests.size() == first && !r->one.moveActive());
+    // Inside: the move runs on the record's evidence (its id, not the arming's 19) and completes.
+    out = r->command("@9 move relative 16 steps native 1 configured", 8000);
+    CHECK(has(out, "\"type\":\"terminal\",\"id\":9,\"command\":\"move\",\"ok\":true"));
+    CHECK(r->one.moveAction().state == M::ActionState::SUCCEEDED && r->one.moveAction().evidence.record == id &&
+          r->axis1.motion.normalResult().record == id && d.position == 16);
+    CHECK(has(r->command("@10 release " + std::to_string(r->axis1.motion.normalResult().id), 100), "\"ok\":true"));
+    r->release();
+    // A record-bound move admits no change: refused before any TX, the move left running as it was.
+    spec.sp = spec.base = d.position;
+    CHECK(r->run(arm(1, trial, spec) + ",1").failure == E::RouteFailure::NONE);
+    r->turns(2);
+    d.travelReads = 100000; // Manufactured continuing travel, no completion law.
+    CHECK(r->send("@11 move relative 16 steps native 30 configured") == E::ConsoleInput::FORWARDED);
+    for (unsigned n = 0; n < 2000 &&
+         !(r->one.moveAction().latest.present && r->one.moveAction().phase == L::MovePhase::WAITING); ++n)
+        r->turn();
+    CHECK(r->one.moveActive() && r->axis1.motion.normalResult().record == id);
+    first = r->driver.requests.size();
+    const std::string moveId = std::to_string(r->axis1.motion.normalResult().id);
+    const std::string changed = r->command("@12 move speed " + moveId + " 60 immediate", 30);
+    CHECK(has(changed, "\"ok\":false") && has(changed, "admits no change") && r->downloadsFrom(first) == 0);
+    CHECK(r->one.moveActive() && !r->one.moveAction().relation.originalOperationId);
+    CHECK(has(r->command("@13 stop normal", 8000), "\"command\":\"stop\""));
+    wholeLines(r->uart.output);
 }
 // The velocity arming from this fake's released mode 3 standstill, then the console's finite velocity run with
 // its own stop at the due time, counted as a VELOCITY route and its stop.
@@ -1796,6 +1896,7 @@ int main() {
     testVelocityArming();
     testExplicitVelocityChangeArming();
     testExplicitMoveChangeArming();
+    testRecordBoundMove();
     testVelocityCancelRefused();
     testVelocityExplicitStops();
     testRefusedArming();

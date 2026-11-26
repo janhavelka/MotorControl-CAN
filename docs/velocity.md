@@ -440,11 +440,22 @@ A record whose rate, direction, ramp, duration, `2201`, stop or start facts are 
 - **Load and bind.** `ProbeMotion::loadRecord` (console `record load LINE`) decodes and validates the whole
   line into the axis's `velocity` slot and stores nothing on any refusal; `useRecord` (`record use
   velocity`) binds it to the binding, configuration, node and controller generations. Neither sends a frame.
+- **Where it applies.** A record narrows the velocity prerequisites the application named with
+  `setVelocityPrerequisites`. The S2 bench console's velocity arming (`B`) names them; an arming the host marked
+  attended runs as named, so only an unattended arming meets a bound record there. The probe consoles
+  (`SelectedAxis`) never name them: their `velocity` route is refused for that before any record is consulted.
 - **What it narrows.** While bound, `requestVelocity` builds the evidence for the run's stop kind and
   `checkRecordVelocity` refuses, before `prepareVelocity`: a ramp outside the range, a duration beyond the
   longest, an axis whose `commandStepsPerMotorTurn` differs from the record's `2201` (SCALE), a written `60FF`
   of the wrong sign or outside the rpm range or the selected stop's range, a window beyond the bound, and a
-  fresh start pair the record does not list. `prepareVelocity` then applies every rule of this page.
+  fresh start pair the record does not list. `prepareVelocity` then applies every rule of this page. A run
+  admitted under a bound record refuses `requestVelocityChange` (console `velocity change`) with ActionError
+  `STATE` before any TX: no record measured a rate change. An attended-experiment run keeps its own change rules.
+- **Window.** A record states only the largest enable-report window. A shorter window is not refused by the
+  record (format version 1 has no minimum), although the measured arrival contradicts it: in the reviewed runs
+  the last poll still showing word 7's `8033`/`0001` ended 0.398 to 0.399 s after word 15's acknowledgement and
+  the enable report was seen by 0.747 to 0.749 s, and runs 1009 and 1308 without a window failed one cycle after
+  word 15. A minimum window and the observation cadence behind it are backlog S22.
 - **Attended precedence.** A `VelocityGate::ATTENDED_EXPERIMENT` the caller named
   (`ProbeMotion::setVelocityPrerequisites`) runs as named, set before or after a record is bound, so the
   ranges a record does not cover stay under the attended experiment.
@@ -453,12 +464,15 @@ A record whose rate, direction, ramp, duration, `2201`, stop or start facts are 
   dropped. A restart forgets it; nothing restores a record by itself.
 
 The reviewed record [`lichuan_c_velocity_forward.record`](records/lichuan_c_velocity_forward.record) states
-forward 6..60 rpm, 200 ms ramps, at most 12 s, the ZH86 layout, HALT at 6..60 rpm, quick stop at 6..40 rpm,
-a 2 s window and the starts `8050/0011` and `C050/0015`, from 104 attended runs on both nodes. Its `2201=1000`
-is INFERRED (no run read `2201`; reads on 2026-11-09 and 2026-11-13 bracket them), so it opens nothing until a
-run on this identity reads `2201` and a new record states it MEASURED. Its
-[review note](records/lichuan_c_velocity_forward.md) cites every run and the narrowings: quick stops at 45 to
-60 rpm ended unsettled in 6 night-soak runs, and the `0014` latch start is excluded (S20).
+forward 6..60 rpm, 200 ms ramps, at most 12 s, the ZH86 layout, HALT at 6..30 rpm, quick stop at 6..40 rpm,
+a 2 s window and the start `C050/0015` only, from 102 attended runs on both nodes. Its `2201=1000` is INFERRED
+(no run read `2201`; reads on 2026-11-09 and 2026-11-13 bracket them), so it opens nothing until a run on this
+identity reads `2201` and a new record states it MEASURED. Its [review note](records/lichuan_c_velocity_forward.md)
+cites every run and the narrowings: quick stops at 45 to 60 rpm ended unsettled in 6 night-soak runs; HALT above
+30 rpm settled only once each at 45 and 60 rpm; the `0014` latch start is excluded (S20), and so is `8050/0011`:
+after an FF05 at `2201=51200` (backlog S21) nine velocity enables from exactly that report moved at word 7 and
+eight raised FF05, and the start report cannot show that state. HALT from `C050/0015` itself ran once (15 rpm):
+the HALT range rests on runs from `8050/0011`, a combination the box states without having measured it.
 
 ## Changing a finite run's positive rate
 

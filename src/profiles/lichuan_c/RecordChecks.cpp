@@ -188,14 +188,15 @@ Status makeEnableEvidence(EnableEvidence& evidence, IdentityReference& reference
     if (!measured(record.enable.modeBasis) || !measured(record.enable.starts.basis))
         return refuse(RecordCheckError::BASIS, "a measured enable needs a measured mode and starts",
                       Err::UNSUPPORTED);
+    IdentityReference i;
+    i.present = true;
+    i.values = record.identity;
     EnableEvidence e;
     e.gate = EnableGate::MEASURED;
     e.modeRaw = record.enable.modeRaw;
     e.operation = operation;
     e.start = EnableStart::UNKNOWN;
-    IdentityReference i;
-    i.present = true;
-    i.values = record.identity;
+    e.recordIdentity = i;
     evidence = e;
     reference = i;
     return Ok();
@@ -341,17 +342,27 @@ Status checkRecordVelocity(const MeasuredRecord& record, const VelocityEvidence&
 
 Status checkRecordEnable(const MeasuredRecord& record, const EnableEvidence& evidence,
                          const ActionOptions& options, const ReadContext& state,
-                         const ReadTarget& current, uint64_t nowUs) noexcept {
+                         const IdentityObservation& identity, const ReadTarget& current,
+                         uint64_t nowUs) noexcept {
     EnableEvidence expected;
-    IdentityReference identity;
-    Status s = makeEnableEvidence(expected, identity, record, evidence.operation);
+    IdentityReference reference;
+    Status s = makeEnableEvidence(expected, reference, record, evidence.operation);
     if (!s)
         return s;
     if (evidence.gate != expected.gate || evidence.modeRaw != expected.modeRaw ||
-        !options.identityReference.present ||
-        !sameIdentity(options.identityReference.values, identity.values))
+        !evidence.recordIdentity.present || !sameIdentity(evidence.recordIdentity.values, reference.values) ||
+        !options.identityReference.present || !sameIdentity(options.identityReference.values, reference.values))
         return refuse(RecordCheckError::EVIDENCE,
                       "the enable evidence or identity reference is not the record's");
+    // The prompt 57 policy against the record's own identity, not against measuredIdentity(): its product
+    // fields must match; a firmware difference only flags, and prepareEnable records that flag.
+    IdentityCheck check;
+    if (!checkIdentity(check, identity, current, record.identity, IdentityBasis::MEASURED, nowUs))
+        return refuse(RecordCheckError::IDENTITY, "the enable needs a current identity read of this target");
+    if (!check.expectedMatch)
+        return refuse(RecordCheckError::IDENTITY,
+                      "identity product fields (1000, 1018:01, 1018:02, 2000) differ from the record's",
+                      Err::UNSUPPORTED);
     StartReport report;
     uint8_t mode = 0;
     s = startReport(state, current, nowUs, options.maximumAgeUs, report, mode);

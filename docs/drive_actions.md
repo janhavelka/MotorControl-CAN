@@ -170,10 +170,24 @@ mode, its exact `6041`/`2100` start pairs and the identity it was measured on. T
   line into the axis's `enable` slot and stores nothing on any refusal; `useRecord` (`record use enable`)
   binds it to the axis's binding, configuration, node and controller generations. Neither sends a frame.
 - **What it narrows.** While bound, `requestEnable` and `startAction`'s enable build `EnableEvidence`
-  (`EnableGate::MEASURED`, the record's mode) and `ActionOptions::identityReference` with
-  `makeEnableEvidence`, and `checkRecordEnable` refuses, before `prepareEnable`, a fresh `6061` other than the
-  record's mode or a start pair the record does not list (`RecordCheckError` in the refusal's detail).
-  `prepareEnable` then applies all of the rules above, so a record never admits a start the library refuses.
+  (`EnableGate::MEASURED`, the record's mode, `recordIdentity` the record's identity) and
+  `ActionOptions::identityReference` with `makeEnableEvidence`, and `checkRecordEnable` refuses, before
+  `prepareEnable`, an identity whose product fields differ from the record's (`IDENTITY`), a fresh `6061` other
+  than the record's mode or a start pair the record does not list (`RecordCheckError` in the refusal's detail).
+  `prepareEnable` then applies all of the rules above, so a record never admits a start the library refuses. The
+  identity policy is the record's: with `recordIdentity` present, product fields are compared with the record's
+  identity and `EnableRecord::identity.firmwareUnqualified` flags a firmware that differs from the record's, not
+  from `measuredIdentity()`.
+- **Where it applies.** The probe consoles' `enable` names its own identity and state reads
+  (`ProbeMotion::startAction`), so a bound enable record narrows it there; it is the only record that affects a
+  probe-console route.
+- **The S21 hazard.** The record keeps `8050`/`0011`, from which 44 retained enables succeeded and no mode 1
+  enable ever ran in the S21 state, so there is no mode 1 counterexample. But after an FF05 at `2201=51200`
+  (backlog S21) nine velocity enables from exactly `8050`/`0011` moved at word 7 (`606C` 121 to 256 rpm) and eight
+  raised FF05 ([velocity note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_velocity_forward.md)), and
+  the fresh start report cannot show that state: a mode 1 enable from it may do the same. Neither the record nor
+  `prepareEnable` guards against it; [prompt 72](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/prompts/72_enable_fault_guards.md)
+  owns the word 7 guard and the mode 1 bench step in that state.
 - **Attended precedence.** An `EnableGate::ATTENDED_EXPERIMENT` the caller named for the enable
   (`ProbeMotion::setEnablePrerequisites`) runs as named, set before or after a record is bound: unmeasured
   states and mode 6 stay attended.

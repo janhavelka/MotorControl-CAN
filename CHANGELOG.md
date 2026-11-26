@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Measured records: stage (c) review fixes (prompt 58, 2026-11-26)
+
+- **Changed (API):** `checkRecordEnable` takes the current `IdentityObservation` and refuses product fields that
+  differ from the record's identity (new `RecordCheckError::IDENTITY`). New `EnableEvidence::recordIdentity`, filled
+  by `makeEnableEvidence`: under `EnableGate::MEASURED` it replaces `measuredIdentity()` as the enable's reference,
+  so `EnableRecord::identity.firmwareUnqualified` now flags a firmware that differs from the loaded record's, not
+  from the built-in specimens'. Without a record nothing changes.
+- **Behavior change:** a move or velocity run admitted under a bound record refuses `requestMoveReplacement` and
+  `requestVelocityChange` (console `move speed`, `move ramps`, `move retarget`, `velocity change`) before any TX;
+  attended-experiment runs keep their change rules.
+- The S2 bench console holds per-node record slots (`BenchAxis::records`, 1408 bytes per node) and the ESP-IDF NVS
+  store, so a bound position record narrows the armed console moves; on the probe consoles only the enable record
+  affects a route (they never name move or velocity prerequisites), as the CLI contract and guides now say.
+- `EspRecordStore`'s Arduino restore opens Preferences read-only and answers `TOO_LARGE` like the ESP-IDF build;
+  `FileRecordStore` documents what an interrupted save leaves; the CLI contract's `record_id` is the CRC-32 of the
+  canonical line.
+- Reviewed velocity record narrowed and re-encoded: start `C050/0015` only (backlog S21: nine velocity enables from
+  `8050/0011` moved at word 7 after an FF05 at `2201=51200`, a state the start report cannot show) and HALT 6..30
+  rpm. The enable record keeps `8050/0011` with the S21 hazard stated (prompt 72 owns the guard). The notes add the
+  window's measured arrival (no minimum in format v1; new backlog S22), the position record's native ranges at an
+  inferred `2201`, and the `main` commits tree-identical to the bench images they cite.
+
 ### Reviewed measured records (prompt 58, slice b5, 2026-11-26)
 
 - Three reviewed records in `docs/records`, one canonical line per file, written by `reviewed_records_test --write`

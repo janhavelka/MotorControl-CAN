@@ -424,13 +424,19 @@ the record id from its CRC), so the application no longer assembles the signals 
   line into the axis's `absolute` or `relative` slot and stores nothing on any refusal; `useRecord`
   (`record use relative`) binds it to the binding, configuration, node and controller generations. Neither
   sends a frame or moves.
+- **Where it applies.** A record narrows the move prerequisites the application named with
+  `setMovePrerequisites`. The S2 bench console's arming (`Y`) names them, so there a bound record narrows the
+  console's `move`, `moveby` and `moveto`. The probe consoles (`SelectedAxis`) never name them: their move
+  routes are refused for that before any record is consulted, so a position record changes nothing there.
 - **What it narrows.** While bound, `requestMove` (`moveby`, `moveto`; a wrapped-angle move uses the
   absolute slot) builds the evidence from the record, and `checkRecordMove` refuses, before the move's
   preparation: another move kind or relative basis, other signals or rule, a ramp outside the record's range,
   a written 6081 outside its rpm range (the same `prepareVelocityTarget` conversion the move uses), and a
   travel beyond its bound (the relative displacement, or the absolute endpoint minus a known witness; an
   absolute move without one is refused). `RecordCheckError` is the refusal's detail. The move's own
-  preparation then applies every rule of this page, so a record never widens a library limit.
+  preparation then applies every rule of this page, so a record never widens a library limit. A move
+  admitted under a bound record refuses `requestMoveReplacement` (console `move speed`, `move ramps`,
+  `move retarget`) with ActionError `STATE` before any TX: no record measured a change.
 - **Attended precedence.** Moves have no attended gate: a bound record replaces the evidence the application
   set with `setMovePrerequisites` for its slot, and an unbound slot keeps that evidence unchanged.
 - **Invalidation.** A rebinding, configuration change, drive boot-up the owner observes or controller recovery
@@ -440,9 +446,13 @@ the record id from its CRC), so the application no longer assembles the signals 
 The reviewed record [`lichuan_c_position_relative.record`](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_position_relative.record) covers
 relative moves with base `ACTUAL`, 6..300 rpm, ramps 100..1000 ms and at most 38200 counts, acceptance
 `6041` `0x1000`, completion `2100` `0x0001`, `AFTER_ABSENCE`, from 217 completed library moves on both nodes.
-Its [review note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_position_relative.md) cites every move and says what was narrowed: the
-ranges are a box, not every combination inside it ran (at 6 rpm the longest move was 1000 counts), and the
-format has no minimum travel. No absolute record exists: only three absolute library moves completed.
+Its [review note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_position_relative.md) cites every move and says what was narrowed. Its ranges are native:
+6081 in rpm and the travel in 607A increments, measured while `2201` was 1000 (INFERRED: no move of the
+record read `2201`). The physical travel of one increment follows the drive's `2201`, which the record does not
+state, so the same counts at another subdivision are another physical distance. The ranges are a box, and the
+combinations inside it that never ran stay as stated, unmeasured: 38200 counts ran once (trial 3141, at
+300 rpm), and at 6 rpm the longest move was 1000 counts. The format has no minimum travel. No absolute record
+exists: only three absolute library moves completed.
 
 ## Replacing an active absolute set-point
 

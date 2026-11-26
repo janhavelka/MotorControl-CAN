@@ -6,8 +6,9 @@
  * One NVS string per axis and slot, in the namespace RECORD_NAMESPACE under recordStoreKey's key. An ESP-IDF
  * build uses the NVS API and initializes the default NVS partition on the first explicit save or restore
  * (nvs_flash_init), never erasing it: a partition that needs erasing makes the call fail. An Arduino build
- * uses Preferences, over the same NVS, which the Arduino core initializes. Nothing is read at construction
- * or boot; the console calls the hook only on `record save` and `record restore`.
+ * uses Preferences, over the same NVS, which the Arduino core initializes; restore opens it read-only in
+ * both builds and reports a line that does not fit as TOO_LARGE. Nothing is read at construction or boot;
+ * the console calls the hook only on `record save` and `record restore`.
  */
 #pragma once
 #include "RecordStore.h"

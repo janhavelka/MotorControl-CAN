@@ -78,9 +78,16 @@ Candidates: every capture with `TRIAL admitted route=move` (278), the library mo
 | 240 | 14 | node 1: 11, node 2: 3 | 7080..30210 | 100..1000 |
 | 300 | 16 | node 1: 8, node 2: 8 | 9650..38200 | 100..1000 |
 
-The record is a box: it admits any combination inside its ranges, and not every combination was measured. At
-6 rpm the largest measured displacement is 1000 counts; 38200 counts were measured only at 300 rpm. The format has no
-minimum displacement: the shortest measured move is 100 counts. A shorter one is not measured; under
+The ranges are native: 6081 in motor rpm, 6083 and 6084 in ms, and the travel in 607A command increments. They
+were measured while `2201` was 1000, which is INFERRED for these moves as for the velocity runs: no included move
+read `2201` in its capture, and the retained reads of 1000 bracket them (the velocity note's 2201 section; the two
+2026-11-13 moves ran before node 2's first `2201` write at 15:41Z, the two 2026-11-16 moves before that day's
+first write). The record states no `2201` (version 1 has no such field for a position record), and the physical
+travel of one increment follows the drive's `2201`: the same counts at another subdivision are another distance.
+
+The record is a box: it admits any combination inside its ranges, and the combinations that never ran stay as
+stated, unmeasured. 38200 counts ran once (trial 3141, at 300 rpm); at 6 rpm the longest move was 1000 counts. The
+format has no minimum displacement: the shortest measured move is 100 counts. A shorter one is not measured; under
 `AFTER_ABSENCE` a move shorter than one cycle ends at its deadline with completion not observed.
 
 ## Excluded

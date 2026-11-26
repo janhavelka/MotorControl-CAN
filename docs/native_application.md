@@ -154,7 +154,7 @@ Measured records (prompt 58) reach motion through the same attachment. The
 application attaches one caller-owned `AxisRecords` per axis (`attachRecords`;
 `SelectedAxis` does it for its axis) with four slots: enable, absolute position,
 relative position and velocity, so an application holds at most four records per
-attached axis, in RAM only (about 1.3 KB per axis on the host build, estimated).
+attached axis, in RAM only (1408 bytes per axis in the host and S2 builds, compile-time sizes).
 `loadRecord` decodes and validates a whole record line (or a record built in code)
 into its empty slot, `useRecord` binds it to the axis's binding, configuration,
 node and controller generations, `showRecord` copies it with its state (LOADED,
@@ -167,8 +167,13 @@ ranges stay under the attended experiment), `requestMove`, `requestVelocity` and
 `makeMoveEvidence`, `makeVelocityEvidence` or `makeEnableEvidence` and refuse a
 request outside the record with `checkRecordMove`, `checkRecordVelocity` or
 `checkRecordEnable` before the session's own preparation, which keeps every library
-limit. `MotionResult::attendedExperiment` and `MotionResult::record` say which ran.
-A rebinding, configuration change, drive boot-up (as the owner observes it) or
+limit. `MotionResult::attendedExperiment` and `MotionResult::record` say which ran;
+a run under a record refuses `requestMoveReplacement` and `requestVelocityChange`
+before any TX. A record narrows prerequisites the application named, so it reaches
+`requestMove` and `requestVelocity` only where `setMovePrerequisites` or
+`setVelocityPrerequisites` named them (the S2 bench console's arming does;
+`SelectedAxis` and the probe consoles do not, so there only the enable record
+affects a route). A rebinding, configuration change, drive boot-up (as the owner observes it) or
 controller recovery invalidates the binding, and requests of that slot are refused
 until the record is used again or dropped; a restart forgets every record and
 restores none. Without a bound record every gate is as before.

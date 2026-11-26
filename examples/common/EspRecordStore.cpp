@@ -70,18 +70,27 @@ RecordStoreStatus EspRecordStore::restore(void*, uint32_t axisId, RecordSlot slo
     // Read into a local buffer first, so that the caller's buffer is unchanged on every failure.
     char line[LINE_BYTES];
 #if defined(ARDUINO)
+    // Read-only, as the ESP-IDF branch opens NVS: a restore never creates the namespace or writes. A
+    // read-only begin fails when the namespace was never written (nvs_open's ESP_ERR_NVS_NOT_FOUND), the
+    // only cause once the Arduino core has initialized NVS; Preferences reports no reason, so it reads
+    // NOT_FOUND.
     Preferences preferences;
-    if (!preferences.begin(RECORD_NAMESPACE, false))
-        return RecordStoreStatus::FAILED;
+    if (!preferences.begin(RECORD_NAMESPACE, true))
+        return RecordStoreStatus::NOT_FOUND;
     if (!preferences.isKey(key)) {
         preferences.end();
         return RecordStoreStatus::NOT_FOUND;
     }
-    // Preferences returns 0 both for a value larger than the buffer and for a read error.
-    const size_t length = preferences.getString(key, line, sizeof line);
+    // getType read the entry's length as a string; getString then returns 0 when the line needs more than
+    // the buffer (the ESP-IDF branch's TOO_LARGE), and a read error between the two calls, which
+    // Preferences does not tell apart, reads the same.
+    const bool stringEntry = preferences.getType(key) == PT_STR;
+    const size_t length = stringEntry ? preferences.getString(key, line, sizeof line) : 0;
     preferences.end();
-    if (!length)
+    if (!stringEntry)
         return RecordStoreStatus::FAILED;
+    if (!length)
+        return RecordStoreStatus::TOO_LARGE;
     const size_t bytes = length - 1; // getString counts the NUL.
 #else
     nvs_handle_t handle;

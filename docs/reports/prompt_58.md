@@ -173,3 +173,22 @@ A worktree under `.build` extracts nothing in Doxygen (the Doxyfile excludes `*/
 full mode's documentation step there fails vacuously; Doxygen ran in a worktree outside it instead. Locally,
 `planning_validator_contract` fails only in the main checkout, where the held untracked maxon files add 23 hashed
 artifacts; it passes on every clean worktree.
+
+## Stage (c) fix round (2026-11-26)
+
+The two stage (c) reviews' accepted items, as the lead listed them, on HEAD `7ed82e5a`:
+
+| Item | Change | Checks |
+| --- | --- | --- |
+| Records reached no shipped move or velocity route | `BenchAxis` owns its `AxisRecords` (1408 bytes per node, the same in the host and the S2 builds, compile-time size) and attaches them; the bench console attaches the ESP-IDF NVS store (`BenchConsole::attachRecordStore`, `main.cpp`). The CLI contract and the guides now say that on the probe consoles (`SelectedAxis`) only the enable record affects a route: they never name move or velocity prerequisites | `bench_console_test` `testRecordBoundMove`: load and bind a relative record through the console, a move outside its box refused before TX (`DISTANCE`, `SPEED`), one inside run under the record's id |
+| Enable record identity | `EnableEvidence::recordIdentity` (filled by `makeEnableEvidence`) replaces `measuredIdentity()` as the MEASURED enable's reference, so `firmwareUnqualified` compares with the record; `checkRecordEnable` takes the identity observation and refuses other product fields (`RecordCheckError::IDENTITY`) | `record_checks_test` `enableIdentityAgainstTheRecord`: a record on another firmware, the drive reading its firmware (not flagged) and `measuredIdentity()`'s (flagged), another product refused by both checks and admitted when the drive reads it |
+| Changes under a record | `ProbeMotion::requestMoveReplacement` and `requestVelocityChange` refuse a run admitted under a bound record (ActionError `STATE`) before any TX; attended runs unchanged | `probe_records_test` (velocity change refused under the record, the attended run's change meets its own gate), `bench_console_test` (`move speed` under the record refused, no download) |
+| Stores and record id | Arduino restore opens Preferences read-only and answers `TOO_LARGE`; `FileRecordStore`'s comment states what an interruption between remove and rename leaves; the CLI contract's `record_id` is the CRC-32 of the canonical line | Firmware build gate |
+| S21 | The velocity record's start is `C050/0015` only. Both notes and `drive_actions.md` state the hazard: after an FF05 at `2201=51200` the drive moves at word 7 of every enable, and the fresh `8050/0011` report cannot show that state; the enable record keeps `8050/0011` (no mode 1 counterexample), prompt 72 owns the word 7 guard and the mode 1 bench step. The lead cited 8 runs (FF05 in 7); the scan finds a ninth, 5889 (node 2, 3000 rpm, 500 ms ramps), with the same signature and its FF05 | Notes list all nine with their capture lines |
+| Velocity HALT | 6..30 rpm: above 30 only runs 1882 (45 rpm) and 1613 (60 rpm). With `C050/0015` alone, HALT from that start ran once (1902, 15 rpm); the range rests on runs from `8050/0011`, stated in the note as an unmeasured combination of the box | `reviewed_records_test` |
+| Velocity window | The note and `velocity.md`: the last `8033/0001` poll ended 0.398 to 0.399 s after word 15's acknowledgement and the report was seen by 0.747 to 0.749 s (102 runs); shorter windows are contradicted, format v1 has no minimum; backlog S22 (minimum window and observation cadence, trial 1407) | |
+| Position ranges | The note and `position_parameters.md`: native ranges (6081 rpm, 607A increments) at `2201=1000` INFERRED; physical travel per increment follows the drive's `2201`; 38200 counts ran once (3141, 300 rpm), at 6 rpm at most 1000; untested combinations stay as stated; no format change | |
+| Image hashes | Each image not reachable from `main` names its tree-identical `main` commit: `e17271a` = `6320892c`, `4247e59` = `7cd8c210`, `faffa22` = `0b2d6f58`, `a3c5fa4` = `fd0ac052`, `cb7941c` = `e5bd4998` | `git rev-parse <hash>^{tree}` against `git log main --format="%H %T"` |
+
+The re-encoded velocity record (`halt_rpm=6..30`, `starts=C050/0015`) was written by `reviewed_records_test --write`;
+the test failed on the old line first (`halt`), as a stale record must.

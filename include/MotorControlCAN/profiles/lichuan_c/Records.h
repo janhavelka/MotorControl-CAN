@@ -314,7 +314,8 @@ enum class RecordCheckError : int32_t {
      * basis. */
     BASIS,
     /** The supplied library evidence is not the one the record builds: gate, record id, model,
-     * identity, and for velocity every field; for enable gate, mode and the identity reference. */
+     * identity, and for velocity every field; for enable gate, mode, EnableEvidence::recordIdentity and
+     * the identity reference. */
     EVIDENCE,
     MOVE_KIND, ///< A relative request under an absolute record, or the reverse.
     BASE,      ///< Relative basis or MoveEvidence::relativeBase not the record's base.
@@ -339,6 +340,9 @@ enum class RecordCheckError : int32_t {
     START,      ///< The fresh 6041/2100 start report is not one the record admits.
     MODE,       ///< The fresh 6061 mode is not the record's enable mode.
     STATE,      ///< The state read has no current STATUS and MONITORS block for this check.
+    /** checkRecordEnable: the identity observation is not current (INVALID_CONFIG), or its product
+     * fields (1000, 1018:01, 1018:02, 2000) differ from the record's identity (UNSUPPORTED). */
+    IDENTITY,
     /** Added to an AxisError of prepareVelocityTarget, keeping its Err and message. */
     RATE_ERROR_BASE = 10000,
     /** Added to a PositionParameterError of preparePositionParameters, keeping its Err and message. */
@@ -366,9 +370,10 @@ Status makeMoveEvidence(MoveEvidence& output, const MeasuredRecord& record) noex
 Status makeVelocityEvidence(VelocityEvidence& output, const MeasuredRecord& record,
                             StopKind stopKind) noexcept;
 /** Build the enable inputs an ENABLE record opens: EnableEvidence with gate MEASURED, the record's
- * mode, operation and start UNKNOWN (the fresh report decides it), and the IdentityReference for
- * ActionOptions::identityReference holding the record's identity. prepareEnable still admits MEASURED
- * in mode 1 only. Pure; no I/O.
+ * mode, operation, start UNKNOWN (the fresh report decides it) and recordIdentity the record's identity,
+ * so that prepareEnable compares the firmware fields with the record rather than with
+ * measuredIdentity(); and the IdentityReference for ActionOptions::identityReference holding the same
+ * identity. prepareEnable still admits MEASURED in mode 1 only. Pure; no I/O.
  * @param[out] evidence Written only on success.
  * @param[out] reference Written only on success.
  * @param[in] record Borrowed for the call; no output may overlap it or the other output.
@@ -426,19 +431,25 @@ Status checkRecordVelocity(const MeasuredRecord& record, const VelocityEvidence&
                            const VelocityOptions& options) noexcept;
 /** Check one enable against a bound ENABLE record before prepareEnable, which still applies every
  * library rule (a MEASURED enable is mode 1 only). Checks, in order: evidence gate MEASURED with the
- * record's mode, options.identityReference the record's identity (makeEnableEvidence), the fresh
- * 6061 mode, then the exact 6041/2100 start report. Pure: no I/O, clock or output.
+ * record's mode and recordIdentity, options.identityReference the record's identity
+ * (makeEnableEvidence), the current identity observation against the record's identity under the
+ * prompt 57 policy (product fields refuse; a firmware difference only flags, and prepareEnable records
+ * it against the record through EnableEvidence::recordIdentity), the fresh 6061 mode, then the exact
+ * 6041/2100 start report. Pure: no I/O, clock or output.
  * @param[in] record Bound record.
  * @param[in] evidence The EnableEvidence the enable will use.
  * @param[in] options The ActionOptions it will use.
  * @param[in] state As prepareEnable's; its STATUS and MONITORS blocks must be current (getStateBlock
  * with current, nowUs and options.maximumAgeUs).
+ * @param[in] identity The current identity read prepareEnable will compare (checkIdentity rules).
  * @param[in] current The reservation's target.
  * @param[in] nowUs As prepareEnable's.
  * @return OK when the record admits the enable. RECORD, KIND, EVIDENCE, STATE with INVALID_CONFIG;
- * BASIS, MODE, START with UNSUPPORTED. */
+ * IDENTITY with INVALID_CONFIG for an observation that is not current, with UNSUPPORTED for other
+ * product fields; BASIS, MODE, START with UNSUPPORTED. */
 Status checkRecordEnable(const MeasuredRecord& record, const EnableEvidence& evidence,
                          const ActionOptions& options, const ReadContext& state,
-                         const ReadTarget& current, uint64_t nowUs) noexcept;
+                         const IdentityObservation& identity, const ReadTarget& current,
+                         uint64_t nowUs) noexcept;
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

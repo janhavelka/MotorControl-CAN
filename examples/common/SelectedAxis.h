@@ -20,7 +20,7 @@ namespace MotorControlCANExample {
  * before any write. Stationary: the helpers borrow its members, so it is never copied or moved, and
  * the application, owner, service store and console outlive it. Serialize with the owner's turns.
  * Its size is dominated by the session; about 60 KB on the host build, estimated and not measured on a
- * board, of which about 1.3 KB is the axis's measured record slots (AxisRecords, prompt 58), held in RAM
+ * board, of which 1408 bytes are the axis's measured record slots (AxisRecords, prompt 58), held in RAM
  * only and empty after every restart. An application that cannot place it attaches nothing: the console then refuses those commands at
  * once with `axis_id_of_an_attached_axis_required` (persistence with its prerequisite reason), never admits
  * them and transmits nothing.
