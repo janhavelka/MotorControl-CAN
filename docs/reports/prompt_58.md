@@ -1,6 +1,6 @@
 # Prompt 58 report: measured records through the library API and the console
 
-State: In progress; stages (a) and (b) complete, stage (c) review next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -174,6 +174,38 @@ full mode's documentation step there fails vacuously; Doxygen ran in a worktree 
 `planning_validator_contract` fails only in the main checkout, where the held untracked maxon files add 23 hashed
 artifacts; it passes on every clean worktree.
 
+## Stage (c) review (2026-11-26)
+
+Two new reviewer agents, read-only, on `7ed82e5a` (MotorControl-RS `6544bf7`: three commits since stage (a), all in
+`examples/probe_cli`; the qualification seams in `include/` and `src/` unchanged):
+
+- Records against raw evidence (Fable, high): rescanned all 8708 captures, the ledgers and the console transcripts.
+  Every included row of the notes matched its cited lines (177 enables, 217 moves, 104 velocity runs), the counts
+  and the CRCs recomputed, no EMCY in any included capture. Findings: high, nine velocity enables from exactly
+  `8050/0011` failed at word 7 in the S21 enable-fault state and the notes did not account for them; medium, the
+  enable-report window's lower part is contradicted, the position box admits combinations that never ran (38200
+  counts once, at 300 rpm) and rests on an inferred `2201`, and HALT above 30 rpm rests on two runs; low, the quick
+  stop cut confirmed, observation cadence unbounded (trial 1407), console transcripts not fully scanned (no in-box
+  failure found), image hashes unreachable from `main`.
+- Codec, checks, API, console and storage (Opus, xhigh): a 900k-line mutation fuzz of the codec found no accepted
+  invalid line and stable canonical ids. Findings: high, no shipped console route let a position or velocity record
+  act (the probe consoles name no move or velocity prerequisites, the bench console attached no records); medium,
+  an enable record did not enforce its own identity, and velocity changes and move replacements bypassed a bound
+  record; low, the position format has no scale field, the Arduino restore opened Preferences read-write, the file
+  store's interruption claim, and the meaning of `record_id`.
+
+Lead dispositions: every high and medium finding fixed in the round below, except where stated here.
+
+- S21 and the enable record: it keeps `8050/0011` (44 mode 1 enables from it, none failed; no mode 1 enable ran in
+  the S21 state). The state needs an earlier FF05 above the pulse ceiling, which no record's range reaches, and the
+  start report cannot show it; the guard (word 7 `606C` check, pulse-rate admission) and the mode 1 bench step stay
+  with prompt 72. The built-in `EnableGate::MEASURED` of prompt 57 has the same exposure without any record.
+- `2201`: the velocity record stays closed (`2201=1000` INFERRED, decision above). `6081` and `60FF` are native motor
+  rpm, so the rpm claims do not depend on `2201`; the position format keeps no scale field and its note states the
+  native units and the inference. Prompt 66's run that reads `2201` in its own capture reopens the velocity record.
+- Backlog, not fixed: a minimum enable-report window and an observation cadence in the record format (S22),
+  per-rate-band distance bounds for position records, and a full scan of the console transcripts.
+
 ## Stage (c) fix round (2026-11-26)
 
 The two stage (c) reviews' accepted items, as the lead listed them, on HEAD `7ed82e5a`:
@@ -192,3 +224,9 @@ The two stage (c) reviews' accepted items, as the lead listed them, on HEAD `7ed
 
 The re-encoded velocity record (`halt_rpm=6..30`, `starts=C050/0015`) was written by `reviewed_records_test --write`;
 the test failed on the old line first (`halt`), as a stale record must.
+
+Lead checks of the fix round `14d8b7a2` on a clean worktree: `verify.py --mode full` built, registered and passed 178
+of 179 tests; `planning_validator_contract` exceeded its 90 s limit while the firmware gates ran in parallel and passed
+alone in 55 s on the same build. `test/package_test.py`, `check_promptset.py --check-git-ref HEAD`,
+`check_lichuan_operations.py`, `s2_bench_test.py`, strict Doxygen outside `.build` (39 headers) and
+`check_firmware.py --target all` (Arduino, IDF S3 and S2, storage, S2 bench, component; no flashing) passed.
