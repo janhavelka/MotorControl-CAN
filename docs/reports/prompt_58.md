@@ -1,6 +1,7 @@
 # Prompt 58 report: measured records through the library API and the console
 
-State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
+State: Partial. The software scope is delivered and checked (stages (a) to (d)); the bench exit step and the
+velocity record's `2201` measurement remain, listed under "Remaining" below. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -230,3 +231,49 @@ of 179 tests; `planning_validator_contract` exceeded its 90 s limit while the fi
 alone in 55 s on the same build. `test/package_test.py`, `check_promptset.py --check-git-ref HEAD`,
 `check_lichuan_operations.py`, `s2_bench_test.py`, strict Doxygen outside `.build` (39 headers) and
 `check_firmware.py --target all` (Arduino, IDF S3 and S2, storage, S2 bench, component; no flashing) passed.
+
+## Stage (d) acceptance (2026-11-26)
+
+The final code is `14d8b7a2`; `56a5c052` and later commits change only this report and `PROGRESS.md`. Checks:
+
+- On a clean worktree of `14d8b7a2`: `verify.py --mode full` (configure, C++11 gcc build, registration, 178 of 179
+  tests, package; `planning_validator_contract` passed alone in 55 s after its 90 s timeout under the parallel
+  firmware build), `test/package_test.py`, `check_promptset.py --check-git-ref HEAD`, `check_lichuan_operations.py`,
+  `s2_bench_test.py`; strict Doxygen in a worktree outside `.build` (39 headers, 4871 members).
+- `check_firmware.py --target all` on the same code: Arduino, IDF S3 and S2, S2 and S3 storage with and without PSRAM
+  with their size and map checks, the S2 bench image and the isolated component; no flashing, ports or traffic.
+- CI `verify.yml` run 45747617761 succeeded on `56a5c052` in every job (Windows quick, full gcc and clang with ASan
+  and UBSan, ESP-IDF firmware with the strict stack check and the isolated component, Arduino). Earlier slices:
+  45720671246 (`9a47bd9b`), 45726261736 (`5bad53e5`), 45731593420 (`8c9c35b5`), 45737477706 (`7ed82e5a`).
+
+Acceptance against "Verify and exit":
+
+| Item | Evidence |
+| --- | --- |
+| Codec round trip, CRC and version refusal, partial and out-of-range records refused | `records_test` (round trip of every kind, CRC and `v` refusal, truncated lines, every field's range, duplicate, unknown and missing keys); the stage (c) fuzz of 900k mutated lines |
+| A record never widening limits | `record_checks_test` (each range edge inclusive, outside refused; outside mode 1 the library's gate still refuses, `:651`), `probe_records_test` (a start outside the record's starts refused, `:418`; attended precedence in both orders; invalidation on binding, configuration, boot and recovery), `bench_console_test` (a bound position record refuses a move outside its box before TX) |
+| No automatic restore | `record_console_test:327` (nothing touches the store on its own) and `:336` (restore loads only, sends nothing, binds nothing) |
+| The console using only the API | `check_repository.py` `record_api_checks` (`:390-401`) refuses record storage names outside `ProbeMotion`; `record_console_test` drives every command through the console |
+| Native, firmware, stack and documentation gates; CI on the final commit | Above |
+| Bench: load each reviewed record from the console, one short operation per record type | NOT RUN (Remaining) |
+| Guides, CLI contract, coverage, CHANGELOG, Doxygen | Updated in b3 to b5 and the stage (c) round |
+| A stronger reviewer checks every record against its raw evidence | Stage (c), Fable high |
+
+## Remaining
+
+- Bench exit step, NOT RUN in this host-only prompt: flash the bench image, load the three reviewed records from the
+  bench console (RAM only, no `record save`), bind them, run one mode 1 enable from a measured start, one relative move
+  inside the position box (for example 60 rpm, 200 ms ramps, 1000 counts) and one velocity request that the closed
+  velocity record refuses with `BASIS` before TX, then a short regression. Nothing persistent or communication-changing,
+  so COMMON's owner-absence rules allow it unattended; it first establishes the bench state from the latest records
+  (earlier campaigns left the `0014` latch, and an S21 state needs a power cycle). Prompt 66 ("records loaded from the
+  console") owns it.
+- The velocity record opens nothing until `2201` is MEASURED for its runs: a velocity run whose own capture reads
+  `2201`, made by prompt 59 or 66. A candidate in-capture basis exists and is not yet reviewed: prompt 59 cites a
+  `6064` rate of 0.99201 x floor(rpm x 1000 / 60) counts/s in the night soak, and `6064` counts `607A` increments,
+  which follow `2201`; whether that establishes the subdivision in effect is for that prompt's reviewer.
+- The S21 guard (word 7 `606C` check, pulse-rate admission) and the mode 1 enable in that state: prompt 72.
+- RAM of the record slots (1408 bytes per bench node, about 1.3 KB per probe axis) and the 832-byte console line are
+  host estimates; prompt 76 measures storage placement on the boards.
+- Backlog S22 (minimum enable-report window, observation cadence), per-rate-band position distance, the console
+  transcript scan; no homing, absolute, mode 6 or reverse record (no evidence; no switches wired).
