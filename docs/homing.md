@@ -193,6 +193,15 @@ after their identity reads, refused `why=grant` by the bench ordering of backlog
 `bench_route` replays all four records from their captured replies, value for value
 (`replayRouteBootR2c`, `replayRouteBootR4b`).
 
+### No measured homing record (prompt 58)
+
+Measured records ([Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h)) cover enable,
+position and velocity only: `RecordKind` has no homing kind, no record slot or console `record` route
+reaches `requestHome`, and loading or binding a record changes nothing here. The retained homing records
+are 11 admission runs, every one refused before any write, with no switch wired, so there is nothing a record
+could state (prompt 58 decision 4). Homing stays under `HomeGate` and `HomeEvidence` exactly as above until
+a measured homing run exists and a homing record kind is reviewed for it.
+
 ## Ordinary owner path
 
 `AxisSession::requestHome` validates the acquired identity under the

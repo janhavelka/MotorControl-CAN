@@ -33,6 +33,9 @@ HALT and a moving or stationary quick stop. Velocity series in mode 3: three run
 or a HALT run first. Each series ended released for the next.
 
 - **Arrivals:** 308 completed moves, 238 exactly on target and 70 off by one count (45 at +1, 25 at −1), never more.
+  Of these, 195 were library moves (`move` route: 152 exact, 22 at +1, 21 at −1) and 113 the bench's raw `position`
+  route (86 exact, 23 at +1, 4 at −1). *Correction, prompt 58 (2026-11-26):* "308 completed moves" counted both
+  routes as one; the `kind: arrival` rows of `docs/bench/20261111-night/results.jsonl` name the route of each.
   There is no speed dependence. They are rarer with 1000 ms deceleration ramps. Once the completion sample read 8501 and a
   later read 8500, so part of this is settling after the completion report. Round 12 had 23 of 23 exact.
 - **Velocity:** 163 runs, 157 with their own stop settled. The other 6, all at 45 to 60 rpm on both nodes, had a first

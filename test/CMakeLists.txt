@@ -694,6 +694,12 @@ add_executable(record_checks_test record_checks_test.cpp)
 target_link_libraries(record_checks_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(record_checks_test)
 add_test(NAME record_checks COMMAND record_checks_test)
+# The reviewed records committed under docs/records (prompt 58 deliverable 4).
+add_executable(reviewed_records_test reviewed_records_test.cpp)
+target_link_libraries(reviewed_records_test PRIVATE MotorControlCAN::MotorControlCAN)
+target_compile_definitions(reviewed_records_test PRIVATE MOTORCONTROLCAN_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+strict_test(reviewed_records_test)
+add_test(NAME reviewed_records COMMAND reviewed_records_test)
 set_tests_properties(persistence PROPERTIES TIMEOUT 30)
 
 add_executable(configuration_restore_test configuration_restore_test.cpp)

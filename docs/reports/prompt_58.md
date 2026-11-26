@@ -113,3 +113,42 @@ One implementer (Opus, xhigh) owns the code for all slices; the lead integrates,
 
 Stage (c): a stronger reviewer (Fable, high) checks every reviewed record against its raw evidence; a second reviewer
 checks codec, API and console.
+
+## Stage (b) slice b5: the reviewed records
+
+Three reviewed records are committed under [docs/records](../records/), one canonical line per file, written only
+by `reviewed_records_test --write` (`encodeRecord`); the registered test `reviewed_records` decodes each file,
+checks every value against the reviewed one, requires the file to equal `encodeRecord`'s line byte for byte and
+checks what each record opens. Beside each record a review note cites, for every included and excluded run, the
+raw capture lines (`rx.txt`, loose or `archive!member`) and the result-ledger rows.
+
+| Record | Values | Runs | Narrowed from decision 4 |
+| --- | --- | --- | --- |
+| [enable](../records/lichuan_c_enable_mode1.md) | mode 1; starts `8437/0001`, `4050/0014`, `8050/0011`, `C050/0015`, `0050/0010` | 177 enables (node 1 111, node 2 66); excluded 103, 105 (failed) and 52015 (refused before any write) | Nothing |
+| [relative position](../records/lichuan_c_position_relative.md) | base `ACTUAL`, 6..300 rpm, ramps 100..1000 ms, up to 38200 counts, `6041` `0x1000` / `2100` `0x0001`, `AFTER_ABSENCE` | 217 completed library moves (node 1 169, node 2 48); every arrival within one count of start plus displacement | rpm 2 to 6 (the 2 rpm move, 121, is absolute); ramps 2000 to 1000 ms and 169410 to 38200 counts (both only at 1200 to 3000 rpm) |
+| [forward velocity](../records/lichuan_c_velocity_forward.md) | ZH86 (documented), 6..60 rpm forward, ramps 200 ms, at most 12 s, `2201=1000` INFERRED, HALT 6..60, quick stop 6..40, window 2 s, starts `8050/0011`, `C050/0015` | 104 attended runs (node 1 81, node 2 23) | Quick stop 60 to 40 rpm (6 night-soak quick stops at 45 to 60 rpm ended `DEADLINE` unsettled); starts without `4050/0014`, because a record's starts cover both stop kinds and decision 4 excludes the HALT start from that latch |
+
+Decision needed: no velocity run in the record read `2201` (reads of `1000` on 2026-11-09 and 2026-11-13 bracket
+them, and the first retained write is on 2026-11-13 at 14:26Z), so its basis is INFERRED, and `makeVelocityEvidence`
+refuses a record whose `2201` is not MEASURED. The committed velocity record therefore opens nothing; the test
+checks that refusal. Either a run on this identity reads `2201` in its own capture and a new record states it
+MEASURED, or the rule is relaxed by a reviewed decision. The position and enable records open their routes.
+
+Recount against the stage (a) evidence above: 687 identity read sets, not 648 (39 captures name no node; all
+identical); quick stops at 45 to 60 rpm did not all settle (above); the enable report arrived 0.702 to 0.749 s after
+word 15's acknowledgement in the 104 included runs. Not covered by any record: absolute moves, homing, mode 6,
+reverse velocity, the record format's missing minimum travel (a relative record admits any displacement up to its
+bound; the shortest measured was 100 counts) and combinations inside a record's box that never ran together.
+
+### Summary corrections (slice b5)
+
+Each correction names the old claim, the raw evidence and the replacement; documents that keep corrections carry a
+dated note beside the change. Raw evidence (`docs/bench`) was not edited.
+
+| Document | Old claim | Raw evidence | Replacement |
+| --- | --- | --- | --- |
+| `docs/drive_actions.md`, `docs/coverage.md`, `Actions.h` (`EnableGate::MEASURED`), `docs/prompts/57_regular_drive_operations.md`, `docs/reports/prompt_57.md`, `docs/reports/2026-11-12_motion_capability_evidence.md` | 111 successful enables (28 attended, 83 night soak); start list without `0050/0010` | The 177 `TRIAL_ENABLE` lines listed in the [enable note](../records/lichuan_c_enable_mode1.md): 88 night-soak captures (83 `results.jsonl` rows and 5 console-motion series), 61 later runs (2026-11-13 to 2026-11-19); 6 starts from `0050/0010` | 177 enables, with `0050/0010` (6); 116 in the 2026-11-12 report, whose date predates the 61. Historical CHANGELOG entries are left as written |
+| `docs/reports/2026-11-13_fault_recovery_and_motor_limits.md` section 4 | Node 1 clean 60..4000 rpm, FF05 at 4500; node 2 none yet; "clean" | Ladder captures `TRIAL_EMCY` `05ff81...` (FF05): node 1 trials 5366 (4250 rpm), 5348 and 5356 (4500), 5390 (4000 rpm, 200 ms); node 2 5654 (4625), 5408 (4000 rpm, 200 ms); 5374 (node 1, 4125) and 5416 (node 2, 4500) ran without fault; `TRIAL_VELOCITY` state 3 outcome 6 on the quick-stop runs above 60 rpm | With `2201=1000` (node 2 inferred), FF05 from 4250 rpm on node 1 and 4625 rpm on node 2, and on both at 4000 rpm with 200 ms ramps; "clean" means no fault, while every quick-stop run above 60 rpm ended `DEADLINE` |
+| `docs/reports/2026-11-12_motion_capability_evidence.md`, `docs/reports/2026-11-10_bench_r8.md` | Velocity at 6, 30 and 60 rpm only (rounds 7 to 9) | Round 9 captures `20261110T1101Z-s20-c1-velocity-node1-1706` (15 rpm), `...-c2-velocity-node2-1726` (45), `...-c7-velocity-node1-1822` (15), `...-c10-velocity-node1-1882` (45), `...-c11-velocity-node2-1902` (15), `TRIAL_PLAN` line 4 | 6, 15, 30, 45 and 60 rpm |
+| `docs/reports/2026-11-12_night_soak.md` | 308 completed moves | `docs/bench/20261111-night/results.jsonl` `kind: arrival` rows: 195 with `route: move` (152 exact, 22 at +1, 21 at -1) and 113 with `route: position` (86, 23, 4) | 308 arrivals: 195 library moves and 113 raw `position` route moves |
+| No repository document outside `docs/bench` | (`results.jsonl` `last` read as a final state) | `docs/bench/20261111-night/tools/night.py:179-184` takes the last `TRIAL_LAST passed=1` line, which for the library routes is the admission read: `results.jsonl:1` `last` `0011/8050` while its capture's word 15 reported `8437/0001` | Recorded here only: `last` is the admission report for `enable`, `move` and `velocity` rows, the final read for the raw `position` route |

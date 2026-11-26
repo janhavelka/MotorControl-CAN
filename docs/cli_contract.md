@@ -738,3 +738,10 @@ ESP-IDF NVS in the IDF build and Arduino Preferences in the Arduino build, both 
 the NVS namespace `mcc_records` and attached by `EspProbeMain`. A request against a
 bound record and its refusals are the motion routes' own (`velocity`, `moveby`,
 `moveto`, `enable`); `RecordCheckError` is their `detail`.
+
+The reviewed records are the one-line files in [docs/records](records/): `record load`
+followed by a file's line loads it, and `record use SLOT` binds it. The enable and
+relative position records open their regular routes; the velocity record loads and
+binds, but every `velocity` request under it is refused with
+`RecordCheckError::BASIS`, because its `2201` is INFERRED (see its review note).
+Homing has no record and no `record` slot.

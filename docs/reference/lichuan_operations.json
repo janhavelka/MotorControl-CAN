@@ -900,6 +900,10 @@
           "ctest": "record_checks"
         },
         {
+          "path": "test/reviewed_records_test.cpp",
+          "ctest": "reviewed_records"
+        },
+        {
           "path": "test/velocity_test.cpp",
           "ctest": "velocity"
         },

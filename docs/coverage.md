@@ -325,12 +325,29 @@ for the owner's return ([deferred table](prompts/README.md)).
 | Feature | Implementation and host checks | Device evidence |
 | --- | --- | --- |
 | Typed mode select (`ActionKind::SELECT_MODE`, `prepareModeSelect`) | `AxisSession::requestModeSelect`, console `mode AXIS_ID 1\|3\|6`, bench `mode1`/`mode3`; `mode_select_test`, `axis_session_test`, `motion_console_test`, `bench_route_test` | The retained mode writes (23 from the power-up report in mode 0, the released starts); other codes stay with prompt 52's probe (D17) |
-| Regular enable (`EnableGate::MEASURED`) | `prepareEnable` from the fresh power-up or released report, with the identity input; console `enable AXIS_ID`, bench `enable` start 2; `enable_action_test`, `motion_console_test`, `bench_route_test` | The reviewed record of 111 enables on both specimens, one firmware; the attended gate stays for unmeasured states |
+| Regular enable (`EnableGate::MEASURED`) | `prepareEnable` from the fresh power-up or released report, with the identity input; console `enable AXIS_ID`, bench `enable` start 2; `enable_action_test`, `motion_console_test`, `bench_route_test` | The reviewed record of 177 enables on both specimens, one firmware (111 until prompt 58's recount, [note](records/lichuan_c_enable_mode1.md)); the attended gate stays for unmeasured states |
 | Release (`ActionKind::RELEASE`, `prepareRelease`, `classifyRelease`) | The measured release table, the explicit experiment option; console `motor-release AXIS_ID`, bench `release` (`Tr`); `release_action_test`, `axis_session_test`, `motion_console_test`, `bench_route_test` | Rows 1 to 3 measured (21 power-up enables, trial 5991, trial 5405 and 8 of 8); never a standstill claim. Bench trials of the experiment rows pending |
 | Identity policy (`checkIdentity`, `IdentityCheck`) | Product fields refuse, firmware fields flag, in moves, velocity, homing, enable, mode select and release (fix round c); a documented-only match is `UNCONFIRMED`; the application's MEASURED reference (`ActionOptions::identityReference`) also confirms; a move replacement keeps the original's firmware flag; `firmware_unqualified` on every console motion terminal; `reads_test`, `mode_select_test`, `release_action_test`, `move_replacement_test`, the motion suites | Both specimens' identity (`measuredIdentity()`); no other firmware measured |
 | Regular commands on their own reads (fix round c) | `ProbeMotion::startAction` (identity, CONTROL for a release, full state, then the request); the shipped consoles attach their axis (`SelectedAxis` in `native_probe` and the probe firmware, the S2 bench console's commissioning helper on its first armed node); `motion_console_test`, `bench_console_native_test`, `bench_console_test` | None new; the firmware attachments are compiled by CI's firmware builds only, and their RAM placement is unmeasured on a board |
 | Save parameters with optional guards | `prepareSave`, `validatePersistenceReview`, console `persistence save parameters` (self-prepared), bench `save` (`Ts`); `persistence_test`, `probe_commissioning_app_test`, `bench_route_test` | None: the save trials (`1017=1000`, readback, the owner's power cycle) wait for the owner |
 | Factory restore with the backup guard | `prepareFactoryRestore`, console `persistence restore factory settings [without-backup]`; the same suites | None: the restore trial is prompt 61's, after the owner returns |
+
+## Prompt 58 measured records
+
+Host-tested means the native tests named here pass against fakes; device evidence is what the retained raw
+captures show, reviewed record by record in [docs/records](records/). No record is a hardware qualification,
+and no bench step of this prompt ran: none was needed, the records come from earlier runs.
+
+| Feature | Implementation and host checks | Device evidence |
+| --- | --- | --- |
+| Record codec (`Records.h`) | `encodeRecord`, `decodeRecord`, `validateRecord`, `crc32Ieee`, `recordId`; `records_test` | None needed: text and validation only |
+| Record checks and evidence builders | `checkRecordMove`, `checkRecordVelocity`, `checkRecordEnable`, `makeMoveEvidence`, `makeVelocityEvidence`, `makeEnableEvidence`; the MEASURED velocity window bound; `record_checks_test`, `velocity_test` | None needed: pure narrowing before the library's own preparation |
+| Load, use, show, drop through the session | `ProbeMotion::loadRecord`, `useRecord`, `showRecord`, `dropRecord`, attended precedence, invalidation on rebinding, configuration, node boot-up and controller recovery; `probe_records_test` | None: host only |
+| Console `record` routes and storage hooks | `record load\|show\|use\|drop\|save\|restore`, `RecordStore`, `FileRecordStore`, `EspRecordStore`; `record_console_test`, the firmware builds | None: NVS and Preferences storage unmeasured on a board |
+| Reviewed enable record | [`lichuan_c_enable_mode1.record`](records/lichuan_c_enable_mode1.record); `reviewed_records_test` decodes it and checks every value | 177 enables, both specimens, five start pairs |
+| Reviewed relative position record | [`lichuan_c_position_relative.record`](records/lichuan_c_position_relative.record); `reviewed_records_test` | 217 completed library moves, 6..300 rpm, ramps 100..1000 ms, up to 38200 counts (narrowed from decision 4) |
+| Reviewed forward velocity record | [`lichuan_c_velocity_forward.record`](records/lichuan_c_velocity_forward.record); `reviewed_records_test` checks it decodes and that it opens nothing | 104 attended runs; `2201=1000` INFERRED, so the record is refused (`BASIS`) until a run reads `2201`; quick stop narrowed to 6..40 rpm, starts to `8050/0011` and `C050/0015` |
+| Absolute position and homing records | None | Three absolute library moves; homing: 11 admission records, all refused before any write. No record |
 
 ## Prompt 51 host SYNC scope
 

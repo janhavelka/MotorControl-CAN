@@ -98,16 +98,19 @@ references and the candidate set. Mode select and release make no identity compa
 ## Enable: a regular measured command, and the attended trial
 
 Since prompt 57 the mode 1 enable is a regular command under `EnableGate::MEASURED`, opened by the
-reviewed record of the retained enables: 111 succeeded on both CL86-C specimens, one firmware
-(`1000=00040192`, `1009=000c`, `100A=0020`), 28 of the 30 attended records 103 to 2402 and 83 night-soak
-runs; records 103 and 105 (2026-11-03, node 1) failed before the bit 10 fix and after a hand
-displacement. Its start is the fresh report alone, which the library classifies into
-`EnableRecord::start`:
+reviewed record of the retained enables: 177 succeeded on both CL86-C specimens, one firmware
+(`1000=00040192`, `1009=000c`, `100A=0020`), 28 of the 30 attended records 103 to 2402, 88 night-soak
+runs and 61 later bench runs (2026-11-13 to 2026-11-19); records 103 and 105 (2026-11-03, node 1) failed
+before the bit 10 fix and after a hand displacement. *Correction, prompt 58 (2026-11-26):* this paragraph
+said "111 succeeded, ... 83 night-soak runs". A recount of the raw captures found 177: the night soak
+retains 88 enable captures (83 ledger rows and 5 console-motion series), and 61 enables ran after prompt
+57's count; the evidence is [the reviewed record's note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_enable_mode1.md). Its start is
+the fresh report alone, which the library classifies into `EnableRecord::start`:
 
 | Start | Fresh report | Measured basis |
 | --- | --- | --- |
 | `POWER_UP` | Mode 1, `6041` low bits 111, `2100` in place with released, running, alarm, both soft limits and every undocumented bit clear | 21 power-up records: `8437`/`0001`, word 6 `8031`/`0011`, word 7 `8033`/`0001`, word 15 `8437`/`0001`. Both shafts held torque there by hand and word 6 released it, so no shaft observation is asked |
-| `RELEASED` | Mode 1, `2100` released (in place and the running latch either way, the other bits clear), `6041` bits 0..6 `0x50` or `0x31` | The released standstill a quick stop leaves (`8050`/`0011`, latches `4050`/`0014`, `C050`/`0015`); `8031`/`0011` is the report word 6 leaves on that path, which the earlier `0x50` rule refused |
+| `RELEASED` | Mode 1, `2100` released (in place and the running latch either way, the other bits clear), `6041` bits 0..6 `0x50` or `0x31` | The released standstill a quick stop leaves (`8050`/`0011` 44 records, latches `4050`/`0014` 62 and `C050`/`0015` 44) and `0050`/`0010` (6 records, 2026-11-16 and 2026-11-19); `8031`/`0011` is the report word 6 leaves on that path, which the earlier `0x50` rule refused |
 
 Both gates also take a current identity read under the identity policy above:
 product fields that match neither `measuredIdentity()` nor the application's `ActionOptions::identityReference`
@@ -153,6 +156,30 @@ so a copy cannot open a second enable there, through any session, and a restarte
 reservation does not match it. A restart that reproduced the same reservation, operation and clock
 values could match. Only the application's trial log, which must never reissue an identity, closes
 that case.
+
+### Measured enable record (prompt 58)
+
+An application can also open the mode 1 enable from a loaded ENABLE record
+([Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h)) instead of the built-in record: its
+mode, its exact `6041`/`2100` start pairs and the identity it was measured on. The reviewed one is
+[`lichuan_c_enable_mode1.record`](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_enable_mode1.record), mode 1 from `8437/0001`,
+`4050/0014`, `8050/0011`, `C050/0015` and `0050/0010` on the identity above, with its
+[review note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_enable_mode1.md) citing every enable it rests on.
+
+- **Load and bind.** `ProbeMotion::loadRecord` (console `record load LINE`) decodes and validates the whole
+  line into the axis's `enable` slot and stores nothing on any refusal; `useRecord` (`record use enable`)
+  binds it to the axis's binding, configuration, node and controller generations. Neither sends a frame.
+- **What it narrows.** While bound, `requestEnable` and `startAction`'s enable build `EnableEvidence`
+  (`EnableGate::MEASURED`, the record's mode) and `ActionOptions::identityReference` with
+  `makeEnableEvidence`, and `checkRecordEnable` refuses, before `prepareEnable`, a fresh `6061` other than the
+  record's mode or a start pair the record does not list (`RecordCheckError` in the refusal's detail).
+  `prepareEnable` then applies all of the rules above, so a record never admits a start the library refuses.
+- **Attended precedence.** An `EnableGate::ATTENDED_EXPERIMENT` the caller named for the enable
+  (`ProbeMotion::setEnablePrerequisites`) runs as named, set before or after a record is bound: unmeasured
+  states and mode 6 stay attended.
+- **Invalidation.** A rebinding, configuration change, drive boot-up the owner observes or controller recovery
+  leaves the record bound to old generations; its enables are then refused until it is used again or dropped
+  (`record drop enable`). A restart forgets it, and nothing restores a record by itself.
 
 ### Documented claims
 

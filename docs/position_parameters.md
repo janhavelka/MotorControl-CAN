@@ -412,6 +412,38 @@ than a halt; and the physical displacement, whose scale and direction need an
 independent angle measurement. `move_relative_test.cpp` tests 31 and 33 replay
 825, 828 to 830 and 1110 value for value through the real owner and `AxisSession`.
 
+## Measured position records (prompt 58)
+
+A POSITION record ([Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h)) states, for one
+move kind (absolute or relative) on one identity, the acceptance and completion signals and rule, the
+relative base, and the measured ranges: 6081 rate in motor rpm, each of 6083 and 6084 in ms, and the largest
+travel in 607A increments. `makeMoveEvidence` builds the `MoveEvidence` above from it (`MoveGate::MEASURED`,
+the record id from its CRC), so the application no longer assembles the signals and base by hand.
+
+- **Load and bind.** `ProbeMotion::loadRecord` (console `record load LINE`) decodes and validates the whole
+  line into the axis's `absolute` or `relative` slot and stores nothing on any refusal; `useRecord`
+  (`record use relative`) binds it to the binding, configuration, node and controller generations. Neither
+  sends a frame or moves.
+- **What it narrows.** While bound, `requestMove` (`moveby`, `moveto`; a wrapped-angle move uses the
+  absolute slot) builds the evidence from the record, and `checkRecordMove` refuses, before the move's
+  preparation: another move kind or relative basis, other signals or rule, a ramp outside the record's range,
+  a written 6081 outside its rpm range (the same `prepareVelocityTarget` conversion the move uses), and a
+  travel beyond its bound (the relative displacement, or the absolute endpoint minus a known witness; an
+  absolute move without one is refused). `RecordCheckError` is the refusal's detail. The move's own
+  preparation then applies every rule of this page, so a record never widens a library limit.
+- **Attended precedence.** Moves have no attended gate: a bound record replaces the evidence the application
+  set with `setMovePrerequisites` for its slot, and an unbound slot keeps that evidence unchanged.
+- **Invalidation.** A rebinding, configuration change, drive boot-up the owner observes or controller recovery
+  leaves the record bound to old generations; its moves are refused until it is used again or dropped. A
+  restart forgets it; nothing restores a record by itself.
+
+The reviewed record [`lichuan_c_position_relative.record`](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_position_relative.record) covers
+relative moves with base `ACTUAL`, 6..300 rpm, ramps 100..1000 ms and at most 38200 counts, acceptance
+`6041` `0x1000`, completion `2100` `0x0001`, `AFTER_ABSENCE`, from 217 completed library moves on both nodes.
+Its [review note](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/records/lichuan_c_position_relative.md) cites every move and says what was narrowed: the
+ranges are a box, not every combination inside it ran (at 6 rpm the longest move was 1000 counts), and the
+format has no minimum travel. No absolute record exists: only three absolute library moves completed.
+
 ## Replacing an active absolute set-point
 
 Prompt52 adds `prepareStoredPositionQualification`, `validateMoveReplacement`

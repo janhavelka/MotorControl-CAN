@@ -29,7 +29,7 @@ p18, p20; ZH57 p13, p17; OP86 p11; OP57 p11; the CL86-C product page snapshot. P
 | b) Negative speed | The EDS and both 86C dictionary tables say `60FF` is I32. The mode tables say U32 0..3000. `606C` already reports signed rpm. Treat `60FF` as signed rpm after one guarded measurement. Run the above-limit probe of (a) first: it bounds what an unsigned reading of a negative value could do. |
 | c) User units | The host unit layer already does what the CiA402 factor group does (gear, lead, scale, polarity, exact rounding). The EDS has no factor group objects. Missing: acceleration in units/s² converted to the drive's millisecond ramp, and unit words for `speed`/`accel` in the console. 2.5 rpm is not physically possible on this drive's 1 rpm objects except through gearing. |
 | d) Typed mode switch | Yes, one library function: `prepareModeSelect`, then the existing `nextAction`/`advanceAction`. Released or power-up drive only. Read back `6061`; never write `6061`; never read `6060`. About 130 measured mode writes exist (trial 917 and others), none on an enabled drive in modes 1, 3 or 6. |
-| e) Enable and release | 111 enables succeeded on two drives, 2 early ones failed. Word 6 (`0006`) released the drive in every power-up enable and freed node 1's shaft by hand. A `MEASURED` enable gate and a `prepareRelease` that writes `0006` are the smallest change. |
+| e) Enable and release | 116 enables succeeded on two drives (111 as first counted; correction below), 2 early ones failed. Word 6 (`0006`) released the drive in every power-up enable and freed node 1's shaft by hand. A `MEASURED` enable gate and a `prepareRelease` that writes `0006` are the smallest change. |
 | f) Firmware lock | Enforced in three places by an exact 8-value match. Replace it with a comparison: product fields must match, firmware fields differing is reported as "unqualified firmware" and carried to the terminal result. |
 | g) Records from the console | Today only firmware code supplies records (`set...Prerequisites`); the bench has text "arming" lines. Add a pure record codec in the profile and `record load/show/use/save` console routes, volatile by default, NVS only on an explicit save. |
 | h) Roadmap | Prompt 30 owns (e), blocked on its gates. Prompt 35 owns parts of (a), (b) and (d). Prompts 9 and 10 own the unit layer of (c), but not acceleration. Nothing owns the above-limit tests, a standalone mode select, (f) or (g). Prompt 52's text conflicts with (b). |
@@ -94,7 +94,9 @@ rpm under the measured move record. A velocity ladder above 60 rpm needs a new e
 
 - Position mode: highest speed 300 rpm. Trial 709 read `606C=296` during a 300 rpm move; the night soak ran 33 moves at
   300 rpm and a ladder of 6..300 rpm ([2026-11-05](2026-11-05_motion_and_stress.md), [night soak](2026-11-12_night_soak.md)).
-- Velocity mode: 6, 30 and 60 rpm only (rounds 7 to 9; 163 night-soak runs at 6..60 rpm).
+- Velocity mode: 6, 15, 30, 45 and 60 rpm in rounds 7 to 9; 163 night-soak runs at 6..60 rpm. *Correction, prompt 58
+  (2026-11-26):* this said "6, 30 and 60 rpm only"; round 9 also ran 15 rpm (trials 1706, 1822, 1902) and 45 rpm
+  (1726, 1882), `TRIAL_PLAN` line 4 of each `docs/bench/20261110T11*Z-s20-c*-velocity-*` capture.
 - `6064` rose 0.992 times the commanded rate at 6, 30 and 60 rpm (99.2, 496.0, 992.0 counts/s at 1000 counts per
   turn). The cause is not established ([round 8](2026-11-10_bench_r8.md)).
 - `60FF=3001` was acknowledged and read back as 3001 (trial 2001, [round 9](2026-11-10_bench_r9.md)). The drive does
@@ -453,7 +455,10 @@ User: "Enable is experiment-only, and there is no 'free the shaft' command - add
 ### Measured on the bench
 
 - Enables: 30 retained records, 28 succeeded; 103 and 105 (2026-11-03, node 1) failed before the bit 10 fix and after
-  a hand displacement. The night soak added 83 successful enables. So 111 successful enables, two specimens.
+  a hand displacement. The night soak added 88 successful enables. So 116 successful enables, two specimens.
+  *Correction, prompt 58 (2026-11-26):* this said "83" and "111". The night soak retains 88 enable captures, 83 with a
+  `results.jsonl` row and 5 in the console-motion series `S0054`, `S0141`, `S0149`, `S0157` and `S0165`; by 2026-11-19
+  the retained total is 177 ([reviewed record note](../records/lichuan_c_enable_mode1.md), which cites every one).
 - Reports, power-up start (21 records): `8437`/`0001` in mode 1, then word 6 `8031`/`0011` (released), word 7
   `8033`/`0001`, word 15 `8437`/`0001`.
 - Reports, start after a quick stop: from `8050`/`0011`, `4050`/`0014` or `C050`/`0015`; word 6 `x031` with the same
@@ -472,7 +477,7 @@ User: "Enable is experiment-only, and there is no 'free the shaft' command - add
 
 ### Recommendation
 
-- Enable: add `EnableGate::MEASURED` with a reviewed record built from the 111 enables. Under it: no one-use trial
+- Enable: add `EnableGate::MEASURED` with a reviewed record built from the 116 enables (111 as first counted). Under it: no one-use trial
   identity or expiry (keep the operation identity); the start record stays the application's statement; the power-up
   shaft observation is not required when the record states the power-up report holds torque on this model; `607A` and
   `60FF` are read and reported, not required to equal reviewed values, in mode 1 only (no mode 1 enable started

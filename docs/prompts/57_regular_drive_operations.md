@@ -46,7 +46,8 @@ in the [motion capability report](../reports/2026-11-12_motion_capability_eviden
   the raw `6060` writes in the examples (`AxisSession`, bench `MODE_ONE`/`MODE_THREE`). Undocumented codes stay in the
   D17 probe.
 - **Enable:** a `MEASURED` enable gate beside CLOSED and ATTENDED_EXPERIMENT, opened by a reviewed record of the
-  measured enables (111 succeeded, 2 early failures with known causes), so enable is a regular command. Its start is
+  measured enables (111 succeeded, 2 early failures with known causes; prompt 58's recount of the raw captures found
+  177), so enable is a regular command. Its start is
   the fresh report alone: the released standstill or the measured power-up report, without a retained stop record or
   a per-boot word history (2026-11-17, above).
 - **Release (free the shaft):** `prepareRelease` (the RS name) writes the one word that the release table below

@@ -49,7 +49,7 @@
  * complete or advance the action, and the outcome is the withdrawal's reason.
  * Enable transition contract: EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
  * apart in position mode. EnableGate::MEASURED (prompt 57) makes the mode 1 enable a regular command,
- * opened by the reviewed record of 111 successful enables on two CL86-C specimens, one firmware: its
+ * opened by the reviewed record of 177 successful enables on two CL86-C specimens, one firmware: its
  * start is the fresh report alone, the measured power-up report or the released standstill, with no
  * trial identity, retained stop record or per-boot word history. EnableGate::ATTENDED_EXPERIMENT stays
  * for unmeasured states and mode 6, with the caller's explicit statements; a closed gate refuses. Mode 6
@@ -218,12 +218,13 @@ enum class EnableGate : uint8_t {
      * statement EnableEvidence carries and stays the gate for states outside MEASURED, mode 6 included. */
     ATTENDED_EXPERIMENT,
     /** The regular mode 1 enable (prompt 57), opened by the reviewed record of the retained enables:
-     * 111 succeeded on both CL86-C specimens, one firmware (1000=00040192, 1009=000c, 100A=0020), 28 of
-     * the 30 attended records 103 to 2402 and 83 night-soak runs (docs/bench/20261111-night/night.log);
+     * 177 succeeded on both CL86-C specimens, one firmware (1000=00040192, 1009=000c, 100A=0020): 28 of
+     * the 30 attended records 103 to 2402, 88 night-soak runs and 61 later bench runs, recounted from the
+     * raw captures in prompt 58 (docs/records/lichuan_c_enable_mode1.md; prompt 57 counted 111);
      * records 103 and 105 (2026-11-03, node 1) failed before the bit 10 fix and after a hand displacement.
      * Its measured starts are the power-up report 8437/0001 in mode 1 (21 records: word 6 8031/0011,
      * word 7 8033/0001, word 15 8437/0001) and the released standstill a quick stop leaves (8050/0011,
-     * the latches 4050/0014 and C050/0015); 8031/0011, the report word 6 leaves, is the released
+     * 0050/0010, the latches 4050/0014 and C050/0015); 8031/0011, the report word 6 leaves, is the released
      * standstill's next state on that measured path. The start is the fresh report alone: the library
      * classifies it (EnableRecord::start), and trial, expiresUs, reservation, powerUpShaft and the
      * reviewed values are not consulted. 607A and 60FF are still read before any word and kept, not

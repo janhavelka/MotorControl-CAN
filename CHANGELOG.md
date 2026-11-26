@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Reviewed measured records (prompt 58, slice b5, 2026-11-26)
+
+- Three reviewed records in `docs/records`, one canonical line per file, written by `reviewed_records_test --write`
+  (`encodeRecord`), each with a review note citing the raw capture lines and ledger rows of every run it rests on
+  and of every run excluded: enable mode 1 from five start pairs (177 enables); relative moves with base `ACTUAL`,
+  6..300 rpm, ramps 100..1000 ms, at most 38200 counts (217 moves); forward velocity 6..60 rpm, 200 ms ramps, at
+  most 12 s, HALT 6..60 and quick stop 6..40 rpm, starts `8050/0011` and `C050/0015` (104 runs). Narrowed from the
+  stage (a) decision where the raw records did not support it: position rpm 2 to 6, ramps 2000 to 1000 ms,
+  travel 169410 to 38200 counts; quick stop 60 to 40 rpm; velocity starts without `4050/0014`.
+- The velocity record's `2201=1000` is INFERRED (no included run read `2201`), so it opens nothing:
+  `makeVelocityEvidence` refuses it with `RecordCheckError::BASIS`. The enable and position records open their
+  regular routes. No absolute position or homing record exists.
+- New registered test `reviewed_records`: decodes every committed record, checks each value against the reviewed
+  one, requires the file to equal `encodeRecord`'s line and checks what each record opens.
+- Guides: measured-record sections in the position, velocity, homing and drive-actions guides (load, bind, what a
+  record narrows, attended precedence, invalidation) and the reviewed records in the CLI contract and coverage.
+- Corrections from the raw records: 177 successful enables, not 111 (with the start `0050/0010`), in the
+  drive-actions guide, coverage, `EnableGate::MEASURED`'s comment and the prompt 57 documents; the velocity limits
+  (FF05 from 4250 rpm on node 1 and 4625 rpm on node 2, both at 4000 rpm with 200 ms ramps; quick stops above
+  60 rpm ended `DEADLINE`, not clean); velocity rates 6, 15, 30, 45 and 60 rpm in rounds 7 to 9 (the rounds 8 and
+  9 entry below names 30 and 60 only); the night soak's 308 arrivals are 195 library moves and 113 raw `position`
+  route moves. Details: [stage report](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/reports/prompt_58.md#summary-corrections-slice-b5).
+
 ### Console record routes and storage hooks (prompt 58, slice b4, 2026-11-26)
 
 - Console `record load LINE | record show|use|drop|save|restore SLOT` (enable, absolute, relative, velocity) on

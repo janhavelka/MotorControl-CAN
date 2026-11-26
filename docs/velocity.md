@@ -425,6 +425,41 @@ gate for that firmware tuple:
 general acquisition remains Q20 `UNQUALIFIED`. The earlier one-per-enable
 accepted prerequisite read does not authorize continuous velocity polling.
 
+## Measured velocity records (prompt 58)
+
+A VELOCITY record ([Records.h](../include/MotorControlCAN/profiles/lichuan_c/Records.h)) states what
+reviewed runs on one identity established: the status layout, the `60FF` rate range and direction, the
+6083/6084 ramp range, the longest duration, the `2201` subdivision they ran at, the rate range of each
+stop kind it admits (HALT, QUICK_STOP), the largest enable-report window and the exact `6041`/`2100` start
+pairs. `makeVelocityEvidence` builds `VelocityEvidence` from it for one stop kind
+(`VelocityGate::MEASURED`, start and stop qualified, the rpm maximum, and `maximumEnableWindowUs`, the
+record's window bound: under MEASURED, `VelocityOptions::enableWindowUs` is admitted up to it).
+A record whose rate, direction, ramp, duration, `2201`, stop or start facts are not MEASURED opens nothing
+(`RecordCheckError::BASIS`).
+
+- **Load and bind.** `ProbeMotion::loadRecord` (console `record load LINE`) decodes and validates the whole
+  line into the axis's `velocity` slot and stores nothing on any refusal; `useRecord` (`record use
+  velocity`) binds it to the binding, configuration, node and controller generations. Neither sends a frame.
+- **What it narrows.** While bound, `requestVelocity` builds the evidence for the run's stop kind and
+  `checkRecordVelocity` refuses, before `prepareVelocity`: a ramp outside the range, a duration beyond the
+  longest, an axis whose `commandStepsPerMotorTurn` differs from the record's `2201` (SCALE), a written `60FF`
+  of the wrong sign or outside the rpm range or the selected stop's range, a window beyond the bound, and a
+  fresh start pair the record does not list. `prepareVelocity` then applies every rule of this page.
+- **Attended precedence.** A `VelocityGate::ATTENDED_EXPERIMENT` the caller named
+  (`ProbeMotion::setVelocityPrerequisites`) runs as named, set before or after a record is bound, so the
+  ranges a record does not cover stay under the attended experiment.
+- **Invalidation.** A rebinding, configuration change, drive boot-up the owner observes or controller
+  recovery leaves the record bound to old generations; its runs are refused until it is used again or
+  dropped. A restart forgets it; nothing restores a record by itself.
+
+The reviewed record [`lichuan_c_velocity_forward.record`](records/lichuan_c_velocity_forward.record) states
+forward 6..60 rpm, 200 ms ramps, at most 12 s, the ZH86 layout, HALT at 6..60 rpm, quick stop at 6..40 rpm,
+a 2 s window and the starts `8050/0011` and `C050/0015`, from 104 attended runs on both nodes. Its `2201=1000`
+is INFERRED (no run read `2201`; reads on 2026-11-09 and 2026-11-13 bracket them), so it opens nothing until a
+run on this identity reads `2201` and a new record states it MEASURED. Its
+[review note](records/lichuan_c_velocity_forward.md) cites every run and the narrowings: quick stops at 45 to
+60 rpm ended unsettled in 6 night-soak runs, and the `0014` latch start is excluded (S20).
+
 ## Changing a finite run's positive rate
 
 `validateVelocityChange` and `prepareVelocityChange` use the existing

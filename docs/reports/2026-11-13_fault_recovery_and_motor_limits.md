@@ -72,10 +72,19 @@ D: no torque-speed curve, rated speed, inertia or step-rate limit in any retaine
 voltage is unrecorded. `60FF` 0..3000 rpm (EN86 p13); ramps 0..2000 ms (p11, p13); a fixed ramp time makes
 acceleration proportional to the target (I, [units re-audit](2026-11-13_units_reaudit.md)).
 
-| Node | Clean (M) | Failed (M) |
+| Node | No fault (M) | FF05 (M) |
 | --- | --- | --- |
-| 1 | 60..4000 rpm, 2000 ms ramps | FF05 at 4500, 2000 ms (2250 rpm/s) |
-| 2 | 60..4000 rpm, 2000 ms; 1000 rpm with 300 ms; 3500 rpm with 500 ms (7000 rpm/s) | None yet |
+| 1 | 60..4125 rpm (1000 ms ramps to 960 rpm, 2000 ms from 1200; 4125: trial 5374); 4000 rpm with 1000 and 500 ms (5380, 5386) | 4250 rpm (5366), 4500 (5198, 5348, 5356), 2000 ms ramps; 4000 rpm with 200 ms (5390) |
+| 2 | 60..4500 rpm (the same ramps; 4500: 5416); 1000 rpm with 500 and 300 ms; 3500 rpm with 1000, 500 and 200 ms; 4000 rpm with 1000 and 500 ms | 4625 rpm (5654) and every step above it (4750, 5000 twice, 5500, 6000), 2000 ms ramps; 4000 rpm with 200 ms (5408) |
+
+*Correction, prompt 58 (2026-11-26).* This table said node 1 "60..4000 rpm, 2000 ms ramps" clean and "FF05 at 4500";
+node 2 "60..4000 rpm, 2000 ms; 1000 rpm with 300 ms; 3500 rpm with 500 ms" and "None yet". It was written from the
+ladder rows to 12:49Z; the ladder's later runs (14:17Z to 15:03Z, `2201=1000`, inferred for node 2 before its first
+read at 15:41Z) put the first FF05 at 4250 rpm on node 1 and 4625 rpm on node 2, and both fault at 4000 rpm with
+200 ms ramps (`TRIAL_EMCY` `05ff81...` in each faulting capture under `docs/bench/20261113-ladder/packed/`; the
+[velocity limits report](2026-11-13_velocity_limits_and_fault_recovery.md) has the same figures). "Clean" meant
+no fault: every quick-stop run above 60 rpm without a fault ended `DEADLINE`, its stop unsettled (`TRIAL_VELOCITY`
+state 3 outcome 6), and only the HALT runs settled. The rows at other `2201` values are not in this table.
 
 I (general physics): torque falls with speed as winding inductance and back-EMF use up the supply voltage. An
 unloaded rotor needs only J·α plus friction, so voltage, phase current and the loop set the top speed. Beyond it the

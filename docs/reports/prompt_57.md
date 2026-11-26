@@ -107,7 +107,10 @@ Release table rows against the retained evidence:
   not state which row wins.
 - Counts: about 130 mode writes confirmed (131), of which 23 are power-up writes from `8037/0001` in mode 0, which the
   evidence report's section d admitted and the prompt dropped; 111 enables with 2 early failures confirmed (30 records
-  103-2402, 28 succeeded, 103 and 105 failed; 83 in `docs/bench/20261111-night/night.log`).
+  103-2402, 28 succeeded, 103 and 105 failed; 83 in `docs/bench/20261111-night/night.log`). *Correction, prompt 58
+  (2026-11-26):* the retained captures hold 177 successful enables: 28 attended, 88 in the night soak (83 ledger rows
+  and 5 console-motion series) and 61 from 2026-11-13 to 2026-11-19, with a fifth start pair `0050/0010` (6)
+  ([reviewed record note](../records/lichuan_c_enable_mode1.md)).
 - `docs/drive_actions.md` is stale: "Release: pending, with no API" (lines 286-308) says no release word was tried;
   `scripts/s2_bench.py` still accepts `--released-by-recorded-stop` (lines 109, 680, 869).
 
