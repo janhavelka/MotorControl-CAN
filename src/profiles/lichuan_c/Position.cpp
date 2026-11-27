@@ -1502,5 +1502,72 @@ Status advanceMove(MoveContext& c, ReadContext& observation, const AxisReservati
     fail(c, outcomeOf(reason), now, "move ended locally; nothing is replayed, rearmed or stopped");
     return Ok();
 }
+namespace {
+Status rampError(RampError detail, const char* message, Err code) {
+    return Status(code, static_cast<int32_t>(detail), message);
+}
+Status rampBased(Status status) {
+    if (!status)
+        status.detail += static_cast<int32_t>(RampError::AXIS_ERROR_BASE);
+    return status;
+}
+} // namespace
+
+Status prepareAccelerationRamp(PreparedRampTime& output, RampUse use,
+                               const AccelerationRequest& acceleration, const VelocityRequest& speed,
+                               const AxisConfig& axis) noexcept {
+    // Every refused use is decided before anything is computed (prompt 60 decision 2).
+    switch (use) {
+    case RampUse::MOVE_START:
+    case RampUse::VELOCITY_START:
+        break;
+    case RampUse::MOVE_DECELERATION:
+        return rampError(RampError::UNMEASURED,
+                         "move deceleration (6084) is unmeasured in acceleration form; give it in ms",
+                         Err::UNSUPPORTED);
+    case RampUse::VELOCITY_DECELERATION:
+        return rampError(RampError::UNMEASURED,
+                         "velocity ramps were measured only with 6083 = 6084; a separate deceleration "
+                         "in acceleration form is refused, give it in ms",
+                         Err::UNSUPPORTED);
+    case RampUse::VELOCITY_CHANGE:
+        return rampError(RampError::UNMEASURED,
+                         "a velocity change in acceleration form is unmeasured; give its ramps in ms",
+                         Err::UNSUPPORTED);
+    case RampUse::MOVE_REPLACEMENT:
+        return rampError(RampError::UNMEASURED,
+                         "a move replacement in acceleration form is unmeasured; give its ramps in ms",
+                         Err::UNSUPPORTED);
+    case RampUse::HOMING:
+        return rampError(RampError::UNMEASURED,
+                         "the homing ramp (609A) is unmeasured in acceleration form; give it in ms",
+                         Err::UNSUPPORTED);
+    default:
+        return rampError(RampError::ARGUMENT, "unknown ramp use", Err::ILLEGAL_VALUE);
+    }
+    PreparedVelocityTarget prepared;
+    Status s = prepareVelocityTarget(speed, axis, prepared);
+    if (!s)
+        return rampBased(s);
+    // 6081 and 60FF are whole motor rpm, and the law is stated in them.
+    if (prepared.rateBasis != NativeRateBasis::MOTOR_TURNS || prepared.rateTime != TimeUnit::MINUTE ||
+        prepared.representation != NativeRepresentation::INTEGER)
+        return rampError(RampError::RATE_BASIS,
+                         "the ramp law is in rpm: the speed must be prepared as integer motor rpm",
+                         Err::INVALID_CONFIG);
+    const bool move = use == RampUse::MOVE_START;
+    const int64_t effective = prepared.effectiveNative;
+    const uint64_t rpm = effective < 0 ? uint64_t(-(effective + 1)) + 1 : uint64_t(effective);
+    if (move ? (rpm < MOVE_RAMP_LAW_MINIMUM_RPM || rpm > MOVE_RAMP_LAW_MAXIMUM_RPM)
+             : (rpm < VELOCITY_RAMP_LAW_MINIMUM_RPM || rpm > VELOCITY_RAMP_LAW_MAXIMUM_RPM))
+        return rampError(RampError::OUTSIDE_LAW,
+                         move ? "the move ramp law is measured at 2 to 300 rpm; give 6083 in ms"
+                              : "the velocity ramp law is measured at 6 to 4500 rpm; give the ramps in ms",
+                         Err::UNSUPPORTED);
+    // Only the measured ramp times are admitted; shorter native times stay in the millisecond form.
+    return rampBased(prepareRampTime(acceleration, prepared, axis,
+                                     move ? MOVE_RAMP_LAW_MINIMUM_MS : VELOCITY_RAMP_LAW_MINIMUM_MS,
+                                     RAMP_LAW_MAXIMUM_MS, output));
+}
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

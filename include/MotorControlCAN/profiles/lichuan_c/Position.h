@@ -102,6 +102,79 @@ Status preparePositionParameters(PreparedPositionParameters& output, SettingsMod
                                  const AxisReference* reference, const DriverSettings& settings,
                                  uint64_t nowUs) noexcept;
 
+/** Which native ramp an acceleration-form request would set (prepareAccelerationRamp). On the CL86-C
+ * the ramp time is MEASURED only for starts from rest (docs/bench/20261127-p60-ramp-analysis, drive
+ * reports of both specimens, one firmware, measuredIdentity()); every other use is refused before any
+ * work, and its native millisecond form stays available. */
+enum class RampUse : uint8_t {
+    /** 6083 of a finite move from rest (absolute, relative or angle): the time from rest to the move
+     * speed. Measured at 2 to 300 rpm with 6083 100 to 2000 ms, 6083 governing it, not 6084; only
+     * that time range is admitted. Write PreparedRampTime::effectiveMs to MoveProfile::rampUpTimeMs;
+     * rampDownTimeMs stays native. */
+    MOVE_START,
+    /** 6083 and 6084 of a velocity run from rest, one value written to both: the time from rest to the
+     * rate. Measured at 6 to 4500 rpm with 200 to 2000 ms, always with 6083 = 6084; only that time
+     * range is admitted. Write PreparedRampTime::effectiveMs to both VelocityProfile ramps. */
+    VELOCITY_START,
+    MOVE_DECELERATION,     ///< 6084 of a move. Refused: deceleration is unresolved (three HALT runs).
+    VELOCITY_DECELERATION, ///< A separate velocity 6084. Refused: only 6083 = 6084 was measured.
+    /** A change between two nonzero rates (prepareVelocityChange). Refused: seven runs only. */
+    VELOCITY_CHANGE,
+    MOVE_REPLACEMENT, ///< The ramps of prepareMoveReplacement. Refused: changes are unmeasured as a law.
+    HOMING            ///< 609A of a home. Refused: no retained record writes 609A.
+};
+/** Lowest effective move speed of the measured start-from-rest law, motor rpm. */
+constexpr uint32_t MOVE_RAMP_LAW_MINIMUM_RPM = 2;
+/** Highest effective move speed of the measured law; faster moves keep native milliseconds. */
+constexpr uint32_t MOVE_RAMP_LAW_MAXIMUM_RPM = 300;
+/** Lowest effective rate magnitude of the measured velocity start-from-rest law, motor rpm. */
+constexpr uint32_t VELOCITY_RAMP_LAW_MINIMUM_RPM = 6;
+/** Highest effective rate magnitude of the measured velocity law. It widens no velocity limit:
+ * prepareVelocity still admits only its own and the record's ranges. */
+constexpr uint32_t VELOCITY_RAMP_LAW_MAXIMUM_RPM = 4500;
+/** Shortest rounded move ramp the acceleration form admits, ms: the shortest measured 6083. A
+ * shorter native time stays available in milliseconds. */
+constexpr uint32_t MOVE_RAMP_LAW_MINIMUM_MS = 100;
+/** Shortest rounded velocity ramp the acceleration form admits, ms: the shortest measured one. */
+constexpr uint32_t VELOCITY_RAMP_LAW_MINIMUM_MS = 200;
+/** Longest rounded ramp the acceleration form admits in either mode, ms: the longest measured one,
+ * also the documented 6083/6084 maximum (EN86/ZH86 p11, p13). */
+constexpr uint32_t RAMP_LAW_MAXIMUM_MS = 2000;
+/** Function-specific Status::detail of prepareAccelerationRamp. */
+enum class RampError : int32_t {
+    NONE,        ///< No error.
+    ARGUMENT,    ///< RampUse outside its values. ILLEGAL_VALUE.
+    UNMEASURED,  ///< The use has no measured ramp law. UNSUPPORTED.
+    RATE_BASIS,  ///< The speed is not prepared as integer motor rpm. INVALID_CONFIG.
+    OUTSIDE_LAW, ///< The effective speed is outside the use's measured rpm range. UNSUPPORTED.
+    /** Added to the AxisError detail of prepareVelocityTarget or prepareRampTime, keeping its Err. */
+    AXIS_ERROR_BASE = 5000
+};
+/** Convert an exact acceleration magnitude into the native 6083 (and for a velocity run 6084) time of a
+ * start from rest, where the measured CL86-C law makes the ramp time the time from rest to the
+ * effective commanded speed: T [ms] = rpm x 1000 / (60 x a [motor turns/s^2]) (prepareRampTime), with
+ * the rounded time inside the measured range: MOVE_RAMP_LAW_MINIMUM_MS or VELOCITY_RAMP_LAW_MINIMUM_MS
+ * up to RAMP_LAW_MAXIMUM_MS. The speed is prepared here with prepareVelocityTarget from the same request and axis the
+ * move or run uses, so the time belongs to the whole rpm actually written. This only computes: the
+ * result goes into the native profile, and prepareMoveAbsolute, prepareMoveRelative, prepareMoveAngle
+ * or prepareVelocity then apply every native and identity rule (prompt 57 policy) and any bound record
+ * (checkRecordMove, checkRecordVelocity) to it, so a unit request never widens a limit. The reported
+ * 0.992 count rate and the ramp lasting about 0.3 to 1 % longer than the time written are
+ * observations, not compensated.
+ * @param[out] output Ramp-time evidence; effectiveMs is the native value. Unchanged on failure.
+ * @param[in] use The ramp to set; only MOVE_START and VELOCITY_START convert.
+ * @param[in] acceleration Positive magnitude with its rounding and allowance (prepareRampTime).
+ * @param[in] speed The move's MoveRequest::speed or the run's FiniteVelocityRequest::velocity.
+ * @param[in] axis The axis the move or run is prepared with.
+ * @return Ok with output written. Refusals in this order: ARGUMENT, UNMEASURED (before anything is
+ * computed), the speed's own preparation (AXIS_ERROR_BASE added), RATE_BASIS, OUTSIDE_LAW, then
+ * prepareRampTime's (AXIS_ERROR_BASE added: LIMIT for a time outside the measured range, an EXACT
+ * fraction, the acceleration allowance, radians, a stale request).
+ * @note Pure and bounded: no I/O, clock or allocation; inputs are borrowed for the call only. */
+Status prepareAccelerationRamp(PreparedRampTime& output, RampUse use,
+                               const AccelerationRequest& acceleration, const VelocityRequest& speed,
+                               const AxisConfig& axis) noexcept;
+
 /** Services one absolute or relative move schedules at least: up to four parameter downloads, the
  * trigger, one seven-field observation cycle and the rearm. Both preparations need a deadline beyond
  * this many queue-and-response budgets. Further cycles are not counted, so it guarantees no completion. */

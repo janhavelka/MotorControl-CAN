@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Lichuan ramps from an acceleration (prompt 60, slice b3, 2026-11-27)
+
+- **Added (API):** `LICHUAN_C::prepareAccelerationRamp`, `RampUse`, `RampError` and the measured-law bounds
+  `MOVE_RAMP_LAW_MINIMUM_RPM`/`MAXIMUM_RPM` (2, 300) and `VELOCITY_RAMP_LAW_MINIMUM_RPM`/`MAXIMUM_RPM` (6, 4500)
+  in `Position.h`. For a start from rest it prepares the speed exactly as the move or run does and converts an
+  acceleration into the native time through `prepareRampTime`, admitting only the measured ramp times
+  (`MOVE_RAMP_LAW_MINIMUM_MS` 100 or `VELOCITY_RAMP_LAW_MINIMUM_MS` 200 up to `RAMP_LAW_MAXIMUM_MS` 2000 ms;
+  shorter native times stay available in milliseconds): `MOVE_START` gives `MoveProfile::rampUpTimeMs`
+  (6083; 6084 stays native), `VELOCITY_START` the one value for both `VelocityProfile` ramps (6083 = 6084,
+  the measured condition). The basis is MEASURED: the retained analysis in
+  `docs/bench/20261127-p60-ramp-analysis` (drive reports, both CL86-C specimens, one firmware). Refused
+  before any work, with the native milliseconds still available: move and separate velocity decelerations,
+  velocity changes, move replacements and the homing ramp (609A); speeds outside the measured rpm range
+  (moves above 300 rpm) and rounded times outside the measured range. The result only fills the native
+  profile: the move and velocity preparations and any bound record (`checkRecordMove`,
+  `checkRecordVelocity`) check it as before, so a unit request never widens a library or record limit.
+- New native test `acceleration_ramp`: hand-computed times in both modes, every refusal, identical SDO
+  traffic for a ramp given as an acceleration and the same milliseconds given natively (a move and a velocity
+  run on the fake-drive rigs), and record and library ranges that still refuse converted values.
+
 ### Acceleration to ramp time, core arithmetic (prompt 60, slice b2, 2026-11-27)
 
 - **Added (API):** `AccelerationRequest` (exact positive magnitude, `AccelerationUnit`, frame, configuration epoch,

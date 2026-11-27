@@ -527,7 +527,8 @@
         "advanceMove": 2,
         "prepareStoredPositionQualification": 1,
         "validateMoveReplacement": 1,
-        "prepareMoveReplacement": 1
+        "prepareMoveReplacement": 1,
+        "prepareAccelerationRamp": 1
       },
       "implementation": [
         "src/profiles/lichuan_c/Position.cpp",
@@ -578,9 +579,13 @@
         {
           "path": "test/move_change_console_test.cpp",
           "ctest": "move_change_console"
+        },
+        {
+          "path": "test/acceleration_ramp_test.cpp",
+          "ctest": "acceleration_ramp"
         }
       ],
-      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands.",
+      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands. prepareAccelerationRamp converts an acceleration into the native 6083 (and a velocity run's 6083 = 6084) of a start from rest inside the measured law; its result enters the native profile, and no console form calls it yet.",
       "console": [
         {
           "command": "move",
